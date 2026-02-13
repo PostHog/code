@@ -53,3 +53,6 @@ apps/twig/resources/codex-acp/
 
 # Licensed fonts (downloaded from S3 during CI)
 apps/twig/assets/fonts/BerkeleyMono/
+
+# Local dev skills (override shipped + remote skills in dev mode)
+plugins/claude-code/local-skills/

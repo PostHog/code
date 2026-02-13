@@ -26,7 +26,8 @@
     "lint": "biome check --write --unsafe",
     "format": "biome format --write",
     "clean": "pnpm -r clean",
-    "knip": "knip"
+    "knip": "knip",
+    "skills:pull": "node scripts/pull-skills.mjs"
   },
   "keywords": [
     "posthog",
