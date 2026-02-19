@@ -1,18 +1,20 @@
-import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { cp, mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
 import { app, net } from "electron";
 import { injectable, postConstruct, preDestroy } from "inversify";
 import { logger } from "../../lib/logger.js";
 import { TypedEventEmitter } from "../../lib/typed-event-emitter.js";
 import { captureException } from "../posthog-analytics.js";
+import {
+  overlayDownloadedSkills,
+  syncCodexSkills,
+  UpdateSkillsSaga,
+} from "./update-skills-saga.js";
 
 const log = logger.scope("posthog-plugin");
 
-const execFileAsync = promisify(execFile);
 const SKILLS_ZIP_URL = process.env.SKILLS_ZIP_URL!;
 const UPDATE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const CODEX_SKILLS_DIR = join(homedir(), ".agents", "skills");
@@ -64,9 +66,9 @@ export class PosthogPluginService extends TypedEventEmitter<PosthogPluginEvents>
     }
 
     // Overlay any previously-downloaded skills on top of the runtime plugin
-    await this.overlayDownloadedSkills();
+    await overlayDownloadedSkills(this.runtimeSkillsDir, this.runtimePluginDir);
 
-    await this.syncCodexSkills();
+    await syncCodexSkills(this.getPluginPath(), CODEX_SKILLS_DIR);
 
     // Start periodic updates
     this.intervalId = setInterval(() => {
@@ -111,46 +113,35 @@ export class PosthogPluginService extends TypedEventEmitter<PosthogPluginEvents>
     this.updating = true;
     this.lastCheckAt = now;
 
+    const tempDir = join(tmpdir(), `twig-skills-${Date.now()}`);
+
     try {
-      const tempDir = join(tmpdir(), `twig-skills-${Date.now()}`);
       await mkdir(tempDir, { recursive: true });
 
-      try {
-        const zipPath = join(tempDir, "skills.zip");
-        await this.downloadFile(SKILLS_ZIP_URL, zipPath);
+      const saga = new UpdateSkillsSaga(log);
+      const result = await saga.run({
+        runtimeSkillsDir: this.runtimeSkillsDir,
+        runtimePluginDir: this.runtimePluginDir,
+        pluginPath: this.getPluginPath(),
+        codexSkillsDir: CODEX_SKILLS_DIR,
+        tempDir,
+        skillsZipUrl: SKILLS_ZIP_URL,
+        downloadFile: (url, destPath) => this.downloadFile(url, destPath),
+      });
 
-        const extractDir = join(tempDir, "extracted");
-        await mkdir(extractDir, { recursive: true });
-        await execFileAsync("unzip", ["-o", zipPath, "-d", extractDir]);
-
-        const skillsSource = await this.findSkillsDir(extractDir);
-        if (!skillsSource) {
-          log.warn("No skills directory found in downloaded archive");
-          return;
-        }
-
-        // Atomic swap into runtime skills cache
-        const newSkillsDir = `${this.runtimeSkillsDir}.new`;
-        await rm(newSkillsDir, { recursive: true, force: true });
-        await cp(skillsSource, newSkillsDir, { recursive: true });
-
-        const oldSkillsDir = `${this.runtimeSkillsDir}.old`;
-        await rm(oldSkillsDir, { recursive: true, force: true });
-        if (existsSync(this.runtimeSkillsDir)) {
-          await rename(this.runtimeSkillsDir, oldSkillsDir);
-        }
-        await rename(newSkillsDir, this.runtimeSkillsDir);
-        await rm(oldSkillsDir, { recursive: true, force: true });
-
-        // Overlay new skills into the runtime plugin dir
-        await this.overlayDownloadedSkills();
-
-        await this.syncCodexSkills();
-
+      if (result.success) {
         log.info("Skills updated successfully");
         this.emit("skillsUpdated", true);
-      } finally {
-        await rm(tempDir, { recursive: true, force: true });
+      } else {
+        log.warn("Skills update failed", {
+          error: result.error,
+          failedStep: result.failedStep,
+        });
+        captureException(new Error(result.error), {
+          source: "posthog-plugin",
+          operation: "updateSkills",
+          failedStep: result.failedStep,
+        });
       }
     } catch (err) {
       log.warn("Failed to update skills, will retry next interval", err);
@@ -159,6 +150,7 @@ export class PosthogPluginService extends TypedEventEmitter<PosthogPluginEvents>
         operation: "updateSkills",
       });
     } finally {
+      await rm(tempDir, { recursive: true, force: true });
       this.updating = false;
     }
   }
@@ -189,62 +181,6 @@ export class PosthogPluginService extends TypedEventEmitter<PosthogPluginEvents>
     }
   }
 
-  /**
-   * Overlays previously-downloaded skills on top of the runtime plugin dir.
-   * Each skill directory in the cache replaces the same-named one in the plugin.
-   */
-  private async overlayDownloadedSkills(): Promise<void> {
-    if (!existsSync(this.runtimeSkillsDir)) {
-      return;
-    }
-
-    const destSkillsDir = join(this.runtimePluginDir, "skills");
-    await mkdir(destSkillsDir, { recursive: true });
-
-    const entries = await readdir(this.runtimeSkillsDir, {
-      withFileTypes: true,
-    });
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const src = join(this.runtimeSkillsDir, entry.name);
-        const dest = join(destSkillsDir, entry.name);
-        await rm(dest, { recursive: true, force: true });
-        await cp(src, dest, { recursive: true });
-      }
-    }
-  }
-
-  /**
-   * Syncs skills from the effective plugin dir to $HOME/.agents/skills/ for Codex.
-   */
-  private async syncCodexSkills(): Promise<void> {
-    const effectiveSkillsDir = join(this.getPluginPath(), "skills");
-    if (!existsSync(effectiveSkillsDir)) {
-      return;
-    }
-
-    // Fire-and-forget — don't block startup or updates on Codex sync
-    try {
-      await mkdir(CODEX_SKILLS_DIR, { recursive: true });
-
-      const entries = await readdir(effectiveSkillsDir, {
-        withFileTypes: true,
-      });
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          const src = join(effectiveSkillsDir, entry.name);
-          const dest = join(CODEX_SKILLS_DIR, entry.name);
-          await rm(dest, { recursive: true, force: true });
-          await cp(src, dest, { recursive: true });
-        }
-      }
-
-      log.debug("Skills synced to Codex", { path: CODEX_SKILLS_DIR });
-    } catch (err) {
-      log.warn("Failed to sync skills to Codex", err);
-    }
-  }
-
   private async downloadFile(url: string, destPath: string): Promise<void> {
     const response = await net.fetch(url);
     if (!response.ok) {
@@ -255,37 +191,6 @@ export class PosthogPluginService extends TypedEventEmitter<PosthogPluginEvents>
 
     const buffer = await response.arrayBuffer();
     await writeFile(destPath, Buffer.from(buffer));
-  }
-
-  /**
-   * Finds the skills directory inside an extracted zip.
-   * Handles: skills/ at root, nested (e.g. posthog/skills/), or skill dirs directly at root.
-   */
-  private async findSkillsDir(extractDir: string): Promise<string | null> {
-    const direct = join(extractDir, "skills");
-    if (existsSync(direct)) {
-      return direct;
-    }
-
-    const entries = await readdir(extractDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const nested = join(extractDir, entry.name, "skills");
-        if (existsSync(nested)) {
-          return nested;
-        }
-      }
-    }
-
-    const hasSkillDirs = entries.some(
-      (e) =>
-        e.isDirectory() && existsSync(join(extractDir, e.name, "SKILL.md")),
-    );
-    if (hasSkillDirs) {
-      return extractDir;
-    }
-
-    return null;
   }
 
   @preDestroy()

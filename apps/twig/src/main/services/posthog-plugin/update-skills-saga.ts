@@ -1,0 +1,246 @@
+import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { cp, mkdir, readdir, rename, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { promisify } from "node:util";
+import { Saga } from "@posthog/shared";
+
+const execFileAsync = promisify(execFile);
+
+/**
+ * Overlays previously-downloaded skills on top of the runtime plugin dir.
+ * Each skill directory in the cache replaces the same-named one in the plugin.
+ */
+export async function overlayDownloadedSkills(
+  runtimeSkillsDir: string,
+  runtimePluginDir: string,
+): Promise<void> {
+  if (!existsSync(runtimeSkillsDir)) {
+    return;
+  }
+
+  const destSkillsDir = join(runtimePluginDir, "skills");
+  await mkdir(destSkillsDir, { recursive: true });
+
+  const entries = await readdir(runtimeSkillsDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      const src = join(runtimeSkillsDir, entry.name);
+      const dest = join(destSkillsDir, entry.name);
+      await rm(dest, { recursive: true, force: true });
+      await cp(src, dest, { recursive: true });
+    }
+  }
+}
+
+/**
+ * Syncs skills from the effective plugin dir to `codexSkillsDir` for Codex.
+ */
+export async function syncCodexSkills(
+  pluginPath: string,
+  codexSkillsDir: string,
+): Promise<void> {
+  const effectiveSkillsDir = join(pluginPath, "skills");
+  if (!existsSync(effectiveSkillsDir)) {
+    return;
+  }
+
+  try {
+    await mkdir(codexSkillsDir, { recursive: true });
+
+    const entries = await readdir(effectiveSkillsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const src = join(effectiveSkillsDir, entry.name);
+        const dest = join(codexSkillsDir, entry.name);
+        await rm(dest, { recursive: true, force: true });
+        await cp(src, dest, { recursive: true });
+      }
+    }
+  } catch {
+    // Fire-and-forget — don't block startup or updates on Codex sync
+  }
+}
+
+export interface UpdateSkillsInput {
+  runtimeSkillsDir: string;
+  runtimePluginDir: string;
+  pluginPath: string;
+  codexSkillsDir: string;
+  tempDir: string;
+  skillsZipUrl: string;
+  downloadFile: (url: string, destPath: string) => Promise<void>;
+}
+
+export interface UpdateSkillsOutput {
+  updated: boolean;
+}
+
+export class UpdateSkillsSaga extends Saga<
+  UpdateSkillsInput,
+  UpdateSkillsOutput
+> {
+  protected async execute(
+    input: UpdateSkillsInput,
+  ): Promise<UpdateSkillsOutput> {
+    const newSkillsDir = `${input.runtimeSkillsDir}.new`;
+
+    // Step 1: create staging dir
+    await this.step({
+      name: "create-staging-dir",
+      execute: async () => {
+        await rm(newSkillsDir, { recursive: true, force: true });
+        await mkdir(newSkillsDir, { recursive: true });
+        return newSkillsDir;
+      },
+      rollback: async (dir) => {
+        await rm(dir, { recursive: true, force: true });
+      },
+    });
+
+    // Step 2: download skills (non-fatal)
+    await this.readOnlyStep("download-skills", async () => {
+      try {
+        await this.downloadAndMergeSkills(
+          input.skillsZipUrl,
+          input.tempDir,
+          newSkillsDir,
+          input.downloadFile,
+        );
+      } catch (err) {
+        this.log.warn("Failed to download skills", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
+
+    // Step 3: validate skills (fatal if empty → triggers rollback of step 1)
+    await this.readOnlyStep("validate-skills", async () => {
+      const entries = await readdir(newSkillsDir);
+      if (entries.length === 0) {
+        throw new Error("No skills found from any source");
+      }
+    });
+
+    // Step 4: atomic swap
+    const oldSkillsDir = `${input.runtimeSkillsDir}.old`;
+    await this.step({
+      name: "swap-skills-cache",
+      execute: async () => {
+        await rm(oldSkillsDir, { recursive: true, force: true });
+        const hadExisting = existsSync(input.runtimeSkillsDir);
+        if (hadExisting) {
+          await rename(input.runtimeSkillsDir, oldSkillsDir);
+        }
+        await rename(newSkillsDir, input.runtimeSkillsDir);
+        await rm(oldSkillsDir, { recursive: true, force: true });
+        return hadExisting;
+      },
+      rollback: async (hadExisting) => {
+        try {
+          if (existsSync(input.runtimeSkillsDir)) {
+            await rename(input.runtimeSkillsDir, newSkillsDir);
+          }
+          if (hadExisting && existsSync(oldSkillsDir)) {
+            await rename(oldSkillsDir, input.runtimeSkillsDir);
+          }
+        } catch {
+          // Best-effort rollback
+        }
+      },
+    });
+
+    // Step 5: overlay skills (non-fatal)
+    await this.readOnlyStep("overlay-skills", async () => {
+      try {
+        await overlayDownloadedSkills(
+          input.runtimeSkillsDir,
+          input.runtimePluginDir,
+        );
+      } catch (err) {
+        this.log.warn("Failed to overlay skills", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
+
+    // Step 6: sync codex skills (non-fatal)
+    await this.readOnlyStep("sync-codex-skills", async () => {
+      try {
+        await syncCodexSkills(input.pluginPath, input.codexSkillsDir);
+      } catch (err) {
+        this.log.warn("Failed to sync codex skills", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
+
+    return { updated: true };
+  }
+
+  /**
+   * Downloads a skills zip from `url`, extracts it, and merges skill directories into `destDir`.
+   */
+  private async downloadAndMergeSkills(
+    url: string,
+    tempDir: string,
+    destDir: string,
+    downloadFile: (url: string, destPath: string) => Promise<void>,
+  ): Promise<void> {
+    const zipPath = join(tempDir, "skills.zip");
+    await downloadFile(url, zipPath);
+
+    const extractDir = join(tempDir, "extracted");
+    await mkdir(extractDir, { recursive: true });
+    await execFileAsync("unzip", ["-o", zipPath, "-d", extractDir]);
+
+    const skillsSource = await this.findSkillsDir(extractDir);
+    if (!skillsSource) {
+      this.log.warn("No skills directory found in archive");
+      return;
+    }
+
+    const entries = await readdir(skillsSource, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const src = join(skillsSource, entry.name);
+        const dest = join(destDir, entry.name);
+        await rm(dest, { recursive: true, force: true });
+        await cp(src, dest, { recursive: true });
+      }
+    }
+
+    this.log.info("Skills merged");
+  }
+
+  /**
+   * Finds the skills directory inside an extracted zip.
+   * Handles: skills/ at root, nested (e.g. posthog/skills/), or skill dirs directly at root.
+   */
+  private async findSkillsDir(extractDir: string): Promise<string | null> {
+    const direct = join(extractDir, "skills");
+    if (existsSync(direct)) {
+      return direct;
+    }
+
+    const entries = await readdir(extractDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const nested = join(extractDir, entry.name, "skills");
+        if (existsSync(nested)) {
+          return nested;
+        }
+      }
+    }
+
+    const hasSkillDirs = entries.some(
+      (e) =>
+        e.isDirectory() && existsSync(join(extractDir, e.name, "SKILL.md")),
+    );
+    if (hasSkillDirs) {
+      return extractDir;
+    }
+
+    return null;
+  }
+}

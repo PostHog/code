@@ -63,6 +63,7 @@ vi.mock("../../lib/logger.js", () => ({
 }));
 
 import { PosthogPluginService } from "./service.js";
+import { syncCodexSkills } from "./update-skills-saga.js";
 
 // Paths based on mock values
 const RUNTIME_PLUGIN_DIR = "/mock/userData/plugins/posthog";
@@ -350,43 +351,11 @@ describe("PosthogPluginService", () => {
     });
   });
 
-  describe("findSkillsDir", () => {
-    it("finds skills/ at root of extracted dir", async () => {
-      vol.mkdirSync("/extract/skills", { recursive: true });
-
-      const result = await (service as any).findSkillsDir("/extract");
-      expect(result).toBe("/extract/skills");
-    });
-
-    it("finds nested skills/ dir (e.g. posthog/skills/)", async () => {
-      vol.mkdirSync("/extract/posthog/skills", { recursive: true });
-
-      const result = await (service as any).findSkillsDir("/extract");
-      expect(result).toBe("/extract/posthog/skills");
-    });
-
-    it("finds skill dirs directly at root when they have SKILL.md", async () => {
-      vol.mkdirSync("/extract/my-skill", { recursive: true });
-      vol.writeFileSync("/extract/my-skill/SKILL.md", "# Skill");
-
-      const result = await (service as any).findSkillsDir("/extract");
-      expect(result).toBe("/extract");
-    });
-
-    it("returns null when no skills found", async () => {
-      vol.mkdirSync("/extract/random", { recursive: true });
-      vol.writeFileSync("/extract/random/README.md", "# Not a skill");
-
-      const result = await (service as any).findSkillsDir("/extract");
-      expect(result).toBeNull();
-    });
-  });
-
   describe("syncCodexSkills", () => {
     it("copies skill directories to Codex dir", async () => {
       setupBundledPlugin();
 
-      await (service as any).syncCodexSkills();
+      await syncCodexSkills(BUNDLED_PLUGIN_DIR, CODEX_SKILLS_DIR);
 
       expect(
         vol.readFileSync(`${CODEX_SKILLS_DIR}/shipped-skill/SKILL.md`, "utf-8"),
@@ -395,7 +364,7 @@ describe("PosthogPluginService", () => {
 
     it("skips if effective skills dir does not exist", async () => {
       // No skills dir anywhere
-      await (service as any).syncCodexSkills();
+      await syncCodexSkills("/nonexistent", CODEX_SKILLS_DIR);
 
       expect(vol.existsSync(CODEX_SKILLS_DIR)).toBe(false);
     });
