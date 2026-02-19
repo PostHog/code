@@ -11,6 +11,7 @@ import {
   GearSix,
   Keyboard,
   Palette,
+  PlugsConnected,
   User,
   Wrench,
 } from "@phosphor-icons/react";
@@ -21,6 +22,7 @@ import { AccountSettings } from "./sections/AccountSettings";
 import { AdvancedSettings } from "./sections/AdvancedSettings";
 import { ClaudeCodeSettings } from "./sections/ClaudeCodeSettings";
 import { GeneralSettings } from "./sections/GeneralSettings";
+import { IntegrationsSettings } from "./sections/IntegrationsSettings";
 import { PersonalizationSettings } from "./sections/PersonalizationSettings";
 import { ShortcutsSettings } from "./sections/ShortcutsSettings";
 import { UpdatesSettings } from "./sections/UpdatesSettings";
@@ -44,6 +46,11 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   },
   { id: "claude-code", label: "Claude Code", icon: <Code size={16} /> },
   { id: "shortcuts", label: "Shortcuts", icon: <Keyboard size={16} /> },
+  {
+    id: "integrations",
+    label: "Integrations",
+    icon: <PlugsConnected size={16} />,
+  },
   { id: "updates", label: "Updates", icon: <ArrowsClockwise size={16} /> },
   { id: "advanced", label: "Advanced", icon: <Wrench size={16} /> },
 ];
@@ -55,6 +62,7 @@ const CATEGORY_TITLES: Record<SettingsCategory, string> = {
   personalization: "Personalization",
   "claude-code": "Claude Code",
   shortcuts: "Shortcuts",
+  integrations: "Integrations",
   updates: "Updates",
   advanced: "Advanced",
 };
@@ -66,6 +74,7 @@ const CATEGORY_COMPONENTS: Record<SettingsCategory, React.ComponentType> = {
   personalization: PersonalizationSettings,
   "claude-code": ClaudeCodeSettings,
   shortcuts: ShortcutsSettings,
+  integrations: IntegrationsSettings,
   updates: UpdatesSettings,
   advanced: AdvancedSettings,
 };
