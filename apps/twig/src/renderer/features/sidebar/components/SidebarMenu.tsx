@@ -59,6 +59,10 @@ function SidebarMenuComponent() {
       markAsViewed(previousTaskIdRef.current);
     }
 
+    if (currentTaskId) {
+      markAsViewed(currentTaskId);
+    }
+
     previousTaskIdRef.current = currentTaskId;
   }, [view, markAsViewed]);
 
