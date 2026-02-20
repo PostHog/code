@@ -1,4 +1,6 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
+import { useIntegrationSelectors } from "@features/integrations/stores/integrationStore";
+import { useIntegrations } from "@hooks/useIntegrations";
 import {
   ArrowLeft,
   ArrowRight,
@@ -10,8 +12,6 @@ import {
 import { Box, Button, Callout, Flex, Spinner, Text } from "@radix-ui/themes";
 import twigLogo from "@renderer/assets/images/twig-logo.svg";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 
 interface GitIntegrationStepProps {
   onNext: () => void;
@@ -22,23 +22,11 @@ export function GitIntegrationStep({
   onNext,
   onBack,
 }: GitIntegrationStepProps) {
-  const { client, cloudRegion, projectId } = useAuthStore();
-  const [refreshKey, setRefreshKey] = useState(0);
+  const cloudRegion = useAuthStore((s) => s.cloudRegion);
+  const projectId = useAuthStore((s) => s.projectId);
 
-  // Fetch integrations
-  const { data: integrations, isLoading } = useQuery({
-    queryKey: ["integrations", refreshKey],
-    queryFn: async () => {
-      if (!client) throw new Error("No client available");
-      return await client.getIntegrations();
-    },
-    enabled: !!client,
-  });
-
-  const githubIntegration = integrations?.find(
-    (integration: { kind: string }) => integration.kind === "github",
-  );
-
+  const { isLoading, refetch } = useIntegrations();
+  const { githubIntegration } = useIntegrationSelectors();
   const hasGitIntegration = !!githubIntegration;
 
   const handleConnectGitHub = () => {
@@ -49,7 +37,7 @@ export function GitIntegrationStep({
   };
 
   const handleRefresh = () => {
-    setRefreshKey((prev) => prev + 1);
+    refetch();
   };
 
   const handleContinue = () => {

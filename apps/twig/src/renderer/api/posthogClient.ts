@@ -584,32 +584,6 @@ export class PostHogAPIClient {
   }
 
   /**
-   * Get all organizations the user belongs to.
-   */
-  async getOrganizations(): Promise<
-    Array<{ id: string; name: string; slug: string }>
-  > {
-    const url = new URL(`${this.api.baseUrl}/api/organizations/`);
-    const response = await this.api.fetcher.fetch({
-      method: "get",
-      url,
-      path: "/api/organizations/",
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch organizations: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const orgs = data.results ?? data ?? [];
-    return orgs.map((org: { id: string; name: string; slug?: string }) => ({
-      id: org.id,
-      name: org.name,
-      slug: org.slug ?? org.id,
-    }));
-  }
-
-  /**
    * Get billing information for a specific organization.
    */
   async getOrgBilling(orgId: string): Promise<{

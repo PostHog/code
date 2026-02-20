@@ -1,87 +1,32 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
+import { useOrganizations } from "@hooks/useOrganizations";
 import { ArrowLeft, ArrowRight, CheckCircle } from "@phosphor-icons/react";
-import { Badge, Button, Flex, Spinner, Text } from "@radix-ui/themes";
+import { Badge, Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
 import twigLogo from "@renderer/assets/images/twig-logo.svg";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
 
 interface OrgBillingStepProps {
   onNext: () => void;
   onBack: () => void;
 }
 
-interface OrgWithBilling {
-  id: string;
-  name: string;
-  slug: string;
-  has_active_subscription: boolean;
-  customer_id: string | null;
-}
-
 export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
-  const { client, selectedOrgId, selectOrg } = useAuthStore();
-  const [loadingBilling, setLoadingBilling] = useState(true);
-  const [orgsWithBilling, setOrgsWithBilling] = useState<OrgWithBilling[]>([]);
+  const selectedOrgId = useAuthStore((s) => s.selectedOrgId);
+  const selectOrg = useAuthStore((s) => s.selectOrg);
 
-  // Fetch organizations
-  const { data: orgs, isLoading: isLoadingOrgs } = useQuery({
-    queryKey: ["organizations"],
-    queryFn: async () => {
-      if (!client) throw new Error("No client available");
-      return await client.getOrganizations();
-    },
-    enabled: !!client,
-  });
-
-  // Fetch billing info for each org
-  useEffect(() => {
-    if (!orgs || !client) return;
-
-    const fetchBillingInfo = async () => {
-      setLoadingBilling(true);
-      const orgsWithBillingData = await Promise.all(
-        orgs.map(async (org) => {
-          try {
-            const billing = await client.getOrgBilling(org.id);
-            return {
-              ...org,
-              has_active_subscription: billing.has_active_subscription,
-              customer_id: billing.customer_id,
-            };
-          } catch (_error) {
-            // If billing fetch fails, assume no billing
-            return {
-              ...org,
-              has_active_subscription: false,
-              customer_id: null,
-            };
-          }
-        }),
-      );
-      setOrgsWithBilling(orgsWithBillingData);
-      setLoadingBilling(false);
-
-      // Auto-select first org with billing, or first org if none have billing
-      if (!selectedOrgId) {
-        const orgWithBilling = orgsWithBillingData.find(
-          (org) => org.has_active_subscription,
-        );
-        const defaultOrg = orgWithBilling || orgsWithBillingData[0];
-        if (defaultOrg) {
-          selectOrg(defaultOrg.id);
-        }
-      }
-    };
-
-    fetchBillingInfo();
-  }, [orgs, client, selectedOrgId, selectOrg]);
-
-  const isLoading = isLoadingOrgs || loadingBilling;
+  const { orgsWithBilling, effectiveSelectedOrgId, isLoading } =
+    useOrganizations();
 
   const handleContinue = () => {
-    if (selectedOrgId) {
+    if (effectiveSelectedOrgId) {
+      if (effectiveSelectedOrgId !== selectedOrgId) {
+        selectOrg(effectiveSelectedOrgId);
+      }
       onNext();
     }
+  };
+
+  const handleSelect = (orgId: string) => {
+    selectOrg(orgId);
   };
 
   return (
@@ -126,8 +71,8 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
                 key={org.id}
                 name={org.name}
                 hasActiveBilling={org.has_active_subscription}
-                isSelected={selectedOrgId === org.id}
-                onSelect={() => selectOrg(org.id)}
+                isSelected={effectiveSelectedOrgId === org.id}
+                onSelect={() => handleSelect(org.id)}
               />
             ))}
           </Flex>
@@ -146,7 +91,7 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
           <Button
             size="3"
             onClick={handleContinue}
-            disabled={!selectedOrgId || isLoading}
+            disabled={!effectiveSelectedOrgId || isLoading}
             style={{
               backgroundColor: "var(--cave-charcoal)",
               color: "var(--cave-cream)",
@@ -176,9 +121,11 @@ function OrgCard({
 }: OrgCardProps) {
   return (
     <Flex
-      direction="column"
+      align="center"
+      justify="between"
       gap="3"
-      p="5"
+      px="4"
+      py="3"
       onClick={onSelect}
       style={{
         backgroundColor: "rgba(255, 255, 255, 0.7)",
@@ -190,46 +137,40 @@ function OrgCard({
         backdropFilter: "blur(8px)",
       }}
     >
-      <Flex align="center" justify="between">
-        <Flex direction="column" gap="1">
-          <Text
-            size="4"
-            weight="bold"
-            style={{ color: "var(--cave-charcoal)" }}
-          >
-            {name}
-          </Text>
-          <Flex align="center" gap="2">
-            {hasActiveBilling ? (
-              <Badge color="green" size="1">
-                <CheckCircle size={12} weight="fill" />
-                Billing active
-              </Badge>
-            ) : (
-              <Badge color="gray" size="1">
-                No billing
-              </Badge>
-            )}
-          </Flex>
-        </Flex>
-
-        <Button
-          size="2"
-          variant={isSelected ? "solid" : "outline"}
-          style={
-            isSelected
-              ? {
-                  backgroundColor: "var(--accent-9)",
-                  color: "white",
-                }
-              : {
-                  color: "var(--cave-charcoal)",
-                }
-          }
+      <Flex align="center" gap="3" style={{ minWidth: 0 }}>
+        <Text
+          size="3"
+          weight="medium"
+          style={{ color: "var(--cave-charcoal)" }}
+          truncate
         >
-          {isSelected ? "Selected" : "Select"}
-        </Button>
+          {name}
+        </Text>
+        {hasActiveBilling && (
+          <Badge color="green" size="1" variant="soft">
+            <CheckCircle size={10} weight="fill" />
+            Billing active
+          </Badge>
+        )}
       </Flex>
+
+      <Box
+        width="16px"
+        height="16px"
+        flexShrink="0"
+        style={{
+          borderRadius: "50%",
+          border: isSelected ? "none" : "2px solid rgba(0, 0, 0, 0.2)",
+          backgroundColor: isSelected ? "var(--accent-9)" : "transparent",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {isSelected && (
+          <CheckCircle size={16} weight="fill" style={{ color: "white" }} />
+        )}
+      </Box>
     </Flex>
   );
 }
