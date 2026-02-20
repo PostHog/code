@@ -1,8 +1,8 @@
 import { ErrorBoundary } from "@components/ErrorBoundary";
 import { LoginTransition } from "@components/LoginTransition";
 import { MainLayout } from "@components/MainLayout";
-import { TwigAuthScreen } from "@features/auth/components/TwigAuthScreen";
-import { useTwigAuthStore } from "@features/auth/stores/twigAuthStore";
+import { AuthScreen } from "@features/auth/components/AuthScreen";
+import { useAuthStore } from "@features/auth/stores/authStore";
 import { OnboardingFlow } from "@features/onboarding/components/OnboardingFlow";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { Flex, Spinner, Text } from "@radix-ui/themes";
@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from "react";
 const log = logger.scope("app");
 
 function App() {
-  const { isAuthenticated, hasCompletedOnboarding } = useTwigAuthStore();
+  const { isAuthenticated, hasCompletedOnboarding } = useAuthStore();
   const isDarkMode = useThemeStore((state) => state.isDarkMode);
   const [isLoading, setIsLoading] = useState(true);
   const [showTransition, setShowTransition] = useState(false);
@@ -126,12 +126,12 @@ function App() {
     },
   });
 
-  // Wait for twigAuthStore to hydrate from electronStorage
+  // Wait for authStore to hydrate from electronStorage
   useEffect(() => {
     const checkHydration = async () => {
-      if (!useTwigAuthStore.persist.hasHydrated()) {
+      if (!useAuthStore.persist.hasHydrated()) {
         await new Promise<void>((resolve) => {
-          useTwigAuthStore.persist.onFinishHydration(() => resolve());
+          useAuthStore.persist.onFinishHydration(() => resolve());
         });
       }
       setIsLoading(false);
@@ -173,7 +173,7 @@ function App() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <TwigAuthScreen />
+          <AuthScreen />
         </motion.div>
       );
     }

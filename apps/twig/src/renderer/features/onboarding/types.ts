@@ -1,7 +1,12 @@
-export type OnboardingStep = "welcome" | "billing" | "posthog-integration";
+export type OnboardingStep =
+  | "welcome"
+  | "billing"
+  | "org-billing"
+  | "git-integration";
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   "welcome",
   "billing",
-  "posthog-integration",
+  "org-billing",
+  "git-integration",
 ];

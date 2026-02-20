@@ -1,7 +1,7 @@
-import { useTwigAuthStore } from "@features/auth/stores/twigAuthStore";
-import twigLogo from "@renderer/assets/images/twig-logo.svg";
+import { useAuthStore } from "@features/auth/stores/authStore";
 import { ArrowLeft, ArrowRight, Check } from "@phosphor-icons/react";
 import { Badge, Button, Flex, Text } from "@radix-ui/themes";
+import twigLogo from "@renderer/assets/images/twig-logo.svg";
 import { useEffect } from "react";
 
 interface BillingStepProps {
@@ -16,7 +16,6 @@ interface PlanFeature {
 const FREE_FEATURES: PlanFeature[] = [
   { text: "Limited usage" },
   { text: "Local execution only" },
-
 ];
 
 const PRO_FEATURES: PlanFeature[] = [
@@ -25,7 +24,7 @@ const PRO_FEATURES: PlanFeature[] = [
 ];
 
 export function BillingStep({ onNext, onBack }: BillingStepProps) {
-  const { selectedPlan, selectPlan } = useTwigAuthStore();
+  const { selectedPlan, selectPlan } = useAuthStore();
 
   useEffect(() => {
     if (!selectedPlan) {
@@ -39,11 +38,7 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
 
   return (
     <Flex align="center" height="100%" px="8">
-      <Flex
-        direction="column"
-        gap="6"
-        style={{ width: "100%", maxWidth: 520 }}
-      >
+      <Flex direction="column" gap="6" style={{ width: "100%", maxWidth: 520 }}>
         <Flex direction="column" gap="3">
           <img
             src={twigLogo}
@@ -64,7 +59,10 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
           >
             Choose your plan
           </Text>
-          <Text size="3" style={{ color: "var(--cave-charcoal)", opacity: 0.7 }}>
+          <Text
+            size="3"
+            style={{ color: "var(--cave-charcoal)", opacity: 0.7 }}
+          >
             Start free or unlock the full power of Twig.
           </Text>
         </Flex>
@@ -159,7 +157,11 @@ function PlanCard({
       <Flex align="center" justify="between">
         <Flex direction="column" gap="1">
           <Flex align="center" gap="2">
-            <Text size="4" weight="bold" style={{ color: "var(--cave-charcoal)" }}>
+            <Text
+              size="4"
+              weight="bold"
+              style={{ color: "var(--cave-charcoal)" }}
+            >
               {name}
             </Text>
             {recommended && (

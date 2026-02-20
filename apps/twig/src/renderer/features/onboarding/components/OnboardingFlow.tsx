@@ -1,20 +1,21 @@
 import { DraggableTitleBar } from "@components/DraggableTitleBar";
 import { TorchGlow } from "@components/TorchGlow";
-import { useTwigAuthStore } from "@features/auth/stores/twigAuthStore";
+import { useAuthStore } from "@features/auth/stores/authStore";
 import { Flex } from "@radix-ui/themes";
 import caveHero from "@renderer/assets/images/cave-hero.jpg";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRef } from "react";
 import { useOnboardingFlow } from "../hooks/useOnboardingFlow";
 import { BillingStep } from "./BillingStep";
-import { PostHogIntegrationStep } from "./PostHogIntegrationStep";
+import { GitIntegrationStep } from "./GitIntegrationStep";
+import { OrgBillingStep } from "./OrgBillingStep";
 import { StepIndicator } from "./StepIndicator";
 import { WelcomeStep } from "./WelcomeStep";
 
 export function OnboardingFlow() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { currentStep, next, back } = useOnboardingFlow();
-  const { completeOnboarding } = useTwigAuthStore();
+  const { completeOnboarding } = useAuthStore();
 
   const handleComplete = () => {
     completeOnboarding();
@@ -75,20 +76,29 @@ export function OnboardingFlow() {
               </motion.div>
             )}
 
-            {currentStep === "posthog-integration" && (
+            {currentStep === "org-billing" && (
               <motion.div
-                key="posthog-integration"
+                key="org-billing"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
                 style={{ width: "100%", height: "100%" }}
               >
-                <PostHogIntegrationStep
-                  onComplete={handleComplete}
-                  onSkip={handleComplete}
-                  onBack={back}
-                />
+                <OrgBillingStep onNext={next} onBack={back} />
+              </motion.div>
+            )}
+
+            {currentStep === "git-integration" && (
+              <motion.div
+                key="git-integration"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                style={{ width: "100%", height: "100%" }}
+              >
+                <GitIntegrationStep onNext={handleComplete} onBack={back} />
               </motion.div>
             )}
           </AnimatePresence>

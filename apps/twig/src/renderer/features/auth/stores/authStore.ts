@@ -70,6 +70,11 @@ interface AuthState {
 
   needsScopeReauth: boolean; // True when stored token scope version is stale
 
+  // Onboarding state
+  hasCompletedOnboarding: boolean;
+  selectedPlan: "free" | "pro" | null;
+  selectedOrgId: string | null;
+
   // OAuth methods
   loginWithOAuth: (region: CloudRegion) => Promise<void>;
   refreshAccessToken: () => Promise<void>;
@@ -81,6 +86,11 @@ interface AuthState {
 
   // Project selection
   selectProject: (projectId: number) => void;
+
+  // Onboarding methods
+  completeOnboarding: () => void;
+  selectPlan: (plan: "free" | "pro") => void;
+  selectOrg: (orgId: string) => void;
 
   // Other methods
   logout: () => void;
@@ -111,6 +121,11 @@ export const useAuthStore = create<AuthState>()(
         needsProjectSelection: false,
         // Scope re-auth state
         needsScopeReauth: false,
+
+        // Onboarding state
+        hasCompletedOnboarding: false,
+        selectedPlan: null,
+        selectedOrgId: null,
 
         loginWithOAuth: async (region: CloudRegion) => {
           const result = await trpcVanilla.oauth.startFlow.mutate({ region });
@@ -750,6 +765,18 @@ export const useAuthStore = create<AuthState>()(
           log.info("Project selected", { projectId });
         },
 
+        completeOnboarding: () => {
+          set({ hasCompletedOnboarding: true });
+        },
+
+        selectPlan: (plan: "free" | "pro") => {
+          set({ selectedPlan: plan });
+        },
+
+        selectOrg: (orgId: string) => {
+          set({ selectedOrgId: orgId });
+        },
+
         logout: () => {
           track(ANALYTICS_EVENTS.USER_LOGGED_OUT);
           resetUser();
@@ -784,6 +811,9 @@ export const useAuthStore = create<AuthState>()(
             availableOrgIds: [],
             needsProjectSelection: false,
             needsScopeReauth: false,
+            hasCompletedOnboarding: false,
+            selectedPlan: null,
+            selectedOrgId: null,
           });
         },
       }),
@@ -798,6 +828,9 @@ export const useAuthStore = create<AuthState>()(
           projectId: state.projectId,
           availableProjectIds: state.availableProjectIds,
           availableOrgIds: state.availableOrgIds,
+          hasCompletedOnboarding: state.hasCompletedOnboarding,
+          selectedPlan: state.selectedPlan,
+          selectedOrgId: state.selectedOrgId,
         }),
       },
     ),

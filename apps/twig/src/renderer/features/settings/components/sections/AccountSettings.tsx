@@ -1,11 +1,9 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
-import { useTwigAuthStore } from "@features/auth/stores/twigAuthStore";
 import { SettingRow } from "@features/settings/components/SettingRow";
 import { SignOut } from "@phosphor-icons/react";
 import { Avatar, Badge, Button, Flex, Spinner, Text } from "@radix-ui/themes";
-import { trpcVanilla } from "@renderer/trpc";
 import type { CloudRegion } from "@shared/types/oauth";
-import { useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 const REGION_LABELS: Record<CloudRegion, string> = {
   us: "US Cloud",
@@ -14,23 +12,24 @@ const REGION_LABELS: Record<CloudRegion, string> = {
 };
 
 export function AccountSettings() {
-  const {
-    user,
-    isAuthenticated,
-    selectedPlan,
-    logout: twigLogout,
-  } = useTwigAuthStore();
-  const { logout: posthogLogout, isAuthenticated: isPostHogConnected } =
+  const { client, isAuthenticated, selectedPlan, logout, cloudRegion } =
     useAuthStore();
 
+  // Fetch current user from PostHog
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["currentUser"],
+    queryFn: async () => {
+      if (!client) return null;
+      return await client.getCurrentUser();
+    },
+    enabled: !!client && isAuthenticated,
+  });
+
   const handleLogout = () => {
-    if (isPostHogConnected) {
-      posthogLogout();
-    }
-    twigLogout();
+    logout();
   };
 
-  if (!isAuthenticated || !user) {
+  if (!isAuthenticated) {
     return (
       <Flex direction="column" gap="3" py="4">
         <Text size="2" color="gray">
@@ -41,9 +40,18 @@ export function AccountSettings() {
     );
   }
 
-  const initials = user.name
-    ? user.name.substring(0, 2).toUpperCase()
-    : user.email.substring(0, 2).toUpperCase();
+  if (isLoading || !user) {
+    return (
+      <Flex direction="column" gap="3" py="4">
+        <Spinner size="3" />
+      </Flex>
+    );
+  }
+
+  const initials =
+    user.first_name && user.last_name
+      ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
+      : (user.email?.substring(0, 2).toUpperCase() ?? "U");
 
   return (
     <Flex direction="column">
@@ -56,12 +64,19 @@ export function AccountSettings() {
         <Avatar size="4" fallback={initials} radius="full" color="amber" />
         <Flex direction="column" gap="1" style={{ flex: 1 }}>
           <Text size="3" weight="medium">
-            {user.name}
+            {user.first_name && user.last_name
+              ? `${user.first_name} ${user.last_name}`
+              : user.email}
           </Text>
           <Flex align="center" gap="2">
             <Text size="2" color="gray">
               {user.email}
             </Text>
+            {cloudRegion && (
+              <Badge size="1" variant="soft">
+                {REGION_LABELS[cloudRegion]}
+              </Badge>
+            )}
             {selectedPlan && (
               <Badge
                 size="1"

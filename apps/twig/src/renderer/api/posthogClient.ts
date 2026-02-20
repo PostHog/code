@@ -609,6 +609,39 @@ export class PostHogAPIClient {
     }));
   }
 
+  /**
+   * Get billing information for a specific organization.
+   */
+  async getOrgBilling(orgId: string): Promise<{
+    has_active_subscription: boolean;
+    customer_id: string | null;
+  }> {
+    const url = new URL(
+      `${this.api.baseUrl}/api/organizations/${orgId}/billing/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: `/api/organizations/${orgId}/billing/`,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch organization billing: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return {
+      has_active_subscription:
+        typeof data.has_active_subscription === "boolean"
+          ? data.has_active_subscription
+          : false,
+      customer_id:
+        typeof data.customer_id === "string" ? data.customer_id : null,
+    };
+  }
+
   async getSignalReports(
     params?: SignalReportsQueryParams,
   ): Promise<SignalReportsResponse> {
