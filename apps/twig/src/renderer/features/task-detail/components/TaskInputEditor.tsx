@@ -3,10 +3,11 @@ import { AttachmentsBar } from "@features/message-editor/components/AttachmentsB
 import { EditorToolbar } from "@features/message-editor/components/EditorToolbar";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
 import { useTiptapEditor } from "@features/message-editor/tiptap/useTiptapEditor";
-import { ModelSelector } from "@features/sessions/components/ModelSelector";
 import { ReasoningLevelSelector } from "@features/sessions/components/ReasoningLevelSelector";
+import { UnifiedModelSelector } from "@features/sessions/components/UnifiedModelSelector";
+import type { AgentAdapter } from "@features/settings/stores/settingsStore";
 import { useConnectivity } from "@hooks/useConnectivity";
-import { ArrowUp, Spinner } from "@phosphor-icons/react";
+import { ArrowUp } from "@phosphor-icons/react";
 import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { EditorContent } from "@tiptap/react";
 import { forwardRef, useImperativeHandle } from "react";
@@ -25,6 +26,7 @@ interface TaskInputEditorProps {
   adapter?: "claude" | "codex";
   previewTaskId?: string;
   onCycleMode?: () => void;
+  onAdapterChange?: (adapter: AgentAdapter) => void;
   isPreviewConnecting?: boolean;
 }
 
@@ -44,6 +46,7 @@ export const TaskInputEditor = forwardRef<
       adapter,
       previewTaskId,
       onCycleMode,
+      onAdapterChange,
       isPreviewConnecting,
     },
     ref,
@@ -218,31 +221,18 @@ export const TaskInputEditor = forwardRef<
               iconSize={16}
               hideSelectors
             />
-            {isPreviewConnecting ? (
-              <Flex align="center" gap="1" px="1">
-                <Spinner size={12} className="animate-spin text-gray-9" />
-                <Text
-                  size="1"
-                  style={{
-                    color: "var(--gray-9)",
-                    fontFamily: "monospace",
-                  }}
-                >
-                  Loading options...
-                </Text>
-              </Flex>
-            ) : (
-              <>
-                <ModelSelector
-                  taskId={previewTaskId}
-                  adapter={adapter}
-                  disabled={isCreatingTask}
-                />
-                <ReasoningLevelSelector
-                  taskId={previewTaskId}
-                  disabled={isCreatingTask}
-                />
-              </>
+            <UnifiedModelSelector
+              taskId={previewTaskId}
+              adapter={adapter ?? "claude"}
+              onAdapterChange={onAdapterChange ?? (() => {})}
+              disabled={isCreatingTask}
+              isConnecting={isPreviewConnecting}
+            />
+            {!isPreviewConnecting && (
+              <ReasoningLevelSelector
+                taskId={previewTaskId}
+                disabled={isCreatingTask}
+              />
             )}
           </Flex>
 
