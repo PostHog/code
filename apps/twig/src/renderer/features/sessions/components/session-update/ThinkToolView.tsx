@@ -80,7 +80,7 @@ export function ThinkToolView({
       </Flex>
 
       <Box className="border-gray-6 border-t px-3 py-2">
-        <Text asChild size="1" className="text-gray-11 italic">
+        <Text asChild size="1" className="text-gray-11">
           <pre className="m-0 whitespace-pre-wrap break-all">
             {displayedContent}
           </pre>
