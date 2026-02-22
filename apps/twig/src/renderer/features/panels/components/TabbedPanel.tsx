@@ -1,6 +1,6 @@
 import { Tooltip } from "@components/ui/Tooltip";
 import { useDroppable } from "@dnd-kit/react";
-import { SquareSplitHorizontalIcon, Terminal } from "@phosphor-icons/react";
+import { Plus, SquareSplitHorizontalIcon } from "@phosphor-icons/react";
 import { Box, Flex } from "@radix-ui/themes";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type React from "react";
@@ -193,6 +193,16 @@ export const TabbedPanel: React.FC<TabbedPanelProps> = ({
                 badge={tab.badge}
               />
             ))}
+            {content.droppable && onAddTerminal && (
+              <Tooltip content="New terminal" side="bottom">
+                <TabBarButton
+                  ariaLabel="Add terminal"
+                  onClick={onAddTerminal}
+                >
+                  <Plus size={14} />
+                </TabBarButton>
+              </Tooltip>
+            )}
             {/* Spacer to increase DND area */}
             {content.droppable && (
               <Box
@@ -202,7 +212,7 @@ export const TabbedPanel: React.FC<TabbedPanelProps> = ({
             )}
           </Flex>
           {(rightContent ||
-            (content.droppable && (onSplitPanel || onAddTerminal))) && (
+            (content.droppable && onSplitPanel)) && (
             <Flex
               align="center"
               style={{
@@ -223,16 +233,6 @@ export const TabbedPanel: React.FC<TabbedPanelProps> = ({
                     onClick={handleSplitClick}
                   >
                     <SquareSplitHorizontalIcon width={12} height={12} />
-                  </TabBarButton>
-                </Tooltip>
-              )}
-              {content.droppable && onAddTerminal && (
-                <Tooltip content="New terminal" side="bottom">
-                  <TabBarButton
-                    ariaLabel="Add terminal"
-                    onClick={onAddTerminal}
-                  >
-                    <Terminal size={14} />
                   </TabBarButton>
                 </Tooltip>
               )}
