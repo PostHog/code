@@ -1,6 +1,9 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
+import { logger } from "@renderer/lib/logger";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+
+const log = logger.scope("useProjects");
 
 export interface ProjectInfo {
   id: number;
@@ -54,10 +57,15 @@ export function useProjects() {
     const rawTeams = Array.isArray(currentUser.organization.teams)
       ? currentUser.organization.teams
       : [];
-    const teams = rawTeams.filter(
-      (t): t is { id: number; name?: string } =>
-        t != null && typeof t === "object" && typeof t.id === "number",
-    );
+    const teams = rawTeams
+      .filter(
+        (t): t is { id: number | string; name?: string } =>
+          t != null &&
+          typeof t === "object" &&
+          (typeof t.id === "number" || typeof t.id === "string"),
+      )
+      .map((t) => ({ ...t, id: Number(t.id) }))
+      .filter((t) => !Number.isNaN(t.id));
     const orgName = currentUser.organization.name ?? "Unknown Organization";
     const orgId = currentUser.organization.id ?? "";
 
@@ -76,8 +84,19 @@ export function useProjects() {
       .filter((p): p is ProjectInfo => p !== null);
   }, [currentUser, availableProjectIds]);
 
+  const selectProject = useAuthStore((s) => s.selectProject);
   const currentProject = projects.find((p) => p.id === currentProjectId);
   const groupedProjects = groupProjectsByOrg(projects);
+
+  useEffect(() => {
+    if (projects.length > 0 && !currentProject) {
+      log.info("Auto-selecting first available project", {
+        projectId: projects[0].id,
+        reason: currentProjectId == null ? "no project selected" : "current project not found in list",
+      });
+      selectProject(projects[0].id);
+    }
+  }, [projects, currentProject, currentProjectId, selectProject]);
 
   return {
     projects,
