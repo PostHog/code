@@ -92,7 +92,10 @@ export function useProjects() {
     if (projects.length > 0 && !currentProject) {
       log.info("Auto-selecting first available project", {
         projectId: projects[0].id,
-        reason: currentProjectId == null ? "no project selected" : "current project not found in list",
+        reason:
+          currentProjectId == null
+            ? "no project selected"
+            : "current project not found in list",
       });
       selectProject(projects[0].id);
     }
