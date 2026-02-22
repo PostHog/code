@@ -195,10 +195,7 @@ export const TabbedPanel: React.FC<TabbedPanelProps> = ({
             ))}
             {content.droppable && onAddTerminal && (
               <Tooltip content="New terminal" side="bottom">
-                <TabBarButton
-                  ariaLabel="Add terminal"
-                  onClick={onAddTerminal}
-                >
+                <TabBarButton ariaLabel="Add terminal" onClick={onAddTerminal}>
                   <Plus size={14} />
                 </TabBarButton>
               </Tooltip>
@@ -211,8 +208,7 @@ export const TabbedPanel: React.FC<TabbedPanelProps> = ({
               />
             )}
           </Flex>
-          {(rightContent ||
-            (content.droppable && onSplitPanel)) && (
+          {(rightContent || (content.droppable && onSplitPanel)) && (
             <Flex
               align="center"
               style={{
