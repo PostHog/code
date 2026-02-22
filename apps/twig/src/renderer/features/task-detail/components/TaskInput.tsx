@@ -18,7 +18,6 @@ import { useTaskDirectoryStore } from "@stores/taskDirectoryStore";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePreviewSession } from "../hooks/usePreviewSession";
 import { useTaskCreation } from "../hooks/useTaskCreation";
-import { AdapterSelect } from "./AdapterSelect";
 import { TaskInputEditor } from "./TaskInputEditor";
 import { type WorkspaceMode, WorkspaceModeSelect } from "./WorkspaceModeSelect";
 
@@ -240,7 +239,6 @@ export function TaskInput() {
               }}
               size="1"
             />
-            <AdapterSelect value={adapter} onChange={setAdapter} size="1" />
           </Flex>
 
           <TaskInputEditor
@@ -256,6 +254,7 @@ export function TaskInput() {
             adapter={adapter}
             previewTaskId={previewTaskId}
             onCycleMode={handleCycleMode}
+            onAdapterChange={setAdapter}
             isPreviewConnecting={isConnecting}
           />
 
