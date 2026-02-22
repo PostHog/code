@@ -227,7 +227,28 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
 
           return false;
         },
-        handlePaste: (_view, event) => {
+        handlePaste: (view, event) => {
+          // Auto-wrap selected text as markdown link when pasting a URL
+          const { from, to } = view.state.selection;
+          if (from !== to) {
+            const pastedUrl = event.clipboardData
+              ?.getData("text/plain")
+              ?.trim();
+            if (pastedUrl && /^https?:\/\/\S+$/.test(pastedUrl)) {
+              event.preventDefault();
+              const selectedText = view.state.doc.textBetween(from, to);
+              const linkMarkdown = `[${selectedText}](${pastedUrl})`;
+              view.dispatch(
+                view.state.tr.replaceWith(
+                  from,
+                  to,
+                  view.state.schema.text(linkMarkdown),
+                ),
+              );
+              return true;
+            }
+          }
+
           const items = event.clipboardData?.items;
           if (!items) return false;
 
