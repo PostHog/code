@@ -51,6 +51,25 @@ Native modules (like node-pty) need to be rebuilt for your Electron version:
 pnpm --filter twig exec electron-rebuild
 ```
 
+## Codex agent crashes with GPU process errors
+
+If you see repeated errors like:
+
+```
+[ERROR:gpu_process_host.cc(997)] GPU process exited unexpectedly: exit_code=5
+[FATAL:gpu_data_manager_impl_private.cc(448)] GPU process isn't usable. Goodbye.
+```
+
+The codex-acp binary hasn't been downloaded. When it's missing, the app falls back to `npx` which spawns inside Electron's environment and triggers Chromium GPU process crashes.
+
+### Fix
+
+```bash
+node apps/twig/scripts/download-binaries.mjs
+```
+
+Then restart the app. This downloads the codex-acp binary to `apps/twig/resources/codex-acp/`, which gets copied to `.vite/build/codex-acp/` during build.
+
 ## `pnpm i` shows "Packages: -198"
 
 You might see something like this every time you run `pnpm install`:

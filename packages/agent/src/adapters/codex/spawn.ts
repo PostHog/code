@@ -54,6 +54,12 @@ function findCodexBinary(options: CodexProcessOptions): {
     return { command: options.binaryPath, args: configArgs };
   }
 
+  if (options.binaryPath) {
+    throw new Error(
+      `codex-acp binary not found at ${options.binaryPath}. Run "node apps/twig/scripts/download-binaries.mjs" to download it.`,
+    );
+  }
+
   return { command: "npx", args: ["@zed-industries/codex-acp", ...configArgs] };
 }
 
