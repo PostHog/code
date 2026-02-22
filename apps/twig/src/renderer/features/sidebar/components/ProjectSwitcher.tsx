@@ -147,7 +147,7 @@ export function ProjectSwitcher() {
                     weight="medium"
                     className="w-full truncate text-left"
                   >
-                    {currentProject?.name ?? "Select project"}
+                    {currentProject?.name ?? "No project selected"}
                   </Text>
                   {currentUser?.email && (
                     <Text
