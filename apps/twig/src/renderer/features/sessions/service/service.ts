@@ -1383,6 +1383,27 @@ export class SessionService {
   }
 
   /**
+   * Start a fresh session for a task, abandoning the old conversation.
+   * Unlike clearSessionError (which retries the same resume), this creates
+   * a brand new session without attempting to resume.
+   */
+  async startFreshSession(taskId: string, repoPath: string): Promise<void> {
+    const session = sessionStoreSetters.getSessionByTaskId(taskId);
+    const taskTitle = session?.taskTitle ?? "Task";
+
+    if (session) {
+      await this.teardownSession(session.taskRunId);
+    }
+
+    const auth = this.getAuthCredentials();
+    if (!auth) {
+      throw new Error("Authentication required. Please sign in to continue.");
+    }
+
+    await this.createNewLocalSession(taskId, taskTitle, repoPath, auth);
+  }
+
+  /**
    * Start watching a cloud task via main-process CloudTaskService.
    * Creates an initial session, subscribes to log/status updates, and
    * returns a cleanup function to unsubscribe and stop the watcher.

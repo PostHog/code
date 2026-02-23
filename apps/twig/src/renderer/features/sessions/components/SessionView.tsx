@@ -47,6 +47,7 @@ interface SessionViewProps {
   errorTitle?: string;
   errorMessage?: string;
   onRetry?: () => void;
+  onNewSession?: () => void;
   onDelete?: () => void;
   isInitializing?: boolean;
   readOnlyMessage?: string;
@@ -69,6 +70,7 @@ export function SessionView({
   errorTitle,
   errorMessage = DEFAULT_ERROR_MESSAGE,
   onRetry,
+  onNewSession,
   onDelete,
   isInitializing = false,
   readOnlyMessage,
@@ -406,6 +408,11 @@ export function SessionView({
                     {onRetry && (
                       <Button variant="soft" size="2" onClick={onRetry}>
                         Retry
+                      </Button>
+                    )}
+                    {onNewSession && (
+                      <Button variant="soft" size="2" onClick={onNewSession}>
+                        New Session
                       </Button>
                     )}
                     {onDelete && (

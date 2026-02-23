@@ -240,6 +240,11 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     await getSessionService().clearSessionError(taskId);
   }, [taskId, repoPath]);
 
+  const handleNewSession = useCallback(async () => {
+    if (!repoPath) return;
+    await getSessionService().startFreshSession(taskId, repoPath);
+  }, [taskId, repoPath]);
+
   const handleDelete = useCallback(() => {
     const hasWorktree = workspace?.mode === "worktree";
     deleteWithConfirm({
@@ -327,6 +332,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
               errorTitle={isCloud ? undefined : errorTitle}
               errorMessage={isCloud ? undefined : errorMessage}
               onRetry={handleRetry}
+              onNewSession={handleNewSession}
               onDelete={handleDelete}
               isInitializing={isInitializing}
               readOnlyMessage={isCloud ? "Cloud runs are read-only" : undefined}
