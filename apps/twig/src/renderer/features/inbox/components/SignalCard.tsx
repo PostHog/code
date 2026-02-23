@@ -25,43 +25,25 @@ interface GitHubIssueExtra {
   updated_at?: string;
 }
 
-function parseGitHubIssueContent(content: string): {
-  title: string;
-  labels: string[];
-  body: string;
-} {
+function extractIssueBody(content: string): string {
   const lines = content.split("\n");
-  let title = "";
-  let labels: string[] = [];
-  let bodyStartIndex = 0;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const issueMatch = line.match(/^GitHub Issue #\d+:\s*(.+)$/);
-    if (issueMatch) {
-      title = issueMatch[1].trim();
-      bodyStartIndex = i + 1;
-      continue;
-    }
-    const labelsMatch = line.match(/^Labels:\s*(.+)$/);
-    if (labelsMatch) {
-      labels = labelsMatch[1].split(",").map((l) => l.trim());
-      bodyStartIndex = i + 1;
-      continue;
-    }
-    if (line.trim() !== "") {
-      bodyStartIndex = i;
+  let bodyStart = 0;
+  for (let i = 0; i < Math.min(lines.length, 3); i++) {
+    if (
+      lines[i].match(/^GitHub Issue #/) ||
+      lines[i].match(/^Labels:\s/) ||
+      lines[i].trim() === ""
+    ) {
+      bodyStart = i + 1;
+    } else {
       break;
     }
   }
-
-  const body = lines
-    .slice(bodyStartIndex)
+  return lines
+    .slice(bodyStart)
     .join("\n")
     .replace(/^[\n]+/, "")
     .trim();
-
-  return { title: title || content.slice(0, 80), labels, body };
 }
 
 function truncateBody(body: string, maxLength = COLLAPSE_THRESHOLD): string {
@@ -104,10 +86,17 @@ function CollapsibleBody({ body }: { body: string }) {
 }
 
 function GitHubIssueSignalCard({ signal }: SignalCardProps) {
-  const { title, labels, body } = parseGitHubIssueContent(signal.content);
   const extra = signal.extra as GitHubIssueExtra;
-  const issueNumber = signal.content.match(/^GitHub Issue #(\d+)/)?.[1] ?? null;
+  const labels = extra.labels ?? [];
   const issueUrl = extra.url ?? null;
+  const issueNumber =
+    signal.source_id.match(/#(\d+)$/)?.[1] ??
+    signal.content.match(/^GitHub Issue #(\d+)/)?.[1] ??
+    null;
+  const title =
+    signal.content.match(/^GitHub Issue #\d+:\s*(.+)$/m)?.[1]?.trim() ??
+    signal.content.slice(0, 80);
+  const body = extractIssueBody(signal.content);
 
   const titleContent = (
     <>
