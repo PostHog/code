@@ -226,11 +226,18 @@ export interface ExternalAppsPreferences {
   lastUsedApp?: string;
 }
 
+export type SignalReportStatus =
+  | "potential"
+  | "candidate"
+  | "in_progress"
+  | "ready"
+  | "failed";
+
 export interface SignalReport {
   id: string;
   title: string | null;
   summary: string | null;
-  status: "potential" | "candidate" | "in_progress" | "ready" | "failed";
+  status: SignalReportStatus;
   total_weight: number;
   signal_count: number;
   relevant_user_count: number | null;
@@ -255,9 +262,39 @@ export interface SignalReportArtefact {
   created_at: string;
 }
 
+export interface MatchedSignalMetadata {
+  parent_signal_id: string;
+  match_query: string;
+  reason: string;
+}
+
+export interface NoMatchSignalMetadata {
+  reason: string;
+  rejected_signal_ids: string[];
+}
+
+export type SignalMatchMetadata = MatchedSignalMetadata | NoMatchSignalMetadata;
+
+export interface Signal {
+  signal_id: string;
+  content: string;
+  source_product: string;
+  source_type: string;
+  source_id: string;
+  weight: number;
+  timestamp: string;
+  extra: Record<string, unknown>;
+  match_metadata?: SignalMatchMetadata | null;
+}
+
 export interface SignalReportsResponse {
   results: SignalReport[];
   count: number;
+}
+
+export interface SignalReportSignalsResponse {
+  report: SignalReport | null;
+  signals: Signal[];
 }
 
 export interface SignalReportArtefactsResponse {
@@ -268,6 +305,19 @@ export interface SignalReportArtefactsResponse {
     | "not_found"
     | "invalid_payload"
     | "request_failed";
+}
+
+export type SignalReportOrderingField =
+  | "signal_count"
+  | "total_weight"
+  | "created_at"
+  | "updated_at";
+
+export interface SignalReportsQueryParams {
+  limit?: number;
+  offset?: number;
+  status?: SignalReportStatus;
+  ordering?: `-${SignalReportOrderingField}` | SignalReportOrderingField;
 }
 
 export type AutonomyCapabilityState =

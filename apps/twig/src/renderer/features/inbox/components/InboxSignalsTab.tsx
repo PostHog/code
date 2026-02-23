@@ -2,6 +2,7 @@ import { ResizableSidebar } from "@components/ResizableSidebar";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import {
   useInboxReportArtefacts,
+  useInboxReportSignals,
   useInboxReports,
 } from "@features/inbox/hooks/useInboxReports";
 import { useInboxCloudTaskStore } from "@features/inbox/stores/inboxCloudTaskStore";
@@ -108,6 +109,11 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
     ? "Evidence could not be loaded right now. You can still create a task from this report."
     : getArtefactsUnavailableMessage(artefactsUnavailableReason);
 
+  const signalsQuery = useInboxReportSignals(selectedReport?.id ?? "", {
+    enabled: !!selectedReport,
+  });
+  const signals = signalsQuery.data?.signals ?? [];
+
   const cloudRegion = useAuthStore((state) => state.cloudRegion);
   const projectId = useAuthStore((state) => state.projectId);
   const replayBaseUrl =
@@ -134,9 +140,10 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
     return buildSignalTaskPrompt({
       report: selectedReport,
       artefacts: visibleArtefacts,
+      signals,
       replayBaseUrl,
     });
-  }, [selectedReport, visibleArtefacts, replayBaseUrl]);
+  }, [selectedReport, visibleArtefacts, signals, replayBaseUrl]);
 
   const handleCreateTask = () => {
     const prompt = buildPrompt();
@@ -335,6 +342,73 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
                     {selectedReport.relevant_user_count ?? 0} affected users
                   </Badge>
                 </Flex>
+
+                {signals.length > 0 && (
+                  <Box>
+                    <Text
+                      size="1"
+                      weight="medium"
+                      className="block font-mono text-[12px]"
+                      mb="2"
+                    >
+                      Signals ({signals.length})
+                    </Text>
+                    <Flex direction="column" gap="1">
+                      {signals.map((signal) => (
+                        <Box
+                          key={signal.signal_id}
+                          className="rounded border border-gray-6 bg-gray-1 p-2"
+                        >
+                          <Text
+                            size="1"
+                            className="whitespace-pre-wrap text-pretty font-mono text-[11px]"
+                          >
+                            {signal.content}
+                          </Text>
+                          <Flex
+                            align="center"
+                            justify="between"
+                            mt="1"
+                            gap="2"
+                            wrap="wrap"
+                          >
+                            <Flex align="center" gap="1" wrap="wrap">
+                              <Badge variant="soft" color="gray" size="1">
+                                {signal.source_product}
+                              </Badge>
+                              <Badge variant="soft" color="gray" size="1">
+                                {signal.source_type}
+                              </Badge>
+                              <Text
+                                size="1"
+                                color="gray"
+                                className="font-mono text-[10px]"
+                              >
+                                w:{signal.weight.toFixed(2)}
+                              </Text>
+                            </Flex>
+                            <Text
+                              size="1"
+                              color="gray"
+                              className="font-mono text-[10px]"
+                            >
+                              {new Date(signal.timestamp).toLocaleString()}
+                            </Text>
+                          </Flex>
+                        </Box>
+                      ))}
+                    </Flex>
+                  </Box>
+                )}
+                {signalsQuery.isLoading && (
+                  <Text
+                    size="1"
+                    color="gray"
+                    className="block font-mono text-[11px]"
+                  >
+                    Loading signals...
+                  </Text>
+                )}
 
                 <Box>
                   <Text

@@ -1,14 +1,16 @@
-import type { SignalReport, SignalReportArtefact } from "@shared/types";
+import type { Signal, SignalReport, SignalReportArtefact } from "@shared/types";
 
 export interface SignalPromptInput {
   report: SignalReport;
   artefacts: SignalReportArtefact[];
+  signals: Signal[];
   replayBaseUrl: string | null;
 }
 
 export function buildSignalTaskPrompt({
   report,
   artefacts,
+  signals,
   replayBaseUrl,
 }: SignalPromptInput): string {
   const title = report.title ?? "Untitled signal";
@@ -23,6 +25,25 @@ export function buildSignalTaskPrompt({
     "",
     `**Signal strength:** ${report.signal_count} occurrences, ${report.relevant_user_count ?? 0} affected users`,
   ];
+
+  if (signals.length > 0) {
+    lines.push("", "## Signals");
+
+    for (const signal of signals) {
+      const timestamp = new Date(signal.timestamp).toLocaleString();
+      lines.push(
+        "",
+        `### ${signal.source_product} / ${signal.source_type} (${timestamp})`,
+        "",
+        signal.content,
+        "",
+        `- Weight: ${signal.weight}`,
+      );
+      if (signal.source_id) {
+        lines.push(`- Source ID: ${signal.source_id}`);
+      }
+    }
+  }
 
   if (artefacts.length > 0) {
     lines.push("", "## Evidence");
