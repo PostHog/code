@@ -682,30 +682,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     return newSession;
   }
 
-  /**
-   * Reset a session by clearing its sessionId and recreating the agent.
-   * Creates a fresh Claude session under the same taskRunId without
-   * attempting to resume the stale one.
-   */
-  async resetSession(taskRunId: string): Promise<void> {
-    const existing = this.sessions.get(taskRunId);
-    if (!existing) {
-      log.info(
-        "No backend session found for reset (likely failed reconnect), skipping",
-        { taskRunId },
-      );
-      return;
-    }
-
-    log.info("Resetting session (clearing sessionId)", {
-      taskRunId,
-      staleSessionId: existing.config.sessionId,
-    });
-
-    existing.config.sessionId = undefined;
-    await this.recreateSession(taskRunId);
-  }
-
   async prompt(
     sessionId: string,
     prompt: ContentBlock[],

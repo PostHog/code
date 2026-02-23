@@ -1378,16 +1378,15 @@ export class SessionService {
       throw new Error("Unable to reach server. Please check your connection.");
     }
 
-    const resolvedLogUrl = logUrl ?? "";
-    const prefetchedLogs = resolvedLogUrl
-      ? await this.fetchSessionLogs(resolvedLogUrl, taskRunId)
+    const prefetchedLogs = logUrl
+      ? await this.fetchSessionLogs(logUrl, taskRunId)
       : { rawEntries: [] as StoredLogEntry[], adapter: undefined };
 
     await this.reconnectToLocalSession(
       taskId,
       taskRunId,
       taskTitle,
-      resolvedLogUrl,
+      logUrl ?? "",
       repoPath,
       auth,
       { ...prefetchedLogs, sessionId: undefined },
