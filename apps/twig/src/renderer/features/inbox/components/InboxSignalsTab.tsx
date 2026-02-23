@@ -36,6 +36,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { SignalsErrorState, SignalsLoadingState } from "./InboxEmptyStates";
 import { ReportCard } from "./ReportCard";
+import { SignalCard } from "./SignalCard";
 
 interface InboxSignalsTabProps {
   onGoToSetup: () => void;
@@ -355,49 +356,9 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
                     >
                       Signals ({signals.length})
                     </Text>
-                    <Flex direction="column" gap="1">
+                    <Flex direction="column" gap="2">
                       {signals.map((signal) => (
-                        <Box
-                          key={signal.signal_id}
-                          className="rounded border border-gray-6 bg-gray-1 p-2"
-                        >
-                          <Text
-                            size="1"
-                            className="whitespace-pre-wrap text-pretty font-mono text-[11px]"
-                          >
-                            {signal.content}
-                          </Text>
-                          <Flex
-                            align="center"
-                            justify="between"
-                            mt="1"
-                            gap="2"
-                            wrap="wrap"
-                          >
-                            <Flex align="center" gap="1" wrap="wrap">
-                              <Badge variant="soft" color="gray" size="1">
-                                {signal.source_product}
-                              </Badge>
-                              <Badge variant="soft" color="gray" size="1">
-                                {signal.source_type}
-                              </Badge>
-                              <Text
-                                size="1"
-                                color="gray"
-                                className="font-mono text-[10px]"
-                              >
-                                w:{signal.weight.toFixed(2)}
-                              </Text>
-                            </Flex>
-                            <Text
-                              size="1"
-                              color="gray"
-                              className="font-mono text-[10px]"
-                            >
-                              {new Date(signal.timestamp).toLocaleString()}
-                            </Text>
-                          </Flex>
-                        </Box>
+                        <SignalCard key={signal.signal_id} signal={signal} />
                       ))}
                     </Flex>
                   </Box>
