@@ -247,6 +247,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
     this.registerPersistence(sessionId, meta as Record<string, unknown>);
 
+    // Validate the resumed session is alive. For stale sessions this throws
+    // (e.g. "No conversation found"), preventing a broken session.
+    await q.initializationResult();
+
     // Deferred: slash commands + MCP metadata (not needed to return configOptions)
     this.deferBackgroundFetches(q, sessionId, mcpServers);
 
