@@ -268,7 +268,8 @@ export class SessionService {
       const taskRunId = latestRun?.id ?? `error-${taskId}`;
       const session = this.createBaseSession(taskRunId, taskId, taskTitle);
       session.status = "error";
-      session.errorMessage = `Failed to connect to the agent: ${message}`;
+      session.errorTitle = "Failed to connect";
+      session.errorMessage = message;
 
       if (latestRun?.log_url) {
         try {
@@ -487,9 +488,11 @@ export class SessionService {
     taskRunId: string,
     taskTitle: string,
     errorMessage: string,
+    errorTitle?: string,
   ): void {
     const session = this.createBaseSession(taskRunId, taskId, taskTitle);
     session.status = "error";
+    session.errorTitle = errorTitle;
     session.errorMessage = errorMessage;
     sessionStoreSetters.setSession(session);
   }
@@ -1365,8 +1368,6 @@ export class SessionService {
     if (session) {
       await this.teardownSession(session.taskRunId);
     }
-    // Clear from connecting tasks as well
-    this.connectingTasks.delete(taskId);
   }
 
   /**

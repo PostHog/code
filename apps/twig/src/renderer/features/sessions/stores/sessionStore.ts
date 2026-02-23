@@ -36,6 +36,7 @@ export interface AgentSession {
   events: AcpMessage[];
   startedAt: number;
   status: "connecting" | "connected" | "disconnected" | "error";
+  errorTitle?: string;
   errorMessage?: string;
   isPromptPending: boolean;
   logUrl?: string;

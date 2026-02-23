@@ -42,6 +42,7 @@ interface SessionViewProps {
   onCancelPrompt: () => void;
   repoPath?: string | null;
   hasError?: boolean;
+  errorTitle?: string;
   errorMessage?: string;
   onRetry?: () => void;
   onDelete?: () => void;
@@ -62,6 +63,7 @@ export function SessionView({
   onCancelPrompt,
   repoPath,
   hasError = false,
+  errorTitle,
   errorMessage = DEFAULT_ERROR_MESSAGE,
   onRetry,
   onDelete,
@@ -380,11 +382,16 @@ export function SessionView({
                   className="absolute inset-0 bg-gray-1"
                 >
                   <Warning size={32} weight="duotone" color="var(--red-9)" />
+                  {errorTitle && (
+                    <Text size="3" weight="bold" align="center" color="red">
+                      {errorTitle}
+                    </Text>
+                  )}
                   <Text
-                    size="3"
-                    weight="medium"
+                    size={errorTitle ? "2" : "3"}
+                    weight={errorTitle ? "regular" : "medium"}
                     align="center"
-                    color="red"
+                    color={errorTitle ? "gray" : "red"}
                     className="max-w-md px-4"
                   >
                     {errorMessage}

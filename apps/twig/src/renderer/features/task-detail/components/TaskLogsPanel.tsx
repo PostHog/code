@@ -69,6 +69,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   const isRunning =
     session?.status === "connected" || session?.status === "connecting";
   const hasError = session?.status === "error";
+  const errorTitle = session?.errorTitle;
   const errorMessage = session?.errorMessage;
 
   const events = session?.events ?? [];
@@ -236,8 +237,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   const handleRetry = useCallback(async () => {
     if (!repoPath) return;
     await getSessionService().clearSessionError(taskId);
-    getSessionService().connectToTask({ task, repoPath });
-  }, [taskId, repoPath, task]);
+  }, [taskId, repoPath]);
 
   const handleDelete = useCallback(() => {
     const hasWorktree = workspace?.mode === "worktree";
@@ -322,6 +322,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
               onCancelPrompt={handleCancelPrompt}
               repoPath={repoPath}
               hasError={isCloud ? false : hasError}
+              errorTitle={isCloud ? undefined : errorTitle}
               errorMessage={isCloud ? undefined : errorMessage}
               onRetry={handleRetry}
               onDelete={handleDelete}
