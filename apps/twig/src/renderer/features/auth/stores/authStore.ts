@@ -413,17 +413,24 @@ export const useAuthStore = create<AuthState>()(
             const state = get();
 
             if (state.storedTokens) {
-              const tokenScopeVersion = state.storedTokens.scopeVersion ?? 0;
+              const tokens = state.storedTokens;
+              const tokenScopeVersion = tokens.scopeVersion ?? 0;
               if (tokenScopeVersion < OAUTH_SCOPE_VERSION) {
                 log.info("OAuth scopes updated, re-authentication required", {
                   tokenVersion: tokenScopeVersion,
                   requiredVersion: OAUTH_SCOPE_VERSION,
                   requiredScopes: OAUTH_SCOPES,
                 });
-                set({ needsScopeReauth: true });
+                set({
+                  needsScopeReauth: true,
+                  oauthAccessToken: tokens.accessToken,
+                  oauthRefreshToken: tokens.refreshToken,
+                  tokenExpiry: tokens.expiresAt,
+                  cloudRegion: tokens.cloudRegion,
+                  isAuthenticated: true,
+                });
+                return true;
               }
-
-              const tokens = state.storedTokens;
               const now = Date.now();
               const isExpired = tokens.expiresAt <= now;
 

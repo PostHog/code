@@ -137,7 +137,12 @@ describe("authStore - scope version", () => {
       expect(result).toBe(true);
       expect(useAuthStore.getState().needsScopeReauth).toBe(true);
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
+      expect(useAuthStore.getState().cloudRegion).toBe("us");
       expect(useAuthStore.getState().storedTokens).not.toBeNull();
+      // Should NOT create a client or call getCurrentUser — early return avoids
+      // racing with loginWithOAuth when the user clicks Sign In.
+      expect(mockGetCurrentUser).not.toHaveBeenCalled();
+      expect(useAuthStore.getState().client).toBeNull();
     });
 
     it("sets needsScopeReauth when scopeVersion is less than OAUTH_SCOPE_VERSION", async () => {
@@ -148,7 +153,10 @@ describe("authStore - scope version", () => {
       expect(result).toBe(true);
       expect(useAuthStore.getState().needsScopeReauth).toBe(true);
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
+      expect(useAuthStore.getState().cloudRegion).toBe("us");
       expect(useAuthStore.getState().storedTokens).not.toBeNull();
+      expect(mockGetCurrentUser).not.toHaveBeenCalled();
+      expect(useAuthStore.getState().client).toBeNull();
     });
 
     it("does not set needsScopeReauth when scopeVersion matches", async () => {
