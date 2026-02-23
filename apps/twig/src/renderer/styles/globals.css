@@ -995,3 +995,11 @@ button,
 .rt-SelectTrigger {
   background-color: var(--gray-2) !important;
 }
+
+/* Radix ScrollArea wraps viewport children in a div with display:table,
+   which expands to content width. This class overrides that so content
+   wraps within the viewport width instead of overflowing horizontally. */
+.scroll-area-constrain-width > .rt-ScrollAreaViewport > div {
+  display: block !important;
+  width: 100% !important;
+}
