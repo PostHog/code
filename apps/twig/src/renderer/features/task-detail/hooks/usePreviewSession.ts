@@ -1,4 +1,5 @@
 import type { SessionConfigOption } from "@agentclientprotocol/sdk";
+import { useAuthStore } from "@features/auth/stores/authStore";
 import {
   getSessionService,
   PREVIEW_TASK_ID,
@@ -30,6 +31,8 @@ interface PreviewSessionResult {
 export function usePreviewSession(
   adapter: "claude" | "codex",
 ): PreviewSessionResult {
+  const _projectId = useAuthStore((s) => s.projectId);
+
   useEffect(() => {
     const service = getSessionService();
     service.startPreviewSession({ adapter });
