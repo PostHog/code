@@ -108,8 +108,19 @@ function CollapsibleBody({ body }: { body: string }) {
   );
 }
 
+function parseExtra(raw: Record<string, unknown>): GitHubIssueExtra {
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw) as GitHubIssueExtra;
+    } catch {
+      return {};
+    }
+  }
+  return raw as GitHubIssueExtra;
+}
+
 function GitHubIssueSignalCard({ signal }: SignalCardProps) {
-  const extra = signal.extra as GitHubIssueExtra;
+  const extra = parseExtra(signal.extra);
   const labels = resolveLabels(extra.labels);
   const issueUrl = extra.html_url ?? null;
   const issueNumber = extra.number ?? null;
