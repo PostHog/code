@@ -31,8 +31,6 @@ interface PreviewSessionResult {
 export function usePreviewSession(
   adapter: "claude" | "codex",
 ): PreviewSessionResult {
-  const _projectId = useAuthStore((s) => s.projectId);
-
   useEffect(() => {
     const service = getSessionService();
     service.startPreviewSession({ adapter });
