@@ -1,15 +1,14 @@
 import { DraggableTitleBar } from "@components/DraggableTitleBar";
 import { TorchGlow } from "@components/TorchGlow";
 import { useAuthStore } from "@features/auth/stores/authStore";
-import { Box, Button, Flex, Text } from "@radix-ui/themes";
+import { Callout, Flex, Spinner, Text } from "@radix-ui/themes";
 import caveHero from "@renderer/assets/images/cave-hero.jpg";
 import twigLogo from "@renderer/assets/images/twig-logo.svg";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { CloudRegion } from "@shared/types/oauth";
 import { useMutation } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { LoginForm } from "./LoginForm";
-import { SignupForm } from "./SignupForm";
+import { RegionSelect } from "./RegionSelect";
 
 export const getErrorMessage = (error: unknown) => {
   if (!error) {
@@ -41,37 +40,35 @@ export const getErrorMessage = (error: unknown) => {
 
 type AuthMode = "login" | "signup";
 
+const REGION_LABELS: Record<CloudRegion, string> = {
+  us: "US Cloud",
+  eu: "EU Cloud",
+  dev: "Development",
+};
+
 export function AuthScreen() {
   const caveBackgroundRef = useRef<HTMLDivElement>(null);
   const [region, setRegion] = useState<CloudRegion>("us");
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const { loginWithOAuth, signupWithOAuth } = useAuthStore();
 
-  // Login mutation (OAuth authorization code + PKCE)
   const loginMutation = useMutation({
     mutationFn: async () => {
       await loginWithOAuth(region);
     },
   });
 
-  // Signup mutation
   const signupMutation = useMutation({
     mutationFn: async () => {
       await signupWithOAuth(region);
     },
   });
 
-  const handleLogin = async () => {
-    loginMutation.mutate();
-  };
-
-  const handleSignup = async () => {
-    signupMutation.mutate();
-  };
-
-  const handleAuthModeChange = (mode: AuthMode) => {
-    if (mode !== authMode) {
-      setAuthMode(mode);
+  const handleAuth = () => {
+    if (authMode === "login") {
+      loginMutation.mutate();
+    } else {
+      signupMutation.mutate();
     }
   };
 
@@ -83,10 +80,12 @@ export function AuthScreen() {
 
   const handleCancel = async () => {
     loginMutation.reset();
+    signupMutation.reset();
     await trpcVanilla.oauth.cancelFlow.mutate();
   };
 
-  const isLoading = loginMutation.isPending || signupMutation.isPending;
+  const isPending = loginMutation.isPending || signupMutation.isPending;
+  const isLoading = isPending;
   const error = loginMutation.error || signupMutation.error;
   const errorMessage = getErrorMessage(error);
 
@@ -98,6 +97,7 @@ export function AuthScreen() {
     >
       <DraggableTitleBar />
       <TorchGlow containerRef={caveBackgroundRef} alwaysShow />
+
       {/* Full-screen cave painting background */}
       <div
         style={{
@@ -109,18 +109,43 @@ export function AuthScreen() {
         }}
       />
 
-      {/* Left side - login form */}
+      {/* Left side with card */}
       <Flex
         width="50%"
         align="center"
         justify="center"
-        style={{
-          position: "relative",
-          zIndex: 1,
-        }}
+        style={{ position: "relative", zIndex: 1 }}
       >
-        <Flex direction="column" gap="6" style={{ width: "320px" }}>
-          <Flex direction="column" gap="4">
+        {/* Scrim behind card area */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(247, 237, 223, 0.7) 0%, rgba(247, 237, 223, 0.3) 70%, transparent 100%)",
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Auth card */}
+        <Flex
+          direction="column"
+          gap="5"
+          style={{
+            position: "relative",
+            width: "360px",
+            padding: "32px",
+            backgroundColor: "rgba(247, 237, 223, 0.7)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            borderRadius: "16px",
+            border: "1px solid rgba(255, 255, 255, 0.3)",
+            boxShadow:
+              "0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
+          }}
+        >
+          {/* Logo + tagline */}
+          <Flex direction="column" gap="3">
             <img
               src={twigLogo}
               alt="Twig"
@@ -131,79 +156,133 @@ export function AuthScreen() {
               }}
             />
             <Text
-              size="5"
+              size="3"
               style={{
                 fontFamily: "Halfre, serif",
                 color: "var(--cave-charcoal)",
                 lineHeight: 1.3,
+                opacity: 0.7,
               }}
             >
-              the dawn of a new agentic era
+              Agentic workflows for your product
             </Text>
           </Flex>
 
-          <Flex
-            align="center"
-            gap="2"
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.6)",
-              borderRadius: "999px",
-              padding: "4px",
-              border: "1px solid rgba(0, 0, 0, 0.08)",
-            }}
-          >
-            <Button
+          {/* Error */}
+          {errorMessage && (
+            <Callout.Root color="red" size="1">
+              <Callout.Text>{errorMessage}</Callout.Text>
+            </Callout.Root>
+          )}
+
+          {/* Pending state */}
+          {isPending && (
+            <Callout.Root color="blue" size="1">
+              <Callout.Text>Waiting for authorization...</Callout.Text>
+            </Callout.Root>
+          )}
+
+          {/* Primary CTA */}
+          <Flex direction="column" gap="2">
+            <button
               type="button"
-              size="2"
-              variant={authMode === "login" ? "solid" : "ghost"}
-              onClick={() => handleAuthModeChange("login")}
+              onClick={isPending ? handleCancel : handleAuth}
+              disabled={isLoading && !isPending}
               style={{
-                borderRadius: "999px",
-                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                width: "100%",
+                height: "44px",
+                border: "none",
+                borderRadius: "10px",
+                fontSize: "15px",
+                fontWeight: 500,
+                cursor: isLoading && !isPending ? "not-allowed" : "pointer",
+                backgroundColor: isPending
+                  ? "var(--gray-8)"
+                  : "var(--cave-charcoal)",
+                color: isPending ? "var(--gray-11)" : "var(--cave-cream)",
+                opacity: isLoading && !isPending ? 0.5 : 1,
+                transition: "opacity 150ms ease",
               }}
             >
-              Sign in
-            </Button>
-            <Button
-              type="button"
-              size="2"
-              variant={authMode === "signup" ? "solid" : "ghost"}
-              onClick={() => handleAuthModeChange("signup")}
-              style={{
-                borderRadius: "999px",
-                flex: 1,
-              }}
+              {isPending && <Spinner size="1" />}
+              {isPending
+                ? "Cancel"
+                : authMode === "login"
+                  ? "Sign in with PostHog"
+                  : "Sign up with PostHog"}
+            </button>
+            <Text
+              size="1"
+              align="center"
+              style={{ color: "var(--cave-charcoal)", opacity: 0.5 }}
             >
-              Sign up
-            </Button>
+              Redirects to PostHog Cloud for authentication
+            </Text>
           </Flex>
 
-          {authMode === "login" ? (
-            <LoginForm
+          {/* Region + secondary links */}
+          <Flex direction="column" gap="3" align="center">
+            <RegionSelect
               region={region}
+              regionLabel={REGION_LABELS[region]}
               onRegionChange={handleRegionChange}
-              onLogin={handleLogin}
-              onSwitchToSignup={() => setAuthMode("signup")}
-              isLoading={isLoading}
-              isPending={loginMutation.isPending}
-              error={errorMessage}
-              onCancel={handleCancel}
+              disabled={isLoading}
             />
-          ) : (
-            <SignupForm
-              region={region}
-              onRegionChange={handleRegionChange}
-              onSignup={handleSignup}
-              onSwitchToLogin={() => setAuthMode("login")}
-              isLoading={isLoading}
-              error={errorMessage}
-            />
-          )}
+
+            <Text
+              size="2"
+              style={{ color: "var(--cave-charcoal)", opacity: 0.7 }}
+            >
+              {authMode === "login" ? (
+                <>
+                  Don&apos;t have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode("signup")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      color: "var(--accent-9)",
+                      cursor: "pointer",
+                      fontWeight: 500,
+                      fontSize: "inherit",
+                    }}
+                  >
+                    Create one
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode("login")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      color: "var(--accent-9)",
+                      cursor: "pointer",
+                      fontWeight: 500,
+                      fontSize: "inherit",
+                    }}
+                  >
+                    Sign in
+                  </button>
+                </>
+              )}
+            </Text>
+          </Flex>
         </Flex>
       </Flex>
 
-      {/* Right side - empty, shows background */}
-      <Box width="50%" />
+      {/* Right side - shows background */}
+      <div style={{ width: "50%" }} />
     </Flex>
   );
 }

@@ -10,6 +10,7 @@ import {
   Folder,
   GearSix,
   Keyboard,
+  Palette,
   PlugsConnected,
   User,
   Wrench,
