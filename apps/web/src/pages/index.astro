@@ -1,10 +1,124 @@
 ---
 import Base from "../layouts/Base.astro";
+import GridOverlay from "../components/GridOverlay.astro";
 ---
 <Base title="Twig">
-  <main class="container-prose">
-    <h1 class="type-3xl weight-bold">Twig</h1>
-    <p class="type-base">Hello, World!</p>
-    <a href="/playground" class="type-sm link-subtle">View typography playground →</a>
-  </main>
+  <GridOverlay />
+
+  <header class="site-header">
+    <a href="/" class="cell-pad">
+      <img src="/logo/logo-light-accent.svg" alt="Twig" class="logo logo-light" />
+      <img src="/logo/logo-dark-accent.svg" alt="Twig" class="logo logo-dark" />
+    </a>
+    <nav class="cell-pad nav-list nav-desktop">
+      <a href="/manual" class="nav-link type-sm">[ MANUAL ]</a>
+      <a href="/pricing" class="nav-link type-sm">[ PRICING ]</a>
+      <a href="/blog" class="nav-link type-sm">[ BLOG ]</a>
+      <a href="/humans" class="nav-link type-sm">[ HUMANS ]</a>
+      <a href="/handbook" class="nav-link type-sm">[ HANDBOOK ]</a>
+    </nav>
+    <div class="cell-pad nav-mobile">
+      <button class="nav-toggle type-sm" aria-expanded="false" aria-controls="nav-popover">
+        [ MENU ]
+        <svg class="nav-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
+        </svg>
+      </button>
+      <div id="nav-popover" class="nav-popover">
+        <button class="nav-close type-sm">[ CLOSE ]</button>
+        <a href="/manual" class="nav-link type-sm">[ MANUAL ]</a>
+        <a href="/pricing" class="nav-link type-sm">[ PRICING ]</a>
+        <a href="/blog" class="nav-link type-sm">[ BLOG ]</a>
+        <a href="/humans" class="nav-link type-sm">[ HUMANS ]</a>
+        <a href="/handbook" class="nav-link type-sm">[ HANDBOOK ]</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero grid-container grid-section grid-section--spacious border-t border-current/10">
+    <div class="hero-bg">
+      <img src="/hero.png" alt="" />
+    </div>
+    <div class="hero-text cell-pad">
+      <h1 class="type-3xl weight-bold lh-tight">Lorem ipsum dolor sit amet</h1>
+      <p class="type-lg hero-subtitle">Consectetur adipiscing elit sed do eiusmod tempor.</p>
+      <div class="hero-cta">
+        <a href="#" class="btn btn-solid type-sm">Button</a>
+        <a href="#" class="btn btn-outline type-sm">Button</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="product-section">
+    <img src="/landscape.svg" alt="" class="product-section-bg invertible" />
+    <div class="product-section-content grid-container grid-section grid-section--spacious">
+      <div class="col-full cell-pad">
+        <h2 class="type-2xl weight-bold">Lorem ipsum</h2>
+      </div>
+      <div class="col-full product-image-wrapper">
+        <img src="/product-image.png" alt="Product" class="product-image" />
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <img src="/mountains.svg" alt="" class="footer-mountains invertible" />
+    <div class="footer-bar grid-container grid-section">
+      <div class="col-1 cell-pad footer-brand">
+        <img src="/logo/logo-dark-accent.svg" alt="Twig" class="footer-logo logo-light" />
+        <img src="/logo/logo-light-accent.svg" alt="Twig" class="footer-logo logo-dark" />
+        <p class="type-sm footer-tagline">an ai editor that understands your product and user behavior</p>
+        <p class="type-sm footer-byline">from the makers of PostHog</p>
+        <a href="#" class="type-sm footer-cta">// join the waitlist</a>
+      </div>
+      <div class="col-2 cell-pad footer-col">
+        <h3 class="type-sm weight-bold footer-heading">ABOUT</h3>
+        <a href="#" class="type-sm footer-link">robots.txt</a>
+        <a href="#" class="type-sm footer-link">FAQ</a>
+        <a href="#" class="type-sm footer-link">handbook</a>
+        <a href="#" class="type-sm footer-link">blog</a>
+        <a href="#" class="type-sm footer-link">your data</a>
+      </div>
+      <div class="col-3 cell-pad footer-col">
+        <h3 class="type-sm weight-bold footer-heading">PRODUCT</h3>
+        <a href="#" class="type-sm footer-link">docs</a>
+        <a href="#" class="type-sm footer-link">coding</a>
+        <a href="#" class="type-sm footer-link">models</a>
+        <a href="#" class="type-sm footer-link">integrations</a>
+        <a href="#" class="type-sm footer-link">orchestration</a>
+      </div>
+      <div class="col-4 cell-pad footer-col">
+        <h3 class="type-sm weight-bold footer-heading">CONNECT</h3>
+        <a href="https://discord.gg/WFFjTVbJsg" class="type-sm footer-link">discord</a>
+        <a href="https://github.com/posthog/twig" class="type-sm footer-link">GitHub</a>
+        <a href="https://www.youtube.com/@twigautonomy" class="type-sm footer-link">YouTube</a>
+        <a href="https://x.com/twigautonomy" class="type-sm footer-link">X (Twitter)</a>
+        <a href="https://www.linkedin.com/company/twig-autonomy/" class="type-sm footer-link">LinkedIn</a>
+      </div>
+      <div class="col-5 cell-pad footer-col">
+        <h3 class="type-sm weight-bold footer-heading">WAKE UP</h3>
+        <p class="type-sm footer-text">Go touch grass (no seriously, you have time while twig is working)</p>
+        <a href="#" class="btn btn-outline-inverted type-sm">touch some grass</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const toggle = document.querySelector('.nav-toggle');
+    const popover = document.querySelector('.nav-popover');
+    const close = document.querySelector('.nav-close');
+
+    function closePopover() {
+      toggle?.setAttribute('aria-expanded', 'false');
+      popover?.classList.remove('open');
+    }
+
+    toggle?.addEventListener('click', () => {
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+      popover?.classList.toggle('open');
+    });
+
+    close?.addEventListener('click', closePopover);
+  </script>
 </Base>

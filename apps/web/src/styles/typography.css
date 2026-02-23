@@ -1,6 +1,7 @@
 :root {
   --color-text: #001627;
   --color-bg: #FAEEDE;
+  --color-accent: #E85D26;
   --font-mono: "TX-02", "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
   --type-xs: clamp(0.69rem, 0.65rem + 0.11vi, 0.94rem);
@@ -18,6 +19,18 @@
   --lh-normal: 1.414;
   --lh-relaxed: 1.65;
   --lh-loose: 1.8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --color-text: #FAEEDE;
+    --color-bg: #001627;
+  }
+}
+
+:root.dark {
+  --color-text: #FAEEDE;
+  --color-bg: #001627;
 }
 
 @font-face {
