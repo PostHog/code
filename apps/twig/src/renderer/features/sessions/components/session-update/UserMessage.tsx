@@ -15,6 +15,7 @@ const COLLAPSED_MAX_HEIGHT = 160;
 
 interface UserMessageProps {
   content: string;
+  timestamp?: number;
 }
 
 /**
@@ -93,7 +94,18 @@ function parseFileMentions(content: string): ReactNode[] {
   return parts;
 }
 
-export function UserMessage({ content }: UserMessageProps) {
+function formatTimestamp(ts: number): string {
+  return new Date(ts).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+export function UserMessage({ content, timestamp }: UserMessageProps) {
   const hasFileMentions = /<file\s+path="[^"]+"\s*\/>/.test(content);
   const [copied, setCopied] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -160,7 +172,14 @@ export function UserMessage({ content }: UserMessageProps) {
           )}
         </button>
       )}
-      <Box className="absolute top-1 right-1 opacity-0 transition-opacity group-hover/msg:opacity-100">
+      <Box className="absolute top-1 right-1 flex items-center gap-2 opacity-0 transition-opacity group-hover/msg:opacity-100">
+        {timestamp && (
+          <span
+            aria-hidden
+            className="font-mono text-[10px] text-gray-10 before:content-[attr(data-ts)]"
+            data-ts={formatTimestamp(timestamp)}
+          />
+        )}
         <Tooltip content={copied ? "Copied!" : "Copy message"}>
           <IconButton
             size="1"

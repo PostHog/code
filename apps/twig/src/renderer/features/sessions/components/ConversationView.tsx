@@ -132,7 +132,9 @@ export function ConversationView({
     (item: ConversationItem) => {
       switch (item.type) {
         case "user_message":
-          return <UserMessage content={item.content} />;
+          return (
+            <UserMessage content={item.content} timestamp={item.timestamp} />
+          );
         case "git_action":
           return <GitActionMessage actionType={item.actionType} />;
         case "session_update":

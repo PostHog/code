@@ -23,7 +23,7 @@ export interface TurnContext {
 }
 
 export type ConversationItem =
-  | { type: "user_message"; id: string; content: string }
+  | { type: "user_message"; id: string; content: string; timestamp: number }
   | { type: "git_action"; id: string; actionType: GitActionType }
   | {
       type: "session_update";
@@ -189,6 +189,7 @@ function handlePromptRequest(
       type: "user_message",
       id: `${turnId}-user`,
       content: userContent,
+      timestamp: ts,
     });
   }
 }
