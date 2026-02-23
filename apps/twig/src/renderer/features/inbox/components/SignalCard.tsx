@@ -87,12 +87,12 @@ function CollapsibleBody({ body }: { body: string }) {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-1 inline-flex items-center gap-0.5 font-mono text-[10px] text-gray-10 hover:text-gray-12"
+          className="mt-1.5 flex items-center gap-1 rounded px-1 py-0.5 font-medium font-mono text-[11px] text-accent-11 hover:bg-accent-3 hover:text-accent-12"
         >
           {expanded ? (
-            <CaretDownIcon size={10} />
+            <CaretDownIcon size={12} />
           ) : (
-            <CaretRightIcon size={10} />
+            <CaretRightIcon size={12} />
           )}
           {expanded ? "Show less" : "Show more"}
         </button>
