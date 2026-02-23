@@ -325,7 +325,6 @@ export class SessionService {
 
     sessionStoreSetters.setSession(session);
     this.subscribeToChannel(taskRunId);
-    sessionStoreSetters.updateSession(taskRunId, { status: "connected" });
 
     try {
       const persistedMode = getConfigOptionByCategory(

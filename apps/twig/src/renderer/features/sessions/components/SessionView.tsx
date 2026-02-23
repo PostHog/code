@@ -199,7 +199,7 @@ export function SessionView({
     [onSendPrompt],
   );
 
-  const [isBashMode, setIsBashMode] = useState(false);
+  const [, setIsBashMode] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const editorRef = useRef<MessageEditorHandle>(null);
   const dragCounterRef = useRef(0);
@@ -448,26 +448,41 @@ export function SessionView({
                   </Box>
                 </Box>
               ) : (
-                <Box
-                  className={
-                    isBashMode
-                      ? "border border-accent-9"
-                      : "border-gray-4 border-t"
-                  }
-                >
-                  <Box className="mx-auto max-w-[750px] p-2">
-                    <MessageEditor
-                      ref={editorRef}
-                      sessionId={sessionId}
-                      placeholder="Type a message... @ to mention files, ! for bash mode"
-                      onSubmit={handleSubmit}
-                      onBashCommand={onBashCommand}
-                      onBashModeChange={setIsBashMode}
-                      onCancel={onCancelPrompt}
-                      modeOption={modeOption}
-                      onModeChange={modeOption ? handleModeChange : undefined}
-                      adapter={adapter}
-                    />
+                <Box className="relative border-gray-4 border-t">
+                  <Box
+                    className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity duration-200 ${
+                      isRunning
+                        ? "pointer-events-none opacity-0"
+                        : "opacity-100"
+                    }`}
+                    style={{ minHeight: 66 }}
+                  >
+                    <Spinner size={28} className="animate-spin text-gray-9" />
+                    <Text size="3" color="gray">
+                      Connecting to agent...
+                    </Text>
+                  </Box>
+                  <Box
+                    className={`transition-all duration-300 ease-out ${
+                      isRunning
+                        ? "translate-y-0 opacity-100"
+                        : "pointer-events-none translate-y-4 opacity-0"
+                    }`}
+                  >
+                    <Box className="mx-auto max-w-[750px] p-2">
+                      <MessageEditor
+                        ref={editorRef}
+                        sessionId={sessionId}
+                        placeholder="Type a message... @ to mention files, ! for bash mode"
+                        onSubmit={handleSubmit}
+                        onBashCommand={onBashCommand}
+                        onBashModeChange={setIsBashMode}
+                        onCancel={onCancelPrompt}
+                        modeOption={modeOption}
+                        onModeChange={modeOption ? handleModeChange : undefined}
+                        adapter={adapter}
+                      />
+                    </Box>
                   </Box>
                 </Box>
               )}

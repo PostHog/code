@@ -64,8 +64,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   const prUrl =
     isCloud && cloudOutput?.pr_url ? (cloudOutput.pr_url as string) : null;
 
-  const isRunning =
-    session?.status === "connected" || session?.status === "connecting";
+  const isRunning = session?.status === "connected";
   const hasError = session?.status === "error";
   const errorTitle = session?.errorTitle;
   const errorMessage = session?.errorMessage;
