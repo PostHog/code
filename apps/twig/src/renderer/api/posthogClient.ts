@@ -649,25 +649,34 @@ export class PostHogAPIClient {
   async getSignalReportSignals(
     reportId: string,
   ): Promise<SignalReportSignalsResponse> {
-    const teamId = await this.getTeamId();
-    const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/signals/`,
-    );
-    const response = await this.api.fetcher.fetch({
-      method: "get",
-      url,
-      path: `/api/projects/${teamId}/signal_reports/${reportId}/signals/`,
-    });
+    try {
+      const teamId = await this.getTeamId();
+      const url = new URL(
+        `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/signals/`,
+      );
+      const response = await this.api.fetcher.fetch({
+        method: "get",
+        url,
+        path: `/api/projects/${teamId}/signal_reports/${reportId}/signals/`,
+      });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch report signals: ${response.statusText}`);
+      if (!response.ok) {
+        log.warn("Signal report signals unavailable", {
+          reportId,
+          status: response.status,
+        });
+        return { report: null, signals: [] };
+      }
+
+      const data = await response.json();
+      return {
+        report: data.report ?? null,
+        signals: data.signals ?? [],
+      };
+    } catch (error) {
+      log.warn("Failed to fetch signal report signals", { reportId, error });
+      return { report: null, signals: [] };
     }
-
-    const data = await response.json();
-    return {
-      report: data.report ?? null,
-      signals: data.signals ?? [],
-    };
   }
 
   async getSignalReportArtefacts(

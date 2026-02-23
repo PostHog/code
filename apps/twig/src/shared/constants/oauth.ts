@@ -10,6 +10,7 @@ export const OAUTH_SCOPES = [
   "user:read",
   "project:read",
   "task:write",
+  "signal_report:read",
   "llm_gateway:read",
   "integration:read",
   "introspection",
@@ -38,7 +39,7 @@ export const OAUTH_SCOPES = [
   "warehouse_view:read",
 ];
 
-export const OAUTH_SCOPE_VERSION = 1;
+export const OAUTH_SCOPE_VERSION = 2;
 
 // Token refresh settings
 export const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // 5 minutes before expiry
