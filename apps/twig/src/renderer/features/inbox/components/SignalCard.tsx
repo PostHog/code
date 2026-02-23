@@ -17,10 +17,12 @@ interface SignalCardProps {
 }
 
 interface GitHubIssueExtra {
-  issue_number?: number;
-  issue_url?: string;
+  url?: string;
+  author?: string;
   labels?: string[];
-  state?: string;
+  comments?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 function parseGitHubIssueContent(content: string): {
@@ -104,11 +106,14 @@ function CollapsibleBody({ body }: { body: string }) {
 function GitHubIssueSignalCard({ signal }: SignalCardProps) {
   const { title, labels, body } = parseGitHubIssueContent(signal.content);
   const extra = signal.extra as GitHubIssueExtra;
-  const issueNumber =
-    extra.issue_number ??
-    signal.content.match(/^GitHub Issue #(\d+)/)?.[1] ??
-    null;
-  const issueUrl = extra.issue_url ?? null;
+  const issueNumber = signal.content.match(/^GitHub Issue #(\d+)/)?.[1] ?? null;
+  const issueUrl = extra.url ?? null;
+
+  const titleContent = (
+    <>
+      {issueNumber ? `#${issueNumber}` : ""} {title}
+    </>
+  );
 
   return (
     <Box className="overflow-hidden rounded-lg border border-gray-6 bg-gray-1">
@@ -120,13 +125,24 @@ function GitHubIssueSignalCard({ signal }: SignalCardProps) {
         className="border-gray-5 border-b bg-gray-2"
       >
         <GithubLogoIcon size={14} className="shrink-0 text-gray-11" />
-        <Text
-          size="1"
-          weight="medium"
-          className="min-w-0 flex-1 truncate font-mono text-[11px]"
-        >
-          {issueNumber ? `#${issueNumber}` : ""} {title}
-        </Text>
+        {issueUrl ? (
+          <a
+            href={issueUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="min-w-0 flex-1 truncate font-medium font-mono text-[11px] text-gray-12 hover:text-accent-11"
+          >
+            {titleContent}
+          </a>
+        ) : (
+          <Text
+            size="1"
+            weight="medium"
+            className="min-w-0 flex-1 truncate font-mono text-[11px]"
+          >
+            {titleContent}
+          </Text>
+        )}
         {issueUrl && (
           <a
             href={issueUrl}
