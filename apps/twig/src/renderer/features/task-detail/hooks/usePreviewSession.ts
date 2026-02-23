@@ -31,7 +31,7 @@ interface PreviewSessionResult {
 export function usePreviewSession(
   adapter: "claude" | "codex",
 ): PreviewSessionResult {
-  const _projectId = useAuthStore((s) => s.projectId);
+  const projectId = useAuthStore((s) => s.projectId);
 
   useEffect(() => {
     const service = getSessionService();
@@ -40,7 +40,7 @@ export function usePreviewSession(
     return () => {
       service.cancelPreviewSession();
     };
-  }, [adapter]);
+  }, [adapter, projectId]);
 
   const session = useSessionForTask(PREVIEW_TASK_ID);
   const modeOption = useModeConfigOptionForTask(PREVIEW_TASK_ID);
