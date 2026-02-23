@@ -2,19 +2,6 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 
-const guton = localFont({
-  src: [
-    { path: "../fonts/guton/Guton-Regular.otf", weight: "400" },
-    { path: "../fonts/guton/Guton-Medium.otf", weight: "500" },
-    { path: "../fonts/guton/Guton-SemiBold.otf", weight: "600" },
-    { path: "../fonts/guton/Guton-Bold.otf", weight: "700" },
-    { path: "../fonts/guton/Guton-ExtraBold.otf", weight: "800" },
-    { path: "../fonts/guton/Guton-Black.otf", weight: "900" },
-  ],
-  variable: "--font-guton",
-  display: "swap",
-});
-
 const jetbrainsMono = localFont({
   src: [
     {
@@ -49,17 +36,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("theme");if(t==="dark"||(!t&&matchMedia("(prefers-color-scheme:dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})()`,
-          }}
-        />
-      </head>
-      <body
-        className={`${guton.variable} ${jetbrainsMono.variable} antialiased`}
-      >
+    <html lang="en">
+      <body className={`${jetbrainsMono.variable} antialiased`}>
         {children}
       </body>
     </html>

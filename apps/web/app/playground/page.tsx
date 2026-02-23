@@ -7,14 +7,12 @@ import { Link } from "../components/link";
 import { Quote } from "../components/quote";
 import { Strong } from "../components/strong";
 import { Text } from "../components/text";
-import { ThemeToggle } from "../components/theme-toggle";
 
 export default function Playground() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8">
         <Heading level={2}>Playground</Heading>
-        <ThemeToggle />
       </div>
 
       <section>

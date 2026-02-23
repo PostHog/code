@@ -43,7 +43,7 @@ export function Heading({
   const effectiveSize = size ?? defaultSizeForLevel[level];
   return (
     <Component
-      className={`font-family-heading ${sizeClasses[effectiveSize]} ${className}`}
+      className={`${sizeClasses[effectiveSize]} ${className}`}
       {...props}
     />
   );
