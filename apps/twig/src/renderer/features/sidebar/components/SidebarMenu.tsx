@@ -39,9 +39,10 @@ function SidebarMenuComponent() {
     activeView: view,
   });
   const inboxEnabled = useAutonomy();
-  const { data: inboxSignals } = useInboxReports(undefined, {
-    enabled: inboxEnabled,
-  });
+  const { data: inboxSignals } = useInboxReports(
+    { status: "ready" },
+    { enabled: inboxEnabled },
+  );
   const inboxSignalCount =
     inboxSignals?.count ?? inboxSignals?.results?.length ?? 0;
 
