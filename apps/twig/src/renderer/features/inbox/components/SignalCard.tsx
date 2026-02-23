@@ -1,11 +1,16 @@
 import {
   ArrowSquareOutIcon,
   BugIcon,
+  CaretDownIcon,
+  CaretRightIcon,
   GithubLogoIcon,
   TagIcon,
 } from "@phosphor-icons/react";
 import { Badge, Box, Flex, Text } from "@radix-ui/themes";
 import type { Signal } from "@shared/types";
+import { useState } from "react";
+
+const COLLAPSE_THRESHOLD = 300;
 
 interface SignalCardProps {
   signal: Signal;
@@ -57,12 +62,43 @@ function parseGitHubIssueContent(content: string): {
   return { title: title || content.slice(0, 80), labels, body };
 }
 
-function truncateBody(body: string, maxLength = 300): string {
+function truncateBody(body: string, maxLength = COLLAPSE_THRESHOLD): string {
   if (body.length <= maxLength) return body;
   const truncated = body.slice(0, maxLength);
   const lastNewline = truncated.lastIndexOf("\n");
   const cutPoint = lastNewline > maxLength * 0.5 ? lastNewline : maxLength;
   return `${truncated.slice(0, cutPoint)}…`;
+}
+
+function CollapsibleBody({ body }: { body: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = body.length > COLLAPSE_THRESHOLD;
+
+  return (
+    <Box>
+      <Text
+        size="1"
+        color="gray"
+        className="whitespace-pre-wrap text-pretty font-mono text-[10px] leading-relaxed"
+      >
+        {isLong && !expanded ? truncateBody(body) : body}
+      </Text>
+      {isLong && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-1 inline-flex items-center gap-0.5 font-mono text-[10px] text-gray-10 hover:text-gray-12"
+        >
+          {expanded ? (
+            <CaretDownIcon size={10} />
+          ) : (
+            <CaretRightIcon size={10} />
+          )}
+          {expanded ? "Show less" : "Show more"}
+        </button>
+      )}
+    </Box>
+  );
 }
 
 function GitHubIssueSignalCard({ signal }: SignalCardProps) {
@@ -121,15 +157,7 @@ function GitHubIssueSignalCard({ signal }: SignalCardProps) {
           </Flex>
         )}
 
-        {body && (
-          <Text
-            size="1"
-            color="gray"
-            className="whitespace-pre-wrap text-pretty font-mono text-[10px] leading-relaxed"
-          >
-            {truncateBody(body)}
-          </Text>
-        )}
+        {body && <CollapsibleBody body={body} />}
 
         <Flex align="center" justify="between" gap="2">
           <Text size="1" color="gray" className="font-mono text-[10px]">
@@ -166,12 +194,7 @@ function DefaultSignalCard({ signal }: SignalCardProps) {
       </Flex>
 
       <Flex direction="column" gap="2" px="3" py="2">
-        <Text
-          size="1"
-          className="whitespace-pre-wrap text-pretty font-mono text-[10px] leading-relaxed"
-        >
-          {truncateBody(signal.content)}
-        </Text>
+        <CollapsibleBody body={signal.content} />
 
         <Flex align="center" justify="between" gap="2">
           <Text size="1" color="gray" className="font-mono text-[10px]">
