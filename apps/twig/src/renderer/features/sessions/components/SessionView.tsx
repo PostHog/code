@@ -199,7 +199,7 @@ export function SessionView({
     [onSendPrompt],
   );
 
-  const [, setIsBashMode] = useState(false);
+  const handleBashModeChange = useCallback(() => {}, []);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const editorRef = useRef<MessageEditorHandle>(null);
   const dragCounterRef = useRef(0);
@@ -476,7 +476,7 @@ export function SessionView({
                         placeholder="Type a message... @ to mention files, ! for bash mode"
                         onSubmit={handleSubmit}
                         onBashCommand={onBashCommand}
-                        onBashModeChange={setIsBashMode}
+                        onBashModeChange={handleBashModeChange}
                         onCancel={onCancelPrompt}
                         modeOption={modeOption}
                         onModeChange={modeOption ? handleModeChange : undefined}

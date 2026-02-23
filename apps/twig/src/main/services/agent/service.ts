@@ -58,13 +58,18 @@ function isAuthError(error: unknown): boolean {
 
 /** Mark all content blocks as hidden so the renderer doesn't show a duplicate user message on retry. */
 function hidePromptBlocks(prompt: ContentBlock[]): ContentBlock[] {
-  return prompt.map((block) => ({
-    ...block,
-    _meta: {
-      ...(block as ContentBlock & { _meta?: Record<string, unknown> })._meta,
-      ui: { hidden: true },
-    },
-  }));
+  return prompt.map((block) => {
+    const existing = (
+      block as ContentBlock & { _meta?: { ui?: Record<string, unknown> } }
+    )._meta;
+    return {
+      ...block,
+      _meta: {
+        ...existing,
+        ui: { ...existing?.ui, hidden: true },
+      },
+    };
+  });
 }
 
 type MessageCallback = (message: unknown) => void;
@@ -678,17 +683,21 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   }
 
   /**
-   * Reset a session by clearing its sessionId and recreating it as a fresh
-   * session (no resume attempt). This is what should happen when a user clicks
-   * "New Session" after a stale-session error.
+   * Reset a session by clearing its sessionId and recreating the agent.
+   * Creates a fresh Claude session under the same taskRunId without
+   * attempting to resume the stale one.
    */
   async resetSession(taskRunId: string): Promise<void> {
     const existing = this.sessions.get(taskRunId);
     if (!existing) {
-      throw new Error(`Session not found for reset: ${taskRunId}`);
+      log.info(
+        "No backend session found for reset (likely failed reconnect), skipping",
+        { taskRunId },
+      );
+      return;
     }
 
-    log.info("Resetting session as fresh (clearing sessionId)", {
+    log.info("Resetting session (clearing sessionId)", {
       taskRunId,
       staleSessionId: existing.config.sessionId,
     });

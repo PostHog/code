@@ -458,10 +458,19 @@ export class SessionService {
     errorMessage: string,
     errorTitle?: string,
   ): void {
+    // Preserve events and logUrl from the existing session so the
+    // conversation history stays visible in the error state
+    const existing = sessionStoreSetters.getSessionByTaskId(taskId);
     const session = this.createBaseSession(taskRunId, taskId, taskTitle);
     session.status = "error";
     session.errorTitle = errorTitle;
     session.errorMessage = errorMessage;
+    if (existing?.events?.length) {
+      session.events = existing.events;
+    }
+    if (existing?.logUrl) {
+      session.logUrl = existing.logUrl;
+    }
     sessionStoreSetters.setSession(session);
   }
 
@@ -1344,14 +1353,45 @@ export class SessionService {
    * Clears the backend sessionId so the next reconnect creates a new
    * session instead of attempting to resume the stale one.
    */
-  async resetSession(taskId: string): Promise<void> {
+  async resetSession(taskId: string, repoPath: string): Promise<void> {
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
-    if (session) {
-      await trpcVanilla.agent.resetSession.mutate({
-        sessionId: session.taskRunId,
-      });
-      await this.teardownSession(session.taskRunId);
+    if (!session) return;
+
+    const { taskRunId, taskTitle, logUrl } = session;
+
+    // Cancel lingering backend agent (ignore errors — it may not exist
+    // after a failed reconnect)
+    try {
+      await trpcVanilla.agent.cancel.mutate({ sessionId: taskRunId });
+    } catch {
+      // expected when backend has no session
     }
+    this.unsubscribeFromChannel(taskRunId);
+
+    // Reconnect in place — do NOT teardown (removing the session from the
+    // store would trigger the connect effect, which re-reads the stale
+    // sessionId from logs and loops). The session stays in "error" state
+    // so the connect effect won't fire (it skips error/connected/connecting).
+    // reconnectToLocalSession overwrites the store session via setSession.
+    const auth = this.getAuthCredentials();
+    if (!auth) {
+      throw new Error("Unable to reach server. Please check your connection.");
+    }
+
+    const resolvedLogUrl = logUrl ?? "";
+    const prefetchedLogs = resolvedLogUrl
+      ? await this.fetchSessionLogs(resolvedLogUrl, taskRunId)
+      : { rawEntries: [] as StoredLogEntry[], adapter: undefined };
+
+    await this.reconnectToLocalSession(
+      taskId,
+      taskRunId,
+      taskTitle,
+      resolvedLogUrl,
+      repoPath,
+      auth,
+      { ...prefetchedLogs, sessionId: undefined },
+    );
   }
 
   /**

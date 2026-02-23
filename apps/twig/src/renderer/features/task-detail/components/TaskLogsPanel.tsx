@@ -234,12 +234,23 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
 
   const handleRetry = useCallback(async () => {
     if (!repoPath) return;
-    await getSessionService().clearSessionError(taskId);
+    try {
+      await getSessionService().clearSessionError(taskId);
+    } catch (error) {
+      log.error("Failed to clear session error", error);
+      toast.error("Failed to retry. Please try again.");
+    }
   }, [taskId, repoPath]);
 
   const handleNewSession = useCallback(async () => {
-    await getSessionService().resetSession(taskId);
-  }, [taskId]);
+    if (!repoPath) return;
+    try {
+      await getSessionService().resetSession(taskId, repoPath);
+    } catch (error) {
+      log.error("Failed to reset session", error);
+      toast.error("Failed to start new session. Please try again.");
+    }
+  }, [taskId, repoPath]);
 
   const handleBashCommand = useCallback(
     async (command: string) => {
