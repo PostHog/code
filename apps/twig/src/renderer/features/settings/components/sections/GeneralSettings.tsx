@@ -18,7 +18,7 @@ import { playCompletionSound } from "@renderer/lib/sounds";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useSettingsStore as useTerminalSettingsStore } from "@stores/settingsStore";
 import type { ThemePreference } from "@stores/themeStore";
-import { resolveIsDarkMode, useThemeStore } from "@stores/themeStore";
+import { useThemeStore } from "@stores/themeStore";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const CUSTOM_TERMINAL_FONT_VALUE = "custom";
@@ -41,9 +41,7 @@ const TERMINAL_FONT_PRESETS = [
 export function GeneralSettings() {
   // Appearance state
   const theme = useThemeStore((state) => state.theme);
-  const isDarkMode = useThemeStore((state) => state.isDarkMode);
   const setTheme = useThemeStore((state) => state.setTheme);
-  const { cursorGlow, setCursorGlow } = useSettingsStore();
   const terminalFontFamily = useTerminalSettingsStore(
     (state) => state.terminalFontFamily,
   );
@@ -112,24 +110,9 @@ export function GeneralSettings() {
         new_value: value,
         old_value: theme,
       });
-      if (!resolveIsDarkMode(value) && cursorGlow) {
-        setCursorGlow(false);
-      }
       setTheme(value);
     },
-    [theme, setTheme, cursorGlow, setCursorGlow],
-  );
-
-  const handleCursorGlowChange = useCallback(
-    (checked: boolean) => {
-      track(ANALYTICS_EVENTS.SETTING_CHANGED, {
-        setting_name: "cursor_glow",
-        new_value: checked,
-        old_value: cursorGlow,
-      });
-      setCursorGlow(checked);
-    },
-    [cursorGlow, setCursorGlow],
+    [theme, setTheme],
   );
 
   const clearCustomFontSaveTimeout = useCallback(() => {
@@ -288,19 +271,6 @@ export function GeneralSettings() {
           </Select.Content>
         </Select.Root>
       </SettingRow>
-
-      {isDarkMode && (
-        <SettingRow
-          label="Cursor glow"
-          description="Show a glow effect that follows your cursor"
-        >
-          <Switch
-            checked={cursorGlow}
-            onCheckedChange={handleCursorGlowChange}
-            size="1"
-          />
-        </SettingRow>
-      )}
 
       <SettingRow
         label="Terminal font"

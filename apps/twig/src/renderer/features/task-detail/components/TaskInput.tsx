@@ -1,4 +1,3 @@
-import { TorchGlow } from "@components/TorchGlow";
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
 import { ModeIndicatorInput } from "@features/message-editor/components/ModeIndicatorInput";
@@ -172,7 +171,6 @@ export function TaskInput() {
       onDrop={handleDrop}
     >
       <DropZoneOverlay isVisible={isDraggingFile} />
-      <TorchGlow containerRef={containerRef} />
       <Flex
         align="center"
         justify="center"

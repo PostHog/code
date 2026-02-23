@@ -455,13 +455,17 @@ export class PostHogAPIClient {
 
   async getIntegrations() {
     const teamId = await this.getTeamId();
+    return this.getIntegrationsForProject(teamId);
+  }
+
+  async getIntegrationsForProject(projectId: number) {
     const url = new URL(
-      `${this.api.baseUrl}/api/environments/${teamId}/integrations/`,
+      `${this.api.baseUrl}/api/environments/${projectId}/integrations/`,
     );
     const response = await this.api.fetcher.fetch({
       method: "get",
       url,
-      path: `/api/environments/${teamId}/integrations/`,
+      path: `/api/environments/${projectId}/integrations/`,
     });
 
     if (!response.ok) {

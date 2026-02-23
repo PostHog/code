@@ -1,10 +1,9 @@
 import { DraggableTitleBar } from "@components/DraggableTitleBar";
-import { TorchGlow } from "@components/TorchGlow";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { Flex } from "@radix-ui/themes";
-import caveHero from "@renderer/assets/images/cave-hero.jpg";
+import onboardingBg from "@renderer/assets/images/bg-2.svg";
 import { AnimatePresence, motion } from "framer-motion";
-import { useRef } from "react";
+
 import { useOnboardingFlow } from "../hooks/useOnboardingFlow";
 import { BillingStep } from "./BillingStep";
 import { GitIntegrationStep } from "./GitIntegrationStep";
@@ -13,7 +12,6 @@ import { StepIndicator } from "./StepIndicator";
 import { WelcomeStep } from "./WelcomeStep";
 
 export function OnboardingFlow() {
-  const containerRef = useRef<HTMLDivElement>(null);
   const { currentStep, next, back } = useOnboardingFlow();
   const { completeOnboarding } = useAuthStore();
 
@@ -23,22 +21,31 @@ export function OnboardingFlow() {
 
   return (
     <Flex
-      ref={containerRef}
       direction="column"
       height="100vh"
-      style={{ position: "relative" }}
+      style={{ position: "relative", overflow: "hidden" }}
     >
       <DraggableTitleBar />
-      <TorchGlow containerRef={containerRef} alwaysShow />
 
       {/* Background */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          backgroundImage: `url(${caveHero})`,
+          backgroundColor: "#FAEEDE",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: "55%",
+          backgroundImage: `url(${onboardingBg})`,
           backgroundSize: "cover",
-          backgroundPosition: "center",
+          backgroundPosition: "left center",
+          backgroundRepeat: "no-repeat",
         }}
       />
 

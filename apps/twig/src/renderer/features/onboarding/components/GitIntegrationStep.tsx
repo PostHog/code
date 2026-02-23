@@ -1,17 +1,25 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
-import { useIntegrationSelectors } from "@features/integrations/stores/integrationStore";
-import { useIntegrations } from "@hooks/useIntegrations";
 import {
   ArrowLeft,
   ArrowRight,
   ArrowSquareOut,
   CheckCircle,
   GitBranch,
-  Warning,
 } from "@phosphor-icons/react";
-import { Box, Button, Callout, Flex, Spinner, Text } from "@radix-ui/themes";
+import {
+  Box,
+  Button,
+  Callout,
+  Flex,
+  Skeleton,
+  Text,
+} from "@radix-ui/themes";
 import twigLogo from "@renderer/assets/images/twig-logo.svg";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
+import { useProjectsWithIntegrations } from "../hooks/useProjectsWithIntegrations";
+import { ProjectSelect } from "./ProjectSelect";
 
 interface GitIntegrationStepProps {
   onNext: () => void;
@@ -23,28 +31,63 @@ export function GitIntegrationStep({
   onBack,
 }: GitIntegrationStepProps) {
   const cloudRegion = useAuthStore((s) => s.cloudRegion);
-  const projectId = useAuthStore((s) => s.projectId);
+  const currentProjectId = useAuthStore((s) => s.projectId);
+  const selectProject = useAuthStore((s) => s.selectProject);
 
-  const { isLoading, refetch } = useIntegrations();
-  const { githubIntegration } = useIntegrationSelectors();
-  const hasGitIntegration = !!githubIntegration;
+  const { projects, projectsWithGithub, isLoading } =
+    useProjectsWithIntegrations();
+
+  // Default to first project with GitHub integration, otherwise current project
+  const defaultProjectId = useMemo(() => {
+    if (projectsWithGithub.length > 0) {
+      return projectsWithGithub[0].id;
+    }
+    return currentProjectId ?? projects[0]?.id ?? null;
+  }, [projectsWithGithub, currentProjectId, projects]);
+
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
+    defaultProjectId,
+  );
+
+  // Update selectedProjectId when defaultProjectId changes (after loading)
+  useEffect(() => {
+    if (defaultProjectId !== null && selectedProjectId === null) {
+      setSelectedProjectId(defaultProjectId);
+    }
+  }, [defaultProjectId, selectedProjectId]);
+
+  const selectedProject = useMemo(
+    () => projects.find((p) => p.id === selectedProjectId),
+    [projects, selectedProjectId],
+  );
+
+  const hasGitIntegration = selectedProject?.hasGithubIntegration ?? false;
 
   const handleConnectGitHub = () => {
-    if (!cloudRegion || !projectId) return;
+    if (!cloudRegion || !selectedProjectId) return;
     const cloudUrl = getCloudUrlFromRegion(cloudRegion);
-    const integrationUrl = `${cloudUrl}/project/${projectId}/settings/integrations`;
+    const integrationUrl = `${cloudUrl}/project/${selectedProjectId}/settings/integrations`;
     window.open(integrationUrl, "_blank");
   };
 
   const handleRefresh = () => {
-    refetch();
+    // Re-fetch integrations for the selected project
+    window.location.reload();
   };
 
   const handleContinue = () => {
+    // Persist the selected project if it's different from current
+    if (selectedProjectId && selectedProjectId !== currentProjectId) {
+      selectProject(selectedProjectId);
+    }
     onNext();
   };
 
   const handleSkip = () => {
+    // Persist the selected project if it's different from current
+    if (selectedProjectId && selectedProjectId !== currentProjectId) {
+      selectProject(selectedProjectId);
+    }
     onNext();
   };
 
@@ -72,94 +115,143 @@ export function GitIntegrationStep({
             Connect your git repository
           </Text>
           <Text
-            size="3"
+            size="1"
             style={{ color: "var(--cave-charcoal)", opacity: 0.7 }}
           >
             Twig needs access to your GitHub repositories to create branches,
             commits, and pull requests.
           </Text>
+
+          {selectedProject && (
+            <ProjectSelect
+              projectId={selectedProject.id}
+              projectName={selectedProject.name}
+              projects={projects.map((p) => ({ id: p.id, name: p.name }))}
+              onProjectChange={setSelectedProjectId}
+              disabled={isLoading}
+            />
+          )}
         </Flex>
 
-        {isLoading ? (
-          <Flex align="center" justify="center" py="8">
-            <Spinner size="3" />
-          </Flex>
-        ) : hasGitIntegration ? (
-          <Callout.Root color="green">
-            <Callout.Icon>
-              <CheckCircle size={20} weight="fill" />
-            </Callout.Icon>
-            <Callout.Text>
-              <Flex direction="column" gap="1">
-                <Text weight="bold">GitHub connected</Text>
-                <Text size="2">
-                  Your GitHub integration is active and ready to use.
-                </Text>
-              </Flex>
-            </Callout.Text>
-          </Callout.Root>
-        ) : (
-          <Flex direction="column" gap="4">
-            <Box
-              p="5"
-              style={{
-                backgroundColor: "rgba(255, 255, 255, 0.7)",
-                border: "2px solid rgba(0, 0, 0, 0.1)",
-                backdropFilter: "blur(8px)",
-              }}
+        <AnimatePresence mode="wait">
+          {isLoading ? (
+            <motion.div
+              key="skeleton"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
             >
-              <Flex direction="column" gap="4" align="center">
-                <GitBranch
-                  size={48}
-                  style={{ color: "var(--cave-charcoal)" }}
-                />
-                <Flex direction="column" gap="2" align="center">
-                  <Text
-                    size="4"
-                    weight="bold"
-                    style={{ color: "var(--cave-charcoal)" }}
-                  >
-                    No git integration found
-                  </Text>
-                  <Text
-                    size="2"
-                    align="center"
-                    style={{ color: "var(--cave-charcoal)", opacity: 0.7 }}
-                  >
-                    Connect GitHub to enable agent-powered development
-                    workflows.
-                  </Text>
-                </Flex>
-                <Button
-                  size="3"
-                  onClick={handleConnectGitHub}
+              <Flex direction="column" gap="4">
+                <Box
+                  p="5"
                   style={{
-                    backgroundColor: "var(--cave-charcoal)",
-                    color: "var(--cave-cream)",
+                    backgroundColor: "rgba(255, 255, 255, 0.7)",
+                    border: "2px solid rgba(0, 0, 0, 0.1)",
+                    backdropFilter: "blur(8px)",
                   }}
                 >
-                  Connect GitHub
-                  <ArrowSquareOut size={16} />
-                </Button>
-                <Button size="2" variant="ghost" onClick={handleRefresh}>
-                  Refresh status
-                </Button>
+                  <Flex direction="column" gap="4" align="center">
+                    <Skeleton
+                      style={{ width: "48px", height: "48px", borderRadius: "8px" }}
+                    />
+                    <Flex direction="column" gap="2" align="center">
+                      <Skeleton style={{ width: "200px", height: "20px" }} />
+                      <Skeleton style={{ width: "280px", height: "16px" }} />
+                    </Flex>
+                    <Skeleton
+                      style={{ width: "160px", height: "36px", borderRadius: "6px" }}
+                    />
+                    <Skeleton style={{ width: "100px", height: "16px" }} />
+                  </Flex>
+                </Box>
+                <Skeleton
+                  style={{ width: "100%", height: "52px", borderRadius: "8px" }}
+                />
               </Flex>
-            </Box>
-
-            <Callout.Root color="orange">
-              <Callout.Icon>
-                <Warning size={20} weight="fill" />
-              </Callout.Icon>
-              <Callout.Text>
-                <Text size="2">
-                  You can skip this step, but some features will be limited
-                  without git integration.
-                </Text>
-              </Callout.Text>
-            </Callout.Root>
-          </Flex>
-        )}
+            </motion.div>
+          ) : hasGitIntegration ? (
+            <motion.div
+              key="connected"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Callout.Root color="green">
+                <Callout.Icon>
+                  <CheckCircle size={20} weight="fill" />
+                </Callout.Icon>
+                <Callout.Text>
+                  <Flex direction="column" gap="1">
+                    <Text weight="bold">GitHub connected</Text>
+                    <Text size="2">
+                      Your GitHub integration is active and ready to use.
+                    </Text>
+                  </Flex>
+                </Callout.Text>
+              </Callout.Root>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="not-connected"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Flex direction="column" gap="4">
+                <Box
+                  p="5"
+                  style={{
+                    backgroundColor: "rgba(255, 255, 255, 0.7)",
+                    border: "2px solid rgba(0, 0, 0, 0.1)",
+                    backdropFilter: "blur(8px)",
+                  }}
+                >
+                  <Flex direction="column" gap="4" align="center">
+                    <GitBranch
+                      size={32}
+                      style={{ color: "var(--cave-charcoal)" }}
+                    />
+                    <Flex direction="column" gap="2" align="center">
+                      <Text
+                        size="3"
+                        weight="bold"
+                        style={{ color: "var(--cave-charcoal)" }}
+                      >
+                        No git integration found
+                      </Text>
+                      <Text
+                        size="1"
+                        align="center"
+                        style={{
+                          color: "var(--cave-charcoal)",
+                          opacity: 0.7,
+                        }}
+                      >
+                        Connect GitHub to enable agent-powered development
+                        workflows.
+                      </Text>
+                    </Flex>
+                    <Button
+                      size="2"
+                      onClick={handleConnectGitHub}
+                      style={{
+                        backgroundColor: "var(--cave-charcoal)",
+                        color: "var(--cave-cream)",
+                      }}
+                    >
+                      Connect GitHub
+                      <ArrowSquareOut size={16} />
+                    </Button>
+                    <Button size="1" variant="ghost" onClick={handleRefresh}>
+                      Refresh status
+                    </Button>
+                  </Flex>
+                </Box>
+              </Flex>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <Flex gap="3" align="center">
           <Button

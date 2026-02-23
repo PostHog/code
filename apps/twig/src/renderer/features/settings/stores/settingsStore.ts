@@ -19,7 +19,7 @@ interface SettingsStore {
   desktopNotifications: boolean;
   dockBadgeNotifications: boolean;
   dockBounceNotifications: boolean;
-  cursorGlow: boolean;
+
   autoConvertLongText: boolean;
   completionSound: CompletionSound;
   completionVolume: number;
@@ -39,7 +39,7 @@ interface SettingsStore {
   setDesktopNotifications: (enabled: boolean) => void;
   setDockBadgeNotifications: (enabled: boolean) => void;
   setDockBounceNotifications: (enabled: boolean) => void;
-  setCursorGlow: (enabled: boolean) => void;
+
   setAutoConvertLongText: (enabled: boolean) => void;
   setSendMessagesWith: (mode: SendMessagesWith) => void;
   setAllowBypassPermissions: (enabled: boolean) => void;
@@ -61,7 +61,7 @@ export const useSettingsStore = create<SettingsStore>()(
       dockBounceNotifications: false,
       completionSound: "none",
       completionVolume: 80,
-      cursorGlow: false,
+
       autoConvertLongText: true,
       sendMessagesWith: "enter",
       allowBypassPermissions: false,
@@ -83,7 +83,7 @@ export const useSettingsStore = create<SettingsStore>()(
         set({ dockBadgeNotifications: enabled }),
       setDockBounceNotifications: (enabled) =>
         set({ dockBounceNotifications: enabled }),
-      setCursorGlow: (enabled) => set({ cursorGlow: enabled }),
+
       setAutoConvertLongText: (enabled) =>
         set({ autoConvertLongText: enabled }),
       setSendMessagesWith: (mode) => set({ sendMessagesWith: mode }),
@@ -107,7 +107,7 @@ export const useSettingsStore = create<SettingsStore>()(
         desktopNotifications: state.desktopNotifications,
         dockBadgeNotifications: state.dockBadgeNotifications,
         dockBounceNotifications: state.dockBounceNotifications,
-        cursorGlow: state.cursorGlow,
+
         autoConvertLongText: state.autoConvertLongText,
         completionSound: state.completionSound,
         completionVolume: state.completionVolume,

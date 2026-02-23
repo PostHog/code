@@ -1,5 +1,4 @@
 import { DraggableTitleBar } from "@components/DraggableTitleBar";
-import { TorchGlow } from "@components/TorchGlow";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { Callout, Flex, Spinner, Text } from "@radix-ui/themes";
 import caveHero from "@renderer/assets/images/cave-hero.jpg";
@@ -8,7 +7,7 @@ import twigLogo from "@renderer/assets/images/twig-logo.svg";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { CloudRegion } from "@shared/types/oauth";
 import { useMutation } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { RegionSelect } from "./RegionSelect";
 
 export const getErrorMessage = (error: unknown) => {
@@ -48,7 +47,6 @@ const REGION_LABELS: Record<CloudRegion, string> = {
 };
 
 export function AuthScreen() {
-  const caveBackgroundRef = useRef<HTMLDivElement>(null);
   const [region, setRegion] = useState<CloudRegion>("us");
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const { loginWithOAuth, signupWithOAuth } = useAuthStore();
@@ -92,12 +90,10 @@ export function AuthScreen() {
 
   return (
     <Flex
-      ref={caveBackgroundRef}
       height="100vh"
-      style={{ position: "relative" }}
+      style={{ position: "relative", overflow: "hidden" }}
     >
       <DraggableTitleBar />
-      <TorchGlow containerRef={caveBackgroundRef} alwaysShow />
 
       {/* Full-screen cave painting background */}
       <div

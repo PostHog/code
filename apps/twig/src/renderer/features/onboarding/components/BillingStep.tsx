@@ -52,18 +52,11 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
           <Text
             size="6"
             style={{
-              fontFamily: "Halfre, serif",
               color: "var(--cave-charcoal)",
               lineHeight: 1.3,
             }}
           >
             Choose your plan
-          </Text>
-          <Text
-            size="3"
-            style={{ color: "var(--cave-charcoal)", opacity: 0.7 }}
-          >
-            Start free or unlock the full power of Twig.
           </Text>
         </Flex>
 
