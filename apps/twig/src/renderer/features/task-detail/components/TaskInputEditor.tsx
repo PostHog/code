@@ -25,7 +25,6 @@ interface TaskInputEditorProps {
   onEmptyChange?: (isEmpty: boolean) => void;
   adapter?: "claude" | "codex";
   previewTaskId?: string;
-  onCycleMode?: () => void;
   onAdapterChange?: (adapter: AgentAdapter) => void;
   isPreviewConnecting?: boolean;
 }
@@ -45,7 +44,6 @@ export const TaskInputEditor = forwardRef<
       onEmptyChange,
       adapter,
       previewTaskId,
-      onCycleMode,
       onAdapterChange,
       isPreviewConnecting,
     },
@@ -146,13 +144,6 @@ export const TaskInputEditor = forwardRef<
             const target = e.target as HTMLElement;
             if (!target.closest(".ProseMirror")) {
               focus();
-            }
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Tab" && e.shiftKey && onCycleMode) {
-              e.preventDefault();
-              e.stopPropagation();
-              onCycleMode();
             }
           }}
         >

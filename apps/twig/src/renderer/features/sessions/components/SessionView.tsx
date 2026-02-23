@@ -20,6 +20,7 @@ import {
   isJsonRpcNotification,
   isJsonRpcResponse,
 } from "@shared/types/session-events";
+import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { getSessionService } from "../service/service";
@@ -335,6 +336,8 @@ export function SessionView({
 
     editorRef.current?.focus();
   }, []);
+
+  useAutoFocusOnTyping(editorRef);
 
   return (
     <ContextMenu.Root>
