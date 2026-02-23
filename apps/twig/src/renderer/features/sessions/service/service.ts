@@ -1108,6 +1108,11 @@ export class SessionService {
       return { stopReason: "empty" };
     }
 
+    const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
+    if (session.cloudStatus && terminalStatuses.has(session.cloudStatus)) {
+      throw new Error("This cloud run has already finished");
+    }
+
     if (session.isPromptPending) {
       sessionStoreSetters.enqueueMessage(session.taskId, promptText);
       log.info("Cloud message queued", {
@@ -1196,17 +1201,19 @@ export class SessionService {
       promptLength: combinedText.length,
     });
 
-    track(ANALYTICS_EVENTS.PROMPT_SENT, {
-      task_id: taskId,
-      is_initial: false,
-      execution_type: "cloud",
-      prompt_length_chars: combinedText.length,
-    });
-
     return this.sendCloudPrompt(session, combinedText);
   }
 
   private async cancelCloudPrompt(session: AgentSession): Promise<boolean> {
+    const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
+    if (session.cloudStatus && terminalStatuses.has(session.cloudStatus)) {
+      log.info("Skipping cancel for terminal cloud run", {
+        taskId: session.taskId,
+        status: session.cloudStatus,
+      });
+      return false;
+    }
+
     const auth = this.getCloudCommandAuth();
     if (!auth) {
       log.error("No auth for cloud cancel");
@@ -1239,10 +1246,6 @@ export class SessionService {
         log.warn("Cloud cancel command failed", { error: result.error });
         return false;
       }
-
-      sessionStoreSetters.updateSession(session.taskRunId, {
-        isPromptPending: false,
-      });
 
       return true;
     } catch (error) {
