@@ -23,14 +23,11 @@ interface GitHubLabelObject {
 
 interface GitHubIssueExtra {
   html_url?: string;
-  url?: string;
   number?: number;
   state?: string;
-  labels?: string | string[] | GitHubLabelObject[];
+  labels?: string | GitHubLabelObject[];
   created_at?: string;
   updated_at?: string;
-  author?: string;
-  comments?: number;
   locked?: boolean;
 }
 
@@ -49,7 +46,7 @@ function resolveLabels(
         );
       }
     } catch {
-      return raw.split(",").map((l) => ({ name: l.trim() }));
+      return [];
     }
   }
   if (Array.isArray(raw)) {
@@ -60,25 +57,16 @@ function resolveLabels(
   return [];
 }
 
-function extractIssueBody(content: string): string {
-  const lines = content.split("\n");
-  let bodyStart = 0;
-  for (let i = 0; i < Math.min(lines.length, 3); i++) {
-    if (
-      lines[i].match(/^GitHub Issue #/) ||
-      lines[i].match(/^Labels:\s/) ||
-      lines[i].trim() === ""
-    ) {
-      bodyStart = i + 1;
-    } else {
-      break;
-    }
-  }
-  return lines
-    .slice(bodyStart)
-    .join("\n")
-    .replace(/^[\n]+/, "")
-    .trim();
+function splitTitleBody(content: string): { title: string; body: string } {
+  const firstNewline = content.indexOf("\n");
+  if (firstNewline === -1) return { title: content, body: "" };
+  return {
+    title: content.slice(0, firstNewline).trim(),
+    body: content
+      .slice(firstNewline + 1)
+      .replace(/^[\n]+/, "")
+      .trim(),
+  };
 }
 
 function truncateBody(body: string, maxLength = COLLAPSE_THRESHOLD): string {
@@ -123,20 +111,14 @@ function CollapsibleBody({ body }: { body: string }) {
 function GitHubIssueSignalCard({ signal }: SignalCardProps) {
   const extra = signal.extra as GitHubIssueExtra;
   const labels = resolveLabels(extra.labels);
-  const issueUrl = extra.html_url ?? extra.url ?? null;
-  const issueNumber =
-    extra.number?.toString() ??
-    signal.source_id.match(/#(\d+)$/)?.[1] ??
-    signal.content.match(/^GitHub Issue #(\d+)/)?.[1] ??
-    null;
-  const title =
-    signal.content.match(/^GitHub Issue #\d+:\s*(.+)$/m)?.[1]?.trim() ??
-    signal.content.slice(0, 80);
-  const body = extractIssueBody(signal.content);
+  const issueUrl = extra.html_url ?? null;
+  const issueNumber = extra.number ?? null;
+  const { title, body } = splitTitleBody(signal.content);
 
   const titleContent = (
     <>
-      {issueNumber ? `#${issueNumber}` : ""} {title}
+      {issueNumber ? `#${issueNumber} ` : ""}
+      {title}
     </>
   );
 
