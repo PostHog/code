@@ -311,6 +311,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
 
   if (
     !repoPath &&
+    !isCloud &&
     isWorkspaceLoaded &&
     !hasDirectoryMapping &&
     !isCreatingWorkspace
