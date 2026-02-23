@@ -16,13 +16,48 @@ interface SignalCardProps {
   signal: Signal;
 }
 
+interface GitHubLabelObject {
+  name: string;
+  color?: string;
+}
+
 interface GitHubIssueExtra {
+  html_url?: string;
   url?: string;
-  author?: string;
-  labels?: string[];
-  comments?: number;
+  number?: number;
+  state?: string;
+  labels?: string | string[] | GitHubLabelObject[];
   created_at?: string;
   updated_at?: string;
+  author?: string;
+  comments?: number;
+  locked?: boolean;
+}
+
+function resolveLabels(
+  raw: GitHubIssueExtra["labels"],
+): { name: string; color?: string }[] {
+  if (!raw) return [];
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map((l: string | GitHubLabelObject) =>
+          typeof l === "string"
+            ? { name: l }
+            : { name: l.name, color: l.color },
+        );
+      }
+    } catch {
+      return raw.split(",").map((l) => ({ name: l.trim() }));
+    }
+  }
+  if (Array.isArray(raw)) {
+    return raw.map((l) =>
+      typeof l === "string" ? { name: l } : { name: l.name, color: l.color },
+    );
+  }
+  return [];
 }
 
 function extractIssueBody(content: string): string {
@@ -87,9 +122,10 @@ function CollapsibleBody({ body }: { body: string }) {
 
 function GitHubIssueSignalCard({ signal }: SignalCardProps) {
   const extra = signal.extra as GitHubIssueExtra;
-  const labels = extra.labels ?? [];
-  const issueUrl = extra.url ?? null;
+  const labels = resolveLabels(extra.labels);
+  const issueUrl = extra.html_url ?? extra.url ?? null;
   const issueNumber =
+    extra.number?.toString() ??
     signal.source_id.match(/#(\d+)$/)?.[1] ??
     signal.content.match(/^GitHub Issue #(\d+)/)?.[1] ??
     null;
@@ -149,15 +185,25 @@ function GitHubIssueSignalCard({ signal }: SignalCardProps) {
           <Flex align="center" gap="1" wrap="wrap">
             <TagIcon size={11} className="shrink-0 text-gray-9" />
             {labels.map((label) => (
-              <Badge
-                key={label}
-                variant="soft"
-                color={label === "bug" ? "red" : "gray"}
-                size="1"
-                className="text-[10px]"
+              <span
+                key={label.name}
+                className="inline-flex items-center rounded-full px-1.5 py-0.5 font-medium font-mono text-[10px]"
+                style={
+                  label.color
+                    ? {
+                        backgroundColor: `#${label.color}20`,
+                        color: `#${label.color}`,
+                        border: `1px solid #${label.color}40`,
+                      }
+                    : {
+                        backgroundColor: "var(--gray-3)",
+                        color: "var(--gray-11)",
+                        border: "1px solid var(--gray-6)",
+                      }
+                }
               >
-                {label}
-              </Badge>
+                {label.name}
+              </span>
             ))}
           </Flex>
         )}
