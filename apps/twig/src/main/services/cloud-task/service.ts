@@ -6,6 +6,8 @@ import { TypedEventEmitter } from "../../lib/typed-event-emitter.js";
 import {
   CloudTaskEvent,
   type CloudTaskEvents,
+  type SendCommandInput,
+  type SendCommandOutput,
   type TaskRunStatus,
   TERMINAL_STATUSES,
   type WatchInput,
@@ -125,6 +127,89 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       log.info("Drained pending cloud task watches", {
         count: pending.length,
       });
+    }
+  }
+
+  async sendCommand(input: SendCommandInput): Promise<SendCommandOutput> {
+    if (!this.apiKey) {
+      return { success: false, error: "No API token available" };
+    }
+
+    const url = `${input.apiHost}/api/projects/${input.teamId}/tasks/${input.taskId}/runs/${input.runId}/command/`;
+    const body = {
+      jsonrpc: "2.0",
+      method: input.method,
+      params: input.params ?? {},
+      id: `twig-${Date.now()}`,
+    };
+
+    try {
+      const response = await net.fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "");
+        let errorMessage = `Command failed with status ${response.status}`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.error?.message) {
+            errorMessage = errorJson.error.message;
+          } else if (errorJson.error) {
+            errorMessage =
+              typeof errorJson.error === "string"
+                ? errorJson.error
+                : JSON.stringify(errorJson.error);
+          }
+        } catch {
+          if (errorText) errorMessage = errorText;
+        }
+
+        log.warn("Cloud task command failed", {
+          taskId: input.taskId,
+          runId: input.runId,
+          method: input.method,
+          status: response.status,
+          error: errorMessage,
+        });
+        return { success: false, error: errorMessage };
+      }
+
+      const data = await response.json();
+
+      if (data.error) {
+        log.warn("Cloud task command returned error", {
+          taskId: input.taskId,
+          method: input.method,
+          error: data.error,
+        });
+        return {
+          success: false,
+          error: data.error.message ?? JSON.stringify(data.error),
+        };
+      }
+
+      log.info("Cloud task command sent", {
+        taskId: input.taskId,
+        runId: input.runId,
+        method: input.method,
+      });
+
+      return { success: true, result: data.result };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      log.error("Cloud task command error", {
+        taskId: input.taskId,
+        method: input.method,
+        error: errorMessage,
+      });
+      return { success: false, error: errorMessage };
     }
   }
 
