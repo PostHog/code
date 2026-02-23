@@ -40,6 +40,8 @@ pnpm dev:agent  # Run agent in watch mode
 pnpm dev:twig   # Run twig app
 ```
 
+> **Want to connect to a local PostHog instance?** See [docs/LOCAL-DEVELOPMENT.md](./docs/LOCAL-DEVELOPMENT.md) for OAuth setup and connecting to localhost:8010.
+
 ### Utility Scripts
 
 Scripts in `scripts/` for development and debugging:
@@ -73,6 +75,7 @@ twig/
 | [apps/mobile/README.md](./apps/mobile/README.md) | Mobile app: Expo setup, EAS builds, and TestFlight deployment |
 | [apps/cli/README.md](./apps/cli/README.md) | CLI: stacked PR management with Jujutsu |
 | [CLAUDE.md](./CLAUDE.md) | Code style, patterns, and testing guidelines |
+| [docs/LOCAL-DEVELOPMENT.md](./docs/LOCAL-DEVELOPMENT.md) | Connecting Twig to a local PostHog instance |
 | [docs/UPDATES.md](./docs/UPDATES.md) | Release versioning and git tagging |
 | [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) | Common issues and fixes |
 

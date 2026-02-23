@@ -1,0 +1,106 @@
+# Connecting Twig to a Local PostHog Instance
+
+This guide walks you through running Twig's dev build against a local PostHog instance (localhost:8010).
+
+## Prerequisites
+
+- A running local PostHog instance at `http://localhost:8010` ([PostHog local development docs](https://posthog.com/handbook/engineering/developing-locally))
+- Node.js 22+
+- pnpm 10+
+
+## 1. Set up the OAuth application in PostHog
+
+Twig authenticates with PostHog via OAuth. Your local PostHog instance needs an OAuth application registered for Twig to connect to it.
+
+### Option A: Generate demo data (easiest)
+
+PostHog's demo data generator creates a pre-configured OAuth application with the correct client ID:
+
+```bash
+# In your PostHog repo
+python manage.py generate_demo_data
+```
+
+This creates an OAuth application with:
+- **Client ID**: `DC5uRLVbGI02YQ82grxgnK6Qn12SXWpCqdPb60oZ`
+- **Redirect URIs**: includes `http://localhost:8237/callback` and `http://localhost:8239/callback`
+
+### Option B: Create the OAuth application manually via Django admin
+
+1. Go to http://localhost:8010/admin/posthog/oauthapplication/
+2. Click **Add OAuth Application**
+3. Set these fields:
+   - **Name**: `Twig` (or whatever you like)
+   - **Client ID**: `DC5uRLVbGI02YQ82grxgnK6Qn12SXWpCqdPb60oZ` — this must match the `POSTHOG_DEV_CLIENT_ID` in Twig's source
+   - **Client type**: `Public` (Twig is an Electron desktop app)
+   - **Authorization grant type**: `Authorization code`
+   - **Redirect URIs**: `http://localhost:8237/callback http://localhost:8239/callback`
+   - **Algorithm**: `RS256`
+4. Save
+
+> **Important**: The Client ID must be exactly `DC5uRLVbGI02YQ82grxgnK6Qn12SXWpCqdPb60oZ` — this is hardcoded in Twig as the Dev region client ID (see `apps/twig/src/shared/constants/oauth.ts`).
+
+## 2. Configure RSA keys in PostHog
+
+OAuth token signing requires an RSA private key. In your PostHog repo:
+
+```bash
+# Copy the RSA key from .env.example to your .env
+grep OIDC_RSA_PRIVATE_KEY .env.example >> .env
+```
+
+Or generate a new one:
+
+```bash
+openssl genrsa 2048 | openssl pkcs8 -topk8 -nocrypt -outform PEM | \
+  awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}'
+
+# Add to your PostHog .env as OIDC_RSA_PRIVATE_KEY="<generated_key>"
+```
+
+## 3. Clone and run Twig
+
+```bash
+git clone https://github.com/PostHog/Twig.git
+cd Twig
+pnpm install
+cp .env.example .env
+pnpm dev
+```
+
+## 4. Connect to your local instance
+
+1. When the Twig app opens, select the **Dev** region on the login screen (in addition to US & EU, the dev build shows a Dev option that points to `localhost:8010`)
+2. This will redirect you to your local PostHog instance for OAuth authorization
+3. Authorize the application and select the project/organization access level
+4. You'll be redirected back to Twig, now connected to your local PostHog
+
+## How it works
+
+The dev build of Twig includes a "Dev" cloud region that maps to:
+- **API URL**: `http://localhost:8010`
+- **OAuth Client ID**: `DC5uRLVbGI02YQ82grxgnK6Qn12SXWpCqdPb60oZ`
+
+This is defined in `apps/twig/src/shared/constants/oauth.ts`. The Dev region only appears when running the dev build (`pnpm dev`), not in production releases.
+
+## Troubleshooting
+
+### "Invalid client_id" error during OAuth
+
+The OAuth application in your local PostHog must have the client ID `DC5uRLVbGI02YQ82grxgnK6Qn12SXWpCqdPb60oZ`. Verify at http://localhost:8010/admin/posthog/oauthapplication/.
+
+### "Redirect URI mismatch"
+
+Make sure the OAuth application's redirect URIs include `http://localhost:8237/callback` and `http://localhost:8239/callback`. Check for trailing slashes.
+
+### OAuth authorization page fails to load
+
+Ensure your local PostHog instance is running at `http://localhost:8010` and that the RSA key is configured (see step 2).
+
+### Existing projects not showing up
+
+After connecting, Twig will show projects from your local PostHog instance. If you need test data, run `python manage.py generate_demo_data` in your PostHog repo.
+
+## Further reading
+
+- [PostHog OAuth Development Guide](https://github.com/PostHog/posthog/blob/master/docs/published/handbook/engineering/oauth-development-guide.md) — full OAuth spec, scopes, token introspection, and more
