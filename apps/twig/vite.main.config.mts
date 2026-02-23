@@ -4,14 +4,16 @@ import {
   cpSync,
   existsSync,
   mkdirSync,
+  readFileSync,
   readdirSync,
   statSync,
 } from "node:fs";
-import { cp, mkdir, readdir, rm } from "node:fs/promises";
+import { cp, mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import path, { join } from "node:path";
+import path, { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { unzipSync } from "fflate";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import {
@@ -169,7 +171,17 @@ async function downloadAndExtractSkills(targetDir: string): Promise<boolean> {
       // Extract
       const extractDir = join(tempDir, "extracted");
       await mkdir(extractDir, { recursive: true });
-      await execFileAsync("unzip", ["-o", zipPath, "-d", extractDir]);
+      const zipData = readFileSync(zipPath);
+      const unzipped = unzipSync(new Uint8Array(zipData));
+      for (const [filename, content] of Object.entries(unzipped)) {
+        const fullPath = join(extractDir, filename);
+        if (filename.endsWith("/")) {
+          await mkdir(fullPath, { recursive: true });
+        } else {
+          await mkdir(dirname(fullPath), { recursive: true });
+          await writeFile(fullPath, content);
+        }
+      }
 
       // Find skills directory in extracted content
       const skillsSource = await findSkillsDirInExtract(extractDir);

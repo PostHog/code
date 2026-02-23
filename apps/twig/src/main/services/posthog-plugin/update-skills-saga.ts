@@ -1,11 +1,8 @@
-import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { cp, mkdir, readdir, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { promisify } from "node:util";
+import { extractZip } from "@main/lib/extract-zip.js";
 import { Saga } from "@posthog/shared";
-
-const execFileAsync = promisify(execFile);
 
 /**
  * Overlays previously-downloaded skills on top of the runtime plugin dir.
@@ -192,7 +189,7 @@ export class UpdateSkillsSaga extends Saga<
 
     const extractDir = join(tempDir, "extracted");
     await mkdir(extractDir, { recursive: true });
-    await execFileAsync("unzip", ["-o", zipPath, "-d", extractDir]);
+    await extractZip(zipPath, extractDir);
 
     const skillsSource = await this.findSkillsDir(extractDir);
     if (!skillsSource) {

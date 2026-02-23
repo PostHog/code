@@ -10,12 +10,13 @@
  */
 
 import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
-import { cp, mkdir, readdir, rm } from "node:fs/promises";
+import { existsSync, readFileSync } from "node:fs";
+import { cp, mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { unzipSync } from "fflate";
 
 const execFileAsync = promisify(execFile);
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -42,7 +43,17 @@ try {
 
   const extractDir = join(tempDir, "extracted");
   await mkdir(extractDir, { recursive: true });
-  await execFileAsync("unzip", ["-o", zipPath, "-d", extractDir]);
+  const zipData = readFileSync(zipPath);
+  const unzipped = unzipSync(new Uint8Array(zipData));
+  for (const [filename, content] of Object.entries(unzipped)) {
+    const fullPath = join(extractDir, filename);
+    if (filename.endsWith("/")) {
+      await mkdir(fullPath, { recursive: true });
+    } else {
+      await mkdir(dirname(fullPath), { recursive: true });
+      await writeFile(fullPath, content);
+    }
+  }
 
   // Find the skills directory
   let skillsSource = null;

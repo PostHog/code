@@ -142,6 +142,7 @@
     "dotenv": "^17.2.3",
     "electron-log": "^5.4.3",
     "electron-store": "^11.0.0",
+    "fflate": "^0.8.2",
     "file-icon": "^6.0.0",
     "framer-motion": "^12.26.2",
     "fzf": "^0.5.2",
@@ -167,11 +168,11 @@
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "sonner": "^2.0.7",
+    "striptags": "^3.2.0",
     "tippy.js": "^6.3.7",
     "uuid": "^9.0.1",
     "vscode-icons-js": "^11.6.1",
     "zod": "^4.1.12",
-    "zustand": "^4.5.0",
-    "striptags": "^3.2.0"
+    "zustand": "^4.5.0"
   }
 }

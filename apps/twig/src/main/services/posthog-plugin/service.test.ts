@@ -16,8 +16,8 @@ const mockNet = vi.hoisted(() => ({
   fetch: vi.fn(),
 }));
 
-const mockExecFileAsync = vi.hoisted(() =>
-  vi.fn<(cmd: string, args: string[]) => Promise<unknown>>(async () => {}),
+const mockExtractZip = vi.hoisted(() =>
+  vi.fn<(zipPath: string, extractDir: string) => Promise<void>>(async () => {}),
 );
 
 vi.mock("electron", () => ({
@@ -35,14 +35,8 @@ vi.mock("node:fs/promises", async () => {
   return { ...fs.promises, default: fs.promises };
 });
 
-vi.mock("node:child_process", () => ({
-  execFile: vi.fn(),
-  default: { execFile: vi.fn() },
-}));
-
-vi.mock("node:util", () => ({
-  promisify: () => mockExecFileAsync,
-  default: { promisify: () => mockExecFileAsync },
+vi.mock("../../lib/extract-zip.js", () => ({
+  extractZip: mockExtractZip,
 }));
 
 vi.mock("node:os", () => ({
@@ -82,12 +76,10 @@ function mockFetchResponse(ok: boolean, status = 200) {
   };
 }
 
-/** Simulate unzip by creating skill files in the extracted dir */
-function simulateUnzip() {
-  mockExecFileAsync.mockImplementation(async (_cmd: string, args: string[]) => {
-    const dIdx = args.indexOf("-d");
-    if (dIdx >= 0) {
-      const extractDir = args[dIdx + 1];
+/** Simulate zip extraction by creating skill files in the extracted dir */
+function simulateExtractZip() {
+  mockExtractZip.mockImplementation(
+    async (_zipPath: string, extractDir: string) => {
       vol.mkdirSync(`${extractDir}/skills/remote-skill`, {
         recursive: true,
       });
@@ -95,8 +87,8 @@ function simulateUnzip() {
         `${extractDir}/skills/remote-skill/SKILL.md`,
         "# Remote",
       );
-    }
-  });
+    },
+  );
 }
 
 /** Create the bundled plugin directory in memfs */
@@ -116,7 +108,7 @@ describe("PosthogPluginService", () => {
 
     mockApp.isPackaged = false;
     mockNet.fetch.mockResolvedValue(mockFetchResponse(true));
-    mockExecFileAsync.mockResolvedValue({});
+    mockExtractZip.mockResolvedValue(undefined);
 
     service = new PosthogPluginService();
   });
@@ -204,7 +196,7 @@ describe("PosthogPluginService", () => {
   describe("updateSkills", () => {
     it("downloads, extracts, and installs skills", async () => {
       setupBundledPlugin();
-      simulateUnzip();
+      simulateExtractZip();
 
       await service.updateSkills();
 
@@ -215,10 +207,7 @@ describe("PosthogPluginService", () => {
       expect(mockNet.fetch).toHaveBeenCalledWith(
         "https://example.com/skills.zip",
       );
-      expect(mockExecFileAsync).toHaveBeenCalledWith(
-        "unzip",
-        expect.arrayContaining(["-o"]),
-      );
+      expect(mockExtractZip).toHaveBeenCalled();
     });
 
     it("performs atomic swap of skills directory", async () => {
@@ -227,7 +216,7 @@ describe("PosthogPluginService", () => {
       vol.mkdirSync(`${RUNTIME_SKILLS_DIR}/old-skill`, { recursive: true });
       vol.writeFileSync(`${RUNTIME_SKILLS_DIR}/old-skill/SKILL.md`, "# Old");
 
-      simulateUnzip();
+      simulateExtractZip();
       await service.updateSkills();
 
       // New skill should be present, old skill should be gone
@@ -245,7 +234,7 @@ describe("PosthogPluginService", () => {
       vol.mkdirSync(RUNTIME_PLUGIN_DIR, { recursive: true });
       vol.writeFileSync(`${RUNTIME_PLUGIN_DIR}/plugin.json`, "{}");
 
-      simulateUnzip();
+      simulateExtractZip();
       await service.updateSkills();
 
       expect(
@@ -254,7 +243,7 @@ describe("PosthogPluginService", () => {
     });
 
     it("emits 'updated' event on success", async () => {
-      simulateUnzip();
+      simulateExtractZip();
       const handler = vi.fn();
       service.on("skillsUpdated", handler);
 
@@ -264,7 +253,7 @@ describe("PosthogPluginService", () => {
     });
 
     it("throttles: skips if called within 30 minutes", async () => {
-      simulateUnzip();
+      simulateExtractZip();
       await service.updateSkills();
       mockNet.fetch.mockClear();
 
@@ -274,7 +263,7 @@ describe("PosthogPluginService", () => {
     });
 
     it("allows update after throttle period expires", async () => {
-      simulateUnzip();
+      simulateExtractZip();
       await service.updateSkills();
       mockNet.fetch.mockClear();
 
@@ -319,15 +308,11 @@ describe("PosthogPluginService", () => {
     });
 
     it("handles missing skills dir in archive", async () => {
-      // Unzip creates no skills directory
-      mockExecFileAsync.mockImplementation(
-        async (_cmd: string, args: string[]) => {
-          const dIdx = args.indexOf("-d");
-          if (dIdx >= 0) {
-            const extractDir = args[dIdx + 1];
-            vol.mkdirSync(`${extractDir}/random-dir`, { recursive: true });
-            vol.writeFileSync(`${extractDir}/random-dir/README.md`, "nope");
-          }
+      // Extraction creates no skills directory
+      mockExtractZip.mockImplementation(
+        async (_zipPath: string, extractDir: string) => {
+          vol.mkdirSync(`${extractDir}/random-dir`, { recursive: true });
+          vol.writeFileSync(`${extractDir}/random-dir/README.md`, "nope");
         },
       );
 
@@ -339,7 +324,7 @@ describe("PosthogPluginService", () => {
     });
 
     it("cleans up temp dir even on error", async () => {
-      mockExecFileAsync.mockRejectedValue(new Error("unzip failed"));
+      mockExtractZip.mockRejectedValue(new Error("extraction failed"));
 
       await service.updateSkills();
 
