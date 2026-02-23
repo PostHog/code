@@ -173,12 +173,10 @@ export function UserMessage({ content, timestamp }: UserMessageProps) {
         </button>
       )}
       <Box className="absolute top-1 right-1 flex items-center gap-2 opacity-0 transition-opacity group-hover/msg:opacity-100">
-        {timestamp && (
-          <span
-            aria-hidden
-            className="font-mono text-[10px] text-gray-10 before:content-[attr(data-ts)]"
-            data-ts={formatTimestamp(timestamp)}
-          />
+        {timestamp != null && (
+          <span aria-hidden className="font-mono text-[10px] text-gray-10">
+            {formatTimestamp(timestamp)}
+          </span>
         )}
         <Tooltip content={copied ? "Copied!" : "Copy message"}>
           <IconButton
