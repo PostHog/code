@@ -89,8 +89,9 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
             recommended
           />
         </Flex>
-        <Text size="2" style={{ color: "var(--cave-charcoal)", opacity: 0.7 }}>
-          * Usage is limited to 1000 requests per day.
+        <Text size="1" style={{ color: "var(--cave-charcoal)", opacity: 0.5 }}>
+          * Usage is limited to "human" level usage, this cannot be used as your
+          api key. If you hit this limit, please contact support.
         </Text>
         <Flex gap="3" align="center">
           <Button

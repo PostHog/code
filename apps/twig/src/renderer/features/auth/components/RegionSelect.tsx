@@ -20,9 +20,11 @@ export function RegionSelect({
 
   if (!expanded) {
     return (
-      <Text size="2" style={{ color: "var(--cave-charcoal)", opacity: 0.5 }}>
-        {regionLabel}
-        {" \u00B7 "}
+      <Text size="2">
+        <span style={{ color: "var(--cave-charcoal)", opacity: 0.5 }}>
+          {regionLabel}
+          {" \u00B7 "}
+        </span>
         <button
           type="button"
           onClick={() => setExpanded(true)}
@@ -46,13 +48,32 @@ export function RegionSelect({
 
   return (
     <Flex direction="column" gap="2" style={{ width: "100%" }}>
-      <Text
-        size="2"
-        weight="medium"
-        style={{ color: "var(--cave-charcoal)", opacity: 0.6 }}
-      >
-        PostHog region
-      </Text>
+      <Flex justify="between" align="center">
+        <Text
+          size="2"
+          weight="medium"
+          style={{ color: "var(--cave-charcoal)", opacity: 0.6 }}
+        >
+          PostHog region
+        </Text>
+        <Text size="2" style={{ color: "var(--cave-charcoal)", opacity: 0.5 }}>
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              color: "var(--accent-9)",
+              cursor: "pointer",
+              fontWeight: 500,
+              fontSize: "inherit",
+            }}
+          >
+            cancel
+          </button>
+        </Text>
+      </Flex>
       <Select.Root
         value={region}
         onValueChange={(value) => {

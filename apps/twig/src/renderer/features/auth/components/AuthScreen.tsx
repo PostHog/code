@@ -3,6 +3,7 @@ import { TorchGlow } from "@components/TorchGlow";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { Callout, Flex, Spinner, Text } from "@radix-ui/themes";
 import caveHero from "@renderer/assets/images/cave-hero.jpg";
+import posthogIcon from "@renderer/assets/images/posthog-icon.svg";
 import twigLogo from "@renderer/assets/images/twig-logo.svg";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { CloudRegion } from "@shared/types/oauth";
@@ -144,29 +145,16 @@ export function AuthScreen() {
               "0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
           }}
         >
-          {/* Logo + tagline */}
-          <Flex direction="column" gap="3">
-            <img
-              src={twigLogo}
-              alt="Twig"
-              style={{
-                height: "48px",
-                objectFit: "contain",
-                alignSelf: "flex-start",
-              }}
-            />
-            <Text
-              size="3"
-              style={{
-                fontFamily: "Halfre, serif",
-                color: "var(--cave-charcoal)",
-                lineHeight: 1.3,
-                opacity: 0.7,
-              }}
-            >
-              Agentic workflows for your product
-            </Text>
-          </Flex>
+          {/* Logo */}
+          <img
+            src={twigLogo}
+            alt="Twig"
+            style={{
+              height: "48px",
+              objectFit: "contain",
+              alignSelf: "center",
+            }}
+          />
 
           {/* Error */}
           {errorMessage && (
@@ -208,7 +196,15 @@ export function AuthScreen() {
                 transition: "opacity 150ms ease",
               }}
             >
-              {isPending && <Spinner size="1" />}
+              {isPending ? (
+                <Spinner size="1" />
+              ) : (
+                <img
+                  src={posthogIcon}
+                  alt=""
+                  style={{ width: "20px", height: "20px" }}
+                />
+              )}
               {isPending
                 ? "Cancel"
                 : authMode === "login"
@@ -220,7 +216,7 @@ export function AuthScreen() {
               align="center"
               style={{ color: "var(--cave-charcoal)", opacity: 0.5 }}
             >
-              Redirects to PostHog Cloud for authentication
+              Redirects to PostHog.com
             </Text>
           </Flex>
 
@@ -233,13 +229,17 @@ export function AuthScreen() {
               disabled={isLoading}
             />
 
-            <Text
-              size="2"
-              style={{ color: "var(--cave-charcoal)", opacity: 0.7 }}
-            >
+            <Text size="2">
               {authMode === "login" ? (
                 <>
-                  Don&apos;t have an account?{" "}
+                  <span
+                    style={{
+                      color: "var(--cave-charcoal)",
+                      opacity: 0.5,
+                    }}
+                  >
+                    Don&apos;t have an account?{" "}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setAuthMode("signup")}
@@ -253,12 +253,19 @@ export function AuthScreen() {
                       fontSize: "inherit",
                     }}
                   >
-                    Create one
+                    create one
                   </button>
                 </>
               ) : (
                 <>
-                  Already have an account?{" "}
+                  <span
+                    style={{
+                      color: "var(--cave-charcoal)",
+                      opacity: 0.5,
+                    }}
+                  >
+                    Already have an account?{" "}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setAuthMode("login")}
@@ -272,7 +279,7 @@ export function AuthScreen() {
                       fontSize: "inherit",
                     }}
                   >
-                    Sign in
+                    sign in
                   </button>
                 </>
               )}
