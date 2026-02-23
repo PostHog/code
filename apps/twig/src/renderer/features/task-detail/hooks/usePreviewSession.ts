@@ -1,5 +1,4 @@
 import type { SessionConfigOption } from "@agentclientprotocol/sdk";
-import { useAuthStore } from "@features/auth/stores/authStore";
 import {
   getSessionService,
   PREVIEW_TASK_ID,
