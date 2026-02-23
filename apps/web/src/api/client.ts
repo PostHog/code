@@ -1,4 +1,4 @@
-import type { StoredLogEntry } from "@posthog/ui";
+import type { StoredLogEntry, TaskRunStatus } from "@posthog/ui";
 
 export interface Task {
   id: string;
@@ -21,7 +21,7 @@ export interface TaskRun {
   branch: string | null;
   stage?: string | null;
   environment?: "local" | "cloud";
-  status: "started" | "in_progress" | "completed" | "failed" | "cancelled";
+  status: TaskRunStatus;
   log_url: string;
   error_message: string | null;
   output: Record<string, unknown> | null;
@@ -38,7 +38,7 @@ async function apiFetch(
   options?: RequestInit,
 ): Promise<Response> {
   const baseUrl = apiHost.endsWith("/") ? apiHost.slice(0, -1) : apiHost;
-  const response = await fetch(`${baseUrl}${path}`, {
+  return fetch(`${baseUrl}${path}`, {
     ...options,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -46,7 +46,6 @@ async function apiFetch(
       ...options?.headers,
     },
   });
-  return response;
 }
 
 export class PostHogWebClient {
@@ -68,7 +67,7 @@ export class PostHogWebClient {
     const data = await response.json();
     if (!data?.team?.id) throw new Error("No team found for user");
     this.teamId = data.team.id;
-    return this.teamId!;
+    return data.team.id;
   }
 
   async getCurrentUser() {
@@ -104,17 +103,6 @@ export class PostHogWebClient {
     return response.json();
   }
 
-  async getTaskRun(taskId: string, runId: string): Promise<TaskRun> {
-    const teamId = await this.getTeamId();
-    const response = await apiFetch(
-      this.apiHost,
-      this.token,
-      `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/`,
-    );
-    if (!response.ok) throw new Error("Failed to fetch task run");
-    return response.json();
-  }
-
   async getTaskRunSessionLogs(
     taskId: string,
     runId: string,
@@ -132,24 +120,6 @@ export class PostHogWebClient {
     );
     if (!response.ok) return [];
     return response.json();
-  }
-
-  async getTaskLogs(task: Task): Promise<StoredLogEntry[]> {
-    const logUrl = task.latest_run?.log_url;
-    if (!logUrl) return [];
-
-    try {
-      const response = await fetch(logUrl);
-      if (!response.ok) return [];
-      const content = await response.text();
-      if (!content.trim()) return [];
-      return content
-        .trim()
-        .split("\n")
-        .map((line) => JSON.parse(line) as StoredLogEntry);
-    } catch {
-      return [];
-    }
   }
 
   async cancelTaskRun(taskId: string, runId: string): Promise<TaskRun> {

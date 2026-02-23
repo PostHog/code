@@ -70,6 +70,7 @@ export type {
   JsonRpcRequest,
   JsonRpcResponse,
   StoredLogEntry,
+  TaskRunStatus,
 } from "./types/session-events";
 export {
   isJsonRpcNotification,

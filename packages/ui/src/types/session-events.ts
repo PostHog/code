@@ -58,3 +58,10 @@ export interface StoredLogEntry {
     error?: unknown;
   };
 }
+
+export type TaskRunStatus =
+  | "started"
+  | "in_progress"
+  | "completed"
+  | "failed"
+  | "cancelled";

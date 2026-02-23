@@ -7,6 +7,20 @@ procs:
       - agent
       - git
 
+  web:
+    cmd: ["pnpm", "--filter", "@posthog/web", "run", "dev"]
+    cwd: .
+    color: white
+    depends_on:
+      - ui
+    autostart: false
+
+  ui:
+    cmd: ["pnpm", "--filter", "@posthog/ui", "run", "dev"]
+    cwd: .
+    color: gray
+    autostart: false
+
   agent:
     cmd: ["pnpm", "--filter", "agent", "run", "dev"]
     cwd: .

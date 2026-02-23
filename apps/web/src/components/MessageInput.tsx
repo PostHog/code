@@ -1,6 +1,6 @@
 import { PaperPlaneRight, Stop } from "@phosphor-icons/react";
 import { Box, Flex, IconButton } from "@radix-ui/themes";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 interface MessageInputProps {
   onSend: (message: string) => void;
@@ -18,7 +18,6 @@ export function MessageInput({
   placeholder = "Send a follow-up message...",
 }: MessageInputProps) {
   const [value, setValue] = useState("");
-  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = useCallback(() => {
     const trimmed = value.trim();
@@ -49,7 +48,6 @@ export function MessageInput({
           className="rounded-lg border border-gray-6 bg-gray-2 px-3 py-2"
         >
           <textarea
-            ref={inputRef}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}

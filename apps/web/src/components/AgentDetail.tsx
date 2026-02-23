@@ -1,120 +1,35 @@
-import {
-  ArrowSquareOut,
-  Cloud,
-  GitBranch,
-  Spinner,
-  XCircle,
-} from "@phosphor-icons/react";
+import { Cloud, Spinner } from "@phosphor-icons/react";
 import {
   type AcpMessage,
-  DotsCircleSpinner,
   storedLogEntriesToAcpMessages,
+  type TaskRunStatus,
 } from "@posthog/ui";
-import { Button, Flex, Heading, Text } from "@radix-ui/themes";
+import { Flex, Heading, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { TaskRun } from "@/api/client";
 import { useAuthStore } from "@/stores/authStore";
 import { ConversationView } from "./ConversationView";
 import { MessageInput } from "./MessageInput";
+import { StatusBar } from "./StatusBar";
 
 interface AgentDetailProps {
   taskId: string;
 }
 
-function isTerminal(status?: string) {
-  return (
-    status === "completed" || status === "failed" || status === "cancelled"
-  );
-}
+const TERMINAL_STATUSES: Set<TaskRunStatus> = new Set([
+  "completed",
+  "failed",
+  "cancelled",
+]);
 
-function StatusBar({
-  run,
-  onCancel,
-}: {
-  run?: TaskRun | null;
-  onCancel: () => void;
-}) {
-  const status = run?.status;
-  const prUrl = run?.output?.pr_url as string | undefined;
-  const stage = run?.stage;
-  const errorMessage = run?.error_message;
-  const branch = run?.branch;
-  const isRunning = status === "started" || status === "in_progress";
-
-  return (
-    <Flex
-      align="center"
-      justify="between"
-      gap="3"
-      className="border-gray-4 border-t px-4 py-2"
-      style={{ backgroundColor: "var(--gray-2)" }}
-    >
-      <Flex align="center" gap="2" className="min-w-0 flex-1">
-        {isRunning ? (
-          <>
-            <DotsCircleSpinner size={14} className="text-accent-11" />
-            <Text size="2" color="gray" className="truncate">
-              Running{stage ? ` — ${stage}` : ""}...
-            </Text>
-          </>
-        ) : status === "completed" ? (
-          <>
-            <Cloud size={14} weight="fill" className="text-green-11" />
-            <Text size="2" className="text-green-11">
-              Completed
-            </Text>
-          </>
-        ) : status === "failed" ? (
-          <>
-            <XCircle size={14} weight="fill" className="text-red-11" />
-            <Text size="2" color="red" className="truncate">
-              Failed{errorMessage ? `: ${errorMessage}` : ""}
-            </Text>
-          </>
-        ) : status === "cancelled" ? (
-          <>
-            <XCircle size={14} weight="fill" className="text-gray-10" />
-            <Text size="2" color="gray">
-              Cancelled
-            </Text>
-          </>
-        ) : null}
-
-        {branch && (
-          <Flex align="center" gap="1" className="text-gray-10">
-            <GitBranch size={12} />
-            <Text size="1" className="font-mono">
-              {branch}
-            </Text>
-          </Flex>
-        )}
-      </Flex>
-
-      <Flex align="center" gap="2">
-        {isRunning && (
-          <Button size="1" variant="soft" color="red" onClick={onCancel}>
-            Cancel
-          </Button>
-        )}
-        {prUrl && (
-          <Button size="1" variant="soft" asChild>
-            <a href={prUrl} target="_blank" rel="noopener noreferrer">
-              <ArrowSquareOut size={14} />
-              View PR
-            </a>
-          </Button>
-        )}
-      </Flex>
-    </Flex>
-  );
-}
+const POLL_ACTIVE_MS = 3000;
+const POLL_IDLE_MS = 15000;
 
 export function AgentDetail({ taskId }: AgentDetailProps) {
   const client = useAuthStore((s) => s.client);
   const [events, setEvents] = useState<AcpMessage[]>([]);
   const cursorRef = useRef<string | undefined>(undefined);
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const logUrlRef = useRef<string | undefined>(undefined);
 
   const {
     data: task,
@@ -129,12 +44,12 @@ export function AgentDetail({ taskId }: AgentDetailProps) {
 
   const run = task?.latest_run;
   const runId = run?.id;
-  const running = !isTerminal(run?.status);
+  const status = run?.status;
+  const running = !!status && !TERMINAL_STATUSES.has(status);
 
   useEffect(() => {
-    setEvents([]);
-    cursorRef.current = undefined;
-  }, []);
+    logUrlRef.current = run?.log_url;
+  }, [run?.log_url]);
 
   const fetchLogs = useCallback(async () => {
     if (!client || !runId) return;
@@ -145,24 +60,35 @@ export function AgentDetail({ taskId }: AgentDetailProps) {
       });
       if (entries.length > 0) {
         const lastEntry = entries[entries.length - 1];
-        if (lastEntry.timestamp) {
-          cursorRef.current = lastEntry.timestamp;
-        }
-        const newMessages = storedLogEntriesToAcpMessages(entries);
-        setEvents((prev) => [...prev, ...newMessages]);
-      } else if (!cursorRef.current && task) {
-        const logEntries = await client.getTaskLogs(task);
+        if (lastEntry.timestamp) cursorRef.current = lastEntry.timestamp;
+        setEvents((prev) => [
+          ...prev,
+          ...storedLogEntriesToAcpMessages(entries),
+        ]);
+        return;
+      }
+      if (!cursorRef.current && logUrlRef.current) {
+        const response = await fetch(logUrlRef.current);
+        if (!response.ok) return;
+        const content = await response.text();
+        if (!content.trim()) return;
+        const logEntries = content
+          .trim()
+          .split("\n")
+          .map((line) => JSON.parse(line));
         if (logEntries.length > 0) {
           const lastEntry = logEntries[logEntries.length - 1];
           if (lastEntry.timestamp) cursorRef.current = lastEntry.timestamp;
-          const newMessages = storedLogEntriesToAcpMessages(logEntries);
-          setEvents((prev) => [...prev, ...newMessages]);
+          setEvents((prev) => [
+            ...prev,
+            ...storedLogEntriesToAcpMessages(logEntries),
+          ]);
         }
       }
     } catch {
       /* retry on next poll */
     }
-  }, [client, taskId, runId, task]);
+  }, [client, taskId, runId]);
 
   useEffect(() => {
     if (!runId) return;
@@ -171,12 +97,9 @@ export function AgentDetail({ taskId }: AgentDetailProps) {
 
   useEffect(() => {
     if (!runId) return;
-    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-    const interval = running ? 3000 : 15000;
-    pollTimerRef.current = setInterval(() => void fetchLogs(), interval);
-    return () => {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-    };
+    const interval = running ? POLL_ACTIVE_MS : POLL_IDLE_MS;
+    const timer = setInterval(() => void fetchLogs(), interval);
+    return () => clearInterval(timer);
   }, [runId, running, fetchLogs]);
 
   const handleCancel = useCallback(async () => {
@@ -209,6 +132,8 @@ export function AgentDetail({ taskId }: AgentDetailProps) {
     );
   }
 
+  const prUrl = run?.output?.pr_url as string | undefined;
+
   return (
     <Flex direction="column" className="h-full">
       <Flex
@@ -232,7 +157,14 @@ export function AgentDetail({ taskId }: AgentDetailProps) {
 
       <ConversationView events={events} isPromptPending={running} />
 
-      <StatusBar run={run} onCancel={handleCancel} />
+      <StatusBar
+        status={status}
+        stage={run?.stage}
+        errorMessage={run?.error_message}
+        branch={run?.branch}
+        prUrl={prUrl}
+        onCancel={handleCancel}
+      />
 
       {running && (
         <MessageInput

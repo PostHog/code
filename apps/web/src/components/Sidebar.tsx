@@ -6,18 +6,18 @@ import {
   Warning,
   XCircle,
 } from "@phosphor-icons/react";
-import { DotsCircleSpinner, formatRelativeTime } from "@posthog/ui";
+import {
+  DotsCircleSpinner,
+  formatRelativeTime,
+  type TaskRunStatus,
+} from "@posthog/ui";
 import { Box, Button, Flex, Heading, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import type { Task } from "@/api/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useTaskStore } from "@/stores/taskStore";
 
-function CloudStatusIcon({
-  status,
-}: {
-  status?: "started" | "in_progress" | "completed" | "failed" | "cancelled";
-}) {
+function CloudStatusIcon({ status }: { status?: TaskRunStatus }) {
   if (status === "started" || status === "in_progress") {
     return (
       <span className="relative flex items-center justify-center">
