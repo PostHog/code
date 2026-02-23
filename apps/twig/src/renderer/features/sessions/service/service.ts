@@ -799,6 +799,7 @@ export class SessionService {
     const msg = acpMsg.message;
 
     if (isJsonRpcRequest(msg) && msg.method === "session/prompt") {
+      // acpMsg.ts is local time (set in-process) — matches Date.now() used in sendLocalPrompt
       sessionStoreSetters.updateSession(taskRunId, {
         isPromptPending: true,
         promptStartedAt: acpMsg.ts,

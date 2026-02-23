@@ -17,6 +17,7 @@ export function formatDuration(ms: number): string {
 }
 
 interface GeneratingIndicatorProps {
+  /** Timestamp (ms) when the prompt started. Only render this component while a prompt is pending. */
   startedAt?: number | null;
 }
 
