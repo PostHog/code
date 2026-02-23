@@ -414,33 +414,24 @@ export class SessionService {
           );
         }
       } else {
-        log.warn("Reconnect returned null, falling back to new session", {
+        log.warn("Reconnect returned null", { taskId, taskRunId });
+        this.setErrorSession(
           taskId,
           taskRunId,
-        });
-        await this.recreateOrError(
-          taskRunId,
-          taskId,
           taskTitle,
-          repoPath,
-          auth,
-          "Failed to start a new session. Please try again.",
+          "Session could not be resumed. Please retry or start a new session.",
         );
       }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      log.warn("Reconnect failed, falling back to new session", {
+      log.warn("Reconnect failed", { taskId, error: errorMessage });
+      this.setErrorSession(
         taskId,
-        error: errorMessage,
-      });
-      await this.recreateOrError(
         taskRunId,
-        taskId,
         taskTitle,
-        repoPath,
-        auth,
-        errorMessage || "Failed to reconnect. Please try again.",
+        errorMessage ||
+          "Failed to reconnect. Please retry or start a new session.",
       );
     }
   }
@@ -461,28 +452,6 @@ export class SessionService {
     removePersistedConfigOptions(taskRunId);
   }
 
-  private async recreateOrError(
-    taskRunId: string,
-    taskId: string,
-    taskTitle: string,
-    repoPath: string,
-    auth: AuthCredentials,
-    fallbackMessage: string,
-  ): Promise<void> {
-    try {
-      await this.recreateSession(taskRunId, taskId, taskTitle, repoPath, auth);
-    } catch (recreateError) {
-      log.error("Failed to recreate session", {
-        taskId,
-        error:
-          recreateError instanceof Error
-            ? recreateError.message
-            : String(recreateError),
-      });
-      this.setErrorSession(taskId, taskRunId, taskTitle, fallbackMessage);
-    }
-  }
-
   private setErrorSession(
     taskId: string,
     taskRunId: string,
@@ -495,17 +464,6 @@ export class SessionService {
     session.errorTitle = errorTitle;
     session.errorMessage = errorMessage;
     sessionStoreSetters.setSession(session);
-  }
-
-  private async recreateSession(
-    oldTaskRunId: string,
-    taskId: string,
-    taskTitle: string,
-    repoPath: string,
-    auth: AuthCredentials,
-  ): Promise<void> {
-    await this.teardownSession(oldTaskRunId);
-    await this.createNewLocalSession(taskId, taskTitle, repoPath, auth);
   }
 
   private async createNewLocalSession(
