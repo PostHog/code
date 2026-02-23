@@ -74,6 +74,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
 
   const events = session?.events ?? [];
   const isPromptPending = session?.isPromptPending ?? false;
+  const promptStartedAt = session?.promptStartedAt;
 
   const isNewSessionWithInitialPrompt =
     !task.latest_run?.id && !!task.description;
@@ -317,6 +318,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
               taskId={taskId}
               isRunning={isCloud ? false : isRunning}
               isPromptPending={isCloud ? false : isPromptPending}
+              promptStartedAt={isCloud ? undefined : promptStartedAt}
               onSendPrompt={handleSendPrompt}
               onBashCommand={handleBashCommand}
               onCancelPrompt={handleCancelPrompt}

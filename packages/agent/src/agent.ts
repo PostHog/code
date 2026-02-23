@@ -18,12 +18,10 @@ export class Agent {
   private acpConnection?: InProcessAcpConnection;
   private taskRunId?: string;
   private sessionLogWriter?: SessionLogWriter;
-  public debug: boolean;
 
   constructor(config: AgentConfig) {
-    this.debug = config.debug || false;
     this.logger = new Logger({
-      debug: this.debug,
+      debug: config.debug || false,
       prefix: "[PostHog Agent]",
       onLog: config.onLog,
     });

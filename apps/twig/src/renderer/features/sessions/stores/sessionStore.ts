@@ -39,6 +39,7 @@ export interface AgentSession {
   errorTitle?: string;
   errorMessage?: string;
   isPromptPending: boolean;
+  promptStartedAt: number | null;
   logUrl?: string;
   processedLineCount?: number;
   framework?: "claude";

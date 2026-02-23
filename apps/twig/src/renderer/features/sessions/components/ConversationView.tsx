@@ -28,6 +28,7 @@ import { VirtualizedList, type VirtualizedListHandle } from "./VirtualizedList";
 interface ConversationViewProps {
   events: AcpMessage[];
   isPromptPending: boolean;
+  promptStartedAt?: number | null;
   repoPath?: string | null;
   taskId?: string;
 }
@@ -38,6 +39,7 @@ const ESTIMATE_SIZE = 36;
 export function ConversationView({
   events,
   isPromptPending,
+  promptStartedAt,
   repoPath,
   taskId,
 }: ConversationViewProps) {
@@ -191,6 +193,7 @@ export function ConversationView({
           <div className="pb-16">
             <SessionFooter
               isPromptPending={isPromptPending}
+              promptStartedAt={promptStartedAt}
               lastGenerationDuration={
                 lastTurnInfo?.isComplete ? lastTurnInfo.durationMs : null
               }

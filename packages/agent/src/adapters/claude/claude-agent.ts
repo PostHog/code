@@ -48,7 +48,7 @@ import { fetchMcpToolMetadata } from "./mcp/tool-metadata.js";
 import { canUseTool } from "./permissions/permission-handlers.js";
 import { getAvailableSlashCommands } from "./session/commands.js";
 import { parseMcpServers } from "./session/mcp-config.js";
-import { toSdkModelId } from "./session/models.js";
+import { DEFAULT_MODEL, toSdkModelId } from "./session/models.js";
 import {
   buildSessionOptions,
   buildSystemPrompt,
@@ -162,6 +162,8 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     });
 
     const input = new Pushable<SDKUserMessage>();
+    // Pass default model at construction to avoid expensive post-hoc setModel IPC
+    options.model = DEFAULT_MODEL;
     const q = query({ prompt: input, options });
 
     const session = this.createSession(
@@ -191,7 +193,12 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     this.deferBackgroundFetches(q, sessionId, mcpServers);
 
     session.modelId = modelOptions.currentModelId;
-    await this.trySetModel(q, modelOptions.currentModelId);
+    // Only call setModel if the resolved model differs from the default we
+    // already baked into the query options — avoids a ~2s IPC round-trip.
+    const resolvedSdkModel = toSdkModelId(modelOptions.currentModelId);
+    if (resolvedSdkModel !== DEFAULT_MODEL) {
+      await this.trySetModel(q, modelOptions.currentModelId);
+    }
 
     const configOptions = await this.buildConfigOptions(modelOptions);
 
