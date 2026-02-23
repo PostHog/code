@@ -86,7 +86,7 @@ function CollapsibleBody({ body }: { body: string }) {
       <Text
         size="1"
         color="gray"
-        className="whitespace-pre-wrap break-words text-pretty font-mono text-[10px] leading-relaxed"
+        className="whitespace-pre-wrap text-pretty break-words font-mono text-[10px] leading-relaxed"
       >
         {isLong && !expanded ? truncateBody(body) : body}
       </Text>

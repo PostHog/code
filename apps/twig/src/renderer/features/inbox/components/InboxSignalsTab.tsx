@@ -328,12 +328,17 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
                 )}
               </Flex>
             </Flex>
-            <ScrollArea type="auto" scrollbars="vertical" className="scroll-area-constrain-width" style={{ height: "calc(100% - 41px)" }}>
+            <ScrollArea
+              type="auto"
+              scrollbars="vertical"
+              className="scroll-area-constrain-width"
+              style={{ height: "calc(100% - 41px)" }}
+            >
               <Flex direction="column" gap="2" p="2">
                 <Text
                   size="1"
                   color="gray"
-                  className="whitespace-pre-wrap break-words text-pretty font-mono text-[11px]"
+                  className="whitespace-pre-wrap text-pretty break-words font-mono text-[11px]"
                 >
                   {selectedReport.summary ?? "No summary available."}
                 </Text>
@@ -420,7 +425,7 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
                       >
                         <Text
                           size="1"
-                          className="whitespace-pre-wrap break-words text-pretty font-mono text-[11px]"
+                          className="whitespace-pre-wrap text-pretty break-words font-mono text-[11px]"
                         >
                           {artefact.content.content}
                         </Text>
