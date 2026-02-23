@@ -109,10 +109,14 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 
 function BranchBadge({ branch }: { branch: string | null }) {
   return (
-    <Flex align="center" gap="1">
-      <GitBranch size={12} />
-      <Text size="1">{branch ?? "Unknown"}</Text>
-    </Flex>
+    <Tooltip content={branch ?? "Unknown"}>
+      <Flex align="center" gap="1" style={{ minWidth: 0, maxWidth: 240 }}>
+        <GitBranch size={12} style={{ flexShrink: 0 }} />
+        <Text size="1" truncate>
+          {branch ?? "Unknown"}
+        </Text>
+      </Flex>
+    </Tooltip>
   );
 }
 

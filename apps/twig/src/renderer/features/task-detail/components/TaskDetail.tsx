@@ -62,7 +62,7 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
       <Flex align="center" justify="between" gap="2" width="100%">
         <Flex align="center" gap="2" minWidth="0">
           <Text size="1" weight="medium" truncate>
-            {initialTask.title}
+            {task.title}
           </Text>
           <StartWorkspaceButton taskId={taskId} />
           {workspace?.branchName && (
@@ -87,7 +87,7 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
         {worktreePath && <ExternalAppsOpener targetPath={worktreePath} />}
       </Flex>
     ),
-    [initialTask.title, taskId, workspace?.branchName, worktreePath],
+    [task.title, taskId, workspace?.branchName, worktreePath],
   );
 
   useSetHeaderContent(headerContent);
