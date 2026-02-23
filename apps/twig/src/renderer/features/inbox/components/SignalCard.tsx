@@ -86,7 +86,7 @@ function CollapsibleBody({ body }: { body: string }) {
       <Text
         size="1"
         color="gray"
-        className="whitespace-pre-wrap text-pretty font-mono text-[10px] leading-relaxed"
+        className="whitespace-pre-wrap break-words text-pretty font-mono text-[10px] leading-relaxed"
       >
         {isLong && !expanded ? truncateBody(body) : body}
       </Text>
@@ -134,13 +134,13 @@ function GitHubIssueSignalCard({ signal }: SignalCardProps) {
   );
 
   return (
-    <Box className="overflow-hidden rounded-lg border border-gray-6 bg-gray-1">
+    <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1">
       <Flex
         align="center"
         gap="2"
         px="3"
         py="2"
-        className="border-gray-5 border-b bg-gray-2"
+        className="min-w-0 border-gray-5 border-b bg-gray-2"
       >
         <GithubLogoIcon size={14} className="shrink-0 text-gray-11" />
         {issueUrl ? (
@@ -173,7 +173,7 @@ function GitHubIssueSignalCard({ signal }: SignalCardProps) {
         )}
       </Flex>
 
-      <Flex direction="column" gap="2" px="3" py="2">
+      <Flex direction="column" gap="2" px="3" py="2" className="min-w-0">
         {labels.length > 0 && (
           <Flex align="center" gap="1" wrap="wrap">
             <TagIcon size={11} className="shrink-0 text-gray-9" />
@@ -218,13 +218,13 @@ function GitHubIssueSignalCard({ signal }: SignalCardProps) {
 
 function DefaultSignalCard({ signal }: SignalCardProps) {
   return (
-    <Box className="overflow-hidden rounded-lg border border-gray-6 bg-gray-1">
+    <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1">
       <Flex
         align="center"
         gap="2"
         px="3"
         py="2"
-        className="border-gray-5 border-b bg-gray-2"
+        className="min-w-0 border-gray-5 border-b bg-gray-2"
       >
         <BugIcon size={14} className="shrink-0 text-gray-11" />
         <Flex align="center" gap="1" className="min-w-0 flex-1" wrap="wrap">
@@ -237,7 +237,7 @@ function DefaultSignalCard({ signal }: SignalCardProps) {
         </Flex>
       </Flex>
 
-      <Flex direction="column" gap="2" px="3" py="2">
+      <Flex direction="column" gap="2" px="3" py="2" className="min-w-0">
         <CollapsibleBody body={signal.content} />
 
         <Flex align="center" justify="between" gap="2">

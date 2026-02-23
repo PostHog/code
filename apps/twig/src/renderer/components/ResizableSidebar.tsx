@@ -83,6 +83,7 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
         style={{
           width: `${width}px`,
           height: "100%",
+          minWidth: 0,
         }}
       >
         {children}
