@@ -13,6 +13,7 @@
     "dev:agent": "pnpm --filter agent dev",
     "dev:git": "pnpm --filter @twig/git dev",
     "dev:twig": "pnpm --filter twig dev",
+    "dev:web": "pnpm --filter @posthog/ui build && pnpm --filter @posthog/web dev",
     "start": "pnpm --filter twig start",
     "build": "turbo build",
     "package": "turbo build && pnpm --filter twig package",

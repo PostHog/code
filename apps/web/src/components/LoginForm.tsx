@@ -1,5 +1,6 @@
 import { Box, Button, Flex, Heading, Text, TextField } from "@radix-ui/themes";
 import { useState } from "react";
+import { PostHogWebClient } from "@/api/client";
 import { useAuthStore } from "@/stores/authStore";
 
 export function LoginForm() {
@@ -15,7 +16,6 @@ export function LoginForm() {
     setLoading(true);
 
     try {
-      const { PostHogWebClient } = await import("@/api/client");
       const client = new PostHogWebClient(token, apiHost);
       await client.getCurrentUser();
       setCredentials(apiHost, token);

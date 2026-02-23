@@ -13,7 +13,7 @@ import {
 import { Button, Flex, Heading, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Task, TaskRun } from "@/api/client";
+import type { TaskRun } from "@/api/client";
 import { useAuthStore } from "@/stores/authStore";
 import { ConversationView } from "./ConversationView";
 import { MessageInput } from "./MessageInput";
@@ -29,11 +29,9 @@ function isTerminal(status?: string) {
 }
 
 function StatusBar({
-  task,
   run,
   onCancel,
 }: {
-  task: Task;
   run?: TaskRun | null;
   onCancel: () => void;
 }) {
@@ -115,7 +113,7 @@ function StatusBar({
 export function AgentDetail({ taskId }: AgentDetailProps) {
   const client = useAuthStore((s) => s.client);
   const [events, setEvents] = useState<AcpMessage[]>([]);
-  const [logCursor, setLogCursor] = useState<string | undefined>();
+  const cursorRef = useRef<string | undefined>(undefined);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const {
@@ -135,40 +133,47 @@ export function AgentDetail({ taskId }: AgentDetailProps) {
 
   useEffect(() => {
     setEvents([]);
-    setLogCursor(undefined);
+    cursorRef.current = undefined;
   }, []);
 
   const fetchLogs = useCallback(async () => {
     if (!client || !runId) return;
     try {
       const entries = await client.getTaskRunSessionLogs(taskId, runId, {
-        after: logCursor,
+        after: cursorRef.current,
         limit: 5000,
       });
       if (entries.length > 0) {
         const lastEntry = entries[entries.length - 1];
         if (lastEntry.timestamp) {
-          setLogCursor(lastEntry.timestamp);
+          cursorRef.current = lastEntry.timestamp;
         }
         const newMessages = storedLogEntriesToAcpMessages(entries);
         setEvents((prev) => [...prev, ...newMessages]);
+      } else if (!cursorRef.current && task) {
+        const logEntries = await client.getTaskLogs(task);
+        if (logEntries.length > 0) {
+          const lastEntry = logEntries[logEntries.length - 1];
+          if (lastEntry.timestamp) cursorRef.current = lastEntry.timestamp;
+          const newMessages = storedLogEntriesToAcpMessages(logEntries);
+          setEvents((prev) => [...prev, ...newMessages]);
+        }
       }
     } catch {
-      /* ignore fetch errors */
+      /* retry on next poll */
     }
-  }, [client, taskId, runId, logCursor]);
+  }, [client, taskId, runId, task]);
 
   useEffect(() => {
     if (!runId) return;
     void fetchLogs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId, fetchLogs]);
 
   useEffect(() => {
     if (!runId) return;
     if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-    const interval = running ? 3000 : 10000;
-    pollTimerRef.current = setInterval(fetchLogs, interval);
+    const interval = running ? 3000 : 15000;
+    pollTimerRef.current = setInterval(() => void fetchLogs(), interval);
     return () => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
@@ -227,7 +232,7 @@ export function AgentDetail({ taskId }: AgentDetailProps) {
 
       <ConversationView events={events} isPromptPending={running} />
 
-      <StatusBar task={task} run={run} onCancel={handleCancel} />
+      <StatusBar run={run} onCancel={handleCancel} />
 
       {running && (
         <MessageInput
