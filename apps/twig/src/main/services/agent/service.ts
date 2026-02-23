@@ -56,10 +56,6 @@ function isAuthError(error: unknown): boolean {
   return getErrorMessage(error).startsWith("Authentication required");
 }
 
-function isStaleSessionError(error: unknown): boolean {
-  return getErrorMessage(error).includes("No conversation found");
-}
-
 /** Mark all content blocks as hidden so the renderer doesn't show a duplicate user message on retry. */
 function hidePromptBlocks(prompt: ContentBlock[]): ContentBlock[] {
   return prompt.map((block) => ({
@@ -681,6 +677,26 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     return newSession;
   }
 
+  /**
+   * Reset a session by clearing its sessionId and recreating it as a fresh
+   * session (no resume attempt). This is what should happen when a user clicks
+   * "New Session" after a stale-session error.
+   */
+  async resetSession(taskRunId: string): Promise<void> {
+    const existing = this.sessions.get(taskRunId);
+    if (!existing) {
+      throw new Error(`Session not found for reset: ${taskRunId}`);
+    }
+
+    log.info("Resetting session as fresh (clearing sessionId)", {
+      taskRunId,
+      staleSessionId: existing.config.sessionId,
+    });
+
+    existing.config.sessionId = undefined;
+    await this.recreateSession(taskRunId);
+  }
+
   async prompt(
     sessionId: string,
     prompt: ContentBlock[],
@@ -737,22 +753,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     } catch (err) {
       if (isAuthError(err)) {
         log.warn("Auth error during prompt, recreating session", { sessionId });
-        session = await this.recreateSession(sessionId);
-        const result = await session.clientSideConnection.prompt({
-          sessionId: session.config.sessionId!,
-          prompt: hidePromptBlocks(finalPrompt),
-        });
-        return {
-          stopReason: result.stopReason,
-          _meta: result._meta as PromptOutput["_meta"],
-        };
-      }
-      if (isStaleSessionError(err)) {
-        log.warn("Stale session during prompt, recreating as new session", {
-          sessionId,
-          staleSessionId: session.config.sessionId,
-        });
-        session.config.sessionId = undefined;
         session = await this.recreateSession(sessionId);
         const result = await session.clientSideConnection.prompt({
           sessionId: session.config.sessionId!,

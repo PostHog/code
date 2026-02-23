@@ -10,7 +10,6 @@ import {
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useTaskViewedStore } from "@features/sidebar/stores/taskViewedStore";
 import { WorkspaceSetupPrompt } from "@features/task-detail/components/WorkspaceSetupPrompt";
-import { useDeleteTask } from "@features/tasks/hooks/useTasks";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
@@ -45,7 +44,6 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   );
 
   const session = useSessionForTask(taskId);
-  const { deleteWithConfirm } = useDeleteTask();
   const markActivity = useTaskViewedStore((state) => state.markActivity);
   const markAsViewed = useTaskViewedStore((state) => state.markAsViewed);
   const { requestFocus, setPendingContent } = useDraftStore((s) => s.actions);
@@ -241,18 +239,8 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   }, [taskId, repoPath]);
 
   const handleNewSession = useCallback(async () => {
-    if (!repoPath) return;
-    await getSessionService().startFreshSession(taskId, repoPath);
-  }, [taskId, repoPath]);
-
-  const handleDelete = useCallback(() => {
-    const hasWorktree = workspace?.mode === "worktree";
-    deleteWithConfirm({
-      taskId,
-      taskTitle: task.title ?? task.description ?? "Untitled",
-      hasWorktree,
-    });
-  }, [taskId, task, workspace, deleteWithConfirm]);
+    await getSessionService().resetSession(taskId);
+  }, [taskId]);
 
   const handleBashCommand = useCallback(
     async (command: string) => {
@@ -333,7 +321,6 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
               errorMessage={isCloud ? undefined : errorMessage}
               onRetry={handleRetry}
               onNewSession={handleNewSession}
-              onDelete={handleDelete}
               isInitializing={isInitializing}
               readOnlyMessage={isCloud ? "Cloud runs are read-only" : undefined}
             />

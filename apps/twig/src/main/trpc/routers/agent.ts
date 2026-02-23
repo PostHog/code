@@ -15,6 +15,7 @@ import {
   promptInput,
   promptOutput,
   reconnectSessionInput,
+  resetSessionInput,
   respondToPermissionInput,
   sessionResponseSchema,
   setConfigOptionInput,
@@ -48,6 +49,10 @@ export const agentRouter = router({
   cancel: publicProcedure
     .input(cancelSessionInput)
     .mutation(({ input }) => getService().cancelSession(input.sessionId)),
+
+  resetSession: publicProcedure
+    .input(resetSessionInput)
+    .mutation(({ input }) => getService().resetSession(input.sessionId)),
 
   cancelPrompt: publicProcedure
     .input(cancelPromptInput)

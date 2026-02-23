@@ -48,13 +48,12 @@ interface SessionViewProps {
   errorMessage?: string;
   onRetry?: () => void;
   onNewSession?: () => void;
-  onDelete?: () => void;
   isInitializing?: boolean;
   readOnlyMessage?: string;
 }
 
 const DEFAULT_ERROR_MESSAGE =
-  "Failed to resume this session. The working directory may have been deleted. Please start a new task.";
+  "Failed to resume this session. The working directory may have been deleted. Please start a new session.";
 
 export function SessionView({
   events,
@@ -71,7 +70,6 @@ export function SessionView({
   errorMessage = DEFAULT_ERROR_MESSAGE,
   onRetry,
   onNewSession,
-  onDelete,
   isInitializing = false,
   readOnlyMessage,
 }: SessionViewProps) {
@@ -411,18 +409,13 @@ export function SessionView({
                       </Button>
                     )}
                     {onNewSession && (
-                      <Button variant="soft" size="2" onClick={onNewSession}>
-                        New Session
-                      </Button>
-                    )}
-                    {onDelete && (
                       <Button
                         variant="soft"
                         size="2"
-                        color="red"
-                        onClick={onDelete}
+                        color="green"
+                        onClick={onNewSession}
                       >
-                        Delete Task
+                        New Session
                       </Button>
                     )}
                   </Flex>

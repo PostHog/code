@@ -223,7 +223,7 @@ export class SessionService {
           session.status = "error";
           session.errorMessage = workspaceResult.missingPath
             ? `Working directory no longer exists: ${workspaceResult.missingPath}`
-            : "The working directory for this task no longer exists. Please start a new task.";
+            : "The working directory for this task no longer exists. Please start a new session.";
           sessionStoreSetters.setSession(session);
           return;
         }
@@ -345,7 +345,7 @@ export class SessionService {
               status: "error",
               errorMessage: workspaceResult.missingPath
                 ? `Working directory no longer exists: ${workspaceResult.missingPath}`
-                : "The working directory for this task no longer exists. Please start a new task.",
+                : "The working directory for this task no longer exists. Please start a new session.",
             });
           }
         })
@@ -941,7 +941,7 @@ export class SessionService {
       if (session.status === "error") {
         throw new Error(
           session.errorMessage ||
-            "Session is in error state. Please retry or start a new task.",
+            "Session is in error state. Please retry or start a new session.",
         );
       }
       if (session.status === "connecting") {
@@ -1075,7 +1075,7 @@ export class SessionService {
           status: "error",
           errorMessage:
             errorDetails ||
-            "Session connection lost. Please retry or start a new task.",
+            "Session connection lost. Please retry or start a new session.",
           isPromptPending: false,
           promptStartedAt: null,
         });
@@ -1384,23 +1384,17 @@ export class SessionService {
 
   /**
    * Start a fresh session for a task, abandoning the old conversation.
-   * Unlike clearSessionError (which retries the same resume), this creates
-   * a brand new session without attempting to resume.
+   * Clears the backend sessionId so the next reconnect creates a new
+   * session instead of attempting to resume the stale one.
    */
-  async startFreshSession(taskId: string, repoPath: string): Promise<void> {
+  async resetSession(taskId: string): Promise<void> {
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
-    const taskTitle = session?.taskTitle ?? "Task";
-
     if (session) {
+      await trpcVanilla.agent.resetSession.mutate({
+        sessionId: session.taskRunId,
+      });
       await this.teardownSession(session.taskRunId);
     }
-
-    const auth = this.getAuthCredentials();
-    if (!auth) {
-      throw new Error("Authentication required. Please sign in to continue.");
-    }
-
-    await this.createNewLocalSession(taskId, taskTitle, repoPath, auth);
   }
 
   /**

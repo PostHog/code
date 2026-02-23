@@ -134,6 +134,10 @@ export const cancelSessionInput = z.object({
   sessionId: z.string(),
 });
 
+export const resetSessionInput = z.object({
+  sessionId: z.string(),
+});
+
 // Interrupt reason schema
 export const interruptReasonSchema = z.enum([
   "user_request",
