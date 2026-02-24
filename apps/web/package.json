@@ -10,8 +10,13 @@
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.13",
+    "@astrojs/react": "^4.4.2",
+    "@dagrejs/dagre": "^2.0.4",
     "@tailwindcss/vite": "^4.2.0",
+    "@xyflow/react": "^12.10.1",
     "astro": "^5.7.10",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "tailwindcss": "^4.2.0"
   },
   "devDependencies": {

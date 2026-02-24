@@ -1,0 +1,87 @@
+---
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<div class:list={["ascii-box", className]}>
+  <div class="ascii-box-content">
+    <slot />
+  </div>
+</div>
+
+<style>
+  .ascii-box {
+    --ascii-char-width: 0.6em;
+    --ascii-border-color: var(--color-text);
+    position: relative;
+    font-family: var(--font-mono);
+    grid-column: 1 / -1;
+  }
+
+  .ascii-box::before,
+  .ascii-box::after {
+    content: "+" attr(data-h-line) "+";
+    display: block;
+    white-space: pre;
+    color: var(--ascii-border-color);
+    overflow: hidden;
+  }
+
+  .ascii-box-content {
+    position: relative;
+    padding-block: 1rem;
+  }
+
+  .ascii-box-content::before,
+  .ascii-box-content::after {
+    content: "|";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: var(--ascii-border-color);
+    line-height: 1.2;
+    white-space: pre-wrap;
+    word-break: break-all;
+    width: 1ch;
+    overflow: hidden;
+  }
+
+  .ascii-box-content::before {
+    left: 0;
+  }
+
+  .ascii-box-content::after {
+    right: 0;
+  }
+</style>
+
+<script>
+  function updateAsciiBoxes() {
+    const boxes = document.querySelectorAll('.ascii-box');
+    boxes.forEach((box) => {
+      const width = box.clientWidth;
+      const charWidth = parseFloat(getComputedStyle(box).fontSize) * 0.6;
+      const charCount = Math.floor(width / charWidth) - 2;
+      const line = '-'.repeat(Math.max(0, charCount));
+      box.setAttribute('data-h-line', line);
+
+      const content = box.querySelector('.ascii-box-content') as HTMLElement;
+      if (content) {
+        const height = content.clientHeight;
+        const lineHeight = parseFloat(getComputedStyle(content).fontSize) * 1.2;
+        const pipeCount = Math.floor(height / lineHeight);
+        const pipes = Array(Math.max(0, pipeCount)).fill('|').join('\n');
+        content.style.setProperty('--pipes', `"${pipes}"`);
+      }
+    });
+  }
+
+  updateAsciiBoxes();
+  window.addEventListener('resize', updateAsciiBoxes);
+</script>

@@ -1,6 +1,7 @@
 ---
 import Button from "../components/Button.astro";
 import DottedContainer from "../components/DottedContainer.astro";
+import FlowDiagram from "../components/FlowDiagram.jsx";
 import Footer from "../components/Footer.astro";
 import GridOverlay from "../components/GridOverlay.astro";
 import Header from "../components/Header.astro";
@@ -66,6 +67,22 @@ import Base from "../layouts/Base.astro";
     <div class="col-4 col-span-2 image-bleed-end-mirror">
       <img src="/branch.svg" alt="" class="invertible" />
     </div>
+  </section>
+
+  <section class="grid-container grid-section border-t">
+    <DottedContainer class="col-full problem-container">
+      <span slot="title">the problem</span>
+      <div class="problem-content grid-container">
+        <div class="problem-text cell-pad col-1">
+          <h2 class="type-2xl weight-bold">too many branches?</h2>
+          <p class="type-base">twig determines what matters right now, runs autonomous work against it, and hands you contextual code to merge, kill or iterate on.</p>
+          <p class="type-base">agents run in parallel worktrees. no context switching. no merge conflicts. just a daily limit you set, and a review queue at the end.</p>
+        </div>
+        <div class="problem-diagram col-2 col-span-3">
+          <FlowDiagram client:visible />
+        </div>
+      </div>
+    </DottedContainer>
   </section>
 
   <section class="grid-container grid-section border-t">

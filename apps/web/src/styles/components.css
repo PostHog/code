@@ -666,6 +666,10 @@
   filter: invert(1);
 }
 
+.dotted-container-full {
+  grid-column: 1 / -1;
+}
+
 .dotted-container.has-action {
   padding-bottom: 3rem;
 }
