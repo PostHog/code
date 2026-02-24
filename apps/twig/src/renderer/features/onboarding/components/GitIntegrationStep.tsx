@@ -9,6 +9,7 @@ import {
 import { Box, Button, Flex, Skeleton, Text } from "@radix-ui/themes";
 import twigLogo from "@renderer/assets/images/twig-logo.svg";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { useProjectsWithIntegrations } from "../hooks/useProjectsWithIntegrations";
@@ -27,6 +28,7 @@ export function GitIntegrationStep({
   const currentProjectId = useAuthStore((s) => s.projectId);
   const selectProject = useAuthStore((s) => s.selectProject);
 
+  const queryClient = useQueryClient();
   const { projects, projectsWithGithub, isLoading } =
     useProjectsWithIntegrations();
 
@@ -64,13 +66,13 @@ export function GitIntegrationStep({
   const handleConnectGitHub = () => {
     if (!cloudRegion || !selectedProjectId) return;
     const cloudUrl = getCloudUrlFromRegion(cloudRegion);
-    const integrationUrl = `${cloudUrl}/project/${selectedProjectId}/settings/integrations`;
+    const integrationUrl = `${cloudUrl}/project/${selectedProjectId}/settings/project-integrations`;
     window.open(integrationUrl, "_blank");
   };
 
   const handleRefresh = () => {
     // Re-fetch integrations for the selected project
-    window.location.reload();
+    queryClient.invalidateQueries({ queryKey: ["integrations"] });
   };
 
   const handleContinue = () => {
