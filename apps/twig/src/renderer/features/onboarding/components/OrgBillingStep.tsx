@@ -42,7 +42,6 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
     <Flex align="center" height="100%" px="8">
       <Flex
         direction="column"
-        gap="6"
         style={{
           width: "100%",
           maxWidth: 520,
@@ -51,7 +50,7 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
           paddingBottom: 40,
         }}
       >
-        <Flex direction="column" gap="3">
+        <Flex direction="column" gap="3" mb="6">
           <img
             src={twigLogo}
             alt="Twig"
@@ -80,14 +79,14 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
         </Flex>
 
         {error && (
-          <Callout.Root color="red" size="1">
+          <Callout.Root color="red" size="1" mb="6">
             <Callout.Text>
               Failed to load organizations. Please try again later.
             </Callout.Text>
           </Callout.Root>
         )}
 
-        <Box style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+        <Box style={{ flex: 1, minHeight: 0, overflowY: "auto", marginBottom: "var(--space-6)" }}>
           <AnimatePresence mode="wait">
             {isLoading ? (
               <motion.div
@@ -146,7 +145,7 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
           </AnimatePresence>
         </Box>
 
-        <Flex gap="3" align="center">
+        <Flex gap="3" align="center" flexShrink="0">
           <Button
             size="3"
             variant="ghost"

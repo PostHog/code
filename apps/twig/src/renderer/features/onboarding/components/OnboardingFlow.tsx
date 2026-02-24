@@ -53,9 +53,9 @@ export function OnboardingFlow() {
       <Flex
         direction="column"
         flexGrow="1"
-        style={{ position: "relative", zIndex: 1 }}
+        style={{ position: "relative", zIndex: 1, minHeight: 0 }}
       >
-        <Flex flexGrow="1" align="center" justify="center" overflow="hidden">
+        <Flex direction="column" flexGrow="1" overflow="hidden" style={{ minHeight: 0 }}>
           <AnimatePresence mode="wait">
             {currentStep === "welcome" && (
               <motion.div
@@ -64,7 +64,7 @@ export function OnboardingFlow() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
-                style={{ width: "100%", height: "100%" }}
+                style={{ width: "100%", flex: 1, minHeight: 0 }}
               >
                 <WelcomeStep onNext={next} />
               </motion.div>
@@ -77,7 +77,7 @@ export function OnboardingFlow() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
-                style={{ width: "100%", height: "100%" }}
+                style={{ width: "100%", flex: 1, minHeight: 0 }}
               >
                 <BillingStep onNext={next} onBack={back} />
               </motion.div>
@@ -90,7 +90,7 @@ export function OnboardingFlow() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
-                style={{ width: "100%", height: "100%" }}
+                style={{ width: "100%", flex: 1, minHeight: 0 }}
               >
                 <OrgBillingStep onNext={next} onBack={back} />
               </motion.div>
@@ -103,7 +103,7 @@ export function OnboardingFlow() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
-                style={{ width: "100%", height: "100%" }}
+                style={{ width: "100%", flex: 1, minHeight: 0 }}
               >
                 <GitIntegrationStep onNext={handleComplete} onBack={back} />
               </motion.div>
