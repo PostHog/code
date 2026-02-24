@@ -11,6 +11,7 @@ import type {
   GitMenuActionId,
 } from "@features/git-interaction/types";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
+import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { track } from "@renderer/lib/analytics";
 import { logger } from "@renderer/lib/logger";
 import { trpcVanilla } from "@renderer/trpc";
@@ -97,6 +98,7 @@ export function useGitInteraction(
         ahead: git.ahead,
         behind: git.behind,
         hasRemote: git.hasRemote,
+        isFeatureBranch: git.isFeatureBranch,
         currentBranch: git.currentBranch,
         defaultBranch: git.defaultBranch,
         ghStatus: git.ghStatus ?? null,
@@ -111,6 +113,7 @@ export function useGitInteraction(
       git.ahead,
       git.behind,
       git.hasRemote,
+      git.isFeatureBranch,
       git.currentBranch,
       git.defaultBranch,
       git.ghStatus,
@@ -487,6 +490,14 @@ export function useGitInteraction(
       });
 
       trackGitAction(taskId, "branch-here", true);
+
+      const workspace = useWorkspaceStore.getState().workspaces[taskId];
+      if (workspace) {
+        useWorkspaceStore.getState().updateWorkspace(taskId, {
+          ...workspace,
+          branchName,
+        });
+      }
 
       await queryClient.invalidateQueries({
         queryKey: ["git-sync-status", repoPath],
