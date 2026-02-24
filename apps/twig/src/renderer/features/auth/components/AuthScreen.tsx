@@ -42,7 +42,8 @@ export const getErrorMessage = (error: unknown) => {
 type AuthMode = "login" | "signup";
 
 export function AuthScreen() {
-  const [region, setRegion] = useState<CloudRegion>("us");
+  const staleRegion = useAuthStore((s) => s.staleTokens?.cloudRegion);
+  const [region, setRegion] = useState<CloudRegion>(staleRegion ?? "us");
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const { loginWithOAuth, signupWithOAuth } = useAuthStore();
 
