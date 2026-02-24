@@ -64,23 +64,12 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   const prUrl =
     isCloud && cloudOutput?.pr_url ? (cloudOutput.pr_url as string) : null;
 
-<<<<<<< ours
-  const isRunning = session?.status === "connected";
-  const hasError = session?.status === "error";
-  const errorTitle = session?.errorTitle;
-  const errorMessage = session?.errorMessage;
-||||||| ancestor
-  const isRunning =
-    session?.status === "connected" || session?.status === "connecting";
-  const hasError = session?.status === "error";
-  const errorMessage = session?.errorMessage;
-=======
   const isRunning = isCloud
     ? isCloudRunNotTerminal
-    : session?.status === "connected" || session?.status === "connecting";
+    : session?.status === "connected";
   const hasError = isCloud ? false : session?.status === "error";
+  const errorTitle = isCloud ? undefined : session?.errorTitle;
   const errorMessage = isCloud ? undefined : session?.errorMessage;
->>>>>>> theirs
 
   const events = session?.events ?? [];
   const isPromptPending = session?.isPromptPending ?? false;
@@ -333,38 +322,18 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
             <SessionView
               events={events}
               taskId={taskId}
-<<<<<<< ours
-              isRunning={isCloud ? false : isRunning}
-              isPromptPending={isCloud ? false : isPromptPending}
-              promptStartedAt={isCloud ? undefined : promptStartedAt}
-||||||| ancestor
-              isRunning={isCloud ? false : isRunning}
-              isPromptPending={isCloud ? false : isPromptPending}
-=======
               isRunning={isRunning}
               isPromptPending={isPromptPending}
->>>>>>> theirs
+              promptStartedAt={promptStartedAt}
               onSendPrompt={handleSendPrompt}
               onBashCommand={isCloud ? undefined : handleBashCommand}
               onCancelPrompt={handleCancelPrompt}
               repoPath={repoPath}
-<<<<<<< ours
-              hasError={isCloud ? false : hasError}
-              errorTitle={isCloud ? undefined : errorTitle}
-              errorMessage={isCloud ? undefined : errorMessage}
-              onRetry={handleRetry}
-              onNewSession={handleNewSession}
-||||||| ancestor
-              hasError={isCloud ? false : hasError}
-              errorMessage={isCloud ? undefined : errorMessage}
-              onRetry={handleRetry}
-              onDelete={handleDelete}
-=======
               hasError={hasError}
+              errorTitle={errorTitle}
               errorMessage={errorMessage}
               onRetry={isCloud ? undefined : handleRetry}
-              onDelete={handleDelete}
->>>>>>> theirs
+              onNewSession={isCloud ? undefined : handleNewSession}
               isInitializing={isInitializing}
               readOnlyMessage={
                 isCloudRunTerminal ? "This cloud run has finished" : undefined
