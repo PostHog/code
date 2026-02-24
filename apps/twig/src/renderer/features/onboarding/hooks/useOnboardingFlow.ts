@@ -6,12 +6,11 @@ export function useOnboardingFlow() {
   const [currentStep, setCurrentStep] = useState<OnboardingStep>("welcome");
   const billingEnabled = useFeatureFlag("twig-billing", false);
 
-  // Filter steps based on feature flags
+  // Show billing onboarding steps only when billing is enabled
   const activeSteps = useMemo(() => {
-    if (!billingEnabled) {
+    if (billingEnabled) {
       return ONBOARDING_STEPS;
     }
-    // Skip billing and org-billing steps if flag is enabled
     return ONBOARDING_STEPS.filter(
       (step) => step !== "billing" && step !== "org-billing",
     );
