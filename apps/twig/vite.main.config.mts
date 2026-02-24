@@ -4,8 +4,8 @@ import {
   cpSync,
   existsSync,
   mkdirSync,
-  readFileSync,
   readdirSync,
+  readFileSync,
   statSync,
 } from "node:fs";
 import { cp, mkdir, readdir, rm, writeFile } from "node:fs/promises";
