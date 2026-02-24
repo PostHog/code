@@ -235,7 +235,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   const handleRetry = useCallback(async () => {
     if (!repoPath) return;
     try {
-      await getSessionService().clearSessionError(taskId);
+      await getSessionService().clearSessionError(taskId, repoPath);
     } catch (error) {
       log.error("Failed to clear session error", error);
       toast.error("Failed to retry. Please try again.");

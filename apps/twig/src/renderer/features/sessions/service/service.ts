@@ -1342,14 +1342,12 @@ export class SessionService {
   }
 
   /**
-   * Clear session error and allow retry.
-   * Tears down the old session; events are re-fetched from logs during reconnect.
+   * Retry connecting to the existing session (resume attempt using
+   * the sessionId from logs). Does NOT tear down — avoids the connect
+   * effect loop.
    */
-  async clearSessionError(taskId: string): Promise<void> {
-    const session = sessionStoreSetters.getSessionByTaskId(taskId);
-    if (session) {
-      await this.teardownSession(session.taskRunId);
-    }
+  async clearSessionError(taskId: string, repoPath: string): Promise<void> {
+    await this.reconnectInPlace(taskId, repoPath);
   }
 
   /**
@@ -1358,6 +1356,24 @@ export class SessionService {
    * session instead of attempting to resume the stale one.
    */
   async resetSession(taskId: string, repoPath: string): Promise<void> {
+    await this.reconnectInPlace(taskId, repoPath, null);
+  }
+
+  /**
+   * Cancel the current backend agent and reconnect under the same taskRunId.
+   * Does NOT remove the session from the store (avoids connect effect loop).
+   * Overwrites the store session in place via reconnectToLocalSession.
+   *
+   * @param overrideSessionId - Controls which sessionId is used for reconnect:
+   *   - `undefined` (default): use the sessionId from logs (resume attempt)
+   *   - `null`: strip the sessionId so the backend creates a fresh session
+   *   - `string`: use that specific sessionId
+   */
+  private async reconnectInPlace(
+    taskId: string,
+    repoPath: string,
+    overrideSessionId?: string | null,
+  ): Promise<void> {
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) return;
 
@@ -1372,11 +1388,6 @@ export class SessionService {
     }
     this.unsubscribeFromChannel(taskRunId);
 
-    // Reconnect in place — do NOT teardown (removing the session from the
-    // store would trigger the connect effect, which re-reads the stale
-    // sessionId from logs and loops). The session stays in "error" state
-    // so the connect effect won't fire (it skips error/connected/connecting).
-    // reconnectToLocalSession overwrites the store session via setSession.
     const auth = this.getAuthCredentials();
     if (!auth) {
       throw new Error("Unable to reach server. Please check your connection.");
@@ -1386,6 +1397,12 @@ export class SessionService {
       ? await this.fetchSessionLogs(logUrl, taskRunId)
       : { rawEntries: [] as StoredLogEntry[], adapter: undefined };
 
+    // Determine sessionId: undefined = use from logs, null = strip (fresh), string = use as-is
+    const sessionId =
+      overrideSessionId === null
+        ? undefined
+        : (overrideSessionId ?? prefetchedLogs.sessionId);
+
     await this.reconnectToLocalSession(
       taskId,
       taskRunId,
@@ -1393,7 +1410,7 @@ export class SessionService {
       logUrl,
       repoPath,
       auth,
-      { ...prefetchedLogs, sessionId: undefined },
+      { ...prefetchedLogs, sessionId },
     );
   }
 

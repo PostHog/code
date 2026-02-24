@@ -24,6 +24,8 @@ const mockTrpcWorkspace = vi.hoisted(() => ({
 
 const mockTrpcLogs = vi.hoisted(() => ({
   fetchS3Logs: { query: vi.fn() },
+  readLocalLogs: { query: vi.fn() },
+  writeLocalLogs: { mutate: vi.fn() },
 }));
 
 vi.mock("@renderer/trpc/client", () => ({
@@ -51,6 +53,8 @@ const mockSessionStoreSetters = vi.hoisted(() => ({
 
 vi.mock("@features/sessions/stores/sessionStore", () => ({
   sessionStoreSetters: mockSessionStoreSetters,
+  getConfigOptionByCategory: vi.fn(() => undefined),
+  mergeConfigOptions: vi.fn((live: unknown[], _persisted: unknown[]) => live),
 }));
 
 const mockAuthStore = vi.hoisted(() => ({
@@ -114,6 +118,21 @@ const mockGetIsOnline = vi.hoisted(() => vi.fn(() => true));
 
 vi.mock("@renderer/stores/connectivityStore", () => ({
   getIsOnline: () => mockGetIsOnline(),
+}));
+
+vi.mock("@features/settings/stores/settingsStore", () => ({
+  useSettingsStore: {
+    getState: () => ({ customInstructions: "" }),
+  },
+}));
+
+vi.mock("@features/sidebar/stores/taskViewedStore", () => ({
+  useTaskViewedStore: {
+    getState: () => ({
+      markActivity: vi.fn(),
+      markAsViewed: vi.fn(),
+    }),
+  },
 }));
 
 vi.mock("@renderer/lib/analytics", () => ({ track: vi.fn() }));
@@ -753,23 +772,37 @@ describe("SessionService", () => {
   });
 
   describe("clearSessionError", () => {
-    it("cancels agent and tears down session fully", async () => {
+    it("cancels agent and reconnects in place (no teardown)", async () => {
       const service = getSessionService();
-      const mockSession = createMockSession({ status: "error" });
+      const mockSession = createMockSession({
+        status: "error",
+        logUrl: "https://logs.example.com/run-123",
+      });
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(mockSession);
+      mockTrpcAgent.reconnect.mutate.mockResolvedValue({
+        sessionId: "run-123",
+        channel: "agent-event:run-123",
+        configOptions: [],
+      });
+      mockTrpcAgent.onSessionEvent.subscribe.mockReturnValue({
+        unsubscribe: vi.fn(),
+      });
+      mockTrpcAgent.onPermissionRequest.subscribe.mockReturnValue({
+        unsubscribe: vi.fn(),
+      });
+      mockTrpcWorkspace.verify.query.mockResolvedValue({ exists: true });
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue("");
 
-      await service.clearSessionError("task-123");
+      await service.clearSessionError("task-123", "/repo");
 
+      // Should cancel the backend agent
       expect(mockTrpcAgent.cancel.mutate).toHaveBeenCalledWith({
         sessionId: "run-123",
       });
-      expect(mockSessionStoreSetters.removeSession).toHaveBeenCalledWith(
-        "run-123",
-      );
-      expect(mockAdapterFns.removeAdapter).toHaveBeenCalledWith("run-123");
-      expect(
-        mockSessionConfigStore.removePersistedConfigOptions,
-      ).toHaveBeenCalledWith("run-123");
+      // Should NOT remove session from store (avoids connect effect loop)
+      expect(mockSessionStoreSetters.removeSession).not.toHaveBeenCalled();
+      // Should attempt reconnect in place
+      expect(mockTrpcAgent.reconnect.mutate).toHaveBeenCalled();
     });
 
     it("handles missing session gracefully", async () => {
@@ -777,7 +810,7 @@ describe("SessionService", () => {
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(undefined);
 
       await expect(
-        service.clearSessionError("task-123"),
+        service.clearSessionError("task-123", "/repo"),
       ).resolves.not.toThrow();
     });
   });
