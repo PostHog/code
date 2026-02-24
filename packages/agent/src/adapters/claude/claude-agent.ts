@@ -498,15 +498,15 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   }
 
   private async setModelWithFallback(q: Query, modelId: string): Promise<void> {
+    const sdkModelId = toSdkModelId(modelId);
     try {
-      await q.setModel(modelId);
-      return;
+      await q.setModel(sdkModelId);
     } catch (err) {
-      const fallback = toSdkModelId(modelId);
-      if (fallback === modelId) {
+      if (sdkModelId === modelId) {
         throw err;
       }
-      await q.setModel(fallback);
+      // Fallback to raw gateway ID if SDK model ID failed
+      await q.setModel(modelId);
     }
   }
 
