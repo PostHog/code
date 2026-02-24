@@ -28,9 +28,10 @@ export function buildPermissionOptions(
   suggestions?: PermissionUpdate[],
 ): PermissionOption[] {
   if (BASH_TOOLS.has(toolName)) {
-    const ruleContent = suggestions
+    const rawRuleContent = suggestions
       ?.flatMap((s) => ("rules" in s ? s.rules : []))
       .find((r) => r.toolName === "Bash" && r.ruleContent)?.ruleContent;
+    const ruleContent = rawRuleContent?.replace(/:?\*$/, "");
 
     const command = toolInput?.command as string | undefined;
     const cmdName = command?.split(/\s+/)[0] ?? "this command";
