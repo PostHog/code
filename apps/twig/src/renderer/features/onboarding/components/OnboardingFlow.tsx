@@ -55,7 +55,12 @@ export function OnboardingFlow() {
         flexGrow="1"
         style={{ position: "relative", zIndex: 1, minHeight: 0 }}
       >
-        <Flex direction="column" flexGrow="1" overflow="hidden" style={{ minHeight: 0 }}>
+        <Flex
+          direction="column"
+          flexGrow="1"
+          overflow="hidden"
+          style={{ minHeight: 0 }}
+        >
           <AnimatePresence mode="wait">
             {currentStep === "welcome" && (
               <motion.div

@@ -86,7 +86,15 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
           </Callout.Root>
         )}
 
-        <Box className="scrollbar-hide" style={{ flex: 1, minHeight: 0, overflowY: "auto", marginBottom: "var(--space-6)" }}>
+        <Box
+          className="scrollbar-hide"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            marginBottom: "var(--space-6)",
+          }}
+        >
           <AnimatePresence mode="wait">
             {isLoading ? (
               <motion.div
