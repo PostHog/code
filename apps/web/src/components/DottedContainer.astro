@@ -8,7 +8,7 @@ const hasTitle = Astro.slots.has("title");
 const hasAction = Astro.slots.has("action");
 ---
 
-<div class:list={["dotted-container", className]}>
+<div class:list={["dotted-container", hasAction && "has-action", className]}>
   {hasTitle && (
     <span class="dotted-container-title type-sm">
       <slot name="title" />

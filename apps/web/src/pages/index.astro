@@ -1,12 +1,13 @@
 ---
-import Base from "../layouts/Base.astro";
+import Button from "../components/Button.astro";
+import DottedContainer from "../components/DottedContainer.astro";
+import Footer from "../components/Footer.astro";
 import GridOverlay from "../components/GridOverlay.astro";
 import Header from "../components/Header.astro";
-import Footer from "../components/Footer.astro";
-import WaitlistForm from "../components/WaitlistForm.astro";
 import ImagePreview from "../components/ImagePreview.astro";
 import SectionLabel from "../components/SectionLabel.astro";
-import Button from "../components/Button.astro";
+import WaitlistForm from "../components/WaitlistForm.astro";
+import Base from "../layouts/Base.astro";
 ---
 <Base title="Twig">
   <GridOverlay />
@@ -14,12 +15,19 @@ import Button from "../components/Button.astro";
 
   <section class="hero grid-container grid-section grid-section--spacious border-t">
     <div class="hero-bg">
-      <img src="/hero.png" alt="" class="invertible" />
+      <DottedContainer>
+        <img src="/hero.png" alt="" class="invertible" />
+      </DottedContainer>
     </div>
     <div class="hero-text cell-pad">
       <h1 class="type-3xl lh-tight">Lorem ipsum dolor sit amet</h1>
       <p class="type-lg hero-subtitle">Consectetur adipiscing elit sed do eiusmod tempor.</p>
-      <WaitlistForm />
+      <div class="hero-waitlist">
+        <DottedContainer>
+          <span slot="title">Sign up to waitlist</span>
+          <WaitlistForm />
+        </DottedContainer>
+      </div>
     </div>
   </section>
 
@@ -27,17 +35,22 @@ import Button from "../components/Button.astro";
     <img src="/landscape.svg" alt="" class="product-section-bg invertible" />
     <div class="product-section-content grid-container grid-section grid-section--spacious">
       <div class="col-full product-image-wrapper">
-        <img src="/product-image.png" alt="Product" class="product-image" />
-        <span class="product-overlay type-3xl weight-bold">VIDEO DEMO HERE</span>
+        <DottedContainer>
+          <img src="/product-image.png" alt="Product" class="product-image" />
+          <span class="product-overlay type-3xl weight-bold">VIDEO DEMO HERE</span>
+        </DottedContainer>
       </div>
     </div>
   </section>
 
   <section class="grid-container grid-section grid-section--spacious border-t">
-    <div class="branch-text cell-pad">
-      <SectionLabel>VISION</SectionLabel>
-      <h2 class="type-xl weight-bold">Lorem ipsum dolor</h2>
-      <p class="type-base branch-desc">Consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.</p>
+    <div class="vision-container cell-pad">
+      <DottedContainer>
+        <span slot="title">VISION</span>
+        <h2 class="type-xl weight-bold">Lorem ipsum dolor</h2>
+        <p class="type-base branch-desc">Consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.</p>
+        <a href="/blog" slot="action">Read more &rarr;</a>
+      </DottedContainer>
     </div>
     <div class="col-5 image-bleed-end-mirror">
       <img src="/branch.svg" alt="" class="invertible" />

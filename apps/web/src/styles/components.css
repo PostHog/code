@@ -415,7 +415,7 @@
 .waitlist-progress {
   height: 3px;
   background-color: color-mix(in oklab, var(--color-text) 20%, transparent);
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--space-sm);
 }
 
 .waitlist-progress-bar {
@@ -448,6 +448,10 @@
 }
 
 .waitlist-field.active {
+  display: block;
+}
+
+.waitlist-fields:not(:has(.active)) .waitlist-field:first-child {
   display: block;
 }
 
@@ -595,4 +599,78 @@
 .waitlist-form.submitted .waitlist-nav,
 .waitlist-form.submitted .waitlist-btn-submit {
   display: none;
+}
+
+.dotted-container {
+  position: relative;
+  border: 2px solid var(--color-text);
+  padding: 1.5rem;
+  padding-bottom: 1rem;
+  background: var(--color-bg);
+}
+
+.dotted-container-title {
+  position: absolute;
+  top: -0.75em;
+  left: 1rem;
+  padding-inline: 0.5rem;
+  background: var(--color-bg);
+  line-height: 1;
+}
+
+.dotted-container::after {
+  content: "";
+  position: absolute;
+  bottom: -9px;
+  right: -9px;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  background-image: url("/dots.svg");
+  background-repeat: repeat;
+  background-position: bottom right;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.dotted-container.has-action {
+  padding-bottom: 3rem;
+}
+
+.dotted-container-action {
+  position: absolute;
+  bottom: -0.75em;
+  left: 1rem;
+  line-height: 1;
+}
+
+.dotted-container-action > :first-child {
+  position: relative;
+  display: inline-block;
+  background: var(--color-bg);
+  border: 2px solid var(--color-text);
+  padding: 0.375em 0.75em;
+  font-family: var(--font-mono);
+  font-size: var(--type-sm);
+  text-decoration: none;
+  color: var(--color-text);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.dotted-container-action > :first-child:hover {
+  background: var(--color-text);
+  color: var(--color-bg);
+}
+
+.dotted-container-action > :first-child::after {
+  content: "";
+  position: absolute;
+  bottom: -7px;
+  right: -7px;
+  width: 100%;
+  height: 100%;
+  background-image: url("/dots.svg");
+  background-repeat: repeat;
+  background-position: bottom right;
+  pointer-events: none;
+  z-index: -1;
 }

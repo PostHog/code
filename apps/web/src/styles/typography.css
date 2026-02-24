@@ -2,17 +2,17 @@
   --color-text: #001627;
   --color-bg: #FDE9D7;
   --color-accent: #E45A10;
-  --font-mono: "TX-02", "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
-  --type-xs: clamp(0.69rem, 0.65rem + 0.11vi, 0.94rem);
-  --type-sm: clamp(0.83rem, 0.77rem + 0.15vi, 1.13rem);
-  --type-base: clamp(1rem, 0.91rem + 0.22vi, 1.5rem);
-  --type-lg: clamp(1.2rem, 1.04rem + 0.4vi, 2.1rem);
-  --type-xl: clamp(1.44rem, 1.14rem + 0.75vi, 3rem);
-  --type-2xl: clamp(1.73rem, 1.18rem + 1.36vi, 4.5rem);
-  --type-3xl: clamp(2.07rem, 1.07rem + 2.5vi, 7rem);
-  --type-4xl: clamp(2.49rem, 0.69rem + 4.5vi, 11rem);
-  --type-5xl: clamp(2.99rem, -0.26rem + 8.1vi, 17rem);
+  --type-xs: clamp(0.625rem, 0.6rem + 0.08vi, 0.75rem);
+  --type-sm: clamp(0.75rem, 0.72rem + 0.1vi, 0.875rem);
+  --type-base: clamp(0.875rem, 0.84rem + 0.12vi, 1rem);
+  --type-lg: clamp(1rem, 0.95rem + 0.2vi, 1.25rem);
+  --type-xl: clamp(1.25rem, 1.1rem + 0.4vi, 1.75rem);
+  --type-2xl: clamp(1.5rem, 1.2rem + 0.75vi, 2.5rem);
+  --type-3xl: clamp(2rem, 1.5rem + 1.25vi, 4rem);
+  --type-4xl: clamp(2.5rem, 1.75rem + 1.9vi, 6rem);
+  --type-5xl: clamp(3rem, 2rem + 2.5vi, 8rem);
 
   --lh-tight: 1.1;
   --lh-snug: 1.25;
@@ -38,38 +38,6 @@
 :root.dark {
   --color-text: #FDE9D7;
   --color-bg: #001627;
-}
-
-@font-face {
-  font-family: "TX-02";
-  src: url("/fonts/TX-02.woff2") format("woff2");
-  font-weight: 100 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "TX-02";
-  src: url("/fonts/TX-02-Medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "TX-02";
-  src: url("/fonts/TX-02-Bold.woff2") format("woff2");
-  font-weight: 600 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "TX-02";
-  src: url("/fonts/TX-02-Black.woff2") format("woff2");
-  font-weight: 800 900;
-  font-style: normal;
-  font-display: swap;
 }
 
 *,
