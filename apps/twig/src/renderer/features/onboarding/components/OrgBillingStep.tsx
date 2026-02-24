@@ -40,8 +40,17 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
 
   return (
     <Flex align="center" height="100%" px="8">
-      <Flex direction="column" gap="6" style={{ width: "100%", maxWidth: 520 }}>
-        <Flex direction="column" gap="3">
+      <Flex
+        direction="column"
+        style={{
+          width: "100%",
+          maxWidth: 520,
+          height: "100%",
+          paddingTop: 80,
+          paddingBottom: 40,
+        }}
+      >
+        <Flex direction="column" gap="3" mb="6">
           <img
             src={twigLogo}
             alt="Twig"
@@ -70,71 +79,81 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
         </Flex>
 
         {error && (
-          <Callout.Root color="red" size="1">
+          <Callout.Root color="red" size="1" mb="6">
             <Callout.Text>
               Failed to load organizations. Please try again later.
             </Callout.Text>
           </Callout.Root>
         )}
 
-        <AnimatePresence mode="wait">
-          {isLoading ? (
-            <motion.div
-              key="skeleton"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
-              <Flex direction="column" gap="3">
-                <Flex
-                  align="center"
-                  justify="between"
-                  gap="3"
-                  px="4"
-                  py="3"
-                  style={{
-                    backgroundColor: "rgba(255, 255, 255, 0.7)",
-                    border: "2px solid rgba(0, 0, 0, 0.1)",
-                    backdropFilter: "blur(8px)",
-                  }}
-                >
-                  <Flex align="center" gap="3">
-                    <Skeleton style={{ width: "140px", height: "20px" }} />
-                  </Flex>
-                  <Skeleton
+        <Box
+          className="scrollbar-hide"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            marginBottom: "var(--space-6)",
+          }}
+        >
+          <AnimatePresence mode="wait">
+            {isLoading ? (
+              <motion.div
+                key="skeleton"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <Flex direction="column" gap="3">
+                  <Flex
+                    align="center"
+                    justify="between"
+                    gap="3"
+                    px="4"
+                    py="3"
                     style={{
-                      width: "16px",
-                      height: "16px",
-                      borderRadius: "50%",
+                      backgroundColor: "rgba(255, 255, 255, 0.7)",
+                      border: "2px solid rgba(0, 0, 0, 0.1)",
+                      backdropFilter: "blur(8px)",
                     }}
-                  />
+                  >
+                    <Flex align="center" gap="3">
+                      <Skeleton style={{ width: "140px", height: "20px" }} />
+                    </Flex>
+                    <Skeleton
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        borderRadius: "50%",
+                      }}
+                    />
+                  </Flex>
                 </Flex>
-              </Flex>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="content"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Flex direction="column" gap="3">
-                {orgsWithBilling.map((org) => (
-                  <OrgCard
-                    key={org.id}
-                    name={org.name}
-                    hasActiveBilling={org.has_active_subscription}
-                    isSelected={effectiveSelectedOrgId === org.id}
-                    onSelect={() => handleSelect(org.id)}
-                  />
-                ))}
-              </Flex>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="content"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Flex direction="column" gap="3">
+                  {orgsWithBilling.map((org) => (
+                    <OrgCard
+                      key={org.id}
+                      name={org.name}
+                      hasActiveBilling={org.has_active_subscription}
+                      isSelected={effectiveSelectedOrgId === org.id}
+                      onSelect={() => handleSelect(org.id)}
+                    />
+                  ))}
+                </Flex>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Box>
 
-        <Flex gap="3" align="center">
+        <Flex gap="3" align="center" flexShrink="0">
           <Button
             size="3"
             variant="ghost"
