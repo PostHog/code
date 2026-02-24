@@ -34,7 +34,8 @@ const router = t.router({
 
 type Router = typeof router;
 
-const electronTRPC: RendererGlobalElectronTRPC = {} as any;
+const electronTRPC: RendererGlobalElectronTRPC =
+  {} as unknown as RendererGlobalElectronTRPC;
 let handlers: ((message: TRPCResponseMessage) => void)[] = [];
 beforeEach(() => {
   handlers = [];
@@ -75,7 +76,11 @@ describe("ipcLink", () => {
         }),
       });
 
-      const sentId = (mock.sendMessage.mock.calls[0][0] as any).operation.id;
+      const sentId = (
+        mock.sendMessage.mock.calls[0][0] as {
+          operation: { id: string | number };
+        }
+      ).operation.id;
 
       expect(queryResponse).not.toHaveBeenCalled();
 
@@ -111,7 +116,11 @@ describe("ipcLink", () => {
         }),
       });
 
-      const sentId = (mock.sendMessage.mock.calls[0][0] as any).operation.id;
+      const sentId = (
+        mock.sendMessage.mock.calls[0][0] as {
+          operation: { id: string | number };
+        }
+      ).operation.id;
       mock.sendMessage.mockClear();
 
       handlers[0]({
@@ -151,7 +160,11 @@ describe("ipcLink", () => {
         }),
       });
 
-      const sentId = (mock.sendMessage.mock.calls[0][0] as any).operation.id;
+      const sentId = (
+        mock.sendMessage.mock.calls[0][0] as {
+          operation: { id: string | number };
+        }
+      ).operation.id;
 
       /*
        * Multiple responses from the server
@@ -206,8 +219,16 @@ describe("ipcLink", () => {
 
       expect(mock.sendMessage).toHaveBeenCalledTimes(3);
 
-      const sentId1 = (mock.sendMessage.mock.calls[0][0] as any).operation.id;
-      const sentId3 = (mock.sendMessage.mock.calls[2][0] as any).operation.id;
+      const sentId1 = (
+        mock.sendMessage.mock.calls[0][0] as {
+          operation: { id: string | number };
+        }
+      ).operation.id;
+      const sentId3 = (
+        mock.sendMessage.mock.calls[2][0] as {
+          operation: { id: string | number };
+        }
+      ).operation.id;
 
       expect(queryResponse1).not.toHaveBeenCalled();
       expect(queryResponse2).not.toHaveBeenCalled();
@@ -266,7 +287,11 @@ describe("ipcLink", () => {
       }),
     });
 
-    const sentId = (mock.sendMessage.mock.calls[0][0] as any).operation.id;
+    const sentId = (
+      mock.sendMessage.mock.calls[0][0] as {
+        operation: { id: string | number };
+      }
+    ).operation.id;
 
     expect(queryResponse).not.toHaveBeenCalled();
 
@@ -317,7 +342,11 @@ describe("ipcLink", () => {
       }),
     });
 
-    const sentId = (mock.sendMessage.mock.calls[0][0] as any).operation.id;
+    const sentId = (
+      mock.sendMessage.mock.calls[0][0] as {
+        operation: { id: string | number };
+      }
+    ).operation.id;
 
     expect(queryResponse).not.toHaveBeenCalled();
 

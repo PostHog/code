@@ -7,7 +7,7 @@ import {
   DEFAULT_GATEWAY_MODEL,
   fetchArrayModels,
 } from "./gateway-models.js";
-import { PostHogAPIClient } from "./posthog-api.js";
+import { PostHogAPIClient, type TaskRunUpdate } from "./posthog-api.js";
 import { SessionLogWriter } from "./session-log-writer.js";
 import type { AgentConfig, TaskExecutionOptions } from "./types.js";
 import { Logger } from "./utils/logger.js";
@@ -142,7 +142,7 @@ export class Agent {
       throw error;
     }
 
-    const updates: any = {
+    const updates: TaskRunUpdate = {
       output: { pr_url: prUrl },
     };
     if (branchName) {

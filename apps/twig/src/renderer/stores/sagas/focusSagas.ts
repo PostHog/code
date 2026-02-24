@@ -342,7 +342,8 @@ class FocusSaga extends Saga<FocusSagaInput, FocusOutput> {
       await this.step({
         name: "unfocus_current",
         execute: async () => {
-          const result = await new FocusDisableSaga().run(currentSession!);
+          if (!currentSession) throw new Error("No current session to unfocus");
+          const result = await new FocusDisableSaga().run(currentSession);
           if (!result.success)
             throw new Error(`Failed to unfocus: ${result.error}`);
         },
@@ -512,8 +513,11 @@ export async function runFocusSaga(
   const result = await saga.run(input);
 
   if (!result.success) {
-    if (result.error === "Already focused on this worktree") {
-      return { success: true, session: input.currentSession!, wasSwap: false };
+    if (
+      result.error === "Already focused on this worktree" &&
+      input.currentSession
+    ) {
+      return { success: true, session: input.currentSession, wasSwap: false };
     }
     return {
       success: false,

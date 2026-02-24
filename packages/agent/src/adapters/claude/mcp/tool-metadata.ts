@@ -1,4 +1,7 @@
-import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
+import type {
+  McpHttpServerConfig,
+  McpServerConfig,
+} from "@anthropic-ai/claude-agent-sdk";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
@@ -16,17 +19,17 @@ function buildToolKey(serverName: string, toolName: string): string {
 
 function isHttpMcpServer(
   config: McpServerConfig,
-): config is McpServerConfig & { type: "http"; url: string } {
-  return config.type === "http" && typeof (config as any).url === "string";
+): config is McpHttpServerConfig {
+  return config.type === "http" && typeof config.url === "string";
 }
 
 async function fetchToolsFromHttpServer(
   _serverName: string,
-  config: McpServerConfig & { type: "http"; url: string },
+  config: McpHttpServerConfig,
 ): Promise<Tool[]> {
   const transport = new StreamableHTTPClientTransport(new URL(config.url), {
     requestInit: {
-      headers: (config as any).headers || {},
+      headers: config.headers ?? {},
     },
   });
 

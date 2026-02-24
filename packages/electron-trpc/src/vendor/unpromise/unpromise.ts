@@ -180,6 +180,7 @@ export class Unpromise<T> implements ProxyPromise<T> {
   // biome-ignore lint/suspicious/noThenProperty: intentional - this is a Promise-like class
   then<TResult1 = T, TResult2 = never>(
     onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
+    // biome-ignore lint/suspicious/noExplicitAny: vendored code matching native Promise interface
     onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
   ): SubscribedPromise<TResult1 | TResult2> {
     const subscribed = this.subscribe();
@@ -190,6 +191,7 @@ export class Unpromise<T> implements ProxyPromise<T> {
   }
 
   catch<TResult = never>(
+    // biome-ignore lint/suspicious/noExplicitAny: vendored code matching native Promise interface
     onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null,
   ): SubscribedPromise<T | TResult> {
     const subscribed = this.subscribe();

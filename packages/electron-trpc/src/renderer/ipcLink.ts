@@ -31,8 +31,9 @@ type IPCRequest = {
 };
 
 const getElectronTRPC = () => {
-  const electronTRPC: RendererGlobalElectronTRPC = (globalThis as any)
-    .electronTRPC;
+  const electronTRPC: RendererGlobalElectronTRPC = (
+    globalThis as unknown as { electronTRPC: RendererGlobalElectronTRPC }
+  ).electronTRPC;
 
   if (!electronTRPC) {
     throw new Error(
@@ -117,7 +118,7 @@ export function ipcLink<TRouter extends AnyTRPCRouter>(
 
         const unsubscribe = client.request(op, {
           error(err) {
-            observer.error(err as TRPCClientError<any>);
+            observer.error(err as TRPCClientError<TRouter>);
             unsubscribe();
           },
           complete() {

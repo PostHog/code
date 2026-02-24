@@ -15,7 +15,7 @@ import {
 
 const log = logger.scope("posthog-plugin");
 
-const SKILLS_ZIP_URL = process.env.SKILLS_ZIP_URL!;
+const SKILLS_ZIP_URL = process.env.SKILLS_ZIP_URL ?? "";
 const UPDATE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const CODEX_SKILLS_DIR = join(homedir(), ".agents", "skills");
 
