@@ -13,6 +13,7 @@ import {
 } from "@features/sessions/stores/sessionStore";
 import type { Plan } from "@features/sessions/types";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
+import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
 import { Spinner, Warning } from "@phosphor-icons/react";
 import { Box, Button, ContextMenu, Flex, Text } from "@radix-ui/themes";
 import {
@@ -335,6 +336,8 @@ export function SessionView({
 
     editorRef.current?.focus();
   }, []);
+
+  useAutoFocusOnTyping(editorRef);
 
   return (
     <ContextMenu.Root>

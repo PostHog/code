@@ -9,12 +9,14 @@ import {
 } from "@features/sessions/stores/sessionStore";
 import type { AgentAdapter } from "@features/settings/stores/settingsStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
+import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
 import { useRepositoryIntegration } from "@hooks/useIntegrations";
 import { Flex } from "@radix-ui/themes";
 import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useTaskDirectoryStore } from "@stores/taskDirectoryStore";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { usePreviewSession } from "../hooks/usePreviewSession";
 import { useTaskCreation } from "../hooks/useTaskCreation";
 import { TaskInputEditor } from "./TaskInputEditor";
@@ -105,6 +107,23 @@ export function TaskInput() {
       );
     }
   }, [modeOption, allowBypassPermissions, previewTaskId]);
+
+  // Global shift+tab to cycle mode regardless of focus
+  useHotkeys(
+    "shift+tab",
+    (e) => {
+      e.preventDefault();
+      handleCycleMode();
+    },
+    {
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
+      enabled: !!modeOption,
+    },
+    [handleCycleMode, modeOption],
+  );
+
+  useAutoFocusOnTyping(editorRef, isCreatingTask);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -251,7 +270,6 @@ export function TaskInput() {
             onEmptyChange={setEditorIsEmpty}
             adapter={adapter}
             previewTaskId={previewTaskId}
-            onCycleMode={handleCycleMode}
             onAdapterChange={setAdapter}
             isPreviewConnecting={isConnecting}
           />
