@@ -8,13 +8,13 @@ import {
   useAuthStore,
 } from "@features/auth/stores/authStore";
 import { useModelsStore } from "@features/sessions/stores/modelsStore";
-import { useSessionAdapterStore } from "@features/sessions/stores/sessionAdapterStore";
 import {
   getPersistedConfigOptions,
   removePersistedConfigOptions,
   setPersistedConfigOptions,
   updatePersistedConfigOptionValue,
 } from "@features/sessions/stores/sessionConfigStore";
+import { useSessionMetaStore } from "@features/sessions/stores/sessionMetaStore";
 import type {
   Adapter,
   AgentSession,
@@ -305,9 +305,12 @@ export class SessionService {
       prefetchedLogs ?? (await this.fetchSessionLogs(logUrl, taskRunId));
     const events = convertStoredEntriesToEvents(rawEntries);
 
-    const storedAdapter = useSessionAdapterStore
-      .getState()
-      .getAdapter(taskRunId);
+    // Persist the SDK sessionId when discovered from logs
+    if (sessionId) {
+      useSessionMetaStore.getState().setSdkSessionId(taskRunId, sessionId);
+    }
+
+    const storedAdapter = useSessionMetaStore.getState().getAdapter(taskRunId);
     const resolvedAdapter = adapter ?? storedAdapter;
 
     const persistedConfigOptions = getPersistedConfigOptions(taskRunId);
@@ -322,7 +325,7 @@ export class SessionService {
     }
     if (resolvedAdapter) {
       session.adapter = resolvedAdapter;
-      useSessionAdapterStore.getState().setAdapter(taskRunId, resolvedAdapter);
+      useSessionMetaStore.getState().setAdapter(taskRunId, resolvedAdapter);
     }
 
     sessionStoreSetters.setSession(session);
@@ -449,7 +452,7 @@ export class SessionService {
 
     this.unsubscribeFromChannel(taskRunId);
     sessionStoreSetters.removeSession(taskRunId);
-    useSessionAdapterStore.getState().removeAdapter(taskRunId);
+    useSessionMetaStore.getState().removeAll(taskRunId);
     removePersistedConfigOptions(taskRunId);
   }
 
@@ -529,7 +532,7 @@ export class SessionService {
 
     // Persist the adapter
     if (adapter) {
-      useSessionAdapterStore.getState().setAdapter(taskRun.id, adapter);
+      useSessionMetaStore.getState().setAdapter(taskRun.id, adapter);
     }
 
     sessionStoreSetters.setSession(session);
@@ -847,20 +850,27 @@ export class SessionService {
       }
     }
 
-    // Handle _posthog/sdk_session notifications for adapter info
+    // Handle _posthog/sdk_session notifications for adapter and sessionId
     if (
       "method" in msg &&
       msg.method === "_posthog/sdk_session" &&
       "params" in msg
     ) {
       const params = msg.params as {
+        sessionId?: string;
+        sdkSessionId?: string;
         adapter?: Adapter;
       };
+      const sdkSessionId = params?.sessionId ?? params?.sdkSessionId;
+      if (sdkSessionId) {
+        useSessionMetaStore.getState().setSdkSessionId(taskRunId, sdkSessionId);
+        log.info("SDK session ID persisted", { taskRunId, sdkSessionId });
+      }
       if (params?.adapter) {
         sessionStoreSetters.updateSession(taskRunId, {
           adapter: params.adapter,
         });
-        useSessionAdapterStore.getState().setAdapter(taskRunId, params.adapter);
+        useSessionMetaStore.getState().setAdapter(taskRunId, params.adapter);
         log.info("Session adapter updated", {
           taskRunId,
           adapter: params.adapter,
@@ -1549,6 +1559,10 @@ export class SessionService {
    * session instead of attempting to resume the stale one.
    */
   async resetSession(taskId: string, repoPath: string): Promise<void> {
+    const session = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (session) {
+      useSessionMetaStore.getState().removeSdkSessionId(session.taskRunId);
+    }
     await this.reconnectInPlace(taskId, repoPath, null);
   }
 
@@ -1591,10 +1605,13 @@ export class SessionService {
       : { rawEntries: [] as StoredLogEntry[], adapter: undefined };
 
     // Determine sessionId: undefined = use from logs, null = strip (fresh), string = use as-is
+    const storedSessionId = useSessionMetaStore
+      .getState()
+      .getSdkSessionId(taskRunId);
     const sessionId =
       overrideSessionId === null
         ? undefined
-        : (overrideSessionId ?? prefetchedLogs.sessionId);
+        : (overrideSessionId ?? storedSessionId ?? prefetchedLogs.sessionId);
 
     await this.reconnectToLocalSession(
       taskId,

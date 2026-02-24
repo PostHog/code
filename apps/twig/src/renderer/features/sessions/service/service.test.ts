@@ -94,24 +94,28 @@ vi.mock(
   () => mockSessionConfigStore,
 );
 
-const mockAdapterFns = vi.hoisted(() => ({
+const mockMetaFns = vi.hoisted(() => ({
   setAdapter: vi.fn(),
   getAdapter: vi.fn(),
   removeAdapter: vi.fn(),
+  setSdkSessionId: vi.fn(),
+  getSdkSessionId: vi.fn(),
+  removeSdkSessionId: vi.fn(),
+  removeAll: vi.fn(),
 }));
 
-const mockSessionAdapterStore = vi.hoisted(() => ({
-  useSessionAdapterStore: {
+const mockSessionMetaStore = vi.hoisted(() => ({
+  useSessionMetaStore: {
     getState: vi.fn(() => ({
-      adaptersByRunId: {},
-      ...mockAdapterFns,
+      metaByRunId: {},
+      ...mockMetaFns,
     })),
   },
 }));
 
 vi.mock(
-  "@features/sessions/stores/sessionAdapterStore",
-  () => mockSessionAdapterStore,
+  "@features/sessions/stores/sessionMetaStore",
+  () => mockSessionMetaStore,
 );
 
 const mockGetIsOnline = vi.hoisted(() => vi.fn(() => true));
