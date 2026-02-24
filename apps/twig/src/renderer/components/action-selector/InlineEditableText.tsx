@@ -10,6 +10,11 @@ interface InlineEditableTextProps {
   onSubmit: () => void;
 }
 
+function autoGrow(el: HTMLTextAreaElement) {
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
+
 export function InlineEditableText({
   value,
   placeholder,
@@ -19,21 +24,37 @@ export function InlineEditableText({
   onEscape,
   onSubmit,
 }: InlineEditableTextProps) {
-  const nativeInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    nativeInputRef.current?.focus();
+    const el = textareaRef.current;
+    if (el) {
+      el.focus();
+      autoGrow(el);
+    }
   }, []);
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === "Escape") {
         e.preventDefault();
         onEscape();
       } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        onNavigateUp();
-      } else if (e.key === "ArrowDown" || e.key === "Tab") {
+        const el = e.currentTarget;
+        if (el.selectionStart === 0 && el.selectionEnd === 0) {
+          e.preventDefault();
+          onNavigateUp();
+        }
+      } else if (e.key === "ArrowDown") {
+        const el = e.currentTarget;
+        if (
+          el.selectionStart === el.value.length &&
+          el.selectionEnd === el.value.length
+        ) {
+          e.preventDefault();
+          onNavigateDown();
+        }
+      } else if (e.key === "Tab") {
         e.preventDefault();
         onNavigateDown();
       } else if (e.key === "Enter" && !e.shiftKey) {
@@ -45,22 +66,27 @@ export function InlineEditableText({
   );
 
   return (
-    <input
-      ref={nativeInputRef}
-      type="text"
+    <textarea
+      ref={textareaRef}
       value={value}
       placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => {
+        onChange(e.target.value);
+        autoGrow(e.target);
+      }}
       onKeyDown={handleKeyDown}
       onClick={(e) => e.stopPropagation()}
+      rows={1}
       className="text-gray-12 placeholder:text-gray-10"
       style={{
         all: "unset",
         fontSize: "var(--font-size-1)",
         lineHeight: "var(--line-height-1)",
         fontWeight: 500,
-        minWidth: "200px",
-        display: "inline-block",
+        width: "100%",
+        display: "block",
+        resize: "none",
+        overflow: "hidden",
       }}
     />
   );
