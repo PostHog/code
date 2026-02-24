@@ -1,3 +1,4 @@
+import type { ScrollAnchor } from "@features/sessions/stores/sessionViewStore";
 import {
   type ScrollToOptions,
   useVirtualizer,
@@ -39,6 +40,7 @@ export interface VirtualizedListHandle {
   scrollToOffset: (offset: number, options?: ScrollToOptions) => void;
   scrollToBottom: () => void;
   measure: () => void;
+  getScrollAnchor: () => ScrollAnchor | null;
 }
 
 function VirtualizedListInner<T>(
@@ -84,9 +86,29 @@ function VirtualizedListInner<T>(
       scrollToBottom: () => {
         if (items.length > 0) {
           virtualizer.scrollToIndex(items.length - 1, { align: "end" });
+          // Re-scroll after measurements settle to fix position drift
+          requestAnimationFrame(() => {
+            virtualizer.scrollToIndex(items.length - 1, { align: "end" });
+          });
         }
       },
       measure: () => virtualizer.measure(),
+      getScrollAnchor: () => {
+        const el = scrollRef.current;
+        if (!el) return null;
+        const visibleItems = virtualizer.getVirtualItems();
+        if (visibleItems.length === 0) return null;
+        const scrollTop = el.scrollTop;
+        // Find the first item whose bottom edge is below the scroll top
+        const firstVisible = visibleItems.find(
+          (item) => item.start + item.size > scrollTop,
+        );
+        if (!firstVisible) return null;
+        return {
+          index: firstVisible.index,
+          offsetFromTop: scrollTop - firstVisible.start,
+        };
+      },
     }),
     [virtualizer, items.length],
   );
