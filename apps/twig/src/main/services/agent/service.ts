@@ -585,6 +585,12 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         configOptions = resumeMeta?.configOptions;
         agentSessionId = config.sessionId;
       } else {
+        if (isReconnect) {
+          log.info("No sessionId for reconnect, creating new session", {
+            taskId,
+            taskRunId,
+          });
+        }
         const systemPrompt = this.buildSystemPrompt(
           credentials,
           customInstructions,

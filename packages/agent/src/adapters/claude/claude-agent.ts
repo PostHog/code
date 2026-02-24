@@ -33,7 +33,7 @@ import { v7 as uuidv7 } from "uuid";
 import packageJson from "../../../package.json" with { type: "json" };
 import type { SessionContext } from "../../otel-log-writer.js";
 import type { SessionLogWriter } from "../../session-log-writer.js";
-import { unreachable } from "../../utils/common.js";
+import { unreachable, withTimeout } from "../../utils/common.js";
 import { Logger } from "../../utils/logger.js";
 import { Pushable } from "../../utils/streams.js";
 import { BaseAcpAgent } from "../base-acp-agent.js";
@@ -65,6 +65,8 @@ import type {
   Session,
   ToolUseCache,
 } from "./types.js";
+
+const SESSION_VALIDATION_TIMEOUT_MS = 10_000;
 
 export interface ClaudeAcpAgentOptions {
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
@@ -249,7 +251,13 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
     // Validate the resumed session is alive. For stale sessions this throws
     // (e.g. "No conversation found"), preventing a broken session.
-    await q.initializationResult();
+    const validation = await withTimeout(
+      q.initializationResult(),
+      SESSION_VALIDATION_TIMEOUT_MS,
+    );
+    if (validation.result === "timeout") {
+      throw new Error("Session validation timed out");
+    }
 
     // Deferred: slash commands + MCP metadata (not needed to return configOptions)
     this.deferBackgroundFetches(q, sessionId, mcpServers);

@@ -292,7 +292,7 @@ export class SessionService {
     taskId: string,
     taskRunId: string,
     taskTitle: string,
-    logUrl: string,
+    logUrl: string | undefined,
     repoPath: string,
     auth: AuthCredentials,
     prefetchedLogs?: {
@@ -314,7 +314,9 @@ export class SessionService {
 
     const session = this.createBaseSession(taskRunId, taskId, taskTitle);
     session.events = events;
-    session.logUrl = logUrl;
+    if (logUrl) {
+      session.logUrl = logUrl;
+    }
     if (persistedConfigOptions) {
       session.configOptions = persistedConfigOptions;
     }
@@ -459,7 +461,9 @@ export class SessionService {
     errorTitle?: string,
   ): void {
     // Preserve events and logUrl from the existing session so the
-    // conversation history stays visible in the error state
+    // retry / reset flows can re-hydrate without a fresh log fetch.
+    // Note: the error overlay is opaque, so these events aren't visible
+    // to the user — they're carried forward for the next reconnect attempt.
     const existing = sessionStoreSetters.getSessionByTaskId(taskId);
     const session = this.createBaseSession(taskRunId, taskId, taskTitle);
     session.status = "error";
@@ -1386,7 +1390,7 @@ export class SessionService {
       taskId,
       taskRunId,
       taskTitle,
-      logUrl ?? "",
+      logUrl,
       repoPath,
       auth,
       { ...prefetchedLogs, sessionId: undefined },
@@ -1586,7 +1590,7 @@ export class SessionService {
   }
 
   private async fetchSessionLogs(
-    logUrl: string,
+    logUrl: string | undefined,
     taskRunId?: string,
   ): Promise<{
     rawEntries: StoredLogEntry[];
