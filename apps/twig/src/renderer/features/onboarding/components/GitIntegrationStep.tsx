@@ -17,7 +17,7 @@ import {
 import twigLogo from "@renderer/assets/images/twig-logo.svg";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useProjectsWithIntegrations } from "../hooks/useProjectsWithIntegrations";
 import { ProjectSelect } from "./ProjectSelect";
 
@@ -37,24 +37,29 @@ export function GitIntegrationStep({
   const { projects, projectsWithGithub, isLoading } =
     useProjectsWithIntegrations();
 
-  // Default to first project with GitHub integration, otherwise current project
-  const defaultProjectId = useMemo(() => {
+  // User can manually select a different project
+  const [manuallySelectedProjectId, setManuallySelectedProjectId] = useState<
+    number | null
+  >(null);
+
+  // Determine which project to show:
+  // 1. If user manually selected one, use that
+  // 2. Otherwise, prefer first project with GitHub integration
+  // 3. Fall back to current project or first available
+  const selectedProjectId = useMemo(() => {
+    if (manuallySelectedProjectId !== null) {
+      return manuallySelectedProjectId;
+    }
     if (projectsWithGithub.length > 0) {
       return projectsWithGithub[0].id;
     }
     return currentProjectId ?? projects[0]?.id ?? null;
-  }, [projectsWithGithub, currentProjectId, projects]);
-
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
-    defaultProjectId,
-  );
-
-  // Update selectedProjectId when defaultProjectId changes (after loading)
-  useEffect(() => {
-    if (defaultProjectId !== null && selectedProjectId === null) {
-      setSelectedProjectId(defaultProjectId);
-    }
-  }, [defaultProjectId, selectedProjectId]);
+  }, [
+    manuallySelectedProjectId,
+    projectsWithGithub,
+    currentProjectId,
+    projects,
+  ]);
 
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId),
@@ -127,166 +132,260 @@ export function GitIntegrationStep({
               projectId={selectedProject.id}
               projectName={selectedProject.name}
               projects={projects.map((p) => ({ id: p.id, name: p.name }))}
-              onProjectChange={setSelectedProjectId}
+              onProjectChange={setManuallySelectedProjectId}
               disabled={isLoading}
             />
           )}
         </Flex>
 
-        <AnimatePresence mode="wait">
-          {isLoading ? (
-            <motion.div
-              key="skeleton"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
-              <Flex direction="column" gap="4">
-                <Box
-                  p="5"
-                  style={{
-                    backgroundColor: "rgba(255, 255, 255, 0.7)",
-                    border: "2px solid rgba(0, 0, 0, 0.1)",
-                    backdropFilter: "blur(8px)",
-                  }}
+        {/* Consistent status box - same height regardless of connection state */}
+        <Box
+          p="5"
+          style={{
+            backgroundColor: "rgba(255, 255, 255, 0.7)",
+            border: "2px solid rgba(0, 0, 0, 0.1)",
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          <Flex direction="column" gap="4" align="center">
+            <AnimatePresence mode="wait">
+              {isLoading ? (
+                <motion.div
+                  key="icon-skeleton"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
                 >
-                  <Flex direction="column" gap="4" align="center">
-                    <Skeleton
-                      style={{ width: "48px", height: "48px", borderRadius: "8px" }}
-                    />
-                    <Flex direction="column" gap="2" align="center">
-                      <Skeleton style={{ width: "200px", height: "20px" }} />
-                      <Skeleton style={{ width: "280px", height: "16px" }} />
-                    </Flex>
-                    <Skeleton
-                      style={{ width: "160px", height: "36px", borderRadius: "6px" }}
-                    />
-                    <Skeleton style={{ width: "100px", height: "16px" }} />
-                  </Flex>
-                </Box>
-                <Skeleton
-                  style={{ width: "100%", height: "52px", borderRadius: "8px" }}
-                />
-              </Flex>
-            </motion.div>
-          ) : hasGitIntegration ? (
-            <motion.div
-              key="connected"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Callout.Root color="green">
-                <Callout.Icon>
-                  <CheckCircle size={20} weight="fill" />
-                </Callout.Icon>
-                <Callout.Text>
-                  <Flex direction="column" gap="1">
-                    <Text weight="bold">GitHub connected</Text>
-                    <Text size="2">
-                      Your GitHub integration is active and ready to use.
-                    </Text>
-                  </Flex>
-                </Callout.Text>
-              </Callout.Root>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="not-connected"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-            >
-              <Flex direction="column" gap="4">
-                <Box
-                  p="5"
-                  style={{
-                    backgroundColor: "rgba(255, 255, 255, 0.7)",
-                    border: "2px solid rgba(0, 0, 0, 0.1)",
-                    backdropFilter: "blur(8px)",
-                  }}
+                  <Skeleton
+                    style={{ width: "32px", height: "32px", borderRadius: "8px" }}
+                  />
+                </motion.div>
+              ) : hasGitIntegration ? (
+                <motion.div
+                  key="icon-connected"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  <Flex direction="column" gap="4" align="center">
-                    <GitBranch
-                      size={32}
+                  <CheckCircle
+                    size={32}
+                    weight="fill"
+                    style={{ color: "var(--green-9)" }}
+                  />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="icon-disconnected"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <GitBranch
+                    size={32}
+                    style={{ color: "var(--cave-charcoal)" }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <Flex direction="column" gap="2" align="center">
+              <AnimatePresence mode="wait">
+                {isLoading ? (
+                  <motion.div
+                    key="text-skeleton"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Skeleton style={{ width: "180px", height: "20px" }} />
+                    <Skeleton style={{ width: "260px", height: "16px" }} />
+                  </motion.div>
+                ) : hasGitIntegration ? (
+                  <motion.div
+                    key="text-connected"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.2, delay: 0.05 }}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      size="3"
+                      weight="bold"
                       style={{ color: "var(--cave-charcoal)" }}
-                    />
-                    <Flex direction="column" gap="2" align="center">
-                      <Text
-                        size="3"
-                        weight="bold"
-                        style={{ color: "var(--cave-charcoal)" }}
-                      >
-                        No git integration found
-                      </Text>
-                      <Text
-                        size="1"
-                        align="center"
-                        style={{
-                          color: "var(--cave-charcoal)",
-                          opacity: 0.7,
-                        }}
-                      >
-                        Connect GitHub to enable agent-powered development
-                        workflows.
-                      </Text>
-                    </Flex>
-                    <Button
-                      size="2"
-                      onClick={handleConnectGitHub}
+                    >
+                      GitHub connected
+                    </Text>
+                    <Text
+                      size="1"
+                      align="center"
                       style={{
-                        backgroundColor: "var(--cave-charcoal)",
-                        color: "var(--cave-cream)",
+                        color: "var(--cave-charcoal)",
+                        opacity: 0.7,
                       }}
                     >
-                      Connect GitHub
-                      <ArrowSquareOut size={16} />
-                    </Button>
-                    <Button size="1" variant="ghost" onClick={handleRefresh}>
-                      Refresh status
-                    </Button>
-                  </Flex>
-                </Box>
+                      Your GitHub integration is active and ready to use.
+                    </Text>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="text-disconnected"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.2, delay: 0.05 }}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      size="3"
+                      weight="bold"
+                      style={{ color: "var(--cave-charcoal)" }}
+                    >
+                      No git integration found
+                    </Text>
+                    <Text
+                      size="1"
+                      align="center"
+                      style={{
+                        color: "var(--cave-charcoal)",
+                        opacity: 0.7,
+                      }}
+                    >
+                      Connect GitHub to enable agent-powered development workflows.
+                    </Text>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Flex>
+            <AnimatePresence mode="wait">
+              {isLoading ? (
+                <motion.div
+                  key="action-skeleton"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <Skeleton
+                    style={{ width: "160px", height: "32px", borderRadius: "6px" }}
+                  />
+                </motion.div>
+              ) : !hasGitIntegration ? (
+                <motion.div
+                  key="action-disconnected"
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.2, delay: 0.1 }}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                    alignItems: "center",
+                  }}
+                >
+                  <Button
+                    size="2"
+                    onClick={handleConnectGitHub}
+                    style={{
+                      backgroundColor: "var(--cave-charcoal)",
+                      color: "var(--cave-cream)",
+                    }}
+                  >
+                    Connect GitHub
+                    <ArrowSquareOut size={16} />
+                  </Button>
+                  <Button size="1" variant="ghost" onClick={handleRefresh}>
+                    Refresh status
+                  </Button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="action-connected"
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.2, delay: 0.1 }}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                    alignItems: "center",
+                  }}
+                >
+                  <Button size="1" variant="ghost" onClick={handleRefresh}>
+                    Refresh status
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </Flex>
+        </Box>
+
+        <AnimatePresence>
+          {!isLoading && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.25, delay: 0.15 }}
+            >
+              <Flex gap="3" align="center">
+                <Button
+                  size="3"
+                  variant="ghost"
+                  onClick={onBack}
+                  style={{ color: "var(--cave-charcoal)" }}
+                >
+                  <ArrowLeft size={16} />
+                  Back
+                </Button>
+                {hasGitIntegration ? (
+                  <Button
+                    size="3"
+                    onClick={handleContinue}
+                    style={{
+                      backgroundColor: "var(--cave-charcoal)",
+                      color: "var(--cave-cream)",
+                    }}
+                  >
+                    Continue
+                    <ArrowRight size={16} />
+                  </Button>
+                ) : (
+                  <Button
+                    size="3"
+                    variant="outline"
+                    onClick={handleSkip}
+                    style={{ color: "var(--cave-charcoal)" }}
+                  >
+                    Skip for now
+                    <ArrowRight size={16} />
+                  </Button>
+                )}
               </Flex>
             </motion.div>
           )}
         </AnimatePresence>
-
-        <Flex gap="3" align="center">
-          <Button
-            size="3"
-            variant="ghost"
-            onClick={onBack}
-            style={{ color: "var(--cave-charcoal)" }}
-          >
-            <ArrowLeft size={16} />
-            Back
-          </Button>
-          {hasGitIntegration ? (
-            <Button
-              size="3"
-              onClick={handleContinue}
-              style={{
-                backgroundColor: "var(--cave-charcoal)",
-                color: "var(--cave-cream)",
-              }}
-            >
-              Continue
-              <ArrowRight size={16} />
-            </Button>
-          ) : (
-            <Button
-              size="3"
-              variant="outline"
-              onClick={handleSkip}
-              style={{ color: "var(--cave-charcoal)" }}
-            >
-              Skip for now
-              <ArrowRight size={16} />
-            </Button>
-          )}
-        </Flex>
       </Flex>
     </Flex>
   );

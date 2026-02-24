@@ -1,8 +1,8 @@
 import { DraggableTitleBar } from "@components/DraggableTitleBar";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { Callout, Flex, Spinner, Text } from "@radix-ui/themes";
-import caveHero from "@renderer/assets/images/cave-hero.jpg";
 import posthogIcon from "@renderer/assets/images/posthog-icon.svg";
+import treeBg from "@renderer/assets/images/tree-bg.svg";
 import twigLogo from "@renderer/assets/images/twig-logo.svg";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { CloudRegion } from "@shared/types/oauth";
@@ -95,14 +95,25 @@ export function AuthScreen() {
     >
       <DraggableTitleBar />
 
-      {/* Full-screen cave painting background */}
+      {/* Background */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          backgroundImage: `url(${caveHero})`,
+          backgroundColor: "#FAEEDE",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: "50%",
+          backgroundImage: `url(${treeBg})`,
           backgroundSize: "cover",
-          backgroundPosition: "center",
+          backgroundPosition: "left center",
+          backgroundRepeat: "no-repeat",
         }}
       />
 

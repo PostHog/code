@@ -1,16 +1,17 @@
 import { Flex } from "@radix-ui/themes";
-import { ONBOARDING_STEPS, type OnboardingStep } from "../types";
+import type { OnboardingStep } from "../types";
 
 interface StepIndicatorProps {
   currentStep: OnboardingStep;
+  activeSteps: OnboardingStep[];
 }
 
-export function StepIndicator({ currentStep }: StepIndicatorProps) {
-  const currentIndex = ONBOARDING_STEPS.indexOf(currentStep);
+export function StepIndicator({ currentStep, activeSteps }: StepIndicatorProps) {
+  const currentIndex = activeSteps.indexOf(currentStep);
 
   return (
     <Flex align="center" gap="2" justify="center" py="6">
-      {ONBOARDING_STEPS.map((step, index) => (
+      {activeSteps.map((step, index) => (
         <div
           key={step}
           style={{

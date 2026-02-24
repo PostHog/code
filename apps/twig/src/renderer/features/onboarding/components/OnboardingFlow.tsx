@@ -1,7 +1,7 @@
 import { DraggableTitleBar } from "@components/DraggableTitleBar";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { Flex } from "@radix-ui/themes";
-import onboardingBg from "@renderer/assets/images/bg-2.svg";
+import onboardingBg from "@renderer/assets/images/tree-bg.svg";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { useOnboardingFlow } from "../hooks/useOnboardingFlow";
@@ -12,7 +12,7 @@ import { StepIndicator } from "./StepIndicator";
 import { WelcomeStep } from "./WelcomeStep";
 
 export function OnboardingFlow() {
-  const { currentStep, next, back } = useOnboardingFlow();
+  const { currentStep, activeSteps, next, back } = useOnboardingFlow();
   const { completeOnboarding } = useAuthStore();
 
   const handleComplete = () => {
@@ -111,7 +111,7 @@ export function OnboardingFlow() {
           </AnimatePresence>
         </Flex>
 
-        <StepIndicator currentStep={currentStep} />
+        <StepIndicator currentStep={currentStep} activeSteps={activeSteps} />
       </Flex>
     </Flex>
   );
