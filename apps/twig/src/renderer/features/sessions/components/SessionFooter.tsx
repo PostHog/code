@@ -4,7 +4,7 @@ import { Box, Flex, Text } from "@radix-ui/themes";
 import { formatDuration, GeneratingIndicator } from "./GeneratingIndicator";
 
 interface SessionFooterProps {
-  isPromptPending: boolean;
+  isPromptPending: boolean | null;
   promptStartedAt?: number | null;
   lastGenerationDuration: number | null;
   lastStopReason?: string;

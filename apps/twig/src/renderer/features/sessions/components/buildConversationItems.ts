@@ -98,7 +98,7 @@ function pushItem(b: ItemBuilder, update: RenderItem) {
 
 export function buildConversationItems(
   events: AcpMessage[],
-  isPromptPending: boolean,
+  isPromptPending: boolean | null,
 ): BuildResult {
   const b = createItemBuilder();
 
@@ -120,7 +120,10 @@ export function buildConversationItems(
     }
   }
 
-  if (!isPromptPending) {
+  // Only mark unresolved prompts as cancelled when we actively track prompt
+  // state (local sessions). For cloud sessions isPromptPending is
+  // null, meaning that the response hasn't streamed "in" yet
+  if (isPromptPending === false) {
     for (const turn of b.pendingPrompts.values()) {
       turn.isComplete = true;
       turn.context.turnComplete = true;

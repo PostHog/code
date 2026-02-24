@@ -276,9 +276,15 @@ async function handleAskUserQuestionTool(
   });
 
   if (response.outcome?.outcome !== "selected") {
+    const customMessage = (
+      response._meta as Record<string, unknown> | undefined
+    )?.message;
     return {
       behavior: "deny",
-      message: "User cancelled the questions",
+      message:
+        typeof customMessage === "string"
+          ? customMessage
+          : "User cancelled the questions",
       interrupt: true,
     };
   }

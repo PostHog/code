@@ -48,7 +48,10 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   const { requestFocus, setPendingContent } = useDraftStore((s) => s.actions);
   const { isOnline } = useConnectivity();
 
-  const isCloud = workspace?.mode === "cloud";
+  // Workspace store is only populated once a task is opened in Twig.
+  // For Slack-created tasks that haven't been opened yet, fall back to the API run environment.
+  const isCloud =
+    workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
 
   const cloudStatus = session?.cloudStatus ?? null;
   const cloudStage = session?.cloudStage ?? null;
@@ -62,6 +65,10 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   const isCloudRunTerminal = isCloud && !isCloudRunNotTerminal;
   const prUrl =
     isCloud && cloudOutput?.pr_url ? (cloudOutput.pr_url as string) : null;
+  const slackThreadUrl =
+    typeof task.latest_run?.state?.slack_thread_url === "string"
+      ? task.latest_run.state.slack_thread_url
+      : undefined;
 
   const isRunning = isCloud
     ? isCloudRunNotTerminal
@@ -313,9 +320,9 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
             <SessionView
               events={events}
               taskId={taskId}
-              isRunning={isRunning}
-              isPromptPending={isPromptPending}
-              promptStartedAt={promptStartedAt}
+              isRunning={isCloud ? false : isRunning}
+              isPromptPending={isCloud ? null : isPromptPending}
+              promptStartedAt={isCloud ? undefined : promptStartedAt}
               onSendPrompt={handleSendPrompt}
               onBashCommand={isCloud ? undefined : handleBashCommand}
               onCancelPrompt={handleCancelPrompt}
@@ -329,6 +336,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
               readOnlyMessage={
                 isCloudRunTerminal ? "This cloud run has finished" : undefined
               }
+              slackThreadUrl={slackThreadUrl}
             />
           </ErrorBoundary>
         </Box>

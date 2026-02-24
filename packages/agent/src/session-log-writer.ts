@@ -22,6 +22,7 @@ interface ChunkBuffer {
 interface SessionState {
   context: SessionContext;
   chunkBuffer?: ChunkBuffer;
+  lastAgentMessage?: string;
 }
 
 export class SessionLogWriter {
@@ -145,6 +146,11 @@ export class SessionLogWriter {
       // Non-chunk event: flush any buffered chunks first
       this.emitCoalescedMessage(sessionId, session);
 
+      const nonChunkAgentText = this.extractAgentMessageText(message);
+      if (nonChunkAgentText) {
+        session.lastAgentMessage = nonChunkAgentText;
+      }
+
       const entry: StoredNotification = {
         type: "notification",
         timestamp,
@@ -260,6 +266,7 @@ export class SessionLogWriter {
 
     const { text, firstTimestamp } = session.chunkBuffer;
     session.chunkBuffer = undefined;
+    session.lastAgentMessage = text;
 
     const entry: StoredNotification = {
       type: "notification",
@@ -284,6 +291,39 @@ export class SessionLogWriter {
       this.pendingEntries.set(sessionId, pending);
       this.scheduleFlush(sessionId);
     }
+  }
+
+  getLastAgentMessage(sessionId: string): string | undefined {
+    return this.sessions.get(sessionId)?.lastAgentMessage;
+  }
+
+  private extractAgentMessageText(
+    message: Record<string, unknown>,
+  ): string | null {
+    if (message.method !== "session/update") {
+      return null;
+    }
+
+    const params = message.params as Record<string, unknown> | undefined;
+    const update = params?.update as Record<string, unknown> | undefined;
+    if (update?.sessionUpdate !== "agent_message") {
+      return null;
+    }
+
+    const content = update.content as
+      | { type?: string; text?: string }
+      | undefined;
+    if (content?.type === "text" && typeof content.text === "string") {
+      const trimmed = content.text.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+
+    if (typeof update.message === "string") {
+      const trimmed = update.message.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+
+    return null;
   }
 
   private scheduleFlush(sessionId: string): void {

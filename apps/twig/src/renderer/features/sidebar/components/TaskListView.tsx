@@ -86,6 +86,9 @@ function TaskRow({
   depth?: number;
 }) {
   const workspace = useWorkspaceStore((s) => s.workspaces[task.id]);
+  const effectiveMode =
+    workspace?.mode ??
+    (task.taskRunEnvironment === "cloud" ? "cloud" : undefined);
 
   return (
     <TaskItem
@@ -93,7 +96,7 @@ function TaskRow({
       label={task.title}
       isActive={isActive}
       isEditing={isEditing}
-      workspaceMode={workspace?.mode}
+      workspaceMode={effectiveMode}
       worktreePath={workspace?.worktreePath ?? undefined}
       isGenerating={task.isGenerating}
       isUnread={task.isUnread}
