@@ -178,6 +178,32 @@ export function ConversationView({
     [taskId, saveScrollAnchor],
   );
 
+  const restoreScrollAnchor = useCallback(() => {
+    if (!taskId) return;
+    const savedAnchor = getScrollAnchor(taskId);
+    if (savedAnchor) {
+      listRef.current?.scrollToIndex(savedAnchor.index, { align: "start" });
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToIndex(savedAnchor.index, { align: "start" });
+        if (savedAnchor.offsetFromTop > 0) {
+          const el = document.querySelector(
+            `[data-index="${savedAnchor.index}"]`,
+          );
+          if (el) {
+            const container = el.closest("[style*='overflow']");
+            if (container) {
+              container.scrollTop += savedAnchor.offsetFromTop;
+            }
+          }
+        }
+      });
+    }
+  }, [taskId, getScrollAnchor]);
+
+  const handleBecameVisible = useCallback(() => {
+    restoreScrollAnchor();
+  }, [restoreScrollAnchor]);
+
   const scrollToBottom = useCallback(() => {
     listRef.current?.scrollToBottom();
   }, []);
@@ -243,6 +269,7 @@ export function ConversationView({
         getItemKey={getItemKey}
         renderItem={renderItem}
         onScroll={handleScroll}
+        onBecameVisible={handleBecameVisible}
         className="absolute inset-0 bg-gray-1 p-2"
         innerClassName="mx-auto max-w-[750px]"
         footer={

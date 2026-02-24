@@ -33,6 +33,8 @@ interface VirtualizedListProps<T> {
     scrollHeight: number,
     clientHeight: number,
   ) => void;
+  /** Called when the scroll container transitions from hidden (0 height) to visible */
+  onBecameVisible?: () => void;
 }
 
 export interface VirtualizedListHandle {
@@ -58,10 +60,12 @@ function VirtualizedListInner<T>(
     paddingEnd,
     footer,
     onScroll,
+    onBecameVisible,
   }: VirtualizedListProps<T>,
   ref: React.ForwardedRef<VirtualizedListHandle>,
 ) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const prevHeightRef = useRef(0);
 
   const virtualizer = useVirtualizer({
     count: items.length,
@@ -133,6 +137,28 @@ function VirtualizedListInner<T>(
     el.addEventListener("scroll", handleScroll);
     return () => el.removeEventListener("scroll", handleScroll);
   }, [handleScroll, onScroll]);
+
+  // Detect when container transitions from hidden (0 height) to visible
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !onBecameVisible) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const newHeight = entry.contentRect.height;
+        if (prevHeightRef.current === 0 && newHeight > 0) {
+          virtualizer.measure();
+          onBecameVisible();
+        }
+        prevHeightRef.current = newHeight;
+      }
+    });
+
+    // Initialize with current height
+    prevHeightRef.current = el.clientHeight;
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [onBecameVisible, virtualizer]);
 
   const virtualItems = virtualizer.getVirtualItems();
 
