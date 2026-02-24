@@ -151,6 +151,9 @@ function handlePromptRequest(
   ts: number,
 ) {
   const userContent = extractUserContent(msg.params);
+
+  if (userContent.trim().length === 0) return;
+
   const turnId = `turn-${ts}-${msg.id}`;
   const toolCalls = new Map<string, ToolCall>();
   const gitAction = parseGitActionMessage(userContent);
@@ -175,8 +178,6 @@ function handlePromptRequest(
   };
 
   b.pendingPrompts.set(msg.id, b.currentTurn);
-
-  if (userContent.trim().length === 0) return;
 
   if (gitAction.isGitAction && gitAction.actionType) {
     b.items.push({
