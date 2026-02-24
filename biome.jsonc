@@ -149,6 +149,23 @@
       }
     },
     {
+      // Astro files: disable rules that cause false positives due to experimental support
+      // See: https://biomejs.dev/internals/language-support/#linting-html-ish-languages
+      "includes": ["**/*.astro"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useConst": "off",
+            "useImportType": "off"
+          },
+          "correctness": {
+            "noUnusedVariables": "off",
+            "noUnusedImports": "off"
+          }
+        }
+      }
+    },
+    {
       // Renderer code should use path aliases
       "includes": [
         "apps/twig/src/renderer/**/*.ts",

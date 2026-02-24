@@ -7,8 +7,9 @@ interface Props {
 }
 
 const { title = "Twig", debug = false } = Astro.props;
-const posthogKey = import.meta.env['PUBLIC_POSTHOG_KEY'];
-const posthogHost = import.meta.env['PUBLIC_POSTHOG_HOST'] || "https://us.i.posthog.com";
+const posthogKey = import.meta.env.PUBLIC_POSTHOG_KEY;
+const posthogHost =
+  import.meta.env.PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
 ---
 <html lang="en">
   <head>

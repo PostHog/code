@@ -62,7 +62,7 @@
     "turbo": "^2.6.2"
   },
   "lint-staged": {
-    "!(apps/web)/**/*.{ts,tsx,js,jsx}": [
+    "*.{ts,tsx,js,jsx,astro}": [
       "biome check --write --unsafe --no-errors-on-unmatched --files-ignore-unknown=true",
       "bash -c 'pnpm typecheck'"
     ]
