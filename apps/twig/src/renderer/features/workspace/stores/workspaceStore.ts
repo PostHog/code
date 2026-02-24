@@ -384,19 +384,5 @@ export const useWorkspaceStore = createSelectors(useWorkspaceStoreBase);
 export const selectWorkspace = (taskId: string) => (state: WorkspaceState) =>
   state.workspaces[taskId];
 
-export const selectWorktreePath =
-  (taskId: string) => (state: WorkspaceState) => {
-    const workspace = state.workspaces[taskId];
-    if (!workspace) return undefined;
-    // In local mode, return folderPath; in worktree mode, return worktreePath
-    return workspace.worktreePath ?? workspace.folderPath;
-  };
-
-export const selectWorktreeName = (taskId: string) => (state: WorkspaceState) =>
-  state.workspaces[taskId]?.worktreeName;
-
-export const selectBranchName = (taskId: string) => (state: WorkspaceState) =>
-  state.workspaces[taskId]?.branchName;
-
 export const selectIsCreating = (taskId: string) => (state: WorkspaceState) =>
   state.isCreating[taskId] ?? false;

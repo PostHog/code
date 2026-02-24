@@ -23,6 +23,3 @@ export const logger = {
     };
   },
 };
-
-export type Logger = typeof logger;
-export type ScopedLogger = ReturnType<typeof logger.scope>;

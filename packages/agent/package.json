@@ -72,7 +72,6 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.8",
     "@posthog/shared": "workspace:*",
     "@twig/git": "workspace:*",
     "@types/bun": "latest",
@@ -97,13 +96,10 @@
     "@opentelemetry/semantic-conventions": "^1.28.0",
     "@types/jsonwebtoken": "^9.0.10",
     "commander": "^14.0.2",
-    "diff": "^8.0.2",
-    "dotenv": "^17.2.3",
     "hono": "^4.11.7",
     "jsonwebtoken": "^9.0.2",
     "tar": "^7.5.0",
     "uuid": "13.0.0",
-    "yoga-wasm-web": "^0.3.3",
     "zod": "^3.24.1"
   },
   "files": [

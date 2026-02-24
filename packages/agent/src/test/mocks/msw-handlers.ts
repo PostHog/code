@@ -1,7 +1,4 @@
 import { HttpResponse, http } from "msw";
-import { SseController } from "../controllers/sse-controller.js";
-
-export { SseController };
 
 type AnyHttpResponse = Response | ReturnType<typeof HttpResponse.json>;
 

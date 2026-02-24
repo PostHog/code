@@ -7,7 +7,6 @@ import type {
   ContentBlock,
   SessionNotification,
 } from "@agentclientprotocol/sdk";
-import { EXECUTION_MODES, type ExecutionMode } from "@shared/types";
 import type {
   AcpMessage,
   JsonRpcMessage,
@@ -21,36 +20,9 @@ import {
 import { includesAny } from "./string";
 
 /**
- * Get available execution modes based on user permissions.
- */
-export function getExecutionModes(
-  allowBypassPermissions: boolean,
-): ExecutionMode[] {
-  return allowBypassPermissions
-    ? EXECUTION_MODES
-    : EXECUTION_MODES.filter((m) => m !== "bypassPermissions");
-}
-
-/**
- * Cycle to the next execution mode.
- */
-export function cycleExecutionMode(
-  current: ExecutionMode,
-  allowBypassPermissions: boolean,
-): ExecutionMode {
-  const modes = getExecutionModes(allowBypassPermissions);
-  const currentIndex = modes.indexOf(current);
-  if (currentIndex === -1) {
-    return "default";
-  }
-  const nextIndex = (currentIndex + 1) % modes.length;
-  return modes[nextIndex];
-}
-
-/**
  * Convert a stored log entry to an ACP message.
  */
-export function storedEntryToAcpMessage(entry: StoredLogEntry): AcpMessage {
+function storedEntryToAcpMessage(entry: StoredLogEntry): AcpMessage {
   return {
     type: "acp_message",
     ts: entry.timestamp ? new Date(entry.timestamp).getTime() : Date.now(),
@@ -61,7 +33,7 @@ export function storedEntryToAcpMessage(entry: StoredLogEntry): AcpMessage {
 /**
  * Create a user message event for display.
  */
-export function createUserMessageEvent(text: string, ts: number): AcpMessage {
+function createUserMessageEvent(text: string, ts: number): AcpMessage {
   return {
     type: "acp_message",
     ts,

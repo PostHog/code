@@ -13,7 +13,7 @@ import {
 import { ClaudeAcpAgent } from "./claude/claude-agent.js";
 import { type CodexProcessOptions, spawnCodexProcess } from "./codex/spawn.js";
 
-export type AgentAdapter = "claude" | "codex";
+type AgentAdapter = "claude" | "codex";
 
 export type AcpConnectionConfig = {
   adapter?: AgentAdapter;
