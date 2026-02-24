@@ -11,6 +11,7 @@ interface GitState {
   ahead: number;
   behind: number;
   hasRemote: boolean;
+  isFeatureBranch: boolean;
   currentBranch: string | null;
   defaultBranch: string | null;
   ghStatus: { installed: boolean; authenticated: boolean } | null;
@@ -62,6 +63,12 @@ function getRepoReason(s: GitState): string | null {
 
 function isDetachedHead(s: GitState): boolean {
   return s.isRepo && !s.isRepoLoading && !s.currentBranch;
+}
+
+function isOnDefaultBranch(s: GitState): boolean {
+  return (
+    s.isRepo && !s.isRepoLoading && !!s.currentBranch && !s.isFeatureBranch
+  );
 }
 
 function getPushDisabledReason(
@@ -174,6 +181,24 @@ export function computeGitInteractionState(input: GitState): GitComputed {
       prUrl: null,
       baseReason: repoReason,
       isDetachedHead: true,
+    };
+  }
+
+  const onDefaultBranch = isOnDefaultBranch(input);
+
+  if (onDefaultBranch && input.hasChanges) {
+    const branchAction = makeAction("branch-here", "Branch here", repoReason);
+    const commitAction = getCommitAction(input, repoReason);
+    return {
+      actions: [branchAction, commitAction],
+      primaryAction: branchAction,
+      pushDisabledReason: "Create a feature branch first.",
+      prDisabledReason: "Create a feature branch first.",
+      prBaseBranch: input.defaultBranch,
+      prHeadBranch: input.currentBranch,
+      prUrl: input.prStatus?.prUrl ?? null,
+      baseReason: repoReason,
+      isDetachedHead: false,
     };
   }
 

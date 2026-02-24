@@ -97,7 +97,6 @@ export function GitInteractionHeader({ taskId }: GitInteractionHeaderProps) {
         }}
         branchName={modals.branchName}
         onBranchNameChange={actions.setBranchName}
-        branchPrefix={null}
         onConfirm={actions.runBranch}
         isSubmitting={modals.isSubmitting}
         error={modals.branchError}

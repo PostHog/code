@@ -98,6 +98,7 @@ export function useGitQueries(repoPath?: string) {
   const ahead = syncStatus?.ahead ?? 0;
   const behind = syncStatus?.behind ?? 0;
   const hasRemote = syncStatus?.hasRemote ?? true;
+  const isFeatureBranch = syncStatus?.isFeatureBranch ?? false;
   const defaultBranch = repoInfo?.defaultBranch ?? null;
 
   return {
@@ -116,6 +117,7 @@ export function useGitQueries(repoPath?: string) {
     ahead,
     behind,
     hasRemote,
+    isFeatureBranch,
     currentBranch,
     defaultBranch,
     isLoading: isRepoLoading || changesLoading || syncLoading,
