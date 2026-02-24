@@ -1,5 +1,5 @@
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ONBOARDING_STEPS, type OnboardingStep } from "../types";
 
 export function useOnboardingFlow() {
@@ -15,6 +15,13 @@ export function useOnboardingFlow() {
       (step) => step !== "billing" && step !== "org-billing",
     );
   }, [billingEnabled]);
+
+  // Reset to first step if current step is no longer in active steps
+  useEffect(() => {
+    if (!activeSteps.includes(currentStep)) {
+      setCurrentStep(activeSteps[0]);
+    }
+  }, [activeSteps, currentStep]);
 
   const currentIndex = activeSteps.indexOf(currentStep);
   const isFirstStep = currentIndex === 0;

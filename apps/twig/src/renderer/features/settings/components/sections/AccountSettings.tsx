@@ -2,14 +2,8 @@ import { useAuthStore } from "@features/auth/stores/authStore";
 import { SettingRow } from "@features/settings/components/SettingRow";
 import { SignOut } from "@phosphor-icons/react";
 import { Avatar, Badge, Button, Flex, Spinner, Text } from "@radix-ui/themes";
-import type { CloudRegion } from "@shared/types/oauth";
+import { REGION_LABELS } from "@shared/constants/oauth";
 import { useQuery } from "@tanstack/react-query";
-
-const REGION_LABELS: Record<CloudRegion, string> = {
-  us: "US Cloud",
-  eu: "EU Cloud",
-  dev: "Development",
-};
 
 export function AccountSettings() {
   const { client, isAuthenticated, selectedPlan, logout, cloudRegion } =

@@ -5,6 +5,7 @@ import posthogIcon from "@renderer/assets/images/posthog-icon.svg";
 import treeBg from "@renderer/assets/images/tree-bg.svg";
 import twigLogo from "@renderer/assets/images/twig-logo.svg";
 import { trpcVanilla } from "@renderer/trpc/client";
+import { REGION_LABELS } from "@shared/constants/oauth";
 import type { CloudRegion } from "@shared/types/oauth";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
@@ -39,12 +40,6 @@ export const getErrorMessage = (error: unknown) => {
 };
 
 type AuthMode = "login" | "signup";
-
-const REGION_LABELS: Record<CloudRegion, string> = {
-  us: "US Cloud",
-  eu: "EU Cloud",
-  dev: "Development",
-};
 
 export function AuthScreen() {
   const [region, setRegion] = useState<CloudRegion>("us");

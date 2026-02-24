@@ -83,14 +83,6 @@ export function GitIntegrationStep({
     onNext();
   };
 
-  const handleSkip = () => {
-    // Persist the selected project if it's different from current
-    if (selectedProjectId && selectedProjectId !== currentProjectId) {
-      selectProject(selectedProjectId);
-    }
-    onNext();
-  };
-
   return (
     <Flex align="center" height="100%" px="8">
       <Flex direction="column" gap="6" style={{ width: "100%", maxWidth: 520 }}>
@@ -379,7 +371,7 @@ export function GitIntegrationStep({
                   <Button
                     size="3"
                     variant="outline"
-                    onClick={handleSkip}
+                    onClick={handleContinue}
                     style={{ color: "var(--cave-charcoal)" }}
                   >
                     Skip for now

@@ -40,6 +40,12 @@ export const OAUTH_SCOPES = [
 
 export const OAUTH_SCOPE_VERSION = 1;
 
+export const REGION_LABELS: Record<CloudRegion, string> = {
+  us: "🇺🇸 US Cloud",
+  eu: "🇪🇺 EU Cloud",
+  dev: "🛠️ Development",
+};
+
 // Token refresh settings
 export const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // 5 minutes before expiry
 

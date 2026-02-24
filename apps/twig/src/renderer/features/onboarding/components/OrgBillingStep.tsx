@@ -1,7 +1,15 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { useOrganizations } from "@hooks/useOrganizations";
 import { ArrowLeft, ArrowRight, CheckCircle } from "@phosphor-icons/react";
-import { Badge, Box, Button, Flex, Skeleton, Text } from "@radix-ui/themes";
+import {
+  Badge,
+  Box,
+  Button,
+  Callout,
+  Flex,
+  Skeleton,
+  Text,
+} from "@radix-ui/themes";
 import twigLogo from "@renderer/assets/images/twig-logo.svg";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -14,7 +22,7 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
   const selectedOrgId = useAuthStore((s) => s.selectedOrgId);
   const selectOrg = useAuthStore((s) => s.selectOrg);
 
-  const { orgsWithBilling, effectiveSelectedOrgId, isLoading } =
+  const { orgsWithBilling, effectiveSelectedOrgId, isLoading, error } =
     useOrganizations();
 
   const handleContinue = () => {
@@ -60,6 +68,14 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
             Select which organization should be billed for your Twig usage.
           </Text>
         </Flex>
+
+        {error && (
+          <Callout.Root color="red" size="1">
+            <Callout.Text>
+              Failed to load organizations. Please try again later.
+            </Callout.Text>
+          </Callout.Root>
+        )}
 
         <AnimatePresence mode="wait">
           {isLoading ? (
