@@ -222,7 +222,17 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     if (!sessionId) {
       throw new Error("Cannot resume session without sessionId");
     }
+
+    this.logger.info("Resuming session", {
+      sessionId,
+      cwd: params.cwd,
+      taskRunId: meta?.taskRunId,
+    });
+
     if (this.sessionId === sessionId) {
+      this.logger.info("Session already active, skipping resume", {
+        sessionId,
+      });
       return {};
     }
 
