@@ -126,17 +126,18 @@ function App() {
     },
   });
 
-  // Wait for authStore to hydrate from electronStorage
+  // Wait for authStore to hydrate, then restore session from stored tokens
   useEffect(() => {
-    const checkHydration = async () => {
+    const initialize = async () => {
       if (!useAuthStore.persist.hasHydrated()) {
         await new Promise<void>((resolve) => {
           useAuthStore.persist.onFinishHydration(() => resolve());
         });
       }
+      await useAuthStore.getState().initializeOAuth();
       setIsLoading(false);
     };
-    checkHydration();
+    initialize();
   }, []);
 
   // Handle transition into main app (from onboarding completion)
