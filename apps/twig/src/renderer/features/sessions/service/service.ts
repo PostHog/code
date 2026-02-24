@@ -618,6 +618,7 @@ export class SessionService {
         apiHost: auth.apiHost,
         projectId: auth.projectId,
         adapter: params.adapter,
+        permissionMode: "plan",
         customInstructions: previewCustomInstructions || undefined,
       });
 

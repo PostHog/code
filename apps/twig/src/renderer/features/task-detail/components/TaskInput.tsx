@@ -77,11 +77,12 @@ export function TaskInput() {
 
   const effectiveWorkspaceMode = workspaceMode;
 
-  // Get current values from preview session config options for task creation
+  // Get current values from preview session config options for task creation.
+  // Defaults ensure values are always passed even before the preview session loads.
   const currentModel = modelOption?.currentValue;
-  const currentExecutionMode = getCurrentModeFromConfigOptions(
-    modeOption ? [modeOption] : undefined,
-  );
+  const currentExecutionMode =
+    getCurrentModeFromConfigOptions(modeOption ? [modeOption] : undefined) ??
+    "plan";
   const currentReasoningLevel = thoughtOption?.currentValue;
 
   const { isCreatingTask, canSubmit, handleSubmit } = useTaskCreation({
