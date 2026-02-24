@@ -20,8 +20,10 @@ import Base from "../layouts/Base.astro";
       </DottedContainer>
     </div>
     <div class="hero-text cell-pad">
-      <h1 class="type-3xl lh-tight">Lorem ipsum dolor sit amet</h1>
-      <p class="type-lg hero-subtitle">Consectetur adipiscing elit sed do eiusmod tempor.</p>
+        <h1 class="type-3xl lh-tight">announcing  <span style="color: var(--color-accent)">twig</span>: an agentic code editor that understands your users </h1>
+      <p class="type-lg hero-subtitle"> <span style="color: var(--color-accent)">twig</span> turns
+       product
+         data into shipped code</p>
       <div class="hero-waitlist">
         <DottedContainer>
           <span slot="title">Sign up to waitlist</span>
@@ -34,6 +36,13 @@ import Base from "../layouts/Base.astro";
   <section class="product-section">
     <img src="/landscape.svg" alt="" class="product-section-bg invertible" />
     <div class="product-section-content grid-container grid-section grid-section--spacious">
+      <div class="product-intro cell-pad">
+        <DottedContainer>
+          <span slot="title">PRODUCT</span>
+          <h2 class="type-xl weight-bold">we need <span style="color: var(--color-accent)">new primitives</span> for building products</h2>
+          <p class="type-base">lots of us don't write code anymore. The number of commits authored by coding agents is rapidly increasing month on month..</p>
+        </DottedContainer>
+      </div>
       <div class="col-full product-image-wrapper">
         <DottedContainer>
           <img src="/product-image.png" alt="Product" class="product-image" />
@@ -47,12 +56,14 @@ import Base from "../layouts/Base.astro";
     <div class="vision-container cell-pad">
       <DottedContainer>
         <span slot="title">VISION</span>
-        <h2 class="type-xl weight-bold">Lorem ipsum dolor</h2>
-        <p class="type-base branch-desc">Consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.</p>
+        <h2 class="type-xl weight-bold">PRODUCT AUTONOMY</h2>
+        <p class="type-base branch-desc">Lorem Ipsum is simply dummy text of the printing and typesetting industry.
+
+        Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum .</p>
         <a href="/blog" slot="action">Read more &rarr;</a>
       </DottedContainer>
     </div>
-    <div class="col-5 image-bleed-end-mirror">
+    <div class="col-4 col-span-2 image-bleed-end-mirror">
       <img src="/branch.svg" alt="" class="invertible" />
     </div>
   </section>
@@ -74,10 +85,12 @@ import Base from "../layouts/Base.astro";
       <ImagePreview src="/tree.svg" />
     </div>
     <div class="section-body cell-pad">
-      <SectionLabel>NEWS</SectionLabel>
-      <h2 class="type-2xl weight-bold">Lorem ipsum dolor sit amet</h2>
-      <p class="type-base news-desc">Consectetur adipiscing elit sed do eiusmod tempor.</p>
-      <Button href="/blog" variant="outline">Read more</Button>
+      <DottedContainer>
+        <span slot="title">NEWS</span>
+        <h2 class="type-2xl weight-bold">Lorem ipsum dolor sit amet</h2>
+        <p class="type-base news-desc">Consectetur adipiscing elit sed do eiusmod tempor.</p>
+        <a href="/blog" slot="action">Read more &rarr;</a>
+      </DottedContainer>
     </div>
   </section>
 

@@ -1,13 +1,12 @@
 .hero {
-  min-height: 80vh;
-  align-items: center;
+  min-height: auto;
+  align-items: start;
   position: relative;
 }
 
 .hero-bg {
   grid-column: 3 / 6;
   grid-row: 1;
-  padding: 1rem;
 }
 
 .hero-bg img {
@@ -86,6 +85,11 @@
   z-index: 1;
 }
 
+.product-intro {
+  grid-column: 1 / 3;
+  margin-bottom: var(--space-md);
+}
+
 .product-image-wrapper {
   display: flex;
   justify-content: center;
@@ -116,6 +120,7 @@
 
 .vision-container {
   grid-column: 2 / 4;
+  align-self: center;
 }
 
 .branch-desc {
