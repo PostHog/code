@@ -34,7 +34,8 @@ export function useProjectsWithIntegrations() {
 
   const projectsWithIntegrations: ProjectWithIntegrations[] = useMemo(() => {
     return projects.map((project, index) => {
-      const integrations = (integrationQueries[index]?.data ?? []) as Integration[];
+      const integrations = (integrationQueries[index]?.data ??
+        []) as Integration[];
       const hasGithubIntegration = integrations.some(
         (i) => i.kind === "github",
       );

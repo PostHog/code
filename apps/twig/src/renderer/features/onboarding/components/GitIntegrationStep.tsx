@@ -6,13 +6,7 @@ import {
   CheckCircle,
   GitBranch,
 } from "@phosphor-icons/react";
-import {
-  Box,
-  Button,
-  Flex,
-  Skeleton,
-  Text,
-} from "@radix-ui/themes";
+import { Box, Button, Flex, Skeleton, Text } from "@radix-ui/themes";
 import twigLogo from "@renderer/assets/images/twig-logo.svg";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { AnimatePresence, motion } from "framer-motion";
@@ -157,7 +151,11 @@ export function GitIntegrationStep({
                   transition={{ duration: 0.15 }}
                 >
                   <Skeleton
-                    style={{ width: "32px", height: "32px", borderRadius: "8px" }}
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "8px",
+                    }}
                   />
                 </motion.div>
               ) : hasGitIntegration ? (
@@ -269,7 +267,8 @@ export function GitIntegrationStep({
                         opacity: 0.7,
                       }}
                     >
-                      Connect GitHub to enable agent-powered development workflows.
+                      Connect GitHub to enable agent-powered development
+                      workflows.
                     </Text>
                   </motion.div>
                 )}
@@ -285,7 +284,11 @@ export function GitIntegrationStep({
                   transition={{ duration: 0.15 }}
                 >
                   <Skeleton
-                    style={{ width: "160px", height: "32px", borderRadius: "6px" }}
+                    style={{
+                      width: "160px",
+                      height: "32px",
+                      borderRadius: "6px",
+                    }}
                   />
                 </motion.div>
               ) : !hasGitIntegration ? (

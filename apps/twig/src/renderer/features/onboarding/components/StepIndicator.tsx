@@ -6,7 +6,10 @@ interface StepIndicatorProps {
   activeSteps: OnboardingStep[];
 }
 
-export function StepIndicator({ currentStep, activeSteps }: StepIndicatorProps) {
+export function StepIndicator({
+  currentStep,
+  activeSteps,
+}: StepIndicatorProps) {
   const currentIndex = activeSteps.indexOf(currentStep);
 
   return (

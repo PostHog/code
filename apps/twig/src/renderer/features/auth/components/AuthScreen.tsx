@@ -89,10 +89,7 @@ export function AuthScreen() {
   const errorMessage = getErrorMessage(error);
 
   return (
-    <Flex
-      height="100vh"
-      style={{ position: "relative", overflow: "hidden" }}
-    >
+    <Flex height="100vh" style={{ position: "relative", overflow: "hidden" }}>
       <DraggableTitleBar />
 
       {/* Background */}

@@ -100,7 +100,6 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
           </Button>
         </Box>
       </Flex>
-
     </Flex>
   );
 }
