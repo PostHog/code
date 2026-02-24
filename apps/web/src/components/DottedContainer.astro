@@ -1,14 +1,15 @@
 ---
 interface Props {
   class?: string;
+  noDither?: boolean;
 }
 
-const { class: className } = Astro.props;
+const { class: className, noDither = false } = Astro.props;
 const hasTitle = Astro.slots.has("title");
 const hasAction = Astro.slots.has("action");
 ---
 
-<div class:list={["dotted-container", hasAction && "has-action", className]}>
+<div class:list={["dotted-container", noDither && "dotted-container--no-dither", hasAction && "has-action", className]}>
   {hasTitle && (
     <span class="dotted-container-title type-sm">
       <slot name="title" />

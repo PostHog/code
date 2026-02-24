@@ -1,113 +1,578 @@
 ---
-import Button from "../components/Button.astro";
 import DottedContainer from "../components/DottedContainer.astro";
-import FlowDiagram from "../components/FlowDiagram.jsx";
 import Footer from "../components/Footer.astro";
 import GridOverlay from "../components/GridOverlay.astro";
 import Header from "../components/Header.astro";
-import ImagePreview from "../components/ImagePreview.astro";
-import SectionLabel from "../components/SectionLabel.astro";
 import WaitlistForm from "../components/WaitlistForm.astro";
 import Base from "../layouts/Base.astro";
 ---
-<Base title="Twig">
+
+<Base title="twig — the ai editor that understands your product">
   <GridOverlay />
   <Header accent />
 
-  <section class="hero grid-container grid-section grid-section--spacious border-t">
-    <div class="hero-bg">
-      <DottedContainer>
-        <img src="/hero.png" alt="" class="invertible" />
-      </DottedContainer>
-    </div>
-    <div class="hero-text cell-pad">
-        <h1 class="type-3xl lh-tight">announcing  <span style="color: var(--color-accent)">twig</span>: an agentic code editor that understands your users </h1>
-      <p class="type-lg hero-subtitle"> <span style="color: var(--color-accent)">twig</span> turns
-       product
-         data into shipped code</p>
-      <div class="hero-waitlist">
-        <DottedContainer>
-          <span slot="title">Sign up to waitlist</span>
+  <!-- ════════════════════════
+       HERO
+  ════════════════════════ -->
+  <section class="hero-section">
+    <div class="grid-container">
+      <div class="hero-left cell-pad">
+        <h1 class="type-3xl lh-tight">where product signals become shipped code</h1>
+        <div class="hero-inline-form">
+          <span class="type-xs weight-bold fig-label" style="margin-bottom: var(--space-xs)">get early access</span>
           <WaitlistForm />
-        </DottedContainer>
-      </div>
-    </div>
-  </section>
-
-  <section class="product-section">
-    <img src="/landscape.svg" alt="" class="product-section-bg invertible" />
-    <div class="product-section-content grid-container grid-section grid-section--spacious">
-      <div class="product-intro cell-pad">
-        <DottedContainer>
-          <span slot="title">PRODUCT</span>
-          <h2 class="type-xl weight-bold">we need <span style="color: var(--color-accent)">new primitives</span> for building products</h2>
-          <p class="type-base">lots of us don't write code anymore. The number of commits authored by coding agents is rapidly increasing month on month..</p>
-        </DottedContainer>
-      </div>
-      <div class="col-full product-image-wrapper">
-        <DottedContainer>
-          <img src="/product-image.png" alt="Product" class="product-image" />
-          <span class="product-overlay type-3xl weight-bold">VIDEO DEMO HERE</span>
-        </DottedContainer>
-      </div>
-    </div>
-  </section>
-
-  <section class="grid-container grid-section grid-section--spacious border-t">
-    <div class="vision-container cell-pad">
-      <DottedContainer>
-        <span slot="title">VISION</span>
-        <h2 class="type-xl weight-bold">PRODUCT AUTONOMY</h2>
-        <p class="type-base branch-desc">Lorem Ipsum is simply dummy text of the printing and typesetting industry.
-
-        Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum .</p>
-        <a href="/blog" slot="action">Read more &rarr;</a>
-      </DottedContainer>
-    </div>
-    <div class="col-4 col-span-2 image-bleed-end-mirror">
-      <img src="/branch.svg" alt="" class="invertible" />
-    </div>
-  </section>
-
-  <section class="grid-container grid-section border-t">
-    <DottedContainer class="col-full problem-container">
-      <span slot="title">the problem</span>
-      <div class="problem-content grid-container">
-        <div class="problem-text cell-pad col-1">
-          <h2 class="type-2xl weight-bold">too many branches?</h2>
-          <p class="type-base">twig determines what matters right now, runs autonomous work against it, and hands you contextual code to merge, kill or iterate on.</p>
-          <p class="type-base">agents run in parallel worktrees. no context switching. no merge conflicts. just a daily limit you set, and a review queue at the end.</p>
-        </div>
-        <div class="problem-diagram col-2 col-span-3">
-          <FlowDiagram client:visible />
         </div>
       </div>
-    </DottedContainer>
-  </section>
-
-  <section class="grid-container grid-section border-t">
-    <div class="col-full waveform-section">
-      <div class="waveform-header">
-        <h2 class="type-2xl weight-bold">Signals</h2>
-        <p class="type-base waveform-desc">Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor.</p>
-      </div>
-      <div class="full-bleed">
-        <img src="/waveform.svg" alt="" class="waveform-image invertible" />
+      <div class="hero-right cell-pad">
+        <p class="type-sm">At posthog, we've spent years building tools that help teams understand their users. Product analytics, session recordings, feature flags, a/b testing — all designed to answer one fundamental question: what do your users actually do?</p>
+        <p class="type-sm">Then we looked at how software gets built, and something struck us as deeply wrong.</p>
+        <p class="type-sm">code editors are stupid.</p>
+        <p class="type-sm" style="opacity: 0.6">Not in capability – the latest generation of ai-powered editors are remarkably capable at writing code. They just have absolutely no idea what your product actually is, or what your users need.</p>
+        <p class="type-sm">we're building the solution: it's called product autonomy.</p>
       </div>
     </div>
   </section>
 
-  <section class="grid-container grid-section grid-section--spacious border-t">
-    <div class="section-header cell-pad">
-      <ImagePreview src="/tree.svg" />
+  <!-- ════════════════════════
+       CALLOUT STRIP
+  ════════════════════════ -->
+  <div class="callout-strip">
+    <div class="grid-container">
+      <div class="callout-strip-inner cell-pad">
+        <span class="type-xs weight-bold" style="letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.6">from the makers of PostHog</span>
+        <span class="type-xs" style="opacity: 0.5">the open-source product analytics platform used by 50,000+ teams</span>
+      </div>
     </div>
-    <div class="section-body cell-pad">
-      <DottedContainer>
-        <span slot="title">NEWS</span>
-        <h2 class="type-2xl weight-bold">Lorem ipsum dolor sit amet</h2>
-        <p class="type-base news-desc">Consectetur adipiscing elit sed do eiusmod tempor.</p>
-        <a href="/blog" slot="action">Read more &rarr;</a>
+  </div>
+
+  <!-- ════════════════════════
+       DATA — WIZARD + CHAT
+  ════════════════════════ -->
+  <section class="grid-container grid-section">
+    <div class="col-full fig-section">
+      <div class="fig-header cell-pad">
+        <span class="fig-header-id">[ data + intelligence ]</span>
+      </div>
+      <div class="fig-body fig-body--two-col fig-body--two-col-image-small">
+
+        <!-- Specimen C -->
+        <div class="fig-cell fig-cell--shaded specimen-cell">
+          <div class="specimen-cell-image specimen-cell-image--fern">
+            <img src="/fern.svg" alt="" class="specimen-img" />
+          </div>
+          <div class="specimen-caption" aria-hidden="true">
+            <span class="specimen-label-id">Specimen C</span>
+            <p class="specimen-label-name">Nimbus datasource<br>the connected stack, at rest</p>
+          </div>
+        </div>
+
+        <!-- Copy + wizard + chat -->
+        <div class="fig-cell">
+          <h2 class="type-xl weight-bold">Right now you prompt to build stuff. You use your favorite models and harnesses.</h2>
+          <p class="type-sm" style="margin-bottom: var(--space-md)">twig has the exact same coding capabilities as everyone else, but it understands your users. It fixes bugs, finds UX issues with computer vision, responds to feedback — so you are left with an inbox of work already done for you.</p>
+          <div class="data-wizard">
+            <div class="data-wizard-status">
+              <span class="data-wizard-dot"></span>
+              <span class="type-xs" style="opacity: 0.7">twig is running</span>
+            </div>
+            <div class="data-wizard-log">
+              <div>↳ reading posthog · checkout funnel data</div>
+              <div>↳ reading github · commits since tuesday</div>
+              <div>↳ reading linear · open bugs P0–P2</div>
+              <div>↳ reading slack · #customer-feedback</div>
+            </div>
+          </div>
+          <div class="data-chat">
+            <div class="data-chat-row">
+              <span class="data-chat-who">you</span>
+              <div class="data-chat-bubble">figure out why my conversion rate sucked last week</div>
+            </div>
+            <div class="data-chat-row data-chat-row--reply">
+              <span class="data-chat-who data-chat-who--twig">twig</span>
+              <div class="data-chat-bubble data-chat-bubble--reply">tuesday deploy introduced a css regression — broke checkout form on safari. 34% drop in conversions, 847 affected sessions. PR #1423 is ready to merge.</div>
+            </div>
+            <div class="data-chat-row">
+              <span class="data-chat-who">you</span>
+              <div class="data-chat-bubble"><span class="data-chat-vision-tag">vision</span> use vision to find UX problems for my biggest customers</div>
+            </div>
+            <div class="data-chat-row data-chat-row--reply">
+              <span class="data-chat-who data-chat-who--twig">twig</span>
+              <div class="data-chat-bubble data-chat-bubble--reply">reviewed 34 session recordings for enterprise tier. found 3 consistent friction points: export button state unclear, settings nav buried, onboarding step 3 causes confusion. opening linear tickets.</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════
+       INTEGRATION STRIP
+  ════════════════════════ -->
+  <div class="integration-strip">
+    <div class="integration-strip-inner cell-pad">
+      <DottedContainer class="integration-strip-container">
+        <span class="type-xs weight-bold" style="opacity: 0.4; text-transform: uppercase; letter-spacing: 0.08em; flex-shrink: 0">twig ingests signals from</span>
+        <span class="integration-badge">○ PostHog</span>
+        <span class="integration-badge">○ GitHub</span>
+        <span class="integration-badge">○ Granola</span>
+        <span class="integration-badge">○ Slack</span>
+        <span class="integration-badge">⬡ Linear</span>
+        <span class="integration-badge">○ Sentry</span>
+        <span class="integration-badge">○ Notion</span>
+        <span class="integration-badge">○ Zendesk</span>
+        <span class="data-source-badge data-source-badge--more">+ any MCP</span>
       </DottedContainer>
+    </div>
+  </div>
+
+  <!-- ════════════════════════
+       FIG 1.2 — SIGNALS → PRS
+  ════════════════════════ -->
+  <section class="grid-container grid-section">
+    <div class="col-full fig-section">
+      <div class="fig-header cell-pad">
+        <span class="fig-header-id">[ FIG.1.2 ]</span>
+        <span class="fig-header-sub">introduce fewer bugs. smart rollouts that minimise blast radius automatically.</span>
+      </div>
+      <div class="fig-body fig-body--two-col">
+
+        <!-- Specimen B -->
+        <div class="fig-cell fig-cell--shaded specimen-cell">
+          <div class="specimen-cell-image specimen-cell-image--tree">
+            <img src="/tree.svg" alt="" class="specimen-img" />
+          </div>
+          <div class="specimen-caption" aria-hidden="true">
+            <span class="specimen-label-id">Specimen B</span>
+            <p class="specimen-label-name">Arboreus codex<br>the autonomous agent, at rest</p>
+          </div>
+        </div>
+
+        <!-- PR card -->
+        <div class="fig-cell">
+          <h2 class="type-xl weight-bold">signals become pull requests.<br>automatically.</h2>
+          <p class="type-sm" style="opacity: 0.8">twig detects a problem, researches the codebase, writes the fix, and opens a PR. you review the diff. you decide what ships.</p>
+          <div class="pr-card">
+            <div class="pr-card-header">
+              <span class="type-xs weight-bold" style="letter-spacing: 0.08em; text-transform: uppercase">pull request #1423</span>
+            </div>
+            <div class="pr-card-title">
+              <h3>fix null user check in checkout flow</h3>
+              <p>added null safety check before accessing user properties. this error affected 234 users in the last hour.</p>
+            </div>
+            <div class="pr-card-diff">
+              <div class="diff-remove">-const email = user.email;</div>
+              <div class="diff-add">+const email = user?.email ?? '';</div>
+              <div class="diff-comment">// twig context: error spike at 14:32 UTC, 234 affected sessions</div>
+              <div class="diff-comment">// user path: /checkout → payment → null ref at line 47</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════
+       DATA — SOURCES + MODELS
+  ════════════════════════ -->
+  <section class="grid-container grid-section">
+    <div class="col-full fig-section">
+      <div class="fig-header cell-pad">
+        <span class="fig-header-id">[ data + intelligence ]</span>
+        <span class="fig-header-sub">it's not just posthog data, it's everything</span>
+      </div>
+      <div class="fig-body fig-body--two-col fig-body--two-col-image-small-right">
+
+        <!-- Sources + model choice -->
+        <div class="fig-cell">
+          <h2 class="type-xl weight-bold">it's not just PostHog data.<br>it's everything.</h2>
+          <p class="type-sm" style="opacity: 0.8; margin-bottom: var(--space-md)">twig connects to your whole stack — tools, databases, meetings — and reasons across all of it at once.</p>
+          <span class="type-xs weight-bold fig-label">connected via MCP</span>
+          <div class="data-source-grid">
+            <span class="data-source-badge">● PostHog</span>
+            <span class="data-source-badge">◆ GitHub</span>
+            <span class="data-source-badge">⬡ Linear</span>
+            <span class="data-source-badge">◉ Slack</span>
+            <span class="data-source-badge">◈ Granola</span>
+            <span class="data-source-badge">▲ Sentry</span>
+            <span class="data-source-badge">○ Datadog</span>
+            <span class="data-source-badge">◇ Notion</span>
+            <span class="data-source-badge">⬡ BigQuery</span>
+            <span class="data-source-badge">◆ Snowflake</span>
+            <span class="data-source-badge">● Postgres</span>
+            <span class="data-source-badge data-source-badge--more">+ any MCP</span>
+          </div>
+        </div>
+
+        <!-- Specimen D -->
+        <div class="fig-cell fig-cell--shaded specimen-cell">
+          <div class="specimen-cell-image specimen-cell-image--clouds">
+            <img src="/clouds.svg" alt="" class="specimen-img" />
+          </div>
+          <div class="specimen-caption" aria-hidden="true">
+            <span class="specimen-label-id">Specimen D</span>
+            <p class="specimen-label-name">Polypodium intelligens<br>intelligence, unfolding</p>
+          </div>
+        </div>
+
+        <!-- How it works — inverted 4-step pipeline -->
+        <div class="fig-cell fig-cell--border-top fig-cell--full how-it-works-row">
+          <p class="type-xs fig-label">how twig works — four things happen, mostly without you</p>
+          <div class="how-pipeline" aria-hidden="true">
+            <div class="how-pipeline-runner"></div>
+          </div>
+          <div class="how-steps">
+            <div class="how-step">
+              <span class="how-step-num">01 —</span>
+              <h3 class="how-step-title">signals come in</h3>
+              <p>twig pulls from PostHog, GitHub, Linear, Slack, Sentry — wherever your product leaves traces. errors, drop-offs, stale flags, support threads. raw noise.</p>
+            </div>
+            <div class="how-step">
+              <span class="how-step-num">02 —</span>
+              <h3 class="how-step-title">clusters form</h3>
+              <p>related signals group together. when enough evidence accumulates, twig surfaces a ranked report — a credible hypothesis, not just another alert.</p>
+            </div>
+            <div class="how-step">
+              <span class="how-step-num">03 —</span>
+              <h3 class="how-step-title">agents run</h3>
+              <p>for the highest-priority signals, twig spins up coding agents automatically — up to the daily limit you set. your repo, not some sandbox.</p>
+            </div>
+            <div class="how-step">
+              <span class="how-step-num">04 —</span>
+              <h3 class="how-step-title">you decide</h3>
+              <p>agents bring you a PR, an explanation, and a recommendation. you merge, reject, or keep the conversation going. the judgment is yours.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════
+       HARDCORE USERS + OPEN SOURCE
+  ════════════════════════ -->
+  <section class="grid-container grid-section">
+    <div class="col-full fig-section">
+      <div class="fig-header cell-pad">
+        <span class="fig-header-id">[ for hardcore editor users ]</span>
+        <span class="fig-header-sub">keep your tools — plug twig into everything</span>
+      </div>
+      <div class="fig-body fig-body--two-col">
+        <div class="fig-cell">
+          <h2 class="type-xl weight-bold">hardcore user of another code editor?</h2>
+          <p class="type-sm" style="opacity: 0.8; margin-bottom: var(--space-sm)">you'll get the best experience if you just download this product, but if you insist:</p>
+          <div class="mcp-block">
+            <span class="type-xs weight-bold" style="display: block; margin-bottom: 0.5rem; opacity: 0.6">MCP server</span>
+            <code class="mcp-code">npx @posthog/twig-mcp</code>
+          </div>
+        </div>
+        <div class="fig-cell open-source-cell">
+          <h3>you can see our source code</h3>
+          <p>open on GitHub. we build in the open.</p>
+          <a href="https://github.com/posthog/twig" class="bold-link" target="_blank" rel="noopener noreferrer">github.com/posthog/twig →</a>
+          <div class="open-source-block">
+            <h3>join us to build product autonomy</h3>
+            <p>built by the team behind PostHog</p>
+            <a href="https://posthog.com/careers" class="bold-link" target="_blank" rel="noopener noreferrer">posthog.com/careers →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════
+       FIG 1.1 — THE GAP
+  ════════════════════════ -->
+  <section class="grid-container grid-section">
+    <div class="col-full fig-section">
+      <div class="fig-header cell-pad">
+        <span class="fig-header-id">[ FIG.1.1 ]</span>
+        <span class="fig-header-sub">the gap between knowing and doing</span>
+      </div>
+      <div class="fig-body fig-body--three-col">
+
+        <!-- Specimen A (col 1) -->
+        <div class="fig-cell fig-cell--shaded specimen-cell">
+          <div class="specimen-cell-image specimen-cell-image--branch">
+            <img src="/branch.svg" alt="" class="specimen-img" />
+          </div>
+          <div class="specimen-caption" aria-hidden="true">
+            <span class="type-xs" style="display: block; opacity: 0.45">Specimen A</span>
+            <p class="type-xs" style="opacity: 0.3; margin-top: 0.25rem; font-style: italic">Codebase branch<br>the confused engineer</p>
+          </div>
+        </div>
+
+        <!-- Problem copy + signal cards (spans cols 2–3) -->
+        <div class="fig-cell fig-cell--span-2">
+          <h2 class="type-xl weight-bold">your product sends signals.<br>nobody's listening.</h2>
+          <p class="type-sm" style="opacity: 0.8; margin-bottom: var(--space-xs)">every day your product generates thousands of signals. errors affecting real users. features nobody uses. flows that break at 3am. analytics showing exactly what's wrong.</p>
+          <p class="type-sm" style="opacity: 0.8; margin-bottom: var(--space-xs)">and every day, your engineers open their IDE, pick a task off the top of the backlog, and start coding. often the wrong thing.</p>
+          <p class="type-sm" style="opacity: 0.8">the gap between <em>knowing what's broken</em> and <em>actually fixing it</em> is where your users suffer. twig closes it.</p>
+          <div class="signal-group">
+            <span class="signal-group-label">signal types twig reads</span>
+            <div class="signal-card">
+              <span class="signal-dot signal-dot--error"></span>
+              <div>
+                <div class="type-xs weight-bold" style="margin-bottom: 0.125rem">error bursts</div>
+                <div class="type-xs" style="opacity: 0.65">null pointer in checkout flow — 234 users affected in last hour</div>
+              </div>
+            </div>
+            <div class="signal-card">
+              <span class="signal-dot signal-dot--warning"></span>
+              <div>
+                <div class="type-xs weight-bold" style="margin-bottom: 0.125rem">funnel drop-offs</div>
+                <div class="type-xs" style="opacity: 0.65">62% abandon rate on pricing page — started Tuesday after deploy</div>
+              </div>
+            </div>
+            <div class="signal-card">
+              <span class="signal-dot signal-dot--info"></span>
+              <div>
+                <div class="type-xs weight-bold" style="margin-bottom: 0.125rem">feature request clusters</div>
+                <div class="type-xs" style="opacity: 0.65">47 users mentioned dark mode in session replays this week</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════
+       OBSERVED IN THE WILD
+  ════════════════════════ -->
+  <section class="grid-container grid-section">
+    <div class="col-full fig-section">
+      <div class="fig-header cell-pad">
+        <span class="fig-header-id">[ observed in the wild ]</span>
+      </div>
+      <div class="fig-body fig-body--three-col">
+        <div class="fig-cell stat-col stat-col--bugs">
+          <div class="fig-stat">73%</div>
+          <p class="fig-stat-label">of bugs are reported by users, not caught in testing. they already know.</p>
+        </div>
+        <div class="fig-cell stat-col stat-col--hours">
+          <div class="fig-stat">4.2h</div>
+          <p class="fig-stat-label">average time an engineer spends gathering context before writing a single line.</p>
+        </div>
+        <div class="fig-cell stat-col stat-col--branches">
+          <div class="fig-stat">∞</div>
+          <p class="fig-stat-label">branches. too many. you know which ones. twig does too.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ════════════════════════
+       FIG 1.3 — BRANCHES
+  ════════════════════════ -->
+  <section class="grid-container grid-section">
+    <div class="col-full fig-section">
+      <div class="fig-header cell-pad">
+        <span class="fig-header-id">[ FIG.1.3 ]</span>
+        <span class="fig-header-sub">the coordination layer for many agents working in parallel</span>
+      </div>
+      <div class="fig-body fig-body--three-col">
+
+        <!-- Problem copy -->
+        <div class="fig-cell">
+          <span class="type-xs weight-bold fig-label">the problem</span>
+          <h2 class="type-xl weight-bold">too many branches?</h2>
+          <p class="type-sm" style="opacity: 0.8; margin-bottom: var(--space-sm)">twig determines what matters right now, runs autonomous work against it, and hands you contextual code to merge, kill or iterate on.</p>
+          <p class="type-sm" style="opacity: 0.8">agents run in parallel worktrees. no context switching. no merge conflicts. just a daily limit you set, and a review queue at the end.</p>
+        </div>
+
+        <!-- Branch diagram -->
+        <div class="fig-cell fig-cell--shaded fig-cell--flex-center">
+          <div class="branch-list">
+            <div class="branch-row">
+              <span class="branch-dot" style="color: #4D642C">●</span>
+              <span class="branch-name">fix/checkout-null-error</span>
+              <span class="branch-badge branch-badge--merged">MERGED</span>
+            </div>
+            <div class="branch-row" style="opacity: 0.75">
+              <span class="branch-dot" style="color: var(--color-accent)">●</span>
+              <span class="branch-name">feat/dark-mode-prototype</span>
+              <span class="branch-badge branch-badge--review">REVIEW</span>
+            </div>
+            <div class="branch-row" style="opacity: 0.55">
+              <span class="branch-dot" style="color: #083E67">●</span>
+              <span class="branch-name" style="border-style: dashed">perf/pricing-page-lcp</span>
+              <span class="branch-badge branch-badge--running">RUNNING</span>
+            </div>
+            <div class="branch-row" style="opacity: 0.35">
+              <span class="branch-dot">●</span>
+              <span class="branch-name" style="border-style: dashed">fix/signup-form-a11y</span>
+              <span class="branch-badge branch-badge--queued">QUEUED</span>
+            </div>
+            <div class="branch-row" style="opacity: 0.2">
+              <span class="branch-dot">●</span>
+              <span class="branch-name" style="border-style: dashed">chore/update-deps</span>
+              <span class="branch-badge branch-badge--queued">QUEUED</span>
+            </div>
+            <div class="branch-footer type-xs">3 agents running · 8 daily limit remaining</div>
+          </div>
+        </div>
+
+        <!-- Metric cards -->
+        <div class="fig-cell fig-cell--col-center">
+          <span class="type-xs weight-bold fig-label">autonomous experiments</span>
+          <div class="metric-card">
+            <div class="metric-card-header">
+              <div class="metric-arrow">^</div>
+              <span class="type-xs weight-bold" style="letter-spacing: 0.04em; text-transform: uppercase">4 variants running</span>
+            </div>
+            <h3>automatic conversion rate optimisation</h3>
+            <p>release experiments that optimise themselves. let ai find what works best for your users.</p>
+          </div>
+          <div class="metric-card metric-card--positive">
+            <div class="metric-card-header">
+              <div class="metric-arrow">↗</div>
+              <span class="type-xs weight-bold" style="letter-spacing: 0.04em; text-transform: uppercase; color: #4D642C">winner found</span>
+            </div>
+            <h3>variant B: simplified checkout</h3>
+            <p>+18% conversion. 99.2% confidence. ready to merge.</p>
+          </div>
+          <p class="type-xs" style="opacity: 0.45; line-height: var(--lh-relaxed); margin-top: var(--space-sm)">twig runs the experiment, reads the analytics, declares a winner, and prepares the code for merge. you just say yes.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ════════════════════════
+       THE PRODUCT INBOX
+  ════════════════════════ -->
+  <section class="grid-container grid-section">
+    <div class="col-full fig-section">
+      <div class="fig-header cell-pad">
+        <span class="fig-header-id">[ the product inbox ]</span>
+        <span class="fig-header-sub">your email has a spam filter. your product signals should too.</span>
+      </div>
+      <div class="fig-body fig-body--two-col">
+        <div class="fig-cell">
+          <h2 class="type-xl weight-bold">your email has a spam filter.<br>your product signals <span style="color: var(--color-accent)">should too.</span></h2>
+          <p class="type-sm" style="opacity: 0.8; margin-bottom: var(--space-sm)">gmail doesn't show you every email. it filters, labels, and surfaces what matters. twig does the same thing for the stream of data your product generates.</p>
+          <p class="type-sm" style="opacity: 0.8; margin-bottom: var(--space-sm)">you set a limit — say, five automatic agent runs per day. twig takes the highest-priority signals, runs agents against those, and leaves everything else visible in your inbox for you to triage manually.</p>
+          <p class="type-sm" style="opacity: 0.8">nothing runs without your rules. nothing gets missed without your knowing. it's a system with a hard ceiling, not a black box.</p>
+        </div>
+        <div class="fig-cell fig-cell--inbox-dark">
+          <div class="inbox-ui">
+            <div class="inbox-ui-header">
+              <span><span class="inbox-ui-header-dot"></span>twig / signals inbox</span>
+              <span class="inbox-ui-header-status">5 agents running</span>
+            </div>
+            <div class="inbox-ui-row">
+              <div>
+                <div class="inbox-signal-title">checkout funnel — 40% drop at payment step</div>
+                <div class="inbox-signal-meta">posthog · 2,340 sessions · trending up · 3h ago</div>
+              </div>
+              <span class="inbox-badge inbox-badge--running">agent running</span>
+            </div>
+            <div class="inbox-ui-row">
+              <div>
+                <div class="inbox-signal-title">TypeError: Cannot read properties of undefined</div>
+                <div class="inbox-signal-meta">sentry · 847 occurrences · 12 users affected · 1h ago</div>
+              </div>
+              <span class="inbox-badge inbox-badge--done">PR open</span>
+            </div>
+            <div class="inbox-ui-row">
+              <div>
+                <div class="inbox-signal-title">feature flag `new_onboarding` stale — 94 days</div>
+                <div class="inbox-signal-meta">posthog · flag never cleaned up · low risk</div>
+              </div>
+              <span class="inbox-badge inbox-badge--high">high priority</span>
+            </div>
+            <div class="inbox-ui-row">
+              <div>
+                <div class="inbox-signal-title">session replay: users rage-clicking export button</div>
+                <div class="inbox-signal-meta">posthog · 23 sessions · consistent pattern · 6h ago</div>
+              </div>
+              <span class="inbox-badge inbox-badge--waiting">queued</span>
+            </div>
+            <div class="inbox-ui-row">
+              <div>
+                <div class="inbox-signal-title">API latency spike — /api/reports p95 &gt; 4s</div>
+                <div class="inbox-signal-meta">datadog · started 2h ago · 18% of requests</div>
+              </div>
+              <span class="inbox-badge inbox-badge--waiting">queued</span>
+            </div>
+            <div class="inbox-ui-footer">+ 14 more signals · 2 agents at daily limit</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════
+       FIG 1.5 — WHAT TWIG IS NOT
+  ════════════════════════ -->
+  <section class="grid-container grid-section">
+    <div class="col-full fig-section">
+      <div class="fig-header cell-pad">
+        <span class="fig-header-id">[ FIG.1.5 ]</span>
+        <span class="fig-header-sub">what twig is not</span>
+      </div>
+      <div class="fig-body fig-body--three-col">
+        <div class="fig-cell">
+          <span class="not-label">× not a new model harness</span>
+          <h3 class="type-base weight-bold" style="margin-bottom: var(--space-sm)">claude code x infinity</h3>
+          <p class="type-sm" style="opacity: 0.75">Use the exact same AI models and harnesses you already use, at the same prices.</p>
+            <div class="hero-model-options" role="group" aria-label="Model provider">
+              <span class="hero-model-option" title="Google Gemini">
+                <img src="/gemini-logo.svg" alt="Google Gemini" width="40" height="40" />
+              </span>
+              <span class="hero-model-option" title="OpenAI">
+                <img src="/chatgpt-openai_logo.svg" alt="OpenAI" width="40" height="40" />
+              </span>
+              <span class="hero-model-option" title="Anthropic Claude">
+                <img src="/claude-logo.svg" alt="Anthropic Claude" width="40" height="40" />
+              </span>
+            </div>
+        </div>
+        <div class="fig-cell">
+          <span class="not-label">× not a no-code tool</span>
+          <h3 class="type-base weight-bold" style="margin-bottom: var(--space-sm)">write code (if you want to)</h3>
+          <p class="type-sm" style="opacity: 0.75">twig produces real PRs you review and merge. You remain the driver. The difference is you're spending time on things that require taste and judgment, not rote maintenance tasks.</p>
+        </div>
+        <div class="fig-cell">
+          <span class="not-label">× not another dashboard</span>
+          <h3 class="type-base weight-bold" style="margin-bottom: var(--space-sm)">signals become tasks, not graphs</h3>
+          <p class="type-sm" style="opacity: 0.75">Most work in twig happens in the signals inbox and agent chat. PostHog and twig link product analytics for when you need a different view.</p>
+          <a href="https://posthog.com/product-analytics" class="box-button">show me some charts →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════
+       WAITLIST
+  ════════════════════════ -->
+  <section class="grid-container grid-section" id="waitlist">
+    <div class="col-full fig-section">
+      <div class="fig-header cell-pad">
+        <span class="fig-header-id">[ FIG.1.6 ]</span>
+        <span class="fig-header-sub">currently email invite only</span>
+      </div>
+      <div class="fig-body fig-body--two-col">
+        <div class="fig-cell">
+          <h2 class="type-2xl weight-bold">Get early access to twig.</h2>
+          <p class="type-sm" style="opacity: 0.75">twig is designed to give time and creative freedom back to product engineers. We're looking for alpha testers who currently work on a real product with real users (and want to burn some tokens with us).</p>
+          <div class="open-source-block">
+            <p class="type-sm">you can see our source code</p>
+            <a href="https://github.com/posthog/twig" class="bold-link" target="_blank" rel="noopener noreferrer">github.com/posthog/twig →</a>
+          </div>
+        </div>
+        <div class="fig-cell waitlist-form-cell">
+          <span class="type-xs weight-bold fig-label">get early access</span>
+          <WaitlistForm />
+        </div>
+      </div>
     </div>
   </section>
 

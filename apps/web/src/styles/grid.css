@@ -1,7 +1,8 @@
 :root {
   --grid-max-width: 2560px;
   --grid-margin-ratio: 4.098vw;
-  --grid-cell-padding: clamp(0.75rem, 1.5vw, 1.5rem);
+  --grid-cell-padding: clamp(1.25rem, 2.5vw, 2.5rem);
+  --grid-cell-padding-compact: clamp(0.75rem, 1.5vw, 1.5rem);
   --grid-template: 1fr;
   --grid-margin: 1rem;
 }
