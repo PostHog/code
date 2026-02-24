@@ -2,29 +2,35 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UpdatesEvent } from "./schemas.js";
 
 // Use vi.hoisted to ensure mocks are available when vi.mock is hoisted
-const { mockApp, mockAutoUpdater, mockLifecycleService } = vi.hoisted(() => ({
-  mockAutoUpdater: {
-    setFeedURL: vi.fn(),
-    checkForUpdates: vi.fn(),
-    quitAndInstall: vi.fn(),
-    on: vi.fn(),
-  },
-  mockApp: {
-    isPackaged: true,
-    getVersion: vi.fn(() => "1.0.0"),
-    on: vi.fn(),
-    whenReady: vi.fn(() => Promise.resolve()),
-  },
-  mockLifecycleService: {
-    shutdown: vi.fn(() => Promise.resolve()),
-    cleanupForUpdate: vi.fn(() => Promise.resolve()),
-    setQuittingForUpdate: vi.fn(),
-  },
-}));
+const { mockApp, mockAutoUpdater, mockLifecycleService, mockNet } = vi.hoisted(
+  () => ({
+    mockAutoUpdater: {
+      setFeedURL: vi.fn(),
+      checkForUpdates: vi.fn(),
+      quitAndInstall: vi.fn(),
+      on: vi.fn(),
+    },
+    mockApp: {
+      isPackaged: true,
+      getVersion: vi.fn(() => "1.0.0"),
+      on: vi.fn(),
+      whenReady: vi.fn(() => Promise.resolve()),
+    },
+    mockLifecycleService: {
+      shutdown: vi.fn(() => Promise.resolve()),
+      cleanupForUpdate: vi.fn(() => Promise.resolve()),
+      setQuittingForUpdate: vi.fn(),
+    },
+    mockNet: {
+      fetch: vi.fn(),
+    },
+  }),
+);
 
 vi.mock("electron", () => ({
   app: mockApp,
   autoUpdater: mockAutoUpdater,
+  net: mockNet,
 }));
 
 vi.mock("../../lib/logger.js", () => ({
@@ -81,6 +87,9 @@ describe("UpdatesService", () => {
 
     // Clear env flag
     delete process.env.ELECTRON_DISABLE_AUTO_UPDATE;
+
+    // Default net.fetch mock — non-ok response so freshness check returns null (proceed with install)
+    mockNet.fetch.mockResolvedValue({ ok: false });
 
     service = new UpdatesService();
     // Manually inject the mock lifecycle service (normally done by DI container)
@@ -377,7 +386,7 @@ describe("UpdatesService", () => {
         updateDownloadedHandler({}, "Release notes", "v2.0.0");
       }
 
-      mockAutoUpdater.quitAndInstall.mockImplementation(() => {
+      mockAutoUpdater.quitAndInstall.mockImplementationOnce(() => {
         throw new Error("Failed to install");
       });
 
@@ -644,6 +653,197 @@ describe("UpdatesService", () => {
       expect(mockAutoUpdater.checkForUpdates.mock.calls.length).toBe(
         initialCallCount + 2,
       );
+    });
+  });
+
+  describe("periodic check re-checks when update already downloaded", () => {
+    it("re-checks for newer versions on periodic check when update is ready", async () => {
+      await initializeService(service);
+
+      // Simulate update downloaded
+      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
+        ([event]) => event === "update-downloaded",
+      )?.[1];
+      if (downloadedHandler) {
+        downloadedHandler({}, "Release notes", "v2.0.0");
+      }
+
+      // Clear the checkForUpdates calls from initialization
+      mockAutoUpdater.checkForUpdates.mockClear();
+
+      // Periodic check should reset state and re-check
+      const result = service.checkForUpdates("periodic");
+      expect(result).toEqual({ success: true });
+      expect(mockAutoUpdater.checkForUpdates).toHaveBeenCalled();
+    });
+
+    it("user check still shows existing notification when update is ready", async () => {
+      await initializeService(service);
+
+      // Simulate update downloaded
+      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
+        ([event]) => event === "update-downloaded",
+      )?.[1];
+      if (downloadedHandler) {
+        downloadedHandler({}, "Release notes", "v2.0.0");
+      }
+
+      const readyHandler = vi.fn();
+      service.on(UpdatesEvent.Ready, readyHandler);
+
+      // User check should show existing notification, not re-check
+      mockAutoUpdater.checkForUpdates.mockClear();
+      const result = service.checkForUpdates("user");
+      expect(result).toEqual({ success: true });
+      expect(mockAutoUpdater.checkForUpdates).not.toHaveBeenCalled();
+      expect(readyHandler).toHaveBeenCalledWith({ version: "v2.0.0" });
+    });
+
+    it("does not re-notify when same version is re-downloaded after periodic check", async () => {
+      await initializeService(service);
+
+      const readyHandler = vi.fn();
+      service.on(UpdatesEvent.Ready, readyHandler);
+
+      // First download of v2.0.0
+      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
+        ([event]) => event === "update-downloaded",
+      )?.[1];
+      if (downloadedHandler) {
+        downloadedHandler({}, "Release notes", "v2.0.0");
+      }
+      expect(readyHandler).toHaveBeenCalledTimes(1);
+
+      // Periodic check resets and re-downloads same version
+      service.checkForUpdates("periodic");
+      readyHandler.mockClear();
+
+      if (downloadedHandler) {
+        downloadedHandler({}, "Release notes", "v2.0.0");
+      }
+
+      // Should NOT re-notify since same version
+      expect(readyHandler).not.toHaveBeenCalled();
+    });
+
+    it("notifies when a newer version is downloaded after periodic check", async () => {
+      await initializeService(service);
+
+      const readyHandler = vi.fn();
+      service.on(UpdatesEvent.Ready, readyHandler);
+
+      // First download of v2.0.0
+      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
+        ([event]) => event === "update-downloaded",
+      )?.[1];
+      if (downloadedHandler) {
+        downloadedHandler({}, "Release notes", "v2.0.0");
+      }
+      expect(readyHandler).toHaveBeenCalledTimes(1);
+
+      // Periodic check resets and downloads newer v3.0.0
+      service.checkForUpdates("periodic");
+      readyHandler.mockClear();
+
+      if (downloadedHandler) {
+        downloadedHandler({}, "Release notes", "v3.0.0");
+      }
+
+      // Should notify since different version
+      expect(readyHandler).toHaveBeenCalledWith({ version: "v3.0.0" });
+    });
+  });
+
+  describe("install freshness check", () => {
+    it("detects stale download and triggers fresh check", async () => {
+      await initializeService(service);
+
+      // Simulate update downloaded
+      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
+        ([event]) => event === "update-downloaded",
+      )?.[1];
+      if (downloadedHandler) {
+        downloadedHandler({}, "Release notes", "v2.0.0");
+      }
+
+      // Mock net.fetch to return a newer version
+      mockNet.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ name: "v3.0.0" }),
+      });
+
+      mockAutoUpdater.checkForUpdates.mockClear();
+      const result = await service.installUpdate();
+
+      expect(result).toEqual({
+        installed: false,
+        reason: "newer_version_available",
+      });
+      expect(mockAutoUpdater.quitAndInstall).not.toHaveBeenCalled();
+      // Should have triggered a fresh check
+      expect(mockAutoUpdater.checkForUpdates).toHaveBeenCalled();
+    });
+
+    it("proceeds with install when freshness check fails (network error)", async () => {
+      await initializeService(service);
+
+      // Simulate update downloaded
+      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
+        ([event]) => event === "update-downloaded",
+      )?.[1];
+      if (downloadedHandler) {
+        downloadedHandler({}, "Release notes", "v2.0.0");
+      }
+
+      // Mock net.fetch to throw
+      mockNet.fetch.mockRejectedValueOnce(new Error("Network error"));
+
+      const result = await service.installUpdate();
+
+      expect(result).toEqual({ installed: true });
+      expect(mockAutoUpdater.quitAndInstall).toHaveBeenCalled();
+    });
+
+    it("proceeds normally when downloaded version matches latest", async () => {
+      await initializeService(service);
+
+      // Simulate update downloaded
+      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
+        ([event]) => event === "update-downloaded",
+      )?.[1];
+      if (downloadedHandler) {
+        downloadedHandler({}, "Release notes", "v2.0.0");
+      }
+
+      // Mock net.fetch to return the same version
+      mockNet.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ name: "v2.0.0" }),
+      });
+
+      const result = await service.installUpdate();
+
+      expect(result).toEqual({ installed: true });
+      expect(mockAutoUpdater.quitAndInstall).toHaveBeenCalled();
+    });
+
+    it("proceeds with install when feed returns non-ok response", async () => {
+      await initializeService(service);
+
+      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
+        ([event]) => event === "update-downloaded",
+      )?.[1];
+      if (downloadedHandler) {
+        downloadedHandler({}, "Release notes", "v2.0.0");
+      }
+
+      // Mock net.fetch to return 404
+      mockNet.fetch.mockResolvedValueOnce({ ok: false, status: 404 });
+
+      const result = await service.installUpdate();
+
+      expect(result).toEqual({ installed: true });
+      expect(mockAutoUpdater.quitAndInstall).toHaveBeenCalled();
     });
   });
 

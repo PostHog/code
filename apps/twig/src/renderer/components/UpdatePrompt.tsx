@@ -29,24 +29,45 @@ export function UpdatePrompt() {
     try {
       const result = await installMutation.mutateAsync();
       if (!result.installed) {
-        // Dismiss the update toast and show error
         sonnerToast.dismiss(UPDATE_TOAST_ID);
-        sonnerToast.custom(
-          () => (
-            <Card size="2">
-              <Flex direction="column" gap="2">
-                <Text size="2" weight="medium">
-                  Update failed
-                </Text>
-                <Text size="2" color="gray">
-                  Couldn't restart automatically. Please quit and relaunch
-                  manually.
-                </Text>
-              </Flex>
-            </Card>
-          ),
-          { duration: 5000 },
-        );
+
+        if (result.reason === "newer_version_available") {
+          // Stale download detected — a newer version is downloading
+          sonnerToast.custom(
+            () => (
+              <Card size="2">
+                <Flex direction="column" gap="2">
+                  <Text size="2" weight="medium">
+                    Newer version found
+                  </Text>
+                  <Text size="2" color="gray">
+                    A newer version is available and downloading now.
+                  </Text>
+                </Flex>
+              </Card>
+            ),
+            { duration: 4000 },
+          );
+          // Allow the onReady subscription to show the new version's toast
+          toastShownRef.current = false;
+        } else {
+          sonnerToast.custom(
+            () => (
+              <Card size="2">
+                <Flex direction="column" gap="2">
+                  <Text size="2" weight="medium">
+                    Update failed
+                  </Text>
+                  <Text size="2" color="gray">
+                    Couldn't restart automatically. Please quit and relaunch
+                    manually.
+                  </Text>
+                </Flex>
+              </Card>
+            ),
+            { duration: 5000 },
+          );
+        }
         setIsInstalling(false);
       }
     } catch (error) {

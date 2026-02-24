@@ -1,4 +1,4 @@
-import { app, autoUpdater } from "electron";
+import { app, autoUpdater, net } from "electron";
 import { inject, injectable, postConstruct, preDestroy } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
 import { logger } from "../../lib/logger.js";
@@ -11,6 +11,8 @@ import {
   type UpdatesEvents,
 } from "./schemas.js";
 
+type CheckSource = "user" | "periodic";
+
 const log = logger.scope("updates");
 
 @injectable()
@@ -20,6 +22,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
   private static readonly REPO_NAME = "Twig";
   private static readonly CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
   private static readonly CHECK_TIMEOUT_MS = 60 * 1000; // 1 minute timeout for checks
+  private static readonly FRESHNESS_CHECK_TIMEOUT_MS = 5 * 1000; // 5 seconds
   private static readonly DISABLE_ENV_FLAG = "ELECTRON_DISABLE_AUTO_UPDATE";
   private static readonly SUPPORTED_PLATFORMS = ["darwin", "win32"];
 
@@ -32,6 +35,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
   private checkTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private checkIntervalId: ReturnType<typeof setInterval> | null = null;
   private downloadedVersion: string | null = null;
+  private notifiedVersion: string | null = null;
   private initialized = false;
 
   get isEnabled(): boolean {
@@ -70,7 +74,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
     this.emit(UpdatesEvent.CheckFromMenu, true);
   }
 
-  checkForUpdates(): CheckForUpdatesOutput {
+  checkForUpdates(source: CheckSource = "user"): CheckForUpdatesOutput {
     if (!this.isEnabled) {
       const reason = !app.isPackaged
         ? "Updates only available in packaged builds"
@@ -86,15 +90,24 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
       };
     }
 
-    // If an update is already downloaded and ready, show the prompt again
-    // instead of checking (which would incorrectly report "up to date")
     if (this.updateReady) {
-      log.info("Update already downloaded, showing prompt again", {
-        downloadedVersion: this.downloadedVersion,
-      });
-      this.pendingNotification = true;
-      this.flushPendingNotification();
-      return { success: true };
+      if (source === "periodic") {
+        // Periodic check should re-check for newer versions even if one is downloaded
+        log.info(
+          "Periodic check: resetting downloaded update to check for newer version",
+          { downloadedVersion: this.downloadedVersion },
+        );
+        this.updateReady = false;
+        this.downloadedVersion = null;
+      } else {
+        // User check: show the existing downloaded update notification
+        log.info("Update already downloaded, showing prompt again", {
+          downloadedVersion: this.downloadedVersion,
+        });
+        this.pendingNotification = true;
+        this.flushPendingNotification();
+        return { success: true };
+      }
     }
 
     this.checkingForUpdates = true;
@@ -108,6 +121,24 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
     if (!this.updateReady) {
       log.warn("installUpdate called but no update is ready");
       return { installed: false };
+    }
+
+    // Freshness check: verify the downloaded version is still the latest
+    try {
+      const latestVersion = await this.checkLatestVersion();
+      if (latestVersion && latestVersion !== this.downloadedVersion) {
+        log.info("Downloaded version is stale, triggering fresh download", {
+          downloadedVersion: this.downloadedVersion,
+          latestVersion,
+        });
+        this.updateReady = false;
+        this.downloadedVersion = null;
+        this.checkForUpdates("periodic");
+        return { installed: false, reason: "newer_version_available" };
+      }
+    } catch (error) {
+      // Network error — proceed with install rather than blocking
+      log.warn("Freshness check failed, proceeding with install", error);
     }
 
     log.info("Installing update and restarting...", {
@@ -160,12 +191,12 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
       this.handleUpdateDownloaded(releaseName),
     );
 
-    // Perform initial check
-    this.checkForUpdates();
+    // Perform initial check (periodic source — not user-initiated)
+    this.checkForUpdates("periodic");
 
     // Set up periodic checks
     this.checkIntervalId = setInterval(
-      () => this.checkForUpdates(),
+      () => this.checkForUpdates("periodic"),
       UpdatesService.CHECK_INTERVAL_MS,
     );
   }
@@ -228,8 +259,16 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
     });
 
     this.updateReady = true;
-    this.pendingNotification = true;
-    this.flushPendingNotification();
+
+    // Only show notification if this is a different version than already notified
+    if (this.notifiedVersion !== this.downloadedVersion) {
+      this.pendingNotification = true;
+      this.flushPendingNotification();
+    } else {
+      log.info("Skipping notification — same version already notified", {
+        version: this.downloadedVersion,
+      });
+    }
   }
 
   private flushPendingNotification(): void {
@@ -239,6 +278,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
       });
       this.emit(UpdatesEvent.Ready, { version: this.downloadedVersion });
       this.pendingNotification = false;
+      this.notifiedVersion = this.downloadedVersion;
     }
   }
 
@@ -277,6 +317,30 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
         checking: false,
         error: "Failed to check for updates. Please try again.",
       });
+    }
+  }
+
+  private async checkLatestVersion(): Promise<string | null> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      UpdatesService.FRESHNESS_CHECK_TIMEOUT_MS,
+    );
+
+    try {
+      const response = await net.fetch(this.feedUrl, {
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      // The feed returns JSON with a "name" field for the latest version
+      const data = (await response.json()) as { name?: string };
+      return data.name ?? null;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
