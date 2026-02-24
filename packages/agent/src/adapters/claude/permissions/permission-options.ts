@@ -1,3 +1,4 @@
+import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
 import { BASH_TOOLS, READ_TOOLS, SEARCH_TOOLS, WRITE_TOOLS } from "../tools.js";
 
 export interface PermissionOption {
@@ -24,13 +25,20 @@ export function buildPermissionOptions(
   toolName: string,
   toolInput: Record<string, unknown>,
   cwd?: string,
+  suggestions?: PermissionUpdate[],
 ): PermissionOption[] {
   if (BASH_TOOLS.has(toolName)) {
+    const ruleContent = suggestions
+      ?.flatMap((s) => ("rules" in s ? s.rules : []))
+      .find((r) => r.toolName === "Bash" && r.ruleContent)?.ruleContent;
+
     const command = toolInput?.command as string | undefined;
     const cmdName = command?.split(/\s+/)[0] ?? "this command";
     const cwdLabel = cwd ? ` in ${cwd}` : "";
+    const label = ruleContent ?? `\`${cmdName}\` commands`;
+
     return permissionOptions(
-      `Yes, and don't ask again for \`${cmdName}\` commands${cwdLabel}`,
+      `Yes, and don't ask again for ${label}${cwdLabel}`,
     );
   }
 

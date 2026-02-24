@@ -325,6 +325,7 @@ async function handleDefaultPermissionFlow(
     toolName,
     toolInput as Record<string, unknown>,
     session?.cwd,
+    suggestions,
   );
 
   const response = await client.requestPermission({
