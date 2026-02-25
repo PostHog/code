@@ -3,7 +3,10 @@ import {
   usePendingPermissionsForTask,
   useQueuedMessagesForTask,
 } from "@features/sessions/stores/sessionStore";
-import { useSessionViewActions } from "@features/sessions/stores/sessionViewStore";
+import {
+  type ScrollAnchor,
+  useSessionViewActions,
+} from "@features/sessions/stores/sessionViewStore";
 import { ArrowDown, XCircle } from "@phosphor-icons/react";
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import type { AcpMessage } from "@shared/types/session-events";
@@ -83,6 +86,22 @@ export function ConversationView({
     [conversationItems, queuedItems],
   );
 
+  const applyScrollAnchor = useCallback((anchor: ScrollAnchor) => {
+    listRef.current?.scrollToIndex(anchor.index, { align: "start" });
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex(anchor.index, { align: "start" });
+      if (anchor.offsetFromTop > 0) {
+        const el = document.querySelector(`[data-index="${anchor.index}"]`);
+        if (el) {
+          const container = el.closest("[data-scroll-container]");
+          if (container) {
+            container.scrollTop += anchor.offsetFromTop;
+          }
+        }
+      }
+    });
+  }, []);
+
   // Reset hasRestoredScrollRef when taskId changes
   useEffect(() => {
     if (taskId !== prevTaskIdRef.current) {
@@ -109,25 +128,10 @@ export function ConversationView({
 
     const savedAnchor = getScrollAnchor(taskId);
     if (savedAnchor) {
-      listRef.current?.scrollToIndex(savedAnchor.index, { align: "start" });
-      // Apply sub-item offset after measurements settle
-      requestAnimationFrame(() => {
-        listRef.current?.scrollToIndex(savedAnchor.index, { align: "start" });
-        if (savedAnchor.offsetFromTop > 0) {
-          const el = document.querySelector(
-            `[data-index="${savedAnchor.index}"]`,
-          );
-          if (el) {
-            const container = el.closest("[style*='overflow']");
-            if (container) {
-              container.scrollTop += savedAnchor.offsetFromTop;
-            }
-          }
-        }
-      });
+      applyScrollAnchor(savedAnchor);
       hasRestoredScrollRef.current = true;
     }
-  }, [taskId, getScrollAnchor]);
+  }, [taskId, getScrollAnchor, applyScrollAnchor]);
 
   useEffect(() => {
     const isNewContent = virtualizedItems.length > prevItemCountRef.current;
@@ -150,9 +154,16 @@ export function ConversationView({
     return () => {
       if (scrollSaveTimerRef.current) {
         clearTimeout(scrollSaveTimerRef.current);
+        const currentTaskId = prevTaskIdRef.current;
+        if (currentTaskId) {
+          const anchor = listRef.current?.getScrollAnchor();
+          if (anchor) {
+            saveScrollAnchor(currentTaskId, anchor);
+          }
+        }
       }
     };
-  }, []);
+  }, [saveScrollAnchor]);
 
   const handleScroll = useCallback(
     (scrollOffset: number, scrollHeight: number, clientHeight: number) => {
@@ -182,23 +193,9 @@ export function ConversationView({
     if (!taskId) return;
     const savedAnchor = getScrollAnchor(taskId);
     if (savedAnchor) {
-      listRef.current?.scrollToIndex(savedAnchor.index, { align: "start" });
-      requestAnimationFrame(() => {
-        listRef.current?.scrollToIndex(savedAnchor.index, { align: "start" });
-        if (savedAnchor.offsetFromTop > 0) {
-          const el = document.querySelector(
-            `[data-index="${savedAnchor.index}"]`,
-          );
-          if (el) {
-            const container = el.closest("[style*='overflow']");
-            if (container) {
-              container.scrollTop += savedAnchor.offsetFromTop;
-            }
-          }
-        }
-      });
+      applyScrollAnchor(savedAnchor);
     }
-  }, [taskId, getScrollAnchor]);
+  }, [taskId, getScrollAnchor, applyScrollAnchor]);
 
   const handleBecameVisible = useCallback(() => {
     restoreScrollAnchor();

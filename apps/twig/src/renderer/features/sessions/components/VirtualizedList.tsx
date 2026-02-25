@@ -165,6 +165,7 @@ function VirtualizedListInner<T>(
   return (
     <div
       ref={scrollRef}
+      data-scroll-container
       className={className ?? ""}
       style={{
         height: "100%",
