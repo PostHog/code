@@ -765,6 +765,32 @@ describe("UpdatesService", () => {
       expect(readyHandler).not.toHaveBeenCalled();
     });
 
+    it("returns already_checking when periodic check fires during in-flight check", async () => {
+      await initializeService(service);
+
+      // Simulate update downloaded
+      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
+        ([event]) => event === "update-downloaded",
+      )?.[1];
+      if (downloadedHandler) {
+        downloadedHandler({}, "Release notes", "v2.0.0");
+      }
+
+      // First periodic check starts (sets checkingForUpdates = true)
+      service.checkForUpdates("periodic");
+
+      // Second periodic check while first is still in-flight
+      const result = service.checkForUpdates("periodic");
+      expect(result).toEqual({
+        success: false,
+        errorMessage: "Already checking for updates",
+        errorCode: "already_checking",
+      });
+
+      // Update should still be ready (state not corrupted)
+      expect(service.hasUpdateReady).toBe(true);
+    });
+
     it("notifies when a newer version is downloaded after periodic check", async () => {
       await initializeService(service);
 

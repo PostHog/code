@@ -121,6 +121,7 @@ app.on("before-quit", async (event) => {
       MAIN_TOKENS.UpdatesService,
     );
     if (updatesService.hasUpdateReady) {
+      log.info("Update ready, installing on quit");
       const { installed } = await updatesService.installUpdate();
       if (installed) return;
     }
