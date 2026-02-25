@@ -16,10 +16,12 @@ export interface ProxyPromise<T> extends Promise<T> {
 
   then: <TResult1 = T, TResult2 = never>(
     onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
+    // biome-ignore lint/suspicious/noExplicitAny: vendored code matching native Promise interface
     onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
   ) => SubscribedPromise<TResult1 | TResult2>;
 
   catch: <TResult = never>(
+    // biome-ignore lint/suspicious/noExplicitAny: vendored code matching native Promise interface
     onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null,
   ) => SubscribedPromise<T | TResult>;
 
@@ -28,6 +30,7 @@ export interface ProxyPromise<T> extends Promise<T> {
 
 export type PromiseExecutor<T> = (
   resolve: (value: T | PromiseLike<T>) => void,
+  // biome-ignore lint/suspicious/noExplicitAny: vendored code matching native Promise interface
   reject: (reason?: any) => void,
 ) => void;
 
@@ -37,6 +40,7 @@ export type PromiseExecutor<T> = (
 export interface PromiseWithResolvers<T> {
   promise: Promise<T>;
   resolve: (value: T | PromiseLike<T>) => void;
+  // biome-ignore lint/suspicious/noExplicitAny: vendored code matching native Promise interface
   reject: (reason?: any) => void;
 }
 

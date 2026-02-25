@@ -8,7 +8,7 @@ import { z } from "zod";
 import { handleIPCMessage } from "../handleIPCMessage";
 
 interface MockEvent {
-  reply: MockedFunction<any>;
+  reply: MockedFunction<(channel: string, data: unknown) => void>;
   sender: {
     isDestroyed: () => boolean;
     on: (event: string, cb: () => void) => void;

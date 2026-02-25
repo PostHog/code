@@ -11,6 +11,8 @@ import {
   type UpdatesEvents,
 } from "./schemas.js";
 
+type CheckSource = "user" | "periodic";
+
 const log = logger.scope("updates");
 
 @injectable()
@@ -18,7 +20,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
   private static readonly SERVER_HOST = "https://update.electronjs.org";
   private static readonly REPO_OWNER = "PostHog";
   private static readonly REPO_NAME = "Twig";
-  private static readonly CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
+  private static readonly CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
   private static readonly CHECK_TIMEOUT_MS = 60 * 1000; // 1 minute timeout for checks
   private static readonly DISABLE_ENV_FLAG = "ELECTRON_DISABLE_AUTO_UPDATE";
   private static readonly SUPPORTED_PLATFORMS = ["darwin", "win32"];
@@ -32,7 +34,12 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
   private checkTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private checkIntervalId: ReturnType<typeof setInterval> | null = null;
   private downloadedVersion: string | null = null;
+  private notifiedVersion: string | null = null;
   private initialized = false;
+
+  get hasUpdateReady(): boolean {
+    return this.updateReady;
+  }
 
   get isEnabled(): boolean {
     return (
@@ -70,7 +77,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
     this.emit(UpdatesEvent.CheckFromMenu, true);
   }
 
-  checkForUpdates(): CheckForUpdatesOutput {
+  checkForUpdates(source: CheckSource = "user"): CheckForUpdatesOutput {
     if (!this.isEnabled) {
       const reason = !app.isPackaged
         ? "Updates only available in packaged builds"
@@ -86,9 +93,8 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
       };
     }
 
-    // If an update is already downloaded and ready, show the prompt again
-    // instead of checking (which would incorrectly report "up to date")
-    if (this.updateReady) {
+    if (this.updateReady && source !== "periodic") {
+      // User check: show the existing downloaded update notification
       log.info("Update already downloaded, showing prompt again", {
         downloadedVersion: this.downloadedVersion,
       });
@@ -160,12 +166,12 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
       this.handleUpdateDownloaded(releaseName),
     );
 
-    // Perform initial check
-    this.checkForUpdates();
+    // Perform initial check (periodic source — not user-initiated)
+    this.checkForUpdates("periodic");
 
     // Set up periodic checks
     this.checkIntervalId = setInterval(
-      () => this.checkForUpdates(),
+      () => this.checkForUpdates("periodic"),
       UpdatesService.CHECK_INTERVAL_MS,
     );
   }
@@ -228,8 +234,16 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
     });
 
     this.updateReady = true;
-    this.pendingNotification = true;
-    this.flushPendingNotification();
+
+    // Only show notification if this is a different version than already notified
+    if (this.notifiedVersion !== this.downloadedVersion) {
+      this.pendingNotification = true;
+      this.flushPendingNotification();
+    } else {
+      log.info("Skipping notification — same version already notified", {
+        version: this.downloadedVersion,
+      });
+    }
   }
 
   private flushPendingNotification(): void {
@@ -239,6 +253,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
       });
       this.emit(UpdatesEvent.Ready, { version: this.downloadedVersion });
       this.pendingNotification = false;
+      this.notifiedVersion = this.downloadedVersion;
     }
   }
 

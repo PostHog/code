@@ -13,7 +13,7 @@ import {
 import { ClaudeAcpAgent } from "./claude/claude-agent.js";
 import { type CodexProcessOptions, spawnCodexProcess } from "./codex/spawn.js";
 
-export type AgentAdapter = "claude" | "codex";
+type AgentAdapter = "claude" | "codex";
 
 export type AcpConnectionConfig = {
   adapter?: AgentAdapter;
@@ -170,16 +170,17 @@ function createClaudeConnection(config: AcpConnectionConfig): AcpConnection {
       });
     }
 
+    const taskRunId = config.taskRunId;
     agentWritable = createTappedWritableStream(streams.agent.writable, {
       onMessage: (line) => {
-        logWriter.appendRawLine(config.taskRunId!, line);
+        logWriter.appendRawLine(taskRunId, line);
       },
       logger,
     });
 
     clientWritable = createTappedWritableStream(streams.client.writable, {
       onMessage: (line) => {
-        logWriter.appendRawLine(config.taskRunId!, line);
+        logWriter.appendRawLine(taskRunId, line);
       },
       logger,
     });
@@ -425,8 +426,8 @@ function createCodexConnection(config: AcpConnectionConfig): AcpConnection {
 
   const shouldTapLogs = config.taskRunId && logWriter;
 
-  if (shouldTapLogs) {
-    const taskRunId = config.taskRunId!;
+  if (shouldTapLogs && config.taskRunId) {
+    const taskRunId = config.taskRunId;
     if (!logWriter.isRegistered(taskRunId)) {
       logWriter.register(taskRunId, {
         taskId: config.taskId ?? taskRunId,

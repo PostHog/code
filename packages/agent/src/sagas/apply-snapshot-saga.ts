@@ -33,27 +33,30 @@ export class ApplySnapshotSaga extends Saga<
       throw new Error("Cannot apply snapshot: no archive URL");
     }
 
+    const archiveUrl = snapshot.archiveUrl;
+
     await this.step({
       name: "create_tmp_dir",
       execute: () => mkdir(tmpDir, { recursive: true }),
       rollback: async () => {},
     });
 
-    this.archivePath = join(tmpDir, `${snapshot.treeHash}.tar.gz`);
+    const archivePath = join(tmpDir, `${snapshot.treeHash}.tar.gz`);
+    this.archivePath = archivePath;
     await this.step({
       name: "download_archive",
       execute: async () => {
         const arrayBuffer = await apiClient.downloadArtifact(
           taskId,
           runId,
-          snapshot.archiveUrl!,
+          archiveUrl,
         );
         if (!arrayBuffer) {
           throw new Error("Failed to download archive");
         }
         const base64Content = Buffer.from(arrayBuffer).toString("utf-8");
         const binaryContent = Buffer.from(base64Content, "base64");
-        await writeFile(this.archivePath!, binaryContent);
+        await writeFile(archivePath, binaryContent);
       },
       rollback: async () => {
         if (this.archivePath) {

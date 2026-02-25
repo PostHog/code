@@ -178,7 +178,6 @@ export const useSessionStore = create<SessionState>()(
 // --- Re-exports ---
 
 export type { PermissionRequest, ExecutionMode, SessionConfigOption };
-export { cycleExecutionMode, getExecutionModes } from "@utils/session";
 export {
   getAvailableCommandsForTask,
   getPendingPermissionsForTask,

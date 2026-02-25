@@ -583,7 +583,7 @@ describe("CaptureTreeSaga", () => {
     });
 
     it("handles symlinks", async () => {
-      const { symlink, lstat } = await import("node:fs/promises");
+      const { symlink } = await import("node:fs/promises");
 
       await repo.writeFile("target.txt", "symlink target content");
       await symlink("target.txt", join(repo.path, "link.txt"));

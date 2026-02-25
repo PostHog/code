@@ -5,7 +5,10 @@ import type {
 } from "@agentclientprotocol/sdk";
 import { RequestError } from "@agentclientprotocol/sdk";
 import type {
+  SDKAssistantMessage,
+  SDKMessage,
   SDKPartialAssistantMessage,
+  SDKResultMessage,
   SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { ContentBlockParam } from "@anthropic-ai/sdk/resources";
@@ -357,7 +360,7 @@ function streamEventToAcpNotifications(
 }
 
 export async function handleSystemMessage(
-  message: any,
+  message: Extract<SDKMessage, { type: "system" }>,
   context: MessageHandlerContext,
 ): Promise<void> {
   const { sessionId, client, logger } = context;
@@ -409,7 +412,7 @@ export async function handleSystemMessage(
 }
 
 export function handleResultMessage(
-  message: any,
+  message: SDKResultMessage,
   context: MessageHandlerContext,
 ): { shouldStop: boolean; stopReason?: string; error?: Error } {
   const { session } = context;
@@ -556,7 +559,7 @@ function filterMessageContent(
 }
 
 export async function handleUserAssistantMessage(
-  message: SDKUserMessage | { type: "assistant"; message: any },
+  message: SDKUserMessage | SDKAssistantMessage,
   context: MessageHandlerContext,
 ): Promise<{ shouldStop?: boolean; error?: Error }> {
   const { session, sessionId, client, toolUseCache, fileContentCache, logger } =

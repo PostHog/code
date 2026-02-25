@@ -1,33 +1,10 @@
-import {
-  applyActiveFilters,
-  applyTextSearch,
-} from "@features/task-list/utils/taskFiltering";
-import { sortTasks } from "@features/task-list/utils/taskSorting";
-import type { Task } from "@shared/types";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {
-  ActiveFilters,
   FilterCategory,
-  FilterMatchMode,
   FilterOperator,
-  OrderByField,
-  OrderDirection,
   TaskState,
 } from "./taskStore.types";
-
-export function filterTasks(
-  tasks: Task[],
-  orderBy: OrderByField,
-  orderDirection: OrderDirection,
-  filter: string,
-  activeFilters: ActiveFilters = {},
-  filterMatchMode: FilterMatchMode = "all",
-): Task[] {
-  const sorted = sortTasks(tasks, orderBy, orderDirection);
-  const filtered = applyActiveFilters(sorted, activeFilters, filterMatchMode);
-  return applyTextSearch(filtered, filter);
-}
 
 function getDefaultOperator(category: FilterCategory): FilterOperator {
   return category === "created_at" ? "after" : "is";
@@ -42,18 +19,6 @@ function toggleOperator(
   }
   return operator === "is" ? "is_not" : "is";
 }
-
-// Re-export types for convenience
-export type {
-  ActiveFilters,
-  FilterCategory,
-  FilterMatchMode,
-  FilterOperator,
-  FilterValue,
-  GroupByField,
-  OrderByField,
-  OrderDirection,
-} from "./taskStore.types";
 
 export const useTaskStore = create<TaskState>()(
   persist(

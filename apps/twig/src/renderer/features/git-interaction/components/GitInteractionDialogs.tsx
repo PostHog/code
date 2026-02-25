@@ -15,7 +15,6 @@ import {
   Dialog,
   Flex,
   IconButton,
-  Link,
   Spinner,
   Text,
   TextArea,
@@ -489,7 +488,6 @@ interface GitBranchDialogProps {
   onOpenChange: (open: boolean) => void;
   branchName: string;
   onBranchNameChange: (value: string) => void;
-  branchPrefix: string | null;
   onConfirm: () => void;
   isSubmitting: boolean;
   error: string | null;
@@ -500,21 +498,16 @@ export function GitBranchDialog({
   onOpenChange,
   branchName,
   onBranchNameChange,
-  branchPrefix,
   onConfirm,
   isSubmitting,
   error,
 }: GitBranchDialogProps) {
-  const displayName = branchPrefix
-    ? `${branchPrefix}${branchName}`
-    : branchName;
-
   return (
     <GitDialog
       open={open}
       onOpenChange={onOpenChange}
       icon={<GitFork size={ICON_SIZE} />}
-      title="Work here"
+      title="Branch here"
       error={error}
       buttonLabel="Create"
       buttonDisabled={!branchName.trim()}
@@ -522,32 +515,16 @@ export function GitBranchDialog({
       onSubmit={onConfirm}
     >
       <Text size="1" color="gray">
-        Create a branch to commit changes, push, and create a PR from this
-        worktree.{" "}
-        <Link href="#" size="1">
-          Learn more
-        </Link>
+        Create a feature branch to commit changes, push, and create a PR.
       </Text>
 
       <Flex direction="column" gap="1">
-        <Flex align="center" justify="between">
-          <Text size="1" color="gray">
-            Branch name
-          </Text>
-          <Text size="1" color="gray">
-            Set prefix
-          </Text>
-        </Flex>
+        <Text size="1" color="gray">
+          Branch name
+        </Text>
         <TextField.Root
-          value={branchPrefix ? displayName : branchName}
-          onChange={(e) => {
-            const value = e.target.value;
-            if (branchPrefix && value.startsWith(branchPrefix)) {
-              onBranchNameChange(value.slice(branchPrefix.length));
-            } else if (!branchPrefix) {
-              onBranchNameChange(value);
-            }
-          }}
+          value={branchName}
+          onChange={(e) => onBranchNameChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && branchName.trim() && !isSubmitting) {
               e.preventDefault();

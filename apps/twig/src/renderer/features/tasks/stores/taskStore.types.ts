@@ -1,5 +1,3 @@
-import type { Task } from "@shared/types";
-
 export type OrderByField =
   | "created_at"
   | "status"
@@ -42,16 +40,6 @@ export const TASK_STATUS_ORDER: string[] = [
   "completed",
   "backlog",
 ];
-
-export interface TaskGroup {
-  name: string;
-  tasks: Task[];
-}
-
-export interface TaskGroupingResult {
-  groups: TaskGroup[];
-  taskToGlobalIndex: Map<string, number>;
-}
 
 export interface TaskState {
   selectedTaskId: string | null;
