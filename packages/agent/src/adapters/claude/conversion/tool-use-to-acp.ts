@@ -554,6 +554,31 @@ export function toolUpdateFromToolResult(
       }
       return { title: "Question answered" };
     }
+    case "WebFetch": {
+      const input = toolUse?.input as Record<string, unknown> | undefined;
+      const url = input?.url ? String(input.url) : "";
+      const prompt = input?.prompt ? String(input.prompt) : undefined;
+
+      const resultContent = toAcpContentUpdate(
+        toolResult.content,
+        "is_error" in toolResult ? toolResult.is_error : false,
+      );
+
+      const content: ToolCallContent[] = [];
+      if (url) {
+        content.push({
+          type: "content",
+          content: resourceLink(url, url, {
+            description: prompt,
+          }),
+        });
+      }
+      if (resultContent.content) {
+        content.push(...resultContent.content);
+      }
+
+      return { content };
+    }
     default: {
       return toAcpContentUpdate(
         toolResult.content,
