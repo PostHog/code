@@ -4,13 +4,13 @@ import {
   useQueuedMessagesForTask,
 } from "@features/sessions/stores/sessionStore";
 import {
-  type ScrollAnchor,
+  type ScrollState,
   useSessionViewActions,
 } from "@features/sessions/stores/sessionViewStore";
 import { ArrowDown, XCircle } from "@phosphor-icons/react";
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import type { AcpMessage } from "@shared/types/session-events";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import {
   buildConversationItems,
   type ConversationItem,
@@ -36,10 +36,6 @@ interface ConversationViewProps {
   taskId?: string;
 }
 
-const SHOW_BUTTON_THRESHOLD = 300;
-const ESTIMATE_SIZE = 150;
-const SCROLL_SAVE_DEBOUNCE_MS = 150;
-
 export function ConversationView({
   events,
   isPromptPending,
@@ -48,6 +44,9 @@ export function ConversationView({
   taskId,
 }: ConversationViewProps) {
   const listRef = useRef<VirtualizedListHandle>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const { saveScrollState, getScrollState } = useSessionViewActions();
+
   const { items: conversationItems, lastTurnInfo } = useMemo(
     () => buildConversationItems(events, isPromptPending),
     [events, isPromptPending],
@@ -55,18 +54,7 @@ export function ConversationView({
 
   const pendingPermissions = usePendingPermissionsForTask(taskId ?? "");
   const pendingPermissionsCount = pendingPermissions.size;
-
   const queuedMessages = useQueuedMessagesForTask(taskId);
-  const { saveScrollAnchor, getScrollAnchor } = useSessionViewActions();
-
-  const [showScrollButton, setShowScrollButton] = useState(false);
-  const showScrollButtonRef = useRef(false);
-  const hasRestoredScrollRef = useRef(false);
-  const prevTaskIdRef = useRef(taskId);
-  const prevItemCountRef = useRef(0);
-  const prevPendingCountRef = useRef(0);
-  const prevEventsLengthRef = useRef(events.length);
-  const scrollSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const queuedItems = useMemo<Extract<ConversationItem, { type: "queued" }>[]>(
     () =>
@@ -78,7 +66,7 @@ export function ConversationView({
     [queuedMessages],
   );
 
-  const virtualizedItems = useMemo<ConversationItem[]>(
+  const items = useMemo<ConversationItem[]>(
     () =>
       queuedItems.length > 0
         ? [...conversationItems, ...queuedItems]
@@ -86,123 +74,25 @@ export function ConversationView({
     [conversationItems, queuedItems],
   );
 
-  const applyScrollAnchor = useCallback((anchor: ScrollAnchor) => {
-    listRef.current?.scrollToIndex(anchor.index, { align: "start" });
-    requestAnimationFrame(() => {
-      listRef.current?.scrollToIndex(anchor.index, { align: "start" });
-      if (anchor.offsetFromTop > 0) {
-        const el = document.querySelector(`[data-index="${anchor.index}"]`);
-        if (el) {
-          const container = el.closest("[data-scroll-container]");
-          if (container) {
-            container.scrollTop += anchor.offsetFromTop;
-          }
-        }
-      }
-    });
-  }, []);
-
-  // Reset hasRestoredScrollRef when taskId changes
-  useEffect(() => {
-    if (taskId !== prevTaskIdRef.current) {
-      // Flush pending scroll save for the previous task
-      if (scrollSaveTimerRef.current) {
-        clearTimeout(scrollSaveTimerRef.current);
-        scrollSaveTimerRef.current = null;
-        const prevId = prevTaskIdRef.current;
-        if (prevId) {
-          const anchor = listRef.current?.getScrollAnchor();
-          if (anchor) {
-            saveScrollAnchor(prevId, anchor);
-          }
-        }
-      }
-      hasRestoredScrollRef.current = false;
-      prevTaskIdRef.current = taskId;
-    }
-  }, [taskId, saveScrollAnchor]);
-
-  // Restore scroll position using index-based anchor
-  useEffect(() => {
-    if (!taskId || hasRestoredScrollRef.current) return;
-
-    const savedAnchor = getScrollAnchor(taskId);
-    if (savedAnchor) {
-      applyScrollAnchor(savedAnchor);
-      hasRestoredScrollRef.current = true;
-    }
-  }, [taskId, getScrollAnchor, applyScrollAnchor]);
-
-  useEffect(() => {
-    const isNewContent = virtualizedItems.length > prevItemCountRef.current;
-    const isNewPending = pendingPermissionsCount > prevPendingCountRef.current;
-    const isNewEvents = events.length > prevEventsLengthRef.current;
-    prevItemCountRef.current = virtualizedItems.length;
-    prevPendingCountRef.current = pendingPermissionsCount;
-    prevEventsLengthRef.current = events.length;
-
-    // Only auto-scroll when user is at the bottom
-    if (!showScrollButtonRef.current) {
-      if (isNewContent || isNewPending || isNewEvents) {
-        listRef.current?.scrollToBottom();
-      }
-    }
-  }, [events.length, virtualizedItems.length, pendingPermissionsCount]);
-
-  // Flush pending scroll save on unmount
-  useEffect(() => {
-    return () => {
-      if (scrollSaveTimerRef.current) {
-        clearTimeout(scrollSaveTimerRef.current);
-        const currentTaskId = prevTaskIdRef.current;
-        if (currentTaskId) {
-          const anchor = listRef.current?.getScrollAnchor();
-          if (anchor) {
-            saveScrollAnchor(currentTaskId, anchor);
-          }
-        }
-      }
-    };
-  }, [saveScrollAnchor]);
-
-  const handleScroll = useCallback(
-    (scrollOffset: number, scrollHeight: number, clientHeight: number) => {
-      const distanceFromBottom = scrollHeight - scrollOffset - clientHeight;
-      const isScrolledUp = distanceFromBottom > SHOW_BUTTON_THRESHOLD;
-      if (showScrollButtonRef.current !== isScrolledUp) {
-        setShowScrollButton(isScrolledUp);
-      }
-      showScrollButtonRef.current = isScrolledUp;
-
-      if (taskId) {
-        if (scrollSaveTimerRef.current) {
-          clearTimeout(scrollSaveTimerRef.current);
-        }
-        scrollSaveTimerRef.current = setTimeout(() => {
-          const anchor = listRef.current?.getScrollAnchor();
-          if (anchor) {
-            saveScrollAnchor(taskId, anchor);
-          }
-        }, SCROLL_SAVE_DEBOUNCE_MS);
-      }
-    },
-    [taskId, saveScrollAnchor],
+  const savedState = useMemo(
+    () => (taskId ? getScrollState(taskId) : undefined),
+    [taskId, getScrollState],
   );
 
-  const restoreScrollAnchor = useCallback(() => {
-    if (!taskId) return;
-    const savedAnchor = getScrollAnchor(taskId);
-    if (savedAnchor) {
-      applyScrollAnchor(savedAnchor);
-    }
-  }, [taskId, getScrollAnchor, applyScrollAnchor]);
+  const handleSaveState = useCallback(
+    (state: ScrollState) => {
+      if (taskId) saveScrollState(taskId, state);
+    },
+    [taskId, saveScrollState],
+  );
 
-  const handleBecameVisible = useCallback(() => {
-    restoreScrollAnchor();
-  }, [restoreScrollAnchor]);
+  const handleScrollStateChange = useCallback((isAtBottom: boolean) => {
+    setShowScrollButton(!isAtBottom);
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     listRef.current?.scrollToBottom();
+    setShowScrollButton(false);
   }, []);
 
   const renderItem = useCallback(
@@ -259,16 +149,14 @@ export function ConversationView({
     <div className="relative flex-1">
       <VirtualizedList
         ref={listRef}
-        items={virtualizedItems}
-        estimateSize={ESTIMATE_SIZE}
-        gap={12}
-        overscan={10}
+        items={items}
         getItemKey={getItemKey}
         renderItem={renderItem}
-        onScroll={handleScroll}
-        onBecameVisible={handleBecameVisible}
-        className="absolute inset-0 bg-gray-1 p-2"
-        innerClassName="mx-auto max-w-[750px]"
+        savedState={savedState}
+        onSaveState={handleSaveState}
+        onScrollStateChange={handleScrollStateChange}
+        className="absolute inset-0 bg-gray-1"
+        itemClassName="mx-auto max-w-[750px] px-2 py-1.5"
         footer={
           <div className="pb-16">
             <SessionFooter
@@ -314,26 +202,22 @@ const SessionUpdateRow = memo(function SessionUpdateRow({
   );
 });
 
-function getInterruptMessage(reason?: string): string {
-  switch (reason) {
-    case "moving_to_worktree":
-      return "Paused while worktree is focused";
-    default:
-      return "Interrupted by user";
-  }
-}
-
 const TurnCancelledView = memo(function TurnCancelledView({
   interruptReason,
 }: {
   interruptReason?: string;
 }) {
+  const message =
+    interruptReason === "moving_to_worktree"
+      ? "Paused while worktree is focused"
+      : "Interrupted by user";
+
   return (
     <Box className="border-gray-4 border-l-2 py-0.5 pl-3">
       <Flex align="center" gap="2" className="text-gray-9">
         <XCircle size={14} />
         <Text size="1" color="gray">
-          {getInterruptMessage(interruptReason)}
+          {message}
         </Text>
       </Flex>
     </Box>
