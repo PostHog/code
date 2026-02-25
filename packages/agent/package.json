@@ -60,7 +60,7 @@
   "author": "PostHog",
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
-    "build": "tsup",
+    "build": "rm -rf dist && tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",

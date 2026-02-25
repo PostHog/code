@@ -84,7 +84,7 @@ export default defineConfig([
     ],
     format: ["esm"],
     dts: true,
-    clean: true,
+    clean: false,
     ...sharedOptions,
     onSuccess: async () => {
       copyAssets();
