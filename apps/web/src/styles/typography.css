@@ -1,9 +1,11 @@
 :root {
   --color-text: #001627;
-  --color-bg: #FDE9D7;
-  --color-parchment: #FAEEDE;
-  --color-accent: #E45A10;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --color-bg: #fde9d7;
+  --color-parchment: #faeede;
+  --color-accent: #e45a10;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
 
   --type-xs: clamp(0.625rem, 0.6rem + 0.08vi, 0.75rem);
   --type-sm: clamp(0.75rem, 0.72rem + 0.1vi, 0.875rem);
@@ -31,13 +33,13 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
-    --color-text: #FDE9D7;
+    --color-text: #fde9d7;
     --color-bg: #001627;
   }
 }
 
 :root.dark {
-  --color-text: #FDE9D7;
+  --color-text: #fde9d7;
   --color-bg: #001627;
 }
 
@@ -153,23 +155,48 @@ h6 {
   line-height: var(--lh-tight);
 }
 
-.weight-thin { font-weight: 100; }
-.weight-light { font-weight: 300; }
-.weight-regular { font-weight: 400; }
-.weight-medium { font-weight: 500; }
-.weight-semibold { font-weight: 600; }
-.weight-bold { font-weight: 700; }
-.weight-black { font-weight: 900; }
+.weight-thin {
+  font-weight: 100;
+}
+.weight-light {
+  font-weight: 300;
+}
+.weight-regular {
+  font-weight: 400;
+}
+.weight-medium {
+  font-weight: 500;
+}
+.weight-semibold {
+  font-weight: 600;
+}
+.weight-bold {
+  font-weight: 700;
+}
+.weight-black {
+  font-weight: 900;
+}
 
-.lh-tight { line-height: var(--lh-tight); }
-.lh-snug { line-height: var(--lh-snug); }
-.lh-normal { line-height: var(--lh-normal); }
-.lh-relaxed { line-height: var(--lh-relaxed); }
-.lh-loose { line-height: var(--lh-loose); }
+.lh-tight {
+  line-height: var(--lh-tight);
+}
+.lh-snug {
+  line-height: var(--lh-snug);
+}
+.lh-normal {
+  line-height: var(--lh-normal);
+}
+.lh-relaxed {
+  line-height: var(--lh-relaxed);
+}
+.lh-loose {
+  line-height: var(--lh-loose);
+}
 
 .scrollbar-styled {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, var(--color-text) 20%, transparent) transparent;
+  scrollbar-color: color-mix(in oklab, var(--color-text) 20%, transparent)
+    transparent;
 }
 
 .scrollbar-styled::-webkit-scrollbar {

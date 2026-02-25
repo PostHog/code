@@ -1,8 +1,8 @@
 ---
-import Base from "../layouts/Base.astro";
+import Footer from "../components/Footer.astro";
 import GridOverlay from "../components/GridOverlay.astro";
 import Header from "../components/Header.astro";
-import Footer from "../components/Footer.astro";
+import Base from "../layouts/Base.astro";
 
 const chapters = [
   {
@@ -11,11 +11,24 @@ const chapters = [
   },
   {
     title: "core concepts",
-    sections: ["agentic development", "workspaces", "posthog integration", "glossary"],
+    sections: [
+      "agentic development",
+      "workspaces",
+      "posthog integration",
+      "glossary",
+    ],
   },
   {
     title: "using twig",
-    sections: ["interface overview", "opening projects", "working with the agent", "code editing", "terminal", "keyboard shortcuts", "settings"],
+    sections: [
+      "interface overview",
+      "opening projects",
+      "working with the agent",
+      "code editing",
+      "terminal",
+      "keyboard shortcuts",
+      "settings",
+    ],
   },
   {
     title: "posthog features",

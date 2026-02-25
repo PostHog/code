@@ -63,7 +63,10 @@
 }
 
 .image-bleed-start {
-  margin-inline-start: calc(-1 * (var(--_grid-center-offset, 0px) + var(--grid-margin)));
+  margin-inline-start: calc(
+    -1 *
+    (var(--_grid-center-offset, 0px) + var(--grid-margin))
+  );
 }
 
 .image-bleed-start img {
@@ -91,7 +94,10 @@
   border: 1px solid var(--color-text);
   border-radius: 0;
   cursor: pointer;
-  transition: background-color 0.15s, color 0.15s, opacity 0.15s;
+  transition:
+    background-color 0.15s,
+    color 0.15s,
+    opacity 0.15s;
 }
 
 .btn-solid {

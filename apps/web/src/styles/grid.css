@@ -17,7 +17,10 @@
 @media (min-width: 1024px) {
   :root {
     --grid-template: 560fr 560fr 373fr 373fr 373fr;
-    --grid-margin: min(var(--grid-margin-ratio), calc(var(--grid-max-width) * 0.04098));
+    --grid-margin: min(
+      var(--grid-margin-ratio),
+      calc(var(--grid-max-width) * 0.04098)
+    );
   }
 }
 
@@ -135,16 +138,36 @@
   }
 }
 
-.col-1 { grid-column: 1; }
-.col-2 { grid-column: 2; }
-.col-3 { grid-column: 3; }
-.col-4 { grid-column: 4; }
-.col-5 { grid-column: 5; }
-.col-span-2 { grid-column: span 2; }
-.col-span-3 { grid-column: span 3; }
-.col-span-4 { grid-column: span 4; }
-.col-span-5 { grid-column: span 5; }
-.col-full { grid-column: 1 / -1; }
+.col-1 {
+  grid-column: 1;
+}
+.col-2 {
+  grid-column: 2;
+}
+.col-3 {
+  grid-column: 3;
+}
+.col-4 {
+  grid-column: 4;
+}
+.col-5 {
+  grid-column: 5;
+}
+.col-span-2 {
+  grid-column: span 2;
+}
+.col-span-3 {
+  grid-column: span 3;
+}
+.col-span-4 {
+  grid-column: span 4;
+}
+.col-span-5 {
+  grid-column: span 5;
+}
+.col-full {
+  grid-column: 1 / -1;
+}
 
 .page-wrapper {
   position: relative;
@@ -201,7 +224,10 @@
 }
 
 .image-bleed-start {
-  margin-inline-start: calc(-1 * (var(--_grid-center-offset, 0px) + var(--grid-margin)));
+  margin-inline-start: calc(
+    -1 *
+    (var(--_grid-center-offset, 0px) + var(--grid-margin))
+  );
 }
 
 .image-bleed-start img {
@@ -211,7 +237,10 @@
 }
 
 .image-bleed-end-mirror {
-  margin-inline-end: calc(-1 * (var(--_grid-center-offset, 0px) + var(--grid-margin)));
+  margin-inline-end: calc(
+    -1 *
+    (var(--_grid-center-offset, 0px) + var(--grid-margin))
+  );
 }
 
 .image-bleed-end-mirror img {

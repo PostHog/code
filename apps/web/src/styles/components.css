@@ -20,18 +20,21 @@
 }
 
 .debug .grid-rail {
-  background: linear-gradient(
-    to right,
-    color-mix(in oklab, var(--color-text) 5%, transparent) 0,
-    color-mix(in oklab, var(--color-text) 5%, transparent) var(--grid-cell-padding),
-    transparent var(--grid-cell-padding)
-  ),
-  linear-gradient(
-    to left,
-    color-mix(in oklab, var(--color-text) 5%, transparent) 0,
-    color-mix(in oklab, var(--color-text) 5%, transparent) var(--grid-cell-padding),
-    transparent var(--grid-cell-padding)
-  );
+  background:
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--color-text) 5%, transparent) 0,
+      color-mix(in oklab, var(--color-text) 5%, transparent)
+        var(--grid-cell-padding),
+      transparent var(--grid-cell-padding)
+    ),
+    linear-gradient(
+      to left,
+      color-mix(in oklab, var(--color-text) 5%, transparent) 0,
+      color-mix(in oklab, var(--color-text) 5%, transparent)
+        var(--grid-cell-padding),
+      transparent var(--grid-cell-padding)
+    );
 }
 
 .grid-rail::before {
@@ -284,7 +287,9 @@
   font-family: var(--font-mono);
   text-decoration: none;
   cursor: pointer;
-  transition: background-color 0.15s, opacity 0.15s;
+  transition:
+    background-color 0.15s,
+    opacity 0.15s;
   border: 1px solid transparent;
 }
 
@@ -536,7 +541,9 @@
   padding: 0.75rem 1rem;
   font-family: var(--font-mono);
   cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
 }
 
 .waitlist-toggle-btn:hover {
@@ -569,7 +576,9 @@
   padding: 0.75rem 1rem;
   font-family: var(--font-mono);
   cursor: pointer;
-  transition: background-color 0.15s, opacity 0.15s;
+  transition:
+    background-color 0.15s,
+    opacity 0.15s;
 }
 
 .waitlist-btn-prev {
@@ -710,7 +719,9 @@
   font-size: var(--type-sm);
   text-decoration: none;
   color: var(--color-text);
-  transition: background-color 0.15s, color 0.15s;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
 }
 
 .dotted-container-action > :first-child:hover {

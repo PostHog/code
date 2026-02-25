@@ -6,10 +6,25 @@ interface Props {
 const { class: className } = Astro.props;
 
 const steps = [
-  { id: "email", label: "EMAIL", placeholder: "you@example.com", type: "email" as const },
-  { id: "team-size", label: "TEAM SIZE", placeholder: "e.g. 5", type: "number" as const },
+  {
+    id: "email",
+    label: "EMAIL",
+    placeholder: "you@example.com",
+    type: "email" as const,
+  },
+  {
+    id: "team-size",
+    label: "TEAM SIZE",
+    placeholder: "e.g. 5",
+    type: "number" as const,
+  },
   { id: "posthog-user", label: "POSTHOG USER", type: "toggle" as const },
-  { id: "ai-budget", label: "AI BUDGET PER DEV (USD)", placeholder: "e.g. 500", type: "number" as const },
+  {
+    id: "ai-budget",
+    label: "AI BUDGET PER DEV (USD)",
+    placeholder: "e.g. 500",
+    type: "number" as const,
+  },
 ];
 ---
 

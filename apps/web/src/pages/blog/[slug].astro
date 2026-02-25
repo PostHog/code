@@ -1,9 +1,9 @@
 ---
 import { getCollection, render } from "astro:content";
-import Base from "../../layouts/Base.astro";
+import Footer from "../../components/Footer.astro";
 import GridOverlay from "../../components/GridOverlay.astro";
 import Header from "../../components/Header.astro";
-import Footer from "../../components/Footer.astro";
+import Base from "../../layouts/Base.astro";
 
 export async function getStaticPaths() {
   const posts = await getCollection("blog");
@@ -17,7 +17,20 @@ const { post } = Astro.props;
 const { Content } = await render(post);
 
 function formatDate(date: Date): string {
-  const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const months = [
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
+  ];
   const month = months[date.getMonth()];
   const day = String(date.getDate()).padStart(2, "0");
   const year = date.getFullYear();
