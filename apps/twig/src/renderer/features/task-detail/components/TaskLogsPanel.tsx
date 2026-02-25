@@ -106,13 +106,23 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   // Cloud task watching — logs + status via main-process CloudTaskService subscription
   useEffect(() => {
     if (!isCloud || !task.latest_run?.id) return;
-    return getSessionService().watchCloudTask(
+    const runId = task.latest_run.id;
+    trpcVanilla.cloudTask.setViewing
+      .mutate({ taskId: task.id, runId, viewing: true })
+      .catch(() => {});
+    const cleanup = getSessionService().watchCloudTask(
       task.id,
-      task.latest_run.id,
+      runId,
       () => {
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
       },
     );
+    return () => {
+      trpcVanilla.cloudTask.setViewing
+        .mutate({ taskId: task.id, runId, viewing: false })
+        .catch(() => {});
+      cleanup?.();
+    };
   }, [isCloud, task.id, task.latest_run?.id, queryClient]);
 
   // Local session connection

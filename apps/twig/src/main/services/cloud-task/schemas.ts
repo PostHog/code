@@ -44,6 +44,12 @@ export const onUpdateInput = z.object({
   runId: z.string(),
 });
 
+export const setViewingInput = z.object({
+  taskId: z.string(),
+  runId: z.string(),
+  viewing: z.boolean(),
+});
+
 export const sendCommandInput = z.object({
   taskId: z.string(),
   runId: z.string(),

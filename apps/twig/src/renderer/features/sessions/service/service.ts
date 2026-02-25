@@ -761,21 +761,41 @@ export class SessionService {
     this.previewAbort = null;
   }
 
+  private updatePromptStateFromEvents(
+    taskRunId: string,
+    events: AcpMessage[],
+  ): void {
+    for (const acpMsg of events) {
+      const msg = acpMsg.message;
+      if (isJsonRpcRequest(msg) && msg.method === "session/prompt") {
+        sessionStoreSetters.updateSession(taskRunId, {
+          isPromptPending: true,
+          promptStartedAt: acpMsg.ts,
+        });
+      }
+      if (
+        "id" in msg &&
+        "result" in msg &&
+        typeof msg.result === "object" &&
+        msg.result !== null &&
+        "stopReason" in msg.result
+      ) {
+        sessionStoreSetters.updateSession(taskRunId, {
+          isPromptPending: false,
+          promptStartedAt: null,
+        });
+      }
+    }
+  }
+
   private handleSessionEvent(taskRunId: string, acpMsg: AcpMessage): void {
     const session = sessionStoreSetters.getSessions()[taskRunId];
     if (!session) return;
 
     sessionStoreSetters.appendEvents(taskRunId, [acpMsg]);
+    this.updatePromptStateFromEvents(taskRunId, [acpMsg]);
 
     const msg = acpMsg.message;
-
-    if (isJsonRpcRequest(msg) && msg.method === "session/prompt") {
-      // acpMsg.ts is local time (set in-process) — matches Date.now() used in sendLocalPrompt
-      sessionStoreSetters.updateSession(taskRunId, {
-        isPromptPending: true,
-        promptStartedAt: acpMsg.ts,
-      });
-    }
 
     if (
       "id" in msg &&
@@ -784,11 +804,6 @@ export class SessionService {
       msg.result !== null &&
       "stopReason" in msg.result
     ) {
-      sessionStoreSetters.updateSession(taskRunId, {
-        isPromptPending: false,
-        promptStartedAt: null,
-      });
-
       const stopReason = (msg.result as { stopReason?: string }).stopReason;
       if (stopReason) {
         notifyPromptComplete(session.taskTitle, stopReason);
@@ -1067,6 +1082,11 @@ export class SessionService {
   async cancelPrompt(taskId: string): Promise<boolean> {
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) return false;
+
+    sessionStoreSetters.updateSession(session.taskRunId, {
+      isPromptPending: false,
+      promptStartedAt: null,
+    });
 
     if (session.isCloud) {
       return this.cancelCloudPrompt(session);
@@ -1704,6 +1724,7 @@ export class SessionService {
         const entriesToAppend = update.newEntries.slice(-delta);
         const newEvents = convertStoredEntriesToEvents(entriesToAppend);
         sessionStoreSetters.appendEvents(taskRunId, newEvents, expectedCount);
+        this.updatePromptStateFromEvents(taskRunId, newEvents);
       } else {
         // Gap in data — append everything we have but don't jump processedLineCount
         log.warn("Cloud task log count inconsistency", {
@@ -1718,6 +1739,7 @@ export class SessionService {
           newEvents,
           currentCount + update.newEntries.length,
         );
+        this.updatePromptStateFromEvents(taskRunId, newEvents);
       }
     }
     // Update cloud status fields if present

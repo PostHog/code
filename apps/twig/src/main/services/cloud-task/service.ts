@@ -16,7 +16,9 @@ import {
 const log = logger.scope("cloud-task");
 
 const LOG_POLL_INTERVAL_MS = 5_000;
+const LOG_POLL_INTERVAL_FAST_MS = 1_000;
 const STATUS_POLL_INTERVAL_MS = 10_000;
+const STATUS_POLL_INTERVAL_FAST_MS = 3_000;
 
 interface TaskRunResponse {
   id: string;
@@ -43,6 +45,7 @@ interface WatcherState {
   lastBranch: string | null;
   lastStatusPollTime: number;
   subscriberCount: number;
+  viewing: boolean;
 }
 
 interface PendingWatchState {
@@ -128,6 +131,23 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
         count: pending.length,
       });
     }
+  }
+
+  setViewing(taskId: string, runId: string, viewing: boolean): void {
+    const key = watcherKey(taskId, runId);
+    const watcher = this.watchers.get(key);
+    if (!watcher) return;
+
+    if (watcher.viewing === viewing) return;
+    watcher.viewing = viewing;
+
+    if (viewing && watcher.pollTimeoutId) {
+      clearTimeout(watcher.pollTimeoutId);
+      watcher.pollTimeoutId = null;
+      this.schedulePoll(key);
+    }
+
+    log.info("Cloud task watcher viewing changed", { key, viewing });
   }
 
   async sendCommand(input: SendCommandInput): Promise<SendCommandOutput> {
@@ -242,6 +262,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       lastBranch: null,
       lastStatusPollTime: 0,
       subscriberCount,
+      viewing: false,
     };
 
     this.watchers.set(key, watcher);
@@ -268,10 +289,14 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     const watcher = this.watchers.get(key);
     if (!watcher) return;
 
+    const interval = watcher.viewing
+      ? LOG_POLL_INTERVAL_FAST_MS
+      : LOG_POLL_INTERVAL_MS;
+
     watcher.pollTimeoutId = setTimeout(() => {
       watcher.pollTimeoutId = null;
       this.poll(key, false);
-    }, LOG_POLL_INTERVAL_MS);
+    }, interval);
   }
 
   private async poll(key: string, isSnapshot: boolean): Promise<void> {
@@ -284,9 +309,11 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
 
       // Fetch status if snapshot or interval elapsed
       const now = Date.now();
+      const statusInterval = watcher.viewing
+        ? STATUS_POLL_INTERVAL_FAST_MS
+        : STATUS_POLL_INTERVAL_MS;
       const shouldFetchStatus =
-        isSnapshot ||
-        now - watcher.lastStatusPollTime >= STATUS_POLL_INTERVAL_MS;
+        isSnapshot || now - watcher.lastStatusPollTime >= statusInterval;
 
       let statusResult: TaskRunResponse | null = null;
       let statusChanged = false;
