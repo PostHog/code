@@ -194,8 +194,8 @@ export function findPendingPermissions(
       update.toolCallId &&
       isTerminalStatus(update.status);
 
-    if (isResolvedToolCall) {
-      resolvedToolCalls.add(update.toolCallId!);
+    if (isResolvedToolCall && update.toolCallId) {
+      resolvedToolCalls.add(update.toolCallId);
     }
 
     if (update.sessionUpdate === "assistant_message") {

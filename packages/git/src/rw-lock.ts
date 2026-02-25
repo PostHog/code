@@ -47,12 +47,12 @@ export class AsyncReaderWriterLock {
     if (this.writer || this.readers > 0) return;
 
     if (this.writeQueue.length > 0) {
-      const next = this.writeQueue.shift()!;
-      next();
+      const next = this.writeQueue.shift();
+      if (next) next();
     } else {
       while (this.readQueue.length > 0 && !this.writerWaiting) {
-        const next = this.readQueue.shift()!;
-        next();
+        const next = this.readQueue.shift();
+        if (next) next();
       }
     }
   }

@@ -192,7 +192,7 @@ async function applyPlanApproval(
 async function handleEnterPlanModeTool(
   context: ToolHandlerContext,
 ): Promise<ToolPermissionResult> {
-  const { session, toolInput, logger } = context;
+  const { session, toolInput } = context;
 
   session.permissionMode = "plan";
   await session.query.setPermissionMode("plan");

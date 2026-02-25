@@ -26,8 +26,8 @@ export class WatcherRegistryService {
 
     if (this.subscriptions.has(id)) {
       log.warn(`Replacing existing watcher: ${id}`);
-      const existing = this.subscriptions.get(id)!;
-      existing.unsubscribe().catch((err) => {
+      const existing = this.subscriptions.get(id);
+      existing?.unsubscribe().catch((err) => {
         log.warn(`Failed to unsubscribe replaced watcher ${id}:`, err);
       });
     }
