@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { app, autoUpdater } from "electron";
+import { app } from "electron";
 import log from "electron-log/main";
 import "./lib/logger";
 import "./services/index.js";
@@ -112,31 +112,23 @@ app.on("before-quit", async (event) => {
     lifecycleService.forceExit();
   }
 
-  // Check for pending update before shutdown tears down the container
-  let pendingUpdate = false;
+  event.preventDefault();
+
+  // If an update is downloaded, install it instead of doing a normal shutdown.
+  // installUpdate() handles its own lightweight cleanup and quitAndInstall.
   try {
     const updatesService = container.get<UpdatesService>(
       MAIN_TOKENS.UpdatesService,
     );
-    pendingUpdate = updatesService.hasUpdateReady;
-  } catch {
-    // Updates service not available
-  }
-
-  event.preventDefault();
-  await lifecycleService.shutdown();
-
-  if (pendingUpdate) {
-    log.info("Installing pending update after shutdown...");
-    try {
-      autoUpdater.quitAndInstall();
-      return;
-    } catch (error) {
-      log.error("Failed to install update on quit", error);
+    if (updatesService.hasUpdateReady) {
+      const { installed } = await updatesService.installUpdate();
+      if (installed) return;
     }
+  } catch {
+    // Updates service not available, fall through to normal shutdown
   }
 
-  app.exit(0);
+  await lifecycleService.shutdownAndExit();
 });
 
 const handleShutdownSignal = async (signal: string) => {

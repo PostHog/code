@@ -93,24 +93,14 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
       };
     }
 
-    if (this.updateReady) {
-      if (source === "periodic") {
-        // Periodic check should re-check for newer versions even if one is downloaded
-        log.info(
-          "Periodic check: resetting downloaded update to check for newer version",
-          { downloadedVersion: this.downloadedVersion },
-        );
-        this.updateReady = false;
-        this.downloadedVersion = null;
-      } else {
-        // User check: show the existing downloaded update notification
-        log.info("Update already downloaded, showing prompt again", {
-          downloadedVersion: this.downloadedVersion,
-        });
-        this.pendingNotification = true;
-        this.flushPendingNotification();
-        return { success: true };
-      }
+    if (this.updateReady && source !== "periodic") {
+      // User check: show the existing downloaded update notification
+      log.info("Update already downloaded, showing prompt again", {
+        downloadedVersion: this.downloadedVersion,
+      });
+      this.pendingNotification = true;
+      this.flushPendingNotification();
+      return { success: true };
     }
 
     this.checkingForUpdates = true;

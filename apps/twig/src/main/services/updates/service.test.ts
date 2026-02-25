@@ -682,10 +682,12 @@ describe("UpdatesService", () => {
       // Clear the checkForUpdates calls from initialization
       mockAutoUpdater.checkForUpdates.mockClear();
 
-      // Periodic check should reset state and re-check
+      // Periodic check should re-check without resetting existing update state
       const result = service.checkForUpdates("periodic");
       expect(result).toEqual({ success: true });
       expect(mockAutoUpdater.checkForUpdates).toHaveBeenCalled();
+      // Update should still be ready (state not reset)
+      expect(service.hasUpdateReady).toBe(true);
     });
 
     it("user check still shows existing notification when update is ready", async () => {
@@ -708,6 +710,32 @@ describe("UpdatesService", () => {
       expect(result).toEqual({ success: true });
       expect(mockAutoUpdater.checkForUpdates).not.toHaveBeenCalled();
       expect(readyHandler).toHaveBeenCalledWith({ version: "v2.0.0" });
+    });
+
+    it("preserves downloaded update when periodic re-check errors", async () => {
+      await initializeService(service);
+
+      // Simulate update downloaded
+      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
+        ([event]) => event === "update-downloaded",
+      )?.[1];
+      if (downloadedHandler) {
+        downloadedHandler({}, "Release notes", "v2.0.0");
+      }
+
+      // Periodic check proceeds
+      service.checkForUpdates("periodic");
+
+      // Simulate error during re-check
+      const errorHandler = mockAutoUpdater.on.mock.calls.find(
+        ([event]) => event === "error",
+      )?.[1];
+      if (errorHandler) {
+        errorHandler(new Error("Network error"));
+      }
+
+      // Update should still be ready
+      expect(service.hasUpdateReady).toBe(true);
     });
 
     it("does not re-notify when same version is re-downloaded after periodic check", async () => {
