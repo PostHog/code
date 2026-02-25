@@ -45,7 +45,7 @@ export function PlanStatusBar({ plan }: PlanStatusBarProps) {
           ) : (
             <CaretRight size={12} className="text-gray-9" />
           )}
-          <Text size="1" color="gray">
+          <Text size="1" color="gray" className="whitespace-nowrap">
             {stats.completed}/{stats.total} completed
           </Text>
           {stats.inProgress && (
