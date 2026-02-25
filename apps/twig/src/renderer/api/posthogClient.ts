@@ -119,6 +119,10 @@ export class PostHogAPIClient {
     }
   }
 
+  setTeamId(teamId: number): void {
+    this._teamId = teamId;
+  }
+
   private async getTeamId(): Promise<number> {
     if (this._teamId !== null) {
       return this._teamId;

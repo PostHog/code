@@ -155,16 +155,6 @@ export const useAuthStore = create<AuthState>()(
 
           const apiHost = getCloudUrlFromRegion(region);
 
-          // Check if we have a previously selected project that's still valid
-          const currentProjectId = get().projectId;
-          const previousSelectionValid =
-            currentProjectId !== null && scopedTeams.includes(currentProjectId);
-
-          // Use previously selected project if valid, otherwise default to first project
-          const selectedProjectId = previousSelectionValid
-            ? currentProjectId
-            : scopedTeams[0];
-
           const client = new PostHogAPIClient(
             tokenResponse.access_token,
             apiHost,
@@ -176,11 +166,24 @@ export const useAuthStore = create<AuthState>()(
               }
               return token;
             },
-            selectedProjectId,
+            scopedTeams[0],
           );
 
           try {
             const user = await client.getCurrentUser();
+
+            // Determine project: prefer user's current PostHog project, then previously stored, then first available
+            const userCurrentTeam = user?.team?.id;
+            const storedProjectId = get().projectId;
+            const selectedProjectId =
+              userCurrentTeam != null && scopedTeams.includes(userCurrentTeam)
+                ? userCurrentTeam
+                : storedProjectId !== null && scopedTeams.includes(storedProjectId)
+                  ? storedProjectId
+                  : scopedTeams[0];
+
+            // Update client's teamId to match selected project
+            client.setTeamId(selectedProjectId);
 
             set({
               oauthAccessToken: tokenResponse.access_token,
@@ -485,7 +488,6 @@ export const useAuthStore = create<AuthState>()(
                 return false;
               }
 
-              // Check if we have a stored project selection that's still valid
               const storedProjectId = get().projectId;
               const availableProjects =
                 get().availableProjectIds.length > 0
@@ -494,11 +496,6 @@ export const useAuthStore = create<AuthState>()(
               const hasValidStoredProject =
                 storedProjectId !== null &&
                 availableProjects.includes(storedProjectId);
-
-              // Use stored project if valid, otherwise default to first project
-              const selectedProjectId = hasValidStoredProject
-                ? storedProjectId
-                : scopedTeams[0];
 
               const client = new PostHogAPIClient(
                 currentTokens.accessToken,
@@ -511,11 +508,23 @@ export const useAuthStore = create<AuthState>()(
                   }
                   return token;
                 },
-                selectedProjectId,
+                hasValidStoredProject ? storedProjectId : scopedTeams[0],
               );
 
               try {
                 const user = await client.getCurrentUser();
+
+                // Prefer stored project, then user's current PostHog project, then first available
+                const userCurrentTeam = user?.team?.id;
+                const selectedProjectId = hasValidStoredProject
+                  ? storedProjectId
+                  : userCurrentTeam != null &&
+                      scopedTeams.includes(userCurrentTeam)
+                    ? userCurrentTeam
+                    : scopedTeams[0];
+
+                // Update client's teamId to match selected project
+                client.setTeamId(selectedProjectId);
 
                 set({
                   isAuthenticated: true,
@@ -562,10 +571,13 @@ export const useAuthStore = create<AuthState>()(
                   log.warn(
                     "Network error during session validation - keeping session active",
                   );
+                  const fallbackProjectId = hasValidStoredProject
+                    ? storedProjectId
+                    : scopedTeams[0];
                   set({
                     isAuthenticated: true,
                     client,
-                    projectId: selectedProjectId,
+                    projectId: fallbackProjectId,
                     availableProjectIds: scopedTeams,
                     needsProjectSelection: false,
                   });
