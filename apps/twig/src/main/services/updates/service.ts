@@ -37,6 +37,10 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
   private notifiedVersion: string | null = null;
   private initialized = false;
 
+  get hasUpdateReady(): boolean {
+    return this.updateReady;
+  }
+
   get isEnabled(): boolean {
     return (
       app.isPackaged &&

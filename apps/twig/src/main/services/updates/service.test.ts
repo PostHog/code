@@ -322,6 +322,26 @@ describe("UpdatesService", () => {
     });
   });
 
+  describe("hasUpdateReady", () => {
+    it("returns false initially", () => {
+      expect(service.hasUpdateReady).toBe(false);
+    });
+
+    it("returns true after an update is downloaded", async () => {
+      await initializeService(service);
+
+      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
+        ([event]) => event === "update-downloaded",
+      )?.[1];
+
+      if (downloadedHandler) {
+        downloadedHandler({}, "Release notes", "v2.0.0");
+      }
+
+      expect(service.hasUpdateReady).toBe(true);
+    });
+  });
+
   describe("installUpdate", () => {
     it("returns false when no update is ready", async () => {
       const result = await service.installUpdate();

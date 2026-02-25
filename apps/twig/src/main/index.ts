@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { app } from "electron";
+import { app, autoUpdater } from "electron";
 import log from "electron-log/main";
 import "./lib/logger";
 import "./services/index.js";
@@ -112,8 +112,31 @@ app.on("before-quit", async (event) => {
     lifecycleService.forceExit();
   }
 
+  // Check for pending update before shutdown tears down the container
+  let pendingUpdate = false;
+  try {
+    const updatesService = container.get<UpdatesService>(
+      MAIN_TOKENS.UpdatesService,
+    );
+    pendingUpdate = updatesService.hasUpdateReady;
+  } catch {
+    // Updates service not available
+  }
+
   event.preventDefault();
-  await lifecycleService.shutdownAndExit();
+  await lifecycleService.shutdown();
+
+  if (pendingUpdate) {
+    log.info("Installing pending update after shutdown...");
+    try {
+      autoUpdater.quitAndInstall();
+      return;
+    } catch (error) {
+      log.error("Failed to install update on quit", error);
+    }
+  }
+
+  app.exit(0);
 });
 
 const handleShutdownSignal = async (signal: string) => {
