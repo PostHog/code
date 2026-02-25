@@ -41,13 +41,20 @@ const BRANCH_NAMING_INSTRUCTIONS = `
 When working in a detached HEAD state, create a descriptive branch name based on the work being done before committing. Do this automatically without asking the user.
 `;
 
+const PR_ATTRIBUTION = `
+# PR Attribution
+
+When creating pull requests, replace the default "Generated with Claude Code" line with:
+🤖 Generated with [Claude Code](https://claude.com/claude-code) via [Twig](https://twig.com) 🌱
+`;
+
 export function buildSystemPrompt(
   customPrompt?: unknown,
 ): Options["systemPrompt"] {
   const defaultPrompt: Options["systemPrompt"] = {
     type: "preset",
     preset: "claude_code",
-    append: BRANCH_NAMING_INSTRUCTIONS,
+    append: BRANCH_NAMING_INSTRUCTIONS + PR_ATTRIBUTION,
   };
 
   if (!customPrompt) {
@@ -55,7 +62,7 @@ export function buildSystemPrompt(
   }
 
   if (typeof customPrompt === "string") {
-    return customPrompt + BRANCH_NAMING_INSTRUCTIONS;
+    return customPrompt + BRANCH_NAMING_INSTRUCTIONS + PR_ATTRIBUTION;
   }
 
   if (
@@ -66,7 +73,7 @@ export function buildSystemPrompt(
   ) {
     return {
       ...defaultPrompt,
-      append: customPrompt.append + BRANCH_NAMING_INSTRUCTIONS,
+      append: customPrompt.append + BRANCH_NAMING_INSTRUCTIONS + PR_ATTRIBUTION,
     };
   }
 

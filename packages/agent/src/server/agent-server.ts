@@ -610,7 +610,7 @@ After completing the requested changes:
 Important:
 - Always create the PR. Do not ask for confirmation.
 - Do NOT add "Co-Authored-By" trailers to commit messages.
-- Do NOT add "Generated with [Claude Code]" or similar attribution lines to PR descriptions.
+- Instead of the default "Generated with Claude Code" attribution, add this line to PR descriptions: 🤖 Generated with [Claude Code](https://claude.com/claude-code) via [Twig](https://twig.com) 🌱
 `;
   }
 
