@@ -1,4 +1,4 @@
-import { app, autoUpdater, net } from "electron";
+import { app, autoUpdater } from "electron";
 import { inject, injectable, postConstruct, preDestroy } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
 import { logger } from "../../lib/logger.js";
@@ -20,9 +20,8 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
   private static readonly SERVER_HOST = "https://update.electronjs.org";
   private static readonly REPO_OWNER = "PostHog";
   private static readonly REPO_NAME = "Twig";
-  private static readonly CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
+  private static readonly CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
   private static readonly CHECK_TIMEOUT_MS = 60 * 1000; // 1 minute timeout for checks
-  private static readonly FRESHNESS_CHECK_TIMEOUT_MS = 5 * 1000; // 5 seconds
   private static readonly DISABLE_ENV_FLAG = "ELECTRON_DISABLE_AUTO_UPDATE";
   private static readonly SUPPORTED_PLATFORMS = ["darwin", "win32"];
 
@@ -121,24 +120,6 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
     if (!this.updateReady) {
       log.warn("installUpdate called but no update is ready");
       return { installed: false };
-    }
-
-    // Freshness check: verify the downloaded version is still the latest
-    try {
-      const latestVersion = await this.checkLatestVersion();
-      if (latestVersion && latestVersion !== this.downloadedVersion) {
-        log.info("Downloaded version is stale, triggering fresh download", {
-          downloadedVersion: this.downloadedVersion,
-          latestVersion,
-        });
-        this.updateReady = false;
-        this.downloadedVersion = null;
-        this.checkForUpdates("periodic");
-        return { installed: false, reason: "newer_version_available" };
-      }
-    } catch (error) {
-      // Network error — proceed with install rather than blocking
-      log.warn("Freshness check failed, proceeding with install", error);
     }
 
     log.info("Installing update and restarting...", {
@@ -317,30 +298,6 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
         checking: false,
         error: "Failed to check for updates. Please try again.",
       });
-    }
-  }
-
-  private async checkLatestVersion(): Promise<string | null> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      UpdatesService.FRESHNESS_CHECK_TIMEOUT_MS,
-    );
-
-    try {
-      const response = await net.fetch(this.feedUrl, {
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        return null;
-      }
-
-      // The feed returns JSON with a "name" field for the latest version
-      const data = (await response.json()) as { name?: string };
-      return data.name ?? null;
-    } finally {
-      clearTimeout(timeoutId);
     }
   }
 

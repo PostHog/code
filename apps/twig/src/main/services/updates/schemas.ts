@@ -13,11 +13,8 @@ export const checkForUpdatesOutput = z.object({
   errorCode: checkErrorCode.optional(),
 });
 
-export const installUpdateReason = z.enum(["newer_version_available"]);
-
 export const installUpdateOutput = z.object({
   installed: z.boolean(),
-  reason: installUpdateReason.optional(),
 });
 
 export type IsEnabledOutput = z.infer<typeof isEnabledOutput>;
