@@ -136,19 +136,19 @@ function GitHubIssueSignalCard({ signal }: SignalCardProps) {
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1">
       <Flex
-        align="center"
+        align="start"
         gap="2"
         px="3"
         py="2"
         className="min-w-0 border-gray-5 border-b bg-gray-2"
       >
-        <GithubLogoIcon size={14} className="shrink-0 text-gray-11" />
+        <GithubLogoIcon size={14} className="mt-0.5 shrink-0 text-gray-11" />
         {issueUrl ? (
           <a
             href={issueUrl}
             target="_blank"
             rel="noreferrer"
-            className="min-w-0 flex-1 truncate font-medium font-mono text-[11px] text-gray-12 hover:text-accent-11"
+            className="min-w-0 flex-1 break-words font-medium font-mono text-[11px] text-gray-12 hover:text-accent-11"
           >
             {titleContent}
           </a>
@@ -156,7 +156,7 @@ function GitHubIssueSignalCard({ signal }: SignalCardProps) {
           <Text
             size="1"
             weight="medium"
-            className="min-w-0 flex-1 truncate font-mono text-[11px]"
+            className="min-w-0 flex-1 break-words font-mono text-[11px]"
           >
             {titleContent}
           </Text>
