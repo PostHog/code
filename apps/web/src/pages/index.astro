@@ -55,90 +55,137 @@ const WAVE_BARS = Array.from({ length: 12 });
     <div class="col-full fig-section">
       <div class="fig-header cell-pad">
         <span class="fig-header-id">[ FIG.1.1 ]</span>
-        <span class="fig-header-sub">What is twig</span>
+        <span class="fig-header-sub">twig agents</span>
       </div>
-      <div class="fig-body fig-body--three-col">
-        <div class="fig-cell stat-col stat-col--bugs">
-          <h2>background agents</h2>
-          <p class="type-sm" style="opacity: 0.75">Most agents are reactive, you tell them what to do, which kind of sucks. With PostHog's data, we can make agents proactive. They surface and fix issues before you even know to ask.</p>
+      <div class="fig-body fig-body--three-col tce-wrapper" id="tce-agents" data-expanded="0">
+        <div class="tce-column tce-column-1" data-col="1">
+          <span class="tce-label">product autonomy</span>
+          <h2 class="tce-heading">proactive agents</h2>
+          <p class="type-sm tce-body">Most agents are reactive — you tell them what to do. With PostHog's data, twig agents are proactive. They surface and fix issues before you know to ask.</p>
+          <button type="button" class="tce-expand-btn" aria-expanded="false" aria-controls="tce-merged-2-3" data-expand="1">
+            <span class="tce-btn-text">expand</span>
+            <span class="tce-arrow" aria-hidden="true">→</span>
+          </button>
         </div>
-        <div class="fig-cell stat-col stat-col--hours">
-          <h2>agent orchestrator</h2>
-          <p class="type-sm" style="opacity: 0.75">Spin up infinite Codex + Claude Code agents in isolated git worktrees. Tasks come with context pre-loaded, execution happens in the background, and you review/iterate all in one place. It's the coordination layer that's currently missing</p>
+        <div class="tce-column tce-column-2" data-col="2">
+          <span class="tce-label">Assemble the swarm</span>
+          <h2 class="tce-heading">agent orchestration</h2>
+          <p class="type-sm tce-body">Set dozens of Claude, Codex, and Gemini agents to work in parallel. Context is pre-loaded, execution happens in the background. Review and iterate without switching tools.</p>
+          <button type="button" class="tce-expand-btn" aria-expanded="false" aria-controls="tce-merged-1-3" data-expand="2">
+            <span class="tce-btn-text">expand</span>
+            <span class="tce-arrow" aria-hidden="true">→</span>
+          </button>
         </div>
-        <div class="fig-cell stat-col stat-col--branches">
-          <h2>agentic coding</h2>
-          <p class="type-sm" style="opacity: 0.75">Use the exact same AI models and harnesses you already use, at the same prices.</p>
+        <div class="tce-column tce-column-3" data-col="3">
+          <span class="tce-label">no comprimises on coding</span>
+          <h2 class="tce-heading">agentic IDE</h2>
+          <p class="type-sm tce-body">twig has everything you expect from a modern agentic development tool. Use the exact same AI models and harnesses you already use, at the same prices.</p>
+          <button type="button" class="tce-expand-btn" aria-expanded="false" aria-controls="tce-merged-1-2" data-expand="3">
+            <span class="tce-btn-text">expand</span>
+            <span class="tce-arrow" aria-hidden="true">→</span>
+          </button>
+        </div>
+        <!-- Merged panel: cols 2+3 when col 1 expanded -->
+        <div class="tce-merged tce-merged-2-3" id="tce-merged-2-3" aria-hidden="true">
+          <div class="tce-expanded-inner tce-expanded-specimen">
+            <div class="tce-expanded-image" style="--tce-mask: url('/fern.svg')">
+              <div class="tce-expanded-image-mask" aria-hidden="true"></div>
+            </div>
+            <div class="tce-expanded-caption">
+              <span class="tce-expanded-caption-id">AN AGENT WITHOUT CONTEXT IS JUST AUTOCOMPLETE</span>
+              <p class="tce-expanded-caption-name">for the highest-priority signals, twig spins up coding agents automatically — up to the daily limit you set.</p>
+            </div>
+          </div>
+        </div>
+        <!-- Merged panels: col 1 + col 3 when col 2 expanded (left = image + label, right = image + caption) -->
+        <div class="tce-merged tce-merged-1-3-left" id="tce-merged-1-3" aria-hidden="true">
+          <div class="tce-expanded-inner tce-expanded-inner--cover">
+            <div class="tce-expanded-image tce-expanded-image--cover" style="--tce-mask: url('/birds.svg')">
+              <div class="tce-expanded-image-mask" aria-hidden="true"></div>
+            </div>
+            <div class="tce-expanded-caption">
+              <span class="tce-expanded-caption-id">MULTI-MODEL</span>
+              <p class="tce-expanded-caption-name">twig is AI agnostic. Always use the best models.</p>
+            </div>
+          </div>
+        </div>
+        <div class="tce-merged tce-merged-1-3-right" aria-hidden="true">
+          <div class="tce-expanded-inner tce-expanded-specimen">
+            <div class="tce-expanded-image" style="--tce-mask: url('/cropped-palm.svg')">
+              <div class="tce-expanded-image-mask" aria-hidden="true"></div>
+            </div>
+            <div class="tce-expanded-caption">
+              <span class="tce-expanded-caption-id">ISOLATED WORKTREES</span>
+              <p class="tce-expanded-caption-name">Merge conflicts simply shouldn't exist.</p>
+            </div>
+          </div>
+        </div>
+        <!-- Merged panel: cols 1+2 when col 3 expanded -->
+        <div class="tce-merged tce-merged-1-2" id="tce-merged-1-2" aria-hidden="true">
+          <div class="tce-expanded-inner tce-expanded-specimen">
+            <div class="tce-expanded-image" style="--tce-mask: url('/newts.svg')">
+              <div class="tce-expanded-image-mask" aria-hidden="true"></div>
+            </div>
+            <div class="tce-expanded-caption">
+              <span class="tce-expanded-caption-id">PROMPT PROUDCTION READY PRS</span>
+              <p class="tce-expanded-caption-name">Introduce fewer bugs. smart rollouts that minimise blast radius automatically.</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ════════════════════════
-       FIG 1.2 — ROOT CAUSE ANALYSIS
-  ════════════════════════ -->
-  <section class="grid-container grid-section">
-    <div class="col-full fig-section">
-      <div class="fig-header cell-pad">
-        <span class="fig-header-id">[ FIG.1.2 ]</span>
-        <span class="fig-header-sub">the coordination layer for many agents working in parallel</span>
-      </div>
-      <div class="fig-body fig-body--three-col">
+  <script is:inline>
+    (function () {
+      const wrapper = document.getElementById("tce-agents");
+      if (!wrapper) return;
+      const expandedAttr = "data-expanded";
+      const visibleClass = "tce-merged-visible";
 
-        <!-- Problem copy -->
-        <div class="fig-cell">
-          <h2 class="type-xl weight-bold">root cause analysis that ends with a merged branch</h2>
-          <p class="type-sm" style="opacity: 0.8; margin-bottom: var(--space-sm)">Codex, Claude Code, and similar tools accelerate code generation, but you always make the first move.</p>
-          <p class="type-sm" style="opacity: 0.8">Twig works 24/7 to determine what matters right now, runs autonomous work against it, and hands you contextual code to merge, kill or iterate on.</p>
-        </div>
+      function setExpanded(n) {
+        const prev = Number(wrapper.getAttribute(expandedAttr)) || 0;
+        if (n === 0) {
+          wrapper.classList.remove(visibleClass);
+          const done = function () {
+            wrapper.setAttribute(expandedAttr, "0");
+            wrapper.querySelectorAll(".tce-expand-btn").forEach(function (btn) {
+              btn.setAttribute("aria-expanded", "false");
+              btn.querySelector(".tce-btn-text").textContent = "expand";
+            });
+          };
+          if (prev > 0) {
+            setTimeout(done, 300);
+          } else {
+            done();
+          }
+          return;
+        }
+        wrapper.setAttribute(expandedAttr, String(n));
+        wrapper.classList.remove("tce-expand-1", "tce-expand-2", "tce-expand-3");
+        wrapper.classList.add("tce-expand-" + n);
+        wrapper.querySelectorAll(".tce-expand-btn").forEach(function (btn) {
+          const col = Number(btn.getAttribute("data-expand")) || 0;
+          const isActive = col === n;
+          btn.setAttribute("aria-expanded", isActive ? "true" : "false");
+          btn.querySelector(".tce-btn-text").textContent = isActive ? "close" : "expand";
+        });
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            wrapper.classList.add(visibleClass);
+          });
+        });
+      }
 
-        <!-- Branch diagram -->
-        <div class="fig-cell fig-cell--shaded fig-cell--flex-center">
-          <div class="branch-list">
-            <div class="branch-row">
-              <span class="branch-dot" style="color: #4D642C">●</span>
-              <span class="branch-name">fix/checkout-null-error</span>
-              <span class="branch-badge branch-badge--merged">MERGED</span>
-            </div>
-            <div class="branch-row" style="opacity: 0.75">
-              <span class="branch-dot" style="color: var(--color-accent)">●</span>
-              <span class="branch-name">feat/dark-mode-prototype</span>
-              <span class="branch-badge branch-badge--review">REVIEW</span>
-            </div>
-            <div class="branch-row" style="opacity: 0.55">
-              <span class="branch-dot" style="color: #083E67">●</span>
-              <span class="branch-name" style="border-style: dashed">perf/pricing-page-lcp</span>
-              <span class="branch-badge branch-badge--running">RUNNING</span>
-            </div>
-            <div class="branch-row" style="opacity: 0.35">
-              <span class="branch-dot">●</span>
-              <span class="branch-name" style="border-style: dashed">fix/signup-form-a11y</span>
-              <span class="branch-badge branch-badge--queued">QUEUED</span>
-            </div>
-            <div class="branch-row" style="opacity: 0.2">
-              <span class="branch-dot">●</span>
-              <span class="branch-name" style="border-style: dashed">chore/update-deps</span>
-              <span class="branch-badge branch-badge--queued">QUEUED</span>
-            </div>
-            <div class="branch-footer type-xs">3 agents running · 8 daily limit remaining</div>
-          </div>
-        </div>
-
-        <!-- Specimen hover -->
-        <div class="fig-cell fig-cell--shaded specimen-cell">
-          <div class="specimen-cell-image specimen-cell-image--branch">
-            <img src="/branch.svg" alt="" class="specimen-img" />
-          </div>
-          <div class="specimen-caption" aria-hidden="true">
-            <span class="specimen-label-id">Twig agents work in seperate worktrees</span>
-            <p class="specimen-label-name">you didn't become an engineer to manage merge conflicts</p>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
+      wrapper.querySelectorAll(".tce-expand-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const col = Number(btn.getAttribute("data-expand")) || 0;
+          const current = Number(wrapper.getAttribute(expandedAttr)) || 0;
+          setExpanded(current === col ? 0 : col);
+        });
+      });
+    })();
+  </script>
 
 
 
@@ -166,8 +213,8 @@ const WAVE_BARS = Array.from({ length: 12 });
 
         <!-- PR card (cycles through 3 variants) -->
         <div class="fig-cell">
-          <h2 class="type-xl weight-bold">an agent without context is just autocomplete</h2>
-          <p class="type-sm" style="opacity: 0.8">twig has the exact same coding capabilities as everyone else, but it understands your users. It fixes bugs, finds UX issues with computer vision, responds to feedback — so you are left with an inbox of work already done for you.</p>
+          <h2 class="type-xl weight-bold">product engineering, evolved</h2>
+          <p class="type-sm" style="opacity: 0.8">twig understands your product and users. It fixes bugs, finds UX issues with computer vision, responds to feedback — so you are left with an inbox of work already done for you.</p>
           <div class="pr-card-cycler">
             <div class="pr-card-track">
             <div class="pr-card pr-card-variant">
@@ -248,6 +295,72 @@ const WAVE_BARS = Array.from({ length: 12 });
     });
   </script>
 
+  <!-- ════════════════════════
+       FIG 1.2 — ROOT CAUSE ANALYSIS
+  ════════════════════════ -->
+  <section class="grid-container grid-section">
+    <div class="col-full fig-section">
+      <div class="fig-header cell-pad">
+        <span class="fig-header-id">[ FIG.1.2 ]</span>
+        <span class="fig-header-sub">the coordination layer for many agents working in parallel</span>
+      </div>
+      <div class="fig-body fig-body--three-col">
+
+        <!-- Problem copy -->
+        <div class="fig-cell">
+          <h2 class="type-xl weight-bold">root cause analysis that ends with a merged branch</h2>
+          <p class="type-sm" style="opacity: 0.8; margin-bottom: var(--space-sm)">Codex, Claude Code, and similar tools accelerate code generation, but you always make the first move.</p>
+          <p class="type-sm" style="opacity: 0.8">Twig works 24/7 to determine what matters right now, runs autonomous work against it, and hands you contextual code to merge, kill or iterate on.</p>
+        </div>
+
+        <!-- Branch diagram -->
+        <div class="fig-cell fig-cell--shaded fig-cell--flex-center">
+          <div class="branch-list">
+            <div class="branch-row">
+              <span class="branch-dot" style="color: #4D642C">●</span>
+              <span class="branch-name">fix/checkout-null-error</span>
+              <span class="branch-badge branch-badge--merged">MERGED</span>
+            </div>
+            <div class="branch-row" style="opacity: 0.75">
+              <span class="branch-dot" style="color: var(--color-accent)">●</span>
+              <span class="branch-name">feat/dark-mode-prototype</span>
+              <span class="branch-badge branch-badge--review">REVIEW</span>
+            </div>
+            <div class="branch-row" style="opacity: 0.55">
+              <span class="branch-dot" style="color: #083E67">●</span>
+              <span class="branch-name" style="border-style: dashed">perf/pricing-page-lcp</span>
+              <span class="branch-badge branch-badge--running">RUNNING</span>
+            </div>
+            <div class="branch-row" style="opacity: 0.35">
+              <span class="branch-dot">●</span>
+              <span class="branch-name" style="border-style: dashed">fix/signup-form-a11y</span>
+              <span class="branch-badge branch-badge--queued">QUEUED</span>
+            </div>
+            <div class="branch-row" style="opacity: 0.2">
+              <span class="branch-dot">●</span>
+              <span class="branch-name" style="border-style: dashed">chore/update-deps</span>
+              <span class="branch-badge branch-badge--queued">QUEUED</span>
+            </div>
+            <div class="branch-footer type-xs">3 agents running · 8 daily limit remaining</div>
+          </div>
+        </div>
+
+        <!-- Specimen hover -->
+        <div class="fig-cell fig-cell--shaded specimen-cell">
+          <div class="specimen-cell-image specimen-cell-image--branch">
+            <img src="/branch.svg" alt="" class="specimen-img" />
+          </div>
+          <div class="specimen-caption" aria-hidden="true">
+            <span class="specimen-label-id">Twig agents work in seperate worktrees</span>
+            <p class="specimen-label-name">you didn't become an engineer to manage merge conflicts</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
 
   <!-- ════════════════════════
        INTEGRATION STRIP
@@ -285,48 +398,7 @@ const WAVE_BARS = Array.from({ length: 12 });
           <h2 class="type-xl weight-bold">twig connects to your whole stack</h2>
           <p class="type-sm" style="opacity: 0.8; margin-bottom: var(--space-md)">It's not just product data, it's everything. Devtools, databases, and tickets flow into the same signals engine. twig processes noisy unstructured data, decides most of it doesn't matter, and surfaces the small percentage that actually does.</p>
           <div class="inbox-dark-wrap">
-            <div class="inbox-ui">
-              <div class="inbox-ui-header">
-                <span><span class="inbox-ui-header-dot"></span>twig / signals inbox</span>
-                <span class="inbox-ui-header-status">5 agents running</span>
-              </div>
-              <div class="inbox-ui-row">
-                <div>
-                  <div class="inbox-signal-title">checkout funnel — 40% drop at payment step</div>
-                  <div class="inbox-signal-meta">PostHog · 2,340 sessions · trending up · 3h ago</div>
-                </div>
-                <span class="inbox-badge inbox-badge--running">agent running</span>
-              </div>
-              <div class="inbox-ui-row">
-                <div>
-                  <div class="inbox-signal-title">TypeError: Cannot read properties of undefined</div>
-                  <div class="inbox-signal-meta">Sentry · 847 occurrences · 12 users affected · 1h ago</div>
-                </div>
-                <span class="inbox-badge inbox-badge--done">PR open</span>
-              </div>
-              <div class="inbox-ui-row">
-                <div>
-                  <div class="inbox-signal-title">BUG-421 — P0 regression in export flow, 4 comments</div>
-                  <div class="inbox-signal-meta">Linear · linked to Sentry · reopened 2h ago</div>
-                </div>
-                <span class="inbox-badge inbox-badge--high">high priority</span>
-              </div>
-              <div class="inbox-ui-row">
-                <div>
-                  <div class="inbox-signal-title">#customer-feedback — "export has been broken for 2 days"</div>
-                  <div class="inbox-signal-meta">Slack · 8 messages · last 6h</div>
-                </div>
-                <span class="inbox-badge inbox-badge--waiting">queued</span>
-              </div>
-              <div class="inbox-ui-row">
-                <div>
-                  <div class="inbox-signal-title">dependency audit — 2 high, 5 moderate · main branch</div>
-                  <div class="inbox-signal-meta">GitHub · 3 PRs stale &gt; 5 days · 12 commits behind</div>
-                </div>
-                <span class="inbox-badge inbox-badge--waiting">queued</span>
-              </div>
-              <div class="inbox-ui-footer">+ 14 more signals from PostHog, Slack, Linear, GitHub, Sentry · 2 agents at daily limit</div>
-            </div>
+            
           </div>
         </div>
 
@@ -435,7 +507,7 @@ const WAVE_BARS = Array.from({ length: 12 });
         <!-- spam filter product inbox-->
         <div class="fig-cell">
           <h2 class="type-xl weight-bold">like a spam filter for engineering work</h2>
-          <p class="type-sm" style="opacity: 0.8; margin-bottom: var(--space-md)">Gmail doesn't show you every email — it filters, ranks, and surfaces what matters. twig does the same for the stream of data your product generates.</p>
+          <p class="type-sm" style="opacity: 0.8; margin-bottom: var(--space-md)">Gmail doesn't show you every email — it filters, ranks, and surfaces what matters. twig does the same for product data.</p>
           <div class="inbox-dark-wrap">
             <div class="inbox-ui">
               <div class="inbox-ui-header">

@@ -99,6 +99,315 @@
   border-right: none;
 }
 
+/* ══════════════════════════════════
+   THREE-COLUMN EXPAND (twig agents)
+══════════════════════════════════ */
+
+.tce-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr;
+  align-items: stretch;
+  gap: 0;
+  height: clamp(340px, 42vh, 440px);
+  border-bottom: 1px solid var(--color-text);
+  overflow: hidden;
+}
+
+.tce-column,
+.tce-merged {
+  grid-row: 1;
+}
+
+.tce-column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--space-lg) var(--grid-cell-padding);
+  border-right: 1px solid var(--color-text);
+  background-color: var(--color-bg);
+}
+
+.tce-column:last-of-type {
+  border-right: none;
+}
+
+.tce-label {
+  font-size: var(--type-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.4;
+  margin-bottom: var(--space-sm);
+}
+
+.tce-heading {
+  font-size: var(--type-xl);
+  font-weight: 700;
+  margin-bottom: var(--space-sm);
+}
+
+.tce-body {
+  opacity: 0.75;
+  margin-bottom: var(--space-sm);
+  line-height: var(--lh-relaxed);
+}
+
+.tce-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: var(--space-xs);
+  padding: 0.375rem 0;
+  font-size: var(--type-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text);
+  opacity: 0.7;
+}
+
+.tce-expand-btn:hover {
+  opacity: 1;
+}
+
+.tce-arrow {
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.tce-expand-btn[aria-expanded="true"] .tce-arrow {
+  transform: rotate(90deg);
+}
+
+.tce-merged {
+  display: none;
+  flex-direction: column;
+  justify-content: flex-start;
+  position: relative;
+  padding: var(--space-md) var(--grid-cell-padding);
+  background-color: color-mix(in oklab, var(--color-text) 8%, var(--color-bg));
+  border-right: 1px solid var(--color-text);
+}
+
+.tce-merged-2-3 {
+  border-right: none;
+  padding: 0;
+}
+
+.tce-merged-1-2 {
+  border-right: 1px solid var(--color-text);
+  padding: 0;
+}
+
+.tce-merged-1-3-left {
+  border-right: none;
+  padding-left: 0;
+}
+
+.tce-merged-1-3-left .tce-expanded-image--cover {
+  position: absolute;
+  inset: 0;
+}
+
+.tce-merged-1-3-left .tce-expanded-image--cover .tce-expanded-image-mask {
+  position: absolute;
+  inset: 0;
+  mask-size: cover;
+  -webkit-mask-size: cover;
+}
+
+.tce-merged-1-3-right {
+  border-left: none;
+  padding: 0;
+}
+
+.tce-expanded-inner {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.tce-expanded-inner--cover {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+}
+
+.tce-wrapper.tce-merged-visible .tce-merged .tce-expanded-inner {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tce-expanded-heading {
+  font-size: var(--type-lg);
+  font-weight: 700;
+  margin-bottom: var(--space-xs);
+}
+
+.tce-expanded-body {
+  font-size: var(--type-sm);
+  opacity: 0.85;
+  line-height: var(--lh-relaxed);
+  margin-bottom: 0;
+}
+
+.tce-cta {
+  font-size: var(--type-sm);
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.tce-cta:hover {
+  text-decoration: underline;
+}
+
+/* Expanded state: single full-cover image with caption overlaid (specimen-style, always visible) */
+.tce-expanded-specimen {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+}
+
+.tce-expanded-specimen .tce-expanded-image {
+  position: absolute;
+  inset: 0;
+}
+
+.tce-expanded-image-mask {
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-text);
+  opacity: 0.5;
+  mask-image: var(--tce-mask);
+  mask-size: cover;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  -webkit-mask-image: var(--tce-mask);
+  -webkit-mask-size: cover;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+}
+
+.tce-expanded-specimen .tce-expanded-image img,
+.tce-expanded-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0.5;
+}
+
+.tce-expanded-caption {
+  position: absolute;
+  bottom: var(--space-sm);
+  left: var(--space-sm);
+  right: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-text);
+  font-size: var(--type-xs);
+  pointer-events: none;
+}
+
+.tce-expanded-caption-id {
+  display: block;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+.tce-expanded-caption-name {
+  margin-top: 0.25rem;
+  font-style: italic;
+  opacity: 0.5;
+  line-height: 1.4;
+}
+
+.tce-expanded-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.tce-expanded-content {
+  min-width: 0;
+}
+
+.tce-expanded-image {
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tce-expanded-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0.5;
+}
+
+/* Expanded: col 1 active → merge 2+3 */
+.tce-wrapper[data-expanded="1"] .tce-column-1 {
+  grid-column: 1;
+}
+
+.tce-wrapper[data-expanded="1"] .tce-column-2,
+.tce-wrapper[data-expanded="1"] .tce-column-3 {
+  display: none;
+}
+
+.tce-wrapper[data-expanded="1"] .tce-merged-2-3 {
+  display: flex;
+  grid-column: 2 / 4;
+}
+
+/* Expanded: col 2 active → merge 1+3 (left and right) */
+.tce-wrapper[data-expanded="2"] .tce-column-1,
+.tce-wrapper[data-expanded="2"] .tce-column-3 {
+  display: none;
+}
+
+.tce-wrapper[data-expanded="2"] .tce-column-2 {
+  grid-column: 2;
+  border-left: 1px solid var(--color-text);
+  border-right: 1px solid var(--color-text);
+}
+
+.tce-wrapper[data-expanded="2"] .tce-merged-1-3-left {
+  display: flex;
+  grid-column: 1;
+}
+
+.tce-wrapper[data-expanded="2"] .tce-merged-1-3-right {
+  display: flex;
+  grid-column: 3;
+}
+
+/* Expanded: col 3 active → merge 1+2 */
+.tce-wrapper[data-expanded="3"] .tce-column-1,
+.tce-wrapper[data-expanded="3"] .tce-column-2 {
+  display: none;
+}
+
+.tce-wrapper[data-expanded="3"] .tce-column-3 {
+  grid-column: 3;
+}
+
+.tce-wrapper[data-expanded="3"] .tce-merged-1-2 {
+  display: flex;
+  grid-column: 1 / 3;
+}
+
 /* Two-column split inside a fig-cell (headline + wizard | signal cards) */
 .fig-cell--split {
   display: block;
