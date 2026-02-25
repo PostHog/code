@@ -47,7 +47,7 @@ export const useSessionMetaStore = create<SessionMetaState>()(
       removeSdkSessionId: (taskRunId) =>
         set((state) => {
           const existing = state.metaByRunId[taskRunId];
-          if (!existing) return state;
+          if (!existing?.sdkSessionId) return state;
           const { sdkSessionId: _removed, ...rest } = existing;
           if (Object.keys(rest).length === 0) {
             const { [taskRunId]: _entry, ...remaining } = state.metaByRunId;
@@ -68,7 +68,7 @@ export const useSessionMetaStore = create<SessionMetaState>()(
       storage: electronStorage,
       partialize: (state) => ({ metaByRunId: state.metaByRunId }),
       onRehydrateStorage: () => () => {
-        migrateOldAdapterStorage();
+        void migrateOldAdapterStorage();
       },
     },
   ),

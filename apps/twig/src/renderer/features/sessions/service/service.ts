@@ -856,6 +856,8 @@ export class SessionService {
       msg.method === "_posthog/sdk_session" &&
       "params" in msg
     ) {
+      // The agent package has used both "sessionId" and "sdkSessionId" across
+      // versions, so we accept either for backwards compatibility.
       const params = msg.params as {
         sessionId?: string;
         sdkSessionId?: string;

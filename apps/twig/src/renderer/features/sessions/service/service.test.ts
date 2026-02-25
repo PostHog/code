@@ -809,4 +809,161 @@ describe("SessionService", () => {
       ).resolves.not.toThrow();
     });
   });
+
+  describe("sessionMetaStore integration", () => {
+    it("persists SDK sessionId from _posthog/sdk_session notification", async () => {
+      const service = getSessionService();
+
+      // Setup: connect to establish subscriptions
+      let onDataCallback: ((payload: unknown) => void) | undefined;
+      mockTrpcAgent.onSessionEvent.subscribe.mockImplementation(
+        (_input: unknown, opts: { onData: (payload: unknown) => void }) => {
+          onDataCallback = opts.onData;
+          return { unsubscribe: vi.fn() };
+        },
+      );
+      mockTrpcAgent.onPermissionRequest.subscribe.mockReturnValue({
+        unsubscribe: vi.fn(),
+      });
+
+      const createTaskRunMock = vi.fn().mockResolvedValue({ id: "run-456" });
+      mockAuthStore.useAuthStore.getState.mockReturnValue({
+        oauthAccessToken: "test-token",
+        cloudRegion: "us",
+        projectId: 123,
+        client: {
+          createTaskRun: createTaskRunMock,
+          appendTaskRunLog: vi.fn(),
+        },
+      });
+      mockTrpcAgent.start.mutate.mockResolvedValue({
+        channel: "test-channel",
+        configOptions: [],
+      });
+
+      await service.connectToTask({
+        task: createMockTask({ id: "task-456" }),
+        repoPath: "/repo",
+      });
+
+      // Simulate a _posthog/sdk_session notification with sessionId
+      const connectedSession = createMockSession({
+        taskRunId: "run-456",
+        taskId: "task-456",
+      });
+      mockSessionStoreSetters.getSessions.mockReturnValue({
+        "run-456": connectedSession,
+      });
+
+      onDataCallback?.({
+        type: "acp_message",
+        ts: Date.now(),
+        message: {
+          jsonrpc: "2.0",
+          method: "_posthog/sdk_session",
+          params: { sessionId: "sdk-session-abc", adapter: "claude" },
+        },
+      });
+
+      expect(mockMetaFns.setSdkSessionId).toHaveBeenCalledWith(
+        "run-456",
+        "sdk-session-abc",
+      );
+      expect(mockMetaFns.setAdapter).toHaveBeenCalledWith("run-456", "claude");
+    });
+
+    it("persists SDK sessionId using sdkSessionId field name", async () => {
+      const service = getSessionService();
+
+      let onDataCallback: ((payload: unknown) => void) | undefined;
+      mockTrpcAgent.onSessionEvent.subscribe.mockImplementation(
+        (_input: unknown, opts: { onData: (payload: unknown) => void }) => {
+          onDataCallback = opts.onData;
+          return { unsubscribe: vi.fn() };
+        },
+      );
+      mockTrpcAgent.onPermissionRequest.subscribe.mockReturnValue({
+        unsubscribe: vi.fn(),
+      });
+
+      const createTaskRunMock = vi.fn().mockResolvedValue({ id: "run-789" });
+      mockAuthStore.useAuthStore.getState.mockReturnValue({
+        oauthAccessToken: "test-token",
+        cloudRegion: "us",
+        projectId: 123,
+        client: {
+          createTaskRun: createTaskRunMock,
+          appendTaskRunLog: vi.fn(),
+        },
+      });
+      mockTrpcAgent.start.mutate.mockResolvedValue({
+        channel: "test-channel",
+        configOptions: [],
+      });
+
+      await service.connectToTask({
+        task: createMockTask({ id: "task-789" }),
+        repoPath: "/repo",
+      });
+
+      const connectedSession = createMockSession({
+        taskRunId: "run-789",
+        taskId: "task-789",
+      });
+      mockSessionStoreSetters.getSessions.mockReturnValue({
+        "run-789": connectedSession,
+      });
+
+      onDataCallback?.({
+        type: "acp_message",
+        ts: Date.now(),
+        message: {
+          jsonrpc: "2.0",
+          method: "_posthog/sdk_session",
+          params: { sdkSessionId: "sdk-session-xyz" },
+        },
+      });
+
+      expect(mockMetaFns.setSdkSessionId).toHaveBeenCalledWith(
+        "run-789",
+        "sdk-session-xyz",
+      );
+    });
+
+    it("removes SDK sessionId on resetSession", async () => {
+      const service = getSessionService();
+      const mockSession = createMockSession({
+        status: "error",
+        logUrl: "https://logs.example.com/run-123",
+      });
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(mockSession);
+      mockTrpcAgent.reconnect.mutate.mockResolvedValue({
+        sessionId: "run-123",
+        channel: "agent-event:run-123",
+        configOptions: [],
+      });
+      mockTrpcAgent.onSessionEvent.subscribe.mockReturnValue({
+        unsubscribe: vi.fn(),
+      });
+      mockTrpcAgent.onPermissionRequest.subscribe.mockReturnValue({
+        unsubscribe: vi.fn(),
+      });
+      mockTrpcWorkspace.verify.query.mockResolvedValue({ exists: true });
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue("");
+
+      await service.resetSession("task-123", "/repo");
+
+      expect(mockMetaFns.removeSdkSessionId).toHaveBeenCalledWith("run-123");
+    });
+
+    it("cleans up all meta on disconnectFromTask", async () => {
+      const service = getSessionService();
+      const mockSession = createMockSession();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(mockSession);
+
+      await service.disconnectFromTask("task-123");
+
+      expect(mockMetaFns.removeAll).toHaveBeenCalledWith("run-123");
+    });
+  });
 });
