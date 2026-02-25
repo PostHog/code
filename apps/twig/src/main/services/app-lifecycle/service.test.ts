@@ -173,4 +173,31 @@ describe("AppLifecycleService", () => {
       expect(mockProcessExit).toHaveBeenCalledWith(1);
     });
   });
+
+  describe("shutdownAndExit", () => {
+    it("calls shutdown before exit", async () => {
+      const callOrder: string[] = [];
+
+      mockContainer.unbindAll.mockImplementation(async () => {
+        callOrder.push("unbindAll");
+      });
+      mockApp.exit.mockImplementation(() => {
+        callOrder.push("exit");
+      });
+
+      const promise = service.shutdownAndExit();
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(callOrder[0]).toBe("unbindAll");
+      expect(callOrder[callOrder.length - 1]).toBe("exit");
+    });
+
+    it("exits with code 0", async () => {
+      const promise = service.shutdownAndExit();
+      await vi.runAllTimersAsync();
+      await promise;
+      expect(mockApp.exit).toHaveBeenCalledWith(0);
+    });
+  });
 });
