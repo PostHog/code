@@ -110,13 +110,9 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     trpcVanilla.cloudTask.setViewing
       .mutate({ taskId: task.id, runId, viewing: true })
       .catch(() => {});
-    const cleanup = getSessionService().watchCloudTask(
-      task.id,
-      runId,
-      () => {
-        queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      },
-    );
+    const cleanup = getSessionService().watchCloudTask(task.id, runId, () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    });
     return () => {
       trpcVanilla.cloudTask.setViewing
         .mutate({ taskId: task.id, runId, viewing: false })
