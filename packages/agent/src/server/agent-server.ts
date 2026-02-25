@@ -651,7 +651,10 @@ Important:
 
   private configureEnvironment(): void {
     const { apiKey, apiUrl, projectId } = this.config;
-    const gatewayUrl = process.env.LLM_GATEWAY_URL || getLlmGatewayUrl(apiUrl);
+    const product =
+      this.config.mode === "background" ? "background_agents" : "twig";
+    const gatewayUrl =
+      process.env.LLM_GATEWAY_URL || getLlmGatewayUrl(apiUrl, product);
     const openaiBaseUrl = gatewayUrl.endsWith("/v1")
       ? gatewayUrl
       : `${gatewayUrl}/v1`;
