@@ -76,7 +76,6 @@ export function RawLogsView({ events }: RawLogsViewProps) {
       />
       <VirtualizedList
         items={filteredEvents}
-        estimateSize={150}
         getItemKey={({ originalIndex }) => originalIndex}
         renderItem={renderRawLogEntry}
         className="flex-1 px-4"
