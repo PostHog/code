@@ -178,7 +178,8 @@ export const useAuthStore = create<AuthState>()(
             const selectedProjectId =
               userCurrentTeam != null && scopedTeams.includes(userCurrentTeam)
                 ? userCurrentTeam
-                : storedProjectId !== null && scopedTeams.includes(storedProjectId)
+                : storedProjectId !== null &&
+                    scopedTeams.includes(storedProjectId)
                   ? storedProjectId
                   : scopedTeams[0];
 
