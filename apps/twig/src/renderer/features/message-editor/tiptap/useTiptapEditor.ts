@@ -208,8 +208,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
           for (let i = 0; i < files.length; i++) {
             const file = files[i];
             // In Electron, File objects have a 'path' property
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const path = (file as any).path;
+            const path = (file as unknown as { path?: string }).path;
             if (path) {
               newAttachments.push({ id: path, label: file.name });
             }

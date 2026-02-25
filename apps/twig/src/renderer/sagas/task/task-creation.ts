@@ -276,7 +276,7 @@ export class TaskCreationSaga extends Saga<
         !input.taskId && input.content
           ? await this.readOnlyStep("build_prompt_blocks", () =>
               buildPromptBlocks(
-                input.content!,
+                input.content ?? "",
                 input.filePaths ?? [],
                 agentCwd ?? "",
               ),

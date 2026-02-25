@@ -127,11 +127,11 @@ export function OptionRow({
       onMouseEnter={onMouseEnter}
       style={{ cursor: "pointer" }}
     >
-      <Flex align="center" gap="2">
+      <Flex align="start" gap="2">
         <Text
           size="1"
           className={isSelected ? "text-blue-11" : "text-gray-11"}
-          style={{ width: "1ch" }}
+          style={{ width: "1ch", flexShrink: 0 }}
         >
           {isSelected ? "›" : ""}
         </Text>
@@ -142,6 +142,7 @@ export function OptionRow({
             minWidth: "16px",
             textAlign: "right",
             whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
           {index + 1}.
@@ -154,7 +155,7 @@ export function OptionRow({
             style={{ pointerEvents: "none" }}
           />
         )}
-        {renderLabel()}
+        <Box style={{ flex: 1, minWidth: 0 }}>{renderLabel()}</Box>
       </Flex>
       {option.description && !isCurrentlyEditing && (
         <Text

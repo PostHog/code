@@ -101,5 +101,4 @@ export function initializeConnectivityStore() {
 }
 
 // Convenience selectors
-export const getConnectivityState = () => useConnectivityStore.getState();
 export const getIsOnline = () => useConnectivityStore.getState().isOnline;

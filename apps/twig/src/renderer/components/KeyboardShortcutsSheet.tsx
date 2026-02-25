@@ -75,10 +75,10 @@ export function KeyboardShortcutsList() {
             const existing = acc.find(
               (s) => s.description === shortcut.description,
             );
-            if (existing) {
-              return acc;
+            if (!existing) {
+              acc.push(shortcut);
             }
-            return [...acc, shortcut];
+            return acc;
           },
           [] as typeof shortcuts,
         );

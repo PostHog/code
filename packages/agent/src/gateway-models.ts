@@ -79,13 +79,6 @@ export function isAnthropicModel(model: GatewayModel): boolean {
   return model.id.startsWith("claude-") || model.id.startsWith("anthropic/");
 }
 
-export async function fetchArrayModelIds(
-  options?: FetchGatewayModelsOptions,
-): Promise<string[]> {
-  const models = await fetchArrayModels(options);
-  return models.map((model) => model.id);
-}
-
 export interface ArrayModelInfo {
   id: string;
   owned_by?: string;

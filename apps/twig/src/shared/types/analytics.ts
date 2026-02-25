@@ -1,10 +1,10 @@
 // Analytics event types and properties
 
-export type ExecutionType = "cloud" | "local";
-export type RepositoryProvider = "github" | "gitlab" | "local" | "none";
-export type TaskCreatedFrom = "cli" | "command-menu";
-export type RepositorySelectSource = "task-creation" | "task-detail";
-export type GitActionType =
+type ExecutionType = "cloud" | "local";
+type RepositoryProvider = "github" | "gitlab" | "local" | "none";
+type TaskCreatedFrom = "cli" | "command-menu";
+type RepositorySelectSource = "task-creation" | "task-detail";
+type GitActionType =
   | "push"
   | "pull"
   | "sync"
@@ -15,9 +15,9 @@ export type GitActionType =
   | "view-pr"
   | "update-pr";
 export type FeedbackType = "good" | "bad" | "general";
-export type FileOpenSource = "sidebar" | "agent-suggestion" | "search" | "diff";
-export type FileChangeType = "added" | "modified" | "deleted";
-export type StopReason = "user_cancelled" | "completed" | "error" | "timeout";
+type FileOpenSource = "sidebar" | "agent-suggestion" | "search" | "diff";
+type FileChangeType = "added" | "modified" | "deleted";
+type StopReason = "user_cancelled" | "completed" | "error" | "timeout";
 export type CommandMenuAction =
   | "home"
   | "new-task"
@@ -151,16 +151,6 @@ export interface AgentSessionErrorProperties {
   error_type: string;
 }
 
-// Activation events
-export interface FirstTaskCreatedProperties {
-  task_id: string;
-}
-
-export interface FirstTaskCompletedProperties {
-  task_id: string;
-  duration_seconds: number;
-}
-
 // Feedback events
 export interface TaskFeedbackProperties {
   task_id: string;
@@ -222,9 +212,6 @@ export const ANALYTICS_EVENTS = {
   TASK_CREATION_FAILED: "Task creation failed",
   AGENT_SESSION_ERROR: "Agent session error",
 } as const;
-
-export type AnalyticsEvent =
-  (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];
 
 // Event property mapping
 export type EventPropertyMap = {

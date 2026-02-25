@@ -1,9 +1,4 @@
-import {
-  acceptChunk,
-  MergeView,
-  rejectChunk,
-  unifiedMergeView,
-} from "@codemirror/merge";
+import { MergeView, unifiedMergeView } from "@codemirror/merge";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
@@ -225,5 +220,3 @@ export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
 
   return { containerRef, instanceRef };
 }
-
-export { acceptChunk, rejectChunk };

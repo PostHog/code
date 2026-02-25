@@ -8,7 +8,6 @@ import {
   runRestoreSaga,
 } from "./sagas/focusSagas";
 
-export type { FocusResult, FocusSession } from "@main/services/focus/schemas";
 export type { FocusSagaResult } from "./sagas/focusSagas";
 
 interface EnableFocusParams {
