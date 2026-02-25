@@ -2,11 +2,11 @@ import type { ScrollState } from "@features/sessions/stores/sessionViewStore";
 import {
   forwardRef,
   type ReactNode,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
   useRef,
-  useState,
 } from "react";
 import { VList, type VListHandle } from "virtua";
 
@@ -43,11 +43,14 @@ function VirtualizedListInner<T>(
   ref: React.ForwardedRef<VirtualizedListHandle>,
 ) {
   const listRef = useRef<VListHandle>(null);
-  const [isAtBottom, setIsAtBottom] = useState(!savedState);
   const isAtBottomRef = useRef(!savedState);
   const initRef = useRef({ savedState, itemCount: items.length });
   const onSaveStateRef = useRef(onSaveState);
   onSaveStateRef.current = onSaveState;
+  const onScrollStateChangeRef = useRef(onScrollStateChange);
+  onScrollStateChangeRef.current = onScrollStateChange;
+  const itemCountRef = useRef(items.length);
+  itemCountRef.current = items.length;
 
   useImperativeHandle(
     ref,
@@ -57,7 +60,6 @@ function VirtualizedListInner<T>(
         if (handle) {
           handle.scrollTo(handle.scrollSize);
           isAtBottomRef.current = true;
-          setIsAtBottom(true);
         }
       },
     }),
@@ -88,22 +90,25 @@ function VirtualizedListInner<T>(
     if (isAtBottomRef.current) {
       const handle = listRef.current;
       if (handle) {
-        handle.scrollTo(handle.scrollSize);
+        // Use scrollToIndex for reliable positioning after measurements settle
+        const totalChildren = itemCountRef.current + (footer ? 1 : 0);
+        if (totalChildren > 0) {
+          handle.scrollToIndex(totalChildren - 1, { align: "end" });
+        }
       }
     }
-  }, [items]);
+  }, [items, footer]);
 
-  const handleScroll = (offset: number) => {
+  const handleScroll = useCallback((offset: number) => {
     const handle = listRef.current;
     if (!handle) return;
     const distanceFromBottom = handle.scrollSize - offset - handle.viewportSize;
     const atBottom = distanceFromBottom < AT_BOTTOM_THRESHOLD;
     if (isAtBottomRef.current !== atBottom) {
       isAtBottomRef.current = atBottom;
-      setIsAtBottom(atBottom);
     }
-    onScrollStateChange?.(atBottom);
-  };
+    onScrollStateChangeRef.current?.(atBottom);
+  }, []);
 
   return (
     <div
@@ -113,7 +118,7 @@ function VirtualizedListInner<T>(
       <VList
         ref={listRef}
         cache={savedState?.cache}
-        shift={!isAtBottom}
+        shift={false}
         style={{ flex: 1 }}
         onScroll={handleScroll}
       >
