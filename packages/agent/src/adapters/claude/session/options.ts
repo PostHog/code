@@ -152,9 +152,15 @@ function buildSpawnWrapper(
       });
     }
 
+    if (!child.stdin || !child.stdout) {
+      throw new Error(
+        `Failed to get stdio streams for spawned process (pid=${child.pid})`,
+      );
+    }
+
     return {
-      stdin: child.stdin as NonNullable<typeof child.stdin>,
-      stdout: child.stdout as NonNullable<typeof child.stdout>,
+      stdin: child.stdin,
+      stdout: child.stdout,
       get killed() {
         return child.killed;
       },

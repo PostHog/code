@@ -1441,8 +1441,9 @@ export class SessionService {
     }
 
     // If already watching this exact run, return existing cleanup
-    if (this.cloudTaskCleanups.has(watcherKey)) {
-      return this.cloudTaskCleanups.get(watcherKey) ?? (() => {});
+    const existingCleanup = this.cloudTaskCleanups.get(watcherKey);
+    if (existingCleanup) {
+      return existingCleanup;
     }
 
     // Get auth for initial token + host info
