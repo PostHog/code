@@ -334,7 +334,7 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
               className="scroll-area-constrain-width"
               style={{ height: "calc(100% - 41px)" }}
             >
-              <Flex direction="column" gap="2" p="2">
+              <Flex direction="column" gap="2" p="2" className="min-w-0">
                 <Text
                   size="1"
                   color="gray"

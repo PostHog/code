@@ -123,14 +123,7 @@ export function buildConversationItems(
   if (!isPromptPending) {
     for (const turn of b.pendingPrompts.values()) {
       turn.isComplete = true;
-      turn.stopReason = "cancelled";
-      turn.context.turnCancelled = true;
       turn.context.turnComplete = true;
-      b.items.push({
-        type: "turn_cancelled",
-        id: `${turn.id}-cancelled`,
-        interruptReason: turn.interruptReason,
-      });
     }
   }
 

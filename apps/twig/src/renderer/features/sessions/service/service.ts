@@ -761,21 +761,41 @@ export class SessionService {
     this.previewAbort = null;
   }
 
+  private updatePromptStateFromEvents(
+    taskRunId: string,
+    events: AcpMessage[],
+  ): void {
+    for (const acpMsg of events) {
+      const msg = acpMsg.message;
+      if (isJsonRpcRequest(msg) && msg.method === "session/prompt") {
+        sessionStoreSetters.updateSession(taskRunId, {
+          isPromptPending: true,
+          promptStartedAt: acpMsg.ts,
+        });
+      }
+      if (
+        "id" in msg &&
+        "result" in msg &&
+        typeof msg.result === "object" &&
+        msg.result !== null &&
+        "stopReason" in msg.result
+      ) {
+        sessionStoreSetters.updateSession(taskRunId, {
+          isPromptPending: false,
+          promptStartedAt: null,
+        });
+      }
+    }
+  }
+
   private handleSessionEvent(taskRunId: string, acpMsg: AcpMessage): void {
     const session = sessionStoreSetters.getSessions()[taskRunId];
     if (!session) return;
 
     sessionStoreSetters.appendEvents(taskRunId, [acpMsg]);
+    this.updatePromptStateFromEvents(taskRunId, [acpMsg]);
 
     const msg = acpMsg.message;
-
-    if (isJsonRpcRequest(msg) && msg.method === "session/prompt") {
-      // acpMsg.ts is local time (set in-process) — matches Date.now() used in sendLocalPrompt
-      sessionStoreSetters.updateSession(taskRunId, {
-        isPromptPending: true,
-        promptStartedAt: acpMsg.ts,
-      });
-    }
 
     if (
       "id" in msg &&
@@ -784,11 +804,6 @@ export class SessionService {
       msg.result !== null &&
       "stopReason" in msg.result
     ) {
-      sessionStoreSetters.updateSession(taskRunId, {
-        isPromptPending: false,
-        promptStartedAt: null,
-      });
-
       const stopReason = (msg.result as { stopReason?: string }).stopReason;
       if (stopReason) {
         notifyPromptComplete(session.taskTitle, stopReason);
@@ -897,7 +912,6 @@ export class SessionService {
     taskId: string,
     prompt: string | ContentBlock[],
   ): Promise<{ stopReason: string }> {
-    // Check connectivity
     if (!getIsOnline()) {
       throw new Error(
         "No internet connection. Please check your connection and try again.",
@@ -907,7 +921,10 @@ export class SessionService {
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) throw new Error("No active session for task");
 
-    // Validate session status
+    if (session.isCloud) {
+      return this.sendCloudPrompt(session, prompt);
+    }
+
     if (session.status !== "connected") {
       if (session.status === "error") {
         throw new Error(
@@ -923,7 +940,6 @@ export class SessionService {
       throw new Error(`Session is not ready (status: ${session.status})`);
     }
 
-    // If a prompt is already pending, queue this message
     if (session.isPromptPending) {
       const promptText = extractPromptText(prompt);
       sessionStoreSetters.enqueueMessage(taskId, promptText);
@@ -936,7 +952,6 @@ export class SessionService {
 
     let blocks = normalizePromptToBlocks(prompt);
 
-    // Add shell execute context
     const shellExecutes = getUserShellExecutesSinceLastPrompt(session.events);
     if (shellExecutes.length > 0) {
       const contextBlocks = shellExecutesToContextBlocks(shellExecutes);
@@ -1068,12 +1083,20 @@ export class SessionService {
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) return false;
 
+    sessionStoreSetters.updateSession(session.taskRunId, {
+      isPromptPending: false,
+      promptStartedAt: null,
+    });
+
+    if (session.isCloud) {
+      return this.cancelCloudPrompt(session);
+    }
+
     try {
       const result = await trpcVanilla.agent.cancelPrompt.mutate({
         sessionId: session.taskRunId,
       });
 
-      // Track cancellation
       const durationSeconds = Math.round(
         (Date.now() - session.startedAt) / 1000,
       );
@@ -1092,6 +1115,175 @@ export class SessionService {
       log.error("Failed to cancel prompt", error);
       return false;
     }
+  }
+
+  // --- Cloud Commands ---
+
+  private async sendCloudPrompt(
+    session: AgentSession,
+    prompt: string | ContentBlock[],
+  ): Promise<{ stopReason: string }> {
+    const promptText = extractPromptText(prompt);
+    if (!promptText.trim()) {
+      return { stopReason: "empty" };
+    }
+
+    const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
+    if (session.cloudStatus && terminalStatuses.has(session.cloudStatus)) {
+      throw new Error("This cloud run has already finished");
+    }
+
+    if (session.isPromptPending) {
+      sessionStoreSetters.enqueueMessage(session.taskId, promptText);
+      log.info("Cloud message queued", {
+        taskId: session.taskId,
+        queueLength: session.messageQueue.length + 1,
+      });
+      return { stopReason: "queued" };
+    }
+
+    const auth = this.getCloudCommandAuth();
+    if (!auth) {
+      throw new Error("Authentication required for cloud commands");
+    }
+
+    sessionStoreSetters.updateSession(session.taskRunId, {
+      isPromptPending: true,
+    });
+
+    track(ANALYTICS_EVENTS.PROMPT_SENT, {
+      task_id: session.taskId,
+      is_initial: session.events.length === 0,
+      execution_type: "cloud",
+      prompt_length_chars: promptText.length,
+    });
+
+    try {
+      const result = await trpcVanilla.cloudTask.sendCommand.mutate({
+        taskId: session.taskId,
+        runId: session.taskRunId,
+        apiHost: auth.apiHost,
+        teamId: auth.teamId,
+        method: "user_message",
+        params: { content: promptText },
+      });
+
+      sessionStoreSetters.updateSession(session.taskRunId, {
+        isPromptPending: false,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error ?? "Failed to send cloud command");
+      }
+
+      const stopReason =
+        (result.result as { stopReason?: string })?.stopReason ?? "end_turn";
+
+      const freshSession = sessionStoreSetters.getSessionByTaskId(
+        session.taskId,
+      );
+      if (freshSession && freshSession.messageQueue.length > 0) {
+        setTimeout(() => {
+          this.sendQueuedCloudMessages(session.taskId).catch((err) => {
+            log.error("Failed to send queued cloud messages", {
+              taskId: session.taskId,
+              error: err,
+            });
+          });
+        }, 0);
+      }
+
+      return { stopReason };
+    } catch (error) {
+      sessionStoreSetters.updateSession(session.taskRunId, {
+        isPromptPending: false,
+      });
+      throw error;
+    }
+  }
+
+  private async sendQueuedCloudMessages(
+    taskId: string,
+  ): Promise<{ stopReason: string }> {
+    const combinedText = sessionStoreSetters.dequeueMessagesAsText(taskId);
+    if (!combinedText) {
+      return { stopReason: "skipped" };
+    }
+
+    const session = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (!session) {
+      log.warn("No session found for queued cloud messages", { taskId });
+      return { stopReason: "no_session" };
+    }
+
+    log.info("Sending queued cloud messages", {
+      taskId,
+      promptLength: combinedText.length,
+    });
+
+    return this.sendCloudPrompt(session, combinedText);
+  }
+
+  private async cancelCloudPrompt(session: AgentSession): Promise<boolean> {
+    const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
+    if (session.cloudStatus && terminalStatuses.has(session.cloudStatus)) {
+      log.info("Skipping cancel for terminal cloud run", {
+        taskId: session.taskId,
+        status: session.cloudStatus,
+      });
+      return false;
+    }
+
+    const auth = this.getCloudCommandAuth();
+    if (!auth) {
+      log.error("No auth for cloud cancel");
+      return false;
+    }
+
+    try {
+      const result = await trpcVanilla.cloudTask.sendCommand.mutate({
+        taskId: session.taskId,
+        runId: session.taskRunId,
+        apiHost: auth.apiHost,
+        teamId: auth.teamId,
+        method: "cancel",
+      });
+
+      const durationSeconds = Math.round(
+        (Date.now() - session.startedAt) / 1000,
+      );
+      const promptCount = session.events.filter(
+        (e) => "method" in e.message && e.message.method === "session/prompt",
+      ).length;
+      track(ANALYTICS_EVENTS.TASK_RUN_CANCELLED, {
+        task_id: session.taskId,
+        execution_type: "cloud",
+        duration_seconds: durationSeconds,
+        prompts_sent: promptCount,
+      });
+
+      if (!result.success) {
+        log.warn("Cloud cancel command failed", { error: result.error });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      log.error("Failed to cancel cloud prompt", error);
+      return false;
+    }
+  }
+
+  private getCloudCommandAuth(): {
+    apiHost: string;
+    teamId: number;
+  } | null {
+    const authState = useAuthStore.getState();
+    if (!authState.cloudRegion || !authState.projectId) return null;
+    return {
+      apiHost: getCloudUrlFromRegion(authState.cloudRegion),
+      teamId: authState.projectId,
+    };
   }
 
   // --- Permissions ---
@@ -1431,13 +1623,15 @@ export class SessionService {
     const watcherKey = `${taskId}:${runId}`;
     const taskRunId = runId;
 
-    // Create initial session in store (disconnected, read-only)
     const existing = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!existing || existing.taskRunId !== taskRunId) {
       const taskTitle = existing?.taskTitle ?? "Cloud Task";
       const session = this.createBaseSession(taskRunId, taskId, taskTitle);
       session.status = "disconnected";
+      session.isCloud = true;
       sessionStoreSetters.setSession(session);
+    } else if (!existing.isCloud) {
+      sessionStoreSetters.updateSession(existing.taskRunId, { isCloud: true });
     }
 
     // If already watching this exact run, return existing cleanup
@@ -1530,6 +1724,7 @@ export class SessionService {
         const entriesToAppend = update.newEntries.slice(-delta);
         const newEvents = convertStoredEntriesToEvents(entriesToAppend);
         sessionStoreSetters.appendEvents(taskRunId, newEvents, expectedCount);
+        this.updatePromptStateFromEvents(taskRunId, newEvents);
       } else {
         // Gap in data — append everything we have but don't jump processedLineCount
         log.warn("Cloud task log count inconsistency", {
@@ -1544,6 +1739,7 @@ export class SessionService {
           newEvents,
           currentCount + update.newEntries.length,
         );
+        this.updatePromptStateFromEvents(taskRunId, newEvents);
       }
     }
     // Update cloud status fields if present

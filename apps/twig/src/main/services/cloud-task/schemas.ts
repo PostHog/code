@@ -43,3 +43,28 @@ export const onUpdateInput = z.object({
   taskId: z.string(),
   runId: z.string(),
 });
+
+export const setViewingInput = z.object({
+  taskId: z.string(),
+  runId: z.string(),
+  viewing: z.boolean(),
+});
+
+export const sendCommandInput = z.object({
+  taskId: z.string(),
+  runId: z.string(),
+  apiHost: z.string(),
+  teamId: z.number(),
+  method: z.enum(["user_message", "cancel", "close"]),
+  params: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type SendCommandInput = z.infer<typeof sendCommandInput>;
+
+export const sendCommandOutput = z.object({
+  success: z.boolean(),
+  result: z.unknown().optional(),
+  error: z.string().optional(),
+});
+
+export type SendCommandOutput = z.infer<typeof sendCommandOutput>;

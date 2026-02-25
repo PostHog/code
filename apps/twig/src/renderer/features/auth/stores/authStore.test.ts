@@ -66,6 +66,7 @@ vi.mock("@renderer/api/posthogClient", () => ({
     this: Record<string, unknown>,
   ) {
     this.getCurrentUser = mockGetCurrentUser;
+    this.setTeamId = vi.fn();
   }),
 }));
 
@@ -94,6 +95,7 @@ const mockUser = {
   distinct_id: "user-123",
   email: "test@example.com",
   uuid: "uuid-123",
+  team: { id: 1 },
 };
 
 describe("authStore - scope version", () => {

@@ -130,6 +130,7 @@ interface SseController {
 
 interface ActiveSession {
   payload: JwtPayload;
+  acpSessionId: string;
   acpConnection: InProcessAcpConnection;
   clientConnection: ClientSideConnection;
   treeTracker: TreeTracker;
@@ -409,7 +410,7 @@ export class AgentServer {
         );
 
         const result = await this.session.clientConnection.prompt({
-          sessionId: this.session.payload.run_id,
+          sessionId: this.session.acpSessionId,
           prompt: [{ type: "text", text: content }],
         });
 
@@ -418,9 +419,11 @@ export class AgentServer {
 
       case POSTHOG_NOTIFICATIONS.CANCEL:
       case "cancel": {
-        this.logger.info("Cancel requested");
+        this.logger.info("Cancel requested", {
+          acpSessionId: this.session.acpSessionId,
+        });
         await this.session.clientConnection.cancel({
-          sessionId: this.session.payload.run_id,
+          sessionId: this.session.acpSessionId,
         });
         return { cancelled: true };
       }
@@ -515,7 +518,7 @@ export class AgentServer {
       clientCapabilities: {},
     });
 
-    await clientConnection.newSession({
+    const sessionResponse = await clientConnection.newSession({
       cwd: this.config.repositoryPath,
       mcpServers: [],
       _meta: {
@@ -525,8 +528,15 @@ export class AgentServer {
       },
     });
 
+    const acpSessionId = sessionResponse.sessionId;
+    this.logger.info("ACP session created", {
+      acpSessionId,
+      runId: payload.run_id,
+    });
+
     this.session = {
       payload,
+      acpSessionId,
       acpConnection,
       clientConnection,
       treeTracker,
@@ -567,33 +577,19 @@ export class AgentServer {
       });
 
       const result = await this.session.clientConnection.prompt({
-        sessionId: payload.run_id,
+        sessionId: this.session.acpSessionId,
         prompt: [{ type: "text", text: task.description }],
       });
 
       this.logger.info("Initial task message completed", {
         stopReason: result.stopReason,
       });
-
-      // Only auto-complete for background mode
-      const mode = this.getEffectiveMode(payload);
-      if (mode === "background") {
-        // Flush all pending session logs before signaling completion,
-        await this.session.logWriter.flushAll();
-        await this.signalTaskComplete(payload, result.stopReason);
-      } else {
-        this.logger.info("Interactive mode - staying open for conversation");
-      }
     } catch (error) {
       this.logger.error("Failed to send initial task message", error);
-      // Signal failure for background mode
-      const mode = this.getEffectiveMode(payload);
-      if (mode === "background") {
-        if (this.session) {
-          await this.session.logWriter.flushAll();
-        }
-        await this.signalTaskComplete(payload, "error");
+      if (this.session) {
+        await this.session.logWriter.flushAll();
       }
+      await this.signalTaskComplete(payload, "error");
     }
   }
 
@@ -630,12 +626,14 @@ Important:
       }
     }
 
-    const status =
-      stopReason === "cancelled"
-        ? "cancelled"
-        : stopReason === "error"
-          ? "failed"
-          : "completed";
+    if (stopReason !== "error") {
+      this.logger.info("Skipping status update for non-error stop reason", {
+        stopReason,
+      });
+      return;
+    }
+
+    const status = "failed";
 
     try {
       await this.posthogAPI.updateTaskRun(payload.task_id, payload.run_id, {
