@@ -305,13 +305,13 @@ export class SessionService {
       prefetchedLogs ?? (await this.fetchSessionLogs(logUrl, taskRunId));
     const events = convertStoredEntriesToEvents(rawEntries);
 
-    // Persist the SDK sessionId when discovered from logs
+    // Persist sessionId from logs so future reconnects don't need log parsing
     if (sessionId) {
       useSessionMetaStore.getState().setSdkSessionId(taskRunId, sessionId);
     }
 
-    const storedAdapter = useSessionMetaStore.getState().getAdapter(taskRunId);
-    const resolvedAdapter = adapter ?? storedAdapter;
+    const resolvedAdapter =
+      adapter ?? useSessionMetaStore.getState().getAdapter(taskRunId);
 
     const persistedConfigOptions = getPersistedConfigOptions(taskRunId);
 
@@ -861,11 +861,6 @@ export class SessionService {
         sdkSessionId?: string;
         adapter?: Adapter;
       };
-      const sdkSessionId = params?.sessionId ?? params?.sdkSessionId;
-      if (sdkSessionId) {
-        useSessionMetaStore.getState().setSdkSessionId(taskRunId, sdkSessionId);
-        log.info("SDK session ID persisted", { taskRunId, sdkSessionId });
-      }
       if (params?.adapter) {
         sessionStoreSetters.updateSession(taskRunId, {
           adapter: params.adapter,
@@ -874,6 +869,14 @@ export class SessionService {
         log.info("Session adapter updated", {
           taskRunId,
           adapter: params.adapter,
+        });
+      }
+      const sdkId = params?.sessionId ?? params?.sdkSessionId;
+      if (sdkId) {
+        useSessionMetaStore.getState().setSdkSessionId(taskRunId, sdkId);
+        log.info("Persisted SDK session ID", {
+          taskRunId,
+          sdkSessionId: sdkId,
         });
       }
     }
@@ -1604,14 +1607,15 @@ export class SessionService {
       ? await this.fetchSessionLogs(logUrl, taskRunId)
       : { rawEntries: [] as StoredLogEntry[], adapter: undefined };
 
-    // Determine sessionId: undefined = use from logs, null = strip (fresh), string = use as-is
+    // Determine sessionId: null = strip so backend creates a fresh session,
+    // undefined = try persisted store, then logs, string = use as-is
+    const isFreshReset = overrideSessionId === null;
     const storedSessionId = useSessionMetaStore
       .getState()
       .getSdkSessionId(taskRunId);
-    const sessionId =
-      overrideSessionId === null
-        ? undefined
-        : (overrideSessionId ?? storedSessionId ?? prefetchedLogs.sessionId);
+    const sessionId = isFreshReset
+      ? undefined
+      : (overrideSessionId ?? storedSessionId ?? prefetchedLogs.sessionId);
 
     await this.reconnectToLocalSession(
       taskId,

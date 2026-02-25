@@ -17,7 +17,6 @@ interface SessionMetaState {
   metaByRunId: Record<string, SessionMeta>;
   setAdapter: (taskRunId: string, adapter: AdapterType) => void;
   getAdapter: (taskRunId: string) => AdapterType | undefined;
-  removeAdapter: (taskRunId: string) => void;
   setSdkSessionId: (taskRunId: string, sdkSessionId: string) => void;
   getSdkSessionId: (taskRunId: string) => string | undefined;
   removeSdkSessionId: (taskRunId: string) => void;
@@ -36,19 +35,6 @@ export const useSessionMetaStore = create<SessionMetaState>()(
           },
         })),
       getAdapter: (taskRunId) => get().metaByRunId[taskRunId]?.adapter,
-      removeAdapter: (taskRunId) =>
-        set((state) => {
-          const existing = state.metaByRunId[taskRunId];
-          if (!existing) return state;
-          const { adapter: _removed, ...rest } = existing;
-          if (Object.keys(rest).length === 0) {
-            const { [taskRunId]: _entry, ...remaining } = state.metaByRunId;
-            return { metaByRunId: remaining };
-          }
-          return {
-            metaByRunId: { ...state.metaByRunId, [taskRunId]: rest },
-          };
-        }),
       setSdkSessionId: (taskRunId, sdkSessionId) =>
         set((state) => ({
           metaByRunId: {
@@ -82,7 +68,6 @@ export const useSessionMetaStore = create<SessionMetaState>()(
       storage: electronStorage,
       partialize: (state) => ({ metaByRunId: state.metaByRunId }),
       onRehydrateStorage: () => () => {
-        // Migrate old session-adapter-storage data into this store
         migrateOldAdapterStorage();
       },
     },

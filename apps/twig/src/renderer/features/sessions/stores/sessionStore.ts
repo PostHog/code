@@ -9,7 +9,6 @@ import type { AcpMessage } from "@shared/types/session-events";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import type { PermissionRequest } from "../utils/parseSessionLogs";
-import { useSessionMetaStore } from "./sessionMetaStore";
 
 // --- Types ---
 
@@ -221,7 +220,6 @@ export const sessionStoreSetters = {
       }
       delete state.sessions[taskRunId];
     });
-    useSessionMetaStore.getState().removeAll(taskRunId);
   },
 
   updateSession: (taskRunId: string, updates: Partial<AgentSession>) => {
