@@ -1,6 +1,4 @@
 import "reflect-metadata";
-import { mkdirSync } from "node:fs";
-import path from "node:path";
 import { app } from "electron";
 import log from "electron-log/main";
 import "./lib/logger";
@@ -17,12 +15,12 @@ import {
   captureException,
   initializePostHog,
   trackAppEvent,
-  withTeamContext,
 } from "./services/posthog-analytics.js";
 import type { PosthogPluginService } from "./services/posthog-plugin/service.js";
 import type { TaskLinkService } from "./services/task-link/service";
 import type { UpdatesService } from "./services/updates/service.js";
 import type { WorkspaceService } from "./services/workspace/service.js";
+import { ensureClaudeConfigDir } from "./utils/env.js";
 import { migrateTaskAssociations } from "./utils/store.js";
 import { createWindow } from "./window.js";
 
@@ -34,21 +32,6 @@ if (!gotTheLock) {
   process.exit(0);
 }
 
-// Register deep link handlers
-registerDeepLinkHandlers();
-
-// Ensure Claude config dir exists
-function ensureClaudeConfigDir(): void {
-  const existing = process.env.CLAUDE_CONFIG_DIR;
-  if (existing) return;
-
-  const userDataDir = app.getPath("userData");
-  const claudeDir = path.join(userDataDir, "claude");
-
-  mkdirSync(claudeDir, { recursive: true });
-  process.env.CLAUDE_CONFIG_DIR = claudeDir;
-}
-
 function initializeServices(): void {
   // Initialize services that need early startup
   container.get<OAuthService>(MAIN_TOKENS.OAuthService);
@@ -58,32 +41,33 @@ function initializeServices(): void {
   container.get<ExternalAppsService>(MAIN_TOKENS.ExternalAppsService);
   container.get<PosthogPluginService>(MAIN_TOKENS.PosthogPluginService);
 
-  // Initialize PostHog analytics
-  initializePostHog();
-  trackAppEvent(ANALYTICS_EVENTS.APP_STARTED);
-
   // Initialize workspace branch watcher for live branch rename detection
   const workspaceService = container.get<WorkspaceService>(
     MAIN_TOKENS.WorkspaceService,
   );
   workspaceService.initBranchWatcher();
+
+  // Track app started event
+  trackAppEvent(ANALYTICS_EVENTS.APP_STARTED);
 }
 
 // ========================================================
 // App lifecycle
 // ========================================================
 
+// Register deep link handlers
+registerDeepLinkHandlers();
+
+// Initialize PostHog analytics
 initializePostHog();
 
-withTeamContext(() => {
-  app.whenReady().then(() => {
-    log.info(`Twig electron v${app.getVersion()} booting up`);
-    migrateTaskAssociations();
-    ensureClaudeConfigDir();
-    createWindow();
-    initializeServices();
-    initializeDeepLinks();
-  });
+app.whenReady().then(() => {
+  log.info(`Twig electron v${app.getVersion()} booting up`);
+  migrateTaskAssociations();
+  ensureClaudeConfigDir();
+  createWindow();
+  initializeServices();
+  initializeDeepLinks();
 });
 
 app.on("window-all-closed", () => {
@@ -164,15 +148,11 @@ process.on("uncaughtException", (error) => {
     return;
   }
   log.error("Uncaught exception", error);
-  withTeamContext(() => {
-    captureException(error, { source: "main", type: "uncaughtException" });
-  });
+  captureException(error, { source: "main", type: "uncaughtException" });
 });
 
 process.on("unhandledRejection", (reason) => {
   log.error("Unhandled rejection", reason);
   const error = reason instanceof Error ? reason : new Error(String(reason));
-  withTeamContext(() => {
-    captureException(error, { source: "main", type: "unhandledRejection" });
-  });
+  captureException(error, { source: "main", type: "unhandledRejection" });
 });

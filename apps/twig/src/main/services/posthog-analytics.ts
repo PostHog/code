@@ -23,10 +23,6 @@ export function initializePostHog() {
   return posthogClient;
 }
 
-export function withTeamContext<T>(fn: () => T): T {
-  return fn();
-}
-
 export function setCurrentUserId(userId: string | null) {
   currentUserId = userId;
 }
