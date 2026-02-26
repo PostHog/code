@@ -836,26 +836,16 @@ export class SessionService {
         };
       };
 
-      // Handle config option updates — merge with local state to preserve
-      // optimistic values the user has set (e.g. mode changed via shift+tab)
+      // Handle config option updates (replaces current_mode_update)
       if (
         params?.update?.sessionUpdate === "config_option_update" &&
         params.update.configOptions
       ) {
-        const incoming = params.update.configOptions;
-        const current = session.configOptions ?? [];
-
-        const configOptions = incoming.map((incomingOpt) => {
-          const localOpt = current.find((opt) => opt.id === incomingOpt.id);
-          if (localOpt && localOpt.currentValue !== incomingOpt.currentValue) {
-            return { ...incomingOpt, currentValue: localOpt.currentValue };
-          }
-          return incomingOpt;
-        });
-
+        const configOptions = params.update.configOptions;
         sessionStoreSetters.updateSession(taskRunId, {
           configOptions,
         });
+        // Persist the updated config options
         setPersistedConfigOptions(taskRunId, configOptions);
         log.info("Session config options updated", { taskRunId });
       }
