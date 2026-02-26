@@ -1,6 +1,7 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
 import { compactHomePath } from "@utils/path";
 import { useCallback, useEffect, useRef } from "react";
+import { isCancelOption, isSubmitOption } from "./constants";
 import { OptionRow } from "./OptionRow";
 import { StepTabs } from "./StepTabs";
 import type { ActionSelectorProps } from "./types";
@@ -113,7 +114,8 @@ export function ActionSelector({
         stateRef.current;
       const h = handlersRef.current;
 
-      if (showInlineEdit) return;
+      if (showInlineEdit || document.activeElement?.tagName === "TEXTAREA")
+        return;
 
       switch (e.key) {
         case "ArrowUp":
@@ -232,6 +234,9 @@ export function ActionSelector({
 
           <Flex direction="column" gap="1">
             {allOptions.map((option, index) => {
+              if (isSubmitOption(option.id) || isCancelOption(option.id)) {
+                return null;
+              }
               const isSelected = selectedIndex === index;
               const isChecked = checkedOptions.has(option.id);
 
@@ -246,6 +251,37 @@ export function ActionSelector({
                   customInput={customInput}
                   customInputPlaceholder={customInputPlaceholder}
                   isEditing={showInlineEdit && isSelected}
+                  submitLabel={getSubmitLabel()}
+                  onCustomInputChange={setCustomInput}
+                  onNavigateUp={handleNavigateUp}
+                  onNavigateDown={handleNavigateDown}
+                  onEscape={handleEscape}
+                  onInlineSubmit={handleInlineSubmit}
+                  onClick={() => selectByIndex(index)}
+                  onMouseEnter={() => setSelectedIndex(index)}
+                />
+              );
+            })}
+          </Flex>
+
+          <Flex direction="row" gap="2" mt="2">
+            {allOptions.map((option, index) => {
+              if (!isSubmitOption(option.id) && !isCancelOption(option.id)) {
+                return null;
+              }
+              const isSelected = selectedIndex === index;
+
+              return (
+                <OptionRow
+                  key={option.id}
+                  option={option}
+                  index={index}
+                  isSelected={isSelected}
+                  isChecked={false}
+                  showCheckbox={false}
+                  customInput=""
+                  customInputPlaceholder=""
+                  isEditing={false}
                   submitLabel={getSubmitLabel()}
                   onCustomInputChange={setCustomInput}
                   onNavigateUp={handleNavigateUp}

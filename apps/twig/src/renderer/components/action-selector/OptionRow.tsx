@@ -1,6 +1,6 @@
 import { Box, Checkbox, Flex, Text } from "@radix-ui/themes";
 import { compactHomePath } from "@utils/path";
-import { isOtherOption, isSubmitOption } from "./constants";
+import { isCancelOption, isOtherOption, isSubmitOption } from "./constants";
 import { InlineEditableText } from "./InlineEditableText";
 import type { SelectorOption } from "./types";
 
@@ -55,31 +55,42 @@ export function OptionRow({
   onClick,
   onMouseEnter,
 }: OptionRowProps) {
-  if (isSubmitOption(option.id)) {
+  if (isSubmitOption(option.id) || isCancelOption(option.id)) {
+    const isCancel = isCancelOption(option.id);
     return (
       <Flex
         align="center"
+        justify="center"
         gap="2"
         onClick={onClick}
         onMouseEnter={onMouseEnter}
-        mt="2"
-        py="1"
         px="2"
         style={{
           cursor: "pointer",
           borderRadius: "var(--radius-2)",
-          background: isSelected ? "var(--blue-8)" : "var(--blue-3)",
+          background: isCancel
+            ? isSelected
+              ? "var(--gray-6)"
+              : "var(--gray-3)"
+            : isSelected
+              ? "var(--blue-8)"
+              : "var(--blue-3)",
           display: "inline-flex",
-          width: "auto",
-          alignSelf: "flex-start",
+          height: "28px",
         }}
       >
         <Text
           size="1"
           weight="medium"
-          className={isSelected ? "text-blue-12" : "text-gray-12"}
+          className={
+            isSelected
+              ? isCancel
+                ? "text-gray-12"
+                : "text-blue-12"
+              : "text-gray-12"
+          }
         >
-          {submitLabel}
+          {isCancel ? option.label : submitLabel}
         </Text>
       </Flex>
     );
@@ -89,11 +100,12 @@ export function OptionRow({
   const isCurrentlyEditing = isEditing && isSelected;
 
   const renderLabel = () => {
-    if (isCurrentlyEditing && showsCustomInput) {
+    if (showsCustomInput) {
       return (
         <InlineEditableText
           value={customInput}
           placeholder={getPlaceholder(option, customInputPlaceholder)}
+          active={isCurrentlyEditing}
           onChange={onCustomInputChange}
           onNavigateUp={onNavigateUp}
           onNavigateDown={onNavigateDown}
@@ -103,16 +115,8 @@ export function OptionRow({
       );
     }
 
-    const displayText = showsCustomInput
-      ? customInput || getPlaceholder(option, customInputPlaceholder)
-      : compactHomePath(option.label);
-
-    const textClass =
-      showsCustomInput && !customInput
-        ? "text-gray-10"
-        : isSelected
-          ? "text-blue-11"
-          : "text-gray-12";
+    const displayText = compactHomePath(option.label);
+    const textClass = isSelected ? "text-blue-11" : "text-gray-12";
 
     return (
       <Text size="1" weight="medium" className={textClass}>
@@ -125,9 +129,18 @@ export function OptionRow({
     <Box
       onClick={onClick}
       onMouseEnter={onMouseEnter}
-      style={{ cursor: "pointer" }}
+      style={{
+        cursor: "pointer",
+        paddingTop: "4px",
+        paddingBottom: "4px",
+        userSelect: "none",
+      }}
     >
-      <Flex align="start" gap="2">
+      <Flex
+        align="center"
+        gap="2"
+        style={{ lineHeight: "var(--line-height-1)" }}
+      >
         <Text
           size="1"
           className={isSelected ? "text-blue-11" : "text-gray-11"}
