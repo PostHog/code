@@ -37,7 +37,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
   (
     {
       sessionId,
-      placeholder = "Type a message... @ to mention files, / for commands",
+      placeholder = "Type a message... @ to mention files, ! for bash mode, / for skills",
       onSubmit,
       onBashCommand,
       onBashModeChange,
