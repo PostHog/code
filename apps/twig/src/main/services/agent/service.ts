@@ -20,6 +20,7 @@ import {
 } from "@posthog/agent/gateway-models";
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import type { OnLogCallback } from "@posthog/agent/types";
+import { isAuthError } from "@shared/errors.js";
 import type { AcpMessage } from "@shared/types/session-events.js";
 import { app } from "electron";
 import { inject, injectable, preDestroy } from "inversify";
@@ -44,28 +45,6 @@ import {
 export type { InterruptReason };
 
 const log = logger.scope("agent-service");
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && error !== null && "message" in error) {
-    return String((error as { message: unknown }).message);
-  }
-  return "";
-}
-
-const AUTH_ERROR_PATTERNS = [
-  "Authentication required",
-  "Failed to authenticate",
-  "authentication_error",
-  "authentication_failed",
-  "Access token has expired",
-] as const;
-
-function isAuthError(error: unknown): boolean {
-  const message = getErrorMessage(error);
-  if (!message) return false;
-  return AUTH_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
-}
 
 /** Mark all content blocks as hidden so the renderer doesn't show a duplicate user message on retry. */
 function hidePromptBlocks(prompt: ContentBlock[]): ContentBlock[] {

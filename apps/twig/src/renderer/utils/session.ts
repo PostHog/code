@@ -7,6 +7,7 @@ import type {
   ContentBlock,
   SessionNotification,
 } from "@agentclientprotocol/sdk";
+import { isAuthErrorMessage } from "@shared/errors";
 import type {
   AcpMessage,
   JsonRpcMessage,
@@ -220,18 +221,6 @@ export function normalizePromptToBlocks(
 }
 
 /**
- * Auth error patterns that look like internal errors but are retryable.
- * These must be excluded from fatal error detection.
- */
-const AUTH_ERROR_PATTERNS = [
-  "Authentication required",
-  "Failed to authenticate",
-  "authentication_error",
-  "authentication_failed",
-  "Access token has expired",
-] as const;
-
-/**
  * Error patterns that indicate a fatal session error requiring restart.
  * These errors mean the underlying session/process is unrecoverable.
  */
@@ -252,10 +241,7 @@ export function isFatalSessionError(
   errorMessage: string,
   errorDetails?: string,
 ): boolean {
-  if (
-    includesAny(errorMessage, AUTH_ERROR_PATTERNS) ||
-    includesAny(errorDetails, AUTH_ERROR_PATTERNS)
-  ) {
+  if (isAuthErrorMessage(errorMessage) || isAuthErrorMessage(errorDetails)) {
     return false;
   }
   return (
