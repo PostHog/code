@@ -8,8 +8,9 @@ interface GitState {
   isRepo: boolean;
   isRepoLoading: boolean;
   hasChanges: boolean;
-  ahead: number;
+  aheadOfRemote: number;
   behind: number;
+  aheadOfDefault: number;
   hasRemote: boolean;
   isFeatureBranch: boolean;
   currentBranch: string | null;
@@ -83,10 +84,10 @@ function getPushDisabledReason(
   }
 
   if (!opts?.assumeWillHaveCommits) {
-    if (s.hasRemote && s.ahead === 0) {
+    if (s.hasRemote && s.aheadOfRemote === 0) {
       return "Branch is up to date.";
     }
-    if (!s.hasRemote && s.ahead === 0) {
+    if (!s.hasRemote && s.aheadOfRemote === 0) {
       return "No commits to publish.";
     }
   }
@@ -115,7 +116,7 @@ function getPrDisabledReason(
 
   if (s.prStatus?.prExists) return "PR already exists. Use commit and push.";
 
-  if (!opts?.assumeWillHaveCommits && s.ahead === 0) {
+  if (!opts?.assumeWillHaveCommits && s.aheadOfDefault === 0) {
     return "No commits to create PR.";
   }
 
@@ -161,7 +162,7 @@ function getPrimaryAction(
     !commitAction.enabled && !pushAction.enabled && !prAction.enabled;
   if (allDisabled) return commitAction;
   if (s.hasChanges) return commitAction;
-  if (s.ahead > 0 || !s.hasRemote || s.behind > 0) return pushAction;
+  if (s.aheadOfRemote > 0 || !s.hasRemote || s.behind > 0) return pushAction;
   return prAction;
 }
 

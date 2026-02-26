@@ -288,23 +288,28 @@ export const mergeViewTheme = EditorView.baseTheme({
   },
   "&light.cm-merge-a .cm-changedText, &light .cm-deletedChunk .cm-deletedText":
     {
-      background:
-        "linear-gradient(#ee443366, #ee443366) bottom/100% 2px no-repeat",
+      background: "none",
+      backgroundColor: "rgba(248, 81, 73, 0.40)",
+      borderRadius: "3px",
     },
   "&dark.cm-merge-a .cm-changedText, &dark .cm-deletedChunk .cm-deletedText": {
-    background:
-      "linear-gradient(#ffaa9966, #ffaa9966) bottom/100% 2px no-repeat",
+    background: "none",
+    backgroundColor: "rgba(248, 81, 73, 0.70)",
+    borderRadius: "3px",
   },
   "&light.cm-merge-b .cm-changedText": {
-    background:
-      "linear-gradient(#22bb22aa, #22bb22aa) bottom/100% 2px no-repeat",
+    background: "none",
+    backgroundColor: "rgba(46, 160, 67, 0.40)",
+    borderRadius: "3px",
   },
   "&dark.cm-merge-b .cm-changedText": {
-    background:
-      "linear-gradient(#88ff88aa, #88ff88aa) bottom/100% 2px no-repeat",
+    background: "none",
+    backgroundColor: "rgba(46, 160, 67, 0.70)",
+    borderRadius: "3px",
   },
   "&.cm-merge-b .cm-deletedText": {
-    background: "#ff000033",
+    background: "none",
+    backgroundColor: "rgba(248, 81, 73, 0.40)",
   },
   ".cm-insertedLine, .cm-deletedLine, .cm-deletedLine del": {
     textDecoration: "none",

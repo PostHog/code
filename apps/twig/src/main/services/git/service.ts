@@ -4,6 +4,7 @@ import { isTwigBranch } from "@shared/constants";
 import { execGh } from "@twig/git/gh";
 import {
   getAllBranches,
+  getChangedFilesBetweenBranches,
   getChangedFilesDetailed,
   getCommitConventions,
   getCommitsBetweenBranches,
@@ -124,23 +125,31 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     };
   }
 
-  private async getGitSyncStatusInternal(
-    directoryPath: string,
-    forceRefresh = false,
-  ): Promise<GitSyncStatus> {
+  private async fetchIfStale(directoryPath: string): Promise<void> {
     const now = Date.now();
     const lastFetch = this.lastFetchTime.get(directoryPath) ?? 0;
-    if (forceRefresh || now - lastFetch > FETCH_THROTTLE_MS) {
+    if (now - lastFetch > FETCH_THROTTLE_MS) {
       try {
         await gitFetch(directoryPath);
         this.lastFetchTime.set(directoryPath, now);
       } catch {}
     }
+  }
+
+  private async getGitSyncStatusInternal(
+    directoryPath: string,
+    forceRefresh = false,
+  ): Promise<GitSyncStatus> {
+    if (forceRefresh) {
+      this.lastFetchTime.delete(directoryPath);
+    }
+    await this.fetchIfStale(directoryPath);
 
     const status = await getSyncStatus(directoryPath);
     return {
-      ahead: status.ahead,
+      aheadOfRemote: status.aheadOfRemote,
       behind: status.behind,
+      aheadOfDefault: status.aheadOfDefault,
       hasRemote: status.hasRemote,
       currentBranch: status.currentBranch,
       isFeatureBranch: status.isFeatureBranch,
@@ -882,20 +891,29 @@ ${truncatedDiff}`;
     directoryPath: string,
     credentials: LlmCredentials,
   ): Promise<{ title: string; body: string }> {
-    const [defaultBranch, currentBranch, changedFiles, prTemplate] =
-      await Promise.all([
-        getDefaultBranch(directoryPath),
-        getCurrentBranch(directoryPath),
-        this.getChangedFilesHead(directoryPath),
-        this.getPrTemplate(directoryPath),
-      ]);
+    await this.fetchIfStale(directoryPath);
 
-    const commits = await getCommitsBetweenBranches(
-      directoryPath,
-      defaultBranch,
-      currentBranch ?? undefined,
-      30,
-    );
+    const [defaultBranch, currentBranch, prTemplate] = await Promise.all([
+      getDefaultBranch(directoryPath),
+      getCurrentBranch(directoryPath),
+      this.getPrTemplate(directoryPath),
+    ]);
+
+    const head = currentBranch ?? undefined;
+    const [commits, branchFiles, uncommittedFiles] = await Promise.all([
+      getCommitsBetweenBranches(directoryPath, defaultBranch, head, 30),
+      getChangedFilesBetweenBranches(directoryPath, defaultBranch, head),
+      this.getChangedFilesHead(directoryPath),
+    ]);
+
+    const seenPaths = new Set(branchFiles.map((f) => f.path));
+    const changedFiles = [...branchFiles];
+    for (const file of uncommittedFiles) {
+      if (!seenPaths.has(file.path)) {
+        changedFiles.push(file);
+        seenPaths.add(file.path);
+      }
+    }
 
     if (commits.length === 0 && changedFiles.length === 0) {
       return { title: "", body: "" };

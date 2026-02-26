@@ -27,7 +27,7 @@ interface GitInteractionState {
   primaryAction: GitMenuAction;
   actions: GitMenuAction[];
   hasChanges: boolean;
-  ahead: number;
+  aheadOfRemote: number;
   behind: number;
   currentBranch: string | null;
   defaultBranch: string | null;
@@ -95,8 +95,9 @@ export function useGitInteraction(
         isRepo: git.isRepo,
         isRepoLoading: git.isRepoLoading,
         hasChanges: git.hasChanges,
-        ahead: git.ahead,
+        aheadOfRemote: git.aheadOfRemote,
         behind: git.behind,
+        aheadOfDefault: git.aheadOfDefault,
         hasRemote: git.hasRemote,
         isFeatureBranch: git.isFeatureBranch,
         currentBranch: git.currentBranch,
@@ -110,8 +111,9 @@ export function useGitInteraction(
       git.isRepo,
       git.isRepoLoading,
       git.hasChanges,
-      git.ahead,
+      git.aheadOfRemote,
       git.behind,
+      git.aheadOfDefault,
       git.hasRemote,
       git.isFeatureBranch,
       git.currentBranch,
@@ -335,7 +337,7 @@ export function useGitInteraction(
     modal.setPrError(null);
 
     try {
-      if (!git.hasRemote || git.ahead > 0) {
+      if (!git.hasRemote || git.aheadOfRemote > 0) {
         const pushFn = git.hasRemote
           ? trpcVanilla.git.push
           : trpcVanilla.git.publish;
@@ -520,7 +522,7 @@ export function useGitInteraction(
       primaryAction: computed.primaryAction,
       actions: computed.actions,
       hasChanges: git.hasChanges,
-      ahead: git.ahead,
+      aheadOfRemote: git.aheadOfRemote,
       behind: git.behind,
       currentBranch: git.currentBranch,
       defaultBranch: git.defaultBranch,

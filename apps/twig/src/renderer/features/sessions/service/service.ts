@@ -370,7 +370,9 @@ export class SessionService {
       });
 
       if (result) {
-        // Cast and merge live configOptions with persisted values
+        // Cast and merge live configOptions with persisted values.
+        // Fall back to persisted options if the agent doesn't return any
+        // (e.g. after session compaction).
         let configOptions = result.configOptions as
           | SessionConfigOption[]
           | undefined;
@@ -379,6 +381,8 @@ export class SessionService {
             configOptions,
             persistedConfigOptions,
           );
+        } else if (!configOptions) {
+          configOptions = persistedConfigOptions ?? undefined;
         }
 
         sessionStoreSetters.updateSession(taskRunId, {

@@ -34,8 +34,9 @@ export const diffStatsSchema = z.object({
 export type DiffStats = z.infer<typeof diffStatsSchema>;
 
 export const gitSyncStatusSchema = z.object({
-  ahead: z.number(),
+  aheadOfRemote: z.number(),
   behind: z.number(),
+  aheadOfDefault: z.number(),
   hasRemote: z.boolean(),
   currentBranch: z.string().nullable(),
   isFeatureBranch: z.boolean(),

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 interface InlineEditableTextProps {
   value: string;
   placeholder: string;
+  active: boolean;
   onChange: (value: string) => void;
   onNavigateUp: () => void;
   onNavigateDown: () => void;
@@ -10,14 +11,10 @@ interface InlineEditableTextProps {
   onSubmit: () => void;
 }
 
-function autoGrow(el: HTMLTextAreaElement) {
-  el.style.height = "auto";
-  el.style.height = `${el.scrollHeight}px`;
-}
-
 export function InlineEditableText({
   value,
   placeholder,
+  active,
   onChange,
   onNavigateUp,
   onNavigateDown,
@@ -28,11 +25,10 @@ export function InlineEditableText({
 
   useEffect(() => {
     const el = textareaRef.current;
-    if (el) {
+    if (el && active) {
       el.focus();
-      autoGrow(el);
     }
-  }, []);
+  }, [active]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -72,7 +68,9 @@ export function InlineEditableText({
       placeholder={placeholder}
       onChange={(e) => {
         onChange(e.target.value);
-        autoGrow(e.target);
+        const el = e.target;
+        el.style.height = "auto";
+        el.style.height = `${el.scrollHeight}px`;
       }}
       onKeyDown={handleKeyDown}
       onClick={(e) => e.stopPropagation()}
@@ -86,7 +84,11 @@ export function InlineEditableText({
         width: "100%",
         display: "block",
         resize: "none",
-        overflow: "hidden",
+        overflow: "auto",
+        maxHeight: "120px",
+        wordBreak: "break-word",
+        userSelect: active ? "auto" : "none",
+        pointerEvents: active ? "auto" : "none",
       }}
     />
   );

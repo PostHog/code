@@ -2,6 +2,7 @@ import { Tooltip } from "@components/ui/Tooltip";
 import {
   CheckCircle,
   CloudArrowUp,
+  Copy,
   GitBranch,
   GitCommit,
   GitFork,
@@ -21,8 +22,58 @@ import {
   TextField,
 } from "@radix-ui/themes";
 import type { ReactNode } from "react";
+import { useState } from "react";
 
 const ICON_SIZE = 14;
+
+function ErrorContainer({ error }: { error: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(error);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Box
+      style={{
+        border: "1px solid var(--red-6)",
+        borderRadius: "var(--radius-2)",
+        backgroundColor: "var(--red-2)",
+        maxHeight: "200px",
+        overflow: "auto",
+      }}
+    >
+      <Flex direction="column" gap="2" p="2">
+        <Flex justify="between" align="start" gap="2">
+          <Text
+            size="1"
+            color="red"
+            style={{
+              flex: 1,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              fontFamily: "var(--code-font-family)",
+            }}
+          >
+            {error}
+          </Text>
+          <Tooltip content={copied ? "Copied!" : "Copy error"}>
+            <IconButton
+              size="1"
+              variant="ghost"
+              color="gray"
+              onClick={handleCopy}
+            >
+              <Copy size={12} weight={copied ? "fill" : "regular"} />
+            </IconButton>
+          </Tooltip>
+        </Flex>
+      </Flex>
+    </Box>
+  );
+}
 
 interface GitDialogProps {
   open: boolean;
@@ -66,11 +117,7 @@ function GitDialog({
 
           {children}
 
-          {error && (
-            <Text size="1" color="red">
-              {error}
-            </Text>
-          )}
+          {error && <ErrorContainer error={error} />}
 
           <Flex gap="2" justify="end">
             {!hideCancel && (
