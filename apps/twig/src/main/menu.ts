@@ -170,6 +170,12 @@ function buildFileMenu(): MenuItemConstructorOptions {
             },
           },
           {
+            label: "Invalidate OAuth token",
+            click: () => {
+              container.get<UIService>(MAIN_TOKENS.UIService).invalidateToken();
+            },
+          },
+          {
             label: "Mark all agent sessions for recreation",
             click: () => {
               const count = container

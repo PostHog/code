@@ -1,3 +1,4 @@
+import { useAuthStore } from "@features/auth/stores/authStore";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { useRightSidebarStore } from "@features/right-sidebar";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
@@ -9,8 +10,10 @@ import { useFocusWorkspace } from "@features/workspace/hooks/useFocusWorkspace";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { SHORTCUTS } from "@renderer/constants/keyboard-shortcuts";
 import { clearApplicationStorage } from "@renderer/lib/clearStorage";
+import { logger } from "@renderer/lib/logger";
 import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
 import { trpcReact } from "@renderer/trpc";
+import { trpcVanilla } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useCallback, useEffect, useMemo } from "react";
@@ -139,6 +142,26 @@ export function GlobalEventHandlers({
     clearApplicationStorage();
   }, []);
 
+  const handleInvalidateToken = useCallback((data?: unknown) => {
+    if (!data) return;
+    const log = logger.scope("global-event-handlers");
+    const state = useAuthStore.getState();
+    const currentToken = state.oauthAccessToken;
+    if (!currentToken) {
+      log.warn("No access token to invalidate");
+      return;
+    }
+    const invalidToken = `${currentToken}_invalid`;
+    useAuthStore.setState({ oauthAccessToken: invalidToken });
+    trpcVanilla.agent.updateToken
+      .mutate({ token: invalidToken })
+      .catch((err) => log.warn("Failed to update agent token", err));
+    trpcVanilla.cloudTask.updateToken
+      .mutate({ token: invalidToken })
+      .catch((err) => log.warn("Failed to update cloud task token", err));
+    log.info("OAuth access token invalidated for testing");
+  }, []);
+
   const globalOptions = {
     enableOnFormTags: true,
     enableOnContentEditable: true,
@@ -242,6 +265,10 @@ export function GlobalEventHandlers({
 
   trpcReact.ui.onClearStorage.useSubscription(undefined, {
     onData: handleClearStorage,
+  });
+
+  trpcReact.ui.onInvalidateToken.useSubscription(undefined, {
+    onData: handleInvalidateToken,
   });
 
   return null;
