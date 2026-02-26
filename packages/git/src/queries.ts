@@ -453,6 +453,50 @@ export async function getChangedFilesDetailed(
           }
         }
 
+        for (const file of status.modified) {
+          if (!seenPaths.has(file)) {
+            if (
+              excludePatterns &&
+              matchesExcludePattern(file, excludePatterns)
+            ) {
+              continue;
+            }
+            try {
+              const unstaged = await git.diff([file]);
+              const lines = unstaged.split("\n");
+              const linesAdded = lines.filter(
+                (l) => l.startsWith("+") && !l.startsWith("+++"),
+              ).length;
+              const linesRemoved = lines.filter(
+                (l) => l.startsWith("-") && !l.startsWith("---"),
+              ).length;
+              files.push({
+                path: file,
+                status: "modified",
+                linesAdded,
+                linesRemoved,
+              });
+            } catch {}
+          }
+        }
+
+        for (const file of status.deleted) {
+          if (!seenPaths.has(file)) {
+            if (
+              excludePatterns &&
+              matchesExcludePattern(file, excludePatterns)
+            ) {
+              continue;
+            }
+            files.push({
+              path: file,
+              status: "deleted",
+              linesAdded: 0,
+              linesRemoved: 0,
+            });
+          }
+        }
+
         return files;
       } catch {
         return [];
