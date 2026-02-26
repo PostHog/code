@@ -374,7 +374,19 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
 
     const mcpUrl = this.getPostHogMcpUrl(credentials.apiHost);
     const token = this.getToken(credentials.apiKey);
-
+    logger.info("Building MCP servers", {
+      name: "posthog",
+      type: "http",
+      url: mcpUrl,
+      headers: [
+        { name: "Authorization", value: `Bearer ${token}` },
+        {
+          name: "x-posthog-project-id",
+          value: String(credentials.projectId),
+        },
+        { name: "x-posthog-mcp-version", value: "2" },
+      ],
+    });
     servers.push({
       name: "posthog",
       type: "http",

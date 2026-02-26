@@ -47,7 +47,7 @@ export const REGION_LABELS: Record<CloudRegion, string> = {
 };
 
 // Token refresh settings
-export const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // 5 minutes before expiry
+export const TOKEN_REFRESH_BUFFER_MS = 30 * 60 * 1000; // 5 minutes before expiry
 
 export function getCloudUrlFromRegion(region: CloudRegion): string {
   switch (region) {

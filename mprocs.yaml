@@ -28,3 +28,5 @@ procs:
     cwd: .
     color: green
     autostart: false
+
+scrollback: 20000

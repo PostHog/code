@@ -168,6 +168,17 @@ function buildFileMenu(): MenuItemConstructorOptions {
               container.get<UIService>(MAIN_TOKENS.UIService).clearStorage();
             },
           },
+          {
+            label: "Trigger token refresh",
+            click: () => {
+              const win = BrowserWindow.getFocusedWindow();
+              if (win) {
+                win.webContents.executeJavaScript(
+                  "window.__devTriggerTokenRefresh?.()",
+                );
+              }
+            },
+          },
         ],
       },
     ],

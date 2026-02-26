@@ -22,7 +22,7 @@ export async function ensureMcpServersConnected(
     logger.warn("[MCP reconnect] mcpServerStatus() threw", { error: err });
     return;
   }
-
+  logger.info("MCP server statuses", { statuses });
   logger.info("[MCP reconnect] all server statuses", {
     statuses: statuses.map((s) => ({
       name: s.name,

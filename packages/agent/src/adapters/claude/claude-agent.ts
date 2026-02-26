@@ -154,7 +154,8 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
     const options = buildSessionOptions({
       cwd: params.cwd,
-      mcpServers,
+      /** MCP servers initialized below */
+      mcpServers: {},
       permissionMode,
       canUseTool: this.createCanUseTool(sessionId),
       logger: this.logger,
@@ -173,6 +174,16 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     options.model = DEFAULT_MODEL;
     const q = query({ prompt: input, options });
     queryRef.current = q;
+
+    // Add ACP-provided MCP servers dynamically so they can be updated
+    // mid-session via setMcpServers (e.g. on token refresh).
+    if (Object.keys(mcpServers).length > 0) {
+      const mcpResult = await q.setMcpServers(mcpServers);
+      this.logger.info("Dynamic MCP servers added", {
+        added: mcpResult.added,
+        errors: mcpResult.errors,
+      });
+    }
 
     const session = this.createSession(
       sessionId,
@@ -387,7 +398,8 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
     const options = buildSessionOptions({
       cwd: config.cwd,
-      mcpServers: config.mcpServers,
+      /** MCP servers initialized below */
+      mcpServers: {},
       permissionMode: config.permissionMode,
       canUseTool: this.createCanUseTool(config.sessionId),
       logger: this.logger,
@@ -405,6 +417,16 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const q = query({ prompt: input, options });
     queryRef.current = q;
     const abortController = options.abortController as AbortController;
+
+    // Add ACP-provided MCP servers dynamically so they can be updated
+    // mid-session via setMcpServers (e.g. on token refresh).
+    if (Object.keys(config.mcpServers).length > 0) {
+      const result = await q.setMcpServers(config.mcpServers);
+      this.logger.info("Dynamic MCP servers added", {
+        added: result.added,
+        errors: result.errors,
+      });
+    }
 
     const session = this.createSession(
       config.sessionId,

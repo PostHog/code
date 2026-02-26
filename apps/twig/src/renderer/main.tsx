@@ -7,8 +7,19 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./styles/globals.css";
 
+import { useAuthStore } from "@features/auth/stores/authStore";
+
 const log = logger.scope("app");
 log.info("Twig renderer booting up");
+
+// Dev tool: allow main process menu to trigger OAuth token refresh
+if (import.meta.env.DEV) {
+  (window as unknown as Record<string, unknown>).__devTriggerTokenRefresh =
+    () => {
+      log.info("Dev: triggering token refresh from menu");
+      useAuthStore.getState().refreshAccessToken();
+    };
+}
 
 document.title = import.meta.env.DEV ? "Twig (Development)" : "Twig";
 
