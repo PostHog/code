@@ -128,6 +128,39 @@ export const CommitWithError: StoryObj<typeof GitCommitDialog> = {
   ),
 };
 
+export const CommitWithLongPreCommitError: StoryObj<typeof GitCommitDialog> = {
+  render: () => (
+    <GitCommitDialog
+      open={true}
+      onOpenChange={() => {}}
+      branchName="feature/add-auth"
+      diffStats={{ filesChanged: 3, linesAdded: 42, linesRemoved: 12 }}
+      commitMessage="Add feature"
+      onCommitMessageChange={() => {}}
+      nextStep="commit"
+      onNextStepChange={() => {}}
+      prDisabledReason={null}
+      pushDisabledReason={null}
+      onContinue={() => {}}
+      isSubmitting={false}
+      error={`[STARTED] Backing up original state... [COMPLETED] Backed up original state in git stash (cad5bdf02e45017c4afcd82b0c05240f3a134713) [STARTED] Running tasks for staged files... [STARTED] package.json — 2 files [STARTED] *.{ts,tsx,js,jsx} — 2 files [STARTED] biome check --write --unsafe --files-ignore-unknown=true --no-errors-on-unmatched [COMPLETED] biome check --write --unsafe --files-ignore-unknown=true --no-errors-on-unmatched [STARTED] bash -c 'pnpm typecheck' [FAILED] bash -c 'pnpm typecheck' [FAILED] [FAILED] bash -c 'pnpm typecheck' [FAILED] [COMPLETED] Running tasks for staged files... [STARTED] Applying modifications from tasks... [SKIPPED] Skipped because of errors from tasks. [STARTED] Reverting to original state because of errors... [COMPLETED] Reverting to original state because of errors... [STARTED] Cleaning up temporary files... [COMPLETED] Cleaning up temporary files...
+
+✖ bash -c 'pnpm typecheck':
+src/renderer/features/git-interaction/components/GitInteractionDialogs.stories.tsx(373,7): error TS2322: Type '{ open: true; onOpenChange: () => void; baseBranch: string; headBranch: string; title: string; onTitleChange: () => void; body: string; onBodyChange: () => void; onConfirm: () => void; asdff: true; isSubmitting: false; error: string; onGenerate: () => void; isGenerating: false; }' is not assignable to type 'IntrinsicAttributes & GitPrDialogProps'.
+  Property 'asdff' does not exist on type 'IntrinsicAttributes & GitPrDialogProps'.
+
+Tasks: 8 successful, 9 total
+Cached: 8 cached, 9 total
+Time: 5.801s
+Failed: @posthog/twig#typecheck
+
+husky - pre-commit script failed (code 1)`}
+      onGenerateMessage={() => {}}
+      isGeneratingMessage={false}
+    />
+  ),
+};
+
 export const CommitGenerating: StoryObj<typeof GitCommitDialog> = {
   render: () => (
     <GitCommitDialog
