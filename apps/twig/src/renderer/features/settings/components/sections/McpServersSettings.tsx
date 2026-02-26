@@ -39,9 +39,7 @@ function AddCustomServerDialog({
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
-  const [authType, setAuthType] = useState<"none" | "api_key" | "oauth">(
-    "none",
-  );
+  const [authType, setAuthType] = useState<"api_key" | "oauth">("oauth");
   const [apiKey, setApiKey] = useState("");
 
   const installMutation = useAuthenticatedMutation(
@@ -51,7 +49,7 @@ function AddCustomServerDialog({
         name: string;
         url: string;
         description: string;
-        auth_type: "none" | "api_key" | "oauth";
+        auth_type: "api_key" | "oauth";
         api_key?: string;
       },
     ) => client.installCustomMcpServer(vars),
@@ -75,7 +73,7 @@ function AddCustomServerDialog({
     setName("");
     setUrl("");
     setDescription("");
-    setAuthType("none");
+    setAuthType("oauth");
     setApiKey("");
     onOpenChange(false);
   }, [onOpenChange]);
@@ -142,7 +140,7 @@ function AddCustomServerDialog({
             <Select.Root
               value={authType}
               onValueChange={(val) => {
-                setAuthType(val as "none" | "api_key" | "oauth");
+                setAuthType(val as "api_key" | "oauth");
                 if (val !== "api_key") {
                   setApiKey("");
                 }
@@ -150,7 +148,6 @@ function AddCustomServerDialog({
             >
               <Select.Trigger />
               <Select.Content>
-                <Select.Item value="none">None</Select.Item>
                 <Select.Item value="api_key">API key</Select.Item>
                 <Select.Item value="oauth">OAuth</Select.Item>
               </Select.Content>
