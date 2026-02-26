@@ -22,6 +22,7 @@ interface OptionRowProps {
   option: SelectorOption;
   index: number;
   isSelected: boolean;
+  isHovered: boolean;
   isChecked: boolean;
   showCheckbox: boolean;
   customInput: string;
@@ -35,12 +36,14 @@ interface OptionRowProps {
   onInlineSubmit: () => void;
   onClick: () => void;
   onMouseEnter: () => void;
+  onMouseLeave: () => void;
 }
 
 export function OptionRow({
   option,
   index,
   isSelected,
+  isHovered,
   isChecked,
   showCheckbox,
   customInput,
@@ -54,6 +57,7 @@ export function OptionRow({
   onInlineSubmit,
   onClick,
   onMouseEnter,
+  onMouseLeave,
 }: OptionRowProps) {
   if (isSubmitOption(option.id) || isCancelOption(option.id)) {
     const isCancel = isCancelOption(option.id);
@@ -64,6 +68,7 @@ export function OptionRow({
         gap="2"
         onClick={onClick}
         onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
         px="2"
         style={{
           cursor: "pointer",
@@ -74,7 +79,9 @@ export function OptionRow({
               : "var(--gray-3)"
             : isSelected
               ? "var(--blue-8)"
-              : "var(--blue-3)",
+              : isHovered
+                ? "var(--blue-4)"
+                : "var(--blue-3)",
           display: "inline-flex",
           height: "28px",
         }}
@@ -116,10 +123,19 @@ export function OptionRow({
     }
 
     const displayText = compactHomePath(option.label);
-    const textClass = isSelected ? "text-blue-11" : "text-gray-12";
+    const textClass = isSelected
+      ? "text-blue-11"
+      : isHovered
+        ? "text-blue-11"
+        : "text-gray-12";
 
     return (
-      <Text size="1" weight="medium" className={textClass}>
+      <Text
+        size="1"
+        weight="medium"
+        className={textClass}
+        style={{ whiteSpace: "pre-wrap" }}
+      >
         {displayText}
       </Text>
     );
@@ -129,11 +145,23 @@ export function OptionRow({
     <Box
       onClick={onClick}
       onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      py="1"
       style={{
         cursor: "pointer",
         paddingTop: "4px",
         paddingBottom: "4px",
         userSelect: "none",
+        borderRadius: "var(--radius-2)",
+        background: isSelected
+          ? "var(--blue-3)"
+          : isHovered
+            ? "var(--gray-a3)"
+            : "transparent",
+        marginLeft: "calc(var(--space-3) * -1)",
+        marginRight: "calc(var(--space-3) * -1)",
+        paddingLeft: "var(--space-3)",
+        paddingRight: "var(--space-3)",
       }}
     >
       <Flex
@@ -144,18 +172,25 @@ export function OptionRow({
         <Text
           size="1"
           className={isSelected ? "text-blue-11" : "text-gray-11"}
-          style={{ width: "1ch", flexShrink: 0 }}
+          style={{ width: "1ch", flexShrink: 0, lineHeight: "16px" }}
         >
           {isSelected ? "›" : ""}
         </Text>
         <Text
           size="1"
-          className={isSelected ? "text-blue-11" : "text-gray-11"}
+          className={
+            isSelected
+              ? "text-blue-11"
+              : isHovered
+                ? "text-blue-11"
+                : "text-gray-11"
+          }
           style={{
             minWidth: "16px",
             textAlign: "right",
             whiteSpace: "nowrap",
             flexShrink: 0,
+            lineHeight: "16px",
           }}
         >
           {index + 1}.
@@ -165,10 +200,12 @@ export function OptionRow({
             size="1"
             color="green"
             checked={isChecked}
-            style={{ pointerEvents: "none" }}
+            style={{ pointerEvents: "none", flexShrink: 0 }}
           />
         )}
-        <Box style={{ flex: 1, minWidth: 0 }}>{renderLabel()}</Box>
+        <Box style={{ flex: 1, minWidth: 0, lineHeight: "16px" }}>
+          {renderLabel()}
+        </Box>
       </Flex>
       {option.description && !isCurrentlyEditing && (
         <Text

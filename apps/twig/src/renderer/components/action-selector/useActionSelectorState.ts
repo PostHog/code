@@ -40,6 +40,7 @@ export function useActionSelectorState({
   onStepAnswer,
 }: UseActionSelectorStateProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [checkedOptions, setCheckedOptions] = useState<Set<string>>(() =>
     initialSelections?.length ? new Set(initialSelections) : new Set(),
   );
@@ -138,10 +139,12 @@ export function useActionSelectorState({
   }, [selectedOption]);
 
   const moveUp = useCallback(() => {
+    setHoveredIndex(null);
     setSelectedIndex((prev) => (prev > 0 ? prev - 1 : numOptions - 1));
   }, [numOptions]);
 
   const moveDown = useCallback(() => {
+    setHoveredIndex(null);
     setSelectedIndex((prev) => (prev < numOptions - 1 ? prev + 1 : 0));
   }, [numOptions]);
 
@@ -223,7 +226,11 @@ export function useActionSelectorState({
     }
 
     if (showSubmitButton) {
-      toggleCheck(selected.id);
+      if (needsCustomInput(selected) && !isEditing) {
+        setIsEditing(true);
+      } else {
+        toggleCheck(selected.id);
+      }
     } else if (needsCustomInput(selected)) {
       if (customInput.trim()) {
         onSelect(selected.id, customInput.trim());
@@ -246,13 +253,13 @@ export function useActionSelectorState({
     onSelect,
     saveCurrentStepAnswer,
     setStep,
+    isEditing,
   ]);
 
   const selectByIndex = useCallback(
     (index: number) => {
       if (index < 0 || index >= allOptions.length) return;
       const selected = allOptions[index];
-      setSelectedIndex(index);
 
       if (isSubmitOption(selected.id)) {
         if (!showSubmitButton) {
@@ -296,6 +303,59 @@ export function useActionSelectorState({
     ],
   );
 
+  const handleClick = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= allOptions.length) return;
+      setSelectedIndex(index);
+      setHoveredIndex(null);
+      const selected = allOptions[index];
+
+      if (isSubmitOption(selected.id)) {
+        if (!showSubmitButton) {
+          onSelect(selected.id);
+          return;
+        }
+        if (hasSteps && activeStep < numSteps - 1) {
+          saveCurrentStepAnswer();
+          setStep(activeStep + 1);
+        } else {
+          if (multiSelect) {
+            handleSubmitMulti();
+          } else {
+            handleSubmitSingle();
+          }
+        }
+        return;
+      }
+
+      if (showSubmitButton) {
+        if (needsCustomInput(selected)) {
+          setIsEditing(true);
+        } else {
+          toggleCheck(selected.id);
+        }
+      } else if (needsCustomInput(selected)) {
+        setIsEditing(true);
+      } else {
+        onSelect(selected.id);
+      }
+    },
+    [
+      allOptions,
+      hasSteps,
+      activeStep,
+      numSteps,
+      multiSelect,
+      handleSubmitMulti,
+      handleSubmitSingle,
+      showSubmitButton,
+      toggleCheck,
+      onSelect,
+      saveCurrentStepAnswer,
+      setStep,
+    ],
+  );
+
   const handleStepClick = useCallback(
     (stepIndex: number) => {
       saveCurrentStepAnswer();
@@ -314,15 +374,19 @@ export function useActionSelectorState({
     (value: string) => {
       setCustomInput(value);
       if (
-        value.trim() &&
         showSubmitButton &&
         selectedOption &&
         needsCustomInput(selectedOption)
       ) {
         setCheckedOptions((prev) => {
-          if (prev.has(selectedOption.id)) return prev;
           const next = new Set(prev);
-          next.add(selectedOption.id);
+          if (value.trim()) {
+            if (!prev.has(selectedOption.id)) {
+              next.add(selectedOption.id);
+            }
+          } else {
+            next.delete(selectedOption.id);
+          }
           return next;
         });
       }
@@ -342,20 +406,15 @@ export function useActionSelectorState({
   const handleInlineSubmit = useCallback(() => {
     if (!selectedOption) return;
     if (showSubmitButton) {
-      ensureChecked(selectedOption.id);
+      if (customInput.trim()) {
+        ensureChecked(selectedOption.id);
+      }
+      setIsEditing(false);
       containerRef.current?.focus();
-      moveDown();
     } else if (customInput.trim()) {
       onSelect(selectedOption.id, customInput.trim());
     }
-  }, [
-    showSubmitButton,
-    ensureChecked,
-    selectedOption,
-    customInput,
-    onSelect,
-    moveDown,
-  ]);
+  }, [showSubmitButton, ensureChecked, selectedOption, customInput, onSelect]);
 
   const handleNavigateUp = useCallback(() => {
     if (
@@ -386,6 +445,8 @@ export function useActionSelectorState({
   return {
     selectedIndex,
     setSelectedIndex,
+    hoveredIndex,
+    setHoveredIndex,
     checkedOptions,
     customInput,
     setCustomInput: handleCustomInputChange,
@@ -405,6 +466,7 @@ export function useActionSelectorState({
     moveToNextStep,
     selectCurrent,
     selectByIndex,
+    handleClick,
     handleStepClick,
     handleEscape,
     handleInlineSubmit,

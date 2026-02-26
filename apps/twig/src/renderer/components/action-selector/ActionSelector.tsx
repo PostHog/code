@@ -41,7 +41,8 @@ export function ActionSelector({
 
   const {
     selectedIndex,
-    setSelectedIndex,
+    hoveredIndex,
+    setHoveredIndex,
     checkedOptions,
     customInput,
     setCustomInput,
@@ -58,7 +59,7 @@ export function ActionSelector({
     moveToPrevStep,
     moveToNextStep,
     selectCurrent,
-    selectByIndex,
+    handleClick,
     handleStepClick,
     handleEscape,
     handleInlineSubmit,
@@ -81,7 +82,7 @@ export function ActionSelector({
     handleSubmitMulti,
     handleSubmitSingle,
     handleCancel,
-    selectByIndex,
+    handleClick,
   });
   handlersRef.current = {
     moveUp,
@@ -92,7 +93,7 @@ export function ActionSelector({
     handleSubmitMulti,
     handleSubmitSingle,
     handleCancel,
-    selectByIndex,
+    handleClick,
   };
 
   const stateRef = useRef({
@@ -176,7 +177,7 @@ export function ActionSelector({
           if (/^[1-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey) {
             e.preventDefault();
             e.stopPropagation();
-            h.selectByIndex(Number.parseInt(e.key, 10) - 1);
+            h.handleClick(Number.parseInt(e.key, 10) - 1);
           }
           break;
       }
@@ -238,6 +239,7 @@ export function ActionSelector({
                 return null;
               }
               const isSelected = selectedIndex === index;
+              const isHovered = hoveredIndex === index;
               const isChecked = checkedOptions.has(option.id);
 
               return (
@@ -246,6 +248,7 @@ export function ActionSelector({
                   option={option}
                   index={index}
                   isSelected={isSelected}
+                  isHovered={isHovered}
                   isChecked={isChecked}
                   showCheckbox={showSubmitButton}
                   customInput={customInput}
@@ -257,8 +260,9 @@ export function ActionSelector({
                   onNavigateDown={handleNavigateDown}
                   onEscape={handleEscape}
                   onInlineSubmit={handleInlineSubmit}
-                  onClick={() => selectByIndex(index)}
-                  onMouseEnter={() => setSelectedIndex(index)}
+                  onClick={() => handleClick(index)}
+                  onMouseEnter={() => setHoveredIndex(index)}
+                  onMouseLeave={() => setHoveredIndex(null)}
                 />
               );
             })}
@@ -271,12 +275,14 @@ export function ActionSelector({
               }
               const isSelected = selectedIndex === index;
 
+              const isHovered = hoveredIndex === index;
               return (
                 <OptionRow
                   key={option.id}
                   option={option}
                   index={index}
                   isSelected={isSelected}
+                  isHovered={isHovered}
                   isChecked={false}
                   showCheckbox={false}
                   customInput=""
@@ -288,8 +294,9 @@ export function ActionSelector({
                   onNavigateDown={handleNavigateDown}
                   onEscape={handleEscape}
                   onInlineSubmit={handleInlineSubmit}
-                  onClick={() => selectByIndex(index)}
-                  onMouseEnter={() => setSelectedIndex(index)}
+                  onClick={() => handleClick(index)}
+                  onMouseEnter={() => setHoveredIndex(index)}
+                  onMouseLeave={() => setHoveredIndex(null)}
                 />
               );
             })}
