@@ -10,7 +10,12 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import { IS_ROOT } from "../../../utils/common.js";
 import type { Logger } from "../../../utils/logger.js";
-import { createPostToolUseHook, type OnModeChange } from "../hooks.js";
+import {
+  createPostToolUseFailureHook,
+  createPostToolUseHook,
+  type OnModeChange,
+  type QueryRef,
+} from "../hooks.js";
 import type { TwigExecutionMode } from "../tools.js";
 
 export interface ProcessSpawnedInfo {
@@ -33,6 +38,7 @@ export interface BuildOptionsParams {
   onModeChange?: OnModeChange;
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
   onProcessExited?: (pid: number) => void;
+  queryRef?: QueryRef;
 }
 
 const BRANCH_NAMING_INSTRUCTIONS = `
@@ -96,9 +102,11 @@ function buildEnvironment(): Record<string, string> {
 
 function buildHooks(
   userHooks: Options["hooks"],
-  onModeChange?: OnModeChange,
+  onModeChange: OnModeChange | undefined,
+  queryRef: QueryRef | undefined,
+  logger: Logger,
 ): Options["hooks"] {
-  return {
+  const hooks: Options["hooks"] = {
     ...userHooks,
     PostToolUse: [
       ...(userHooks?.PostToolUse || []),
@@ -107,6 +115,17 @@ function buildHooks(
       },
     ],
   };
+
+  if (queryRef) {
+    hooks!.PostToolUseFailure = [
+      ...(userHooks?.PostToolUseFailure || []),
+      {
+        hooks: [createPostToolUseFailureHook({ queryRef, logger })],
+      },
+    ];
+  }
+
+  return hooks;
 }
 
 function getAbortController(
@@ -220,7 +239,12 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
       params.mcpServers,
     ),
     env: buildEnvironment(),
-    hooks: buildHooks(params.userProvidedOptions?.hooks, params.onModeChange),
+    hooks: buildHooks(
+      params.userProvidedOptions?.hooks,
+      params.onModeChange,
+      params.queryRef,
+      params.logger,
+    ),
     abortController: getAbortController(
       params.userProvidedOptions?.abortController,
     ),

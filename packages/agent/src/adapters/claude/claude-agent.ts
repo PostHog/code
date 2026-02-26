@@ -149,6 +149,8 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
     const mcpServers = parseMcpServers(params);
 
+    const queryRef: { current: Query | null } = { current: null };
+
     const options = buildSessionOptions({
       cwd: params.cwd,
       mcpServers,
@@ -162,12 +164,14 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       onModeChange: this.createOnModeChange(sessionId),
       onProcessSpawned: this.options?.onProcessSpawned,
       onProcessExited: this.options?.onProcessExited,
+      queryRef,
     });
 
     const input = new Pushable<SDKUserMessage>();
     // Pass default model at construction to avoid expensive post-hoc setModel IPC
     options.model = DEFAULT_MODEL;
     const q = query({ prompt: input, options });
+    queryRef.current = q;
 
     const session = this.createSession(
       sessionId,
@@ -364,6 +368,8 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   }> {
     const input = new Pushable<SDKUserMessage>();
 
+    const queryRef: { current: Query | null } = { current: null };
+
     const options = buildSessionOptions({
       cwd: config.cwd,
       mcpServers: config.mcpServers,
@@ -378,9 +384,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       onModeChange: this.createOnModeChange(config.sessionId),
       onProcessSpawned: this.options?.onProcessSpawned,
       onProcessExited: this.options?.onProcessExited,
+      queryRef,
     });
 
     const q = query({ prompt: input, options });
+    queryRef.current = q;
     const abortController = options.abortController as AbortController;
 
     const session = this.createSession(

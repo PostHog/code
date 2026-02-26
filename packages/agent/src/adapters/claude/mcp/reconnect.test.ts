@@ -1,6 +1,11 @@
-import type { McpServerStatus, Query } from "@anthropic-ai/claude-agent-sdk";
+import type {
+  HookInput,
+  McpServerStatus,
+  Query,
+} from "@anthropic-ai/claude-agent-sdk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Logger } from "../../../utils/logger.js";
+import { createPostToolUseFailureHook, type QueryRef } from "../hooks.js";
 import { ensureMcpServersConnected } from "./reconnect.js";
 
 function createMockQuery(statuses: McpServerStatus[] = []) {
@@ -125,5 +130,88 @@ describe("ensureMcpServersConnected", () => {
 
     expect(query.reconnectMcpServer).toHaveBeenCalledTimes(1);
     expect(query.reconnectMcpServer).toHaveBeenCalledWith("broken");
+  });
+});
+
+describe("createPostToolUseFailureHook", () => {
+  let logger: Logger;
+  const signal = new AbortController().signal;
+
+  function makeHookInput(toolName: string): HookInput {
+    return {
+      hook_event_name: "PostToolUseFailure",
+      tool_name: toolName,
+      tool_input: {},
+      tool_use_id: "tu_123",
+      error: "server disconnected",
+      session_id: "sess_1",
+      transcript_path: "/tmp/transcript",
+      cwd: "/tmp",
+    } as HookInput;
+  }
+
+  beforeEach(() => {
+    logger = new Logger({ debug: false, prefix: "[test]" });
+  });
+
+  it("skips non-MCP tool failures", async () => {
+    const queryRef: QueryRef = {
+      current: createMockQuery([]) as unknown as Query,
+    };
+    const hook = createPostToolUseFailureHook({ queryRef, logger });
+
+    const result = await hook(makeHookInput("Bash"), undefined, { signal });
+
+    expect(result).toEqual({ continue: true });
+    expect(
+      (
+        queryRef.current as unknown as {
+          mcpServerStatus: ReturnType<typeof vi.fn>;
+        }
+      ).mcpServerStatus,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("reconnects on MCP tool failure", async () => {
+    const mockQuery = createMockQuery([serverStatus("posthog", "failed")]);
+    const queryRef: QueryRef = { current: mockQuery as unknown as Query };
+    const hook = createPostToolUseFailureHook({ queryRef, logger });
+
+    const result = await hook(
+      makeHookInput("mcp__posthog__search"),
+      undefined,
+      { signal },
+    );
+
+    expect(result).toEqual({ continue: true });
+    expect(mockQuery.reconnectMcpServer).toHaveBeenCalledWith("posthog");
+  });
+
+  it("returns continue: true when queryRef is null", async () => {
+    const queryRef: QueryRef = { current: null };
+    const hook = createPostToolUseFailureHook({ queryRef, logger });
+
+    const result = await hook(
+      makeHookInput("mcp__posthog__search"),
+      undefined,
+      { signal },
+    );
+
+    expect(result).toEqual({ continue: true });
+  });
+
+  it("returns continue: true even when reconnect throws", async () => {
+    const mockQuery = createMockQuery([serverStatus("posthog", "failed")]);
+    mockQuery.mcpServerStatus.mockRejectedValue(new Error("boom"));
+    const queryRef: QueryRef = { current: mockQuery as unknown as Query };
+    const hook = createPostToolUseFailureHook({ queryRef, logger });
+
+    const result = await hook(
+      makeHookInput("mcp__posthog__search"),
+      undefined,
+      { signal },
+    );
+
+    expect(result).toEqual({ continue: true });
   });
 });
