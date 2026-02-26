@@ -53,10 +53,17 @@ function getFolderPath(folderId: string): string | null {
   return folder?.path ?? null;
 }
 
+function isLegacyWorktreeName(name: string): boolean {
+  return !/^\d+$/.test(name);
+}
+
 function deriveWorktreePath(folderPath: string, worktreeName: string): string {
   const worktreeBasePath = getWorktreeLocation();
   const repoName = path.basename(folderPath);
-  return path.join(worktreeBasePath, repoName, worktreeName);
+  if (isLegacyWorktreeName(worktreeName)) {
+    return path.join(worktreeBasePath, repoName, worktreeName);
+  }
+  return path.join(worktreeBasePath, worktreeName, repoName);
 }
 
 async function hasAnyFiles(repoPath: string): Promise<boolean> {

@@ -25,7 +25,7 @@ const MODE_CONFIG: Record<
   },
   worktree: {
     label: "Worktree",
-    description: "Edits a copy so your work stays isolated",
+    description: "Create a copy of your local project to work in parallel",
     icon: <GitBranch size={16} weight="regular" />,
   },
   cloud: {

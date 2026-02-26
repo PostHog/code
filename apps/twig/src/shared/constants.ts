@@ -13,11 +13,6 @@ export function isTwigBranch(branchName: string): boolean {
   );
 }
 
-/**
- * Data directory conventions.
- * - Worktrees stored in WORKSPACES_DIR (~/.twig/workspaces)
- * - LEGACY_DATA_DIRS are old locations that need migration (only .array)
- */
 export const DATA_DIR = ".twig";
-export const WORKSPACES_DIR = ".twig/workspaces";
-export const LEGACY_DATA_DIRS = [".array"];
+export const WORKTREES_DIR = ".twig/worktrees";
+export const LEGACY_DATA_DIRS = [".twig/workspaces", ".array"];

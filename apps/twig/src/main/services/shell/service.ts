@@ -303,7 +303,10 @@ export class ShellService extends TypedEventEmitter<ShellEvents> {
     if (association.mode === "worktree") {
       worktreeName = association.worktree;
       const worktreeBasePath = getWorktreeLocation();
-      worktreePath = path.join(worktreeBasePath, folder.name, worktreeName);
+      const isLegacy = !/^\d+$/.test(worktreeName);
+      worktreePath = isLegacy
+        ? path.join(worktreeBasePath, folder.name, worktreeName)
+        : path.join(worktreeBasePath, worktreeName, folder.name);
     }
 
     return buildWorkspaceEnv({

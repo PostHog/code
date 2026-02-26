@@ -1,7 +1,7 @@
 import { existsSync, renameSync } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { LEGACY_DATA_DIRS, WORKSPACES_DIR } from "@shared/constants";
+import { LEGACY_DATA_DIRS, WORKTREES_DIR } from "@shared/constants";
 import { app } from "electron";
 import Store from "electron-store";
 
@@ -12,12 +12,20 @@ interface SettingsSchema {
 
 function getDefaultWorktreeLocation(): string {
   const isDev = !app.isPackaged;
-  const dir = isDev ? `${WORKSPACES_DIR}-dev` : WORKSPACES_DIR;
+  const dir = isDev ? `${WORKTREES_DIR}-dev` : WORKTREES_DIR;
   return path.join(os.homedir(), dir);
 }
 
 function getLegacyWorktreeLocations(): string[] {
-  return LEGACY_DATA_DIRS.map((dir) => path.join(os.homedir(), dir));
+  const isDev = !app.isPackaged;
+  const locations: string[] = [];
+  for (const dir of LEGACY_DATA_DIRS) {
+    if (isDev) {
+      locations.push(path.join(os.homedir(), `${dir}-dev`));
+    }
+    locations.push(path.join(os.homedir(), dir));
+  }
+  return locations;
 }
 
 /**
@@ -76,17 +84,6 @@ function migrateWorktreeSetting(): void {
   const stored = settingsStore.get("worktreeLocation");
   const newDefault = getDefaultWorktreeLocation();
 
-  // If dev still points to the shared prod workspaces path, update to dev-specific path
-  const isDev = !app.isPackaged;
-  if (isDev) {
-    const sharedPath = path.join(os.homedir(), WORKSPACES_DIR);
-    if (stored === sharedPath) {
-      settingsStore.set("worktreeLocation", newDefault);
-      return;
-    }
-  }
-
-  // If user had a legacy default, update to new default
   for (const legacyPath of getLegacyWorktreeLocations()) {
     if (stored === legacyPath && existsSync(newDefault)) {
       settingsStore.set("worktreeLocation", newDefault);
