@@ -9,8 +9,9 @@ function makeState(overrides: Partial<GitState> = {}): GitState {
     isRepo: true,
     isRepoLoading: false,
     hasChanges: false,
-    ahead: 0,
+    aheadOfRemote: 0,
     behind: 0,
+    aheadOfDefault: 0,
     hasRemote: true,
     isFeatureBranch: true,
     currentBranch: "feature/test",
@@ -119,7 +120,7 @@ describe("computeGitInteractionState", () => {
           currentBranch: "main",
           isFeatureBranch: false,
           hasChanges: false,
-          ahead: 2,
+          aheadOfRemote: 2,
         }),
       );
       expect(result.primaryAction.id).toBe("push");
