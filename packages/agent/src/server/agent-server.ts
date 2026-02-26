@@ -5,6 +5,7 @@ import {
 } from "@agentclientprotocol/sdk";
 import { type ServerType, serve } from "@hono/node-server";
 import { Hono } from "hono";
+import packageJson from "../../package.json" with { type: "json" };
 import { POSTHOG_NOTIFICATIONS } from "../acp-extensions.js";
 import {
   createAcpConnection,
@@ -154,6 +155,7 @@ export class AgentServer {
       apiUrl: config.apiUrl,
       projectId: config.projectId,
       getApiKey: () => config.apiKey,
+      userAgent: `posthog/cloud.hog.dev; version: ${config.version ?? packageJson.version}`,
     });
     this.app = this.createApp();
   }
@@ -471,6 +473,7 @@ export class AgentServer {
       apiUrl: this.config.apiUrl,
       projectId: this.config.projectId,
       getApiKey: () => this.config.apiKey,
+      userAgent: `posthog/cloud.hog.dev; version: ${this.config.version ?? packageJson.version}`,
     });
 
     const logWriter = new SessionLogWriter({

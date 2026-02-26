@@ -1,5 +1,7 @@
 import type { createApiClient } from "./generated";
 
+const USER_AGENT = `posthog/hog.dev; version: ${typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "unknown"}`;
+
 export const buildApiFetcher: (config: {
   apiToken: string;
   onTokenRefresh?: () => Promise<string>;
@@ -13,6 +15,7 @@ export const buildApiFetcher: (config: {
     const headers = new Headers();
     headers.set("Authorization", `Bearer ${token}`);
     headers.set("Content-Type", "application/json");
+    headers.set("User-Agent", USER_AGENT);
 
     if (input.urlSearchParams) {
       input.url.search = input.urlSearchParams.toString();

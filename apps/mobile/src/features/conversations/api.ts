@@ -1,8 +1,11 @@
 import { fetch } from "expo/fetch";
+import Constants from "expo-constants";
 import { useAuthStore } from "@/features/auth";
 import type { ConversationDetail } from "./types";
 
-function getAuthHeaders(): { Authorization: string; "Content-Type": string } {
+const USER_AGENT = `posthog/mobile.hog.dev; version: ${Constants.expoConfig?.version ?? "unknown"}`;
+
+function getAuthHeaders(): Record<string, string> {
   const { oauthAccessToken } = useAuthStore.getState();
   if (!oauthAccessToken) {
     throw new Error("Not authenticated");
@@ -10,6 +13,7 @@ function getAuthHeaders(): { Authorization: string; "Content-Type": string } {
   return {
     Authorization: `Bearer ${oauthAccessToken}`,
     "Content-Type": "application/json",
+    "User-Agent": USER_AGENT,
   };
 }
 

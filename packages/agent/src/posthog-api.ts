@@ -1,3 +1,4 @@
+import packageJson from "../package.json" with { type: "json" };
 import type {
   ArtifactType,
   PostHogAPIConfig,
@@ -9,6 +10,8 @@ import type {
 import { getLlmGatewayUrl } from "./utils/gateway.js";
 
 export { getLlmGatewayUrl };
+
+const DEFAULT_USER_AGENT = `posthog/agent.hog.dev; version: ${packageJson.version}`;
 
 export interface TaskArtifactUploadPayload {
   name: string;
@@ -48,6 +51,7 @@ export class PostHogAPIClient {
     return {
       Authorization: `Bearer ${this.config.getApiKey()}`,
       "Content-Type": "application/json",
+      "User-Agent": this.config.userAgent ?? DEFAULT_USER_AGENT,
     };
   }
 

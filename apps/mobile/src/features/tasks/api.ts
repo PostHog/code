@@ -1,4 +1,5 @@
 import { fetch } from "expo/fetch";
+import Constants from "expo-constants";
 import { useAuthStore } from "@/features/auth";
 import type {
   CreateTaskOptions,
@@ -7,6 +8,8 @@ import type {
   Task,
   TaskRun,
 } from "./types";
+
+const USER_AGENT = `posthog/mobile.hog.dev; version: ${Constants.expoConfig?.version ?? "unknown"}`;
 
 async function withRetry<T>(
   fn: () => Promise<T>,
@@ -47,7 +50,7 @@ function isRetryableError(error: unknown): boolean {
   return false;
 }
 
-function getAuthHeaders(): { Authorization: string; "Content-Type": string } {
+function getAuthHeaders(): Record<string, string> {
   const { oauthAccessToken } = useAuthStore.getState();
   if (!oauthAccessToken) {
     throw new Error("Not authenticated");
@@ -55,6 +58,7 @@ function getAuthHeaders(): { Authorization: string; "Content-Type": string } {
   return {
     Authorization: `Bearer ${oauthAccessToken}`,
     "Content-Type": "application/json",
+    "User-Agent": USER_AGENT,
   };
 }
 

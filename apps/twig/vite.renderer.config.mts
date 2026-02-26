@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
@@ -10,6 +11,9 @@ import {
 } from "./vite.shared.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(
+  readFileSync(path.resolve(__dirname, "package.json"), "utf-8"),
+);
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, path.resolve(__dirname, "../.."), "");
@@ -22,7 +26,10 @@ export default defineConfig(({ mode }) => {
       sourcemap: true,
     },
     envDir: path.resolve(__dirname, "../.."),
-    define: createForceDevModeDefine(),
+    define: {
+      ...createForceDevModeDefine(),
+      __APP_VERSION__: JSON.stringify(pkg.version),
+    },
     resolve: {
       alias: rendererAliases,
     },
