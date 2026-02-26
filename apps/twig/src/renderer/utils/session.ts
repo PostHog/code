@@ -7,7 +7,6 @@ import type {
   ContentBlock,
   SessionNotification,
 } from "@agentclientprotocol/sdk";
-import { isAuthErrorMessage } from "@shared/errors";
 import type {
   AcpMessage,
   JsonRpcMessage,
@@ -235,15 +234,11 @@ const FATAL_SESSION_ERROR_PATTERNS = [
 /**
  * Check if a prompt error is fatal (session unrecoverable).
  * Fatal errors require session restart rather than simple retry.
- * Auth errors are excluded — they look like internal errors but are retryable.
  */
 export function isFatalSessionError(
   errorMessage: string,
   errorDetails?: string,
 ): boolean {
-  if (isAuthErrorMessage(errorMessage) || isAuthErrorMessage(errorDetails)) {
-    return false;
-  }
   return (
     includesAny(errorMessage, FATAL_SESSION_ERROR_PATTERNS) ||
     includesAny(errorDetails, FATAL_SESSION_ERROR_PATTERNS)

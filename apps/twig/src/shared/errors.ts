@@ -19,9 +19,3 @@ export function isAuthError(error: unknown): boolean {
   if (!message) return false;
   return AUTH_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
 }
-
-export function isAuthErrorMessage(message: string | undefined): boolean {
-  if (!message) return false;
-  const lower = message.toLowerCase();
-  return AUTH_ERROR_PATTERNS.some((pattern) => lower.includes(pattern));
-}

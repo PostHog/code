@@ -29,36 +29,6 @@ describe("isFatalSessionError", () => {
     );
   });
 
-  it("returns false for auth error wrapped in Internal error", () => {
-    expect(
-      isFatalSessionError(
-        'Internal error: Failed to authenticate. API Error: 401 {"detail":"Authentication required"}',
-      ),
-    ).toBe(false);
-  });
-
-  it("returns false for plain Authentication required", () => {
-    expect(isFatalSessionError("Authentication required")).toBe(false);
-  });
-
-  it("returns false for expired token error", () => {
-    expect(isFatalSessionError("Access token has expired")).toBe(false);
-  });
-
-  it("returns false for authentication_error", () => {
-    expect(isFatalSessionError("authentication_error")).toBe(false);
-  });
-
-  it("returns false for authentication_failed", () => {
-    expect(isFatalSessionError("authentication_failed")).toBe(false);
-  });
-
-  it("returns false when auth pattern is in errorDetails", () => {
-    expect(
-      isFatalSessionError("Internal error", "Failed to authenticate"),
-    ).toBe(false);
-  });
-
   it("returns false for non-fatal errors", () => {
     expect(isFatalSessionError("Network timeout")).toBe(false);
   });
