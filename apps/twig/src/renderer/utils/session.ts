@@ -17,7 +17,6 @@ import {
   isJsonRpcNotification,
   isJsonRpcRequest,
 } from "@shared/types/session-events";
-import { includesAny } from "./string";
 
 /**
  * Convert a stored log entry to an ACP message.
@@ -219,28 +218,4 @@ export function normalizePromptToBlocks(
   return typeof prompt === "string" ? [{ type: "text", text: prompt }] : prompt;
 }
 
-/**
- * Error patterns that indicate a fatal session error requiring restart.
- * These errors mean the underlying session/process is unrecoverable.
- */
-const FATAL_SESSION_ERROR_PATTERNS = [
-  "Internal error",
-  "process exited",
-  "Session did not end",
-  "not ready for writing",
-  "Session not found",
-] as const;
-
-/**
- * Check if a prompt error is fatal (session unrecoverable).
- * Fatal errors require session restart rather than simple retry.
- */
-export function isFatalSessionError(
-  errorMessage: string,
-  errorDetails?: string,
-): boolean {
-  return (
-    includesAny(errorMessage, FATAL_SESSION_ERROR_PATTERNS) ||
-    includesAny(errorDetails, FATAL_SESSION_ERROR_PATTERNS)
-  );
-}
+export { isFatalSessionError } from "@shared/errors";
