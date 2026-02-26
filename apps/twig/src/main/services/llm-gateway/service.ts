@@ -1,7 +1,7 @@
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import { net } from "electron";
 import { injectable } from "inversify";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../utils/logger.js";
 import type {
   AnthropicErrorResponse,
   AnthropicMessagesRequest,

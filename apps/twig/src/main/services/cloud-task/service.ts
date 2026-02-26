@@ -1,8 +1,8 @@
 import type { StoredLogEntry } from "@shared/types/session-events.js";
 import { net } from "electron";
 import { injectable, preDestroy } from "inversify";
-import { logger } from "../../lib/logger.js";
-import { TypedEventEmitter } from "../../lib/typed-event-emitter.js";
+import { logger } from "../../utils/logger.js";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import {
   CloudTaskEvent,
   type CloudTaskEvents,

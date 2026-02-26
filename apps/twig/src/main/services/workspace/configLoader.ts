@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { logger } from "../../lib/logger";
+import { logger } from "../../utils/logger";
 import {
   type ArrayConfig,
   type ConfigValidationResult,

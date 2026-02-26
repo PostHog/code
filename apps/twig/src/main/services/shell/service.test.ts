@@ -28,7 +28,7 @@ vi.mock("node:os", () => ({
   default: { homedir: mockHomedir, platform: mockPlatform },
 }));
 
-vi.mock("../../lib/logger.js", () => ({
+vi.mock("../../utils/logger.js", () => ({
   logger: {
     scope: () => ({
       info: vi.fn(),
@@ -53,7 +53,7 @@ vi.mock("../workspace/workspaceEnv.js", () => ({
   buildWorkspaceEnv: vi.fn(() => ({})),
 }));
 
-vi.mock("../../lib/process-utils.js", () => ({
+vi.mock("../../utils/process-utils.js", () => ({
   killProcessTree: vi.fn(),
   isProcessAlive: vi.fn(() => true),
 }));

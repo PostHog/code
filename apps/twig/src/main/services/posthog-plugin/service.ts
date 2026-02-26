@@ -4,8 +4,8 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { app, net } from "electron";
 import { injectable, postConstruct, preDestroy } from "inversify";
-import { logger } from "../../lib/logger.js";
-import { TypedEventEmitter } from "../../lib/typed-event-emitter.js";
+import { logger } from "../../utils/logger.js";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import { captureException } from "../posthog-analytics.js";
 import {
   overlayDownloadedSkills,

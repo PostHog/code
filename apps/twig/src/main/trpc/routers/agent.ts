@@ -1,7 +1,6 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import { container } from "../../di/container.js";
 import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../lib/logger.js";
 import {
   AgentServiceEvent,
   cancelPermissionInput,
@@ -26,6 +25,7 @@ import type { AgentService } from "../../services/agent/service.js";
 import type { ProcessTrackingService } from "../../services/process-tracking/service.js";
 import type { ShellService } from "../../services/shell/service.js";
 import type { SleepService } from "../../services/sleep/service.js";
+import { logger } from "../../utils/logger.js";
 import { publicProcedure, router } from "../trpc.js";
 
 const log = logger.scope("agent-router");

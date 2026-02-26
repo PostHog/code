@@ -29,8 +29,8 @@ import { PushSaga } from "@twig/git/sagas/push";
 import { parseGitHubUrl } from "@twig/git/utils";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../lib/logger.js";
-import { TypedEventEmitter } from "../../lib/typed-event-emitter.js";
+import { logger } from "../../utils/logger.js";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import type { LlmCredentials } from "../llm-gateway/schemas.js";
 import type { LlmGatewayService } from "../llm-gateway/service.js";
 import type {

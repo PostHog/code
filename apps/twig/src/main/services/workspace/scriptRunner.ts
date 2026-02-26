@@ -2,8 +2,8 @@ import { exec } from "node:child_process";
 import * as fs from "node:fs";
 import { promisify } from "node:util";
 import { randomSuffix } from "@shared/utils/id";
-import { logger } from "../../lib/logger";
 import { getMainWindow } from "../../trpc/context.js";
+import { logger } from "../../utils/logger";
 import { ShellEvent } from "../shell/schemas.js";
 import type { ShellService } from "../shell/service.js";
 import type {

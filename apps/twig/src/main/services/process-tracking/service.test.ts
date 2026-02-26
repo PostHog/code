@@ -20,7 +20,7 @@ vi.mock("node:os", () => ({
   default: { platform: mockPlatform },
 }));
 
-vi.mock("../../lib/logger.js", () => ({
+vi.mock("../../utils/logger.js", () => ({
   logger: {
     scope: () => ({
       info: vi.fn(),
@@ -31,7 +31,7 @@ vi.mock("../../lib/logger.js", () => ({
   },
 }));
 
-vi.mock("../../lib/process-utils.js", () => ({
+vi.mock("../../utils/process-utils.js", () => ({
   isProcessAlive: mockIsProcessAlive,
   killProcessTree: mockKillProcessTree,
 }));

@@ -3,7 +3,7 @@ import path from "node:path";
 import { getChangedFiles, listAllFiles } from "@twig/git/queries";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../utils/logger.js";
 import { FileWatcherEvent } from "../file-watcher/schemas.js";
 import type { FileWatcherService } from "../file-watcher/service.js";
 import type { FileEntry } from "./schemas.js";

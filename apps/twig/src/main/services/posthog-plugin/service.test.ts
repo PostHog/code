@@ -35,7 +35,7 @@ vi.mock("node:fs/promises", async () => {
   return { ...fs.promises, default: fs.promises };
 });
 
-vi.mock("../../lib/extract-zip.js", () => ({
+vi.mock("../../utils/extract-zip.js", () => ({
   extractZip: mockExtractZip,
 }));
 
@@ -45,7 +45,7 @@ vi.mock("node:os", () => ({
   default: { homedir: () => "/mock/home", tmpdir: () => "/mock/tmp" },
 }));
 
-vi.mock("../../lib/logger.js", () => ({
+vi.mock("../../utils/logger.js", () => ({
   logger: {
     scope: () => ({
       info: vi.fn(),
