@@ -1,9 +1,9 @@
 const AUTH_ERROR_PATTERNS = [
-  "Authentication required",
-  "Failed to authenticate",
+  "authentication required",
+  "failed to authenticate",
   "authentication_error",
   "authentication_failed",
-  "Access token has expired",
+  "access token has expired",
 ] as const;
 
 export function getErrorMessage(error: unknown): string {
@@ -15,12 +15,13 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function isAuthError(error: unknown): boolean {
-  const message = getErrorMessage(error);
+  const message = getErrorMessage(error).toLowerCase();
   if (!message) return false;
   return AUTH_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
 }
 
 export function isAuthErrorMessage(message: string | undefined): boolean {
   if (!message) return false;
-  return AUTH_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
+  const lower = message.toLowerCase();
+  return AUTH_ERROR_PATTERNS.some((pattern) => lower.includes(pattern));
 }
