@@ -44,6 +44,7 @@ import {
   handleSystemMessage,
   handleUserAssistantMessage,
 } from "./conversion/sdk-to-acp.js";
+import { ensureMcpServersConnected } from "./mcp/reconnect.js";
 import { fetchMcpToolMetadata } from "./mcp/tool-metadata.js";
 import { canUseTool } from "./permissions/permission-handlers.js";
 import { getAvailableSlashCommands } from "./session/commands.js";
@@ -270,6 +271,8 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   async prompt(params: PromptRequest): Promise<PromptResponse> {
     this.session.cancelled = false;
     this.session.interruptReason = undefined;
+
+    await ensureMcpServersConnected(this.session.query, this.logger);
 
     await this.broadcastUserMessage(params);
     this.session.input.push(promptToClaude(params));
