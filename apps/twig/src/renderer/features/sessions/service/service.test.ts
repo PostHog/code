@@ -165,9 +165,20 @@ vi.mock("@utils/session", () => ({
   })),
   extractPromptText: vi.fn((p) => (typeof p === "string" ? p : "text")),
   getUserShellExecutesSinceLastPrompt: vi.fn(() => []),
-  isFatalSessionError: vi.fn((errorMessage: string) =>
-    errorMessage?.includes("process exited"),
-  ),
+  isFatalSessionError: vi.fn((errorMessage: string) => {
+    const authPatterns = [
+      "Authentication required",
+      "Failed to authenticate",
+      "authentication_error",
+      "authentication_failed",
+      "Access token has expired",
+    ];
+    if (authPatterns.some((p) => errorMessage?.includes(p))) return false;
+    return (
+      errorMessage?.includes("process exited") ||
+      errorMessage?.includes("Internal error")
+    );
+  }),
   normalizePromptToBlocks: vi.fn((p) =>
     typeof p === "string" ? [{ type: "text", text: p }] : p,
   ),

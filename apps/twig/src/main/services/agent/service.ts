@@ -53,8 +53,18 @@ function getErrorMessage(error: unknown): string {
   return "";
 }
 
+const AUTH_ERROR_PATTERNS = [
+  "Authentication required",
+  "Failed to authenticate",
+  "authentication_error",
+  "authentication_failed",
+  "Access token has expired",
+] as const;
+
 function isAuthError(error: unknown): boolean {
-  return getErrorMessage(error).startsWith("Authentication required");
+  const message = getErrorMessage(error);
+  if (!message) return false;
+  return AUTH_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
 }
 
 /** Mark all content blocks as hidden so the renderer doesn't show a duplicate user message on retry. */

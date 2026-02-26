@@ -220,6 +220,18 @@ export function normalizePromptToBlocks(
 }
 
 /**
+ * Auth error patterns that look like internal errors but are retryable.
+ * These must be excluded from fatal error detection.
+ */
+const AUTH_ERROR_PATTERNS = [
+  "Authentication required",
+  "Failed to authenticate",
+  "authentication_error",
+  "authentication_failed",
+  "Access token has expired",
+] as const;
+
+/**
  * Error patterns that indicate a fatal session error requiring restart.
  * These errors mean the underlying session/process is unrecoverable.
  */
@@ -234,11 +246,18 @@ const FATAL_SESSION_ERROR_PATTERNS = [
 /**
  * Check if a prompt error is fatal (session unrecoverable).
  * Fatal errors require session restart rather than simple retry.
+ * Auth errors are excluded — they look like internal errors but are retryable.
  */
 export function isFatalSessionError(
   errorMessage: string,
   errorDetails?: string,
 ): boolean {
+  if (
+    includesAny(errorMessage, AUTH_ERROR_PATTERNS) ||
+    includesAny(errorDetails, AUTH_ERROR_PATTERNS)
+  ) {
+    return false;
+  }
   return (
     includesAny(errorMessage, FATAL_SESSION_ERROR_PATTERNS) ||
     includesAny(errorDetails, FATAL_SESSION_ERROR_PATTERNS)
