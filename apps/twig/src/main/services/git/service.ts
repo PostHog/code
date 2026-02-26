@@ -147,8 +147,9 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
 
     const status = await getSyncStatus(directoryPath);
     return {
-      ahead: status.ahead,
+      aheadOfRemote: status.aheadOfRemote,
       behind: status.behind,
+      aheadOfDefault: status.aheadOfDefault,
       hasRemote: status.hasRemote,
       currentBranch: status.currentBranch,
       isFeatureBranch: status.isFeatureBranch,

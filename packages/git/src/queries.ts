@@ -10,7 +10,7 @@ export interface WorktreeListEntry {
 }
 
 export interface AheadBehind {
-  ahead: number;
+  aheadOfRemote: number;
   behind: number;
 }
 
@@ -158,7 +158,7 @@ export async function getAheadBehind(
 
       const status = await git.status();
       return {
-        ahead: status.ahead,
+        aheadOfRemote: status.ahead,
         behind: status.behind,
       };
     },
@@ -570,8 +570,9 @@ export async function getDiffStats(
 }
 
 export interface SyncStatus {
-  ahead: number;
+  aheadOfRemote: number;
   behind: number;
+  aheadOfDefault: number;
   hasRemote: boolean;
   currentBranch: string | null;
   isFeatureBranch: boolean;
@@ -592,8 +593,9 @@ export async function getSyncStatus(
 
         if (!currentBranch) {
           return {
-            ahead: 0,
+            aheadOfRemote: 0,
             behind: 0,
+            aheadOfDefault: 0,
             hasRemote: false,
             currentBranch: null,
             isFeatureBranch: false,
@@ -604,17 +606,30 @@ export async function getSyncStatus(
         const hasRemote = status.tracking !== null;
         const isFeatureBranch = currentBranch !== defaultBranch;
 
+        let aheadOfDefault = 0;
+        if (isFeatureBranch) {
+          try {
+            const log = await git.log({
+              from: `origin/${defaultBranch}`,
+              to: currentBranch,
+            });
+            aheadOfDefault = log.total;
+          } catch {}
+        }
+
         return {
-          ahead: status.ahead,
+          aheadOfRemote: status.ahead,
           behind: status.behind,
+          aheadOfDefault,
           hasRemote,
           currentBranch,
           isFeatureBranch,
         };
       } catch {
         return {
-          ahead: 0,
+          aheadOfRemote: 0,
           behind: 0,
+          aheadOfDefault: 0,
           hasRemote: false,
           currentBranch: null,
           isFeatureBranch: false,
