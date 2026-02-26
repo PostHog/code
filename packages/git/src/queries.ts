@@ -462,6 +462,79 @@ export async function getChangedFilesDetailed(
   );
 }
 
+export async function getChangedFilesBetweenBranches(
+  baseDir: string,
+  baseBranch: string,
+  headBranch?: string,
+  options?: GetChangedFilesDetailedOptions,
+): Promise<ChangedFileInfo[]> {
+  const { excludePatterns, ...gitOptions } = options ?? {};
+  const manager = getGitOperationManager();
+
+  return manager.executeRead(
+    baseDir,
+    async (git) => {
+      try {
+        const from = `origin/${baseBranch}`;
+        const to = headBranch ?? "HEAD";
+
+        const [diffSummary, nameStatusOutput] = await Promise.all([
+          git.diffSummary(["-M", `${from}...${to}`]),
+          git.raw(["diff", "--name-status", "-M", `${from}...${to}`]),
+        ]);
+
+        const statusMap = new Map<string, GitFileStatus>();
+        for (const line of nameStatusOutput.split("\n").filter(Boolean)) {
+          const parts = line.split("\t");
+          const code = parts[0];
+          const filePath = parts.length === 3 ? parts[2] : parts[1];
+          if (!filePath) continue;
+
+          if (code?.startsWith("R")) {
+            statusMap.set(filePath, "renamed");
+          } else if (code === "A") {
+            statusMap.set(filePath, "added");
+          } else if (code === "D") {
+            statusMap.set(filePath, "deleted");
+          } else {
+            statusMap.set(filePath, "modified");
+          }
+        }
+
+        const files: ChangedFileInfo[] = [];
+        for (const file of diffSummary.files) {
+          if (
+            excludePatterns &&
+            matchesExcludePattern(file.file, excludePatterns)
+          ) {
+            continue;
+          }
+
+          const hasFrom = "from" in file && file.from;
+          const isBinary = file.binary;
+
+          files.push({
+            path: file.file,
+            status: statusMap.get(file.file) ?? "modified",
+            originalPath: hasFrom ? (file.from as string) : undefined,
+            linesAdded: isBinary
+              ? undefined
+              : (file as { insertions: number }).insertions,
+            linesRemoved: isBinary
+              ? undefined
+              : (file as { deletions: number }).deletions,
+          });
+        }
+
+        return files;
+      } catch {
+        return [];
+      }
+    },
+    { signal: gitOptions?.abortSignal },
+  );
+}
+
 export interface DiffStats {
   filesChanged: number;
   linesAdded: number;
