@@ -33,7 +33,7 @@ import { v7 as uuidv7 } from "uuid";
 import packageJson from "../../../package.json" with { type: "json" };
 import type { SessionContext } from "../../otel-log-writer.js";
 import type { SessionLogWriter } from "../../session-log-writer.js";
-import { unreachable, withTimeout } from "../../utils/common.js";
+import { withTimeout } from "../../utils/common.js";
 import { Logger } from "../../utils/logger.js";
 import { Pushable } from "../../utils/streams.js";
 import { BaseAcpAgent } from "../base-acp-agent.js";
@@ -646,7 +646,9 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         return null;
 
       default:
-        unreachable(message, this.logger);
+        this.logger.warn("Unhandled message type", {
+          type: (message as { type: string }).type,
+        });
         return null;
     }
   }

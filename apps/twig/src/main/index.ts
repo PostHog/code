@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { app } from "electron";
 import log from "electron-log/main";
-import "./lib/logger";
+import "./utils/logger";
 import "./services/index.js";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics.js";
 import { initializeDeepLinks, registerDeepLinkHandlers } from "./deep-links.js";
