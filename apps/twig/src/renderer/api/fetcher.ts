@@ -1,6 +1,6 @@
 import type { createApiClient } from "./generated";
 
-const USER_AGENT = `posthog/hog.dev; version: ${typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "unknown"}`;
+const USER_AGENT = `posthog/desktop.hog.dev; version: ${typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "unknown"}`;
 
 export const buildApiFetcher: (config: {
   apiToken: string;

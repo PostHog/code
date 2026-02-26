@@ -502,7 +502,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         apiUrl: credentials.apiHost,
         getApiKey: () => this.getToken(credentials.apiKey),
         projectId: credentials.projectId,
-        userAgent: `posthog/hog.dev; version: ${app.getVersion()}`,
+        userAgent: `posthog/desktop.hog.dev; version: ${app.getVersion()}`,
       },
       skipLogPersistence: isPreview,
       localCachePath: join(app.getPath("home"), ".twig"),
