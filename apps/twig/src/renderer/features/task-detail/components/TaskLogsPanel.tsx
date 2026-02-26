@@ -1,5 +1,6 @@
 import { BackgroundWrapper } from "@components/BackgroundWrapper";
 import { ErrorBoundary } from "@components/ErrorBoundary";
+import { tryExecuteTwigCommand } from "@features/message-editor/commands";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { SessionView } from "@features/sessions/components/SessionView";
 import { getSessionService } from "@features/sessions/service/service";
@@ -13,13 +14,11 @@ import { WorkspaceSetupPrompt } from "@features/task-detail/components/Workspace
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
-import { track } from "@renderer/lib/analytics";
 import { logger } from "@renderer/lib/logger";
 import { useNavigationStore } from "@renderer/stores/navigationStore";
 import { useTaskDirectoryStore } from "@renderer/stores/taskDirectoryStore";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
-import { ANALYTICS_EVENTS, type FeedbackType } from "@shared/types/analytics";
 import { useQueryClient } from "@tanstack/react-query";
 import { getTaskRepository } from "@utils/repository";
 import { toast } from "@utils/toast";
@@ -168,29 +167,19 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
 
   const handleSendPrompt = useCallback(
     async (text: string) => {
-      const feedbackMatch = text.match(/^\/(good|bad|feedback)(?:\s+(.*))?$/);
-      if (feedbackMatch) {
-        const rawType = feedbackMatch[1];
-        const feedbackType: FeedbackType =
-          rawType === "feedback" ? "general" : (rawType as FeedbackType);
-        const comment = feedbackMatch[2]?.trim() || undefined;
-        track(ANALYTICS_EVENTS.TASK_FEEDBACK, {
-          task_id: taskId,
-          task_run_id: session?.taskRunId ?? task.latest_run?.id,
-          log_url: session?.logUrl ?? task.latest_run?.log_url,
-          event_count: events.length,
-          feedback_type: feedbackType,
-          feedback_comment: comment,
-        });
-        const label =
-          feedbackType === "good"
-            ? "Positive"
-            : feedbackType === "bad"
-              ? "Negative"
-              : "General";
-        toast.success(`${label} feedback captured`);
-        return;
-      }
+      const handled = await tryExecuteTwigCommand(text, {
+        taskId,
+        repoPath,
+        session: session
+          ? {
+              taskRunId: session.taskRunId,
+              logUrl: session.logUrl,
+              events,
+            }
+          : null,
+        taskRun: task.latest_run ?? null,
+      });
+      if (handled) return;
 
       try {
         markAsViewed(taskId);
@@ -215,13 +204,12 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     },
     [
       taskId,
+      repoPath,
       markActivity,
       markAsViewed,
-      events.length,
-      session?.logUrl,
-      session?.taskRunId,
-      task.latest_run?.id,
-      task.latest_run?.log_url,
+      events,
+      session,
+      task.latest_run,
     ],
   );
 
