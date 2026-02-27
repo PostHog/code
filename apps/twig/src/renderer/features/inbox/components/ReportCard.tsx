@@ -1,4 +1,3 @@
-import { SparkleIcon } from "@phosphor-icons/react";
 import { Flex, Text } from "@radix-ui/themes";
 import type { SignalReport } from "@shared/types";
 
@@ -34,7 +33,7 @@ export function ReportCard({ report, isSelected, onClick }: ReportCardProps) {
     <button
       type="button"
       onClick={onClick}
-      className="w-full border-gray-5 border-b px-3 py-2 text-left transition-colors hover:bg-gray-2"
+      className="w-full overflow-hidden border-gray-5 border-b px-3 py-2 text-left transition-colors hover:bg-gray-2"
       style={{
         backgroundColor: isSelected ? "var(--gray-3)" : "transparent",
       }}
@@ -74,12 +73,9 @@ export function ReportCard({ report, isSelected, onClick }: ReportCardProps) {
           <Text size="1" color="gray" className="font-mono text-[11px]">
             {updatedAtLabel}
           </Text>
-          <Flex align="center" gap="1">
-            <SparkleIcon size={11} />
-            <Text size="1" color="gray" className="font-mono text-[10px]">
-              {report.signal_count}
-            </Text>
-          </Flex>
+          <Text size="1" color="gray" className="font-mono text-[10px]">
+            w:{report.total_weight.toFixed(2)}
+          </Text>
         </Flex>
       </Flex>
     </button>

@@ -62,6 +62,7 @@ function getArtefactsUnavailableMessage(
 export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
   const { data, isLoading, isFetching, error, refetch } = useInboxReports({
     status: "ready",
+    ordering: "-total_weight",
   });
   const reports = data?.results ?? [];
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
