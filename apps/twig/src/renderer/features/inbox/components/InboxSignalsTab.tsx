@@ -30,13 +30,17 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
-import type { SignalReportArtefactsResponse } from "@shared/types";
+import type {
+  SignalReportArtefactsResponse,
+  SignalReportsQueryParams,
+} from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { SignalsErrorState, SignalsLoadingState } from "./InboxEmptyStates";
 import { ReportCard } from "./ReportCard";
 import { SignalCard } from "./SignalCard";
+import { SignalsToolbar } from "./SignalsToolbar";
 
 interface InboxSignalsTabProps {
   onGoToSetup: () => void;
@@ -248,17 +252,24 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
           style={{ height: "100%" }}
         >
           <Flex direction="column">
-            <Flex
-              align="center"
-              justify="between"
-              px="3"
-              py="2"
-              style={{ borderBottom: "1px solid var(--gray-5)" }}
-            >
-              <Text size="1" color="gray" className="font-mono text-[11px]">
-                Signals
-              </Text>
-            </Flex>
+            <SignalsToolbar
+              totalCount={allReports.length}
+              filteredCount={reports.length}
+              isSearchActive={!!searchQuery.trim()}
+            />
+            {reports.length === 0 && searchQuery.trim() ? (
+              <Flex
+                direction="column"
+                align="center"
+                justify="center"
+                gap="2"
+                py="6"
+              >
+                <Text size="1" color="gray" className="font-mono text-[11px]">
+                  No matching signals
+                </Text>
+              </Flex>
+            ) : null}
             {reports.map((report) => (
               <ReportCard
                 key={report.id}
