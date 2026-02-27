@@ -146,6 +146,15 @@ export const agentRouter = router({
     getService().hasActiveSessions(),
   ),
 
+  onSessionsIdle: publicProcedure.subscription(async function* (opts) {
+    const service = getService();
+    for await (const _ of service.toIterable(AgentServiceEvent.SessionsIdle, {
+      signal: opts.signal,
+    })) {
+      yield true;
+    }
+  }),
+
   markAllForRecreation: publicProcedure.mutation(() =>
     getService().markAllSessionsForRecreation(),
   ),

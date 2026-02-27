@@ -9,7 +9,6 @@ import {
   OAUTH_SCOPE_VERSION,
   OAUTH_SCOPES,
   TOKEN_REFRESH_BUFFER_MS,
-  TOKEN_REFRESH_POLL_MS,
 } from "@shared/constants/oauth";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { CloudRegion } from "@shared/types/oauth";
@@ -110,17 +109,31 @@ async function attemptRefreshWithActivityCheck(
       return;
     }
 
-    // Sessions are busy — poll until idle
-    log.debug("Active sessions detected, deferring token refresh");
+    // Sessions are busy — wait for the service to tell us they're idle
+    log.debug("Active sessions detected, waiting for idle event");
 
-    if (refreshTimeoutId) {
-      window.clearTimeout(refreshTimeoutId);
-    }
-    refreshTimeoutId = window.setTimeout(() => {
-      attemptRefreshWithActivityCheck(getState).catch((error) => {
-        log.error("Deferred token refresh failed:", error);
-      });
-    }, TOKEN_REFRESH_POLL_MS);
+    await new Promise<void>((resolve, reject) => {
+      const subscription = trpcVanilla.agent.onSessionsIdle.subscribe(
+        undefined,
+        {
+          onData: () => {
+            subscription.unsubscribe();
+            getState()
+              .refreshAccessToken()
+              .then(resolve)
+              .catch(reject);
+          },
+          onError: (error) => {
+            subscription.unsubscribe();
+            log.warn("Sessions idle subscription failed, refreshing anyway", error);
+            getState()
+              .refreshAccessToken()
+              .then(resolve)
+              .catch(reject);
+          },
+        },
+      );
+    });
   } catch (error) {
     // IPC call failed — refresh anyway (better than letting the token expire)
     log.warn("Activity check failed, refreshing token anyway", error);
