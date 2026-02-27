@@ -1,3 +1,4 @@
+import { useArchiveTask } from "@features/tasks/hooks/useArchiveTask";
 import { useDeleteTask } from "@features/tasks/hooks/useTasks";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { logger } from "@renderer/lib/logger";
@@ -11,6 +12,7 @@ const log = logger.scope("context-menu");
 export function useTaskContextMenu() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const { deleteWithConfirm } = useDeleteTask();
+  const { archiveTask } = useArchiveTask();
 
   const showContextMenu = useCallback(
     async (
@@ -45,6 +47,13 @@ export function useTaskContextMenu() {
           case "pin":
             onTogglePin?.();
             break;
+          case "archive":
+            await archiveTask({
+              taskId: task.id,
+              title: task.title,
+              repository: task.repository ?? null,
+            });
+            break;
           case "delete":
             await deleteWithConfirm({
               taskId: task.id,
@@ -72,7 +81,7 @@ export function useTaskContextMenu() {
         log.error("Failed to show context menu", error);
       }
     },
-    [deleteWithConfirm],
+    [deleteWithConfirm, archiveTask],
   );
 
   return {

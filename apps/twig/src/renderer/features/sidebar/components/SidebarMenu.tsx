@@ -1,4 +1,5 @@
 import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
+import { useArchivedTaskIds } from "@features/archive/hooks/useArchivedTaskIds";
 import { useAutonomy } from "@features/autonomy/hooks/useAutonomy";
 import { useInboxReports } from "@features/inbox/hooks/useInboxReports";
 import {
@@ -7,7 +8,8 @@ import {
   useUpdateTask,
 } from "@features/tasks/hooks/useTasks";
 import { useTaskContextMenu } from "@hooks/useTaskContextMenu";
-import { Box, Flex } from "@radix-ui/themes";
+import { ArchiveIcon } from "@phosphor-icons/react";
+import { Box, Flex, Text } from "@radix-ui/themes";
 import { useWorkspaceStore } from "@renderer/features/workspace/stores/workspaceStore";
 import { logger } from "@renderer/lib/logger";
 import type { Task } from "@shared/types";
@@ -22,8 +24,13 @@ import { SidebarItem } from "./SidebarItem";
 import { TaskListView } from "./TaskListView";
 
 function SidebarMenuComponent() {
-  const { view, navigateToTask, navigateToTaskInput, navigateToInbox } =
-    useNavigationStore();
+  const {
+    view,
+    navigateToTask,
+    navigateToTaskInput,
+    navigateToInbox,
+    navigateToArchived,
+  } = useNavigationStore();
 
   const { data: allTasks = [] } = useTasks();
 
@@ -34,6 +41,8 @@ function SidebarMenuComponent() {
     useTaskContextMenu();
   const { deleteWithConfirm } = useDeleteTask();
   const togglePin = usePinnedTasksStore((state) => state.togglePin);
+
+  const archivedTaskIds = useArchivedTaskIds();
 
   const sidebarData = useSidebarData({
     activeView: view,
@@ -208,6 +217,23 @@ function SidebarMenuComponent() {
               onTaskEditCancel={handleTaskEditCancel}
               hasMore={sidebarData.hasMore}
             />
+          )}
+
+          {archivedTaskIds.size > 0 && (
+            <Box mt="2" px="2">
+              <button
+                type="button"
+                className="w-full rounded-md px-2 py-1 text-left font-mono text-[11px] text-gray-11 transition-colors hover:bg-gray-3"
+                onClick={navigateToArchived}
+              >
+                <Flex align="center" gap="2">
+                  <ArchiveIcon size={14} />
+                  <Text className="font-mono text-[11px]">
+                    Archived ({archivedTaskIds.size})
+                  </Text>
+                </Flex>
+              </button>
+            </Box>
           )}
         </Flex>
       </Box>

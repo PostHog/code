@@ -29,6 +29,7 @@ const externalAppAction = z.discriminatedUnion("type", [
 const taskAction = z.discriminatedUnion("type", [
   z.object({ type: z.literal("rename") }),
   z.object({ type: z.literal("pin") }),
+  z.object({ type: z.literal("archive") }),
   z.object({ type: z.literal("delete") }),
   z.object({ type: z.literal("external-app"), action: externalAppAction }),
 ]);

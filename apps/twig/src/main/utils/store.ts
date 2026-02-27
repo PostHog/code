@@ -5,8 +5,10 @@ import type {
   RegisteredFolder,
   TaskFolderAssociation,
 } from "../../shared/types";
+import type { ArchivedTask } from "../../shared/types/archive";
 import { logger } from "../lib/logger";
 import { getWorktreeLocation } from "../services/settingsStore";
+import { deriveWorktreePath } from "./worktree-helpers";
 
 interface FocusSession {
   mainRepoPath: string;
@@ -56,7 +58,7 @@ const schema = {
         folderId: { type: "string" as const },
         mode: { type: "string" as const },
         worktree: {},
-        branchName: { type: "string" as const },
+        branchName: { type: ["string", "null"] as const },
       },
       required: ["taskId", "folderId", "mode"],
     },
@@ -84,6 +86,16 @@ export const foldersStore = new Store<FoldersSchema>({
     folders: [],
     taskAssociations: [],
   },
+});
+
+interface ArchiveStoreSchema {
+  archivedTasks: ArchivedTask[];
+}
+
+export const archiveStore = new Store<ArchiveStoreSchema>({
+  name: "archive",
+  cwd: app.getPath("userData"),
+  defaults: { archivedTasks: [] },
 });
 
 const log = logger.scope("store");
@@ -132,7 +144,7 @@ export function migrateTaskAssociations(): void {
           folderId,
           mode: "worktree" as const,
           worktree: assoc.worktree.worktreeName,
-          branchName: `twig/${assoc.worktree.worktreeName}`,
+          branchName: null,
         };
       }
 
@@ -142,7 +154,7 @@ export function migrateTaskAssociations(): void {
           folderId,
           mode: "worktree" as const,
           worktree: assoc.worktree,
-          branchName: assoc.branchName ?? `twig/${assoc.worktree}`,
+          branchName: assoc.branchName ?? null,
         };
       }
 
@@ -164,12 +176,6 @@ function getFolderPath(folderId: string): string | null {
   return folder?.path ?? null;
 }
 
-function getWorktreePath(folderPath: string, worktreeName: string): string {
-  const worktreeBasePath = getWorktreeLocation();
-  const repoName = folderPath.split("/").pop() ?? "";
-  return `${worktreeBasePath}/${repoName}/${worktreeName}`;
-}
-
 export async function clearAllStoreData(): Promise<void> {
   const associations = foldersStore.get("taskAssociations", []);
   const worktreesToDelete: Array<{
@@ -182,7 +188,7 @@ export async function clearAllStoreData(): Promise<void> {
       const folderPath = getFolderPath(assoc.folderId);
       if (!folderPath) continue;
       worktreesToDelete.push({
-        worktreePath: getWorktreePath(folderPath, assoc.worktree),
+        worktreePath: deriveWorktreePath(folderPath, assoc.worktree),
         mainRepoPath: folderPath,
       });
     }
@@ -203,4 +209,5 @@ export async function clearAllStoreData(): Promise<void> {
 
   foldersStore.clear();
   rendererStore.clear();
+  archiveStore.clear();
 }

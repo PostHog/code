@@ -13,6 +13,11 @@ import { MAIN_TOKENS } from "../../di/tokens.js";
 import { logger } from "../../lib/logger";
 import { TypedEventEmitter } from "../../lib/typed-event-emitter.js";
 import { foldersStore } from "../../utils/store";
+import {
+  deriveWorktreePath,
+  getFolderPath,
+  getTaskAssociations,
+} from "../../utils/worktree-helpers";
 import type { AgentService } from "../agent/service.js";
 import { FileWatcherEvent } from "../file-watcher/schemas.js";
 import type { FileWatcherService } from "../file-watcher/service.js";
@@ -37,33 +42,10 @@ import type {
 import { ScriptRunner } from "./scriptRunner";
 import { buildWorkspaceEnv } from "./workspaceEnv";
 
-function getTaskAssociations(): TaskFolderAssociation[] {
-  return foldersStore.get("taskAssociations", []);
-}
-
 function findTaskAssociation(
   taskId: string,
 ): TaskFolderAssociation | undefined {
   return getTaskAssociations().find((a) => a.taskId === taskId);
-}
-
-function getFolderPath(folderId: string): string | null {
-  const folders = foldersStore.get("folders", []);
-  const folder = folders.find((f) => f.id === folderId);
-  return folder?.path ?? null;
-}
-
-function isLegacyWorktreeName(name: string): boolean {
-  return !/^\d+$/.test(name);
-}
-
-function deriveWorktreePath(folderPath: string, worktreeName: string): string {
-  const worktreeBasePath = getWorktreeLocation();
-  const repoName = path.basename(folderPath);
-  if (isLegacyWorktreeName(worktreeName)) {
-    return path.join(worktreeBasePath, repoName, worktreeName);
-  }
-  return path.join(worktreeBasePath, worktreeName, repoName);
 }
 
 async function hasAnyFiles(repoPath: string): Promise<boolean> {
@@ -312,6 +294,15 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       branch,
       useExistingBranch,
     } = options;
+
+    const existingWorkspace = await this.getWorkspaceInfo(taskId);
+    if (existingWorkspace) {
+      log.info(
+        `Workspace already exists for task ${taskId}, returning existing workspace`,
+      );
+      return existingWorkspace;
+    }
+
     log.info(
       `Creating workspace for task ${taskId} in ${mainRepoPath} (mode: ${mode}, useExistingBranch: ${useExistingBranch})`,
     );
@@ -525,7 +516,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       folderId,
       mode: "worktree" as const,
       worktree: worktree.worktreeName,
-      branchName: worktree.branchName ?? `twig/${worktree.worktreeName}`,
+      branchName: worktree.branchName || null,
     };
 
     if (existingIndex >= 0) {
@@ -1101,7 +1092,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     taskId: string,
     mainRepoPath: string,
     worktreePath: string,
-    branchName: string,
+    branchName: string | null,
   ): Promise<void> {
     try {
       const fileWatcher = container.get<FileWatcherService>(
@@ -1123,15 +1114,17 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       log.error(`Failed to delete worktree for task ${taskId}:`, error);
     }
 
-    try {
-      const git = createGitClient(mainRepoPath);
-      await git.deleteLocalBranch(branchName, true);
-      log.info(`Deleted branch ${branchName} for task ${taskId}`);
-    } catch (error) {
-      log.warn(
-        `Failed to delete branch ${branchName} for task ${taskId}:`,
-        error,
-      );
+    if (branchName) {
+      try {
+        const git = createGitClient(mainRepoPath);
+        await git.deleteLocalBranch(branchName, true);
+        log.info(`Deleted branch ${branchName} for task ${taskId}`);
+      } catch (error) {
+        log.warn(
+          `Failed to delete branch ${branchName} for task ${taskId}:`,
+          error,
+        );
+      }
     }
   }
 

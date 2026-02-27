@@ -3,6 +3,7 @@ import { HeaderRow } from "@components/HeaderRow";
 import { KeyboardShortcutsSheet } from "@components/KeyboardShortcutsSheet";
 import { ScopeReauthPrompt } from "@components/ScopeReauthPrompt";
 import { UpdatePrompt } from "@components/UpdatePrompt";
+import { ArchivedTasksView } from "@features/archive/components/ArchivedTasksView";
 import { useAutonomy } from "@features/autonomy/hooks/useAutonomy";
 import { CommandMenu } from "@features/command/components/CommandMenu";
 import { InboxView } from "@features/inbox/components/InboxView";
@@ -72,6 +73,8 @@ export function MainLayout() {
           {view.type === "inbox" && inboxEnabled && <InboxView />}
 
           {view.type === "inbox" && !inboxEnabled && <TaskInput />}
+
+          {view.type === "archived" && <ArchivedTasksView />}
         </Box>
 
         {view.type === "task-detail" && view.data && (

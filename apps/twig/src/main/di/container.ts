@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { Container } from "inversify";
 import { AgentService } from "../services/agent/service.js";
 import { AppLifecycleService } from "../services/app-lifecycle/service.js";
+import { ArchiveService } from "../services/archive/service.js";
 import { CloudTaskService } from "../services/cloud-task/service.js";
 import { ConnectivityService } from "../services/connectivity/service.js";
 import { ContextMenuService } from "../services/context-menu/service.js";
@@ -33,6 +34,7 @@ export const container = new Container({
 });
 
 container.bind(MAIN_TOKENS.AgentService).to(AgentService);
+container.bind(MAIN_TOKENS.ArchiveService).to(ArchiveService);
 container.bind(MAIN_TOKENS.AppLifecycleService).to(AppLifecycleService);
 container.bind(MAIN_TOKENS.CloudTaskService).to(CloudTaskService);
 container.bind(MAIN_TOKENS.ConnectivityService).to(ConnectivityService);
