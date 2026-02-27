@@ -9,6 +9,7 @@ import {
   OAUTH_SCOPE_VERSION,
   OAUTH_SCOPES,
   TOKEN_REFRESH_BUFFER_MS,
+  TOKEN_REFRESH_FORCE_MS,
 } from "@shared/constants/oauth";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { CloudRegion } from "@shared/types/oauth";
@@ -98,10 +99,25 @@ interface AuthState {
 
 let refreshTimeoutId: number | null = null;
 
+function isTokenExpiringSoon(tokenExpiry: number | null): boolean {
+  return (
+    tokenExpiry != null && tokenExpiry - Date.now() <= TOKEN_REFRESH_FORCE_MS
+  );
+}
+
 async function attemptRefreshWithActivityCheck(
   getState: () => AuthState,
 ): Promise<void> {
   try {
+    // If the token is about to expire, skip the activity check and refresh immediately
+    if (isTokenExpiringSoon(getState().tokenExpiry)) {
+      log.warn(
+        "Token expiring imminently, forcing refresh despite active sessions",
+      );
+      await getState().refreshAccessToken();
+      return;
+    }
+
     const hasActive = await trpcVanilla.agent.hasActiveSessions.query();
 
     if (!hasActive) {
@@ -113,26 +129,36 @@ async function attemptRefreshWithActivityCheck(
     log.debug("Active sessions detected, waiting for idle event");
 
     await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const settle = (fn: () => Promise<void>) => {
+        if (settled) return;
+        settled = true;
+        subscription.unsubscribe();
+        window.clearInterval(expiryCheckId);
+        fn().then(resolve).catch(reject);
+      };
+
       const subscription = trpcVanilla.agent.onSessionsIdle.subscribe(
         undefined,
         {
-          onData: () => {
-            subscription.unsubscribe();
-            getState()
-              .refreshAccessToken()
-              .then(resolve)
-              .catch(reject);
-          },
+          onData: () => settle(() => getState().refreshAccessToken()),
           onError: (error) => {
-            subscription.unsubscribe();
-            log.warn("Sessions idle subscription failed, refreshing anyway", error);
-            getState()
-              .refreshAccessToken()
-              .then(resolve)
-              .catch(reject);
+            log.warn(
+              "Sessions idle subscription failed, refreshing anyway",
+              error,
+            );
+            settle(() => getState().refreshAccessToken());
           },
         },
       );
+
+      // Safety net: if the token is about to expire while we wait, force refresh
+      const expiryCheckId = window.setInterval(() => {
+        if (isTokenExpiringSoon(getState().tokenExpiry)) {
+          log.warn("Token expiring while waiting for idle, forcing refresh");
+          settle(() => getState().refreshAccessToken());
+        }
+      }, TOKEN_REFRESH_FORCE_MS / 2);
     });
   } catch (error) {
     // IPC call failed — refresh anyway (better than letting the token expire)
