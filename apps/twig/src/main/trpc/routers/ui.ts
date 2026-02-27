@@ -24,4 +24,5 @@ export const uiRouter = router({
   onNewTask: subscribeToUIEvent(UIServiceEvent.NewTask),
   onResetLayout: subscribeToUIEvent(UIServiceEvent.ResetLayout),
   onClearStorage: subscribeToUIEvent(UIServiceEvent.ClearStorage),
+  onInvalidateToken: subscribeToUIEvent(UIServiceEvent.InvalidateToken),
 });

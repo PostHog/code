@@ -19,4 +19,8 @@ export class UIService extends TypedEventEmitter<UIServiceEvents> {
   clearStorage(): void {
     this.emit(UIServiceEvent.ClearStorage, true);
   }
+
+  invalidateToken(): void {
+    this.emit(UIServiceEvent.InvalidateToken, true);
+  }
 }
