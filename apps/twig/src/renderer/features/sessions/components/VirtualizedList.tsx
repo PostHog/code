@@ -45,6 +45,7 @@ function VirtualizedListInner<T>(
   const listRef = useRef<VListHandle>(null);
   const isAtBottomRef = useRef(!savedState);
   const initRef = useRef({ savedState, itemCount: items.length });
+  const initializedRef = useRef(false);
   const onSaveStateRef = useRef(onSaveState);
   onSaveStateRef.current = onSaveState;
   const onScrollStateChangeRef = useRef(onScrollStateChange);
@@ -77,6 +78,12 @@ function VirtualizedListInner<T>(
       handle.scrollToIndex(itemCount - 1, { align: "end" });
     }
 
+    // Allow measurements to settle before reporting scroll state,
+    // otherwise the scroll-to-bottom button flashes on task open.
+    requestAnimationFrame(() => {
+      initializedRef.current = true;
+    });
+
     return () => {
       onSaveStateRef.current?.({
         offset: handle.scrollOffset,
@@ -107,7 +114,11 @@ function VirtualizedListInner<T>(
     if (isAtBottomRef.current !== atBottom) {
       isAtBottomRef.current = atBottom;
     }
-    onScrollStateChangeRef.current?.(atBottom);
+    // Skip reporting during initialization to avoid flashing the
+    // scroll-to-bottom button before measurements settle.
+    if (initializedRef.current) {
+      onScrollStateChangeRef.current?.(atBottom);
+    }
   }, []);
 
   return (
