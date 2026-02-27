@@ -48,7 +48,11 @@ export async function fetchMcpToolMetadata(
       for (const tool of server.tools) {
         const toolKey = buildToolKey(server.name, tool.name);
         const readOnly = tool.annotations?.readOnly === true;
-        mcpToolMetadataCache.set(toolKey, { readOnly, name: tool.name, description: tool.description });
+        mcpToolMetadataCache.set(toolKey, {
+          readOnly,
+          name: tool.name,
+          description: tool.description,
+        });
         if (readOnly) readOnlyCount++;
       }
 
