@@ -192,7 +192,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const modelOptions = await this.getModelConfigOptions();
 
     // Deferred: slash commands + MCP metadata (not needed to return configOptions)
-    this.deferBackgroundFetches(q, sessionId, mcpServers);
+    this.deferBackgroundFetches(q, sessionId);
 
     session.modelId = modelOptions.currentModelId;
     // Only call setModel if the resolved model differs from the default we
@@ -260,7 +260,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     }
 
     // Deferred: slash commands + MCP metadata (not needed to return configOptions)
-    this.deferBackgroundFetches(q, sessionId, mcpServers);
+    this.deferBackgroundFetches(q, sessionId);
 
     const configOptions = await this.buildConfigOptions();
 
@@ -514,14 +514,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
    * Fire-and-forget: fetch slash commands and MCP tool metadata in parallel.
    * Both populate caches used later — neither is needed to return configOptions.
    */
-  private deferBackgroundFetches(
-    q: Query,
-    sessionId: string,
-    mcpServers: ReturnType<typeof parseMcpServers>,
-  ): void {
+  private deferBackgroundFetches(q: Query, sessionId: string): void {
     Promise.all([
       getAvailableSlashCommands(q),
-      fetchMcpToolMetadata(mcpServers, this.logger),
+      fetchMcpToolMetadata(q, this.logger),
     ])
       .then(([slashCommands]) => {
         this.sendAvailableCommandsUpdate(sessionId, slashCommands);

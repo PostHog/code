@@ -1,10 +1,4 @@
-import type {
-  McpHttpServerConfig,
-  McpServerConfig,
-} from "@anthropic-ai/claude-agent-sdk";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import type { Tool } from "@modelcontextprotocol/sdk/types.js";
+import type { McpServerStatus, Query } from "@anthropic-ai/claude-agent-sdk";
 import { Logger } from "../../../utils/logger.js";
 
 export interface McpToolMetadata {
@@ -13,86 +7,74 @@ export interface McpToolMetadata {
 
 const mcpToolMetadataCache: Map<string, McpToolMetadata> = new Map();
 
+const PENDING_RETRY_INTERVAL_MS = 1_000;
+const PENDING_MAX_RETRIES = 10;
+
 function buildToolKey(serverName: string, toolName: string): string {
   return `mcp__${serverName}__${toolName}`;
 }
 
-function isHttpMcpServer(
-  config: McpServerConfig,
-): config is McpHttpServerConfig {
-  return config.type === "http" && typeof config.url === "string";
-}
-
-async function fetchToolsFromHttpServer(
-  _serverName: string,
-  config: McpHttpServerConfig,
-): Promise<Tool[]> {
-  const transport = new StreamableHTTPClientTransport(new URL(config.url), {
-    requestInit: {
-      headers: config.headers ?? {},
-    },
-  });
-
-  const client = new Client({
-    name: "twig-metadata-fetcher",
-    version: "1.0.0",
-  });
-
-  try {
-    await client.connect(transport);
-    const result = await client.listTools();
-    return result.tools;
-  } finally {
-    await client.close().catch(() => {});
-  }
-}
-
-function extractToolMetadata(tool: Tool): McpToolMetadata {
-  return {
-    readOnly: tool.annotations?.readOnlyHint === true,
-  };
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function fetchMcpToolMetadata(
-  mcpServers: Record<string, McpServerConfig>,
+  q: Query,
   logger: Logger = new Logger({ debug: false, prefix: "[McpToolMetadata]" }),
 ): Promise<void> {
-  const fetchPromises: Promise<void>[] = [];
+  let retries = 0;
 
-  for (const [serverName, config] of Object.entries(mcpServers)) {
-    if (!isHttpMcpServer(config)) {
-      continue;
+  while (retries <= PENDING_MAX_RETRIES) {
+    let statuses: McpServerStatus[];
+    try {
+      statuses = await q.mcpServerStatus();
+    } catch (error) {
+      logger.error("Failed to fetch MCP server status", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return;
     }
 
-    const fetchPromise = fetchToolsFromHttpServer(serverName, config)
-      .then((tools) => {
-        const toolCount = tools.length;
-        const readOnlyCount = tools.filter(
-          (t) => t.annotations?.readOnlyHint === true,
-        ).length;
+    const pendingServers = statuses.filter((s) => s.status === "pending");
 
-        for (const tool of tools) {
-          const toolKey = buildToolKey(serverName, tool.name);
-          mcpToolMetadataCache.set(toolKey, extractToolMetadata(tool));
-        }
+    for (const server of statuses) {
+      if (server.status !== "connected" || !server.tools) {
+        continue;
+      }
 
-        logger.info("Fetched MCP tool metadata", {
-          serverName,
-          toolCount,
-          readOnlyCount,
-        });
-      })
-      .catch((error) => {
-        logger.error("Failed to fetch MCP tool metadata", {
-          serverName,
-          error: error instanceof Error ? error.message : String(error),
-        });
+      let readOnlyCount = 0;
+      for (const tool of server.tools) {
+        const toolKey = buildToolKey(server.name, tool.name);
+        const readOnly = tool.annotations?.readOnly === true;
+        mcpToolMetadataCache.set(toolKey, { readOnly });
+        if (readOnly) readOnlyCount++;
+      }
+
+      logger.info("Fetched MCP tool metadata", {
+        serverName: server.name,
+        toolCount: server.tools.length,
+        readOnlyCount,
       });
+    }
 
-    fetchPromises.push(fetchPromise);
+    if (pendingServers.length === 0) {
+      return;
+    }
+
+    retries++;
+    if (retries > PENDING_MAX_RETRIES) {
+      logger.warn("Gave up waiting for pending MCP servers", {
+        pendingServers: pendingServers.map((s) => s.name),
+      });
+      return;
+    }
+
+    logger.info("Waiting for pending MCP servers", {
+      pendingServers: pendingServers.map((s) => s.name),
+      retry: retries,
+    });
+    await delay(PENDING_RETRY_INTERVAL_MS);
   }
-
-  await Promise.all(fetchPromises);
 }
 
 export function isMcpToolReadOnly(toolName: string): boolean {

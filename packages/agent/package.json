@@ -88,7 +88,6 @@
     "@anthropic-ai/claude-agent-sdk": "0.2.42",
     "@anthropic-ai/sdk": "^0.71.0",
     "@hono/node-server": "^1.19.9",
-    "@modelcontextprotocol/sdk": "^1.25.3",
     "@opentelemetry/api-logs": "^0.208.0",
     "@opentelemetry/exporter-logs-otlp-http": "^0.208.0",
     "@opentelemetry/resources": "^2.0.0",
