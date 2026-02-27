@@ -2,50 +2,27 @@ import { Plugs } from "@phosphor-icons/react";
 import { Box, Flex } from "@radix-ui/themes";
 import { useState } from "react";
 import {
+  compactInput,
   ExpandableIcon,
   ExpandedContentBox,
+  formatInput,
   getContentText,
   StatusIndicators,
+  stripCodeFences,
   ToolTitle,
   type ToolViewProps,
   useToolCallStatus,
 } from "./toolCallUtils";
-
-const INPUT_PREVIEW_MAX_LENGTH = 60;
 
 function parseMcpName(mcpToolName: string): {
   serverName: string;
   toolName: string;
 } {
   const parts = mcpToolName.split("__");
-  const serverName = parts[1] ?? "";
   return {
-    serverName: serverName.toLowerCase() === "posthog" ? "PostHog" : serverName,
+    serverName: parts[1] ?? "",
     toolName: parts.slice(2).join("__"),
   };
-}
-
-function compactInput(rawInput: unknown): string | undefined {
-  if (!rawInput || typeof rawInput !== "object") return undefined;
-  try {
-    const json = JSON.stringify(rawInput);
-    if (json === "{}") return undefined;
-    if (json.length <= INPUT_PREVIEW_MAX_LENGTH) return json;
-    return `${json.slice(0, INPUT_PREVIEW_MAX_LENGTH)}...`;
-  } catch {
-    return undefined;
-  }
-}
-
-function formatInput(rawInput: unknown): string | undefined {
-  if (!rawInput || typeof rawInput !== "object") return undefined;
-  try {
-    const json = JSON.stringify(rawInput, null, 2);
-    if (json === "{}") return undefined;
-    return json;
-  } catch {
-    return undefined;
-  }
 }
 
 interface McpToolViewProps extends ToolViewProps {
@@ -121,8 +98,4 @@ export function McpToolView({
       )}
     </Box>
   );
-}
-
-function stripCodeFences(text: string): string {
-  return text.replace(/^```\w*\n?/, "").replace(/\n?```\s*$/, "");
 }
