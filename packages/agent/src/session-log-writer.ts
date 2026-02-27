@@ -50,11 +50,15 @@ export class SessionLogWriter {
 
   async flushAll(): Promise<void> {
     const sessionIds = [...this.sessions.keys()];
-    const pendingCounts = sessionIds.map((id) => ({
-      id,
-      pending: this.pendingEntries.get(id)?.length ?? 0,
-      messages: this.messageCounts.get(id) ?? 0,
-    }));
+    const pendingCounts = sessionIds.map((id) => {
+      const session = this.sessions.get(id);
+      return {
+        taskId: session?.context.taskId,
+        runId: session?.context.runId,
+        pending: this.pendingEntries.get(id)?.length ?? 0,
+        messages: this.messageCounts.get(id) ?? 0,
+      };
+    });
     this.logger.info("flushAll called", {
       sessions: sessionIds.length,
       pending: pendingCounts,
@@ -73,8 +77,8 @@ export class SessionLogWriter {
     }
 
     this.logger.info("Session registered", {
-      sessionId,
       taskId: context.taskId,
+      runId: context.runId,
     });
     this.sessions.set(sessionId, { context });
 
@@ -104,16 +108,18 @@ export class SessionLogWriter {
   appendRawLine(sessionId: string, line: string): void {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      this.logger.warn("appendRawLine called for unregistered session", {
-        sessionId,
-      });
+      this.logger.warn("appendRawLine called for unregistered session");
       return;
     }
 
     const count = (this.messageCounts.get(sessionId) ?? 0) + 1;
     this.messageCounts.set(sessionId, count);
     if (count % 10 === 1) {
-      this.logger.info("Messages received", { count, sessionId });
+      this.logger.info("Messages received", {
+        count,
+        taskId: session.context.taskId,
+        runId: session.context.runId,
+      });
     }
 
     try {
@@ -153,7 +159,8 @@ export class SessionLogWriter {
       }
     } catch {
       this.logger.warn("Failed to parse raw line for persistence", {
-        sessionId,
+        taskId: session.context.taskId,
+        runId: session.context.runId,
         lineLength: line.length,
       });
     }
@@ -162,7 +169,7 @@ export class SessionLogWriter {
   async flush(sessionId: string): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      this.logger.warn("flush: no session found", { sessionId });
+      this.logger.warn("flush: no session found");
       return;
     }
 
@@ -172,7 +179,8 @@ export class SessionLogWriter {
     const pending = this.pendingEntries.get(sessionId);
     if (!this.posthogAPI || !pending?.length) {
       this.logger.info("flush: nothing to persist", {
-        sessionId,
+        taskId: session.context.taskId,
+        runId: session.context.runId,
         hasPosthogAPI: !!this.posthogAPI,
         pendingCount: pending?.length ?? 0,
       });
@@ -196,7 +204,8 @@ export class SessionLogWriter {
       );
       this.retryCounts.set(sessionId, 0);
       this.logger.info("Flushed session logs", {
-        sessionId,
+        taskId: session.context.taskId,
+        runId: session.context.runId,
         entryCount: pending.length,
       });
     } catch (error) {
@@ -206,7 +215,11 @@ export class SessionLogWriter {
       if (retryCount >= SessionLogWriter.MAX_FLUSH_RETRIES) {
         this.logger.error(
           `Dropping ${pending.length} session log entries after ${retryCount} failed flush attempts`,
-          { sessionId, error },
+          {
+            taskId: session.context.taskId,
+            runId: session.context.runId,
+            error,
+          },
         );
         this.retryCounts.set(sessionId, 0);
       } else {
@@ -316,7 +329,12 @@ export class SessionLogWriter {
     try {
       fs.appendFileSync(logPath, `${JSON.stringify(entry)}\n`);
     } catch (error) {
-      this.logger.warn("Failed to write to local cache", { logPath, error });
+      this.logger.warn("Failed to write to local cache", {
+        taskId: session.context.taskId,
+        runId: session.context.runId,
+        logPath,
+        error,
+      });
     }
   }
 }

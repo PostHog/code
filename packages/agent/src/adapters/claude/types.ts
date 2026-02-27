@@ -56,6 +56,7 @@ export type NewSessionMeta = {
   systemPrompt?: unknown;
   sessionId?: string;
   permissionMode?: string;
+  persistence?: { taskId?: string; runId?: string; logUrl?: string };
   claudeCode?: {
     options?: Options;
   };

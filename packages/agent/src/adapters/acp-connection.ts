@@ -195,7 +195,7 @@ function createClaudeConnection(config: AcpConnectionConfig): AcpConnection {
 
   let agent: ClaudeAcpAgent | null = null;
   const agentConnection = new AgentSideConnection((client) => {
-    agent = new ClaudeAcpAgent(client, logWriter, config.processCallbacks);
+    agent = new ClaudeAcpAgent(client, config.processCallbacks);
     logger.info(`Created ${agent.adapterName} agent`);
     return agent;
   }, agentStream);
