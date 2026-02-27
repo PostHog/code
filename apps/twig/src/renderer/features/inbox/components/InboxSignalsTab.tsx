@@ -6,8 +6,13 @@ import {
   useInboxReports,
 } from "@features/inbox/hooks/useInboxReports";
 import { useInboxCloudTaskStore } from "@features/inbox/stores/inboxCloudTaskStore";
+import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsFilterStore";
 import { useInboxSignalsSidebarStore } from "@features/inbox/stores/inboxSignalsSidebarStore";
 import { buildSignalTaskPrompt } from "@features/inbox/utils/buildSignalTaskPrompt";
+import {
+  buildOrdering,
+  filterReportsBySearch,
+} from "@features/inbox/utils/filterReports";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
@@ -30,13 +35,17 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
-import type { SignalReportArtefactsResponse } from "@shared/types";
+import type {
+  SignalReportArtefactsResponse,
+  SignalReportsQueryParams,
+} from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { SignalsErrorState, SignalsLoadingState } from "./InboxEmptyStates";
 import { ReportCard } from "./ReportCard";
 import { SignalCard } from "./SignalCard";
+import { SignalsToolbar } from "./SignalsToolbar";
 
 interface InboxSignalsTabProps {
   onGoToSetup: () => void;
@@ -60,11 +69,25 @@ function getArtefactsUnavailableMessage(
 }
 
 export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
-  const { data, isLoading, isFetching, error, refetch } = useInboxReports({
-    status: "ready",
-    ordering: "-total_weight",
-  });
-  const reports = data?.results ?? [];
+  const sortField = useInboxSignalsFilterStore((s) => s.sortField);
+  const sortDirection = useInboxSignalsFilterStore((s) => s.sortDirection);
+  const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
+
+  const queryParams = useMemo<SignalReportsQueryParams>(
+    () => ({
+      status: "ready",
+      ordering: buildOrdering(sortField, sortDirection),
+    }),
+    [sortField, sortDirection],
+  );
+
+  const { data, isLoading, isFetching, error, refetch } =
+    useInboxReports(queryParams);
+  const allReports = data?.results ?? [];
+  const reports = useMemo(
+    () => filterReportsBySearch(allReports, searchQuery),
+    [allReports, searchQuery],
+  );
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const sidebarOpen = useInboxSignalsSidebarStore((state) => state.open);
   const sidebarWidth = useInboxSignalsSidebarStore((state) => state.width);
@@ -204,7 +227,7 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
     );
   }
 
-  if (reports.length === 0) {
+  if (allReports.length === 0) {
     return (
       <Flex
         direction="column"
@@ -248,17 +271,24 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
           style={{ height: "100%" }}
         >
           <Flex direction="column">
-            <Flex
-              align="center"
-              justify="between"
-              px="3"
-              py="2"
-              style={{ borderBottom: "1px solid var(--gray-5)" }}
-            >
-              <Text size="1" color="gray" className="font-mono text-[11px]">
-                Signals
-              </Text>
-            </Flex>
+            <SignalsToolbar
+              totalCount={allReports.length}
+              filteredCount={reports.length}
+              isSearchActive={!!searchQuery.trim()}
+            />
+            {reports.length === 0 && searchQuery.trim() ? (
+              <Flex
+                direction="column"
+                align="center"
+                justify="center"
+                gap="2"
+                py="6"
+              >
+                <Text size="1" color="gray" className="font-mono text-[11px]">
+                  No matching signals
+                </Text>
+              </Flex>
+            ) : null}
             {reports.map((report) => (
               <ReportCard
                 key={report.id}
