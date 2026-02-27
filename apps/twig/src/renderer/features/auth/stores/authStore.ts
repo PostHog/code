@@ -103,8 +103,7 @@ async function attemptRefreshWithActivityCheck(
   getState: () => AuthState,
 ): Promise<void> {
   try {
-    const hasActive =
-      await trpcVanilla.agent.hasActiveSessions.query();
+    const hasActive = await trpcVanilla.agent.hasActiveSessions.query();
 
     if (!hasActive) {
       await getState().refreshAccessToken();
