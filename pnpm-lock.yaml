@@ -539,8 +539,8 @@ importers:
         specifier: ^0.14.0
         version: 0.14.0(zod@3.25.76)
       '@anthropic-ai/claude-agent-sdk':
-        specifier: 0.2.58
-        version: 0.2.58(zod@3.25.76)
+        specifier: 0.2.59
+        version: 0.2.59(zod@3.25.76)
       '@anthropic-ai/sdk':
         specifier: ^0.71.0
         version: 0.71.2(zod@3.25.76)
@@ -711,8 +711,8 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@anthropic-ai/claude-agent-sdk@0.2.58':
-    resolution: {integrity: sha512-IMAB4uCEG9bOVuCFTMsBauBpWK6npP9rcrAeqJ+mJP/i8rBhlTbWw/WYb0oVGUEEyrDUtzkzQJMiGvE80wBqtQ==}
+  '@anthropic-ai/claude-agent-sdk@0.2.59':
+    resolution: {integrity: sha512-xPOUZZimZI5ChaO791olWGXqaRvCwOfj9/1micu42EL9czdcwiDm0WK1OGsqb2mZ7LSCoYWBB0ZHVKOxehemDA==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       zod: ^4.0.0
@@ -7886,8 +7886,8 @@ packages:
   minimatch@3.1.2:
     resolution: {integrity: sha512-J7p63hRiAjw1NDEww1W7i37+ByIrOWO5XQQAzZ3VOcL0PNybwpfmV/N05zFAzwQ9USyEcX6t3UO+K5aqBQOIHw==}
 
-  minimatch@5.1.9:
-    resolution: {integrity: sha512-7o1wEA2RyMP7Iu7GNba9vc0RWWGACJOCZBJX2GJWip0ikV+wcOsgVuY9uE8CPiyQhkGFSlhuSkZPavN7u1c2Fw==}
+  minimatch@5.1.6:
+    resolution: {integrity: sha512-lKwV/1brpG6mBUFHtb7NUmtABCb2WZZmm2wNiOA5hAb8VdCS4B3dtMWyvcoViccwAW/COERjXLt0zP1zXUN26g==}
     engines: {node: '>=10'}
 
   minimatch@9.0.5:
@@ -10571,7 +10571,7 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.31
 
-  '@anthropic-ai/claude-agent-sdk@0.2.58(zod@3.25.76)':
+  '@anthropic-ai/claude-agent-sdk@0.2.59(zod@3.25.76)':
     dependencies:
       zod: 3.25.76
     optionalDependencies:
@@ -17617,7 +17617,7 @@ snapshots:
       fs.realpath: 1.0.0
       inflight: 1.0.6
       inherits: 2.0.4
-      minimatch: 5.1.9
+      minimatch: 5.1.6
       once: 1.4.0
 
   global-agent@3.0.0:
@@ -19175,7 +19175,7 @@ snapshots:
     dependencies:
       brace-expansion: 1.1.12
 
-  minimatch@5.1.9:
+  minimatch@5.1.6:
     dependencies:
       brace-expansion: 2.0.2
 
