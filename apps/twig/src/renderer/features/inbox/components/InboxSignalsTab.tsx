@@ -6,8 +6,13 @@ import {
   useInboxReports,
 } from "@features/inbox/hooks/useInboxReports";
 import { useInboxCloudTaskStore } from "@features/inbox/stores/inboxCloudTaskStore";
+import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsFilterStore";
 import { useInboxSignalsSidebarStore } from "@features/inbox/stores/inboxSignalsSidebarStore";
 import { buildSignalTaskPrompt } from "@features/inbox/utils/buildSignalTaskPrompt";
+import {
+  buildOrdering,
+  filterReportsBySearch,
+} from "@features/inbox/utils/filterReports";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
@@ -64,11 +69,25 @@ function getArtefactsUnavailableMessage(
 }
 
 export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
-  const { data, isLoading, isFetching, error, refetch } = useInboxReports({
-    status: "ready",
-    ordering: "-total_weight",
-  });
-  const reports = data?.results ?? [];
+  const sortField = useInboxSignalsFilterStore((s) => s.sortField);
+  const sortDirection = useInboxSignalsFilterStore((s) => s.sortDirection);
+  const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
+
+  const queryParams = useMemo<SignalReportsQueryParams>(
+    () => ({
+      status: "ready",
+      ordering: buildOrdering(sortField, sortDirection),
+    }),
+    [sortField, sortDirection],
+  );
+
+  const { data, isLoading, isFetching, error, refetch } =
+    useInboxReports(queryParams);
+  const allReports = data?.results ?? [];
+  const reports = useMemo(
+    () => filterReportsBySearch(allReports, searchQuery),
+    [allReports, searchQuery],
+  );
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const sidebarOpen = useInboxSignalsSidebarStore((state) => state.open);
   const sidebarWidth = useInboxSignalsSidebarStore((state) => state.width);
@@ -208,7 +227,7 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
     );
   }
 
-  if (reports.length === 0) {
+  if (allReports.length === 0) {
     return (
       <Flex
         direction="column"
