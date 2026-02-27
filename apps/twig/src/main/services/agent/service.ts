@@ -374,9 +374,11 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   public hasActiveSessions(): boolean {
     for (const session of this.sessions.values()) {
       if (session.promptPending) {
+        log.info("Active session found", { sessionId: session.taskRunId });
         return true;
       }
     }
+    log.info("No active sessions found");
     return false;
   }
 
