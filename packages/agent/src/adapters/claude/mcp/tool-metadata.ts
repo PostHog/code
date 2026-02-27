@@ -3,6 +3,8 @@ import { Logger } from "../../../utils/logger.js";
 
 export interface McpToolMetadata {
   readOnly: boolean;
+  name: string;
+  description?: string;
 }
 
 const mcpToolMetadataCache: Map<string, McpToolMetadata> = new Map();
@@ -46,7 +48,7 @@ export async function fetchMcpToolMetadata(
       for (const tool of server.tools) {
         const toolKey = buildToolKey(server.name, tool.name);
         const readOnly = tool.annotations?.readOnly === true;
-        mcpToolMetadataCache.set(toolKey, { readOnly });
+        mcpToolMetadataCache.set(toolKey, { readOnly, name: tool.name, description: tool.description });
         if (readOnly) readOnlyCount++;
       }
 
@@ -75,6 +77,12 @@ export async function fetchMcpToolMetadata(
     });
     await delay(PENDING_RETRY_INTERVAL_MS);
   }
+}
+
+export function getMcpToolMetadata(
+  toolName: string,
+): McpToolMetadata | undefined {
+  return mcpToolMetadataCache.get(toolName);
 }
 
 export function isMcpToolReadOnly(toolName: string): boolean {

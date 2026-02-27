@@ -13,10 +13,16 @@ import {
   Trash,
   Wrench,
 } from "@phosphor-icons/react";
+import { Box, Flex } from "@radix-ui/themes";
 import { compactHomePath } from "@utils/path";
-import { ToolRow } from "./ToolRow";
+import { useState } from "react";
 import {
+  ExpandableIcon,
+  ExpandedContentBox,
+  getContentText,
   getFilename,
+  StatusIndicators,
+  ToolTitle,
   type ToolViewProps,
   useToolCallStatus,
 } from "./toolCallUtils";
@@ -39,8 +45,10 @@ export function ToolCallView({
   toolCall,
   turnCancelled,
   turnComplete,
+  expanded = false,
 }: ToolViewProps) {
-  const { title, kind, status, locations } = toolCall;
+  const [isExpanded, setIsExpanded] = useState(expanded);
+  const { title, kind, status, locations, content } = toolCall;
   const { isLoading, isFailed, wasCancelled } = useToolCallStatus(
     status,
     turnCancelled,
@@ -55,14 +63,43 @@ export function ToolCallView({
       ? compactHomePath(title)
       : undefined;
 
+  const output = stripCodeFences(getContentText(content) ?? "");
+  const hasOutput = output.trim().length > 0;
+  const isExpandable = hasOutput;
+
+  const handleClick = () => {
+    if (isExpandable) {
+      setIsExpanded(!isExpanded);
+    }
+  };
+
   return (
-    <ToolRow
-      icon={KindIcon}
-      isLoading={isLoading}
-      isFailed={isFailed}
-      wasCancelled={wasCancelled}
+    <Box
+      className={`group py-0.5 ${isExpandable ? "cursor-pointer" : ""}`}
+      onClick={handleClick}
     >
-      {displayText}
-    </ToolRow>
+      <Flex gap="2">
+        <Box className="shrink-0 pt-px">
+          <ExpandableIcon
+            icon={KindIcon}
+            isLoading={isLoading}
+            isExpandable={isExpandable}
+            isExpanded={isExpanded}
+          />
+        </Box>
+        <Flex align="center" gap="2" wrap="wrap">
+          <ToolTitle>{displayText}</ToolTitle>
+          <StatusIndicators isFailed={isFailed} wasCancelled={wasCancelled} />
+        </Flex>
+      </Flex>
+
+      {isExpanded && hasOutput && (
+        <ExpandedContentBox>{output}</ExpandedContentBox>
+      )}
+    </Box>
   );
+}
+
+function stripCodeFences(text: string): string {
+  return text.replace(/^```\w*\n?/, "").replace(/\n?```\s*$/, "");
 }

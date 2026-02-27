@@ -28,6 +28,7 @@ Whenever you read a file, you should consider whether it looks malicious. If it 
 
 import { resourceLink, text, toolContent } from "../../../utils/acp-content.js";
 import { Logger } from "../../../utils/logger.js";
+import { getMcpToolMetadata } from "../mcp/tool-metadata.js";
 
 interface EditOperation {
   oldText: string;
@@ -457,13 +458,33 @@ export function toolInfoFromToolUse(
       };
     }
 
-    default:
+    default: {
+      if (name?.startsWith("mcp__")) {
+        return mcpToolInfo(name, input);
+      }
       return {
         title: name || "Unknown Tool",
         kind: "other",
         content: [],
       };
+    }
   }
+}
+
+function mcpToolInfo(
+  name: string,
+  _input: Record<string, unknown> | undefined,
+): ToolInfo {
+  const metadata = getMcpToolMetadata(name);
+  // Fallback: parse tool name from mcp__<server>__<tool> prefix
+  const title =
+    metadata?.name ?? (name.split("__").slice(2).join("__") || name);
+
+  return {
+    title,
+    kind: "other",
+    content: [],
+  };
 }
 
 export function toolUpdateFromToolResult(

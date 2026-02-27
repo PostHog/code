@@ -8,6 +8,7 @@ import { DeleteToolView } from "./DeleteToolView";
 import { EditToolView } from "./EditToolView";
 import { ExecuteToolView } from "./ExecuteToolView";
 import { FetchToolView } from "./FetchToolView";
+import { McpToolView } from "./McpToolView";
 import { MoveToolView } from "./MoveToolView";
 import { PlanApprovalView } from "./PlanApprovalView";
 import { QuestionToolView } from "./QuestionToolView";
@@ -55,6 +56,14 @@ export function ToolCallBlock({
           childItems={childItems}
           turnContext={turnContext}
         />
+      </Box>
+    );
+  }
+
+  if (toolName?.startsWith("mcp__")) {
+    return (
+      <Box className="pl-3">
+        <McpToolView {...props} mcpToolName={toolName} />
       </Box>
     );
   }
