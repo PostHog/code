@@ -368,6 +368,18 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     this.pendingPermissions.delete(key);
   }
 
+  /**
+   * Check if any sessions are currently active (i.e. have a prompt pending).
+   */
+  public hasActiveSessions(): boolean {
+    for (const session of this.sessions.values()) {
+      if (session.promptPending) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private getToken(fallback: string): string {
     return this.currentToken || fallback;
   }

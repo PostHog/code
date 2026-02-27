@@ -9,6 +9,7 @@ import {
   OAUTH_SCOPE_VERSION,
   OAUTH_SCOPES,
   TOKEN_REFRESH_BUFFER_MS,
+  TOKEN_REFRESH_POLL_MS,
 } from "@shared/constants/oauth";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { CloudRegion } from "@shared/types/oauth";
@@ -97,6 +98,36 @@ interface AuthState {
 }
 
 let refreshTimeoutId: number | null = null;
+
+async function attemptRefreshWithActivityCheck(
+  getState: () => AuthState,
+): Promise<void> {
+  try {
+    const hasActive =
+      await trpcVanilla.agent.hasActiveSessions.query();
+
+    if (!hasActive) {
+      await getState().refreshAccessToken();
+      return;
+    }
+
+    // Sessions are busy — poll until idle
+    log.debug("Active sessions detected, deferring token refresh");
+
+    if (refreshTimeoutId) {
+      window.clearTimeout(refreshTimeoutId);
+    }
+    refreshTimeoutId = window.setTimeout(() => {
+      attemptRefreshWithActivityCheck(getState).catch((error) => {
+        log.error("Deferred token refresh failed:", error);
+      });
+    }, TOKEN_REFRESH_POLL_MS);
+  } catch (error) {
+    // IPC call failed — refresh anyway (better than letting the token expire)
+    log.warn("Activity check failed, refreshing token anyway", error);
+    await getState().refreshAccessToken();
+  }
+}
 
 export const useAuthStore = create<AuthState>()(
   subscribeWithSelector(
@@ -399,18 +430,14 @@ export const useAuthStore = create<AuthState>()(
 
           if (timeUntilRefresh > 0) {
             refreshTimeoutId = window.setTimeout(() => {
-              get()
-                .refreshAccessToken()
-                .catch((error) => {
-                  log.error("Proactive token refresh failed:", error);
-                });
+              attemptRefreshWithActivityCheck(get).catch((error) => {
+                log.error("Proactive token refresh failed:", error);
+              });
             }, timeUntilRefresh);
           } else {
-            get()
-              .refreshAccessToken()
-              .catch((error) => {
-                log.error("Immediate token refresh failed:", error);
-              });
+            attemptRefreshWithActivityCheck(get).catch((error) => {
+              log.error("Immediate token refresh failed:", error);
+            });
           }
         },
 

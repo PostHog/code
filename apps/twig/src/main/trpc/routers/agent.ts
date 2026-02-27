@@ -142,6 +142,10 @@ export const agentRouter = router({
       getService().notifySessionContext(input.sessionId, input.context),
     ),
 
+  hasActiveSessions: publicProcedure.query(() =>
+    getService().hasActiveSessions(),
+  ),
+
   markAllForRecreation: publicProcedure.mutation(() =>
     getService().markAllSessionsForRecreation(),
   ),
