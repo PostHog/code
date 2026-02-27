@@ -108,7 +108,9 @@ export class SessionLogWriter {
   appendRawLine(sessionId: string, line: string): void {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      this.logger.warn("appendRawLine called for unregistered session");
+      this.logger.warn("appendRawLine called for unregistered session", {
+        sessionId,
+      });
       return;
     }
 
@@ -169,7 +171,7 @@ export class SessionLogWriter {
   async flush(sessionId: string): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      this.logger.warn("flush: no session found");
+      this.logger.warn("flush: no session found", { sessionId });
       return;
     }
 
