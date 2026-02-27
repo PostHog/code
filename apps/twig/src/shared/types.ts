@@ -42,14 +42,6 @@ export type TaskFolderAssociation =
       branchName: string;
     });
 
-export interface ArrayConfig {
-  scripts?: {
-    init?: string | string[];
-    start?: string | string[];
-    destroy?: string | string[];
-  };
-}
-
 export interface WorktreeInfo {
   worktreePath: string;
   worktreeName: string;
@@ -187,13 +179,6 @@ export interface MentionItem {
   urlId?: string;
 }
 
-export interface TaskArtifact {
-  name: string;
-  path: string;
-  size: number;
-  modifiedAt: string;
-}
-
 // Git file status types
 export type GitFileStatus =
   | "modified"
@@ -220,10 +205,6 @@ export interface DetectedApplication {
   path: string; // "/Applications/Visual Studio Code.app"
   command: string; // Launch command
   icon?: string; // Base64 data URL
-}
-
-export interface ExternalAppsPreferences {
-  lastUsedApp?: string;
 }
 
 export type SignalReportStatus =
@@ -262,13 +243,13 @@ export interface SignalReportArtefact {
   created_at: string;
 }
 
-export interface MatchedSignalMetadata {
+interface MatchedSignalMetadata {
   parent_signal_id: string;
   match_query: string;
   reason: string;
 }
 
-export interface NoMatchSignalMetadata {
+interface NoMatchSignalMetadata {
   reason: string;
   rejected_signal_ids: string[];
 }
@@ -320,7 +301,7 @@ export interface SignalReportsQueryParams {
   ordering?: `-${SignalReportOrderingField}` | SignalReportOrderingField;
 }
 
-export type AutonomyCapabilityState =
+type AutonomyCapabilityState =
   | "ready"
   | "needs_setup"
   | "detected"

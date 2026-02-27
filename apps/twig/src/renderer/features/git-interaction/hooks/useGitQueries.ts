@@ -95,9 +95,11 @@ export function useGitQueries(repoPath?: string) {
   });
 
   const hasChanges = changedFiles.length > 0;
-  const ahead = syncStatus?.ahead ?? 0;
+  const aheadOfRemote = syncStatus?.aheadOfRemote ?? 0;
   const behind = syncStatus?.behind ?? 0;
+  const aheadOfDefault = syncStatus?.aheadOfDefault ?? 0;
   const hasRemote = syncStatus?.hasRemote ?? true;
+  const isFeatureBranch = syncStatus?.isFeatureBranch ?? false;
   const defaultBranch = repoInfo?.defaultBranch ?? null;
 
   return {
@@ -113,9 +115,11 @@ export function useGitQueries(repoPath?: string) {
     prStatus,
     latestCommit,
     hasChanges,
-    ahead,
+    aheadOfRemote,
     behind,
+    aheadOfDefault,
     hasRemote,
+    isFeatureBranch,
     currentBranch,
     defaultBranch,
     isLoading: isRepoLoading || changesLoading || syncLoading,

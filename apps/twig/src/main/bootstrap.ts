@@ -10,7 +10,7 @@
 import dns from "node:dns";
 import path from "node:path";
 import { app } from "electron";
-import { fixPath } from "./lib/fixPath.js";
+import { fixPath } from "./utils/fixPath.js";
 
 const isDev = !app.isPackaged;
 

@@ -1,18 +1,24 @@
+import type { CacheSnapshot } from "virtua";
 import { create } from "zustand";
+
+export interface ScrollState {
+  offset: number;
+  cache: CacheSnapshot;
+}
 
 interface SessionViewState {
   showRawLogs: boolean;
   searchQuery: string;
   showSearch: boolean;
-  scrollPositions: Record<string, number>;
+  scrollStates: Record<string, ScrollState>;
 }
 
 interface SessionViewActions {
   setShowRawLogs: (show: boolean) => void;
   setSearchQuery: (query: string) => void;
   toggleSearch: () => void;
-  saveScrollPosition: (taskId: string, position: number) => void;
-  getScrollPosition: (taskId: string) => number;
+  saveScrollState: (taskId: string, state: ScrollState) => void;
+  getScrollState: (taskId: string) => ScrollState | undefined;
 }
 
 type SessionViewStore = SessionViewState & { actions: SessionViewActions };
@@ -21,7 +27,7 @@ const useStore = create<SessionViewStore>((set, get) => ({
   showRawLogs: false,
   searchQuery: "",
   showSearch: false,
-  scrollPositions: {},
+  scrollStates: {},
   actions: {
     setShowRawLogs: (show) => set({ showRawLogs: show }),
     setSearchQuery: (query) => set({ searchQuery: query }),
@@ -30,11 +36,11 @@ const useStore = create<SessionViewStore>((set, get) => ({
         showSearch: !state.showSearch,
         searchQuery: state.showSearch ? "" : state.searchQuery,
       })),
-    saveScrollPosition: (taskId, position) =>
+    saveScrollState: (taskId, scrollState) =>
       set((state) => ({
-        scrollPositions: { ...state.scrollPositions, [taskId]: position },
+        scrollStates: { ...state.scrollStates, [taskId]: scrollState },
       })),
-    getScrollPosition: (taskId) => get().scrollPositions[taskId] ?? 0,
+    getScrollState: (taskId) => get().scrollStates[taskId],
   },
 }));
 

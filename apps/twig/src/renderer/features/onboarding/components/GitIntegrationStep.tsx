@@ -29,8 +29,7 @@ export function GitIntegrationStep({
   const selectProject = useAuthStore((s) => s.selectProject);
 
   const queryClient = useQueryClient();
-  const { projects, projectsWithGithub, isLoading } =
-    useProjectsWithIntegrations();
+  const { projects, isLoading, isFetching } = useProjectsWithIntegrations();
 
   // User can manually select a different project
   const [manuallySelectedProjectId, setManuallySelectedProjectId] = useState<
@@ -39,22 +38,14 @@ export function GitIntegrationStep({
 
   // Determine which project to show:
   // 1. If user manually selected one, use that
-  // 2. Otherwise, prefer first project with GitHub integration
-  // 3. Fall back to current project or first available
+  // 2. Current project from auth (matches user's active PostHog project)
+  // 3. Fall back to first available
   const selectedProjectId = useMemo(() => {
     if (manuallySelectedProjectId !== null) {
       return manuallySelectedProjectId;
     }
-    if (projectsWithGithub.length > 0) {
-      return projectsWithGithub[0].id;
-    }
     return currentProjectId ?? projects[0]?.id ?? null;
-  }, [
-    manuallySelectedProjectId,
-    projectsWithGithub,
-    currentProjectId,
-    projects,
-  ]);
+  }, [manuallySelectedProjectId, currentProjectId, projects]);
 
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId),
@@ -310,7 +301,22 @@ export function GitIntegrationStep({
                     Connect GitHub
                     <ArrowSquareOut size={16} />
                   </Button>
-                  <Button size="1" variant="ghost" onClick={handleRefresh}>
+                  <Text
+                    size="1"
+                    style={{
+                      color: "var(--cave-charcoal)",
+                      opacity: 0.5,
+                    }}
+                  >
+                    Opens your PostHog project settings
+                  </Text>
+                  <Button
+                    size="1"
+                    variant="ghost"
+                    loading={isFetching}
+                    onClick={handleRefresh}
+                    style={{ color: "var(--cave-charcoal)" }}
+                  >
                     Refresh status
                   </Button>
                 </motion.div>
@@ -328,7 +334,13 @@ export function GitIntegrationStep({
                     alignItems: "center",
                   }}
                 >
-                  <Button size="1" variant="ghost" onClick={handleRefresh}>
+                  <Button
+                    size="1"
+                    variant="ghost"
+                    loading={isFetching}
+                    onClick={handleRefresh}
+                    style={{ color: "var(--cave-charcoal)" }}
+                  >
                     Refresh status
                   </Button>
                 </motion.div>

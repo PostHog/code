@@ -146,13 +146,6 @@ export function captureException(
   });
 }
 
-/**
- * Get the PostHog instance for direct access
- */
-export function getPostHog() {
-  return isInitialized ? posthog : null;
-}
-
 // ============================================================================
 // Feature Flags
 // ============================================================================

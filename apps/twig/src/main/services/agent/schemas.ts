@@ -187,6 +187,7 @@ export const subscribeSessionInput = z.object({
 export const AgentServiceEvent = {
   SessionEvent: "session-event",
   PermissionRequest: "permission-request",
+  SessionsIdle: "sessions-idle",
 } as const;
 
 export interface AgentSessionEventPayload {
@@ -205,6 +206,7 @@ export type PermissionRequestPayload = Omit<
 export interface AgentServiceEvents {
   [AgentServiceEvent.SessionEvent]: AgentSessionEventPayload;
   [AgentServiceEvent.PermissionRequest]: PermissionRequestPayload;
+  [AgentServiceEvent.SessionsIdle]: undefined;
 }
 
 // Permission response input for tRPC

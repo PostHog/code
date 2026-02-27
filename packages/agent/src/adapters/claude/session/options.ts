@@ -88,7 +88,8 @@ function buildEnvironment(): Record<string, string> {
     ...process.env,
     ELECTRON_RUN_AS_NODE: "1",
     CLAUDE_CODE_ENABLE_ASK_USER_QUESTION_TOOL: "true",
-    ENABLE_EXPERIMENTAL_MCP_CLI: "true",
+    // Offload all MCP tools by default
+    ENABLE_TOOL_SEARCH: "auto:0",
   };
 }
 
@@ -152,9 +153,15 @@ function buildSpawnWrapper(
       });
     }
 
+    if (!child.stdin || !child.stdout) {
+      throw new Error(
+        `Failed to get stdio streams for spawned process (pid=${child.pid})`,
+      );
+    }
+
     return {
-      stdin: child.stdin!,
-      stdout: child.stdout!,
+      stdin: child.stdin,
+      stdout: child.stdout,
       get killed() {
         return child.killed;
       },
@@ -164,12 +171,15 @@ function buildSpawnWrapper(
       kill(signal: NodeJS.Signals) {
         return child.kill(signal);
       },
+      // biome-ignore lint/suspicious/noExplicitAny: ChildProcess event listener types require any[]
       on(event: "exit" | "error", listener: (...args: any[]) => void) {
         child.on(event, listener);
       },
+      // biome-ignore lint/suspicious/noExplicitAny: ChildProcess event listener types require any[]
       once(event: "exit" | "error", listener: (...args: any[]) => void) {
         child.once(event, listener);
       },
+      // biome-ignore lint/suspicious/noExplicitAny: ChildProcess event listener types require any[]
       off(event: "exit" | "error", listener: (...args: any[]) => void) {
         child.off(event, listener);
       },

@@ -5,8 +5,8 @@ import * as watcher from "@parcel/watcher";
 import { app } from "electron";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../lib/logger.js";
-import { TypedEventEmitter } from "../../lib/typed-event-emitter.js";
+import { logger } from "../../utils/logger.js";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import type { WatcherRegistryService } from "../watcher-registry/service.js";
 import {
   type DirectoryEntry,

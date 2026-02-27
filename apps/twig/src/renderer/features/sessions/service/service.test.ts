@@ -156,23 +156,25 @@ vi.mock("@renderer/utils/toast", () => ({
 vi.mock("@shared/constants/oauth", () => ({
   getCloudUrlFromRegion: () => "https://api.anthropic.com",
 }));
-vi.mock("@utils/session", () => ({
-  convertStoredEntriesToEvents: vi.fn(() => []),
-  createUserShellExecuteEvent: vi.fn(() => ({
-    type: "acp_message",
-    ts: Date.now(),
-    message: {},
-  })),
-  extractPromptText: vi.fn((p) => (typeof p === "string" ? p : "text")),
-  getUserShellExecutesSinceLastPrompt: vi.fn(() => []),
-  isFatalSessionError: vi.fn((errorMessage: string) =>
-    errorMessage?.includes("process exited"),
-  ),
-  normalizePromptToBlocks: vi.fn((p) =>
-    typeof p === "string" ? [{ type: "text", text: p }] : p,
-  ),
-  shellExecutesToContextBlocks: vi.fn(() => []),
-}));
+vi.mock("@utils/session", async () => {
+  const actual =
+    await vi.importActual<typeof import("@utils/session")>("@utils/session");
+  return {
+    convertStoredEntriesToEvents: vi.fn(() => []),
+    createUserShellExecuteEvent: vi.fn(() => ({
+      type: "acp_message",
+      ts: Date.now(),
+      message: {},
+    })),
+    extractPromptText: vi.fn((p) => (typeof p === "string" ? p : "text")),
+    getUserShellExecutesSinceLastPrompt: vi.fn(() => []),
+    isFatalSessionError: actual.isFatalSessionError,
+    normalizePromptToBlocks: vi.fn((p) =>
+      typeof p === "string" ? [{ type: "text", text: p }] : p,
+    ),
+    shellExecutesToContextBlocks: vi.fn(() => []),
+  };
+});
 
 import { getSessionService, resetSessionService } from "./service";
 

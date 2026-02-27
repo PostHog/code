@@ -144,6 +144,10 @@ export class PostHogAPIClient {
     }
   }
 
+  setTeamId(teamId: number): void {
+    this._teamId = teamId;
+  }
+
   private async getTeamId(): Promise<number> {
     if (this._teamId !== null) {
       return this._teamId;
@@ -295,6 +299,63 @@ export class PostHogAPIClient {
       origin_product: task.origin_product,
       github_integration: task.github_integration,
     });
+  }
+
+  async sendRunCommand(
+    taskId: string,
+    runId: string,
+    method: "user_message" | "cancel" | "close",
+    params?: Record<string, unknown>,
+  ): Promise<{ success: boolean; result?: unknown; error?: string }> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/command/`,
+    );
+    const body = {
+      jsonrpc: "2.0",
+      method,
+      params: params ?? {},
+      id: `twig-${Date.now()}`,
+    };
+
+    try {
+      const response = await this.api.fetcher.fetch({
+        method: "post",
+        url,
+        path: `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/command/`,
+        overrides: {
+          body: JSON.stringify(body),
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "");
+        let errorMessage = `Command failed: ${response.statusText}`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage =
+            errorJson.error?.message ?? errorJson.error ?? errorMessage;
+        } catch {
+          if (errorText) errorMessage = errorText;
+        }
+        return { success: false, error: errorMessage };
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        return {
+          success: false,
+          error: data.error.message ?? JSON.stringify(data.error),
+        };
+      }
+
+      return { success: true, result: data.result };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
   }
 
   async runTaskInCloud(taskId: string): Promise<Task> {

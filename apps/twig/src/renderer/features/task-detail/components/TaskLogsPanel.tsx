@@ -1,5 +1,6 @@
 import { BackgroundWrapper } from "@components/BackgroundWrapper";
 import { ErrorBoundary } from "@components/ErrorBoundary";
+import { tryExecuteTwigCommand } from "@features/message-editor/commands";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { SessionView } from "@features/sessions/components/SessionView";
 import { getSessionService } from "@features/sessions/service/service";
@@ -13,13 +14,11 @@ import { WorkspaceSetupPrompt } from "@features/task-detail/components/Workspace
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
-import { track } from "@renderer/lib/analytics";
 import { logger } from "@renderer/lib/logger";
 import { useNavigationStore } from "@renderer/stores/navigationStore";
 import { useTaskDirectoryStore } from "@renderer/stores/taskDirectoryStore";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
-import { ANALYTICS_EVENTS, type FeedbackType } from "@shared/types/analytics";
 import { useQueryClient } from "@tanstack/react-query";
 import { getTaskRepository } from "@utils/repository";
 import { toast } from "@utils/toast";
@@ -51,7 +50,6 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
 
   const isCloud = workspace?.mode === "cloud";
 
-  // Cloud status is read from the session store (populated via CloudTaskService subscription)
   const cloudStatus = session?.cloudStatus ?? null;
   const cloudStage = session?.cloudStage ?? null;
   const cloudOutput = session?.cloudOutput ?? null;
@@ -61,13 +59,16 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     (!cloudStatus ||
       cloudStatus === "started" ||
       cloudStatus === "in_progress");
+  const isCloudRunTerminal = isCloud && !isCloudRunNotTerminal;
   const prUrl =
     isCloud && cloudOutput?.pr_url ? (cloudOutput.pr_url as string) : null;
 
-  const isRunning = session?.status === "connected";
-  const hasError = session?.status === "error";
-  const errorTitle = session?.errorTitle;
-  const errorMessage = session?.errorMessage;
+  const isRunning = isCloud
+    ? isCloudRunNotTerminal
+    : session?.status === "connected";
+  const hasError = isCloud ? false : session?.status === "error";
+  const errorTitle = isCloud ? undefined : session?.errorTitle;
+  const errorMessage = isCloud ? undefined : session?.errorMessage;
 
   const events = session?.events ?? [];
   const isPromptPending = session?.isPromptPending ?? false;
@@ -104,13 +105,19 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   // Cloud task watching — logs + status via main-process CloudTaskService subscription
   useEffect(() => {
     if (!isCloud || !task.latest_run?.id) return;
-    return getSessionService().watchCloudTask(
-      task.id,
-      task.latest_run.id,
-      () => {
-        queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      },
-    );
+    const runId = task.latest_run.id;
+    trpcVanilla.cloudTask.setViewing
+      .mutate({ taskId: task.id, runId, viewing: true })
+      .catch(() => {});
+    const cleanup = getSessionService().watchCloudTask(task.id, runId, () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    });
+    return () => {
+      trpcVanilla.cloudTask.setViewing
+        .mutate({ taskId: task.id, runId, viewing: false })
+        .catch(() => {});
+      cleanup?.();
+    };
   }, [isCloud, task.id, task.latest_run?.id, queryClient]);
 
   // Local session connection
@@ -160,29 +167,19 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
 
   const handleSendPrompt = useCallback(
     async (text: string) => {
-      const feedbackMatch = text.match(/^\/(good|bad|feedback)(?:\s+(.*))?$/);
-      if (feedbackMatch) {
-        const rawType = feedbackMatch[1];
-        const feedbackType: FeedbackType =
-          rawType === "feedback" ? "general" : (rawType as FeedbackType);
-        const comment = feedbackMatch[2]?.trim() || undefined;
-        track(ANALYTICS_EVENTS.TASK_FEEDBACK, {
-          task_id: taskId,
-          task_run_id: session?.taskRunId ?? task.latest_run?.id,
-          log_url: session?.logUrl ?? task.latest_run?.log_url,
-          event_count: events.length,
-          feedback_type: feedbackType,
-          feedback_comment: comment,
-        });
-        const label =
-          feedbackType === "good"
-            ? "Positive"
-            : feedbackType === "bad"
-              ? "Negative"
-              : "General";
-        toast.success(`${label} feedback captured`);
-        return;
-      }
+      const handled = await tryExecuteTwigCommand(text, {
+        taskId,
+        repoPath,
+        session: session
+          ? {
+              taskRunId: session.taskRunId,
+              logUrl: session.logUrl,
+              events,
+            }
+          : null,
+        taskRun: task.latest_run ?? null,
+      });
+      if (handled) return;
 
       try {
         markAsViewed(taskId);
@@ -207,13 +204,12 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     },
     [
       taskId,
+      repoPath,
       markActivity,
       markAsViewed,
-      events.length,
-      session?.logUrl,
-      session?.taskRunId,
-      task.latest_run?.id,
-      task.latest_run?.log_url,
+      events,
+      session,
+      task.latest_run,
     ],
   );
 
@@ -298,6 +294,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
 
   if (
     !repoPath &&
+    !isCloud &&
     isWorkspaceLoaded &&
     !hasDirectoryMapping &&
     !isCreatingWorkspace
@@ -319,20 +316,22 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
             <SessionView
               events={events}
               taskId={taskId}
-              isRunning={isCloud ? false : isRunning}
-              isPromptPending={isCloud ? false : isPromptPending}
-              promptStartedAt={isCloud ? undefined : promptStartedAt}
+              isRunning={isRunning}
+              isPromptPending={isPromptPending}
+              promptStartedAt={promptStartedAt}
               onSendPrompt={handleSendPrompt}
-              onBashCommand={handleBashCommand}
+              onBashCommand={isCloud ? undefined : handleBashCommand}
               onCancelPrompt={handleCancelPrompt}
               repoPath={repoPath}
-              hasError={isCloud ? false : hasError}
-              errorTitle={isCloud ? undefined : errorTitle}
-              errorMessage={isCloud ? undefined : errorMessage}
-              onRetry={handleRetry}
-              onNewSession={handleNewSession}
+              hasError={hasError}
+              errorTitle={errorTitle}
+              errorMessage={errorMessage}
+              onRetry={isCloud ? undefined : handleRetry}
+              onNewSession={isCloud ? undefined : handleNewSession}
               isInitializing={isInitializing}
-              readOnlyMessage={isCloud ? "Cloud runs are read-only" : undefined}
+              readOnlyMessage={
+                isCloudRunTerminal ? "This cloud run has finished" : undefined
+              }
             />
           </ErrorBoundary>
         </Box>

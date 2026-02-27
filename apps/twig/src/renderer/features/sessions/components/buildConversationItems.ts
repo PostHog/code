@@ -123,14 +123,7 @@ export function buildConversationItems(
   if (!isPromptPending) {
     for (const turn of b.pendingPrompts.values()) {
       turn.isComplete = true;
-      turn.stopReason = "cancelled";
-      turn.context.turnCancelled = true;
       turn.context.turnComplete = true;
-      b.items.push({
-        type: "turn_cancelled",
-        id: `${turn.id}-cancelled`,
-        interruptReason: turn.interruptReason,
-      });
     }
   }
 
@@ -151,6 +144,9 @@ function handlePromptRequest(
   ts: number,
 ) {
   const userContent = extractUserContent(msg.params);
+
+  if (userContent.trim().length === 0) return;
+
   const turnId = `turn-${ts}-${msg.id}`;
   const toolCalls = new Map<string, ToolCall>();
   const gitAction = parseGitActionMessage(userContent);
@@ -176,8 +172,6 @@ function handlePromptRequest(
 
   b.pendingPrompts.set(msg.id, b.currentTurn);
 
-  if (userContent.trim().length === 0) return;
-
   if (gitAction.isGitAction && gitAction.actionType) {
     b.items.push({
       type: "git_action",
@@ -199,7 +193,8 @@ function handlePromptResponse(
   msg: { id: number; result?: unknown },
   ts: number,
 ) {
-  const turn = b.pendingPrompts.get(msg.id)!;
+  const turn = b.pendingPrompts.get(msg.id);
+  if (!turn) return;
   turn.isComplete = true;
   turn.durationMs += ts;
 
@@ -398,7 +393,8 @@ function processSessionUpdate(b: ItemBuilder, update: SessionUpdate) {
     }
 
     case "tool_call": {
-      const turn = b.currentTurn!;
+      const turn = b.currentTurn;
+      if (!turn) break;
       const existing = turn.toolCalls.get(update.toolCallId);
       if (existing) {
         Object.assign(existing, update);
@@ -416,7 +412,8 @@ function processSessionUpdate(b: ItemBuilder, update: SessionUpdate) {
     }
 
     case "tool_call_update": {
-      const turn = b.currentTurn!;
+      const turn = b.currentTurn;
+      if (!turn) break;
       const existing = turn.toolCalls.get(update.toolCallId);
       if (existing) {
         const { sessionUpdate: _, ...rest } = update;

@@ -5,8 +5,8 @@ import type {
   RegisteredFolder,
   TaskFolderAssociation,
 } from "../../shared/types";
-import { logger } from "../lib/logger";
 import { getWorktreeLocation } from "../services/settingsStore";
+import { logger } from "./logger";
 
 interface FocusSession {
   mainRepoPath: string;

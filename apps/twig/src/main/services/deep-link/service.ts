@@ -1,6 +1,6 @@
 import { app } from "electron";
 import { injectable } from "inversify";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../utils/logger.js";
 
 const log = logger.scope("deep-link-service");
 

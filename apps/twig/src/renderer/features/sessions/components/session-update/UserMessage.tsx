@@ -1,97 +1,15 @@
 import { Tooltip } from "@components/ui/Tooltip";
-import {
-  baseComponents,
-  defaultRemarkPlugins,
-  MarkdownRenderer,
-} from "@features/editor/components/MarkdownRenderer";
-import { CaretDown, CaretUp, Check, Copy, File } from "@phosphor-icons/react";
-import { Box, Code, IconButton, Text } from "@radix-ui/themes";
-import type { ReactNode } from "react";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
-import type { Components } from "react-markdown";
-import ReactMarkdown from "react-markdown";
+import { MarkdownRenderer } from "@features/editor/components/MarkdownRenderer";
+import { CaretDown, CaretUp, Check, Copy } from "@phosphor-icons/react";
+import { Box, IconButton } from "@radix-ui/themes";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { hasFileMentions, parseFileMentions } from "./parseFileMentions";
 
 const COLLAPSED_MAX_HEIGHT = 160;
 
 interface UserMessageProps {
   content: string;
   timestamp?: number;
-}
-
-/**
- * Markdown components that render paragraphs as inline spans so that
- * text chunks between file mentions stay on the same line.
- */
-const inlineComponents: Components = {
-  ...baseComponents,
-  p: ({ children }) => (
-    <Text as="span" size="1" color="gray" highContrast>
-      {children}
-    </Text>
-  ),
-};
-
-const InlineMarkdown = memo(function InlineMarkdown({
-  content,
-}: {
-  content: string;
-}) {
-  return (
-    <ReactMarkdown
-      remarkPlugins={defaultRemarkPlugins}
-      components={inlineComponents}
-    >
-      {content}
-    </ReactMarkdown>
-  );
-});
-
-function parseFileMentions(content: string): ReactNode[] {
-  const fileTagRegex = /<file\s+path="([^"]+)"\s*\/>/g;
-  const parts: ReactNode[] = [];
-  let lastIndex = 0;
-
-  for (const match of content.matchAll(fileTagRegex)) {
-    if (match.index !== undefined && match.index > lastIndex) {
-      const textBefore = content.slice(lastIndex, match.index);
-      parts.push(
-        <InlineMarkdown key={`text-${lastIndex}`} content={textBefore} />,
-      );
-    }
-
-    const filePath = match[1];
-    const fileName = filePath.split("/").pop() ?? filePath;
-    parts.push(
-      <Code
-        key={`file-${match.index}`}
-        size="1"
-        variant="soft"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "4px",
-          verticalAlign: "middle",
-          margin: "0 6px",
-        }}
-      >
-        <File size={12} />
-        {fileName}
-      </Code>,
-    );
-
-    lastIndex = (match.index ?? 0) + match[0].length;
-  }
-
-  if (lastIndex < content.length) {
-    parts.push(
-      <InlineMarkdown
-        key={`text-${lastIndex}`}
-        content={content.slice(lastIndex)}
-      />,
-    );
-  }
-
-  return parts;
 }
 
 function formatTimestamp(ts: number): string {
@@ -106,7 +24,7 @@ function formatTimestamp(ts: number): string {
 }
 
 export function UserMessage({ content, timestamp }: UserMessageProps) {
-  const hasFileMentions = /<file\s+path="[^"]+"\s*\/>/.test(content);
+  const containsFileMentions = hasFileMentions(content);
   const [copied, setCopied] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -139,7 +57,7 @@ export function UserMessage({ content, timestamp }: UserMessageProps) {
             : undefined
         }
       >
-        {hasFileMentions ? (
+        {containsFileMentions ? (
           parseFileMentions(content)
         ) : (
           <MarkdownRenderer content={content} />

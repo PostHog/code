@@ -20,12 +20,13 @@ import {
 } from "@posthog/agent/gateway-models";
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import type { OnLogCallback } from "@posthog/agent/types";
+import { isAuthError } from "@shared/errors.js";
 import type { AcpMessage } from "@shared/types/session-events.js";
 import { app } from "electron";
 import { inject, injectable, preDestroy } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../lib/logger.js";
-import { TypedEventEmitter } from "../../lib/typed-event-emitter.js";
+import { logger } from "../../utils/logger.js";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import type { FsService } from "../fs/service.js";
 import type { PosthogPluginService } from "../posthog-plugin/service.js";
 import type { ProcessTrackingService } from "../process-tracking/service.js";
@@ -44,18 +45,6 @@ import {
 export type { InterruptReason };
 
 const log = logger.scope("agent-service");
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && error !== null && "message" in error) {
-    return String((error as { message: unknown }).message);
-  }
-  return "";
-}
-
-function isAuthError(error: unknown): boolean {
-  return getErrorMessage(error).startsWith("Authentication required");
-}
 
 /** Mark all content blocks as hidden so the renderer doesn't show a duplicate user message on retry. */
 function hidePromptBlocks(prompt: ContentBlock[]): ContentBlock[] {
@@ -222,6 +211,15 @@ interface ManagedSession {
   configOptions?: SessionConfigOption[];
 }
 
+/** Get the agent session ID from a managed session, throwing if not set. */
+function getAgentSessionId(session: ManagedSession): string {
+  const { sessionId } = session.config;
+  if (!sessionId) {
+    throw new Error(`Session ${session.taskRunId} has no agent session ID`);
+  }
+  return sessionId;
+}
+
 function getClaudeCliPath(): string {
   const appPath = app.getAppPath();
   return app.isPackaged
@@ -368,6 +366,18 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     });
 
     this.pendingPermissions.delete(key);
+  }
+
+  /**
+   * Check if any sessions are currently active (i.e. have a prompt pending).
+   */
+  public hasActiveSessions(): boolean {
+    for (const session of this.sessions.values()) {
+      if (session.promptPending) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private getToken(fallback: string): string {
@@ -585,6 +595,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         apiUrl: credentials.apiHost,
         getApiKey: () => this.getToken(credentials.apiKey),
         projectId: credentials.projectId,
+        userAgent: `posthog/desktop.hog.dev; version: ${app.getVersion()}`,
       },
       skipLogPersistence: isPreview,
       localCachePath: join(app.getPath("home"), ".twig"),
@@ -641,14 +652,16 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       let agentSessionId: string;
 
       if (isReconnect && adapter === "codex" && config.sessionId) {
+        const existingSessionId = config.sessionId;
         const loadResponse = await connection.loadSession({
-          sessionId: config.sessionId!,
+          sessionId: existingSessionId,
           cwd: repoPath,
           mcpServers,
         });
         configOptions = loadResponse.configOptions ?? undefined;
-        agentSessionId = config.sessionId;
+        agentSessionId = existingSessionId;
       } else if (isReconnect && adapter !== "codex" && config.sessionId) {
+        const existingSessionId = config.sessionId;
         const systemPrompt = this.buildSystemPrompt(
           credentials,
           customInstructions,
@@ -656,7 +669,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         const resumeResponse = await connection.extMethod(
           "_posthog/session/resume",
           {
-            sessionId: config.sessionId!,
+            sessionId: existingSessionId,
             cwd: repoPath,
             mcpServers,
             _meta: {
@@ -664,7 +677,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
                 persistence: { taskId, runId: taskRunId, logUrl },
               }),
               taskRunId,
-              sessionId: config.sessionId!,
+              sessionId: existingSessionId,
               systemPrompt,
               ...(permissionMode && { permissionMode }),
               claudeCode: {
@@ -689,7 +702,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
             }
           | undefined;
         configOptions = resumeMeta?.configOptions;
-        agentSessionId = config.sessionId;
+        agentSessionId = existingSessionId;
       } else {
         if (isReconnect) {
           log.info("No sessionId for reconnect, creating new session", {
@@ -846,7 +859,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
 
     try {
       const result = await session.clientSideConnection.prompt({
-        sessionId: session.config.sessionId!,
+        sessionId: getAgentSessionId(session),
         prompt: finalPrompt,
       });
       return {
@@ -858,7 +871,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         log.warn("Auth error during prompt, recreating session", { sessionId });
         session = await this.recreateSession(sessionId);
         const result = await session.clientSideConnection.prompt({
-          sessionId: session.config.sessionId!,
+          sessionId: getAgentSessionId(session),
           prompt: hidePromptBlocks(finalPrompt),
         });
         return {
@@ -870,6 +883,10 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     } finally {
       session.promptPending = false;
       this.sleepService.release(sessionId);
+
+      if (!this.hasActiveSessions()) {
+        this.emit(AgentServiceEvent.SessionsIdle, undefined);
+      }
     }
   }
 
@@ -902,7 +919,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
 
     try {
       await session.clientSideConnection.cancel({
-        sessionId: session.config.sessionId!,
+        sessionId: getAgentSessionId(session),
         _meta: reason ? { interruptReason: reason } : undefined,
       });
       if (reason) {
@@ -932,7 +949,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
 
     try {
       const result = await session.clientSideConnection.setSessionConfigOption({
-        sessionId: session.config.sessionId!,
+        sessionId: getAgentSessionId(session),
         configId,
         value,
       });

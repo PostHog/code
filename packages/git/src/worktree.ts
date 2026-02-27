@@ -23,58 +23,6 @@ export interface WorktreeConfig {
   worktreeBasePath?: string;
 }
 
-const COLORS = [
-  "red",
-  "orange",
-  "yellow",
-  "green",
-  "blue",
-  "purple",
-  "pink",
-  "brown",
-  "cyan",
-  "magenta",
-  "teal",
-  "navy",
-  "maroon",
-  "olive",
-  "coral",
-  "turquoise",
-  "indigo",
-  "violet",
-  "lavender",
-  "crimson",
-  "gold",
-  "silver",
-  "bronze",
-  "ivory",
-  "charcoal",
-  "slate",
-  "jade",
-  "ruby",
-  "amber",
-  "emerald",
-  "sapphire",
-  "pearl",
-  "onyx",
-  "copper",
-  "mint",
-  "peach",
-  "plum",
-  "lime",
-  "aqua",
-  "rose",
-  "sky",
-  "moss",
-  "sand",
-  "rust",
-  "burgundy",
-  "cobalt",
-  "ochre",
-  "lilac",
-  "cedar",
-];
-
 const WORKTREE_FOLDER_NAME = ".twig";
 
 export class WorktreeManager {
@@ -92,28 +40,23 @@ export class WorktreeManager {
     return this.worktreeBasePath !== null;
   }
 
-  private randomElement<T>(array: T[]): T {
-    return array[crypto.randomInt(array.length)];
-  }
-
   generateWorktreeName(): string {
-    const color = this.randomElement(COLORS);
-    return `workspace-${color}`;
+    return crypto.randomInt(1000, 10000).toString();
   }
 
-  private getWorktreeFolderPath(): string {
+  private getWorktreeBaseFolderPath(): string {
     if (this.worktreeBasePath) {
-      return path.join(this.worktreeBasePath, this.repoName);
+      return this.worktreeBasePath;
     }
     return path.join(this.mainRepoPath, WORKTREE_FOLDER_NAME);
   }
 
   private getWorktreePath(name: string): string {
-    return path.join(this.getWorktreeFolderPath(), name);
+    return path.join(this.getWorktreeBaseFolderPath(), name, this.repoName);
   }
 
   getLocalWorktreePath(): string {
-    return path.join(this.getWorktreeFolderPath(), "local");
+    return path.join(this.getWorktreeBaseFolderPath(), "local", this.repoName);
   }
 
   async localWorktreeExists(): Promise<boolean> {
@@ -170,7 +113,7 @@ export class WorktreeManager {
     }
 
     if (attempts >= maxAttempts) {
-      name = `${this.generateWorktreeName()}-${Date.now()}`;
+      name = `${this.generateWorktreeName()}${Date.now()}`;
     }
 
     return name;
@@ -185,9 +128,6 @@ export class WorktreeManager {
 
     if (!this.usesExternalPath()) {
       setupPromises.push(this.ensureArrayDirIgnored());
-    } else {
-      const folderPath = this.getWorktreeFolderPath();
-      setupPromises.push(fs.mkdir(folderPath, { recursive: true }));
     }
 
     const worktreeNamePromise = this.generateUniqueWorktreeName();
@@ -204,6 +144,9 @@ export class WorktreeManager {
     const baseBranch = await baseBranchPromise;
     const worktreePath = this.getWorktreePath(worktreeName);
 
+    const parentDir = path.dirname(worktreePath);
+    await fs.mkdir(parentDir, { recursive: true });
+
     await manager.executeWrite(this.mainRepoPath, async (git) => {
       if (this.usesExternalPath()) {
         await git.raw([
@@ -215,7 +158,7 @@ export class WorktreeManager {
           baseBranch,
         ]);
       } else {
-        const relativePath = `./${WORKTREE_FOLDER_NAME}/${worktreeName}`;
+        const relativePath = `./${WORKTREE_FOLDER_NAME}/${worktreeName}/${this.repoName}`;
         await git.raw([
           "worktree",
           "add",
@@ -246,27 +189,26 @@ export class WorktreeManager {
       throw new Error(`Branch '${branch}' does not exist`);
     }
 
-    const sanitizedBranchName = branch.replace(/\//g, "-");
-    let worktreeName = sanitizedBranchName;
+    let worktreeName = this.generateWorktreeName();
 
     if (await this.worktreeExists(worktreeName)) {
-      worktreeName = `${sanitizedBranchName}-${Date.now()}`;
+      worktreeName = `${this.generateWorktreeName()}${Date.now()}`;
     }
 
     if (!this.usesExternalPath()) {
       await this.ensureArrayDirIgnored();
-    } else {
-      const folderPath = this.getWorktreeFolderPath();
-      await fs.mkdir(folderPath, { recursive: true });
     }
 
     const worktreePath = this.getWorktreePath(worktreeName);
+
+    const parentDir = path.dirname(worktreePath);
+    await fs.mkdir(parentDir, { recursive: true });
 
     await manager.executeWrite(this.mainRepoPath, async (git) => {
       if (this.usesExternalPath()) {
         await git.raw(["worktree", "add", "--quiet", worktreePath, branch]);
       } else {
-        const relativePath = `./${WORKTREE_FOLDER_NAME}/${worktreeName}`;
+        const relativePath = `./${WORKTREE_FOLDER_NAME}/${worktreeName}/${this.repoName}`;
         await git.raw(["worktree", "add", "--quiet", relativePath, branch]);
       }
     });
@@ -339,18 +281,18 @@ export class WorktreeManager {
   async listWorktrees(): Promise<WorktreeInfo[]> {
     try {
       const rawWorktrees = await listWorktreesRaw(this.mainRepoPath);
-      const worktreeFolderPath = this.getWorktreeFolderPath();
+      const baseFolderPath = this.getWorktreeBaseFolderPath();
 
       return rawWorktrees
         .filter((wt) => {
           const isMainRepo =
             path.resolve(wt.path) === path.resolve(this.mainRepoPath);
-          const isInWorktreeFolder = wt.path.startsWith(worktreeFolderPath);
-          return wt.branch && !isMainRepo && isInWorktreeFolder;
+          const isUnderBase = wt.path.startsWith(baseFolderPath);
+          return wt.branch && !isMainRepo && isUnderBase;
         })
         .map((wt) => ({
           worktreePath: wt.path,
-          worktreeName: path.basename(wt.path),
+          worktreeName: path.basename(path.dirname(wt.path)),
           branchName: wt.branch as string,
           baseBranch: "",
           createdAt: "",

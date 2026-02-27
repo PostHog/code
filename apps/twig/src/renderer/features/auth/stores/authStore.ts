@@ -9,6 +9,7 @@ import {
   OAUTH_SCOPE_VERSION,
   OAUTH_SCOPES,
   TOKEN_REFRESH_BUFFER_MS,
+  TOKEN_REFRESH_FORCE_MS,
 } from "@shared/constants/oauth";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { CloudRegion } from "@shared/types/oauth";
@@ -98,6 +99,75 @@ interface AuthState {
 
 let refreshTimeoutId: number | null = null;
 
+function isTokenExpiringSoon(tokenExpiry: number | null): boolean {
+  return (
+    tokenExpiry != null && tokenExpiry - Date.now() <= TOKEN_REFRESH_FORCE_MS
+  );
+}
+
+async function attemptRefreshWithActivityCheck(
+  getState: () => AuthState,
+): Promise<void> {
+  try {
+    // If the token is about to expire, skip the activity check and refresh immediately
+    if (isTokenExpiringSoon(getState().tokenExpiry)) {
+      log.warn(
+        "Token expiring imminently, forcing refresh despite active sessions",
+      );
+      await getState().refreshAccessToken();
+      return;
+    }
+
+    // Refresh if there are no active sessions
+    const hasActive = await trpcVanilla.agent.hasActiveSessions.query();
+    if (!hasActive) {
+      await getState().refreshAccessToken();
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const settle = (reason: string, fn: () => Promise<void>) => {
+        if (settled) return;
+        settled = true;
+        subscription.unsubscribe();
+        window.clearInterval(expiryCheckId);
+        log.info(`Settling activity wait: ${reason}`);
+        fn().then(resolve).catch(reject);
+      };
+
+      // Subscribe to the idle event
+      const subscription = trpcVanilla.agent.onSessionsIdle.subscribe(
+        undefined,
+        {
+          onData: () =>
+            settle("sessions idle", () => getState().refreshAccessToken()),
+          onError: (error) => {
+            log.warn(
+              "Sessions idle subscription failed, refreshing anyway",
+              error,
+            );
+            settle("subscription error", () => getState().refreshAccessToken());
+          },
+        },
+      );
+
+      // Safety net: if the token is about to expire while we wait, force refresh
+      const expiryCheckId = window.setInterval(() => {
+        if (isTokenExpiringSoon(getState().tokenExpiry)) {
+          settle("token expiring imminently", () =>
+            getState().refreshAccessToken(),
+          );
+        }
+      }, TOKEN_REFRESH_FORCE_MS / 2);
+    });
+  } catch (error) {
+    // IPC call failed — refresh anyway (better than letting the token expire)
+    log.warn("Activity check failed, refreshing token anyway", error);
+    await getState().refreshAccessToken();
+  }
+}
+
 export const useAuthStore = create<AuthState>()(
   subscribeWithSelector(
     persist(
@@ -155,16 +225,6 @@ export const useAuthStore = create<AuthState>()(
 
           const apiHost = getCloudUrlFromRegion(region);
 
-          // Check if we have a previously selected project that's still valid
-          const currentProjectId = get().projectId;
-          const previousSelectionValid =
-            currentProjectId !== null && scopedTeams.includes(currentProjectId);
-
-          // Use previously selected project if valid, otherwise default to first project
-          const selectedProjectId = previousSelectionValid
-            ? currentProjectId
-            : scopedTeams[0];
-
           const client = new PostHogAPIClient(
             tokenResponse.access_token,
             apiHost,
@@ -176,11 +236,25 @@ export const useAuthStore = create<AuthState>()(
               }
               return token;
             },
-            selectedProjectId,
+            scopedTeams[0],
           );
 
           try {
             const user = await client.getCurrentUser();
+
+            // Determine project: prefer user's current PostHog project, then previously stored, then first available
+            const userCurrentTeam = user?.team?.id;
+            const storedProjectId = get().projectId;
+            const selectedProjectId =
+              userCurrentTeam != null && scopedTeams.includes(userCurrentTeam)
+                ? userCurrentTeam
+                : storedProjectId !== null &&
+                    scopedTeams.includes(storedProjectId)
+                  ? storedProjectId
+                  : scopedTeams[0];
+
+            // Update client's teamId to match selected project
+            client.setTeamId(selectedProjectId);
 
             set({
               oauthAccessToken: tokenResponse.access_token,
@@ -395,18 +469,14 @@ export const useAuthStore = create<AuthState>()(
 
           if (timeUntilRefresh > 0) {
             refreshTimeoutId = window.setTimeout(() => {
-              get()
-                .refreshAccessToken()
-                .catch((error) => {
-                  log.error("Proactive token refresh failed:", error);
-                });
+              attemptRefreshWithActivityCheck(get).catch((error) => {
+                log.error("Proactive token refresh failed:", error);
+              });
             }, timeUntilRefresh);
           } else {
-            get()
-              .refreshAccessToken()
-              .catch((error) => {
-                log.error("Immediate token refresh failed:", error);
-              });
+            attemptRefreshWithActivityCheck(get).catch((error) => {
+              log.error("Immediate token refresh failed:", error);
+            });
           }
         },
 
@@ -485,7 +555,6 @@ export const useAuthStore = create<AuthState>()(
                 return false;
               }
 
-              // Check if we have a stored project selection that's still valid
               const storedProjectId = get().projectId;
               const availableProjects =
                 get().availableProjectIds.length > 0
@@ -494,11 +563,6 @@ export const useAuthStore = create<AuthState>()(
               const hasValidStoredProject =
                 storedProjectId !== null &&
                 availableProjects.includes(storedProjectId);
-
-              // Use stored project if valid, otherwise default to first project
-              const selectedProjectId = hasValidStoredProject
-                ? storedProjectId
-                : scopedTeams[0];
 
               const client = new PostHogAPIClient(
                 currentTokens.accessToken,
@@ -511,11 +575,23 @@ export const useAuthStore = create<AuthState>()(
                   }
                   return token;
                 },
-                selectedProjectId,
+                hasValidStoredProject ? storedProjectId : scopedTeams[0],
               );
 
               try {
                 const user = await client.getCurrentUser();
+
+                // Prefer stored project, then user's current PostHog project, then first available
+                const userCurrentTeam = user?.team?.id;
+                const selectedProjectId = hasValidStoredProject
+                  ? storedProjectId
+                  : userCurrentTeam != null &&
+                      scopedTeams.includes(userCurrentTeam)
+                    ? userCurrentTeam
+                    : scopedTeams[0];
+
+                // Update client's teamId to match selected project
+                client.setTeamId(selectedProjectId);
 
                 set({
                   isAuthenticated: true,
@@ -562,10 +638,13 @@ export const useAuthStore = create<AuthState>()(
                   log.warn(
                     "Network error during session validation - keeping session active",
                   );
+                  const fallbackProjectId = hasValidStoredProject
+                    ? storedProjectId
+                    : scopedTeams[0];
                   set({
                     isAuthenticated: true,
                     client,
-                    projectId: selectedProjectId,
+                    projectId: fallbackProjectId,
                     availableProjectIds: scopedTeams,
                     needsProjectSelection: false,
                   });

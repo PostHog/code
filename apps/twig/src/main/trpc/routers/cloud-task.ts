@@ -3,6 +3,9 @@ import { MAIN_TOKENS } from "../../di/tokens.js";
 import {
   CloudTaskEvent,
   onUpdateInput,
+  sendCommandInput,
+  sendCommandOutput,
+  setViewingInput,
   unwatchInput,
   updateTokenInput,
   watchInput,
@@ -25,6 +28,17 @@ export const cloudTaskRouter = router({
   updateToken: publicProcedure
     .input(updateTokenInput)
     .mutation(({ input }) => getService().updateToken(input.token)),
+
+  setViewing: publicProcedure
+    .input(setViewingInput)
+    .mutation(({ input }) =>
+      getService().setViewing(input.taskId, input.runId, input.viewing),
+    ),
+
+  sendCommand: publicProcedure
+    .input(sendCommandInput)
+    .output(sendCommandOutput)
+    .mutation(({ input }) => getService().sendCommand(input)),
 
   onUpdate: publicProcedure
     .input(onUpdateInput)

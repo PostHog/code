@@ -55,8 +55,6 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
   useBlurOnEscape();
   useWorkspaceEvents(taskId);
 
-  const worktreePath = workspace?.worktreePath;
-
   const headerContent = useMemo(
     () => (
       <Flex align="center" justify="between" gap="2" width="100%">
@@ -84,10 +82,12 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
             </Tooltip>
           )}
         </Flex>
-        {worktreePath && <ExternalAppsOpener targetPath={worktreePath} />}
+        {effectiveRepoPath && (
+          <ExternalAppsOpener targetPath={effectiveRepoPath} />
+        )}
       </Flex>
     ),
-    [task.title, taskId, workspace?.branchName, worktreePath],
+    [task.title, taskId, workspace?.branchName, effectiveRepoPath],
   );
 
   useSetHeaderContent(headerContent);

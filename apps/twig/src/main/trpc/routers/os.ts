@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { app, dialog, shell } from "electron";
+import { app, dialog, nativeImage, shell } from "electron";
 import { z } from "zod";
 import { getWorktreeLocation } from "../../services/settingsStore.js";
 import { getMainWindow } from "../context.js";
@@ -36,6 +36,57 @@ const expandHomePath = (searchPath: string): string =>
   searchPath.startsWith("~")
     ? searchPath.replace(/^~/, os.homedir())
     : searchPath;
+
+const MAX_IMAGE_DIMENSION = 1568;
+const JPEG_QUALITY = 85;
+
+interface DownscaledImage {
+  buffer: Buffer;
+  mimeType: string;
+  extension: string;
+}
+
+function downscaleImage(raw: Buffer, mimeType: string): DownscaledImage {
+  const image = nativeImage.createFromBuffer(raw);
+  if (image.isEmpty()) {
+    return {
+      buffer: raw,
+      mimeType,
+      extension: mimeType.split("/")[1] || "png",
+    };
+  }
+
+  const { width, height } = image.getSize();
+  const maxDim = Math.max(width, height);
+
+  if (maxDim <= MAX_IMAGE_DIMENSION) {
+    return {
+      buffer: raw,
+      mimeType,
+      extension: mimeType.split("/")[1] || "png",
+    };
+  }
+
+  const scale = MAX_IMAGE_DIMENSION / maxDim;
+  const newWidth = Math.round(width * scale);
+  const newHeight = Math.round(height * scale);
+  const resized = image.resize({
+    width: newWidth,
+    height: newHeight,
+    quality: "best",
+  });
+
+  const hasAlpha = mimeType === "image/png" || mimeType === "image/webp";
+  if (hasAlpha) {
+    return { buffer: resized.toPNG(), mimeType: "image/png", extension: "png" };
+  }
+
+  return {
+    buffer: resized.toJPEG(JPEG_QUALITY),
+    mimeType: "image/jpeg",
+    extension: "jpeg",
+  };
+}
 
 export const osRouter = router({
   /**
@@ -227,7 +278,12 @@ export const osRouter = router({
       }),
     )
     .mutation(async ({ input }) => {
-      const extension = input.mimeType.split("/")[1] || "png";
+      const raw = Buffer.from(input.base64Data, "base64");
+      const { buffer, mimeType, extension } = downscaleImage(
+        raw,
+        input.mimeType,
+      );
+
       const isGenericName =
         !input.originalName ||
         input.originalName === "image.png" ||
@@ -235,8 +291,10 @@ export const osRouter = router({
         input.originalName === "image.jpg";
       const displayName = isGenericName
         ? `clipboard.${extension}`
-        : input.originalName!;
-      // Add timestamp to actual filename to avoid collisions
+        : (input.originalName ?? "clipboard").replace(
+            /\.[^.]+$/,
+            `.${extension}`,
+          );
       const baseName = displayName.replace(/\.[^.]+$/, "");
       const filename = `${baseName}-${Date.now()}.${extension}`;
       const tempDir = path.join(os.tmpdir(), "twig-clipboard");
@@ -244,9 +302,8 @@ export const osRouter = router({
       await fsPromises.mkdir(tempDir, { recursive: true });
       const filePath = path.join(tempDir, filename);
 
-      const buffer = Buffer.from(input.base64Data, "base64");
       await fsPromises.writeFile(filePath, buffer);
 
-      return { path: filePath, name: displayName };
+      return { path: filePath, name: displayName, mimeType };
     }),
 });

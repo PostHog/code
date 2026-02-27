@@ -1,11 +1,13 @@
 import type { StoredLogEntry } from "@shared/types/session-events.js";
 import { net } from "electron";
 import { injectable, preDestroy } from "inversify";
-import { logger } from "../../lib/logger.js";
-import { TypedEventEmitter } from "../../lib/typed-event-emitter.js";
+import { logger } from "../../utils/logger.js";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import {
   CloudTaskEvent,
   type CloudTaskEvents,
+  type SendCommandInput,
+  type SendCommandOutput,
   type TaskRunStatus,
   TERMINAL_STATUSES,
   type WatchInput,
@@ -14,7 +16,9 @@ import {
 const log = logger.scope("cloud-task");
 
 const LOG_POLL_INTERVAL_MS = 5_000;
+const LOG_POLL_INTERVAL_FAST_MS = 1_000;
 const STATUS_POLL_INTERVAL_MS = 10_000;
+const STATUS_POLL_INTERVAL_FAST_MS = 3_000;
 
 interface TaskRunResponse {
   id: string;
@@ -41,6 +45,7 @@ interface WatcherState {
   lastBranch: string | null;
   lastStatusPollTime: number;
   subscriberCount: number;
+  viewing: boolean;
 }
 
 interface PendingWatchState {
@@ -128,6 +133,106 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     }
   }
 
+  setViewing(taskId: string, runId: string, viewing: boolean): void {
+    const key = watcherKey(taskId, runId);
+    const watcher = this.watchers.get(key);
+    if (!watcher) return;
+
+    if (watcher.viewing === viewing) return;
+    watcher.viewing = viewing;
+
+    if (viewing && watcher.pollTimeoutId) {
+      clearTimeout(watcher.pollTimeoutId);
+      watcher.pollTimeoutId = null;
+      this.schedulePoll(key);
+    }
+
+    log.info("Cloud task watcher viewing changed", { key, viewing });
+  }
+
+  async sendCommand(input: SendCommandInput): Promise<SendCommandOutput> {
+    if (!this.apiKey) {
+      return { success: false, error: "No API token available" };
+    }
+
+    const url = `${input.apiHost}/api/projects/${input.teamId}/tasks/${input.taskId}/runs/${input.runId}/command/`;
+    const body = {
+      jsonrpc: "2.0",
+      method: input.method,
+      params: input.params ?? {},
+      id: `twig-${Date.now()}`,
+    };
+
+    try {
+      const response = await net.fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "");
+        let errorMessage = `Command failed with status ${response.status}`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.error?.message) {
+            errorMessage = errorJson.error.message;
+          } else if (errorJson.error) {
+            errorMessage =
+              typeof errorJson.error === "string"
+                ? errorJson.error
+                : JSON.stringify(errorJson.error);
+          }
+        } catch {
+          if (errorText) errorMessage = errorText;
+        }
+
+        log.warn("Cloud task command failed", {
+          taskId: input.taskId,
+          runId: input.runId,
+          method: input.method,
+          status: response.status,
+          error: errorMessage,
+        });
+        return { success: false, error: errorMessage };
+      }
+
+      const data = await response.json();
+
+      if (data.error) {
+        log.warn("Cloud task command returned error", {
+          taskId: input.taskId,
+          method: input.method,
+          error: data.error,
+        });
+        return {
+          success: false,
+          error: data.error.message ?? JSON.stringify(data.error),
+        };
+      }
+
+      log.info("Cloud task command sent", {
+        taskId: input.taskId,
+        runId: input.runId,
+        method: input.method,
+      });
+
+      return { success: true, result: data.result };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      log.error("Cloud task command error", {
+        taskId: input.taskId,
+        method: input.method,
+        error: errorMessage,
+      });
+      return { success: false, error: errorMessage };
+    }
+  }
+
   @preDestroy()
   unwatchAll(): void {
     for (const key of [...this.watchers.keys()]) {
@@ -157,6 +262,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       lastBranch: null,
       lastStatusPollTime: 0,
       subscriberCount,
+      viewing: false,
     };
 
     this.watchers.set(key, watcher);
@@ -183,10 +289,14 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     const watcher = this.watchers.get(key);
     if (!watcher) return;
 
+    const interval = watcher.viewing
+      ? LOG_POLL_INTERVAL_FAST_MS
+      : LOG_POLL_INTERVAL_MS;
+
     watcher.pollTimeoutId = setTimeout(() => {
       watcher.pollTimeoutId = null;
       this.poll(key, false);
-    }, LOG_POLL_INTERVAL_MS);
+    }, interval);
   }
 
   private async poll(key: string, isSnapshot: boolean): Promise<void> {
@@ -199,9 +309,11 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
 
       // Fetch status if snapshot or interval elapsed
       const now = Date.now();
+      const statusInterval = watcher.viewing
+        ? STATUS_POLL_INTERVAL_FAST_MS
+        : STATUS_POLL_INTERVAL_MS;
       const shouldFetchStatus =
-        isSnapshot ||
-        now - watcher.lastStatusPollTime >= STATUS_POLL_INTERVAL_MS;
+        isSnapshot || now - watcher.lastStatusPollTime >= statusInterval;
 
       let statusResult: TaskRunResponse | null = null;
       let statusChanged = false;

@@ -10,4 +10,5 @@ export interface AgentServerConfig {
   mode: AgentMode;
   taskId: string;
   runId: string;
+  version?: string;
 }

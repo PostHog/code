@@ -35,7 +35,7 @@ vi.mock("node:fs/promises", async () => {
   return { ...fs.promises, default: fs.promises };
 });
 
-vi.mock("../../lib/extract-zip.js", () => ({
+vi.mock("../../utils/extract-zip.js", () => ({
   extractZip: mockExtractZip,
 }));
 
@@ -45,7 +45,7 @@ vi.mock("node:os", () => ({
   default: { homedir: () => "/mock/home", tmpdir: () => "/mock/tmp" },
 }));
 
-vi.mock("../../lib/logger.js", () => ({
+vi.mock("../../utils/logger.js", () => ({
   logger: {
     scope: () => ({
       info: vi.fn(),
@@ -58,6 +58,13 @@ vi.mock("../../lib/logger.js", () => ({
 
 import { PosthogPluginService } from "./service.js";
 import { syncCodexSkills } from "./update-skills-saga.js";
+
+/** Expose private members for testing without `as any`. */
+interface TestablePluginService {
+  initialize(): Promise<void>;
+  copyBundledPlugin(): Promise<void>;
+  intervalId: ReturnType<typeof setInterval> | null;
+}
 
 // Paths based on mock values
 const RUNTIME_PLUGIN_DIR = "/mock/userData/plugins/posthog";
@@ -142,7 +149,7 @@ describe("PosthogPluginService", () => {
     it("copies bundled plugin on first run when plugin.json is missing", async () => {
       setupBundledPlugin();
 
-      await (service as any).initialize();
+      await (service as unknown as TestablePluginService).initialize();
 
       // Entire bundled dir should be copied to runtime
       expect(vol.existsSync(`${RUNTIME_PLUGIN_DIR}/plugin.json`)).toBe(true);
@@ -157,7 +164,7 @@ describe("PosthogPluginService", () => {
       vol.mkdirSync(RUNTIME_PLUGIN_DIR, { recursive: true });
       vol.writeFileSync(`${RUNTIME_PLUGIN_DIR}/plugin.json`, '{"old":true}');
 
-      await (service as any).initialize();
+      await (service as unknown as TestablePluginService).initialize();
 
       // Should keep the existing runtime plugin.json, not overwrite
       expect(
@@ -177,7 +184,7 @@ describe("PosthogPluginService", () => {
         "# Cached",
       );
 
-      await (service as any).initialize();
+      await (service as unknown as TestablePluginService).initialize();
 
       expect(
         vol.readFileSync(
@@ -188,8 +195,10 @@ describe("PosthogPluginService", () => {
     });
 
     it("starts periodic update interval", async () => {
-      await (service as any).initialize();
-      expect((service as any).intervalId).not.toBeNull();
+      await (service as unknown as TestablePluginService).initialize();
+      expect(
+        (service as unknown as TestablePluginService).intervalId,
+      ).not.toBeNull();
     });
   });
 
@@ -359,7 +368,7 @@ describe("PosthogPluginService", () => {
     it("copies entire bundled dir to runtime dir", async () => {
       setupBundledPlugin();
 
-      await (service as any).copyBundledPlugin();
+      await (service as unknown as TestablePluginService).copyBundledPlugin();
 
       expect(
         vol.readFileSync(`${RUNTIME_PLUGIN_DIR}/plugin.json`, "utf-8"),
@@ -373,7 +382,7 @@ describe("PosthogPluginService", () => {
     });
 
     it("skips if bundled dir does not exist", async () => {
-      await (service as any).copyBundledPlugin();
+      await (service as unknown as TestablePluginService).copyBundledPlugin();
       expect(vol.existsSync(RUNTIME_PLUGIN_DIR)).toBe(false);
     });
 
@@ -382,18 +391,22 @@ describe("PosthogPluginService", () => {
       // Just verify no exception propagates
       setupBundledPlugin();
       await expect(
-        (service as any).copyBundledPlugin(),
+        (service as unknown as TestablePluginService).copyBundledPlugin(),
       ).resolves.toBeUndefined();
     });
   });
 
   describe("cleanup", () => {
     it("clears interval timer", async () => {
-      await (service as any).initialize();
-      expect((service as any).intervalId).not.toBeNull();
+      await (service as unknown as TestablePluginService).initialize();
+      expect(
+        (service as unknown as TestablePluginService).intervalId,
+      ).not.toBeNull();
 
       service.cleanup();
-      expect((service as any).intervalId).toBeNull();
+      expect(
+        (service as unknown as TestablePluginService).intervalId,
+      ).toBeNull();
     });
 
     it("is safe to call multiple times", () => {

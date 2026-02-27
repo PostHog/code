@@ -8,9 +8,11 @@ interface GitState {
   isRepo: boolean;
   isRepoLoading: boolean;
   hasChanges: boolean;
-  ahead: number;
+  aheadOfRemote: number;
   behind: number;
+  aheadOfDefault: number;
   hasRemote: boolean;
+  isFeatureBranch: boolean;
   currentBranch: string | null;
   defaultBranch: string | null;
   ghStatus: { installed: boolean; authenticated: boolean } | null;
@@ -64,6 +66,12 @@ function isDetachedHead(s: GitState): boolean {
   return s.isRepo && !s.isRepoLoading && !s.currentBranch;
 }
 
+function isOnDefaultBranch(s: GitState): boolean {
+  return (
+    s.isRepo && !s.isRepoLoading && !!s.currentBranch && !s.isFeatureBranch
+  );
+}
+
 function getPushDisabledReason(
   s: GitState,
   repoReason: string | null,
@@ -76,10 +84,10 @@ function getPushDisabledReason(
   }
 
   if (!opts?.assumeWillHaveCommits) {
-    if (s.hasRemote && s.ahead === 0) {
+    if (s.hasRemote && s.aheadOfRemote === 0) {
       return "Branch is up to date.";
     }
-    if (!s.hasRemote && s.ahead === 0) {
+    if (!s.hasRemote && s.aheadOfRemote === 0) {
       return "No commits to publish.";
     }
   }
@@ -108,7 +116,7 @@ function getPrDisabledReason(
 
   if (s.prStatus?.prExists) return "PR already exists. Use commit and push.";
 
-  if (!opts?.assumeWillHaveCommits && s.ahead === 0) {
+  if (!opts?.assumeWillHaveCommits && s.aheadOfDefault === 0) {
     return "No commits to create PR.";
   }
 
@@ -154,7 +162,7 @@ function getPrimaryAction(
     !commitAction.enabled && !pushAction.enabled && !prAction.enabled;
   if (allDisabled) return commitAction;
   if (s.hasChanges) return commitAction;
-  if (s.ahead > 0 || !s.hasRemote || s.behind > 0) return pushAction;
+  if (s.aheadOfRemote > 0 || !s.hasRemote || s.behind > 0) return pushAction;
   return prAction;
 }
 
@@ -174,6 +182,24 @@ export function computeGitInteractionState(input: GitState): GitComputed {
       prUrl: null,
       baseReason: repoReason,
       isDetachedHead: true,
+    };
+  }
+
+  const onDefaultBranch = isOnDefaultBranch(input);
+
+  if (onDefaultBranch && input.hasChanges) {
+    const branchAction = makeAction("branch-here", "Branch here", repoReason);
+    const commitAction = getCommitAction(input, repoReason);
+    return {
+      actions: [branchAction, commitAction],
+      primaryAction: branchAction,
+      pushDisabledReason: "Create a feature branch first.",
+      prDisabledReason: "Create a feature branch first.",
+      prBaseBranch: input.defaultBranch,
+      prHeadBranch: input.currentBranch,
+      prUrl: input.prStatus?.prUrl ?? null,
+      baseReason: repoReason,
+      isDetachedHead: false,
     };
   }
 

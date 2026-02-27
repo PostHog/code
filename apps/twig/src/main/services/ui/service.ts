@@ -1,5 +1,5 @@
 import { injectable } from "inversify";
-import { TypedEventEmitter } from "../../lib/typed-event-emitter.js";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import { UIServiceEvent, type UIServiceEvents } from "./schemas.js";
 
 @injectable()
@@ -18,5 +18,9 @@ export class UIService extends TypedEventEmitter<UIServiceEvents> {
 
   clearStorage(): void {
     this.emit(UIServiceEvent.ClearStorage, true);
+  }
+
+  invalidateToken(): void {
+    this.emit(UIServiceEvent.InvalidateToken, true);
   }
 }

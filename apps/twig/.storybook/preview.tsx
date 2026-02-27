@@ -13,13 +13,13 @@ const preview: Preview = {
       },
     },
     backgrounds: {
-      default: "dark",
-      values: [
-        { name: "dark", value: "#111113" },
-        { name: "light", value: "#ffffff" },
-      ],
+      options: {
+        dark: { name: "dark", value: "#111113" },
+        light: { name: "light", value: "#ffffff" },
+      },
     },
   },
+
   decorators: [
     (Story, context) => {
       const isDark = context.globals.theme !== "light";
@@ -37,6 +37,7 @@ const preview: Preview = {
       );
     },
   ],
+
   globalTypes: {
     theme: {
       description: "Theme",
@@ -47,6 +48,12 @@ const preview: Preview = {
         items: ["dark", "light"],
         dynamicTitle: true,
       },
+    },
+  },
+
+  initialGlobals: {
+    backgrounds: {
+      value: "dark",
     },
   },
 };

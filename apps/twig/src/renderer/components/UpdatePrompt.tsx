@@ -29,7 +29,6 @@ export function UpdatePrompt() {
     try {
       const result = await installMutation.mutateAsync();
       if (!result.installed) {
-        // Dismiss the update toast and show error
         sonnerToast.dismiss(UPDATE_TOAST_ID);
         sonnerToast.custom(
           () => (

@@ -7,7 +7,6 @@ import type {
   ContentBlock,
   SessionNotification,
 } from "@agentclientprotocol/sdk";
-import { EXECUTION_MODES, type ExecutionMode } from "@shared/types";
 import type {
   AcpMessage,
   JsonRpcMessage,
@@ -18,39 +17,11 @@ import {
   isJsonRpcNotification,
   isJsonRpcRequest,
 } from "@shared/types/session-events";
-import { includesAny } from "./string";
-
-/**
- * Get available execution modes based on user permissions.
- */
-export function getExecutionModes(
-  allowBypassPermissions: boolean,
-): ExecutionMode[] {
-  return allowBypassPermissions
-    ? EXECUTION_MODES
-    : EXECUTION_MODES.filter((m) => m !== "bypassPermissions");
-}
-
-/**
- * Cycle to the next execution mode.
- */
-export function cycleExecutionMode(
-  current: ExecutionMode,
-  allowBypassPermissions: boolean,
-): ExecutionMode {
-  const modes = getExecutionModes(allowBypassPermissions);
-  const currentIndex = modes.indexOf(current);
-  if (currentIndex === -1) {
-    return "default";
-  }
-  const nextIndex = (currentIndex + 1) % modes.length;
-  return modes[nextIndex];
-}
 
 /**
  * Convert a stored log entry to an ACP message.
  */
-export function storedEntryToAcpMessage(entry: StoredLogEntry): AcpMessage {
+function storedEntryToAcpMessage(entry: StoredLogEntry): AcpMessage {
   return {
     type: "acp_message",
     ts: entry.timestamp ? new Date(entry.timestamp).getTime() : Date.now(),
@@ -61,7 +32,7 @@ export function storedEntryToAcpMessage(entry: StoredLogEntry): AcpMessage {
 /**
  * Create a user message event for display.
  */
-export function createUserMessageEvent(text: string, ts: number): AcpMessage {
+function createUserMessageEvent(text: string, ts: number): AcpMessage {
   return {
     type: "acp_message",
     ts,
@@ -247,28 +218,4 @@ export function normalizePromptToBlocks(
   return typeof prompt === "string" ? [{ type: "text", text: prompt }] : prompt;
 }
 
-/**
- * Error patterns that indicate a fatal session error requiring restart.
- * These errors mean the underlying session/process is unrecoverable.
- */
-const FATAL_SESSION_ERROR_PATTERNS = [
-  "Internal error",
-  "process exited",
-  "Session did not end",
-  "not ready for writing",
-  "Session not found",
-] as const;
-
-/**
- * Check if a prompt error is fatal (session unrecoverable).
- * Fatal errors require session restart rather than simple retry.
- */
-export function isFatalSessionError(
-  errorMessage: string,
-  errorDetails?: string,
-): boolean {
-  return (
-    includesAny(errorMessage, FATAL_SESSION_ERROR_PATTERNS) ||
-    includesAny(errorDetails, FATAL_SESSION_ERROR_PATTERNS)
-  );
-}
+export { isFatalSessionError } from "@shared/errors";

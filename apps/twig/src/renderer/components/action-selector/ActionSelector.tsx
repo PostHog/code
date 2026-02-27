@@ -1,6 +1,7 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
 import { compactHomePath } from "@utils/path";
 import { useCallback, useEffect, useRef } from "react";
+import { isCancelOption, isSubmitOption } from "./constants";
 import { OptionRow } from "./OptionRow";
 import { StepTabs } from "./StepTabs";
 import type { ActionSelectorProps } from "./types";
@@ -40,7 +41,8 @@ export function ActionSelector({
 
   const {
     selectedIndex,
-    setSelectedIndex,
+    hoveredIndex,
+    setHoveredIndex,
     checkedOptions,
     customInput,
     setCustomInput,
@@ -57,7 +59,7 @@ export function ActionSelector({
     moveToPrevStep,
     moveToNextStep,
     selectCurrent,
-    selectByIndex,
+    handleClick,
     handleStepClick,
     handleEscape,
     handleInlineSubmit,
@@ -80,7 +82,7 @@ export function ActionSelector({
     handleSubmitMulti,
     handleSubmitSingle,
     handleCancel,
-    selectByIndex,
+    handleClick,
   });
   handlersRef.current = {
     moveUp,
@@ -91,7 +93,7 @@ export function ActionSelector({
     handleSubmitMulti,
     handleSubmitSingle,
     handleCancel,
-    selectByIndex,
+    handleClick,
   };
 
   const stateRef = useRef({
@@ -113,7 +115,8 @@ export function ActionSelector({
         stateRef.current;
       const h = handlersRef.current;
 
-      if (showInlineEdit) return;
+      if (showInlineEdit || document.activeElement?.tagName === "TEXTAREA")
+        return;
 
       switch (e.key) {
         case "ArrowUp":
@@ -174,7 +177,7 @@ export function ActionSelector({
           if (/^[1-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey) {
             e.preventDefault();
             e.stopPropagation();
-            h.selectByIndex(Number.parseInt(e.key, 10) - 1);
+            h.handleClick(Number.parseInt(e.key, 10) - 1);
           }
           break;
       }
@@ -232,7 +235,11 @@ export function ActionSelector({
 
           <Flex direction="column" gap="1">
             {allOptions.map((option, index) => {
+              if (isSubmitOption(option.id) || isCancelOption(option.id)) {
+                return null;
+              }
               const isSelected = selectedIndex === index;
+              const isHovered = hoveredIndex === index;
               const isChecked = checkedOptions.has(option.id);
 
               return (
@@ -241,6 +248,7 @@ export function ActionSelector({
                   option={option}
                   index={index}
                   isSelected={isSelected}
+                  isHovered={isHovered}
                   isChecked={isChecked}
                   showCheckbox={showSubmitButton}
                   customInput={customInput}
@@ -252,8 +260,43 @@ export function ActionSelector({
                   onNavigateDown={handleNavigateDown}
                   onEscape={handleEscape}
                   onInlineSubmit={handleInlineSubmit}
-                  onClick={() => selectByIndex(index)}
-                  onMouseEnter={() => setSelectedIndex(index)}
+                  onClick={() => handleClick(index)}
+                  onMouseEnter={() => setHoveredIndex(index)}
+                  onMouseLeave={() => setHoveredIndex(null)}
+                />
+              );
+            })}
+          </Flex>
+
+          <Flex direction="row" gap="2" mt="2">
+            {allOptions.map((option, index) => {
+              if (!isSubmitOption(option.id) && !isCancelOption(option.id)) {
+                return null;
+              }
+              const isSelected = selectedIndex === index;
+
+              const isHovered = hoveredIndex === index;
+              return (
+                <OptionRow
+                  key={option.id}
+                  option={option}
+                  index={index}
+                  isSelected={isSelected}
+                  isHovered={isHovered}
+                  isChecked={false}
+                  showCheckbox={false}
+                  customInput=""
+                  customInputPlaceholder=""
+                  isEditing={false}
+                  submitLabel={getSubmitLabel()}
+                  onCustomInputChange={setCustomInput}
+                  onNavigateUp={handleNavigateUp}
+                  onNavigateDown={handleNavigateDown}
+                  onEscape={handleEscape}
+                  onInlineSubmit={handleInlineSubmit}
+                  onClick={() => handleClick(index)}
+                  onMouseEnter={() => setHoveredIndex(index)}
+                  onMouseLeave={() => setHoveredIndex(null)}
                 />
               );
             })}

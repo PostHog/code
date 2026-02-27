@@ -21,7 +21,7 @@ interface FilteredEvent {
 }
 
 export function RawLogsView({ events }: RawLogsViewProps) {
-  const searchInputRef = useRef<HTMLInputElement>(null!);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const searchQuery = useSearchQuery();
   const showSearch = useShowSearch();
   const { setSearchQuery, toggleSearch } = useSessionViewActions();
@@ -76,7 +76,6 @@ export function RawLogsView({ events }: RawLogsViewProps) {
       />
       <VirtualizedList
         items={filteredEvents}
-        estimateSize={150}
         getItemKey={({ originalIndex }) => originalIndex}
         renderItem={renderRawLogEntry}
         className="flex-1 px-4"

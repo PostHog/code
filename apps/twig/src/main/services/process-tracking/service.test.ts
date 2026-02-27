@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockPlatform = vi.hoisted(() => vi.fn(() => "darwin"));
-const mockIsProcessAlive = vi.hoisted(() => vi.fn(() => true));
+const mockIsProcessAlive = vi.hoisted(() => vi.fn((_pid: number) => true));
 const mockKillProcessTree = vi.hoisted(() => vi.fn());
 const mockExecAsync = vi.hoisted(() => vi.fn());
 
@@ -20,7 +20,7 @@ vi.mock("node:os", () => ({
   default: { platform: mockPlatform },
 }));
 
-vi.mock("../../lib/logger.js", () => ({
+vi.mock("../../utils/logger.js", () => ({
   logger: {
     scope: () => ({
       info: vi.fn(),
@@ -31,7 +31,7 @@ vi.mock("../../lib/logger.js", () => ({
   },
 }));
 
-vi.mock("../../lib/process-utils.js", () => ({
+vi.mock("../../utils/process-utils.js", () => ({
   isProcessAlive: mockIsProcessAlive,
   killProcessTree: mockKillProcessTree,
 }));
@@ -178,9 +178,7 @@ describe("ProcessTrackingService", () => {
       service.register(1, "shell", "alive");
       service.register(2, "shell", "dead");
 
-      mockIsProcessAlive.mockImplementation(
-        ((pid: number) => pid === 1) as any,
-      );
+      mockIsProcessAlive.mockImplementation((pid: number) => pid === 1);
 
       const snapshot = await service.getSnapshot();
 

@@ -49,6 +49,8 @@ export interface AgentSession {
   configOptions?: SessionConfigOption[];
   pendingPermissions: Map<string, PermissionRequest>;
   messageQueue: QueuedMessage[];
+  /** Whether this session is for a cloud run */
+  isCloud?: boolean;
   /** Cloud task run status (only set for cloud sessions) */
   cloudStatus?: TaskRunStatus;
   /** Cloud task current stage */
@@ -178,7 +180,6 @@ export const useSessionStore = create<SessionState>()(
 // --- Re-exports ---
 
 export type { PermissionRequest, ExecutionMode, SessionConfigOption };
-export { cycleExecutionMode, getExecutionModes } from "@utils/session";
 export {
   getAvailableCommandsForTask,
   getPendingPermissionsForTask,

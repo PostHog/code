@@ -2,7 +2,6 @@ import { ConnectivityPrompt } from "@components/ConnectivityPrompt";
 import { HeaderRow } from "@components/HeaderRow";
 import { KeyboardShortcutsSheet } from "@components/KeyboardShortcutsSheet";
 import { ScopeReauthPrompt } from "@components/ScopeReauthPrompt";
-import { UpdatePrompt } from "@components/UpdatePrompt";
 import { useAutonomy } from "@features/autonomy/hooks/useAutonomy";
 import { CommandMenu } from "@features/command/components/CommandMenu";
 import { InboxView } from "@features/inbox/components/InboxView";
@@ -19,7 +18,6 @@ import { Box, Flex } from "@radix-ui/themes";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useShortcutsSheetStore } from "@stores/shortcutsSheetStore";
 import { useCallback, useEffect, useState } from "react";
-import { Toaster } from "sonner";
 import { useTaskDeepLink } from "../hooks/useTaskDeepLink";
 import { GlobalEventHandlers } from "./GlobalEventHandlers";
 
@@ -86,7 +84,6 @@ export function MainLayout() {
         open={shortcutsSheetOpen}
         onOpenChange={(open) => (open ? null : closeShortcutsSheet())}
       />
-      <UpdatePrompt />
       <ScopeReauthPrompt />
       <ConnectivityPrompt
         open={showPrompt}
@@ -100,7 +97,6 @@ export function MainLayout() {
         commandMenuOpen={commandMenuOpen}
       />
       <SettingsDialog />
-      <Toaster position="bottom-right" />
     </Flex>
   );
 }

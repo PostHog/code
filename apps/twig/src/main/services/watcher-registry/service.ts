@@ -1,6 +1,6 @@
 import type * as watcher from "@parcel/watcher";
 import { injectable } from "inversify";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../utils/logger.js";
 
 const log = logger.scope("watcher-registry");
 
@@ -26,8 +26,8 @@ export class WatcherRegistryService {
 
     if (this.subscriptions.has(id)) {
       log.warn(`Replacing existing watcher: ${id}`);
-      const existing = this.subscriptions.get(id)!;
-      existing.unsubscribe().catch((err) => {
+      const existing = this.subscriptions.get(id);
+      existing?.unsubscribe().catch((err) => {
         log.warn(`Failed to unsubscribe replaced watcher ${id}:`, err);
       });
     }

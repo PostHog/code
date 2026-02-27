@@ -60,7 +60,7 @@
   "author": "PostHog",
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
-    "build": "tsup",
+    "build": "rm -rf dist && tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -72,7 +72,6 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.8",
     "@posthog/shared": "workspace:*",
     "@twig/git": "workspace:*",
     "@types/bun": "latest",
@@ -86,10 +85,9 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.14.0",
-    "@anthropic-ai/claude-agent-sdk": "0.2.42",
+    "@anthropic-ai/claude-agent-sdk": "0.2.59",
     "@anthropic-ai/sdk": "^0.71.0",
     "@hono/node-server": "^1.19.9",
-    "@modelcontextprotocol/sdk": "^1.25.3",
     "@opentelemetry/api-logs": "^0.208.0",
     "@opentelemetry/exporter-logs-otlp-http": "^0.208.0",
     "@opentelemetry/resources": "^2.0.0",
@@ -97,8 +95,6 @@
     "@opentelemetry/semantic-conventions": "^1.28.0",
     "@types/jsonwebtoken": "^9.0.10",
     "commander": "^14.0.2",
-    "diff": "^8.0.2",
-    "dotenv": "^17.2.3",
     "hono": "^4.11.7",
     "jsonwebtoken": "^9.0.2",
     "tar": "^7.5.0",

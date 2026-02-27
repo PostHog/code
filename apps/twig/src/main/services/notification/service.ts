@@ -1,6 +1,6 @@
 import { app, Notification } from "electron";
 import { injectable, postConstruct } from "inversify";
-import { logger } from "../../lib/logger";
+import { logger } from "../../utils/logger";
 
 const log = logger.scope("notification");
 

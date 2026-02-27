@@ -4,8 +4,8 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { app, net } from "electron";
 import { injectable, postConstruct, preDestroy } from "inversify";
-import { logger } from "../../lib/logger.js";
-import { TypedEventEmitter } from "../../lib/typed-event-emitter.js";
+import { logger } from "../../utils/logger.js";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import { captureException } from "../posthog-analytics.js";
 import {
   overlayDownloadedSkills,
@@ -15,7 +15,10 @@ import {
 
 const log = logger.scope("posthog-plugin");
 
-const SKILLS_ZIP_URL = process.env.SKILLS_ZIP_URL!;
+const SKILLS_ZIP_URL = process.env.SKILLS_ZIP_URL ?? "";
+if (!SKILLS_ZIP_URL) {
+  log.warn("SKILLS_ZIP_URL environment variable is not set");
+}
 const UPDATE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const CODEX_SKILLS_DIR = join(homedir(), ".agents", "skills");
 

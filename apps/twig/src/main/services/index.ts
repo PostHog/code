@@ -5,4 +5,3 @@
 
 import "./posthog-analytics.js";
 import "./settingsStore.js";
-import "./transcription-prompts.js";

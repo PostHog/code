@@ -49,6 +49,7 @@ Convert the task description into a concise task title.
 - Keep exact: technical terms, numbers, filenames, HTTP codes, PR numbers
 - Never assume tech stack
 - Only output "Untitled" if the input is completely null/missing, not just unclear
+- If the input is a URL (e.g. a GitHub issue link, PR link, or any web URL), generate a title based on what you can infer from the URL structure (repo name, issue/PR number, etc.). Never say you cannot access URLs or ask the user for more information.
 
 Examples:
 - "Fix the login bug in the authentication system" → Fix authentication login bug
@@ -64,6 +65,9 @@ Examples:
 - "aaaaaaaaaa" → Repeated letters
 - "   " → Empty message
 - "What's the best restaurant in NYC?" → NYC restaurant recommendations
+- "https://github.com/PostHog/posthog/issues/1234" → PostHog issue #1234
+- "https://github.com/PostHog/posthog/pull/567" → PostHog PR #567
+- "fix https://github.com/org/repo/issues/42" → Fix repo issue #42
 
 Never wrap the title in quotes.`;
 
@@ -276,7 +280,7 @@ export class TaskCreationSaga extends Saga<
         !input.taskId && input.content
           ? await this.readOnlyStep("build_prompt_blocks", () =>
               buildPromptBlocks(
-                input.content!,
+                input.content ?? "",
                 input.filePaths ?? [],
                 agentCwd ?? "",
               ),

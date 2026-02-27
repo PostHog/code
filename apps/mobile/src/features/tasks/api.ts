@@ -1,5 +1,5 @@
 import { fetch } from "expo/fetch";
-import { useAuthStore } from "@/features/auth";
+import { getBaseUrl, getHeaders, getProjectId } from "@/lib/api";
 import type {
   CreateTaskOptions,
   Integration,
@@ -47,40 +47,13 @@ function isRetryableError(error: unknown): boolean {
   return false;
 }
 
-function getAuthHeaders(): { Authorization: string; "Content-Type": string } {
-  const { oauthAccessToken } = useAuthStore.getState();
-  if (!oauthAccessToken) {
-    throw new Error("Not authenticated");
-  }
-  return {
-    Authorization: `Bearer ${oauthAccessToken}`,
-    "Content-Type": "application/json",
-  };
-}
-
-function getBaseUrl(): string {
-  const { cloudRegion, getCloudUrlFromRegion } = useAuthStore.getState();
-  if (!cloudRegion) {
-    throw new Error("No cloud region set");
-  }
-  return getCloudUrlFromRegion(cloudRegion);
-}
-
-function getProjectId(): number {
-  const { projectId } = useAuthStore.getState();
-  if (!projectId) {
-    throw new Error("No project ID set");
-  }
-  return projectId;
-}
-
 export async function getTasks(filters?: {
   repository?: string;
   createdBy?: number;
 }): Promise<Task[]> {
   const baseUrl = getBaseUrl();
   const projectId = getProjectId();
-  const headers = getAuthHeaders();
+  const headers = getHeaders();
 
   const params = new URLSearchParams({ limit: "500" });
   if (filters?.repository) {
@@ -106,7 +79,7 @@ export async function getTasks(filters?: {
 export async function getTask(taskId: string): Promise<Task> {
   const baseUrl = getBaseUrl();
   const projectId = getProjectId();
-  const headers = getAuthHeaders();
+  const headers = getHeaders();
 
   const response = await fetch(
     `${baseUrl}/api/projects/${projectId}/tasks/${taskId}/`,
@@ -123,7 +96,7 @@ export async function getTask(taskId: string): Promise<Task> {
 export async function createTask(options: CreateTaskOptions): Promise<Task> {
   const baseUrl = getBaseUrl();
   const projectId = getProjectId();
-  const headers = getAuthHeaders();
+  const headers = getHeaders();
 
   const response = await fetch(`${baseUrl}/api/projects/${projectId}/tasks/`, {
     method: "POST",
@@ -151,7 +124,7 @@ export async function updateTask(
 ): Promise<Task> {
   const baseUrl = getBaseUrl();
   const projectId = getProjectId();
-  const headers = getAuthHeaders();
+  const headers = getHeaders();
 
   const response = await fetch(
     `${baseUrl}/api/projects/${projectId}/tasks/${taskId}/`,
@@ -172,7 +145,7 @@ export async function updateTask(
 export async function deleteTask(taskId: string): Promise<void> {
   const baseUrl = getBaseUrl();
   const projectId = getProjectId();
-  const headers = getAuthHeaders();
+  const headers = getHeaders();
 
   const response = await fetch(
     `${baseUrl}/api/projects/${projectId}/tasks/${taskId}/`,
@@ -190,7 +163,7 @@ export async function deleteTask(taskId: string): Promise<void> {
 export async function runTaskInCloud(taskId: string): Promise<Task> {
   const baseUrl = getBaseUrl();
   const projectId = getProjectId();
-  const headers = getAuthHeaders();
+  const headers = getHeaders();
 
   const response = await fetch(
     `${baseUrl}/api/projects/${projectId}/tasks/${taskId}/run/`,
@@ -213,7 +186,7 @@ export async function getTaskRun(
 ): Promise<TaskRun> {
   const baseUrl = getBaseUrl();
   const projectId = getProjectId();
-  const headers = getAuthHeaders();
+  const headers = getHeaders();
 
   const response = await fetch(
     `${baseUrl}/api/projects/${projectId}/tasks/${taskId}/runs/${runId}/`,
@@ -236,7 +209,7 @@ export async function appendTaskRunLog(
     async () => {
       const baseUrl = getBaseUrl();
       const projectId = getProjectId();
-      const headers = getAuthHeaders();
+      const headers = getHeaders();
 
       const response = await fetch(
         `${baseUrl}/api/projects/${projectId}/tasks/${taskId}/runs/${runId}/append_log/`,
@@ -276,7 +249,7 @@ export async function fetchS3Logs(logUrl: string): Promise<string> {
 export async function getIntegrations(): Promise<Integration[]> {
   const baseUrl = getBaseUrl();
   const projectId = getProjectId();
-  const headers = getAuthHeaders();
+  const headers = getHeaders();
 
   const response = await fetch(
     `${baseUrl}/api/environments/${projectId}/integrations/`,
@@ -296,7 +269,7 @@ export async function getGithubRepositories(
 ): Promise<string[]> {
   const baseUrl = getBaseUrl();
   const projectId = getProjectId();
-  const headers = getAuthHeaders();
+  const headers = getHeaders();
 
   const response = await fetch(
     `${baseUrl}/api/environments/${projectId}/integrations/${integrationId}/github_repos/`,

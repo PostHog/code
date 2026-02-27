@@ -126,6 +126,7 @@ export interface PostHogAPIConfig {
   apiUrl: string;
   getApiKey: () => string;
   projectId: number;
+  userAgent?: string;
 }
 
 export interface OtelTransportConfig {

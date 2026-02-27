@@ -472,7 +472,7 @@ export function SessionView({
                       <MessageEditor
                         ref={editorRef}
                         sessionId={sessionId}
-                        placeholder="Type a message... @ to mention files, ! for bash mode"
+                        placeholder="Type a message... @ to mention files, ! for bash mode, / for skills"
                         onSubmit={handleSubmit}
                         onBashCommand={onBashCommand}
                         onCancel={onCancelPrompt}

@@ -2,6 +2,7 @@ import { MarkdownRenderer } from "@features/editor/components/MarkdownRenderer";
 import type { QueuedMessage } from "@features/sessions/stores/sessionStore";
 import { Clock, X } from "@phosphor-icons/react";
 import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
+import { hasFileMentions, parseFileMentions } from "./parseFileMentions";
 
 interface QueuedMessageViewProps {
   message: QueuedMessage;
@@ -19,7 +20,11 @@ export function QueuedMessageView({
     >
       <Flex justify="between" align="start" gap="2">
         <Box className="min-w-0 flex-1 font-medium [&>*:last-child]:mb-0">
-          <MarkdownRenderer content={message.content} />
+          {hasFileMentions(message.content) ? (
+            parseFileMentions(message.content)
+          ) : (
+            <MarkdownRenderer content={message.content} />
+          )}
         </Box>
         {onRemove && (
           <IconButton

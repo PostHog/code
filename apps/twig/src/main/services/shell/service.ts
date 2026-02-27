@@ -5,9 +5,9 @@ import path from "node:path";
 import { inject, injectable, preDestroy } from "inversify";
 import * as pty from "node-pty";
 import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../lib/logger.js";
-import { TypedEventEmitter } from "../../lib/typed-event-emitter.js";
+import { logger } from "../../utils/logger.js";
 import { foldersStore } from "../../utils/store.js";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import type { ProcessTrackingService } from "../process-tracking/service.js";
 import { getWorktreeLocation } from "../settingsStore.js";
 import { buildWorkspaceEnv } from "../workspace/workspaceEnv.js";
@@ -303,7 +303,10 @@ export class ShellService extends TypedEventEmitter<ShellEvents> {
     if (association.mode === "worktree") {
       worktreeName = association.worktree;
       const worktreeBasePath = getWorktreeLocation();
-      worktreePath = path.join(worktreeBasePath, folder.name, worktreeName);
+      const isLegacy = !/^\d+$/.test(worktreeName);
+      worktreePath = isLegacy
+        ? path.join(worktreeBasePath, folder.name, worktreeName)
+        : path.join(worktreeBasePath, worktreeName, folder.name);
     }
 
     return buildWorkspaceEnv({

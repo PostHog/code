@@ -9,7 +9,6 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { useDraftStore } from "../stores/draftStore";
 import { useTiptapEditor } from "../tiptap/useTiptapEditor";
 import type { EditorHandle } from "../types";
-import type { EditorContent as EditorContentType } from "../utils/content";
 import { AdapterIndicator } from "./AdapterIndicator";
 import { AttachmentsBar } from "./AttachmentsBar";
 import { DiffStatsIndicator } from "./DiffStatsIndicator";
@@ -17,7 +16,6 @@ import { EditorToolbar } from "./EditorToolbar";
 import { ModeIndicatorInput } from "./ModeIndicatorInput";
 
 export type { EditorHandle as MessageEditorHandle };
-export type { EditorContentType as EditorContent };
 
 interface MessageEditorProps {
   sessionId: string;
@@ -39,7 +37,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
   (
     {
       sessionId,
-      placeholder = "Type a message... @ to mention files, / for commands",
+      placeholder = "Type a message... @ to mention files, ! for bash mode, / for skills",
       onSubmit,
       onBashCommand,
       onBashModeChange,

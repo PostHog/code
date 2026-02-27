@@ -6,8 +6,8 @@ import { InitRepositorySaga } from "@twig/git/sagas/init";
 import { WorktreeManager } from "@twig/git/worktree";
 import { dialog } from "electron";
 import { injectable } from "inversify";
-import { logger } from "../../lib/logger.js";
 import { getMainWindow } from "../../trpc/context.js";
+import { logger } from "../../utils/logger.js";
 import { clearAllStoreData, foldersStore } from "../../utils/store.js";
 import { getWorktreeLocation } from "../settingsStore.js";
 import type {

@@ -31,20 +31,23 @@ export function useProjectsWithIntegrations() {
 
   const isLoading =
     projectsLoading || integrationQueries.some((q) => q.isLoading);
+  const isFetching = integrationQueries.some((q) => q.isFetching);
 
   const projectsWithIntegrations: ProjectWithIntegrations[] = useMemo(() => {
-    return projects.map((project, index) => {
-      const integrations = (integrationQueries[index]?.data ??
-        []) as Integration[];
-      const hasGithubIntegration = integrations.some(
-        (i) => i.kind === "github",
-      );
-      return {
-        ...project,
-        integrations,
-        hasGithubIntegration,
-      };
-    });
+    return projects
+      .map((project, index) => {
+        const integrations = (integrationQueries[index]?.data ??
+          []) as Integration[];
+        const hasGithubIntegration = integrations.some(
+          (i) => i.kind === "github",
+        );
+        return {
+          ...project,
+          integrations,
+          hasGithubIntegration,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [projects, integrationQueries]);
 
   const projectsWithGithub = useMemo(
@@ -56,5 +59,6 @@ export function useProjectsWithIntegrations() {
     projects: projectsWithIntegrations,
     projectsWithGithub,
     isLoading,
+    isFetching,
   };
 }

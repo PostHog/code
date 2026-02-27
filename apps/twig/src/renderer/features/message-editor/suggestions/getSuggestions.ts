@@ -1,27 +1,10 @@
 import type { AvailableCommand } from "@agentclientprotocol/sdk";
+import { TWIG_COMMANDS } from "@features/message-editor/commands";
 import { getAvailableCommandsForTask } from "@features/sessions/stores/sessionStore";
 import { fetchRepoFiles, searchFiles } from "@hooks/useRepoFiles";
 import Fuse, { type IFuseOptions } from "fuse.js";
 import { useDraftStore } from "../stores/draftStore";
 import type { CommandSuggestionItem, FileSuggestionItem } from "../types";
-
-const TWIG_COMMANDS: AvailableCommand[] = [
-  {
-    name: "good",
-    description: "Capture positive feedback",
-    input: { hint: "optional comment" },
-  },
-  {
-    name: "bad",
-    description: "Capture negative feedback",
-    input: { hint: "optional comment" },
-  },
-  {
-    name: "feedback",
-    description: "Capture general feedback",
-    input: { hint: "optional comment" },
-  },
-];
 
 const COMMAND_LIMIT = 5;
 

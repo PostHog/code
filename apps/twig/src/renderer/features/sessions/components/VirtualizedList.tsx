@@ -1,155 +1,148 @@
-import {
-  type ScrollToOptions,
-  useVirtualizer,
-  type VirtualizerOptions,
-} from "@tanstack/react-virtual";
+import type { ScrollState } from "@features/sessions/stores/sessionViewStore";
 import {
   forwardRef,
   type ReactNode,
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
 } from "react";
-
-type VirtualizerOpts = VirtualizerOptions<HTMLDivElement, Element>;
+import { VList, type VListHandle } from "virtua";
 
 interface VirtualizedListProps<T> {
   items: T[];
-  estimateSize: number;
   renderItem: (item: T, index: number) => ReactNode;
   getItemKey?: (item: T, index: number) => string | number;
-  overscan?: VirtualizerOpts["overscan"];
-  gap?: VirtualizerOpts["gap"];
-  paddingStart?: VirtualizerOpts["paddingStart"];
-  paddingEnd?: VirtualizerOpts["paddingEnd"];
   className?: string;
-  innerClassName?: string;
-  autoScrollToBottom?: boolean;
+  itemClassName?: string;
   footer?: ReactNode;
-  onScroll?: (
-    scrollOffset: number,
-    scrollHeight: number,
-    clientHeight: number,
-  ) => void;
+  savedState?: ScrollState;
+  onSaveState?: (state: ScrollState) => void;
+  onScrollStateChange?: (isAtBottom: boolean) => void;
 }
 
 export interface VirtualizedListHandle {
-  scrollToIndex: (index: number, options?: ScrollToOptions) => void;
-  scrollToOffset: (offset: number, options?: ScrollToOptions) => void;
   scrollToBottom: () => void;
-  measure: () => void;
 }
+
+const AT_BOTTOM_THRESHOLD = 50;
 
 function VirtualizedListInner<T>(
   {
     items,
-    estimateSize,
     renderItem,
     getItemKey,
-    overscan,
     className,
-    innerClassName,
-    autoScrollToBottom = false,
-    gap,
-    paddingStart,
-    paddingEnd,
+    itemClassName,
     footer,
-    onScroll,
+    savedState,
+    onSaveState,
+    onScrollStateChange,
   }: VirtualizedListProps<T>,
   ref: React.ForwardedRef<VirtualizedListHandle>,
 ) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  const virtualizer = useVirtualizer({
-    count: items.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => estimateSize,
-    overscan,
-    gap,
-    paddingStart,
-    paddingEnd,
-    getItemKey: getItemKey
-      ? (index) => getItemKey(items[index], index)
-      : undefined,
-  });
+  const listRef = useRef<VListHandle>(null);
+  const isAtBottomRef = useRef(!savedState);
+  const initRef = useRef({ savedState, itemCount: items.length });
+  const initializedRef = useRef(false);
+  const onSaveStateRef = useRef(onSaveState);
+  onSaveStateRef.current = onSaveState;
+  const onScrollStateChangeRef = useRef(onScrollStateChange);
+  onScrollStateChangeRef.current = onScrollStateChange;
+  const itemCountRef = useRef(items.length);
+  itemCountRef.current = items.length;
 
   useImperativeHandle(
     ref,
     () => ({
-      scrollToIndex: (index, options) =>
-        virtualizer.scrollToIndex(index, options),
-      scrollToOffset: (offset, options) =>
-        virtualizer.scrollToOffset(offset, options),
       scrollToBottom: () => {
-        if (items.length > 0) {
-          virtualizer.scrollToIndex(items.length - 1, { align: "end" });
+        const handle = listRef.current;
+        if (handle) {
+          handle.scrollTo(handle.scrollSize);
+          isAtBottomRef.current = true;
         }
       },
-      measure: () => virtualizer.measure(),
     }),
-    [virtualizer, items.length],
+    [],
   );
 
-  useEffect(() => {
-    if (autoScrollToBottom && items.length > 0) {
-      virtualizer.scrollToIndex(items.length - 1, { align: "end" });
+  useLayoutEffect(() => {
+    const handle = listRef.current;
+    if (!handle) return;
+
+    const { savedState: initialState, itemCount } = initRef.current;
+    if (initialState) {
+      handle.scrollTo(initialState.offset);
+    } else if (itemCount > 0) {
+      handle.scrollToIndex(itemCount - 1, { align: "end" });
     }
-  }, [autoScrollToBottom, items.length, virtualizer]);
 
-  const handleScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (el && onScroll) {
-      onScroll(el.scrollTop, el.scrollHeight, el.clientHeight);
-    }
-  }, [onScroll]);
+    // Allow measurements to settle before reporting scroll state,
+    // otherwise the scroll-to-bottom button flashes on task open.
+    requestAnimationFrame(() => {
+      initializedRef.current = true;
+    });
 
+    return () => {
+      onSaveStateRef.current?.({
+        offset: handle.scrollOffset,
+        cache: handle.cache,
+      });
+    };
+  }, []);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally re-run when items change for streaming scroll
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || !onScroll) return;
+    if (isAtBottomRef.current) {
+      const handle = listRef.current;
+      if (handle) {
+        // Use scrollToIndex for reliable positioning after measurements settle
+        const totalChildren = itemCountRef.current + (footer ? 1 : 0);
+        if (totalChildren > 0) {
+          handle.scrollToIndex(totalChildren - 1, { align: "end" });
+        }
+      }
+    }
+  }, [items, footer]);
 
-    el.addEventListener("scroll", handleScroll);
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, [handleScroll, onScroll]);
-
-  const virtualItems = virtualizer.getVirtualItems();
+  const handleScroll = useCallback((offset: number) => {
+    const handle = listRef.current;
+    if (!handle) return;
+    const distanceFromBottom = handle.scrollSize - offset - handle.viewportSize;
+    const atBottom = distanceFromBottom < AT_BOTTOM_THRESHOLD;
+    if (isAtBottomRef.current !== atBottom) {
+      isAtBottomRef.current = atBottom;
+    }
+    // Skip reporting during initialization to avoid flashing the
+    // scroll-to-bottom button before measurements settle.
+    if (initializedRef.current) {
+      onScrollStateChangeRef.current?.(atBottom);
+    }
+  }, []);
 
   return (
     <div
-      ref={scrollRef}
-      className={className ?? ""}
-      style={{
-        height: "100%",
-        overflow: "auto",
-      }}
+      className={className}
+      style={{ height: "100%", display: "flex", flexDirection: "column" }}
     >
-      <div className={innerClassName}>
-        <div
-          style={{
-            height: virtualizer.getTotalSize(),
-            width: "100%",
-            position: "relative",
-          }}
-        >
-          {virtualItems.map((virtualRow) => (
-            <div
-              key={virtualRow.key}
-              data-index={virtualRow.index}
-              ref={virtualizer.measureElement}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                transform: `translateY(${virtualRow.start}px)`,
-              }}
-            >
-              {renderItem(items[virtualRow.index], virtualRow.index)}
-            </div>
-          ))}
-        </div>
-        {footer}
-      </div>
+      <VList
+        ref={listRef}
+        cache={savedState?.cache}
+        shift={false}
+        style={{ flex: 1 }}
+        onScroll={handleScroll}
+      >
+        {items.map((item, index) => (
+          <div
+            key={getItemKey ? getItemKey(item, index) : index}
+            className={itemClassName}
+          >
+            {renderItem(item, index)}
+          </div>
+        ))}
+        {footer && <div className={itemClassName}>{footer}</div>}
+      </VList>
     </div>
   );
 }

@@ -1,5 +1,4 @@
 import { usePinnedTasksStore } from "@features/sidebar/stores/pinnedTasksStore";
-import { useTaskExecutionStore } from "@features/task-detail/stores/taskExecutionStore";
 import { useAuthenticatedMutation } from "@hooks/useAuthenticatedMutation";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import { useMeQuery } from "@hooks/useMeQuery";
@@ -39,16 +38,6 @@ export function useTasks(filters?: { repository?: string }) {
         createdBy: currentUser?.id,
       }) as unknown as Promise<Task[]>,
     { enabled: !!currentUser?.id },
-  );
-}
-
-export function useAutoDetectedTasks() {
-  return useAuthenticatedQuery(
-    taskKeys.list({ originProduct: "session_summaries" }),
-    (client) =>
-      client.getTasks({
-        originProduct: "session_summaries",
-      }) as unknown as Promise<Task[]>,
   );
 }
 
@@ -237,25 +226,4 @@ export function useDeleteTask() {
   );
 
   return { ...mutation, deleteWithConfirm };
-}
-
-export function useDuplicateTask() {
-  const queryClient = useQueryClient();
-
-  return useAuthenticatedMutation(
-    (client, taskId: string) =>
-      client.duplicateTask(taskId) as unknown as Promise<Task>,
-    {
-      onSuccess: (newTask, originalTaskId) => {
-        const { getTaskState, setRepoPath } = useTaskExecutionStore.getState();
-        const originalState = getTaskState(originalTaskId);
-
-        if (originalState.repoPath) {
-          setRepoPath(newTask.id, originalState.repoPath);
-        }
-
-        queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
-      },
-    },
-  );
 }

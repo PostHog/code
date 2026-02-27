@@ -11,6 +11,7 @@ import type {
   GitMenuActionId,
 } from "@features/git-interaction/types";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
+import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { track } from "@renderer/lib/analytics";
 import { logger } from "@renderer/lib/logger";
 import { trpcVanilla } from "@renderer/trpc";
@@ -26,7 +27,7 @@ interface GitInteractionState {
   primaryAction: GitMenuAction;
   actions: GitMenuAction[];
   hasChanges: boolean;
-  ahead: number;
+  aheadOfRemote: number;
   behind: number;
   currentBranch: string | null;
   defaultBranch: string | null;
@@ -94,9 +95,11 @@ export function useGitInteraction(
         isRepo: git.isRepo,
         isRepoLoading: git.isRepoLoading,
         hasChanges: git.hasChanges,
-        ahead: git.ahead,
+        aheadOfRemote: git.aheadOfRemote,
         behind: git.behind,
+        aheadOfDefault: git.aheadOfDefault,
         hasRemote: git.hasRemote,
+        isFeatureBranch: git.isFeatureBranch,
         currentBranch: git.currentBranch,
         defaultBranch: git.defaultBranch,
         ghStatus: git.ghStatus ?? null,
@@ -108,9 +111,11 @@ export function useGitInteraction(
       git.isRepo,
       git.isRepoLoading,
       git.hasChanges,
-      git.ahead,
+      git.aheadOfRemote,
       git.behind,
+      git.aheadOfDefault,
       git.hasRemote,
+      git.isFeatureBranch,
       git.currentBranch,
       git.defaultBranch,
       git.ghStatus,
@@ -332,7 +337,7 @@ export function useGitInteraction(
     modal.setPrError(null);
 
     try {
-      if (!git.hasRemote || git.ahead > 0) {
+      if (!git.hasRemote || git.aheadOfRemote > 0) {
         const pushFn = git.hasRemote
           ? trpcVanilla.git.push
           : trpcVanilla.git.publish;
@@ -488,6 +493,14 @@ export function useGitInteraction(
 
       trackGitAction(taskId, "branch-here", true);
 
+      const workspace = useWorkspaceStore.getState().workspaces[taskId];
+      if (workspace) {
+        useWorkspaceStore.getState().updateWorkspace(taskId, {
+          ...workspace,
+          branchName,
+        });
+      }
+
       await queryClient.invalidateQueries({
         queryKey: ["git-sync-status", repoPath],
       });
@@ -509,7 +522,7 @@ export function useGitInteraction(
       primaryAction: computed.primaryAction,
       actions: computed.actions,
       hasChanges: git.hasChanges,
-      ahead: git.ahead,
+      aheadOfRemote: git.aheadOfRemote,
       behind: git.behind,
       currentBranch: git.currentBranch,
       defaultBranch: git.defaultBranch,

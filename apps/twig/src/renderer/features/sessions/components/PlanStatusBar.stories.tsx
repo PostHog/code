@@ -91,6 +91,23 @@ export const AllComplete: Story = {
   },
 };
 
+export const LongTaskName: Story = {
+  args: {
+    plan: createPlan([
+      {
+        content:
+          "Create MCP tool metadata fetcher that queries MCP servers for tool annotations and caches results",
+        status: "in_progress",
+      },
+      {
+        content: "Update tool call permissions to use fetched metadata",
+        status: "pending",
+      },
+      { content: "Write unit tests for metadata fetcher", status: "pending" },
+    ]),
+  },
+};
+
 export const NoPlan: Story = {
   args: {
     plan: null,
