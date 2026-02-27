@@ -112,6 +112,7 @@ export class Agent {
       logger: this.logger,
       processCallbacks: options.processCallbacks,
       allowedModelIds,
+      cwds: options.cwds,
       codexOptions:
         options.adapter === "codex" && gatewayConfig
           ? {
@@ -166,5 +167,17 @@ export class Agent {
       await this.sessionLogWriter.flush(this.taskRunId);
     }
     await this.acpConnection?.cleanup();
+  }
+
+  async checkpointDiff(checkpointId: string) {
+    const manager = this.acpConnection?.checkpointManager;
+    if (!manager) return null;
+    return manager.diff(checkpointId);
+  }
+
+  async checkpointRestore(checkpointId: string) {
+    const manager = this.acpConnection?.checkpointManager;
+    if (!manager) return null;
+    return manager.restore(checkpointId);
   }
 }

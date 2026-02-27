@@ -51,6 +51,7 @@ type ChunkHandlerContext = {
   client: AgentSideConnection;
   logger: Logger;
   parentToolCallId?: string;
+  sdkMessageId?: string;
 };
 
 export interface MessageHandlerContext {
@@ -278,6 +279,7 @@ function toAcpNotifications(
   client: AgentSideConnection,
   logger: Logger,
   parentToolCallId?: string,
+  sdkMessageId?: string,
 ): SessionNotification[] {
   if (typeof content === "string") {
     const update: SessionNotification["update"] = {
@@ -291,7 +293,8 @@ function toAcpNotifications(
         parentToolCallId,
       );
     }
-    return [{ sessionId, update }];
+    return [{ sessionId,
+      _meta: sdkMessageId ? { sdkMessageId } : undefined, update }];
   }
 
   const ctx: ChunkHandlerContext = {
@@ -301,13 +304,18 @@ function toAcpNotifications(
     client,
     logger,
     parentToolCallId,
+    sdkMessageId,
   };
   const output: SessionNotification[] = [];
 
   for (const chunk of content) {
     const update = processContentChunk(chunk, role, ctx);
     if (update) {
-      output.push({ sessionId, update });
+      output.push({
+        sessionId,
+        _meta: sdkMessageId ? { sdkMessageId } : undefined,
+        update,
+      });
     }
   }
 
@@ -324,6 +332,7 @@ function streamEventToAcpNotifications(
   parentToolCallId?: string,
 ): SessionNotification[] {
   const event = message.event;
+  const sdkMessageId = message.uuid;
   switch (event.type) {
     case "content_block_start":
       return toAcpNotifications(
@@ -335,6 +344,7 @@ function streamEventToAcpNotifications(
         client,
         logger,
         parentToolCallId,
+        sdkMessageId,
       );
     case "content_block_delta":
       return toAcpNotifications(
@@ -346,6 +356,7 @@ function streamEventToAcpNotifications(
         client,
         logger,
         parentToolCallId,
+        sdkMessageId,
       );
     case "message_start":
     case "message_delta":
@@ -584,6 +595,7 @@ export async function handleUserAssistantMessage(
     "parent_tool_use_id" in message
       ? (message.parent_tool_use_id ?? undefined)
       : undefined;
+  const sdkMessageId = message.uuid;
 
   for (const notification of toAcpNotifications(
     contentToProcess as typeof content,
@@ -594,10 +606,11 @@ export async function handleUserAssistantMessage(
     client,
     logger,
     parentToolCallId,
+    sdkMessageId,
   )) {
-    await client.sessionUpdate(notification);
-    session.notificationHistory.push(notification);
-  }
+  await client.sessionUpdate(notification);
+  session.notificationHistory.push(notification);
+}
 
   return {};
 }
