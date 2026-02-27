@@ -118,36 +118,36 @@ async function attemptRefreshWithActivityCheck(
       return;
     }
 
+    // Refresh if there are no active sessions
     const hasActive = await trpcVanilla.agent.hasActiveSessions.query();
-
     if (!hasActive) {
       await getState().refreshAccessToken();
       return;
     }
 
-    // Sessions are busy — wait for the service to tell us they're idle
-    log.debug("Active sessions detected, waiting for idle event");
-
     await new Promise<void>((resolve, reject) => {
       let settled = false;
-      const settle = (fn: () => Promise<void>) => {
+      const settle = (reason: string, fn: () => Promise<void>) => {
         if (settled) return;
         settled = true;
         subscription.unsubscribe();
         window.clearInterval(expiryCheckId);
+        log.info(`Settling activity wait: ${reason}`);
         fn().then(resolve).catch(reject);
       };
 
+      // Subscribe to the idle event
       const subscription = trpcVanilla.agent.onSessionsIdle.subscribe(
         undefined,
         {
-          onData: () => settle(() => getState().refreshAccessToken()),
+          onData: () =>
+            settle("sessions idle", () => getState().refreshAccessToken()),
           onError: (error) => {
             log.warn(
               "Sessions idle subscription failed, refreshing anyway",
               error,
             );
-            settle(() => getState().refreshAccessToken());
+            settle("subscription error", () => getState().refreshAccessToken());
           },
         },
       );
@@ -155,8 +155,9 @@ async function attemptRefreshWithActivityCheck(
       // Safety net: if the token is about to expire while we wait, force refresh
       const expiryCheckId = window.setInterval(() => {
         if (isTokenExpiringSoon(getState().tokenExpiry)) {
-          log.warn("Token expiring while waiting for idle, forcing refresh");
-          settle(() => getState().refreshAccessToken());
+          settle("token expiring imminently", () =>
+            getState().refreshAccessToken(),
+          );
         }
       }, TOKEN_REFRESH_FORCE_MS / 2);
     });
