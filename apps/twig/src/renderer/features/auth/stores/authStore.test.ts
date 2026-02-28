@@ -40,6 +40,9 @@ vi.mock("@renderer/lib/analytics", () => ({
   identifyUser: vi.fn(),
   resetUser: vi.fn(),
   track: vi.fn(),
+  isFeatureFlagEnabled: vi.fn().mockReturnValue(false),
+  onFeatureFlagsLoaded: vi.fn(),
+  reloadFeatureFlags: vi.fn(),
 }));
 
 vi.mock("@renderer/lib/logger", () => ({
