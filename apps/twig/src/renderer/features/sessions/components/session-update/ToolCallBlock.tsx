@@ -91,7 +91,7 @@ export function ToolCallBlock({
       case "question":
         return <QuestionToolView {...props} />;
       default:
-        return <ToolCallView {...props} />;
+        return <ToolCallView {...props} agentToolName={toolName} />;
     }
   })();
 

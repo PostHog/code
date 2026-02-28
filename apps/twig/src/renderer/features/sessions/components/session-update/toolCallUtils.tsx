@@ -89,6 +89,35 @@ export function getLineCount(content: ToolCall["content"]): number | null {
   return text ? text.split("\n").length : null;
 }
 
+const INPUT_PREVIEW_MAX_LENGTH = 60;
+
+export function compactInput(rawInput: unknown): string | undefined {
+  if (!rawInput || typeof rawInput !== "object") return undefined;
+  try {
+    const json = JSON.stringify(rawInput);
+    if (json === "{}") return undefined;
+    if (json.length <= INPUT_PREVIEW_MAX_LENGTH) return json;
+    return `${json.slice(0, INPUT_PREVIEW_MAX_LENGTH)}...`;
+  } catch {
+    return undefined;
+  }
+}
+
+export function formatInput(rawInput: unknown): string | undefined {
+  if (!rawInput || typeof rawInput !== "object") return undefined;
+  try {
+    const json = JSON.stringify(rawInput, null, 2);
+    if (json === "{}") return undefined;
+    return json;
+  } catch {
+    return undefined;
+  }
+}
+
+export function stripCodeFences(text: string): string {
+  return text.replace(/^```\w*\n?/, "").replace(/\n?```\s*$/, "");
+}
+
 export function truncateText(
   text: string,
   maxLength: number,

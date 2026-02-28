@@ -4,6 +4,7 @@ import {
   ArrowsLeftRight,
   Brain,
   ChatCircle,
+  Command,
   FileText,
   Globe,
   type Icon,
@@ -17,11 +18,14 @@ import { Box, Flex } from "@radix-ui/themes";
 import { compactHomePath } from "@utils/path";
 import { useState } from "react";
 import {
+  compactInput,
   ExpandableIcon,
   ExpandedContentBox,
+  formatInput,
   getContentText,
   getFilename,
   StatusIndicators,
+  stripCodeFences,
   ToolTitle,
   type ToolViewProps,
   useToolCallStatus,
@@ -41,20 +45,33 @@ const kindIcons: Record<TwigToolKind, Icon> = {
   other: Wrench,
 };
 
+const toolNameIcons: Record<string, Icon> = {
+  ToolSearch: MagnifyingGlass,
+  Skill: Command,
+};
+
+interface ToolCallViewProps extends ToolViewProps {
+  agentToolName?: string;
+}
+
 export function ToolCallView({
   toolCall,
   turnCancelled,
   turnComplete,
+  agentToolName,
   expanded = false,
-}: ToolViewProps) {
+}: ToolCallViewProps) {
   const [isExpanded, setIsExpanded] = useState(expanded);
-  const { title, kind, status, locations, content } = toolCall;
-  const { isLoading, isFailed, wasCancelled } = useToolCallStatus(
+  const { title, kind, status, locations, content, rawInput } = toolCall;
+  const { isLoading, isFailed, wasCancelled, isComplete } = useToolCallStatus(
     status,
     turnCancelled,
     turnComplete,
   );
-  const KindIcon = (kind && kindIcons[kind]) || Wrench;
+  const KindIcon =
+    (agentToolName && toolNameIcons[agentToolName]) ||
+    (kind && kindIcons[kind]) ||
+    Wrench;
 
   const filePath = kind === "read" && locations?.[0]?.path;
   const displayText = filePath
@@ -63,9 +80,12 @@ export function ToolCallView({
       ? compactHomePath(title)
       : undefined;
 
+  const inputPreview = compactInput(rawInput);
+  const fullInput = formatInput(rawInput);
+
   const output = stripCodeFences(getContentText(content) ?? "");
   const hasOutput = output.trim().length > 0;
-  const isExpandable = hasOutput;
+  const isExpandable = !!fullInput || hasOutput;
 
   const handleClick = () => {
     if (isExpandable) {
@@ -87,19 +107,25 @@ export function ToolCallView({
             isExpanded={isExpanded}
           />
         </Box>
-        <Flex align="center" gap="2" wrap="wrap">
+        <Flex align="center" gap="1" wrap="wrap" className="min-w-0">
           <ToolTitle>{displayText}</ToolTitle>
+          {inputPreview && (
+            <ToolTitle>
+              <span className="font-mono text-accent-11">{inputPreview}</span>
+            </ToolTitle>
+          )}
           <StatusIndicators isFailed={isFailed} wasCancelled={wasCancelled} />
         </Flex>
       </Flex>
 
-      {isExpanded && hasOutput && (
-        <ExpandedContentBox>{output}</ExpandedContentBox>
+      {isExpanded && (
+        <>
+          {fullInput && <ExpandedContentBox>{fullInput}</ExpandedContentBox>}
+          {isComplete && hasOutput && (
+            <ExpandedContentBox>{output}</ExpandedContentBox>
+          )}
+        </>
       )}
     </Box>
   );
-}
-
-function stripCodeFences(text: string): string {
-  return text.replace(/^```\w*\n?/, "").replace(/\n?```\s*$/, "");
 }
