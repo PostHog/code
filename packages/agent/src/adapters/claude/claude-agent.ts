@@ -267,11 +267,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         SESSION_VALIDATION_TIMEOUT_MS,
       );
       if (result.result === "timeout") {
-        this.logger.error("Session resumption timed out", {
-          sessionId,
-          taskId,
-          taskRunId: meta?.taskRunId,
-        });
         throw new Error(
           `Session resumption timed out for sessionId=${sessionId}`,
         );
