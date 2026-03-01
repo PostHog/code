@@ -13,9 +13,10 @@ const log = logger.scope("app-lifecycle");
 
 @injectable()
 export class AppLifecycleService {
+  private static readonly SHUTDOWN_TIMEOUT_MS = 3000;
+
   private _isQuittingForUpdate = false;
   private _isShuttingDown = false;
-  private static readonly SHUTDOWN_TIMEOUT_MS = 3000;
 
   get isQuittingForUpdate(): boolean {
     return this._isQuittingForUpdate;
@@ -29,60 +30,21 @@ export class AppLifecycleService {
     this._isQuittingForUpdate = true;
   }
 
-  forceExit(): never {
+  /**
+   * Immediately kills the process. Used when shutdown is stuck or re-entrant.
+   */
+  forceKill(): never {
     log.warn("Force-killing process");
     process.exit(1);
   }
 
-  async cleanupForUpdate(): Promise<void> {
-    log.info("Cleanup for update started");
-
-    // Shut down watchers
-    log.info("Shutting down native watchers");
-    try {
-      const watcherRegistry = container.get<WatcherRegistryService>(
-        MAIN_TOKENS.WatcherRegistryService,
-      );
-      await watcherRegistry.shutdownAll();
-    } catch (error) {
-      log.warn("Failed to shutdown watcher registry", error);
-    }
-
-    // Kill all tracked processes
-    try {
-      const processTracking = container.get<ProcessTrackingService>(
-        MAIN_TOKENS.ProcessTrackingService,
-      );
-      const snapshot = await processTracking.getSnapshot(true);
-      log.info("Process snapshot before update", {
-        tracked: {
-          shell: snapshot.tracked.shell.length,
-          agent: snapshot.tracked.agent.length,
-          child: snapshot.tracked.child.length,
-        },
-      });
-
-      if (
-        snapshot.tracked.shell.length +
-          snapshot.tracked.agent.length +
-          snapshot.tracked.child.length >
-        0
-      ) {
-        log.info("Killing all tracked processes before update");
-        processTracking.killAll();
-      }
-    } catch (error) {
-      log.warn("Failed to kill processes before update", error);
-    }
-
-    // Skip container unbind, PostHog shutdown - app is restarting anyway
-    log.info("Cleanup for update complete");
-  }
-
+  /**
+   * Full graceful shutdown with timeout. Force-kills if already in progress or times out.
+   */
   async shutdown(): Promise<void> {
     if (this._isShuttingDown) {
       log.warn("Shutdown already in progress, forcing exit");
-      this.forceExit();
+      this.forceKill();
     }
 
     this._isShuttingDown = true;
@@ -96,14 +58,57 @@ export class AppLifecycleService {
       log.warn("Shutdown timeout reached, forcing exit", {
         timeoutMs: AppLifecycleService.SHUTDOWN_TIMEOUT_MS,
       });
-      this.forceExit();
+      this.forceKill();
     }
   }
 
+  /**
+   * Tears down watchers and processes but keeps the DI container alive
+   * so the before-quit handler can still access services. Used before quitAndInstall.
+   */
+  async shutdownWithoutContainer(): Promise<void> {
+    log.info("Partial shutdown started (keeping container)");
+    await this.teardownNativeResources();
+  }
+
+  /**
+   * Runs a full shutdown then exits the Electron app.
+   */
+  async gracefulExit(): Promise<void> {
+    await this.shutdown();
+    app.exit(0);
+  }
+
+  /**
+   * Runs the full shutdown sequence: native resources, container, analytics.
+   */
   private async doShutdown(): Promise<void> {
     log.info("Shutdown started");
 
-    log.info("Shutting down native watchers first");
+    await this.teardownNativeResources();
+
+    try {
+      await container.unbindAll();
+    } catch (error) {
+      log.warn("Failed to unbind container", error);
+    }
+
+    trackAppEvent(ANALYTICS_EVENTS.APP_QUIT);
+
+    try {
+      await shutdownPostHog();
+    } catch (error) {
+      log.warn("Failed to shutdown PostHog", error);
+    }
+
+    log.info("Shutdown complete");
+  }
+
+  /**
+   * Shuts down file watchers and kills child processes, then drains the
+   * event loop so pending native callbacks fire while JS is still alive.
+   */
+  private async teardownNativeResources(): Promise<void> {
     try {
       const watcherRegistry = container.get<WatcherRegistryService>(
         MAIN_TOKENS.WatcherRegistryService,
@@ -118,54 +123,30 @@ export class AppLifecycleService {
         MAIN_TOKENS.ProcessTrackingService,
       );
       const snapshot = await processTracking.getSnapshot(true);
-      log.info("Process snapshot at shutdown", {
+      log.debug("Process snapshot", {
         tracked: {
           shell: snapshot.tracked.shell.length,
           agent: snapshot.tracked.agent.length,
           child: snapshot.tracked.child.length,
         },
         discovered: snapshot.discovered?.length ?? 0,
-        untrackedDiscovered:
-          snapshot.discovered?.filter((p) => !p.tracked).length ?? 0,
       });
 
-      if (
+      const trackedCount =
         snapshot.tracked.shell.length +
-          snapshot.tracked.agent.length +
-          snapshot.tracked.child.length >
-        0
-      ) {
-        log.info("Killing all tracked processes before container unbind");
+        snapshot.tracked.agent.length +
+        snapshot.tracked.child.length;
+
+      if (trackedCount > 0) {
+        log.info(`Killing ${trackedCount} tracked processes`);
         processTracking.killAll();
       }
     } catch (error) {
-      log.warn("Failed to get process snapshot at shutdown", error);
+      log.warn("Failed to kill tracked processes", error);
     }
 
-    log.info("Unbinding container");
-    try {
-      await container.unbindAll();
-      log.info("Container unbound successfully");
-    } catch (error) {
-      log.error("Failed to unbind container", error);
-    }
-
-    trackAppEvent(ANALYTICS_EVENTS.APP_QUIT);
-
-    log.info("Shutting down PostHog");
-    try {
-      await shutdownPostHog();
-      log.info("PostHog shutdown complete");
-    } catch (error) {
-      log.error("Failed to shutdown PostHog", error);
-    }
-
-    log.info("Graceful shutdown complete");
-  }
-
-  async shutdownAndExit(): Promise<void> {
-    await this.shutdown();
-    log.info("Calling app.exit(0)");
-    app.exit(0);
+    // Drain pending native callbacks (e.g. @parcel/watcher ThreadSafeFunction)
+    // so they fire while JS is still alive, not during FreeEnvironment teardown
+    await new Promise((resolve) => setImmediate(resolve));
   }
 }

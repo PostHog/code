@@ -93,7 +93,7 @@ app.on("before-quit", async (event) => {
 
   // If shutdown is already in progress, force-kill immediately
   if (lifecycleService.isShuttingDown) {
-    lifecycleService.forceExit();
+    lifecycleService.forceKill();
   }
 
   event.preventDefault();
@@ -113,7 +113,7 @@ app.on("before-quit", async (event) => {
     // Updates service not available, fall through to normal shutdown
   }
 
-  await lifecycleService.shutdownAndExit();
+  await lifecycleService.gracefulExit();
 });
 
 const handleShutdownSignal = async (signal: string) => {
