@@ -6,13 +6,14 @@ import {
 } from "@features/message-editor/utils/content";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
 import { useConnectivity } from "@hooks/useConnectivity";
+import { ApiError } from "@renderer/api/fetcher";
 import { get } from "@renderer/di/container";
 import { RENDERER_TOKENS } from "@renderer/di/tokens";
 import { logger } from "@renderer/lib/logger";
 import type { ExecutionMode, WorkspaceMode } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
+import { toast } from "@utils/toast";
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
 import type { TaskCreationInput, TaskService } from "../service/service";
 
 const log = logger.scope("task-creation");
@@ -148,7 +149,9 @@ export function useTaskCreation({
         log.info("Task created successfully", { taskId: task.id });
       } else {
         const message = getErrorMessage(result.failedStep, result.error);
-        toast.error(message);
+        const detail =
+          result.cause instanceof ApiError ? result.cause.detail : undefined;
+        toast.error(message, { description: detail });
         log.error("Task creation failed", {
           failedStep: result.failedStep,
           error: result.error,

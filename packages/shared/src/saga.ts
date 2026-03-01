@@ -15,7 +15,7 @@ export interface SagaStep<T> {
  */
 export type SagaResult<T, TFailedStep extends string = string> =
   | { success: true; data: T }
-  | { success: false; error: string; failedStep: TFailedStep };
+  | { success: false; error: string; failedStep: TFailedStep; cause?: unknown };
 
 export interface SagaLogger {
   info(message: string, data?: Record<string, unknown>): void;
@@ -93,6 +93,7 @@ export abstract class Saga<TInput, TOutput> {
         success: false,
         error: error instanceof Error ? error.message : String(error),
         failedStep: this.currentStepName,
+        cause: error,
       };
     }
   }

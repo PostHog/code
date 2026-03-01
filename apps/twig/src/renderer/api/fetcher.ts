@@ -2,6 +2,24 @@ import type { createApiClient } from "./generated";
 
 const USER_AGENT = `posthog/desktop.hog.dev; version: ${typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "unknown"}`;
 
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly body: unknown,
+    public readonly detail: string | undefined,
+  ) {
+    super(`Failed request: [${status}] ${JSON.stringify(body)}`);
+    this.name = "ApiError";
+  }
+}
+
+function extractDetail(body: unknown): string | undefined {
+  if (typeof body === "object" && body !== null && "detail" in body) {
+    return String((body as Record<string, unknown>).detail);
+  }
+  return undefined;
+}
+
 export const buildApiFetcher: (config: {
   apiToken: string;
   onTokenRefresh?: () => Promise<string>;
@@ -67,16 +85,20 @@ export const buildApiFetcher: (config: {
         } catch {
           // Token refresh failed - throw the original 401 error
           const errorResponse = await response.json();
-          throw new Error(
-            `Failed request: [${response.status}] ${JSON.stringify(errorResponse)}`,
+          throw new ApiError(
+            response.status,
+            errorResponse,
+            extractDetail(errorResponse),
           );
         }
       }
 
       if (!response.ok) {
         const errorResponse = await response.json();
-        throw new Error(
-          `Failed request: [${response.status}] ${JSON.stringify(errorResponse)}`,
+        throw new ApiError(
+          response.status,
+          errorResponse,
+          extractDetail(errorResponse),
         );
       }
 
