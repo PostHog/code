@@ -58,6 +58,7 @@ export function createWindow(): void {
       preload: path.join(__dirname, "preload.js"),
       enableBlinkFeatures: "GetDisplayMedia",
       partition: "persist:main",
+      devTools: isDev,
       ...(isDev && { webSecurity: false }),
     },
   });
