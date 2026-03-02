@@ -17,7 +17,7 @@ const { mockApp, mockAutoUpdater, mockLifecycleService } = vi.hoisted(() => ({
   },
   mockLifecycleService: {
     shutdown: vi.fn(() => Promise.resolve()),
-    cleanupForUpdate: vi.fn(() => Promise.resolve()),
+    shutdownWithoutContainer: vi.fn(() => Promise.resolve()),
     setQuittingForUpdate: vi.fn(),
   },
 }));
@@ -360,24 +360,27 @@ describe("UpdatesService", () => {
         updateDownloadedHandler({}, "Release notes", "v2.0.0");
       }
 
-      const result = await service.installUpdate();
+      const resultPromise = service.installUpdate();
+      await vi.runOnlyPendingTimersAsync();
+      const result = await resultPromise;
       expect(result).toEqual({ installed: true });
 
       // Verify setQuittingForUpdate is called first
       expect(mockLifecycleService.setQuittingForUpdate).toHaveBeenCalled();
 
-      // Verify cleanupForUpdate is called (not full shutdown)
-      expect(mockLifecycleService.cleanupForUpdate).toHaveBeenCalled();
+      // Verify shutdownWithoutContainer is called (not full shutdown)
+      expect(mockLifecycleService.shutdownWithoutContainer).toHaveBeenCalled();
       expect(mockLifecycleService.shutdown).not.toHaveBeenCalled();
 
       // Verify quitAndInstall is called after cleanup
       expect(mockAutoUpdater.quitAndInstall).toHaveBeenCalled();
 
-      // Verify order: setQuittingForUpdate -> cleanupForUpdate -> quitAndInstall
+      // Verify order: setQuittingForUpdate -> shutdownWithoutContainer -> quitAndInstall
       const setQuittingOrder =
         mockLifecycleService.setQuittingForUpdate.mock.invocationCallOrder[0];
       const cleanupOrder =
-        mockLifecycleService.cleanupForUpdate.mock.invocationCallOrder[0];
+        mockLifecycleService.shutdownWithoutContainer.mock
+          .invocationCallOrder[0];
       const quitAndInstallOrder =
         mockAutoUpdater.quitAndInstall.mock.invocationCallOrder[0];
 
@@ -401,7 +404,9 @@ describe("UpdatesService", () => {
         throw new Error("Failed to install");
       });
 
-      const result = await service.installUpdate();
+      const resultPromise = service.installUpdate();
+      await vi.runOnlyPendingTimersAsync();
+      const result = await resultPromise;
       expect(result).toEqual({ installed: false });
     });
   });
