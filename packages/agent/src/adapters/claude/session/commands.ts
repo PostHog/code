@@ -2,8 +2,8 @@ import type { AvailableCommand } from "@agentclientprotocol/sdk";
 import type { Query } from "@anthropic-ai/claude-agent-sdk";
 
 const UNSUPPORTED_COMMANDS = [
-  "context",
   "cost",
+  "keybindings-help",
   "login",
   "logout",
   "output-style:new",

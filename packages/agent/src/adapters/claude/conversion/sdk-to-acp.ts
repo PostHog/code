@@ -25,6 +25,7 @@ import {
   type ClaudePlanEntry,
   planEntries,
   toolInfoFromToolUse,
+  toolUpdateFromEditToolResponse,
   toolUpdateFromToolResult,
 } from "./tool-use-to-acp.js";
 
@@ -51,6 +52,8 @@ type ChunkHandlerContext = {
   client: AgentSideConnection;
   logger: Logger;
   parentToolCallId?: string;
+  registerHooks?: boolean;
+  supportsTerminalOutput?: boolean;
 };
 
 export interface MessageHandlerContext {
@@ -60,6 +63,8 @@ export interface MessageHandlerContext {
   toolUseCache: ToolUseCache;
   fileContentCache: { [key: string]: string };
   logger: Logger;
+  registerHooks?: boolean;
+  supportsTerminalOutput?: boolean;
 }
 
 function messageUpdateType(role: Role) {
@@ -134,6 +139,7 @@ function handleToolUseChunk(
   chunk: ToolUseCache[string],
   ctx: ChunkHandlerContext,
 ): SessionNotification["update"] | null {
+  const alreadyCached = chunk.id in ctx.toolUseCache;
   ctx.toolUseCache[chunk.id] = chunk;
 
   if (chunk.name === "TodoWrite") {
@@ -147,25 +153,33 @@ function handleToolUseChunk(
     return null;
   }
 
-  registerHookCallback(chunk.id, {
-    onPostToolUseHook: async (toolUseId, _toolInput, toolResponse) => {
-      const toolUse = ctx.toolUseCache[toolUseId];
-      if (toolUse) {
-        await ctx.client.sessionUpdate({
-          sessionId: ctx.sessionId,
-          update: {
-            _meta: toolMeta(toolUse.name, toolResponse, ctx.parentToolCallId),
-            toolCallId: toolUseId,
-            sessionUpdate: "tool_call_update",
-          },
-        });
-      } else {
-        ctx.logger.error(
-          `Got a tool response for tool use that wasn't tracked: ${toolUseId}`,
-        );
-      }
-    },
-  });
+  if (!alreadyCached && ctx.registerHooks !== false) {
+    registerHookCallback(chunk.id, {
+      onPostToolUseHook: async (toolUseId, _toolInput, toolResponse) => {
+        const toolUse = ctx.toolUseCache[toolUseId];
+        if (toolUse) {
+          const editUpdate =
+            toolUse.name === "Edit"
+              ? toolUpdateFromEditToolResponse(toolResponse)
+              : null;
+
+          await ctx.client.sessionUpdate({
+            sessionId: ctx.sessionId,
+            update: {
+              _meta: toolMeta(toolUse.name, toolResponse, ctx.parentToolCallId),
+              toolCallId: toolUseId,
+              sessionUpdate: "tool_call_update",
+              ...(editUpdate ? editUpdate : {}),
+            },
+          });
+        } else {
+          ctx.logger.error(
+            `Got a tool response for tool use that wasn't tracked: ${toolUseId}`,
+          );
+        }
+      },
+    });
+  }
 
   let rawInput: Record<string, unknown> | undefined;
   try {
@@ -174,13 +188,35 @@ function handleToolUseChunk(
     // ignore
   }
 
+  const toolInfo = toolInfoFromToolUse(chunk, {
+    supportsTerminalOutput: ctx.supportsTerminalOutput,
+    toolUseId: chunk.id,
+  });
+
+  const meta: Record<string, unknown> = {
+    ...toolMeta(chunk.name, undefined, ctx.parentToolCallId),
+  };
+  if (chunk.name === "Bash" && ctx.supportsTerminalOutput && !alreadyCached) {
+    meta.terminal_info = { terminal_id: chunk.id };
+  }
+
+  if (alreadyCached) {
+    return {
+      _meta: meta,
+      toolCallId: chunk.id,
+      sessionUpdate: "tool_call_update" as const,
+      rawInput,
+      ...toolInfo,
+    };
+  }
+
   return {
-    _meta: toolMeta(chunk.name, undefined, ctx.parentToolCallId),
+    _meta: meta,
     toolCallId: chunk.id,
-    sessionUpdate: "tool_call",
+    sessionUpdate: "tool_call" as const,
     rawInput,
     status: "pending",
-    ...toolInfoFromToolUse(chunk, ctx.fileContentCache, ctx.logger),
+    ...toolInfo,
   };
 }
 
@@ -200,15 +236,28 @@ function handleToolResultChunk(
     return null;
   }
 
+  const resultUpdate = toolUpdateFromToolResult(
+    chunk as Parameters<typeof toolUpdateFromToolResult>[0],
+    toolUse,
+    {
+      supportsTerminalOutput: ctx.supportsTerminalOutput,
+      toolUseId: chunk.tool_use_id,
+    },
+  );
+
+  const meta: Record<string, unknown> = {
+    ...toolMeta(toolUse.name, undefined, ctx.parentToolCallId),
+  };
+  if (resultUpdate._meta) {
+    Object.assign(meta, resultUpdate._meta);
+  }
+
   return {
-    _meta: toolMeta(toolUse.name, undefined, ctx.parentToolCallId),
+    _meta: meta,
     toolCallId: chunk.tool_use_id,
     sessionUpdate: "tool_call_update",
     status: chunk.is_error ? "failed" : "completed",
-    ...toolUpdateFromToolResult(
-      chunk as Parameters<typeof toolUpdateFromToolResult>[0],
-      toolUse,
-    ),
+    ...resultUpdate,
   };
 }
 
@@ -280,6 +329,8 @@ function toAcpNotifications(
   client: AgentSideConnection,
   logger: Logger,
   parentToolCallId?: string,
+  registerHooks?: boolean,
+  supportsTerminalOutput?: boolean,
 ): SessionNotification[] {
   if (typeof content === "string") {
     const update: SessionNotification["update"] = {
@@ -303,6 +354,8 @@ function toAcpNotifications(
     client,
     logger,
     parentToolCallId,
+    registerHooks,
+    supportsTerminalOutput,
   };
   const output: SessionNotification[] = [];
 
@@ -324,6 +377,8 @@ function streamEventToAcpNotifications(
   client: AgentSideConnection,
   logger: Logger,
   parentToolCallId?: string,
+  registerHooks?: boolean,
+  supportsTerminalOutput?: boolean,
 ): SessionNotification[] {
   const event = message.event;
   switch (event.type) {
@@ -337,6 +392,8 @@ function streamEventToAcpNotifications(
         client,
         logger,
         parentToolCallId,
+        registerHooks,
+        supportsTerminalOutput,
       );
     case "content_block_delta":
       return toAcpNotifications(
@@ -348,6 +405,8 @@ function streamEventToAcpNotifications(
         client,
         logger,
         parentToolCallId,
+        registerHooks,
+        supportsTerminalOutput,
       );
     case "message_start":
     case "message_delta":
@@ -413,10 +472,23 @@ export async function handleSystemMessage(
   }
 }
 
+export type ResultMessageHandlerResult = {
+  shouldStop: boolean;
+  stopReason?: string;
+  error?: Error;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    cachedReadTokens: number;
+    cachedWriteTokens: number;
+    costUsd?: number;
+  };
+};
+
 export function handleResultMessage(
   message: SDKResultMessage,
   context: MessageHandlerContext,
-): { shouldStop: boolean; stopReason?: string; error?: Error } {
+): ResultMessageHandlerResult {
   const { session } = context;
 
   if (session.cancelled) {
@@ -426,21 +498,25 @@ export function handleResultMessage(
     };
   }
 
+  const usage = extractUsageFromResult(message);
+
   switch (message.subtype) {
     case "success": {
       if (message.result.includes("Please run /login")) {
         return {
           shouldStop: true,
           error: RequestError.authRequired(),
+          usage,
         };
       }
       if (message.is_error) {
         return {
           shouldStop: true,
           error: RequestError.internalError(undefined, message.result),
+          usage,
         };
       }
-      return { shouldStop: true, stopReason: "end_turn" };
+      return { shouldStop: true, stopReason: "end_turn", usage };
     }
     case "error_during_execution":
       if (message.is_error) {
@@ -450,9 +526,10 @@ export function handleResultMessage(
             undefined,
             message.errors.join(", ") || message.subtype,
           ),
+          usage,
         };
       }
-      return { shouldStop: true, stopReason: "end_turn" };
+      return { shouldStop: true, stopReason: "end_turn", usage };
     case "error_max_budget_usd":
     case "error_max_turns":
     case "error_max_structured_output_retries":
@@ -463,12 +540,30 @@ export function handleResultMessage(
             undefined,
             message.errors.join(", ") || message.subtype,
           ),
+          usage,
         };
       }
-      return { shouldStop: true, stopReason: "max_turn_requests" };
+      return { shouldStop: true, stopReason: "max_turn_requests", usage };
     default:
-      return { shouldStop: false };
+      return { shouldStop: false, usage };
   }
+}
+
+function extractUsageFromResult(
+  message: SDKResultMessage,
+): ResultMessageHandlerResult["usage"] {
+  const msg = message as Record<string, unknown>;
+  const msgUsage = msg.usage as Record<string, number> | undefined;
+  if (!msgUsage) return undefined;
+
+  return {
+    inputTokens: msgUsage.input_tokens ?? 0,
+    outputTokens: msgUsage.output_tokens ?? 0,
+    cachedReadTokens: msgUsage.cache_read_input_tokens ?? 0,
+    cachedWriteTokens: msgUsage.cache_creation_input_tokens ?? 0,
+    costUsd:
+      typeof msg.total_cost_usd === "number" ? msg.total_cost_usd : undefined,
+  };
 }
 
 export async function handleStreamEvent(
@@ -486,6 +581,8 @@ export async function handleStreamEvent(
     client,
     logger,
     parentToolCallId,
+    context.registerHooks,
+    context.supportsTerminalOutput,
   )) {
     await client.sessionUpdate(notification);
     context.session.notificationHistory.push(notification);
@@ -571,6 +668,17 @@ export async function handleUserAssistantMessage(
     return {};
   }
 
+  if (message.type === "user") {
+    const uuid = (message as Record<string, unknown>).uuid as
+      | string
+      | undefined;
+    if (uuid && session.pendingMessages.has(uuid)) {
+      const pending = session.pendingMessages.get(uuid);
+      session.pendingMessages.delete(uuid);
+      pending?.resolve(false);
+    }
+  }
+
   if (shouldSkipUserAssistantMessage(message)) {
     logSpecialMessages(message, logger);
 
@@ -596,6 +704,8 @@ export async function handleUserAssistantMessage(
     client,
     logger,
     parentToolCallId,
+    context.registerHooks,
+    context.supportsTerminalOutput,
   )) {
     await client.sessionUpdate(notification);
     session.notificationHistory.push(notification);

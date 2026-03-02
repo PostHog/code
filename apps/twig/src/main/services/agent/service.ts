@@ -577,42 +577,34 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
           credentials,
           customInstructions,
         );
-        const resumeResponse = await connection.extMethod(
-          "_posthog/session/resume",
-          {
+        const resumeResponse = await connection.unstable_resumeSession({
+          sessionId: existingSessionId,
+          cwd: repoPath,
+          mcpServers,
+          _meta: {
+            ...(logUrl && {
+              persistence: { taskId, runId: taskRunId, logUrl },
+            }),
+            taskRunId,
             sessionId: existingSessionId,
-            cwd: repoPath,
-            mcpServers,
-            _meta: {
-              ...(logUrl && {
-                persistence: { taskId, runId: taskRunId, logUrl },
-              }),
-              taskRunId,
-              sessionId: existingSessionId,
-              systemPrompt,
-              ...(permissionMode && { permissionMode }),
-              claudeCode: {
-                options: {
-                  ...(additionalDirectories?.length && {
-                    additionalDirectories,
-                  }),
-                  plugins: [
-                    {
-                      type: "local" as const,
-                      path: this.posthogPluginService.getPluginPath(),
-                    },
-                  ],
-                },
+            systemPrompt,
+            ...(permissionMode && { permissionMode }),
+            claudeCode: {
+              options: {
+                ...(additionalDirectories?.length && {
+                  additionalDirectories,
+                }),
+                plugins: [
+                  {
+                    type: "local" as const,
+                    path: this.posthogPluginService.getPluginPath(),
+                  },
+                ],
               },
             },
           },
-        );
-        const resumeMeta = resumeResponse?._meta as
-          | {
-              configOptions?: SessionConfigOption[];
-            }
-          | undefined;
-        configOptions = resumeMeta?.configOptions;
+        });
+        configOptions = resumeResponse?.configOptions ?? undefined;
         agentSessionId = existingSessionId;
       } else {
         if (isReconnect) {
