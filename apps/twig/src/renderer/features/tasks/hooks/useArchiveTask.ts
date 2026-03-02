@@ -13,15 +13,13 @@ const log = logger.scope("archive-task");
 
 interface ArchiveTaskInput {
   taskId: string;
-  title: string;
-  repository: string | null;
 }
 
 export function useArchiveTask() {
   const queryClient = useQueryClient();
 
   const archiveTask = async (input: ArchiveTaskInput) => {
-    const { taskId, title, repository } = input;
+    const { taskId } = input;
     const focusStore = useFocusStore.getState();
     const workspaceStore = useWorkspaceStore.getState();
     const workspace = workspaceStore.workspaces[taskId];
@@ -39,8 +37,6 @@ export function useArchiveTask() {
 
       await trpcVanilla.archive.archive.mutate({
         taskId,
-        title,
-        repository,
       });
 
       workspaceStore.removeWorkspace(taskId);

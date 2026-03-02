@@ -100,9 +100,7 @@ export class ArchiveService {
 
     const archivedTask: ArchivedTask = {
       taskId: input.taskId,
-      title: input.title,
       archivedAt: new Date().toISOString(),
-      repository: input.repository,
       folderId: association.folderId,
       mode: association.mode,
       worktreeName:
@@ -381,6 +379,38 @@ export class ArchiveService {
     return this.archiveStore
       .get("archivedTasks", [])
       .some((t) => t.taskId === taskId);
+  }
+
+  async deleteArchivedTask(taskId: string): Promise<void> {
+    log.info(`Deleting archived task ${taskId}`);
+
+    const archivedTasks = this.archiveStore.get("archivedTasks", []);
+    const archived = archivedTasks.find((t) => t.taskId === taskId);
+
+    if (!archived) {
+      throw new Error(`Archived task ${taskId} not found`);
+    }
+
+    if (archived.checkpointId && archived.folderId) {
+      const folderPath = this.getFolderPath(archived.folderId);
+      if (folderPath) {
+        try {
+          const git = createGitClient(folderPath);
+          await deleteCheckpoint(git, archived.checkpointId);
+        } catch (error) {
+          log.warn(`Failed to delete checkpoint ${archived.checkpointId}`, {
+            error,
+          });
+        }
+      }
+    }
+
+    const updatedArchivedTasks = archivedTasks.filter(
+      (t) => t.taskId !== taskId,
+    );
+    this.archiveStore.set("archivedTasks", updatedArchivedTasks);
+
+    log.info(`Deleted archived task ${taskId}`);
   }
 
   private getTaskAssociations(): TaskFolderAssociation[] {

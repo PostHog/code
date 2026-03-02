@@ -10,6 +10,11 @@ import { MAIN_TOKENS } from "../../di/tokens.js";
 import { getMainWindow } from "../../trpc/context.js";
 import type { ExternalAppsService } from "../external-apps/service.js";
 import type {
+  ArchivedTaskAction,
+  ArchivedTaskContextMenuInput,
+  ArchivedTaskContextMenuResult,
+  ConfirmDeleteArchivedTaskInput,
+  ConfirmDeleteArchivedTaskResult,
   ConfirmDeleteTaskInput,
   ConfirmDeleteTaskResult,
   FileAction,
@@ -65,6 +70,18 @@ export class ContextMenuService {
     return { confirmed };
   }
 
+  async confirmDeleteArchivedTask(
+    input: ConfirmDeleteArchivedTaskInput,
+  ): Promise<ConfirmDeleteArchivedTaskResult> {
+    const confirmed = await this.confirm({
+      title: "Delete Archived Task",
+      message: `Delete "${input.taskTitle}"?`,
+      detail: "This will permanently delete the archived task.",
+      confirmLabel: "Delete",
+    });
+    return { confirmed };
+  }
+
   async showTaskContextMenu(
     input: TaskContextMenuInput,
   ): Promise<TaskContextMenuResult> {
@@ -83,6 +100,26 @@ export class ContextMenuService {
             ...this.externalAppItems<TaskAction>(apps, lastUsedAppId),
           ]
         : []),
+    ]);
+  }
+
+  async showArchivedTaskContextMenu(
+    input: ArchivedTaskContextMenuInput,
+  ): Promise<ArchivedTaskContextMenuResult> {
+    return this.showMenu<ArchivedTaskAction>([
+      this.item("Restore", { type: "restore" }),
+      this.item(
+        "Delete",
+        { type: "delete" },
+        {
+          confirm: {
+            title: "Delete Archived Task",
+            message: `Delete "${input.taskTitle}"?`,
+            detail: "This will permanently delete the archived task.",
+            confirmLabel: "Delete",
+          },
+        },
+      ),
     ]);
   }
 

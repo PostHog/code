@@ -4,6 +4,8 @@ import {
   archivedTaskIdsOutput,
   archiveTaskInput,
   archiveTaskOutput,
+  deleteArchivedTaskInput,
+  deleteArchivedTaskOutput,
   listArchivedTasksOutput,
   unarchiveTaskInput,
   unarchiveTaskOutput,
@@ -34,4 +36,9 @@ export const archiveRouter = router({
   archivedTaskIds: publicProcedure
     .output(archivedTaskIdsOutput)
     .query(() => getService().getArchivedTaskIds()),
+
+  delete: publicProcedure
+    .input(deleteArchivedTaskInput)
+    .output(deleteArchivedTaskOutput)
+    .mutation(({ input }) => getService().deleteArchivedTask(input.taskId)),
 });

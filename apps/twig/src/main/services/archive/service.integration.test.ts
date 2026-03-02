@@ -79,10 +79,8 @@ interface TestContext {
   archiveStore: ReturnType<typeof createInMemoryStore<ArchiveStoreData>>;
   repoPath: string;
   worktreeBasePath: string;
-  archiveInput: (title?: string) => {
+  archiveInput: () => {
     taskId: string;
-    title: string;
-    repository: string;
   };
   setupWorktree: (
     method: "detached" | "branch",
@@ -161,10 +159,8 @@ async function withTestContext(
       stdio: "pipe",
     }).trim();
 
-  const archiveInput = (title = "Test Task") => ({
+  const archiveInput = () => ({
     taskId: TASK_ID,
-    title,
-    repository: repoPath,
   });
 
   const setupWorktree = async (
@@ -221,9 +217,7 @@ function simpleAssociation(mode: "local" | "cloud"): TaskFolderAssociation {
 function archivedTask(overrides: Partial<ArchivedTask> = {}): ArchivedTask {
   return {
     taskId: TASK_ID,
-    title: "Archived Task",
     archivedAt: new Date().toISOString(),
-    repository: "/repo",
     folderId: FOLDER_ID,
     mode: "local" as const,
     worktreeName: null,
@@ -324,9 +318,7 @@ describe("ArchiveService integration", () => {
       withTestContext({}, async (ctx) => {
         const { worktreePath } = await ctx.setupWorktree("detached");
 
-        const archived = await ctx.service.archiveTask(
-          ctx.archiveInput("Detached Task"),
-        );
+        const archived = await ctx.service.archiveTask(ctx.archiveInput());
 
         expect(archived.branchName).toBeNull();
         expect(await pathExists(worktreePath)).toBe(false);
@@ -336,17 +328,17 @@ describe("ArchiveService integration", () => {
       withTestContext(
         {
           associations: [simpleAssociation("local")],
-          archivedTasks: [archivedTask({ title: "Old Title" })],
+          archivedTasks: [archivedTask()],
         },
         async (ctx) => {
-          const archived = await ctx.service.archiveTask(
-            ctx.archiveInput("New Title"),
-          );
+          const oldArchivedAt =
+            ctx.archiveStore.get("archivedTasks")[0].archivedAt;
+
+          await ctx.service.archiveTask(ctx.archiveInput());
 
           expect(ctx.archiveStore.get("archivedTasks")).toHaveLength(1);
-          expect(archived.title).toBe("New Title");
-          expect(ctx.archiveStore.get("archivedTasks")[0].title).toBe(
-            "New Title",
+          expect(ctx.archiveStore.get("archivedTasks")[0].archivedAt).not.toBe(
+            oldArchivedAt,
           );
         },
       ));
@@ -372,9 +364,7 @@ describe("ArchiveService integration", () => {
           worktreeAssociation(worktreeName),
         ]);
 
-        const archived = await ctx.service.archiveTask(
-          ctx.archiveInput("Legacy Task"),
-        );
+        const archived = await ctx.service.archiveTask(ctx.archiveInput());
 
         expect(archived.checkpointId).toBeTruthy();
         expect(await pathExists(legacyPath)).toBe(false);
@@ -388,7 +378,7 @@ describe("ArchiveService integration", () => {
         withTestContext(
           { associations: [simpleAssociation(mode)] },
           async (ctx) => {
-            await ctx.service.archiveTask(ctx.archiveInput(`${mode} Task`));
+            await ctx.service.archiveTask(ctx.archiveInput());
 
             expect(ctx.archiveStore.get("archivedTasks")).toHaveLength(1);
             expect(ctx.archiveStore.get("archivedTasks")[0].mode).toBe(mode);
@@ -413,8 +403,6 @@ describe("ArchiveService integration", () => {
         await expect(
           ctx.service.archiveTask({
             taskId: "nonexistent",
-            title: "Test",
-            repository: "/fake",
           }),
         ).rejects.toThrow("No workspace association found");
       }));
@@ -465,6 +453,79 @@ describe("ArchiveService integration", () => {
         expect(ctx.service.isArchived(TASK_ID)).toBe(true);
         expect(ctx.service.isArchived("task-2")).toBe(false);
       }));
+  });
+
+  describe.concurrent("deleteArchivedTask", () => {
+    it("deletes archived task without checkpoint", () =>
+      withTestContext(
+        {
+          archivedTasks: [archivedTask({ mode: "local", checkpointId: null })],
+        },
+        async (ctx) => {
+          await ctx.service.deleteArchivedTask(TASK_ID);
+          expect(ctx.archiveStore.get("archivedTasks")).toHaveLength(0);
+        },
+      ));
+
+    it("deletes archived task with checkpoint", () =>
+      withTestContext({}, async (ctx) => {
+        const { worktreePath } = await ctx.setupWorktree("detached");
+        await fs.writeFile(path.join(worktreePath, "file.txt"), "content");
+
+        const archived = await ctx.service.archiveTask(ctx.archiveInput());
+        expect(archived.checkpointId).toBeTruthy();
+        expect(ctx.archiveStore.get("archivedTasks")).toHaveLength(1);
+
+        const refs = ctx.git("for-each-ref --format='%(refname)'");
+        expect(refs).toContain(archived.checkpointId);
+
+        await ctx.service.deleteArchivedTask(TASK_ID);
+
+        expect(ctx.archiveStore.get("archivedTasks")).toHaveLength(0);
+        const refsAfter = ctx.git("for-each-ref --format='%(refname)'");
+        expect(refsAfter).not.toContain(archived.checkpointId);
+      }));
+
+    it("throws when archived task not found", () =>
+      withTestContext({}, async (ctx) => {
+        await expect(
+          ctx.service.deleteArchivedTask("nonexistent"),
+        ).rejects.toThrow("Archived task nonexistent not found");
+      }));
+
+    it("still removes from store if checkpoint deletion fails", () =>
+      withTestContext(
+        {
+          archivedTasks: [
+            archivedTask({
+              checkpointId: "worktree-nonexistent",
+              mode: "worktree",
+              worktreeName: "nonexistent",
+            }),
+          ],
+        },
+        async (ctx) => {
+          await ctx.service.deleteArchivedTask(TASK_ID);
+          expect(ctx.archiveStore.get("archivedTasks")).toHaveLength(0);
+        },
+      ));
+
+    it("still removes from store if folder not found", () =>
+      withTestContext(
+        {
+          folders: "none",
+          archivedTasks: [
+            archivedTask({
+              checkpointId: "worktree-test",
+              folderId: "missing-folder",
+            }),
+          ],
+        },
+        async (ctx) => {
+          await ctx.service.deleteArchivedTask(TASK_ID);
+          expect(ctx.archiveStore.get("archivedTasks")).toHaveLength(0);
+        },
+      ));
   });
 
   describe.concurrent("rollback behavior", () => {

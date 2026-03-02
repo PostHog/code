@@ -48,11 +48,7 @@ export function useTaskContextMenu() {
             onTogglePin?.();
             break;
           case "archive":
-            await archiveTask({
-              taskId: task.id,
-              title: task.title,
-              repository: task.repository ?? null,
-            });
+            await archiveTask({ taskId: task.id });
             break;
           case "delete":
             await deleteWithConfirm({
