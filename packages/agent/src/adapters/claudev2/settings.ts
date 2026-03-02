@@ -55,7 +55,10 @@ export function getManagedSettingsPath(): string {
 
 export interface SettingsManagerOptions {
   onChange?: () => void;
-  logger?: { log: (...args: any[]) => void; error: (...args: any[]) => void };
+  logger?: {
+    log: (...args: unknown[]) => void;
+    error: (...args: unknown[]) => void;
+  };
 }
 
 /**
@@ -79,8 +82,8 @@ export class SettingsManager {
   private watchers: fs.FSWatcher[] = [];
   private onChange?: () => void;
   private logger: {
-    log: (...args: any[]) => void;
-    error: (...args: any[]) => void;
+    log: (...args: unknown[]) => void;
+    error: (...args: unknown[]) => void;
   };
   private initialized = false;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
