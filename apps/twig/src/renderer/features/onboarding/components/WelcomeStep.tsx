@@ -8,7 +8,6 @@ import {
 } from "@phosphor-icons/react";
 import { Box, Button, Flex } from "@radix-ui/themes";
 import twigLogo from "@renderer/assets/images/twig-logo.svg";
-import { useFeatureRotation } from "../hooks/useFeatureRotation";
 import { FeatureListItem } from "./FeatureListItem";
 
 interface WelcomeStepProps {
@@ -49,8 +48,6 @@ const FEATURES = [
 ];
 
 export function WelcomeStep({ onNext }: WelcomeStepProps) {
-  const { activeIndex, onHover, onLeave } = useFeatureRotation(FEATURES.length);
-
   return (
     <Flex align="center" height="100%" px="8">
       {/* Left side - features list */}
@@ -73,15 +70,12 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
         </Flex>
 
         <Flex direction="column" gap="1">
-          {FEATURES.map((feature, index) => (
+          {FEATURES.map((feature) => (
             <FeatureListItem
               key={feature.title}
               icon={feature.icon}
               title={feature.title}
               description={feature.description}
-              isActive={index === activeIndex}
-              onMouseEnter={() => onHover(index)}
-              onMouseLeave={onLeave}
             />
           ))}
         </Flex>

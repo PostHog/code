@@ -8,6 +8,7 @@ export const POSTHOG_DEV_CLIENT_ID = "DC5uRLVbGI02YQ82grxgnK6Qn12SXWpCqdPb60oZ";
 export const OAUTH_SCOPES = [
   // Twig app needs
   "user:read",
+  "user:write",
   "project:read",
   "task:write",
   "llm_gateway:read",
@@ -38,7 +39,7 @@ export const OAUTH_SCOPES = [
   "warehouse_view:read",
 ];
 
-export const OAUTH_SCOPE_VERSION = 1;
+export const OAUTH_SCOPE_VERSION = 2;
 
 export const REGION_LABELS: Record<CloudRegion, string> = {
   us: "🇺🇸 US Cloud",
