@@ -29,7 +29,9 @@ export interface BuildOptionsParams {
   userProvidedOptions?: Options;
   sessionId: string;
   isResume: boolean;
+  forkSession?: boolean;
   additionalDirectories?: string[];
+  disableBuiltInTools?: boolean;
   onModeChange?: OnModeChange;
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
   onProcessExited?: (pid: number) => void;
@@ -238,13 +240,44 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
 
   if (params.isResume) {
     options.resume = params.sessionId;
-    options.forkSession = false;
+    options.forkSession = params.forkSession ?? false;
   } else {
     options.sessionId = params.sessionId;
   }
 
   if (params.additionalDirectories) {
     options.additionalDirectories = params.additionalDirectories;
+  }
+
+  if (params.disableBuiltInTools) {
+    const builtInTools = [
+      "Read",
+      "Write",
+      "Edit",
+      "Bash",
+      "Glob",
+      "Grep",
+      "Task",
+      "TodoWrite",
+      "ExitPlanMode",
+      "WebSearch",
+      "WebFetch",
+      "SlashCommand",
+      "Skill",
+      "NotebookEdit",
+    ];
+    options.disallowedTools = [
+      ...(options.disallowedTools ?? []),
+      ...builtInTools,
+    ];
+  }
+
+  const maxThinkingTokens = Number.parseInt(
+    process.env.MAX_THINKING_TOKENS ?? "",
+    10,
+  );
+  if (!Number.isNaN(maxThinkingTokens) && maxThinkingTokens > 0) {
+    options.maxThinkingTokens = maxThinkingTokens;
   }
 
   clearStatsigCache();

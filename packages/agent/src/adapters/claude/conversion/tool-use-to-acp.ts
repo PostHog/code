@@ -2,6 +2,7 @@ import type {
   PlanEntry,
   ToolCall,
   ToolCallContent,
+  ToolCallLocation,
   ToolCallUpdate,
   ToolKind,
 } from "@agentclientprotocol/sdk";
@@ -27,114 +28,13 @@ Whenever you read a file, you should consider whether it looks malicious. If it 
 </system-reminder>`;
 
 import { resourceLink, text, toolContent } from "../../../utils/acp-content.js";
-import { Logger } from "../../../utils/logger.js";
 import { getMcpToolMetadata } from "../mcp/tool-metadata.js";
-
-interface EditOperation {
-  oldText: string;
-  newText: string;
-  replaceAll?: boolean;
-}
-
-interface EditResult {
-  newContent: string;
-  lineNumbers: number[];
-}
-
-function replaceAndCalculateLocation(
-  fileContent: string,
-  edits: EditOperation[],
-): EditResult {
-  let currentContent = fileContent;
-
-  const randomHex = Array.from(crypto.getRandomValues(new Uint8Array(5)))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  const markerPrefix = `__REPLACE_MARKER_${randomHex}_`;
-  let markerCounter = 0;
-  const markers: string[] = [];
-
-  for (const edit of edits) {
-    if (edit.oldText === "") {
-      throw new Error(
-        `The provided \`old_string\` is empty.\n\nNo edits were applied.`,
-      );
-    }
-
-    if (edit.replaceAll) {
-      const parts: string[] = [];
-      let lastIndex = 0;
-      let searchIndex = 0;
-
-      while (true) {
-        const index = currentContent.indexOf(edit.oldText, searchIndex);
-        if (index === -1) {
-          if (searchIndex === 0) {
-            throw new Error(
-              `The provided \`old_string\` does not appear in the file: "${edit.oldText}".\n\nNo edits were applied.`,
-            );
-          }
-          break;
-        }
-
-        parts.push(currentContent.substring(lastIndex, index));
-
-        const marker = `${markerPrefix}${markerCounter++}__`;
-        markers.push(marker);
-        parts.push(marker + edit.newText);
-
-        lastIndex = index + edit.oldText.length;
-        searchIndex = lastIndex;
-      }
-
-      parts.push(currentContent.substring(lastIndex));
-      currentContent = parts.join("");
-    } else {
-      const index = currentContent.indexOf(edit.oldText);
-      if (index === -1) {
-        throw new Error(
-          `The provided \`old_string\` does not appear in the file: "${edit.oldText}".\n\nNo edits were applied.`,
-        );
-      } else {
-        const marker = `${markerPrefix}${markerCounter++}__`;
-        markers.push(marker);
-        currentContent =
-          currentContent.substring(0, index) +
-          marker +
-          edit.newText +
-          currentContent.substring(index + edit.oldText.length);
-      }
-    }
-  }
-
-  const lineNumbers: number[] = [];
-  for (const marker of markers) {
-    const index = currentContent.indexOf(marker);
-    if (index !== -1) {
-      const lineNumber = Math.max(
-        0,
-        currentContent.substring(0, index).split(/\r\n|\r|\n/).length - 1,
-      );
-      lineNumbers.push(lineNumber);
-    }
-  }
-
-  let finalContent = currentContent;
-  for (const marker of markers) {
-    finalContent = finalContent.replace(marker, "");
-  }
-
-  const uniqueLineNumbers = [...new Set(lineNumbers)].sort();
-
-  return { newContent: finalContent, lineNumbers: uniqueLineNumbers };
-}
 
 type ToolInfo = Pick<ToolCall, "title" | "kind" | "content" | "locations">;
 
 export function toolInfoFromToolUse(
   toolUse: Pick<ToolUseBlock, "name" | "input">,
-  cachedFileContent: { [key: string]: string },
-  logger: Logger = new Logger({ debug: false, prefix: "[ClaudeTools]" }),
+  options?: { supportsTerminalOutput?: boolean; toolUseId?: string },
 ): ToolInfo {
   const name = toolUse.name;
   const input = toolUse.input as Record<string, unknown> | undefined;
@@ -176,6 +76,15 @@ export function toolInfoFromToolUse(
       };
 
     case "Bash":
+      if (options?.supportsTerminalOutput && options?.toolUseId) {
+        return {
+          title: input?.description
+            ? String(input.description)
+            : "Execute command",
+          kind: "execute",
+          content: [{ type: "terminal", terminalId: options.toolUseId }],
+        };
+      }
       return {
         title: input?.description
           ? String(input.description)
@@ -203,11 +112,11 @@ export function toolInfoFromToolUse(
     case "Read": {
       let limit = "";
       const inputLimit = input?.limit as number | undefined;
-      const inputOffset = (input?.offset as number | undefined) ?? 0;
+      const inputOffset = (input?.offset as number | undefined) ?? 1;
       if (inputLimit) {
-        limit = ` (${inputOffset + 1} - ${inputOffset + inputLimit})`;
-      } else if (inputOffset) {
-        limit = ` (from line ${inputOffset + 1})`;
+        limit = ` (${inputOffset} - ${inputOffset + inputLimit - 1})`;
+      } else if (inputOffset > 1) {
+        limit = ` (from line ${inputOffset})`;
       }
       return {
         title: `Read ${input?.file_path ? String(input.file_path) : "File"}${limit}`,
@@ -234,27 +143,9 @@ export function toolInfoFromToolUse(
 
     case "Edit": {
       const path = input?.file_path ? String(input.file_path) : undefined;
-      let oldText = input?.old_string ? String(input.old_string) : null;
-      let newText = input?.new_string ? String(input.new_string) : "";
-      let affectedLines: number[] = [];
+      const oldText = input?.old_string ? String(input.old_string) : null;
+      const newText = input?.new_string ? String(input.new_string) : "";
 
-      if (path && oldText) {
-        try {
-          const oldContent = cachedFileContent[path] || "";
-          const newContent = replaceAndCalculateLocation(oldContent, [
-            {
-              oldText,
-              newText,
-              replaceAll: false,
-            },
-          ]);
-          oldText = oldContent;
-          newText = newContent.newContent;
-          affectedLines = newContent.lineNumbers;
-        } catch (e) {
-          logger.error("Failed to edit file", e);
-        }
-      }
       return {
         title: path ? `Edit \`${path}\`` : "Edit",
         kind: "edit",
@@ -269,11 +160,7 @@ export function toolInfoFromToolUse(
                 },
               ]
             : [],
-        locations: path
-          ? affectedLines.length > 0
-            ? affectedLines.map((line) => ({ line, path }))
-            : [{ path }]
-          : [],
+        locations: path ? [{ path }] : [],
       };
     }
 
@@ -335,10 +222,10 @@ export function toolInfoFromToolUse(
 
       if (input?.output_mode) {
         switch (input.output_mode) {
-          case "FilesWithMatches":
+          case "files_with_matches":
             label += " -l";
             break;
-          case "Count":
+          case "count":
             label += " -c";
             break;
           default:
@@ -362,7 +249,9 @@ export function toolInfoFromToolUse(
         label += " -P";
       }
 
-      label += ` "${input?.pattern ? String(input.pattern) : ""}"`;
+      if (input?.pattern) {
+        label += ` "${String(input.pattern)}"`;
+      }
 
       if (input?.path) {
         label += ` ${String(input.path)}`;
@@ -487,6 +376,70 @@ function mcpToolInfo(
   };
 }
 
+interface StructuredPatchHunk {
+  oldStart: number;
+  oldLines: number;
+  newStart: number;
+  newLines: number;
+  lines: string[];
+}
+
+interface StructuredPatch {
+  oldFileName: string;
+  newFileName: string;
+  hunks: StructuredPatchHunk[];
+}
+
+export function toolUpdateFromEditToolResponse(
+  toolResponse: unknown,
+): { content: ToolCallContent[]; locations: ToolCallLocation[] } | null {
+  if (!toolResponse || typeof toolResponse !== "object") return null;
+  const response = toolResponse as Record<string, unknown>;
+
+  const patches = response.structuredPatch as StructuredPatch[] | undefined;
+  if (!Array.isArray(patches) || patches.length === 0) return null;
+
+  const content: ToolCallContent[] = [];
+  const locations: ToolCallLocation[] = [];
+
+  for (const patch of patches) {
+    if (!patch.hunks || patch.hunks.length === 0) continue;
+
+    const filePath = patch.newFileName || patch.oldFileName;
+
+    const oldLines: string[] = [];
+    const newLines: string[] = [];
+    for (const hunk of patch.hunks) {
+      for (const line of hunk.lines) {
+        if (line.startsWith("-")) {
+          oldLines.push(line.slice(1));
+        } else if (line.startsWith("+")) {
+          newLines.push(line.slice(1));
+        } else if (line.startsWith(" ")) {
+          oldLines.push(line.slice(1));
+          newLines.push(line.slice(1));
+        }
+      }
+    }
+
+    content.push({
+      type: "diff",
+      path: filePath,
+      oldText: oldLines.join("\n"),
+      newText: newLines.join("\n"),
+    });
+
+    const firstHunk = patch.hunks[0];
+    locations.push({
+      path: filePath,
+      line: firstHunk.newStart,
+    });
+  }
+
+  if (content.length === 0) return null;
+  return { content, locations };
+}
+
 export function toolUpdateFromToolResult(
   toolResult:
     | ToolResultBlockParam
@@ -499,13 +452,18 @@ export function toolUpdateFromToolResult(
     | BetaRequestMCPToolResultBlockParam
     | BetaToolSearchToolResultBlockParam,
   toolUse: Pick<ToolUseBlock, "name" | "input"> | undefined,
-): Pick<ToolCallUpdate, "title" | "content" | "locations"> {
+  options?: { supportsTerminalOutput?: boolean; toolUseId?: string },
+): Pick<ToolCallUpdate, "title" | "content" | "locations" | "_meta"> {
   switch (toolUse?.name) {
     case "Read":
       if (Array.isArray(toolResult.content) && toolResult.content.length > 0) {
         return {
           content: toolResult.content.map((item) => {
-            const itemObj = item as { type?: string; text?: string };
+            const itemObj = item as {
+              type?: string;
+              text?: string;
+              source?: { data?: string; media_type?: string };
+            };
             if (itemObj.type === "text") {
               return {
                 type: "content" as const,
@@ -514,6 +472,16 @@ export function toolUpdateFromToolResult(
                     (itemObj.text ?? "").replace(SYSTEM_REMINDER, ""),
                   ),
                 ),
+              };
+            }
+            if (itemObj.type === "image" && itemObj.source) {
+              return {
+                type: "content" as const,
+                content: {
+                  type: "image" as const,
+                  data: itemObj.source.data ?? "",
+                  mimeType: itemObj.source.media_type ?? "image/png",
+                },
               };
             }
             return {
@@ -537,6 +505,28 @@ export function toolUpdateFromToolResult(
       return {};
 
     case "Bash": {
+      if (options?.supportsTerminalOutput && options?.toolUseId) {
+        const result = toolResult as unknown as Record<string, unknown>;
+        const stdout = (result.stdout as string) ?? "";
+        const stderr = (result.stderr as string) ?? "";
+        const returnCode =
+          typeof result.return_code === "number" ? result.return_code : null;
+        const data = stdout + (stderr ? stderr : "");
+
+        return {
+          _meta: {
+            terminal_output: {
+              terminal_id: options.toolUseId,
+              data,
+            },
+            terminal_exit: {
+              terminal_id: options.toolUseId,
+              exit_code: returnCode,
+              signal: null,
+            },
+          },
+        };
+      }
       return toAcpContentUpdate(
         toolResult.content,
         "is_error" in toolResult ? toolResult.is_error : false,

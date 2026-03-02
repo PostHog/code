@@ -43,6 +43,7 @@ interface ToolHandlerContext {
   toolInput: Record<string, unknown>;
   toolUseID: string;
   suggestions?: PermissionUpdate[];
+  signal?: AbortSignal;
   client: AgentSideConnection;
   sessionId: string;
   fileContentCache: { [key: string]: string };
@@ -132,13 +133,12 @@ async function requestPlanApproval(
   context: ToolHandlerContext,
   updatedInput: Record<string, unknown>,
 ): Promise<RequestPermissionResponse> {
-  const { client, sessionId, toolUseID, fileContentCache } = context;
+  const { client, sessionId, toolUseID } = context;
 
-  const toolInfo = toolInfoFromToolUse(
-    { name: context.toolName, input: updatedInput },
-    fileContentCache,
-    context.logger,
-  );
+  const toolInfo = toolInfoFromToolUse({
+    name: context.toolName,
+    input: updatedInput,
+  });
 
   return await client.requestPermission({
     options: buildExitPlanModePermissionOptions(),
@@ -221,6 +221,9 @@ async function handleExitPlanModeTool(
   }
 
   const response = await requestPlanApproval(context, updatedInput);
+  if (context.signal?.aborted || response.outcome?.outcome === "cancelled") {
+    throw new Error("Tool use aborted");
+  }
   return await applyPlanApproval(response, context, updatedInput);
 }
 
@@ -250,15 +253,14 @@ async function handleAskUserQuestionTool(
     };
   }
 
-  const { client, sessionId, toolUseID, toolInput, fileContentCache } = context;
+  const { client, sessionId, toolUseID, toolInput } = context;
   const firstQuestion = questions[0];
   const options = buildQuestionOptions(firstQuestion);
 
-  const toolInfo = toolInfoFromToolUse(
-    { name: context.toolName, input: toolInput },
-    fileContentCache,
-    context.logger,
-  );
+  const toolInfo = toolInfoFromToolUse({
+    name: context.toolName,
+    input: toolInput,
+  });
 
   const response = await client.requestPermission({
     options,
@@ -274,6 +276,10 @@ async function handleAskUserQuestionTool(
       },
     },
   });
+
+  if (context.signal?.aborted || response.outcome?.outcome === "cancelled") {
+    throw new Error("Tool use aborted");
+  }
 
   if (response.outcome?.outcome !== "selected") {
     const customMessage = (
@@ -317,15 +323,10 @@ async function handleDefaultPermissionFlow(
     toolUseID,
     client,
     sessionId,
-    fileContentCache,
     suggestions,
   } = context;
 
-  const toolInfo = toolInfoFromToolUse(
-    { name: toolName, input: toolInput },
-    fileContentCache,
-    context.logger,
-  );
+  const toolInfo = toolInfoFromToolUse({ name: toolName, input: toolInput });
 
   const options = buildPermissionOptions(
     toolName,
@@ -346,6 +347,10 @@ async function handleDefaultPermissionFlow(
       rawInput: toolInput as Record<string, unknown>,
     },
   });
+
+  if (context.signal?.aborted || response.outcome?.outcome === "cancelled") {
+    throw new Error("Tool use aborted");
+  }
 
   if (
     response.outcome?.outcome === "selected" &&

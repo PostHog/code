@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -6,8 +7,12 @@ import {
   type AuthenticateRequest,
   type AvailableCommand,
   type ClientCapabilities,
+  type ForkSessionRequest,
+  type ForkSessionResponse,
   type InitializeRequest,
   type InitializeResponse,
+  type ListSessionsRequest,
+  type ListSessionsResponse,
   type LoadSessionRequest,
   type LoadSessionResponse,
   type NewSessionRequest,
@@ -15,6 +20,8 @@ import {
   type PromptRequest,
   type PromptResponse,
   RequestError,
+  type ResumeSessionRequest,
+  type ResumeSessionResponse,
   type SessionConfigOption,
   type SessionConfigOptionCategory,
   type SessionConfigSelectOption,
@@ -23,6 +30,8 @@ import {
 } from "@agentclientprotocol/sdk";
 import {
   type CanUseTool,
+  getSessionMessages,
+  listSessions,
   type Options,
   type Query,
   query,
@@ -102,9 +111,17 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
           sse: true,
         },
         loadSession: true,
+        sessionCapabilities: {
+          list: {},
+          fork: {},
+          resume: {},
+        },
         _meta: {
           posthog: {
             resumeSession: true,
+          },
+          claudeCode: {
+            promptQueueing: true,
           },
         },
       },
@@ -157,6 +174,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       userProvidedOptions: meta?.claudeCode?.options,
       sessionId,
       isResume: false,
+      disableBuiltInTools: meta?.disableBuiltInTools,
       onModeChange: this.createOnModeChange(sessionId),
       onProcessSpawned: this.options?.onProcessSpawned,
       onProcessExited: this.options?.onProcessExited,
@@ -209,7 +227,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   }
 
   async loadSession(params: LoadSessionRequest): Promise<LoadSessionResponse> {
-    return this.resumeSession(params);
+    const result = await this.resumeSession(params);
+    if (params.sessionId) {
+      await this.replaySessionHistory(params.sessionId);
+    }
+    return result;
   }
 
   async resumeSession(
@@ -217,7 +239,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   ): Promise<LoadSessionResponse> {
     const meta = params._meta as NewSessionMeta | undefined;
     const taskId = meta?.persistence?.taskId;
-    const sessionId = meta?.sessionId;
+    const sessionId = params.sessionId;
     if (!sessionId) {
       throw new Error("Cannot resume session without sessionId");
     }
@@ -296,8 +318,31 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   }
 
   async prompt(params: PromptRequest): Promise<PromptResponse> {
+    if (this.session.promptRunning) {
+      const uuid = randomUUID();
+      const sdkMessage = promptToClaude(params);
+      (sdkMessage as Record<string, unknown>).uuid = uuid;
+
+      await this.broadcastUserMessage(params);
+      this.session.input.push(sdkMessage);
+
+      const order = this.session.nextPendingOrder++;
+      const cancelled = await new Promise<boolean>((resolve) => {
+        this.session.pendingMessages.set(uuid, { resolve, order });
+      });
+
+      return { stopReason: cancelled ? "cancelled" : "end_turn" };
+    }
+
+    this.session.promptRunning = true;
     this.session.cancelled = false;
     this.session.interruptReason = undefined;
+    this.session.accumulatedUsage = {
+      inputTokens: 0,
+      outputTokens: 0,
+      cachedReadTokens: 0,
+      cachedWriteTokens: 0,
+    };
 
     await this.broadcastUserMessage(params);
     this.session.input.push(promptToClaude(params));
@@ -330,6 +375,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   }
 
   protected async interruptSession(): Promise<void> {
+    for (const [uuid, pending] of this.session.pendingMessages) {
+      pending.resolve(true);
+      this.session.pendingMessages.delete(uuid);
+    }
     await this.session.query.interrupt();
   }
 
@@ -338,17 +387,86 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     params: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
     if (method === "_posthog/session/resume") {
-      const result = await this.resumeSession(
-        params as unknown as LoadSessionRequest,
+      const result = await this.unstable_resumeSession(
+        params as unknown as ResumeSessionRequest,
       );
-      return {
-        _meta: {
-          configOptions: result.configOptions,
-        },
-      };
+      return { _meta: { configOptions: result.configOptions } };
+    }
+    throw RequestError.methodNotFound(method);
+  }
+
+  async unstable_listSessions(
+    params: ListSessionsRequest,
+  ): Promise<ListSessionsResponse> {
+    const sessions = await listSessions({
+      dir: params.cwd ?? undefined,
+    });
+    return {
+      sessions: sessions.map((s) => ({
+        sessionId: s.sessionId,
+        cwd: s.cwd ?? params.cwd ?? "",
+        title: s.customTitle ?? s.summary,
+        updatedAt: new Date(s.lastModified).toISOString(),
+      })),
+    };
+  }
+
+  async unstable_forkSession(
+    params: ForkSessionRequest,
+  ): Promise<ForkSessionResponse> {
+    const cwd = params.cwd || this.session?.cwd || process.cwd();
+    const permissionMode = this.session?.permissionMode ?? "default";
+    const mcpServers = parseMcpServers({
+      ...params,
+      mcpServers: params.mcpServers ?? [],
+    });
+
+    const newSessionId = uuidv7();
+
+    const { query: q } = await this.initializeQuery({
+      cwd,
+      permissionMode,
+      mcpServers,
+      sessionId: params.sessionId,
+      isResume: true,
+      forkSession: true,
+    });
+
+    try {
+      const result = await withTimeout(
+        q.initializationResult(),
+        SESSION_VALIDATION_TIMEOUT_MS,
+      );
+      if (result.result === "timeout") {
+        throw new Error(
+          `Session fork timed out for sessionId=${params.sessionId}`,
+        );
+      }
+    } catch (err) {
+      this.logger.error("Session fork failed", {
+        sessionId: params.sessionId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
     }
 
-    throw RequestError.methodNotFound(method);
+    this.deferBackgroundFetches(q, newSessionId);
+
+    const configOptions = await this.buildConfigOptions();
+    return { sessionId: newSessionId, configOptions };
+  }
+
+  async unstable_resumeSession(
+    params: ResumeSessionRequest,
+  ): Promise<ResumeSessionResponse> {
+    const loadParams: LoadSessionRequest = {
+      cwd: params.cwd,
+      mcpServers: params.mcpServers ?? [],
+      sessionId: params.sessionId,
+      _meta: params._meta,
+    };
+    const result = await this.resumeSession(loadParams);
+    return { configOptions: result.configOptions };
   }
 
   private createSession(
@@ -367,6 +485,15 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       cwd,
       notificationHistory: [],
       abortController,
+      accumulatedUsage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cachedReadTokens: 0,
+        cachedWriteTokens: 0,
+      },
+      promptRunning: false,
+      pendingMessages: new Map(),
+      nextPendingOrder: 0,
     };
     this.session = session;
     this.sessionId = sessionId;
@@ -381,6 +508,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     systemPrompt?: Options["systemPrompt"];
     sessionId: string;
     isResume: boolean;
+    forkSession?: boolean;
     additionalDirectories?: string[];
   }): Promise<{
     query: Query;
@@ -399,6 +527,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       userProvidedOptions: config.userProvidedOptions,
       sessionId: config.sessionId,
       isResume: config.isResume,
+      forkSession: config.forkSession,
       additionalDirectories: config.additionalDirectories,
       onModeChange: this.createOnModeChange(config.sessionId),
       onProcessSpawned: this.options?.onProcessSpawned,
@@ -421,13 +550,14 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   }
 
   private createCanUseTool(sessionId: string): CanUseTool {
-    return async (toolName, toolInput, { suggestions, toolUseID }) =>
+    return async (toolName, toolInput, { suggestions, toolUseID, signal }) =>
       canUseTool({
         session: this.session,
         toolName,
         toolInput: toolInput as Record<string, unknown>,
         toolUseID,
         suggestions,
+        signal,
         client: this.client,
         sessionId,
         fileContentCache: this.fileContentCache,
@@ -570,6 +700,44 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     }, 0);
   }
 
+  private async replaySessionHistory(sessionId: string): Promise<void> {
+    try {
+      const messages = await getSessionMessages(sessionId, {
+        dir: this.session.cwd,
+      });
+
+      const replayContext = {
+        session: this.session,
+        sessionId,
+        client: this.client,
+        toolUseCache: this.toolUseCache,
+        fileContentCache: this.fileContentCache,
+        logger: this.logger,
+        registerHooks: false,
+      };
+
+      for (const msg of messages) {
+        const sdkMessage = {
+          type: msg.type,
+          message: msg.message as {
+            content: string | Array<{ type: string; text?: string }>;
+            role: typeof msg.type;
+          },
+          parent_tool_use_id: msg.parent_tool_use_id,
+        };
+        await handleUserAssistantMessage(
+          sdkMessage as Parameters<typeof handleUserAssistantMessage>[0],
+          replayContext,
+        );
+      }
+    } catch (err) {
+      this.logger.warn("Failed to replay session history", {
+        sessionId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   private async broadcastUserMessage(params: PromptRequest): Promise<void> {
     for (const chunk of params.prompt) {
       const notification = {
@@ -585,6 +753,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   }
 
   private async processMessages(sessionId: string): Promise<PromptResponse> {
+    const supportsTerminalOutput =
+      (this.clientCapabilities?._meta as Record<string, unknown> | undefined)
+        ?.terminal_output === true;
+
     const context = {
       session: this.session,
       sessionId,
@@ -592,19 +764,42 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       toolUseCache: this.toolUseCache,
       fileContentCache: this.fileContentCache,
       logger: this.logger,
+      supportsTerminalOutput,
     };
 
-    while (true) {
-      const { value: message, done } = await this.session.query.next();
+    try {
+      while (true) {
+        const { value: message, done } = await this.session.query.next();
 
-      if (done || !message) {
-        return this.handleSessionEnd();
-      }
+        if (done || !message) {
+          return this.handleSessionEnd();
+        }
 
-      const response = await this.handleMessage(message, context);
-      if (response) {
-        return response;
+        const response = await this.handleMessage(message, context);
+        if (response) {
+          return response;
+        }
       }
+    } finally {
+      this.session.promptRunning = false;
+      this.resolveNextPendingMessage();
+    }
+  }
+
+  private resolveNextPendingMessage(): void {
+    if (this.session.pendingMessages.size === 0) return;
+
+    let nextEntry: { uuid: string; order: number } | undefined;
+    for (const [uuid, pending] of this.session.pendingMessages) {
+      if (!nextEntry || pending.order < nextEntry.order) {
+        nextEntry = { uuid, order: pending.order };
+      }
+    }
+
+    if (nextEntry) {
+      const pending = this.session.pendingMessages.get(nextEntry.uuid);
+      this.session.pendingMessages.delete(nextEntry.uuid);
+      pending?.resolve(false);
     }
   }
 
@@ -631,10 +826,33 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
       case "result": {
         const result = handleResultMessage(message, context);
+        if (result.usage) {
+          this.session.accumulatedUsage.inputTokens += result.usage.inputTokens;
+          this.session.accumulatedUsage.outputTokens +=
+            result.usage.outputTokens;
+          this.session.accumulatedUsage.cachedReadTokens +=
+            result.usage.cachedReadTokens;
+          this.session.accumulatedUsage.cachedWriteTokens +=
+            result.usage.cachedWriteTokens;
+
+          await this.client.extNotification("_posthog/usage_update", {
+            sessionId: context.sessionId,
+            used: {
+              inputTokens: result.usage.inputTokens,
+              outputTokens: result.usage.outputTokens,
+              cachedReadTokens: result.usage.cachedReadTokens,
+              cachedWriteTokens: result.usage.cachedWriteTokens,
+            },
+            cost: result.usage.costUsd,
+          });
+        }
         if (result.error) throw result.error;
         if (result.shouldStop) {
           return {
             stopReason: result.stopReason as "end_turn" | "max_turn_requests",
+            _meta: {
+              usage: this.session.accumulatedUsage,
+            },
           };
         }
         return null;
