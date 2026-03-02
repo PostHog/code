@@ -1,18 +1,23 @@
-export function getLlmGatewayUrl(posthogHost: string): string {
+export type GatewayProduct = "twig" | "background_agents";
+
+export function getLlmGatewayUrl(
+  posthogHost: string,
+  product: GatewayProduct = "twig",
+): string {
   const url = new URL(posthogHost);
   const hostname = url.hostname;
 
   // Local development (normalize 127.0.0.1 to localhost)
   if (hostname === "localhost" || hostname === "127.0.0.1") {
-    return `${url.protocol}//localhost:3308/twig`;
+    return `${url.protocol}//localhost:3308/${product}`;
   }
 
   // Docker containers accessing host
   if (hostname === "host.docker.internal") {
-    return `${url.protocol}//host.docker.internal:3308/twig`;
+    return `${url.protocol}//host.docker.internal:3308/${product}`;
   }
 
   // Production - extract region from hostname, default to US
   const region = hostname.match(/^(us|eu)\.posthog\.com$/)?.[1] ?? "us";
-  return `https://gateway.${region}.posthog.com/twig`;
+  return `https://gateway.${region}.posthog.com/${product}`;
 }
