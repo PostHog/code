@@ -3,7 +3,7 @@ import { useAuthStore } from "@features/auth/stores/authStore";
 import {
   useInboxReportArtefacts,
   useInboxReportSignals,
-  useInboxReports,
+  useInboxReportsInfinite,
 } from "@features/inbox/hooks/useInboxReports";
 import { useInboxCloudTaskStore } from "@features/inbox/stores/inboxCloudTaskStore";
 import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsFilterStore";
@@ -40,7 +40,7 @@ import type {
   SignalReportsQueryParams,
 } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { SignalsErrorState, SignalsLoadingState } from "./InboxEmptyStates";
 import { ReportCard } from "./ReportCard";
@@ -68,6 +68,46 @@ function getArtefactsUnavailableMessage(
   }
 }
 
+function LoadMoreTrigger({
+  hasNextPage,
+  isFetchingNextPage,
+  fetchNextPage,
+}: {
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  fetchNextPage: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !hasNextPage) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  if (!hasNextPage && !isFetchingNextPage) return null;
+
+  return (
+    <Flex ref={ref} align="center" justify="center" py="3">
+      {isFetchingNextPage ? (
+        <Text size="1" color="gray" className="font-mono text-[11px]">
+          Loading more...
+        </Text>
+      ) : null}
+    </Flex>
+  );
+}
+
 export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
   const sortField = useInboxSignalsFilterStore((s) => s.sortField);
   const sortDirection = useInboxSignalsFilterStore((s) => s.sortDirection);
@@ -81,9 +121,17 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
     [sortField, sortDirection],
   );
 
-  const { data, isLoading, isFetching, error, refetch } =
-    useInboxReports(queryParams);
-  const allReports = data?.results ?? [];
+  const {
+    allReports,
+    totalCount,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInboxReportsInfinite(queryParams);
   const reports = useMemo(
     () => filterReportsBySearch(allReports, searchQuery),
     [allReports, searchQuery],
@@ -272,7 +320,7 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
         >
           <Flex direction="column">
             <SignalsToolbar
-              totalCount={allReports.length}
+              totalCount={totalCount}
               filteredCount={reports.length}
               isSearchActive={!!searchQuery.trim()}
             />
@@ -300,6 +348,11 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
                 }}
               />
             ))}
+            <LoadMoreTrigger
+              hasNextPage={hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              fetchNextPage={fetchNextPage}
+            />
           </Flex>
         </ScrollArea>
       </Box>
