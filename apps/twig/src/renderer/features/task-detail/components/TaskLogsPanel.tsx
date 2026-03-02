@@ -106,18 +106,15 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   useEffect(() => {
     if (!isCloud || !task.latest_run?.id) return;
     const runId = task.latest_run.id;
-    trpcVanilla.cloudTask.setViewing
-      .mutate({ taskId: task.id, runId, viewing: true })
-      .catch(() => {});
-    const cleanup = getSessionService().watchCloudTask(task.id, runId, () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-    });
-    return () => {
-      trpcVanilla.cloudTask.setViewing
-        .mutate({ taskId: task.id, runId, viewing: false })
-        .catch(() => {});
-      cleanup?.();
-    };
+    const cleanup = getSessionService().watchCloudTask(
+      task.id,
+      runId,
+      () => {
+        queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      },
+      true,
+    );
+    return cleanup;
   }, [isCloud, task.id, task.latest_run?.id, queryClient]);
 
   // Local session connection
