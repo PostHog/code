@@ -77,7 +77,7 @@ import type {
   BetaContentBlock,
   BetaRawContentBlockDelta,
 } from "@anthropic-ai/sdk/resources/beta.mjs";
-import packageJson from "../package.json" with { type: "json" };
+import packageJson from "../../../package.json" with { type: "json" };
 import { SettingsManager } from "./settings.js";
 import {
   type ClaudePlanEntry,
@@ -533,8 +533,8 @@ export class ClaudeAcpAgent implements Agent {
                 sessionId: params.sessionId,
                 update: {
                   sessionUpdate: "usage_update",
-                  used: lastAssistantTotalUsage,
-                  size: contextWindowSize,
+                  used: BigInt(lastAssistantTotalUsage),
+                  size: BigInt(contextWindowSize),
                   cost: {
                     amount: message.total_cost_usd,
                     currency: "USD",
@@ -545,15 +545,20 @@ export class ClaudeAcpAgent implements Agent {
 
             // Build the usage response
             const usage: PromptResponse["usage"] = {
-              inputTokens: session.accumulatedUsage.inputTokens,
-              outputTokens: session.accumulatedUsage.outputTokens,
-              cachedReadTokens: session.accumulatedUsage.cachedReadTokens,
-              cachedWriteTokens: session.accumulatedUsage.cachedWriteTokens,
-              totalTokens:
-                session.accumulatedUsage.inputTokens +
-                session.accumulatedUsage.outputTokens +
-                session.accumulatedUsage.cachedReadTokens +
+              inputTokens: BigInt(session.accumulatedUsage.inputTokens),
+              outputTokens: BigInt(session.accumulatedUsage.outputTokens),
+              cachedReadTokens: BigInt(
+                session.accumulatedUsage.cachedReadTokens,
+              ),
+              cachedWriteTokens: BigInt(
                 session.accumulatedUsage.cachedWriteTokens,
+              ),
+              totalTokens: BigInt(
+                session.accumulatedUsage.inputTokens +
+                  session.accumulatedUsage.outputTokens +
+                  session.accumulatedUsage.cachedReadTokens +
+                  session.accumulatedUsage.cachedWriteTokens,
+              ),
             };
 
             switch (message.subtype) {
@@ -768,6 +773,7 @@ export class ClaudeAcpAgent implements Agent {
     }
     await this.sessions[params.sessionId].query.setModel(params.modelId);
     await this.updateConfigOption(params.sessionId, "model", params.modelId);
+    return undefined;
   }
 
   async setSessionMode(
@@ -1381,7 +1387,9 @@ async function getAvailableModels(
         m.value.includes(settings.model!) ||
         settings.model?.includes(m.value) ||
         m.displayName.toLowerCase() === settings.model?.toLowerCase() ||
-        m.displayName.toLowerCase().includes(settings.model?.toLowerCase()),
+        m.displayName
+          .toLowerCase()
+          .includes(settings.model?.toLowerCase() ?? ""),
     );
     if (match) {
       currentModel = match;

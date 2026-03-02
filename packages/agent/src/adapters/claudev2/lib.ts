@@ -2,7 +2,6 @@
 export {
   ClaudeAcpAgent,
   type NewSessionMeta,
-  runAcp,
   streamEventToAcpNotifications,
   type ToolUpdateMeta,
   toAcpNotifications,

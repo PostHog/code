@@ -81,11 +81,11 @@ export function nodeToWebReadable(
 }
 
 export function unreachable(value: never, logger: Logger = console) {
-  let valueAsString;
+  let valueAsString: string;
   try {
     valueAsString = JSON.stringify(value);
   } catch {
-    valueAsString = value;
+    valueAsString = String(value);
   }
   logger.error(`Unexpected case: ${valueAsString}`);
 }
