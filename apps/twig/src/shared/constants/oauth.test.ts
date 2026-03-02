@@ -8,9 +8,10 @@ describe("OAUTH_SCOPES guard", () => {
       scopes: OAUTH_SCOPES,
     }).toMatchInlineSnapshot(`
       {
-        "scopeVersion": 1,
+        "scopeVersion": 2,
         "scopes": [
           "user:read",
+          "user:write",
           "project:read",
           "task:write",
           "llm_gateway:read",
