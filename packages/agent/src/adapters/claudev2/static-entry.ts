@@ -3,5 +3,5 @@ if (process.argv.includes("--cli")) {
   // @ts-expect-error -- no types
   await import("@anthropic-ai/claude-agent-sdk/cli.js");
 } else {
-  await import("./index.js");
+  await import("./lib.js");
 }

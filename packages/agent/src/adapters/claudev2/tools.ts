@@ -356,7 +356,7 @@ export function toolInfoFromToolUse(
 
     case "Other": {
       const input = toolUse.input;
-      let output;
+      let output: string;
       try {
         output = JSON.stringify(input, null, 2);
       } catch {
@@ -657,13 +657,13 @@ export function planEntries(input: { todos: ClaudePlanEntry[] }): PlanEntry[] {
 }
 
 export function markdownEscape(text: string): string {
-  let escape = "```";
+  let fence = "```";
   for (const [m] of text.matchAll(/^```+/gm)) {
-    while (m.length >= escape.length) {
-      escape += "`";
+    while (m.length >= fence.length) {
+      fence += "`";
     }
   }
-  return `${escape}\n${text}${text.endsWith("\n") ? "" : "\n"}${escape}`;
+  return `${fence}\n${text}${text.endsWith("\n") ? "" : "\n"}${fence}`;
 }
 
 interface EditToolResponseHunk {
