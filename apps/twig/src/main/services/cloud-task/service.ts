@@ -70,6 +70,9 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     const existing = this.watchers.get(key);
     if (existing) {
       existing.subscriberCount++;
+      if (input.viewing && !existing.viewing) {
+        this.setViewing(input.taskId, input.runId, true);
+      }
       log.info("Cloud task watcher subscriber added", {
         key,
         subscribers: existing.subscriberCount,
@@ -262,7 +265,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       lastBranch: null,
       lastStatusPollTime: 0,
       subscriberCount,
-      viewing: false,
+      viewing: input.viewing ?? false,
     };
 
     this.watchers.set(key, watcher);

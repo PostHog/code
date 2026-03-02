@@ -1623,6 +1623,7 @@ export class SessionService {
     taskId: string,
     runId: string,
     onStatusChange?: () => void,
+    viewing?: boolean,
   ): () => void {
     const watcherKey = `${taskId}:${runId}`;
     const taskRunId = runId;
@@ -1663,6 +1664,7 @@ export class SessionService {
         runId,
         apiHost: getCloudUrlFromRegion(auth.cloudRegion),
         teamId: auth.projectId,
+        viewing,
       })
       .catch((err: unknown) =>
         log.warn("Failed to start cloud task watcher", { taskId, err }),
