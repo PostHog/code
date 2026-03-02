@@ -1,10 +1,10 @@
-import { useArchiveUiStore } from "@features/archive/stores/archiveUiStore";
 import { getSessionService } from "@features/sessions/service/service";
 import { usePinnedTasksStore } from "@features/sidebar/stores/pinnedTasksStore";
 import { useTerminalStore } from "@features/terminal/stores/terminalStore";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { logger } from "@renderer/lib/logger";
 import { trpcVanilla } from "@renderer/trpc";
+import type { ArchivedTask } from "@shared/types/archive";
 import { useFocusStore } from "@stores/focusStore";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useQueryClient } from "@tanstack/react-query";
@@ -21,13 +21,39 @@ export function useArchiveTask() {
 
   const archiveTask = async (input: ArchiveTaskInput) => {
     const { taskId } = input;
-    const { archivingTaskId, setArchivingTaskId } =
-      useArchiveUiStore.getState();
-    if (archivingTaskId) return;
-    setArchivingTaskId(taskId);
     const focusStore = useFocusStore.getState();
     const workspaceStore = useWorkspaceStore.getState();
     const workspace = workspaceStore.workspaces[taskId];
+    const pinnedTasksStore = usePinnedTasksStore.getState();
+    const wasPinned = pinnedTasksStore.pinnedTaskIds.has(taskId);
+
+    const nav = useNavigationStore.getState();
+    if (nav.view.type === "task-detail" && nav.view.data?.id === taskId) {
+      nav.navigateToTaskInput();
+    }
+
+    workspaceStore.removeWorkspace(taskId);
+    pinnedTasksStore.unpin(taskId);
+    useTerminalStore.getState().clearTerminalStatesForTask(taskId);
+
+    queryClient.setQueryData<string[]>(
+      [["archive", "archivedTaskIds"], { type: "query" }],
+      (old) => (old ? [...old, taskId] : [taskId]),
+    );
+
+    const optimisticArchived: ArchivedTask = {
+      taskId,
+      archivedAt: new Date().toISOString(),
+      folderId: workspace?.folderId ?? "",
+      mode: workspace?.mode ?? "worktree",
+      worktreeName: workspace?.worktreeName ?? null,
+      branchName: workspace?.branchName ?? null,
+      checkpointId: null,
+    };
+    queryClient.setQueryData<ArchivedTask[]>(
+      [["archive", "list"], { type: "query" }],
+      (old) => (old ? [...old, optimisticArchived] : [optimisticArchived]),
+    );
 
     if (
       workspace?.worktreePath &&
@@ -44,15 +70,6 @@ export function useArchiveTask() {
         taskId,
       });
 
-      workspaceStore.removeWorkspace(taskId);
-      usePinnedTasksStore.getState().unpin(taskId);
-      useTerminalStore.getState().clearTerminalStatesForTask(taskId);
-
-      const nav = useNavigationStore.getState();
-      if (nav.view.type === "task-detail" && nav.view.data?.id === taskId) {
-        nav.navigateToTaskInput();
-      }
-
       queryClient.invalidateQueries({
         queryKey: [["archive"]],
       });
@@ -61,9 +78,23 @@ export function useArchiveTask() {
     } catch (error) {
       log.error("Failed to archive task", error);
       toast.error("Failed to archive task");
+
+      queryClient.setQueryData<string[]>(
+        [["archive", "archivedTaskIds"], { type: "query" }],
+        (old) => (old ? old.filter((id) => id !== taskId) : []),
+      );
+      queryClient.setQueryData<ArchivedTask[]>(
+        [["archive", "list"], { type: "query" }],
+        (old) => (old ? old.filter((a) => a.taskId !== taskId) : []),
+      );
+      if (workspace) {
+        workspaceStore.updateWorkspace(taskId, workspace);
+      }
+      if (wasPinned) {
+        pinnedTasksStore.togglePin(taskId);
+      }
+
       throw error;
-    } finally {
-      useArchiveUiStore.getState().setArchivingTaskId(null);
     }
   };
 

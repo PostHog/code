@@ -6,8 +6,8 @@ import type {
   TaskFolderAssociation,
 } from "../../shared/types";
 import type { ArchivedTask } from "../../shared/types/archive";
-import { logger } from "./logger";
 import { getWorktreeLocation } from "../services/settingsStore";
+import { logger } from "./logger";
 import { deriveWorktreePath } from "./worktree-helpers";
 
 interface FocusSession {

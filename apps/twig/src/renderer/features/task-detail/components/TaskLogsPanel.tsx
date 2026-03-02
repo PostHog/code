@@ -34,6 +34,7 @@ interface TaskLogsPanelProps {
 export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   const repoPath = useCwd(taskId);
   const workspace = useWorkspaceStore((s) => s.workspaces[taskId]);
+  const loadWorkspaces = useWorkspaceStore((s) => s.loadWorkspaces);
   const queryClient = useQueryClient();
   const isWorkspaceLoaded = useWorkspaceStore((s) => s.isLoaded);
   const isCreatingWorkspace = useWorkspaceStore((s) => !!s.isCreating[taskId]);
@@ -92,6 +93,12 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   useEffect(() => {
     requestFocus(taskId);
   }, [taskId, requestFocus]);
+
+  useEffect(() => {
+    if (!workspace && isWorkspaceLoaded && !isCreatingWorkspace) {
+      loadWorkspaces();
+    }
+  }, [workspace, isWorkspaceLoaded, isCreatingWorkspace, loadWorkspaces]);
 
   // Keep cloud session title aligned with latest task metadata.
   useEffect(() => {

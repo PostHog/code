@@ -1,17 +1,13 @@
 import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
 import { Tooltip } from "@components/ui/Tooltip";
 import {
-  selectIsArchiving,
-  useArchiveUiStore,
-} from "@features/archive/stores/archiveUiStore";
-import {
+  Archive,
   ArrowsClockwise,
   BellRinging,
   Cloud as CloudIcon,
   GitBranch as GitBranchIcon,
   Laptop as LaptopIcon,
   PushPin,
-  Trash,
 } from "@phosphor-icons/react";
 import type { WorkspaceMode } from "@shared/types";
 import { selectIsFocusedOnWorktree, useFocusStore } from "@stores/focusStore";
@@ -40,7 +36,7 @@ interface TaskItemProps {
   onClick: () => void;
   onDoubleClick?: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
-  onDelete?: () => void;
+  onArchive?: () => void;
   onTogglePin?: () => void;
   onEditSubmit?: (newTitle: string) => void;
   onEditCancel?: () => void;
@@ -69,13 +65,13 @@ function formatRelativeTime(timestamp: number): string {
 interface TaskHoverToolbarProps {
   isPinned: boolean;
   onTogglePin?: () => void;
-  onDelete?: () => void;
+  onArchive?: () => void;
 }
 
 function TaskHoverToolbar({
   isPinned,
   onTogglePin,
-  onDelete,
+  onArchive,
 }: TaskHoverToolbarProps) {
   return (
     <span className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
@@ -101,26 +97,26 @@ function TaskHoverToolbar({
           <PushPin size={12} weight={isPinned ? "fill" : "regular"} />
         </span>
       )}
-      {onDelete && (
+      {onArchive && (
         // biome-ignore lint/a11y/useSemanticElements: Cannot use button inside parent button (SidebarItem)
         <span
           role="button"
           tabIndex={0}
-          className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-gray-10 transition-colors hover:bg-red-4 hover:text-red-11"
+          className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
           onClick={(e) => {
             e.stopPropagation();
-            onDelete();
+            onArchive();
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               e.stopPropagation();
-              onDelete();
+              onArchive();
             }
           }}
-          title="Delete task"
+          title="Archive task"
         >
-          <Trash size={12} />
+          <Archive size={12} />
         </span>
       )}
     </span>
@@ -179,7 +175,7 @@ function CloudStatusIcon({
 
 export function TaskItem({
   depth = 0,
-  taskId,
+  taskId: _taskId,
   label,
   isActive,
   workspaceMode,
@@ -194,7 +190,7 @@ export function TaskItem({
   onClick,
   onDoubleClick,
   onContextMenu,
-  onDelete,
+  onArchive,
   onTogglePin,
   onEditSubmit,
   onEditCancel,
@@ -202,16 +198,11 @@ export function TaskItem({
   const isFocused = useFocusStore(
     selectIsFocusedOnWorktree(worktreePath ?? ""),
   );
-  const isArchiving = useArchiveUiStore(selectIsArchiving(taskId));
 
   const isWorktreeTask = workspaceMode === "worktree";
   const isCloudTask = workspaceMode === "cloud";
 
-  const displayLabel = isArchiving ? "Archiving..." : label;
-
-  const icon = isArchiving ? (
-    <DotsCircleSpinner size={ICON_SIZE} className="text-gray-10" />
-  ) : needsPermission ? (
+  const icon = needsPermission ? (
     <BellRinging size={ICON_SIZE} className="text-blue-11" />
   ) : isGenerating ? (
     <DotsCircleSpinner size={ICON_SIZE} className="text-accent-11" />
@@ -256,11 +247,11 @@ export function TaskItem({
   ) : null;
 
   const toolbar =
-    onDelete || onTogglePin ? (
+    onArchive || onTogglePin ? (
       <TaskHoverToolbar
         isPinned={isPinned}
         onTogglePin={onTogglePin}
-        onDelete={onDelete}
+        onArchive={onArchive}
       />
     ) : null;
 
@@ -289,9 +280,8 @@ export function TaskItem({
     <SidebarItem
       depth={depth}
       icon={icon}
-      label={displayLabel}
+      label={label}
       isActive={isActive}
-      isDimmed={isArchiving}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}

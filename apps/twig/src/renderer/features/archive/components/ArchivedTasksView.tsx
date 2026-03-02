@@ -1,15 +1,21 @@
 import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
+import { Tooltip } from "@components/ui/Tooltip";
 import { useTasks } from "@features/tasks/hooks/useTasks";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
+import {
+  Cloud as CloudIcon,
+  GitBranch as GitBranchIcon,
+  Laptop as LaptopIcon,
+} from "@phosphor-icons/react";
 import { Box, Button, Dialog, Flex, Table, Text } from "@radix-ui/themes";
 import { trpcReact, trpcVanilla } from "@renderer/trpc";
-import type { Task } from "@shared/types";
+import type { Task, WorkspaceMode } from "@shared/types";
 import type { ArchivedTask } from "@shared/types/archive";
+import { useNavigationStore } from "@stores/navigationStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@utils/toast";
 import { useMemo, useState } from "react";
-import { useArchiveUiStore } from "../stores/archiveUiStore";
 
 const BRANCH_NOT_FOUND_PATTERN = /Branch '(.+)' does not exist/;
 
@@ -47,6 +53,36 @@ function getRepoName(repository: string | null | undefined): string {
   return repository?.split("/").pop() ?? "—";
 }
 
+const ICON_SIZE = 12;
+
+function ModeIcon({ mode }: { mode: WorkspaceMode }) {
+  if (mode === "cloud") {
+    return (
+      <Tooltip content="Cloud">
+        <span className="flex items-center justify-center">
+          <CloudIcon size={ICON_SIZE} className="text-gray-10" />
+        </span>
+      </Tooltip>
+    );
+  }
+  if (mode === "worktree") {
+    return (
+      <Tooltip content="Worktree">
+        <span className="flex items-center justify-center">
+          <GitBranchIcon size={ICON_SIZE} className="text-gray-10" />
+        </span>
+      </Tooltip>
+    );
+  }
+  return (
+    <Tooltip content="Local">
+      <span className="flex items-center justify-center">
+        <LaptopIcon size={ICON_SIZE} className="text-gray-10" />
+      </span>
+    </Tooltip>
+  );
+}
+
 interface BranchNotFoundPrompt {
   taskId: string;
   branchName: string;
@@ -60,7 +96,6 @@ export interface ArchivedTaskWithDetails {
 export interface ArchivedTasksViewPresentationProps {
   items: ArchivedTaskWithDetails[];
   isLoading: boolean;
-  unarchivingId: string | null;
   branchNotFound: BranchNotFoundPrompt | null;
   onUnarchive: (taskId: string) => void;
   onDelete: (taskId: string, taskTitle: string) => void;
@@ -72,7 +107,6 @@ export interface ArchivedTasksViewPresentationProps {
 export function ArchivedTasksViewPresentation({
   items,
   isLoading,
-  unarchivingId,
   branchNotFound,
   onUnarchive,
   onDelete,
@@ -123,9 +157,12 @@ export function ArchivedTasksViewPresentation({
                   className="group"
                 >
                   <Table.Cell>
-                    <Text className="block max-w-[600px] truncate font-mono text-[12px]">
-                      {item.task?.title ?? "Unknown task"}
-                    </Text>
+                    <Flex align="center" gap="2">
+                      <ModeIcon mode={item.archived.mode} />
+                      <Text className="block max-w-[600px] truncate font-mono text-[12px]">
+                        {item.task?.title ?? "Unknown task"}
+                      </Text>
+                    </Flex>
                   </Table.Cell>
                   <Table.Cell>
                     <Text className="block whitespace-nowrap font-mono text-[12px] text-gray-11">
@@ -138,21 +175,12 @@ export function ArchivedTasksViewPresentation({
                     </Text>
                   </Table.Cell>
                   <Table.Cell>
-                    <Flex
-                      gap="2"
-                      className={
-                        unarchivingId === item.archived.taskId
-                          ? "visible"
-                          : "invisible group-hover:visible"
-                      }
-                    >
+                    <Flex gap="2" className="invisible group-hover:visible">
                       <Button
                         variant="outline"
                         color="gray"
                         size="1"
                         onClick={() => onUnarchive(item.archived.taskId)}
-                        disabled={unarchivingId === item.archived.taskId}
-                        loading={unarchivingId === item.archived.taskId}
                       >
                         Unarchive
                       </Button>
@@ -166,7 +194,6 @@ export function ArchivedTasksViewPresentation({
                             item.task?.title ?? "Unknown task",
                           )
                         }
-                        disabled={unarchivingId === item.archived.taskId}
                       >
                         Delete
                       </Button>
@@ -225,8 +252,6 @@ export function ArchivedTasksView() {
     </Text>,
   );
 
-  const unarchivingId = useArchiveUiStore((s) => s.unarchivingTaskId);
-  const setUnarchivingId = useArchiveUiStore((s) => s.setUnarchivingTaskId);
   const [branchNotFound, setBranchNotFound] =
     useState<BranchNotFoundPrompt | null>(null);
 
@@ -240,20 +265,30 @@ export function ArchivedTasksView() {
 
   const isLoading = isLoadingArchived || isLoadingTasks;
 
-  const invalidateArchiveQueries = () => {
-    queryClient.invalidateQueries({ queryKey: ["archivedTaskIds"] });
-    queryClient.invalidateQueries({ queryKey: [["archive"]] });
-    queryClient.invalidateQueries({ queryKey: ["tasks"] });
+  const invalidateArchiveQueries = async () => {
+    await Promise.all([
+      queryClient.refetchQueries({ queryKey: ["archivedTaskIds"] }),
+      queryClient.refetchQueries({ queryKey: [["archive"]] }),
+      queryClient.refetchQueries({ queryKey: ["tasks"] }),
+    ]);
   };
 
   const handleUnarchive = async (taskId: string) => {
-    if (unarchivingId) return;
-    setUnarchivingId(taskId);
+    const item = items.find((i) => i.archived.taskId === taskId);
+    const task = item?.task;
+
     try {
       await trpcVanilla.archive.unarchive.mutate({ taskId });
-      invalidateArchiveQueries();
       await loadWorkspaces();
-      toast.success("Task unarchived");
+      await invalidateArchiveQueries();
+      toast.success("Task unarchived", {
+        action: task
+          ? {
+              label: "View task",
+              onClick: () => useNavigationStore.getState().navigateToTask(task),
+            }
+          : undefined,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const match = message.match(BRANCH_NOT_FOUND_PATTERN);
@@ -262,14 +297,10 @@ export function ArchivedTasksView() {
       } else {
         toast.error(`Failed to unarchive task: ${message}`);
       }
-    } finally {
-      setUnarchivingId(null);
     }
   };
 
   const executeDelete = async (taskId: string) => {
-    if (unarchivingId) return;
-    setUnarchivingId(taskId);
     try {
       await trpcVanilla.archive.delete.mutate({ taskId });
       invalidateArchiveQueries();
@@ -277,14 +308,10 @@ export function ArchivedTasksView() {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       toast.error(`Failed to delete task: ${message}`);
-    } finally {
-      setUnarchivingId(null);
     }
   };
 
   const handleDelete = async (taskId: string, taskTitle: string) => {
-    if (unarchivingId) return;
-
     const { confirmed } =
       await trpcVanilla.contextMenu.confirmDeleteArchivedTask.mutate({
         taskTitle,
@@ -328,21 +355,27 @@ export function ArchivedTasksView() {
   const handleRecreateBranch = async () => {
     if (!branchNotFound) return;
     const { taskId } = branchNotFound;
+    const item = items.find((i) => i.archived.taskId === taskId);
+    const task = item?.task;
     setBranchNotFound(null);
-    setUnarchivingId(taskId);
     try {
       await trpcVanilla.archive.unarchive.mutate({
         taskId,
         recreateBranch: true,
       });
-      invalidateArchiveQueries();
       await loadWorkspaces();
-      toast.success("Task unarchived");
+      await invalidateArchiveQueries();
+      toast.success("Task unarchived", {
+        action: task
+          ? {
+              label: "View task",
+              onClick: () => useNavigationStore.getState().navigateToTask(task),
+            }
+          : undefined,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       toast.error(`Failed to unarchive task: ${message}`);
-    } finally {
-      setUnarchivingId(null);
     }
   };
 
@@ -350,7 +383,6 @@ export function ArchivedTasksView() {
     <ArchivedTasksViewPresentation
       items={items}
       isLoading={isLoading}
-      unarchivingId={unarchivingId}
       branchNotFound={branchNotFound}
       onUnarchive={handleUnarchive}
       onDelete={handleDelete}

@@ -72,7 +72,6 @@ const meta: Meta<typeof ArchivedTasksViewPresentation> = {
   args: {
     items: sampleItems,
     isLoading: false,
-    unarchivingId: null,
     branchNotFound: null,
     onUnarchive: () => {},
     onDelete: (_taskId: string, _taskTitle: string) => {},
@@ -93,10 +92,6 @@ export const Loading: Story = {
 
 export const Empty: Story = {
   args: { items: [] },
-};
-
-export const Unarchiving: Story = {
-  args: { unarchivingId: "task-2" },
 };
 
 export const BranchNotFoundDialog: Story = {

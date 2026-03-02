@@ -12,12 +12,12 @@ import { container } from "../../di/container.js";
 import { MAIN_TOKENS } from "../../di/tokens.js";
 import { logger } from "../../utils/logger";
 import { foldersStore } from "../../utils/store";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import {
   deriveWorktreePath,
   getFolderPath,
   getTaskAssociations,
 } from "../../utils/worktree-helpers";
-import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import type { AgentService } from "../agent/service.js";
 import { FileWatcherEvent } from "../file-watcher/schemas.js";
 import type { FileWatcherService } from "../file-watcher/service.js";

@@ -3,15 +3,21 @@ import { Card, Flex, Spinner, Text } from "@radix-ui/themes";
 import type { ReactNode } from "react";
 import { toast as sonnerToast } from "sonner";
 
+interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface ToastProps {
   id: string | number;
   type: "loading" | "success" | "error" | "info" | "warning";
   title: ReactNode;
   description?: string;
+  action?: ToastAction;
 }
 
 function ToastComponent(props: ToastProps) {
-  const { type, title, description } = props;
+  const { id, type, title, description, action } = props;
 
   const getIcon = () => {
     switch (type) {
@@ -40,9 +46,25 @@ function ToastComponent(props: ToastProps) {
           {getIcon()}
         </Flex>
         <Flex direction="column" gap="1" style={{ flex: 1, minWidth: 0 }}>
-          <Text size="1" weight="medium">
-            {title}
-          </Text>
+          <Flex align="center" justify="between" gap="2">
+            <Text size="1" weight="medium">
+              {title}
+            </Text>
+            {action && (
+              <Text
+                size="1"
+                weight="medium"
+                color="blue"
+                style={{ cursor: "pointer", flexShrink: 0 }}
+                onClick={() => {
+                  action.onClick();
+                  sonnerToast.dismiss(id);
+                }}
+              >
+                {action.label}
+              </Text>
+            )}
+          </Flex>
           {description && (
             <Text size="1" color="gray" style={{ wordBreak: "break-word" }}>
               {description}
@@ -68,7 +90,11 @@ export const toast = {
 
   success: (
     title: ReactNode,
-    options?: { description?: string; id?: string | number },
+    options?: {
+      description?: string;
+      id?: string | number;
+      action?: ToastAction;
+    },
   ) => {
     return sonnerToast.custom(
       (id) => (
@@ -77,6 +103,7 @@ export const toast = {
           type="success"
           title={title}
           description={options?.description}
+          action={options?.action}
         />
       ),
       { id: options?.id },
