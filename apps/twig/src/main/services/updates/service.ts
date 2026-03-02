@@ -1,8 +1,8 @@
 import { app, autoUpdater } from "electron";
 import { inject, injectable, postConstruct, preDestroy } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../lib/logger.js";
-import { TypedEventEmitter } from "../../lib/typed-event-emitter.js";
+import { logger } from "../../utils/logger.js";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import type { AppLifecycleService } from "../app-lifecycle/service.js";
 import {
   type CheckForUpdatesOutput,

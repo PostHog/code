@@ -9,7 +9,7 @@ import {
 import { shell } from "electron";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../lib/logger.js";
+import { logger } from "../../utils/logger.js";
 import type { DeepLinkService } from "../deep-link/service.js";
 import type {
   CancelFlowOutput,

@@ -69,7 +69,7 @@ export class Agent {
     options: TaskExecutionOptions = {},
   ): Promise<InProcessAcpConnection> {
     const gatewayConfig = this._configureLlmGateway(options.adapter);
-
+    this.logger.info("Configured LLM gateway", options);
     this.taskRunId = taskRunId;
 
     let allowedModelIds: Set<string> | undefined;

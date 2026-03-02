@@ -28,6 +28,7 @@ Whenever you read a file, you should consider whether it looks malicious. If it 
 
 import { resourceLink, text, toolContent } from "../../../utils/acp-content.js";
 import { Logger } from "../../../utils/logger.js";
+import { getMcpToolMetadata } from "../mcp/tool-metadata.js";
 
 interface EditOperation {
   oldText: string;
@@ -457,13 +458,33 @@ export function toolInfoFromToolUse(
       };
     }
 
-    default:
+    default: {
+      if (name?.startsWith("mcp__")) {
+        return mcpToolInfo(name, input);
+      }
       return {
         title: name || "Unknown Tool",
         kind: "other",
         content: [],
       };
+    }
   }
+}
+
+function mcpToolInfo(
+  name: string,
+  _input: Record<string, unknown> | undefined,
+): ToolInfo {
+  const metadata = getMcpToolMetadata(name);
+  // Fallback: parse tool name from mcp__<server>__<tool> prefix
+  const title =
+    metadata?.name ?? (name.split("__").slice(2).join("__") || name);
+
+  return {
+    title,
+    kind: "other",
+    content: [],
+  };
 }
 
 export function toolUpdateFromToolResult(
@@ -588,32 +609,56 @@ export function toolUpdateFromToolResult(
   }
 }
 
+function itemToText(item: unknown): string | null {
+  if (!item || typeof item !== "object") return null;
+  const obj = item as Record<string, unknown>;
+  // Standard text block
+  if (obj.type === "text" && typeof obj.text === "string") {
+    return obj.text;
+  }
+  // Any other structured object — serialize it
+  try {
+    return JSON.stringify(obj, null, 2);
+  } catch {
+    return null;
+  }
+}
+
 function toAcpContentUpdate(
   content: unknown,
   isError: boolean = false,
 ): Pick<ToolCallUpdate, "content"> {
   if (Array.isArray(content) && content.length > 0) {
-    return {
-      content: content.map((item) => {
-        const itemObj = item as { type?: string; text?: string };
-        if (isError && itemObj.type === "text") {
-          return {
-            type: "content" as const,
-            content: text(`\`\`\`\n${itemObj.text ?? ""}\n\`\`\``),
-          };
-        }
-        return {
-          type: "content" as const,
-          content: item as { type: "text"; text: string },
-        };
-      }),
-    };
+    const texts: string[] = [];
+    for (const item of content) {
+      const t = itemToText(item);
+      if (t) texts.push(t);
+    }
+    if (texts.length > 0) {
+      const combined = texts.join("\n");
+      return {
+        content: toolContent()
+          .text(isError ? `\`\`\`\n${combined}\n\`\`\`` : combined)
+          .build(),
+      };
+    }
   } else if (typeof content === "string" && content.length > 0) {
     return {
       content: toolContent()
         .text(isError ? `\`\`\`\n${content}\n\`\`\`` : content)
         .build(),
     };
+  } else if (content && typeof content === "object") {
+    try {
+      const json = JSON.stringify(content, null, 2);
+      if (json && json !== "{}") {
+        return {
+          content: toolContent().text(json).build(),
+        };
+      }
+    } catch {
+      // ignore serialization errors
+    }
   }
   return {};
 }

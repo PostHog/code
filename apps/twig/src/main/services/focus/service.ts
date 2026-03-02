@@ -17,9 +17,9 @@ import {
 } from "@twig/git/sagas/stash";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../lib/logger";
-import { TypedEventEmitter } from "../../lib/typed-event-emitter";
+import { logger } from "../../utils/logger";
 import { type FocusSession, focusStore } from "../../utils/store.js";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 import { getWorktreeLocation } from "../settingsStore";
 import type { WatcherRegistryService } from "../watcher-registry/service.js";
 import type { FocusResult, StashResult } from "./schemas.js";

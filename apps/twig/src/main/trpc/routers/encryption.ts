@@ -1,6 +1,6 @@
 import { safeStorage } from "electron";
 import { z } from "zod";
-import { logger } from "../../lib/logger";
+import { logger } from "../../utils/logger";
 import { publicProcedure, router } from "../trpc.js";
 
 const log = logger.scope("encryptionRouter");

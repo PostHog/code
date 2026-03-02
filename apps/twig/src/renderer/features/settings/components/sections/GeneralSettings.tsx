@@ -20,6 +20,7 @@ import { useSettingsStore as useTerminalSettingsStore } from "@stores/settingsSt
 import type { ThemePreference } from "@stores/themeStore";
 import { useThemeStore } from "@stores/themeStore";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 const CUSTOM_TERMINAL_FONT_VALUE = "custom";
 const CUSTOM_TERMINAL_FONT_COMMIT_DELAY_MS = 400;
@@ -72,6 +73,38 @@ export function GeneralSettings() {
     setAutoConvertLongText,
     setSendMessagesWith,
   } = useSettingsStore();
+
+  // Sync toggle off if the user denied notification permission at the OS level
+  useEffect(() => {
+    if (window.Notification?.permission === "denied" && desktopNotifications) {
+      setDesktopNotifications(false);
+    }
+  }, [desktopNotifications, setDesktopNotifications]);
+
+  const notificationPermission = window.Notification?.permission;
+  const notificationsDenied = notificationPermission === "denied";
+
+  const handleDesktopNotificationsChange = useCallback(
+    async (checked: boolean) => {
+      if (checked) {
+        const permission = await window.Notification?.requestPermission?.();
+        if (permission !== "granted") {
+          toast.info("Notifications are blocked", {
+            description:
+              "Allow Twig notifications in System Settings > Notifications",
+          });
+          return;
+        }
+      }
+      track(ANALYTICS_EVENTS.SETTING_CHANGED, {
+        setting_name: "desktop_notifications",
+        new_value: checked,
+        old_value: desktopNotifications,
+      });
+      setDesktopNotifications(checked);
+    },
+    [desktopNotifications, setDesktopNotifications],
+  );
 
   const [customTerminalFont, setCustomTerminalFont] = useState<string>("");
   const customFontSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -320,13 +353,21 @@ export function GeneralSettings() {
         Notifications
       </Text>
 
+      {notificationsDenied && (
+        <Text size="1" color="yellow" className="mb-2">
+          Notifications are blocked by macOS. To enable them, open System
+          Settings &gt; Notifications &gt; Twig and turn on Allow Notifications.
+        </Text>
+      )}
+
       <SettingRow
         label="Push notifications"
         description="Receive a desktop notification when the agent finishes a task or needs your input"
       >
         <Switch
           checked={desktopNotifications}
-          onCheckedChange={setDesktopNotifications}
+          onCheckedChange={handleDesktopNotificationsChange}
+          disabled={notificationsDenied}
           size="1"
         />
       </SettingRow>

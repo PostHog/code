@@ -6,7 +6,7 @@ vi.mock("@twig/git/gh", () => ({
   execGh: mockExecGh,
 }));
 
-vi.mock("../../lib/logger.js", () => ({
+vi.mock("../../utils/logger.js", () => ({
   logger: {
     scope: () => ({
       info: vi.fn(),

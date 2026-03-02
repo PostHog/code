@@ -8,6 +8,7 @@ import { DeleteToolView } from "./DeleteToolView";
 import { EditToolView } from "./EditToolView";
 import { ExecuteToolView } from "./ExecuteToolView";
 import { FetchToolView } from "./FetchToolView";
+import { McpToolView } from "./McpToolView";
 import { MoveToolView } from "./MoveToolView";
 import { PlanApprovalView } from "./PlanApprovalView";
 import { QuestionToolView } from "./QuestionToolView";
@@ -59,6 +60,14 @@ export function ToolCallBlock({
     );
   }
 
+  if (toolName?.startsWith("mcp__")) {
+    return (
+      <Box className="pl-3">
+        <McpToolView {...props} mcpToolName={toolName} />
+      </Box>
+    );
+  }
+
   const content = (() => {
     switch (toolCall.kind) {
       case "switch_mode":
@@ -82,7 +91,7 @@ export function ToolCallBlock({
       case "question":
         return <QuestionToolView {...props} />;
       default:
-        return <ToolCallView {...props} />;
+        return <ToolCallView {...props} agentToolName={toolName} />;
     }
   })();
 

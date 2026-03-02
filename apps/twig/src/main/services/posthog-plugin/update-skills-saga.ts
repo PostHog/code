@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { cp, mkdir, readdir, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { extractZip } from "@main/lib/extract-zip.js";
+import { extractZip } from "@main/utils/extract-zip.js";
 import { Saga } from "@posthog/shared";
 
 /**

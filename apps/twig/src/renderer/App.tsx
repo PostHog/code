@@ -1,6 +1,7 @@
 import { ErrorBoundary } from "@components/ErrorBoundary";
 import { LoginTransition } from "@components/LoginTransition";
 import { MainLayout } from "@components/MainLayout";
+import { UpdatePrompt } from "@components/UpdatePrompt";
 import { AuthScreen } from "@features/auth/components/AuthScreen";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { OnboardingFlow } from "@features/onboarding/components/OnboardingFlow";
@@ -15,6 +16,7 @@ import { trpcReact, trpcVanilla } from "@renderer/trpc/client";
 import { toast } from "@utils/toast";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { Toaster } from "sonner";
 
 const log = logger.scope("app");
 
@@ -213,6 +215,8 @@ function App() {
         isDarkMode={isDarkMode}
         onComplete={handleTransitionComplete}
       />
+      <UpdatePrompt />
+      <Toaster position="bottom-right" />
     </ErrorBoundary>
   );
 }

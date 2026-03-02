@@ -6,7 +6,7 @@ import type {
   TaskFolderAssociation,
 } from "../../shared/types";
 import type { ArchivedTask } from "../../shared/types/archive";
-import { logger } from "../lib/logger";
+import { logger } from "./logger";
 import { getWorktreeLocation } from "../services/settingsStore";
 import { deriveWorktreePath } from "./worktree-helpers";
 

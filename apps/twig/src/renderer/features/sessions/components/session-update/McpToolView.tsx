@@ -1,21 +1,5 @@
-import type { TwigToolKind } from "@features/sessions/types";
-import {
-  ArrowsClockwise,
-  ArrowsLeftRight,
-  Brain,
-  ChatCircle,
-  Command,
-  FileText,
-  Globe,
-  type Icon,
-  MagnifyingGlass,
-  PencilSimple,
-  Terminal,
-  Trash,
-  Wrench,
-} from "@phosphor-icons/react";
+import { Plugs } from "@phosphor-icons/react";
 import { Box, Flex } from "@radix-ui/themes";
-import { compactHomePath } from "@utils/path";
 import { useState } from "react";
 import {
   compactInput,
@@ -23,7 +7,6 @@ import {
   ExpandedContentBox,
   formatInput,
   getContentText,
-  getFilename,
   StatusIndicators,
   stripCodeFences,
   ToolTitle,
@@ -31,55 +14,37 @@ import {
   useToolCallStatus,
 } from "./toolCallUtils";
 
-const kindIcons: Record<TwigToolKind, Icon> = {
-  read: FileText,
-  edit: PencilSimple,
-  delete: Trash,
-  move: ArrowsLeftRight,
-  search: MagnifyingGlass,
-  execute: Terminal,
-  think: Brain,
-  fetch: Globe,
-  switch_mode: ArrowsClockwise,
-  question: ChatCircle,
-  other: Wrench,
-};
-
-const toolNameIcons: Record<string, Icon> = {
-  ToolSearch: MagnifyingGlass,
-  Skill: Command,
-};
-
-interface ToolCallViewProps extends ToolViewProps {
-  agentToolName?: string;
+function parseMcpName(mcpToolName: string): {
+  serverName: string;
+  toolName: string;
+} {
+  const parts = mcpToolName.split("__");
+  return {
+    serverName: parts[1] ?? "",
+    toolName: parts.slice(2).join("__"),
+  };
 }
 
-export function ToolCallView({
+interface McpToolViewProps extends ToolViewProps {
+  mcpToolName: string;
+}
+
+export function McpToolView({
   toolCall,
   turnCancelled,
   turnComplete,
-  agentToolName,
+  mcpToolName,
   expanded = false,
-}: ToolCallViewProps) {
+}: McpToolViewProps) {
   const [isExpanded, setIsExpanded] = useState(expanded);
-  const { title, kind, status, locations, content, rawInput } = toolCall;
+  const { status, rawInput, content } = toolCall;
   const { isLoading, isFailed, wasCancelled, isComplete } = useToolCallStatus(
     status,
     turnCancelled,
     turnComplete,
   );
-  const KindIcon =
-    (agentToolName && toolNameIcons[agentToolName]) ||
-    (kind && kindIcons[kind]) ||
-    Wrench;
 
-  const filePath = kind === "read" && locations?.[0]?.path;
-  const displayText = filePath
-    ? `Read ${getFilename(filePath)}`
-    : title
-      ? compactHomePath(title)
-      : undefined;
-
+  const { serverName, toolName } = parseMcpName(mcpToolName);
   const inputPreview = compactInput(rawInput);
   const fullInput = formatInput(rawInput);
 
@@ -101,14 +66,19 @@ export function ToolCallView({
       <Flex gap="2">
         <Box className="shrink-0 pt-px">
           <ExpandableIcon
-            icon={KindIcon}
+            icon={Plugs}
             isLoading={isLoading}
             isExpandable={isExpandable}
             isExpanded={isExpanded}
           />
         </Box>
         <Flex align="center" gap="1" wrap="wrap" className="min-w-0">
-          <ToolTitle>{displayText}</ToolTitle>
+          <ToolTitle>
+            <span className="text-gray-10">{serverName}</span>
+            {" - "}
+            {toolName}
+            <span className="text-gray-10">{" (MCP)"}</span>
+          </ToolTitle>
           {inputPreview && (
             <ToolTitle>
               <span className="font-mono text-accent-11">{inputPreview}</span>

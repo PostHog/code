@@ -25,8 +25,8 @@ import type { AcpMessage } from "@shared/types/session-events.js";
 import { app } from "electron";
 import { inject, injectable, preDestroy } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../lib/logger.js";
-import { TypedEventEmitter } from "../../lib/typed-event-emitter.js";
+import { logger } from "../../utils/logger.js";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import type { FsService } from "../fs/service.js";
 import type { PosthogPluginService } from "../posthog-plugin/service.js";
 import type { ProcessTrackingService } from "../process-tracking/service.js";
@@ -366,6 +366,20 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     });
 
     this.pendingPermissions.delete(key);
+  }
+
+  /**
+   * Check if any sessions are currently active (i.e. have a prompt pending).
+   */
+  public hasActiveSessions(): boolean {
+    for (const session of this.sessions.values()) {
+      if (session.promptPending) {
+        log.info("Active session found", { sessionId: session.taskRunId });
+        return true;
+      }
+    }
+    log.info("No active sessions found");
+    return false;
   }
 
   private getToken(fallback: string): string {
@@ -778,6 +792,10 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     } finally {
       session.promptPending = false;
       this.sleepService.release(sessionId);
+
+      if (!this.hasActiveSessions()) {
+        this.emit(AgentServiceEvent.SessionsIdle, undefined);
+      }
     }
   }
 
