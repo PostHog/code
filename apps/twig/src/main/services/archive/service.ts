@@ -115,7 +115,7 @@ export class ArchiveService {
     };
 
     if (association.mode === "worktree") {
-      const worktreePath = this.deriveWorktreePath(
+      const worktreePath = await this.deriveWorktreePath(
         folderPath,
         association.worktree,
       );
@@ -288,7 +288,7 @@ export class ArchiveService {
               mainRepoPath: folderPath,
               worktreeBasePath: this.getWorktreeLocation(),
             });
-            const worktreePath = this.deriveWorktreePath(
+            const worktreePath = await this.deriveWorktreePath(
               folderPath,
               restoredWorktreeName,
             );
@@ -397,14 +397,31 @@ export class ArchiveService {
     return this.settingsStore.get("worktreeLocation");
   }
 
-  private deriveWorktreePath(folderPath: string, worktreeName: string): string {
+  private async deriveWorktreePath(
+    folderPath: string,
+    worktreeName: string,
+  ): Promise<string> {
     const worktreeBasePath = this.getWorktreeLocation();
     const repoName = path.basename(folderPath);
-    const isLegacy = !/^\d+$/.test(worktreeName);
-    if (isLegacy) {
-      return path.join(worktreeBasePath, repoName, worktreeName);
-    }
-    return path.join(worktreeBasePath, worktreeName, repoName);
+
+    const newFormatPath = path.join(worktreeBasePath, worktreeName, repoName);
+    const legacyFormatPath = path.join(
+      worktreeBasePath,
+      repoName,
+      worktreeName,
+    );
+
+    try {
+      await fs.access(newFormatPath);
+      return newFormatPath;
+    } catch {}
+
+    try {
+      await fs.access(legacyFormatPath);
+      return legacyFormatPath;
+    } catch {}
+
+    return newFormatPath;
   }
 
   private async getCurrentBranchName(worktreePath: string): Promise<string> {
