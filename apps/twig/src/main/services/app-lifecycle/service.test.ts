@@ -174,7 +174,7 @@ describe("AppLifecycleService", () => {
     });
   });
 
-  describe("shutdownAndExit", () => {
+  describe("gracefulExit", () => {
     it("calls shutdown before exit", async () => {
       const callOrder: string[] = [];
 
@@ -185,7 +185,7 @@ describe("AppLifecycleService", () => {
         callOrder.push("exit");
       });
 
-      const promise = service.shutdownAndExit();
+      const promise = service.gracefulExit();
       await vi.runAllTimersAsync();
       await promise;
 
@@ -194,7 +194,7 @@ describe("AppLifecycleService", () => {
     });
 
     it("exits with code 0", async () => {
-      const promise = service.shutdownAndExit();
+      const promise = service.gracefulExit();
       await vi.runAllTimersAsync();
       await promise;
       expect(mockApp.exit).toHaveBeenCalledWith(0);
