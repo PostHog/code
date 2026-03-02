@@ -107,7 +107,7 @@ export class ContextMenuService {
     input: ArchivedTaskContextMenuInput,
   ): Promise<ArchivedTaskContextMenuResult> {
     return this.showMenu<ArchivedTaskAction>([
-      this.item("Restore", { type: "restore" }),
+      this.item("Unarchive", { type: "restore" }),
       this.item(
         "Delete",
         { type: "delete" },

@@ -231,7 +231,8 @@ describe("ArchiveService integration", () => {
   describe.concurrent("worktree mode", () => {
     it("archive and unarchive preserves uncommitted changes", () =>
       withTestContext({}, async (ctx) => {
-        const { worktreePath } = await ctx.setupWorktree("detached");
+        const { worktreePath, worktreeName } =
+          await ctx.setupWorktree("detached");
         await fs.writeFile(
           path.join(worktreePath, "work.txt"),
           "my precious work",
@@ -246,7 +247,7 @@ describe("ArchiveService integration", () => {
 
         const result = await ctx.service.unarchiveTask(TASK_ID);
 
-        expect(result.worktreeName).toBeTruthy();
+        expect(result.worktreeName).toBe(worktreeName);
         const repoName = path.basename(ctx.repoPath);
         const newWorktreePath = path.join(
           ctx.worktreeBasePath,
@@ -261,11 +262,18 @@ describe("ArchiveService integration", () => {
         );
         expect(content).toBe("my precious work");
 
-        expect(ctx.foldersStore.get("taskAssociations")).toHaveLength(1);
+        const associations = ctx.foldersStore.get("taskAssociations");
+        expect(associations).toHaveLength(1);
+        expect(associations[0]).toMatchObject({
+          taskId: TASK_ID,
+          folderId: FOLDER_ID,
+          mode: "worktree",
+          worktree: result.worktreeName,
+        });
         expect(ctx.archiveStore.get("archivedTasks")).toHaveLength(0);
       }));
 
-    it("archive preserves current branch name", () =>
+    it("archive and unarchive preserves branch name", () =>
       withTestContext({}, async (ctx) => {
         const branchName = "feature/my-branch";
         ctx.git(`checkout -b ${branchName}`);
@@ -277,6 +285,17 @@ describe("ArchiveService integration", () => {
 
         expect(archived.branchName).toBe(branchName);
         expect(await pathExists(worktreePath)).toBe(false);
+
+        await ctx.service.unarchiveTask(TASK_ID);
+
+        const associations = ctx.foldersStore.get("taskAssociations");
+        expect(associations).toHaveLength(1);
+        expect(associations[0]).toMatchObject({
+          taskId: TASK_ID,
+          folderId: FOLDER_ID,
+          mode: "worktree",
+          branchName,
+        });
       }));
 
     it("unarchive with recreateBranch creates new branch", () =>
@@ -373,7 +392,7 @@ describe("ArchiveService integration", () => {
 
   describe.concurrent("local/cloud mode", () => {
     it.each(["local", "cloud"] as const)(
-      "archive and unarchive %s mode task",
+      "archive and unarchive %s mode restores correct association",
       (mode) =>
         withTestContext(
           { associations: [simpleAssociation(mode)] },
@@ -387,10 +406,17 @@ describe("ArchiveService integration", () => {
             ).toBeNull();
             expect(ctx.foldersStore.get("taskAssociations")).toHaveLength(0);
 
-            await ctx.service.unarchiveTask(TASK_ID);
+            const result = await ctx.service.unarchiveTask(TASK_ID);
 
-            expect(ctx.foldersStore.get("taskAssociations")).toHaveLength(1);
-            expect(ctx.foldersStore.get("taskAssociations")[0].mode).toBe(mode);
+            expect(result.worktreeName).toBeNull();
+            const associations = ctx.foldersStore.get("taskAssociations");
+            expect(associations).toHaveLength(1);
+            expect(associations[0]).toMatchObject({
+              taskId: TASK_ID,
+              folderId: FOLDER_ID,
+              mode,
+            });
+            expect(associations[0]).not.toHaveProperty("worktree");
             expect(ctx.archiveStore.get("archivedTasks")).toHaveLength(0);
           },
         ),

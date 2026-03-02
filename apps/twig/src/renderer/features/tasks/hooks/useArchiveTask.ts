@@ -1,3 +1,4 @@
+import { useArchiveUiStore } from "@features/archive/stores/archiveUiStore";
 import { getSessionService } from "@features/sessions/service/service";
 import { usePinnedTasksStore } from "@features/sidebar/stores/pinnedTasksStore";
 import { useTerminalStore } from "@features/terminal/stores/terminalStore";
@@ -20,6 +21,10 @@ export function useArchiveTask() {
 
   const archiveTask = async (input: ArchiveTaskInput) => {
     const { taskId } = input;
+    const { archivingTaskId, setArchivingTaskId } =
+      useArchiveUiStore.getState();
+    if (archivingTaskId) return;
+    setArchivingTaskId(taskId);
     const focusStore = useFocusStore.getState();
     const workspaceStore = useWorkspaceStore.getState();
     const workspace = workspaceStore.workspaces[taskId];
@@ -57,6 +62,8 @@ export function useArchiveTask() {
       log.error("Failed to archive task", error);
       toast.error("Failed to archive task");
       throw error;
+    } finally {
+      useArchiveUiStore.getState().setArchivingTaskId(null);
     }
   };
 

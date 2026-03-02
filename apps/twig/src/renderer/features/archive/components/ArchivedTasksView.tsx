@@ -1,14 +1,15 @@
 import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
 import { useTasks } from "@features/tasks/hooks/useTasks";
-import { ArrowLeftIcon } from "@phosphor-icons/react";
+import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
+import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
 import { Box, Button, Dialog, Flex, Table, Text } from "@radix-ui/themes";
 import { trpcReact, trpcVanilla } from "@renderer/trpc";
 import type { Task } from "@shared/types";
 import type { ArchivedTask } from "@shared/types/archive";
-import { useNavigationStore } from "@stores/navigationStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@utils/toast";
 import { useMemo, useState } from "react";
+import { useArchiveUiStore } from "../stores/archiveUiStore";
 
 const BRANCH_NOT_FOUND_PATTERN = /Branch '(.+)' does not exist/;
 
@@ -61,7 +62,6 @@ export interface ArchivedTasksViewPresentationProps {
   isLoading: boolean;
   unarchivingId: string | null;
   branchNotFound: BranchNotFoundPrompt | null;
-  onBack: () => void;
   onUnarchive: (taskId: string) => void;
   onDelete: (taskId: string, taskTitle: string) => void;
   onContextMenu: (item: ArchivedTaskWithDetails, e: React.MouseEvent) => void;
@@ -74,7 +74,6 @@ export function ArchivedTasksViewPresentation({
   isLoading,
   unarchivingId,
   branchNotFound,
-  onBack,
   onUnarchive,
   onDelete,
   onContextMenu,
@@ -83,21 +82,6 @@ export function ArchivedTasksViewPresentation({
 }: ArchivedTasksViewPresentationProps) {
   return (
     <Flex direction="column" height="100%">
-      <Box className="border-gray-5 border-b bg-gray-1" px="3" py="2">
-        <Flex align="center" gap="2">
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex items-center justify-center rounded p-1 text-gray-11 hover:bg-gray-3"
-          >
-            <ArrowLeftIcon size={14} />
-          </button>
-          <Text size="1" weight="medium" className="font-mono text-[12px]">
-            Archived tasks
-          </Text>
-        </Flex>
-      </Box>
-
       <Box className="flex-1 overflow-y-auto">
         {isLoading ? (
           <Flex align="center" justify="center" gap="2" py="8">
@@ -113,7 +97,10 @@ export function ArchivedTasksViewPresentation({
             </Text>
           </Flex>
         ) : (
-          <Table.Root size="1">
+          <Table.Root
+            size="1"
+            className="[&_td]:!py-1.5 [&_th]:!py-1.5 [&_tbody_tr:hover]:bg-gray-4 [&_td]:align-middle [&_th]:align-middle"
+          >
             <Table.Header>
               <Table.Row>
                 <Table.ColumnHeaderCell className="font-mono font-normal text-[12px] text-gray-11">
@@ -136,30 +123,38 @@ export function ArchivedTasksViewPresentation({
                   className="group"
                 >
                   <Table.Cell>
-                    <Text className="font-mono text-[12px]">
+                    <Text className="block max-w-[600px] truncate font-mono text-[12px]">
                       {item.task?.title ?? "Unknown task"}
                     </Text>
                   </Table.Cell>
                   <Table.Cell>
-                    <Text className="font-mono text-[12px] text-gray-11">
+                    <Text className="block whitespace-nowrap font-mono text-[12px] text-gray-11">
                       {formatRelativeDate(item.task?.created_at)}
                     </Text>
                   </Table.Cell>
                   <Table.Cell>
-                    <Text className="font-mono text-[12px] text-gray-11">
+                    <Text className="block max-w-[300px] truncate font-mono text-[12px] text-gray-11">
                       {getRepoName(item.task?.repository)}
                     </Text>
                   </Table.Cell>
                   <Table.Cell>
-                    <Flex gap="2" className="invisible group-hover:visible">
+                    <Flex
+                      gap="2"
+                      className={
+                        unarchivingId === item.archived.taskId
+                          ? "visible"
+                          : "invisible group-hover:visible"
+                      }
+                    >
                       <Button
                         variant="outline"
                         color="gray"
                         size="1"
                         onClick={() => onUnarchive(item.archived.taskId)}
                         disabled={unarchivingId === item.archived.taskId}
+                        loading={unarchivingId === item.archived.taskId}
                       >
-                        Restore
+                        Unarchive
                       </Button>
                       <Button
                         variant="outline"
@@ -191,7 +186,7 @@ export function ArchivedTasksViewPresentation({
         }}
       >
         <Dialog.Content maxWidth="420px" size="1">
-          <Dialog.Title size="2">Restore to new branch?</Dialog.Title>
+          <Dialog.Title size="2">Unarchive to new branch?</Dialog.Title>
           <Dialog.Description size="1">
             <Text size="1" color="gray">
               This workspace was last on{" "}
@@ -208,7 +203,7 @@ export function ArchivedTasksViewPresentation({
               </Button>
             </Dialog.Close>
             <Button size="1" onClick={onRecreateBranch}>
-              Restore to new branch
+              Unarchive to new branch
             </Button>
           </Flex>
         </Dialog.Content>
@@ -221,10 +216,17 @@ export function ArchivedTasksView() {
   const { data: archivedTasks = [], isLoading: isLoadingArchived } =
     trpcReact.archive.list.useQuery();
   const { data: tasks = [], isLoading: isLoadingTasks } = useTasks();
-  const navigateToTaskInput = useNavigationStore((s) => s.navigateToTaskInput);
+  const loadWorkspaces = useWorkspaceStore((s) => s.loadWorkspaces);
   const queryClient = useQueryClient();
 
-  const [unarchivingId, setUnarchivingId] = useState<string | null>(null);
+  useSetHeaderContent(
+    <Text size="1" weight="medium" className="font-mono text-[12px]">
+      Archived tasks
+    </Text>,
+  );
+
+  const unarchivingId = useArchiveUiStore((s) => s.unarchivingTaskId);
+  const setUnarchivingId = useArchiveUiStore((s) => s.setUnarchivingTaskId);
   const [branchNotFound, setBranchNotFound] =
     useState<BranchNotFoundPrompt | null>(null);
 
@@ -250,14 +252,15 @@ export function ArchivedTasksView() {
     try {
       await trpcVanilla.archive.unarchive.mutate({ taskId });
       invalidateArchiveQueries();
-      toast.success("Task restored");
+      await loadWorkspaces();
+      toast.success("Task unarchived");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const match = message.match(BRANCH_NOT_FOUND_PATTERN);
       if (match) {
         setBranchNotFound({ taskId, branchName: match[1] });
       } else {
-        toast.error(`Failed to restore task: ${message}`);
+        toast.error(`Failed to unarchive task: ${message}`);
       }
     } finally {
       setUnarchivingId(null);
@@ -333,10 +336,11 @@ export function ArchivedTasksView() {
         recreateBranch: true,
       });
       invalidateArchiveQueries();
-      toast.success("Task restored");
+      await loadWorkspaces();
+      toast.success("Task unarchived");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      toast.error(`Failed to restore task: ${message}`);
+      toast.error(`Failed to unarchive task: ${message}`);
     } finally {
       setUnarchivingId(null);
     }
@@ -348,7 +352,6 @@ export function ArchivedTasksView() {
       isLoading={isLoading}
       unarchivingId={unarchivingId}
       branchNotFound={branchNotFound}
-      onBack={() => navigateToTaskInput()}
       onUnarchive={handleUnarchive}
       onDelete={handleDelete}
       onContextMenu={handleContextMenu}

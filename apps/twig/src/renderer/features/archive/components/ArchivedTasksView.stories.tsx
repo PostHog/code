@@ -74,7 +74,6 @@ const meta: Meta<typeof ArchivedTasksViewPresentation> = {
     isLoading: false,
     unarchivingId: null,
     branchNotFound: null,
-    onBack: () => {},
     onUnarchive: () => {},
     onDelete: (_taskId: string, _taskTitle: string) => {},
     onContextMenu: () => {},
@@ -130,6 +129,26 @@ export const WithMissingTask: Story = {
         archived: createArchivedTask("task-missing", 5),
         task: null,
       },
+    ],
+  },
+};
+
+export const LongLabels: Story = {
+  args: {
+    items: [
+      createItem(
+        "task-long-1",
+        "This is an extremely long task title that should demonstrate how the table handles text overflow",
+        1,
+        "very-long-repository-name-that-exceeds-normal-length",
+      ),
+      createItem(
+        "task-long-2",
+        "Another long title: Implement comprehensive authentication system with OAuth2 and SAML support",
+        3,
+        "auth-service",
+      ),
+      createItem("task-short", "Short", 0, "repo"),
     ],
   },
 };

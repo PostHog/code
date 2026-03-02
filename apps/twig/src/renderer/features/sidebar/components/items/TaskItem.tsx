@@ -1,6 +1,10 @@
 import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
 import { Tooltip } from "@components/ui/Tooltip";
 import {
+  selectIsArchiving,
+  useArchiveUiStore,
+} from "@features/archive/stores/archiveUiStore";
+import {
   ArrowsClockwise,
   BellRinging,
   Cloud as CloudIcon,
@@ -16,6 +20,7 @@ import { SidebarItem } from "../SidebarItem";
 
 interface TaskItemProps {
   depth?: number;
+  taskId: string;
   label: string;
   isActive: boolean;
   workspaceMode?: WorkspaceMode;
@@ -174,6 +179,7 @@ function CloudStatusIcon({
 
 export function TaskItem({
   depth = 0,
+  taskId,
   label,
   isActive,
   workspaceMode,
@@ -196,11 +202,16 @@ export function TaskItem({
   const isFocused = useFocusStore(
     selectIsFocusedOnWorktree(worktreePath ?? ""),
   );
+  const isArchiving = useArchiveUiStore(selectIsArchiving(taskId));
 
   const isWorktreeTask = workspaceMode === "worktree";
   const isCloudTask = workspaceMode === "cloud";
 
-  const icon = needsPermission ? (
+  const displayLabel = isArchiving ? "Archiving..." : label;
+
+  const icon = isArchiving ? (
+    <DotsCircleSpinner size={ICON_SIZE} className="text-gray-10" />
+  ) : needsPermission ? (
     <BellRinging size={ICON_SIZE} className="text-blue-11" />
   ) : isGenerating ? (
     <DotsCircleSpinner size={ICON_SIZE} className="text-accent-11" />
@@ -278,8 +289,9 @@ export function TaskItem({
     <SidebarItem
       depth={depth}
       icon={icon}
-      label={label}
+      label={displayLabel}
       isActive={isActive}
+      isDimmed={isArchiving}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}

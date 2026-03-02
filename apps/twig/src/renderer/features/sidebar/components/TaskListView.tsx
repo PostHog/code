@@ -90,6 +90,7 @@ function TaskRow({
   return (
     <TaskItem
       depth={depth}
+      taskId={task.id}
       label={task.title}
       isActive={isActive}
       isEditing={isEditing}
