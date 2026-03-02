@@ -7,7 +7,6 @@ import { CloudTaskService } from "../services/cloud-task/service.js";
 import { ConnectivityService } from "../services/connectivity/service.js";
 import { ContextMenuService } from "../services/context-menu/service.js";
 import { DeepLinkService } from "../services/deep-link/service.js";
-
 import { ExternalAppsService } from "../services/external-apps/service.js";
 import { FileWatcherService } from "../services/file-watcher/service.js";
 import { FocusService } from "../services/focus/service.js";
@@ -20,6 +19,7 @@ import { NotificationService } from "../services/notification/service.js";
 import { OAuthService } from "../services/oauth/service.js";
 import { PosthogPluginService } from "../services/posthog-plugin/service.js";
 import { ProcessTrackingService } from "../services/process-tracking/service.js";
+import { settingsStore } from "../services/settingsStore.js";
 import { ShellService } from "../services/shell/service.js";
 import { SleepService } from "../services/sleep/service.js";
 import { TaskLinkService } from "../services/task-link/service.js";
@@ -27,6 +27,7 @@ import { UIService } from "../services/ui/service.js";
 import { UpdatesService } from "../services/updates/service.js";
 import { WatcherRegistryService } from "../services/watcher-registry/service.js";
 import { WorkspaceService } from "../services/workspace/service.js";
+import { archiveStore, foldersStore } from "../utils/store.js";
 import { MAIN_TOKENS } from "./tokens.js";
 
 export const container = new Container({
@@ -60,3 +61,7 @@ container.bind(MAIN_TOKENS.UpdatesService).to(UpdatesService);
 container.bind(MAIN_TOKENS.TaskLinkService).to(TaskLinkService);
 container.bind(MAIN_TOKENS.WatcherRegistryService).to(WatcherRegistryService);
 container.bind(MAIN_TOKENS.WorkspaceService).to(WorkspaceService);
+
+container.bind(MAIN_TOKENS.ArchiveStore).toConstantValue(archiveStore);
+container.bind(MAIN_TOKENS.FoldersStore).toConstantValue(foldersStore);
+container.bind(MAIN_TOKENS.SettingsStore).toConstantValue(settingsStore);

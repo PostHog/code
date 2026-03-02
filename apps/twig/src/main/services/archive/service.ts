@@ -1,46 +1,218 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import type { TaskFolderAssociation } from "@shared/types";
 import type { ArchivedTask } from "@shared/types/archive";
+import { createGitClient } from "@twig/git/client";
+import {
+  CaptureCheckpointSaga,
+  deleteCheckpoint,
+  RevertCheckpointSaga,
+} from "@twig/git/sagas/checkpoint";
+import { type WorktreeInfo, WorktreeManager } from "@twig/git/worktree";
+import type Store from "electron-store";
 import { inject, injectable } from "inversify";
-import { container } from "../../di/container.js";
 import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../lib/logger";
-import { archiveStore } from "../../utils/store";
+import { logger } from "../../utils/logger";
 import type { AgentService } from "../agent/service.js";
 import type { FileWatcherService } from "../file-watcher/service.js";
 import type { ProcessTrackingService } from "../process-tracking/service.js";
-import { ArchiveTaskSaga, UnarchiveTaskSaga } from "./saga.js";
 import type { ArchiveTaskInput } from "./schemas.js";
 
 const log = logger.scope("archive");
 
+interface FoldersSchema {
+  folders: Array<{ id: string; path: string; name: string }>;
+  taskAssociations: TaskFolderAssociation[];
+}
+
+interface ArchiveStoreSchema {
+  archivedTasks: ArchivedTask[];
+}
+
+interface SettingsSchema {
+  worktreeLocation: string;
+}
+
+type RollbackFn = () => Promise<void>;
+
 @injectable()
 export class ArchiveService {
-  @inject(MAIN_TOKENS.AgentService)
-  private agentService!: AgentService;
-
-  @inject(MAIN_TOKENS.ProcessTrackingService)
-  private processTracking!: ProcessTrackingService;
+  constructor(
+    @inject(MAIN_TOKENS.AgentService)
+    private readonly agentService: AgentService,
+    @inject(MAIN_TOKENS.ProcessTrackingService)
+    private readonly processTracking: ProcessTrackingService,
+    @inject(MAIN_TOKENS.FileWatcherService)
+    private readonly fileWatcher: FileWatcherService,
+    @inject(MAIN_TOKENS.ArchiveStore)
+    private readonly archiveStore: Store<ArchiveStoreSchema>,
+    @inject(MAIN_TOKENS.FoldersStore)
+    private readonly foldersStore: Store<FoldersSchema>,
+    @inject(MAIN_TOKENS.SettingsStore)
+    private readonly settingsStore: Store<SettingsSchema>,
+  ) {}
 
   async archiveTask(input: ArchiveTaskInput): Promise<ArchivedTask> {
     log.info(`Archiving task ${input.taskId}`);
 
-    const fileWatcher = container.get<FileWatcherService>(
-      MAIN_TOKENS.FileWatcherService,
+    const rollbacks: RollbackFn[] = [];
+    const runWithRollback = async (
+      execute: () => Promise<void>,
+      rollback: RollbackFn,
+    ) => {
+      await execute();
+      rollbacks.push(rollback);
+    };
+
+    try {
+      const result = await this.executeArchive(input, runWithRollback);
+      log.info(`Task ${input.taskId} archived successfully`);
+      return result;
+    } catch (error) {
+      for (const rollback of rollbacks.reverse()) {
+        try {
+          await rollback();
+        } catch (rollbackError) {
+          log.error("Rollback failed:", rollbackError);
+        }
+      }
+      throw error;
+    }
+  }
+
+  private async executeArchive(
+    input: ArchiveTaskInput,
+    step: (execute: () => Promise<void>, rollback: RollbackFn) => Promise<void>,
+  ): Promise<ArchivedTask> {
+    const { taskId } = input;
+
+    const association = this.getTaskAssociations().find(
+      (a) => a.taskId === taskId,
     );
-
-    const saga = new ArchiveTaskSaga(log);
-    const result = await saga.run({
-      input,
-      agentService: this.agentService,
-      processTracking: this.processTracking,
-      fileWatcher,
-    });
-
-    if (!result.success) {
-      throw new Error(result.error);
+    if (!association) {
+      throw new Error(`No workspace association found for task ${taskId}`);
     }
 
-    log.info(`Task ${input.taskId} archived successfully`);
-    return result.data;
+    const folderPath = this.getFolderPath(association.folderId);
+    if (!folderPath) {
+      throw new Error(`Folder not found for task ${taskId}`);
+    }
+
+    const archivedTask: ArchivedTask = {
+      taskId: input.taskId,
+      title: input.title,
+      archivedAt: new Date().toISOString(),
+      repository: input.repository,
+      folderId: association.folderId,
+      mode: association.mode,
+      worktreeName:
+        association.mode === "worktree" ? association.worktree : null,
+      branchName: null,
+      checkpointId:
+        association.mode === "worktree"
+          ? `worktree-${association.worktree}`
+          : null,
+    };
+
+    if (association.mode === "worktree") {
+      const worktreePath = this.deriveWorktreePath(
+        folderPath,
+        association.worktree,
+      );
+
+      const actualBranch = await this.getCurrentBranchName(worktreePath);
+      if (actualBranch && actualBranch !== "HEAD") {
+        archivedTask.branchName = actualBranch;
+      }
+
+      await step(
+        async () => {
+          if (!archivedTask.checkpointId) {
+            throw new Error("checkpointId must be set for worktree mode");
+          }
+          await this.captureWorktreeCheckpoint(
+            folderPath,
+            worktreePath,
+            archivedTask.checkpointId,
+          );
+        },
+        async () => {
+          if (archivedTask.checkpointId) {
+            const git = createGitClient(folderPath);
+            await deleteCheckpoint(git, archivedTask.checkpointId);
+          }
+        },
+      );
+
+      await step(
+        async () => {
+          await this.agentService.cancelSessionsByTaskId(taskId);
+          this.processTracking.killByTaskId(taskId);
+          await this.fileWatcher.stopWatching(worktreePath);
+        },
+        async () => {},
+      );
+
+      await step(
+        async () => {
+          const manager = new WorktreeManager({
+            mainRepoPath: folderPath,
+            worktreeBasePath: this.getWorktreeLocation(),
+          });
+          await manager.deleteWorktree(worktreePath);
+          const parentDir = path.dirname(worktreePath);
+          await fs.rm(parentDir, { recursive: true, force: true });
+        },
+        async () => {},
+      );
+    } else {
+      await step(
+        async () => {
+          await this.agentService.cancelSessionsByTaskId(taskId);
+          this.processTracking.killByTaskId(taskId);
+        },
+        async () => {},
+      );
+    }
+
+    await step(
+      async () => {
+        const associations = this.getTaskAssociations();
+        const updatedAssociations = associations.filter(
+          (a) => a.taskId !== taskId,
+        );
+        this.foldersStore.set("taskAssociations", updatedAssociations);
+      },
+      async () => {
+        const associations = this.getTaskAssociations();
+        associations.push(association);
+        this.foldersStore.set("taskAssociations", associations);
+      },
+    );
+
+    await step(
+      async () => {
+        const archivedTasks = this.archiveStore.get("archivedTasks", []);
+        const existingIndex = archivedTasks.findIndex(
+          (t) => t.taskId === taskId,
+        );
+        if (existingIndex >= 0) {
+          archivedTasks[existingIndex] = archivedTask;
+        } else {
+          archivedTasks.push(archivedTask);
+        }
+        this.archiveStore.set("archivedTasks", archivedTasks);
+      },
+      async () => {
+        const archivedTasks = this.archiveStore.get("archivedTasks", []);
+        const updatedArchivedTasks = archivedTasks.filter(
+          (t) => t.taskId !== taskId,
+        );
+        this.archiveStore.set("archivedTasks", updatedArchivedTasks);
+      },
+    );
+
+    return archivedTask;
   }
 
   async unarchiveTask(
@@ -51,32 +223,262 @@ export class ArchiveService {
       `Unarchiving task ${taskId}${recreateBranch ? " (recreate branch)" : ""}`,
     );
 
-    const fileWatcher = container.get<FileWatcherService>(
-      MAIN_TOKENS.FileWatcherService,
-    );
+    const rollbacks: RollbackFn[] = [];
+    const runWithRollback = async (
+      execute: () => Promise<void>,
+      rollback: RollbackFn,
+    ) => {
+      await execute();
+      rollbacks.push(rollback);
+    };
 
-    const saga = new UnarchiveTaskSaga(log);
-    const result = await saga.run({ taskId, fileWatcher, recreateBranch });
+    try {
+      const result = await this.executeUnarchive(
+        taskId,
+        recreateBranch,
+        runWithRollback,
+      );
+      log.info(`Task ${taskId} unarchived successfully`);
+      return result;
+    } catch (error) {
+      for (const rollback of rollbacks.reverse()) {
+        try {
+          await rollback();
+        } catch (rollbackError) {
+          log.error("Rollback failed:", rollbackError);
+        }
+      }
+      throw error;
+    }
+  }
 
-    if (!result.success) {
-      throw new Error(result.error);
+  private async executeUnarchive(
+    taskId: string,
+    recreateBranch: boolean | undefined,
+    step: (execute: () => Promise<void>, rollback: RollbackFn) => Promise<void>,
+  ): Promise<{ taskId: string; worktreeName: string | null }> {
+    const archived = this.archiveStore
+      .get("archivedTasks", [])
+      .find((t) => t.taskId === taskId);
+    if (!archived) {
+      throw new Error(`Archived task not found: ${taskId}`);
     }
 
-    log.info(`Task ${taskId} unarchived successfully`);
-    return result.data;
+    const folderPath = this.getFolderPath(archived.folderId);
+    if (!folderPath) {
+      throw new Error(`Folder not found for task ${taskId}`);
+    }
+
+    let restoredWorktreeName: string | null = null;
+    const shouldRestoreWorktree =
+      archived.mode === "worktree" && archived.checkpointId;
+
+    if (shouldRestoreWorktree) {
+      await step(
+        async () => {
+          restoredWorktreeName = await this.restoreWorktreeFromCheckpoint(
+            folderPath,
+            archived,
+            recreateBranch,
+          );
+        },
+        async () => {
+          if (restoredWorktreeName) {
+            const manager = new WorktreeManager({
+              mainRepoPath: folderPath,
+              worktreeBasePath: this.getWorktreeLocation(),
+            });
+            const worktreePath = this.deriveWorktreePath(
+              folderPath,
+              restoredWorktreeName,
+            );
+            await manager.deleteWorktree(worktreePath);
+            const parentDir = path.dirname(worktreePath);
+            await fs.rm(parentDir, { recursive: true, force: true });
+          }
+        },
+      );
+
+      await step(
+        async () => {
+          if (!restoredWorktreeName) {
+            throw new Error("Failed to restore worktree");
+          }
+          const associations = this.getTaskAssociations();
+          associations.push({
+            taskId,
+            folderId: archived.folderId,
+            mode: "worktree" as const,
+            worktree: restoredWorktreeName,
+            branchName: archived.branchName ?? null,
+          });
+          this.foldersStore.set("taskAssociations", associations);
+        },
+        async () => {
+          const associations = this.getTaskAssociations();
+          const updatedAssociations = associations.filter(
+            (a) => a.taskId !== taskId,
+          );
+          this.foldersStore.set("taskAssociations", updatedAssociations);
+        },
+      );
+    } else {
+      await step(
+        async () => {
+          const associations = this.getTaskAssociations();
+          if (archived.mode === "cloud") {
+            associations.push({
+              taskId,
+              folderId: archived.folderId,
+              mode: "cloud" as const,
+            });
+          } else {
+            associations.push({
+              taskId,
+              folderId: archived.folderId,
+              mode: "local" as const,
+            });
+          }
+          this.foldersStore.set("taskAssociations", associations);
+        },
+        async () => {
+          const associations = this.getTaskAssociations();
+          const updatedAssociations = associations.filter(
+            (a) => a.taskId !== taskId,
+          );
+          this.foldersStore.set("taskAssociations", updatedAssociations);
+        },
+      );
+    }
+
+    await step(
+      async () => {
+        const archivedTasks = this.archiveStore.get("archivedTasks", []);
+        const updatedArchivedTasks = archivedTasks.filter(
+          (t) => t.taskId !== taskId,
+        );
+        this.archiveStore.set("archivedTasks", updatedArchivedTasks);
+      },
+      async () => {
+        const archivedTasks = this.archiveStore.get("archivedTasks", []);
+        archivedTasks.push(archived);
+        this.archiveStore.set("archivedTasks", archivedTasks);
+      },
+    );
+
+    return { taskId, worktreeName: restoredWorktreeName };
   }
 
   getArchivedTasks(): ArchivedTask[] {
-    return archiveStore.get("archivedTasks", []);
+    return this.archiveStore.get("archivedTasks", []);
   }
 
   getArchivedTaskIds(): string[] {
-    return archiveStore.get("archivedTasks", []).map((t) => t.taskId);
+    return this.archiveStore.get("archivedTasks", []).map((t) => t.taskId);
   }
 
   isArchived(taskId: string): boolean {
-    return archiveStore
+    return this.archiveStore
       .get("archivedTasks", [])
       .some((t) => t.taskId === taskId);
+  }
+
+  private getTaskAssociations(): TaskFolderAssociation[] {
+    return this.foldersStore.get("taskAssociations", []);
+  }
+
+  private getFolderPath(folderId: string): string | null {
+    const folders = this.foldersStore.get("folders", []);
+    const folder = folders.find((f) => f.id === folderId);
+    return folder?.path ?? null;
+  }
+
+  private getWorktreeLocation(): string {
+    return this.settingsStore.get("worktreeLocation");
+  }
+
+  private deriveWorktreePath(folderPath: string, worktreeName: string): string {
+    const worktreeBasePath = this.getWorktreeLocation();
+    const repoName = path.basename(folderPath);
+    const isLegacy = !/^\d+$/.test(worktreeName);
+    if (isLegacy) {
+      return path.join(worktreeBasePath, repoName, worktreeName);
+    }
+    return path.join(worktreeBasePath, worktreeName, repoName);
+  }
+
+  private async getCurrentBranchName(worktreePath: string): Promise<string> {
+    const git = createGitClient(worktreePath);
+    try {
+      const branch = await git.revparse(["--abbrev-ref", "HEAD"]);
+      return branch.trim();
+    } catch {
+      return "";
+    }
+  }
+
+  private async captureWorktreeCheckpoint(
+    folderPath: string,
+    worktreePath: string,
+    checkpointId: string,
+  ): Promise<void> {
+    const git = createGitClient(folderPath);
+    try {
+      await deleteCheckpoint(git, checkpointId);
+    } catch {}
+
+    const saga = new CaptureCheckpointSaga();
+    const result = await saga.run({ baseDir: worktreePath, checkpointId });
+    if (!result.success) {
+      throw new Error(`Failed to capture checkpoint: ${result.error}`);
+    }
+  }
+
+  private async restoreWorktreeFromCheckpoint(
+    folderPath: string,
+    archived: ArchivedTask,
+    recreateBranch?: boolean,
+  ): Promise<string> {
+    const manager = new WorktreeManager({
+      mainRepoPath: folderPath,
+      worktreeBasePath: this.getWorktreeLocation(),
+    });
+    const preferredName = archived.worktreeName ?? undefined;
+
+    let worktree: WorktreeInfo;
+    if (archived.branchName && !recreateBranch) {
+      worktree = await manager.createWorktreeForExistingBranch(
+        archived.branchName,
+        preferredName,
+      );
+    } else {
+      worktree = await manager.createDetachedWorktreeAtCommit(
+        "HEAD",
+        preferredName,
+      );
+    }
+
+    if (!archived.checkpointId) {
+      throw new Error("checkpointId is required for restoring worktree");
+    }
+
+    const revertSaga = new RevertCheckpointSaga();
+    const result = await revertSaga.run({
+      baseDir: worktree.worktreePath,
+      checkpointId: archived.checkpointId,
+    });
+
+    if (!result.success) {
+      throw new Error(
+        `Worktree restored but failed to apply checkpoint: ${result.error}`,
+      );
+    }
+
+    if (recreateBranch && archived.branchName) {
+      const git = createGitClient(worktree.worktreePath);
+      await git.checkoutLocalBranch(archived.branchName);
+    }
+
+    return worktree.worktreeName;
   }
 }

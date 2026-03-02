@@ -5,6 +5,11 @@
  * Never import this file from renderer code.
  */
 export const MAIN_TOKENS = Object.freeze({
+  // Stores
+  ArchiveStore: Symbol.for("Main.ArchiveStore"),
+  FoldersStore: Symbol.for("Main.FoldersStore"),
+  SettingsStore: Symbol.for("Main.SettingsStore"),
+
   // Services
   AgentService: Symbol.for("Main.AgentService"),
   ArchiveService: Symbol.for("Main.ArchiveService"),
