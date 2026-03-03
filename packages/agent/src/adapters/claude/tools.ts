@@ -39,6 +39,7 @@ const AUTO_ALLOWED_TOOLS: Record<string, Set<string>> = {
   default: new Set(BASE_ALLOWED_TOOLS),
   acceptEdits: new Set([...BASE_ALLOWED_TOOLS, ...WRITE_TOOLS]),
   plan: new Set(BASE_ALLOWED_TOOLS),
+  dontAsk: new Set(BASE_ALLOWED_TOOLS),
 };
 
 export function isToolAllowedForMode(
