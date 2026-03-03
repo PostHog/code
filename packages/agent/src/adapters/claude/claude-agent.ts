@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
+  type ModelInfo as AcpModelInfo,
   type AgentSideConnection,
   type ClientCapabilities,
   type ForkSessionRequest,
@@ -17,18 +18,24 @@ import {
   type NewSessionResponse,
   type PromptRequest,
   type PromptResponse,
+  type ReadTextFileRequest,
+  type ReadTextFileResponse,
   RequestError,
   type ResumeSessionRequest,
   type ResumeSessionResponse,
   type SessionConfigOption,
   type SessionConfigOptionCategory,
   type SessionConfigSelectOption,
+  type SessionModelState,
+  type SessionModeState,
   type SetSessionConfigOptionRequest,
   type SetSessionConfigOptionResponse,
   type SetSessionModelRequest,
   type SetSessionModelResponse,
   type SetSessionModeRequest,
   type SetSessionModeResponse,
+  type WriteTextFileRequest,
+  type WriteTextFileResponse,
 } from "@agentclientprotocol/sdk";
 import {
   type CanUseTool,
@@ -76,6 +83,18 @@ import type {
 } from "./types.js";
 
 const SESSION_VALIDATION_TIMEOUT_MS = 10_000;
+const MAX_TITLE_LENGTH = 256;
+
+function sanitizeTitle(text: string): string {
+  const sanitized = text
+    .replace(/[\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (sanitized.length <= MAX_TITLE_LENGTH) {
+    return sanitized;
+  }
+  return `${sanitized.slice(0, MAX_TITLE_LENGTH - 1)}…`;
+}
 
 export interface ClaudeAcpAgentOptions {
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
@@ -212,7 +231,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       sessions.push({
         sessionId: session.sessionId,
         cwd: session.cwd,
-        title: session.customTitle,
+        title: sanitizeTitle(session.customTitle || session.summary || ""),
         updatedAt: new Date(session.lastModified).toISOString(),
       });
     }
@@ -298,59 +317,82 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
           case "result": {
             if (this.session.cancelled) {
-              return {
-                stopReason: "cancelled",
-              };
+              return { stopReason: "cancelled" };
             }
-            const result = handleResultMessage(message);
-            if (result.usage) {
-              this.session.accumulatedUsage.inputTokens +=
-                result.usage.inputTokens;
-              this.session.accumulatedUsage.outputTokens +=
-                result.usage.outputTokens;
-              this.session.accumulatedUsage.cachedReadTokens +=
-                result.usage.cachedReadTokens;
-              this.session.accumulatedUsage.cachedWriteTokens +=
-                result.usage.cachedWriteTokens;
 
-              // Calculate context window size from modelUsage (minimum across all models used)
-              const contextWindows = Object.values(message.modelUsage).map(
-                (m) => m.contextWindow,
-              );
-              const contextWindowSize =
-                contextWindows.length > 0
-                  ? Math.min(...contextWindows)
-                  : 200000;
+            // Accumulate usage from this result
+            this.session.accumulatedUsage.inputTokens +=
+              message.usage.input_tokens;
+            this.session.accumulatedUsage.outputTokens +=
+              message.usage.output_tokens;
+            this.session.accumulatedUsage.cachedReadTokens +=
+              message.usage.cache_read_input_tokens;
+            this.session.accumulatedUsage.cachedWriteTokens +=
+              message.usage.cache_creation_input_tokens;
 
-              // Send usage_update notification
-              if (lastAssistantTotalUsage !== null) {
-                await this.client.sessionUpdate({
-                  sessionId: params.sessionId,
-                  update: {
-                    sessionUpdate: "usage_update",
-                    used: BigInt(lastAssistantTotalUsage),
-                    size: BigInt(contextWindowSize),
-                    cost: {
-                      amount: message.total_cost_usd,
-                      currency: "USD",
-                    },
-                  },
-                });
-              }
+            // Calculate context window size from modelUsage (minimum across all models used)
+            const contextWindows = Object.values(message.modelUsage).map(
+              (m) => m.contextWindow,
+            );
+            const contextWindowSize =
+              contextWindows.length > 0 ? Math.min(...contextWindows) : 200000;
 
-              await this.client.extNotification("_posthog/usage_update", {
+            // Send usage_update notification
+            if (lastAssistantTotalUsage !== null) {
+              await this.client.sessionUpdate({
                 sessionId: params.sessionId,
-                used: {
-                  inputTokens: result.usage.inputTokens,
-                  outputTokens: result.usage.outputTokens,
-                  cachedReadTokens: result.usage.cachedReadTokens,
-                  cachedWriteTokens: result.usage.cachedWriteTokens,
+                update: {
+                  sessionUpdate: "usage_update",
+                  used: BigInt(lastAssistantTotalUsage),
+                  size: BigInt(contextWindowSize),
+                  cost: {
+                    amount: message.total_cost_usd,
+                    currency: "USD",
+                  },
                 },
-                cost: result.usage.costUsd,
               });
             }
+
+            await this.client.extNotification("_posthog/usage_update", {
+              sessionId: params.sessionId,
+              used: {
+                inputTokens: message.usage.input_tokens,
+                outputTokens: message.usage.output_tokens,
+                cachedReadTokens: message.usage.cache_read_input_tokens,
+                cachedWriteTokens: message.usage.cache_creation_input_tokens,
+              },
+              cost: message.total_cost_usd,
+            });
+
+            // Build usage for PromptResponse
+            const usage: PromptResponse["usage"] = {
+              inputTokens: BigInt(this.session.accumulatedUsage.inputTokens),
+              outputTokens: BigInt(this.session.accumulatedUsage.outputTokens),
+              cachedReadTokens: BigInt(
+                this.session.accumulatedUsage.cachedReadTokens,
+              ),
+              cachedWriteTokens: BigInt(
+                this.session.accumulatedUsage.cachedWriteTokens,
+              ),
+              totalTokens: BigInt(
+                this.session.accumulatedUsage.inputTokens +
+                  this.session.accumulatedUsage.outputTokens +
+                  this.session.accumulatedUsage.cachedReadTokens +
+                  this.session.accumulatedUsage.cachedWriteTokens,
+              ),
+            };
+
+            const result = handleResultMessage(message);
             if (result.error) throw result.error;
-            break;
+
+            switch (message.subtype) {
+              case "error_max_budget_usd":
+              case "error_max_turns":
+              case "error_max_structured_output_retries":
+                return { stopReason: "max_turn_requests", usage };
+              default:
+                return { stopReason: "end_turn", usage };
+            }
           }
 
           case "stream_event":
@@ -360,7 +402,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
           case "user":
           case "assistant": {
             if (this.session.cancelled) {
-              return { stopReason: "cancelled" };
+              break;
             }
 
             // Check for queued prompt replay
@@ -692,10 +734,45 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       }
     }
 
+    const availableModes = getAvailableModes();
+    const modes: SessionModeState = {
+      currentModeId: permissionMode,
+      availableModes: availableModes.map((mode) => ({
+        id: mode.id,
+        name: mode.name,
+        description: mode.description ?? undefined,
+      })),
+    };
+
+    const models: SessionModelState = {
+      currentModelId: resolvedModelId,
+      availableModels: modelOptions.options.map(
+        (opt): AcpModelInfo => ({
+          modelId: opt.value,
+          name: opt.name,
+          description: opt.description,
+        }),
+      ),
+    };
+
     const configOptions = this.buildConfigOptions(permissionMode, modelOptions);
     session.configOptions = configOptions;
 
-    return { sessionId, configOptions };
+    return { sessionId, modes, models, configOptions };
+  }
+
+  async readTextFile(
+    params: ReadTextFileRequest,
+  ): Promise<ReadTextFileResponse> {
+    const response = await this.client.readTextFile(params);
+    return response;
+  }
+
+  async writeTextFile(
+    params: WriteTextFileRequest,
+  ): Promise<WriteTextFileResponse> {
+    const response = await this.client.writeTextFile(params);
+    return response;
   }
 
   private createCanUseTool(sessionId: string): CanUseTool {
