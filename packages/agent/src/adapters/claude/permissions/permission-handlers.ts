@@ -168,6 +168,13 @@ async function applyPlanApproval(
   ) {
     session.permissionMode = response.outcome.optionId;
     await session.query.setPermissionMode(response.outcome.optionId);
+    await context.client.sessionUpdate({
+      sessionId: context.sessionId,
+      update: {
+        sessionUpdate: "current_mode_update",
+        currentModeId: response.outcome.optionId,
+      },
+    });
     await context.updateConfigOption("mode", response.outcome.optionId);
 
     return {

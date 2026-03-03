@@ -586,22 +586,37 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     },
     creationOpts: { resume?: string; forkSession?: boolean } = {},
   ): Promise<NewSessionResponse> {
-    const meta = params._meta as NewSessionMeta | undefined;
-    const mcpServers = parseMcpServers(params);
     const { cwd } = params;
     const { resume, forkSession } = creationOpts;
 
+    const isResume = !!resume;
+
+    const meta = params._meta as NewSessionMeta | undefined;
+    const taskId = meta?.persistence?.taskId;
+
+    // We want to create a new session id unless it is resume,
+    // but not resume + forkSession.
     let sessionId: string;
     if (forkSession) {
       sessionId = uuidv7();
-    } else if (resume) {
+    } else if (isResume) {
       sessionId = resume;
     } else {
       sessionId = uuidv7();
     }
 
-    const isResume = !!resume;
-    const taskId = meta?.persistence?.taskId;
+    const input = new Pushable<SDKUserMessage>();
+
+    const settingsManager = new SettingsManager(cwd, {
+      logger: this.logger,
+    });
+    await settingsManager.initialize();
+
+    const mcpServers = parseMcpServers(params);
+    const systemPrompt = buildSystemPrompt(meta?.systemPrompt);
+
+    // Extract options from _meta if provided
+    const userProvidedOptions = meta?.claudeCode?.options;
 
     this.logger.info(isResume ? "Resuming session" : "Creating new session", {
       sessionId,
@@ -610,18 +625,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       cwd,
     });
 
-    const settingsManager = new SettingsManager(cwd, {
-      logger: this.logger,
-    });
-    await settingsManager.initialize();
-
     const permissionMode: TwigExecutionMode =
       meta?.permissionMode &&
       TWIG_EXECUTION_MODES.includes(meta.permissionMode as TwigExecutionMode)
         ? (meta.permissionMode as TwigExecutionMode)
         : "default";
-
-    const systemPrompt = buildSystemPrompt(meta?.systemPrompt);
 
     const options = buildSessionOptions({
       cwd,
@@ -642,72 +650,73 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       onProcessExited: this.options?.onProcessExited,
     });
 
-    const input = new Pushable<SDKUserMessage>();
-    if (!isResume) {
-      options.model = DEFAULT_MODEL;
+    // Handle abort controller from meta options
+    const abortController =
+      userProvidedOptions?.abortController ?? new AbortController();
+    if (abortController?.signal.aborted) {
+      throw new Error("Cancelled");
     }
+
     const q = query({ prompt: input, options });
-    const abortController = options.abortController as AbortController;
 
     const session: Session = {
       query: q,
       input,
-      settingsManager,
       cancelled: false,
+      settingsManager,
       permissionMode,
-      cwd,
-      notificationHistory: [],
       abortController,
-      configOptions: [],
       accumulatedUsage: {
         inputTokens: 0,
         outputTokens: 0,
         cachedReadTokens: 0,
         cachedWriteTokens: 0,
       },
+      configOptions: [],
       promptRunning: false,
       pendingMessages: new Map(),
       nextPendingOrder: 0,
+
+      // Custom properties
+      cwd,
+      notificationHistory: [],
+      taskRunId: meta?.taskRunId,
     };
     this.session = session;
     this.sessionId = sessionId;
-    session.taskRunId = meta?.taskRunId;
 
-    if (isResume) {
-      this.logger.info("Session query initialized, awaiting resumption", {
-        sessionId,
-        taskId,
-        taskRunId: meta?.taskRunId,
-      });
+    this.logger.info(
+      isResume
+        ? "Session query initialized, awaiting resumption"
+        : "Session query initialized, awaiting initialization",
+      { sessionId, taskId, taskRunId: meta?.taskRunId },
+    );
 
-      try {
-        const result = await withTimeout(
-          q.initializationResult(),
-          SESSION_VALIDATION_TIMEOUT_MS,
+    try {
+      const result = await withTimeout(
+        q.initializationResult(),
+        SESSION_VALIDATION_TIMEOUT_MS,
+      );
+      if (result.result === "timeout") {
+        throw new Error(
+          `Session ${isResume ? (forkSession ? "fork" : "resumption") : "initialization"} timed out for sessionId=${sessionId}`,
         );
-        if (result.result === "timeout") {
-          throw new Error(
-            `Session ${forkSession ? "fork" : "resumption"} timed out for sessionId=${sessionId}`,
-          );
-        }
-      } catch (err) {
-        this.logger.error(
-          forkSession ? "Session fork failed" : "Session resumption failed",
-          {
-            sessionId,
-            taskId,
-            taskRunId: meta?.taskRunId,
-            error: err instanceof Error ? err.message : String(err),
-          },
-        );
-        throw err;
       }
-
-      this.logger.info("Session resumed successfully", {
-        sessionId,
-        taskId,
-        taskRunId: meta?.taskRunId,
-      });
+    } catch (err) {
+      this.logger.error(
+        isResume
+          ? forkSession
+            ? "Session fork failed"
+            : "Session resumption failed"
+          : "Session initialization failed",
+        {
+          sessionId,
+          taskId,
+          taskRunId: meta?.taskRunId,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      );
+      throw err;
     }
 
     if (meta?.taskRunId) {
@@ -721,9 +730,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     // Resolve model: settings model takes priority, then gateway
     const settingsModel = settingsManager.getSettings().model;
     const modelOptions = await this.getModelConfigOptions();
-
-    this.deferBackgroundFetches(q);
-
     const resolvedModelId = settingsModel || modelOptions.currentModelId;
     session.modelId = resolvedModelId;
 
@@ -757,6 +763,19 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
     const configOptions = this.buildConfigOptions(permissionMode, modelOptions);
     session.configOptions = configOptions;
+
+    this.deferBackgroundFetches(q);
+
+    this.logger.info(
+      isResume
+        ? "Session resumed successfully"
+        : "Session created successfully",
+      {
+        sessionId,
+        taskId,
+        taskRunId: meta?.taskRunId,
+      },
+    );
 
     return { sessionId, modes, models, configOptions };
   }
@@ -888,7 +907,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   }
 
   // ================================
-  // PATCH METHODS
+  // EXTENSION METHODS
   // ================================
 
   /**
