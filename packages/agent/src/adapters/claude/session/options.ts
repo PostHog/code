@@ -114,7 +114,7 @@ function buildHooks(
     PostToolUse: [
       ...(userHooks?.PostToolUse || []),
       {
-        hooks: [createPostToolUseHook({ onModeChange })],
+        hooks: [createPostToolUseHook({ onModeChange, logger })],
       },
     ],
   };
