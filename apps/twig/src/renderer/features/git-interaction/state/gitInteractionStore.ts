@@ -161,7 +161,7 @@ export function getGitInteractionActionLabel(
     case "view-pr":
       return "View PR";
     case "branch-here":
-      return "Branch here";
+      return "New branch";
     default:
       return "Git Action";
   }
