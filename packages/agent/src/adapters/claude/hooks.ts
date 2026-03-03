@@ -34,10 +34,11 @@ export type OnModeChange = (mode: TwigExecutionMode) => Promise<void>;
 
 interface CreatePostToolUseHookParams {
   onModeChange?: OnModeChange;
+  logger?: Logger;
 }
 
 export const createPostToolUseHook =
-  ({ onModeChange }: CreatePostToolUseHookParams): HookCallback =>
+  ({ onModeChange, logger }: CreatePostToolUseHookParams): HookCallback =>
   async (
     input: HookInput,
     toolUseID: string | undefined,
@@ -57,6 +58,11 @@ export const createPostToolUseHook =
             toolUseID,
             input.tool_input,
             input.tool_response,
+          );
+          delete toolUseCallbacks[toolUseID];
+        } else {
+          logger?.error(
+            `No onPostToolUseHook found for tool use ID: ${toolUseID}`,
           );
           delete toolUseCallbacks[toolUseID];
         }
