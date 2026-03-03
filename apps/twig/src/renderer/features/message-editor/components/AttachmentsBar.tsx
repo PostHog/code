@@ -1,8 +1,35 @@
 import { File, X } from "@phosphor-icons/react";
 import { Dialog, Flex, IconButton, Text } from "@radix-ui/themes";
 import { trpcReact } from "@renderer/trpc/client";
+import { useEffect, useRef } from "react";
 import type { FileAttachment } from "../utils/content";
-import { isImageFile } from "../utils/imageUtils";
+import { isGifFile, isImageFile } from "../utils/imageUtils";
+
+function FrozenGifThumbnail({ src, alt }: { src: string; alt: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0);
+    };
+    img.src = src;
+  }, [src]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-label={alt}
+      className="size-3.5 rounded-sm object-cover"
+    />
+  );
+}
 
 function ImageThumbnail({
   attachment,
@@ -16,6 +43,8 @@ function ImageThumbnail({
     { staleTime: Infinity },
   );
 
+  const isGif = isGifFile(attachment.label);
+
   return (
     <Dialog.Root>
       <div className="group relative flex-shrink-0">
@@ -25,11 +54,15 @@ function ImageThumbnail({
             className="inline-flex items-center gap-1 rounded-[var(--radius-1)] bg-[var(--gray-a3)] p-1 font-medium text-[10px] text-[var(--gray-11)] leading-tight hover:bg-[var(--gray-a4)]"
           >
             {dataUrl ? (
-              <img
-                src={dataUrl}
-                alt={attachment.label}
-                className="size-3.5 rounded-sm object-cover"
-              />
+              isGif ? (
+                <FrozenGifThumbnail src={dataUrl} alt={attachment.label} />
+              ) : (
+                <img
+                  src={dataUrl}
+                  alt={attachment.label}
+                  className="size-3.5 rounded-sm object-cover"
+                />
+              )
             ) : (
               <span className="size-3.5 rounded-sm bg-[var(--gray-a5)]" />
             )}
