@@ -1,5 +1,6 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import { delimiter } from "node:path";
 import type { Readable, Writable } from "node:stream";
 import type { ProcessSpawnedCallback } from "../../types.js";
 import { Logger } from "../../utils/logger.js";
@@ -80,7 +81,7 @@ export function spawnCodexProcess(options: CodexProcessOptions): CodexProcess {
 
   if (options.binaryPath && existsSync(options.binaryPath)) {
     const binDir = options.binaryPath.replace(/\/[^/]+$/, "");
-    env.PATH = `${binDir}:${env.PATH ?? ""}`;
+    env.PATH = `${binDir}${delimiter}${env.PATH ?? ""}`;
   }
 
   logger.info("Spawning codex-acp process", {
