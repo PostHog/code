@@ -312,6 +312,7 @@ export class SettingsManager {
   }
 
   private handleSettingsChange(): void {
+    if (!this.initialized) return;
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
     }
