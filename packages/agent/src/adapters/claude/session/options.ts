@@ -39,7 +39,7 @@ export interface BuildOptionsParams {
   forkSession?: boolean;
   additionalDirectories?: string[];
   disableBuiltInTools?: boolean;
-  settingsManager?: SettingsManager;
+  settingsManager: SettingsManager;
   onModeChange?: OnModeChange;
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
   onProcessExited?: (pid: number) => void;
@@ -105,11 +105,11 @@ function buildEnvironment(): Record<string, string> {
 
 function buildHooks(
   userHooks: Options["hooks"],
-  onModeChange?: OnModeChange,
-  settingsManager?: SettingsManager,
-  logger?: Logger,
+  onModeChange: OnModeChange | undefined,
+  settingsManager: SettingsManager,
+  logger: Logger,
 ): Options["hooks"] {
-  const hooks: Options["hooks"] = {
+  return {
     ...userHooks,
     PostToolUse: [
       ...(userHooks?.PostToolUse || []),
@@ -117,18 +117,13 @@ function buildHooks(
         hooks: [createPostToolUseHook({ onModeChange, logger })],
       },
     ],
-  };
-
-  if (settingsManager && logger && hooks) {
-    hooks.PreToolUse = [
+    PreToolUse: [
       ...(userHooks?.PreToolUse || []),
       {
         hooks: [createPreToolUseHook(settingsManager, logger)],
       },
-    ];
-  }
-
-  return hooks;
+    ],
+  };
 }
 
 function getAbortController(
