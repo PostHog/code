@@ -1,4 +1,4 @@
-import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { SessionUpdate } from "@agentclientprotocol/sdk";
 import {
   toolInfoFromToolUse,
   toolUpdateFromToolResult,
@@ -48,7 +48,7 @@ function promptResponse(id: number): AcpMessage {
   };
 }
 
-function sessionUpdate(update: SessionNotification["update"]): AcpMessage {
+function sessionUpdate(update: SessionUpdate): AcpMessage {
   return {
     type: "acp_message",
     ts: ts(),
@@ -107,7 +107,7 @@ function toolCall(
     content,
     locations: info.locations,
     rawInput: toolInput,
-  } as SessionNotification["update"]);
+  } as SessionUpdate);
 }
 
 function buildAllToolCallsConversation(): AcpMessage[] {

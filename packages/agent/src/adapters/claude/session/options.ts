@@ -17,6 +17,7 @@ import {
   type OnModeChange,
 } from "../hooks.js";
 import type { TwigExecutionMode } from "../tools.js";
+import { DEFAULT_MODEL } from "./models.js";
 import type { SettingsManager } from "./settings.js";
 
 export interface ProcessSpawnedInfo {
@@ -236,6 +237,11 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
     permissionMode: params.permissionMode,
     canUseTool: params.canUseTool,
     executable: "node",
+    tools: { type: "preset", preset: "claude_code" },
+    extraArgs: {
+      ...params.userProvidedOptions?.extraArgs,
+      "replay-user-messages": "",
+    },
     mcpServers: buildMcpServers(
       params.userProvidedOptions?.mcpServers,
       params.mcpServers,
@@ -268,6 +274,7 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
     options.forkSession = params.forkSession ?? false;
   } else {
     options.sessionId = params.sessionId;
+    options.model = DEFAULT_MODEL;
   }
 
   if (params.additionalDirectories) {
@@ -295,14 +302,6 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
       ...(options.disallowedTools ?? []),
       ...builtInTools,
     ];
-  }
-
-  const maxThinkingTokens = Number.parseInt(
-    process.env.MAX_THINKING_TOKENS ?? "",
-    10,
-  );
-  if (!Number.isNaN(maxThinkingTokens) && maxThinkingTokens > 0) {
-    options.maxThinkingTokens = maxThinkingTokens;
   }
 
   clearStatsigCache();

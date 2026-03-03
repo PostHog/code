@@ -454,6 +454,15 @@ export function toolUpdateFromToolResult(
   toolUse: Pick<ToolUseBlock, "name" | "input"> | undefined,
   options?: { supportsTerminalOutput?: boolean; toolUseId?: string },
 ): Pick<ToolCallUpdate, "title" | "content" | "locations" | "_meta"> {
+  if (
+    "is_error" in toolResult &&
+    toolResult.is_error &&
+    toolResult.content &&
+    (toolResult.content as unknown[]).length > 0
+  ) {
+    return toAcpContentUpdate(toolResult.content, true);
+  }
+
   switch (toolUse?.name) {
     case "Read":
       if (Array.isArray(toolResult.content) && toolResult.content.length > 0) {
@@ -505,45 +514,69 @@ export function toolUpdateFromToolResult(
       return {};
 
     case "Bash": {
-      if (options?.supportsTerminalOutput && options?.toolUseId) {
-        const result = toolResult as unknown as Record<string, unknown>;
-        const stdout = (result.stdout as string) ?? "";
-        const stderr = (result.stderr as string) ?? "";
-        const returnCode =
-          typeof result.return_code === "number" ? result.return_code : null;
-        const data = stdout + (stderr ? stderr : "");
+      const result = toolResult.content;
+      const terminalId =
+        "tool_use_id" in toolResult ? String(toolResult.tool_use_id) : "";
+      const isError = "is_error" in toolResult && toolResult.is_error;
 
+      let output = "";
+      let exitCode = isError ? 1 : 0;
+
+      if (
+        result &&
+        typeof result === "object" &&
+        "type" in result &&
+        (result as { type: string }).type === "bash_code_execution_result"
+      ) {
+        const bashResult = result as {
+          stdout?: string;
+          stderr?: string;
+          return_code: number;
+        };
+        output = bashResult.stdout || bashResult.stderr || "";
+        exitCode = bashResult.return_code;
+      } else if (typeof result === "string") {
+        output = result;
+      } else if (
+        Array.isArray(result) &&
+        result.length > 0 &&
+        "text" in result[0] &&
+        typeof result[0].text === "string"
+      ) {
+        output = result.map((c: { text?: string }) => c.text ?? "").join("\n");
+      }
+
+      if (options?.supportsTerminalOutput) {
         return {
+          content: [{ type: "terminal" as const, terminalId }],
           _meta: {
+            terminal_info: {
+              terminal_id: terminalId,
+            },
             terminal_output: {
-              terminal_id: options.toolUseId,
-              data,
+              terminal_id: terminalId,
+              data: output,
             },
             terminal_exit: {
-              terminal_id: options.toolUseId,
-              exit_code: returnCode,
+              terminal_id: terminalId,
+              exit_code: exitCode,
               signal: null,
             },
           },
         };
       }
-      return toAcpContentUpdate(
-        toolResult.content,
-        "is_error" in toolResult ? toolResult.is_error : false,
-      );
-    }
-    case "Edit":
-    case "Write": {
-      if (
-        "is_error" in toolResult &&
-        toolResult.is_error &&
-        toolResult.content &&
-        toolResult.content.length > 0
-      ) {
-        return toAcpContentUpdate(toolResult.content, true);
+      if (output.trim()) {
+        return {
+          content: toolContent()
+            .text(`\`\`\`console\n${output.trimEnd()}\n\`\`\``)
+            .build(),
+        };
       }
       return {};
     }
+    case "Edit":
+    case "Write":
+      return {};
 
     case "ExitPlanMode": {
       return { title: "Exited Plan Mode" };

@@ -1,6 +1,6 @@
 import type {
   ToolKind as AcpToolKind,
-  SessionNotification,
+  SessionUpdate,
   ToolCallContent,
   ToolCallLocation,
   ToolCallStatus,
@@ -8,7 +8,12 @@ import type {
 
 export type TwigToolKind = AcpToolKind | "question";
 
-export type { ToolCallContent, ToolCallStatus, ToolCallLocation };
+export type {
+  SessionUpdate,
+  ToolCallContent,
+  ToolCallStatus,
+  ToolCallLocation,
+};
 
 export interface ToolCall {
   _meta?: { [key: string]: unknown } | null;
@@ -21,8 +26,6 @@ export interface ToolCall {
   title: string;
   toolCallId: string;
 }
-
-export type SessionUpdate = SessionNotification["update"];
 
 export type Plan = Extract<SessionUpdate, { sessionUpdate: "plan" }>;
 export type ConfigOptionUpdate = Extract<
