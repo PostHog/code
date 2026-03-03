@@ -40,7 +40,6 @@ import {
   listSessions,
   type Query,
   query,
-  type SDKResultMessage,
   type SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import { v7 as uuidv7 } from "uuid";
@@ -426,13 +425,19 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
               "usage" in message.message &&
               message.parent_tool_use_id === null
             ) {
-              const messageWithUsage =
-                message.message as unknown as SDKResultMessage;
+              const usage = (
+                message.message as unknown as Record<string, unknown>
+              ).usage as {
+                input_tokens: number;
+                output_tokens: number;
+                cache_read_input_tokens: number;
+                cache_creation_input_tokens: number;
+              };
               lastAssistantTotalUsage =
-                messageWithUsage.usage.input_tokens +
-                messageWithUsage.usage.output_tokens +
-                messageWithUsage.usage.cache_read_input_tokens +
-                messageWithUsage.usage.cache_creation_input_tokens;
+                usage.input_tokens +
+                usage.output_tokens +
+                usage.cache_read_input_tokens +
+                usage.cache_creation_input_tokens;
             }
 
             const result = await handleUserAssistantMessage(message, context);
