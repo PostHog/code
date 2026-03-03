@@ -614,9 +614,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
     const input = new Pushable<SDKUserMessage>();
 
-    const settingsManager = new SettingsManager(cwd, {
-      logger: this.logger,
-    });
+    const settingsManager = new SettingsManager(cwd, this.logger);
     await settingsManager.initialize();
 
     const mcpServers = parseMcpServers(params);
@@ -925,9 +923,13 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
    */
   private deferBackgroundFetches(q: Query): void {
     Promise.all([
-      setTimeout(() => this.sendAvailableCommandsUpdate(), 10),
+      new Promise<void>((resolve) => setTimeout(resolve, 10)).then(() =>
+        this.sendAvailableCommandsUpdate(),
+      ),
       fetchMcpToolMetadata(q, this.logger),
-    ]);
+    ]).catch((err) =>
+      this.logger.error("Background fetch failed", { error: err }),
+    );
   }
 
   async extMethod(

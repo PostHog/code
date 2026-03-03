@@ -175,7 +175,6 @@ export function getManagedSettingsPath(): string {
 
 interface SettingsManagerOptions {
   onChange?: () => void;
-  logger?: Logger;
 }
 
 export class SettingsManager {
@@ -191,11 +190,10 @@ export class SettingsManager {
   private initialized = false;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(cwd: string, options?: SettingsManagerOptions) {
+  constructor(cwd: string, logger: Logger, options?: SettingsManagerOptions) {
     this.cwd = cwd;
+    this.logger = logger;
     this.onChange = options?.onChange;
-    // Logger is required — callers must provide one
-    this.logger = options?.logger as Logger;
   }
 
   async initialize(): Promise<void> {
