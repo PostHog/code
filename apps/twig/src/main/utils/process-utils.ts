@@ -29,15 +29,17 @@ export function killProcessTree(pid: number): void {
 
       if (!sent) return;
 
-      // Force kill after a grace period if still alive
+      // Force kill after a grace period — unref so the timer doesn't delay app exit.
+      // We skip the liveness check since isProcessAlive only tests the group leader;
+      // orphaned children in the same group would be missed. The catch blocks
+      // handle ESRCH if everything already exited.
       setTimeout(() => {
-        if (!isProcessAlive(pid)) return;
         for (const target of [-pid, pid]) {
           try {
             process.kill(target, "SIGKILL");
           } catch {}
         }
-      }, SIGKILL_GRACE_MS);
+      }, SIGKILL_GRACE_MS).unref();
     }
   } catch (err) {
     log.warn(`Failed to kill process tree for PID ${pid}`, err);
