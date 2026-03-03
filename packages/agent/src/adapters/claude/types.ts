@@ -81,7 +81,7 @@ export type ToolUpdateMeta = {
   claudeCode?: {
     toolName: string;
     toolResponse?: unknown;
-    parentToolUseId?: string;
+    parentToolCallId?: string;
   };
   terminal_info?: TerminalInfo;
   terminal_output?: TerminalOutput;

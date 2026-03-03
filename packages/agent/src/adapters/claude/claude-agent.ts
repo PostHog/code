@@ -478,6 +478,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       pending.resolve(true);
     }
     this.session.pendingMessages.clear();
+    this.session.abortController.abort();
     await this.session.query.interrupt();
   }
 
@@ -567,10 +568,12 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     if (!TWIG_EXECUTION_MODES.includes(modeId as TwigExecutionMode)) {
       throw new Error("Invalid Mode");
     }
+    const previousMode = this.session.permissionMode;
     this.session.permissionMode = modeId as TwigExecutionMode;
     try {
       await this.session.query.setPermissionMode(modeId as TwigExecutionMode);
     } catch (error) {
+      this.session.permissionMode = previousMode;
       if (error instanceof Error) {
         if (!error.message) {
           error.message = "Invalid Mode";
