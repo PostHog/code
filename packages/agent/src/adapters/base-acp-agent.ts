@@ -31,7 +31,7 @@ export interface BaseSession {
   cancelled: boolean;
   interruptReason?: string;
   abortController: AbortController;
-  settingsManager?: SettingsManager;
+  settingsManager: SettingsManager;
 }
 
 export abstract class BaseAcpAgent implements Agent {
@@ -70,7 +70,7 @@ export abstract class BaseAcpAgent implements Agent {
       // otherwise interrupt() deadlocks waiting for the query to stop
       // while the query waits on an API call that will never abort.
       this.session.abortController.abort();
-      this.session.settingsManager?.dispose();
+      this.session.settingsManager.dispose();
       await this.cancel({ sessionId: this.sessionId });
       this.logger.info("Closed session", { sessionId: this.sessionId });
     } catch (err) {
