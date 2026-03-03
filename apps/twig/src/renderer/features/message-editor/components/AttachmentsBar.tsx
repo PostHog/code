@@ -13,21 +13,21 @@ function FrozenGifThumbnail({ src, alt }: { src: string; alt: string }) {
     img.onload = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      const size = 56;
+      canvas.width = size;
+      canvas.height = size;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      ctx.drawImage(img, 0, 0);
+      const min = Math.min(img.naturalWidth, img.naturalHeight);
+      const sx = (img.naturalWidth - min) / 2;
+      const sy = (img.naturalHeight - min) / 2;
+      ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
     };
     img.src = src;
   }, [src]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      aria-label={alt}
-      className="size-3.5 rounded-sm object-cover"
-    />
+    <canvas ref={canvasRef} aria-label={alt} className="size-3.5 rounded-sm" />
   );
 }
 
