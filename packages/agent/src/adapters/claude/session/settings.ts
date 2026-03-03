@@ -171,11 +171,6 @@ export function getManagedSettingsPath(): string {
       return "/etc/claude-code/managed-settings.json";
   }
 }
-
-interface SettingsManagerOptions {
-  onChange?: () => void;
-}
-
 export class SettingsManager {
   private cwd: string;
   private userSettings: ClaudeCodeSettings = {};
@@ -184,16 +179,12 @@ export class SettingsManager {
   private enterpriseSettings: ClaudeCodeSettings = {};
   private mergedSettings: ClaudeCodeSettings = {};
   private watchers: fs.FSWatcher[] = [];
-  // private onChange?: () => void;
-  // private logger: Logger;
   private initialized = false;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   // logger: Logger, options?: SettingsManagerOptions
   constructor(cwd: string) {
     this.cwd = cwd;
-    // this.logger = logger;
-    // this.onChange = options?.onChange;
   }
 
   async initialize(): Promise<void> {
@@ -201,10 +192,6 @@ export class SettingsManager {
       return;
     }
     await this.loadAllSettings();
-
-    // We don't use watchers for now because we don't want to reload settings when the user changes them.
-    // this.setupWatchers();
-
     this.initialized = true;
   }
 
@@ -283,53 +270,6 @@ export class SettingsManager {
 
     this.mergedSettings = merged;
   }
-
-  // private setupWatchers(): void {
-  //   const paths = [
-  //     this.getUserSettingsPath(),
-  //     this.getProjectSettingsPath(),
-  //     this.getLocalSettingsPath(),
-  //     getManagedSettingsPath(),
-  //   ];
-
-  //   for (const filePath of paths) {
-  //     if (!filePath) continue;
-  //     try {
-  //       const dir = path.dirname(filePath);
-  //       const filename = path.basename(filePath);
-  //       if (fs.existsSync(dir)) {
-  //         const watcher = fs.watch(dir, (_, changedFilename) => {
-  //           if (changedFilename === filename) {
-  //             this.handleSettingsChange();
-  //           }
-  //         });
-  //         watcher.on("error", (error) => {
-  //           this.logger.error(`Settings watcher error for ${filePath}`, error);
-  //         });
-  //         this.watchers.push(watcher);
-  //       }
-  //     } catch (error) {
-  //       this.logger.error(`Failed to set up watcher for ${filePath}`, error);
-  //     }
-  //   }
-  // }
-
-  // private handleSettingsChange(): void {
-  //   if (!this.initialized) return;
-  //   if (this.debounceTimer) {
-  //     clearTimeout(this.debounceTimer);
-  //   }
-  //   this.debounceTimer = setTimeout(async () => {
-  //     this.debounceTimer = null;
-  //     if (!this.initialized) return;
-  //     try {
-  //       await this.loadAllSettings();
-  //       this.onChange?.();
-  //     } catch (error) {
-  //       this.logger.error("Failed to reload settings", error);
-  //     }
-  //   }, 100);
-  // }
 
   checkPermission(toolName: string, toolInput: unknown): PermissionCheckResult {
     if (!toolName.startsWith(ACP_TOOL_NAME_PREFIX)) {
