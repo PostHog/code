@@ -408,9 +408,6 @@ function processSessionUpdate(b: ItemBuilder, update: SessionUpdate) {
         if (parentId) {
           pushChildItem(b, parentId, toolCall);
         } else {
-          if (toolCall.kind === "switch_mode") {
-            dropPrecedingAgentText(b);
-          }
           pushItem(b, toolCall);
         }
       }
@@ -456,16 +453,6 @@ function processSessionUpdate(b: ItemBuilder, update: SessionUpdate) {
       }
       break;
     }
-  }
-}
-
-function dropPrecedingAgentText(b: ItemBuilder) {
-  const lastItem = b.items[b.items.length - 1];
-  if (
-    lastItem?.type === "session_update" &&
-    lastItem.update.sessionUpdate === "agent_message_chunk"
-  ) {
-    b.items.pop();
   }
 }
 
