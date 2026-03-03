@@ -5,7 +5,7 @@ Fork of `@anthropic-ai/claude-agent-acp`. Upstream repo: https://github.com/anth
 ## Fork Point
 
 - **Forked**: v0.10.9, commit `5411e0f4`, Dec 2 2025
-- **Last sync**: v0.19.2, March 2 2026 (plan-based, not direct diff)
+- **Last sync**: v0.19.2, March 2 2026
 - **SDK**: `@anthropic-ai/claude-agent-sdk` 0.2.63, `@agentclientprotocol/sdk` ^0.14.0
 
 ## File Mapping
@@ -13,41 +13,45 @@ Fork of `@anthropic-ai/claude-agent-acp`. Upstream repo: https://github.com/anth
 | Twig | Upstream |
 |---|---|
 | `conversion/tool-use-to-acp.ts` | `tools.ts` |
-| `conversion/sdk-to-acp.ts` | `sdk-to-acp.ts` |
-| `conversion/acp-to-sdk.ts` | `acp-to-sdk.ts` |
-| `claude-agent.ts` | `claude-code-agent.ts` |
-| `permissions/*` | inline in agent |
-| `session/options.ts` | inline in agent |
-| `session/commands.ts` | `commands.ts` |
-| `hooks.ts` | `hooks.ts` |
+| `conversion/sdk-to-acp.ts` | inline in `acp-agent.ts` |
+| `conversion/acp-to-sdk.ts` | inline in `acp-agent.ts` |
+| `claude-agent.ts` | `acp-agent.ts` |
+| `permissions/*` | inline in `acp-agent.ts` |
+| `session/options.ts` | inline in `acp-agent.ts` |
+| `session/commands.ts` | inline in `acp-agent.ts` |
+| `hooks.ts` | `tools.ts` |
 | `types.ts` | inline |
 
 ## Twig-Only Code (Do Not Sync)
 
-- PostHog analytics (`_posthog/*` ext notifications)
-- Process lifecycle (spawn wrappers, PID tracking)
-- Plan mode (`plan/`, EnterPlanMode/ExitPlanMode handlers)
-- Gateway models (`session/models.ts`, `base-acp-agent.ts`)
-- AskUserQuestion handler (`questions/`)
-- Execution modes and tool allowlists (`tools.ts`)
+- PostHog analytics (`_posthog/*` ext notifications, `_posthog/usage_update`)
+- Process lifecycle (spawn wrappers, PID tracking, `onProcessSpawned`/`onProcessExited`)
+- Plan mode (`plan/`, EnterPlanMode/ExitPlanMode handlers, plan validation)
+- Gateway models (`session/models.ts`, `base-acp-agent.ts`, `fetchGatewayModels`)
+- AskUserQuestion handler (`questions/`, `CLAUDE_CODE_ENABLE_ASK_USER_QUESTION_TOOL`)
+- Execution modes and tool allowlists (`tools.ts`, `TwigExecutionMode`)
 - MCP metadata caching (`mcp/`)
 - Branch naming in system prompt
+- `broadcastUserMessage` in prompt()
+- `interruptReason` on cancel
+- `SYSTEM_REMINDER` stripping from Read tool results
+- WebFetch `resourceLink` content enrichment
+- `customTitle` in listSessions (Twig is ahead of upstream here)
+- SettingsManager `PreToolUse` hook for permission rules
+- `ensureLocalSettings` / `clearStatsigCache`
+- `ELECTRON_RUN_AS_NODE` / `ENABLE_TOOL_SEARCH` env vars
 
-## What Was Synced (March 2 2026)
+## Intentional Divergences
 
-Bug fixes: grep output_mode snake_case, Read 1-based offsets, grep pattern null guard, abort signal in canUseTool, duplicate tool_call prevention.
-
-Features: token usage tracking (AccumulatedUsage type, usage_update notifications), edit tool diff rendering (structuredPatch parsing, removed replaceAndCalculateLocation), prompt queueing, built-in tool disabling, MAX_THINKING_TOKENS env, image content in Read results, slash command filter update, session management (replay, list, fork, resume ext methods), terminal output streaming.
-
-## Confidence Gaps
-
-The March 2 sync was done from a written plan, not a direct upstream diff. These may not match upstream exactly:
-
-- `toolUpdateFromEditToolResponse` structuredPatch shape
-- `extractUsageFromResult` field names
-- `replaySessionHistory` message casting
-- `unstable_forkSession` session state handling
-- Bash terminal output field parsing (`stdout`/`stderr`/`return_code`)
+| Area | Upstream | Twig | Reason |
+|---|---|---|---|
+| AskUserQuestion | Always disallowed | Enabled via env var + permission handler | Twig supports structured questions |
+| Model resolution | `initializationResult.models` from SDK | `fetchGatewayModels()` from gateway API | Different model backend |
+| permissionMode | Hardcoded `"default"` | Reads from `meta.permissionMode` | More flexible mode selection |
+| Session storage | `this.sessions[sessionId]` (multi) | `this.session` (single) | Architectural choice |
+| ExitPlanMode denial | `interrupt: true` | `interrupt: false` | Better UX — lets Claude refine plan |
+| bypassPermissions | `updatedPermissions` with `destination: "session"` | No `updatedPermissions` | Different permission persistence |
+| Auth methods | Always returns `claude-login` auth method | Returns empty `authMethods` | Auth handled externally |
 
 ## Next Sync
 
