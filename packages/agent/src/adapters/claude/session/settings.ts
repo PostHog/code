@@ -178,11 +178,8 @@ export class SettingsManager {
   private localSettings: ClaudeCodeSettings = {};
   private enterpriseSettings: ClaudeCodeSettings = {};
   private mergedSettings: ClaudeCodeSettings = {};
-  private watchers: fs.FSWatcher[] = [];
   private initialized = false;
-  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // logger: Logger, options?: SettingsManagerOptions
   constructor(cwd: string) {
     this.cwd = cwd;
   }
@@ -324,14 +321,6 @@ export class SettingsManager {
   }
 
   dispose(): void {
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer);
-      this.debounceTimer = null;
-    }
-    for (const watcher of this.watchers) {
-      watcher.close();
-    }
-    this.watchers = [];
     this.initialized = false;
   }
 }
