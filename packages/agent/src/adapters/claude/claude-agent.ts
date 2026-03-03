@@ -18,8 +18,6 @@ import {
   type NewSessionResponse,
   type PromptRequest,
   type PromptResponse,
-  type ReadTextFileRequest,
-  type ReadTextFileResponse,
   RequestError,
   type ResumeSessionRequest,
   type ResumeSessionResponse,
@@ -35,8 +33,6 @@ import {
   type SetSessionModeRequest,
   type SetSessionModeResponse,
   type Usage,
-  type WriteTextFileRequest,
-  type WriteTextFileResponse,
 } from "@agentclientprotocol/sdk";
 import {
   type CanUseTool,
@@ -453,7 +449,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
             break;
 
           default:
-            unreachable(message, this.logger);
+            unreachable(message as never, this.logger);
             break;
         }
       }
@@ -461,17 +457,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     } finally {
       if (!handedOff) {
         this.session.promptRunning = false;
-        // This usually should not happen, but in case the loop finishes
-        // without claude sending all message replays, we resolve the
-        // next pending prompt call to ensure no prompts get stuck.
-        if (this.session.pendingMessages.size > 0) {
-          const next = [...this.session.pendingMessages.entries()].sort(
-            (a, b) => a[1].order - b[1].order,
-          )[0];
-          if (next) {
-            next[1].resolve(false);
-            this.session.pendingMessages.delete(next[0]);
-          }
+        // Resolve all remaining pending prompts so no callers get stuck.
+        for (const [key, pending] of this.session.pendingMessages) {
+          pending.resolve(true);
+          this.session.pendingMessages.delete(key);
         }
       }
     }
@@ -490,7 +479,9 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   async unstable_setSessionModel(
     params: SetSessionModelRequest,
   ): Promise<SetSessionModelResponse | undefined> {
-    await this.session.query.setModel(params.modelId);
+    const sdkModelId = toSdkModelId(params.modelId);
+    await this.session.query.setModel(sdkModelId);
+    this.session.modelId = params.modelId;
     await this.updateConfigOption("model", params.modelId);
     return {};
   }
@@ -538,7 +529,9 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         },
       });
     } else if (params.configId === "model") {
-      await this.session.query.setModel(params.value);
+      const sdkModelId = toSdkModelId(params.value);
+      await this.session.query.setModel(sdkModelId);
+      this.session.modelId = params.value;
     }
 
     this.session.configOptions = this.session.configOptions.map((o) =>
@@ -652,7 +645,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       additionalDirectories: meta?.claudeCode?.options?.additionalDirectories,
       disableBuiltInTools: meta?.disableBuiltInTools,
       settingsManager,
-      onModeChange: this.createOnModeChange(sessionId),
+      onModeChange: this.createOnModeChange(),
       onProcessSpawned: this.options?.onProcessSpawned,
       onProcessExited: this.options?.onProcessExited,
     });
@@ -789,20 +782,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     return { sessionId, modes, models, configOptions };
   }
 
-  async readTextFile(
-    params: ReadTextFileRequest,
-  ): Promise<ReadTextFileResponse> {
-    const response = await this.client.readTextFile(params);
-    return response;
-  }
-
-  async writeTextFile(
-    params: WriteTextFileRequest,
-  ): Promise<WriteTextFileResponse> {
-    const response = await this.client.writeTextFile(params);
-    return response;
-  }
-
   private createCanUseTool(sessionId: string): CanUseTool {
     return async (toolName, toolInput, { suggestions, toolUseID, signal }) =>
       canUseTool({
@@ -821,7 +800,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       });
   }
 
-  private createOnModeChange(_sessionId: string) {
+  private createOnModeChange() {
     return async (newMode: TwigExecutionMode) => {
       if (this.session) {
         this.session.permissionMode = newMode;

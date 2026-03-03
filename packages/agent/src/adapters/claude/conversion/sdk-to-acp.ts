@@ -346,7 +346,7 @@ function processContentChunk(
       return [];
 
     default:
-      unreachable(chunk, ctx.logger);
+      unreachable(chunk as never, ctx.logger);
       return [];
   }
 }
@@ -449,7 +449,7 @@ function streamEventToAcpNotifications(
       return [];
 
     default:
-      unreachable(event, logger);
+      unreachable(event as never, logger);
       return [];
   }
 }
