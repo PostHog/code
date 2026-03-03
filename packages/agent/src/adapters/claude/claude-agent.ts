@@ -932,19 +932,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     );
   }
 
-  async extMethod(
-    method: string,
-    params: Record<string, unknown>,
-  ): Promise<Record<string, unknown>> {
-    if (method === "_posthog/session/resume") {
-      const result = await this.unstable_resumeSession(
-        params as unknown as ResumeSessionRequest,
-      );
-      return { _meta: { configOptions: result.configOptions } };
-    }
-    throw RequestError.methodNotFound(method);
-  }
-
   private async broadcastUserMessage(params: PromptRequest): Promise<void> {
     for (const chunk of params.prompt) {
       const notification = {
