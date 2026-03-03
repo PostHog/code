@@ -156,6 +156,8 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   }
 
   async newSession(params: NewSessionRequest): Promise<NewSessionResponse> {
+    // Upstream Claude Code renames .claude.json to .claude.json.backup on logout.
+    // If the backup exists but the original doesn't, the user is logged out.
     if (
       fs.existsSync(path.resolve(os.homedir(), ".claude.json.backup")) &&
       !fs.existsSync(path.resolve(os.homedir(), ".claude.json"))
@@ -227,10 +229,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   async unstable_listSessions(
     params: ListSessionsRequest,
   ): Promise<ListSessionsResponse> {
-    const sdk_sessions = await listSessions({ dir: params.cwd ?? undefined });
+    const sdkSessions = await listSessions({ dir: params.cwd ?? undefined });
     const sessions = [];
 
-    for (const session of sdk_sessions) {
+    for (const session of sdkSessions) {
       if (!session.cwd) continue;
       sessions.push({
         sessionId: session.sessionId,
