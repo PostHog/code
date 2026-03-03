@@ -34,6 +34,7 @@ import {
   type SetSessionModelResponse,
   type SetSessionModeRequest,
   type SetSessionModeResponse,
+  type Usage,
   type WriteTextFileRequest,
   type WriteTextFileResponse,
 } from "@agentclientprotocol/sdk";
@@ -346,8 +347,8 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
                 sessionId: params.sessionId,
                 update: {
                   sessionUpdate: "usage_update",
-                  used: BigInt(lastAssistantTotalUsage),
-                  size: BigInt(contextWindowSize),
+                  used: lastAssistantTotalUsage as unknown as bigint,
+                  size: contextWindowSize as unknown as bigint,
                   cost: {
                     amount: message.total_cost_usd,
                     currency: "USD",
@@ -368,22 +369,21 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
             });
 
             // Build usage for PromptResponse
-            const usage: PromptResponse["usage"] = {
-              inputTokens: BigInt(this.session.accumulatedUsage.inputTokens),
-              outputTokens: BigInt(this.session.accumulatedUsage.outputTokens),
-              cachedReadTokens: BigInt(
-                this.session.accumulatedUsage.cachedReadTokens,
-              ),
-              cachedWriteTokens: BigInt(
+            // ACP SDK types declare these as bigint but JSON.stringify can't
+            // serialize BigInt. Token counts never exceed MAX_SAFE_INTEGER so
+            // we pass plain numbers and cast to satisfy the type system.
+            const usage = {
+              inputTokens: this.session.accumulatedUsage.inputTokens,
+              outputTokens: this.session.accumulatedUsage.outputTokens,
+              cachedReadTokens: this.session.accumulatedUsage.cachedReadTokens,
+              cachedWriteTokens:
                 this.session.accumulatedUsage.cachedWriteTokens,
-              ),
-              totalTokens: BigInt(
+              totalTokens:
                 this.session.accumulatedUsage.inputTokens +
-                  this.session.accumulatedUsage.outputTokens +
-                  this.session.accumulatedUsage.cachedReadTokens +
-                  this.session.accumulatedUsage.cachedWriteTokens,
-              ),
-            };
+                this.session.accumulatedUsage.outputTokens +
+                this.session.accumulatedUsage.cachedReadTokens +
+                this.session.accumulatedUsage.cachedWriteTokens,
+            } as unknown as Usage;
 
             const result = handleResultMessage(message);
             if (result.error) throw result.error;
