@@ -137,6 +137,21 @@ export class PostHogAPIClient {
     );
   }
 
+  async relayMessage(
+    taskId: string,
+    runId: string,
+    text: string,
+  ): Promise<void> {
+    const teamId = this.getTeamId();
+    await this.apiRequest<{ status: string }>(
+      `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/relay_message/`,
+      {
+        method: "POST",
+        body: JSON.stringify({ text }),
+      },
+    );
+  }
+
   async uploadTaskArtifacts(
     taskId: string,
     runId: string,

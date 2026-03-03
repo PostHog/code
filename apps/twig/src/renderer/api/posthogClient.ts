@@ -147,6 +147,13 @@ export class PostHogAPIClient {
     return data;
   }
 
+  async switchOrganization(orgId: string): Promise<void> {
+    await this.api.patch("/api/users/{uuid}/", {
+      path: { uuid: "@me" },
+      body: { set_current_organization: orgId } as Record<string, unknown>,
+    });
+  }
+
   async getProject(projectId: number) {
     //@ts-expect-error this is not in the generated client
     const data = await this.api.get("/api/projects/{project_id}/", {

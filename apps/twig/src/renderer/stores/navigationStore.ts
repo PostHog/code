@@ -140,6 +140,20 @@ export const useNavigationStore = create<NavigationStore>()(
             } catch (error) {
               log.error("Failed to auto-register folder on task open:", error);
             }
+          } else if (task.latest_run?.environment === "cloud") {
+            useWorkspaceStore.getState().updateWorkspace(task.id, {
+              taskId: task.id,
+              folderId: "",
+              folderPath: "",
+              mode: "cloud",
+              worktreePath: null,
+              worktreeName: null,
+              branchName: null,
+              baseBranch: null,
+              createdAt: new Date().toISOString(),
+              terminalSessionIds: [],
+              hasStartScripts: false,
+            });
           }
         },
 

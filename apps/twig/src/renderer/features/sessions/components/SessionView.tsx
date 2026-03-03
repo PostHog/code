@@ -37,7 +37,7 @@ interface SessionViewProps {
   events: AcpMessage[];
   taskId?: string;
   isRunning: boolean;
-  isPromptPending?: boolean;
+  isPromptPending?: boolean | null;
   promptStartedAt?: number | null;
   onSendPrompt: (text: string) => void;
   onBashCommand?: (command: string) => void;
@@ -50,6 +50,7 @@ interface SessionViewProps {
   onNewSession?: () => void;
   isInitializing?: boolean;
   readOnlyMessage?: string;
+  slackThreadUrl?: string;
 }
 
 const DEFAULT_ERROR_MESSAGE =
@@ -72,6 +73,7 @@ export function SessionView({
   onNewSession,
   isInitializing = false,
   readOnlyMessage,
+  slackThreadUrl,
 }: SessionViewProps) {
   const showRawLogs = useShowRawLogs();
   const { setShowRawLogs } = useSessionViewActions();
@@ -124,10 +126,10 @@ export function SessionView({
     taskId,
     repoPath,
     disabled: !isRunning,
-    isLoading: isPromptPending,
+    isLoading: !!isPromptPending,
   });
 
-  useHotkeys("escape", onCancelPrompt, { enabled: isPromptPending }, [
+  useHotkeys("escape", onCancelPrompt, { enabled: !!isPromptPending }, [
     onCancelPrompt,
   ]);
 
@@ -373,6 +375,7 @@ export function SessionView({
                   promptStartedAt={promptStartedAt}
                   repoPath={repoPath}
                   taskId={taskId}
+                  slackThreadUrl={slackThreadUrl}
                 />
               )}
 

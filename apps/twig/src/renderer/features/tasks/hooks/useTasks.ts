@@ -15,6 +15,8 @@ import { useCallback } from "react";
 
 const log = logger.scope("tasks");
 
+const TASK_LIST_POLL_INTERVAL_MS = 30_000;
+
 const taskKeys = {
   all: ["tasks"] as const,
   lists: () => [...taskKeys.all, "list"] as const,
@@ -37,7 +39,7 @@ export function useTasks(filters?: { repository?: string }) {
         repository: filters?.repository,
         createdBy: currentUser?.id,
       }) as unknown as Promise<Task[]>,
-    { enabled: !!currentUser?.id },
+    { enabled: !!currentUser?.id, refetchInterval: TASK_LIST_POLL_INTERVAL_MS },
   );
 }
 

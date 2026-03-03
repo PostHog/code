@@ -1,6 +1,12 @@
 import { Tooltip } from "@components/ui/Tooltip";
 import { MarkdownRenderer } from "@features/editor/components/MarkdownRenderer";
-import { CaretDown, CaretUp, Check, Copy } from "@phosphor-icons/react";
+import {
+  CaretDown,
+  CaretUp,
+  Check,
+  Copy,
+  SlackLogo,
+} from "@phosphor-icons/react";
 import { Box, IconButton } from "@radix-ui/themes";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { hasFileMentions, parseFileMentions } from "./parseFileMentions";
@@ -10,6 +16,7 @@ const COLLAPSED_MAX_HEIGHT = 160;
 interface UserMessageProps {
   content: string;
   timestamp?: number;
+  sourceUrl?: string;
 }
 
 function formatTimestamp(ts: number): string {
@@ -23,7 +30,11 @@ function formatTimestamp(ts: number): string {
   });
 }
 
-export function UserMessage({ content, timestamp }: UserMessageProps) {
+export function UserMessage({
+  content,
+  timestamp,
+  sourceUrl,
+}: UserMessageProps) {
   const containsFileMentions = hasFileMentions(content);
   const [copied, setCopied] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -89,6 +100,17 @@ export function UserMessage({ content, timestamp }: UserMessageProps) {
             </>
           )}
         </button>
+      )}
+      {sourceUrl && (
+        <a
+          href={sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1.5 inline-flex items-center gap-1 font-mono text-[11px] text-gray-10 transition-colors hover:text-gray-12"
+        >
+          <SlackLogo size={12} />
+          <span>View Slack thread</span>
+        </a>
       )}
       <Box className="absolute top-1 right-1 flex items-center gap-2 opacity-0 transition-opacity group-hover/msg:opacity-100">
         {timestamp != null && (

@@ -11,7 +11,12 @@ import {
   Text,
 } from "@radix-ui/themes";
 import twigLogo from "@renderer/assets/images/twig-logo.svg";
+import { logger } from "@renderer/lib/logger";
+import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
+import { useState } from "react";
+
+const log = logger.scope("org-billing-step");
 
 interface OrgBillingStepProps {
   onNext: () => void;
@@ -21,17 +26,37 @@ interface OrgBillingStepProps {
 export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
   const selectedOrgId = useAuthStore((s) => s.selectedOrgId);
   const selectOrg = useAuthStore((s) => s.selectOrg);
+  const client = useAuthStore((s) => s.client);
+  const queryClient = useQueryClient();
+  const [isSwitching, setIsSwitching] = useState(false);
 
   const { orgsWithBilling, effectiveSelectedOrgId, isLoading, error } =
     useOrganizations();
 
-  const handleContinue = () => {
-    if (effectiveSelectedOrgId) {
-      if (effectiveSelectedOrgId !== selectedOrgId) {
-        selectOrg(effectiveSelectedOrgId);
-      }
-      onNext();
+  const currentUserOrgId = queryClient.getQueryData<{
+    organization?: { id: string };
+  }>(["currentUser"])?.organization?.id;
+
+  const handleContinue = async () => {
+    if (!effectiveSelectedOrgId) return;
+
+    if (effectiveSelectedOrgId !== selectedOrgId) {
+      selectOrg(effectiveSelectedOrgId);
     }
+
+    if (client && effectiveSelectedOrgId !== currentUserOrgId) {
+      setIsSwitching(true);
+      try {
+        await client.switchOrganization(effectiveSelectedOrgId);
+        await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      } catch (err) {
+        log.error("Failed to switch organization", err);
+      } finally {
+        setIsSwitching(false);
+      }
+    }
+
+    onNext();
   };
 
   const handleSelect = (orgId: string) => {
@@ -166,14 +191,14 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
           <Button
             size="3"
             onClick={handleContinue}
-            disabled={!effectiveSelectedOrgId || isLoading}
+            disabled={!effectiveSelectedOrgId || isLoading || isSwitching}
             style={{
               backgroundColor: "var(--cave-charcoal)",
               color: "var(--cave-cream)",
             }}
           >
-            Continue
-            <ArrowRight size={16} />
+            {isSwitching ? "Switching..." : "Continue"}
+            {!isSwitching && <ArrowRight size={16} />}
           </Button>
         </Flex>
       </Flex>

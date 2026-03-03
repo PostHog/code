@@ -1,6 +1,7 @@
 import { DraggableTitleBar } from "@components/DraggableTitleBar";
 import { useAuthStore } from "@features/auth/stores/authStore";
-import { Flex } from "@radix-ui/themes";
+import { SignOut } from "@phosphor-icons/react";
+import { Button, Flex } from "@radix-ui/themes";
 import onboardingBg from "@renderer/assets/images/tree-bg.svg";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -13,7 +14,7 @@ import { WelcomeStep } from "./WelcomeStep";
 
 export function OnboardingFlow() {
   const { currentStep, activeSteps, next, back } = useOnboardingFlow();
-  const { completeOnboarding } = useAuthStore();
+  const { completeOnboarding, logout } = useAuthStore();
 
   const handleComplete = () => {
     completeOnboarding();
@@ -117,6 +118,22 @@ export function OnboardingFlow() {
         </Flex>
 
         <StepIndicator currentStep={currentStep} activeSteps={activeSteps} />
+        <Button
+          size="1"
+          variant="ghost"
+          color="gray"
+          onClick={logout}
+          style={{
+            position: "absolute",
+            bottom: 20,
+            left: 32,
+            opacity: 0.5,
+            zIndex: 2,
+          }}
+        >
+          <SignOut size={14} />
+          Log out
+        </Button>
       </Flex>
     </Flex>
   );

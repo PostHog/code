@@ -30,6 +30,7 @@ export interface TaskData {
     | "completed"
     | "failed"
     | "cancelled";
+  taskRunEnvironment?: "local" | "cloud";
 }
 
 export interface TaskGroup {
@@ -184,6 +185,7 @@ export function useSidebarData({
         needsPermission: (session?.pendingPermissions?.size ?? 0) > 0,
         repository: getRepositoryInfo(task),
         taskRunStatus: task.latest_run?.status,
+        taskRunEnvironment: task.latest_run?.environment,
       };
     });
   }, [allTasks, lastViewedAt, localActivityAt, pinnedTaskIds, sessionByTaskId]);

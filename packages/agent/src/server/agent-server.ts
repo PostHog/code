@@ -14,7 +14,12 @@ import {
 import { PostHogAPIClient } from "../posthog-api.js";
 import { SessionLogWriter } from "../session-log-writer.js";
 import { TreeTracker } from "../tree-tracker.js";
-import type { AgentMode, DeviceInfo, TreeSnapshotEvent } from "../types.js";
+import type {
+  AgentMode,
+  DeviceInfo,
+  TaskRun,
+  TreeSnapshotEvent,
+} from "../types.js";
 import { AsyncMutex } from "../utils/async-mutex.js";
 import { getLlmGatewayUrl } from "../utils/gateway.js";
 import { Logger } from "../utils/logger.js";
@@ -147,6 +152,8 @@ export class AgentServer {
   private session: ActiveSession | null = null;
   private app: Hono;
   private posthogAPI: PostHogAPIClient;
+  private questionRelayedToSlack = false;
+  private detectedPrUrl: string | null = null;
 
   constructor(config: AgentServerConfig) {
     this.config = config;
@@ -408,12 +415,23 @@ export class AgentServer {
         const content = params.content as string;
 
         this.logger.info(
-          `Processing user message: ${content.substring(0, 100)}...`,
+          `Processing user message (detectedPrUrl=${this.detectedPrUrl ?? "none"}): ${content.substring(0, 100)}...`,
         );
 
         const result = await this.session.clientConnection.prompt({
           sessionId: this.session.acpSessionId,
           prompt: [{ type: "text", text: content }],
+          ...(this.detectedPrUrl && {
+            _meta: {
+              prContext:
+                `IMPORTANT — OVERRIDE PREVIOUS INSTRUCTIONS ABOUT CREATING BRANCHES/PRs.\n` +
+                `You already have an open pull request: ${this.detectedPrUrl}\n` +
+                `You MUST:\n` +
+                `1. Check out the existing PR branch with \`gh pr checkout ${this.detectedPrUrl}\`\n` +
+                `2. Make changes, commit, and push to that branch\n` +
+                `You MUST NOT create a new branch, close the existing PR, or create a new PR.`,
+            },
+          }),
         });
 
         return { stopReason: result.stopReason };
@@ -521,13 +539,37 @@ export class AgentServer {
       clientCapabilities: {},
     });
 
+    let preTaskRun: TaskRun | null = null;
+    try {
+      preTaskRun = await this.posthogAPI.getTaskRun(
+        payload.task_id,
+        payload.run_id,
+      );
+    } catch {
+      this.logger.warn("Failed to fetch task run for session context", {
+        taskId: payload.task_id,
+        runId: payload.run_id,
+      });
+    }
+
+    const prUrl =
+      typeof (preTaskRun?.state as Record<string, unknown>)
+        ?.slack_notified_pr_url === "string"
+        ? ((preTaskRun?.state as Record<string, unknown>)
+            .slack_notified_pr_url as string)
+        : null;
+
+    if (prUrl) {
+      this.detectedPrUrl = prUrl;
+    }
+
     const sessionResponse = await clientConnection.newSession({
       cwd: this.config.repositoryPath,
       mcpServers: [],
       _meta: {
         sessionId: payload.run_id,
         taskRunId: payload.run_id,
-        systemPrompt: { append: this.buildCloudSystemPrompt() },
+        systemPrompt: { append: this.buildCloudSystemPrompt(prUrl) },
       },
     });
 
@@ -559,34 +601,65 @@ export class AgentServer {
         this.logger.warn("Failed to set task run to in_progress", err),
       );
 
-    await this.sendInitialTaskMessage(payload);
+    await this.sendInitialTaskMessage(payload, preTaskRun);
   }
 
-  private async sendInitialTaskMessage(payload: JwtPayload): Promise<void> {
+  private async sendInitialTaskMessage(
+    payload: JwtPayload,
+    prefetchedRun?: TaskRun | null,
+  ): Promise<void> {
     if (!this.session) return;
 
     try {
-      this.logger.info("Fetching task details", { taskId: payload.task_id });
       const task = await this.posthogAPI.getTask(payload.task_id);
 
-      if (!task.description) {
+      let taskRun = prefetchedRun ?? null;
+      if (!taskRun) {
+        try {
+          taskRun = await this.posthogAPI.getTaskRun(
+            payload.task_id,
+            payload.run_id,
+          );
+        } catch (error) {
+          this.logger.warn(
+            "Failed to fetch task run for initial prompt override",
+            {
+              taskId: payload.task_id,
+              runId: payload.run_id,
+              error,
+            },
+          );
+        }
+      }
+
+      const initialPromptOverride = taskRun
+        ? this.getInitialPromptOverride(taskRun)
+        : null;
+      const initialPrompt = initialPromptOverride ?? task.description;
+
+      if (!initialPrompt) {
         this.logger.warn("Task has no description, skipping initial message");
         return;
       }
 
       this.logger.info("Sending initial task message", {
         taskId: payload.task_id,
-        descriptionLength: task.description.length,
+        descriptionLength: initialPrompt.length,
+        usedInitialPromptOverride: !!initialPromptOverride,
       });
 
       const result = await this.session.clientConnection.prompt({
         sessionId: this.session.acpSessionId,
-        prompt: [{ type: "text", text: task.description }],
+        prompt: [{ type: "text", text: initialPrompt }],
       });
 
       this.logger.info("Initial task message completed", {
         stopReason: result.stopReason,
       });
+
+      if (result.stopReason === "end_turn") {
+        await this.relayAgentResponse(payload);
+      }
     } catch (error) {
       this.logger.error("Failed to send initial task message", error);
       if (this.session) {
@@ -596,7 +669,36 @@ export class AgentServer {
     }
   }
 
-  private buildCloudSystemPrompt(): string {
+  private getInitialPromptOverride(taskRun: TaskRun): string | null {
+    const state = taskRun.state as Record<string, unknown> | undefined;
+    const override = state?.initial_prompt_override;
+    if (typeof override !== "string") {
+      return null;
+    }
+
+    const trimmed = override.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private buildCloudSystemPrompt(prUrl?: string | null): string {
+    if (prUrl) {
+      return `
+# Cloud Task Execution
+
+This task already has an open pull request: ${prUrl}
+
+After completing the requested changes:
+1. Check out the existing PR branch with \`gh pr checkout ${prUrl}\`
+2. Stage and commit all changes with a clear commit message
+3. Push to the existing PR branch
+
+Important:
+- Do NOT create a new branch or a new pull request.
+- Do NOT add "Co-Authored-By" trailers to commit messages.
+- Do NOT add "Generated with [Claude Code]" or similar attribution lines to PR descriptions.
+`;
+    }
+
     return `
 # Cloud Task Execution
 
@@ -680,26 +782,50 @@ Important:
 
   private createCloudClient(payload: JwtPayload) {
     const mode = this.getEffectiveMode(payload);
+    const interactionOrigin = process.env.TWIG_INTERACTION_ORIGIN;
 
     return {
       requestPermission: async (params: {
-        options: Array<{ kind: string; optionId: string }>;
+        options: Array<{ kind: string; optionId: string; name?: string }>;
+        toolCall?: {
+          _meta?: Record<string, unknown> | null;
+        };
       }) => {
         // Background mode: always auto-approve permissions
         // Interactive mode: also auto-approve for now (user can monitor via SSE)
         // Future: interactive mode could pause and wait for user approval via SSE
         this.logger.debug("Permission request", {
           mode,
+          interactionOrigin,
           options: params.options,
         });
 
         const allowOption = params.options.find(
           (o) => o.kind === "allow_once" || o.kind === "allow_always",
         );
+        const selectedOptionId =
+          allowOption?.optionId ?? params.options[0].optionId;
+
+        if (interactionOrigin === "slack") {
+          const twigToolKind = params.toolCall?._meta?.twigToolKind;
+          if (twigToolKind === "question") {
+            this.relaySlackQuestion(payload, params.toolCall?._meta);
+            return {
+              outcome: { outcome: "cancelled" as const },
+              _meta: {
+                message:
+                  "This question has been relayed to the Slack thread where this task originated. " +
+                  "The user will reply there. Do NOT re-ask the question or pick an answer yourself. " +
+                  "Simply let the user know you are waiting for their reply.",
+              },
+            };
+          }
+        }
+
         return {
           outcome: {
             outcome: "selected" as const,
-            optionId: allowOption?.optionId ?? params.options[0].optionId,
+            optionId: selectedOptionId,
           },
         };
       },
@@ -733,6 +859,128 @@ Important:
         }
       },
     };
+  }
+
+  private async relayAgentResponse(payload: JwtPayload): Promise<void> {
+    if (!this.session) {
+      return;
+    }
+
+    if (this.questionRelayedToSlack) {
+      this.questionRelayedToSlack = false;
+      return;
+    }
+
+    try {
+      await this.session.logWriter.flush(payload.run_id);
+    } catch (error) {
+      this.logger.warn("Failed to flush logs before Slack relay", {
+        taskId: payload.task_id,
+        runId: payload.run_id,
+        error,
+      });
+    }
+
+    const message = this.session.logWriter.getLastAgentMessage(payload.run_id);
+    if (!message) {
+      this.logger.warn("No agent message found for Slack relay", {
+        taskId: payload.task_id,
+        runId: payload.run_id,
+        sessionRegistered: this.session.logWriter.isRegistered(payload.run_id),
+      });
+      return;
+    }
+
+    try {
+      await this.posthogAPI.relayMessage(
+        payload.task_id,
+        payload.run_id,
+        message,
+      );
+    } catch (error) {
+      this.logger.warn("Failed to relay initial agent response to Slack", {
+        taskId: payload.task_id,
+        runId: payload.run_id,
+        error,
+      });
+    }
+  }
+
+  private relaySlackQuestion(
+    payload: JwtPayload,
+    toolMeta: Record<string, unknown> | null | undefined,
+  ): void {
+    const firstQuestion = this.getFirstQuestionMeta(toolMeta);
+    if (!this.isQuestionMeta(firstQuestion)) {
+      return;
+    }
+
+    let message = `*${firstQuestion.question}*\n\n`;
+    if (firstQuestion.options?.length) {
+      firstQuestion.options.forEach(
+        (opt: { label: string; description?: string }, i: number) => {
+          message += `${i + 1}. *${opt.label}*`;
+          if (opt.description) message += ` — ${opt.description}`;
+          message += "\n";
+        },
+      );
+    }
+    message += "\nReply in this thread with your choice.";
+
+    this.questionRelayedToSlack = true;
+    this.posthogAPI
+      .relayMessage(payload.task_id, payload.run_id, message)
+      .catch((err) =>
+        this.logger.warn("Failed to relay question to Slack", { err }),
+      );
+  }
+
+  private getFirstQuestionMeta(
+    toolMeta: Record<string, unknown> | null | undefined,
+  ): unknown {
+    if (!toolMeta) {
+      return null;
+    }
+
+    const questionsValue = toolMeta.questions;
+    if (!Array.isArray(questionsValue) || questionsValue.length === 0) {
+      return null;
+    }
+
+    return questionsValue[0];
+  }
+
+  private isQuestionMeta(value: unknown): value is {
+    question: string;
+    options?: Array<{ label: string; description?: string }>;
+  } {
+    if (!value || typeof value !== "object") {
+      return false;
+    }
+
+    const candidate = value as {
+      question?: unknown;
+      options?: unknown;
+    };
+
+    if (typeof candidate.question !== "string") {
+      return false;
+    }
+
+    if (candidate.options === undefined) {
+      return true;
+    }
+
+    if (!Array.isArray(candidate.options)) {
+      return false;
+    }
+
+    return candidate.options.every(
+      (option) =>
+        !!option &&
+        typeof option === "object" &&
+        typeof (option as { label?: unknown }).label === "string",
+    );
   }
 
   private detectAndAttachPrUrl(
@@ -780,6 +1028,7 @@ Important:
       if (!prUrlMatch) return;
 
       const prUrl = prUrlMatch[0];
+      this.detectedPrUrl = prUrl;
       this.logger.info("Detected PR URL in bash output", {
         runId: payload.run_id,
         prUrl,

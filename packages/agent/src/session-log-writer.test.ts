@@ -137,6 +137,25 @@ describe("SessionLogWriter", () => {
         sessionUpdate: "agent_message",
         content: { type: "text", text: "Hello world" },
       });
+      expect(logWriter.getLastAgentMessage(sessionId)).toBe("Hello world");
+    });
+
+    it("tracks direct agent_message updates", async () => {
+      const sessionId = "s1";
+      logWriter.register(sessionId, { taskId: "t1", runId: sessionId });
+
+      logWriter.appendRawLine(
+        sessionId,
+        makeSessionUpdate("agent_message", {
+          content: { type: "text", text: "Pick MIT or Apache" },
+        }),
+      );
+
+      await logWriter.flush(sessionId);
+
+      expect(logWriter.getLastAgentMessage(sessionId)).toBe(
+        "Pick MIT or Apache",
+      );
     });
   });
 
