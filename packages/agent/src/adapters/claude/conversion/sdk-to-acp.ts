@@ -79,7 +79,7 @@ function toolMeta(
 ): ToolUpdateMeta {
   const meta: ToolUpdateMeta["claudeCode"] = { toolName };
   if (toolResponse !== undefined) meta.toolResponse = toolResponse;
-  if (parentToolCallId) meta.parentToolUseId = parentToolCallId;
+  if (parentToolCallId) meta.parentToolCallId = parentToolCallId;
   return { claudeCode: meta };
 }
 
@@ -258,7 +258,7 @@ function handleToolResultChunk(
     };
     if (ctx.parentToolCallId) {
       terminalOutputMeta.claudeCode = {
-        parentToolUseId: ctx.parentToolCallId,
+        parentToolCallId: ctx.parentToolCallId,
       };
     }
     updates.push({

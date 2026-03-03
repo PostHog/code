@@ -533,7 +533,9 @@ export function toolUpdateFromToolResult(
           stderr?: string;
           return_code: number;
         };
-        output = bashResult.stdout || bashResult.stderr || "";
+        output = [bashResult.stdout, bashResult.stderr]
+          .filter(Boolean)
+          .join("\n");
         exitCode = bashResult.return_code;
       } else if (typeof result === "string") {
         output = result;
