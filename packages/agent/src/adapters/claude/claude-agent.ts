@@ -478,7 +478,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       pending.resolve(true);
     }
     this.session.pendingMessages.clear();
-    this.session.abortController.abort();
     await this.session.query.interrupt();
   }
 
