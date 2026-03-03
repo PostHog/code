@@ -27,7 +27,11 @@ export function ProjectSelect({
   const [highlightedValue, setHighlightedValue] = useState(defaultValue);
 
   if (projects.length <= 1) {
-    return null;
+    return (
+      <Text size="2" style={{ color: "var(--cave-charcoal)", opacity: 0.5 }}>
+        {projectName}
+      </Text>
+    );
   }
 
   return (
