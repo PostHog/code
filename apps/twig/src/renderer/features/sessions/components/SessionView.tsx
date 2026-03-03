@@ -7,7 +7,6 @@ import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import {
   cycleModeOption,
   flattenSelectOptions,
-  useAdapterForTask,
   useModeConfigOptionForTask,
   usePendingPermissionsForTask,
 } from "@features/sessions/stores/sessionStore";
@@ -79,7 +78,6 @@ export function SessionView({
   const { setShowRawLogs } = useSessionViewActions();
   const pendingPermissions = usePendingPermissionsForTask(taskId);
   const modeOption = useModeConfigOptionForTask(taskId);
-  const adapter = useAdapterForTask(taskId);
   const { allowBypassPermissions } = useSettingsStore();
   const currentModeId = modeOption?.currentValue;
 
@@ -481,7 +479,6 @@ export function SessionView({
                         onCancel={onCancelPrompt}
                         modeOption={modeOption}
                         onModeChange={modeOption ? handleModeChange : undefined}
-                        adapter={adapter}
                       />
                     </Box>
                   </Box>

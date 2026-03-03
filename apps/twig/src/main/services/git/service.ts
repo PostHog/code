@@ -20,7 +20,7 @@ import {
   fetch as gitFetch,
   isGitRepository,
 } from "@twig/git/queries";
-import { CreateBranchSaga } from "@twig/git/sagas/branch";
+import { CreateBranchSaga, SwitchBranchSaga } from "@twig/git/sagas/branch";
 import { CloneSaga } from "@twig/git/sagas/clone";
 import { CommitSaga } from "@twig/git/sagas/commit";
 import { DiscardFileChangesSaga } from "@twig/git/sagas/discard";
@@ -239,6 +239,16 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     const saga = new CreateBranchSaga();
     const result = await saga.run({ baseDir: directoryPath, branchName });
     if (!result.success) throw new Error(result.error);
+  }
+
+  public async checkoutBranch(
+    directoryPath: string,
+    branchName: string,
+  ): Promise<{ previousBranch: string; currentBranch: string }> {
+    const saga = new SwitchBranchSaga();
+    const result = await saga.run({ baseDir: directoryPath, branchName });
+    if (!result.success) throw new Error(result.error);
+    return result.data;
   }
 
   public async getChangedFilesHead(

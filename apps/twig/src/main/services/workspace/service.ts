@@ -3,7 +3,11 @@ import * as fsPromises from "node:fs/promises";
 import path from "node:path";
 import type { TaskFolderAssociation, WorktreeInfo } from "@shared/types";
 import { createGitClient } from "@twig/git/client";
-import { getCurrentBranch, hasTrackedFiles } from "@twig/git/queries";
+import {
+  getCurrentBranch,
+  getDefaultBranch,
+  hasTrackedFiles,
+} from "@twig/git/queries";
 import { CreateOrSwitchBranchSaga } from "@twig/git/sagas/branch";
 import { DetachHeadSaga } from "@twig/git/sagas/head";
 import { WorktreeManager } from "@twig/git/worktree";
@@ -461,32 +465,53 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     let worktree: WorktreeInfo;
 
     try {
-      if (useExistingBranch && branch) {
-        const currentBranch = await getCurrentBranch(mainRepoPath);
-        if (currentBranch === branch) {
-          log.info(
-            `Main repo is on target branch ${branch}, detaching before creating worktree`,
-          );
-          const detachSaga = new DetachHeadSaga();
-          const detachResult = await detachSaga.run({ baseDir: mainRepoPath });
-          if (!detachResult.success) {
-            throw new Error(`Failed to detach HEAD: ${detachResult.error}`);
-          }
-        }
+      const defaultBranch = await getDefaultBranch(mainRepoPath).catch(
+        () => "main",
+      );
+      const selectedBranch = branch ?? defaultBranch;
+      const isTrunkSelected = selectedBranch === defaultBranch;
 
-        worktree =
-          await worktreeManager.createWorktreeForExistingBranch(branch);
+      if (isTrunkSelected) {
         log.info(
-          `Created worktree for existing branch: ${worktree.worktreeName} at ${worktree.worktreePath} (branch: ${branch})`,
+          `Trunk branch selected (${defaultBranch}), creating detached worktree`,
         );
-      } else {
-        // Standard mode: create new twig/ branch
         worktree = await worktreeManager.createWorktree({
-          baseBranch: branch ?? undefined,
+          baseBranch: defaultBranch,
         });
         log.info(
-          `Created worktree: ${worktree.worktreeName} at ${worktree.worktreePath}`,
+          `Created detached worktree from trunk: ${worktree.worktreeName} at ${worktree.worktreePath}`,
         );
+      } else {
+        log.info(
+          `Non-trunk branch selected (${selectedBranch}), attempting checkout`,
+        );
+        try {
+          worktree =
+            await worktreeManager.createWorktreeForExistingBranch(
+              selectedBranch,
+            );
+          log.info(
+            `Created worktree with branch checkout: ${worktree.worktreeName} at ${worktree.worktreePath} (branch: ${selectedBranch})`,
+          );
+        } catch (checkoutError) {
+          const errorMessage =
+            checkoutError instanceof Error
+              ? checkoutError.message
+              : String(checkoutError);
+          if (errorMessage.includes("is already used by worktree")) {
+            log.info(
+              `Branch ${selectedBranch} is occupied, falling back to detached worktree`,
+            );
+            worktree = await worktreeManager.createWorktree({
+              baseBranch: selectedBranch,
+            });
+            log.info(
+              `Created detached worktree from occupied branch: ${worktree.worktreeName} at ${worktree.worktreePath}`,
+            );
+          } else {
+            throw checkoutError;
+          }
+        }
       }
 
       // Warn if worktree is empty but main repo has files

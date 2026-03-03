@@ -44,9 +44,9 @@ export function createWindow(): void {
   const isDev = !app.isPackaged;
 
   mainWindow = new BrowserWindow({
-    width: 900,
+    width: 1200,
     height: 600,
-    minWidth: 900,
+    minWidth: 1200,
     minHeight: 600,
     backgroundColor: "#0a0a0a",
     titleBarStyle: "hiddenInset",
