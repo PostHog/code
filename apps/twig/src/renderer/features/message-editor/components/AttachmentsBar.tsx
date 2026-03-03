@@ -82,7 +82,10 @@ function ImageThumbnail({
           <X size={8} weight="bold" />
         </IconButton>
       </div>
-      <Dialog.Content maxWidth="90vw" style={{ padding: 16 }}>
+      <Dialog.Content
+        maxWidth="85vw"
+        style={{ padding: 16, width: "fit-content" }}
+      >
         <Dialog.Title size="2" mb="2">
           {attachment.label}
         </Dialog.Title>
@@ -91,9 +94,11 @@ function ImageThumbnail({
             src={dataUrl}
             alt={attachment.label}
             style={{
-              maxWidth: "85vw",
+              maxWidth: "80vw",
               maxHeight: "75vh",
               objectFit: "contain",
+              display: "block",
+              margin: "0 auto",
             }}
           />
         ) : (
