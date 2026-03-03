@@ -617,7 +617,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
     const input = new Pushable<SDKUserMessage>();
 
-    const settingsManager = new SettingsManager(cwd, this.logger);
+    const settingsManager = new SettingsManager(cwd);
     await settingsManager.initialize();
 
     const mcpServers = parseMcpServers(params);
@@ -704,6 +704,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         );
       }
     } catch (err) {
+      settingsManager.dispose();
       this.logger.error(
         isResume
           ? forkSession
