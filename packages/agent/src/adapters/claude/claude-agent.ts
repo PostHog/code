@@ -615,9 +615,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const mcpServers = parseMcpServers(params);
     const systemPrompt = buildSystemPrompt(meta?.systemPrompt);
 
-    // Extract options from _meta if provided
-    const userProvidedOptions = meta?.claudeCode?.options;
-
     this.logger.info(isResume ? "Resuming session" : "Creating new session", {
       sessionId,
       taskId,
@@ -650,12 +647,8 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       onProcessExited: this.options?.onProcessExited,
     });
 
-    // Handle abort controller from meta options
-    const abortController =
-      userProvidedOptions?.abortController ?? new AbortController();
-    if (abortController?.signal.aborted) {
-      throw new Error("Cancelled");
-    }
+    // Use the same abort controller that buildSessionOptions gave to the query
+    const abortController = options.abortController as AbortController;
 
     const q = query({ prompt: input, options });
 
