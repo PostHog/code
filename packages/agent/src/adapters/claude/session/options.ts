@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type {
+  CanUseTool,
   McpServerConfig,
   Options,
   SpawnedProcess,
@@ -28,7 +29,7 @@ export interface BuildOptionsParams {
   cwd: string;
   mcpServers: Record<string, McpServerConfig>;
   permissionMode: TwigExecutionMode;
-  canUseTool: Options["canUseTool"];
+  canUseTool: CanUseTool;
   logger: Logger;
   systemPrompt?: Options["systemPrompt"];
   userProvidedOptions?: Options;
