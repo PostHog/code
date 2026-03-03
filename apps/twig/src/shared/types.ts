@@ -39,7 +39,7 @@ export type TaskFolderAssociation =
   | (TaskFolderAssociationBase & {
       mode: "worktree";
       worktree: string;
-      branchName: string;
+      branchName: string | null;
     });
 
 export interface WorktreeInfo {

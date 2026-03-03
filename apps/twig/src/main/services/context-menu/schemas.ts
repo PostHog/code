@@ -6,6 +6,10 @@ export const taskContextMenuInput = z.object({
   isPinned: z.boolean().optional(),
 });
 
+export const archivedTaskContextMenuInput = z.object({
+  taskTitle: z.string(),
+});
+
 export const folderContextMenuInput = z.object({
   folderName: z.string(),
   folderPath: z.string().optional(),
@@ -29,8 +33,14 @@ const externalAppAction = z.discriminatedUnion("type", [
 const taskAction = z.discriminatedUnion("type", [
   z.object({ type: z.literal("rename") }),
   z.object({ type: z.literal("pin") }),
+  z.object({ type: z.literal("archive") }),
   z.object({ type: z.literal("delete") }),
   z.object({ type: z.literal("external-app"), action: externalAppAction }),
+]);
+
+const archivedTaskAction = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("restore") }),
+  z.object({ type: z.literal("delete") }),
 ]);
 
 const folderAction = z.discriminatedUnion("type", [
@@ -55,6 +65,9 @@ const splitDirection = z.enum(["left", "right", "up", "down"]);
 export const taskContextMenuOutput = z.object({
   action: taskAction.nullable(),
 });
+export const archivedTaskContextMenuOutput = z.object({
+  action: archivedTaskAction.nullable(),
+});
 export const folderContextMenuOutput = z.object({
   action: folderAction.nullable(),
 });
@@ -67,12 +80,16 @@ export const splitContextMenuOutput = z.object({
 });
 
 export type TaskContextMenuInput = z.infer<typeof taskContextMenuInput>;
+export type ArchivedTaskContextMenuInput = z.infer<
+  typeof archivedTaskContextMenuInput
+>;
 export type FolderContextMenuInput = z.infer<typeof folderContextMenuInput>;
 export type TabContextMenuInput = z.infer<typeof tabContextMenuInput>;
 export type FileContextMenuInput = z.infer<typeof fileContextMenuInput>;
 
 export type ExternalAppAction = z.infer<typeof externalAppAction>;
 export type TaskAction = z.infer<typeof taskAction>;
+export type ArchivedTaskAction = z.infer<typeof archivedTaskAction>;
 export type FolderAction = z.infer<typeof folderAction>;
 export type TabAction = z.infer<typeof tabAction>;
 export type FileAction = z.infer<typeof fileAction>;
@@ -87,10 +104,27 @@ export const confirmDeleteTaskOutput = z.object({
   confirmed: z.boolean(),
 });
 
+export const confirmDeleteArchivedTaskInput = z.object({
+  taskTitle: z.string(),
+});
+
+export const confirmDeleteArchivedTaskOutput = z.object({
+  confirmed: z.boolean(),
+});
+
 export type ConfirmDeleteTaskInput = z.infer<typeof confirmDeleteTaskInput>;
 export type ConfirmDeleteTaskResult = z.infer<typeof confirmDeleteTaskOutput>;
+export type ConfirmDeleteArchivedTaskInput = z.infer<
+  typeof confirmDeleteArchivedTaskInput
+>;
+export type ConfirmDeleteArchivedTaskResult = z.infer<
+  typeof confirmDeleteArchivedTaskOutput
+>;
 
 export type TaskContextMenuResult = z.infer<typeof taskContextMenuOutput>;
+export type ArchivedTaskContextMenuResult = z.infer<
+  typeof archivedTaskContextMenuOutput
+>;
 export type FolderContextMenuResult = z.infer<typeof folderContextMenuOutput>;
 export type TabContextMenuResult = z.infer<typeof tabContextMenuOutput>;
 export type FileContextMenuResult = z.infer<typeof fileContextMenuOutput>;

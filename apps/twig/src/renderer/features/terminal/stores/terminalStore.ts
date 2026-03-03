@@ -17,6 +17,7 @@ interface TerminalStoreState {
   setSessionId: (key: string, sessionId: string) => void;
   setProcessName: (key: string, processName: string | null) => void;
   clearTerminalState: (key: string) => void;
+  clearTerminalStatesForTask: (taskId: string) => void;
   startPolling: (key: string) => void;
   stopPolling: (key: string) => void;
 }
@@ -77,6 +78,18 @@ export const useTerminalStore = create<TerminalStoreState>()(
         set((prev) => {
           const newStates = { ...prev.terminalStates };
           delete newStates[key];
+          return { terminalStates: newStates };
+        });
+      },
+
+      clearTerminalStatesForTask: (taskId: string) => {
+        set((prev) => {
+          const newStates = { ...prev.terminalStates };
+          for (const key of Object.keys(newStates)) {
+            if (key === taskId || key.startsWith(`${taskId}-`)) {
+              delete newStates[key];
+            }
+          }
           return { terminalStates: newStates };
         });
       },

@@ -143,7 +143,7 @@ export function ProjectSwitcher() {
               ) : (
                 <>
                   <Text
-                    size="2"
+                    size="1"
                     weight="medium"
                     className="w-full truncate text-left"
                   >

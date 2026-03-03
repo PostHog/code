@@ -1,3 +1,4 @@
+import { useArchivedTaskIds } from "@features/archive/hooks/useArchivedTaskIds";
 import { useSessions } from "@features/sessions/stores/sessionStore";
 import { useTasks } from "@features/tasks/hooks/useTasks";
 import { getTaskRepository, parseRepository } from "@renderer/utils/repository";
@@ -51,7 +52,13 @@ export interface SidebarData {
 }
 
 interface ViewState {
-  type: "task-detail" | "task-input" | "settings" | "folder-settings" | "inbox";
+  type:
+    | "task-detail"
+    | "task-input"
+    | "settings"
+    | "folder-settings"
+    | "inbox"
+    | "archived";
   data?: Task;
 }
 
@@ -118,7 +125,12 @@ function groupByRepository(
 export function useSidebarData({
   activeView,
 }: UseSidebarDataProps): SidebarData {
-  const { data: allTasks = [], isLoading } = useTasks();
+  const { data: rawTasks = [], isLoading } = useTasks();
+  const archivedTaskIds = useArchivedTaskIds();
+  const allTasks = useMemo(
+    () => rawTasks.filter((task) => !archivedTaskIds.has(task.id)),
+    [rawTasks, archivedTaskIds],
+  );
   const sessions = useSessions();
   const lastViewedAt = useTaskViewedStore((state) => state.lastViewedAt);
   const localActivityAt = useTaskViewedStore((state) => state.lastActivityAt);
