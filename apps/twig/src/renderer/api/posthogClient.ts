@@ -15,30 +15,16 @@ import { createApiClient, type Schemas } from "./generated";
 
 const log = logger.scope("posthog-client");
 
-export interface McpRecommendedServer {
+// The RecommendedServer type is not in the generated schema — define it manually.
+export type McpRecommendedServer = {
   name: string;
   url: string;
   description: string;
-  icon_url: string;
   auth_type: "none" | "api_key" | "oauth";
   oauth_provider_kind?: string;
-}
+};
 
-export interface McpServerInstallation {
-  id: string;
-  server_id: string | null;
-  name: string;
-  display_name: string;
-  url: string;
-  description: string;
-  auth_type: "none" | "api_key" | "oauth";
-  configuration: Record<string, unknown>;
-  needs_reauth: boolean;
-  pending_oauth: boolean;
-  proxy_url: string;
-  created_at: string;
-  updated_at: string;
-}
+export type McpServerInstallation = Schemas.MCPServerInstallation;
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -930,7 +916,7 @@ export class PostHogAPIClient {
     api_key?: string;
     description?: string;
     oauth_provider_kind?: string;
-  }): Promise<McpServerInstallation & { redirect_url?: string }> {
+  }): Promise<McpServerInstallation | Schemas.OAuthRedirectResponse> {
     const teamId = await this.getTeamId();
     const apiUrl = new URL(
       `${this.api.baseUrl}/api/environments/${teamId}/mcp_server_installations/install_custom/`,

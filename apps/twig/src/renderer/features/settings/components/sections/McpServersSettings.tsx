@@ -449,7 +449,7 @@ export function McpServersSettings() {
             {installations.map((installation) => (
               <ServerRow
                 key={installation.id}
-                name={installation.name || installation.display_name}
+                name={installation.name || installation.display_name || ""}
                 description={installation.description}
                 status={getInstallationStatus(installation)}
                 onUninstall={() => setUninstallTarget(installation)}
