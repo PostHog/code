@@ -1,4 +1,5 @@
 import type {
+  SessionConfigOption,
   TerminalHandle,
   TerminalOutputResponse,
 } from "@agentclientprotocol/sdk";
@@ -9,6 +10,7 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import type { Pushable } from "../../utils/streams.js";
 import type { BaseSession } from "../base-acp-agent.js";
+import type { SettingsManager } from "./session/settings.js";
 import type { TwigExecutionMode } from "./tools.js";
 
 export type AccumulatedUsage = {
@@ -37,12 +39,14 @@ export type PendingMessage = {
 export type Session = BaseSession & {
   query: Query;
   input: Pushable<SDKUserMessage>;
+  settingsManager: SettingsManager;
   permissionMode: TwigExecutionMode;
   modelId?: string;
   cwd: string;
   taskRunId?: string;
   lastPlanFilePath?: string;
   lastPlanContent?: string;
+  configOptions: SessionConfigOption[];
   accumulatedUsage: AccumulatedUsage;
   promptRunning: boolean;
   pendingMessages: Map<string, PendingMessage>;

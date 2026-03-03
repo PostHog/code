@@ -10,8 +10,13 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import { IS_ROOT } from "../../../utils/common.js";
 import type { Logger } from "../../../utils/logger.js";
-import { createPostToolUseHook, type OnModeChange } from "../hooks.js";
+import {
+  createPostToolUseHook,
+  createPreToolUseHook,
+  type OnModeChange,
+} from "../hooks.js";
 import type { TwigExecutionMode } from "../tools.js";
+import type { SettingsManager } from "./settings.js";
 
 export interface ProcessSpawnedInfo {
   pid: number;
@@ -32,6 +37,7 @@ export interface BuildOptionsParams {
   forkSession?: boolean;
   additionalDirectories?: string[];
   disableBuiltInTools?: boolean;
+  settingsManager?: SettingsManager;
   onModeChange?: OnModeChange;
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
   onProcessExited?: (pid: number) => void;
@@ -98,8 +104,10 @@ function buildEnvironment(): Record<string, string> {
 function buildHooks(
   userHooks: Options["hooks"],
   onModeChange?: OnModeChange,
+  settingsManager?: SettingsManager,
+  logger?: Logger,
 ): Options["hooks"] {
-  return {
+  const hooks: Options["hooks"] = {
     ...userHooks,
     PostToolUse: [
       ...(userHooks?.PostToolUse || []),
@@ -108,6 +116,17 @@ function buildHooks(
       },
     ],
   };
+
+  if (settingsManager && logger && hooks) {
+    hooks.PreToolUse = [
+      ...(userHooks?.PreToolUse || []),
+      {
+        hooks: [createPreToolUseHook(settingsManager, logger)],
+      },
+    ];
+  }
+
+  return hooks;
 }
 
 function getAbortController(
@@ -221,7 +240,12 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
       params.mcpServers,
     ),
     env: buildEnvironment(),
-    hooks: buildHooks(params.userProvidedOptions?.hooks, params.onModeChange),
+    hooks: buildHooks(
+      params.userProvidedOptions?.hooks,
+      params.onModeChange,
+      params.settingsManager,
+      params.logger,
+    ),
     abortController: getAbortController(
       params.userProvidedOptions?.abortController,
     ),

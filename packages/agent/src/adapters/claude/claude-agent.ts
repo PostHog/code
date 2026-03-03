@@ -4,8 +4,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import {
   type AgentSideConnection,
-  type AuthenticateRequest,
-  type AvailableCommand,
   type ClientCapabilities,
   type ForkSessionRequest,
   type ForkSessionResponse,
@@ -27,15 +25,18 @@ import {
   type SessionConfigSelectOption,
   type SetSessionConfigOptionRequest,
   type SetSessionConfigOptionResponse,
+  type SetSessionModelRequest,
+  type SetSessionModelResponse,
+  type SetSessionModeRequest,
+  type SetSessionModeResponse,
 } from "@agentclientprotocol/sdk";
 import {
   type CanUseTool,
   getSessionMessages,
   listSessions,
-  type Options,
   type Query,
   query,
-  type SDKMessage,
+  type SDKResultMessage,
   type SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import { v7 as uuidv7 } from "uuid";
@@ -61,6 +62,7 @@ import {
   buildSystemPrompt,
   type ProcessSpawnedInfo,
 } from "./session/options.js";
+import { SettingsManager } from "./session/settings.js";
 import {
   getAvailableModes,
   TWIG_EXECUTION_MODES,
@@ -87,7 +89,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   backgroundTerminals: { [key: string]: BackgroundTerminal } = {};
   clientCapabilities?: ClientCapabilities;
   private options?: ClaudeAcpAgentOptions;
-  private lastSentConfigOptions?: SessionConfigOption[];
 
   constructor(client: AgentSideConnection, options?: ClaudeAcpAgentOptions) {
     super(client);
@@ -127,214 +128,100 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       },
       agentInfo: {
         name: packageJson.name,
-        title: "Claude Code",
+        title: "Claude Agent",
         version: packageJson.version,
       },
-      authMethods: [
-        {
-          id: "claude-login",
-          name: "Log in with Claude Code",
-          description: "Run `claude /login` in the terminal",
-        },
-      ],
+      authMethods: [],
     };
-  }
-
-  async authenticate(_params: AuthenticateRequest): Promise<void> {
-    throw new Error("Method not implemented.");
   }
 
   async newSession(params: NewSessionRequest): Promise<NewSessionResponse> {
-    this.checkAuthStatus();
+    if (
+      fs.existsSync(path.resolve(os.homedir(), ".claude.json.backup")) &&
+      !fs.existsSync(path.resolve(os.homedir(), ".claude.json"))
+    ) {
+      throw RequestError.authRequired();
+    }
 
-    const meta = params._meta as NewSessionMeta | undefined;
-    const taskId = meta?.persistence?.taskId;
-    const sessionId = uuidv7();
-    this.logger.info("Creating new session", {
-      sessionId,
-      taskId,
-      taskRunId: meta?.taskRunId,
-      cwd: params.cwd,
-    });
-    const permissionMode: TwigExecutionMode =
-      meta?.permissionMode &&
-      TWIG_EXECUTION_MODES.includes(meta.permissionMode as TwigExecutionMode)
-        ? (meta.permissionMode as TwigExecutionMode)
-        : "default";
-
-    const mcpServers = parseMcpServers(params);
-
-    const options = buildSessionOptions({
-      cwd: params.cwd,
-      mcpServers,
-      permissionMode,
-      canUseTool: this.createCanUseTool(sessionId),
-      logger: this.logger,
-      systemPrompt: buildSystemPrompt(meta?.systemPrompt),
-      userProvidedOptions: meta?.claudeCode?.options,
-      sessionId,
-      isResume: false,
-      disableBuiltInTools: meta?.disableBuiltInTools,
-      onModeChange: this.createOnModeChange(sessionId),
-      onProcessSpawned: this.options?.onProcessSpawned,
-      onProcessExited: this.options?.onProcessExited,
+    const response = await this.createSession(params, {
+      // Revisit these meta values once we support resume
+      resume: (params._meta as NewSessionMeta | undefined)?.claudeCode?.options
+        ?.resume as string | undefined,
     });
 
-    const input = new Pushable<SDKUserMessage>();
-    // Pass default model at construction to avoid expensive post-hoc setModel IPC
-    options.model = DEFAULT_MODEL;
-    const q = query({ prompt: input, options });
+    return response;
+  }
 
-    const session = this.createSession(
-      sessionId,
-      q,
-      input,
-      permissionMode,
-      params.cwd,
-      options.abortController as AbortController,
+  async unstable_forkSession(
+    params: ForkSessionRequest,
+  ): Promise<ForkSessionResponse> {
+    return this.createSession(
+      {
+        cwd: params.cwd,
+        mcpServers: params.mcpServers ?? [],
+        _meta: params._meta,
+      },
+      { resume: params.sessionId, forkSession: true },
     );
-    session.taskRunId = meta?.taskRunId;
+  }
 
-    if (meta?.taskRunId) {
-      await this.client.extNotification("_posthog/sdk_session", {
-        taskRunId: meta.taskRunId,
-        sessionId,
-        adapter: "claude",
-      });
-    }
+  async unstable_resumeSession(
+    params: ResumeSessionRequest,
+  ): Promise<ResumeSessionResponse> {
+    const response = await this.createSession(
+      {
+        cwd: params.cwd,
+        mcpServers: params.mcpServers ?? [],
+        _meta: params._meta,
+      },
+      {
+        resume: params.sessionId,
+      },
+    );
 
-    // Only await model config — slash commands and MCP metadata are deferred
-    // since they're not needed to return configOptions to the client.
-    const modelOptions = await this.getModelConfigOptions();
-
-    // Deferred: slash commands + MCP metadata (not needed to return configOptions)
-    this.deferBackgroundFetches(q, sessionId);
-
-    session.modelId = modelOptions.currentModelId;
-    // Only call setModel if the resolved model differs from the default we
-    // already baked into the query options — avoids a ~2s IPC round-trip.
-    const resolvedSdkModel = toSdkModelId(modelOptions.currentModelId);
-    if (resolvedSdkModel !== DEFAULT_MODEL) {
-      await this.trySetModel(q, modelOptions.currentModelId);
-    }
-
-    const configOptions = await this.buildConfigOptions(modelOptions);
-
-    return {
-      sessionId,
-      configOptions,
-    };
+    return response;
   }
 
   async loadSession(params: LoadSessionRequest): Promise<LoadSessionResponse> {
-    const result = await this.resumeSession(params);
-    if (params.sessionId) {
-      await this.replaySessionHistory(params.sessionId);
-    }
-    return result;
+    const response = await this.createSession(
+      {
+        cwd: params.cwd,
+        mcpServers: params.mcpServers ?? [],
+        _meta: params._meta,
+      },
+      { resume: params.sessionId },
+    );
+
+    await this.replaySessionHistory(params.sessionId);
+
+    return {
+      modes: response.modes,
+      models: response.models,
+      configOptions: response.configOptions,
+    };
   }
 
-  async resumeSession(
-    params: LoadSessionRequest,
-  ): Promise<LoadSessionResponse> {
-    const meta = params._meta as NewSessionMeta | undefined;
-    const taskId = meta?.persistence?.taskId;
-    const sessionId = params.sessionId;
-    if (!sessionId) {
-      throw new Error("Cannot resume session without sessionId");
-    }
-    if (this.sessionId === sessionId) {
-      return {};
-    }
+  async unstable_listSessions(
+    params: ListSessionsRequest,
+  ): Promise<ListSessionsResponse> {
+    const sdk_sessions = await listSessions({ dir: params.cwd ?? undefined });
+    const sessions = [];
 
-    this.logger.info("Resuming session", {
-      sessionId,
-      taskId,
-      taskRunId: meta?.taskRunId,
-      cwd: params.cwd,
-    });
-
-    const mcpServers = parseMcpServers(params);
-
-    const permissionMode: TwigExecutionMode =
-      meta?.permissionMode &&
-      TWIG_EXECUTION_MODES.includes(meta.permissionMode as TwigExecutionMode)
-        ? (meta.permissionMode as TwigExecutionMode)
-        : "default";
-
-    const { query: q, session } = await this.initializeQuery({
-      cwd: params.cwd,
-      permissionMode,
-      mcpServers,
-      systemPrompt: buildSystemPrompt(meta?.systemPrompt),
-      userProvidedOptions: meta?.claudeCode?.options,
-      sessionId,
-      isResume: true,
-      additionalDirectories: meta?.claudeCode?.options?.additionalDirectories,
-    });
-
-    this.logger.info("Session query initialized, awaiting resumption", {
-      sessionId,
-      taskId,
-      taskRunId: meta?.taskRunId,
-    });
-
-    session.taskRunId = meta?.taskRunId;
-
-    // Check the resumed session is alive. For stale sessions this throws
-    // (e.g. "No conversation found"), preventing a broken session.
-    try {
-      const result = await withTimeout(
-        q.initializationResult(),
-        SESSION_VALIDATION_TIMEOUT_MS,
-      );
-      if (result.result === "timeout") {
-        throw new Error(
-          `Session resumption timed out for sessionId=${sessionId}`,
-        );
-      }
-    } catch (err) {
-      this.logger.error("Session resumption failed", {
-        sessionId,
-        taskId,
-        taskRunId: meta?.taskRunId,
-        error: err instanceof Error ? err.message : String(err),
+    for (const session of sdk_sessions) {
+      if (!session.cwd) continue;
+      sessions.push({
+        sessionId: session.sessionId,
+        cwd: session.cwd,
+        title: session.customTitle,
+        updatedAt: new Date(session.lastModified).toISOString(),
       });
-      throw err;
     }
-
-    this.logger.info("Session resumed successfully", {
-      sessionId,
-      taskId,
-      taskRunId: meta?.taskRunId,
-    });
-
-    // Deferred: slash commands + MCP metadata (not needed to return configOptions)
-    this.deferBackgroundFetches(q, sessionId);
-
-    const configOptions = await this.buildConfigOptions();
-
-    return { configOptions };
+    return {
+      sessions,
+    };
   }
 
   async prompt(params: PromptRequest): Promise<PromptResponse> {
-    if (this.session.promptRunning) {
-      const uuid = randomUUID();
-      const sdkMessage = promptToClaude(params);
-      (sdkMessage as Record<string, unknown>).uuid = uuid;
-
-      await this.broadcastUserMessage(params);
-      this.session.input.push(sdkMessage);
-
-      const order = this.session.nextPendingOrder++;
-      const cancelled = await new Promise<boolean>((resolve) => {
-        this.session.pendingMessages.set(uuid, { resolve, order });
-      });
-
-      return { stopReason: cancelled ? "cancelled" : "end_turn" };
-    }
-
-    this.session.promptRunning = true;
     this.session.cancelled = false;
     this.session.interruptReason = undefined;
     this.session.accumulatedUsage = {
@@ -344,147 +231,392 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       cachedWriteTokens: 0,
     };
 
-    await this.broadcastUserMessage(params);
-    this.session.input.push(promptToClaude(params));
+    const userMessage = promptToClaude(params);
 
-    return this.processMessages(params.sessionId);
+    if (this.session.promptRunning) {
+      const uuid = randomUUID();
+      userMessage.uuid = uuid;
+      this.session.input.push(userMessage);
+      const order = this.session.nextPendingOrder++;
+      const cancelled = await new Promise<boolean>((resolve) => {
+        this.session.pendingMessages.set(uuid, { resolve, order });
+      });
+      if (cancelled) {
+        return { stopReason: "cancelled" };
+      }
+    } else {
+      this.session.input.push(userMessage);
+    }
+
+    // Broadcast user message to client
+    await this.broadcastUserMessage(params);
+
+    this.session.promptRunning = true;
+    let handedOff = false;
+    let lastAssistantTotalUsage: number | null = null;
+
+    const supportsTerminalOutput =
+      (
+        this.clientCapabilities?._meta as
+          | ClientCapabilities["_meta"]
+          | undefined
+      )?.terminal_output === true;
+
+    const context = {
+      session: this.session,
+      sessionId: params.sessionId,
+      client: this.client,
+      toolUseCache: this.toolUseCache,
+      fileContentCache: this.fileContentCache,
+      logger: this.logger,
+      supportsTerminalOutput,
+    };
+
+    try {
+      while (true) {
+        const { value: message, done } = await this.session.query.next();
+
+        if (done || !message) {
+          if (this.session.cancelled) {
+            return {
+              stopReason: "cancelled",
+              _meta: this.session.interruptReason
+                ? { interruptReason: this.session.interruptReason }
+                : undefined,
+            };
+          }
+          break;
+        }
+
+        switch (message.type) {
+          case "system":
+            if (message.subtype === "compact_boundary") {
+              lastAssistantTotalUsage = 0;
+            }
+            await handleSystemMessage(message, context);
+            break;
+
+          case "result": {
+            if (this.session.cancelled) {
+              return {
+                stopReason: "cancelled",
+              };
+            }
+            const result = handleResultMessage(message);
+            if (result.usage) {
+              this.session.accumulatedUsage.inputTokens +=
+                result.usage.inputTokens;
+              this.session.accumulatedUsage.outputTokens +=
+                result.usage.outputTokens;
+              this.session.accumulatedUsage.cachedReadTokens +=
+                result.usage.cachedReadTokens;
+              this.session.accumulatedUsage.cachedWriteTokens +=
+                result.usage.cachedWriteTokens;
+
+              // Calculate context window size from modelUsage (minimum across all models used)
+              const contextWindows = Object.values(message.modelUsage).map(
+                (m) => m.contextWindow,
+              );
+              const contextWindowSize =
+                contextWindows.length > 0
+                  ? Math.min(...contextWindows)
+                  : 200000;
+
+              // Send usage_update notification
+              if (lastAssistantTotalUsage !== null) {
+                await this.client.sessionUpdate({
+                  sessionId: params.sessionId,
+                  update: {
+                    sessionUpdate: "usage_update",
+                    used: BigInt(lastAssistantTotalUsage),
+                    size: BigInt(contextWindowSize),
+                    cost: {
+                      amount: message.total_cost_usd,
+                      currency: "USD",
+                    },
+                  },
+                });
+              }
+
+              await this.client.extNotification("_posthog/usage_update", {
+                sessionId: params.sessionId,
+                used: {
+                  inputTokens: result.usage.inputTokens,
+                  outputTokens: result.usage.outputTokens,
+                  cachedReadTokens: result.usage.cachedReadTokens,
+                  cachedWriteTokens: result.usage.cachedWriteTokens,
+                },
+                cost: result.usage.costUsd,
+              });
+            }
+            if (result.error) throw result.error;
+            break;
+          }
+
+          case "stream_event":
+            await handleStreamEvent(message, context);
+            break;
+
+          case "user":
+          case "assistant": {
+            if (this.session.cancelled) {
+              return { stopReason: "cancelled" };
+            }
+
+            // Check for queued prompt replay
+            if (message.type === "user" && "uuid" in message && message.uuid) {
+              const pending = this.session.pendingMessages.get(
+                message.uuid as string,
+              );
+              if (pending) {
+                pending.resolve(false);
+                this.session.pendingMessages.delete(message.uuid as string);
+                handedOff = true;
+                // the current loop stops with end_turn,
+                // the loop of the next prompt continues running
+                return { stopReason: "end_turn" };
+              }
+            }
+
+            // Store latest assistant usage (excluding subagents)
+            if (
+              "usage" in message.message &&
+              message.parent_tool_use_id === null
+            ) {
+              const messageWithUsage =
+                message.message as unknown as SDKResultMessage;
+              lastAssistantTotalUsage =
+                messageWithUsage.usage.input_tokens +
+                messageWithUsage.usage.output_tokens +
+                messageWithUsage.usage.cache_read_input_tokens +
+                messageWithUsage.usage.cache_creation_input_tokens;
+            }
+
+            const result = await handleUserAssistantMessage(message, context);
+            if (result.error) throw result.error;
+            if (result.shouldStop) {
+              return { stopReason: "end_turn" };
+            }
+            break;
+          }
+
+          case "tool_progress":
+          case "auth_status":
+          case "tool_use_summary":
+            break;
+
+          default:
+            unreachable(message, this.logger);
+            break;
+        }
+      }
+      throw new Error("Session did not end in result");
+    } finally {
+      if (!handedOff) {
+        this.session.promptRunning = false;
+        // This usually should not happen, but in case the loop finishes
+        // without claude sending all message replays, we resolve the
+        // next pending prompt call to ensure no prompts get stuck.
+        if (this.session.pendingMessages.size > 0) {
+          const next = [...this.session.pendingMessages.entries()].sort(
+            (a, b) => a[1].order - b[1].order,
+          )[0];
+          if (next) {
+            next[1].resolve(false);
+            this.session.pendingMessages.delete(next[0]);
+          }
+        }
+      }
+    }
+  }
+
+  // Called by BaseAcpAgent#cancel() to interrupt the session
+  protected async interrupt(): Promise<void> {
+    this.session.cancelled = true;
+    for (const [, pending] of this.session.pendingMessages) {
+      pending.resolve(true);
+    }
+    this.session.pendingMessages.clear();
+    await this.session.query.interrupt();
+  }
+
+  async unstable_setSessionModel(
+    params: SetSessionModelRequest,
+  ): Promise<SetSessionModelResponse | undefined> {
+    await this.session.query.setModel(params.modelId);
+    await this.updateConfigOption("model", params.modelId);
+    return {};
+  }
+
+  async setSessionMode(
+    params: SetSessionModeRequest,
+  ): Promise<SetSessionModeResponse> {
+    await this.applySessionMode(params.modeId);
+    await this.updateConfigOption("mode", params.modeId);
+    return {};
   }
 
   async setSessionConfigOption(
     params: SetSessionConfigOptionRequest,
   ): Promise<SetSessionConfigOptionResponse> {
-    const configId = params.configId;
-    const value = params.value;
-
-    if (configId === "mode") {
-      const modeId = value as TwigExecutionMode;
-      if (!TWIG_EXECUTION_MODES.includes(modeId)) {
-        throw new Error("Invalid Mode");
-      }
-      this.session.permissionMode = modeId;
-      await this.session.query.setPermissionMode(modeId);
-    } else if (configId === "model") {
-      await this.setModelWithFallback(this.session.query, value);
-      this.session.modelId = value;
-    } else {
-      throw new Error("Unsupported config option");
+    const option = this.session.configOptions.find(
+      (o) => o.id === params.configId,
+    );
+    if (!option) {
+      throw new Error(`Unknown config option: ${params.configId}`);
     }
 
-    await this.emitConfigOptionsUpdate();
-    return { configOptions: await this.buildConfigOptions() };
-  }
-
-  protected async interruptSession(): Promise<void> {
-    for (const [uuid, pending] of this.session.pendingMessages) {
-      pending.resolve(true);
-      this.session.pendingMessages.delete(uuid);
-    }
-    await this.session.query.interrupt();
-  }
-
-  async extMethod(
-    method: string,
-    params: Record<string, unknown>,
-  ): Promise<Record<string, unknown>> {
-    if (method === "_posthog/session/resume") {
-      const result = await this.unstable_resumeSession(
-        params as unknown as ResumeSessionRequest,
+    const allValues: { value: string }[] =
+      "options" in option && Array.isArray(option.options)
+        ? (option.options as Array<Record<string, unknown>>).flatMap((o) =>
+            "options" in o && Array.isArray(o.options)
+              ? (o.options as { value: string }[])
+              : [o as { value: string }],
+          )
+        : [];
+    const validValue = allValues.find((o) => o.value === params.value);
+    if (!validValue) {
+      throw new Error(
+        `Invalid value for config option ${params.configId}: ${params.value}`,
       );
-      return { _meta: { configOptions: result.configOptions } };
     }
-    throw RequestError.methodNotFound(method);
-  }
 
-  async unstable_listSessions(
-    params: ListSessionsRequest,
-  ): Promise<ListSessionsResponse> {
-    const sessions = await listSessions({
-      dir: params.cwd ?? undefined,
-    });
-    return {
-      sessions: sessions.map((s) => ({
-        sessionId: s.sessionId,
-        cwd: s.cwd ?? params.cwd ?? "",
-        title: s.customTitle ?? s.summary,
-        updatedAt: new Date(s.lastModified).toISOString(),
-      })),
-    };
-  }
-
-  async unstable_forkSession(
-    params: ForkSessionRequest,
-  ): Promise<ForkSessionResponse> {
-    const cwd = params.cwd || this.session?.cwd || process.cwd();
-    const permissionMode = this.session?.permissionMode ?? "default";
-    const mcpServers = parseMcpServers({
-      ...params,
-      mcpServers: params.mcpServers ?? [],
-    });
-
-    const newSessionId = uuidv7();
-
-    const { query: q } = await this.initializeQuery({
-      cwd,
-      permissionMode,
-      mcpServers,
-      sessionId: params.sessionId,
-      isResume: true,
-      forkSession: true,
-    });
-
-    try {
-      const result = await withTimeout(
-        q.initializationResult(),
-        SESSION_VALIDATION_TIMEOUT_MS,
-      );
-      if (result.result === "timeout") {
-        throw new Error(
-          `Session fork timed out for sessionId=${params.sessionId}`,
-        );
-      }
-    } catch (err) {
-      this.logger.error("Session fork failed", {
-        sessionId: params.sessionId,
-        error: err instanceof Error ? err.message : String(err),
+    if (params.configId === "mode") {
+      await this.applySessionMode(params.value);
+      await this.client.sessionUpdate({
+        sessionId: this.sessionId,
+        update: {
+          sessionUpdate: "current_mode_update",
+          currentModeId: params.value,
+        },
       });
-      throw err;
+    } else if (params.configId === "model") {
+      await this.session.query.setModel(params.value);
     }
 
-    this.deferBackgroundFetches(q, newSessionId);
+    this.session.configOptions = this.session.configOptions.map((o) =>
+      o.id === params.configId ? { ...o, currentValue: params.value } : o,
+    );
 
-    const configOptions = await this.buildConfigOptions();
-    return { sessionId: newSessionId, configOptions };
+    return { configOptions: this.session.configOptions };
   }
 
-  async unstable_resumeSession(
-    params: ResumeSessionRequest,
-  ): Promise<ResumeSessionResponse> {
-    const loadParams: LoadSessionRequest = {
-      cwd: params.cwd,
-      mcpServers: params.mcpServers ?? [],
-      sessionId: params.sessionId,
-      _meta: params._meta,
-    };
-    const result = await this.resumeSession(loadParams);
-    return { configOptions: result.configOptions };
+  private async updateConfigOption(
+    configId: string,
+    value: string,
+  ): Promise<void> {
+    this.session.configOptions = this.session.configOptions.map((o) =>
+      o.id === configId ? { ...o, currentValue: value } : o,
+    );
+
+    await this.client.sessionUpdate({
+      sessionId: this.sessionId,
+      update: {
+        sessionUpdate: "config_option_update",
+        configOptions: this.session.configOptions,
+      },
+    });
   }
 
-  private createSession(
-    sessionId: string,
-    q: Query,
-    input: Pushable<SDKUserMessage>,
-    permissionMode: TwigExecutionMode,
-    cwd: string,
-    abortController: AbortController,
-  ): Session {
+  private async applySessionMode(modeId: string): Promise<void> {
+    if (!TWIG_EXECUTION_MODES.includes(modeId as TwigExecutionMode)) {
+      throw new Error("Invalid Mode");
+    }
+    this.session.permissionMode = modeId as TwigExecutionMode;
+    try {
+      await this.session.query.setPermissionMode(modeId as TwigExecutionMode);
+    } catch (error) {
+      if (error instanceof Error) {
+        if (!error.message) {
+          error.message = "Invalid Mode";
+        }
+        throw error;
+      }
+      throw new Error("Invalid Mode");
+    }
+  }
+
+  private async createSession(
+    params: {
+      cwd: string;
+      mcpServers: NewSessionRequest["mcpServers"];
+      _meta?: unknown;
+    },
+    creationOpts: { resume?: string; forkSession?: boolean } = {},
+  ): Promise<NewSessionResponse> {
+    const meta = params._meta as NewSessionMeta | undefined;
+    const mcpServers = parseMcpServers(params);
+    const { cwd } = params;
+    const { resume, forkSession } = creationOpts;
+
+    let sessionId: string;
+    if (forkSession) {
+      sessionId = uuidv7();
+    } else if (resume) {
+      sessionId = resume;
+    } else {
+      sessionId = uuidv7();
+    }
+
+    const isResume = !!resume;
+    const taskId = meta?.persistence?.taskId;
+
+    this.logger.info(isResume ? "Resuming session" : "Creating new session", {
+      sessionId,
+      taskId,
+      taskRunId: meta?.taskRunId,
+      cwd,
+    });
+
+    const settingsManager = new SettingsManager(cwd, {
+      logger: this.logger,
+    });
+    await settingsManager.initialize();
+
+    const permissionMode: TwigExecutionMode =
+      meta?.permissionMode &&
+      TWIG_EXECUTION_MODES.includes(meta.permissionMode as TwigExecutionMode)
+        ? (meta.permissionMode as TwigExecutionMode)
+        : "default";
+
+    const systemPrompt = buildSystemPrompt(meta?.systemPrompt);
+
+    const options = buildSessionOptions({
+      cwd,
+      mcpServers,
+      permissionMode,
+      canUseTool: this.createCanUseTool(sessionId),
+      logger: this.logger,
+      systemPrompt,
+      userProvidedOptions: meta?.claudeCode?.options,
+      sessionId,
+      isResume,
+      forkSession,
+      additionalDirectories: meta?.claudeCode?.options?.additionalDirectories,
+      disableBuiltInTools: meta?.disableBuiltInTools,
+      settingsManager,
+      onModeChange: this.createOnModeChange(sessionId),
+      onProcessSpawned: this.options?.onProcessSpawned,
+      onProcessExited: this.options?.onProcessExited,
+    });
+
+    const input = new Pushable<SDKUserMessage>();
+    if (!isResume) {
+      options.model = DEFAULT_MODEL;
+    }
+    const q = query({ prompt: input, options });
+    const abortController = options.abortController as AbortController;
+
     const session: Session = {
       query: q,
       input,
+      settingsManager,
       cancelled: false,
       permissionMode,
       cwd,
       notificationHistory: [],
       abortController,
+      configOptions: [],
       accumulatedUsage: {
         inputTokens: 0,
         outputTokens: 0,
@@ -497,56 +629,73 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     };
     this.session = session;
     this.sessionId = sessionId;
-    return session;
-  }
+    session.taskRunId = meta?.taskRunId;
 
-  private async initializeQuery(config: {
-    cwd: string;
-    permissionMode: TwigExecutionMode;
-    mcpServers: ReturnType<typeof parseMcpServers>;
-    userProvidedOptions?: Options;
-    systemPrompt?: Options["systemPrompt"];
-    sessionId: string;
-    isResume: boolean;
-    forkSession?: boolean;
-    additionalDirectories?: string[];
-  }): Promise<{
-    query: Query;
-    input: Pushable<SDKUserMessage>;
-    session: Session;
-  }> {
-    const input = new Pushable<SDKUserMessage>();
+    if (isResume) {
+      this.logger.info("Session query initialized, awaiting resumption", {
+        sessionId,
+        taskId,
+        taskRunId: meta?.taskRunId,
+      });
 
-    const options = buildSessionOptions({
-      cwd: config.cwd,
-      mcpServers: config.mcpServers,
-      permissionMode: config.permissionMode,
-      canUseTool: this.createCanUseTool(config.sessionId),
-      logger: this.logger,
-      systemPrompt: config.systemPrompt,
-      userProvidedOptions: config.userProvidedOptions,
-      sessionId: config.sessionId,
-      isResume: config.isResume,
-      forkSession: config.forkSession,
-      additionalDirectories: config.additionalDirectories,
-      onModeChange: this.createOnModeChange(config.sessionId),
-      onProcessSpawned: this.options?.onProcessSpawned,
-      onProcessExited: this.options?.onProcessExited,
-    });
+      try {
+        const result = await withTimeout(
+          q.initializationResult(),
+          SESSION_VALIDATION_TIMEOUT_MS,
+        );
+        if (result.result === "timeout") {
+          throw new Error(
+            `Session ${forkSession ? "fork" : "resumption"} timed out for sessionId=${sessionId}`,
+          );
+        }
+      } catch (err) {
+        this.logger.error(
+          forkSession ? "Session fork failed" : "Session resumption failed",
+          {
+            sessionId,
+            taskId,
+            taskRunId: meta?.taskRunId,
+            error: err instanceof Error ? err.message : String(err),
+          },
+        );
+        throw err;
+      }
 
-    const q = query({ prompt: input, options });
-    const abortController = options.abortController as AbortController;
+      this.logger.info("Session resumed successfully", {
+        sessionId,
+        taskId,
+        taskRunId: meta?.taskRunId,
+      });
+    }
 
-    const session = this.createSession(
-      config.sessionId,
-      q,
-      input,
-      config.permissionMode,
-      config.cwd,
-      abortController,
-    );
+    if (meta?.taskRunId) {
+      await this.client.extNotification("_posthog/sdk_session", {
+        taskRunId: meta.taskRunId,
+        sessionId,
+        adapter: "claude",
+      });
+    }
 
-    return { query: q, input, session };
+    // Resolve model: settings model takes priority, then gateway
+    const settingsModel = settingsManager.getSettings().model;
+    const modelOptions = await this.getModelConfigOptions();
+
+    this.deferBackgroundFetches(q);
+
+    const resolvedModelId = settingsModel || modelOptions.currentModelId;
+    session.modelId = resolvedModelId;
+
+    if (!isResume) {
+      const resolvedSdkModel = toSdkModelId(resolvedModelId);
+      if (resolvedSdkModel !== DEFAULT_MODEL) {
+        await this.session.query.setModel(resolvedSdkModel);
+      }
+    }
+
+    const configOptions = this.buildConfigOptions(permissionMode, modelOptions);
+    session.configOptions = configOptions;
+
+    return { sessionId, configOptions };
   }
 
   private createCanUseTool(sessionId: string): CanUseTool {
@@ -562,142 +711,65 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         sessionId,
         fileContentCache: this.fileContentCache,
         logger: this.logger,
-        emitConfigOptionsUpdate: () => this.emitConfigOptionsUpdate(sessionId),
+        updateConfigOption: (configId: string, value: string) =>
+          this.updateConfigOption(configId, value),
       });
   }
 
-  private createOnModeChange(sessionId: string) {
+  private createOnModeChange(_sessionId: string) {
     return async (newMode: TwigExecutionMode) => {
       if (this.session) {
         this.session.permissionMode = newMode;
       }
-      await this.emitConfigOptionsUpdate(sessionId);
+      await this.updateConfigOption("mode", newMode);
     };
   }
 
-  private async buildConfigOptions(modelOptionsOverride?: {
-    currentModelId: string;
-    options: SessionConfigSelectOption[];
-  }): Promise<SessionConfigOption[]> {
-    const options: SessionConfigOption[] = [];
-
+  private buildConfigOptions(
+    currentModeId: string,
+    modelOptions: {
+      currentModelId: string;
+      options: SessionConfigSelectOption[];
+    },
+  ): SessionConfigOption[] {
     const modeOptions = getAvailableModes().map((mode) => ({
       value: mode.id,
       name: mode.name,
       description: mode.description ?? undefined,
     }));
 
-    options.push({
-      id: "mode",
-      name: "Approval Preset",
-      type: "select",
-      currentValue: this.session.permissionMode,
-      options: modeOptions,
-      category: "mode" as SessionConfigOptionCategory,
-      description: "Choose an approval and sandboxing preset for your session",
-    });
-
-    const modelOptions =
-      modelOptionsOverride ??
-      (await this.getModelConfigOptions(this.session.modelId));
-    this.session.modelId = modelOptions.currentModelId;
-
-    options.push({
-      id: "model",
-      name: "Model",
-      type: "select",
-      currentValue: modelOptions.currentModelId,
-      options: modelOptions.options,
-      category: "model" as SessionConfigOptionCategory,
-      description: "Choose which model Claude should use",
-    });
-
-    return options;
+    return [
+      {
+        id: "mode",
+        name: "Approval Preset",
+        type: "select",
+        currentValue: currentModeId,
+        options: modeOptions,
+        category: "mode" as SessionConfigOptionCategory,
+        description:
+          "Choose an approval and sandboxing preset for your session",
+      },
+      {
+        id: "model",
+        name: "Model",
+        type: "select",
+        currentValue: modelOptions.currentModelId,
+        options: modelOptions.options,
+        category: "model" as SessionConfigOptionCategory,
+        description: "Choose which model Claude should use",
+      },
+    ];
   }
 
-  private async emitConfigOptionsUpdate(sessionId?: string): Promise<void> {
-    const configOptions = await this.buildConfigOptions();
-    const serialized = JSON.stringify(configOptions);
-    if (
-      this.lastSentConfigOptions &&
-      JSON.stringify(this.lastSentConfigOptions) === serialized
-    ) {
-      return;
-    }
-
-    this.lastSentConfigOptions = configOptions;
+  private async sendAvailableCommandsUpdate(): Promise<void> {
+    const commands = await this.session.query.supportedCommands();
     await this.client.sessionUpdate({
-      sessionId: sessionId ?? this.sessionId,
+      sessionId: this.sessionId,
       update: {
-        sessionUpdate: "config_option_update",
-        configOptions,
+        sessionUpdate: "available_commands_update",
+        availableCommands: getAvailableSlashCommands(commands),
       },
     });
-  }
-
-  private checkAuthStatus() {
-    const backupExists = fs.existsSync(
-      path.resolve(os.homedir(), ".claude.json.backup"),
-    );
-    const configExists = fs.existsSync(
-      path.resolve(os.homedir(), ".claude.json"),
-    );
-    if (backupExists && !configExists) {
-      throw RequestError.authRequired();
-    }
-  }
-
-  private async trySetModel(q: Query, modelId: string) {
-    try {
-      await this.setModelWithFallback(q, modelId);
-    } catch (err) {
-      this.logger.warn("Failed to set model", { modelId, error: err });
-    }
-  }
-
-  private async setModelWithFallback(q: Query, modelId: string): Promise<void> {
-    const sdkModelId = toSdkModelId(modelId);
-    try {
-      await q.setModel(sdkModelId);
-    } catch (err) {
-      if (sdkModelId === modelId) {
-        throw err;
-      }
-      // Fallback to raw gateway ID if SDK model ID failed
-      await q.setModel(modelId);
-    }
-  }
-
-  /**
-   * Fire-and-forget: fetch slash commands and MCP tool metadata in parallel.
-   * Both populate caches used later — neither is needed to return configOptions.
-   */
-  private deferBackgroundFetches(q: Query, sessionId: string): void {
-    Promise.all([
-      getAvailableSlashCommands(q),
-      fetchMcpToolMetadata(q, this.logger),
-    ])
-      .then(([slashCommands]) => {
-        this.sendAvailableCommandsUpdate(sessionId, slashCommands);
-      })
-      .catch((err) => {
-        this.logger.warn("Failed to fetch deferred session data", { err });
-      });
-  }
-
-  private sendAvailableCommandsUpdate(
-    sessionId: string,
-    availableCommands: AvailableCommand[],
-  ) {
-    setTimeout(() => {
-      this.client.sessionUpdate({
-        sessionId,
-        update: {
-          sessionUpdate: "available_commands_update",
-          availableCommands,
-        },
-      });
-    }, 0);
   }
 
   private async replaySessionHistory(sessionId: string): Promise<void> {
@@ -738,6 +810,34 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     }
   }
 
+  // ================================
+  // PATCH METHODS
+  // ================================
+
+  /**
+   * Fire-and-forget: fetch slash commands and MCP tool metadata in parallel.
+   * Both populate caches used later — neither is needed to return configOptions.
+   */
+  private deferBackgroundFetches(q: Query): void {
+    Promise.all([
+      setTimeout(() => this.sendAvailableCommandsUpdate(), 10),
+      fetchMcpToolMetadata(q, this.logger),
+    ]);
+  }
+
+  async extMethod(
+    method: string,
+    params: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    if (method === "_posthog/session/resume") {
+      const result = await this.unstable_resumeSession(
+        params as unknown as ResumeSessionRequest,
+      );
+      return { _meta: { configOptions: result.configOptions } };
+    }
+    throw RequestError.methodNotFound(method);
+  }
+
   private async broadcastUserMessage(params: PromptRequest): Promise<void> {
     for (const chunk of params.prompt) {
       const notification = {
@@ -749,139 +849,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       };
       await this.client.sessionUpdate(notification);
       this.appendNotification(params.sessionId, notification);
-    }
-  }
-
-  private async processMessages(sessionId: string): Promise<PromptResponse> {
-    const supportsTerminalOutput =
-      (this.clientCapabilities?._meta as Record<string, unknown> | undefined)
-        ?.terminal_output === true;
-
-    const context = {
-      session: this.session,
-      sessionId,
-      client: this.client,
-      toolUseCache: this.toolUseCache,
-      fileContentCache: this.fileContentCache,
-      logger: this.logger,
-      supportsTerminalOutput,
-    };
-
-    try {
-      while (true) {
-        const { value: message, done } = await this.session.query.next();
-
-        if (done || !message) {
-          return this.handleSessionEnd();
-        }
-
-        const response = await this.handleMessage(message, context);
-        if (response) {
-          return response;
-        }
-      }
-    } finally {
-      this.session.promptRunning = false;
-      this.resolveNextPendingMessage();
-    }
-  }
-
-  private resolveNextPendingMessage(): void {
-    if (this.session.pendingMessages.size === 0) return;
-
-    let nextEntry: { uuid: string; order: number } | undefined;
-    for (const [uuid, pending] of this.session.pendingMessages) {
-      if (!nextEntry || pending.order < nextEntry.order) {
-        nextEntry = { uuid, order: pending.order };
-      }
-    }
-
-    if (nextEntry) {
-      const pending = this.session.pendingMessages.get(nextEntry.uuid);
-      this.session.pendingMessages.delete(nextEntry.uuid);
-      pending?.resolve(false);
-    }
-  }
-
-  private handleSessionEnd(): PromptResponse {
-    if (this.session.cancelled) {
-      return {
-        stopReason: "cancelled",
-        _meta: this.session.interruptReason
-          ? { interruptReason: this.session.interruptReason }
-          : undefined,
-      };
-    }
-    throw new Error("Session did not end in result");
-  }
-
-  private async handleMessage(
-    message: SDKMessage,
-    context: Parameters<typeof handleSystemMessage>[1],
-  ): Promise<PromptResponse | null> {
-    switch (message.type) {
-      case "system":
-        await handleSystemMessage(message, context);
-        return null;
-
-      case "result": {
-        const result = handleResultMessage(message, context);
-        if (result.usage) {
-          this.session.accumulatedUsage.inputTokens += result.usage.inputTokens;
-          this.session.accumulatedUsage.outputTokens +=
-            result.usage.outputTokens;
-          this.session.accumulatedUsage.cachedReadTokens +=
-            result.usage.cachedReadTokens;
-          this.session.accumulatedUsage.cachedWriteTokens +=
-            result.usage.cachedWriteTokens;
-
-          await this.client.extNotification("_posthog/usage_update", {
-            sessionId: context.sessionId,
-            used: {
-              inputTokens: result.usage.inputTokens,
-              outputTokens: result.usage.outputTokens,
-              cachedReadTokens: result.usage.cachedReadTokens,
-              cachedWriteTokens: result.usage.cachedWriteTokens,
-            },
-            cost: result.usage.costUsd,
-          });
-        }
-        if (result.error) throw result.error;
-        if (result.shouldStop) {
-          return {
-            stopReason: result.stopReason as "end_turn" | "max_turn_requests",
-            _meta: {
-              usage: this.session.accumulatedUsage,
-            },
-          };
-        }
-        return null;
-      }
-
-      case "stream_event":
-        await handleStreamEvent(message, context);
-        return null;
-
-      case "user":
-      case "assistant": {
-        const result = await handleUserAssistantMessage(message, context);
-        if (result.error) throw result.error;
-        if (result.shouldStop) {
-          return { stopReason: "end_turn" };
-        }
-        return null;
-      }
-
-      case "tool_progress":
-      case "auth_status":
-      case "tool_use_summary":
-        return null;
-
-      default:
-        // SDKMessage union includes undefined types (SDKRateLimitEvent, SDKPromptSuggestionMessage)
-        // that resolve to `any`, preventing exhaustive narrowing
-        unreachable(message as never, this.logger);
-        return null;
     }
   }
 }

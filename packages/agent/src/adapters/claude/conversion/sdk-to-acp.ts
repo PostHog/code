@@ -482,22 +482,13 @@ export type ResultMessageHandlerResult = {
     cachedReadTokens: number;
     cachedWriteTokens: number;
     costUsd?: number;
+    contextWindowSize?: number;
   };
 };
 
 export function handleResultMessage(
   message: SDKResultMessage,
-  context: MessageHandlerContext,
 ): ResultMessageHandlerResult {
-  const { session } = context;
-
-  if (session.cancelled) {
-    return {
-      shouldStop: true,
-      stopReason: "cancelled",
-    };
-  }
-
   const usage = extractUsageFromResult(message);
 
   switch (message.subtype) {
@@ -556,6 +547,19 @@ function extractUsageFromResult(
   const msgUsage = msg.usage as Record<string, number> | undefined;
   if (!msgUsage) return undefined;
 
+  const modelUsage = msg.modelUsage as
+    | Record<string, { contextWindow: number }>
+    | undefined;
+  let contextWindowSize: number | undefined;
+  if (modelUsage) {
+    const contextWindows = Object.values(modelUsage).map(
+      (m) => m.contextWindow,
+    );
+    if (contextWindows.length > 0) {
+      contextWindowSize = Math.min(...contextWindows);
+    }
+  }
+
   return {
     inputTokens: msgUsage.input_tokens ?? 0,
     outputTokens: msgUsage.output_tokens ?? 0,
@@ -563,6 +567,7 @@ function extractUsageFromResult(
     cachedWriteTokens: msgUsage.cache_creation_input_tokens ?? 0,
     costUsd:
       typeof msg.total_cost_usd === "number" ? msg.total_cost_usd : undefined,
+    contextWindowSize,
   };
 }
 
@@ -601,16 +606,6 @@ function hasLocalCommandStderr(content: AnthropicMessageContent): boolean {
   );
 }
 
-function isSimpleUserMessage(message: AnthropicMessageWithContent): boolean {
-  return (
-    message.type === "user" &&
-    (typeof message.message.content === "string" ||
-      (Array.isArray(message.message.content) &&
-        message.message.content.length === 1 &&
-        message.message.content[0].type === "text"))
-  );
-}
-
 function isLoginRequiredMessage(message: AnthropicMessageWithContent): boolean {
   return (
     message.type === "assistant" &&
@@ -628,7 +623,6 @@ function shouldSkipUserAssistantMessage(
   return (
     hasLocalCommandStdout(message.message.content) ||
     hasLocalCommandStderr(message.message.content) ||
-    isSimpleUserMessage(message) ||
     isLoginRequiredMessage(message)
   );
 }
@@ -664,22 +658,31 @@ export async function handleUserAssistantMessage(
   const { session, sessionId, client, toolUseCache, fileContentCache, logger } =
     context;
 
-  if (session.cancelled) {
-    return {};
-  }
-
-  if (message.type === "user") {
-    const uuid = (message as Record<string, unknown>).uuid as
-      | string
-      | undefined;
-    if (uuid && session.pendingMessages.has(uuid)) {
-      const pending = session.pendingMessages.get(uuid);
-      session.pendingMessages.delete(uuid);
-      pending?.resolve(false);
-    }
-  }
-
   if (shouldSkipUserAssistantMessage(message)) {
+    const content = message.message.content;
+
+    // Handle /context by sending its reply as a regular agent message
+    if (
+      typeof content === "string" &&
+      hasLocalCommandStdout(content) &&
+      content.includes("Context Usage")
+    ) {
+      const stripped = content
+        .replace("<local-command-stdout>", "")
+        .replace("</local-command-stdout>", "");
+      for (const notification of toAcpNotifications(
+        stripped,
+        "assistant",
+        sessionId,
+        toolUseCache,
+        fileContentCache,
+        client,
+        logger,
+      )) {
+        await client.sessionUpdate(notification);
+      }
+    }
+
     logSpecialMessages(message, logger);
 
     if (isLoginRequiredMessage(message)) {
@@ -689,7 +692,8 @@ export async function handleUserAssistantMessage(
   }
 
   const content = message.message.content;
-  const contentToProcess = filterMessageContent(content);
+  const contentToProcess =
+    message.type === "assistant" ? filterMessageContent(content) : content;
   const parentToolCallId =
     "parent_tool_use_id" in message
       ? (message.parent_tool_use_id ?? undefined)

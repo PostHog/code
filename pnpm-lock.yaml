@@ -574,6 +574,9 @@ importers:
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.3
+      minimatch:
+        specifier: ^10.0.3
+        version: 10.1.2
       tar:
         specifier: ^7.5.0
         version: 7.5.7
@@ -599,9 +602,6 @@ importers:
       '@types/tar':
         specifier: ^6.1.13
         version: 6.1.13
-      minimatch:
-        specifier: ^10.0.3
-        version: 10.1.2
       msw:
         specifier: ^2.12.7
         version: 2.12.8(@types/node@25.2.0)(typescript@5.9.3)

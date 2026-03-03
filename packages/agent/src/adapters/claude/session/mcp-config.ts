@@ -1,11 +1,8 @@
-import type {
-  LoadSessionRequest,
-  NewSessionRequest,
-} from "@agentclientprotocol/sdk";
+import type { NewSessionRequest } from "@agentclientprotocol/sdk";
 import type { McpServerConfig } from "@anthropic-ai/claude-agent-sdk";
 
 export function parseMcpServers(
-  params: NewSessionRequest | LoadSessionRequest,
+  params: Pick<NewSessionRequest, "mcpServers">,
 ): Record<string, McpServerConfig> {
   const mcpServers: Record<string, McpServerConfig> = {};
   if (!Array.isArray(params.mcpServers)) {

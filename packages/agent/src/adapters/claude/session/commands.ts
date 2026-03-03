@@ -1,5 +1,5 @@
 import type { AvailableCommand } from "@agentclientprotocol/sdk";
-import type { Query } from "@anthropic-ai/claude-agent-sdk";
+import type { SlashCommand } from "@anthropic-ai/claude-agent-sdk";
 
 const UNSUPPORTED_COMMANDS = [
   "cost",
@@ -11,16 +11,19 @@ const UNSUPPORTED_COMMANDS = [
   "todos",
 ];
 
-export async function getAvailableSlashCommands(
-  q: Query,
-): Promise<AvailableCommand[]> {
-  const commands = await q.supportedCommands();
-
+export function getAvailableSlashCommands(
+  commands: SlashCommand[],
+): AvailableCommand[] {
   return commands
     .map((command) => {
-      const input = command.argumentHint
-        ? { hint: command.argumentHint }
-        : null;
+      const input =
+        command.argumentHint != null
+          ? {
+              hint: Array.isArray(command.argumentHint)
+                ? command.argumentHint.join(" ")
+                : command.argumentHint,
+            }
+          : null;
       let name = command.name;
       if (command.name.endsWith(" (MCP)")) {
         name = `mcp:${name.replace(" (MCP)", "")}`;

@@ -23,7 +23,7 @@ export const IS_ROOT =
   typeof process !== "undefined" &&
   (process.geteuid?.() ?? process.getuid?.()) === 0;
 
-export function unreachable(value: never, logger: Logger): void {
+export function unreachable(value: any, logger: Logger): void {
   let valueAsString: string;
   try {
     valueAsString = JSON.stringify(value);
