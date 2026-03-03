@@ -208,10 +208,13 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         mcpServers: params.mcpServers ?? [],
         _meta: params._meta,
       },
-      { resume: params.sessionId },
+      { resume: params.sessionId, skipBackgroundFetches: true },
     );
 
     await this.replaySessionHistory(params.sessionId);
+
+    // Send available commands after replay so they don't interleave with history
+    this.deferBackgroundFetches(this.session.query);
 
     return {
       modes: response.modes,
@@ -584,7 +587,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       mcpServers: NewSessionRequest["mcpServers"];
       _meta?: unknown;
     },
-    creationOpts: { resume?: string; forkSession?: boolean } = {},
+    creationOpts: {
+      resume?: string;
+      forkSession?: boolean;
+      skipBackgroundFetches?: boolean;
+    } = {},
   ): Promise<NewSessionResponse> {
     const { cwd } = params;
     const { resume, forkSession } = creationOpts;
@@ -764,7 +771,9 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const configOptions = this.buildConfigOptions(permissionMode, modelOptions);
     session.configOptions = configOptions;
 
-    this.deferBackgroundFetches(q);
+    if (!creationOpts.skipBackgroundFetches) {
+      this.deferBackgroundFetches(q);
+    }
 
     this.logger.info(
       isResume
