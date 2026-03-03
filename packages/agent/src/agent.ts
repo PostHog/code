@@ -1,7 +1,14 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import {
   createAcpConnection,
   type InProcessAcpConnection,
 } from "./adapters/acp-connection.js";
+import {
+  conversationTurnsToJsonlEntries,
+  getSessionJsonlPath,
+  rebuildConversation,
+} from "./adapters/claude/session/jsonl-hydration.js";
 import {
   BLOCKED_MODELS,
   DEFAULT_GATEWAY_MODEL,
@@ -155,6 +162,63 @@ export class Agent {
       taskRunId: this.taskRunId,
       prUrl,
     });
+  }
+
+  async hydrateSessionJsonl(params: {
+    sessionId: string;
+    cwd: string;
+    taskId: string;
+    runId: string;
+  }): Promise<void> {
+    if (!this.posthogAPI) return;
+
+    try {
+      const taskRun = await this.posthogAPI.getTaskRun(
+        params.taskId,
+        params.runId,
+      );
+      if (!taskRun.log_url) {
+        this.logger.info("No log URL, skipping JSONL hydration");
+        return;
+      }
+
+      const entries = await this.posthogAPI.fetchTaskRunLogs(taskRun);
+      if (entries.length === 0) {
+        this.logger.info("No S3 log entries, skipping JSONL hydration");
+        return;
+      }
+
+      const conversation = rebuildConversation(entries);
+      if (conversation.length === 0) {
+        this.logger.info(
+          "No conversation in S3 logs, skipping JSONL hydration",
+        );
+        return;
+      }
+
+      const jsonlLines = conversationTurnsToJsonlEntries(conversation, {
+        sessionId: params.sessionId,
+        cwd: params.cwd,
+      });
+
+      const jsonlPath = getSessionJsonlPath(params.sessionId, params.cwd);
+      fs.mkdirSync(path.dirname(jsonlPath), { recursive: true });
+
+      const tmpPath = `${jsonlPath}.tmp.${Date.now()}`;
+      fs.writeFileSync(tmpPath, `${jsonlLines.join("\n")}\n`);
+      fs.renameSync(tmpPath, jsonlPath);
+
+      this.logger.info("Hydrated session JSONL from S3", {
+        sessionId: params.sessionId,
+        turns: conversation.length,
+        lines: jsonlLines.length,
+      });
+    } catch (err) {
+      this.logger.warn("Failed to hydrate session JSONL, continuing", {
+        sessionId: params.sessionId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   async flushAllLogs(): Promise<void> {

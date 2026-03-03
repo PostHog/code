@@ -573,6 +573,14 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         agentSessionId = existingSessionId;
       } else if (isReconnect && adapter !== "codex" && config.sessionId) {
         const existingSessionId = config.sessionId;
+
+        await agent.hydrateSessionJsonl({
+          sessionId: existingSessionId,
+          cwd: repoPath,
+          taskId,
+          runId: taskRunId,
+        });
+
         const systemPrompt = this.buildSystemPrompt(
           credentials,
           customInstructions,
@@ -683,6 +691,13 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         }`,
         err,
       );
+      if (isReconnect && !isRetry) {
+        log.warn("Reconnect failed, falling back to new session", {
+          taskRunId,
+        });
+        config.sessionId = undefined;
+        return this.getOrCreateSession(config, false, false);
+      }
       if (isReconnect) return null;
       throw err;
     }

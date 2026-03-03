@@ -40,6 +40,10 @@
       "types": "./dist/adapters/claude/conversion/tool-use-to-acp.d.ts",
       "import": "./dist/adapters/claude/conversion/tool-use-to-acp.js"
     },
+    "./adapters/claude/session/jsonl-hydration": {
+      "types": "./dist/adapters/claude/session/jsonl-hydration.d.ts",
+      "import": "./dist/adapters/claude/session/jsonl-hydration.js"
+    },
     "./server": {
       "types": "./dist/server/agent-server.d.ts",
       "import": "./dist/server/agent-server.js"

@@ -80,6 +80,7 @@ export default defineConfig([
       "src/adapters/claude/permissions/permission-options.ts",
       "src/adapters/claude/tools.ts",
       "src/adapters/claude/conversion/tool-use-to-acp.ts",
+      "src/adapters/claude/session/jsonl-hydration.ts",
       "src/server/agent-server.ts",
     ],
     format: ["esm"],
