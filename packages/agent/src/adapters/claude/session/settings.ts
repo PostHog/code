@@ -317,6 +317,7 @@ export class SettingsManager {
     }
     this.debounceTimer = setTimeout(async () => {
       this.debounceTimer = null;
+      if (!this.initialized) return;
       try {
         await this.loadAllSettings();
         this.onChange?.();

@@ -24,7 +24,6 @@ import {
 } from "../gateway-models.js";
 import { Logger } from "../utils/logger.js";
 import type { SettingsManager } from "./claude/session/settings.js";
-import type { Session } from "./claude/types.js";
 
 export interface BaseSession {
   notificationHistory: SessionNotification[];
@@ -36,7 +35,7 @@ export interface BaseSession {
 
 export abstract class BaseAcpAgent implements Agent {
   abstract readonly adapterName: string;
-  protected session!: Session;
+  protected session!: BaseSession;
   protected sessionId!: string;
   client: AgentSideConnection;
   logger: Logger;
@@ -70,8 +69,8 @@ export abstract class BaseAcpAgent implements Agent {
       // otherwise interrupt() deadlocks waiting for the query to stop
       // while the query waits on an API call that will never abort.
       this.session.abortController.abort();
-      this.session.settingsManager.dispose();
       await this.cancel({ sessionId: this.sessionId });
+      this.session.settingsManager.dispose();
       this.logger.info("Closed session", { sessionId: this.sessionId });
     } catch (err) {
       this.logger.warn("Failed to close session", {
