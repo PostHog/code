@@ -79,7 +79,7 @@ function toolMeta(
 ): ToolUpdateMeta {
   const meta: ToolUpdateMeta["claudeCode"] = { toolName };
   if (toolResponse !== undefined) meta.toolResponse = toolResponse;
-  if (parentToolCallId) meta.parentToolCallId = parentToolCallId;
+  if (parentToolCallId) meta.parentToolUseId = parentToolCallId;
   return { claudeCode: meta };
 }
 
