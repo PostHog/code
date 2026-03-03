@@ -43,6 +43,28 @@ export function useMcpServers() {
     },
   );
 
+  const toggleEnabledMutation = useAuthenticatedMutation(
+    (client, vars: { id: string; is_enabled: boolean }) =>
+      client.updateMcpServerInstallation(vars.id, {
+        is_enabled: vars.is_enabled,
+      }),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
+      },
+      onError: (error: Error) => {
+        toast.error(error.message || "Failed to update server");
+      },
+    },
+  );
+
+  const toggleEnabled = useCallback(
+    (installationId: string, enabled: boolean) => {
+      toggleEnabledMutation.mutate({ id: installationId, is_enabled: enabled });
+    },
+    [toggleEnabledMutation],
+  );
+
   const installRecommendedMutation = useAuthenticatedMutation(
     (
       client,
@@ -95,6 +117,7 @@ export function useMcpServers() {
     installedUrls,
     installingUrl,
     uninstallMutation,
+    toggleEnabled,
     installRecommended,
     invalidateInstallations: () =>
       queryClient.invalidateQueries({ queryKey: mcpKeys.installations }),

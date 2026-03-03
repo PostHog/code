@@ -941,6 +941,38 @@ export class PostHogAPIClient {
     return await response.json();
   }
 
+  async updateMcpServerInstallation(
+    installationId: string,
+    updates: {
+      display_name?: string;
+      description?: string;
+      is_enabled?: boolean;
+    },
+  ): Promise<McpServerInstallation> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/environments/${teamId}/mcp_server_installations/${installationId}/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "patch",
+      url,
+      path: `/api/environments/${teamId}/mcp_server_installations/${installationId}/`,
+      overrides: {
+        body: JSON.stringify(updates),
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        (errorData as { detail?: string }).detail ??
+          `Failed to update MCP server: ${response.statusText}`,
+      );
+    }
+
+    return await response.json();
+  }
+
   async uninstallMcpServer(installationId: string): Promise<void> {
     const teamId = await this.getTeamId();
     const url = new URL(

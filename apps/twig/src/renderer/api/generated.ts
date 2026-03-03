@@ -8548,6 +8548,7 @@ export namespace Schemas {
     url?: string | undefined;
     description?: string | undefined;
     auth_type?: MCPServerInstallationAuthTypeEnum | undefined;
+    is_enabled?: boolean | undefined;
     needs_reauth: boolean;
     pending_oauth: boolean;
     created_at: string;
@@ -10369,6 +10370,7 @@ export namespace Schemas {
   export type PatchedMCPServerInstallationUpdate = Partial<{
     display_name: string;
     description: string;
+    is_enabled: boolean;
   }>;
   export type PatchedNotebook = Partial<{
     id: string;

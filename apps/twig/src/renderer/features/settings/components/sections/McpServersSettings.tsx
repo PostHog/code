@@ -16,6 +16,7 @@ import {
   IconButton,
   Select,
   Spinner,
+  Switch,
   Text,
   TextField,
 } from "@radix-ui/themes";
@@ -237,11 +238,15 @@ function ServerRow({
   name,
   description,
   status,
+  isEnabled,
+  onToggle,
   onUninstall,
 }: {
   name: string;
   description?: string;
   status: "active" | "pending_oauth" | "needs_reauth";
+  isEnabled: boolean;
+  onToggle: (enabled: boolean) => void;
   onUninstall: () => void;
 }) {
   return (
@@ -274,10 +279,7 @@ function ServerRow({
 
       <Flex align="center" gap="2" className="shrink-0">
         {status === "active" && (
-          <Badge color="green" variant="soft" size="1">
-            <CheckCircle size={12} weight="fill" />
-            Active
-          </Badge>
+          <Switch size="1" checked={isEnabled} onCheckedChange={onToggle} />
         )}
         {status === "pending_oauth" && (
           <Badge color="amber" variant="soft" size="1">
@@ -380,6 +382,7 @@ export function McpServersSettings() {
     installedUrls,
     installingUrl,
     uninstallMutation,
+    toggleEnabled,
     installRecommended,
     invalidateInstallations,
   } = useMcpServers();
@@ -452,6 +455,8 @@ export function McpServersSettings() {
                 name={installation.name || installation.display_name || ""}
                 description={installation.description}
                 status={getInstallationStatus(installation)}
+                isEnabled={installation.is_enabled !== false}
+                onToggle={(enabled) => toggleEnabled(installation.id, enabled)}
                 onUninstall={() => setUninstallTarget(installation)}
               />
             ))}
