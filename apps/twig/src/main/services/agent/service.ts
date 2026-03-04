@@ -913,34 +913,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   }
 
   /**
-   * Resume an interrupted session by clearing the interrupt reason
-   * and sending a continue prompt.
-   */
-  async resumeInterruptedSession(sessionId: string): Promise<PromptOutput> {
-    const session = this.sessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session not found: ${sessionId}`);
-    }
-
-    if (!session.interruptReason) {
-      throw new Error(`Session ${sessionId} was not interrupted`);
-    }
-
-    log.info("Resuming interrupted session", {
-      sessionId,
-      reason: session.interruptReason,
-    });
-
-    // Clear the interrupt reason
-    session.interruptReason = undefined;
-
-    // Send a continue prompt
-    return this.prompt(sessionId, [
-      { type: "text", text: "Continue where you left off." },
-    ]);
-  }
-
-  /**
    * Notify a session of a context change (CWD moved, detached HEAD, etc).
    * Used when focusing/unfocusing worktrees - the agent doesn't need to respawn
    * because it has additionalDirectories configured, but it should know about the change.

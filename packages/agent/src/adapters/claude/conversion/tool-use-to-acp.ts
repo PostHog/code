@@ -41,8 +41,9 @@ export function toolInfoFromToolUse(
 
   switch (name) {
     case "Task":
+    case "Agent":
       return {
-        title: input?.description ? String(input.description) : "Task",
+        title: input?.description ? String(input.description) : name,
         kind: "think",
         content: input?.prompt
           ? toolContent().text(String(input.prompt)).build()

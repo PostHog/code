@@ -42,7 +42,11 @@ export function ToolCallBlock({
 
   const props = { toolCall, turnCancelled, turnComplete };
 
-  if (toolName === "Task" && childItems && childItems.length > 0) {
+  if (
+    (toolName === "Task" || toolName === "Agent") &&
+    childItems &&
+    childItems.length > 0
+  ) {
     const turnContext: TurnContext = {
       toolCalls: buildChildToolCallsMap(childItems),
       childItems: childItemsMap ?? new Map(),
