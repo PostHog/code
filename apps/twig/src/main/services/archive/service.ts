@@ -89,8 +89,31 @@ export class ArchiveService {
     const association = this.getTaskAssociations().find(
       (a) => a.taskId === taskId,
     );
+
     if (!association) {
-      throw new Error(`No workspace association found for task ${taskId}`);
+      const archivedTask: ArchivedTask = {
+        taskId,
+        archivedAt: new Date().toISOString(),
+        folderId: "",
+        mode: "cloud",
+        worktreeName: null,
+        branchName: null,
+        checkpointId: null,
+      };
+
+      await this.agentService.cancelSessionsByTaskId(taskId);
+      this.processTracking.killByTaskId(taskId);
+
+      const archivedTasks = this.archiveStore.get("archivedTasks", []);
+      const existingIndex = archivedTasks.findIndex((t) => t.taskId === taskId);
+      if (existingIndex >= 0) {
+        archivedTasks[existingIndex] = archivedTask;
+      } else {
+        archivedTasks.push(archivedTask);
+      }
+      this.archiveStore.set("archivedTasks", archivedTasks);
+
+      return archivedTask;
     }
 
     const folderPath = this.getFolderPath(association.folderId);
