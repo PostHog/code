@@ -8,6 +8,7 @@ import { ConsoleMessage } from "./ConsoleMessage";
 import { ErrorNotificationView } from "./ErrorNotificationView";
 import { StatusNotificationView } from "./StatusNotificationView";
 import { TaskNotificationView } from "./TaskNotificationView";
+import { ThoughtView } from "./ThoughtView";
 import { ToolCallBlock } from "./ToolCallBlock";
 
 export type RenderItem =
@@ -64,7 +65,12 @@ export const SessionUpdateView = memo(function SessionUpdateView({
         <AgentMessage content={item.content.text} />
       ) : null;
     case "agent_thought_chunk":
-      return null;
+      return item.content.type === "text" ? (
+        <ThoughtView
+          content={item.content.text}
+          isLoading={!turnComplete && !turnCancelled}
+        />
+      ) : null;
     case "tool_call":
       return (
         <ToolCallBlock
