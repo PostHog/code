@@ -335,7 +335,7 @@ function appendTextChunkToChildren(
   b: ItemBuilder,
   parentId: string,
   update: SessionUpdate & {
-    sessionUpdate: "agent_message_chunk";
+    sessionUpdate: "agent_message_chunk" | "agent_thought_chunk";
   },
 ) {
   if (update.content.type !== "text") return;
@@ -383,10 +383,8 @@ function processSessionUpdate(b: ItemBuilder, update: SessionUpdate) {
     case "user_message_chunk":
       break;
 
-    case "agent_thought_chunk":
-      break;
-
-    case "agent_message_chunk": {
+    case "agent_message_chunk":
+    case "agent_thought_chunk": {
       if (update.content.type !== "text") break;
       const parentId = getParentToolCallId(update);
       if (parentId) {
@@ -461,7 +459,7 @@ function processSessionUpdate(b: ItemBuilder, update: SessionUpdate) {
 function appendTextChunk(
   b: ItemBuilder,
   update: SessionUpdate & {
-    sessionUpdate: "agent_message_chunk";
+    sessionUpdate: "agent_message_chunk" | "agent_thought_chunk";
   },
 ) {
   if (update.content.type !== "text") return;

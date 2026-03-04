@@ -215,15 +215,20 @@ export function conversationTurnsToJsonlEntries(
   for (const turn of turns) {
     if (turn.role === "user") {
       const uuid = randomUUID();
-      const contentText = turn.content
-        .map((block) => {
-          if ("text" in block && typeof block.text === "string") {
-            return block.text;
-          }
-          return "";
-        })
-        .filter(Boolean)
-        .join("\n");
+      const contentBlocks = turn.content
+        .filter(
+          (block) =>
+            "text" in block && typeof block.text === "string" && block.text,
+        )
+        .map((block) => ({
+          type: "text" as const,
+          text: (block as { text: string }).text,
+        }));
+
+      const userContent =
+        contentBlocks.length > 0
+          ? contentBlocks.map((b) => b.text).join("")
+          : " ";
 
       lines.push(
         JSON.stringify({
@@ -234,7 +239,10 @@ export function conversationTurnsToJsonlEntries(
           sessionId: config.sessionId,
           version: "0.0.0",
           type: "user",
-          message: { role: "user", content: contentText || " " },
+          message: {
+            role: "user",
+            content: userContent,
+          },
           uuid,
           timestamp: new Date().toISOString(),
         }),
@@ -272,7 +280,21 @@ export function conversationTurnsToJsonlEntries(
             sessionId: config.sessionId,
             version: "0.0.0",
             type: "assistant",
-            message: { role: "assistant", content: contentBlocks },
+            message: {
+              role: "assistant",
+              type: "message",
+              model: "",
+              id: `hydrated_${uuid}`,
+              content: contentBlocks,
+              stop_reason: "end_turn",
+              stop_sequence: null,
+              usage: {
+                input_tokens: 0,
+                output_tokens: 0,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+              },
+            },
             uuid,
             timestamp: new Date().toISOString(),
           }),
