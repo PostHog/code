@@ -32,6 +32,14 @@ interface RendererStoreSchema {
   [key: string]: string;
 }
 
+export interface WindowStateSchema {
+  x: number | undefined;
+  y: number | undefined;
+  width: number;
+  height: number;
+  isMaximized: boolean;
+}
+
 const schema = {
   folders: {
     type: "array" as const,
@@ -96,6 +104,18 @@ export const archiveStore = new Store<ArchiveStoreSchema>({
   name: "archive",
   cwd: app.getPath("userData"),
   defaults: { archivedTasks: [] },
+});
+
+export const windowStateStore = new Store<WindowStateSchema>({
+  name: "window-state",
+  cwd: app.getPath("userData"),
+  defaults: {
+    x: undefined,
+    y: undefined,
+    width: 1200,
+    height: 600,
+    isMaximized: true,
+  },
 });
 
 const log = logger.scope("store");
@@ -210,4 +230,5 @@ export async function clearAllStoreData(): Promise<void> {
   foldersStore.clear();
   rendererStore.clear();
   archiveStore.clear();
+  windowStateStore.clear();
 }
