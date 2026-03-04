@@ -217,20 +217,14 @@ export function conversationTurnsToJsonlEntries(
   for (const turn of turns) {
     if (turn.role === "user") {
       const uuid = randomUUID();
-      const contentBlocks = turn.content
+      const textParts = turn.content
         .filter(
           (block) =>
             "text" in block && typeof block.text === "string" && block.text,
         )
-        .map((block) => ({
-          type: "text" as const,
-          text: (block as { text: string }).text,
-        }));
+        .map((block) => (block as { text: string }).text);
 
-      const userContent =
-        contentBlocks.length > 0
-          ? contentBlocks
-          : [{ type: "text" as const, text: " " }];
+      const userContent = textParts.length > 0 ? textParts.join("") : " ";
 
       lines.push(
         JSON.stringify({
@@ -329,7 +323,7 @@ export function conversationTurnsToJsonlEntries(
                   {
                     type: "tool_result",
                     tool_use_id: tc.toolCallId,
-                    content: [{ type: "text", text: resultText }],
+                    content: resultText,
                   },
                 ],
               },
