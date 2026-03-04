@@ -1,0 +1,90 @@
+import { useAuthStore } from "@features/auth/stores/authStore";
+import { getSessionService } from "@features/sessions/service/service";
+import { useSessionStore } from "@features/sessions/stores/sessionStore";
+import { logger } from "@renderer/lib/logger";
+import { queryClient } from "@renderer/lib/queryClient";
+import type { Task } from "@shared/types";
+import { generateTitle } from "@utils/generateTitle";
+import { extractUserPromptsFromEvents } from "@utils/session";
+import { useEffect, useRef } from "react";
+
+const log = logger.scope("chat-title-generator");
+
+const REGENERATE_INTERVAL = 7;
+
+export function useChatTitleGenerator(taskId: string): void {
+  const lastGeneratedAtCount = useRef(0);
+  const isGenerating = useRef(false);
+
+  const promptCount = useSessionStore((state) => {
+    const taskRunId = state.taskIdIndex[taskId];
+    if (!taskRunId) return 0;
+    const session = state.sessions[taskRunId];
+    if (!session?.events) return 0;
+    return extractUserPromptsFromEvents(session.events).length;
+  });
+
+  useEffect(() => {
+    if (promptCount === 0) return;
+    if (isGenerating.current) return;
+
+    const shouldGenerate =
+      (promptCount === 1 && lastGeneratedAtCount.current === 0) ||
+      (promptCount > 1 &&
+        promptCount - lastGeneratedAtCount.current >= REGENERATE_INTERVAL);
+
+    if (!shouldGenerate) return;
+
+    isGenerating.current = true;
+
+    const state = useSessionStore.getState();
+    const taskRunId = state.taskIdIndex[taskId];
+    if (!taskRunId) {
+      isGenerating.current = false;
+      return;
+    }
+    const session = state.sessions[taskRunId];
+    if (!session?.events) {
+      isGenerating.current = false;
+      return;
+    }
+
+    const allPrompts = extractUserPromptsFromEvents(session.events);
+    const promptsForTitle =
+      promptCount === 1 ? allPrompts : allPrompts.slice(-REGENERATE_INTERVAL);
+
+    const content = promptsForTitle.map((p, i) => `${i + 1}. ${p}`).join("\n");
+
+    const run = async () => {
+      try {
+        const title = await generateTitle(content);
+        if (title) {
+          const client = useAuthStore.getState().client;
+          if (client) {
+            await client.updateTask(taskId, { title });
+            queryClient.setQueriesData<Task[]>(
+              { queryKey: ["tasks", "list"] },
+              (old) =>
+                old?.map((task) =>
+                  task.id === taskId ? { ...task, title } : task,
+                ),
+            );
+            getSessionService().updateCloudTaskTitle(taskId, title);
+            log.debug("Updated task title from conversation", {
+              taskId,
+              title,
+              promptCount,
+            });
+          }
+        }
+      } catch (error) {
+        log.error("Failed to update task title", { taskId, error });
+      } finally {
+        lastGeneratedAtCount.current = promptCount;
+        isGenerating.current = false;
+      }
+    };
+
+    run();
+  }, [promptCount, taskId]);
+}
