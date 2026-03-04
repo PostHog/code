@@ -176,3 +176,15 @@ export function onFeatureFlagsLoaded(callback: () => void): () => void {
 
   return posthog.onFeatureFlags(callback);
 }
+
+/**
+ * Reload feature flags from the server.
+ * Useful after a person property change (e.g., invite code redemption).
+ */
+export function reloadFeatureFlags(): void {
+  if (!isInitialized) {
+    return;
+  }
+
+  posthog.reloadFeatureFlags();
+}

@@ -3,6 +3,7 @@ import { LoginTransition } from "@components/LoginTransition";
 import { MainLayout } from "@components/MainLayout";
 import { UpdatePrompt } from "@components/UpdatePrompt";
 import { AuthScreen } from "@features/auth/components/AuthScreen";
+import { InviteCodeScreen } from "@features/auth/components/InviteCodeScreen";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { OnboardingFlow } from "@features/onboarding/components/OnboardingFlow";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
@@ -21,7 +22,8 @@ import { Toaster } from "sonner";
 const log = logger.scope("app");
 
 function App() {
-  const { isAuthenticated, hasCompletedOnboarding } = useAuthStore();
+  const { isAuthenticated, hasCompletedOnboarding, hasTwigAccess } =
+    useAuthStore();
   const isDarkMode = useThemeStore((state) => state.isDarkMode);
   const [isLoading, setIsLoading] = useState(true);
   const [showTransition, setShowTransition] = useState(false);
@@ -166,7 +168,7 @@ function App() {
     );
   }
 
-  // Three-phase rendering: auth → onboarding → main app
+  // Four-phase rendering: auth → access gate → onboarding → main app
   const renderContent = () => {
     if (!isAuthenticated) {
       return (
@@ -177,6 +179,41 @@ function App() {
           transition={{ duration: 0.5 }}
         >
           <AuthScreen />
+        </motion.div>
+      );
+    }
+
+    // Access check loading state
+    if (hasTwigAccess === null) {
+      return (
+        <motion.div
+          key="access-check"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Flex align="center" justify="center" minHeight="100vh">
+            <Flex align="center" gap="3">
+              <Spinner size="3" />
+              <Text color="gray">Checking access...</Text>
+            </Flex>
+          </Flex>
+        </motion.div>
+      );
+    }
+
+    // Access gate: show invite code screen if flag is not enabled
+    if (!hasTwigAccess) {
+      return (
+        <motion.div
+          key="invite-code"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <InviteCodeScreen />
         </motion.div>
       );
     }
