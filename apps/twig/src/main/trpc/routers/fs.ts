@@ -33,6 +33,11 @@ export const fsRouter = router({
     .output(readRepoFileOutput)
     .query(({ input }) => getService().readAbsoluteFile(input.filePath)),
 
+  readFileAsBase64: publicProcedure
+    .input(readAbsoluteFileInput)
+    .output(readRepoFileOutput)
+    .query(({ input }) => getService().readFileAsBase64(input.filePath)),
+
   writeRepoFile: publicProcedure
     .input(writeRepoFileInput)
     .mutation(({ input }) =>
