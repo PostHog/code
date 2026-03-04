@@ -1,7 +1,7 @@
 import { ConnectivityPrompt } from "@components/ConnectivityPrompt";
 import { HeaderRow } from "@components/HeaderRow";
 import { KeyboardShortcutsSheet } from "@components/KeyboardShortcutsSheet";
-import { ScopeReauthPrompt } from "@components/ScopeReauthPrompt";
+
 import { ArchivedTasksView } from "@features/archive/components/ArchivedTasksView";
 import { useAutonomy } from "@features/autonomy/hooks/useAutonomy";
 import { CommandMenu } from "@features/command/components/CommandMenu";
@@ -87,7 +87,6 @@ export function MainLayout() {
         open={shortcutsSheetOpen}
         onOpenChange={(open) => (open ? null : closeShortcutsSheet())}
       />
-      <ScopeReauthPrompt />
       <ConnectivityPrompt
         open={showPrompt}
         isChecking={isChecking}

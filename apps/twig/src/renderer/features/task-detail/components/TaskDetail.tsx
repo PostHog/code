@@ -58,7 +58,7 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
   const headerContent = useMemo(
     () => (
       <Flex align="center" justify="between" gap="2" width="100%">
-        <Flex align="center" gap="2" minWidth="0">
+        <Flex align="center" gap="2" minWidth="0" overflow="hidden">
           <Text size="1" weight="medium" truncate>
             {task.title}
           </Text>
