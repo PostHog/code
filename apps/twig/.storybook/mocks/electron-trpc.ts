@@ -2,3 +2,7 @@
   sendMessage: () => Promise.resolve(),
   onMessage: () => () => {},
 };
+
+export function ipcLink() {
+  return () => {};
+}

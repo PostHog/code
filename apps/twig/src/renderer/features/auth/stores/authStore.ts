@@ -1,5 +1,11 @@
 import { PostHogAPIClient } from "@renderer/api/posthogClient";
-import { identifyUser, resetUser, track } from "@renderer/lib/analytics";
+import {
+  identifyUser,
+  isFeatureFlagEnabled,
+  reloadFeatureFlags,
+  resetUser,
+  track,
+} from "@renderer/lib/analytics";
 import { electronStorage } from "@renderer/lib/electronStorage";
 import { logger } from "@renderer/lib/logger";
 import { queryClient } from "@renderer/lib/queryClient";
@@ -71,10 +77,17 @@ interface AuthState {
 
   needsScopeReauth: boolean; // True when stored token scope version is stale
 
+  // Access gate state
+  hasTwigAccess: boolean | null; // null = not yet checked
+
   // Onboarding state
   hasCompletedOnboarding: boolean;
   selectedPlan: "free" | "pro" | null;
   selectedOrgId: string | null;
+
+  // Access gate methods
+  checkTwigAccess: () => void;
+  redeemInviteCode: (code: string) => Promise<void>;
 
   // OAuth methods
   loginWithOAuth: (region: CloudRegion) => Promise<void>;
@@ -192,10 +205,66 @@ export const useAuthStore = create<AuthState>()(
         // Scope re-auth state
         needsScopeReauth: false,
 
+        // Access gate state
+        hasTwigAccess: null,
+
         // Onboarding state
         hasCompletedOnboarding: false,
         selectedPlan: null,
         selectedOrgId: null,
+
+        checkTwigAccess: () => {
+          const state = get();
+          if (!state.cloudRegion || !state.oauthAccessToken) {
+            set({ hasTwigAccess: false });
+            return;
+          }
+
+          set({ hasTwigAccess: null });
+
+          const baseUrl = getCloudUrlFromRegion(state.cloudRegion);
+          fetch(`${baseUrl}/api/code/invites/check-access/`, {
+            headers: {
+              Authorization: `Bearer ${state.oauthAccessToken}`,
+            },
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              set({ hasTwigAccess: data.has_access === true });
+            })
+            .catch((err) => {
+              log.error("Failed to check Twig access", err);
+              // On network error, fall back to feature flag check
+              set({ hasTwigAccess: isFeatureFlagEnabled("tasks") });
+            });
+        },
+
+        redeemInviteCode: async (code: string) => {
+          const state = get();
+          if (!state.cloudRegion || !state.oauthAccessToken) {
+            throw new Error("Not authenticated");
+          }
+
+          const baseUrl = getCloudUrlFromRegion(state.cloudRegion);
+          const response = await fetch(`${baseUrl}/api/code/invites/redeem/`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${state.oauthAccessToken}`,
+            },
+            body: JSON.stringify({ code }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || "Failed to redeem invite code");
+          }
+
+          // Optimistically grant access — the flag will catch up on next launch
+          set({ hasTwigAccess: true });
+          reloadFeatureFlags();
+        },
 
         loginWithOAuth: async (region: CloudRegion) => {
           const result = await trpcVanilla.oauth.startFlow.mutate({ region });
@@ -301,6 +370,8 @@ export const useAuthStore = create<AuthState>()(
                 region,
               },
             });
+
+            get().checkTwigAccess();
           } catch (error) {
             log.error("Failed to authenticate with PostHog", error);
             throw new Error("Failed to authenticate with PostHog");
@@ -626,6 +697,8 @@ export const useAuthStore = create<AuthState>()(
                   },
                 });
 
+                get().checkTwigAccess();
+
                 return true;
               } catch (error) {
                 log.error("Failed to validate OAuth session:", error);
@@ -763,6 +836,8 @@ export const useAuthStore = create<AuthState>()(
                 region,
               },
             });
+
+            get().checkTwigAccess();
           } catch (error) {
             log.error("Failed to authenticate with PostHog", error);
             throw new Error("Failed to authenticate with PostHog");
@@ -890,6 +965,7 @@ export const useAuthStore = create<AuthState>()(
             availableOrgIds: [],
             needsProjectSelection: false,
             needsScopeReauth: false,
+            hasTwigAccess: null,
             hasCompletedOnboarding: false,
             selectedPlan: null,
             selectedOrgId: null,
@@ -907,6 +983,7 @@ export const useAuthStore = create<AuthState>()(
           projectId: state.projectId,
           availableProjectIds: state.availableProjectIds,
           availableOrgIds: state.availableOrgIds,
+          hasTwigAccess: state.hasTwigAccess,
           hasCompletedOnboarding: state.hasCompletedOnboarding,
           selectedPlan: state.selectedPlan,
           selectedOrgId: state.selectedOrgId,

@@ -181,7 +181,10 @@ export class WorktreeManager {
     };
   }
 
-  async createWorktreeForExistingBranch(branch: string): Promise<WorktreeInfo> {
+  async createWorktreeForExistingBranch(
+    branch: string,
+    preferredName?: string,
+  ): Promise<WorktreeInfo> {
     const manager = getGitOperationManager();
 
     const exists = await branchExists(this.mainRepoPath, branch);
@@ -189,9 +192,20 @@ export class WorktreeManager {
       throw new Error(`Branch '${branch}' does not exist`);
     }
 
-    let worktreeName = this.generateWorktreeName();
+    let worktreeName = preferredName ?? this.generateWorktreeName();
 
-    if (await this.worktreeExists(worktreeName)) {
+    if (preferredName) {
+      const worktreePath = this.getWorktreePath(preferredName);
+      const existingWorktrees = await this.listWorktrees();
+      const isRegistered = existingWorktrees.some(
+        (wt) => wt.worktreePath === worktreePath,
+      );
+      const existsOnDisk = await this.worktreeExists(preferredName);
+
+      if (isRegistered || existsOnDisk) {
+        worktreeName = `${this.generateWorktreeName()}${Date.now()}`;
+      }
+    } else if (await this.worktreeExists(worktreeName)) {
       worktreeName = `${this.generateWorktreeName()}${Date.now()}`;
     }
 
@@ -220,6 +234,71 @@ export class WorktreeManager {
       worktreeName,
       branchName: branch,
       baseBranch: branch,
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  async createDetachedWorktreeAtCommit(
+    commit: string,
+    preferredName?: string,
+  ): Promise<WorktreeInfo> {
+    const manager = getGitOperationManager();
+
+    let worktreeName = preferredName ?? this.generateWorktreeName();
+
+    if (preferredName) {
+      const worktreePath = this.getWorktreePath(preferredName);
+      const existingWorktrees = await this.listWorktrees();
+      const isRegistered = existingWorktrees.some(
+        (wt) => wt.worktreePath === worktreePath,
+      );
+      const existsOnDisk = await this.worktreeExists(preferredName);
+
+      if (isRegistered || existsOnDisk) {
+        worktreeName = `${this.generateWorktreeName()}${Date.now()}`;
+      }
+    } else if (await this.worktreeExists(worktreeName)) {
+      worktreeName = `${this.generateWorktreeName()}${Date.now()}`;
+    }
+
+    if (!this.usesExternalPath()) {
+      await this.ensureArrayDirIgnored();
+    }
+
+    const worktreePath = this.getWorktreePath(worktreeName);
+    const parentDir = path.dirname(worktreePath);
+    await fs.mkdir(parentDir, { recursive: true });
+
+    await manager.executeWrite(this.mainRepoPath, async (git) => {
+      if (this.usesExternalPath()) {
+        await git.raw([
+          "worktree",
+          "add",
+          "--quiet",
+          "--detach",
+          worktreePath,
+          commit,
+        ]);
+      } else {
+        const relativePath = `./${WORKTREE_FOLDER_NAME}/${worktreeName}/${this.repoName}`;
+        await git.raw([
+          "worktree",
+          "add",
+          "--quiet",
+          "--detach",
+          relativePath,
+          commit,
+        ]);
+      }
+    });
+
+    await this.symlinkClaudeConfig(worktreePath);
+
+    return {
+      worktreePath,
+      worktreeName,
+      branchName: "",
+      baseBranch: commit,
       createdAt: new Date().toISOString(),
     };
   }

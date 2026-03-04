@@ -20,9 +20,18 @@ export function ProjectSelect({
   disabled = false,
 }: ProjectSelectProps) {
   const [open, setOpen] = useState(false);
+  const currentProject = projects.find((p) => p.id === projectId);
+  const defaultValue = currentProject
+    ? `${currentProject.name} ${currentProject.id}`
+    : undefined;
+  const [highlightedValue, setHighlightedValue] = useState(defaultValue);
 
   if (projects.length <= 1) {
-    return null;
+    return (
+      <Text size="2" style={{ color: "var(--cave-charcoal)", opacity: 0.5 }}>
+        {projectName}
+      </Text>
+    );
   }
 
   return (
@@ -31,7 +40,15 @@ export function ProjectSelect({
         {projectName}
         {" · "}
       </span>
-      <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Root
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen);
+          if (nextOpen) {
+            setHighlightedValue(defaultValue);
+          }
+        }}
+      >
         <Popover.Trigger>
           <button
             type="button"
@@ -42,6 +59,7 @@ export function ProjectSelect({
               padding: 0,
               color: "var(--accent-9)",
               cursor: disabled ? "not-allowed" : "pointer",
+              fontFamily: "inherit",
               fontWeight: 500,
               fontSize: "inherit",
               opacity: disabled ? 0.5 : 1,
@@ -57,7 +75,12 @@ export function ProjectSelect({
           align="start"
           sideOffset={8}
         >
-          <Command.Root shouldFilter={true} label="Project picker">
+          <Command.Root
+            shouldFilter={true}
+            label="Project picker"
+            value={highlightedValue}
+            onValueChange={setHighlightedValue}
+          >
             <Command.Input placeholder="Search projects..." autoFocus={true} />
             <Command.List>
               <Command.Empty>No projects found.</Command.Empty>

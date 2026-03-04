@@ -106,13 +106,21 @@ export function GitIntegrationStep({
           </Text>
 
           {selectedProject && (
-            <ProjectSelect
-              projectId={selectedProject.id}
-              projectName={selectedProject.name}
-              projects={projects.map((p) => ({ id: p.id, name: p.name }))}
-              onProjectChange={setManuallySelectedProjectId}
-              disabled={isLoading}
-            />
+            <Flex direction="column" gap="1">
+              <Text
+                size="1"
+                style={{ color: "var(--cave-charcoal)", opacity: 0.5 }}
+              >
+                {selectedProject.organization.name}
+              </Text>
+              <ProjectSelect
+                projectId={selectedProject.id}
+                projectName={selectedProject.name}
+                projects={projects.map((p) => ({ id: p.id, name: p.name }))}
+                onProjectChange={setManuallySelectedProjectId}
+                disabled={isLoading}
+              />
+            </Flex>
           )}
         </Flex>
 

@@ -5,8 +5,14 @@
  * Never import this file from renderer code.
  */
 export const MAIN_TOKENS = Object.freeze({
+  // Stores
+  ArchiveStore: Symbol.for("Main.ArchiveStore"),
+  FoldersStore: Symbol.for("Main.FoldersStore"),
+  SettingsStore: Symbol.for("Main.SettingsStore"),
+
   // Services
   AgentService: Symbol.for("Main.AgentService"),
+  ArchiveService: Symbol.for("Main.ArchiveService"),
   AppLifecycleService: Symbol.for("Main.AppLifecycleService"),
   CloudTaskService: Symbol.for("Main.CloudTaskService"),
   ConnectivityService: Symbol.for("Main.ConnectivityService"),

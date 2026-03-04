@@ -8,6 +8,7 @@ interface SidebarItemProps {
   label: string;
   subtitle?: React.ReactNode;
   isActive?: boolean;
+  isDimmed?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
@@ -21,6 +22,7 @@ export function SidebarItem({
   label,
   subtitle,
   isActive,
+  isDimmed,
   onClick,
   onDoubleClick,
   onContextMenu,
@@ -53,7 +55,9 @@ export function SidebarItem({
       )}
       <span className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <span className="flex items-center gap-1" style={{ height: "18px" }}>
-          <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-gray-12">
+          <span
+            className={`min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap ${isDimmed ? "text-gray-10" : "text-gray-12"}`}
+          >
             {label}
           </span>
           {endContent}

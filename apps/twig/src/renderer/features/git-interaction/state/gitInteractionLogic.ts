@@ -171,7 +171,7 @@ export function computeGitInteractionState(input: GitState): GitComputed {
   const detachedHead = isDetachedHead(input);
 
   if (detachedHead) {
-    const branchAction = makeAction("branch-here", "Branch here", repoReason);
+    const branchAction = makeAction("branch-here", "New branch", repoReason);
     return {
       actions: [branchAction],
       primaryAction: branchAction,
@@ -188,7 +188,7 @@ export function computeGitInteractionState(input: GitState): GitComputed {
   const onDefaultBranch = isOnDefaultBranch(input);
 
   if (onDefaultBranch && input.hasChanges) {
-    const branchAction = makeAction("branch-here", "Branch here", repoReason);
+    const branchAction = makeAction("branch-here", "New branch", repoReason);
     const commitAction = getCommitAction(input, repoReason);
     return {
       actions: [branchAction, commitAction],

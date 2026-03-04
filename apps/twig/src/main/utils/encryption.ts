@@ -8,10 +8,15 @@ import { machineIdSync } from "node-machine-id";
 const APP_SALT = "array-v1";
 const ENCRYPTION_VERSION = 1;
 
+let cachedMachineKey: Buffer | undefined;
+
 function getMachineKey(): Buffer {
-  const machineId = machineIdSync();
-  const identifier = [machineId, os.platform(), os.arch()].join("|");
-  return crypto.scryptSync(identifier, APP_SALT, 32);
+  if (!cachedMachineKey) {
+    const machineId = machineIdSync();
+    const identifier = [machineId, os.platform(), os.arch()].join("|");
+    cachedMachineKey = crypto.scryptSync(identifier, APP_SALT, 32);
+  }
+  return cachedMachineKey;
 }
 
 export function encrypt(plaintext: string): string {

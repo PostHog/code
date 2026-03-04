@@ -5,6 +5,7 @@ type AnyHttpResponse = Response | ReturnType<typeof HttpResponse.json>;
 export interface PostHogHandlersOptions {
   baseUrl?: string;
   onAppendLog?: (entries: unknown[]) => void;
+  getTask?: () => unknown;
   getTaskRun?: () => unknown;
   appendLogResponse?: () => AnyHttpResponse;
 }
@@ -13,6 +14,7 @@ export function createPostHogHandlers(options: PostHogHandlersOptions = {}) {
   const {
     baseUrl = "http://localhost:8000",
     onAppendLog,
+    getTask,
     getTaskRun,
     appendLogResponse,
   } = options;
@@ -33,12 +35,34 @@ export function createPostHogHandlers(options: PostHogHandlersOptions = {}) {
       },
     ),
 
+    // GET /tasks/:taskId - Fetch task details
+    http.get(`${baseUrl}/api/projects/:projectId/tasks/:taskId/`, () => {
+      const task = getTask?.() ?? {
+        id: "test-task-id",
+        title: "Test task",
+        description: null,
+        origin_product: "user_created",
+        repository: "test/repo",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      return HttpResponse.json(task);
+    }),
+
     // GET /runs/:runId - Fetch task run details
     http.get(
-      `${baseUrl}/api/projects/:projectId/tasks/:taskId/runs/:runId`,
+      `${baseUrl}/api/projects/:projectId/tasks/:taskId/runs/:runId/`,
       () => {
         const taskRun = getTaskRun?.() ?? { log_url: "" };
         return HttpResponse.json(taskRun);
+      },
+    ),
+
+    // PATCH /runs/:runId - Update task run
+    http.patch(
+      `${baseUrl}/api/projects/:projectId/tasks/:taskId/runs/:runId/`,
+      () => {
+        return HttpResponse.json({});
       },
     ),
   ];

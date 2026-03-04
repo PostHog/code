@@ -44,6 +44,17 @@ export function useGitQueries(repoPath?: string) {
     placeholderData: (prev) => prev ?? EMPTY_DIFF_STATS,
   });
 
+  const { data: currentBranchData, isLoading: branchLoading } = useQuery({
+    queryKey: ["git-current-branch", repoPath],
+    queryFn: () =>
+      trpcVanilla.git.getCurrentBranch.query({
+        directoryPath: repoPath as string,
+      }),
+    enabled: repoEnabled,
+    staleTime: 10_000,
+    placeholderData: (prev) => prev,
+  });
+
   const { data: syncStatus, isLoading: syncLoading } = useQuery({
     queryKey: ["git-sync-status", repoPath],
     queryFn: () =>
@@ -74,7 +85,7 @@ export function useGitQueries(repoPath?: string) {
     staleTime: 60_000,
   });
 
-  const currentBranch = syncStatus?.currentBranch ?? null;
+  const currentBranch = currentBranchData ?? syncStatus?.currentBranch ?? null;
 
   const { data: prStatus } = useQuery({
     queryKey: ["git-pr-status", repoPath, currentBranch],
@@ -121,6 +132,7 @@ export function useGitQueries(repoPath?: string) {
     hasRemote,
     isFeatureBranch,
     currentBranch,
+    branchLoading,
     defaultBranch,
     isLoading: isRepoLoading || changesLoading || syncLoading,
   };

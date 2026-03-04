@@ -3,8 +3,16 @@ import { type SetupServerApi, setupServer } from "msw/node";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createTestRepo, type TestRepo } from "../test/fixtures/api.js";
 import { createPostHogHandlers } from "../test/mocks/msw-handlers.js";
+import type { TaskRun } from "../types.js";
 import { AgentServer } from "./agent-server.js";
 import { type JwtPayload, SANDBOX_CONNECTION_AUDIENCE } from "./jwt.js";
+
+interface TestableServer {
+  getInitialPromptOverride(run: TaskRun): string | null;
+  detectAndAttachPrUrl(payload: unknown, update: unknown): void;
+  detectedPrUrl: string | null;
+  buildCloudSystemPrompt(prUrl?: string | null): string;
+}
 
 function createTestJwt(
   payload: JwtPayload,
@@ -215,6 +223,124 @@ describe("AgentServer HTTP Mode", () => {
 
       expect(response.status).toBe(404);
       expect(body.error).toBe("Not found");
+    });
+  });
+
+  describe("getInitialPromptOverride", () => {
+    it("returns override string from run state", () => {
+      const s = createServer();
+      const run = {
+        state: { initial_prompt_override: "do something else" },
+      } as unknown as TaskRun;
+      const result = (s as unknown as TestableServer).getInitialPromptOverride(
+        run,
+      );
+      expect(result).toBe("do something else");
+    });
+
+    it("returns null when override is absent", () => {
+      const s = createServer();
+      const run = { state: {} } as unknown as TaskRun;
+      const result = (s as unknown as TestableServer).getInitialPromptOverride(
+        run,
+      );
+      expect(result).toBeNull();
+    });
+
+    it("returns null for whitespace-only override", () => {
+      const s = createServer();
+      const run = {
+        state: { initial_prompt_override: "  " },
+      } as unknown as TaskRun;
+      const result = (s as unknown as TestableServer).getInitialPromptOverride(
+        run,
+      );
+      expect(result).toBeNull();
+    });
+
+    it("returns null for non-string override", () => {
+      const s = createServer();
+      const run = {
+        state: { initial_prompt_override: 42 },
+      } as unknown as TaskRun;
+      const result = (s as unknown as TestableServer).getInitialPromptOverride(
+        run,
+      );
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("detectedPrUrl tracking", () => {
+    it("stores PR URL when detectAndAttachPrUrl finds a match", () => {
+      const s = createServer();
+      const payload = {
+        task_id: "test-task-id",
+        run_id: "test-run-id",
+      };
+      const update = {
+        _meta: {
+          claudeCode: {
+            toolName: "Bash",
+            toolResponse: {
+              stdout:
+                "https://github.com/PostHog/posthog/pull/42\nCreating pull request...",
+            },
+          },
+        },
+      };
+
+      (s as unknown as TestableServer).detectAndAttachPrUrl(payload, update);
+      expect((s as unknown as TestableServer).detectedPrUrl).toBe(
+        "https://github.com/PostHog/posthog/pull/42",
+      );
+    });
+
+    it("does not set detectedPrUrl when no PR URL is found", () => {
+      const s = createServer();
+      const payload = {
+        task_id: "test-task-id",
+        run_id: "test-run-id",
+      };
+      const update = {
+        _meta: {
+          claudeCode: {
+            toolName: "Bash",
+            toolResponse: { stdout: "just some output" },
+          },
+        },
+      };
+
+      (s as unknown as TestableServer).detectAndAttachPrUrl(payload, update);
+      expect((s as unknown as TestableServer).detectedPrUrl).toBeNull();
+    });
+  });
+
+  describe("buildCloudSystemPrompt", () => {
+    it("returns PR-aware prompt when prUrl is provided", () => {
+      const s = createServer();
+      const prompt = (s as unknown as TestableServer).buildCloudSystemPrompt(
+        "https://github.com/org/repo/pull/1",
+      );
+      expect(prompt).toContain("Do NOT create a new branch");
+      expect(prompt).toContain("https://github.com/org/repo/pull/1");
+      expect(prompt).toContain("gh pr checkout");
+      expect(prompt).not.toContain("Create a pull request");
+    });
+
+    it("returns default prompt when no prUrl", () => {
+      const s = createServer();
+      const prompt = (s as unknown as TestableServer).buildCloudSystemPrompt();
+      expect(prompt).toContain("Create a new branch");
+      expect(prompt).toContain("Create a pull request");
+    });
+
+    it("returns default prompt when prUrl is null", () => {
+      const s = createServer();
+      const prompt = (s as unknown as TestableServer).buildCloudSystemPrompt(
+        null,
+      );
+      expect(prompt).toContain("Create a new branch");
+      expect(prompt).toContain("Create a pull request");
     });
   });
 });

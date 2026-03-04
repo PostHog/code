@@ -7,7 +7,6 @@ import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import {
   cycleModeOption,
   flattenSelectOptions,
-  useAdapterForTask,
   useModeConfigOptionForTask,
   usePendingPermissionsForTask,
 } from "@features/sessions/stores/sessionStore";
@@ -37,7 +36,7 @@ interface SessionViewProps {
   events: AcpMessage[];
   taskId?: string;
   isRunning: boolean;
-  isPromptPending?: boolean;
+  isPromptPending?: boolean | null;
   promptStartedAt?: number | null;
   onSendPrompt: (text: string) => void;
   onBashCommand?: (command: string) => void;
@@ -50,6 +49,7 @@ interface SessionViewProps {
   onNewSession?: () => void;
   isInitializing?: boolean;
   readOnlyMessage?: string;
+  slackThreadUrl?: string;
 }
 
 const DEFAULT_ERROR_MESSAGE =
@@ -72,12 +72,12 @@ export function SessionView({
   onNewSession,
   isInitializing = false,
   readOnlyMessage,
+  slackThreadUrl,
 }: SessionViewProps) {
   const showRawLogs = useShowRawLogs();
   const { setShowRawLogs } = useSessionViewActions();
   const pendingPermissions = usePendingPermissionsForTask(taskId);
   const modeOption = useModeConfigOptionForTask(taskId);
-  const adapter = useAdapterForTask(taskId);
   const { allowBypassPermissions } = useSettingsStore();
   const currentModeId = modeOption?.currentValue;
 
@@ -124,10 +124,10 @@ export function SessionView({
     taskId,
     repoPath,
     disabled: !isRunning,
-    isLoading: isPromptPending,
+    isLoading: !!isPromptPending,
   });
 
-  useHotkeys("escape", onCancelPrompt, { enabled: isPromptPending }, [
+  useHotkeys("escape", onCancelPrompt, { enabled: !!isPromptPending }, [
     onCancelPrompt,
   ]);
 
@@ -373,6 +373,7 @@ export function SessionView({
                   promptStartedAt={promptStartedAt}
                   repoPath={repoPath}
                   taskId={taskId}
+                  slackThreadUrl={slackThreadUrl}
                 />
               )}
 
@@ -478,7 +479,6 @@ export function SessionView({
                         onCancel={onCancelPrompt}
                         modeOption={modeOption}
                         onModeChange={modeOption ? handleModeChange : undefined}
-                        adapter={adapter}
                       />
                     </Box>
                   </Box>

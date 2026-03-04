@@ -87,6 +87,12 @@ export function promptToClaude(prompt: PromptRequest): SDKUserMessage {
   const content: ContentBlockParam[] = [];
   const context: ContentBlockParam[] = [];
 
+  const prContext = (prompt._meta as Record<string, unknown> | undefined)
+    ?.prContext;
+  if (typeof prContext === "string") {
+    content.push(sdkText(prContext));
+  }
+
   for (const chunk of prompt.prompt) {
     processPromptChunk(chunk, content, context);
   }

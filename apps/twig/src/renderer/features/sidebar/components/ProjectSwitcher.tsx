@@ -143,7 +143,7 @@ export function ProjectSwitcher() {
               ) : (
                 <>
                   <Text
-                    size="2"
+                    size="1"
                     weight="medium"
                     className="w-full truncate text-left"
                   >
@@ -310,35 +310,82 @@ export function ProjectSwitcher() {
         </Popover.Content>
       </Popover.Root>
 
-      <Dialog.Root open={dialogOpen} onOpenChange={setDialogOpen}>
-        <Dialog.Content
-          className="project-picker-dialog"
-          style={{ maxWidth: 600, padding: 0 }}
-        >
-          <Command.Root shouldFilter={true} label="Project picker">
-            <Command.Input placeholder="Search projects..." autoFocus={true} />
-            <Command.List>
-              <Command.Empty>No projects found.</Command.Empty>
-              {groupedProjects.map((group) =>
-                group.projects.map((project) => (
-                  <Command.Item
-                    key={project.id}
-                    value={`${project.name} ${project.id}`}
-                    onSelect={() => handleProjectSelect(project.id)}
-                  >
-                    <Flex align="center" justify="between" width="100%">
-                      <Text size="1">{project.name}</Text>
-                      {project.id === currentProjectId && (
-                        <Check size={14} className="text-accent-11" />
-                      )}
-                    </Flex>
-                  </Command.Item>
-                )),
-              )}
-            </Command.List>
-          </Command.Root>
-        </Dialog.Content>
-      </Dialog.Root>
+      <ProjectPickerDialogInner
+        dialogOpen={dialogOpen}
+        setDialogOpen={setDialogOpen}
+        groupedProjects={groupedProjects}
+        currentProjectId={currentProjectId}
+        currentProject={currentProject}
+        handleProjectSelect={handleProjectSelect}
+      />
     </>
+  );
+}
+
+interface ProjectPickerDialogInnerProps {
+  dialogOpen: boolean;
+  setDialogOpen: (open: boolean) => void;
+  groupedProjects: ReturnType<typeof useProjects>["groupedProjects"];
+  currentProjectId: number | null;
+  currentProject: { id: number; name: string } | undefined;
+  handleProjectSelect: (projectId: number) => void;
+}
+
+function ProjectPickerDialogInner({
+  dialogOpen,
+  setDialogOpen,
+  groupedProjects,
+  currentProjectId,
+  currentProject,
+  handleProjectSelect,
+}: ProjectPickerDialogInnerProps) {
+  const defaultValue = currentProject
+    ? `${currentProject.name} ${currentProject.id}`
+    : undefined;
+  const [highlightedValue, setHighlightedValue] = useState(defaultValue);
+
+  return (
+    <Dialog.Root
+      open={dialogOpen}
+      onOpenChange={(open) => {
+        setDialogOpen(open);
+        if (open) {
+          setHighlightedValue(defaultValue);
+        }
+      }}
+    >
+      <Dialog.Content
+        className="project-picker-dialog"
+        style={{ maxWidth: 600, padding: 0 }}
+      >
+        <Command.Root
+          shouldFilter={true}
+          label="Project picker"
+          value={highlightedValue}
+          onValueChange={setHighlightedValue}
+        >
+          <Command.Input placeholder="Search projects..." autoFocus={true} />
+          <Command.List>
+            <Command.Empty>No projects found.</Command.Empty>
+            {groupedProjects.map((group) =>
+              group.projects.map((project) => (
+                <Command.Item
+                  key={project.id}
+                  value={`${project.name} ${project.id}`}
+                  onSelect={() => handleProjectSelect(project.id)}
+                >
+                  <Flex align="center" justify="between" width="100%">
+                    <Text size="1">{project.name}</Text>
+                    {project.id === currentProjectId && (
+                      <Check size={14} className="text-accent-11" />
+                    )}
+                  </Flex>
+                </Command.Item>
+              )),
+            )}
+          </Command.List>
+        </Command.Root>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 }

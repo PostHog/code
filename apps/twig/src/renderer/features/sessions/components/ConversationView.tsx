@@ -30,10 +30,11 @@ import { VirtualizedList, type VirtualizedListHandle } from "./VirtualizedList";
 
 interface ConversationViewProps {
   events: AcpMessage[];
-  isPromptPending: boolean;
+  isPromptPending: boolean | null;
   promptStartedAt?: number | null;
   repoPath?: string | null;
   taskId?: string;
+  slackThreadUrl?: string;
 }
 
 export function ConversationView({
@@ -42,6 +43,7 @@ export function ConversationView({
   promptStartedAt,
   repoPath,
   taskId,
+  slackThreadUrl,
 }: ConversationViewProps) {
   const listRef = useRef<VirtualizedListHandle>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -51,6 +53,14 @@ export function ConversationView({
     () => buildConversationItems(events, isPromptPending),
     [events, isPromptPending],
   );
+
+  const firstUserMessageIdRef = useRef<string | undefined>(undefined);
+  if (firstUserMessageIdRef.current === undefined) {
+    firstUserMessageIdRef.current = conversationItems.find(
+      (i) => i.type === "user_message",
+    )?.id;
+  }
+  const firstUserMessageId = firstUserMessageIdRef.current;
 
   const pendingPermissions = usePendingPermissionsForTask(taskId ?? "");
   const pendingPermissionsCount = pendingPermissions.size;
@@ -100,7 +110,15 @@ export function ConversationView({
       switch (item.type) {
         case "user_message":
           return (
-            <UserMessage content={item.content} timestamp={item.timestamp} />
+            <UserMessage
+              content={item.content}
+              timestamp={item.timestamp}
+              sourceUrl={
+                slackThreadUrl && item.id === firstUserMessageId
+                  ? slackThreadUrl
+                  : undefined
+              }
+            />
           );
         case "git_action":
           return <GitActionMessage actionType={item.actionType} />;
@@ -140,7 +158,7 @@ export function ConversationView({
           );
       }
     },
-    [repoPath, taskId],
+    [repoPath, taskId, slackThreadUrl, firstUserMessageId],
   );
 
   const getItemKey = useCallback((item: ConversationItem) => item.id, []);

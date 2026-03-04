@@ -1,11 +1,8 @@
 import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
 import { useAutonomy } from "@features/autonomy/hooks/useAutonomy";
 import { useInboxReports } from "@features/inbox/hooks/useInboxReports";
-import {
-  useDeleteTask,
-  useTasks,
-  useUpdateTask,
-} from "@features/tasks/hooks/useTasks";
+import { useArchiveTask } from "@features/tasks/hooks/useArchiveTask";
+import { useTasks, useUpdateTask } from "@features/tasks/hooks/useTasks";
 import { useTaskContextMenu } from "@hooks/useTaskContextMenu";
 import { Box, Flex } from "@radix-ui/themes";
 import { useWorkspaceStore } from "@renderer/features/workspace/stores/workspaceStore";
@@ -32,7 +29,7 @@ function SidebarMenuComponent() {
 
   const { showContextMenu, editingTaskId, setEditingTaskId } =
     useTaskContextMenu();
-  const { deleteWithConfirm } = useDeleteTask();
+  const { archiveTask } = useArchiveTask();
   const togglePin = usePinnedTasksStore((state) => state.togglePin);
 
   const sidebarData = useSidebarData({
@@ -103,18 +100,8 @@ function SidebarMenuComponent() {
     }
   };
 
-  const handleTaskDelete = async (taskId: string) => {
-    const task = taskMap.get(taskId);
-    if (!task) return;
-
-    const workspace = workspaces[taskId];
-    const hasWorktree = !!workspace?.worktreePath;
-
-    await deleteWithConfirm({
-      taskId,
-      taskTitle: task.title,
-      hasWorktree,
-    });
+  const handleTaskArchive = async (taskId: string) => {
+    await archiveTask({ taskId });
   };
 
   const updateTask = useUpdateTask();
@@ -202,7 +189,7 @@ function SidebarMenuComponent() {
               onTaskClick={handleTaskClick}
               onTaskDoubleClick={handleTaskDoubleClick}
               onTaskContextMenu={handleTaskContextMenu}
-              onTaskDelete={handleTaskDelete}
+              onTaskArchive={handleTaskArchive}
               onTaskTogglePin={togglePin}
               onTaskEditSubmit={handleTaskEditSubmit}
               onTaskEditCancel={handleTaskEditCancel}

@@ -4,6 +4,8 @@ import { logger } from "./logger.js";
 
 const log = logger.scope("process-utils");
 
+const SIGKILL_GRACE_MS = 5_000;
+
 /**
  * Kill a process and all its children by killing the process group.
  * On Unix, we use process.kill(-pid) to kill the entire process group.
@@ -15,21 +17,29 @@ export function killProcessTree(pid: number): void {
       // Windows: use taskkill with /T to kill process tree
       execSync(`taskkill /PID ${pid} /T /F`, { stdio: "ignore" });
     } else {
-      // Try process group first (-pid), fall back to individual process (pid).
-      // SIGTERM for graceful shutdown, SIGKILL as last resort.
-      const signals: Array<[number, NodeJS.Signals]> = [
-        [-pid, "SIGTERM"],
-        [-pid, "SIGKILL"],
-        [pid, "SIGTERM"],
-        [pid, "SIGKILL"],
-      ];
-      for (const [target, signal] of signals) {
+      // SIGTERM the process group first, fall back to individual process
+      let sent = false;
+      for (const target of [-pid, pid]) {
         try {
-          process.kill(target, signal);
-          return;
+          process.kill(target, "SIGTERM");
+          sent = true;
+          break;
         } catch {}
       }
-      log.warn(`Failed to kill process ${pid}`);
+
+      if (!sent) return;
+
+      // Force kill after a grace period — unref so the timer doesn't delay app exit.
+      // We skip the liveness check since isProcessAlive only tests the group leader;
+      // orphaned children in the same group would be missed. The catch blocks
+      // handle ESRCH if everything already exited.
+      setTimeout(() => {
+        for (const target of [-pid, pid]) {
+          try {
+            process.kill(target, "SIGKILL");
+          } catch {}
+        }
+      }, SIGKILL_GRACE_MS).unref();
     }
   } catch (err) {
     log.warn(`Failed to kill process tree for PID ${pid}`, err);

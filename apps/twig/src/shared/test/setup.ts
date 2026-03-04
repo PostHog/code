@@ -45,6 +45,8 @@ vi.mock("electron-log/renderer", () => {
   return { default: mockLog };
 });
 
+vi.mock("@main/utils/logger");
+
 // Suppress act() warnings from Radix UI async updates in tests,
 // we don't care about them.
 const originalError = console.error;
