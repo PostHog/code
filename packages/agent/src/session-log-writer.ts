@@ -37,7 +37,7 @@ export class SessionLogWriter {
   private lastFlushAttemptTime: Map<string, number> = new Map();
   private retryCounts: Map<string, number> = new Map();
   private sessions: Map<string, SessionState> = new Map();
-  private messageCounts: Map<string, number> = new Map();
+
   private logger: Logger;
   private localCachePath?: string;
 
@@ -51,20 +51,6 @@ export class SessionLogWriter {
 
   async flushAll(): Promise<void> {
     const sessionIds = [...this.sessions.keys()];
-    const pendingCounts = sessionIds.map((id) => {
-      const session = this.sessions.get(id);
-      return {
-        taskId: session?.context.taskId,
-        runId: session?.context.runId,
-        pending: this.pendingEntries.get(id)?.length ?? 0,
-        messages: this.messageCounts.get(id) ?? 0,
-      };
-    });
-    this.logger.info("flushAll called", {
-      sessions: sessionIds.length,
-      pending: pendingCounts,
-    });
-
     const flushPromises: Promise<void>[] = [];
     for (const sessionId of sessionIds) {
       flushPromises.push(this.flush(sessionId));
@@ -113,16 +99,6 @@ export class SessionLogWriter {
         sessionId,
       });
       return;
-    }
-
-    const count = (this.messageCounts.get(sessionId) ?? 0) + 1;
-    this.messageCounts.set(sessionId, count);
-    if (count % 10 === 1) {
-      this.logger.info("Messages received", {
-        count,
-        taskId: session.context.taskId,
-        runId: session.context.runId,
-      });
     }
 
     try {
@@ -186,12 +162,6 @@ export class SessionLogWriter {
 
     const pending = this.pendingEntries.get(sessionId);
     if (!this.posthogAPI || !pending?.length) {
-      this.logger.info("flush: nothing to persist", {
-        taskId: session.context.taskId,
-        runId: session.context.runId,
-        hasPosthogAPI: !!this.posthogAPI,
-        pendingCount: pending?.length ?? 0,
-      });
       return;
     }
 
@@ -211,11 +181,6 @@ export class SessionLogWriter {
         pending,
       );
       this.retryCounts.set(sessionId, 0);
-      this.logger.info("Flushed session logs", {
-        taskId: session.context.taskId,
-        runId: session.context.runId,
-        entryCount: pending.length,
-      });
     } catch (error) {
       const retryCount = (this.retryCounts.get(sessionId) ?? 0) + 1;
       this.retryCounts.set(sessionId, retryCount);
