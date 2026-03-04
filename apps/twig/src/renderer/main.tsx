@@ -10,7 +10,9 @@ import "./styles/globals.css";
 const log = logger.scope("app");
 log.info("Twig renderer booting up");
 
-document.title = import.meta.env.DEV ? "Twig (Development)" : "Twig";
+document.title = import.meta.env.DEV
+  ? "PostHog Code (Development)"
+  : "PostHog Code";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Root element not found");

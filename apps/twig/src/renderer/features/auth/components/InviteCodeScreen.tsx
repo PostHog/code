@@ -1,8 +1,8 @@
 import { DraggableTitleBar } from "@components/DraggableTitleBar";
 import { useAuthStore } from "@features/auth/stores/authStore";
-import { Callout, Flex, Spinner, Text } from "@radix-ui/themes";
-import treeBg from "@renderer/assets/images/tree-bg.svg";
-import twigLogo from "@renderer/assets/images/twig-logo.svg";
+import { Callout, Flex, Spinner, Text, Theme } from "@radix-ui/themes";
+import phWordmark from "@renderer/assets/images/wordmark-alt.png";
+import zenHedgehog from "@renderer/assets/images/zen.png";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -25,166 +25,164 @@ export function InviteCodeScreen() {
   const errorMessage = redeemMutation.error?.message ?? null;
 
   return (
-    <Flex height="100vh" style={{ position: "relative", overflow: "hidden" }}>
-      <DraggableTitleBar />
+    <Theme appearance="light" accentColor="orange">
+      <Flex height="100vh" style={{ position: "relative", overflow: "hidden" }}>
+        <DraggableTitleBar />
 
-      {/* Background */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          backgroundColor: "#FAEEDE",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: "50%",
-          backgroundImage: `url(${treeBg})`,
-          backgroundSize: "cover",
-          backgroundPosition: "left center",
-          backgroundRepeat: "no-repeat",
-        }}
-      />
-
-      {/* Left side with card */}
-      <Flex
-        width="50%"
-        align="center"
-        justify="center"
-        style={{ position: "relative", zIndex: 1 }}
-      >
-        {/* Scrim behind card area */}
+        {/* Background */}
         <div
           style={{
             position: "absolute",
             inset: 0,
-            background:
-              "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(247, 237, 223, 0.7) 0%, rgba(247, 237, 223, 0.3) 70%, transparent 100%)",
-            pointerEvents: "none",
+            backgroundColor: "rgb(243, 244, 240)",
           }}
         />
 
-        {/* Invite code card */}
+        {/* Right panel — zen hedgehog */}
         <Flex
-          direction="column"
-          gap="5"
+          align="center"
+          justify="center"
           style={{
-            position: "relative",
-            width: "360px",
-            padding: "32px",
-            backgroundColor: "rgba(247, 237, 223, 0.7)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            borderRadius: "16px",
-            border: "1px solid rgba(255, 255, 255, 0.3)",
-            boxShadow:
-              "0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
+            position: "absolute",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: "50%",
+            backgroundColor: "rgb(243, 244, 240)",
           }}
         >
-          {/* Logo */}
           <img
-            src={twigLogo}
-            alt="Twig"
-            style={{
-              height: "48px",
-              objectFit: "contain",
-              alignSelf: "center",
-            }}
+            src={zenHedgehog}
+            alt=""
+            className="zen-float"
+            style={{ width: "340px", maxWidth: "80%" }}
           />
+        </Flex>
 
-          <Text
-            size="2"
-            align="center"
-            style={{ color: "var(--cave-charcoal)", opacity: 0.7 }}
+        {/* Left side with card */}
+        <Flex
+          width="50%"
+          align="center"
+          justify="center"
+          style={{ position: "relative", zIndex: 1 }}
+        >
+          {/* Invite code card */}
+          <Flex
+            direction="column"
+            gap="5"
+            style={{
+              position: "relative",
+              width: "360px",
+              padding: "32px",
+              backgroundColor: "var(--color-panel-solid)",
+              borderRadius: "16px",
+              border: "1px solid var(--gray-4)",
+              boxShadow:
+                "0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
+            }}
           >
-            Enter your invite code to get started
-          </Text>
+            {/* Logo */}
+            <img
+              src={phWordmark}
+              alt="PostHog"
+              style={{
+                height: "48px",
+                objectFit: "contain",
+                alignSelf: "center",
+              }}
+            />
 
-          {/* Error */}
-          {errorMessage && (
-            <Callout.Root color="red" size="1">
-              <Callout.Text>{errorMessage}</Callout.Text>
-            </Callout.Root>
-          )}
+            <Text
+              size="2"
+              align="center"
+              style={{ color: "var(--gray-12)", opacity: 0.7 }}
+            >
+              Enter your invite code to get started
+            </Text>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit}>
-            <Flex direction="column" gap="3">
-              <input
-                type="text"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="Invite code"
-                disabled={redeemMutation.isPending}
-                style={{
-                  width: "100%",
-                  height: "44px",
-                  padding: "0 12px",
-                  border: "1px solid rgba(0, 0, 0, 0.15)",
-                  borderRadius: "10px",
-                  fontSize: "15px",
-                  backgroundColor: "rgba(255, 255, 255, 0.5)",
-                  color: "var(--cave-charcoal)",
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
-              />
+            {/* Error */}
+            {errorMessage && (
+              <Callout.Root color="red" size="1">
+                <Callout.Text>{errorMessage}</Callout.Text>
+              </Callout.Root>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleSubmit}>
+              <Flex direction="column" gap="3">
+                <input
+                  type="text"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="Invite code"
+                  disabled={redeemMutation.isPending}
+                  style={{
+                    width: "100%",
+                    height: "44px",
+                    padding: "0 12px",
+                    border: "1px solid var(--gray-6)",
+                    borderRadius: "10px",
+                    fontSize: "15px",
+                    backgroundColor: "var(--gray-2)",
+                    color: "var(--gray-12)",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={redeemMutation.isPending || !code.trim()}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    width: "100%",
+                    height: "44px",
+                    border: "1.5px solid var(--accent-8)",
+                    borderRadius: "6px",
+                    fontSize: "15px",
+                    fontWeight: 500,
+                    cursor:
+                      redeemMutation.isPending || !code.trim()
+                        ? "not-allowed"
+                        : "pointer",
+                    backgroundColor: "var(--accent-9)",
+                    color: "var(--accent-contrast)",
+                    boxShadow: "0 3px 0 -1px var(--accent-8)",
+                    opacity: redeemMutation.isPending || !code.trim() ? 0.5 : 1,
+                    transition: "opacity 150ms ease, box-shadow 100ms ease",
+                  }}
+                >
+                  {redeemMutation.isPending ? <Spinner size="1" /> : "Redeem"}
+                </button>
+              </Flex>
+            </form>
+
+            {/* Log out link */}
+            <Flex justify="center">
               <button
-                type="submit"
-                disabled={redeemMutation.isPending || !code.trim()}
+                type="button"
+                onClick={logout}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  width: "100%",
-                  height: "44px",
+                  background: "none",
                   border: "none",
-                  borderRadius: "10px",
-                  fontSize: "15px",
-                  fontWeight: 500,
-                  cursor:
-                    redeemMutation.isPending || !code.trim()
-                      ? "not-allowed"
-                      : "pointer",
-                  backgroundColor: "var(--cave-charcoal)",
-                  color: "var(--cave-cream)",
-                  opacity: redeemMutation.isPending || !code.trim() ? 0.5 : 1,
-                  transition: "opacity 150ms ease",
+                  padding: 0,
+                  color: "var(--gray-12)",
+                  opacity: 0.5,
+                  cursor: "pointer",
+                  fontSize: "13px",
                 }}
               >
-                {redeemMutation.isPending ? <Spinner size="1" /> : "Redeem"}
+                Log out
               </button>
             </Flex>
-          </form>
-
-          {/* Log out link */}
-          <Flex justify="center">
-            <button
-              type="button"
-              onClick={logout}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                color: "var(--cave-charcoal)",
-                opacity: 0.5,
-                cursor: "pointer",
-                fontSize: "13px",
-              }}
-            >
-              Log out
-            </button>
           </Flex>
         </Flex>
-      </Flex>
 
-      {/* Right side - shows background */}
-      <div style={{ width: "50%" }} />
-    </Flex>
+        {/* Right side - shows background */}
+        <div style={{ width: "50%" }} />
+      </Flex>
+    </Theme>
   );
 }

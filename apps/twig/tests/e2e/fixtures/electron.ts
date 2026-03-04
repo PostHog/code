@@ -13,11 +13,11 @@ function getAppPath(): string {
   if (process.platform === "darwin") {
     const arm64Path = path.join(
       outDir,
-      "Twig-darwin-arm64/Twig.app/Contents/MacOS/Twig",
+      "PostHog Code-darwin-arm64/PostHog Code.app/Contents/MacOS/PostHog Code",
     );
     const x64Path = path.join(
       outDir,
-      "Twig-darwin-x64/Twig.app/Contents/MacOS/Twig",
+      "PostHog Code-darwin-x64/PostHog Code.app/Contents/MacOS/PostHog Code",
     );
 
     if (existsSync(arm64Path)) return arm64Path;
@@ -29,7 +29,10 @@ function getAppPath(): string {
   }
 
   if (process.platform === "win32") {
-    const winPath = path.join(outDir, "Twig-win32-x64/Twig.exe");
+    const winPath = path.join(
+      outDir,
+      "PostHog Code-win32-x64/PostHog Code.exe",
+    );
     if (existsSync(winPath)) return winPath;
 
     throw new Error(
@@ -38,7 +41,7 @@ function getAppPath(): string {
   }
 
   if (process.platform === "linux") {
-    const linuxPath = path.join(outDir, "Twig-linux-x64/Twig");
+    const linuxPath = path.join(outDir, "PostHog Code-linux-x64/PostHog Code");
     if (existsSync(linuxPath)) return linuxPath;
 
     throw new Error(

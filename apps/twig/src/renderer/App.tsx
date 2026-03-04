@@ -145,14 +145,14 @@ function App() {
     initialize();
   }, []);
 
-  // Handle transition into main app (from onboarding completion)
+  // Handle transition into main app — only show the dark overlay if dark mode is active
   useEffect(() => {
     const isInMainApp = isAuthenticated && hasCompletedOnboarding;
-    if (!wasInMainApp.current && isInMainApp) {
+    if (!wasInMainApp.current && isInMainApp && isDarkMode) {
       setShowTransition(true);
     }
     wasInMainApp.current = isInMainApp;
-  }, [isAuthenticated, hasCompletedOnboarding]);
+  }, [isAuthenticated, hasCompletedOnboarding, isDarkMode]);
 
   const handleTransitionComplete = () => {
     setShowTransition(false);
@@ -173,12 +173,7 @@ function App() {
   const renderContent = () => {
     if (!isAuthenticated) {
       return (
-        <motion.div
-          key="auth"
-          initial={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-        >
+        <motion.div key="auth" initial={{ opacity: 1 }}>
           <AuthScreen />
         </motion.div>
       );
@@ -187,13 +182,7 @@ function App() {
     // Access check loading state
     if (hasTwigAccess === null) {
       return (
-        <motion.div
-          key="access-check"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-        >
+        <motion.div key="access-check">
           <Flex align="center" justify="center" minHeight="100vh">
             <Flex align="center" gap="3">
               <Spinner size="3" />
@@ -207,13 +196,7 @@ function App() {
     // Access gate: show invite code screen if flag is not enabled
     if (!hasTwigAccess) {
       return (
-        <motion.div
-          key="invite-code"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-        >
+        <motion.div key="invite-code">
           <InviteCodeScreen />
         </motion.div>
       );
@@ -221,13 +204,7 @@ function App() {
 
     if (!hasCompletedOnboarding) {
       return (
-        <motion.div
-          key="onboarding"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-        >
+        <motion.div key="onboarding">
           <OnboardingFlow />
         </motion.div>
       );

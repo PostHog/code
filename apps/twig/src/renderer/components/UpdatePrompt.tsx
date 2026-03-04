@@ -108,7 +108,7 @@ export function UpdatePrompt() {
                     <Text size="2" color="gray">
                       {data.version
                         ? `Version ${data.version} has been downloaded and is ready to install.`
-                        : "A new version of Twig has been downloaded and is ready to install."}
+                        : "A new version of PostHog Code has been downloaded and is ready to install."}
                     </Text>
                   </Flex>
                 </Flex>
@@ -170,7 +170,7 @@ export function UpdatePrompt() {
             <Card size="2">
               <Flex direction="column" gap="2">
                 <Text size="2" weight="medium">
-                  Twig is up to date{versionSuffix}
+                  PostHog Code is up to date{versionSuffix}
                 </Text>
               </Flex>
             </Card>

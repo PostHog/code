@@ -16,7 +16,7 @@ const isDev = !app.isPackaged;
 
 // Set app name for single-instance lock, crashReporter, etc
 const appName = isDev ? "twig-dev" : "Twig";
-app.setName(isDev ? "Twig (Development)" : "Twig");
+app.setName(isDev ? "PostHog Code (Development)" : "PostHog Code");
 
 // Set userData path for @posthog/twig
 const appDataPath = app.getPath("appData");

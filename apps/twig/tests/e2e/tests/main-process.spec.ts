@@ -6,7 +6,7 @@ test.describe("Main Process", () => {
       return app.getName();
     });
 
-    expect(appName).toBe("Twig");
+    expect(appName).toBe("PostHog Code");
   });
 
   test("app is packaged correctly", async ({ electronApp }) => {

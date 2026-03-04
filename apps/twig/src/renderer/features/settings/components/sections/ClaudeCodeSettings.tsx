@@ -144,7 +144,7 @@ export function ClaudeCodeSettings() {
 
       <SettingRow
         label="Enable Bypass Permissions mode"
-        description="Enables 'Bypass Permissions' mode in the execution mode selector. When active, Twig will not ask for approval before running potentially dangerous commands."
+        description="Enables 'Bypass Permissions' mode in the execution mode selector. When active, PostHog Code will not ask for approval before running potentially dangerous commands."
       >
         <Switch
           checked={allowBypassPermissions}
@@ -229,8 +229,8 @@ export function ClaudeCodeSettings() {
           <AlertDialog.Description size="2">
             <Flex direction="column" gap="3">
               <Text color="red" weight="medium">
-                In Bypass Permissions mode, Twig will not ask for your approval
-                before running potentially dangerous commands.
+                In Bypass Permissions mode, PostHog Code will not ask for your
+                approval before running potentially dangerous commands.
               </Text>
               <Text>
                 This mode should only be used in a sandboxed container/VM that

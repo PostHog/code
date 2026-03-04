@@ -48,18 +48,18 @@ export function buildApplicationMenu(): void {
 
 function buildAppMenu(): MenuItemConstructorOptions {
   return {
-    label: "Twig",
+    label: "PostHog Code",
     submenu: [
       {
-        label: "About Twig",
+        label: "About PostHog Code",
         click: () => {
           const info = getSystemInfo();
 
           dialog
             .showMessageBox({
               type: "info",
-              title: "About Twig",
-              message: "Twig",
+              title: "About PostHog Code",
+              message: "PostHog Code",
               detail: info,
               buttons: ["Copy", "OK"],
               defaultId: 1,
@@ -149,7 +149,7 @@ function buildFileMenu(): MenuItemConstructorOptions {
               const logContent = await readFile(logPath, "utf-8");
               const header = [
                 "=".repeat(60),
-                "  Twig Log Export",
+                "  PostHog Code Log Export",
                 "=".repeat(60),
                 "",
                 getSystemInfo(),

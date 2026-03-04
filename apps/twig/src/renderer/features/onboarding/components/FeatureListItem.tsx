@@ -13,12 +13,23 @@ export function FeatureListItem({
   description,
 }: FeatureListItemProps) {
   return (
-    <Flex align="start" gap="3" py="3" px="4">
+    <Flex
+      align="start"
+      gap="3"
+      py="2"
+      pr="4"
+      style={{
+        userSelect: "none",
+        cursor: "default",
+        borderLeft: "2px solid var(--gray-4)",
+        paddingLeft: "var(--space-3)",
+      }}
+    >
       <Flex
         align="center"
         justify="center"
         style={{
-          color: "var(--cave-charcoal)",
+          color: "var(--gray-12)",
           opacity: 0.6,
           flexShrink: 0,
           marginTop: 2,
@@ -27,17 +38,13 @@ export function FeatureListItem({
         {icon}
       </Flex>
       <Flex direction="column" gap="1">
-        <Text
-          size="3"
-          weight="medium"
-          style={{ color: "var(--cave-charcoal)" }}
-        >
+        <Text size="3" weight="medium" style={{ color: "var(--gray-12)" }}>
           {title}
         </Text>
         <Text
           size="2"
           style={{
-            color: "var(--cave-charcoal)",
+            color: "var(--gray-12)",
             opacity: 0.5,
           }}
         >

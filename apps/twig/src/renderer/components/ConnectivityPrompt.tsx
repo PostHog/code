@@ -28,8 +28,8 @@ export function ConnectivityPrompt({
           </Flex>
           <Dialog.Description>
             <Text size="2" color="gray">
-              Twig requires an internet connection to use AI features. Check
-              your connection and try again.
+              PostHog Code requires an internet connection to use AI features.
+              Check your connection and try again.
             </Text>
           </Dialog.Description>
           <Flex justify="end" gap="3" mt="2">

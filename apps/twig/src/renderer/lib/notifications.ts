@@ -56,7 +56,7 @@ export function notifyPromptComplete(
 
   if (desktopNotifications) {
     sendDesktopNotification(
-      "Twig",
+      "PostHog Code",
       `"${truncateTitle(taskTitle)}" finished`,
       willPlayCustomSound,
     );
@@ -85,7 +85,7 @@ export function notifyPermissionRequest(taskTitle: string): void {
 
     if (desktopNotifications) {
       sendDesktopNotification(
-        "Twig",
+        "PostHog Code",
         `"${truncateTitle(taskTitle)}" needs your input`,
         willPlayCustomSound,
       );

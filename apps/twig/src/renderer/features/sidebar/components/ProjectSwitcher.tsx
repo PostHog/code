@@ -253,7 +253,7 @@ export function ProjectSwitcher() {
                     onClick={() => handleOpenExternal("https://twig.com")}
                   >
                     <ArrowSquareOut size={14} className="text-gray-11" />
-                    <Text size="1">Twig Website</Text>
+                    <Text size="1">PostHog Code Website</Text>
                   </DropdownMenu.Item>
                   <DropdownMenu.Separator />
                   <DropdownMenu.Item

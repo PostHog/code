@@ -22,9 +22,7 @@ export function StepIndicator({
             height: 8,
             borderRadius: "50%",
             backgroundColor:
-              index <= currentIndex
-                ? "var(--accent-9)"
-                : "rgba(255, 255, 255, 0.3)",
+              index <= currentIndex ? "var(--accent-9)" : "var(--gray-5)",
             transition: "background-color 0.3s ease",
           }}
         />

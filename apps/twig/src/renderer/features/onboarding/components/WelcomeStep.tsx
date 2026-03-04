@@ -7,7 +7,7 @@ import {
   Stack,
 } from "@phosphor-icons/react";
 import { Box, Button, Flex } from "@radix-ui/themes";
-import twigLogo from "@renderer/assets/images/twig-logo.svg";
+import phWordmark from "@renderer/assets/images/wordmark-alt.png";
 import { FeatureListItem } from "./FeatureListItem";
 
 interface WelcomeStepProps {
@@ -49,18 +49,24 @@ const FEATURES = [
 
 export function WelcomeStep({ onNext }: WelcomeStepProps) {
   return (
-    <Flex align="center" height="100%" px="8">
+    <Flex height="100%">
       {/* Left side - features list */}
       <Flex
         direction="column"
+        justify="center"
         gap="4"
-        style={{ width: "45%", maxWidth: 480 }}
-        pr="6"
+        style={{
+          width: "100%",
+          maxWidth: 520,
+          paddingLeft: "var(--space-8)",
+          paddingRight: "var(--space-6)",
+          height: "100%",
+        }}
       >
         <Flex direction="column" gap="3" mb="4">
           <img
-            src={twigLogo}
-            alt="Twig"
+            src={phWordmark}
+            alt="PostHog"
             style={{
               height: "40px",
               objectFit: "contain",
@@ -69,7 +75,7 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
           />
         </Flex>
 
-        <Flex direction="column" gap="1">
+        <Flex direction="column" gap="3">
           {FEATURES.map((feature) => (
             <FeatureListItem
               key={feature.title}
@@ -81,14 +87,7 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
         </Flex>
 
         <Box mt="2">
-          <Button
-            size="3"
-            onClick={onNext}
-            style={{
-              backgroundColor: "var(--cave-charcoal)",
-              color: "var(--cave-cream)",
-            }}
-          >
+          <Button size="3" onClick={onNext}>
             Get Started
             <ArrowRight size={16} />
           </Button>

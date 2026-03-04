@@ -19,7 +19,7 @@ export function LoginTransition({
         position: "fixed",
         inset: 0,
         zIndex: 10000,
-        background: "var(--cave-charcoal)",
+        background: "var(--gray-12)",
       }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}

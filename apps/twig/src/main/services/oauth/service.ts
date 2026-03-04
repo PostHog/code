@@ -365,9 +365,9 @@ export class OAuthService {
       error: "Authorization failed",
     };
     const messages = {
-      success: "You can close this window and return to Twig.",
-      cancelled: "You can close this window and return to Twig.",
-      error: "You can close this window and return to Twig.",
+      success: "You can close this window and return to PostHog Code.",
+      cancelled: "You can close this window and return to PostHog Code.",
+      error: "You can close this window and return to PostHog Code.",
     };
 
     return `<!DOCTYPE html>

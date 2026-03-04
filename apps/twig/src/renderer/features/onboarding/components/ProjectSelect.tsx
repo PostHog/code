@@ -28,7 +28,7 @@ export function ProjectSelect({
 
   if (projects.length <= 1) {
     return (
-      <Text size="2" style={{ color: "var(--cave-charcoal)", opacity: 0.5 }}>
+      <Text size="2" style={{ color: "var(--gray-12)", opacity: 0.5 }}>
         {projectName}
       </Text>
     );
@@ -36,7 +36,7 @@ export function ProjectSelect({
 
   return (
     <Text size="2">
-      <span style={{ color: "var(--cave-charcoal)", opacity: 0.5 }}>
+      <span style={{ color: "var(--gray-12)", opacity: 0.5 }}>
         {projectName}
         {" · "}
       </span>
