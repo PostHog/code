@@ -5,9 +5,9 @@ import {
 import {
   ArrowLeft,
   ArrowsClockwise,
+  ArrowsSplit,
   CaretRight,
   Code,
-  Folder,
   GearSix,
   Keyboard,
   Palette,
@@ -26,7 +26,7 @@ import { IntegrationsSettings } from "./sections/IntegrationsSettings";
 import { PersonalizationSettings } from "./sections/PersonalizationSettings";
 import { ShortcutsSettings } from "./sections/ShortcutsSettings";
 import { UpdatesSettings } from "./sections/UpdatesSettings";
-import { WorkspacesSettings } from "./sections/WorkspacesSettings";
+import { WorktreesSettings } from "./sections/WorktreesSettings";
 
 interface SidebarItem {
   id: SettingsCategory;
@@ -38,7 +38,11 @@ interface SidebarItem {
 const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "general", label: "General", icon: <GearSix size={16} /> },
   { id: "account", label: "Account", icon: <User size={16} /> },
-  { id: "workspaces", label: "Workspaces", icon: <Folder size={16} /> },
+  {
+    id: "worktrees",
+    label: "Worktrees",
+    icon: <ArrowsSplit size={16} style={{ transform: "rotate(270deg)" }} />,
+  },
   {
     id: "personalization",
     label: "Personalization",
@@ -58,7 +62,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
 const CATEGORY_TITLES: Record<SettingsCategory, string> = {
   general: "General",
   account: "Account",
-  workspaces: "Workspaces",
+  worktrees: "Worktrees",
   personalization: "Personalization",
   "claude-code": "Claude Code",
   shortcuts: "Shortcuts",
@@ -70,7 +74,7 @@ const CATEGORY_TITLES: Record<SettingsCategory, string> = {
 const CATEGORY_COMPONENTS: Record<SettingsCategory, React.ComponentType> = {
   general: GeneralSettings,
   account: AccountSettings,
-  workspaces: WorkspacesSettings,
+  worktrees: WorktreesSettings,
   personalization: PersonalizationSettings,
   "claude-code": ClaudeCodeSettings,
   shortcuts: ShortcutsSettings,

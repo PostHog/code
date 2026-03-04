@@ -346,6 +346,17 @@ export class WorktreeManager {
         await git.raw(["worktree", "prune"]);
       }
     });
+
+    const parentDir = path.dirname(resolvedWorktreePath);
+    try {
+      const files = await fs.readdir(parentDir);
+      const nonDsStore = files.filter((f) => f !== ".DS_Store");
+      if (nonDsStore.length === 0) {
+        await fs.rm(parentDir, { recursive: true, force: true });
+      }
+    } catch (error) {
+      console.warn(`Failed to cleanup parent directory ${parentDir}:`, error);
+    }
   }
 
   async getWorktreeInfo(worktreePath: string): Promise<WorktreeInfo | null> {

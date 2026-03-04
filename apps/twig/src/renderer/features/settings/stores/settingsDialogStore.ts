@@ -3,7 +3,7 @@ import { create } from "zustand";
 export type SettingsCategory =
   | "general"
   | "account"
-  | "workspaces"
+  | "worktrees"
   | "personalization"
   | "claude-code"
   | "shortcuts"

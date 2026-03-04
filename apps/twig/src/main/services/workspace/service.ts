@@ -3,7 +3,11 @@ import * as fsPromises from "node:fs/promises";
 import path from "node:path";
 import type { TaskFolderAssociation, WorktreeInfo } from "@shared/types";
 import { createGitClient } from "@twig/git/client";
-import { getCurrentBranch, hasTrackedFiles } from "@twig/git/queries";
+import {
+  getCurrentBranch,
+  hasTrackedFiles,
+  listWorktrees,
+} from "@twig/git/queries";
 import { CreateOrSwitchBranchSaga } from "@twig/git/sagas/branch";
 import { DetachHeadSaga } from "@twig/git/sagas/head";
 import { WorktreeManager } from "@twig/git/worktree";
@@ -1086,6 +1090,60 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     }
 
     return result;
+  }
+
+  async listGitWorktrees(mainRepoPath: string): Promise<
+    Array<{
+      worktreePath: string;
+      head: string;
+      branch: string | null;
+      taskIds: string[];
+    }>
+  > {
+    const worktreeBasePath = getWorktreeLocation();
+    const rawWorktrees = await listWorktrees(mainRepoPath);
+
+    const twigWorktrees = rawWorktrees.filter((wt) => {
+      const isMainRepo = path.resolve(wt.path) === path.resolve(mainRepoPath);
+      const isUnderTwig = wt.path.startsWith(worktreeBasePath);
+      return !isMainRepo && isUnderTwig;
+    });
+
+    return twigWorktrees.map((wt) => {
+      const taskIds = this.getWorktreeTasks(wt.path).map((t) => t.taskId);
+      return {
+        worktreePath: wt.path,
+        head: wt.head,
+        branch: wt.branch,
+        taskIds,
+      };
+    });
+  }
+
+  async getWorktreeSize(worktreePath: string): Promise<{ sizeBytes: number }> {
+    try {
+      const { execFile } = await import("node:child_process");
+      const { promisify } = await import("node:util");
+      const execFileAsync = promisify(execFile);
+
+      const { stdout } = await execFileAsync("du", ["-s", worktreePath]);
+      const [sizeStr] = stdout.trim().split("\t");
+      const sizeBytes = sizeStr ? parseInt(sizeStr, 10) * 512 : 0;
+      return { sizeBytes };
+    } catch (error) {
+      log.warn(`Failed to get size for ${worktreePath}:`, error);
+      return { sizeBytes: 0 };
+    }
+  }
+
+  async deleteWorktreeByPath(
+    worktreePath: string,
+    mainRepoPath: string,
+  ): Promise<void> {
+    const worktreeBasePath = getWorktreeLocation();
+    const manager = new WorktreeManager({ mainRepoPath, worktreeBasePath });
+    await manager.deleteWorktree(worktreePath);
+    log.info(`Deleted worktree at ${worktreePath}`);
   }
 
   private async cleanupWorktree(

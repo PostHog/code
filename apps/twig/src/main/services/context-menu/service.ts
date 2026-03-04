@@ -17,6 +17,8 @@ import type {
   ConfirmDeleteArchivedTaskResult,
   ConfirmDeleteTaskInput,
   ConfirmDeleteTaskResult,
+  ConfirmDeleteWorktreeInput,
+  ConfirmDeleteWorktreeResult,
   FileAction,
   FileContextMenuInput,
   FileContextMenuResult,
@@ -77,6 +79,19 @@ export class ContextMenuService {
       title: "Delete Archived Task",
       message: `Delete "${input.taskTitle}"?`,
       detail: "This will permanently delete the archived task.",
+      confirmLabel: "Delete",
+    });
+    return { confirmed };
+  }
+
+  async confirmDeleteWorktree(
+    input: ConfirmDeleteWorktreeInput,
+  ): Promise<ConfirmDeleteWorktreeResult> {
+    const taskWord = input.linkedTaskCount === 1 ? "task" : "tasks";
+    const confirmed = await this.confirm({
+      title: "Delete Worktree",
+      message: `Delete worktree and ${input.linkedTaskCount} linked ${taskWord}?`,
+      detail: `This will permanently delete the worktree at "${input.worktreePath}" and its ${input.linkedTaskCount} associated ${taskWord}.`,
       confirmLabel: "Delete",
     });
     return { confirmed };

@@ -4,6 +4,7 @@ import {
   createWorkspaceInput,
   createWorkspaceOutput,
   deleteWorkspaceInput,
+  deleteWorktreeInput,
   getAllWorkspacesOutput,
   getLocalTasksInput,
   getLocalTasksOutput,
@@ -11,10 +12,14 @@ import {
   getWorkspaceInfoOutput,
   getWorkspaceTerminalsInput,
   getWorkspaceTerminalsOutput,
+  getWorktreeSizeInput,
+  getWorktreeSizeOutput,
   getWorktreeTasksInput,
   getWorktreeTasksOutput,
   isWorkspaceRunningInput,
   isWorkspaceRunningOutput,
+  listGitWorktreesInput,
+  listGitWorktreesOutput,
   runStartScriptsInput,
   runStartScriptsOutput,
   verifyWorkspaceInput,
@@ -98,6 +103,22 @@ export const workspaceRouter = router({
     .input(getWorktreeTasksInput)
     .output(getWorktreeTasksOutput)
     .query(({ input }) => getService().getWorktreeTasks(input.worktreePath)),
+
+  listGitWorktrees: publicProcedure
+    .input(listGitWorktreesInput)
+    .output(listGitWorktreesOutput)
+    .query(({ input }) => getService().listGitWorktrees(input.mainRepoPath)),
+
+  getWorktreeSize: publicProcedure
+    .input(getWorktreeSizeInput)
+    .output(getWorktreeSizeOutput)
+    .query(({ input }) => getService().getWorktreeSize(input.worktreePath)),
+
+  deleteWorktree: publicProcedure
+    .input(deleteWorktreeInput)
+    .mutation(({ input }) =>
+      getService().deleteWorktreeByPath(input.worktreePath, input.mainRepoPath),
+    ),
 
   onTerminalCreated: subscribe(WorkspaceServiceEvent.TerminalCreated),
   onError: subscribe(WorkspaceServiceEvent.Error),
