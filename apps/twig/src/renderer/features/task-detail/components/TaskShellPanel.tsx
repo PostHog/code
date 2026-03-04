@@ -1,4 +1,5 @@
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
+import { useSessionForTask } from "@features/sessions/stores/sessionStore";
 import { ShellTerminal } from "@features/terminal/components/ShellTerminal";
 import { useTerminalStore } from "@features/terminal/stores/terminalStore";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
@@ -20,6 +21,7 @@ export function TaskShellPanel({
   const stateKey = shellId ? `${taskId}-${shellId}` : taskId;
   const tabId = shellId || "shell";
 
+  const session = useSessionForTask(taskId);
   const workspacePath = useWorkspaceStore((state) => {
     const workspace = state.workspaces[taskId];
     return workspace?.worktreePath ?? workspace?.folderPath;
@@ -43,7 +45,7 @@ export function TaskShellPanel({
     }
   }, [processName, taskId, tabId, updateTabLabel]);
 
-  if (!workspacePath) {
+  if (!workspacePath || !session || session.status === "connecting") {
     return null;
   }
 
