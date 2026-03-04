@@ -103,6 +103,7 @@ export function ExternalAppsOpener({
           onClick={handleOpenDefault}
           disabled={!isReady || !defaultApp}
           className="hover:bg-gray-5"
+          style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
         >
           {defaultApp?.icon ? (
             <img
@@ -129,6 +130,11 @@ export function ExternalAppsOpener({
             variant="outline"
             color="gray"
             className="hover:bg-gray-5"
+            style={{
+              borderTopLeftRadius: 0,
+              borderBottomLeftRadius: 0,
+              marginLeft: "-1px",
+            }}
           >
             <ChevronDownIcon />
           </Button>
