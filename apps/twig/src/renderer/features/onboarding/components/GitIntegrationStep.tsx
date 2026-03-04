@@ -12,7 +12,7 @@ import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useMemo, useState } from "react";
-import { useProjectsWithIntegrations } from "../hooks/useProjectsWithIntegrations";
+import { useAllOrgProjects } from "../hooks/useAllOrgProjects";
 import { ProjectSelect } from "./ProjectSelect";
 
 interface GitIntegrationStepProps {
@@ -29,7 +29,7 @@ export function GitIntegrationStep({
   const selectProject = useAuthStore((s) => s.selectProject);
 
   const queryClient = useQueryClient();
-  const { projects, isLoading, isFetching } = useProjectsWithIntegrations();
+  const { projects, isLoading, isFetching } = useAllOrgProjects();
 
   // User can manually select a different project
   const [manuallySelectedProjectId, setManuallySelectedProjectId] = useState<
