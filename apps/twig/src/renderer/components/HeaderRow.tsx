@@ -68,6 +68,7 @@ export function HeaderRow() {
         style={{
           width: sidebarOpen ? `${sidebarWidth}px` : `${COLLAPSED_WIDTH}px`,
           minWidth: `${COLLAPSED_WIDTH}px`,
+          flexShrink: 0,
           height: "100%",
           borderRight: "1px solid var(--gray-6)",
           transition: isResizing ? "none" : "width 0.2s ease-in-out",
@@ -99,7 +100,7 @@ export function HeaderRow() {
           justify="between"
           px="3"
           flexGrow="1"
-          style={{ height: "100%", overflow: "hidden" }}
+          style={{ height: "100%", overflow: "hidden", minWidth: 0 }}
         >
           {content}
         </Flex>
@@ -116,6 +117,8 @@ export function HeaderRow() {
               ? `${rightSidebarWidth}px`
               : `${COLLAPSED_WIDTH}px`,
             minWidth: `${COLLAPSED_WIDTH}px`,
+            flexShrink: 0,
+            overflow: "hidden",
             height: "100%",
             borderLeft: "1px solid var(--gray-6)",
             transition: rightSidebarIsResizing
