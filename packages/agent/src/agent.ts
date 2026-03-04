@@ -174,6 +174,17 @@ export class Agent {
     if (!this.posthogAPI) return;
 
     try {
+      const jsonlPath = getSessionJsonlPath(params.sessionId, params.cwd);
+      try {
+        await fs.access(jsonlPath);
+        this.logger.info("Local JSONL exists, skipping S3 hydration", {
+          sessionId: params.sessionId,
+        });
+        return;
+      } catch {
+        // File doesn't exist, proceed with hydration
+      }
+
       const taskRun = await this.posthogAPI.getTaskRun(
         params.taskId,
         params.runId,
@@ -227,7 +238,6 @@ export class Agent {
         cwd: params.cwd,
       });
 
-      const jsonlPath = getSessionJsonlPath(params.sessionId, params.cwd);
       await fs.mkdir(path.dirname(jsonlPath), { recursive: true });
 
       const tmpPath = `${jsonlPath}.tmp.${Date.now()}`;
