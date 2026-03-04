@@ -127,6 +127,7 @@ export function ConversationView({
             <SessionUpdateRow
               update={item.update}
               turnContext={item.turnContext}
+              thoughtComplete={item.thoughtComplete}
             />
           );
         case "git_action_result":
@@ -205,9 +206,11 @@ export function ConversationView({
 const SessionUpdateRow = memo(function SessionUpdateRow({
   update,
   turnContext,
+  thoughtComplete,
 }: {
   update: RenderItem;
   turnContext: TurnContext;
+  thoughtComplete?: boolean;
 }) {
   return (
     <SessionUpdateView
@@ -216,6 +219,7 @@ const SessionUpdateRow = memo(function SessionUpdateRow({
       childItems={turnContext.childItems}
       turnCancelled={turnContext.turnCancelled}
       turnComplete={turnContext.turnComplete}
+      thoughtComplete={thoughtComplete}
     />
   );
 });

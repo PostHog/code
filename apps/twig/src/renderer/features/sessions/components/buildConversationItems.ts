@@ -30,6 +30,7 @@ export type ConversationItem =
       id: string;
       update: RenderItem;
       turnContext: TurnContext;
+      thoughtComplete?: boolean;
     }
   | {
       type: "git_action_result";
@@ -84,6 +85,32 @@ function createItemBuilder(): ItemBuilder {
   };
 }
 
+function isThoughtItem(
+  item: ConversationItem,
+): item is ConversationItem & { type: "session_update" } {
+  return (
+    item.type === "session_update" &&
+    item.update.sessionUpdate === "agent_thought_chunk"
+  );
+}
+
+function markThoughtCompletion(items: ConversationItem[]) {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    if (!isThoughtItem(item)) continue;
+
+    const hasSubsequentItem = items
+      .slice(i + 1)
+      .some(
+        (next) =>
+          next.type === "session_update" &&
+          next.turnContext === item.turnContext,
+      );
+
+    item.thoughtComplete = hasSubsequentItem || item.turnContext.turnComplete;
+  }
+}
+
 function pushItem(b: ItemBuilder, update: RenderItem) {
   const turn = b.currentTurn;
   if (!turn) return;
@@ -129,6 +156,8 @@ export function buildConversationItems(
       turn.context.turnComplete = true;
     }
   }
+
+  markThoughtCompletion(b.items);
 
   const lastTurnInfo: LastTurnInfo | null = b.currentTurn
     ? {

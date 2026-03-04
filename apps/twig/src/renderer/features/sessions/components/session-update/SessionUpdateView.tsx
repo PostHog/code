@@ -48,6 +48,7 @@ interface SessionUpdateViewProps {
   childItems?: Map<string, ConversationItem[]>;
   turnCancelled?: boolean;
   turnComplete?: boolean;
+  thoughtComplete?: boolean;
 }
 
 export const SessionUpdateView = memo(function SessionUpdateView({
@@ -56,6 +57,7 @@ export const SessionUpdateView = memo(function SessionUpdateView({
   childItems,
   turnCancelled,
   turnComplete,
+  thoughtComplete,
 }: SessionUpdateViewProps) {
   switch (item.sessionUpdate) {
     case "user_message_chunk":
@@ -66,10 +68,7 @@ export const SessionUpdateView = memo(function SessionUpdateView({
       ) : null;
     case "agent_thought_chunk":
       return item.content.type === "text" ? (
-        <ThoughtView
-          content={item.content.text}
-          isLoading={!turnComplete && !turnCancelled}
-        />
+        <ThoughtView content={item.content.text} isLoading={!thoughtComplete} />
       ) : null;
     case "tool_call":
       return (
