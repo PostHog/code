@@ -1,5 +1,10 @@
-import { PencilSimple } from "@phosphor-icons/react";
-import { Box, Flex, Text } from "@radix-ui/themes";
+import {
+  ArrowsInSimple as ArrowsInSimpleIcon,
+  ArrowsOutSimple as ArrowsOutSimpleIcon,
+  PencilSimple,
+} from "@phosphor-icons/react";
+import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
+import { useState } from "react";
 import { CodePreview } from "./CodePreview";
 import { FileMentionChip } from "./FileMentionChip";
 import {
@@ -66,21 +71,41 @@ export function EditToolView({
   const isNewFile = diff && !oldText;
   const diffStats = diff ? getDiffStats(oldText, newText) : null;
 
+  const isPlanFile = filePath.includes(".claude/plans/");
+  const [isExpanded, setIsExpanded] = useState(!isPlanFile);
+
   return (
     <Box className="max-w-4xl overflow-hidden rounded-lg border border-gray-6">
-      <Flex align="center" gap="2" className="px-3 py-2">
-        <LoadingIcon icon={PencilSimple} isLoading={isLoading} />
-        {filePath && <FileMentionChip filePath={filePath} />}
-        {diffStats && (
-          <Text size="1">
-            <span className="text-green-11">+{diffStats.added}</span>{" "}
-            <span className="text-red-11">-{diffStats.removed}</span>
-          </Text>
+      <button
+        type="button"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex w-full cursor-pointer items-center justify-between border-none bg-transparent px-3 py-2"
+      >
+        <Flex align="center" gap="2">
+          <LoadingIcon icon={PencilSimple} isLoading={isLoading} />
+          {filePath && <FileMentionChip filePath={filePath} />}
+          {diffStats && (
+            <Text size="1">
+              <span className="text-green-11">+{diffStats.added}</span>{" "}
+              <span className="text-red-11">-{diffStats.removed}</span>
+            </Text>
+          )}
+          <StatusIndicators isFailed={isFailed} wasCancelled={wasCancelled} />
+        </Flex>
+        {newText && (
+          <IconButton asChild size="1" variant="ghost" color="gray">
+            <span>
+              {isExpanded ? (
+                <ArrowsInSimpleIcon size={12} />
+              ) : (
+                <ArrowsOutSimpleIcon size={12} />
+              )}
+            </span>
+          </IconButton>
         )}
-        <StatusIndicators isFailed={isFailed} wasCancelled={wasCancelled} />
-      </Flex>
+      </button>
 
-      {newText && (
+      {isExpanded && newText && (
         <CodePreview
           content={newText}
           filePath={filePath}
