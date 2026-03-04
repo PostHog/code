@@ -101,7 +101,7 @@ export function spawnCodexProcess(options: CodexProcessOptions): CodexProcess {
   });
 
   child.stderr?.on("data", (data: Buffer) => {
-    logger.error("codex-acp stderr:", data.toString());
+    logger.debug("codex-acp stderr:", data.toString());
   });
 
   child.on("error", (err) => {
