@@ -112,7 +112,7 @@ export const windowStateStore = new Store<WindowStateSchema>({
   defaults: {
     x: undefined,
     y: undefined,
-    width: 900,
+    width: 1200,
     height: 600,
     isMaximized: true,
   },

@@ -25,7 +25,7 @@ function getSavedWindowState(): WindowStateSchema {
   const state = {
     x: windowStateStore.get("x"),
     y: windowStateStore.get("y"),
-    width: windowStateStore.get("width", 900),
+    width: windowStateStore.get("width", 1200),
     height: windowStateStore.get("height", 600),
     isMaximized: windowStateStore.get("isMaximized", true),
   };
@@ -107,7 +107,7 @@ export function createWindow(): void {
     ...(savedState.y !== undefined && { y: savedState.y }),
     width: savedState.width,
     height: savedState.height,
-    minWidth: 900,
+    minWidth: 1200,
     minHeight: 600,
     backgroundColor: "#0a0a0a",
     titleBarStyle: "hiddenInset",
