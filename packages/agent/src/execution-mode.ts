@@ -25,11 +25,11 @@ const availableModes: ModeInfo[] = [
     name: "Plan Mode",
     description: "Planning mode, no actual tool execution",
   },
-  {
-    id: "dontAsk",
-    name: "Don't Ask",
-    description: "Don't prompt for permissions, deny if not pre-approved",
-  },
+  // {
+  //   id: "dontAsk",
+  //   name: "Don't Ask",
+  //   description: "Don't prompt for permissions, deny if not pre-approved",
+  // },
 ];
 
 if (ALLOW_BYPASS) {
@@ -45,7 +45,7 @@ export const TWIG_EXECUTION_MODES = [
   "default",
   "acceptEdits",
   "plan",
-  "dontAsk",
+  // "dontAsk",
   "bypassPermissions",
 ] as const;
 

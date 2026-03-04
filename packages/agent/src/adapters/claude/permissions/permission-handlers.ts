@@ -448,11 +448,11 @@ export async function canUseTool(
     return planFileResult;
   }
 
-  if (session.permissionMode === "dontAsk") {
-    const message = "Tool not pre-approved. Denied by dontAsk mode.";
-    await emitToolDenial(context, message);
-    return { behavior: "deny", message, interrupt: false };
-  }
+  // if (session.permissionMode === "dontAsk") {
+  //   const message = "Tool not pre-approved. Denied by dontAsk mode.";
+  //   await emitToolDenial(context, message);
+  //   return { behavior: "deny", message, interrupt: false };
+  // }
 
   return handleDefaultPermissionFlow(context);
 }
