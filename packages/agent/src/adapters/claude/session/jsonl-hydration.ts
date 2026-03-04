@@ -229,8 +229,8 @@ export function conversationTurnsToJsonlEntries(
 
       const userContent =
         contentBlocks.length > 0
-          ? contentBlocks.map((b) => b.text).join("")
-          : " ";
+          ? contentBlocks
+          : [{ type: "text" as const, text: " " }];
 
       lines.push(
         JSON.stringify({
@@ -309,7 +309,7 @@ export function conversationTurnsToJsonlEntries(
           if (tc.result === undefined) continue;
 
           const uuid = randomUUID();
-          const resultContent =
+          const resultText =
             typeof tc.result === "string"
               ? tc.result
               : JSON.stringify(tc.result);
@@ -329,7 +329,7 @@ export function conversationTurnsToJsonlEntries(
                   {
                     type: "tool_result",
                     tool_use_id: tc.toolCallId,
-                    content: resultContent,
+                    content: [{ type: "text", text: resultText }],
                   },
                 ],
               },
