@@ -1,5 +1,6 @@
 import { CodeBlock } from "@components/CodeBlock";
 import { Divider } from "@components/Divider";
+import { HighlightedCode } from "@components/HighlightedCode";
 import { List, ListItem } from "@components/List";
 import { Blockquote, Checkbox, Code, Em, Kbd, Text } from "@radix-ui/themes";
 import { memo, useMemo } from "react";
@@ -50,15 +51,20 @@ export const baseComponents: Components = {
     </Blockquote>
   ),
   code: ({ children, className }) => {
-    const isInline = !className?.includes("language-");
-    if (isInline) {
+    const match = className?.match(/language-(\w+)/);
+    if (!match) {
       return (
         <Code size="1" variant="ghost" style={{ color: "var(--accent-11)" }}>
           {children}
         </Code>
       );
     }
-    return <code>{children}</code>;
+    return (
+      <HighlightedCode
+        code={String(children).replace(/\n$/, "")}
+        language={match[1]}
+      />
+    );
   },
   pre: ({ children }) => <CodeBlock size="1">{children}</CodeBlock>,
   em: ({ children }) => (
