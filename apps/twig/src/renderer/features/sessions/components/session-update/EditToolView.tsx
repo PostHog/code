@@ -71,7 +71,7 @@ export function EditToolView({
   const isNewFile = diff && !oldText;
   const diffStats = diff ? getDiffStats(oldText, newText) : null;
 
-  const isPlanFile = filePath.includes(".claude/plans/");
+  const isPlanFile = filePath.includes("claude/plans/");
   const [isExpanded, setIsExpanded] = useState(!isPlanFile);
 
   return (
