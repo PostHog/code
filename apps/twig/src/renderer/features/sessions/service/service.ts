@@ -815,14 +815,18 @@ export class SessionService {
       "stopReason" in msg.result
     ) {
       const stopReason = (msg.result as { stopReason?: string }).stopReason;
-      if (stopReason) {
+      const hasQueuedMessages =
+        session.messageQueue.length > 0 && session.status === "connected";
+
+      // Only notify when queue is empty - queued messages will start a new turn
+      if (stopReason && !hasQueuedMessages) {
         notifyPromptComplete(session.taskTitle, stopReason);
       }
 
       useTaskViewedStore.getState().markActivity(session.taskId);
 
       // Process queued messages after turn completes - send all as one prompt
-      if (session.messageQueue.length > 0 && session.status === "connected") {
+      if (hasQueuedMessages) {
         setTimeout(() => {
           this.sendQueuedMessages(session.taskId).catch((err) => {
             log.error("Failed to send queued messages", {
