@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
+import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
+import type { PostHogAPIClient } from "../../../posthog-api.js";
 import type { StoredEntry } from "../../../types.js";
 
 interface ConversationTurn {
@@ -342,4 +344,99 @@ export function conversationTurnsToJsonlEntries(
   }
 
   return lines;
+}
+
+interface HydrationLog {
+  info: (msg: string, data?: unknown) => void;
+  warn: (msg: string, data?: unknown) => void;
+}
+
+export async function hydrateSessionJsonl(params: {
+  sessionId: string;
+  cwd: string;
+  taskId: string;
+  runId: string;
+  posthogAPI: PostHogAPIClient;
+  log: HydrationLog;
+}): Promise<void> {
+  const { posthogAPI, log } = params;
+
+  try {
+    const jsonlPath = getSessionJsonlPath(params.sessionId, params.cwd);
+    try {
+      await fs.access(jsonlPath);
+      log.info("Local JSONL exists, skipping S3 hydration", {
+        sessionId: params.sessionId,
+      });
+      return;
+    } catch {
+      // File doesn't exist, proceed with hydration
+    }
+
+    const taskRun = await posthogAPI.getTaskRun(params.taskId, params.runId);
+    if (!taskRun.log_url) {
+      log.info("No log URL, skipping JSONL hydration");
+      return;
+    }
+
+    const entries = await posthogAPI.fetchTaskRunLogs(taskRun);
+    if (entries.length === 0) {
+      log.info("No S3 log entries, skipping JSONL hydration");
+      return;
+    }
+
+    const entryCounts: Record<string, number> = {};
+    for (const entry of entries) {
+      const method = entry.notification?.method ?? "unknown";
+      const entryParams = entry.notification?.params as
+        | Record<string, unknown>
+        | undefined;
+      const update = entryParams?.update as
+        | { sessionUpdate?: string }
+        | undefined;
+      const key = update?.sessionUpdate
+        ? `${method}:${update.sessionUpdate}`
+        : method;
+      entryCounts[key] = (entryCounts[key] ?? 0) + 1;
+    }
+    log.info("S3 log entry breakdown", {
+      totalEntries: entries.length,
+      types: entryCounts,
+    });
+
+    const allTurns = rebuildConversation(entries);
+    if (allTurns.length === 0) {
+      log.info("No conversation in S3 logs, skipping JSONL hydration");
+      return;
+    }
+
+    const conversation = selectRecentTurns(allTurns);
+    log.info("Selected recent turns for hydration", {
+      totalTurns: allTurns.length,
+      selectedTurns: conversation.length,
+      turnRoles: conversation.map((t) => t.role),
+    });
+
+    const jsonlLines = conversationTurnsToJsonlEntries(conversation, {
+      sessionId: params.sessionId,
+      cwd: params.cwd,
+    });
+
+    await fs.mkdir(path.dirname(jsonlPath), { recursive: true });
+
+    const tmpPath = `${jsonlPath}.tmp.${Date.now()}`;
+    await fs.writeFile(tmpPath, `${jsonlLines.join("\n")}\n`);
+    await fs.rename(tmpPath, jsonlPath);
+
+    log.info("Hydrated session JSONL from S3", {
+      sessionId: params.sessionId,
+      turns: conversation.length,
+      lines: jsonlLines.length,
+    });
+  } catch (err) {
+    log.warn("Failed to hydrate session JSONL, continuing", {
+      sessionId: params.sessionId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }

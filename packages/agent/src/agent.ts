@@ -1,15 +1,7 @@
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
 import {
   createAcpConnection,
   type InProcessAcpConnection,
 } from "./adapters/acp-connection.js";
-import {
-  conversationTurnsToJsonlEntries,
-  getSessionJsonlPath,
-  rebuildConversation,
-  selectRecentTurns,
-} from "./adapters/claude/session/jsonl-hydration.js";
 import {
   BLOCKED_MODELS,
   DEFAULT_GATEWAY_MODEL,
@@ -165,96 +157,8 @@ export class Agent {
     });
   }
 
-  async hydrateSessionJsonl(params: {
-    sessionId: string;
-    cwd: string;
-    taskId: string;
-    runId: string;
-  }): Promise<void> {
-    if (!this.posthogAPI) return;
-
-    try {
-      const jsonlPath = getSessionJsonlPath(params.sessionId, params.cwd);
-      try {
-        await fs.access(jsonlPath);
-        this.logger.info("Local JSONL exists, skipping S3 hydration", {
-          sessionId: params.sessionId,
-        });
-        return;
-      } catch {
-        // File doesn't exist, proceed with hydration
-      }
-
-      const taskRun = await this.posthogAPI.getTaskRun(
-        params.taskId,
-        params.runId,
-      );
-      if (!taskRun.log_url) {
-        this.logger.info("No log URL, skipping JSONL hydration");
-        return;
-      }
-
-      const entries = await this.posthogAPI.fetchTaskRunLogs(taskRun);
-      if (entries.length === 0) {
-        this.logger.info("No S3 log entries, skipping JSONL hydration");
-        return;
-      }
-
-      // Log what entry types we got from S3 for debugging
-      const entryCounts: Record<string, number> = {};
-      for (const entry of entries) {
-        const method = entry.notification?.method ?? "unknown";
-        const params = entry.notification?.params as
-          | Record<string, unknown>
-          | undefined;
-        const update = params?.update as { sessionUpdate?: string } | undefined;
-        const key = update?.sessionUpdate
-          ? `${method}:${update.sessionUpdate}`
-          : method;
-        entryCounts[key] = (entryCounts[key] ?? 0) + 1;
-      }
-      this.logger.info("S3 log entry breakdown", {
-        totalEntries: entries.length,
-        types: entryCounts,
-      });
-
-      const allTurns = rebuildConversation(entries);
-      if (allTurns.length === 0) {
-        this.logger.info(
-          "No conversation in S3 logs, skipping JSONL hydration",
-        );
-        return;
-      }
-
-      const conversation = selectRecentTurns(allTurns);
-      this.logger.info("Selected recent turns for hydration", {
-        totalTurns: allTurns.length,
-        selectedTurns: conversation.length,
-        turnRoles: conversation.map((t) => t.role),
-      });
-
-      const jsonlLines = conversationTurnsToJsonlEntries(conversation, {
-        sessionId: params.sessionId,
-        cwd: params.cwd,
-      });
-
-      await fs.mkdir(path.dirname(jsonlPath), { recursive: true });
-
-      const tmpPath = `${jsonlPath}.tmp.${Date.now()}`;
-      await fs.writeFile(tmpPath, `${jsonlLines.join("\n")}\n`);
-      await fs.rename(tmpPath, jsonlPath);
-
-      this.logger.info("Hydrated session JSONL from S3", {
-        sessionId: params.sessionId,
-        turns: conversation.length,
-        lines: jsonlLines.length,
-      });
-    } catch (err) {
-      this.logger.warn("Failed to hydrate session JSONL, continuing", {
-        sessionId: params.sessionId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
+  getPosthogAPI(): PostHogAPIClient | undefined {
+    return this.posthogAPI;
   }
 
   async flushAllLogs(): Promise<void> {

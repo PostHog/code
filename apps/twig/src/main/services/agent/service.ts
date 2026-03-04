@@ -12,6 +12,7 @@ import {
   type SessionConfigOption,
 } from "@agentclientprotocol/sdk";
 import { isMcpToolReadOnly } from "@posthog/agent";
+import { hydrateSessionJsonl } from "@posthog/agent/adapters/claude/session/jsonl-hydration";
 import { Agent } from "@posthog/agent/agent";
 import {
   fetchGatewayModels,
@@ -571,15 +572,20 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         });
         configOptions = loadResponse.configOptions ?? undefined;
         agentSessionId = existingSessionId;
-      } else if (isReconnect && adapter !== "codex" && config.sessionId) {
+      } else if (isReconnect && adapter === "claude" && config.sessionId) {
         const existingSessionId = config.sessionId;
 
-        await agent.hydrateSessionJsonl({
-          sessionId: existingSessionId,
-          cwd: repoPath,
-          taskId,
-          runId: taskRunId,
-        });
+        const posthogAPI = agent.getPosthogAPI();
+        if (posthogAPI) {
+          await hydrateSessionJsonl({
+            sessionId: existingSessionId,
+            cwd: repoPath,
+            taskId,
+            runId: taskRunId,
+            posthogAPI,
+            log,
+          });
+        }
 
         const systemPrompt = this.buildSystemPrompt(
           credentials,
