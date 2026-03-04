@@ -22,10 +22,23 @@ interface JsonlConfig {
   cwd: string;
 }
 
+interface ClaudeCodeMeta {
+  toolCallId?: string;
+  toolName?: string;
+  toolInput?: unknown;
+  toolResponse?: unknown;
+}
+
+interface SessionUpdate {
+  sessionUpdate: string;
+  content?: ContentBlock | ContentBlock[];
+  _meta?: { claudeCode?: ClaudeCodeMeta };
+}
+
 export function getSessionJsonlPath(sessionId: string, cwd: string): string {
   const configDir =
     process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude");
-  const projectKey = cwd.replace(/\//g, "-");
+  const projectKey = cwd.replace(/[/\\]/g, "-");
   return path.join(configDir, "projects", projectKey, `${sessionId}.jsonl`);
 }
 
@@ -41,10 +54,9 @@ export function rebuildConversation(
     const params = entry.notification?.params as Record<string, unknown>;
 
     if (method === "session/update" && params?.update) {
-      const update = params.update as Record<string, unknown>;
-      const sessionUpdate = update.sessionUpdate as string;
+      const update = params.update as SessionUpdate;
 
-      switch (sessionUpdate) {
+      switch (update.sessionUpdate) {
         case "user_message":
         case "user_message_chunk": {
           if (
@@ -61,16 +73,20 @@ export function rebuildConversation(
             currentToolCalls = [];
           }
 
-          const content = update.content as ContentBlock | ContentBlock[];
-          const contentArray = Array.isArray(content) ? content : [content];
+          const content = update.content;
+          const contentArray = Array.isArray(content)
+            ? content
+            : content
+              ? [content]
+              : [];
           turns.push({ role: "user", content: contentArray });
           break;
         }
 
         case "agent_message":
         case "agent_message_chunk": {
-          const content = update.content as ContentBlock | undefined;
-          if (content) {
+          const content = update.content;
+          if (content && !Array.isArray(content)) {
             if (
               content.type === "text" &&
               currentAssistantContent.length > 0 &&
@@ -92,14 +108,9 @@ export function rebuildConversation(
 
         case "tool_call":
         case "tool_call_update": {
-          const meta = (update._meta as Record<string, unknown>)?.claudeCode as
-            | Record<string, unknown>
-            | undefined;
+          const meta = update._meta?.claudeCode;
           if (meta) {
-            const toolCallId = meta.toolCallId as string | undefined;
-            const toolName = meta.toolName as string | undefined;
-            const toolInput = meta.toolInput;
-            const toolResponse = meta.toolResponse;
+            const { toolCallId, toolName, toolInput, toolResponse } = meta;
 
             if (toolCallId && toolName) {
               let toolCall = currentToolCalls.find(
@@ -118,12 +129,9 @@ export function rebuildConversation(
         }
 
         case "tool_result": {
-          const meta = (update._meta as Record<string, unknown>)?.claudeCode as
-            | Record<string, unknown>
-            | undefined;
+          const meta = update._meta?.claudeCode;
           if (meta) {
-            const toolCallId = meta.toolCallId as string | undefined;
-            const toolResponse = meta.toolResponse;
+            const { toolCallId, toolResponse } = meta;
             if (toolCallId) {
               const toolCall = currentToolCalls.find(
                 (tc) => tc.toolCallId === toolCallId,

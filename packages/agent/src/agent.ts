@@ -1,4 +1,4 @@
-import * as fs from "node:fs";
+import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import {
   createAcpConnection,
@@ -202,11 +202,11 @@ export class Agent {
       });
 
       const jsonlPath = getSessionJsonlPath(params.sessionId, params.cwd);
-      fs.mkdirSync(path.dirname(jsonlPath), { recursive: true });
+      await fs.mkdir(path.dirname(jsonlPath), { recursive: true });
 
       const tmpPath = `${jsonlPath}.tmp.${Date.now()}`;
-      fs.writeFileSync(tmpPath, `${jsonlLines.join("\n")}\n`);
-      fs.renameSync(tmpPath, jsonlPath);
+      await fs.writeFile(tmpPath, `${jsonlLines.join("\n")}\n`);
+      await fs.rename(tmpPath, jsonlPath);
 
       this.logger.info("Hydrated session JSONL from S3", {
         sessionId: params.sessionId,
