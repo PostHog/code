@@ -64,7 +64,7 @@ export function SearchToolView({
           isExpanded={isExpanded}
         />
         <ToolTitle>{title || "Search"}</ToolTitle>
-        <ToolTitle>
+        <ToolTitle className="shrink-0 whitespace-nowrap">
           {resultCount} {resultCount === 1 ? "result" : "results"}
         </ToolTitle>
         <StatusIndicators isFailed={isFailed} wasCancelled={wasCancelled} />

@@ -3,9 +3,18 @@ import type { ToolCall, ToolCallContent } from "@features/sessions/types";
 import { type Icon, Minus, Plus } from "@phosphor-icons/react";
 import { Box, Text } from "@radix-ui/themes";
 
-export function ToolTitle({ children }: { children: React.ReactNode }) {
+export function ToolTitle({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <Text size="1" className="text-gray-11">
+    <Text
+      size="1"
+      className={`text-gray-11${className ? ` ${className}` : ""}`}
+    >
       {children}
     </Text>
   );

@@ -52,7 +52,7 @@ export function ReadToolView({
           isExpandable={isExpandable}
           isExpanded={isExpanded}
         />
-        <ToolTitle>
+        <ToolTitle className="shrink-0 whitespace-nowrap">
           Read{lineCount !== null ? ` ${lineCount} lines in` : ""}
         </ToolTitle>
         {filePath && <FileMentionChip filePath={filePath} />}
