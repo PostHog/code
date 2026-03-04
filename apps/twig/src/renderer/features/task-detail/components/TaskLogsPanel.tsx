@@ -327,7 +327,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
             <SessionView
               events={events}
               taskId={taskId}
-              isRunning={isCloud ? false : isRunning}
+              isRunning={!!isRunning}
               isPromptPending={isCloud ? null : isPromptPending}
               promptStartedAt={isCloud ? undefined : promptStartedAt}
               onSendPrompt={handleSendPrompt}
