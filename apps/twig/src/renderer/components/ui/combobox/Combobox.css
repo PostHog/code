@@ -234,6 +234,12 @@
   background: var(--accent-4);
 }
 
+.combobox-content:has(.combobox-footer:hover)
+  [cmdk-item][data-selected="true"] {
+  background: transparent;
+  color: var(--gray-12);
+}
+
 .combobox-item-indicator {
   margin-left: auto;
   display: inline-flex;
@@ -325,7 +331,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  flex-shrink: 0;
+  min-width: 0;
   user-select: none;
   vertical-align: top;
   font-family: var(--default-font-family);

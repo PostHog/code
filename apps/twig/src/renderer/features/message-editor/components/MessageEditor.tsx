@@ -46,8 +46,8 @@ function ModeAndBranchRow({
   }
 
   return (
-    <Flex align="center" justify="between">
-      <Flex align="center" gap="2">
+    <Flex align="center" justify="between" style={{ overflow: "hidden" }}>
+      <Flex align="center" gap="2" flexShrink="0">
         {showModeIndicator && modeOption && (
           <ModeIndicatorInput modeOption={modeOption} />
         )}
@@ -60,24 +60,26 @@ function ModeAndBranchRow({
           </Text>
         )}
       </Flex>
-      <Flex align="center" gap="2">
+      <Flex align="center" gap="2" style={{ minWidth: 0, overflow: "hidden" }}>
         <DiffStatsIndicator repoPath={repoPath} />
         {showBranchSelector && showDiffStats && (
           <Flex
             align="center"
             justify="center"
-            style={{ height: 16, marginRight: -8 }}
+            style={{ height: 16, marginRight: -8, flexShrink: 0 }}
           >
             <Circle size={4} weight="fill" color="var(--gray-9)" />
           </Flex>
         )}
         {showBranchSelector && (
-          <BranchSelector
-            repoPath={repoPath ?? null}
-            currentBranch={currentBranch}
-            disabled={disabled}
-            variant="ghost"
-          />
+          <Flex style={{ maxWidth: 200, minWidth: 0 }}>
+            <BranchSelector
+              repoPath={repoPath ?? null}
+              currentBranch={currentBranch}
+              disabled={disabled}
+              variant="ghost"
+            />
+          </Flex>
         )}
       </Flex>
     </Flex>
