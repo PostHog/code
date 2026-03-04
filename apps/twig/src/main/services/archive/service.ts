@@ -90,126 +90,116 @@ export class ArchiveService {
       (a) => a.taskId === taskId,
     );
 
-    if (!association) {
-      const archivedTask: ArchivedTask = {
-        taskId,
-        archivedAt: new Date().toISOString(),
-        folderId: "",
-        mode: "cloud",
-        worktreeName: null,
-        branchName: null,
-        checkpointId: null,
-      };
+    const archivedTask: ArchivedTask = association
+      ? {
+          taskId: input.taskId,
+          archivedAt: new Date().toISOString(),
+          folderId: association.folderId,
+          mode: association.mode,
+          worktreeName:
+            association.mode === "worktree" ? association.worktree : null,
+          branchName: null,
+          checkpointId:
+            association.mode === "worktree"
+              ? `worktree-${association.worktree}`
+              : null,
+        }
+      : {
+          taskId,
+          archivedAt: new Date().toISOString(),
+          folderId: "",
+          mode: "cloud",
+          worktreeName: null,
+          branchName: null,
+          checkpointId: null,
+        };
 
-      await this.agentService.cancelSessionsByTaskId(taskId);
-      this.processTracking.killByTaskId(taskId);
-
-      const archivedTasks = this.archiveStore.get("archivedTasks", []);
-      const existingIndex = archivedTasks.findIndex((t) => t.taskId === taskId);
-      if (existingIndex >= 0) {
-        archivedTasks[existingIndex] = archivedTask;
-      } else {
-        archivedTasks.push(archivedTask);
-      }
-      this.archiveStore.set("archivedTasks", archivedTasks);
-
-      return archivedTask;
-    }
-
-    const folderPath = this.getFolderPath(association.folderId);
-    if (!folderPath) {
-      throw new Error(`Folder not found for task ${taskId}`);
-    }
-
-    const archivedTask: ArchivedTask = {
-      taskId: input.taskId,
-      archivedAt: new Date().toISOString(),
-      folderId: association.folderId,
-      mode: association.mode,
-      worktreeName:
-        association.mode === "worktree" ? association.worktree : null,
-      branchName: null,
-      checkpointId:
-        association.mode === "worktree"
-          ? `worktree-${association.worktree}`
-          : null,
-    };
-
-    if (association.mode === "worktree") {
-      const worktreePath = await this.deriveWorktreePath(
-        folderPath,
-        association.worktree,
-      );
-
-      const actualBranch = await this.getCurrentBranchName(worktreePath);
-      if (actualBranch && actualBranch !== "HEAD") {
-        archivedTask.branchName = actualBranch;
+    if (association) {
+      const folderPath = this.getFolderPath(association.folderId);
+      if (!folderPath) {
+        throw new Error(`Folder not found for task ${taskId}`);
       }
 
+      if (association.mode === "worktree") {
+        const worktreePath = await this.deriveWorktreePath(
+          folderPath,
+          association.worktree,
+        );
+
+        const actualBranch = await this.getCurrentBranchName(worktreePath);
+        if (actualBranch && actualBranch !== "HEAD") {
+          archivedTask.branchName = actualBranch;
+        }
+
+        await step(
+          async () => {
+            if (!archivedTask.checkpointId) {
+              throw new Error("checkpointId must be set for worktree mode");
+            }
+            await this.captureWorktreeCheckpoint(
+              folderPath,
+              worktreePath,
+              archivedTask.checkpointId,
+            );
+          },
+          async () => {
+            if (archivedTask.checkpointId) {
+              const git = createGitClient(folderPath);
+              await deleteCheckpoint(git, archivedTask.checkpointId);
+            }
+          },
+        );
+
+        await step(
+          async () => {
+            await this.agentService.cancelSessionsByTaskId(taskId);
+            this.processTracking.killByTaskId(taskId);
+            await this.fileWatcher.stopWatching(worktreePath);
+          },
+          async () => {},
+        );
+
+        await step(
+          async () => {
+            const manager = new WorktreeManager({
+              mainRepoPath: folderPath,
+              worktreeBasePath: this.getWorktreeLocation(),
+            });
+            await manager.deleteWorktree(worktreePath);
+            const parentDir = path.dirname(worktreePath);
+            await fs.rm(parentDir, { recursive: true, force: true });
+          },
+          async () => {},
+        );
+      }
+    }
+
+    if (association?.mode !== "worktree") {
       await step(
         async () => {
-          if (!archivedTask.checkpointId) {
-            throw new Error("checkpointId must be set for worktree mode");
-          }
-          await this.captureWorktreeCheckpoint(
-            folderPath,
-            worktreePath,
-            archivedTask.checkpointId,
+          await this.agentService.cancelSessionsByTaskId(taskId);
+          this.processTracking.killByTaskId(taskId);
+        },
+        async () => {},
+      );
+    }
+
+    if (association) {
+      await step(
+        async () => {
+          const associations = this.getTaskAssociations();
+          this.foldersStore.set(
+            "taskAssociations",
+            associations.filter((a) => a.taskId !== taskId),
           );
         },
         async () => {
-          if (archivedTask.checkpointId) {
-            const git = createGitClient(folderPath);
-            await deleteCheckpoint(git, archivedTask.checkpointId);
-          }
+          const associations = this.getTaskAssociations();
+          associations.push(association);
+          this.foldersStore.set("taskAssociations", associations);
         },
-      );
-
-      await step(
-        async () => {
-          await this.agentService.cancelSessionsByTaskId(taskId);
-          this.processTracking.killByTaskId(taskId);
-          await this.fileWatcher.stopWatching(worktreePath);
-        },
-        async () => {},
-      );
-
-      await step(
-        async () => {
-          const manager = new WorktreeManager({
-            mainRepoPath: folderPath,
-            worktreeBasePath: this.getWorktreeLocation(),
-          });
-          await manager.deleteWorktree(worktreePath);
-          const parentDir = path.dirname(worktreePath);
-          await fs.rm(parentDir, { recursive: true, force: true });
-        },
-        async () => {},
-      );
-    } else {
-      await step(
-        async () => {
-          await this.agentService.cancelSessionsByTaskId(taskId);
-          this.processTracking.killByTaskId(taskId);
-        },
-        async () => {},
       );
     }
-
-    await step(
-      async () => {
-        const associations = this.getTaskAssociations();
-        const updatedAssociations = associations.filter(
-          (a) => a.taskId !== taskId,
-        );
-        this.foldersStore.set("taskAssociations", updatedAssociations);
-      },
-      async () => {
-        const associations = this.getTaskAssociations();
-        associations.push(association);
-        this.foldersStore.set("taskAssociations", associations);
-      },
-    );
 
     await step(
       async () => {
