@@ -9,7 +9,16 @@ import {
   openMultipleFiles,
   withRootGroup,
 } from "@test/panelTestHelpers";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@renderer/lib/electronStorage", () => ({
+  electronStorage: {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  },
+}));
+
 import { usePanelLayoutStore } from "./panelLayoutStore";
 
 describe("panelLayoutStore", () => {
