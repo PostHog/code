@@ -84,7 +84,8 @@ export function rebuildConversation(
         }
 
         case "agent_message":
-        case "agent_message_chunk": {
+        case "agent_message_chunk":
+        case "agent_thought_chunk": {
           const content = update.content;
           if (content && !Array.isArray(content)) {
             if (
@@ -158,6 +159,52 @@ export function rebuildConversation(
   return turns;
 }
 
+const CHARS_PER_TOKEN = 4;
+const DEFAULT_MAX_TOKENS = 150_000;
+
+function estimateTurnTokens(turn: ConversationTurn): number {
+  let chars = 0;
+  for (const block of turn.content) {
+    if ("text" in block && typeof block.text === "string") {
+      chars += block.text.length;
+    }
+  }
+  if (turn.toolCalls) {
+    for (const tc of turn.toolCalls) {
+      chars += JSON.stringify(tc.input ?? "").length;
+      if (tc.result !== undefined) {
+        chars +=
+          typeof tc.result === "string"
+            ? tc.result.length
+            : JSON.stringify(tc.result).length;
+      }
+    }
+  }
+  return Math.ceil(chars / CHARS_PER_TOKEN);
+}
+
+export function selectRecentTurns(
+  turns: ConversationTurn[],
+  maxTokens = DEFAULT_MAX_TOKENS,
+): ConversationTurn[] {
+  let budget = maxTokens;
+  let startIndex = turns.length;
+
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const cost = estimateTurnTokens(turns[i]);
+    if (cost > budget) break;
+    budget -= cost;
+    startIndex = i;
+  }
+
+  // Ensure we start on a user turn so the conversation is well-formed
+  while (startIndex < turns.length && turns[startIndex].role !== "user") {
+    startIndex++;
+  }
+
+  return turns.slice(startIndex);
+}
+
 export function conversationTurnsToJsonlEntries(
   turns: ConversationTurn[],
   config: JsonlConfig,
@@ -170,14 +217,8 @@ export function conversationTurnsToJsonlEntries(
       const uuid = randomUUID();
       const contentText = turn.content
         .map((block) => {
-          if (typeof block === "string") return block;
-          if (
-            typeof block === "object" &&
-            block !== null &&
-            "text" in block &&
-            typeof (block as { text: string }).text === "string"
-          ) {
-            return (block as { text: string }).text;
+          if ("text" in block && typeof block.text === "string") {
+            return block.text;
           }
           return "";
         })
@@ -203,10 +244,8 @@ export function conversationTurnsToJsonlEntries(
       const contentBlocks: unknown[] = [];
 
       for (const block of turn.content) {
-        if (typeof block !== "object" || block === null || !("type" in block))
-          continue;
-        const typed = block as { type: string };
-        if (typed.type === "thinking" || typed.type === "text") {
+        const blockType = (block as { type: string }).type;
+        if (blockType === "thinking" || blockType === "text") {
           contentBlocks.push(block);
         }
       }
