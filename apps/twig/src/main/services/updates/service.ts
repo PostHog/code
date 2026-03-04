@@ -210,11 +210,18 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
     log.info("No updates available", { currentVersion: app.getVersion() });
     if (this.checkingForUpdates) {
       this.checkingForUpdates = false;
-      this.emitStatus({
-        checking: false,
-        upToDate: true,
-        version: app.getVersion(),
-      });
+
+      if (this.updateReady) {
+        this.emitStatus({ checking: false });
+        this.pendingNotification = true;
+        this.flushPendingNotification();
+      } else {
+        this.emitStatus({
+          checking: false,
+          upToDate: true,
+          version: app.getVersion(),
+        });
+      }
     }
   }
 
