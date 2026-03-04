@@ -691,6 +691,9 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         }`,
         err,
       );
+      // Non-auth reconnect failure on first attempt: fall back to a fresh session.
+      // If this was already an auth retry (isRetry=true), we've exhausted retries
+      // and return null to avoid infinite loops.
       if (isReconnect && !isRetry) {
         log.warn("Reconnect failed, falling back to new session", {
           taskRunId,
