@@ -1,3 +1,4 @@
+import { useAuthenticatedInfiniteQuery } from "@hooks/useAuthenticatedInfiniteQuery";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import type {
   SignalReportArtefactsResponse,
@@ -5,11 +6,16 @@ import type {
   SignalReportsQueryParams,
   SignalReportsResponse,
 } from "@shared/types";
+import { useMemo } from "react";
+
+const REPORTS_PAGE_SIZE = 100;
 
 const reportKeys = {
   all: ["inbox", "signal-reports"] as const,
   list: (params?: SignalReportsQueryParams) =>
     [...reportKeys.all, "list", params ?? {}] as const,
+  infiniteList: (params?: SignalReportsQueryParams) =>
+    [...reportKeys.all, "infinite-list", params ?? {}] as const,
   artefacts: (reportId: string) =>
     [...reportKeys.all, reportId, "artefacts"] as const,
   signals: (reportId: string) =>
@@ -25,6 +31,38 @@ export function useInboxReports(
     (client) => client.getSignalReports(params),
     options,
   );
+}
+
+export function useInboxReportsInfinite(
+  params?: SignalReportsQueryParams,
+  options?: { enabled?: boolean },
+) {
+  const query = useAuthenticatedInfiniteQuery<SignalReportsResponse, number>(
+    reportKeys.infiniteList(params),
+    (client, offset) =>
+      client.getSignalReports({
+        ...params,
+        limit: REPORTS_PAGE_SIZE,
+        offset,
+      }),
+    {
+      enabled: options?.enabled,
+      initialPageParam: 0,
+      getNextPageParam: (lastPage, allPages) => {
+        const loaded = allPages.reduce((n, p) => n + p.results.length, 0);
+        return loaded < lastPage.count ? loaded : undefined;
+      },
+    },
+  );
+
+  const allReports = useMemo(
+    () => query.data?.pages.flatMap((p) => p.results) ?? [],
+    [query.data?.pages],
+  );
+
+  const totalCount = query.data?.pages[0]?.count ?? 0;
+
+  return { ...query, allReports, totalCount };
 }
 
 export function useInboxReportArtefacts(
