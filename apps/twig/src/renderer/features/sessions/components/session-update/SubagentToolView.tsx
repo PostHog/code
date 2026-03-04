@@ -5,10 +5,10 @@ import type {
 import {
   ArrowsInSimple as ArrowsInSimpleIcon,
   ArrowsOutSimple as ArrowsOutSimpleIcon,
-  Brain,
+  Robot,
 } from "@phosphor-icons/react";
 import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { SessionUpdateView } from "./SessionUpdateView";
 import {
   LoadingIcon,
@@ -30,19 +30,13 @@ export function SubagentToolView({
   turnContext,
 }: SubagentToolViewProps) {
   const { title } = toolCall;
-  const { isLoading, isFailed, wasCancelled, isComplete } = useToolCallStatus(
+  const { isLoading, isFailed, wasCancelled } = useToolCallStatus(
     toolCall.status,
     turnCancelled,
     turnComplete,
   );
 
-  const [isExpanded, setIsExpanded] = useState(true);
-
-  useEffect(() => {
-    if (isComplete || isFailed || wasCancelled) {
-      setIsExpanded(false);
-    }
-  }, [isComplete, isFailed, wasCancelled]);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const hasChildren = childItems.length > 0;
 
@@ -55,7 +49,7 @@ export function SubagentToolView({
       >
         <Flex align="center" gap="2">
           <LoadingIcon
-            icon={Brain}
+            icon={Robot}
             isLoading={isLoading}
             className="text-gray-10"
           />
