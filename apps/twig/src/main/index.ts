@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import { app } from "electron";
+import { app, powerMonitor } from "electron";
 import log from "electron-log/main";
 import "./utils/logger";
 import "./services/index.js";
@@ -68,6 +68,14 @@ app.whenReady().then(() => {
   createWindow();
   initializeServices();
   initializeDeepLinks();
+
+  powerMonitor.on("suspend", () => {
+    log.info("System entering sleep");
+  });
+
+  powerMonitor.on("resume", () => {
+    log.info("System waking from sleep");
+  });
 });
 
 app.on("window-all-closed", () => {
