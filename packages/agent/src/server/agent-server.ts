@@ -11,7 +11,9 @@ import {
   createAcpConnection,
   type InProcessAcpConnection,
 } from "../adapters/acp-connection.js";
+import { hydrateSessionJsonl } from "../adapters/claude/session/jsonl-hydration.js";
 import { PostHogAPIClient } from "../posthog-api.js";
+import { resumeFromLog } from "../resume.js";
 import { SessionLogWriter } from "../session-log-writer.js";
 import { TreeTracker } from "../tree-tracker.js";
 import type {
@@ -480,18 +482,19 @@ export class AgentServer {
 
     this.configureEnvironment();
 
-    const treeTracker = new TreeTracker({
-      repositoryPath: this.config.repositoryPath,
-      taskId: payload.task_id,
-      runId: payload.run_id,
-      logger: new Logger({ debug: true, prefix: "[TreeTracker]" }),
-    });
-
     const posthogAPI = new PostHogAPIClient({
       apiUrl: this.config.apiUrl,
       projectId: this.config.projectId,
       getApiKey: () => this.config.apiKey,
       userAgent: `posthog/cloud.hog.dev; version: ${this.config.version ?? packageJson.version}`,
+    });
+
+    const treeTracker = new TreeTracker({
+      repositoryPath: this.config.repositoryPath,
+      taskId: payload.task_id,
+      runId: payload.run_id,
+      apiClient: posthogAPI,
+      logger: new Logger({ debug: true, prefix: "[TreeTracker]" }),
     });
 
     const logWriter = new SessionLogWriter({
@@ -563,21 +566,45 @@ export class AgentServer {
       this.detectedPrUrl = prUrl;
     }
 
-    const sessionResponse = await clientConnection.newSession({
-      cwd: this.config.repositoryPath,
-      mcpServers: [],
-      _meta: {
-        sessionId: payload.run_id,
-        taskRunId: payload.run_id,
-        systemPrompt: { append: this.buildCloudSystemPrompt(prUrl) },
-      },
+    const isResume = await this.tryResumeState({
+      payload,
+      posthogAPI,
+      treeTracker,
+      hasLogUrl: !!preTaskRun?.log_url,
     });
 
-    const acpSessionId = sessionResponse.sessionId;
-    this.logger.info("ACP session created", {
-      acpSessionId,
-      runId: payload.run_id,
-    });
+    let acpSessionId: string;
+    if (isResume) {
+      await clientConnection.unstable_resumeSession({
+        sessionId: payload.run_id,
+        cwd: this.config.repositoryPath,
+        mcpServers: [],
+        _meta: {
+          taskRunId: payload.run_id,
+          systemPrompt: { append: this.buildCloudSystemPrompt(prUrl) },
+        },
+      });
+      acpSessionId = payload.run_id;
+      this.logger.info("ACP session resumed", {
+        acpSessionId,
+        runId: payload.run_id,
+      });
+    } else {
+      const sessionResponse = await clientConnection.newSession({
+        cwd: this.config.repositoryPath,
+        mcpServers: [],
+        _meta: {
+          sessionId: payload.run_id,
+          taskRunId: payload.run_id,
+          systemPrompt: { append: this.buildCloudSystemPrompt(prUrl) },
+        },
+      });
+      acpSessionId = sessionResponse.sessionId;
+      this.logger.info("ACP session created", {
+        acpSessionId,
+        runId: payload.run_id,
+      });
+    }
 
     this.session = {
       payload,
@@ -590,9 +617,8 @@ export class AgentServer {
       logWriter,
     };
 
-    this.logger.info("Session initialized successfully");
+    this.logger.info("Session initialized successfully", { isResume });
 
-    // Signal in_progress so the UI can start polling for updates
     this.posthogAPI
       .updateTaskRun(payload.task_id, payload.run_id, {
         status: "in_progress",
@@ -601,7 +627,109 @@ export class AgentServer {
         this.logger.warn("Failed to set task run to in_progress", err),
       );
 
-    await this.sendInitialTaskMessage(payload, preTaskRun);
+    if (isResume) {
+      await this.sendResumeMessage(payload);
+    } else {
+      await this.sendInitialTaskMessage(payload, preTaskRun);
+    }
+  }
+
+  private async tryResumeState(params: {
+    payload: JwtPayload;
+    posthogAPI: PostHogAPIClient;
+    treeTracker: TreeTracker;
+    hasLogUrl: boolean;
+  }): Promise<boolean> {
+    const { payload, posthogAPI, treeTracker, hasLogUrl } = params;
+
+    if (!hasLogUrl) {
+      return false;
+    }
+
+    try {
+      this.logger.info("Attempting session resume from previous state", {
+        taskId: payload.task_id,
+        runId: payload.run_id,
+      });
+
+      await hydrateSessionJsonl({
+        sessionId: payload.run_id,
+        cwd: this.config.repositoryPath,
+        taskId: payload.task_id,
+        runId: payload.run_id,
+        posthogAPI,
+        log: {
+          info: (msg, data) => this.logger.info(msg, data),
+          warn: (msg, data) => this.logger.warn(msg, data),
+        },
+      });
+
+      const resumeState = await resumeFromLog({
+        taskId: payload.task_id,
+        runId: payload.run_id,
+        repositoryPath: this.config.repositoryPath,
+        apiClient: posthogAPI,
+        logger: new Logger({ debug: true, prefix: "[Resume]" }),
+      });
+
+      if (resumeState.latestSnapshot && resumeState.snapshotApplied) {
+        treeTracker.setLastTreeHash(resumeState.latestSnapshot.treeHash);
+      }
+
+      this.logger.info("Session resume state restored", {
+        snapshotApplied: resumeState.snapshotApplied,
+        conversationTurns: resumeState.conversation.length,
+        logEntries: resumeState.logEntryCount,
+        interrupted: resumeState.interrupted,
+      });
+
+      return resumeState.logEntryCount > 0;
+    } catch (error) {
+      this.logger.warn("Failed to resume from previous state, starting fresh", {
+        taskId: payload.task_id,
+        runId: payload.run_id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return false;
+    }
+  }
+
+  private async sendResumeMessage(payload: JwtPayload): Promise<void> {
+    if (!this.session) return;
+
+    try {
+      const task = await this.posthogAPI.getTask(payload.task_id);
+      const taskDescription = task.description ?? "the task";
+
+      const resumePrompt =
+        `You are resuming a previously interrupted session. ` +
+        `The original task was: ${taskDescription}\n\n` +
+        `Review the conversation history and the current state of the repository, ` +
+        `then continue where you left off. Do not repeat work that has already been completed.`;
+
+      this.logger.info("Sending resume message", {
+        taskId: payload.task_id,
+      });
+
+      const result = await this.session.clientConnection.prompt({
+        sessionId: this.session.acpSessionId,
+        prompt: [{ type: "text", text: resumePrompt }],
+      });
+
+      this.logger.info("Resume message completed", {
+        stopReason: result.stopReason,
+      });
+
+      if (result.stopReason === "end_turn") {
+        await this.relayAgentResponse(payload);
+      }
+    } catch (error) {
+      this.logger.error("Failed to send resume message", error);
+      if (this.session) {
+        await this.session.logWriter.flushAll();
+      }
+      await this.signalTaskComplete(payload, "error");
+    }
   }
 
   private async sendInitialTaskMessage(
