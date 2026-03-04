@@ -216,7 +216,7 @@ function ComboboxContent({
       align={align}
       style={{
         padding: 0,
-        minWidth: "var(--radix-popover-trigger-width)",
+        minWidth: "min(var(--radix-popover-trigger-width), 300px)",
         ...style,
       }}
       onInteractOutside={(e) => {
@@ -309,6 +309,7 @@ const ComboboxItem = React.forwardRef<
   } = useComboboxContext();
 
   const textRef = useRef<HTMLSpanElement>(null);
+  const itemRef = useRef<HTMLDivElement>(null);
   const [showTooltip, setShowTooltip] = useState(false);
 
   useEffect(() => {
@@ -317,6 +318,15 @@ const ComboboxItem = React.forwardRef<
     registerItem(value, label);
     return () => unregisterItem(value);
   }, [value, children, textValue, registerItem, unregisterItem]);
+
+  useEffect(() => {
+    if (!showTooltip) return;
+    const scrollParent = itemRef.current?.closest("[cmdk-list]");
+    if (!scrollParent) return;
+    const dismiss = () => setShowTooltip(false);
+    scrollParent.addEventListener("scroll", dismiss, { passive: true });
+    return () => scrollParent.removeEventListener("scroll", dismiss);
+  }, [showTooltip]);
 
   const isSelected = selectedValue === value;
 
@@ -344,7 +354,11 @@ const ComboboxItem = React.forwardRef<
   return (
     <Tooltip content={tooltipContent} open={showTooltip} side="top">
       <CmdkCommand.Item
-        ref={ref}
+        ref={(node) => {
+          itemRef.current = node;
+          if (typeof ref === "function") ref(node);
+          else if (ref) ref.current = node;
+        }}
         value={value}
         disabled={disabled}
         onSelect={handleSelect}

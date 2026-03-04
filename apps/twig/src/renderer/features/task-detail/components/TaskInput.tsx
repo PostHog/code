@@ -247,7 +247,11 @@ export function TaskInput() {
             zIndex: 1,
           }}
         >
-          <Flex gap="2" align="center">
+          <Flex
+            gap="2"
+            align="center"
+            style={{ minWidth: 0, overflow: "hidden" }}
+          >
             <FolderPicker
               value={selectedDirectory}
               onChange={setSelectedDirectory}
