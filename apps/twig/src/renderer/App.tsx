@@ -1,6 +1,7 @@
 import { ErrorBoundary } from "@components/ErrorBoundary";
 import { LoginTransition } from "@components/LoginTransition";
 import { MainLayout } from "@components/MainLayout";
+import { ScopeReauthPrompt } from "@components/ScopeReauthPrompt";
 import { UpdatePrompt } from "@components/UpdatePrompt";
 import { AuthScreen } from "@features/auth/components/AuthScreen";
 import { InviteCodeScreen } from "@features/auth/components/InviteCodeScreen";
@@ -252,6 +253,7 @@ function App() {
         isDarkMode={isDarkMode}
         onComplete={handleTransitionComplete}
       />
+      <ScopeReauthPrompt />
       <UpdatePrompt />
       <Toaster position="bottom-right" />
     </ErrorBoundary>
