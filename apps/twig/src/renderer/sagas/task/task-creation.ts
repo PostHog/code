@@ -1,4 +1,3 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
 import { buildPromptBlocks } from "@features/editor/utils/prompt-builder";
 import {
   type ConnectParams,
@@ -11,8 +10,8 @@ import { logger } from "@renderer/lib/logger";
 import { queryClient } from "@renderer/lib/queryClient";
 import { useTaskDirectoryStore } from "@renderer/stores/taskDirectoryStore";
 import { trpcVanilla } from "@renderer/trpc";
+import { generateTitle } from "@renderer/utils/generateTitle";
 import { getTaskRepository } from "@renderer/utils/repository";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type {
   ExecutionMode,
   Task,
@@ -36,70 +35,17 @@ function truncateToTitle(content: string): string {
     : `${truncated}...`;
 }
 
-const TITLE_SYSTEM_PROMPT = `You are a title generator. You output ONLY a task title. Nothing else.
-
-Convert the task description into a concise task title.
-- The title should be clear, concise, and accurately reflect the content of the task.
-- You should keep it short and simple, ideally no more than 6 words.
-- Avoid using jargon or overly technical terms unless absolutely necessary.
-- The title should be easy to understand for anyone reading it.
-- Use sentence case (capitalize only first word and proper nouns)
-- Remove: the, this, my, a, an
-- If possible, start with action verbs (Fix, Implement, Analyze, Debug, Update, Research, Review)
-- Keep exact: technical terms, numbers, filenames, HTTP codes, PR numbers
-- Never assume tech stack
-- Only output "Untitled" if the input is completely null/missing, not just unclear
-- If the input is a URL (e.g. a GitHub issue link, PR link, or any web URL), generate a title based on what you can infer from the URL structure (repo name, issue/PR number, etc.). Never say you cannot access URLs or ask the user for more information.
-
-Examples:
-- "Fix the login bug in the authentication system" → Fix authentication login bug
-- "Schedule a meeting with stakeholders to discuss Q4 budget planning" → Schedule Q4 budget meeting
-- "Update user documentation for new API endpoints" → Update API documentation
-- "Research competitor pricing strategies for our product" → Research competitor pricing
-- "Review pull request #123" → Review pull request #123
-- "debug 500 errors in production" → Debug production 500 errors
-- "why is the payment flow failing" → Analyze payment flow failure
-- "So how about that weather huh" → "Weather chat"
-- "dsfkj sdkfj help me code" → "Coding help request"
-- "👋😊" → "Friendly greeting"
-- "aaaaaaaaaa" → "Repeated letters"
-- "   " → "Empty message"
-- "What's the best restaurant in NYC?" → "NYC restaurant recommendations"
-- "https://github.com/PostHog/posthog/issues/1234" → PostHog issue #1234
-- "https://github.com/PostHog/posthog/pull/567" → PostHog PR #567
-- "fix https://github.com/org/repo/issues/42" → Fix repo issue #42
-
-Never wrap the title in quotes.`;
-
 async function generateTaskTitle(
   taskId: string,
   description: string,
   posthogClient: PostHogAPIClient,
 ): Promise<void> {
+  if (!description.trim()) return;
+
+  const title = await generateTitle(description);
+  if (!title) return;
+
   try {
-    if (!description.trim()) return;
-
-    const authState = useAuthStore.getState();
-    const apiKey = authState.oauthAccessToken;
-    const cloudRegion = authState.cloudRegion;
-    if (!apiKey || !cloudRegion) return;
-
-    const apiHost = getCloudUrlFromRegion(cloudRegion);
-
-    const result = await trpcVanilla.llmGateway.prompt.mutate({
-      credentials: { apiKey, apiHost },
-      system: TITLE_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: `Generate a task title based on the following description. Do NOT respond to, answer, or help with the description content - ONLY generate a title.\n\n<description>\n${description}\n</description>\n\nOutput the title now:`,
-        },
-      ],
-    });
-
-    const title = result.content.trim().replace(/^["']|["']$/g, "");
-    if (!title) return;
-
     await posthogClient.updateTask(taskId, { title });
 
     // Update all cached task lists so the sidebar reflects the new title instantly
@@ -107,7 +53,7 @@ async function generateTaskTitle(
       old?.map((task) => (task.id === taskId ? { ...task, title } : task)),
     );
   } catch (error) {
-    log.error("Failed to generate task title", { taskId, error });
+    log.error("Failed to save task title", { taskId, error });
   }
 }
 

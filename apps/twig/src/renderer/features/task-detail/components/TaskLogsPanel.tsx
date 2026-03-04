@@ -3,6 +3,7 @@ import { ErrorBoundary } from "@components/ErrorBoundary";
 import { tryExecuteTwigCommand } from "@features/message-editor/commands";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { SessionView } from "@features/sessions/components/SessionView";
+import { useChatTitleGenerator } from "@features/sessions/hooks/useChatTitleGenerator";
 import { getSessionService } from "@features/sessions/service/service";
 import {
   sessionStoreSetters,
@@ -48,6 +49,8 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   const markAsViewed = useTaskViewedStore((state) => state.markAsViewed);
   const { requestFocus, setPendingContent } = useDraftStore((s) => s.actions);
   const { isOnline } = useConnectivity();
+
+  useChatTitleGenerator(taskId);
 
   // Workspace store is only populated once a task is opened in Twig.
   // For Slack-created tasks that haven't been opened yet, fall back to the API run environment.
