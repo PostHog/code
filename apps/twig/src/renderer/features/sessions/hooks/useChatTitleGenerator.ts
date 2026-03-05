@@ -13,7 +13,7 @@ const log = logger.scope("chat-title-generator");
 const REGENERATE_INTERVAL = 7;
 
 export function useChatTitleGenerator(taskId: string): void {
-  const lastGeneratedAtCount = useRef(0);
+  const lastGeneratedAtCount = useRef<number | null>(null);
   const isGenerating = useRef(false);
 
   const promptCount = useSessionStore((state) => {
@@ -27,6 +27,11 @@ export function useChatTitleGenerator(taskId: string): void {
   useEffect(() => {
     if (promptCount === 0) return;
     if (isGenerating.current) return;
+
+    if (lastGeneratedAtCount.current === null) {
+      lastGeneratedAtCount.current = promptCount;
+      return;
+    }
 
     const shouldGenerate =
       (promptCount === 1 && lastGeneratedAtCount.current === 0) ||
