@@ -43,12 +43,46 @@ describe("getSessionJsonlPath", () => {
     }
   });
 
+  it("replaces dots and special chars like the Claude Code binary", () => {
+    const original = process.env.CLAUDE_CONFIG_DIR;
+    process.env.CLAUDE_CONFIG_DIR = "/tmp/claude-test";
+    try {
+      const result = getSessionJsonlPath(
+        "sess-1",
+        "/Users/dev/.twig/worktrees/repo",
+      );
+      expect(result).toBe(
+        "/tmp/claude-test/projects/-Users-dev--twig-worktrees-repo/sess-1.jsonl",
+      );
+    } finally {
+      if (original === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+      else process.env.CLAUDE_CONFIG_DIR = original;
+    }
+  });
+
+  it("truncates long paths with hash like the Claude Code binary", () => {
+    const original = process.env.CLAUDE_CONFIG_DIR;
+    process.env.CLAUDE_CONFIG_DIR = "/tmp/claude-test";
+    try {
+      const longPath = `/home/${"a".repeat(250)}/project`;
+      const result = getSessionJsonlPath("sess-1", longPath);
+      const projectDir = result
+        .replace("/tmp/claude-test/projects/", "")
+        .replace("/sess-1.jsonl", "");
+      expect(projectDir.length).toBeLessThanOrEqual(220);
+      expect(projectDir).toMatch(/-[a-z0-9]+$/);
+    } finally {
+      if (original === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+      else process.env.CLAUDE_CONFIG_DIR = original;
+    }
+  });
+
   it("handles backslashes in cwd", () => {
     const original = process.env.CLAUDE_CONFIG_DIR;
     process.env.CLAUDE_CONFIG_DIR = "/tmp/claude-test";
     try {
       const result = getSessionJsonlPath("sess-1", "C:\\Users\\dev\\project");
-      expect(result).toContain("C:-Users-dev-project");
+      expect(result).toContain("C--Users-dev-project");
     } finally {
       if (original === undefined) delete process.env.CLAUDE_CONFIG_DIR;
       else process.env.CLAUDE_CONFIG_DIR = original;

@@ -42,10 +42,24 @@ interface SessionUpdate {
   _meta?: { claudeCode?: ClaudeCodeMeta };
 }
 
+const MAX_PROJECT_KEY_LENGTH = 200;
+
+function hashString(s: string): string {
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) {
+    hash = (hash << 5) - hash + s.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
 export function getSessionJsonlPath(sessionId: string, cwd: string): string {
   const configDir =
     process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude");
-  const projectKey = cwd.replace(/[/\\]/g, "-");
+  let projectKey = cwd.replace(/[^a-zA-Z0-9]/g, "-");
+  if (projectKey.length > MAX_PROJECT_KEY_LENGTH) {
+    projectKey = `${projectKey.slice(0, MAX_PROJECT_KEY_LENGTH)}-${hashString(cwd)}`;
+  }
   return path.join(configDir, "projects", projectKey, `${sessionId}.jsonl`);
 }
 
