@@ -3,10 +3,6 @@ import {
   usePendingPermissionsForTask,
   useQueuedMessagesForTask,
 } from "@features/sessions/stores/sessionStore";
-import {
-  type ScrollState,
-  useSessionViewActions,
-} from "@features/sessions/stores/sessionViewStore";
 import { ArrowDown, XCircle } from "@phosphor-icons/react";
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import type { AcpMessage } from "@shared/types/session-events";
@@ -47,7 +43,6 @@ export function ConversationView({
 }: ConversationViewProps) {
   const listRef = useRef<VirtualizedListHandle>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const { saveScrollState } = useSessionViewActions();
 
   const { items: conversationItems, lastTurnInfo } = useMemo(
     () => buildConversationItems(events, isPromptPending),
@@ -82,13 +77,6 @@ export function ConversationView({
         ? [...conversationItems, ...queuedItems]
         : conversationItems,
     [conversationItems, queuedItems],
-  );
-
-  const handleSaveState = useCallback(
-    (state: ScrollState) => {
-      if (taskId) saveScrollState(taskId, state);
-    },
-    [taskId, saveScrollState],
   );
 
   const handleScrollStateChange = useCallback((isAtBottom: boolean) => {
@@ -179,7 +167,6 @@ export function ConversationView({
         items={items}
         getItemKey={getItemKey}
         renderItem={renderItem}
-        onSaveState={handleSaveState}
         onScrollStateChange={handleScrollStateChange}
         className="absolute inset-0 bg-gray-1"
         itemClassName="mx-auto max-w-[750px] px-2 py-1.5"
