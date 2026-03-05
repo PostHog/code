@@ -16,15 +16,20 @@ import { useTasks } from "@features/tasks/hooks/useTasks";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { useIntegrations } from "@hooks/useIntegrations";
 import { Box, Flex } from "@radix-ui/themes";
+import { useCommandMenuStore } from "@stores/commandMenuStore";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useShortcutsSheetStore } from "@stores/shortcutsSheetStore";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { useTaskDeepLink } from "../hooks/useTaskDeepLink";
 import { GlobalEventHandlers } from "./GlobalEventHandlers";
 
 export function MainLayout() {
   const { view, hydrateTask, navigateToTaskInput } = useNavigationStore();
-  const [commandMenuOpen, setCommandMenuOpen] = useState(false);
+  const {
+    isOpen: commandMenuOpen,
+    setOpen: setCommandMenuOpen,
+    toggle: toggleCommandMenu,
+  } = useCommandMenuStore();
   const {
     isOpen: shortcutsSheetOpen,
     toggle: toggleShortcutsSheet,
@@ -50,8 +55,8 @@ export function MainLayout() {
   }, [view.type, inboxEnabled, navigateToTaskInput]);
 
   const handleToggleCommandMenu = useCallback(() => {
-    setCommandMenuOpen((prev) => !prev);
-  }, []);
+    toggleCommandMenu();
+  }, [toggleCommandMenu]);
 
   return (
     <Flex direction="column" height="100vh">
@@ -96,7 +101,6 @@ export function MainLayout() {
       <GlobalEventHandlers
         onToggleCommandMenu={handleToggleCommandMenu}
         onToggleShortcutsSheet={toggleShortcutsSheet}
-        commandMenuOpen={commandMenuOpen}
       />
       <SettingsDialog />
     </Flex>

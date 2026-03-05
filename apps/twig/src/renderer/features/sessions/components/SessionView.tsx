@@ -11,6 +11,7 @@ import {
   usePendingPermissionsForTask,
 } from "@features/sessions/stores/sessionStore";
 import type { Plan } from "@features/sessions/types";
+import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
 import { Spinner, Warning } from "@phosphor-icons/react";
@@ -20,6 +21,8 @@ import {
   isJsonRpcNotification,
   isJsonRpcResponse,
 } from "@shared/types/session-events";
+import { useCommandMenuStore } from "@stores/commandMenuStore";
+import { useShortcutsSheetStore } from "@stores/shortcutsSheetStore";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { getSessionService } from "../service/service";
@@ -127,9 +130,18 @@ export function SessionView({
     isLoading: !!isPromptPending,
   });
 
-  useHotkeys("escape", onCancelPrompt, { enabled: !!isPromptPending }, [
+  const isSettingsOpen = useSettingsDialogStore((s) => s.isOpen);
+  const isCommandMenuOpen = useCommandMenuStore((s) => s.isOpen);
+  const isShortcutsSheetOpen = useShortcutsSheetStore((s) => s.isOpen);
+  const hasOverlay =
+    isSettingsOpen || isCommandMenuOpen || isShortcutsSheetOpen;
+
+  useHotkeys(
+    "escape",
     onCancelPrompt,
-  ]);
+    { enabled: !!isPromptPending && !hasOverlay },
+    [onCancelPrompt],
+  );
 
   useHotkeys(
     "shift+tab",
