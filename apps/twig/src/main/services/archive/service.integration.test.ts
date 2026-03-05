@@ -442,6 +442,26 @@ describe("ArchiveService integration", () => {
         });
       }));
 
+    it("unarchives task without workspace association", () =>
+      withTestContext(
+        {
+          folders: "none",
+          archivedTasks: [
+            archivedTask({
+              taskId: TASK_ID,
+              folderId: "",
+              mode: "cloud",
+            }),
+          ],
+        },
+        async (ctx) => {
+          const result = await ctx.service.unarchiveTask(TASK_ID);
+          expect(result).toEqual({ taskId: TASK_ID, worktreeName: null });
+          expect(ctx.archiveStore.get("archivedTasks")).toHaveLength(0);
+          expect(ctx.foldersStore.get("taskAssociations")).toHaveLength(0);
+        },
+      ));
+
     it("throws when archived task not found for unarchive", () =>
       withTestContext({}, async (ctx) => {
         await expect(ctx.service.unarchiveTask("nonexistent")).rejects.toThrow(

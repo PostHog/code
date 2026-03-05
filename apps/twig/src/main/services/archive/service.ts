@@ -92,7 +92,7 @@ export class ArchiveService {
 
     const archivedTask: ArchivedTask = association
       ? {
-          taskId: input.taskId,
+          taskId,
           archivedAt: new Date().toISOString(),
           folderId: association.folderId,
           mode: association.mode,
@@ -275,91 +275,93 @@ export class ArchiveService {
       throw new Error(`Archived task not found: ${taskId}`);
     }
 
-    const folderPath = this.getFolderPath(archived.folderId);
-    if (!folderPath) {
-      throw new Error(`Folder not found for task ${taskId}`);
-    }
-
     let restoredWorktreeName: string | null = null;
-    const shouldRestoreWorktree =
-      archived.mode === "worktree" && archived.checkpointId;
 
-    if (shouldRestoreWorktree) {
-      await step(
-        async () => {
-          restoredWorktreeName = await this.restoreWorktreeFromCheckpoint(
-            folderPath,
-            archived,
-            recreateBranch,
-          );
-        },
-        async () => {
-          if (restoredWorktreeName) {
-            const manager = new WorktreeManager({
-              mainRepoPath: folderPath,
-              worktreeBasePath: this.getWorktreeLocation(),
-            });
-            const worktreePath = await this.deriveWorktreePath(
+    if (archived.folderId) {
+      const folderPath = this.getFolderPath(archived.folderId);
+      if (!folderPath) {
+        throw new Error(`Folder not found for task ${taskId}`);
+      }
+      const shouldRestoreWorktree =
+        archived.mode === "worktree" && archived.checkpointId;
+
+      if (shouldRestoreWorktree) {
+        await step(
+          async () => {
+            restoredWorktreeName = await this.restoreWorktreeFromCheckpoint(
               folderPath,
-              restoredWorktreeName,
+              archived,
+              recreateBranch,
             );
-            await manager.deleteWorktree(worktreePath);
-            const parentDir = path.dirname(worktreePath);
-            await fs.rm(parentDir, { recursive: true, force: true });
-          }
-        },
-      );
+          },
+          async () => {
+            if (restoredWorktreeName) {
+              const manager = new WorktreeManager({
+                mainRepoPath: folderPath,
+                worktreeBasePath: this.getWorktreeLocation(),
+              });
+              const worktreePath = await this.deriveWorktreePath(
+                folderPath,
+                restoredWorktreeName,
+              );
+              await manager.deleteWorktree(worktreePath);
+              const parentDir = path.dirname(worktreePath);
+              await fs.rm(parentDir, { recursive: true, force: true });
+            }
+          },
+        );
 
-      await step(
-        async () => {
-          if (!restoredWorktreeName) {
-            throw new Error("Failed to restore worktree");
-          }
-          const associations = this.getTaskAssociations();
-          associations.push({
-            taskId,
-            folderId: archived.folderId,
-            mode: "worktree" as const,
-            worktree: restoredWorktreeName,
-            branchName: archived.branchName ?? null,
-          });
-          this.foldersStore.set("taskAssociations", associations);
-        },
-        async () => {
-          const associations = this.getTaskAssociations();
-          const updatedAssociations = associations.filter(
-            (a) => a.taskId !== taskId,
-          );
-          this.foldersStore.set("taskAssociations", updatedAssociations);
-        },
-      );
-    } else {
-      await step(
-        async () => {
-          const associations = this.getTaskAssociations();
-          if (archived.mode === "cloud") {
+        await step(
+          async () => {
+            if (!restoredWorktreeName) {
+              throw new Error("Failed to restore worktree");
+            }
+            const associations = this.getTaskAssociations();
             associations.push({
               taskId,
               folderId: archived.folderId,
-              mode: "cloud" as const,
+              mode: "worktree" as const,
+              worktree: restoredWorktreeName,
+              branchName: archived.branchName ?? null,
             });
-          } else {
-            associations.push({
-              taskId,
-              folderId: archived.folderId,
-              mode: "local" as const,
-            });
-          }
-          this.foldersStore.set("taskAssociations", associations);
-        },
-        async () => {
-          const associations = this.getTaskAssociations();
-          const updatedAssociations = associations.filter(
-            (a) => a.taskId !== taskId,
-          );
-          this.foldersStore.set("taskAssociations", updatedAssociations);
-        },
-      );
+            this.foldersStore.set("taskAssociations", associations);
+          },
+          async () => {
+            const associations = this.getTaskAssociations();
+            const updatedAssociations = associations.filter(
+              (a) => a.taskId !== taskId,
+            );
+            this.foldersStore.set("taskAssociations", updatedAssociations);
+          },
+        );
+      } else {
+        await step(
+          async () => {
+            const associations = this.getTaskAssociations();
+            if (archived.mode === "cloud") {
+              associations.push({
+                taskId,
+                folderId: archived.folderId,
+                mode: "cloud" as const,
+              });
+            } else {
+              associations.push({
+                taskId,
+                folderId: archived.folderId,
+                mode: "local" as const,
+              });
+            }
+            this.foldersStore.set("taskAssociations", associations);
+          },
+          async () => {
+            const associations = this.getTaskAssociations();
+            const updatedAssociations = associations.filter(
+              (a) => a.taskId !== taskId,
+            );
+            this.foldersStore.set("taskAssociations", updatedAssociations);
+          },
+        );
+      }
     }
 
     await step(
