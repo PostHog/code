@@ -39,10 +39,16 @@ vi.mock("../../utils/logger.js", () => ({
   },
 }));
 
-vi.mock("../../utils/store.js", () => ({
-  foldersStore: {
-    get: vi.fn(() => []),
-  },
+vi.mock("../../db/repositories/repository-repository.js", () => ({
+  RepositoryRepository: vi.fn(),
+}));
+
+vi.mock("../../db/repositories/workspace-repository.js", () => ({
+  WorkspaceRepository: vi.fn(),
+}));
+
+vi.mock("../../db/repositories/worktree-repository.js", () => ({
+  WorktreeRepository: vi.fn(),
 }));
 
 vi.mock("../settingsStore.js", () => ({
@@ -61,9 +67,15 @@ vi.mock("../../utils/process-utils.js", () => ({
 vi.mock("../../di/tokens.js", () => ({
   MAIN_TOKENS: {
     ProcessTrackingService: Symbol.for("Main.ProcessTrackingService"),
+    RepositoryRepository: Symbol.for("Main.RepositoryRepository"),
+    WorkspaceRepository: Symbol.for("Main.WorkspaceRepository"),
+    WorktreeRepository: Symbol.for("Main.WorktreeRepository"),
   },
 }));
 
+import type { RepositoryRepository } from "../../db/repositories/repository-repository.js";
+import type { WorkspaceRepository } from "../../db/repositories/workspace-repository.js";
+import type { WorktreeRepository } from "../../db/repositories/worktree-repository.js";
 import type { ProcessTrackingService } from "../process-tracking/service.js";
 import { ShellService } from "./service.js";
 
@@ -82,6 +94,46 @@ function createMockProcessTracking(): ProcessTrackingService {
   } as unknown as ProcessTrackingService;
 }
 
+function createMockRepositoryRepo(): RepositoryRepository {
+  return {
+    findById: vi.fn(),
+    findByPath: vi.fn(),
+    findAll: vi.fn(() => []),
+    create: vi.fn(),
+    upsertByPath: vi.fn(),
+    updateLastAccessed: vi.fn(),
+    delete: vi.fn(),
+  } as unknown as RepositoryRepository;
+}
+
+function createMockWorkspaceRepo(): WorkspaceRepository {
+  return {
+    findActiveByTaskId: vi.fn(() => null),
+    findArchivedByTaskId: vi.fn(),
+    findAllActive: vi.fn(() => []),
+    findAllArchived: vi.fn(() => []),
+    findAllActiveByRepositoryId: vi.fn(() => []),
+    createActive: vi.fn(),
+    archive: vi.fn(),
+    unarchive: vi.fn(),
+    deleteByTaskId: vi.fn(),
+    updatePinnedAt: vi.fn(),
+    updateLastViewedAt: vi.fn(),
+  } as unknown as WorkspaceRepository;
+}
+
+function createMockWorktreeRepo(): WorktreeRepository {
+  return {
+    findById: vi.fn(),
+    findByWorkspaceId: vi.fn(() => null),
+    findByPath: vi.fn(),
+    findAll: vi.fn(() => []),
+    create: vi.fn(),
+    updateBranch: vi.fn(),
+    deleteByWorkspaceId: vi.fn(),
+  } as unknown as WorktreeRepository;
+}
+
 describe("ShellService", () => {
   let service: ShellService;
   let mockPtyProcess: {
@@ -95,6 +147,9 @@ describe("ShellService", () => {
   };
 
   let mockProcessTracking: ProcessTrackingService;
+  let mockRepositoryRepo: RepositoryRepository;
+  let mockWorkspaceRepo: WorkspaceRepository;
+  let mockWorktreeRepo: WorktreeRepository;
 
   const createMockDisposable = () => ({ dispose: vi.fn() });
 
@@ -114,8 +169,16 @@ describe("ShellService", () => {
     mockPty.spawn.mockReturnValue(mockPtyProcess);
     mockExistsSync.mockReturnValue(true);
     mockProcessTracking = createMockProcessTracking();
+    mockRepositoryRepo = createMockRepositoryRepo();
+    mockWorkspaceRepo = createMockWorkspaceRepo();
+    mockWorktreeRepo = createMockWorktreeRepo();
 
-    service = new ShellService(mockProcessTracking);
+    service = new ShellService(
+      mockProcessTracking,
+      mockRepositoryRepo,
+      mockWorkspaceRepo,
+      mockWorktreeRepo,
+    );
   });
 
   afterEach(() => {
@@ -387,8 +450,12 @@ describe("ShellService", () => {
       delete process.env.SHELL;
       mockPlatform.mockReturnValue("darwin");
 
-      // Create a new service instance to pick up the env change
-      const newService = new ShellService(mockProcessTracking);
+      const newService = new ShellService(
+        mockProcessTracking,
+        mockRepositoryRepo,
+        mockWorkspaceRepo,
+        mockWorktreeRepo,
+      );
       await newService.create("session-1");
 
       expect(mockPty.spawn).toHaveBeenCalledWith(

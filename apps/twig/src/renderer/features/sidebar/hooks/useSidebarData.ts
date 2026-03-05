@@ -132,8 +132,7 @@ export function useSidebarData({
     [rawTasks, archivedTaskIds],
   );
   const sessions = useSessions();
-  const lastViewedAt = useTaskViewedStore((state) => state.lastViewedAt);
-  const localActivityAt = useTaskViewedStore((state) => state.lastActivityAt);
+  const timestamps = useTaskViewedStore((state) => state.timestamps);
   const historyVisibleCount = useSidebarStore(
     (state) => state.historyVisibleCount,
   );
@@ -164,15 +163,16 @@ export function useSidebarData({
     return allTasks.map((task) => {
       const session = sessionByTaskId.get(task.id);
       const apiUpdatedAt = new Date(task.updated_at).getTime();
-      const localActivity = localActivityAt[task.id];
+      const taskTimestamps = timestamps[task.id];
+      const localActivity = taskTimestamps?.lastActivityAt;
       const lastActivityAt = localActivity
         ? Math.max(apiUpdatedAt, localActivity)
         : apiUpdatedAt;
       const createdAt = new Date(task.created_at).getTime();
 
-      const taskLastViewedAt = lastViewedAt[task.id];
+      const taskLastViewedAt = taskTimestamps?.lastViewedAt;
       const isUnread =
-        taskLastViewedAt !== undefined && lastActivityAt > taskLastViewedAt;
+        taskLastViewedAt != null && lastActivityAt > taskLastViewedAt;
 
       return {
         id: task.id,
@@ -188,7 +188,7 @@ export function useSidebarData({
         taskRunEnvironment: task.latest_run?.environment,
       };
     });
-  }, [allTasks, lastViewedAt, localActivityAt, pinnedTaskIds, sessionByTaskId]);
+  }, [allTasks, timestamps, pinnedTaskIds, sessionByTaskId]);
 
   const pinnedTasks = useMemo(() => {
     const pinned = taskData.filter((task) => task.isPinned);

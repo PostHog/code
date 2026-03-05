@@ -1,33 +1,18 @@
 import { sql } from "drizzle-orm";
-import {
-  check,
-  customType,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { check, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
-const uuid = customType<{ data: string; notNull: true; default: true }>({
-  dataType() {
-    return "text";
-  },
-});
-
-const id = (name: string) =>
-  uuid(name)
+const id = () =>
+  text()
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID());
 
-const createdAt = () =>
-  text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`);
-
-const updatedAt = () =>
-  text("updated_at").notNull().default(sql`(CURRENT_TIMESTAMP)`);
+const createdAt = () => text().notNull().default(sql`(CURRENT_TIMESTAMP)`);
+const updatedAt = () => text().notNull().default(sql`(CURRENT_TIMESTAMP)`);
 
 export const repositories = sqliteTable("repositories", {
-  id: id("id"),
-  path: text("path").notNull().unique(),
-  lastAccessedAt: text("last_accessed_at"),
+  id: id(),
+  path: text().notNull().unique(),
+  lastAccessedAt: text(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -35,21 +20,22 @@ export const repositories = sqliteTable("repositories", {
 export const workspaces = sqliteTable(
   "workspaces",
   {
-    id: id("id"),
-    taskId: text("task_id").notNull(),
-    repositoryId: text("repository_id").references(() => repositories.id, {
+    id: id(),
+    taskId: text().notNull(),
+    repositoryId: text().references(() => repositories.id, {
       onDelete: "set null",
     }),
-    mode: text("mode", { enum: ["cloud", "local", "worktree"] }).notNull(),
-    state: text("state", { enum: ["active", "archived"] })
+    mode: text({ enum: ["cloud", "local", "worktree"] }).notNull(),
+    state: text({ enum: ["active", "archived"] })
       .notNull()
       .default("active"),
-    worktreeName: text("worktree_name"),
-    branchName: text("branch_name"),
-    checkpointId: text("checkpoint_id"),
-    archivedAt: text("archived_at"),
-    pinnedAt: text("pinned_at"),
-    lastViewedAt: text("last_viewed_at"),
+    worktreeName: text(),
+    branchName: text(),
+    checkpointId: text(),
+    archivedAt: text(),
+    pinnedAt: text(),
+    lastViewedAt: text(),
+    lastActivityAt: text(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -75,14 +61,20 @@ export const workspaces = sqliteTable(
 );
 
 export const worktrees = sqliteTable("worktrees", {
-  id: id("id"),
-  workspaceId: text("workspace_id")
+  id: id(),
+  workspaceId: text()
     .notNull()
     .unique()
     .references(() => workspaces.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  path: text("path").notNull(),
-  branch: text("branch").notNull(),
+  name: text().notNull(),
+  path: text().notNull(),
+  branch: text().notNull(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
+});
+
+export const appMeta = sqliteTable("app_meta", {
+  key: text().primaryKey(),
+  value: text(),
+  createdAt: createdAt(),
 });

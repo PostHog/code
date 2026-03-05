@@ -15,6 +15,7 @@ export default defineConfig({
   dialect: "sqlite",
   schema: "./src/main/db/schema.ts",
   out: "./src/main/db/migrations",
+  casing: "snake_case",
   dbCredentials: {
     url: path.join(userDataPath, "twig.db"),
   },

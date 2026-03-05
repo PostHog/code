@@ -1,4 +1,3 @@
-import { WorktreeManager } from "@twig/git/worktree";
 import { app } from "electron";
 import Store from "electron-store";
 import type {
@@ -6,9 +5,6 @@ import type {
   TaskFolderAssociation,
 } from "../../shared/types";
 import type { ArchivedTask } from "../../shared/types/archive";
-import { getWorktreeLocation } from "../services/settingsStore";
-import { logger } from "./logger";
-import { deriveWorktreePath } from "./worktree-helpers";
 
 interface FocusSession {
   mainRepoPath: string;
@@ -40,7 +36,7 @@ export interface WindowStateSchema {
   isMaximized: boolean;
 }
 
-const schema = {
+const foldersSchema = {
   folders: {
     type: "array" as const,
     default: [],
@@ -88,7 +84,7 @@ export type { FocusSession };
 
 export const foldersStore = new Store<FoldersSchema>({
   name: "folders",
-  schema,
+  schema: foldersSchema,
   cwd: app.getPath("userData"),
   defaults: {
     folders: [],
@@ -117,118 +113,3 @@ export const windowStateStore = new Store<WindowStateSchema>({
     isMaximized: true,
   },
 });
-
-const log = logger.scope("store");
-
-interface LegacyTaskAssociation {
-  taskId: string;
-  folderId: string;
-  folderPath?: string;
-  mode?: string;
-  worktree?: string | { worktreeName?: string; worktreePath?: string };
-  branchName?: string;
-}
-
-export function migrateTaskAssociations(): void {
-  const associations = foldersStore.get(
-    "taskAssociations",
-    [],
-  ) as LegacyTaskAssociation[];
-  let migrated = false;
-
-  const updatedAssociations = associations
-    .map((assoc): TaskFolderAssociation | null => {
-      const isLegacyFormat =
-        typeof assoc.worktree === "object" || "folderPath" in assoc;
-      const needsBranchMigration =
-        assoc.mode === "worktree" &&
-        typeof assoc.worktree === "string" &&
-        !assoc.branchName;
-
-      if (!isLegacyFormat && assoc.mode && !needsBranchMigration) {
-        return assoc as unknown as TaskFolderAssociation;
-      }
-
-      migrated = true;
-      const { taskId, folderId } = assoc;
-
-      if (typeof assoc.worktree === "object" && assoc.worktree) {
-        if (!assoc.worktree.worktreeName) {
-          log.warn(
-            `Removing orphaned association for task ${taskId} (no worktree name)`,
-          );
-          return null;
-        }
-        return {
-          taskId,
-          folderId,
-          mode: "worktree" as const,
-          worktree: assoc.worktree.worktreeName,
-          branchName: null,
-        };
-      }
-
-      if (typeof assoc.worktree === "string") {
-        return {
-          taskId,
-          folderId,
-          mode: "worktree" as const,
-          worktree: assoc.worktree,
-          branchName: assoc.branchName ?? null,
-        };
-      }
-
-      const mode =
-        assoc.mode === "cloud" ? ("cloud" as const) : ("local" as const);
-      return { taskId, folderId, mode };
-    })
-    .filter((a): a is TaskFolderAssociation => a !== null);
-
-  if (migrated) {
-    foldersStore.set("taskAssociations", updatedAssociations);
-    log.info(`Migrated ${associations.length} task associations to new format`);
-  }
-}
-
-function getFolderPath(folderId: string): string | null {
-  const folders = foldersStore.get("folders", []);
-  const folder = folders.find((f) => f.id === folderId);
-  return folder?.path ?? null;
-}
-
-export async function clearAllStoreData(): Promise<void> {
-  const associations = foldersStore.get("taskAssociations", []);
-  const worktreesToDelete: Array<{
-    worktreePath: string;
-    mainRepoPath: string;
-  }> = [];
-
-  for (const assoc of associations) {
-    if (assoc.mode === "worktree") {
-      const folderPath = getFolderPath(assoc.folderId);
-      if (!folderPath) continue;
-      worktreesToDelete.push({
-        worktreePath: deriveWorktreePath(folderPath, assoc.worktree),
-        mainRepoPath: folderPath,
-      });
-    }
-  }
-
-  for (const { worktreePath, mainRepoPath } of worktreesToDelete) {
-    try {
-      const worktreeBasePath = getWorktreeLocation();
-      const manager = new WorktreeManager({
-        mainRepoPath,
-        worktreeBasePath,
-      });
-      await manager.deleteWorktree(worktreePath);
-    } catch (error) {
-      log.error(`Failed to delete worktree ${worktreePath}:`, error);
-    }
-  }
-
-  foldersStore.clear();
-  rendererStore.clear();
-  archiveStore.clear();
-  windowStateStore.clear();
-}

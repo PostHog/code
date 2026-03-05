@@ -1,9 +1,41 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2540e7d2-db7b-4d03-8432-82070f173c5c",
+  "id": "39afcbaf-53aa-4806-b4b2-379139a68881",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "app_meta": {
+      "name": "app_meta",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(CURRENT_TIMESTAMP)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "repositories": {
       "name": "repositories",
       "columns": {
@@ -138,6 +170,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "last_activity_at": {
+          "name": "last_activity_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "text",
@@ -243,8 +282,8 @@
         }
       },
       "indexes": {
-        "worktrees_workspace_id_unique": {
-          "name": "worktrees_workspace_id_unique",
+        "worktrees_workspaceId_unique": {
+          "name": "worktrees_workspaceId_unique",
           "columns": ["workspace_id"],
           "isUnique": true
         }

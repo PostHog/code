@@ -23,6 +23,8 @@ export const archivedTaskSchema = z.object({
   checkpointId: z.string().nullable(),
 });
 
+export type ArchivedTask = z.infer<typeof archivedTaskSchema>;
+
 export const archiveTaskOutput = archivedTaskSchema;
 
 export const unarchiveTaskOutput = z.object({

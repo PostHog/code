@@ -6,11 +6,14 @@
  */
 export const MAIN_TOKENS = Object.freeze({
   // Stores
-  ArchiveStore: Symbol.for("Main.ArchiveStore"),
-  FoldersStore: Symbol.for("Main.FoldersStore"),
   SettingsStore: Symbol.for("Main.SettingsStore"),
 
+  // Database
   DatabaseService: Symbol.for("Main.DatabaseService"),
+  DataMigrationService: Symbol.for("Main.DataMigrationService"),
+  RepositoryRepository: Symbol.for("Main.RepositoryRepository"),
+  WorkspaceRepository: Symbol.for("Main.WorkspaceRepository"),
+  WorktreeRepository: Symbol.for("Main.WorktreeRepository"),
 
   // Services
   AgentService: Symbol.for("Main.AgentService"),

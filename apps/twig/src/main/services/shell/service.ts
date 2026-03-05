@@ -1,15 +1,16 @@
 import { exec } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir, platform } from "node:os";
-import path from "node:path";
 import { inject, injectable, preDestroy } from "inversify";
 import * as pty from "node-pty";
+import type { RepositoryRepository } from "../../db/repositories/repository-repository.js";
+import type { WorkspaceRepository } from "../../db/repositories/workspace-repository.js";
+import type { WorktreeRepository } from "../../db/repositories/worktree-repository.js";
 import { MAIN_TOKENS } from "../../di/tokens.js";
 import { logger } from "../../utils/logger.js";
-import { foldersStore } from "../../utils/store.js";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
+import { deriveWorktreePath } from "../../utils/worktree-helpers.js";
 import type { ProcessTrackingService } from "../process-tracking/service.js";
-import { getWorktreeLocation } from "../settingsStore.js";
 import { buildWorkspaceEnv } from "../workspace/workspaceEnv.js";
 import { type ExecuteOutput, ShellEvent, type ShellEvents } from "./schemas.js";
 
@@ -75,13 +76,25 @@ export interface CreateSessionOptions {
 export class ShellService extends TypedEventEmitter<ShellEvents> {
   private sessions = new Map<string, ShellSession>();
   private processTracking: ProcessTrackingService;
+  private repositoryRepo: RepositoryRepository;
+  private workspaceRepo: WorkspaceRepository;
+  private worktreeRepo: WorktreeRepository;
 
   constructor(
     @inject(MAIN_TOKENS.ProcessTrackingService)
     processTracking: ProcessTrackingService,
+    @inject(MAIN_TOKENS.RepositoryRepository)
+    repositoryRepo: RepositoryRepository,
+    @inject(MAIN_TOKENS.WorkspaceRepository)
+    workspaceRepo: WorkspaceRepository,
+    @inject(MAIN_TOKENS.WorktreeRepository)
+    worktreeRepo: WorktreeRepository,
   ) {
     super();
     this.processTracking = processTracking;
+    this.repositoryRepo = repositoryRepo;
+    this.workspaceRepo = workspaceRepo;
+    this.worktreeRepo = worktreeRepo;
   }
 
   async create(
@@ -286,35 +299,31 @@ export class ShellService extends TypedEventEmitter<ShellEvents> {
   ): Promise<Record<string, string> | undefined> {
     if (!taskId) return undefined;
 
-    const associations = foldersStore.get("taskAssociations", []);
-    const association = associations.find((a) => a.taskId === taskId);
-
-    if (!association || association.mode === "cloud") {
+    const workspace = this.workspaceRepo.findActiveByTaskId(taskId);
+    if (!workspace || workspace.mode === "cloud" || !workspace.repositoryId) {
       return undefined;
     }
 
-    const folders = foldersStore.get("folders", []);
-    const folder = folders.find((f) => f.id === association.folderId);
-    if (!folder) return undefined;
+    const repo = this.repositoryRepo.findById(workspace.repositoryId);
+    if (!repo) return undefined;
 
     let worktreePath: string | null = null;
     let worktreeName: string | null = null;
 
-    if (association.mode === "worktree") {
-      worktreeName = association.worktree;
-      const worktreeBasePath = getWorktreeLocation();
-      const isLegacy = !/^\d+$/.test(worktreeName);
-      worktreePath = isLegacy
-        ? path.join(worktreeBasePath, folder.name, worktreeName)
-        : path.join(worktreeBasePath, worktreeName, folder.name);
+    if (workspace.mode === "worktree") {
+      const worktree = this.worktreeRepo.findByWorkspaceId(workspace.id);
+      if (worktree) {
+        worktreeName = worktree.name;
+        worktreePath = deriveWorktreePath(repo.path, worktreeName);
+      }
     }
 
     return buildWorkspaceEnv({
       taskId,
-      folderPath: folder.path,
+      folderPath: repo.path,
       worktreePath,
       worktreeName,
-      mode: association.mode,
+      mode: workspace.mode,
     });
   }
 }

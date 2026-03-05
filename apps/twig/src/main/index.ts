@@ -5,6 +5,7 @@ import log from "electron-log/main";
 import "./utils/logger";
 import "./services/index.js";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics.js";
+import type { DataMigrationService } from "./db/data-migration.js";
 import type { DatabaseService } from "./db/service.js";
 import { initializeDeepLinks, registerDeepLinkHandlers } from "./deep-links.js";
 import { container } from "./di/container.js";
@@ -23,7 +24,6 @@ import type { TaskLinkService } from "./services/task-link/service";
 import type { UpdatesService } from "./services/updates/service.js";
 import type { WorkspaceService } from "./services/workspace/service.js";
 import { ensureClaudeConfigDir } from "./utils/env.js";
-import { migrateTaskAssociations } from "./utils/store.js";
 import { createWindow } from "./window.js";
 
 // Single instance lock must be acquired FIRST before any other app setup
@@ -36,6 +36,9 @@ if (!gotTheLock) {
 
 function initializeServices(): void {
   container.get<DatabaseService>(MAIN_TOKENS.DatabaseService);
+  container
+    .get<DataMigrationService>(MAIN_TOKENS.DataMigrationService)
+    .migrate();
   container.get<OAuthService>(MAIN_TOKENS.OAuthService);
   container.get<NotificationService>(MAIN_TOKENS.NotificationService);
   container.get<UpdatesService>(MAIN_TOKENS.UpdatesService);
@@ -78,7 +81,6 @@ app.whenReady().then(() => {
       `OS: ${process.platform} ${process.arch} ${os.release()}`,
     ].join(" | "),
   );
-  migrateTaskAssociations();
   ensureClaudeConfigDir();
   createWindow();
   initializeServices();

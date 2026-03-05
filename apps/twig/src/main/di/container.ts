@@ -1,5 +1,9 @@
 import "reflect-metadata";
 import { Container } from "inversify";
+import { DataMigrationService } from "../db/data-migration.js";
+import { RepositoryRepository } from "../db/repositories/repository-repository.js";
+import { WorkspaceRepository } from "../db/repositories/workspace-repository.js";
+import { WorktreeRepository } from "../db/repositories/worktree-repository.js";
 import { DatabaseService } from "../db/service.js";
 import { AgentService } from "../services/agent/service.js";
 import { AppLifecycleService } from "../services/app-lifecycle/service.js";
@@ -30,7 +34,6 @@ import { UIService } from "../services/ui/service.js";
 import { UpdatesService } from "../services/updates/service.js";
 import { WatcherRegistryService } from "../services/watcher-registry/service.js";
 import { WorkspaceService } from "../services/workspace/service.js";
-import { archiveStore, foldersStore } from "../utils/store.js";
 import { MAIN_TOKENS } from "./tokens.js";
 
 export const container = new Container({
@@ -38,6 +41,10 @@ export const container = new Container({
 });
 
 container.bind(MAIN_TOKENS.DatabaseService).to(DatabaseService);
+container.bind(MAIN_TOKENS.DataMigrationService).to(DataMigrationService);
+container.bind(MAIN_TOKENS.RepositoryRepository).to(RepositoryRepository);
+container.bind(MAIN_TOKENS.WorkspaceRepository).to(WorkspaceRepository);
+container.bind(MAIN_TOKENS.WorktreeRepository).to(WorktreeRepository);
 container.bind(MAIN_TOKENS.AgentService).to(AgentService);
 container.bind(MAIN_TOKENS.ArchiveService).to(ArchiveService);
 container.bind(MAIN_TOKENS.AppLifecycleService).to(AppLifecycleService);
@@ -70,6 +77,4 @@ container.bind(MAIN_TOKENS.TaskLinkService).to(TaskLinkService);
 container.bind(MAIN_TOKENS.WatcherRegistryService).to(WatcherRegistryService);
 container.bind(MAIN_TOKENS.WorkspaceService).to(WorkspaceService);
 
-container.bind(MAIN_TOKENS.ArchiveStore).toConstantValue(archiveStore);
-container.bind(MAIN_TOKENS.FoldersStore).toConstantValue(foldersStore);
 container.bind(MAIN_TOKENS.SettingsStore).toConstantValue(settingsStore);

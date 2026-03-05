@@ -1,3 +1,9 @@
+CREATE TABLE `app_meta` (
+	`key` text PRIMARY KEY NOT NULL,
+	`value` text,
+	`created_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `repositories` (
 	`id` text PRIMARY KEY NOT NULL,
 	`path` text NOT NULL,
@@ -19,6 +25,7 @@ CREATE TABLE `workspaces` (
 	`archived_at` text,
 	`pinned_at` text,
 	`last_viewed_at` text,
+	`last_activity_at` text,
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
 	`updated_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
 	FOREIGN KEY (`repository_id`) REFERENCES `repositories`(`id`) ON UPDATE no action ON DELETE set null,
@@ -44,4 +51,4 @@ CREATE TABLE `worktrees` (
 	FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `worktrees_workspace_id_unique` ON `worktrees` (`workspace_id`);
+CREATE UNIQUE INDEX `worktrees_workspaceId_unique` ON `worktrees` (`workspace_id`);

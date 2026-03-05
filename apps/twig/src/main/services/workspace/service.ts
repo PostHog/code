@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import path from "node:path";
-import type { TaskFolderAssociation, WorktreeInfo } from "@shared/types";
+import type { WorktreeInfo } from "@shared/types";
 import { createGitClient } from "@twig/git/client";
 import {
   getCurrentBranch,
@@ -12,16 +12,14 @@ import { CreateOrSwitchBranchSaga } from "@twig/git/sagas/branch";
 import { DetachHeadSaga } from "@twig/git/sagas/head";
 import { WorktreeManager } from "@twig/git/worktree";
 import { inject, injectable } from "inversify";
+import type { RepositoryRepository } from "../../db/repositories/repository-repository.js";
+import type { WorkspaceRepository } from "../../db/repositories/workspace-repository.js";
+import type { WorktreeRepository } from "../../db/repositories/worktree-repository.js";
 import { container } from "../../di/container.js";
 import { MAIN_TOKENS } from "../../di/tokens.js";
 import { logger } from "../../utils/logger";
-import { foldersStore } from "../../utils/store";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
-import {
-  deriveWorktreePath,
-  getFolderPath,
-  getTaskAssociations,
-} from "../../utils/worktree-helpers";
+import { deriveWorktreePath } from "../../utils/worktree-helpers";
 import type { AgentService } from "../agent/service.js";
 import { FileWatcherEvent } from "../file-watcher/schemas.js";
 import type { FileWatcherService } from "../file-watcher/service.js";
@@ -46,11 +44,15 @@ import type {
 import { ScriptRunner } from "./scriptRunner";
 import { buildWorkspaceEnv } from "./workspaceEnv";
 
-function findTaskAssociation(
-  taskId: string,
-): TaskFolderAssociation | undefined {
-  return getTaskAssociations().find((a) => a.taskId === taskId);
-}
+type TaskAssociation =
+  | { taskId: string; folderId: string; mode: "local" | "cloud" }
+  | {
+      taskId: string;
+      folderId: string;
+      mode: "worktree";
+      worktree: string;
+      branchName: string | null;
+    };
 
 async function hasAnyFiles(repoPath: string): Promise<boolean> {
   try {
@@ -119,6 +121,15 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
   @inject(MAIN_TOKENS.ProcessTrackingService)
   private processTracking!: ProcessTrackingService;
 
+  @inject(MAIN_TOKENS.RepositoryRepository)
+  private repositoryRepo!: RepositoryRepository;
+
+  @inject(MAIN_TOKENS.WorkspaceRepository)
+  private workspaceRepo!: WorkspaceRepository;
+
+  @inject(MAIN_TOKENS.WorktreeRepository)
+  private worktreeRepo!: WorktreeRepository;
+
   private scriptRunner!: ScriptRunner;
   private creatingWorkspaces = new Map<string, Promise<WorkspaceInfo>>();
   private branchWatcherInitialized = false;
@@ -133,6 +144,63 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       });
     }
     return this.scriptRunner;
+  }
+
+  private findTaskAssociation(taskId: string): TaskAssociation | null {
+    const workspace = this.workspaceRepo.findActiveByTaskId(taskId);
+    if (!workspace || !workspace.repositoryId) return null;
+
+    if (workspace.mode === "worktree") {
+      const worktree = this.worktreeRepo.findByWorkspaceId(workspace.id);
+      if (!worktree) return null;
+      return {
+        taskId,
+        folderId: workspace.repositoryId,
+        mode: "worktree",
+        worktree: worktree.name,
+        branchName: worktree.branch,
+      };
+    }
+
+    return {
+      taskId,
+      folderId: workspace.repositoryId,
+      mode: workspace.mode as "local" | "cloud",
+    };
+  }
+
+  private getFolderPath(folderId: string): string | null {
+    const repo = this.repositoryRepo.findById(folderId);
+    return repo?.path ?? null;
+  }
+
+  private getAllTaskAssociations(): TaskAssociation[] {
+    const workspaces = this.workspaceRepo.findAllActive();
+    const result: TaskAssociation[] = [];
+
+    for (const workspace of workspaces) {
+      if (!workspace.repositoryId) continue;
+
+      if (workspace.mode === "worktree") {
+        const worktree = this.worktreeRepo.findByWorkspaceId(workspace.id);
+        if (!worktree) continue;
+        result.push({
+          taskId: workspace.taskId,
+          folderId: workspace.repositoryId,
+          mode: "worktree",
+          worktree: worktree.name,
+          branchName: worktree.branch,
+        });
+      } else {
+        result.push({
+          taskId: workspace.taskId,
+          folderId: workspace.repositoryId,
+          mode: workspace.mode as "local" | "cloud",
+        });
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -170,10 +238,10 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     oldBranch: string;
     newBranch: string;
   }): void {
-    const associations = getTaskAssociations();
+    const associations = this.getAllTaskAssociations();
     for (const assoc of associations) {
       if (assoc.mode !== "worktree") continue;
-      const folderPath = getFolderPath(assoc.folderId);
+      const folderPath = this.getFolderPath(assoc.folderId);
       if (!folderPath) continue;
       const derivedPath = deriveWorktreePath(folderPath, assoc.worktree);
       if (derivedPath === worktreePath && assoc.branchName !== newBranch) {
@@ -191,10 +259,10 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
   }: {
     repoPath: string;
   }): Promise<void> {
-    const associations = getTaskAssociations();
+    const associations = this.getAllTaskAssociations();
 
     for (const assoc of associations) {
-      const folderPath = getFolderPath(assoc.folderId);
+      const folderPath = this.getFolderPath(assoc.folderId);
       if (!folderPath) continue;
 
       if (assoc.mode === "worktree") {
@@ -233,15 +301,10 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     taskId: string,
     branchName: string,
   ): void {
-    const associations = getTaskAssociations();
-    const index = associations.findIndex((a) => a.taskId === taskId);
-    if (index < 0) return;
+    const workspace = this.workspaceRepo.findActiveByTaskId(taskId);
+    if (!workspace || workspace.mode !== "worktree") return;
 
-    const assoc = associations[index];
-    if (assoc.mode !== "worktree") return;
-
-    associations[index] = { ...assoc, branchName };
-    foldersStore.set("taskAssociations", associations);
+    this.worktreeRepo.updateBranch(workspace.id, branchName);
     log.info(`Updated branch name for task ${taskId}: ${branchName}`);
   }
 
@@ -312,20 +375,11 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     );
 
     if (mode === "cloud") {
-      const associations = getTaskAssociations();
-      const existingIndex = associations.findIndex((a) => a.taskId === taskId);
-      const association: TaskFolderAssociation = {
+      this.workspaceRepo.createActive({
         taskId,
-        folderId,
-        mode: "cloud" as const,
-      };
-
-      if (existingIndex >= 0) {
-        associations[existingIndex] = association;
-      } else {
-        associations.push(association);
-      }
-      foldersStore.set("taskAssociations", associations);
+        repositoryId: folderId,
+        mode: "cloud",
+      });
 
       return {
         taskId,
@@ -363,22 +417,12 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         }
       }
 
-      const associations = getTaskAssociations();
-      const existingIndex = associations.findIndex((a) => a.taskId === taskId);
-      const association: TaskFolderAssociation = {
+      this.workspaceRepo.createActive({
         taskId,
-        folderId,
-        mode: "local" as const,
-      };
+        repositoryId: folderId,
+        mode: "local",
+      });
 
-      if (existingIndex >= 0) {
-        associations[existingIndex] = association;
-      } else {
-        associations.push(association);
-      }
-      foldersStore.set("taskAssociations", associations);
-
-      // Load config and build env in parallel
       const [{ config }, workspaceEnv] = await Promise.all([
         loadConfig(folderPath, path.basename(folderPath)),
         buildWorkspaceEnv({
@@ -534,24 +578,19 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       throw new Error(`Failed to create worktree: ${String(error)}`);
     }
 
-    const associations = getTaskAssociations();
-    const existingIndex = associations.findIndex((a) => a.taskId === taskId);
-    const association: TaskFolderAssociation = {
+    const createdWorkspace = this.workspaceRepo.createActive({
       taskId,
-      folderId,
-      mode: "worktree" as const,
-      worktree: worktree.worktreeName,
-      branchName: worktree.branchName || null,
-    };
+      repositoryId: folderId,
+      mode: "worktree",
+    });
 
-    if (existingIndex >= 0) {
-      associations[existingIndex] = association;
-    } else {
-      associations.push(association);
-    }
-    foldersStore.set("taskAssociations", associations);
+    this.worktreeRepo.create({
+      workspaceId: createdWorkspace.id,
+      name: worktree.worktreeName,
+      path: worktree.worktreePath,
+      branch: worktree.branchName || "HEAD",
+    });
 
-    // Load config and build env in parallel
     const [{ config }, workspaceEnv] = await Promise.all([
       loadConfig(worktree.worktreePath, worktree.worktreeName),
       buildWorkspaceEnv({
@@ -590,7 +629,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
           taskId,
           mainRepoPath,
           worktree.worktreePath,
-          association.branchName,
+          worktree.branchName ?? null,
         );
         throw new Error(
           `Workspace init failed: ${initResult.errors?.join(", ") || "Unknown error"}`,
@@ -643,7 +682,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
   async deleteWorkspace(taskId: string, mainRepoPath: string): Promise<void> {
     log.info(`Deleting workspace for task ${taskId}`);
 
-    const association = findTaskAssociation(taskId);
+    const association = this.findTaskAssociation(taskId);
     if (!association) {
       log.warn(`No workspace found for task ${taskId}`);
       return;
@@ -656,7 +695,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     }
 
     const folderId = association.folderId;
-    const folderPath = getFolderPath(folderId);
+    const folderPath = this.getFolderPath(folderId);
     if (!folderPath) {
       log.warn(`No folder found for task ${taskId}, removing association only`);
       this.removeTaskAssociation(taskId);
@@ -724,7 +763,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         association.branchName,
       );
 
-      const otherWorkspacesForFolder = getTaskAssociations().filter(
+      const otherWorkspacesForFolder = this.getAllTaskAssociations().filter(
         (a) =>
           a.folderId === folderId &&
           a.taskId !== taskId &&
@@ -742,10 +781,11 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
   }
 
   private removeTaskAssociation(taskId: string): void {
-    const associations = getTaskAssociations().filter(
-      (a) => a.taskId !== taskId,
-    );
-    foldersStore.set("taskAssociations", associations);
+    const workspace = this.workspaceRepo.findActiveByTaskId(taskId);
+    if (workspace) {
+      this.worktreeRepo.deleteByWorkspaceId(workspace.id);
+    }
+    this.workspaceRepo.deleteByTaskId(taskId);
   }
 
   private async cleanupRepoWorktreeFolder(folderPath: string): Promise<void> {
@@ -765,8 +805,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       return;
     }
 
-    // Safety check 2: Check if any other registered folder shares the same basename
-    const allFolders = foldersStore.get("folders", []);
+    const allFolders = this.repositoryRepo.findAll();
     const otherFoldersWithSameName = allFolders.filter(
       (f) => f.path !== folderPath && path.basename(f.path) === repoName,
     );
@@ -803,7 +842,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
   async verifyWorkspaceExists(
     taskId: string,
   ): Promise<{ exists: boolean; missingPath?: string }> {
-    const association = findTaskAssociation(taskId);
+    const association = this.findTaskAssociation(taskId);
     if (!association) {
       return { exists: false };
     }
@@ -812,7 +851,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       return { exists: true };
     }
 
-    const folderPath = getFolderPath(association.folderId);
+    const folderPath = this.getFolderPath(association.folderId);
     if (!folderPath) {
       this.removeTaskAssociation(taskId);
       return { exists: false, missingPath: "(folder not found)" };
@@ -830,17 +869,20 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       return { exists: true };
     }
 
-    const worktreePath = deriveWorktreePath(folderPath, association.worktree);
-    const exists = fs.existsSync(worktreePath);
-    if (!exists) {
-      log.info(
-        `Worktree for task ${taskId} no longer exists, removing association`,
-      );
-      this.removeTaskAssociation(taskId);
-      return { exists: false, missingPath: worktreePath };
+    if (association.mode === "worktree") {
+      const worktreePath = deriveWorktreePath(folderPath, association.worktree);
+      const exists = fs.existsSync(worktreePath);
+      if (!exists) {
+        log.info(
+          `Worktree for task ${taskId} no longer exists, removing association`,
+        );
+        this.removeTaskAssociation(taskId);
+        return { exists: false, missingPath: worktreePath };
+      }
+      return { exists: true };
     }
 
-    return { exists: true };
+    return { exists: false };
   }
 
   async runStartScripts(
@@ -857,8 +899,10 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       return { success: true, terminalSessionIds: [] };
     }
 
-    const association = findTaskAssociation(taskId);
-    const folderPath = association ? getFolderPath(association.folderId) : null;
+    const association = this.findTaskAssociation(taskId);
+    const folderPath = association
+      ? this.getFolderPath(association.folderId)
+      : null;
     const workspaceEnv = await buildWorkspaceEnv({
       taskId,
       folderPath: folderPath ?? worktreePath,
@@ -886,12 +930,12 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
   }
 
   async getWorkspaceInfo(taskId: string): Promise<WorkspaceInfo | null> {
-    const association = findTaskAssociation(taskId);
+    const association = this.findTaskAssociation(taskId);
     if (!association) {
       return null;
     }
 
-    const folderPath = getFolderPath(association.folderId);
+    const folderPath = this.getFolderPath(association.folderId);
     let worktreeInfo: WorktreeInfo | null = null;
     let branchName: string | null = null;
 
@@ -944,11 +988,11 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
   }
 
   async getAllWorkspaces(): Promise<Record<string, Workspace>> {
-    const associations = getTaskAssociations();
+    const associations = this.getAllTaskAssociations();
     const workspaces: Record<string, Workspace> = {};
 
     for (const assoc of associations) {
-      const folderPath = getFolderPath(assoc.folderId);
+      const folderPath = this.getFolderPath(assoc.folderId);
       if (!folderPath) continue;
 
       let configPath: string;
@@ -1017,7 +1061,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
   ): Promise<WorktreeInfo | null> {
     log.info(`Promoting task ${taskId} to worktree mode on branch ${branch}`);
 
-    const association = findTaskAssociation(taskId);
+    const association = this.findTaskAssociation(taskId);
     if (!association) {
       log.warn(`No association found for task ${taskId}`);
       return null;
@@ -1028,7 +1072,6 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       return null;
     }
 
-    // Create worktree for existing branch
     const worktreeBasePath = getWorktreeLocation();
     const worktreeManager = new WorktreeManager({
       mainRepoPath,
@@ -1061,18 +1104,15 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       throw new Error(`Failed to promote task to worktree: ${String(error)}`);
     }
 
-    const associations = getTaskAssociations();
-    const existingIndex = associations.findIndex((a) => a.taskId === taskId);
-    if (existingIndex >= 0) {
-      const newAssoc: TaskFolderAssociation = {
-        taskId,
-        folderId: association.folderId,
-        mode: "worktree" as const,
-        worktree: worktree.worktreeName,
-        branchName: worktree.branchName ?? branch,
-      };
-      associations[existingIndex] = newAssoc;
-      foldersStore.set("taskAssociations", associations);
+    const workspace = this.workspaceRepo.findActiveByTaskId(taskId);
+    if (workspace) {
+      this.workspaceRepo.updateMode(taskId, "worktree");
+      this.worktreeRepo.create({
+        workspaceId: workspace.id,
+        name: worktree.worktreeName,
+        path: worktree.worktreePath,
+        branch: worktree.branchName ?? branch,
+      });
       log.info(`Updated task ${taskId} association to worktree mode`);
     }
 
@@ -1086,9 +1126,8 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
   }
 
   getLocalTasksForFolder(folderPath: string): Array<{ taskId: string }> {
-    const associations = getTaskAssociations();
-    const folders = foldersStore.get("folders", []);
-    const folder = folders.find((f) => f.path === folderPath);
+    const associations = this.getAllTaskAssociations();
+    const folder = this.repositoryRepo.findByPath(folderPath);
     if (!folder) return [];
 
     return associations
@@ -1097,12 +1136,12 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
   }
 
   getWorktreeTasks(worktreePath: string): Array<{ taskId: string }> {
-    const associations = getTaskAssociations();
+    const associations = this.getAllTaskAssociations();
     const result: Array<{ taskId: string }> = [];
 
     for (const assoc of associations) {
       if (assoc.mode !== "worktree") continue;
-      const folderPath = getFolderPath(assoc.folderId);
+      const folderPath = this.getFolderPath(assoc.folderId);
       if (!folderPath) continue;
       const derivedPath = deriveWorktreePath(folderPath, assoc.worktree);
       if (derivedPath === worktreePath) {

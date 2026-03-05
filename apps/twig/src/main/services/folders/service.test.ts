@@ -4,9 +4,22 @@ const mockExistsSync = vi.hoisted(() => vi.fn(() => true));
 const mockDialog = vi.hoisted(() => ({
   showMessageBox: vi.fn(),
 }));
-const mockFoldersStore = vi.hoisted(() => ({
-  get: vi.fn(),
-  set: vi.fn(),
+const mockRepositoryRepo = vi.hoisted(() => ({
+  findAll: vi.fn(),
+  findById: vi.fn(),
+  findByPath: vi.fn(),
+  create: vi.fn(),
+  upsertByPath: vi.fn(),
+  updateLastAccessed: vi.fn(),
+  delete: vi.fn(),
+}));
+const mockWorkspaceRepo = vi.hoisted(() => ({
+  findAllActiveByRepositoryId: vi.fn(),
+  findAllActive: vi.fn(),
+}));
+const mockWorktreeRepo = vi.hoisted(() => ({
+  findByWorkspaceId: vi.fn(),
+  findAll: vi.fn(),
 }));
 const mockWorktreeManager = vi.hoisted(() => ({
   deleteWorktree: vi.fn(),
@@ -57,11 +70,6 @@ vi.mock("../../trpc/context.js", () => ({
   getMainWindow: vi.fn(() => ({ id: 1 })),
 }));
 
-vi.mock("../../utils/store.js", () => ({
-  foldersStore: mockFoldersStore,
-  clearAllStoreData: vi.fn(),
-}));
-
 vi.mock("@twig/git/queries", () => ({
   isGitRepository: vi.fn(() => Promise.resolve(true)),
 }));
@@ -76,6 +84,18 @@ vi.mock("../settingsStore.js", () => ({
   getWorktreeLocation: vi.fn(() => "/tmp/worktrees"),
 }));
 
+vi.mock("../../db/repositories/repository-repository.js", () => ({
+  RepositoryRepository: vi.fn(() => mockRepositoryRepo),
+}));
+
+vi.mock("../../db/repositories/workspace-repository.js", () => ({
+  WorkspaceRepository: vi.fn(() => mockWorkspaceRepo),
+}));
+
+vi.mock("../../db/repositories/worktree-repository.js", () => ({
+  WorktreeRepository: vi.fn(() => mockWorktreeRepo),
+}));
+
 import { isGitRepository } from "@twig/git/queries";
 import { FoldersService } from "./service.js";
 
@@ -85,13 +105,16 @@ describe("FoldersService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    mockFoldersStore.get.mockImplementation((key, defaultValue) => {
-      if (key === "folders") return [];
-      if (key === "taskAssociations") return [];
-      return defaultValue;
-    });
+    mockRepositoryRepo.findAll.mockReturnValue([]);
+    mockWorkspaceRepo.findAllActiveByRepositoryId.mockReturnValue([]);
+    mockWorkspaceRepo.findAllActive.mockReturnValue([]);
+    mockWorktreeRepo.findAll.mockReturnValue([]);
 
-    service = new FoldersService();
+    service = new FoldersService(
+      mockRepositoryRepo as any,
+      mockWorkspaceRepo as any,
+      mockWorktreeRepo as any,
+    );
   });
 
   afterEach(() => {
@@ -100,7 +123,7 @@ describe("FoldersService", () => {
 
   describe("getFolders", () => {
     it("returns empty array when no folders registered", async () => {
-      mockFoldersStore.get.mockReturnValue([]);
+      mockRepositoryRepo.findAll.mockReturnValue([]);
 
       const result = await service.getFolders();
 
@@ -108,103 +131,70 @@ describe("FoldersService", () => {
     });
 
     it("returns folders with exists property", async () => {
-      const folders = [
+      const repos = [
+        {
+          id: "folder-1",
+          path: "/home/user/project",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ];
+      mockRepositoryRepo.findAll.mockReturnValue(repos);
+      mockExistsSync.mockReturnValue(true);
+
+      const result = await service.getFolders();
+
+      expect(result).toEqual([
         {
           id: "folder-1",
           path: "/home/user/project",
           name: "project",
           lastAccessed: "2024-01-01T00:00:00.000Z",
           createdAt: "2024-01-01T00:00:00.000Z",
+          exists: true,
         },
-      ];
-      mockFoldersStore.get.mockReturnValue(folders);
-      mockExistsSync.mockReturnValue(true);
-
-      const result = await service.getFolders();
-
-      expect(result).toEqual([{ ...folders[0], exists: true }]);
+      ]);
     });
 
     it("marks non-existent folders", async () => {
-      const folders = [
+      const repos = [
         {
           id: "folder-1",
           path: "/nonexistent/path",
-          name: "path",
-          lastAccessed: "2024-01-01T00:00:00.000Z",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
           createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
         },
       ];
-      mockFoldersStore.get.mockReturnValue(folders);
+      mockRepositoryRepo.findAll.mockReturnValue(repos);
       mockExistsSync.mockReturnValue(false);
 
       const result = await service.getFolders();
 
-      expect(result).toEqual([{ ...folders[0], exists: false }]);
-    });
-
-    it("filters out folders with empty names", async () => {
-      const folders = [
-        {
-          id: "folder-1",
-          path: "/",
-          name: "",
-          lastAccessed: "2024-01-01T00:00:00.000Z",
-          createdAt: "2024-01-01T00:00:00.000Z",
-        },
-        {
-          id: "folder-2",
-          path: "/home/user/project",
-          name: "project",
-          lastAccessed: "2024-01-01T00:00:00.000Z",
-          createdAt: "2024-01-01T00:00:00.000Z",
-        },
-      ];
-      mockFoldersStore.get.mockReturnValue(folders);
-      mockExistsSync.mockReturnValue(true);
-
-      const result = await service.getFolders();
-
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe("project");
+      expect(result[0].exists).toBe(false);
     });
   });
 
   describe("addFolder", () => {
     it("adds a new folder when it is a git repository", async () => {
       vi.mocked(isGitRepository).mockResolvedValue(true);
+      mockRepositoryRepo.upsertByPath.mockReturnValue({
+        id: "folder-new",
+        path: "/home/user/my-project",
+        lastAccessedAt: "2024-01-01T00:00:00.000Z",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-01T00:00:00.000Z",
+      });
 
       const result = await service.addFolder("/home/user/my-project");
 
       expect(result.name).toBe("my-project");
       expect(result.path).toBe("/home/user/my-project");
       expect(result.exists).toBe(true);
-      expect(mockFoldersStore.set).toHaveBeenCalledWith(
-        "folders",
-        expect.arrayContaining([
-          expect.objectContaining({
-            path: "/home/user/my-project",
-            name: "my-project",
-          }),
-        ]),
+      expect(mockRepositoryRepo.upsertByPath).toHaveBeenCalledWith(
+        "/home/user/my-project",
       );
-    });
-
-    it("returns existing folder if already registered", async () => {
-      const existingFolder = {
-        id: "folder-123",
-        path: "/home/user/project",
-        name: "project",
-        lastAccessed: "2024-01-01T00:00:00.000Z",
-        createdAt: "2024-01-01T00:00:00.000Z",
-      };
-      mockFoldersStore.get.mockReturnValue([existingFolder]);
-      vi.mocked(isGitRepository).mockResolvedValue(true);
-
-      const result = await service.addFolder("/home/user/project");
-
-      expect(result.id).toBe("folder-123");
-      expect(result.exists).toBe(true);
     });
 
     it("throws error for invalid folder path", async () => {
@@ -215,10 +205,17 @@ describe("FoldersService", () => {
 
     it("prompts to initialize git for non-git folder", async () => {
       vi.mocked(isGitRepository).mockResolvedValue(false);
-      mockDialog.showMessageBox.mockResolvedValue({ response: 0 }); // User clicks "Initialize Git"
+      mockDialog.showMessageBox.mockResolvedValue({ response: 0 });
       mockInitRepositorySaga.run.mockResolvedValue({
         success: true,
         data: { initialized: true },
+      });
+      mockRepositoryRepo.upsertByPath.mockReturnValue({
+        id: "folder-new",
+        path: "/home/user/project",
+        lastAccessedAt: "2024-01-01T00:00:00.000Z",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-01T00:00:00.000Z",
       });
 
       const result = await service.addFolder("/home/user/project");
@@ -234,7 +231,7 @@ describe("FoldersService", () => {
 
     it("throws error when user cancels git init", async () => {
       vi.mocked(isGitRepository).mockResolvedValue(false);
-      mockDialog.showMessageBox.mockResolvedValue({ response: 1 }); // User clicks "Cancel"
+      mockDialog.showMessageBox.mockResolvedValue({ response: 1 });
 
       await expect(service.addFolder("/home/user/project")).rejects.toThrow(
         "Folder must be a git repository",
@@ -243,49 +240,44 @@ describe("FoldersService", () => {
   });
 
   describe("removeFolder", () => {
-    it("removes folder from store", async () => {
-      const folders = [
-        {
-          id: "folder-1",
-          path: "/home/user/project",
-          name: "project",
-          lastAccessed: "2024-01-01T00:00:00.000Z",
-          createdAt: "2024-01-01T00:00:00.000Z",
-        },
-      ];
-      mockFoldersStore.get.mockImplementation((key) => {
-        if (key === "folders") return folders;
-        if (key === "taskAssociations") return [];
-        return [];
+    it("removes folder from database", async () => {
+      mockRepositoryRepo.findById.mockReturnValue({
+        id: "folder-1",
+        path: "/home/user/project",
+        lastAccessedAt: "2024-01-01T00:00:00.000Z",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-01T00:00:00.000Z",
       });
+      mockWorkspaceRepo.findAllActiveByRepositoryId.mockReturnValue([]);
 
       await service.removeFolder("folder-1");
 
-      expect(mockFoldersStore.set).toHaveBeenCalledWith("folders", []);
+      expect(mockRepositoryRepo.delete).toHaveBeenCalledWith("folder-1");
     });
 
     it("removes associated worktrees", async () => {
-      const folders = [
+      mockRepositoryRepo.findById.mockReturnValue({
+        id: "folder-1",
+        path: "/home/user/project",
+        lastAccessedAt: "2024-01-01T00:00:00.000Z",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-01T00:00:00.000Z",
+      });
+      mockWorkspaceRepo.findAllActiveByRepositoryId.mockReturnValue([
         {
-          id: "folder-1",
-          path: "/home/user/project",
-          name: "project",
-          lastAccessed: "2024-01-01T00:00:00.000Z",
-          createdAt: "2024-01-01T00:00:00.000Z",
-        },
-      ];
-      const associations = [
-        {
+          id: "workspace-1",
           taskId: "task-1",
-          folderId: "folder-1",
+          repositoryId: "folder-1",
           mode: "worktree",
-          worktree: "twig-task-1",
+          state: "active",
         },
-      ];
-      mockFoldersStore.get.mockImplementation((key) => {
-        if (key === "folders") return folders;
-        if (key === "taskAssociations") return associations;
-        return [];
+      ]);
+      mockWorktreeRepo.findByWorkspaceId.mockReturnValue({
+        id: "worktree-1",
+        workspaceId: "workspace-1",
+        name: "twig-task-1",
+        path: "/tmp/worktrees/project/twig-task-1",
+        branch: "main",
       });
       mockWorktreeManager.deleteWorktree.mockResolvedValue(undefined);
 
@@ -293,73 +285,21 @@ describe("FoldersService", () => {
 
       expect(mockWorktreeManager.deleteWorktree).toHaveBeenCalled();
     });
-
-    it("removes task associations for folder", async () => {
-      const folders = [
-        {
-          id: "folder-1",
-          path: "/home/user/project",
-          name: "project",
-          lastAccessed: "2024-01-01T00:00:00.000Z",
-          createdAt: "2024-01-01T00:00:00.000Z",
-        },
-      ];
-      const associations = [
-        { taskId: "task-1", folderId: "folder-1", mode: "root" },
-        { taskId: "task-2", folderId: "folder-2", mode: "root" },
-      ];
-      mockFoldersStore.get.mockImplementation((key) => {
-        if (key === "folders") return folders;
-        if (key === "taskAssociations") return associations;
-        return [];
-      });
-
-      await service.removeFolder("folder-1");
-
-      expect(mockFoldersStore.set).toHaveBeenCalledWith("taskAssociations", [
-        { taskId: "task-2", folderId: "folder-2", mode: "root" },
-      ]);
-    });
   });
 
   describe("updateFolderAccessed", () => {
     it("updates lastAccessed timestamp", async () => {
-      const folders = [
-        {
-          id: "folder-1",
-          path: "/home/user/project",
-          name: "project",
-          lastAccessed: "2024-01-01T00:00:00.000Z",
-          createdAt: "2024-01-01T00:00:00.000Z",
-        },
-      ];
-      mockFoldersStore.get.mockReturnValue(folders);
-
       await service.updateFolderAccessed("folder-1");
 
-      expect(mockFoldersStore.set).toHaveBeenCalledWith(
-        "folders",
-        expect.arrayContaining([
-          expect.objectContaining({
-            id: "folder-1",
-            lastAccessed: expect.any(String),
-          }),
-        ]),
+      expect(mockRepositoryRepo.updateLastAccessed).toHaveBeenCalledWith(
+        "folder-1",
       );
-    });
-
-    it("does nothing for non-existent folder", async () => {
-      mockFoldersStore.get.mockReturnValue([]);
-
-      await service.updateFolderAccessed("nonexistent");
-
-      expect(mockFoldersStore.set).not.toHaveBeenCalled();
     });
   });
 
   describe("cleanupOrphanedWorktrees", () => {
     it("delegates to WorktreeManager", async () => {
-      mockFoldersStore.get.mockReturnValue([]);
+      mockWorktreeRepo.findAll.mockReturnValue([]);
       mockWorktreeManager.cleanupOrphanedWorktrees.mockResolvedValue({
         deleted: ["/tmp/worktrees/project/orphan-1"],
         errors: [],
@@ -373,18 +313,15 @@ describe("FoldersService", () => {
     });
 
     it("excludes associated worktrees from cleanup", async () => {
-      const associations = [
+      mockWorktreeRepo.findAll.mockReturnValue([
         {
-          taskId: "task-1",
-          folderId: "folder-1",
-          mode: "worktree",
-          worktree: "twig-task-1",
+          id: "worktree-1",
+          workspaceId: "workspace-1",
+          name: "twig-task-1",
+          path: "/tmp/worktrees/project/twig-task-1",
+          branch: "main",
         },
-      ];
-      mockFoldersStore.get.mockImplementation((key) => {
-        if (key === "taskAssociations") return associations;
-        return [];
-      });
+      ]);
       mockWorktreeManager.cleanupOrphanedWorktrees.mockResolvedValue({
         deleted: [],
         errors: [],
@@ -393,18 +330,8 @@ describe("FoldersService", () => {
       await service.cleanupOrphanedWorktrees("/home/user/project");
 
       expect(mockWorktreeManager.cleanupOrphanedWorktrees).toHaveBeenCalledWith(
-        expect.arrayContaining([expect.stringContaining("twig-task-1")]),
+        ["/tmp/worktrees/project/twig-task-1"],
       );
-    });
-  });
-
-  describe("clearAllData", () => {
-    it("clears all store data", async () => {
-      const { clearAllStoreData } = await import("../../utils/store.js");
-
-      await service.clearAllData();
-
-      expect(clearAllStoreData).toHaveBeenCalled();
     });
   });
 });

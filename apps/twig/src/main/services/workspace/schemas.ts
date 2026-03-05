@@ -183,6 +183,44 @@ export const getWorktreeTasksInput = z.object({
 
 export const getWorktreeTasksOutput = z.array(localTaskSchema);
 
+export const togglePinInput = z.object({
+  taskId: z.string(),
+});
+
+export const togglePinOutput = z.object({
+  isPinned: z.boolean(),
+  pinnedAt: z.string().nullable(),
+});
+
+export const markViewedInput = z.object({
+  taskId: z.string(),
+});
+
+export const markActivityInput = z.object({
+  taskId: z.string(),
+});
+
+export const getPinnedTaskIdsOutput = z.array(z.string());
+
+export const getTaskTimestampsInput = z.object({
+  taskId: z.string(),
+});
+
+export const getTaskTimestampsOutput = z.object({
+  pinnedAt: z.string().nullable(),
+  lastViewedAt: z.string().nullable(),
+  lastActivityAt: z.string().nullable(),
+});
+
+export const getAllTaskTimestampsOutput = z.record(
+  z.string(),
+  z.object({
+    pinnedAt: z.string().nullable(),
+    lastViewedAt: z.string().nullable(),
+    lastActivityAt: z.string().nullable(),
+  }),
+);
+
 // Type exports
 export type WorkspaceMode = z.infer<typeof workspaceModeSchema>;
 export type WorktreeInfo = z.infer<typeof worktreeInfoSchema>;
