@@ -15,6 +15,7 @@ import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersSto
 import { trpcReact } from "@renderer/trpc";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
+import { useCommandMenuStore } from "@stores/commandMenuStore";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useCallback, useEffect, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -22,14 +23,13 @@ import { useHotkeys } from "react-hotkeys-hook";
 interface GlobalEventHandlersProps {
   onToggleCommandMenu: () => void;
   onToggleShortcutsSheet: () => void;
-  commandMenuOpen: boolean;
 }
 
 export function GlobalEventHandlers({
   onToggleCommandMenu,
   onToggleShortcutsSheet,
-  commandMenuOpen,
 }: GlobalEventHandlersProps) {
+  const commandMenuOpen = useCommandMenuStore((s) => s.isOpen);
   const openSettingsDialog = useSettingsDialogStore((state) => state.open);
   const navigateToTaskInput = useNavigationStore(
     (state) => state.navigateToTaskInput,

@@ -14,10 +14,11 @@ export const notificationRouter = router({
         title: z.string(),
         body: z.string(),
         silent: z.boolean(),
+        taskId: z.string().optional(),
       }),
     )
     .mutation(({ input }) =>
-      getService().send(input.title, input.body, input.silent),
+      getService().send(input.title, input.body, input.silent, input.taskId),
     ),
   showDockBadge: publicProcedure.mutation(() => getService().showDockBadge()),
   bounceDock: publicProcedure.mutation(() => getService().bounceDock()),

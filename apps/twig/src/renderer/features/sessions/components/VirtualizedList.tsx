@@ -1,4 +1,3 @@
-import type { ScrollState } from "@features/sessions/stores/sessionViewStore";
 import {
   forwardRef,
   type ReactNode,
@@ -17,8 +16,6 @@ interface VirtualizedListProps<T> {
   className?: string;
   itemClassName?: string;
   footer?: ReactNode;
-  savedState?: ScrollState;
-  onSaveState?: (state: ScrollState) => void;
   onScrollStateChange?: (isAtBottom: boolean) => void;
 }
 
@@ -36,18 +33,13 @@ function VirtualizedListInner<T>(
     className,
     itemClassName,
     footer,
-    savedState,
-    onSaveState,
     onScrollStateChange,
   }: VirtualizedListProps<T>,
   ref: React.ForwardedRef<VirtualizedListHandle>,
 ) {
   const listRef = useRef<VListHandle>(null);
-  const isAtBottomRef = useRef(!savedState);
-  const initRef = useRef({ savedState, itemCount: items.length });
+  const isAtBottomRef = useRef(true);
   const initializedRef = useRef(false);
-  const onSaveStateRef = useRef(onSaveState);
-  onSaveStateRef.current = onSaveState;
   const onScrollStateChangeRef = useRef(onScrollStateChange);
   onScrollStateChangeRef.current = onScrollStateChange;
   const itemCountRef = useRef(items.length);
@@ -71,11 +63,8 @@ function VirtualizedListInner<T>(
     const handle = listRef.current;
     if (!handle) return;
 
-    const { savedState: initialState, itemCount } = initRef.current;
-    if (initialState) {
-      handle.scrollTo(initialState.offset);
-    } else if (itemCount > 0) {
-      handle.scrollToIndex(itemCount - 1, { align: "end" });
+    if (items.length > 0) {
+      handle.scrollToIndex(items.length - 1, { align: "end" });
     }
 
     // Allow measurements to settle before reporting scroll state,
@@ -83,14 +72,7 @@ function VirtualizedListInner<T>(
     requestAnimationFrame(() => {
       initializedRef.current = true;
     });
-
-    return () => {
-      onSaveStateRef.current?.({
-        offset: handle.scrollOffset,
-        cache: handle.cache,
-      });
-    };
-  }, []);
+  }, [items.length]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally re-run when items change for streaming scroll
   useEffect(() => {
@@ -128,7 +110,6 @@ function VirtualizedListInner<T>(
     >
       <VList
         ref={listRef}
-        cache={savedState?.cache}
         shift={false}
         style={{ flex: 1 }}
         onScroll={handleScroll}
