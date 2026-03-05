@@ -9,7 +9,17 @@ import {
   openMultipleFiles,
   withRootGroup,
 } from "@test/panelTestHelpers";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@renderer/lib/electronStorage", () => ({
+  electronStorage: {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  },
+}));
+
+import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { usePanelLayoutStore } from "./panelLayoutStore";
 
 describe("panelLayoutStore", () => {
@@ -636,10 +646,10 @@ describe("panelLayoutStore", () => {
       ).toBe(true);
     });
 
-    it("openDiff creates preview tab by default", () => {
+    it("openDiffByMode creates preview tab by default", () => {
       usePanelLayoutStore
         .getState()
-        .openDiff("task-1", "src/App.tsx", "modified");
+        .openDiffByMode("task-1", "src/App.tsx", "modified");
 
       const panel = findPanelById(getPanelTree("task-1"), "main-panel");
       const diffTab = panel?.content.tabs.find((t: { id: string }) =>
@@ -648,16 +658,112 @@ describe("panelLayoutStore", () => {
       expect(diffTab?.isPreview).toBe(true);
     });
 
-    it("openDiff creates permanent tab when asPreview is false", () => {
+    it("openDiffByMode creates permanent tab when asPreview is false", () => {
       usePanelLayoutStore
         .getState()
-        .openDiff("task-1", "src/App.tsx", "modified", false);
+        .openDiffByMode("task-1", "src/App.tsx", "modified", false);
 
       const panel = findPanelById(getPanelTree("task-1"), "main-panel");
       const diffTab = panel?.content.tabs.find((t: { id: string }) =>
         t.id.startsWith("diff-"),
       );
       expect(diffTab?.isPreview).toBe(false);
+    });
+  });
+
+  describe("openDiffByMode", () => {
+    beforeEach(() => {
+      usePanelLayoutStore.getState().initializeTask("task-1");
+    });
+
+    it("opens diff in split pane when mode is split", () => {
+      useSettingsStore.setState({ diffOpenMode: "split" });
+
+      usePanelLayoutStore
+        .getState()
+        .openDiffByMode("task-1", "src/App.tsx", "modified");
+
+      const tree = getPanelTree("task-1");
+      expect(tree.type).toBe("group");
+    });
+
+    it("opens diff in main panel when mode is same-pane", () => {
+      useSettingsStore.setState({ diffOpenMode: "same-pane" });
+
+      usePanelLayoutStore
+        .getState()
+        .openDiffByMode("task-1", "src/App.tsx", "modified");
+
+      const tree = getPanelTree("task-1");
+      expect(tree.type).toBe("leaf");
+      const panel = findPanelById(tree, "main-panel");
+      const diffTab = panel?.content.tabs.find((t: { id: string }) =>
+        t.id.startsWith("diff-"),
+      );
+      expect(diffTab).toBeDefined();
+    });
+
+    it("opens diff in focused panel when mode is last-active-pane", () => {
+      useSettingsStore.setState({ diffOpenMode: "last-active-pane" });
+
+      usePanelLayoutStore
+        .getState()
+        .splitPanel("task-1", "shell", "main-panel", "main-panel", "right");
+
+      const tree = getPanelTree("task-1");
+      if (tree.type !== "group") throw new Error("Expected group");
+      const newPanelId = tree.children[1].id;
+      usePanelLayoutStore.getState().setFocusedPanel("task-1", newPanelId);
+
+      usePanelLayoutStore
+        .getState()
+        .openDiffByMode("task-1", "src/App.tsx", "modified");
+
+      const updatedTree = getPanelTree("task-1");
+      if (updatedTree.type !== "group") throw new Error("Expected group");
+      const secondPanel = findPanelById(updatedTree, newPanelId);
+      const diffTab = secondPanel?.content.tabs.find((t: { id: string }) =>
+        t.id.startsWith("diff-"),
+      );
+      expect(diffTab).toBeDefined();
+      expect(secondPanel?.content.activeTabId).toBe(diffTab?.id);
+    });
+
+    it("opens diff in split on wide window when mode is auto", () => {
+      useSettingsStore.setState({ diffOpenMode: "auto" });
+
+      Object.defineProperty(window, "outerWidth", {
+        value: 1440,
+        writable: true,
+      });
+
+      usePanelLayoutStore
+        .getState()
+        .openDiffByMode("task-1", "src/App.tsx", "modified");
+
+      const tree = getPanelTree("task-1");
+      expect(tree.type).toBe("group");
+    });
+
+    it("opens diff in same pane on narrow window when mode is auto", () => {
+      useSettingsStore.setState({ diffOpenMode: "auto" });
+
+      Object.defineProperty(window, "outerWidth", {
+        value: 1200,
+        writable: true,
+      });
+
+      usePanelLayoutStore
+        .getState()
+        .openDiffByMode("task-1", "src/App.tsx", "modified");
+
+      const tree = getPanelTree("task-1");
+      expect(tree.type).toBe("leaf");
+      const panel = findPanelById(tree, "main-panel");
+      const diffTab = panel?.content.tabs.find((t: { id: string }) =>
+        t.id.startsWith("diff-"),
+      );
+      expect(diffTab).toBeDefined();
     });
   });
 });

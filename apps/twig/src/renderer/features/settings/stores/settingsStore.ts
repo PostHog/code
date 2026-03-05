@@ -8,6 +8,7 @@ export type LocalWorkspaceMode = "worktree" | "local";
 export type SendMessagesWith = "enter" | "cmd+enter";
 export type CompletionSound = "none" | "guitar" | "danilo" | "revi" | "meep";
 export type AgentAdapter = "claude" | "codex";
+export type DiffOpenMode = "auto" | "split" | "same-pane" | "last-active-pane";
 
 interface SettingsStore {
   defaultRunMode: DefaultRunMode;
@@ -27,6 +28,7 @@ interface SettingsStore {
   allowBypassPermissions: boolean;
   preventSleepWhileRunning: boolean;
   customInstructions: string;
+  diffOpenMode: DiffOpenMode;
 
   setCompletionSound: (sound: CompletionSound) => void;
   setCompletionVolume: (volume: number) => void;
@@ -45,6 +47,7 @@ interface SettingsStore {
   setAllowBypassPermissions: (enabled: boolean) => void;
   setPreventSleepWhileRunning: (enabled: boolean) => void;
   setCustomInstructions: (instructions: string) => void;
+  setDiffOpenMode: (mode: DiffOpenMode) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -67,6 +70,7 @@ export const useSettingsStore = create<SettingsStore>()(
       allowBypassPermissions: false,
       preventSleepWhileRunning: false,
       customInstructions: "",
+      diffOpenMode: "auto",
 
       setCompletionSound: (sound) => set({ completionSound: sound }),
       setCompletionVolume: (volume) => set({ completionVolume: volume }),
@@ -93,6 +97,7 @@ export const useSettingsStore = create<SettingsStore>()(
         set({ preventSleepWhileRunning: enabled }),
       setCustomInstructions: (instructions) =>
         set({ customInstructions: instructions }),
+      setDiffOpenMode: (mode) => set({ diffOpenMode: mode }),
     }),
     {
       name: "settings-storage",
@@ -115,6 +120,7 @@ export const useSettingsStore = create<SettingsStore>()(
         allowBypassPermissions: state.allowBypassPermissions,
         preventSleepWhileRunning: state.preventSleepWhileRunning,
         customInstructions: state.customInstructions,
+        diffOpenMode: state.diffOpenMode,
       }),
       merge: (persisted, current) => ({
         ...current,

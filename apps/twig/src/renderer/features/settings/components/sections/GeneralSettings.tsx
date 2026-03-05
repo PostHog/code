@@ -1,6 +1,7 @@
 import { SettingRow } from "@features/settings/components/SettingRow";
 import {
   type CompletionSound,
+  type DiffOpenMode,
   type SendMessagesWith,
   useSettingsStore,
 } from "@features/settings/stores/settingsStore";
@@ -64,6 +65,7 @@ export function GeneralSettings() {
     completionSound,
     completionVolume,
     autoConvertLongText,
+    diffOpenMode,
     sendMessagesWith,
     setDesktopNotifications,
     setDockBadgeNotifications,
@@ -71,6 +73,7 @@ export function GeneralSettings() {
     setCompletionSound,
     setCompletionVolume,
     setAutoConvertLongText,
+    setDiffOpenMode,
     setSendMessagesWith,
   } = useSettingsStore();
 
@@ -260,6 +263,18 @@ export function GeneralSettings() {
       setAutoConvertLongText(checked);
     },
     [autoConvertLongText, setAutoConvertLongText],
+  );
+
+  const handleDiffOpenModeChange = useCallback(
+    (value: DiffOpenMode) => {
+      track(ANALYTICS_EVENTS.SETTING_CHANGED, {
+        setting_name: "diff_open_mode",
+        new_value: value,
+        old_value: diffOpenMode,
+      });
+      setDiffOpenMode(value);
+    },
+    [diffOpenMode, setDiffOpenMode],
   );
 
   const handleSendMessagesWithChange = useCallback(
@@ -470,13 +485,39 @@ export function GeneralSettings() {
       <SettingRow
         label="Auto-convert long text"
         description="Automatically convert pasted text over 500 characters into an attachment"
-        noBorder
       >
         <Switch
           checked={autoConvertLongText}
           onCheckedChange={handleAutoConvertLongTextChange}
           size="1"
         />
+      </SettingRow>
+
+      {/* Editor */}
+      <Text size="2" weight="medium" className="mt-4 mb-2">
+        Editor
+      </Text>
+
+      <SettingRow
+        label="Open diffs in"
+        description="Choose how file diffs open when clicking a changed file"
+        noBorder
+      >
+        <Select.Root
+          value={diffOpenMode}
+          onValueChange={(value) =>
+            handleDiffOpenModeChange(value as DiffOpenMode)
+          }
+          size="1"
+        >
+          <Select.Trigger style={{ minWidth: "140px" }} />
+          <Select.Content>
+            <Select.Item value="auto">Auto</Select.Item>
+            <Select.Item value="split">Split pane</Select.Item>
+            <Select.Item value="same-pane">Same pane</Select.Item>
+            <Select.Item value="last-active-pane">Last active pane</Select.Item>
+          </Select.Content>
+        </Select.Root>
       </SettingRow>
     </Flex>
   );

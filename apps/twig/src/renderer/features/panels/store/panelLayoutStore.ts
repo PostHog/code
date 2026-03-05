@@ -1,3 +1,4 @@
+import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { track } from "@renderer/lib/analytics";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { persist } from "zustand/middleware";
@@ -59,13 +60,7 @@ export interface PanelLayoutStore {
     filePath: string,
     asPreview?: boolean,
   ) => void;
-  openDiff: (
-    taskId: string,
-    filePath: string,
-    status?: string,
-    asPreview?: boolean,
-  ) => void;
-  openDiffInSplit: (
+  openDiffByMode: (
     taskId: string,
     filePath: string,
     status?: string,
@@ -401,26 +396,36 @@ export const usePanelLayoutStore = createWithEqualityFn<PanelLayoutStore>()(
         });
       },
 
-      openDiff: (taskId, filePath, status, asPreview = true) => {
+      openDiffByMode: (taskId, filePath, status, asPreview = true) => {
+        const mode = useSettingsStore.getState().diffOpenMode;
         const tabId = createDiffTabId(filePath, status);
-        set((state) => openTab(state, taskId, tabId, asPreview));
 
-        const changeType =
-          status === "added"
-            ? "added"
-            : status === "deleted"
-              ? "deleted"
-              : "modified";
-        track(ANALYTICS_EVENTS.FILE_DIFF_VIEWED, {
-          file_extension: getFileExtension(filePath),
-          change_type: changeType,
-          task_id: taskId,
+        set((state) => {
+          switch (mode) {
+            case "split":
+              return openTabInSplit(state, taskId, tabId, asPreview);
+            case "same-pane":
+              return openTab(
+                state,
+                taskId,
+                tabId,
+                asPreview,
+                DEFAULT_PANEL_IDS.MAIN_PANEL,
+              );
+            case "last-active-pane":
+              return openTab(state, taskId, tabId, asPreview);
+            default:
+              return window.outerWidth >= 1440
+                ? openTabInSplit(state, taskId, tabId, asPreview)
+                : openTab(
+                    state,
+                    taskId,
+                    tabId,
+                    asPreview,
+                    DEFAULT_PANEL_IDS.MAIN_PANEL,
+                  );
+          }
         });
-      },
-
-      openDiffInSplit: (taskId, filePath, status, asPreview = true) => {
-        const tabId = createDiffTabId(filePath, status);
-        set((state) => openTabInSplit(state, taskId, tabId, asPreview));
 
         const changeType =
           status === "added"
