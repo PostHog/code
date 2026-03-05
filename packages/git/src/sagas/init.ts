@@ -16,6 +16,7 @@ export class InitRepositorySaga extends GitSaga<
   InitRepositoryInput,
   InitRepositoryOutput
 > {
+  readonly sagaName = "InitRepositorySaga";
   private wasAlreadyRepo = false;
 
   protected async executeGitOperations(

@@ -10,6 +10,8 @@ export interface PublishOutput {
 }
 
 export class PublishSaga extends GitSaga<PublishInput, PublishOutput> {
+  readonly sagaName = "PublishSaga";
+
   protected async executeGitOperations(
     input: PublishInput,
   ): Promise<PublishOutput> {

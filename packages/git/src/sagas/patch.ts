@@ -13,6 +13,7 @@ export interface ApplyPatchOutput {
 }
 
 export class ApplyPatchSaga extends GitSaga<ApplyPatchInput, ApplyPatchOutput> {
+  readonly sagaName = "ApplyPatchSaga";
   private tempFile: string | null = null;
   private cached = false;
 

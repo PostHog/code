@@ -20,6 +20,8 @@ export interface CloneOutput {
 }
 
 export class CloneSaga extends Saga<CloneInput, CloneOutput> {
+  readonly sagaName = "CloneSaga";
+
   protected async execute(input: CloneInput): Promise<CloneOutput> {
     const { repoUrl, targetPath, signal, onProgress } = input;
     const manager = getGitOperationManager();

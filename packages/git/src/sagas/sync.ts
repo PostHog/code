@@ -15,6 +15,7 @@ export interface SyncOutput {
 }
 
 export class SyncSaga extends GitSaga<SyncInput, SyncOutput> {
+  readonly sagaName = "SyncSaga";
   private stashCreated = false;
 
   protected async executeGitOperations(input: SyncInput): Promise<SyncOutput> {

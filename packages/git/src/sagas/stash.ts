@@ -9,6 +9,7 @@ export interface StashPushOutput {
 }
 
 export class StashPushSaga extends GitSaga<StashPushInput, StashPushOutput> {
+  readonly sagaName = "StashPushSaga";
   private previouslyStagedFiles: string[] = [];
 
   protected async executeGitOperations(
@@ -76,6 +77,7 @@ export interface StashApplyOutput {
 }
 
 export class StashApplySaga extends GitSaga<StashApplyInput, StashApplyOutput> {
+  readonly sagaName = "StashApplySaga";
   private backupStashCreated = false;
   private stashCountBeforeBackup = 0;
 
@@ -182,6 +184,7 @@ export interface StashPopOutput {
 }
 
 export class StashPopSaga extends GitSaga<StashPopInput, StashPopOutput> {
+  readonly sagaName = "StashPopSaga";
   private stashSha: string | null = null;
   private stashMessage: string | null = null;
 

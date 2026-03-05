@@ -12,6 +12,7 @@ export interface CommitOutput {
 }
 
 export class CommitSaga extends GitSaga<CommitInput, CommitOutput> {
+  readonly sagaName = "CommitSaga";
   private previouslyStagedFiles: string[] = [];
 
   protected async executeGitOperations(
@@ -77,6 +78,8 @@ export class StageAndCommitSaga extends GitSaga<
   StageAndCommitInput,
   StageAndCommitOutput
 > {
+  readonly sagaName = "StageAndCommitSaga";
+
   protected async executeGitOperations(
     input: StageAndCommitInput,
   ): Promise<StageAndCommitOutput> {

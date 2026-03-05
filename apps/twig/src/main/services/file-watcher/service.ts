@@ -33,9 +33,13 @@ interface RepoWatcher {
   pending: PendingChanges;
 }
 
+const WATCHER_ERROR_THROTTLE_MS = 30_000;
+
 @injectable()
 export class FileWatcherService extends TypedEventEmitter<FileWatcherEvents> {
   private watchers = new Map<string, RepoWatcher>();
+  private lastWatcherErrorTime = 0;
+  private suppressedErrorCount = 0;
 
   constructor(
     @inject(MAIN_TOKENS.WatcherRegistryService)
@@ -178,9 +182,25 @@ export class FileWatcherService extends TypedEventEmitter<FileWatcherEvents> {
       this.stopWatching(repoPath).catch((e) =>
         log.warn(`Failed to stop watcher: ${e}`),
       );
-    } else {
-      log.error("Watcher error:", err);
+      return;
     }
+
+    const now = Date.now();
+    if (now - this.lastWatcherErrorTime < WATCHER_ERROR_THROTTLE_MS) {
+      this.suppressedErrorCount++;
+      return;
+    }
+
+    if (this.suppressedErrorCount > 0) {
+      log.warn(
+        `Watcher error (suppressed ${this.suppressedErrorCount} similar errors):`,
+        err,
+      );
+    } else {
+      log.warn("Watcher error:", err);
+    }
+    this.lastWatcherErrorTime = now;
+    this.suppressedErrorCount = 0;
   }
 
   private queueEvents(

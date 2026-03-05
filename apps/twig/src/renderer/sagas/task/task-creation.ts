@@ -95,6 +95,8 @@ export class TaskCreationSaga extends Saga<
   TaskCreationInput,
   TaskCreationOutput
 > {
+  readonly sagaName = "TaskCreationSaga";
+
   constructor(private deps: TaskCreationDeps) {
     super(sagaLogger);
   }

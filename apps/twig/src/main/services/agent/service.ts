@@ -381,7 +381,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         return true;
       }
     }
-    log.info("No active sessions found");
+    log.debug("No active sessions found");
     return false;
   }
 
@@ -1144,7 +1144,17 @@ For git operations while detached:
         mkdirSync(SHARED_MOCK_NODE_DIR, { recursive: true });
         const nodeSymlinkPath = join(SHARED_MOCK_NODE_DIR, "node");
         if (!existsSync(nodeSymlinkPath)) {
-          symlinkSync(process.execPath, nodeSymlinkPath);
+          try {
+            symlinkSync(process.execPath, nodeSymlinkPath);
+          } catch (err) {
+            if (
+              !(err instanceof Error) ||
+              !("code" in err) ||
+              err.code !== "EEXIST"
+            ) {
+              throw err;
+            }
+          }
         }
         this.mockNodeReady = true;
       } catch (err) {

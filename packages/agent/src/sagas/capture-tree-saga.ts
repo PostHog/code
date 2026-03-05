@@ -21,6 +21,8 @@ export interface CaptureTreeOutput {
 }
 
 export class CaptureTreeSaga extends Saga<CaptureTreeInput, CaptureTreeOutput> {
+  readonly sagaName = "CaptureTreeSaga";
+
   protected async execute(input: CaptureTreeInput): Promise<CaptureTreeOutput> {
     const {
       repositoryPath,

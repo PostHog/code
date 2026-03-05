@@ -21,6 +21,8 @@ export class ApplySnapshotSaga extends Saga<
   ApplySnapshotInput,
   ApplySnapshotOutput
 > {
+  readonly sagaName = "ApplySnapshotSaga";
+
   private archivePath: string | null = null;
 
   protected async execute(

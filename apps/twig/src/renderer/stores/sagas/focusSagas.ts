@@ -122,6 +122,8 @@ interface EnableOutput {
 }
 
 class FocusEnableSaga extends Saga<EnableInput, EnableOutput> {
+  readonly sagaName = "FocusEnableSaga";
+
   constructor() {
     super(sagaLogger);
   }
@@ -238,6 +240,8 @@ class FocusDisableSaga extends Saga<
   FocusSession,
   { stashPopWarning?: string }
 > {
+  readonly sagaName = "FocusDisableSaga";
+
   constructor() {
     super(sagaLogger);
   }
@@ -322,6 +326,8 @@ interface FocusOutput {
 }
 
 class FocusSaga extends Saga<FocusSagaInput, FocusOutput> {
+  readonly sagaName = "FocusSaga";
+
   constructor() {
     super(sagaLogger);
   }
@@ -411,6 +417,8 @@ interface RestoreInput {
 }
 
 class FocusRestoreSaga extends Saga<RestoreInput, FocusSession | null> {
+  readonly sagaName = "FocusRestoreSaga";
+
   constructor() {
     super(sagaLogger);
   }

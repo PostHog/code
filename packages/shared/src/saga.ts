@@ -44,6 +44,8 @@ const consoleLogger: SagaLogger = {
  * @template TOutput - The successful output type
  */
 export abstract class Saga<TInput, TOutput> {
+  abstract readonly sagaName: string;
+
   private completedSteps: Array<{
     name: string;
     rollback: () => Promise<void>;
@@ -66,14 +68,14 @@ export abstract class Saga<TInput, TOutput> {
     this.stepTimings = [];
 
     const sagaStart = performance.now();
-    this.log.info("Starting saga", { sagaName: this.constructor.name });
+    this.log.info("Starting saga", { sagaName: this.sagaName });
 
     try {
       const result = await this.execute(input);
 
       const totalDuration = performance.now() - sagaStart;
       this.log.debug("Saga completed successfully", {
-        sagaName: this.constructor.name,
+        sagaName: this.sagaName,
         stepsCompleted: this.completedSteps.length,
         totalDurationMs: Math.round(totalDuration),
         stepTimings: this.stepTimings,
@@ -82,7 +84,7 @@ export abstract class Saga<TInput, TOutput> {
       return { success: true, data: result };
     } catch (error) {
       this.log.error("Saga failed, initiating rollback", {
-        sagaName: this.constructor.name,
+        sagaName: this.sagaName,
         failedStep: this.currentStepName,
         error: error instanceof Error ? error.message : String(error),
       });

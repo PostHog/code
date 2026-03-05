@@ -12,6 +12,8 @@ export interface PushOutput {
 }
 
 export class PushSaga extends GitSaga<PushInput, PushOutput> {
+  readonly sagaName = "PushSaga";
+
   protected async executeGitOperations(input: PushInput): Promise<PushOutput> {
     const { remote = "origin", branch, setUpstream = false } = input;
 

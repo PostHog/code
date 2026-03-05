@@ -196,10 +196,16 @@ export class SessionLogWriter {
         );
         this.retryCounts.set(sessionId, 0);
       } else {
-        this.logger.error(
-          `Failed to persist session logs (attempt ${retryCount}/${SessionLogWriter.MAX_FLUSH_RETRIES}):`,
-          error,
-        );
+        if (retryCount === 1) {
+          this.logger.warn(
+            `Failed to persist session logs, will retry (up to ${SessionLogWriter.MAX_FLUSH_RETRIES} attempts)`,
+            {
+              taskId: session.context.taskId,
+              runId: session.context.runId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          );
+        }
         const currentPending = this.pendingEntries.get(sessionId) ?? [];
         this.pendingEntries.set(sessionId, [...pending, ...currentPending]);
         this.scheduleFlush(sessionId);

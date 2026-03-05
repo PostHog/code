@@ -86,7 +86,6 @@ export function initializeConnectivityStore() {
     undefined,
     {
       onData: (status) => {
-        log.info("Connectivity status changed", { isOnline: status.isOnline });
         useConnectivityStore.getState().setOnline(status.isOnline);
       },
       onError: (error) => {

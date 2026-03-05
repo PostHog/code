@@ -41,6 +41,8 @@ export interface ResumeOutput {
 }
 
 export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
+  readonly sagaName = "ResumeSaga";
+
   protected async execute(input: ResumeInput): Promise<ResumeOutput> {
     const { taskId, runId, repositoryPath, apiClient } = input;
     const logger =

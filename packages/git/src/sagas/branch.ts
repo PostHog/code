@@ -15,6 +15,8 @@ export class CreateBranchSaga extends GitSaga<
   CreateBranchInput,
   CreateBranchOutput
 > {
+  readonly sagaName = "CreateBranchSaga";
+
   protected async executeGitOperations(
     input: CreateBranchInput,
   ): Promise<CreateBranchOutput> {
@@ -54,6 +56,8 @@ export class SwitchBranchSaga extends GitSaga<
   SwitchBranchInput,
   SwitchBranchOutput
 > {
+  readonly sagaName = "SwitchBranchSaga";
+
   protected async executeGitOperations(
     input: SwitchBranchInput,
   ): Promise<SwitchBranchOutput> {
@@ -89,6 +93,7 @@ export class CreateOrSwitchBranchSaga extends GitSaga<
   CreateOrSwitchBranchInput,
   CreateOrSwitchBranchOutput
 > {
+  readonly sagaName = "CreateOrSwitchBranchSaga";
   private branchCreated = false;
 
   protected async executeGitOperations(
@@ -156,6 +161,8 @@ export class ResetToDefaultBranchSaga extends GitSaga<
   ResetToDefaultBranchInput,
   ResetToDefaultBranchOutput
 > {
+  readonly sagaName = "ResetToDefaultBranchSaga";
+
   protected async executeGitOperations(
     _input: ResetToDefaultBranchInput,
   ): Promise<ResetToDefaultBranchOutput> {
