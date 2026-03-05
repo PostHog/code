@@ -113,6 +113,7 @@ export interface Task {
   task_number: number | null;
   slug: string;
   title: string;
+  title_manually_set?: boolean;
   description: string;
   created_at: string;
   updated_at: string;

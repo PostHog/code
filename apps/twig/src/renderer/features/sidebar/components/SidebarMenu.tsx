@@ -124,14 +124,16 @@ function SidebarMenuComponent() {
         { queryKey: ["tasks", "list"] },
         (old) =>
           old?.map((task) =>
-            task.id === taskId ? { ...task, title: newTitle } : task,
+            task.id === taskId
+              ? { ...task, title: newTitle, title_manually_set: true }
+              : task,
           ),
       );
 
       try {
         await updateTask.mutateAsync({
           taskId,
-          updates: { title: newTitle },
+          updates: { title: newTitle, title_manually_set: true },
         });
       } catch (error) {
         log.error("Failed to rename task", error);

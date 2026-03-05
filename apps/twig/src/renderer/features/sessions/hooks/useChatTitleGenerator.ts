@@ -57,6 +57,13 @@ export function useChatTitleGenerator(taskId: string): void {
 
     const run = async () => {
       try {
+        const cachedTasks = queryClient.getQueryData<Task[]>(["tasks", "list"]);
+        const cachedTask = cachedTasks?.find((t) => t.id === taskId);
+        if (cachedTask?.title_manually_set) {
+          log.debug("Skipping auto-title, user renamed task", { taskId });
+          return;
+        }
+
         const title = await generateTitle(content);
         if (title) {
           const client = useAuthStore.getState().client;
