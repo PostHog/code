@@ -1,9 +1,8 @@
-import { useTaskExecutionStore } from "@features/task-detail/stores/taskExecutionStore";
-import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
+import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
+import { getTaskDirectorySync } from "@hooks/useRepositoryDirectory";
 import type { Task, WorkspaceMode } from "@shared/types";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useRegisteredFoldersStore } from "@stores/registeredFoldersStore";
-import { useTaskDirectoryStore } from "@stores/taskDirectoryStore";
 import { track } from "@utils/analytics";
 import { electronStorage } from "@utils/electronStorage";
 import { logger } from "@utils/logger";
@@ -92,8 +91,7 @@ export const useNavigationStore = create<NavigationStore>()(
 
           const repoKey = getTaskRepository(task) ?? undefined;
 
-          const existingWorkspace =
-            useWorkspaceStore.getState().workspaces[task.id];
+          const existingWorkspace = await workspaceApi.get(task.id);
           if (existingWorkspace?.folderId) {
             const folder = useRegisteredFoldersStore
               .getState()
@@ -109,50 +107,36 @@ export const useNavigationStore = create<NavigationStore>()(
             }
 
             if (folder) {
-              if (repoKey) {
-                useTaskDirectoryStore
-                  .getState()
-                  .setRepoDirectory(repoKey, folder.path);
-              }
               return;
             }
           }
 
-          const directory = useTaskDirectoryStore
-            .getState()
-            .getTaskDirectory(task.id, repoKey);
+          const directory = getTaskDirectorySync(task.id, repoKey ?? undefined);
 
           if (directory) {
             try {
               await useRegisteredFoldersStore.getState().addFolder(directory);
 
-              let workspaceMode: WorkspaceMode = useTaskExecutionStore
-                .getState()
-                .getTaskState(task.id).workspaceMode;
+              const workspaceMode: WorkspaceMode =
+                task.latest_run?.environment === "cloud" ? "cloud" : "local";
 
-              if (task.latest_run?.environment === "cloud") {
-                workspaceMode = "cloud";
-              }
-
-              await useWorkspaceStore
-                .getState()
-                .ensureWorkspace(task.id, directory, workspaceMode);
+              await workspaceApi.create({
+                taskId: task.id,
+                mainRepoPath: directory,
+                folderId: "",
+                folderPath: directory,
+                mode: workspaceMode,
+              });
             } catch (error) {
               log.error("Failed to auto-register folder on task open:", error);
             }
           } else if (task.latest_run?.environment === "cloud") {
-            useWorkspaceStore.getState().updateWorkspace(task.id, {
+            await workspaceApi.create({
               taskId: task.id,
+              mainRepoPath: "",
               folderId: "",
               folderPath: "",
               mode: "cloud",
-              worktreePath: null,
-              worktreeName: null,
-              branchName: null,
-              baseBranch: null,
-              createdAt: new Date().toISOString(),
-              terminalSessionIds: [],
-              hasStartScripts: false,
             });
           }
         },

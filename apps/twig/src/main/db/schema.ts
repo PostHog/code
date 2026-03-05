@@ -12,6 +12,7 @@ const updatedAt = () => text().notNull().default(sql`(CURRENT_TIMESTAMP)`);
 export const repositories = sqliteTable("repositories", {
   id: id(),
   path: text().notNull().unique(),
+  remoteUrl: text(),
   lastAccessedAt: text(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),

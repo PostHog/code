@@ -1,7 +1,6 @@
 import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
 import { Tooltip } from "@components/ui/Tooltip";
 import { useTasks } from "@features/tasks/hooks/useTasks";
-import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
 import {
   Cloud as CloudIcon,
@@ -243,8 +242,8 @@ export function ArchivedTasksView() {
   const { data: archivedTasks = [], isLoading: isLoadingArchived } =
     trpcReact.archive.list.useQuery();
   const { data: tasks = [], isLoading: isLoadingTasks } = useTasks();
-  const loadWorkspaces = useWorkspaceStore((s) => s.loadWorkspaces);
   const queryClient = useQueryClient();
+  const trpcUtils = trpcReact.useUtils();
 
   useSetHeaderContent(
     <Text size="1" weight="medium" className="font-mono text-[12px]">
@@ -279,7 +278,7 @@ export function ArchivedTasksView() {
 
     try {
       await trpcVanilla.archive.unarchive.mutate({ taskId });
-      await loadWorkspaces();
+      await trpcUtils.workspace.getAll.invalidate();
       await invalidateArchiveQueries();
       toast.success("Task unarchived", {
         action: task
@@ -363,7 +362,7 @@ export function ArchivedTasksView() {
         taskId,
         recreateBranch: true,
       });
-      await loadWorkspaces();
+      await trpcUtils.workspace.getAll.invalidate();
       await invalidateArchiveQueries();
       toast.success("Task unarchived", {
         action: task

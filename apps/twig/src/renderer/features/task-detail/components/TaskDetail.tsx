@@ -1,5 +1,4 @@
 import { FilePicker } from "@features/command/components/FilePicker";
-import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import { PanelLayout } from "@features/panels";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useTaskData } from "@features/task-detail/hooks/useTaskData";
@@ -9,8 +8,7 @@ import { useWorkspaceEvents } from "@features/workspace/hooks";
 import { useBlurOnEscape } from "@hooks/useBlurOnEscape";
 import { useFileWatcher } from "@hooks/useFileWatcher";
 import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
-import { Box, Code, Flex, Text, Tooltip } from "@radix-ui/themes";
-import { useWorkspaceStore } from "@renderer/features/workspace/stores/workspaceStore";
+import { Box, Flex, Text } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { useEffect, useMemo, useState } from "react";
 import { useHotkeys, useHotkeysContext } from "react-hotkeys-hook";
@@ -31,14 +29,7 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
 
   const { task } = useTaskData({ taskId, initialTask });
 
-  const workspace = useWorkspaceStore((state) => state.workspaces[taskId]);
   const effectiveRepoPath = useCwd(taskId);
-  const { currentBranch } = useGitQueries(effectiveRepoPath ?? undefined);
-  const isCloud =
-    workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
-  const branchName = isCloud
-    ? (workspace?.baseBranch ?? task.latest_run?.branch ?? currentBranch)
-    : (currentBranch ?? workspace?.branchName);
 
   const [filePickerOpen, setFilePickerOpen] = useState(false);
 
@@ -70,31 +61,13 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
             {task.title}
           </Text>
           <StartWorkspaceButton taskId={taskId} />
-          {branchName && (
-            <Tooltip content={branchName}>
-              <Code
-                size="1"
-                color="gray"
-                variant="ghost"
-                style={{
-                  opacity: 0.6,
-                  maxWidth: "200px",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {branchName}
-              </Code>
-            </Tooltip>
-          )}
         </Flex>
         {effectiveRepoPath && (
           <ExternalAppsOpener targetPath={effectiveRepoPath} />
         )}
       </Flex>
     ),
-    [task.title, taskId, branchName, effectiveRepoPath],
+    [task.title, taskId, effectiveRepoPath],
   );
 
   useSetHeaderContent(headerContent);

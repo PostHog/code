@@ -128,7 +128,7 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: {
       unpack:
-        "{**/*.node,**/spawn-helper,**/.vite/build/claude-cli/**,**/.vite/build/plugins/posthog/**,**/.vite/build/codex-acp/**,**/node_modules/node-pty/**,**/node_modules/@parcel/**,**/node_modules/file-icon/**,**/node_modules/better-sqlite3/**}",
+        "{**/*.node,**/spawn-helper,**/.vite/build/claude-cli/**,**/.vite/build/plugins/posthog/**,**/.vite/build/codex-acp/**,**/node_modules/node-pty/**,**/node_modules/@parcel/**,**/node_modules/file-icon/**,**/node_modules/better-sqlite3/**,**/node_modules/bindings/**,**/node_modules/file-uri-to-path/**}",
     },
     prune: false,
     name: "PostHog Code",
@@ -216,6 +216,7 @@ const config: ForgeConfig = {
       copyNativeDependency("is-number", buildPath);
       copyNativeDependency("better-sqlite3", buildPath);
       copyNativeDependency("bindings", buildPath);
+      copyNativeDependency("file-uri-to-path", buildPath);
       copyNativeDependency("prebuild-install", buildPath);
     },
   },

@@ -6,10 +6,7 @@ import {
 } from "@features/git-interaction/components/GitInteractionDialogs";
 import { GitInteractionMenu } from "@features/git-interaction/components/GitInteractionMenu";
 import { useGitInteraction } from "@features/git-interaction/hooks/useGitInteraction";
-import {
-  selectWorkspace,
-  useWorkspaceStore,
-} from "@features/workspace/stores/workspaceStore";
+import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { selectIsFocusedOnWorktree, useFocusStore } from "@stores/focusStore";
 
 interface GitInteractionHeaderProps {
@@ -17,7 +14,7 @@ interface GitInteractionHeaderProps {
 }
 
 export function GitInteractionHeader({ taskId }: GitInteractionHeaderProps) {
-  const workspace = useWorkspaceStore(selectWorkspace(taskId));
+  const workspace = useWorkspace(taskId);
   const isFocused = useFocusStore(
     selectIsFocusedOnWorktree(workspace?.worktreePath ?? ""),
   );

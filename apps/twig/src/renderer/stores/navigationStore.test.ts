@@ -20,21 +20,20 @@ vi.mock("@utils/analytics", () => ({ track: vi.fn() }));
 vi.mock("@utils/logger", () => ({
   logger: { scope: () => ({ info: vi.fn(), error: vi.fn(), debug: vi.fn() }) },
 }));
-vi.mock("@features/task-detail/stores/taskExecutionStore", () => ({
-  useTaskExecutionStore: {
-    getState: () => ({ getTaskState: () => ({ workspaceMode: "local" }) }),
-  },
-}));
-vi.mock("@features/workspace/stores/workspaceStore", () => ({
-  useWorkspaceStore: {
-    getState: () => ({ ensureWorkspace: vi.fn(), workspaces: {} }),
+vi.mock("@features/workspace/hooks/useWorkspace", () => ({
+  workspaceApi: {
+    get: vi.fn().mockResolvedValue(null),
+    getAll: vi.fn().mockResolvedValue({}),
+    create: vi.fn().mockResolvedValue(null),
   },
 }));
 vi.mock("@stores/registeredFoldersStore", () => ({
-  useRegisteredFoldersStore: { getState: () => ({ addFolder: vi.fn() }) },
+  useRegisteredFoldersStore: {
+    getState: () => ({ addFolder: vi.fn(), folders: [] }),
+  },
 }));
-vi.mock("@stores/taskDirectoryStore", () => ({
-  useTaskDirectoryStore: { getState: () => ({ getTaskDirectory: () => null }) },
+vi.mock("@hooks/useRepositoryDirectory", () => ({
+  getTaskDirectorySync: () => null,
 }));
 
 import { useNavigationStore } from "./navigationStore";

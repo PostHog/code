@@ -8,10 +8,10 @@ import {
 import { showFocusSuccessToast } from "@utils/focusToast";
 import { toast } from "@utils/toast";
 import { useCallback, useMemo } from "react";
-import { selectWorkspace, useWorkspaceStore } from "../stores/workspaceStore";
+import { useWorkspace } from "./useWorkspace";
 
 export function useFocusWorkspace(taskId: string) {
-  const workspace = useWorkspaceStore(selectWorkspace(taskId));
+  const workspace = useWorkspace(taskId);
   const focusSession = useFocusStore((s) => s.session);
   const isFocusLoading = useFocusStore(selectIsLoading);
   const enableFocus = useFocusStore((s) => s.enableFocus);

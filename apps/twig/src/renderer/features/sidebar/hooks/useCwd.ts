@@ -1,7 +1,7 @@
-import { useWorkspaceStore } from "@renderer/features/workspace/stores/workspaceStore";
+import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 
 export function useCwd(taskId: string): string | undefined {
-  const workspace = useWorkspaceStore((state) => state.workspaces[taskId]);
+  const workspace = useWorkspace(taskId);
 
   if (!workspace) return undefined;
 

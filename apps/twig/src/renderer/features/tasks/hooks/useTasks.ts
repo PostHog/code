@@ -1,8 +1,8 @@
 import { usePinnedTasksStore } from "@features/sidebar/stores/pinnedTasksStore";
+import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
 import { useAuthenticatedMutation } from "@hooks/useAuthenticatedMutation";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import { useMeQuery } from "@hooks/useMeQuery";
-import { useWorkspaceStore } from "@renderer/features/workspace/stores/workspaceStore";
 import { useFocusStore } from "@renderer/stores/focusStore";
 import { useNavigationStore } from "@renderer/stores/navigationStore";
 import { trpcVanilla } from "@renderer/trpc/client";
@@ -130,12 +130,10 @@ export function useDeleteTask() {
 
   const mutation = useAuthenticatedMutation(
     async (client, taskId: string) => {
-      const workspaceStore = useWorkspaceStore.getState();
       const focusStore = useFocusStore.getState();
-      const workspace = workspaceStore.workspaces[taskId];
+      const workspace = await workspaceApi.get(taskId);
 
       if (workspace) {
-        // If this workspace is currently focused/watched, unfocus first
         if (
           focusStore.session?.worktreePath === workspace.worktreePath &&
           workspace.worktreePath
@@ -145,7 +143,7 @@ export function useDeleteTask() {
         }
 
         try {
-          await workspaceStore.deleteWorkspace(taskId, workspace.folderPath);
+          await workspaceApi.delete(taskId, workspace.folderPath);
         } catch (error) {
           log.error("Failed to delete workspace:", error);
         }

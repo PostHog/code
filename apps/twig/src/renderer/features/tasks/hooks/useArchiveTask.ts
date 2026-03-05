@@ -1,7 +1,7 @@
 import { getSessionService } from "@features/sessions/service/service";
 import { usePinnedTasksStore } from "@features/sidebar/stores/pinnedTasksStore";
 import { useTerminalStore } from "@features/terminal/stores/terminalStore";
-import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
+import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
 import { trpcVanilla } from "@renderer/trpc";
 import type { ArchivedTask } from "@shared/types/archive";
 import { useFocusStore } from "@stores/focusStore";
@@ -22,8 +22,7 @@ export function useArchiveTask() {
   const archiveTask = async (input: ArchiveTaskInput) => {
     const { taskId } = input;
     const focusStore = useFocusStore.getState();
-    const workspaceStore = useWorkspaceStore.getState();
-    const workspace = workspaceStore.workspaces[taskId];
+    const workspace = await workspaceApi.get(taskId);
     const pinnedTasksStore = usePinnedTasksStore.getState();
     const wasPinned = pinnedTasksStore.pinnedTaskIds.has(taskId);
 
@@ -32,7 +31,6 @@ export function useArchiveTask() {
       nav.navigateToTaskInput();
     }
 
-    workspaceStore.removeWorkspace(taskId);
     pinnedTasksStore.unpin(taskId);
     useTerminalStore.getState().clearTerminalStatesForTask(taskId);
 
@@ -87,9 +85,6 @@ export function useArchiveTask() {
         [["archive", "list"], { type: "query" }],
         (old) => (old ? old.filter((a) => a.taskId !== taskId) : []),
       );
-      if (workspace) {
-        workspaceStore.updateWorkspace(taskId, workspace);
-      }
       if (wasPinned) {
         pinnedTasksStore.togglePin(taskId);
       }

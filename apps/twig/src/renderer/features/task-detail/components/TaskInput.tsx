@@ -20,8 +20,8 @@ import {
 import { Flex } from "@radix-ui/themes";
 import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
 import { repositoryWorkspaceStore } from "@renderer/stores/repositoryWorkspaceStore";
+import { trpcReact } from "@renderer/trpc/client";
 import { useNavigationStore } from "@stores/navigationStore";
-import { useTaskDirectoryStore } from "@stores/taskDirectoryStore";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { usePreviewSession } from "../hooks/usePreviewSession";
@@ -33,7 +33,8 @@ const DOT_FILL = "var(--gray-6)";
 
 export function TaskInput() {
   const { view } = useNavigationStore();
-  const { lastUsedDirectory, setLastUsedDirectory } = useTaskDirectoryStore();
+  const { data: mostRecentRepo } =
+    trpcReact.folders.getMostRecentlyAccessedRepository.useQuery();
   const {
     setLastUsedLocalWorkspaceMode,
     lastUsedWorkspaceMode,
@@ -51,12 +52,16 @@ export function TaskInput() {
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
 
-  const selectedDirectory = lastUsedDirectory || "";
+  const [selectedDirectory, setSelectedDirectory] = useState("");
   const workspaceMode = lastUsedWorkspaceMode || "local";
   const adapter = lastUsedAdapter;
 
-  const setSelectedDirectory = (path: string) =>
-    setLastUsedDirectory(path || null);
+  useEffect(() => {
+    if (!selectedDirectory && mostRecentRepo?.path) {
+      setSelectedDirectory(mostRecentRepo.path);
+    }
+  }, [mostRecentRepo?.path, selectedDirectory]);
+
   const setWorkspaceMode = (mode: WorkspaceMode) => {
     setLastUsedWorkspaceMode(mode);
     if (mode !== "cloud") {
@@ -69,7 +74,7 @@ export function TaskInput() {
   const { githubIntegration, repositories, isLoadingRepos } =
     useRepositoryIntegration();
   const selectedRepository = repositoryWorkspaceStore(
-    (s) => s.selectedRepository,
+    (s: { selectedRepository: string | null }) => s.selectedRepository,
   );
   const { currentBranch, branchLoading, defaultBranch } =
     useGitQueries(selectedDirectory);
@@ -91,10 +96,10 @@ export function TaskInput() {
       const currentFolders = useRegisteredFoldersStore.getState().folders;
       const folder = currentFolders.find((f) => f.id === view.folderId);
       if (folder) {
-        setLastUsedDirectory(folder.path);
+        setSelectedDirectory(folder.path);
       }
     }
-  }, [view.folderId, setLastUsedDirectory]);
+  }, [view.folderId]);
 
   const effectiveWorkspaceMode = workspaceMode;
 

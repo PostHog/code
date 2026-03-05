@@ -1,10 +1,8 @@
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
-import { useTaskExecutionStore } from "@features/task-detail/stores/taskExecutionStore";
-import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
+import { useEnsureWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { Folder } from "@phosphor-icons/react";
 import { Box, Code, Flex, Spinner, Text } from "@radix-ui/themes";
 import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
-import { useTaskDirectoryStore } from "@renderer/stores/taskDirectoryStore";
 import type { Task } from "@shared/types";
 import { logger } from "@utils/logger";
 import { getTaskRepository } from "@utils/repository";
@@ -25,6 +23,7 @@ export function WorkspaceSetupPrompt({
   const [isSettingUp, setIsSettingUp] = useState(false);
   const [selectedPath, setSelectedPath] = useState("");
   const repository = getTaskRepository(task);
+  const { ensureWorkspace } = useEnsureWorkspace();
 
   const handleFolderSelect = useCallback(
     async (path: string) => {
@@ -35,14 +34,7 @@ export function WorkspaceSetupPrompt({
         const addFolder = useRegisteredFoldersStore.getState().addFolder;
         await addFolder(path);
 
-        if (repository) {
-          useTaskDirectoryStore.getState().setRepoDirectory(repository, path);
-        }
-
-        await useWorkspaceStore
-          .getState()
-          .ensureWorkspace(taskId, path, "worktree");
-        useTaskExecutionStore.getState().setRepoPath(taskId, path);
+        await ensureWorkspace(taskId, path, "worktree");
 
         log.info("Workspace setup complete", { taskId, path });
       } catch (error) {
@@ -53,7 +45,7 @@ export function WorkspaceSetupPrompt({
         setIsSettingUp(false);
       }
     },
-    [taskId, repository],
+    [taskId, ensureWorkspace],
   );
 
   return (

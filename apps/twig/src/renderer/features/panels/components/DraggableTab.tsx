@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/react/sortable";
 import type { TabData } from "@features/panels/store/panelTypes";
-import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
+import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
 import { trpcVanilla } from "@renderer/trpc/client";
@@ -93,12 +93,11 @@ export const DraggableTab: React.FC<DraggableTabProps> = ({
           break;
         case "external-app":
           if (filePath) {
-            // Find workspace by matching repoPath
             const repoPath =
               tabData.type === "file" || tabData.type === "diff"
                 ? tabData.repoPath
                 : undefined;
-            const workspaces = useWorkspaceStore.getState().workspaces;
+            const workspaces = await workspaceApi.getAll();
             const workspace = repoPath
               ? (Object.values(workspaces).find(
                   (ws) =>

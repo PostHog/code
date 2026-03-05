@@ -127,6 +127,7 @@ export function createMockWorkspaceRepository(
     updateLastViewedAt: () => {},
     updateLastActivityAt: () => {},
     updateMode: () => {},
+    updateBranchName: () => {},
     deleteAll: () => {
       workspaces.clear();
       taskIndex.clear();

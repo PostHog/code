@@ -1,6 +1,4 @@
-import { useTaskExecutionStore } from "@features/task-detail/stores/taskExecutionStore";
 import { trpcVanilla } from "@renderer/trpc/client";
-import { useTaskDirectoryStore } from "@stores/taskDirectoryStore";
 import { create } from "zustand";
 
 type CloneStatus = "cloning" | "complete" | "error";
@@ -27,7 +25,6 @@ interface CloneStore {
 const REMOVE_DELAY_SUCCESS_MS = 3000;
 const REMOVE_DELAY_ERROR_MS = 5000;
 
-// Global subscription to clone progress events
 let globalSubscription: { unsubscribe: () => void } | null = null;
 let subscriptionRefCount = 0;
 
@@ -55,42 +52,14 @@ const releaseGlobalSubscription = () => {
 };
 
 export const cloneStore = create<CloneStore>((set, get) => {
-  const updateTaskRepoExists = (targetPath: string, exists: boolean) => {
-    const taskStore = useTaskExecutionStore.getState();
-    Object.keys(taskStore.taskStates).forEach((taskId) => {
-      const taskState = taskStore.taskStates[taskId];
-      if (taskState?.repoPath === targetPath) {
-        taskStore.updateTaskState(taskId, { repoExists: exists });
-      }
-
-      taskStore.revalidateRepo(taskId);
-    });
-  };
-
-  const handleComplete = (cloneId: string, _repoKey: string) => {
-    const operation = get().operations[cloneId];
-    if (operation) {
-      updateTaskRepoExists(operation.targetPath, true);
-
-      // Save repo → directory mapping for future tasks
-      const repoKey = operation.repository;
-      useTaskDirectoryStore
-        .getState()
-        .setRepoDirectory(repoKey, operation.targetPath);
-    }
-
+  const handleComplete = (cloneId: string) => {
     window.setTimeout(
       () => get().removeClone(cloneId),
       REMOVE_DELAY_SUCCESS_MS,
     );
   };
 
-  const handleError = (cloneId: string, _repoKey: string, _message: string) => {
-    const operation = get().operations[cloneId];
-    if (operation) {
-      updateTaskRepoExists(operation.targetPath, false);
-    }
-
+  const handleError = (cloneId: string) => {
     window.setTimeout(() => get().removeClone(cloneId), REMOVE_DELAY_ERROR_MS);
   };
 
@@ -120,12 +89,12 @@ export const cloneStore = create<CloneStore>((set, get) => {
       trpcVanilla.git.cloneRepository
         .mutate({ repoUrl: repository, targetPath, cloneId })
         .then(() => {
-          handleComplete(cloneId, repository);
+          handleComplete(cloneId);
         })
         .catch((err) => {
           const message = err instanceof Error ? err.message : "Clone failed";
           get().updateClone(cloneId, "error", message);
-          handleError(cloneId, repository, message);
+          handleError(cloneId);
         });
     },
 

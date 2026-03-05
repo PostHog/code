@@ -1,6 +1,6 @@
 import { useArchiveTask } from "@features/tasks/hooks/useArchiveTask";
 import { useDeleteTask } from "@features/tasks/hooks/useTasks";
-import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
+import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
@@ -59,8 +59,7 @@ export function useTaskContextMenu() {
             break;
           case "external-app":
             if (worktreePath) {
-              const workspace =
-                useWorkspaceStore.getState().workspaces[task.id] ?? null;
+              const workspace = await workspaceApi.get(task.id);
               await handleExternalAppAction(
                 result.action.action,
                 worktreePath,

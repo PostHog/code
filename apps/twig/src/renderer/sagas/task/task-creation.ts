@@ -4,9 +4,9 @@ import {
   getSessionService,
 } from "@features/sessions/service/service";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
+import { getTaskDirectoryAsync } from "@hooks/useRepositoryDirectory";
 import { Saga, type SagaLogger } from "@posthog/shared";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
-import { useTaskDirectoryStore } from "@renderer/stores/taskDirectoryStore";
 import { trpcVanilla } from "@renderer/trpc";
 import { generateTitle } from "@renderer/utils/generateTitle";
 import { getTaskRepository } from "@renderer/utils/repository";
@@ -124,18 +124,12 @@ export class TaskCreationSaga extends Saga<
       generateTaskTitle(task.id, input.content ?? "", this.deps.posthogClient);
     }
 
-    // Step 2: Resolve repoPath - input takes precedence, then stored mappings
-    // Wait for workspace store to load first (it loads async on init)
-    await this.readOnlyStep("wait_workspaces_loaded", () =>
-      this.waitForWorkspacesLoaded(),
-    );
-
     const repoKey = getTaskRepository(task);
     const repoPath =
       input.repoPath ??
-      useTaskDirectoryStore
-        .getState()
-        .getTaskDirectory(task.id, repoKey ?? undefined);
+      (await this.readOnlyStep("resolve_repo_path", () =>
+        getTaskDirectoryAsync(task.id, repoKey ?? undefined),
+      ));
 
     // Step 3: Resolve workspaceMode - input takes precedence, then derive from task
     const workspaceMode =
@@ -157,11 +151,6 @@ export class TaskCreationSaga extends Saga<
     const branch = input.branch ?? task.latest_run?.branch ?? null;
 
     if (repoPath) {
-      // Save repo → directory mapping (ensures it exists for future opens)
-      if (repoKey) {
-        useTaskDirectoryStore.getState().setRepoDirectory(repoKey, repoPath);
-      }
-
       // Use the pre-fetched folder if we started it in parallel, otherwise fetch now
       const folder = folderPromise
         ? await this.readOnlyStep("folder_registration", () => folderPromise)
@@ -286,24 +275,6 @@ export class TaskCreationSaga extends Saga<
     return { task, workspace };
   }
 
-  /**
-   * Wait for the workspace store to finish loading from main process.
-   * This prevents race conditions where we try to resolve directories before they're loaded.
-   */
-  private async waitForWorkspacesLoaded(): Promise<void> {
-    const store = useWorkspaceStore.getState();
-    if (store.isLoaded) return;
-
-    return new Promise((resolve) => {
-      const unsubscribe = useWorkspaceStore.subscribe((state) => {
-        if (state.isLoaded) {
-          unsubscribe();
-          resolve();
-        }
-      });
-    });
-  }
-
   private async resolveFolder(repoPath: string) {
     const folders = await trpcVanilla.folders.getFolders.query();
     let existingFolder = folders.find((f) => f.path === repoPath);
@@ -329,13 +300,6 @@ export class TaskCreationSaga extends Saga<
       if (detected) {
         repository = `${detected.organization}/${detected.repository}`;
       }
-    }
-
-    // Save repo → directory mapping for future lookups (e.g., when opening via deep link)
-    if (repository && input.repoPath) {
-      useTaskDirectoryStore
-        .getState()
-        .setRepoDirectory(repository, input.repoPath);
     }
 
     return this.step({

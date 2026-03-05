@@ -40,6 +40,7 @@ export interface IWorkspaceRepository {
   updateLastViewedAt(taskId: string, lastViewedAt: string): void;
   updateLastActivityAt(taskId: string, lastActivityAt: string): void;
   updateMode(taskId: string, mode: WorkspaceMode): void;
+  updateBranchName(taskId: string, branchName: string): void;
   deleteAll(): void;
 }
 
@@ -116,8 +117,9 @@ export class WorkspaceRepository implements IWorkspaceRepository {
 
   createActive(data: CreateActiveWorkspaceData): Workspace {
     const timestamp = now();
+    const id = crypto.randomUUID();
     const row: NewWorkspace = {
-      id: crypto.randomUUID(),
+      id,
       taskId: data.taskId,
       repositoryId: data.repositoryId,
       mode: data.mode,
@@ -126,7 +128,11 @@ export class WorkspaceRepository implements IWorkspaceRepository {
       updatedAt: timestamp,
     };
     this.db.insert(workspaces).values(row).run();
-    return this.findById(row.id!)!;
+    const created = this.findById(id);
+    if (!created) {
+      throw new Error(`Failed to create workspace with id ${id}`);
+    }
+    return created;
   }
 
   archive(taskId: string, data: ArchiveWorkspaceData): Workspace | null {
@@ -199,6 +205,14 @@ export class WorkspaceRepository implements IWorkspaceRepository {
       .update(workspaces)
       .set({ mode, updatedAt: now() })
       .where(activeByTaskId(taskId))
+      .run();
+  }
+
+  updateBranchName(taskId: string, branchName: string): void {
+    this.db
+      .update(workspaces)
+      .set({ branchName, updatedAt: now() })
+      .where(byTaskId(taskId))
       .run();
   }
 

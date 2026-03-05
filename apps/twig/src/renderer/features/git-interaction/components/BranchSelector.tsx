@@ -1,7 +1,7 @@
 import { Combobox } from "@components/ui/combobox/Combobox";
 import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
 import { GitBranch, Plus } from "@phosphor-icons/react";
-import { Flex, Spinner } from "@radix-ui/themes";
+import { Flex, Spinner, Tooltip } from "@radix-ui/themes";
 import { trpcVanilla } from "@renderer/trpc";
 import { toast } from "@renderer/utils/toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -104,61 +104,61 @@ export function BranchSelector({
     </Flex>
   );
 
-  const combobox = (
-    <Combobox.Root
-      value={displayedBranch ?? ""}
-      onValueChange={handleBranchChange}
-      open={open}
-      onOpenChange={setOpen}
-      size="1"
-      disabled={disabled || !repoPath}
-    >
-      <Combobox.Trigger variant={variant} placeholder="No branch">
-        {triggerContent}
-      </Combobox.Trigger>
+  return (
+    <Tooltip content={displayedBranch} delayDuration={300}>
+      <Combobox.Root
+        value={displayedBranch ?? ""}
+        onValueChange={handleBranchChange}
+        open={open}
+        onOpenChange={setOpen}
+        size="1"
+        disabled={disabled || !repoPath}
+      >
+        <Combobox.Trigger variant={variant} placeholder="No branch">
+          {triggerContent}
+        </Combobox.Trigger>
 
-      <Combobox.Content>
-        <Combobox.Input placeholder="Search branches" />
-        <Combobox.Empty>No branches found.</Combobox.Empty>
+        <Combobox.Content>
+          <Combobox.Input placeholder="Search branches" />
+          <Combobox.Empty>No branches found.</Combobox.Empty>
 
-        <Combobox.Group
-          heading={isCloudMode ? "Remote branches" : "Local branches"}
-        >
-          {branches.map((branch) => (
-            <Combobox.Item
-              key={branch}
-              value={branch}
-              icon={<GitBranch size={11} weight="regular" />}
-            >
-              {branch}
-            </Combobox.Item>
-          ))}
-        </Combobox.Group>
-
-        {!isCloudMode && (
-          <Combobox.Footer>
-            <button
-              type="button"
-              className="combobox-footer-button"
-              onClick={() => {
-                setOpen(false);
-                actions.openBranch();
-              }}
-            >
-              <Flex
-                align="center"
-                gap="2"
-                style={{ color: "var(--accent-11)" }}
+          <Combobox.Group
+            heading={isCloudMode ? "Remote branches" : "Local branches"}
+          >
+            {branches.map((branch) => (
+              <Combobox.Item
+                key={branch}
+                value={branch}
+                icon={<GitBranch size={11} weight="regular" />}
               >
-                <Plus size={11} weight="bold" />
-                <span>Create new branch</span>
-              </Flex>
-            </button>
-          </Combobox.Footer>
-        )}
-      </Combobox.Content>
-    </Combobox.Root>
-  );
+                {branch}
+              </Combobox.Item>
+            ))}
+          </Combobox.Group>
 
-  return combobox;
+          {!isCloudMode && (
+            <Combobox.Footer>
+              <button
+                type="button"
+                className="combobox-footer-button"
+                onClick={() => {
+                  setOpen(false);
+                  actions.openBranch();
+                }}
+              >
+                <Flex
+                  align="center"
+                  gap="2"
+                  style={{ color: "var(--accent-11)" }}
+                >
+                  <Plus size={11} weight="bold" />
+                  <span>Create new branch</span>
+                </Flex>
+              </button>
+            </Combobox.Footer>
+          )}
+        </Combobox.Content>
+      </Combobox.Root>
+    </Tooltip>
+  );
 }

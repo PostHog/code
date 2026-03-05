@@ -1,8 +1,7 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
-import { useTaskExecutionStore } from "@features/task-detail/stores/taskExecutionStore";
-import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
+import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
 import type { SagaResult } from "@posthog/shared";
 import {
   type TaskCreationInput,
@@ -10,6 +9,7 @@ import {
   TaskCreationSaga,
 } from "@renderer/sagas/task/task-creation";
 import { logger } from "@utils/logger";
+import { queryClient } from "@utils/queryClient";
 import { injectable } from "inversify";
 
 export type { TaskCreationInput, TaskCreationOutput };
@@ -61,6 +61,9 @@ export class TaskService {
 
     if (result.success) {
       this.updateStoresOnSuccess(result.data, input);
+      void queryClient.invalidateQueries({
+        queryKey: [["workspace", "getAll"]],
+      });
     }
 
     return result;
@@ -86,8 +89,7 @@ export class TaskService {
       };
     }
 
-    // Check if workspace already exists - if so, just fetch the task
-    const existingWorkspace = useWorkspaceStore.getState().workspaces[taskId];
+    const existingWorkspace = await workspaceApi.get(taskId);
     if (existingWorkspace) {
       log.info("Workspace already exists, fetching task only", { taskId });
       try {
@@ -123,6 +125,9 @@ export class TaskService {
 
     if (result.success) {
       this.updateStoresOnSuccess(result.data);
+      void queryClient.invalidateQueries({
+        queryKey: [["workspace", "getAll"]],
+      });
 
       // If a specific run was requested, update the task with that run
       if (taskRunId && result.data.task) {
@@ -154,19 +159,11 @@ export class TaskService {
     input?: TaskCreationInput,
   ): void {
     const settings = useSettingsStore.getState();
-    const taskExecution = useTaskExecutionStore.getState();
     const draftStore = useDraftStore.getState();
-    const workspaceStore = useWorkspaceStore.getState();
 
-    // Derive values from input or output
     const workspaceMode =
       input?.workspaceMode ?? output.workspace?.mode ?? "local";
-    const repoPath = input?.repoPath ?? output.workspace?.folderPath;
 
-    // Save workspace mode for this task
-    taskExecution.setWorkspaceMode(output.task.id, workspaceMode);
-
-    // Only update settings preferences when creating (user made a choice)
     if (input) {
       settings.setLastUsedWorkspaceMode(workspaceMode);
 
@@ -179,18 +176,7 @@ export class TaskService {
         );
       }
 
-      // Clear draft only on create (task-input is the sessionId used by TaskInputEditor)
       draftStore.actions.setDraft("task-input", null);
-    }
-
-    // Save repo path for local tasks
-    if (repoPath && workspaceMode !== "cloud") {
-      taskExecution.setRepoPath(output.task.id, repoPath);
-    }
-
-    // Update workspace store
-    if (output.workspace) {
-      workspaceStore.updateWorkspace(output.task.id, output.workspace);
     }
 
     log.info("Stores updated after task", { taskId: output.task.id });

@@ -355,7 +355,6 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     const {
       taskId,
       mainRepoPath,
-      folderId,
       folderPath,
       mode,
       branch,
@@ -374,10 +373,13 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       `Creating workspace for task ${taskId} in ${mainRepoPath} (mode: ${mode}, useExistingBranch: ${useExistingBranch})`,
     );
 
+    const repository = this.repositoryRepo.findByPath(mainRepoPath);
+    const repositoryId = repository?.id ?? null;
+
     if (mode === "cloud") {
       this.workspaceRepo.createActive({
         taskId,
-        repositoryId: folderId,
+        repositoryId,
         mode: "cloud",
       });
 
@@ -419,7 +421,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
 
       this.workspaceRepo.createActive({
         taskId,
-        repositoryId: folderId,
+        repositoryId,
         mode: "local",
       });
 
@@ -580,7 +582,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
 
     const createdWorkspace = this.workspaceRepo.createActive({
       taskId,
-      repositoryId: folderId,
+      repositoryId,
       mode: "worktree",
     });
 

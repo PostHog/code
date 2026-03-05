@@ -16,11 +16,15 @@ import {
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useTaskViewedStore } from "@features/sidebar/stores/taskViewedStore";
 import { WorkspaceSetupPrompt } from "@features/task-detail/components/WorkspaceSetupPrompt";
-import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
+import {
+  useCreateWorkspace,
+  useWorkspace,
+  useWorkspaceLoaded,
+} from "@features/workspace/hooks/useWorkspace";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
 import { useNavigationStore } from "@renderer/stores/navigationStore";
-import { useTaskDirectoryStore } from "@renderer/stores/taskDirectoryStore";
+import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
@@ -38,14 +42,13 @@ interface TaskLogsPanelProps {
 
 export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   const repoPath = useCwd(taskId);
-  const workspace = useWorkspaceStore((s) => s.workspaces[taskId]);
-  const loadWorkspaces = useWorkspaceStore((s) => s.loadWorkspaces);
+  const workspace = useWorkspace(taskId);
   const queryClient = useQueryClient();
-  const isWorkspaceLoaded = useWorkspaceStore((s) => s.isLoaded);
-  const isCreatingWorkspace = useWorkspaceStore((s) => !!s.isCreating[taskId]);
+  const isWorkspaceLoaded = useWorkspaceLoaded();
+  const { isPending: isCreatingWorkspace } = useCreateWorkspace();
   const repoKey = getTaskRepository(task);
-  const hasDirectoryMapping = useTaskDirectoryStore(
-    (s) => !!repoKey && repoKey in s.repoDirectories,
+  const hasDirectoryMapping = useRegisteredFoldersStore((s) =>
+    repoKey ? s.folders.some((f) => f.remoteUrl === repoKey) : false,
   );
 
   const session = useSessionForTask(taskId);
@@ -128,12 +131,6 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   useEffect(() => {
     requestFocus(taskId);
   }, [taskId, requestFocus]);
-
-  useEffect(() => {
-    if (!workspace && isWorkspaceLoaded && !isCreatingWorkspace) {
-      loadWorkspaces();
-    }
-  }, [workspace, isWorkspaceLoaded, isCreatingWorkspace, loadWorkspaces]);
 
   // Keep cloud session title aligned with latest task metadata.
   useEffect(() => {

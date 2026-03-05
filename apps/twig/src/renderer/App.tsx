@@ -7,7 +7,6 @@ import { AuthScreen } from "@features/auth/components/AuthScreen";
 import { InviteCodeScreen } from "@features/auth/components/InviteCodeScreen";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { OnboardingFlow } from "@features/onboarding/components/OnboardingFlow";
-import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { Flex, Spinner, Text } from "@radix-ui/themes";
 import { initializeConnectivityStore } from "@renderer/stores/connectivityStore";
 import { useFocusStore } from "@renderer/stores/focusStore";
@@ -63,61 +62,28 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Global workspace promotion listener - updates store and shows toast
-  useEffect(() => {
-    const subscription = trpcVanilla.workspace.onPromoted.subscribe(undefined, {
-      onData: (data) => {
-        // Update the workspace in the store with the new worktree info
-        const workspace = useWorkspaceStore
-          .getState()
-          .getWorkspace(data.taskId);
-        if (workspace) {
-          useWorkspaceStore.getState().updateWorkspace(data.taskId, {
-            ...workspace,
-            mode: "worktree",
-            worktreePath: data.worktree.worktreePath,
-            worktreeName: data.worktree.worktreeName,
-            branchName: data.worktree.branchName,
-            baseBranch: data.worktree.baseBranch,
-          });
-        }
+  const trpcUtils = trpcReact.useUtils();
 
-        // Show toast to let user know what happened
-        toast.info(
-          "Task moved to worktree",
-          `Task is now working in its own worktree on branch "${data.fromBranch}"`,
-        );
-      },
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Global branch change listener - updates store when branch is renamed
-  trpcReact.workspace.onBranchChanged.useSubscription(undefined, {
+  trpcReact.workspace.onPromoted.useSubscription(undefined, {
     onData: (data) => {
-      const workspace = useWorkspaceStore.getState().getWorkspace(data.taskId);
-      if (workspace) {
-        useWorkspaceStore.getState().updateWorkspace(data.taskId, {
-          ...workspace,
-          branchName: data.branchName,
-        });
-      }
+      void trpcUtils.workspace.getAll.invalidate();
+      toast.info(
+        "Task moved to worktree",
+        `Task is now working in its own worktree on branch "${data.fromBranch}"`,
+      );
     },
   });
 
-  // Listen for branch renames when a worktree is focused
+  trpcReact.workspace.onBranchChanged.useSubscription(undefined, {
+    onData: () => {
+      void trpcUtils.workspace.getAll.invalidate();
+    },
+  });
+
   trpcReact.focus.onBranchRenamed.useSubscription(undefined, {
     onData: ({ worktreePath, newBranch }) => {
       useFocusStore.getState().updateSessionBranch(worktreePath, newBranch);
-      const workspaces = useWorkspaceStore.getState().workspaces;
-      for (const [taskId, workspace] of Object.entries(workspaces)) {
-        if (workspace.worktreePath === worktreePath) {
-          useWorkspaceStore.getState().updateWorkspace(taskId, {
-            ...workspace,
-            branchName: newBranch,
-          });
-        }
-      }
+      void trpcUtils.workspace.getAll.invalidate();
     },
   });
 

@@ -1,13 +1,10 @@
-import {
-  selectTaskRepoExists,
-  selectTaskRepoPath,
-  useTaskExecutionStore,
-} from "@features/task-detail/stores/taskExecutionStore";
 import { useTasks } from "@features/tasks/hooks/useTasks";
+import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
+import { trpcReact } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { cloneStore } from "@stores/cloneStore";
 import { getTaskRepository } from "@utils/repository";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 
 interface UseTaskDataParams {
   taskId: string;
@@ -16,30 +13,21 @@ interface UseTaskDataParams {
 
 export function useTaskData({ taskId, initialTask }: UseTaskDataParams) {
   const { data: tasks = [] } = useTasks();
-  const initializeRepoPath = useTaskExecutionStore(
-    (state) => state.initializeRepoPath,
-  );
 
   const task = useMemo(
     () => tasks.find((t) => t.id === taskId) || initialTask,
     [tasks, taskId, initialTask],
   );
 
-  // Initialize repo path for this task
-  useEffect(() => {
-    initializeRepoPath(taskId, task);
-  }, [initializeRepoPath, taskId, task]);
+  const workspace = useWorkspace(taskId);
+  const repoPath = workspace?.folderPath ?? null;
 
-  // Subscribe to specific fields reactively to avoid unnecessary rerenders
-  const repoPath = useTaskExecutionStore(selectTaskRepoPath(taskId));
-  const repoExists = useTaskExecutionStore(selectTaskRepoExists(taskId));
+  const { data: repoExists } = trpcReact.git.validateRepo.useQuery(
+    { directoryPath: repoPath ?? "" },
+    { enabled: !!repoPath },
+  );
 
   const repository = getTaskRepository(task);
-
-  // Use the stored repoPath
-  const derivedPath = useMemo(() => {
-    return repoPath;
-  }, [repoPath]);
 
   const isCloning = cloneStore((state) =>
     repository ? state.isCloning(repository) : false,
@@ -65,8 +53,7 @@ export function useTaskData({ taskId, initialTask }: UseTaskDataParams) {
   return {
     task,
     repoPath,
-    repoExists,
-    derivedPath,
+    repoExists: repoExists ?? null,
     isCloning,
     cloneProgress,
   };

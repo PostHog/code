@@ -1,13 +1,27 @@
 import fs from "node:fs";
 import path from "node:path";
-import { isGitRepository } from "@twig/git/queries";
+import { getRemoteUrl, isGitRepository } from "@twig/git/queries";
 import { InitRepositorySaga } from "@twig/git/sagas/init";
+
+function extractRepoKey(url: string): string | null {
+  const httpsMatch = url.match(/github\.com\/([^/]+\/[^/.]+)/);
+  if (httpsMatch) return httpsMatch[1];
+
+  const sshMatch = url.match(/github\.com:([^/]+\/[^/.]+)/);
+  if (sshMatch) return sshMatch[1];
+
+  return null;
+}
+
 import { WorktreeManager } from "@twig/git/worktree";
 import { dialog } from "electron";
 import { inject, injectable } from "inversify";
-import type { RepositoryRepository } from "../../db/repositories/repository-repository.js";
-import type { WorkspaceRepository } from "../../db/repositories/workspace-repository.js";
-import type { WorktreeRepository } from "../../db/repositories/worktree-repository.js";
+import type {
+  IRepositoryRepository,
+  Repository,
+} from "../../db/repositories/repository-repository.js";
+import type { IWorkspaceRepository } from "../../db/repositories/workspace-repository.js";
+import type { IWorktreeRepository } from "../../db/repositories/worktree-repository.js";
 import { MAIN_TOKENS } from "../../di/tokens.js";
 import { getMainWindow } from "../../trpc/context.js";
 import { logger } from "../../utils/logger.js";
@@ -23,11 +37,11 @@ const log = logger.scope("folders-service");
 export class FoldersService {
   constructor(
     @inject(MAIN_TOKENS.RepositoryRepository)
-    private readonly repositoryRepo: RepositoryRepository,
+    private readonly repositoryRepo: IRepositoryRepository,
     @inject(MAIN_TOKENS.WorkspaceRepository)
-    private readonly workspaceRepo: WorkspaceRepository,
+    private readonly workspaceRepo: IWorkspaceRepository,
     @inject(MAIN_TOKENS.WorktreeRepository)
-    private readonly worktreeRepo: WorktreeRepository,
+    private readonly worktreeRepo: IWorktreeRepository,
   ) {}
 
   async getFolders(): Promise<(RegisteredFolder & { exists: boolean })[]> {
@@ -38,6 +52,7 @@ export class FoldersService {
         id: r.id,
         path: r.path,
         name: path.basename(r.path),
+        remoteUrl: r.remoteUrl ?? null,
         lastAccessed: r.lastAccessedAt ?? r.createdAt,
         createdAt: r.createdAt,
         exists: fs.existsSync(r.path),
@@ -89,12 +104,45 @@ export class FoldersService {
       }
     }
 
-    const repo = this.repositoryRepo.upsertByPath(folderPath);
+    const existingRepo = this.repositoryRepo.findByPath(folderPath);
+    let repo: Repository;
+
+    if (existingRepo) {
+      this.repositoryRepo.updateLastAccessed(existingRepo.id);
+      const updated = this.repositoryRepo.findById(existingRepo.id);
+      if (!updated) {
+        throw new Error(`Repository ${existingRepo.id} not found after update`);
+      }
+      repo = updated;
+
+      if (!repo.remoteUrl) {
+        const remoteUrl = await getRemoteUrl(folderPath);
+        const repoKey = remoteUrl ? extractRepoKey(remoteUrl) : null;
+        if (repoKey) {
+          this.repositoryRepo.updateRemoteUrl(repo.id, repoKey);
+          const refreshed = this.repositoryRepo.findById(repo.id);
+          if (!refreshed) {
+            throw new Error(
+              `Repository ${repo.id} not found after remote URL update`,
+            );
+          }
+          repo = refreshed;
+        }
+      }
+    } else {
+      const remoteUrl = await getRemoteUrl(folderPath);
+      const repoKey = remoteUrl ? extractRepoKey(remoteUrl) : null;
+      repo = this.repositoryRepo.create({
+        path: folderPath,
+        remoteUrl: repoKey ?? undefined,
+      });
+    }
 
     return {
       id: repo.id,
       path: repo.path,
       name: path.basename(repo.path),
+      remoteUrl: repo.remoteUrl ?? null,
       lastAccessed: repo.lastAccessedAt ?? repo.createdAt,
       createdAt: repo.createdAt,
       exists: true,
@@ -152,6 +200,20 @@ export class FoldersService {
     const associatedWorktreePaths = allWorktrees.map((wt) => wt.path);
 
     return await manager.cleanupOrphanedWorktrees(associatedWorktreePaths);
+  }
+
+  getRepositoryByRemoteUrl(
+    remoteUrl: string,
+  ): { id: string; path: string } | null {
+    const repo = this.repositoryRepo.findByRemoteUrl(remoteUrl);
+    if (!repo) return null;
+    return { id: repo.id, path: repo.path };
+  }
+
+  getMostRecentlyAccessedRepository(): { id: string; path: string } | null {
+    const repo = this.repositoryRepo.findMostRecentlyAccessed();
+    if (!repo) return null;
+    return { id: repo.id, path: repo.path };
   }
 
   async clearAllData(): Promise<void> {

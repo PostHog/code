@@ -8,9 +8,12 @@ const mockRepositoryRepo = vi.hoisted(() => ({
   findAll: vi.fn(),
   findById: vi.fn(),
   findByPath: vi.fn(),
+  findByRemoteUrl: vi.fn(),
+  findMostRecentlyAccessed: vi.fn(),
   create: vi.fn(),
   upsertByPath: vi.fn(),
   updateLastAccessed: vi.fn(),
+  updateRemoteUrl: vi.fn(),
   delete: vi.fn(),
 }));
 const mockWorkspaceRepo = vi.hoisted(() => ({
@@ -72,6 +75,7 @@ vi.mock("../../trpc/context.js", () => ({
 
 vi.mock("@twig/git/queries", () => ({
   isGitRepository: vi.fn(() => Promise.resolve(true)),
+  getRemoteUrl: vi.fn(() => Promise.resolve(null)),
 }));
 
 vi.mock("@twig/git/sagas/init", () => ({
@@ -97,6 +101,9 @@ vi.mock("../../db/repositories/worktree-repository.js", () => ({
 }));
 
 import { isGitRepository } from "@twig/git/queries";
+import type { IRepositoryRepository } from "../../db/repositories/repository-repository.js";
+import type { IWorkspaceRepository } from "../../db/repositories/workspace-repository.js";
+import type { IWorktreeRepository } from "../../db/repositories/worktree-repository.js";
 import { FoldersService } from "./service.js";
 
 describe("FoldersService", () => {
@@ -111,9 +118,9 @@ describe("FoldersService", () => {
     mockWorktreeRepo.findAll.mockReturnValue([]);
 
     service = new FoldersService(
-      mockRepositoryRepo as any,
-      mockWorkspaceRepo as any,
-      mockWorktreeRepo as any,
+      mockRepositoryRepo as unknown as IRepositoryRepository,
+      mockWorkspaceRepo as unknown as IWorkspaceRepository,
+      mockWorktreeRepo as unknown as IWorktreeRepository,
     );
   });
 
@@ -150,6 +157,7 @@ describe("FoldersService", () => {
           id: "folder-1",
           path: "/home/user/project",
           name: "project",
+          remoteUrl: null,
           lastAccessed: "2024-01-01T00:00:00.000Z",
           createdAt: "2024-01-01T00:00:00.000Z",
           exists: true,
@@ -179,9 +187,11 @@ describe("FoldersService", () => {
   describe("addFolder", () => {
     it("adds a new folder when it is a git repository", async () => {
       vi.mocked(isGitRepository).mockResolvedValue(true);
-      mockRepositoryRepo.upsertByPath.mockReturnValue({
+      mockRepositoryRepo.findByPath.mockReturnValue(null);
+      mockRepositoryRepo.create.mockReturnValue({
         id: "folder-new",
         path: "/home/user/my-project",
+        remoteUrl: null,
         lastAccessedAt: "2024-01-01T00:00:00.000Z",
         createdAt: "2024-01-01T00:00:00.000Z",
         updatedAt: "2024-01-01T00:00:00.000Z",
@@ -192,9 +202,10 @@ describe("FoldersService", () => {
       expect(result.name).toBe("my-project");
       expect(result.path).toBe("/home/user/my-project");
       expect(result.exists).toBe(true);
-      expect(mockRepositoryRepo.upsertByPath).toHaveBeenCalledWith(
-        "/home/user/my-project",
-      );
+      expect(mockRepositoryRepo.create).toHaveBeenCalledWith({
+        path: "/home/user/my-project",
+        remoteUrl: undefined,
+      });
     });
 
     it("throws error for invalid folder path", async () => {
@@ -210,9 +221,11 @@ describe("FoldersService", () => {
         success: true,
         data: { initialized: true },
       });
-      mockRepositoryRepo.upsertByPath.mockReturnValue({
+      mockRepositoryRepo.findByPath.mockReturnValue(null);
+      mockRepositoryRepo.create.mockReturnValue({
         id: "folder-new",
         path: "/home/user/project",
+        remoteUrl: null,
         lastAccessedAt: "2024-01-01T00:00:00.000Z",
         createdAt: "2024-01-01T00:00:00.000Z",
         updatedAt: "2024-01-01T00:00:00.000Z",

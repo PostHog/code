@@ -1,7 +1,7 @@
 import { MergeView, unifiedMergeView } from "@codemirror/merge";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
+import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
 import { trpcVanilla } from "@renderer/trpc/client";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
 import { useEffect, useRef } from "react";
@@ -190,8 +190,7 @@ export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
       if (result.action.type === "external-app") {
         const fileName = filePath.split("/").pop() || "file";
 
-        // Find workspace by matching filePath
-        const workspaces = useWorkspaceStore.getState().workspaces;
+        const workspaces = await workspaceApi.getAll();
         const workspace =
           Object.values(workspaces).find(
             (ws) =>

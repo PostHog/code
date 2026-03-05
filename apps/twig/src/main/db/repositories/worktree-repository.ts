@@ -65,8 +65,9 @@ export class WorktreeRepository implements IWorktreeRepository {
 
   create(data: CreateWorktreeData): Worktree {
     const timestamp = now();
+    const id = crypto.randomUUID();
     const row: NewWorktree = {
-      id: crypto.randomUUID(),
+      id,
       workspaceId: data.workspaceId,
       name: data.name,
       path: data.path,
@@ -75,7 +76,11 @@ export class WorktreeRepository implements IWorktreeRepository {
       updatedAt: timestamp,
     };
     this.db.insert(worktrees).values(row).run();
-    return this.findById(row.id!)!;
+    const created = this.findById(id);
+    if (!created) {
+      throw new Error(`Failed to create worktree with id ${id}`);
+    }
+    return created;
   }
 
   updateBranch(workspaceId: string, branch: string): void {

@@ -2,7 +2,7 @@ import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { useSessionForTask } from "@features/sessions/stores/sessionStore";
 import { ShellTerminal } from "@features/terminal/components/ShellTerminal";
 import { useTerminalStore } from "@features/terminal/stores/terminalStore";
-import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
+import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { Box } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { useEffect } from "react";
@@ -22,10 +22,8 @@ export function TaskShellPanel({
   const tabId = shellId || "shell";
 
   const session = useSessionForTask(taskId);
-  const workspacePath = useWorkspaceStore((state) => {
-    const workspace = state.workspaces[taskId];
-    return workspace?.worktreePath ?? workspace?.folderPath;
-  });
+  const workspace = useWorkspace(taskId);
+  const workspacePath = workspace?.worktreePath ?? workspace?.folderPath;
 
   const processName = useTerminalStore(
     (state) => state.terminalStates[stateKey]?.processName,

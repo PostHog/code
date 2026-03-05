@@ -15,6 +15,7 @@ import {
   FolderOpenIcon,
 } from "@phosphor-icons/react";
 import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
+import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 import { useWorkspaceStore } from "@renderer/features/workspace/stores/workspaceStore";
 import { trpcReact, trpcVanilla } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
@@ -53,7 +54,7 @@ function LazyTreeItem({
   const togglePath = useFileTreeStore((state) => state.togglePath);
   const collapseAll = useFileTreeStore((state) => state.collapseAll);
   const openFileInSplit = usePanelLayoutStore((state) => state.openFileInSplit);
-  const workspace = useWorkspaceStore((s) => s.workspaces[taskId] ?? null);
+  const workspace = useWorkspace(taskId);
 
   const { data: children } = useQuery({
     queryKey: ["directory", entry.path],
@@ -237,7 +238,10 @@ function CloudFileTreePanel({ taskId, task }: FileTreePanelProps) {
 }
 
 export function FileTreePanel({ taskId, task }: FileTreePanelProps) {
-  const workspace = useWorkspaceStore((s) => s.workspaces[taskId]);
+  const workspace = useWorkspaceStore(
+    (s: { workspaces: Record<string, { mode?: string }> }) =>
+      s.workspaces[taskId],
+  );
   const isCloud =
     workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
 
@@ -249,7 +253,7 @@ export function FileTreePanel({ taskId, task }: FileTreePanelProps) {
 }
 
 function LocalFileTreePanel({ taskId, task: _task }: FileTreePanelProps) {
-  const workspace = useWorkspaceStore((s) => s.workspaces[taskId]);
+  const workspace = useWorkspace(taskId);
   const repoPath = useCwd(taskId);
   const mainRepoPath = workspace?.folderPath;
   const queryClient = useQueryClient();

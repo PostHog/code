@@ -10,11 +10,10 @@ import {
   FunnelSimple as FunnelSimpleIcon,
 } from "@phosphor-icons/react";
 import { Box, Flex, Popover, Text } from "@radix-ui/themes";
-import { useWorkspaceStore } from "@renderer/features/workspace/stores/workspaceStore";
+import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
 import { useNavigationStore } from "@stores/navigationStore";
-import { useTaskDirectoryStore } from "@stores/taskDirectoryStore";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import type { TaskData, TaskGroup } from "../hooks/useSidebarData";
 import { useSidebarStore } from "../stores/sidebarStore";
 import { DraggableFolder } from "./DraggableFolder";
@@ -85,7 +84,7 @@ function TaskRow({
   timestamp: number;
   depth?: number;
 }) {
-  const workspace = useWorkspaceStore((s) => s.workspaces[task.id]);
+  const workspace = useWorkspace(task.id);
   const effectiveMode =
     workspace?.mode ??
     (task.taskRunEnvironment === "cloud" ? "cloud" : undefined);
@@ -251,16 +250,20 @@ export function TaskListView({
   const resetHistoryVisibleCount = useSidebarStore(
     (state) => state.resetHistoryVisibleCount,
   );
-  const repoDirectories = useTaskDirectoryStore(
-    (state) => state.repoDirectories,
-  );
-  const setLastUsedDirectory = useTaskDirectoryStore(
-    (state) => state.setLastUsedDirectory,
-  );
   const folders = useRegisteredFoldersStore((state) => state.folders);
   const navigateToTaskInput = useNavigationStore(
     (state) => state.navigateToTaskInput,
   );
+
+  const repoDirectories = useMemo(() => {
+    const mapping: Record<string, string> = {};
+    for (const folder of folders) {
+      if (folder.remoteUrl) {
+        mapping[folder.remoteUrl] = folder.path;
+      }
+    }
+    return mapping;
+  }, [folders]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset pagination when filters change
   useEffect(() => {
@@ -341,9 +344,6 @@ export function TaskListView({
                     addSpacingBefore={false}
                     tooltipContent={groupPath ?? group.id}
                     onNewTask={() => {
-                      if (groupPath) {
-                        setLastUsedDirectory(groupPath);
-                      }
                       if (folder) {
                         navigateToTaskInput(folder.id);
                       } else {

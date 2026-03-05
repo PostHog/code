@@ -4,6 +4,7 @@ export const registeredFolderSchema = z.object({
   id: z.string(),
   path: z.string(),
   name: z.string(),
+  remoteUrl: z.string().nullable(),
   lastAccessed: z.string(),
   createdAt: z.string(),
 });
@@ -56,3 +57,16 @@ export type CleanupOrphanedWorktreesInput = z.infer<
 export type CleanupOrphanedWorktreesOutput = z.infer<
   typeof cleanupOrphanedWorktreesOutput
 >;
+
+export const repositoryLookupResult = z
+  .object({
+    id: z.string(),
+    path: z.string(),
+  })
+  .nullable();
+
+export const getRepositoryByRemoteUrlInput = z.object({
+  remoteUrl: z.string(),
+});
+
+export type RepositoryLookupResult = z.infer<typeof repositoryLookupResult>;

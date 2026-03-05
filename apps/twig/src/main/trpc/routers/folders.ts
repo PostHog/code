@@ -6,7 +6,9 @@ import {
   cleanupOrphanedWorktreesInput,
   cleanupOrphanedWorktreesOutput,
   getFoldersOutput,
+  getRepositoryByRemoteUrlInput,
   removeFolderInput,
+  repositoryLookupResult,
   updateFolderAccessedInput,
 } from "../../services/folders/schemas.js";
 import type { FoldersService } from "../../services/folders/service.js";
@@ -49,4 +51,17 @@ export const foldersRouter = router({
   clearAllData: publicProcedure.mutation(() => {
     return getService().clearAllData();
   }),
+
+  getRepositoryByRemoteUrl: publicProcedure
+    .input(getRepositoryByRemoteUrlInput)
+    .output(repositoryLookupResult)
+    .query(({ input }) => {
+      return getService().getRepositoryByRemoteUrl(input.remoteUrl);
+    }),
+
+  getMostRecentlyAccessedRepository: publicProcedure
+    .output(repositoryLookupResult)
+    .query(() => {
+      return getService().getMostRecentlyAccessedRepository();
+    }),
 });

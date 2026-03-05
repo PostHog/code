@@ -3,9 +3,9 @@ import { useAutonomy } from "@features/autonomy/hooks/useAutonomy";
 import { useInboxReports } from "@features/inbox/hooks/useInboxReports";
 import { useArchiveTask } from "@features/tasks/hooks/useArchiveTask";
 import { useTasks, useUpdateTask } from "@features/tasks/hooks/useTasks";
+import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
 import { useTaskContextMenu } from "@hooks/useTaskContextMenu";
 import { Box, Flex } from "@radix-ui/themes";
-import { useWorkspaceStore } from "@renderer/features/workspace/stores/workspaceStore";
 import type { Task } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useQueryClient } from "@tanstack/react-query";
@@ -24,7 +24,7 @@ function SidebarMenuComponent() {
 
   const { data: allTasks = [] } = useTasks();
 
-  const workspaces = useWorkspaceStore.use.workspaces();
+  const { data: workspaces = {} } = useWorkspaces();
   const markAsViewed = useTaskViewedStore((state) => state.markAsViewed);
 
   const { showContextMenu, editingTaskId, setEditingTaskId } =

@@ -1,17 +1,18 @@
 import { PlayIcon } from "@phosphor-icons/react";
 import { Button, Tooltip } from "@radix-ui/themes";
+import { trpcReact } from "@renderer/trpc/client";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { useWorkspace } from "../hooks/useWorkspace";
 import { useWorkspaceStatus } from "../hooks/useWorkspaceStatus";
-import { selectWorkspace, useWorkspaceStore } from "../stores/workspaceStore";
 
 interface StartWorkspaceButtonProps {
   taskId: string;
 }
 
 export function StartWorkspaceButton({ taskId }: StartWorkspaceButtonProps) {
-  const workspace = useWorkspaceStore(selectWorkspace(taskId));
-  const runStartScripts = useWorkspaceStore.use.runStartScripts();
+  const workspace = useWorkspace(taskId);
+  const runStartScriptsMutation = trpcReact.workspace.runStart.useMutation();
   const { isRunning, isCheckingStatus } = useWorkspaceStatus(taskId);
 
   const [isStarting, setIsStarting] = useState(false);
@@ -21,7 +22,15 @@ export function StartWorkspaceButton({ taskId }: StartWorkspaceButtonProps) {
 
     setIsStarting(true);
     try {
-      const result = await runStartScripts(taskId);
+      const worktreePath = workspace.worktreePath ?? workspace.folderPath;
+      const worktreeName =
+        workspace.worktreeName ?? workspace.folderPath.split("/").pop() ?? "";
+
+      const result = await runStartScriptsMutation.mutateAsync({
+        taskId,
+        worktreePath,
+        worktreeName,
+      });
 
       if (!result.success && result.errors?.length) {
         toast.error("Start scripts failed", {
@@ -39,7 +48,7 @@ export function StartWorkspaceButton({ taskId }: StartWorkspaceButtonProps) {
     } finally {
       setIsStarting(false);
     }
-  }, [taskId, workspace, runStartScripts]);
+  }, [taskId, workspace, runStartScriptsMutation]);
 
   if (!workspace || !workspace.hasStartScripts) {
     return null;

@@ -35,7 +35,7 @@ import {
   Spinner,
   Text,
 } from "@radix-ui/themes";
-import { useWorkspaceStore } from "@renderer/features/workspace/stores/workspaceStore";
+import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { ChangedFile, GitFileStatus, Task } from "@shared/types";
 import { useExternalAppsStore } from "@stores/externalAppsStore";
@@ -129,7 +129,7 @@ function ChangedFileItem({
   );
   const queryClient = useQueryClient();
   const { detectedApps } = useExternalAppsStore();
-  const workspace = useWorkspaceStore((s) => s.workspaces[taskId] ?? null);
+  const workspace = useWorkspace(taskId);
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -611,7 +611,7 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
 }
 
 export function ChangesPanel({ taskId, task }: ChangesPanelProps) {
-  const workspace = useWorkspaceStore((s) => s.workspaces[taskId]);
+  const workspace = useWorkspace(taskId);
   const isCloud =
     workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
 
@@ -623,7 +623,7 @@ export function ChangesPanel({ taskId, task }: ChangesPanelProps) {
 }
 
 function LocalChangesPanel({ taskId, task: _task }: ChangesPanelProps) {
-  const workspace = useWorkspaceStore((s) => s.workspaces[taskId]);
+  const workspace = useWorkspace(taskId);
   const { isFocused, isFocusLoading, handleToggleFocus, handleUnfocus } =
     useFocusWorkspace(taskId);
   const repoPath = useCwd(taskId);

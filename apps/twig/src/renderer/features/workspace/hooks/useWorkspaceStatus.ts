@@ -1,11 +1,7 @@
 import { trpcReact } from "@renderer/trpc";
 import { useCallback, useEffect, useState } from "react";
-import {
-  selectIsCreating,
-  selectWorkspace,
-  useWorkspaceStore,
-} from "../stores/workspaceStore";
 import { useWorkspaceTerminalStore } from "../stores/workspaceTerminalStore";
+import { useCreateWorkspace, useWorkspace } from "./useWorkspace";
 
 interface WorkspaceStatus {
   hasWorkspace: boolean;
@@ -15,8 +11,8 @@ interface WorkspaceStatus {
 }
 
 export function useWorkspaceStatus(taskId: string): WorkspaceStatus {
-  const workspace = useWorkspaceStore(selectWorkspace(taskId));
-  const isCreating = useWorkspaceStore(selectIsCreating(taskId));
+  const workspace = useWorkspace(taskId);
+  const { isPending: isCreating } = useCreateWorkspace();
   const terminalsRunning = useWorkspaceTerminalStore((s) =>
     s.areTerminalsRunning(taskId),
   );

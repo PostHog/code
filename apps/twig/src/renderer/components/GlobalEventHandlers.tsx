@@ -7,7 +7,7 @@ import { useVisualTaskOrder } from "@features/sidebar/hooks/useVisualTaskOrder";
 import { useSidebarStore } from "@features/sidebar/stores/sidebarStore";
 import { useTasks } from "@features/tasks/hooks/useTasks";
 import { useFocusWorkspace } from "@features/workspace/hooks/useFocusWorkspace";
-import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
+import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
 import { SHORTCUTS } from "@renderer/constants/keyboard-shortcuts";
 import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
 import { trpcReact } from "@renderer/trpc";
@@ -42,7 +42,7 @@ export function GlobalEventHandlers({
   const goBack = useNavigationStore((state) => state.goBack);
   const goForward = useNavigationStore((state) => state.goForward);
   const folders = useRegisteredFoldersStore((state) => state.folders);
-  const workspaces = useWorkspaceStore.use.workspaces();
+  const { data: workspaces = {} } = useWorkspaces();
   const clearAllLayouts = usePanelLayoutStore((state) => state.clearAllLayouts);
   const toggleLeftSidebar = useSidebarStore((state) => state.toggle);
   const toggleRightSidebar = useRightSidebarStore((state) => state.toggle);
