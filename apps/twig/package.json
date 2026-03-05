@@ -107,6 +107,8 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.8",
     "@dnd-kit/react": "^0.1.21",
+    "@lezer/common": "^1.5.1",
+    "@lezer/highlight": "^1.2.3",
     "@parcel/watcher": "^2.5.1",
     "@phosphor-icons/react": "^2.1.10",
     "@posthog/agent": "workspace:*",
