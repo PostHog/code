@@ -1,4 +1,3 @@
-import { Circle } from "@phosphor-icons/react";
 import { Flex, Text } from "@radix-ui/themes";
 import { trpcVanilla } from "@renderer/trpc";
 import { useQuery } from "@tanstack/react-query";
@@ -26,7 +25,6 @@ export function DiffStatsIndicator({ repoPath }: DiffStatsIndicatorProps) {
 
   return (
     <Flex align="center" gap="2">
-      <Circle size={4} weight="fill" color="var(--gray-9)" />
       <Text
         size="1"
         style={{

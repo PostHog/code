@@ -11,8 +11,8 @@
           "fill": "automatic",
           "glass": false,
           "hidden": false,
-          "image-name": "twig-favicon-dark.svg",
-          "name": "twig-favicon-dark",
+          "image-name": "posthog-code-favicon-dark.svg",
+          "name": "posthog-code-favicon-dark",
           "position": {
             "scale": 15,
             "translation-in-points": [0, 0]

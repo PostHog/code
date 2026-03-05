@@ -91,7 +91,7 @@ export function GeneralSettings() {
         if (permission !== "granted") {
           toast.info("Notifications are blocked", {
             description:
-              "Allow Twig notifications in System Settings > Notifications",
+              "Allow PostHog Code notifications in System Settings > Notifications",
           });
           return;
         }
@@ -356,7 +356,8 @@ export function GeneralSettings() {
       {notificationsDenied && (
         <Text size="1" color="yellow" className="mb-2">
           Notifications are blocked by macOS. To enable them, open System
-          Settings &gt; Notifications &gt; Twig and turn on Allow Notifications.
+          Settings &gt; Notifications &gt; PostHog Code and turn on Allow
+          Notifications.
         </Text>
       )}
 

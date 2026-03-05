@@ -15,3 +15,7 @@ export function isImageFile(filename: string): boolean {
   const ext = filename.split(".").pop()?.toLowerCase();
   return !!ext && IMAGE_EXTENSIONS.has(ext);
 }
+
+export function isGifFile(filename: string): boolean {
+  return filename.split(".").pop()?.toLowerCase() === "gif";
+}

@@ -1,4 +1,6 @@
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
+import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
+import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
 import { ModeIndicatorInput } from "@features/message-editor/components/ModeIndicatorInput";
 import { DropZoneOverlay } from "@features/sessions/components/DropZoneOverlay";
@@ -42,6 +44,7 @@ export function TaskInput() {
   const runMode = "local";
   const [editorIsEmpty, setEditorIsEmpty] = useState(true);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
 
   const selectedDirectory = lastUsedDirectory || "";
   const workspaceMode = lastUsedLocalWorkspaceMode || "local";
@@ -55,6 +58,8 @@ export function TaskInput() {
     setLastUsedAdapter(newAdapter);
 
   const { githubIntegration } = useRepositoryIntegration();
+  const { currentBranch, branchLoading, defaultBranch } =
+    useGitQueries(selectedDirectory);
 
   // Preview session provides adapter-specific config options
   const {
@@ -85,12 +90,15 @@ export function TaskInput() {
     "plan";
   const currentReasoningLevel = thoughtOption?.currentValue;
 
+  const branchForTaskCreation =
+    effectiveWorkspaceMode === "worktree" ? selectedBranch : null;
+
   const { isCreatingTask, canSubmit, handleSubmit } = useTaskCreation({
     editorRef,
     selectedDirectory,
     githubIntegrationId: githubIntegration?.id,
     workspaceMode: effectiveWorkspaceMode,
-    branch: null,
+    branch: branchForTaskCreation,
     editorIsEmpty,
     adapter,
     executionMode: currentExecutionMode,
@@ -256,6 +264,16 @@ export function TaskInput() {
                 }
               }}
               size="1"
+            />
+            <BranchSelector
+              repoPath={selectedDirectory}
+              currentBranch={currentBranch}
+              defaultBranch={defaultBranch}
+              disabled={isCreatingTask}
+              loading={branchLoading}
+              workspaceMode={effectiveWorkspaceMode}
+              selectedBranch={selectedBranch}
+              onBranchSelect={setSelectedBranch}
             />
           </Flex>
 

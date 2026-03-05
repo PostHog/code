@@ -131,8 +131,8 @@ const config: ForgeConfig = {
         "{**/*.node,**/spawn-helper,**/.vite/build/claude-cli/**,**/.vite/build/plugins/posthog/**,**/.vite/build/codex-acp/**,**/node_modules/node-pty/**,**/node_modules/@parcel/**,**/node_modules/file-icon/**}",
     },
     prune: false,
-    name: "Twig",
-    executableName: "Twig",
+    name: "PostHog Code",
+    executableName: "PostHog Code",
     icon: "./build/app-icon", // Forge adds .icns/.ico/.png based on platform
     appBundleId: "com.posthog.array", // TODO: Migrate to twig
     appCategoryType: "public.app-category.productivity",

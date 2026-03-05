@@ -2,6 +2,8 @@ import { z } from "zod";
 import { container } from "../../di/container.js";
 import { MAIN_TOKENS } from "../../di/tokens.js";
 import {
+  checkoutBranchInput,
+  checkoutBranchOutput,
   cloneRepositoryInput,
   cloneRepositoryOutput,
   commitInput,
@@ -118,6 +120,13 @@ export const gitRouter = router({
     .input(createBranchInput)
     .mutation(({ input }) =>
       getService().createBranch(input.directoryPath, input.branchName),
+    ),
+
+  checkoutBranch: publicProcedure
+    .input(checkoutBranchInput)
+    .output(checkoutBranchOutput)
+    .mutation(({ input }) =>
+      getService().checkoutBranch(input.directoryPath, input.branchName),
     ),
 
   // File change operations

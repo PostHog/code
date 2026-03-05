@@ -222,7 +222,7 @@ describe("ShellService", () => {
         expect.any(Array),
         expect.objectContaining({
           env: expect.objectContaining({
-            TERM_PROGRAM: "Twig",
+            TERM_PROGRAM: "PostHog Code",
             COLORTERM: "truecolor",
             FORCE_COLOR: "3",
           }),

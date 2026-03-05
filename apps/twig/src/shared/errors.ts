@@ -21,11 +21,11 @@ export function isAuthError(error: unknown): boolean {
 }
 
 const FATAL_SESSION_ERROR_PATTERNS = [
-  "Internal error",
+  "internal error",
   "process exited",
-  "Session did not end",
+  "session did not end",
   "not ready for writing",
-  "Session not found",
+  "session not found",
 ] as const;
 
 function includesAny(
@@ -33,7 +33,8 @@ function includesAny(
   patterns: readonly string[],
 ): boolean {
   if (!value) return false;
-  return patterns.some((pattern) => value.includes(pattern));
+  const lower = value.toLowerCase();
+  return patterns.some((pattern) => lower.includes(pattern));
 }
 
 export function isFatalSessionError(

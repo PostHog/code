@@ -1,7 +1,7 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { ArrowLeft, ArrowRight, Check } from "@phosphor-icons/react";
 import { Badge, Button, Flex, Text } from "@radix-ui/themes";
-import twigLogo from "@renderer/assets/images/twig-logo.svg";
+import phWordmark from "@renderer/assets/images/wordmark-alt.png";
 import { useEffect } from "react";
 
 interface BillingStepProps {
@@ -41,8 +41,8 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
       <Flex direction="column" gap="6" style={{ width: "100%", maxWidth: 520 }}>
         <Flex direction="column" gap="3">
           <img
-            src={twigLogo}
-            alt="Twig"
+            src={phWordmark}
+            alt="PostHog"
             style={{
               height: "40px",
               objectFit: "contain",
@@ -52,7 +52,7 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
           <Text
             size="6"
             style={{
-              color: "var(--cave-charcoal)",
+              color: "var(--gray-12)",
               lineHeight: 1.3,
             }}
           >
@@ -82,7 +82,7 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
             recommended
           />
         </Flex>
-        <Text size="1" style={{ color: "var(--cave-charcoal)", opacity: 0.5 }}>
+        <Text size="1" style={{ color: "var(--gray-12)", opacity: 0.5 }}>
           * Usage is limited to "human" level usage, this cannot be used as your
           api key. If you hit this limit, please contact support.
         </Text>
@@ -91,19 +91,12 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
             size="3"
             variant="ghost"
             onClick={onBack}
-            style={{ color: "var(--cave-charcoal)" }}
+            style={{ color: "var(--gray-12)" }}
           >
             <ArrowLeft size={16} />
             Back
           </Button>
-          <Button
-            size="3"
-            onClick={handleContinue}
-            style={{
-              backgroundColor: "var(--cave-charcoal)",
-              color: "var(--cave-cream)",
-            }}
-          >
+          <Button size="3" onClick={handleContinue}>
             Continue
             <ArrowRight size={16} />
           </Button>
@@ -139,23 +132,18 @@ function PlanCard({
       p="5"
       onClick={onSelect}
       style={{
-        backgroundColor: "rgba(255, 255, 255, 0.7)",
+        backgroundColor: "var(--color-panel-solid)",
         border: isSelected
           ? "2px solid var(--accent-9)"
-          : "2px solid rgba(0, 0, 0, 0.1)",
+          : "2px solid var(--gray-4)",
         cursor: "pointer",
         transition: "all 0.2s ease",
-        backdropFilter: "blur(8px)",
       }}
     >
       <Flex align="center" justify="between">
         <Flex direction="column" gap="1">
           <Flex align="center" gap="2">
-            <Text
-              size="4"
-              weight="bold"
-              style={{ color: "var(--cave-charcoal)" }}
-            >
+            <Text size="4" weight="bold" style={{ color: "var(--gray-12)" }}>
               {name}
             </Text>
             {recommended && (
@@ -165,17 +153,10 @@ function PlanCard({
             )}
           </Flex>
           <Flex align="baseline" gap="1">
-            <Text
-              size="7"
-              weight="bold"
-              style={{ color: "var(--cave-charcoal)" }}
-            >
+            <Text size="7" weight="bold" style={{ color: "var(--gray-12)" }}>
               {price}
             </Text>
-            <Text
-              size="2"
-              style={{ color: "var(--cave-charcoal)", opacity: 0.6 }}
-            >
+            <Text size="2" style={{ color: "var(--gray-12)", opacity: 0.6 }}>
               {period}
             </Text>
           </Flex>
@@ -191,7 +172,7 @@ function PlanCard({
                   color: "white",
                 }
               : {
-                  color: "var(--cave-charcoal)",
+                  color: "var(--gray-12)",
                 }
           }
         >
@@ -207,10 +188,7 @@ function PlanCard({
               weight="bold"
               style={{ color: "var(--accent-9)", flexShrink: 0 }}
             />
-            <Text
-              size="2"
-              style={{ color: "var(--cave-charcoal)", opacity: 0.8 }}
-            >
+            <Text size="2" style={{ color: "var(--gray-12)", opacity: 0.8 }}>
               {feature.text}
             </Text>
           </Flex>

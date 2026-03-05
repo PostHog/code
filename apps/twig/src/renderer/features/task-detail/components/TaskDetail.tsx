@@ -1,4 +1,5 @@
 import { FilePicker } from "@features/command/components/FilePicker";
+import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import { PanelLayout } from "@features/panels";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useTaskData } from "@features/task-detail/hooks/useTaskData";
@@ -32,6 +33,8 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
 
   const workspace = useWorkspaceStore((state) => state.workspaces[taskId]);
   const effectiveRepoPath = useCwd(taskId);
+  const { currentBranch } = useGitQueries(effectiveRepoPath ?? undefined);
+  const branchName = currentBranch ?? workspace?.branchName;
 
   const [filePickerOpen, setFilePickerOpen] = useState(false);
 
@@ -58,13 +61,13 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
   const headerContent = useMemo(
     () => (
       <Flex align="center" justify="between" gap="2" width="100%">
-        <Flex align="center" gap="2" minWidth="0">
+        <Flex align="center" gap="2" minWidth="0" overflow="hidden">
           <Text size="1" weight="medium" truncate>
             {task.title}
           </Text>
           <StartWorkspaceButton taskId={taskId} />
-          {workspace?.branchName && (
-            <Tooltip content={workspace.branchName}>
+          {branchName && (
+            <Tooltip content={branchName}>
               <Code
                 size="1"
                 color="gray"
@@ -77,7 +80,7 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
                   whiteSpace: "nowrap",
                 }}
               >
-                {workspace?.branchName}
+                {branchName}
               </Code>
             </Tooltip>
           )}
@@ -87,7 +90,7 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
         )}
       </Flex>
     ),
-    [task.title, taskId, workspace?.branchName, effectiveRepoPath],
+    [task.title, taskId, branchName, effectiveRepoPath],
   );
 
   useSetHeaderContent(headerContent);

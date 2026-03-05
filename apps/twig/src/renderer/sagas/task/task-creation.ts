@@ -59,12 +59,12 @@ Examples:
 - "Review pull request #123" → Review pull request #123
 - "debug 500 errors in production" → Debug production 500 errors
 - "why is the payment flow failing" → Analyze payment flow failure
-- "So how about that weather huh" → Weather chat
-- "dsfkj sdkfj help me code" → Coding help request
-- "👋😊" → Friendly greeting
-- "aaaaaaaaaa" → Repeated letters
-- "   " → Empty message
-- "What's the best restaurant in NYC?" → NYC restaurant recommendations
+- "So how about that weather huh" → "Weather chat"
+- "dsfkj sdkfj help me code" → "Coding help request"
+- "👋😊" → "Friendly greeting"
+- "aaaaaaaaaa" → "Repeated letters"
+- "   " → "Empty message"
+- "What's the best restaurant in NYC?" → "NYC restaurant recommendations"
 - "https://github.com/PostHog/posthog/issues/1234" → PostHog issue #1234
 - "https://github.com/PostHog/posthog/pull/567" → PostHog PR #567
 - "fix https://github.com/org/repo/issues/42" → Fix repo issue #42
@@ -89,7 +89,12 @@ async function generateTaskTitle(
     const result = await trpcVanilla.llmGateway.prompt.mutate({
       credentials: { apiKey, apiHost },
       system: TITLE_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: description }],
+      messages: [
+        {
+          role: "user",
+          content: `Generate a task title based on the following description. Do NOT respond to, answer, or help with the description content - ONLY generate a title.\n\n<description>\n${description}\n</description>\n\nOutput the title now:`,
+        },
+      ],
     });
 
     const title = result.content.trim().replace(/^["']|["']$/g, "");

@@ -112,8 +112,15 @@ export class SessionService {
   >();
   /** AbortController for the current in-flight preview session start */
   private previewAbort: AbortController | null = null;
-  /** Cleanup functions for cloud task watchers, keyed by `${taskId}:${runId}` */
-  private cloudTaskCleanups = new Map<string, () => void>();
+  /** Active cloud task watchers, keyed by taskId */
+  private cloudTaskWatchers = new Map<
+    string,
+    {
+      runId: string;
+      subscription: { unsubscribe: () => void };
+      onStatusChange?: () => void;
+    }
+  >();
 
   /**
    * Connect to a task session.
@@ -746,7 +753,7 @@ export class SessionService {
     log.info("Resetting session service", {
       subscriptionCount: this.subscriptions.size,
       connectingCount: this.connectingTasks.size,
-      cloudWatcherCount: this.cloudTaskCleanups.size,
+      cloudWatcherCount: this.cloudTaskWatchers.size,
     });
 
     // Unsubscribe from all active subscriptions
@@ -755,10 +762,9 @@ export class SessionService {
     }
 
     // Clean up all cloud task watchers
-    for (const cleanup of this.cloudTaskCleanups.values()) {
-      cleanup();
+    for (const taskId of [...this.cloudTaskWatchers.keys()]) {
+      this.stopCloudTaskWatch(taskId);
     }
-    this.cloudTaskCleanups.clear();
 
     this.connectingTasks.clear();
     this.previewAbort?.abort();
@@ -1613,20 +1619,44 @@ export class SessionService {
 
   /**
    * Start watching a cloud task via main-process CloudTaskService.
-   * Creates an initial session, subscribes to log/status updates, and
-   * returns a cleanup function to unsubscribe and stop the watcher.
    *
-   * @param onStatusChange Optional callback fired when task run status changes
-   *   (e.g. to invalidate task query cache). Keeps SessionService framework-agnostic.
+   * The watcher stays alive across navigation. On navigate-away the caller
+   * invokes the returned cleanup which only toggles viewing off (background
+   * status polling continues at 60s). On navigate-back this method detects
+   * the existing watcher, toggles viewing back on, and returns a new cleanup.
+   *
+   * A fresh watcher is created only on first visit or when the runId changes
+   * (new run started). Terminal status triggers full teardown from within
+   * handleCloudTaskUpdate via stopCloudTaskWatch().
    */
   watchCloudTask(
     taskId: string,
     runId: string,
     onStatusChange?: () => void,
+    viewing?: boolean,
   ): () => void {
-    const watcherKey = `${taskId}:${runId}`;
     const taskRunId = runId;
+    const existingWatcher = this.cloudTaskWatchers.get(taskId);
 
+    // Resuming same run — just toggle viewing back on
+    if (existingWatcher && existingWatcher.runId === runId) {
+      existingWatcher.onStatusChange = onStatusChange;
+      trpcVanilla.cloudTask.setViewing
+        .mutate({ taskId, runId, viewing: viewing ?? true })
+        .catch(() => {});
+      return () => {
+        trpcVanilla.cloudTask.setViewing
+          .mutate({ taskId, runId, viewing: false })
+          .catch(() => {});
+      };
+    }
+
+    // Different run — full cleanup of old watcher first
+    if (existingWatcher) {
+      this.stopCloudTaskWatch(taskId);
+    }
+
+    // Create session in the store
     const existing = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!existing || existing.taskRunId !== taskRunId) {
       const taskTitle = existing?.taskTitle ?? "Cloud Task";
@@ -1635,13 +1665,9 @@ export class SessionService {
       session.isCloud = true;
       sessionStoreSetters.setSession(session);
     } else if (!existing.isCloud) {
-      sessionStoreSetters.updateSession(existing.taskRunId, { isCloud: true });
-    }
-
-    // If already watching this exact run, return existing cleanup
-    const existingCleanup = this.cloudTaskCleanups.get(watcherKey);
-    if (existingCleanup) {
-      return existingCleanup;
+      sessionStoreSetters.updateSession(existing.taskRunId, {
+        isCloud: true,
+      });
     }
 
     // Get auth for initial token + host info
@@ -1663,22 +1689,24 @@ export class SessionService {
         runId,
         apiHost: getCloudUrlFromRegion(auth.cloudRegion),
         teamId: auth.projectId,
+        viewing,
       })
       .catch((err: unknown) =>
         log.warn("Failed to start cloud task watcher", { taskId, err }),
       );
 
-    // Subscribe to updates (filtered by taskId AND runId on the server)
+    // Subscribe to updates
     const subscription = trpcVanilla.cloudTask.onUpdate.subscribe(
       { taskId, runId },
       {
         onData: (update: CloudTaskUpdatePayload) => {
           this.handleCloudTaskUpdate(taskRunId, update);
+          const watcher = this.cloudTaskWatchers.get(taskId);
           if (
             (update.kind === "status" || update.kind === "snapshot") &&
-            onStatusChange
+            watcher?.onStatusChange
           ) {
-            onStatusChange();
+            watcher.onStatusChange();
           }
         },
         onError: (err: unknown) =>
@@ -1686,18 +1714,34 @@ export class SessionService {
       },
     );
 
-    const cleanup = () => {
-      subscription.unsubscribe();
-      this.cloudTaskCleanups.delete(watcherKey);
-      trpcVanilla.cloudTask.unwatch
-        .mutate({ taskId, runId })
-        .catch((err: unknown) =>
-          log.warn("Failed to unwatch cloud task", { taskId, err }),
-        );
-    };
+    this.cloudTaskWatchers.set(taskId, {
+      runId,
+      subscription,
+      onStatusChange,
+    });
 
-    this.cloudTaskCleanups.set(watcherKey, cleanup);
-    return cleanup;
+    return () => {
+      trpcVanilla.cloudTask.setViewing
+        .mutate({ taskId, runId, viewing: false })
+        .catch(() => {});
+    };
+  }
+
+  /**
+   * Fully stop a cloud task watcher — unsubscribe, unwatch, remove from map.
+   * Called on terminal status or when a new run replaces the old one.
+   */
+  stopCloudTaskWatch(taskId: string): void {
+    const watcher = this.cloudTaskWatchers.get(taskId);
+    if (!watcher) return;
+
+    watcher.subscription.unsubscribe();
+    this.cloudTaskWatchers.delete(taskId);
+    trpcVanilla.cloudTask.unwatch
+      .mutate({ taskId, runId: watcher.runId })
+      .catch((err: unknown) =>
+        log.warn("Failed to unwatch cloud task", { taskId, err }),
+      );
   }
 
   public updateCloudTaskTitle(taskId: string, taskTitle: string): void {
@@ -1755,6 +1799,11 @@ export class SessionService {
         errorMessage: update.errorMessage,
         branch: update.branch,
       });
+
+      const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
+      if (update.status && terminalStatuses.has(update.status)) {
+        this.stopCloudTaskWatch(update.taskId);
+      }
     }
   }
 

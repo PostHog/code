@@ -31,8 +31,6 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { v7 as uuidv7 } from "uuid";
 import packageJson from "../../../package.json" with { type: "json" };
-import type { SessionContext } from "../../otel-log-writer.js";
-import type { SessionLogWriter } from "../../session-log-writer.js";
 import { unreachable, withTimeout } from "../../utils/common.js";
 import { Logger } from "../../utils/logger.js";
 import { Pushable } from "../../utils/streams.js";
@@ -79,17 +77,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   toolUseCache: ToolUseCache;
   backgroundTerminals: { [key: string]: BackgroundTerminal } = {};
   clientCapabilities?: ClientCapabilities;
-  private logWriter?: SessionLogWriter;
   private options?: ClaudeAcpAgentOptions;
   private lastSentConfigOptions?: SessionConfigOption[];
 
-  constructor(
-    client: AgentSideConnection,
-    logWriter?: SessionLogWriter,
-    options?: ClaudeAcpAgentOptions,
-  ) {
+  constructor(client: AgentSideConnection, options?: ClaudeAcpAgentOptions) {
     super(client);
-    this.logWriter = logWriter;
     this.options = options;
     this.toolUseCache = {};
     this.logger = new Logger({ debug: true, prefix: "[ClaudeAcpAgent]" });
@@ -139,7 +131,14 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     this.checkAuthStatus();
 
     const meta = params._meta as NewSessionMeta | undefined;
+    const taskId = meta?.persistence?.taskId;
     const sessionId = uuidv7();
+    this.logger.info("Creating new session", {
+      sessionId,
+      taskId,
+      taskRunId: meta?.taskRunId,
+      cwd: params.cwd,
+    });
     const permissionMode: TwigExecutionMode =
       meta?.permissionMode &&
       TWIG_EXECUTION_MODES.includes(meta.permissionMode as TwigExecutionMode)
@@ -177,7 +176,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       options.abortController as AbortController,
     );
     session.taskRunId = meta?.taskRunId;
-    this.registerPersistence(sessionId, meta as Record<string, unknown>);
 
     if (meta?.taskRunId) {
       await this.client.extNotification("_posthog/sdk_session", {
@@ -218,6 +216,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     params: LoadSessionRequest,
   ): Promise<LoadSessionResponse> {
     const meta = params._meta as NewSessionMeta | undefined;
+    const taskId = meta?.persistence?.taskId;
     const sessionId = meta?.sessionId;
     if (!sessionId) {
       throw new Error("Cannot resume session without sessionId");
@@ -225,6 +224,13 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     if (this.sessionId === sessionId) {
       return {};
     }
+
+    this.logger.info("Resuming session", {
+      sessionId,
+      taskId,
+      taskRunId: meta?.taskRunId,
+      cwd: params.cwd,
+    });
 
     const mcpServers = parseMcpServers(params);
 
@@ -245,19 +251,41 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       additionalDirectories: meta?.claudeCode?.options?.additionalDirectories,
     });
 
+    this.logger.info("Session query initialized, awaiting resumption", {
+      sessionId,
+      taskId,
+      taskRunId: meta?.taskRunId,
+    });
+
     session.taskRunId = meta?.taskRunId;
 
-    this.registerPersistence(sessionId, meta as Record<string, unknown>);
-
-    // Validate the resumed session is alive. For stale sessions this throws
+    // Check the resumed session is alive. For stale sessions this throws
     // (e.g. "No conversation found"), preventing a broken session.
-    const validation = await withTimeout(
-      q.initializationResult(),
-      SESSION_VALIDATION_TIMEOUT_MS,
-    );
-    if (validation.result === "timeout") {
-      throw new Error("Session validation timed out");
+    try {
+      const result = await withTimeout(
+        q.initializationResult(),
+        SESSION_VALIDATION_TIMEOUT_MS,
+      );
+      if (result.result === "timeout") {
+        throw new Error(
+          `Session resumption timed out for sessionId=${sessionId}`,
+        );
+      }
+    } catch (err) {
+      this.logger.error("Session resumption failed", {
+        sessionId,
+        taskId,
+        taskRunId: meta?.taskRunId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
     }
+
+    this.logger.info("Session resumed successfully", {
+      sessionId,
+      taskId,
+      taskRunId: meta?.taskRunId,
+    });
 
     // Deferred: slash commands + MCP metadata (not needed to return configOptions)
     this.deferBackgroundFetches(q, sessionId);
@@ -525,16 +553,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       .catch((err) => {
         this.logger.warn("Failed to fetch deferred session data", { err });
       });
-  }
-
-  private registerPersistence(
-    sessionId: string,
-    meta: Record<string, unknown> | undefined,
-  ) {
-    const persistence = meta?.persistence as SessionContext | undefined;
-    if (persistence && this.logWriter) {
-      this.logWriter.register(sessionId, persistence);
-    }
   }
 
   private sendAvailableCommandsUpdate(

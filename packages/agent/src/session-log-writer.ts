@@ -22,6 +22,7 @@ interface ChunkBuffer {
 interface SessionState {
   context: SessionContext;
   chunkBuffer?: ChunkBuffer;
+  lastAgentMessage?: string;
 }
 
 export class SessionLogWriter {
@@ -36,7 +37,7 @@ export class SessionLogWriter {
   private lastFlushAttemptTime: Map<string, number> = new Map();
   private retryCounts: Map<string, number> = new Map();
   private sessions: Map<string, SessionState> = new Map();
-  private messageCounts: Map<string, number> = new Map();
+
   private logger: Logger;
   private localCachePath?: string;
 
@@ -50,16 +51,6 @@ export class SessionLogWriter {
 
   async flushAll(): Promise<void> {
     const sessionIds = [...this.sessions.keys()];
-    const pendingCounts = sessionIds.map((id) => ({
-      id,
-      pending: this.pendingEntries.get(id)?.length ?? 0,
-      messages: this.messageCounts.get(id) ?? 0,
-    }));
-    this.logger.info("flushAll called", {
-      sessions: sessionIds.length,
-      pending: pendingCounts,
-    });
-
     const flushPromises: Promise<void>[] = [];
     for (const sessionId of sessionIds) {
       flushPromises.push(this.flush(sessionId));
@@ -73,8 +64,8 @@ export class SessionLogWriter {
     }
 
     this.logger.info("Session registered", {
-      sessionId,
       taskId: context.taskId,
+      runId: context.runId,
     });
     this.sessions.set(sessionId, { context });
 
@@ -110,12 +101,6 @@ export class SessionLogWriter {
       return;
     }
 
-    const count = (this.messageCounts.get(sessionId) ?? 0) + 1;
-    this.messageCounts.set(sessionId, count);
-    if (count % 10 === 1) {
-      this.logger.info("Messages received", { count, sessionId });
-    }
-
     try {
       const message = JSON.parse(line);
       const timestamp = new Date().toISOString();
@@ -137,6 +122,11 @@ export class SessionLogWriter {
       // Non-chunk event: flush any buffered chunks first
       this.emitCoalescedMessage(sessionId, session);
 
+      const nonChunkAgentText = this.extractAgentMessageText(message);
+      if (nonChunkAgentText) {
+        session.lastAgentMessage = nonChunkAgentText;
+      }
+
       const entry: StoredNotification = {
         type: "notification",
         timestamp,
@@ -153,7 +143,8 @@ export class SessionLogWriter {
       }
     } catch {
       this.logger.warn("Failed to parse raw line for persistence", {
-        sessionId,
+        taskId: session.context.taskId,
+        runId: session.context.runId,
         lineLength: line.length,
       });
     }
@@ -171,11 +162,6 @@ export class SessionLogWriter {
 
     const pending = this.pendingEntries.get(sessionId);
     if (!this.posthogAPI || !pending?.length) {
-      this.logger.info("flush: nothing to persist", {
-        sessionId,
-        hasPosthogAPI: !!this.posthogAPI,
-        pendingCount: pending?.length ?? 0,
-      });
       return;
     }
 
@@ -195,10 +181,6 @@ export class SessionLogWriter {
         pending,
       );
       this.retryCounts.set(sessionId, 0);
-      this.logger.info("Flushed session logs", {
-        sessionId,
-        entryCount: pending.length,
-      });
     } catch (error) {
       const retryCount = (this.retryCounts.get(sessionId) ?? 0) + 1;
       this.retryCounts.set(sessionId, retryCount);
@@ -206,7 +188,11 @@ export class SessionLogWriter {
       if (retryCount >= SessionLogWriter.MAX_FLUSH_RETRIES) {
         this.logger.error(
           `Dropping ${pending.length} session log entries after ${retryCount} failed flush attempts`,
-          { sessionId, error },
+          {
+            taskId: session.context.taskId,
+            runId: session.context.runId,
+            error,
+          },
         );
         this.retryCounts.set(sessionId, 0);
       } else {
@@ -245,6 +231,7 @@ export class SessionLogWriter {
 
     const { text, firstTimestamp } = session.chunkBuffer;
     session.chunkBuffer = undefined;
+    session.lastAgentMessage = text;
 
     const entry: StoredNotification = {
       type: "notification",
@@ -269,6 +256,39 @@ export class SessionLogWriter {
       this.pendingEntries.set(sessionId, pending);
       this.scheduleFlush(sessionId);
     }
+  }
+
+  getLastAgentMessage(sessionId: string): string | undefined {
+    return this.sessions.get(sessionId)?.lastAgentMessage;
+  }
+
+  private extractAgentMessageText(
+    message: Record<string, unknown>,
+  ): string | null {
+    if (message.method !== "session/update") {
+      return null;
+    }
+
+    const params = message.params as Record<string, unknown> | undefined;
+    const update = params?.update as Record<string, unknown> | undefined;
+    if (update?.sessionUpdate !== "agent_message") {
+      return null;
+    }
+
+    const content = update.content as
+      | { type?: string; text?: string }
+      | undefined;
+    if (content?.type === "text" && typeof content.text === "string") {
+      const trimmed = content.text.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+
+    if (typeof update.message === "string") {
+      const trimmed = update.message.trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }
+
+    return null;
   }
 
   private scheduleFlush(sessionId: string): void {
@@ -316,7 +336,12 @@ export class SessionLogWriter {
     try {
       fs.appendFileSync(logPath, `${JSON.stringify(entry)}\n`);
     } catch (error) {
-      this.logger.warn("Failed to write to local cache", { logPath, error });
+      this.logger.warn("Failed to write to local cache", {
+        taskId: session.context.taskId,
+        runId: session.context.runId,
+        logPath,
+        error,
+      });
     }
   }
 }

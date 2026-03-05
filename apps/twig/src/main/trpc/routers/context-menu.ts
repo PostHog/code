@@ -1,6 +1,10 @@
 import { container } from "../../di/container.js";
 import { MAIN_TOKENS } from "../../di/tokens.js";
 import {
+  archivedTaskContextMenuInput,
+  archivedTaskContextMenuOutput,
+  confirmDeleteArchivedTaskInput,
+  confirmDeleteArchivedTaskOutput,
   confirmDeleteTaskInput,
   confirmDeleteTaskOutput,
   fileContextMenuInput,
@@ -25,10 +29,20 @@ export const contextMenuRouter = router({
     .output(confirmDeleteTaskOutput)
     .mutation(({ input }) => getService().confirmDeleteTask(input)),
 
+  confirmDeleteArchivedTask: publicProcedure
+    .input(confirmDeleteArchivedTaskInput)
+    .output(confirmDeleteArchivedTaskOutput)
+    .mutation(({ input }) => getService().confirmDeleteArchivedTask(input)),
+
   showTaskContextMenu: publicProcedure
     .input(taskContextMenuInput)
     .output(taskContextMenuOutput)
     .mutation(({ input }) => getService().showTaskContextMenu(input)),
+
+  showArchivedTaskContextMenu: publicProcedure
+    .input(archivedTaskContextMenuInput)
+    .output(archivedTaskContextMenuOutput)
+    .mutation(({ input }) => getService().showArchivedTaskContextMenu(input)),
 
   showFolderContextMenu: publicProcedure
     .input(folderContextMenuInput)

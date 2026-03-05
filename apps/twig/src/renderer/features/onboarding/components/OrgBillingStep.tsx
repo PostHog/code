@@ -10,8 +10,13 @@ import {
   Skeleton,
   Text,
 } from "@radix-ui/themes";
-import twigLogo from "@renderer/assets/images/twig-logo.svg";
+import phWordmark from "@renderer/assets/images/wordmark-alt.png";
+import { logger } from "@renderer/lib/logger";
+import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
+import { useState } from "react";
+
+const log = logger.scope("org-billing-step");
 
 interface OrgBillingStepProps {
   onNext: () => void;
@@ -21,17 +26,37 @@ interface OrgBillingStepProps {
 export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
   const selectedOrgId = useAuthStore((s) => s.selectedOrgId);
   const selectOrg = useAuthStore((s) => s.selectOrg);
+  const client = useAuthStore((s) => s.client);
+  const queryClient = useQueryClient();
+  const [isSwitching, setIsSwitching] = useState(false);
 
   const { orgsWithBilling, effectiveSelectedOrgId, isLoading, error } =
     useOrganizations();
 
-  const handleContinue = () => {
-    if (effectiveSelectedOrgId) {
-      if (effectiveSelectedOrgId !== selectedOrgId) {
-        selectOrg(effectiveSelectedOrgId);
-      }
-      onNext();
+  const currentUserOrgId = queryClient.getQueryData<{
+    organization?: { id: string };
+  }>(["currentUser"])?.organization?.id;
+
+  const handleContinue = async () => {
+    if (!effectiveSelectedOrgId) return;
+
+    if (effectiveSelectedOrgId !== selectedOrgId) {
+      selectOrg(effectiveSelectedOrgId);
     }
+
+    if (client && effectiveSelectedOrgId !== currentUserOrgId) {
+      setIsSwitching(true);
+      try {
+        await client.switchOrganization(effectiveSelectedOrgId);
+        await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      } catch (err) {
+        log.error("Failed to switch organization", err);
+      } finally {
+        setIsSwitching(false);
+      }
+    }
+
+    onNext();
   };
 
   const handleSelect = (orgId: string) => {
@@ -52,8 +77,8 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
       >
         <Flex direction="column" gap="3" mb="6">
           <img
-            src={twigLogo}
-            alt="Twig"
+            src={phWordmark}
+            alt="PostHog"
             style={{
               height: "40px",
               objectFit: "contain",
@@ -63,18 +88,15 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
           <Text
             size="6"
             style={{
-              fontFamily: "Halfre, serif",
-              color: "var(--cave-charcoal)",
+              color: "var(--gray-12)",
               lineHeight: 1.3,
             }}
           >
             Choose your organization
           </Text>
-          <Text
-            size="3"
-            style={{ color: "var(--cave-charcoal)", opacity: 0.7 }}
-          >
-            Select which organization should be billed for your Twig usage.
+          <Text size="3" style={{ color: "var(--gray-12)", opacity: 0.7 }}>
+            Select which organization should be billed for your PostHog Code
+            usage.
           </Text>
         </Flex>
 
@@ -112,9 +134,8 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
                     px="4"
                     py="3"
                     style={{
-                      backgroundColor: "rgba(255, 255, 255, 0.7)",
-                      border: "2px solid rgba(0, 0, 0, 0.1)",
-                      backdropFilter: "blur(8px)",
+                      backgroundColor: "var(--color-panel-solid)",
+                      border: "2px solid var(--gray-4)",
                     }}
                   >
                     <Flex align="center" gap="3">
@@ -158,7 +179,7 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
             size="3"
             variant="ghost"
             onClick={onBack}
-            style={{ color: "var(--cave-charcoal)" }}
+            style={{ color: "var(--gray-12)" }}
           >
             <ArrowLeft size={16} />
             Back
@@ -166,14 +187,10 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
           <Button
             size="3"
             onClick={handleContinue}
-            disabled={!effectiveSelectedOrgId || isLoading}
-            style={{
-              backgroundColor: "var(--cave-charcoal)",
-              color: "var(--cave-cream)",
-            }}
+            disabled={!effectiveSelectedOrgId || isLoading || isSwitching}
           >
-            Continue
-            <ArrowRight size={16} />
+            {isSwitching ? "Switching..." : "Continue"}
+            {!isSwitching && <ArrowRight size={16} />}
           </Button>
         </Flex>
       </Flex>
@@ -203,20 +220,19 @@ function OrgCard({
       py="3"
       onClick={onSelect}
       style={{
-        backgroundColor: "rgba(255, 255, 255, 0.7)",
+        backgroundColor: "var(--color-panel-solid)",
         border: isSelected
           ? "2px solid var(--accent-9)"
-          : "2px solid rgba(0, 0, 0, 0.1)",
+          : "2px solid var(--gray-4)",
         cursor: "pointer",
         transition: "all 0.2s ease",
-        backdropFilter: "blur(8px)",
       }}
     >
       <Flex align="center" gap="3" style={{ minWidth: 0 }}>
         <Text
           size="3"
           weight="medium"
-          style={{ color: "var(--cave-charcoal)" }}
+          style={{ color: "var(--gray-12)" }}
           truncate
         >
           {name}
@@ -235,7 +251,7 @@ function OrgCard({
         flexShrink="0"
         style={{
           borderRadius: "50%",
-          border: isSelected ? "none" : "2px solid rgba(0, 0, 0, 0.2)",
+          border: isSelected ? "none" : "2px solid var(--gray-7)",
           backgroundColor: isSelected ? "var(--accent-9)" : "transparent",
           display: "flex",
           alignItems: "center",

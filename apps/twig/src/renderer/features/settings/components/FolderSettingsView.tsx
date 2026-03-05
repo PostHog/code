@@ -123,9 +123,9 @@ export function FolderSettingsView() {
                     Option 2: Remove the repository
                   </Text>
                   <Text size="1" color="gray">
-                    This will remove the repository from Twig, including all
-                    associated tasks and their workspaces. This action cannot be
-                    undone.
+                    This will remove the repository from PostHog Code, including
+                    all associated tasks and their workspaces. This action
+                    cannot be undone.
                   </Text>
                 </Flex>
                 <Button
@@ -196,9 +196,9 @@ export function FolderSettingsView() {
                     Remove repository
                   </Text>
                   <Text size="1" color="gray">
-                    This will remove the repository from Twig, including all
-                    associated tasks and their workspaces. This action cannot be
-                    undone.
+                    This will remove the repository from PostHog Code, including
+                    all associated tasks and their workspaces. This action
+                    cannot be undone.
                   </Text>
                 </Flex>
                 <Button

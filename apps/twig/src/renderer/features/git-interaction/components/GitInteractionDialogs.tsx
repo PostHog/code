@@ -554,7 +554,7 @@ export function GitBranchDialog({
       open={open}
       onOpenChange={onOpenChange}
       icon={<GitFork size={ICON_SIZE} />}
-      title="Branch here"
+      title="New branch"
       error={error}
       buttonLabel="Create"
       buttonDisabled={!branchName.trim()}

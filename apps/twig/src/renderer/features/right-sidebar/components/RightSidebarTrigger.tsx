@@ -22,6 +22,7 @@ export const RightSidebarTrigger: React.FC = () => {
         color="gray"
         onClick={toggle}
         className="no-drag"
+        mr="2"
         style={{ transform: "scaleX(-1)" }}
       >
         <SidebarSimpleIcon size={16} />

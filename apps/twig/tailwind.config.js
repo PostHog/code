@@ -18,14 +18,9 @@ module.exports = {
         },
       },
       colors: {
-        cave: {
-          cream: "#f7eddf",
-          charcoal: "#2d2b29",
-        },
-        fire: {
-          glow: "rgba(255, 140, 60, 0.15)",
-        },
         posthog: {
+          orange: "#f54d00",
+          yellow: "#f8be2a",
           50: "#fef2f2",
           100: "#fee2e2",
           200: "#fecaca",
@@ -36,13 +31,6 @@ module.exports = {
           700: "#b91c1c",
           800: "#991b1b",
           900: "#7f1d1d",
-        },
-        dark: {
-          bg: "#0a0a0a",
-          surface: "#1a1a1a",
-          border: "#2a2a2a",
-          text: "#e5e5e5",
-          "text-muted": "#a3a3a3",
         },
       },
       fontFamily: {

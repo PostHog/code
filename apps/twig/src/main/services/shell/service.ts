@@ -54,7 +54,7 @@ function buildShellEnv(
   }
 
   Object.assign(env, {
-    TERM_PROGRAM: "Twig",
+    TERM_PROGRAM: "PostHog Code",
     COLORTERM: "truecolor",
     FORCE_COLOR: "3",
     ...additionalEnv,

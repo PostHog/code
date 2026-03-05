@@ -34,7 +34,7 @@ interface TaskListViewProps {
     e: React.MouseEvent,
     isPinned: boolean,
   ) => void;
-  onTaskDelete: (taskId: string) => void;
+  onTaskArchive: (taskId: string) => void;
   onTaskTogglePin: (taskId: string) => void;
   onTaskEditSubmit: (taskId: string, newTitle: string) => void;
   onTaskEditCancel: () => void;
@@ -65,7 +65,7 @@ function TaskRow({
   onClick,
   onDoubleClick,
   onContextMenu,
-  onDelete,
+  onArchive,
   onTogglePin,
   onEditSubmit,
   onEditCancel,
@@ -78,7 +78,7 @@ function TaskRow({
   onClick: () => void;
   onDoubleClick: () => void;
   onContextMenu: (e: React.MouseEvent, isPinned: boolean) => void;
-  onDelete: () => void;
+  onArchive: () => void;
   onTogglePin: () => void;
   onEditSubmit: (newTitle: string) => void;
   onEditCancel: () => void;
@@ -86,14 +86,18 @@ function TaskRow({
   depth?: number;
 }) {
   const workspace = useWorkspaceStore((s) => s.workspaces[task.id]);
+  const effectiveMode =
+    workspace?.mode ??
+    (task.taskRunEnvironment === "cloud" ? "cloud" : undefined);
 
   return (
     <TaskItem
       depth={depth}
+      taskId={task.id}
       label={task.title}
       isActive={isActive}
       isEditing={isEditing}
-      workspaceMode={workspace?.mode}
+      workspaceMode={effectiveMode}
       worktreePath={workspace?.worktreePath ?? undefined}
       isGenerating={task.isGenerating}
       isUnread={task.isUnread}
@@ -104,7 +108,7 @@ function TaskRow({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={(e) => onContextMenu(e, task.isPinned)}
-      onDelete={onDelete}
+      onArchive={onArchive}
       onTogglePin={onTogglePin}
       onEditSubmit={onEditSubmit}
       onEditCancel={onEditCancel}
@@ -233,7 +237,7 @@ export function TaskListView({
   onTaskClick,
   onTaskDoubleClick,
   onTaskContextMenu,
-  onTaskDelete,
+  onTaskArchive,
   onTaskTogglePin,
   onTaskEditSubmit,
   onTaskEditCancel,
@@ -296,7 +300,7 @@ export function TaskListView({
               onContextMenu={(e, isPinned) =>
                 onTaskContextMenu(task.id, e, isPinned)
               }
-              onDelete={() => onTaskDelete(task.id)}
+              onArchive={() => onTaskArchive(task.id)}
               onTogglePin={() => onTaskTogglePin(task.id)}
               onEditSubmit={(newTitle) => onTaskEditSubmit(task.id, newTitle)}
               onEditCancel={onTaskEditCancel}
@@ -359,7 +363,7 @@ export function TaskListView({
                         onContextMenu={(e, isPinned) =>
                           onTaskContextMenu(task.id, e, isPinned)
                         }
-                        onDelete={() => onTaskDelete(task.id)}
+                        onArchive={() => onTaskArchive(task.id)}
                         onTogglePin={() => onTaskTogglePin(task.id)}
                         onEditSubmit={(newTitle) =>
                           onTaskEditSubmit(task.id, newTitle)
@@ -388,7 +392,7 @@ export function TaskListView({
               onContextMenu={(e, isPinned) =>
                 onTaskContextMenu(task.id, e, isPinned)
               }
-              onDelete={() => onTaskDelete(task.id)}
+              onArchive={() => onTaskArchive(task.id)}
               onTogglePin={() => onTaskTogglePin(task.id)}
               onEditSubmit={(newTitle) => onTaskEditSubmit(task.id, newTitle)}
               onEditCancel={onTaskEditCancel}

@@ -21,7 +21,7 @@ export function RegionSelect({
   if (!expanded) {
     return (
       <Text size="2">
-        <span style={{ color: "var(--cave-charcoal)", opacity: 0.5 }}>
+        <span style={{ color: "var(--gray-12)", opacity: 0.5 }}>
           {regionLabel}
           {" \u00B7 "}
         </span>
@@ -52,11 +52,11 @@ export function RegionSelect({
         <Text
           size="2"
           weight="medium"
-          style={{ color: "var(--cave-charcoal)", opacity: 0.6 }}
+          style={{ color: "var(--gray-12)", opacity: 0.6 }}
         >
           PostHog region
         </Text>
-        <Text size="2" style={{ color: "var(--cave-charcoal)", opacity: 0.5 }}>
+        <Text size="2" style={{ color: "var(--gray-12)", opacity: 0.5 }}>
           <button
             type="button"
             onClick={() => setExpanded(false)}

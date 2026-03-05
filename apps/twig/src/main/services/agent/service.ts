@@ -1,6 +1,6 @@
-import fs, { mkdirSync, rmSync, symlinkSync } from "node:fs";
+import fs, { existsSync, mkdirSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { delimiter, isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
   type Client,
   ClientSideConnection,
@@ -45,6 +45,8 @@ import {
 export type { InterruptReason };
 
 const log = logger.scope("agent-service");
+
+const SHARED_MOCK_NODE_DIR = join(tmpdir(), "agent-node-shared");
 
 /** Mark all content blocks as hidden so the renderer doesn't show a duplicate user message on retry. */
 function hidePromptBlocks(prompt: ContentBlock[]): ContentBlock[] {
@@ -201,7 +203,6 @@ interface ManagedSession {
   channel: string;
   createdAt: number;
   lastActivityAt: number;
-  mockNodeDir: string;
   config: SessionConfig;
   interruptReason?: InterruptReason;
   needsRecreation: boolean;
@@ -246,6 +247,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private sessions = new Map<string, ManagedSession>();
   private currentToken: string | null = null;
   private pendingPermissions = new Map<string, PendingPermission>();
+  private mockNodeReady = false;
   private processTracking: ProcessTrackingService;
   private sleepService: SleepService;
   private fsService: FsService;
@@ -494,7 +496,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     }
 
     const channel = `agent-event:${taskRunId}`;
-    const mockNodeDir = this.setupMockNodeEnvironment(taskRunId);
+    const mockNodeDir = this.setupMockNodeEnvironment();
     this.setupEnvironment(credentials, mockNodeDir);
 
     // Preview sessions don't persist logs — no real task exists
@@ -658,7 +660,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         channel,
         createdAt: Date.now(),
         lastActivityAt: Date.now(),
-        mockNodeDir,
         config,
         needsRecreation: false,
         promptPending: false,
@@ -676,7 +677,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       } catch {
         log.debug("Agent cleanup failed during error handling", { taskRunId });
       }
-      this.cleanupMockNodeEnvironment(mockNodeDir);
+
       if (!isRetry && isAuthError(err)) {
         log.warn(
           `Auth error during ${isReconnect ? "reconnect" : "create"}, retrying`,
@@ -1003,8 +1004,10 @@ For git operations while detached:
     mockNodeDir: string,
   ): void {
     const token = this.getToken(credentials.apiKey);
-    const newPath = `${mockNodeDir}:${process.env.PATH || ""}`;
-    process.env.PATH = newPath;
+    const currentPath = process.env.PATH || "";
+    if (!currentPath.split(delimiter).includes(mockNodeDir)) {
+      process.env.PATH = `${mockNodeDir}${delimiter}${currentPath}`;
+    }
     process.env.POSTHOG_AUTH_HEADER = `Bearer ${token}`;
     process.env.ANTHROPIC_API_KEY = token;
     process.env.ANTHROPIC_AUTH_TOKEN = token;
@@ -1026,29 +1029,20 @@ For git operations while detached:
     process.env.POSTHOG_PROJECT_ID = String(credentials.projectId);
   }
 
-  private setupMockNodeEnvironment(sessionId: string): string {
-    const mockNodeDir = join(tmpdir(), `array-agent-node-${sessionId}`);
-    try {
-      mkdirSync(mockNodeDir, { recursive: true });
-      const nodeSymlinkPath = join(mockNodeDir, "node");
+  private setupMockNodeEnvironment(): string {
+    if (!this.mockNodeReady) {
       try {
-        rmSync(nodeSymlinkPath, { force: true });
-      } catch {
-        /* ignore */
+        mkdirSync(SHARED_MOCK_NODE_DIR, { recursive: true });
+        const nodeSymlinkPath = join(SHARED_MOCK_NODE_DIR, "node");
+        if (!existsSync(nodeSymlinkPath)) {
+          symlinkSync(process.execPath, nodeSymlinkPath);
+        }
+        this.mockNodeReady = true;
+      } catch (err) {
+        log.warn("Failed to setup mock node environment", err);
       }
-      symlinkSync(process.execPath, nodeSymlinkPath);
-    } catch (err) {
-      log.warn("Failed to setup mock node environment", err);
     }
-    return mockNodeDir;
-  }
-
-  private cleanupMockNodeEnvironment(mockNodeDir: string): void {
-    try {
-      rmSync(mockNodeDir, { recursive: true, force: true });
-    } catch {
-      /* ignore */
-    }
+    return SHARED_MOCK_NODE_DIR;
   }
 
   private async cleanupSession(taskRunId: string): Promise<void> {
@@ -1060,7 +1054,7 @@ For git operations while detached:
       } catch {
         log.debug("Agent cleanup failed", { taskRunId });
       }
-      this.cleanupMockNodeEnvironment(session.mockNodeDir);
+
       this.sessions.delete(taskRunId);
     }
   }

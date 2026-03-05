@@ -45,8 +45,8 @@ export function ScopeReauthPrompt() {
           </Flex>
           <Dialog.Description>
             <Text size="2" color="gray">
-              Twig has been updated with new features that require additional
-              permissions. Please sign in again to continue.
+              PostHog Code has been updated with new features that require
+              additional permissions. Please sign in again to continue.
             </Text>
           </Dialog.Description>
           <Flex justify="between" mt="2">

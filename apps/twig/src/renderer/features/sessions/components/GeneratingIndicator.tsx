@@ -49,7 +49,7 @@ export function GeneratingIndicator({ startedAt }: GeneratingIndicatorProps) {
       className="select-none text-accent-11"
       style={{ userSelect: "none", WebkitUserSelect: "none" }}
     >
-      <Campfire size={14} weight="fill" className="campfire-pulse" />
+      <Campfire size={14} weight="fill" className="ph-pulse" />
       <Text size="1">{ACTIVITIES[activityIndex]}...</Text>
       <Text size="1" color="gray">
         (Esc to interrupt

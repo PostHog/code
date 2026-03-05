@@ -126,7 +126,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
 
       // Do lightweight cleanup: kill processes, shut down watchers
       // Skip container teardown so before-quit handler can still access services
-      await this.lifecycleService.cleanupForUpdate();
+      await this.lifecycleService.shutdownWithoutContainer();
 
       autoUpdater.quitAndInstall();
       return { installed: true };

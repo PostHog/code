@@ -142,6 +142,15 @@ export const createBranchInput = z.object({
   branchName: z.string(),
 });
 
+export const checkoutBranchInput = z.object({
+  directoryPath: z.string(),
+  branchName: z.string(),
+});
+export const checkoutBranchOutput = z.object({
+  previousBranch: z.string(),
+  currentBranch: z.string(),
+});
+
 // discardFileChanges schemas
 export const discardFileChangesInput = z.object({
   directoryPath: z.string(),

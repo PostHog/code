@@ -1,5 +1,5 @@
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
-import { Cloud, GitBranch, Laptop } from "@phosphor-icons/react";
+import { ArrowsSplit, Cloud, Laptop } from "@phosphor-icons/react";
 import { ChevronDownIcon } from "@radix-ui/react-icons";
 import { Button, DropdownMenu, Flex, Text } from "@radix-ui/themes";
 import type { Responsive } from "@radix-ui/themes/dist/esm/props/prop-def.js";
@@ -26,7 +26,13 @@ const MODE_CONFIG: Record<
   worktree: {
     label: "Worktree",
     description: "Create a copy of your local project to work in parallel",
-    icon: <GitBranch size={16} weight="regular" />,
+    icon: (
+      <ArrowsSplit
+        size={16}
+        weight="regular"
+        style={{ transform: "rotate(270deg)" }}
+      />
+    ),
   },
   cloud: {
     label: "Cloud",

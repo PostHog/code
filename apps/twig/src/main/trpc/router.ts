@@ -1,5 +1,6 @@
 import { agentRouter } from "./routers/agent.js";
 import { analyticsRouter } from "./routers/analytics.js";
+import { archiveRouter } from "./routers/archive.js";
 import { cloudTaskRouter } from "./routers/cloud-task.js";
 import { connectivityRouter } from "./routers/connectivity.js";
 import { contextMenuRouter } from "./routers/context-menu.js";
@@ -12,6 +13,7 @@ import { focusRouter } from "./routers/focus.js";
 import { foldersRouter } from "./routers/folders.js";
 import { fsRouter } from "./routers/fs.js";
 import { gitRouter } from "./routers/git.js";
+import { githubIntegrationRouter } from "./routers/github-integration.js";
 import { llmGatewayRouter } from "./routers/llm-gateway.js";
 import { logsRouter } from "./routers/logs.js";
 import { notificationRouter } from "./routers/notification.js";
@@ -29,6 +31,7 @@ import { router } from "./trpc.js";
 export const trpcRouter = router({
   agent: agentRouter,
   analytics: analyticsRouter,
+  archive: archiveRouter,
   cloudTask: cloudTaskRouter,
   connectivity: connectivityRouter,
   contextMenu: contextMenuRouter,
@@ -40,6 +43,7 @@ export const trpcRouter = router({
   folders: foldersRouter,
   fs: fsRouter,
   git: gitRouter,
+  githubIntegration: githubIntegrationRouter,
   llmGateway: llmGatewayRouter,
   notification: notificationRouter,
   oauth: oauthRouter,

@@ -143,7 +143,7 @@ export const osRouter = router({
       const options = input.options;
       const result = await dialog.showMessageBox(win, {
         type: options?.type || "info",
-        title: options?.title || "Twig",
+        title: options?.title || "PostHog Code",
         message: options?.message || "",
         detail: options?.detail,
         buttons:

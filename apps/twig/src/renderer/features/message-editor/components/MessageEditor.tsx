@@ -1,7 +1,9 @@
 import "./message-editor.css";
 import type { SessionConfigOption } from "@agentclientprotocol/sdk";
+import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
+import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import { useConnectivity } from "@hooks/useConnectivity";
-import { ArrowUp, Stop } from "@phosphor-icons/react";
+import { ArrowUp, Circle, Stop } from "@phosphor-icons/react";
 import { Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { EditorContent } from "@tiptap/react";
 import { forwardRef, useEffect, useImperativeHandle } from "react";
@@ -9,13 +11,78 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { useDraftStore } from "../stores/draftStore";
 import { useTiptapEditor } from "../tiptap/useTiptapEditor";
 import type { EditorHandle } from "../types";
-import { AdapterIndicator } from "./AdapterIndicator";
 import { AttachmentsBar } from "./AttachmentsBar";
 import { DiffStatsIndicator } from "./DiffStatsIndicator";
 import { EditorToolbar } from "./EditorToolbar";
 import { ModeIndicatorInput } from "./ModeIndicatorInput";
 
 export type { EditorHandle as MessageEditorHandle };
+
+interface ModeAndBranchRowProps {
+  modeOption?: SessionConfigOption;
+  onModeChange?: () => void;
+  repoPath?: string | null;
+  disabled?: boolean;
+}
+
+function ModeAndBranchRow({
+  modeOption,
+  onModeChange,
+  repoPath,
+  disabled,
+}: ModeAndBranchRowProps) {
+  const { currentBranch, diffStats } = useGitQueries(repoPath ?? undefined);
+
+  const showModeIndicator = !!onModeChange;
+  const showBranchSelector = !!currentBranch;
+  const showDiffStats =
+    diffStats &&
+    (diffStats.filesChanged > 0 ||
+      diffStats.linesAdded > 0 ||
+      diffStats.linesRemoved > 0);
+
+  if (!showModeIndicator && !showBranchSelector) {
+    return null;
+  }
+
+  return (
+    <Flex align="center" justify="between">
+      <Flex align="center" gap="2">
+        {showModeIndicator && modeOption && (
+          <ModeIndicatorInput modeOption={modeOption} />
+        )}
+        {showModeIndicator && !modeOption && (
+          <Text
+            size="1"
+            style={{ color: "var(--gray-8)", fontFamily: "monospace" }}
+          >
+            Loading...
+          </Text>
+        )}
+      </Flex>
+      <Flex align="center" gap="2">
+        <DiffStatsIndicator repoPath={repoPath} />
+        {showBranchSelector && showDiffStats && (
+          <Flex
+            align="center"
+            justify="center"
+            style={{ height: 16, marginRight: -8 }}
+          >
+            <Circle size={4} weight="fill" color="var(--gray-9)" />
+          </Flex>
+        )}
+        {showBranchSelector && (
+          <BranchSelector
+            repoPath={repoPath ?? null}
+            currentBranch={currentBranch}
+            disabled={disabled}
+            variant="ghost"
+          />
+        )}
+      </Flex>
+    </Flex>
+  );
+}
 
 interface MessageEditorProps {
   sessionId: string;
@@ -28,7 +95,6 @@ interface MessageEditorProps {
   autoFocus?: boolean;
   modeOption?: SessionConfigOption;
   onModeChange?: () => void;
-  adapter?: "claude" | "codex";
   onFocus?: () => void;
   onBlur?: () => void;
 }
@@ -46,7 +112,6 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
       autoFocus = false,
       modeOption,
       onModeChange,
-      adapter,
       onFocus,
       onBlur,
     },
@@ -226,23 +291,12 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
             )}
           </Flex>
         </Flex>
-        {(onModeChange || adapter) && (
-          <Flex align="center" gap="2">
-            {onModeChange && modeOption && (
-              <ModeIndicatorInput modeOption={modeOption} />
-            )}
-            {onModeChange && !modeOption && (
-              <Text
-                size="1"
-                style={{ color: "var(--gray-8)", fontFamily: "monospace" }}
-              >
-                Loading...
-              </Text>
-            )}
-            {adapter && <AdapterIndicator adapter={adapter} />}
-            <DiffStatsIndicator repoPath={repoPath} />
-          </Flex>
-        )}
+        <ModeAndBranchRow
+          modeOption={modeOption}
+          onModeChange={onModeChange}
+          repoPath={repoPath}
+          disabled={disabled}
+        />
       </Flex>
     );
   },

@@ -1,8 +1,10 @@
 import { ErrorBoundary } from "@components/ErrorBoundary";
 import { LoginTransition } from "@components/LoginTransition";
 import { MainLayout } from "@components/MainLayout";
+import { ScopeReauthPrompt } from "@components/ScopeReauthPrompt";
 import { UpdatePrompt } from "@components/UpdatePrompt";
 import { AuthScreen } from "@features/auth/components/AuthScreen";
+import { InviteCodeScreen } from "@features/auth/components/InviteCodeScreen";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { OnboardingFlow } from "@features/onboarding/components/OnboardingFlow";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
@@ -21,7 +23,8 @@ import { Toaster } from "sonner";
 const log = logger.scope("app");
 
 function App() {
-  const { isAuthenticated, hasCompletedOnboarding } = useAuthStore();
+  const { isAuthenticated, hasCompletedOnboarding, hasTwigAccess } =
+    useAuthStore();
   const isDarkMode = useThemeStore((state) => state.isDarkMode);
   const [isLoading, setIsLoading] = useState(true);
   const [showTransition, setShowTransition] = useState(false);
@@ -142,14 +145,14 @@ function App() {
     initialize();
   }, []);
 
-  // Handle transition into main app (from onboarding completion)
+  // Handle transition into main app — only show the dark overlay if dark mode is active
   useEffect(() => {
     const isInMainApp = isAuthenticated && hasCompletedOnboarding;
-    if (!wasInMainApp.current && isInMainApp) {
+    if (!wasInMainApp.current && isInMainApp && isDarkMode) {
       setShowTransition(true);
     }
     wasInMainApp.current = isInMainApp;
-  }, [isAuthenticated, hasCompletedOnboarding]);
+  }, [isAuthenticated, hasCompletedOnboarding, isDarkMode]);
 
   const handleTransitionComplete = () => {
     setShowTransition(false);
@@ -166,30 +169,42 @@ function App() {
     );
   }
 
-  // Three-phase rendering: auth → onboarding → main app
+  // Four-phase rendering: auth → access gate → onboarding → main app
   const renderContent = () => {
     if (!isAuthenticated) {
       return (
-        <motion.div
-          key="auth"
-          initial={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-        >
+        <motion.div key="auth" initial={{ opacity: 1 }}>
           <AuthScreen />
+        </motion.div>
+      );
+    }
+
+    // Access check loading state
+    if (hasTwigAccess === null) {
+      return (
+        <motion.div key="access-check">
+          <Flex align="center" justify="center" minHeight="100vh">
+            <Flex align="center" gap="3">
+              <Spinner size="3" />
+              <Text color="gray">Checking access...</Text>
+            </Flex>
+          </Flex>
+        </motion.div>
+      );
+    }
+
+    // Access gate: show invite code screen if flag is not enabled
+    if (!hasTwigAccess) {
+      return (
+        <motion.div key="invite-code">
+          <InviteCodeScreen />
         </motion.div>
       );
     }
 
     if (!hasCompletedOnboarding) {
       return (
-        <motion.div
-          key="onboarding"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-        >
+        <motion.div key="onboarding">
           <OnboardingFlow />
         </motion.div>
       );
@@ -215,6 +230,7 @@ function App() {
         isDarkMode={isDarkMode}
         onComplete={handleTransitionComplete}
       />
+      <ScopeReauthPrompt />
       <UpdatePrompt />
       <Toaster position="bottom-right" />
     </ErrorBoundary>

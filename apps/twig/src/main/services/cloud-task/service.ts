@@ -15,10 +15,9 @@ import {
 
 const log = logger.scope("cloud-task");
 
-const LOG_POLL_INTERVAL_MS = 5_000;
-const LOG_POLL_INTERVAL_FAST_MS = 1_000;
-const STATUS_POLL_INTERVAL_MS = 10_000;
-const STATUS_POLL_INTERVAL_FAST_MS = 3_000;
+const LOG_POLL_INTERVAL_MS = 500;
+const STATUS_POLL_INTERVAL_MS = 60_000;
+const STATUS_POLL_INTERVAL_VIEWING_MS = 3_000;
 
 interface TaskRunResponse {
   id: string;
@@ -70,6 +69,9 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     const existing = this.watchers.get(key);
     if (existing) {
       existing.subscriberCount++;
+      if (input.viewing && !existing.viewing) {
+        this.setViewing(input.taskId, input.runId, true);
+      }
       log.info("Cloud task watcher subscriber added", {
         key,
         subscribers: existing.subscriberCount,
@@ -141,9 +143,13 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     if (watcher.viewing === viewing) return;
     watcher.viewing = viewing;
 
-    if (viewing && watcher.pollTimeoutId) {
+    if (watcher.pollTimeoutId) {
       clearTimeout(watcher.pollTimeoutId);
       watcher.pollTimeoutId = null;
+    }
+    if (viewing) {
+      this.poll(key, true);
+    } else {
       this.schedulePoll(key);
     }
 
@@ -262,7 +268,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       lastBranch: null,
       lastStatusPollTime: 0,
       subscriberCount,
-      viewing: false,
+      viewing: input.viewing ?? false,
     };
 
     this.watchers.set(key, watcher);
@@ -290,8 +296,8 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     if (!watcher) return;
 
     const interval = watcher.viewing
-      ? LOG_POLL_INTERVAL_FAST_MS
-      : LOG_POLL_INTERVAL_MS;
+      ? LOG_POLL_INTERVAL_MS
+      : STATUS_POLL_INTERVAL_MS;
 
     watcher.pollTimeoutId = setTimeout(() => {
       watcher.pollTimeoutId = null;
@@ -304,13 +310,15 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     if (!watcher || !this.apiKey) return;
 
     try {
-      // Always fetch logs
-      const logResult = await this.fetchLogs(watcher);
+      // Only fetch logs when the user is viewing the run
+      const logResult = watcher.viewing
+        ? await this.fetchLogs(watcher)
+        : { newEntries: [] as StoredLogEntry[] };
 
       // Fetch status if snapshot or interval elapsed
       const now = Date.now();
       const statusInterval = watcher.viewing
-        ? STATUS_POLL_INTERVAL_FAST_MS
+        ? STATUS_POLL_INTERVAL_VIEWING_MS
         : STATUS_POLL_INTERVAL_MS;
       const shouldFetchStatus =
         isSnapshot || now - watcher.lastStatusPollTime >= statusInterval;
@@ -462,7 +470,8 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
         return { newEntries: [] };
       }
 
-      const entries = (await response.json()) as StoredLogEntry[];
+      const raw = await response.text();
+      const entries = JSON.parse(raw) as StoredLogEntry[];
 
       if (entries.length === 0) {
         return { newEntries: [] };

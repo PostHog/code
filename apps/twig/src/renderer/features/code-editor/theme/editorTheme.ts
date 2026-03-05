@@ -10,42 +10,42 @@ function withAlpha(hex: string, alpha: number): string {
   return `${hex}${a}`;
 }
 
-// Warm cave-inspired dark theme colors
+// PostHog-inspired dark theme colors
 const dark = {
   chalky: "#e5c07b",
   coral: "#e06c75",
   cyan: "#56b6c2",
-  invalid: "#f7eddf",
-  ivory: "#c4baa8",
-  stone: "#8a8275",
+  invalid: "#e6e6e6",
+  ivory: "#e6e6e6",
+  stone: "#9898b6",
   malibu: "#61afef",
   sage: "#98c379",
   whiskey: "#d19a66",
   violet: "#c678dd",
-  background: "#1a1815",
-  highlightBackground: "#2a2621",
-  tooltipBackground: "#322e28",
-  selection: "#453f37",
-  cursor: "#f1a82c",
+  background: "#131316",
+  highlightBackground: "#1e1e28",
+  tooltipBackground: "#24243e",
+  selection: "#2e2e3d",
+  cursor: "#f8be2a",
 };
 
-// Warm cave-inspired light theme colors
+// PostHog-inspired light theme colors
 const light = {
   chalky: "#c18401",
   coral: "#c45649",
   cyan: "#0184bc",
-  invalid: "#2d2b29",
-  ivory: "#3d3832",
-  stone: "#9a9282",
+  invalid: "#0d0d0d",
+  ivory: "#1a1d17",
+  stone: "#6b7165",
   malibu: "#4078f2",
   sage: "#50a14f",
   whiskey: "#986801",
   violet: "#a626a4",
-  background: "#f7eddf",
-  highlightBackground: "#ebe1d3",
-  tooltipBackground: "#f1e5d5",
-  selection: "#ddd5c7",
-  cursor: "#dc9300",
+  background: "#f2f3ee",
+  highlightBackground: "#e4e5de",
+  tooltipBackground: "#eceee8",
+  selection: "#d8dbd1",
+  cursor: "#f54d00",
 };
 
 function createEditorTheme(colors: typeof dark, isDark: boolean) {
@@ -349,14 +349,14 @@ export const mergeViewTheme = EditorView.baseTheme({
     },
   },
   "&light .cm-collapsedLines": {
-    color: "#3d3832",
+    color: "#3a4036",
     background:
-      "linear-gradient(to bottom, transparent 0, #ebe1d3 30%, #ebe1d3 70%, transparent 100%)",
+      "linear-gradient(to bottom, transparent 0, #e4e5de 30%, #e4e5de 70%, transparent 100%)",
   },
   "&dark .cm-collapsedLines": {
-    color: "#c4baa8",
+    color: "#e6e6e6",
     background:
-      "linear-gradient(to bottom, transparent 0, #2a2621 30%, #2a2621 70%, transparent 100%)",
+      "linear-gradient(to bottom, transparent 0, #1e1e28 30%, #1e1e28 70%, transparent 100%)",
   },
   ".cm-changeGutter": { width: "3px", paddingLeft: "1px" },
   "&light.cm-merge-a .cm-changedLineGutter, &light .cm-deletedLineGutter": {

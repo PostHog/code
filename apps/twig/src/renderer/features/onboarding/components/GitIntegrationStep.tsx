@@ -7,8 +7,8 @@ import {
   GitBranch,
 } from "@phosphor-icons/react";
 import { Box, Button, Flex, Skeleton, Text } from "@radix-ui/themes";
-import twigLogo from "@renderer/assets/images/twig-logo.svg";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import phWordmark from "@renderer/assets/images/wordmark-alt.png";
+import { trpcVanilla } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useMemo, useState } from "react";
@@ -30,6 +30,8 @@ export function GitIntegrationStep({
 
   const queryClient = useQueryClient();
   const { projects, isLoading, isFetching } = useProjectsWithIntegrations();
+
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // User can manually select a different project
   const [manuallySelectedProjectId, setManuallySelectedProjectId] = useState<
@@ -54,15 +56,25 @@ export function GitIntegrationStep({
 
   const hasGitIntegration = selectedProject?.hasGithubIntegration ?? false;
 
-  const handleConnectGitHub = () => {
+  const handleConnectGitHub = async () => {
     if (!cloudRegion || !selectedProjectId) return;
-    const cloudUrl = getCloudUrlFromRegion(cloudRegion);
-    const integrationUrl = `${cloudUrl}/project/${selectedProjectId}/settings/project-integrations`;
-    window.open(integrationUrl, "_blank");
+    setIsConnecting(true);
+    try {
+      const result = await trpcVanilla.githubIntegration.startFlow.mutate({
+        region: cloudRegion,
+        projectId: selectedProjectId,
+      });
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      }
+    } catch {
+      // Flow was cancelled or timed out — user can retry
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   const handleRefresh = () => {
-    // Re-fetch integrations for the selected project
     queryClient.invalidateQueries({ queryKey: ["integrations"] });
   };
 
@@ -79,8 +91,8 @@ export function GitIntegrationStep({
       <Flex direction="column" gap="6" style={{ width: "100%", maxWidth: 520 }}>
         <Flex direction="column" gap="3">
           <img
-            src={twigLogo}
-            alt="Twig"
+            src={phWordmark}
+            alt="PostHog"
             style={{
               height: "40px",
               objectFit: "contain",
@@ -90,29 +102,30 @@ export function GitIntegrationStep({
           <Text
             size="6"
             style={{
-              fontFamily: "Halfre, serif",
-              color: "var(--cave-charcoal)",
+              color: "var(--gray-12)",
               lineHeight: 1.3,
             }}
           >
             Connect your git repository
           </Text>
-          <Text
-            size="1"
-            style={{ color: "var(--cave-charcoal)", opacity: 0.7 }}
-          >
-            Twig needs access to your GitHub repositories to create branches,
-            commits, and pull requests.
+          <Text size="2" style={{ color: "var(--gray-12)", opacity: 0.7 }}>
+            PostHog Code needs access to your GitHub repositories to create
+            branches, commits, and pull requests.
           </Text>
 
           {selectedProject && (
-            <ProjectSelect
-              projectId={selectedProject.id}
-              projectName={selectedProject.name}
-              projects={projects.map((p) => ({ id: p.id, name: p.name }))}
-              onProjectChange={setManuallySelectedProjectId}
-              disabled={isLoading}
-            />
+            <Flex direction="column" gap="1">
+              <Text size="1" style={{ color: "var(--gray-12)", opacity: 0.5 }}>
+                {selectedProject.organization.name}
+              </Text>
+              <ProjectSelect
+                projectId={selectedProject.id}
+                projectName={selectedProject.name}
+                projects={projects.map((p) => ({ id: p.id, name: p.name }))}
+                onProjectChange={setManuallySelectedProjectId}
+                disabled={isLoading}
+              />
+            </Flex>
           )}
         </Flex>
 
@@ -120,9 +133,8 @@ export function GitIntegrationStep({
         <Box
           p="5"
           style={{
-            backgroundColor: "rgba(255, 255, 255, 0.7)",
-            border: "2px solid rgba(0, 0, 0, 0.1)",
-            backdropFilter: "blur(8px)",
+            backgroundColor: "var(--color-panel-solid)",
+            border: "1px solid var(--gray-4)",
           }}
         >
           <Flex direction="column" gap="4" align="center">
@@ -165,10 +177,7 @@ export function GitIntegrationStep({
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <GitBranch
-                    size={32}
-                    style={{ color: "var(--cave-charcoal)" }}
-                  />
+                  <GitBranch size={32} style={{ color: "var(--gray-12)" }} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -208,15 +217,15 @@ export function GitIntegrationStep({
                     <Text
                       size="3"
                       weight="bold"
-                      style={{ color: "var(--cave-charcoal)" }}
+                      style={{ color: "var(--gray-12)" }}
                     >
                       GitHub connected
                     </Text>
                     <Text
-                      size="1"
+                      size="2"
                       align="center"
                       style={{
-                        color: "var(--cave-charcoal)",
+                        color: "var(--gray-12)",
                         opacity: 0.7,
                       }}
                     >
@@ -240,15 +249,15 @@ export function GitIntegrationStep({
                     <Text
                       size="3"
                       weight="bold"
-                      style={{ color: "var(--cave-charcoal)" }}
+                      style={{ color: "var(--gray-12)" }}
                     >
                       No git integration found
                     </Text>
                     <Text
-                      size="1"
+                      size="2"
                       align="center"
                       style={{
-                        color: "var(--cave-charcoal)",
+                        color: "var(--gray-12)",
                         opacity: 0.7,
                       }}
                     >
@@ -293,10 +302,7 @@ export function GitIntegrationStep({
                   <Button
                     size="2"
                     onClick={handleConnectGitHub}
-                    style={{
-                      backgroundColor: "var(--cave-charcoal)",
-                      color: "var(--cave-cream)",
-                    }}
+                    loading={isConnecting}
                   >
                     Connect GitHub
                     <ArrowSquareOut size={16} />
@@ -304,18 +310,18 @@ export function GitIntegrationStep({
                   <Text
                     size="1"
                     style={{
-                      color: "var(--cave-charcoal)",
+                      color: "var(--gray-12)",
                       opacity: 0.5,
                     }}
                   >
-                    Opens your PostHog project settings
+                    Opens GitHub to authorize the PostHog app
                   </Text>
                   <Button
                     size="1"
                     variant="ghost"
                     loading={isFetching}
                     onClick={handleRefresh}
-                    style={{ color: "var(--cave-charcoal)" }}
+                    style={{ color: "var(--gray-12)" }}
                   >
                     Refresh status
                   </Button>
@@ -339,7 +345,7 @@ export function GitIntegrationStep({
                     variant="ghost"
                     loading={isFetching}
                     onClick={handleRefresh}
-                    style={{ color: "var(--cave-charcoal)" }}
+                    style={{ color: "var(--gray-12)" }}
                   >
                     Refresh status
                   </Button>
@@ -362,20 +368,13 @@ export function GitIntegrationStep({
                   size="3"
                   variant="ghost"
                   onClick={onBack}
-                  style={{ color: "var(--cave-charcoal)" }}
+                  style={{ color: "var(--gray-12)" }}
                 >
                   <ArrowLeft size={16} />
                   Back
                 </Button>
                 {hasGitIntegration ? (
-                  <Button
-                    size="3"
-                    onClick={handleContinue}
-                    style={{
-                      backgroundColor: "var(--cave-charcoal)",
-                      color: "var(--cave-cream)",
-                    }}
-                  >
+                  <Button size="3" onClick={handleContinue}>
                     Continue
                     <ArrowRight size={16} />
                   </Button>
@@ -384,7 +383,7 @@ export function GitIntegrationStep({
                     size="3"
                     variant="outline"
                     onClick={handleContinue}
-                    style={{ color: "var(--cave-charcoal)" }}
+                    style={{ color: "var(--gray-12)" }}
                   >
                     Skip for now
                     <ArrowRight size={16} />
