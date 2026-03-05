@@ -1,13 +1,17 @@
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
+  type ModelInfo as AcpModelInfo,
   type AgentSideConnection,
-  type AuthenticateRequest,
-  type AvailableCommand,
   type ClientCapabilities,
+  type ForkSessionRequest,
+  type ForkSessionResponse,
   type InitializeRequest,
   type InitializeResponse,
+  type ListSessionsRequest,
+  type ListSessionsResponse,
   type LoadSessionRequest,
   type LoadSessionResponse,
   type NewSessionRequest,
@@ -15,18 +19,27 @@ import {
   type PromptRequest,
   type PromptResponse,
   RequestError,
+  type ResumeSessionRequest,
+  type ResumeSessionResponse,
   type SessionConfigOption,
   type SessionConfigOptionCategory,
   type SessionConfigSelectOption,
+  type SessionModelState,
+  type SessionModeState,
   type SetSessionConfigOptionRequest,
   type SetSessionConfigOptionResponse,
+  type SetSessionModelRequest,
+  type SetSessionModelResponse,
+  type SetSessionModeRequest,
+  type SetSessionModeResponse,
+  type Usage,
 } from "@agentclientprotocol/sdk";
 import {
   type CanUseTool,
-  type Options,
+  getSessionMessages,
+  listSessions,
   type Query,
   query,
-  type SDKMessage,
   type SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import { v7 as uuidv7 } from "uuid";
@@ -52,6 +65,7 @@ import {
   buildSystemPrompt,
   type ProcessSpawnedInfo,
 } from "./session/options.js";
+import { SettingsManager } from "./session/settings.js";
 import {
   getAvailableModes,
   TWIG_EXECUTION_MODES,
@@ -65,6 +79,18 @@ import type {
 } from "./types.js";
 
 const SESSION_VALIDATION_TIMEOUT_MS = 10_000;
+const MAX_TITLE_LENGTH = 256;
+
+function sanitizeTitle(text: string): string {
+  const sanitized = text
+    .replace(/[\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (sanitized.length <= MAX_TITLE_LENGTH) {
+    return sanitized;
+  }
+  return `${sanitized.slice(0, MAX_TITLE_LENGTH - 1)}…`;
+}
 
 export interface ClaudeAcpAgentOptions {
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
@@ -78,7 +104,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   backgroundTerminals: { [key: string]: BackgroundTerminal } = {};
   clientCapabilities?: ClientCapabilities;
   private options?: ClaudeAcpAgentOptions;
-  private lastSentConfigOptions?: SessionConfigOption[];
 
   constructor(client: AgentSideConnection, options?: ClaudeAcpAgentOptions) {
     super(client);
@@ -102,80 +127,598 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
           sse: true,
         },
         loadSession: true,
+        sessionCapabilities: {
+          list: {},
+          fork: {},
+          resume: {},
+        },
         _meta: {
           posthog: {
             resumeSession: true,
+          },
+          claudeCode: {
+            promptQueueing: true,
           },
         },
       },
       agentInfo: {
         name: packageJson.name,
-        title: "Claude Code",
+        title: "Claude Agent",
         version: packageJson.version,
       },
-      authMethods: [
-        {
-          id: "claude-login",
-          name: "Log in with Claude Code",
-          description: "Run `claude /login` in the terminal",
-        },
-      ],
+      authMethods: [],
     };
   }
 
-  async authenticate(_params: AuthenticateRequest): Promise<void> {
-    throw new Error("Method not implemented.");
+  async newSession(params: NewSessionRequest): Promise<NewSessionResponse> {
+    // Upstream Claude Code renames .claude.json to .claude.json.backup on logout.
+    // If the backup exists but the original doesn't, the user is logged out.
+    if (
+      fs.existsSync(path.resolve(os.homedir(), ".claude.json.backup")) &&
+      !fs.existsSync(path.resolve(os.homedir(), ".claude.json"))
+    ) {
+      throw RequestError.authRequired();
+    }
+
+    const response = await this.createSession(params, {
+      // Revisit these meta values once we support resume
+      resume: (params._meta as NewSessionMeta | undefined)?.claudeCode?.options
+        ?.resume as string | undefined,
+    });
+
+    return response;
   }
 
-  async newSession(params: NewSessionRequest): Promise<NewSessionResponse> {
-    this.checkAuthStatus();
+  async unstable_forkSession(
+    params: ForkSessionRequest,
+  ): Promise<ForkSessionResponse> {
+    return this.createSession(
+      {
+        cwd: params.cwd,
+        mcpServers: params.mcpServers ?? [],
+        _meta: params._meta,
+      },
+      { resume: params.sessionId, forkSession: true },
+    );
+  }
+
+  async unstable_resumeSession(
+    params: ResumeSessionRequest,
+  ): Promise<ResumeSessionResponse> {
+    const response = await this.createSession(
+      {
+        cwd: params.cwd,
+        mcpServers: params.mcpServers ?? [],
+        _meta: params._meta,
+      },
+      {
+        resume: params.sessionId,
+      },
+    );
+
+    return response;
+  }
+
+  async loadSession(params: LoadSessionRequest): Promise<LoadSessionResponse> {
+    const response = await this.createSession(
+      {
+        cwd: params.cwd,
+        mcpServers: params.mcpServers ?? [],
+        _meta: params._meta,
+      },
+      { resume: params.sessionId, skipBackgroundFetches: true },
+    );
+
+    await this.replaySessionHistory(params.sessionId);
+
+    // Send available commands after replay so they don't interleave with history
+    this.deferBackgroundFetches(this.session.query);
+
+    return {
+      modes: response.modes,
+      models: response.models,
+      configOptions: response.configOptions,
+    };
+  }
+
+  async unstable_listSessions(
+    params: ListSessionsRequest,
+  ): Promise<ListSessionsResponse> {
+    const sdkSessions = await listSessions({ dir: params.cwd ?? undefined });
+    const sessions = [];
+
+    for (const session of sdkSessions) {
+      if (!session.cwd) continue;
+      sessions.push({
+        sessionId: session.sessionId,
+        cwd: session.cwd,
+        title: sanitizeTitle(session.customTitle || session.summary || ""),
+        updatedAt: new Date(session.lastModified).toISOString(),
+      });
+    }
+    return {
+      sessions,
+    };
+  }
+
+  async prompt(params: PromptRequest): Promise<PromptResponse> {
+    this.session.cancelled = false;
+    this.session.interruptReason = undefined;
+    this.session.accumulatedUsage = {
+      inputTokens: 0,
+      outputTokens: 0,
+      cachedReadTokens: 0,
+      cachedWriteTokens: 0,
+    };
+
+    const userMessage = promptToClaude(params);
+
+    if (this.session.promptRunning) {
+      const uuid = randomUUID();
+      userMessage.uuid = uuid;
+      this.session.input.push(userMessage);
+      const order = this.session.nextPendingOrder++;
+      const cancelled = await new Promise<boolean>((resolve) => {
+        this.session.pendingMessages.set(uuid, { resolve, order });
+      });
+      if (cancelled) {
+        return { stopReason: "cancelled" };
+      }
+    } else {
+      this.session.input.push(userMessage);
+    }
+
+    // Broadcast user message to client
+    await this.broadcastUserMessage(params);
+
+    this.session.promptRunning = true;
+    let handedOff = false;
+    let lastAssistantTotalUsage: number | null = null;
+
+    const supportsTerminalOutput =
+      (
+        this.clientCapabilities?._meta as
+          | ClientCapabilities["_meta"]
+          | undefined
+      )?.terminal_output === true;
+
+    const context = {
+      session: this.session,
+      sessionId: params.sessionId,
+      client: this.client,
+      toolUseCache: this.toolUseCache,
+      fileContentCache: this.fileContentCache,
+      logger: this.logger,
+      supportsTerminalOutput,
+    };
+
+    try {
+      while (true) {
+        const { value: message, done } = await this.session.query.next();
+
+        if (done || !message) {
+          if (this.session.cancelled) {
+            return {
+              stopReason: "cancelled",
+              _meta: this.session.interruptReason
+                ? { interruptReason: this.session.interruptReason }
+                : undefined,
+            };
+          }
+          break;
+        }
+
+        switch (message.type) {
+          case "system":
+            if (message.subtype === "compact_boundary") {
+              lastAssistantTotalUsage = 0;
+            }
+            await handleSystemMessage(message, context);
+            break;
+
+          case "result": {
+            if (this.session.cancelled) {
+              return { stopReason: "cancelled" };
+            }
+
+            // Accumulate usage from this result
+            this.session.accumulatedUsage.inputTokens +=
+              message.usage.input_tokens;
+            this.session.accumulatedUsage.outputTokens +=
+              message.usage.output_tokens;
+            this.session.accumulatedUsage.cachedReadTokens +=
+              message.usage.cache_read_input_tokens;
+            this.session.accumulatedUsage.cachedWriteTokens +=
+              message.usage.cache_creation_input_tokens;
+
+            // Calculate context window size from modelUsage (minimum across all models used)
+            const contextWindows = Object.values(message.modelUsage).map(
+              (m) => m.contextWindow,
+            );
+            const contextWindowSize =
+              contextWindows.length > 0 ? Math.min(...contextWindows) : 200000;
+
+            // Send usage_update notification
+            if (lastAssistantTotalUsage !== null) {
+              await this.client.sessionUpdate({
+                sessionId: params.sessionId,
+                update: {
+                  sessionUpdate: "usage_update",
+                  used: lastAssistantTotalUsage as unknown as bigint,
+                  size: contextWindowSize as unknown as bigint,
+                  cost: {
+                    amount: message.total_cost_usd,
+                    currency: "USD",
+                  },
+                },
+              });
+            }
+
+            await this.client.extNotification("_posthog/usage_update", {
+              sessionId: params.sessionId,
+              used: {
+                inputTokens: message.usage.input_tokens,
+                outputTokens: message.usage.output_tokens,
+                cachedReadTokens: message.usage.cache_read_input_tokens,
+                cachedWriteTokens: message.usage.cache_creation_input_tokens,
+              },
+              cost: message.total_cost_usd,
+            });
+
+            // Build usage for PromptResponse
+            // ACP SDK types declare these as bigint but JSON.stringify can't
+            // serialize BigInt. Token counts never exceed MAX_SAFE_INTEGER so
+            // we pass plain numbers and cast to satisfy the type system.
+            const usage = {
+              inputTokens: this.session.accumulatedUsage.inputTokens,
+              outputTokens: this.session.accumulatedUsage.outputTokens,
+              cachedReadTokens: this.session.accumulatedUsage.cachedReadTokens,
+              cachedWriteTokens:
+                this.session.accumulatedUsage.cachedWriteTokens,
+              totalTokens:
+                this.session.accumulatedUsage.inputTokens +
+                this.session.accumulatedUsage.outputTokens +
+                this.session.accumulatedUsage.cachedReadTokens +
+                this.session.accumulatedUsage.cachedWriteTokens,
+            } as unknown as Usage;
+
+            const result = handleResultMessage(message);
+            if (result.error) throw result.error;
+
+            switch (message.subtype) {
+              case "error_max_budget_usd":
+              case "error_max_turns":
+              case "error_max_structured_output_retries":
+                return { stopReason: "max_turn_requests", usage };
+              default:
+                return { stopReason: "end_turn", usage };
+            }
+          }
+
+          case "stream_event":
+            await handleStreamEvent(message, context);
+            break;
+
+          case "user":
+          case "assistant": {
+            if (this.session.cancelled) {
+              break;
+            }
+
+            // Check for queued prompt replay
+            if (message.type === "user" && "uuid" in message && message.uuid) {
+              const pending = this.session.pendingMessages.get(
+                message.uuid as string,
+              );
+              if (pending) {
+                pending.resolve(false);
+                this.session.pendingMessages.delete(message.uuid as string);
+                handedOff = true;
+                // the current loop stops with end_turn,
+                // the loop of the next prompt continues running
+                return { stopReason: "end_turn" };
+              }
+            }
+
+            // Store latest assistant usage (excluding subagents)
+            if (
+              "usage" in message.message &&
+              message.parent_tool_use_id === null
+            ) {
+              const usage = (
+                message.message as unknown as Record<string, unknown>
+              ).usage as {
+                input_tokens: number;
+                output_tokens: number;
+                cache_read_input_tokens: number;
+                cache_creation_input_tokens: number;
+              };
+              lastAssistantTotalUsage =
+                usage.input_tokens +
+                usage.output_tokens +
+                usage.cache_read_input_tokens +
+                usage.cache_creation_input_tokens;
+            }
+
+            const result = await handleUserAssistantMessage(message, context);
+            if (result.error) throw result.error;
+            if (result.shouldStop) {
+              return { stopReason: "end_turn" };
+            }
+            break;
+          }
+
+          case "tool_progress":
+          case "auth_status":
+          case "tool_use_summary":
+            break;
+
+          default:
+            unreachable(message as never, this.logger);
+            break;
+        }
+      }
+      throw new Error("Session did not end in result");
+    } finally {
+      if (!handedOff) {
+        this.session.promptRunning = false;
+        // Resolve all remaining pending prompts so no callers get stuck.
+        for (const [key, pending] of this.session.pendingMessages) {
+          pending.resolve(true);
+          this.session.pendingMessages.delete(key);
+        }
+      }
+    }
+  }
+
+  // Called by BaseAcpAgent#cancel() to interrupt the session
+  protected async interrupt(): Promise<void> {
+    this.session.cancelled = true;
+    for (const [, pending] of this.session.pendingMessages) {
+      pending.resolve(true);
+    }
+    this.session.pendingMessages.clear();
+    await this.session.query.interrupt();
+  }
+
+  async unstable_setSessionModel(
+    params: SetSessionModelRequest,
+  ): Promise<SetSessionModelResponse | undefined> {
+    const sdkModelId = toSdkModelId(params.modelId);
+    await this.session.query.setModel(sdkModelId);
+    this.session.modelId = params.modelId;
+    await this.updateConfigOption("model", params.modelId);
+    return {};
+  }
+
+  async setSessionMode(
+    params: SetSessionModeRequest,
+  ): Promise<SetSessionModeResponse> {
+    await this.applySessionMode(params.modeId);
+    await this.updateConfigOption("mode", params.modeId);
+    return {};
+  }
+
+  async setSessionConfigOption(
+    params: SetSessionConfigOptionRequest,
+  ): Promise<SetSessionConfigOptionResponse> {
+    const option = this.session.configOptions.find(
+      (o) => o.id === params.configId,
+    );
+    if (!option) {
+      throw new Error(`Unknown config option: ${params.configId}`);
+    }
+
+    const allValues: { value: string }[] =
+      "options" in option && Array.isArray(option.options)
+        ? (option.options as Array<Record<string, unknown>>).flatMap((o) =>
+            "options" in o && Array.isArray(o.options)
+              ? (o.options as { value: string }[])
+              : [o as { value: string }],
+          )
+        : [];
+    const validValue = allValues.find((o) => o.value === params.value);
+    if (!validValue) {
+      throw new Error(
+        `Invalid value for config option ${params.configId}: ${params.value}`,
+      );
+    }
+
+    if (params.configId === "mode") {
+      await this.applySessionMode(params.value);
+      await this.client.sessionUpdate({
+        sessionId: this.sessionId,
+        update: {
+          sessionUpdate: "current_mode_update",
+          currentModeId: params.value,
+        },
+      });
+    } else if (params.configId === "model") {
+      const sdkModelId = toSdkModelId(params.value);
+      await this.session.query.setModel(sdkModelId);
+      this.session.modelId = params.value;
+    }
+
+    this.session.configOptions = this.session.configOptions.map((o) =>
+      o.id === params.configId ? { ...o, currentValue: params.value } : o,
+    );
+
+    return { configOptions: this.session.configOptions };
+  }
+
+  private async updateConfigOption(
+    configId: string,
+    value: string,
+  ): Promise<void> {
+    this.session.configOptions = this.session.configOptions.map((o) =>
+      o.id === configId ? { ...o, currentValue: value } : o,
+    );
+
+    await this.client.sessionUpdate({
+      sessionId: this.sessionId,
+      update: {
+        sessionUpdate: "config_option_update",
+        configOptions: this.session.configOptions,
+      },
+    });
+  }
+
+  private async applySessionMode(modeId: string): Promise<void> {
+    if (!TWIG_EXECUTION_MODES.includes(modeId as TwigExecutionMode)) {
+      throw new Error("Invalid Mode");
+    }
+    const previousMode = this.session.permissionMode;
+    this.session.permissionMode = modeId as TwigExecutionMode;
+    try {
+      await this.session.query.setPermissionMode(modeId as TwigExecutionMode);
+    } catch (error) {
+      this.session.permissionMode = previousMode;
+      if (error instanceof Error) {
+        if (!error.message) {
+          error.message = "Invalid Mode";
+        }
+        throw error;
+      }
+      throw new Error("Invalid Mode");
+    }
+  }
+
+  private async createSession(
+    params: {
+      cwd: string;
+      mcpServers: NewSessionRequest["mcpServers"];
+      _meta?: unknown;
+    },
+    creationOpts: {
+      resume?: string;
+      forkSession?: boolean;
+      skipBackgroundFetches?: boolean;
+    } = {},
+  ): Promise<NewSessionResponse> {
+    const { cwd } = params;
+    const { resume, forkSession } = creationOpts;
+
+    const isResume = !!resume;
 
     const meta = params._meta as NewSessionMeta | undefined;
     const taskId = meta?.persistence?.taskId;
-    const sessionId = uuidv7();
-    this.logger.info("Creating new session", {
+
+    // We want to create a new session id unless it is resume,
+    // but not resume + forkSession.
+    let sessionId: string;
+    if (forkSession) {
+      sessionId = uuidv7();
+    } else if (isResume) {
+      sessionId = resume;
+    } else {
+      sessionId = uuidv7();
+    }
+
+    const input = new Pushable<SDKUserMessage>();
+
+    const settingsManager = new SettingsManager(cwd);
+    await settingsManager.initialize();
+
+    const mcpServers = parseMcpServers(params);
+    const systemPrompt = buildSystemPrompt(meta?.systemPrompt);
+
+    this.logger.info(isResume ? "Resuming session" : "Creating new session", {
       sessionId,
       taskId,
       taskRunId: meta?.taskRunId,
-      cwd: params.cwd,
+      cwd,
     });
+
     const permissionMode: TwigExecutionMode =
       meta?.permissionMode &&
       TWIG_EXECUTION_MODES.includes(meta.permissionMode as TwigExecutionMode)
         ? (meta.permissionMode as TwigExecutionMode)
         : "default";
 
-    const mcpServers = parseMcpServers(params);
-
     const options = buildSessionOptions({
-      cwd: params.cwd,
+      cwd,
       mcpServers,
       permissionMode,
       canUseTool: this.createCanUseTool(sessionId),
       logger: this.logger,
-      systemPrompt: buildSystemPrompt(meta?.systemPrompt),
+      systemPrompt,
       userProvidedOptions: meta?.claudeCode?.options,
       sessionId,
-      isResume: false,
-      onModeChange: this.createOnModeChange(sessionId),
+      isResume,
+      forkSession,
+      additionalDirectories: meta?.claudeCode?.options?.additionalDirectories,
+      disableBuiltInTools: meta?.disableBuiltInTools,
+      settingsManager,
+      onModeChange: this.createOnModeChange(),
       onProcessSpawned: this.options?.onProcessSpawned,
       onProcessExited: this.options?.onProcessExited,
     });
 
-    const input = new Pushable<SDKUserMessage>();
-    // Pass default model at construction to avoid expensive post-hoc setModel IPC
-    options.model = DEFAULT_MODEL;
+    // Use the same abort controller that buildSessionOptions gave to the query
+    const abortController = options.abortController as AbortController;
+
     const q = query({ prompt: input, options });
 
-    const session = this.createSession(
-      sessionId,
-      q,
+    const session: Session = {
+      query: q,
       input,
+      cancelled: false,
+      settingsManager,
       permissionMode,
-      params.cwd,
-      options.abortController as AbortController,
+      abortController,
+      accumulatedUsage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cachedReadTokens: 0,
+        cachedWriteTokens: 0,
+      },
+      configOptions: [],
+      promptRunning: false,
+      pendingMessages: new Map(),
+      nextPendingOrder: 0,
+
+      // Custom properties
+      cwd,
+      notificationHistory: [],
+      taskRunId: meta?.taskRunId,
+    };
+    this.session = session;
+    this.sessionId = sessionId;
+
+    this.logger.info(
+      isResume
+        ? "Session query initialized, awaiting resumption"
+        : "Session query initialized, awaiting initialization",
+      { sessionId, taskId, taskRunId: meta?.taskRunId },
     );
-    session.taskRunId = meta?.taskRunId;
+
+    try {
+      const result = await withTimeout(
+        q.initializationResult(),
+        SESSION_VALIDATION_TIMEOUT_MS,
+      );
+      if (result.result === "timeout") {
+        throw new Error(
+          `Session ${isResume ? (forkSession ? "fork" : "resumption") : "initialization"} timed out for sessionId=${sessionId}`,
+        );
+      }
+    } catch (err) {
+      settingsManager.dispose();
+      this.logger.error(
+        isResume
+          ? forkSession
+            ? "Session fork failed"
+            : "Session resumption failed"
+          : "Session initialization failed",
+        {
+          sessionId,
+          taskId,
+          taskRunId: meta?.taskRunId,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      );
+      throw err;
+    }
 
     if (meta?.taskRunId) {
       await this.client.extNotification("_posthog/sdk_session", {
@@ -185,389 +728,190 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       });
     }
 
-    // Only await model config — slash commands and MCP metadata are deferred
-    // since they're not needed to return configOptions to the client.
+    // Resolve model: settings model takes priority, then gateway
+    const settingsModel = settingsManager.getSettings().model;
     const modelOptions = await this.getModelConfigOptions();
+    const resolvedModelId = settingsModel || modelOptions.currentModelId;
+    session.modelId = resolvedModelId;
 
-    // Deferred: slash commands + MCP metadata (not needed to return configOptions)
-    this.deferBackgroundFetches(q, sessionId);
-
-    session.modelId = modelOptions.currentModelId;
-    // Only call setModel if the resolved model differs from the default we
-    // already baked into the query options — avoids a ~2s IPC round-trip.
-    const resolvedSdkModel = toSdkModelId(modelOptions.currentModelId);
-    if (resolvedSdkModel !== DEFAULT_MODEL) {
-      await this.trySetModel(q, modelOptions.currentModelId);
-    }
-
-    const configOptions = await this.buildConfigOptions(modelOptions);
-
-    return {
-      sessionId,
-      configOptions,
-    };
-  }
-
-  async loadSession(params: LoadSessionRequest): Promise<LoadSessionResponse> {
-    return this.resumeSession(params);
-  }
-
-  async resumeSession(
-    params: LoadSessionRequest,
-  ): Promise<LoadSessionResponse> {
-    const meta = params._meta as NewSessionMeta | undefined;
-    const taskId = meta?.persistence?.taskId;
-    const sessionId = meta?.sessionId;
-    if (!sessionId) {
-      throw new Error("Cannot resume session without sessionId");
-    }
-    if (this.sessionId === sessionId) {
-      return {};
-    }
-
-    this.logger.info("Resuming session", {
-      sessionId,
-      taskId,
-      taskRunId: meta?.taskRunId,
-      cwd: params.cwd,
-    });
-
-    const mcpServers = parseMcpServers(params);
-
-    const permissionMode: TwigExecutionMode =
-      meta?.permissionMode &&
-      TWIG_EXECUTION_MODES.includes(meta.permissionMode as TwigExecutionMode)
-        ? (meta.permissionMode as TwigExecutionMode)
-        : "default";
-
-    const { query: q, session } = await this.initializeQuery({
-      cwd: params.cwd,
-      permissionMode,
-      mcpServers,
-      systemPrompt: buildSystemPrompt(meta?.systemPrompt),
-      userProvidedOptions: meta?.claudeCode?.options,
-      sessionId,
-      isResume: true,
-      additionalDirectories: meta?.claudeCode?.options?.additionalDirectories,
-    });
-
-    this.logger.info("Session query initialized, awaiting resumption", {
-      sessionId,
-      taskId,
-      taskRunId: meta?.taskRunId,
-    });
-
-    session.taskRunId = meta?.taskRunId;
-
-    // Check the resumed session is alive. For stale sessions this throws
-    // (e.g. "No conversation found"), preventing a broken session.
-    try {
-      const result = await withTimeout(
-        q.initializationResult(),
-        SESSION_VALIDATION_TIMEOUT_MS,
-      );
-      if (result.result === "timeout") {
-        throw new Error(
-          `Session resumption timed out for sessionId=${sessionId}`,
-        );
+    if (!isResume) {
+      const resolvedSdkModel = toSdkModelId(resolvedModelId);
+      if (resolvedSdkModel !== DEFAULT_MODEL) {
+        await this.session.query.setModel(resolvedSdkModel);
       }
-    } catch (err) {
-      this.logger.error("Session resumption failed", {
+    }
+
+    const availableModes = getAvailableModes();
+    const modes: SessionModeState = {
+      currentModeId: permissionMode,
+      availableModes: availableModes.map((mode) => ({
+        id: mode.id,
+        name: mode.name,
+        description: mode.description ?? undefined,
+      })),
+    };
+
+    const models: SessionModelState = {
+      currentModelId: resolvedModelId,
+      availableModels: modelOptions.options.map(
+        (opt): AcpModelInfo => ({
+          modelId: opt.value,
+          name: opt.name,
+          description: opt.description,
+        }),
+      ),
+    };
+
+    const configOptions = this.buildConfigOptions(permissionMode, modelOptions);
+    session.configOptions = configOptions;
+
+    if (!creationOpts.skipBackgroundFetches) {
+      this.deferBackgroundFetches(q);
+    }
+
+    this.logger.info(
+      isResume
+        ? "Session resumed successfully"
+        : "Session created successfully",
+      {
         sessionId,
         taskId,
         taskRunId: meta?.taskRunId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      throw err;
-    }
-
-    this.logger.info("Session resumed successfully", {
-      sessionId,
-      taskId,
-      taskRunId: meta?.taskRunId,
-    });
-
-    // Deferred: slash commands + MCP metadata (not needed to return configOptions)
-    this.deferBackgroundFetches(q, sessionId);
-
-    const configOptions = await this.buildConfigOptions();
-
-    return { configOptions };
-  }
-
-  async prompt(params: PromptRequest): Promise<PromptResponse> {
-    this.session.cancelled = false;
-    this.session.interruptReason = undefined;
-
-    await this.broadcastUserMessage(params);
-    this.session.input.push(promptToClaude(params));
-
-    return this.processMessages(params.sessionId);
-  }
-
-  async setSessionConfigOption(
-    params: SetSessionConfigOptionRequest,
-  ): Promise<SetSessionConfigOptionResponse> {
-    const configId = params.configId;
-    const value = params.value;
-
-    if (configId === "mode") {
-      const modeId = value as TwigExecutionMode;
-      if (!TWIG_EXECUTION_MODES.includes(modeId)) {
-        throw new Error("Invalid Mode");
-      }
-      this.session.permissionMode = modeId;
-      await this.session.query.setPermissionMode(modeId);
-    } else if (configId === "model") {
-      await this.setModelWithFallback(this.session.query, value);
-      this.session.modelId = value;
-    } else {
-      throw new Error("Unsupported config option");
-    }
-
-    await this.emitConfigOptionsUpdate();
-    return { configOptions: await this.buildConfigOptions() };
-  }
-
-  protected async interruptSession(): Promise<void> {
-    await this.session.query.interrupt();
-  }
-
-  async extMethod(
-    method: string,
-    params: Record<string, unknown>,
-  ): Promise<Record<string, unknown>> {
-    if (method === "_posthog/session/resume") {
-      const result = await this.resumeSession(
-        params as unknown as LoadSessionRequest,
-      );
-      return {
-        _meta: {
-          configOptions: result.configOptions,
-        },
-      };
-    }
-
-    throw RequestError.methodNotFound(method);
-  }
-
-  private createSession(
-    sessionId: string,
-    q: Query,
-    input: Pushable<SDKUserMessage>,
-    permissionMode: TwigExecutionMode,
-    cwd: string,
-    abortController: AbortController,
-  ): Session {
-    const session: Session = {
-      query: q,
-      input,
-      cancelled: false,
-      permissionMode,
-      cwd,
-      notificationHistory: [],
-      abortController,
-    };
-    this.session = session;
-    this.sessionId = sessionId;
-    return session;
-  }
-
-  private async initializeQuery(config: {
-    cwd: string;
-    permissionMode: TwigExecutionMode;
-    mcpServers: ReturnType<typeof parseMcpServers>;
-    userProvidedOptions?: Options;
-    systemPrompt?: Options["systemPrompt"];
-    sessionId: string;
-    isResume: boolean;
-    additionalDirectories?: string[];
-  }): Promise<{
-    query: Query;
-    input: Pushable<SDKUserMessage>;
-    session: Session;
-  }> {
-    const input = new Pushable<SDKUserMessage>();
-
-    const options = buildSessionOptions({
-      cwd: config.cwd,
-      mcpServers: config.mcpServers,
-      permissionMode: config.permissionMode,
-      canUseTool: this.createCanUseTool(config.sessionId),
-      logger: this.logger,
-      systemPrompt: config.systemPrompt,
-      userProvidedOptions: config.userProvidedOptions,
-      sessionId: config.sessionId,
-      isResume: config.isResume,
-      additionalDirectories: config.additionalDirectories,
-      onModeChange: this.createOnModeChange(config.sessionId),
-      onProcessSpawned: this.options?.onProcessSpawned,
-      onProcessExited: this.options?.onProcessExited,
-    });
-
-    const q = query({ prompt: input, options });
-    const abortController = options.abortController as AbortController;
-
-    const session = this.createSession(
-      config.sessionId,
-      q,
-      input,
-      config.permissionMode,
-      config.cwd,
-      abortController,
+      },
     );
 
-    return { query: q, input, session };
+    return { sessionId, modes, models, configOptions };
   }
 
   private createCanUseTool(sessionId: string): CanUseTool {
-    return async (toolName, toolInput, { suggestions, toolUseID }) =>
+    return async (toolName, toolInput, { suggestions, toolUseID, signal }) =>
       canUseTool({
         session: this.session,
         toolName,
         toolInput: toolInput as Record<string, unknown>,
         toolUseID,
         suggestions,
+        signal,
         client: this.client,
         sessionId,
         fileContentCache: this.fileContentCache,
         logger: this.logger,
-        emitConfigOptionsUpdate: () => this.emitConfigOptionsUpdate(sessionId),
+        updateConfigOption: (configId: string, value: string) =>
+          this.updateConfigOption(configId, value),
       });
   }
 
-  private createOnModeChange(sessionId: string) {
+  private createOnModeChange() {
     return async (newMode: TwigExecutionMode) => {
       if (this.session) {
         this.session.permissionMode = newMode;
       }
-      await this.emitConfigOptionsUpdate(sessionId);
+      await this.updateConfigOption("mode", newMode);
     };
   }
 
-  private async buildConfigOptions(modelOptionsOverride?: {
-    currentModelId: string;
-    options: SessionConfigSelectOption[];
-  }): Promise<SessionConfigOption[]> {
-    const options: SessionConfigOption[] = [];
-
+  private buildConfigOptions(
+    currentModeId: string,
+    modelOptions: {
+      currentModelId: string;
+      options: SessionConfigSelectOption[];
+    },
+  ): SessionConfigOption[] {
     const modeOptions = getAvailableModes().map((mode) => ({
       value: mode.id,
       name: mode.name,
       description: mode.description ?? undefined,
     }));
 
-    options.push({
-      id: "mode",
-      name: "Approval Preset",
-      type: "select",
-      currentValue: this.session.permissionMode,
-      options: modeOptions,
-      category: "mode" as SessionConfigOptionCategory,
-      description: "Choose an approval and sandboxing preset for your session",
-    });
-
-    const modelOptions =
-      modelOptionsOverride ??
-      (await this.getModelConfigOptions(this.session.modelId));
-    this.session.modelId = modelOptions.currentModelId;
-
-    options.push({
-      id: "model",
-      name: "Model",
-      type: "select",
-      currentValue: modelOptions.currentModelId,
-      options: modelOptions.options,
-      category: "model" as SessionConfigOptionCategory,
-      description: "Choose which model Claude should use",
-    });
-
-    return options;
+    return [
+      {
+        id: "mode",
+        name: "Approval Preset",
+        type: "select",
+        currentValue: currentModeId,
+        options: modeOptions,
+        category: "mode" as SessionConfigOptionCategory,
+        description:
+          "Choose an approval and sandboxing preset for your session",
+      },
+      {
+        id: "model",
+        name: "Model",
+        type: "select",
+        currentValue: modelOptions.currentModelId,
+        options: modelOptions.options,
+        category: "model" as SessionConfigOptionCategory,
+        description: "Choose which model Claude should use",
+      },
+    ];
   }
 
-  private async emitConfigOptionsUpdate(sessionId?: string): Promise<void> {
-    const configOptions = await this.buildConfigOptions();
-    const serialized = JSON.stringify(configOptions);
-    if (
-      this.lastSentConfigOptions &&
-      JSON.stringify(this.lastSentConfigOptions) === serialized
-    ) {
-      return;
-    }
-
-    this.lastSentConfigOptions = configOptions;
+  private async sendAvailableCommandsUpdate(): Promise<void> {
+    const commands = await this.session.query.supportedCommands();
     await this.client.sessionUpdate({
-      sessionId: sessionId ?? this.sessionId,
+      sessionId: this.sessionId,
       update: {
-        sessionUpdate: "config_option_update",
-        configOptions,
+        sessionUpdate: "available_commands_update",
+        availableCommands: getAvailableSlashCommands(commands),
       },
     });
   }
 
-  private checkAuthStatus() {
-    const backupExists = fs.existsSync(
-      path.resolve(os.homedir(), ".claude.json.backup"),
-    );
-    const configExists = fs.existsSync(
-      path.resolve(os.homedir(), ".claude.json"),
-    );
-    if (backupExists && !configExists) {
-      throw RequestError.authRequired();
-    }
-  }
-
-  private async trySetModel(q: Query, modelId: string) {
+  private async replaySessionHistory(sessionId: string): Promise<void> {
     try {
-      await this.setModelWithFallback(q, modelId);
-    } catch (err) {
-      this.logger.warn("Failed to set model", { modelId, error: err });
-    }
-  }
+      const messages = await getSessionMessages(sessionId, {
+        dir: this.session.cwd,
+      });
 
-  private async setModelWithFallback(q: Query, modelId: string): Promise<void> {
-    const sdkModelId = toSdkModelId(modelId);
-    try {
-      await q.setModel(sdkModelId);
-    } catch (err) {
-      if (sdkModelId === modelId) {
-        throw err;
+      const replayContext = {
+        session: this.session,
+        sessionId,
+        client: this.client,
+        toolUseCache: this.toolUseCache,
+        fileContentCache: this.fileContentCache,
+        logger: this.logger,
+        registerHooks: false,
+      };
+
+      for (const msg of messages) {
+        const sdkMessage = {
+          type: msg.type,
+          message: msg.message as {
+            content: string | Array<{ type: string; text?: string }>;
+            role: typeof msg.type;
+          },
+          parent_tool_use_id: msg.parent_tool_use_id,
+        };
+        await handleUserAssistantMessage(
+          sdkMessage as Parameters<typeof handleUserAssistantMessage>[0],
+          replayContext,
+        );
       }
-      // Fallback to raw gateway ID if SDK model ID failed
-      await q.setModel(modelId);
+    } catch (err) {
+      this.logger.warn("Failed to replay session history", {
+        sessionId,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
+
+  // ================================
+  // EXTENSION METHODS
+  // ================================
 
   /**
    * Fire-and-forget: fetch slash commands and MCP tool metadata in parallel.
    * Both populate caches used later — neither is needed to return configOptions.
    */
-  private deferBackgroundFetches(q: Query, sessionId: string): void {
+  private deferBackgroundFetches(q: Query): void {
     Promise.all([
-      getAvailableSlashCommands(q),
+      new Promise<void>((resolve) => setTimeout(resolve, 10)).then(() =>
+        this.sendAvailableCommandsUpdate(),
+      ),
       fetchMcpToolMetadata(q, this.logger),
-    ])
-      .then(([slashCommands]) => {
-        this.sendAvailableCommandsUpdate(sessionId, slashCommands);
-      })
-      .catch((err) => {
-        this.logger.warn("Failed to fetch deferred session data", { err });
-      });
-  }
-
-  private sendAvailableCommandsUpdate(
-    sessionId: string,
-    availableCommands: AvailableCommand[],
-  ) {
-    setTimeout(() => {
-      this.client.sessionUpdate({
-        sessionId,
-        update: {
-          sessionUpdate: "available_commands_update",
-          availableCommands,
-        },
-      });
-    }, 0);
+    ]).catch((err) =>
+      this.logger.error("Background fetch failed", { error: err }),
+    );
   }
 
   private async broadcastUserMessage(params: PromptRequest): Promise<void> {
@@ -581,89 +925,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       };
       await this.client.sessionUpdate(notification);
       this.appendNotification(params.sessionId, notification);
-    }
-  }
-
-  private async processMessages(sessionId: string): Promise<PromptResponse> {
-    const context = {
-      session: this.session,
-      sessionId,
-      client: this.client,
-      toolUseCache: this.toolUseCache,
-      fileContentCache: this.fileContentCache,
-      logger: this.logger,
-    };
-
-    while (true) {
-      const { value: message, done } = await this.session.query.next();
-
-      if (done || !message) {
-        return this.handleSessionEnd();
-      }
-
-      const response = await this.handleMessage(message, context);
-      if (response) {
-        return response;
-      }
-    }
-  }
-
-  private handleSessionEnd(): PromptResponse {
-    if (this.session.cancelled) {
-      return {
-        stopReason: "cancelled",
-        _meta: this.session.interruptReason
-          ? { interruptReason: this.session.interruptReason }
-          : undefined,
-      };
-    }
-    throw new Error("Session did not end in result");
-  }
-
-  private async handleMessage(
-    message: SDKMessage,
-    context: Parameters<typeof handleSystemMessage>[1],
-  ): Promise<PromptResponse | null> {
-    switch (message.type) {
-      case "system":
-        await handleSystemMessage(message, context);
-        return null;
-
-      case "result": {
-        const result = handleResultMessage(message, context);
-        if (result.error) throw result.error;
-        if (result.shouldStop) {
-          return {
-            stopReason: result.stopReason as "end_turn" | "max_turn_requests",
-          };
-        }
-        return null;
-      }
-
-      case "stream_event":
-        await handleStreamEvent(message, context);
-        return null;
-
-      case "user":
-      case "assistant": {
-        const result = await handleUserAssistantMessage(message, context);
-        if (result.error) throw result.error;
-        if (result.shouldStop) {
-          return { stopReason: "end_turn" };
-        }
-        return null;
-      }
-
-      case "tool_progress":
-      case "auth_status":
-      case "tool_use_summary":
-        return null;
-
-      default:
-        // SDKMessage union includes undefined types (SDKRateLimitEvent, SDKPromptSuggestionMessage)
-        // that resolve to `any`, preventing exhaustive narrowing
-        unreachable(message as never, this.logger);
-        return null;
     }
   }
 }

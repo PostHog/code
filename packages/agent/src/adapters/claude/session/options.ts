@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type {
+  CanUseTool,
   McpServerConfig,
   Options,
   SpawnedProcess,
@@ -10,8 +11,14 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import { IS_ROOT } from "../../../utils/common.js";
 import type { Logger } from "../../../utils/logger.js";
-import { createPostToolUseHook, type OnModeChange } from "../hooks.js";
+import {
+  createPostToolUseHook,
+  createPreToolUseHook,
+  type OnModeChange,
+} from "../hooks.js";
 import type { TwigExecutionMode } from "../tools.js";
+import { DEFAULT_MODEL } from "./models.js";
+import type { SettingsManager } from "./settings.js";
 
 export interface ProcessSpawnedInfo {
   pid: number;
@@ -23,13 +30,16 @@ export interface BuildOptionsParams {
   cwd: string;
   mcpServers: Record<string, McpServerConfig>;
   permissionMode: TwigExecutionMode;
-  canUseTool: Options["canUseTool"];
+  canUseTool: CanUseTool;
   logger: Logger;
   systemPrompt?: Options["systemPrompt"];
   userProvidedOptions?: Options;
   sessionId: string;
   isResume: boolean;
+  forkSession?: boolean;
   additionalDirectories?: string[];
+  disableBuiltInTools?: boolean;
+  settingsManager: SettingsManager;
   onModeChange?: OnModeChange;
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
   onProcessExited?: (pid: number) => void;
@@ -95,14 +105,22 @@ function buildEnvironment(): Record<string, string> {
 
 function buildHooks(
   userHooks: Options["hooks"],
-  onModeChange?: OnModeChange,
+  onModeChange: OnModeChange | undefined,
+  settingsManager: SettingsManager,
+  logger: Logger,
 ): Options["hooks"] {
   return {
     ...userHooks,
     PostToolUse: [
       ...(userHooks?.PostToolUse || []),
       {
-        hooks: [createPostToolUseHook({ onModeChange })],
+        hooks: [createPostToolUseHook({ onModeChange, logger })],
+      },
+    ],
+    PreToolUse: [
+      ...(userHooks?.PreToolUse || []),
+      {
+        hooks: [createPreToolUseHook(settingsManager, logger)],
       },
     ],
   };
@@ -214,12 +232,22 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
     permissionMode: params.permissionMode,
     canUseTool: params.canUseTool,
     executable: "node",
+    tools: { type: "preset", preset: "claude_code" },
+    extraArgs: {
+      ...params.userProvidedOptions?.extraArgs,
+      "replay-user-messages": "",
+    },
     mcpServers: buildMcpServers(
       params.userProvidedOptions?.mcpServers,
       params.mcpServers,
     ),
     env: buildEnvironment(),
-    hooks: buildHooks(params.userProvidedOptions?.hooks, params.onModeChange),
+    hooks: buildHooks(
+      params.userProvidedOptions?.hooks,
+      params.onModeChange,
+      params.settingsManager,
+      params.logger,
+    ),
     abortController: getAbortController(
       params.userProvidedOptions?.abortController,
     ),
@@ -238,13 +266,37 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
 
   if (params.isResume) {
     options.resume = params.sessionId;
-    options.forkSession = false;
+    options.forkSession = params.forkSession ?? false;
   } else {
     options.sessionId = params.sessionId;
+    options.model = DEFAULT_MODEL;
   }
 
   if (params.additionalDirectories) {
     options.additionalDirectories = params.additionalDirectories;
+  }
+
+  if (params.disableBuiltInTools) {
+    const builtInTools = [
+      "Read",
+      "Write",
+      "Edit",
+      "Bash",
+      "Glob",
+      "Grep",
+      "Task",
+      "TodoWrite",
+      "ExitPlanMode",
+      "WebSearch",
+      "WebFetch",
+      "SlashCommand",
+      "Skill",
+      "NotebookEdit",
+    ];
+    options.disallowedTools = [
+      ...(options.disallowedTools ?? []),
+      ...builtInTools,
+    ];
   }
 
   clearStatsigCache();

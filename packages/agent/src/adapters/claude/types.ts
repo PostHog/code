@@ -1,4 +1,5 @@
 import type {
+  SessionConfigOption,
   TerminalHandle,
   TerminalOutputResponse,
 } from "@agentclientprotocol/sdk";
@@ -9,7 +10,15 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import type { Pushable } from "../../utils/streams.js";
 import type { BaseSession } from "../base-acp-agent.js";
+import type { SettingsManager } from "./session/settings.js";
 import type { TwigExecutionMode } from "./tools.js";
+
+export type AccumulatedUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  cachedReadTokens: number;
+  cachedWriteTokens: number;
+};
 
 export type BackgroundTerminal =
   | {
@@ -22,15 +31,26 @@ export type BackgroundTerminal =
       pendingOutput: TerminalOutputResponse;
     };
 
+export type PendingMessage = {
+  resolve: (cancelled: boolean) => void;
+  order: number;
+};
+
 export type Session = BaseSession & {
   query: Query;
   input: Pushable<SDKUserMessage>;
+  settingsManager: SettingsManager;
   permissionMode: TwigExecutionMode;
   modelId?: string;
   cwd: string;
   taskRunId?: string;
   lastPlanFilePath?: string;
   lastPlanContent?: string;
+  configOptions: SessionConfigOption[];
+  accumulatedUsage: AccumulatedUsage;
+  promptRunning: boolean;
+  pendingMessages: Map<string, PendingMessage>;
+  nextPendingOrder: number;
 };
 
 export type ToolUseCache = {
@@ -42,12 +62,30 @@ export type ToolUseCache = {
   };
 };
 
+export type TerminalInfo = {
+  terminal_id: string;
+};
+
+export type TerminalOutput = {
+  terminal_id: string;
+  data: string;
+};
+
+export type TerminalExit = {
+  terminal_id: string;
+  exit_code: number | null;
+  signal: string | null;
+};
+
 export type ToolUpdateMeta = {
   claudeCode?: {
     toolName: string;
     toolResponse?: unknown;
     parentToolCallId?: string;
   };
+  terminal_info?: TerminalInfo;
+  terminal_output?: TerminalOutput;
+  terminal_exit?: TerminalExit;
 };
 
 export type NewSessionMeta = {

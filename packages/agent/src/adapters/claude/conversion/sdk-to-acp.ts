@@ -2,6 +2,7 @@ import type {
   AgentSideConnection,
   Role,
   SessionNotification,
+  SessionUpdate,
 } from "@agentclientprotocol/sdk";
 import { RequestError } from "@agentclientprotocol/sdk";
 import type {
@@ -25,6 +26,7 @@ import {
   type ClaudePlanEntry,
   planEntries,
   toolInfoFromToolUse,
+  toolUpdateFromEditToolResponse,
   toolUpdateFromToolResult,
 } from "./tool-use-to-acp.js";
 
@@ -51,6 +53,8 @@ type ChunkHandlerContext = {
   client: AgentSideConnection;
   logger: Logger;
   parentToolCallId?: string;
+  registerHooks?: boolean;
+  supportsTerminalOutput?: boolean;
 };
 
 export interface MessageHandlerContext {
@@ -60,6 +64,8 @@ export interface MessageHandlerContext {
   toolUseCache: ToolUseCache;
   fileContentCache: { [key: string]: string };
   logger: Logger;
+  registerHooks?: boolean;
+  supportsTerminalOutput?: boolean;
 }
 
 function messageUpdateType(role: Role) {
@@ -81,8 +87,8 @@ function handleTextChunk(
   chunk: { text: string },
   role: Role,
   parentToolCallId?: string,
-): SessionNotification["update"] {
-  const update: SessionNotification["update"] = {
+): SessionUpdate {
+  const update: SessionUpdate = {
     sessionUpdate: messageUpdateType(role),
     content: text(chunk.text),
   };
@@ -101,7 +107,7 @@ function handleImageChunk(
     source: { type: string; data?: string; media_type?: string; url?: string };
   },
   role: Role,
-): SessionNotification["update"] {
+): SessionUpdate {
   return {
     sessionUpdate: messageUpdateType(role),
     content: image(
@@ -115,8 +121,8 @@ function handleImageChunk(
 function handleThinkingChunk(
   chunk: { thinking: string },
   parentToolCallId?: string,
-): SessionNotification["update"] {
-  const update: SessionNotification["update"] = {
+): SessionUpdate {
+  const update: SessionUpdate = {
     sessionUpdate: "agent_thought_chunk",
     content: text(chunk.thinking),
   };
@@ -133,7 +139,8 @@ function handleThinkingChunk(
 function handleToolUseChunk(
   chunk: ToolUseCache[string],
   ctx: ChunkHandlerContext,
-): SessionNotification["update"] | null {
+): SessionUpdate | null {
+  const alreadyCached = chunk.id in ctx.toolUseCache;
   ctx.toolUseCache[chunk.id] = chunk;
 
   if (chunk.name === "TodoWrite") {
@@ -147,25 +154,33 @@ function handleToolUseChunk(
     return null;
   }
 
-  registerHookCallback(chunk.id, {
-    onPostToolUseHook: async (toolUseId, _toolInput, toolResponse) => {
-      const toolUse = ctx.toolUseCache[toolUseId];
-      if (toolUse) {
-        await ctx.client.sessionUpdate({
-          sessionId: ctx.sessionId,
-          update: {
-            _meta: toolMeta(toolUse.name, toolResponse, ctx.parentToolCallId),
-            toolCallId: toolUseId,
-            sessionUpdate: "tool_call_update",
-          },
-        });
-      } else {
-        ctx.logger.error(
-          `Got a tool response for tool use that wasn't tracked: ${toolUseId}`,
-        );
-      }
-    },
-  });
+  if (!alreadyCached && ctx.registerHooks !== false) {
+    registerHookCallback(chunk.id, {
+      onPostToolUseHook: async (toolUseId, _toolInput, toolResponse) => {
+        const toolUse = ctx.toolUseCache[toolUseId];
+        if (toolUse) {
+          const editUpdate =
+            toolUse.name === "Edit"
+              ? toolUpdateFromEditToolResponse(toolResponse)
+              : null;
+
+          await ctx.client.sessionUpdate({
+            sessionId: ctx.sessionId,
+            update: {
+              _meta: toolMeta(toolUse.name, toolResponse, ctx.parentToolCallId),
+              toolCallId: toolUseId,
+              sessionUpdate: "tool_call_update",
+              ...(editUpdate ? editUpdate : {}),
+            },
+          });
+        } else {
+          ctx.logger.error(
+            `Got a tool response for tool use that wasn't tracked: ${toolUseId}`,
+          );
+        }
+      },
+    });
+  }
 
   let rawInput: Record<string, unknown> | undefined;
   try {
@@ -174,65 +189,133 @@ function handleToolUseChunk(
     // ignore
   }
 
+  const toolInfo = toolInfoFromToolUse(chunk, {
+    supportsTerminalOutput: ctx.supportsTerminalOutput,
+    toolUseId: chunk.id,
+  });
+
+  const meta: Record<string, unknown> = {
+    ...toolMeta(chunk.name, undefined, ctx.parentToolCallId),
+  };
+  if (chunk.name === "Bash" && ctx.supportsTerminalOutput && !alreadyCached) {
+    meta.terminal_info = { terminal_id: chunk.id };
+  }
+
+  if (alreadyCached) {
+    return {
+      _meta: meta,
+      toolCallId: chunk.id,
+      sessionUpdate: "tool_call_update" as const,
+      rawInput,
+      ...toolInfo,
+    };
+  }
+
   return {
-    _meta: toolMeta(chunk.name, undefined, ctx.parentToolCallId),
+    _meta: meta,
     toolCallId: chunk.id,
-    sessionUpdate: "tool_call",
+    sessionUpdate: "tool_call" as const,
     rawInput,
     status: "pending",
-    ...toolInfoFromToolUse(chunk, ctx.fileContentCache, ctx.logger),
+    ...toolInfo,
   };
 }
 
 function handleToolResultChunk(
-  chunk: AnthropicContentChunk & { tool_use_id: string; is_error?: boolean },
+  chunk: AnthropicContentChunk & {
+    tool_use_id: string;
+    is_error?: boolean;
+    content?: unknown;
+  },
   ctx: ChunkHandlerContext,
-): SessionNotification["update"] | null {
+): SessionUpdate[] {
   const toolUse = ctx.toolUseCache[chunk.tool_use_id];
   if (!toolUse) {
     ctx.logger.error(
       `Got a tool result for tool use that wasn't tracked: ${chunk.tool_use_id}`,
     );
-    return null;
+    return [];
   }
 
   if (toolUse.name === "TodoWrite") {
-    return null;
+    return [];
   }
 
-  return {
-    _meta: toolMeta(toolUse.name, undefined, ctx.parentToolCallId),
+  const { _meta: resultMeta, ...toolUpdate } = toolUpdateFromToolResult(
+    chunk as Parameters<typeof toolUpdateFromToolResult>[0],
+    toolUse,
+    {
+      supportsTerminalOutput: ctx.supportsTerminalOutput,
+      toolUseId: chunk.tool_use_id,
+    },
+  );
+
+  const updates: SessionUpdate[] = [];
+
+  if (resultMeta?.terminal_output) {
+    const terminalOutputMeta: Record<string, unknown> = {
+      terminal_output: resultMeta.terminal_output,
+    };
+    if (ctx.parentToolCallId) {
+      terminalOutputMeta.claudeCode = {
+        parentToolCallId: ctx.parentToolCallId,
+      };
+    }
+    updates.push({
+      _meta: terminalOutputMeta,
+      toolCallId: chunk.tool_use_id,
+      sessionUpdate: "tool_call_update" as const,
+    });
+  }
+
+  const meta: Record<string, unknown> = {
+    ...toolMeta(toolUse.name, undefined, ctx.parentToolCallId),
+    ...(resultMeta?.terminal_exit
+      ? { terminal_exit: resultMeta.terminal_exit }
+      : {}),
+  };
+
+  updates.push({
+    _meta: meta,
     toolCallId: chunk.tool_use_id,
     sessionUpdate: "tool_call_update",
     status: chunk.is_error ? "failed" : "completed",
-    ...toolUpdateFromToolResult(
-      chunk as Parameters<typeof toolUpdateFromToolResult>[0],
-      toolUse,
-    ),
-  };
+    rawOutput: chunk.content,
+    ...toolUpdate,
+  });
+
+  return updates;
 }
 
 function processContentChunk(
   chunk: AnthropicContentChunk,
   role: Role,
   ctx: ChunkHandlerContext,
-): SessionNotification["update"] | null {
+): SessionUpdate[] {
   switch (chunk.type) {
     case "text":
-    case "text_delta":
-      return handleTextChunk(chunk, role, ctx.parentToolCallId);
+    case "text_delta": {
+      const update = handleTextChunk(chunk, role, ctx.parentToolCallId);
+      return update ? [update] : [];
+    }
 
-    case "image":
-      return handleImageChunk(chunk, role);
+    case "image": {
+      const update = handleImageChunk(chunk, role);
+      return update ? [update] : [];
+    }
 
     case "thinking":
-    case "thinking_delta":
-      return handleThinkingChunk(chunk, ctx.parentToolCallId);
+    case "thinking_delta": {
+      const update = handleThinkingChunk(chunk, ctx.parentToolCallId);
+      return update ? [update] : [];
+    }
 
     case "tool_use":
     case "server_tool_use":
-    case "mcp_tool_use":
-      return handleToolUseChunk(chunk as ToolUseCache[string], ctx);
+    case "mcp_tool_use": {
+      const update = handleToolUseChunk(chunk as ToolUseCache[string], ctx);
+      return update ? [update] : [];
+    }
 
     case "tool_result":
     case "tool_search_tool_result":
@@ -246,6 +329,7 @@ function processContentChunk(
         chunk as AnthropicContentChunk & {
           tool_use_id: string;
           is_error?: boolean;
+          content?: unknown;
         },
         ctx,
       );
@@ -259,11 +343,11 @@ function processContentChunk(
     case "container_upload":
     case "compaction":
     case "compaction_delta":
-      return null;
+      return [];
 
     default:
-      unreachable(chunk, ctx.logger);
-      return null;
+      unreachable(chunk as never, ctx.logger);
+      return [];
   }
 }
 
@@ -280,9 +364,11 @@ function toAcpNotifications(
   client: AgentSideConnection,
   logger: Logger,
   parentToolCallId?: string,
+  registerHooks?: boolean,
+  supportsTerminalOutput?: boolean,
 ): SessionNotification[] {
   if (typeof content === "string") {
-    const update: SessionNotification["update"] = {
+    const update: SessionUpdate = {
       sessionUpdate: messageUpdateType(role),
       content: text(content),
     };
@@ -303,12 +389,13 @@ function toAcpNotifications(
     client,
     logger,
     parentToolCallId,
+    registerHooks,
+    supportsTerminalOutput,
   };
   const output: SessionNotification[] = [];
 
   for (const chunk of content) {
-    const update = processContentChunk(chunk, role, ctx);
-    if (update) {
+    for (const update of processContentChunk(chunk, role, ctx)) {
       output.push({ sessionId, update });
     }
   }
@@ -324,6 +411,8 @@ function streamEventToAcpNotifications(
   client: AgentSideConnection,
   logger: Logger,
   parentToolCallId?: string,
+  registerHooks?: boolean,
+  supportsTerminalOutput?: boolean,
 ): SessionNotification[] {
   const event = message.event;
   switch (event.type) {
@@ -337,6 +426,8 @@ function streamEventToAcpNotifications(
         client,
         logger,
         parentToolCallId,
+        registerHooks,
+        supportsTerminalOutput,
       );
     case "content_block_delta":
       return toAcpNotifications(
@@ -348,6 +439,8 @@ function streamEventToAcpNotifications(
         client,
         logger,
         parentToolCallId,
+        registerHooks,
+        supportsTerminalOutput,
       );
     case "message_start":
     case "message_delta":
@@ -356,7 +449,7 @@ function streamEventToAcpNotifications(
       return [];
 
     default:
-      unreachable(event, logger);
+      unreachable(event as never, logger);
       return [];
   }
 }
@@ -413,18 +506,24 @@ export async function handleSystemMessage(
   }
 }
 
+export type ResultMessageHandlerResult = {
+  shouldStop: boolean;
+  stopReason?: string;
+  error?: Error;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    cachedReadTokens: number;
+    cachedWriteTokens: number;
+    costUsd?: number;
+    contextWindowSize?: number;
+  };
+};
+
 export function handleResultMessage(
   message: SDKResultMessage,
-  context: MessageHandlerContext,
-): { shouldStop: boolean; stopReason?: string; error?: Error } {
-  const { session } = context;
-
-  if (session.cancelled) {
-    return {
-      shouldStop: true,
-      stopReason: "cancelled",
-    };
-  }
+): ResultMessageHandlerResult {
+  const usage = extractUsageFromResult(message);
 
   switch (message.subtype) {
     case "success": {
@@ -432,15 +531,17 @@ export function handleResultMessage(
         return {
           shouldStop: true,
           error: RequestError.authRequired(),
+          usage,
         };
       }
       if (message.is_error) {
         return {
           shouldStop: true,
           error: RequestError.internalError(undefined, message.result),
+          usage,
         };
       }
-      return { shouldStop: true, stopReason: "end_turn" };
+      return { shouldStop: true, stopReason: "end_turn", usage };
     }
     case "error_during_execution":
       if (message.is_error) {
@@ -450,9 +551,10 @@ export function handleResultMessage(
             undefined,
             message.errors.join(", ") || message.subtype,
           ),
+          usage,
         };
       }
-      return { shouldStop: true, stopReason: "end_turn" };
+      return { shouldStop: true, stopReason: "end_turn", usage };
     case "error_max_budget_usd":
     case "error_max_turns":
     case "error_max_structured_output_retries":
@@ -463,12 +565,44 @@ export function handleResultMessage(
             undefined,
             message.errors.join(", ") || message.subtype,
           ),
+          usage,
         };
       }
-      return { shouldStop: true, stopReason: "max_turn_requests" };
+      return { shouldStop: true, stopReason: "max_turn_requests", usage };
     default:
-      return { shouldStop: false };
+      return { shouldStop: false, usage };
   }
+}
+
+function extractUsageFromResult(
+  message: SDKResultMessage,
+): ResultMessageHandlerResult["usage"] {
+  const msg = message as Record<string, unknown>;
+  const msgUsage = msg.usage as Record<string, number> | undefined;
+  if (!msgUsage) return undefined;
+
+  const modelUsage = msg.modelUsage as
+    | Record<string, { contextWindow: number }>
+    | undefined;
+  let contextWindowSize: number | undefined;
+  if (modelUsage) {
+    const contextWindows = Object.values(modelUsage).map(
+      (m) => m.contextWindow,
+    );
+    if (contextWindows.length > 0) {
+      contextWindowSize = Math.min(...contextWindows);
+    }
+  }
+
+  return {
+    inputTokens: msgUsage.input_tokens ?? 0,
+    outputTokens: msgUsage.output_tokens ?? 0,
+    cachedReadTokens: msgUsage.cache_read_input_tokens ?? 0,
+    cachedWriteTokens: msgUsage.cache_creation_input_tokens ?? 0,
+    costUsd:
+      typeof msg.total_cost_usd === "number" ? msg.total_cost_usd : undefined,
+    contextWindowSize,
+  };
 }
 
 export async function handleStreamEvent(
@@ -486,6 +620,8 @@ export async function handleStreamEvent(
     client,
     logger,
     parentToolCallId,
+    context.registerHooks,
+    context.supportsTerminalOutput,
   )) {
     await client.sessionUpdate(notification);
     context.session.notificationHistory.push(notification);
@@ -504,16 +640,6 @@ function hasLocalCommandStderr(content: AnthropicMessageContent): boolean {
   );
 }
 
-function isSimpleUserMessage(message: AnthropicMessageWithContent): boolean {
-  return (
-    message.type === "user" &&
-    (typeof message.message.content === "string" ||
-      (Array.isArray(message.message.content) &&
-        message.message.content.length === 1 &&
-        message.message.content[0].type === "text"))
-  );
-}
-
 function isLoginRequiredMessage(message: AnthropicMessageWithContent): boolean {
   return (
     message.type === "assistant" &&
@@ -525,13 +651,23 @@ function isLoginRequiredMessage(message: AnthropicMessageWithContent): boolean {
   );
 }
 
+function isPlainTextUserMessage(message: AnthropicMessageWithContent): boolean {
+  const content = message.message.content;
+  return (
+    message.type === "user" &&
+    (typeof content === "string" ||
+      (Array.isArray(content) &&
+        content.length === 1 &&
+        content[0].type === "text"))
+  );
+}
+
 function shouldSkipUserAssistantMessage(
   message: AnthropicMessageWithContent,
 ): boolean {
   return (
     hasLocalCommandStdout(message.message.content) ||
     hasLocalCommandStderr(message.message.content) ||
-    isSimpleUserMessage(message) ||
     isLoginRequiredMessage(message)
   );
 }
@@ -567,11 +703,31 @@ export async function handleUserAssistantMessage(
   const { session, sessionId, client, toolUseCache, fileContentCache, logger } =
     context;
 
-  if (session.cancelled) {
-    return {};
-  }
-
   if (shouldSkipUserAssistantMessage(message)) {
+    const content = message.message.content;
+
+    // Handle /context by sending its reply as a regular agent message
+    if (
+      typeof content === "string" &&
+      hasLocalCommandStdout(content) &&
+      content.includes("Context Usage")
+    ) {
+      const stripped = content
+        .replace("<local-command-stdout>", "")
+        .replace("</local-command-stdout>", "");
+      for (const notification of toAcpNotifications(
+        stripped,
+        "assistant",
+        sessionId,
+        toolUseCache,
+        fileContentCache,
+        client,
+        logger,
+      )) {
+        await client.sessionUpdate(notification);
+      }
+    }
+
     logSpecialMessages(message, logger);
 
     if (isLoginRequiredMessage(message)) {
@@ -580,8 +736,14 @@ export async function handleUserAssistantMessage(
     return {};
   }
 
+  // Skip plain text user messages (already displayed by the ACP client)
+  if (isPlainTextUserMessage(message)) {
+    return {};
+  }
+
   const content = message.message.content;
-  const contentToProcess = filterMessageContent(content);
+  const contentToProcess =
+    message.type === "assistant" ? filterMessageContent(content) : content;
   const parentToolCallId =
     "parent_tool_use_id" in message
       ? (message.parent_tool_use_id ?? undefined)
@@ -596,6 +758,8 @@ export async function handleUserAssistantMessage(
     client,
     logger,
     parentToolCallId,
+    context.registerHooks,
+    context.supportsTerminalOutput,
   )) {
     await client.sessionUpdate(notification);
     session.notificationHistory.push(notification);

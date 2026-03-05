@@ -28,7 +28,7 @@ export function unreachable(value: never, logger: Logger): void {
   try {
     valueAsString = JSON.stringify(value);
   } catch {
-    valueAsString = value;
+    valueAsString = String(value);
   }
   logger.error(`Unexpected case: ${valueAsString}`);
 }
