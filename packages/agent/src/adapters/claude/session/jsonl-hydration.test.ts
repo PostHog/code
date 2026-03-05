@@ -102,6 +102,35 @@ describe("rebuildConversation", () => {
     expect(turns[0].content).toHaveLength(2);
   });
 
+  it("merges consecutive user messages into one turn", () => {
+    const turns = rebuildConversation([
+      entry("user_message", { content: { type: "text", text: "hello" } }),
+      entry("user_message", { content: { type: "text", text: "world" } }),
+      entry("agent_message", { content: { type: "text", text: "hi" } }),
+    ]);
+
+    expect(turns).toHaveLength(2);
+    expect(turns[0].role).toBe("user");
+    expect(turns[0].content).toEqual([
+      { type: "text", text: "hello" },
+      { type: "text", text: "world" },
+    ]);
+    expect(turns[1].role).toBe("assistant");
+  });
+
+  it("skips empty content in consecutive user messages", () => {
+    const turns = rebuildConversation([
+      entry("user_message", { content: { type: "text", text: "prompt" } }),
+      entry("user_message", {}),
+      entry("user_message", {}),
+      entry("agent_message", { content: { type: "text", text: "response" } }),
+    ]);
+
+    expect(turns).toHaveLength(2);
+    expect(turns[0].role).toBe("user");
+    expect(turns[0].content).toEqual([{ type: "text", text: "prompt" }]);
+  });
+
   it("coalesces consecutive agent text chunks", () => {
     const turns = rebuildConversation([
       entry("user_message", { content: { type: "text", text: "hi" } }),
@@ -227,27 +256,51 @@ describe("rebuildConversation", () => {
 describe("conversationTurnsToJsonlEntries", () => {
   const config = { sessionId: "sess-1", cwd: "/repo" };
 
+  function parseConversationEntries(lines: string[]) {
+    return lines
+      .map((l) => JSON.parse(l))
+      .filter((e: { type: string }) => e.type !== "queue-operation");
+  }
+
+  function parseQueueEntries(lines: string[]) {
+    return lines
+      .map((l) => JSON.parse(l))
+      .filter((e: { type: string }) => e.type === "queue-operation");
+  }
+
   it("returns empty array for empty turns", () => {
     expect(conversationTurnsToJsonlEntries([], config)).toEqual([]);
   });
 
-  it("produces a user line for a user turn", () => {
+  it("produces queue ops and a user line with array content", () => {
     const lines = conversationTurnsToJsonlEntries(
       [{ role: "user", content: [{ type: "text", text: "hello" }] }],
       config,
     );
 
-    expect(lines).toHaveLength(1);
-    const parsed = JSON.parse(lines[0]);
+    // enqueue + dequeue + user entry
+    expect(lines).toHaveLength(3);
+
+    const queueOps = parseQueueEntries(lines);
+    expect(queueOps).toHaveLength(2);
+    expect(queueOps[0].operation).toBe("enqueue");
+    expect(queueOps[1].operation).toBe("dequeue");
+    expect(queueOps[0].sessionId).toBe("sess-1");
+
+    const [parsed] = parseConversationEntries(lines);
     expect(parsed.type).toBe("user");
     expect(parsed.message.role).toBe("user");
-    expect(parsed.message.content).toBe("hello");
+    expect(parsed.message.content).toEqual([{ type: "text", text: "hello" }]);
     expect(parsed.sessionId).toBe("sess-1");
     expect(parsed.cwd).toBe("/repo");
     expect(parsed.parentUuid).toBeNull();
+    expect(parsed.version).toBe("2.1.63");
+    expect(parsed.permissionMode).toBe("default");
+    expect(parsed.gitBranch).toBeDefined();
+    expect(parsed.slug).toBeDefined();
   });
 
-  it("chains parentUuid across entries", () => {
+  it("chains parentUuid across conversation entries", () => {
     const lines = conversationTurnsToJsonlEntries(
       [
         { role: "user", content: [{ type: "text", text: "q" }] },
@@ -256,13 +309,12 @@ describe("conversationTurnsToJsonlEntries", () => {
       config,
     );
 
-    const first = JSON.parse(lines[0]);
-    const second = JSON.parse(lines[1]);
-    expect(first.parentUuid).toBeNull();
-    expect(second.parentUuid).toBe(first.uuid);
+    const conv = parseConversationEntries(lines);
+    expect(conv[0].parentUuid).toBeNull();
+    expect(conv[1].parentUuid).toBe(conv[0].uuid);
   });
 
-  it("emits tool_use in assistant block and tool_result as user block", () => {
+  it("emits one line per assistant block with shared message id", () => {
     const lines = conversationTurnsToJsonlEntries(
       [
         {
@@ -281,28 +333,61 @@ describe("conversationTurnsToJsonlEntries", () => {
       config,
     );
 
-    expect(lines).toHaveLength(2);
+    // No queue ops for assistant-only turn; text + tool_use + tool_result
+    const conv = parseConversationEntries(lines);
+    expect(conv).toHaveLength(3);
 
-    const assistantEntry = JSON.parse(lines[0]);
-    expect(assistantEntry.type).toBe("assistant");
-    const content = assistantEntry.message.content;
-    expect(content).toHaveLength(2);
-    expect(content[0]).toEqual({ type: "text", text: "running" });
-    expect(content[1]).toEqual({
-      type: "tool_use",
-      id: "tc-1",
-      name: "Bash",
-      input: { command: "ls" },
-    });
+    expect(conv[0].type).toBe("assistant");
+    expect(conv[0].message.content).toEqual([
+      { type: "text", text: "running" },
+    ]);
+    expect(conv[0].message.stop_reason).toBeNull();
+    expect(conv[0].message.model).toBe("claude-opus-4-6");
+    expect(conv[0].message.id).toMatch(/^msg_01[A-Za-z0-9]{24}$/);
 
-    const toolResultEntry = JSON.parse(lines[1]);
-    expect(toolResultEntry.type).toBe("user");
-    expect(toolResultEntry.message.content[0]).toEqual({
+    expect(conv[1].type).toBe("assistant");
+    expect(conv[1].message.content).toEqual([
+      {
+        type: "tool_use",
+        id: "tc-1",
+        name: "Bash",
+        input: { command: "ls" },
+      },
+    ]);
+    expect(conv[1].message.stop_reason).toBe("tool_use");
+    expect(conv[1].message.id).toBe(conv[0].message.id);
+
+    expect(conv[2].type).toBe("user");
+    expect(conv[2].message.content[0]).toEqual({
       type: "tool_result",
       tool_use_id: "tc-1",
       content: "output",
     });
-    expect(toolResultEntry.parentUuid).toBe(assistantEntry.uuid);
+    expect(conv[2].parentUuid).toBe(conv[1].uuid);
+  });
+
+  it("sets stop_reason only on last block, null on intermediate", () => {
+    const lines = conversationTurnsToJsonlEntries(
+      [
+        {
+          role: "assistant",
+          content: [
+            { type: "thinking", thinking: "hmm" } as unknown as {
+              type: "text";
+              text: string;
+            },
+            { type: "text", text: "answer" },
+          ],
+        },
+      ],
+      config,
+    );
+
+    const conv = parseConversationEntries(lines);
+    expect(conv).toHaveLength(2);
+    expect(conv[0].message.stop_reason).toBeNull();
+    expect(conv[1].message.stop_reason).toBe("end_turn");
+    expect(conv[0].message.id).toBe(conv[1].message.id);
   });
 
   it("skips tool results that are undefined", () => {
@@ -323,8 +408,11 @@ describe("conversationTurnsToJsonlEntries", () => {
       config,
     );
 
-    expect(lines).toHaveLength(1);
-    expect(JSON.parse(lines[0]).type).toBe("assistant");
+    const conv = parseConversationEntries(lines);
+    expect(conv).toHaveLength(2);
+    expect(conv[0].type).toBe("assistant");
+    expect(conv[1].type).toBe("assistant");
+    expect(conv[1].message.content[0].type).toBe("tool_use");
   });
 
   it("serializes non-string tool results as JSON", () => {
@@ -346,8 +434,8 @@ describe("conversationTurnsToJsonlEntries", () => {
       config,
     );
 
-    const toolResult = JSON.parse(lines[1]);
-    expect(toolResult.message.content[0].content).toBe(
+    const conv = parseConversationEntries(lines);
+    expect(conv[2].message.content[0].content).toBe(
       JSON.stringify({ files: ["a.ts"] }),
     );
   });
@@ -358,8 +446,50 @@ describe("conversationTurnsToJsonlEntries", () => {
       config,
     );
 
-    const parsed = JSON.parse(lines[0]);
-    expect(parsed.message.content).toBe(" ");
+    const [parsed] = parseConversationEntries(lines);
+    expect(parsed.message.content).toEqual([{ type: "text", text: " " }]);
+  });
+
+  it("uses custom model and version from config", () => {
+    const lines = conversationTurnsToJsonlEntries(
+      [
+        { role: "user", content: [{ type: "text", text: "hi" }] },
+        { role: "assistant", content: [{ type: "text", text: "hello" }] },
+      ],
+      { sessionId: "s", cwd: "/", model: "claude-opus-4-6", version: "3.0.0" },
+    );
+
+    const conv = parseConversationEntries(lines);
+    expect(conv[0].version).toBe("3.0.0");
+    expect(conv[1].version).toBe("3.0.0");
+    expect(conv[1].message.model).toBe("claude-opus-4-6");
+  });
+
+  it("passes gitBranch, slug and permissionMode from config", () => {
+    const lines = conversationTurnsToJsonlEntries(
+      [
+        { role: "user", content: [{ type: "text", text: "hi" }] },
+        { role: "assistant", content: [{ type: "text", text: "hello" }] },
+      ],
+      {
+        sessionId: "s",
+        cwd: "/",
+        gitBranch: "feat/test",
+        slug: "custom-slug-name",
+        permissionMode: "plan",
+      },
+    );
+
+    const conv = parseConversationEntries(lines);
+    // User entry
+    expect(conv[0].gitBranch).toBe("feat/test");
+    expect(conv[0].slug).toBe("custom-slug-name");
+    expect(conv[0].permissionMode).toBe("plan");
+    // Assistant entry
+    expect(conv[1].gitBranch).toBe("feat/test");
+    expect(conv[1].slug).toBe("custom-slug-name");
+    // Assistant entries don't have permissionMode
+    expect(conv[1].permissionMode).toBeUndefined();
   });
 });
 
@@ -381,14 +511,19 @@ describe("end-to-end: S3 log entries -> JSONL output", () => {
     };
   }
 
+  function filterConv(parsed: Record<string, unknown>[]) {
+    return parsed.filter((e) => e.type !== "queue-operation");
+  }
+
+  function filterQueue(parsed: Record<string, unknown>[]) {
+    return parsed.filter((e) => e.type === "queue-operation");
+  }
+
   it("converts a multi-turn session with tool use into valid JSONL", () => {
     const s3Logs: StoredEntry[] = [
-      // Turn 1: user asks to list files
       s3Entry("user_message", {
         content: { type: "text", text: "List the files in src/" },
       }),
-
-      // Turn 1: assistant responds with thinking + text + tool call
       s3Entry("agent_message_chunk", {
         content: { type: "thinking", thinking: "I should use Bash to run ls" },
       }),
@@ -415,21 +550,15 @@ describe("end-to-end: S3 log entries -> JSONL output", () => {
           },
         },
       }),
-
-      // Turn 2: assistant summarizes after seeing tool result
       s3Entry("agent_message", {
         content: {
           type: "text",
           text: "There are 3 files: index.ts, utils.ts and config.ts.",
         },
       }),
-
-      // Turn 3: user asks follow-up
       s3Entry("user_message", {
         content: { type: "text", text: "Read index.ts" },
       }),
-
-      // Turn 3: assistant uses Read tool
       s3Entry("agent_message_chunk", {
         content: { type: "text", text: "Reading now." },
       }),
@@ -450,8 +579,6 @@ describe("end-to-end: S3 log entries -> JSONL output", () => {
           },
         },
       }),
-
-      // Turn 3: assistant summarizes
       s3Entry("agent_message", {
         content: {
           type: "text",
@@ -462,12 +589,10 @@ describe("end-to-end: S3 log entries -> JSONL output", () => {
 
     const turns = rebuildConversation(s3Logs);
     const lines = conversationTurnsToJsonlEntries(turns, config);
-    const parsed = lines.map((l) => JSON.parse(l));
+    const allParsed = lines.map((l) => JSON.parse(l));
+    const conv = filterConv(allParsed);
+    const queueOps = filterQueue(allParsed);
 
-    // rebuildConversation only starts a new turn on user_message,
-    // so agent messages after tool results stay in the same assistant turn:
-    // user("List files") -> assistant(thinking + text + Bash tool + summary text) ->
-    // user("Read index.ts") -> assistant(text + Read tool + summary text)
     expect(turns).toHaveLength(4);
     expect(turns.map((t) => t.role)).toEqual([
       "user",
@@ -476,7 +601,6 @@ describe("end-to-end: S3 log entries -> JSONL output", () => {
       "assistant",
     ]);
 
-    // Verify thinking block preserved in first assistant turn
     const firstAssistant = turns[1];
     const thinkingBlocks = firstAssistant.content.filter(
       (b) =>
@@ -487,8 +611,6 @@ describe("end-to-end: S3 log entries -> JSONL output", () => {
     );
     expect(thinkingBlocks).toHaveLength(1);
 
-    // Verify text coalescing: the streamed chunks + post-tool summary
-    // all merge into one text block since they're all consecutive text type
     const textBlocks = firstAssistant.content.filter(
       (b) =>
         typeof b === "object" && b !== null && "type" in b && b.type === "text",
@@ -498,66 +620,109 @@ describe("end-to-end: S3 log entries -> JSONL output", () => {
     expect(firstText).toContain("I'll list the files for you.");
     expect(firstText).toContain("There are 3 files");
 
-    // Verify tool calls were tracked
     expect(firstAssistant.toolCalls).toHaveLength(1);
     expect(firstAssistant.toolCalls?.[0].toolName).toBe("Bash");
     expect(firstAssistant.toolCalls?.[0].result).toBe(
       "index.ts\nutils.ts\nconfig.ts",
     );
 
-    // JSONL: user, assistant(+tool_use), tool_result, user, assistant(+tool_use), tool_result
-    const types = parsed.map((p: { type: string }) => p.type);
+    // 2 user turns → 4 queue-operation entries (enqueue + dequeue each)
+    expect(queueOps).toHaveLength(4);
+
+    // Conversation entries (excluding queue ops):
+    // user, thinking, text, tool_use(Bash), tool_result(Bash),
+    // user, text, tool_use(Read), tool_result(Read)
+    const types = conv.map((p) => p.type);
     expect(types).toEqual([
       "user",
       "assistant",
+      "assistant",
+      "assistant",
       "user",
       "user",
+      "assistant",
       "assistant",
       "user",
     ]);
 
-    // Verify parentUuid chaining
-    expect(parsed[0].parentUuid).toBeNull();
-    for (let i = 1; i < parsed.length; i++) {
-      expect(parsed[i].parentUuid).toBe(parsed[i - 1].uuid);
+    // Verify parentUuid chaining (only conversation entries participate)
+    expect(conv[0].parentUuid).toBeNull();
+    for (let i = 1; i < conv.length; i++) {
+      expect(conv[i].parentUuid).toBe(conv[i - 1].uuid);
     }
 
-    // Verify all entries have required fields
-    for (const e of parsed) {
+    // Verify all conversation entries have required fields
+    for (const e of conv) {
       expect(e.sessionId).toBe("sess-abc");
       expect(e.cwd).toBe("/home/user/repo");
       expect(e.isSidechain).toBe(false);
       expect(e.uuid).toBeDefined();
       expect(e.timestamp).toBeDefined();
+      expect(e.version).toBe("2.1.63");
+      expect(e.gitBranch).toBeDefined();
+      expect(e.slug).toBeDefined();
+      expect(typeof e.slug).toBe("string");
     }
 
-    // Verify first user message content
-    expect(parsed[0].message.content).toBe("List the files in src/");
+    // Verify first user message content (array format)
+    expect((conv[0].message as Record<string, unknown>).content).toEqual([
+      { type: "text", text: "List the files in src/" },
+    ]);
 
-    // Verify assistant block contains tool_use
-    const assistantMsg = parsed[1].message.content;
-    const toolUseBlock = assistantMsg.find(
-      (b: { type: string }) => b.type === "tool_use",
-    );
-    expect(toolUseBlock).toEqual({
-      type: "tool_use",
-      id: "toolu_01ABC",
-      name: "Bash",
-      input: { command: "ls src/" },
-    });
+    // Verify thinking block: stop_reason null (intermediate)
+    const msg1 = conv[1].message as Record<string, unknown>;
+    expect((msg1.content as unknown[])[0]).toMatchObject({ type: "thinking" });
+    expect(msg1.stop_reason).toBeNull();
+
+    // Verify text block: stop_reason null (intermediate)
+    const msg2 = conv[2].message as Record<string, unknown>;
+    expect((msg2.content as unknown[])[0]).toMatchObject({ type: "text" });
+    expect(msg2.stop_reason).toBeNull();
+
+    // Verify tool_use block: stop_reason "tool_use" (last block in turn)
+    const msg3 = conv[3].message as Record<string, unknown>;
+    expect(msg3.content).toEqual([
+      {
+        type: "tool_use",
+        id: "toolu_01ABC",
+        name: "Bash",
+        input: { command: "ls src/" },
+      },
+    ]);
+    expect(msg3.stop_reason).toBe("tool_use");
+
+    // All assistant blocks in same turn share message.id
+    expect(msg1.id).toBe(msg2.id);
+    expect(msg2.id).toBe(msg3.id);
+    expect(msg3.model).toBe("claude-opus-4-6");
+    expect(msg3.id).toMatch(/^msg_01[A-Za-z0-9]{24}$/);
 
     // Verify Bash tool_result entry
-    expect(parsed[2].message.content[0]).toEqual({
+    const msg4 = conv[4].message as {
+      content: { tool_use_id: string; content: string; type: string }[];
+    };
+    expect(msg4.content[0]).toEqual({
       type: "tool_result",
       tool_use_id: "toolu_01ABC",
       content: "index.ts\nutils.ts\nconfig.ts",
     });
 
-    // Verify second user message
-    expect(parsed[3].message.content).toBe("Read index.ts");
+    // Verify second user message (array format)
+    expect((conv[5].message as Record<string, unknown>).content).toEqual([
+      { type: "text", text: "Read index.ts" },
+    ]);
+
+    // Second assistant turn blocks share a different message.id
+    const msg6 = conv[6].message as Record<string, unknown>;
+    const msg7 = conv[7].message as Record<string, unknown>;
+    expect(msg6.id).toBe(msg7.id);
+    expect(msg6.id).not.toBe(msg1.id);
 
     // Verify Read tool_result entry
-    expect(parsed[5].message.content[0]).toEqual({
+    const msg8 = conv[8].message as {
+      content: { tool_use_id: string; content: string; type: string }[];
+    };
+    expect(msg8.content[0]).toEqual({
       type: "tool_result",
       tool_use_id: "toolu_02DEF",
       content: 'export const main = () => console.log("hello");',
@@ -573,13 +738,17 @@ describe("end-to-end: S3 log entries -> JSONL output", () => {
 
     const turns = rebuildConversation(s3Logs);
     const lines = conversationTurnsToJsonlEntries(turns, config);
+    const conv = filterConv(lines.map((l) => JSON.parse(l)));
 
     expect(turns).toHaveLength(1);
-    expect(lines).toHaveLength(1);
+    // enqueue + dequeue + user = 3 total lines, 1 conversation entry
+    expect(lines).toHaveLength(3);
+    expect(conv).toHaveLength(1);
 
-    const parsed = JSON.parse(lines[0]);
-    expect(parsed.type).toBe("user");
-    expect(parsed.message.content).toBe("hello");
+    expect(conv[0].type).toBe("user");
+    expect((conv[0].message as Record<string, unknown>).content).toEqual([
+      { type: "text", text: "hello" },
+    ]);
   });
 
   it("handles interleaved non-session/update entries gracefully", () => {
@@ -607,7 +776,10 @@ describe("end-to-end: S3 log entries -> JSONL output", () => {
     expect(turns[1].role).toBe("assistant");
 
     const lines = conversationTurnsToJsonlEntries(turns, config);
-    expect(lines).toHaveLength(2);
+    const conv = filterConv(lines.map((l) => JSON.parse(l)));
+    // 1 user turn → 2 queue ops + user + assistant = 4 total, 2 conversation
+    expect(lines).toHaveLength(4);
+    expect(conv).toHaveLength(2);
   });
 
   it("handles multiple tool calls in a single assistant turn", () => {
@@ -659,19 +831,39 @@ describe("end-to-end: S3 log entries -> JSONL output", () => {
     });
 
     const lines = conversationTurnsToJsonlEntries(turns, config);
-    const parsed = lines.map((l) => JSON.parse(l));
+    const conv = filterConv(lines.map((l) => JSON.parse(l)));
 
-    // user, assistant (with 2 tool_use), tool_result_a, tool_result_b
-    expect(parsed).toHaveLength(4);
-    expect(parsed[0].type).toBe("user");
-    expect(parsed[1].type).toBe("assistant");
-    expect(parsed[2].type).toBe("user");
-    expect(parsed[3].type).toBe("user");
+    // user, text, tool_use(a), tool_use(b), tool_result(a), tool_result(b)
+    expect(conv).toHaveLength(6);
+    expect(conv.map((p) => p.type)).toEqual([
+      "user",
+      "assistant",
+      "assistant",
+      "assistant",
+      "user",
+      "user",
+    ]);
 
-    const assistantContent = parsed[1].message.content;
-    const toolUses = assistantContent.filter(
-      (b: { type: string }) => b.type === "tool_use",
+    // Text block: stop_reason null (intermediate)
+    expect((conv[1].message as Record<string, unknown>).stop_reason).toBeNull();
+
+    // First tool_use: stop_reason null (intermediate)
+    const msg2 = conv[2].message as Record<string, unknown>;
+    expect(msg2.stop_reason).toBeNull();
+    expect(((msg2.content as unknown[])[0] as Record<string, unknown>).id).toBe(
+      "tc-a",
     );
-    expect(toolUses).toHaveLength(2);
+
+    // Last tool_use: stop_reason "tool_use" (last block)
+    const msg3 = conv[3].message as Record<string, unknown>;
+    expect(msg3.stop_reason).toBe("tool_use");
+    expect(((msg3.content as unknown[])[0] as Record<string, unknown>).id).toBe(
+      "tc-b",
+    );
+
+    // All share same message.id
+    const msg1 = conv[1].message as Record<string, unknown>;
+    expect(msg1.id).toBe(msg2.id);
+    expect(msg2.id).toBe(msg3.id);
   });
 });

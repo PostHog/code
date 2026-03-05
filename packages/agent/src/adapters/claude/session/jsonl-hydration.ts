@@ -22,6 +22,11 @@ interface ToolCallInfo {
 interface JsonlConfig {
   sessionId: string;
   cwd: string;
+  model?: string;
+  version?: string;
+  gitBranch?: string;
+  slug?: string;
+  permissionMode?: string;
 }
 
 interface ClaudeCodeMeta {
@@ -81,7 +86,13 @@ export function rebuildConversation(
             : content
               ? [content]
               : [];
-          turns.push({ role: "user", content: contentArray });
+
+          const lastTurn = turns[turns.length - 1];
+          if (lastTurn?.role === "user") {
+            lastTurn.content.push(...contentArray);
+          } else {
+            turns.push({ role: "user", content: contentArray });
+          }
           break;
         }
 
@@ -207,15 +218,113 @@ export function selectRecentTurns(
   return turns.slice(startIndex);
 }
 
+const BASE62 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+function generateMessageId(): string {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  let id = "msg_01";
+  for (const b of bytes) {
+    id += BASE62[b % 62];
+  }
+  return id;
+}
+
+const ADJECTIVES = [
+  "bright",
+  "calm",
+  "daring",
+  "eager",
+  "fair",
+  "gentle",
+  "happy",
+  "keen",
+  "lively",
+  "merry",
+  "noble",
+  "polite",
+  "quick",
+  "sharp",
+  "warm",
+  "witty",
+];
+const VERBS = [
+  "blazing",
+  "crafting",
+  "dashing",
+  "flowing",
+  "gliding",
+  "humming",
+  "jumping",
+  "linking",
+  "melting",
+  "nesting",
+  "pacing",
+  "roaming",
+  "sailing",
+  "turning",
+  "waving",
+  "zoning",
+];
+const NOUNS = [
+  "aurora",
+  "breeze",
+  "cedar",
+  "delta",
+  "ember",
+  "frost",
+  "grove",
+  "haven",
+  "inlet",
+  "jewel",
+  "knoll",
+  "lotus",
+  "maple",
+  "nexus",
+  "oasis",
+  "prism",
+];
+
+function generateSlug(): string {
+  const pick = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
+  return `${pick(ADJECTIVES)}-${pick(VERBS)}-${pick(NOUNS)}`;
+}
+
 export function conversationTurnsToJsonlEntries(
   turns: ConversationTurn[],
   config: JsonlConfig,
 ): string[] {
   const lines: string[] = [];
   let parentUuid: string | null = null;
+  const model = config.model ?? "claude-opus-4-6";
+  const version = config.version ?? "2.1.63";
+  const gitBranch = config.gitBranch ?? "";
+  const slug = config.slug ?? generateSlug();
+  const permissionMode = config.permissionMode ?? "default";
+  const baseTime = Date.now() - turns.length * 3000;
+  let turnIndex = 0;
 
   for (const turn of turns) {
+    const timestamp = new Date(baseTime + turnIndex * 3000).toISOString();
+    turnIndex++;
     if (turn.role === "user") {
+      lines.push(
+        JSON.stringify({
+          type: "queue-operation",
+          operation: "enqueue",
+          timestamp,
+          sessionId: config.sessionId,
+        }),
+      );
+      lines.push(
+        JSON.stringify({
+          type: "queue-operation",
+          operation: "dequeue",
+          timestamp,
+          sessionId: config.sessionId,
+        }),
+      );
+
       const uuid = randomUUID();
       const textParts = turn.content
         .filter(
@@ -224,7 +333,7 @@ export function conversationTurnsToJsonlEntries(
         )
         .map((block) => (block as { text: string }).text);
 
-      const userContent = textParts.length > 0 ? textParts.join("") : " ";
+      const userText = textParts.length > 0 ? textParts.join("") : " ";
 
       lines.push(
         JSON.stringify({
@@ -233,30 +342,33 @@ export function conversationTurnsToJsonlEntries(
           userType: "external",
           cwd: config.cwd,
           sessionId: config.sessionId,
-          version: "0.0.0",
+          version,
+          gitBranch,
+          slug,
           type: "user",
           message: {
             role: "user",
-            content: userContent,
+            content: [{ type: "text", text: userText }],
           },
           uuid,
-          timestamp: new Date().toISOString(),
+          timestamp,
+          permissionMode,
         }),
       );
       parentUuid = uuid;
     } else {
-      const contentBlocks: unknown[] = [];
+      const allBlocks: unknown[] = [];
 
       for (const block of turn.content) {
         const blockType = (block as { type: string }).type;
         if (blockType === "thinking" || blockType === "text") {
-          contentBlocks.push(block);
+          allBlocks.push(block);
         }
       }
 
       if (turn.toolCalls) {
         for (const tc of turn.toolCalls) {
-          contentBlocks.push({
+          allBlocks.push({
             type: "tool_use",
             id: tc.toolCallId,
             name: tc.toolName,
@@ -265,8 +377,17 @@ export function conversationTurnsToJsonlEntries(
         }
       }
 
-      if (contentBlocks.length > 0) {
+      const msgId = generateMessageId();
+      const hasToolUse = allBlocks.some(
+        (b) => (b as { type: string }).type === "tool_use",
+      );
+      const lastStopReason = hasToolUse ? "tool_use" : "end_turn";
+
+      for (let i = 0; i < allBlocks.length; i++) {
+        const block = allBlocks[i];
+        const isLast = i === allBlocks.length - 1;
         const uuid = randomUUID();
+
         lines.push(
           JSON.stringify({
             parentUuid,
@@ -274,25 +395,27 @@ export function conversationTurnsToJsonlEntries(
             userType: "external",
             cwd: config.cwd,
             sessionId: config.sessionId,
-            version: "0.0.0",
+            version,
+            gitBranch,
+            slug,
             type: "assistant",
             message: {
-              role: "assistant",
+              model,
+              id: msgId,
               type: "message",
-              model: "",
-              id: `hydrated_${uuid}`,
-              content: contentBlocks,
-              stop_reason: "end_turn",
+              role: "assistant",
+              content: [block],
+              stop_reason: isLast ? lastStopReason : null,
               stop_sequence: null,
               usage: {
                 input_tokens: 0,
-                output_tokens: 0,
                 cache_creation_input_tokens: 0,
                 cache_read_input_tokens: 0,
+                output_tokens: 0,
               },
             },
             uuid,
-            timestamp: new Date().toISOString(),
+            timestamp,
           }),
         );
         parentUuid = uuid;
@@ -315,7 +438,9 @@ export function conversationTurnsToJsonlEntries(
               userType: "external",
               cwd: config.cwd,
               sessionId: config.sessionId,
-              version: "0.0.0",
+              version,
+              gitBranch,
+              slug,
               type: "user",
               message: {
                 role: "user",
@@ -328,7 +453,7 @@ export function conversationTurnsToJsonlEntries(
                 ],
               },
               uuid,
-              timestamp: new Date().toISOString(),
+              timestamp,
             }),
           );
           parentUuid = uuid;
@@ -350,6 +475,9 @@ export async function hydrateSessionJsonl(params: {
   cwd: string;
   taskId: string;
   runId: string;
+  model?: string;
+  gitBranch?: string;
+  permissionMode?: string;
   posthogAPI: PostHogAPIClient;
   log: HydrationLog;
 }): Promise<void> {
@@ -414,6 +542,9 @@ export async function hydrateSessionJsonl(params: {
     const jsonlLines = conversationTurnsToJsonlEntries(conversation, {
       sessionId: params.sessionId,
       cwd: params.cwd,
+      model: params.model,
+      gitBranch: params.gitBranch,
+      permissionMode: params.permissionMode,
     });
 
     await fs.mkdir(path.dirname(jsonlPath), { recursive: true });

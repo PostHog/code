@@ -577,11 +577,25 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
 
         const posthogAPI = agent.getPosthogAPI();
         if (posthogAPI) {
+          let gitBranch = "";
+          try {
+            const { execSync } = await import("node:child_process");
+            gitBranch = execSync("git rev-parse --abbrev-ref HEAD", {
+              cwd: repoPath,
+              encoding: "utf-8",
+              timeout: 5000,
+            }).trim();
+          } catch {
+            // Non-critical, continue without branch info
+          }
+
           await hydrateSessionJsonl({
             sessionId: existingSessionId,
             cwd: repoPath,
             taskId,
             runId: taskRunId,
+            gitBranch,
+            permissionMode: config.permissionMode,
             posthogAPI,
             log,
           });
