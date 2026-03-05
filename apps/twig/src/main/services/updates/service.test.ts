@@ -463,6 +463,42 @@ describe("UpdatesService", () => {
       });
     });
 
+    it("shows update-ready notification instead of up-to-date when update is already downloaded", () => {
+      // Simulate update already downloaded
+      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
+        ([event]) => event === "update-downloaded",
+      )?.[1];
+      if (downloadedHandler) {
+        downloadedHandler({}, "Release notes", "v2.0.0");
+      }
+
+      const statusHandler = vi.fn();
+      const readyHandler = vi.fn();
+      service.on(UpdatesEvent.Status, statusHandler);
+      service.on(UpdatesEvent.Ready, readyHandler);
+
+      // Start a periodic re-check
+      service.checkForUpdates("periodic");
+      statusHandler.mockClear();
+
+      // Server says no new update available
+      const notAvailableHandler = mockAutoUpdater.on.mock.calls.find(
+        ([event]) => event === "update-not-available",
+      )?.[1];
+      if (notAvailableHandler) {
+        notAvailableHandler();
+      }
+
+      // Should emit checking: false (not upToDate)
+      expect(statusHandler).toHaveBeenCalledWith({ checking: false });
+      expect(statusHandler).not.toHaveBeenCalledWith(
+        expect.objectContaining({ upToDate: true }),
+      );
+
+      // Should re-surface the downloaded update notification
+      expect(readyHandler).toHaveBeenCalledWith({ version: "v2.0.0" });
+    });
+
     it("handles update-downloaded event with version info", () => {
       const readyHandler = vi.fn();
       service.on(UpdatesEvent.Ready, readyHandler);
