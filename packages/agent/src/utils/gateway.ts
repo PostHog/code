@@ -1,8 +1,8 @@
-export type GatewayProduct = "twig" | "background_agents";
+export type GatewayProduct = "posthog_code" | "background_agents";
 
 export function getLlmGatewayUrl(
   posthogHost: string,
-  product: GatewayProduct = "twig",
+  product: GatewayProduct = "posthog_code",
 ): string {
   const url = new URL(posthogHost);
   const hostname = url.hostname;

@@ -754,7 +754,7 @@ Important:
   private configureEnvironment(): void {
     const { apiKey, apiUrl, projectId } = this.config;
     const product =
-      this.config.mode === "background" ? "background_agents" : "twig";
+      this.config.mode === "background" ? "background_agents" : "posthog_code";
     const gatewayUrl =
       process.env.LLM_GATEWAY_URL || getLlmGatewayUrl(apiUrl, product);
     const openaiBaseUrl = gatewayUrl.endsWith("/v1")
