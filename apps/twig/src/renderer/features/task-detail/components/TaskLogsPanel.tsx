@@ -15,12 +15,12 @@ import { WorkspaceSetupPrompt } from "@features/task-detail/components/Workspace
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
-import { logger } from "@renderer/lib/logger";
 import { useNavigationStore } from "@renderer/stores/navigationStore";
 import { useTaskDirectoryStore } from "@renderer/stores/taskDirectoryStore";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
+import { logger } from "@utils/logger";
 import { getTaskRepository } from "@utils/repository";
 import { toast } from "@utils/toast";
 import { useCallback, useEffect, useRef } from "react";

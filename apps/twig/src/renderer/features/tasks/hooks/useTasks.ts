@@ -3,14 +3,14 @@ import { useAuthenticatedMutation } from "@hooks/useAuthenticatedMutation";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import { useMeQuery } from "@hooks/useMeQuery";
 import { useWorkspaceStore } from "@renderer/features/workspace/stores/workspaceStore";
-import { track } from "@renderer/lib/analytics";
-import { logger } from "@renderer/lib/logger";
 import { useFocusStore } from "@renderer/stores/focusStore";
 import { useNavigationStore } from "@renderer/stores/navigationStore";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useQueryClient } from "@tanstack/react-query";
+import { track } from "@utils/analytics";
+import { logger } from "@utils/logger";
 import { useCallback } from "react";
 
 const log = logger.scope("tasks");

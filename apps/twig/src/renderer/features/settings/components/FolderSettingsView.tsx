@@ -10,9 +10,9 @@ import {
   Heading,
   Text,
 } from "@radix-ui/themes";
-import { logger } from "@renderer/lib/logger";
 import { useNavigationStore } from "@renderer/stores/navigationStore";
 import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
+import { logger } from "@utils/logger";
 import { useState } from "react";
 
 const log = logger.scope("folder-settings");

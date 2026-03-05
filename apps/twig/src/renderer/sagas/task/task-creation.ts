@@ -6,8 +6,6 @@ import {
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { Saga, type SagaLogger } from "@posthog/shared";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
-import { logger } from "@renderer/lib/logger";
-import { queryClient } from "@renderer/lib/queryClient";
 import { useTaskDirectoryStore } from "@renderer/stores/taskDirectoryStore";
 import { trpcVanilla } from "@renderer/trpc";
 import { generateTitle } from "@renderer/utils/generateTitle";
@@ -18,6 +16,8 @@ import type {
   Workspace,
   WorkspaceMode,
 } from "@shared/types";
+import { logger } from "@utils/logger";
+import { queryClient } from "@utils/queryClient";
 import striptags from "striptags";
 
 const log = logger.scope("task-creation-saga");

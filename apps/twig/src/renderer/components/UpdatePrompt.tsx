@@ -1,7 +1,7 @@
 import { DownloadIcon } from "@phosphor-icons/react";
 import { Button, Card, Flex, Spinner, Text } from "@radix-ui/themes";
-import { logger } from "@renderer/lib/logger";
 import { trpcReact } from "@renderer/trpc";
+import { logger } from "@utils/logger";
 import { useCallback, useRef, useState } from "react";
 import { toast as sonnerToast } from "sonner";
 

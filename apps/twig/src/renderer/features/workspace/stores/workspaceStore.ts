@@ -1,4 +1,3 @@
-import { logger } from "@renderer/lib/logger";
 import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
 import { trpcVanilla } from "@renderer/trpc";
 import { omitKey } from "@renderer/utils/object";
@@ -10,6 +9,7 @@ import type {
   WorkspaceMode,
   WorkspaceTerminalInfo,
 } from "@shared/types";
+import { logger } from "@utils/logger";
 import type { StoreApi, UseBoundStore } from "zustand";
 import { create } from "zustand";
 

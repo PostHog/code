@@ -1,5 +1,5 @@
-import { logger } from "@renderer/lib/logger";
 import { trpcVanilla } from "@renderer/trpc/client";
+import { logger } from "@utils/logger";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 

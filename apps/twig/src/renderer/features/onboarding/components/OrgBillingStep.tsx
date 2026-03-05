@@ -11,8 +11,8 @@ import {
   Text,
 } from "@radix-ui/themes";
 import phWordmark from "@renderer/assets/images/wordmark-alt.png";
-import { logger } from "@renderer/lib/logger";
 import { useQueryClient } from "@tanstack/react-query";
+import { logger } from "@utils/logger";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 

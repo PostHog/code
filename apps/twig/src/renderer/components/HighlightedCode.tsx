@@ -1,5 +1,5 @@
-import { highlightSyntax } from "@renderer/lib/syntax-highlight";
 import { useThemeStore } from "@stores/themeStore";
+import { highlightSyntax } from "@utils/syntax-highlight";
 import { useMemo } from "react";
 
 interface HighlightedCodeProps {

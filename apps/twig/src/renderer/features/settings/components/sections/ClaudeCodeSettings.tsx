@@ -12,9 +12,9 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { Tooltip } from "@renderer/components/ui/Tooltip";
-import { track } from "@renderer/lib/analytics";
 import { trpcReact } from "@renderer/trpc";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
+import { track } from "@utils/analytics";
 import { useCallback, useEffect, useState } from "react";
 
 function CopyableCommand({ command }: { command: string }) {

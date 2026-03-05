@@ -1,38 +1,51 @@
+import { existsSync, mkdirSync, renameSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
 import { app } from "electron";
 import log from "electron-log/main";
 
-// Initialize electron-log. Don't enable spyRendererConsole - it creates duplicate
-// log lines because renderer logs already reach main via the IPC transport.
+const LOG_DIR = join(app.getPath("home"), ".twig", "logs");
+const LOG_FILE = "main.log";
+const MAX_ARCHIVES = 3;
+
+mkdirSync(LOG_DIR, { recursive: true });
+
 log.initialize();
 
-// Set levels - use debug in dev (check NODE_ENV since app.isPackaged may not be ready)
+log.transports.file.resolvePathFn = () => join(LOG_DIR, LOG_FILE);
+log.transports.file.maxSize = 10 * 1024 * 1024; // 10 MB
+log.transports.file.archiveLogFn = (oldLogFile) => {
+  const dir = LOG_DIR;
+  const archivePath = (n: number) => join(dir, `main.${n}.log`);
+
+  try {
+    const lastArchive = archivePath(MAX_ARCHIVES);
+    if (existsSync(lastArchive)) {
+      unlinkSync(lastArchive);
+    }
+
+    for (let i = MAX_ARCHIVES - 1; i >= 1; i--) {
+      const from = archivePath(i);
+      if (existsSync(from)) {
+        renameSync(from, archivePath(i + 1));
+      }
+    }
+
+    renameSync(oldLogFile.path, archivePath(1));
+  } catch {
+    // Best-effort rotation
+  }
+};
+
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const level = isDev ? "debug" : "info";
 log.transports.file.level = level;
 log.transports.console.level = level;
-// IPC transport needs level set separately
 log.transports.ipc.level = level;
 
-export const logger = {
-  info: (message: string, ...args: unknown[]) => log.info(message, ...args),
-  warn: (message: string, ...args: unknown[]) => log.warn(message, ...args),
-  error: (message: string, ...args: unknown[]) => log.error(message, ...args),
-  debug: (message: string, ...args: unknown[]) => log.debug(message, ...args),
-
-  scope: (name: string) => {
-    const scoped = log.scope(name);
-    return {
-      info: (message: string, ...args: unknown[]) =>
-        scoped.info(message, ...args),
-      warn: (message: string, ...args: unknown[]) =>
-        scoped.warn(message, ...args),
-      error: (message: string, ...args: unknown[]) =>
-        scoped.error(message, ...args),
-      debug: (message: string, ...args: unknown[]) =>
-        scoped.debug(message, ...args),
-    };
-  },
-};
-
+export const logger = log;
 export type Logger = typeof logger;
 export type ScopedLogger = ReturnType<typeof logger.scope>;
+
+export function getLogFilePath(): string {
+  return join(LOG_DIR, LOG_FILE);
+}

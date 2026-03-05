@@ -1,7 +1,7 @@
 import { Warning } from "@phosphor-icons/react";
 import { Box, Button, Callout, Flex, Text } from "@radix-ui/themes";
-import { captureException } from "@renderer/lib/analytics";
-import { logger } from "@renderer/lib/logger";
+import { captureException } from "@utils/analytics";
+import { logger } from "@utils/logger";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 const log = logger.scope("error-boundary");

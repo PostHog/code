@@ -1,6 +1,6 @@
-import { logger } from "@renderer/lib/logger";
 import { trpcVanilla } from "@renderer/trpc";
 import type { RegisteredFolder } from "@shared/types";
+import { logger } from "@utils/logger";
 import { create } from "zustand";
 import { useFocusStore } from "./focusStore";
 

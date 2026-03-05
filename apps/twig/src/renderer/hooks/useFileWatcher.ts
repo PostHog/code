@@ -1,7 +1,7 @@
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
-import { logger } from "@renderer/lib/logger";
 import { trpcReact, trpcVanilla } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { logger } from "@utils/logger";
 import { useEffect } from "react";
 
 const log = logger.scope("file-watcher");

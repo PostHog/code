@@ -2,7 +2,7 @@ import "reflect-metadata";
 import "@radix-ui/themes/styles.css";
 import { Providers } from "@components/Providers";
 import App from "@renderer/App";
-import { logger } from "@renderer/lib/logger";
+import { logger } from "@utils/logger";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./styles/globals.css";

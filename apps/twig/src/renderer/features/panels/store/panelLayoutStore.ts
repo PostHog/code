@@ -1,6 +1,6 @@
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
-import { track } from "@renderer/lib/analytics";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
+import { track } from "@utils/analytics";
 import { persist } from "zustand/middleware";
 import { createWithEqualityFn } from "zustand/traditional";
 import {

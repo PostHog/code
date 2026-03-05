@@ -1,4 +1,10 @@
+declare const __BUILD_COMMIT__: string | undefined;
+declare const __BUILD_DATE__: string | undefined;
+
 import "reflect-metadata";
+import { readdir, rm, stat } from "node:fs/promises";
+import os from "node:os";
+import { join } from "node:path";
 import { app, powerMonitor } from "electron";
 import log from "electron-log/main";
 import "./utils/logger";
@@ -51,6 +57,29 @@ function initializeServices(): void {
   trackAppEvent(ANALYTICS_EVENTS.APP_STARTED);
 }
 
+const SESSIONS_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+async function cleanupOldSessions(): Promise<void> {
+  const sessionsDir = join(app.getPath("home"), ".twig", "sessions");
+  try {
+    const entries = await readdir(sessionsDir);
+    const now = Date.now();
+    for (const entry of entries) {
+      const entryPath = join(sessionsDir, entry);
+      try {
+        const stats = await stat(entryPath);
+        if (stats.isDirectory() && now - stats.mtimeMs > SESSIONS_MAX_AGE_MS) {
+          await rm(entryPath, { recursive: true, force: true });
+        }
+      } catch {
+        // Skip entries we can't stat
+      }
+    }
+  } catch {
+    // Sessions dir may not exist yet
+  }
+}
+
 // ========================================================
 // App lifecycle
 // ========================================================
@@ -62,12 +91,26 @@ registerDeepLinkHandlers();
 initializePostHog();
 
 app.whenReady().then(() => {
-  log.info(`Twig electron v${app.getVersion()} booting up`);
+  const commit = __BUILD_COMMIT__ ?? "dev";
+  const buildDate = __BUILD_DATE__ ?? "dev";
+  log.info(
+    [
+      `Twig electron v${app.getVersion()} booting up`,
+      `Commit: ${commit}`,
+      `Date: ${buildDate}`,
+      `Electron: ${process.versions.electron}`,
+      `Chromium: ${process.versions.chrome}`,
+      `Node.js: ${process.versions.node}`,
+      `V8: ${process.versions.v8}`,
+      `OS: ${process.platform} ${process.arch} ${os.release()}`,
+    ].join(" | "),
+  );
   migrateTaskAssociations();
   ensureClaudeConfigDir();
   createWindow();
   initializeServices();
   initializeDeepLinks();
+  cleanupOldSessions();
 
   powerMonitor.on("suspend", () => {
     log.info("System entering sleep");

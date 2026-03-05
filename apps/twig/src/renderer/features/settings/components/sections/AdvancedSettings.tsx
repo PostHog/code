@@ -1,6 +1,6 @@
 import { SettingRow } from "@features/settings/components/SettingRow";
 import { Button, Flex } from "@radix-ui/themes";
-import { clearApplicationStorage } from "@renderer/lib/clearStorage";
+import { clearApplicationStorage } from "@utils/clearStorage";
 
 export function AdvancedSettings() {
   return (

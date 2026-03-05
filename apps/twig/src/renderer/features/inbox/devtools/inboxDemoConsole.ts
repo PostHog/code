@@ -1,11 +1,11 @@
-import { logger } from "@renderer/lib/logger";
-import { queryClient } from "@renderer/lib/queryClient";
 import type {
   SignalReport,
   SignalReportArtefact,
   SignalReportArtefactsResponse,
   SignalReportsResponse,
 } from "@shared/types";
+import { logger } from "@utils/logger";
+import { queryClient } from "@utils/queryClient";
 
 type DemoSeedMode = "rich" | "empty" | "artefacts-unavailable";
 type DemoAction = "help" | "seed" | "clear";

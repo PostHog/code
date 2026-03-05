@@ -11,7 +11,7 @@ import {
 } from "@test/panelTestHelpers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@renderer/lib/electronStorage", () => ({
+vi.mock("@utils/electronStorage", () => ({
   electronStorage: {
     getItem: () => null,
     setItem: () => {},

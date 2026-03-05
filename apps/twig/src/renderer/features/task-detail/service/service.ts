@@ -4,12 +4,12 @@ import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useTaskExecutionStore } from "@features/task-detail/stores/taskExecutionStore";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import type { SagaResult } from "@posthog/shared";
-import { logger } from "@renderer/lib/logger";
 import {
   type TaskCreationInput,
   type TaskCreationOutput,
   TaskCreationSaga,
 } from "@renderer/sagas/task/task-creation";
+import { logger } from "@utils/logger";
 import { injectable } from "inversify";
 
 export type { TaskCreationInput, TaskCreationOutput };

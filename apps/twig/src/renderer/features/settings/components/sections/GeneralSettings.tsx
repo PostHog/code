@@ -14,12 +14,12 @@ import {
   Text,
   TextField,
 } from "@radix-ui/themes";
-import { track } from "@renderer/lib/analytics";
-import { playCompletionSound } from "@renderer/lib/sounds";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useSettingsStore as useTerminalSettingsStore } from "@stores/settingsStore";
 import type { ThemePreference } from "@stores/themeStore";
 import { useThemeStore } from "@stores/themeStore";
+import { track } from "@utils/analytics";
+import { playCompletionSound } from "@utils/sounds";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 

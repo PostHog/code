@@ -1,8 +1,8 @@
 import type { TaskService } from "@features/task-detail/service/service";
 import { get as getFromContainer } from "@renderer/di/container";
 import { RENDERER_TOKENS } from "@renderer/di/tokens";
-import { logger } from "@renderer/lib/logger";
 import type { Task } from "@shared/types";
+import { logger } from "@utils/logger";
 import { create } from "zustand";
 
 const log = logger.scope("inbox-cloud-task-store");

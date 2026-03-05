@@ -1,7 +1,4 @@
-import {
-  isFeatureFlagEnabled,
-  onFeatureFlagsLoaded,
-} from "@renderer/lib/analytics";
+import { isFeatureFlagEnabled, onFeatureFlagsLoaded } from "@utils/analytics";
 import { useEffect, useState } from "react";
 
 export function useFeatureFlag(

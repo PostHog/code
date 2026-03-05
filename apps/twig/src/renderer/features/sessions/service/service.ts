@@ -26,12 +26,6 @@ import {
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useTaskViewedStore } from "@features/sidebar/stores/taskViewedStore";
-import { track } from "@renderer/lib/analytics";
-import { logger } from "@renderer/lib/logger";
-import {
-  notifyPermissionRequest,
-  notifyPromptComplete,
-} from "@renderer/lib/notifications";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpcVanilla } from "@renderer/trpc/client";
 import { toast } from "@renderer/utils/toast";
@@ -44,6 +38,12 @@ import type {
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { AcpMessage, StoredLogEntry } from "@shared/types/session-events";
 import { isJsonRpcRequest } from "@shared/types/session-events";
+import { track } from "@utils/analytics";
+import { logger } from "@utils/logger";
+import {
+  notifyPermissionRequest,
+  notifyPromptComplete,
+} from "@utils/notifications";
 import {
   convertStoredEntriesToEvents,
   createUserShellExecuteEvent,

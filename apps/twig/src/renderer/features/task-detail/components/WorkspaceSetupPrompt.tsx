@@ -3,10 +3,10 @@ import { useTaskExecutionStore } from "@features/task-detail/stores/taskExecutio
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { Folder } from "@phosphor-icons/react";
 import { Box, Code, Flex, Spinner, Text } from "@radix-ui/themes";
-import { logger } from "@renderer/lib/logger";
 import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
 import { useTaskDirectoryStore } from "@renderer/stores/taskDirectoryStore";
 import type { Task } from "@shared/types";
+import { logger } from "@utils/logger";
 import { getTaskRepository } from "@utils/repository";
 import { toast } from "@utils/toast";
 import { useCallback, useState } from "react";
