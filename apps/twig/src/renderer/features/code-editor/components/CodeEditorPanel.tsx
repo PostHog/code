@@ -7,6 +7,24 @@ import { Box, Flex } from "@radix-ui/themes";
 import { trpcReact } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 
+const IMAGE_MIME_TYPES: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  bmp: "image/bmp",
+  ico: "image/x-icon",
+  svg: "image/svg+xml",
+  tiff: "image/tiff",
+  tif: "image/tiff",
+};
+
+function getImageMimeType(filePath: string): string {
+  const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
+  return IMAGE_MIME_TYPES[ext] ?? "image/png";
+}
+
 interface CodeEditorPanelProps {
   taskId: string;
   task: Task;
@@ -33,6 +51,11 @@ export function CodeEditorPanel({
     { enabled: !isInsideRepo && !isImage, staleTime: Infinity },
   );
 
+  const imageQuery = trpcReact.fs.readFileAsBase64.useQuery(
+    { filePath: absolutePath },
+    { enabled: isImage, staleTime: Infinity },
+  );
+
   const {
     data: fileContent,
     isLoading,
@@ -40,6 +63,15 @@ export function CodeEditorPanel({
   } = isInsideRepo ? repoQuery : absoluteQuery;
 
   if (isImage) {
+    if (imageQuery.isLoading) {
+      return <PanelMessage>Loading image...</PanelMessage>;
+    }
+    if (imageQuery.error || !imageQuery.data) {
+      return (
+        <PanelMessage detail={absolutePath}>Failed to load image</PanelMessage>
+      );
+    }
+    const mimeType = getImageMimeType(absolutePath);
     return (
       <Flex
         align="center"
@@ -49,7 +81,7 @@ export function CodeEditorPanel({
         style={{ overflow: "auto" }}
       >
         <img
-          src={`file://${absolutePath}`}
+          src={`data:${mimeType};base64,${imageQuery.data}`}
           alt={filePath}
           style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
         />
@@ -67,7 +99,6 @@ export function CodeEditorPanel({
     );
   }
 
-  // If we ever allow editing in the CodeMirrorEditor, this can be removed
   if (fileContent.length === 0) {
     return <PanelMessage>File is empty</PanelMessage>;
   }

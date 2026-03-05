@@ -108,6 +108,39 @@ export class FsService {
     }
   }
 
+  async readFileAsBase64(filePath: string): Promise<string | null> {
+    const resolved = path.resolve(filePath);
+    try {
+      const buffer = await fs.promises.readFile(resolved);
+      return buffer.toString("base64");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        log.error(`Failed to read file as base64 ${filePath}:`, error);
+        return null;
+      }
+      // macOS uses narrow no-break space (U+202F) in screenshot filenames
+      // but paths often lose this during text processing. Find the actual file.
+      const dir = path.dirname(resolved);
+      const basename = path.basename(resolved);
+      try {
+        const files = await fs.promises.readdir(dir);
+        const normalizeSpaces = (s: string) =>
+          s.replace(/[\s\u00A0\u202F]/g, " ");
+        const normalizedTarget = normalizeSpaces(basename);
+        const match = files.find(
+          (f) => normalizeSpaces(f) === normalizedTarget,
+        );
+        if (match) {
+          const buffer = await fs.promises.readFile(path.join(dir, match));
+          return buffer.toString("base64");
+        }
+      } catch {
+        // Directory read failed
+      }
+      return null;
+    }
+  }
+
   async writeRepoFile(
     repoPath: string,
     filePath: string,
