@@ -13,6 +13,7 @@ import { focusRouter } from "./routers/focus.js";
 import { foldersRouter } from "./routers/folders.js";
 import { fsRouter } from "./routers/fs.js";
 import { gitRouter } from "./routers/git.js";
+import { githubIntegrationRouter } from "./routers/github-integration.js";
 import { llmGatewayRouter } from "./routers/llm-gateway.js";
 import { logsRouter } from "./routers/logs.js";
 import { notificationRouter } from "./routers/notification.js";
@@ -42,6 +43,7 @@ export const trpcRouter = router({
   folders: foldersRouter,
   fs: fsRouter,
   git: gitRouter,
+  githubIntegration: githubIntegrationRouter,
   llmGateway: llmGatewayRouter,
   notification: notificationRouter,
   oauth: oauthRouter,

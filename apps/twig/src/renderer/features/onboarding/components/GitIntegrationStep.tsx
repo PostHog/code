@@ -8,7 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { Box, Button, Flex, Skeleton, Text } from "@radix-ui/themes";
 import phWordmark from "@renderer/assets/images/wordmark-alt.png";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import { trpcVanilla } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useMemo, useState } from "react";
@@ -30,6 +30,8 @@ export function GitIntegrationStep({
 
   const queryClient = useQueryClient();
   const { projects, isLoading, isFetching } = useProjectsWithIntegrations();
+
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // User can manually select a different project
   const [manuallySelectedProjectId, setManuallySelectedProjectId] = useState<
@@ -54,15 +56,25 @@ export function GitIntegrationStep({
 
   const hasGitIntegration = selectedProject?.hasGithubIntegration ?? false;
 
-  const handleConnectGitHub = () => {
+  const handleConnectGitHub = async () => {
     if (!cloudRegion || !selectedProjectId) return;
-    const cloudUrl = getCloudUrlFromRegion(cloudRegion);
-    const integrationUrl = `${cloudUrl}/project/${selectedProjectId}/settings/project-integrations`;
-    window.open(integrationUrl, "_blank");
+    setIsConnecting(true);
+    try {
+      const result = await trpcVanilla.githubIntegration.startFlow.mutate({
+        region: cloudRegion,
+        projectId: selectedProjectId,
+      });
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      }
+    } catch {
+      // Flow was cancelled or timed out — user can retry
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   const handleRefresh = () => {
-    // Re-fetch integrations for the selected project
     queryClient.invalidateQueries({ queryKey: ["integrations"] });
   };
 
@@ -90,14 +102,13 @@ export function GitIntegrationStep({
           <Text
             size="6"
             style={{
-              fontFamily: "Halfre, serif",
               color: "var(--gray-12)",
               lineHeight: 1.3,
             }}
           >
             Connect your git repository
           </Text>
-          <Text size="1" style={{ color: "var(--gray-12)", opacity: 0.7 }}>
+          <Text size="2" style={{ color: "var(--gray-12)", opacity: 0.7 }}>
             PostHog Code needs access to your GitHub repositories to create
             branches, commits, and pull requests.
           </Text>
@@ -211,7 +222,7 @@ export function GitIntegrationStep({
                       GitHub connected
                     </Text>
                     <Text
-                      size="1"
+                      size="2"
                       align="center"
                       style={{
                         color: "var(--gray-12)",
@@ -243,7 +254,7 @@ export function GitIntegrationStep({
                       No git integration found
                     </Text>
                     <Text
-                      size="1"
+                      size="2"
                       align="center"
                       style={{
                         color: "var(--gray-12)",
@@ -288,7 +299,11 @@ export function GitIntegrationStep({
                     alignItems: "center",
                   }}
                 >
-                  <Button size="2" onClick={handleConnectGitHub}>
+                  <Button
+                    size="2"
+                    onClick={handleConnectGitHub}
+                    loading={isConnecting}
+                  >
                     Connect GitHub
                     <ArrowSquareOut size={16} />
                   </Button>
@@ -299,7 +314,7 @@ export function GitIntegrationStep({
                       opacity: 0.5,
                     }}
                   >
-                    Opens your PostHog project settings
+                    Opens GitHub to authorize the PostHog app
                   </Text>
                   <Button
                     size="1"

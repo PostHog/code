@@ -14,6 +14,7 @@ import { FocusSyncService } from "../services/focus/sync-service.js";
 import { FoldersService } from "../services/folders/service.js";
 import { FsService } from "../services/fs/service.js";
 import { GitService } from "../services/git/service.js";
+import { GitHubIntegrationService } from "../services/github-integration/service.js";
 import { LlmGatewayService } from "../services/llm-gateway/service.js";
 import { NotificationService } from "../services/notification/service.js";
 import { OAuthService } from "../services/oauth/service.js";
@@ -49,6 +50,9 @@ container.bind(MAIN_TOKENS.FocusService).to(FocusService);
 container.bind(MAIN_TOKENS.FocusSyncService).to(FocusSyncService);
 container.bind(MAIN_TOKENS.FoldersService).to(FoldersService);
 container.bind(MAIN_TOKENS.FsService).to(FsService);
+container
+  .bind(MAIN_TOKENS.GitHubIntegrationService)
+  .to(GitHubIntegrationService);
 container.bind(MAIN_TOKENS.GitService).to(GitService);
 container.bind(MAIN_TOKENS.NotificationService).to(NotificationService);
 container.bind(MAIN_TOKENS.OAuthService).to(OAuthService);

@@ -88,7 +88,6 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
           <Text
             size="6"
             style={{
-              fontFamily: "Halfre, serif",
               color: "var(--gray-12)",
               lineHeight: 1.3,
             }}
