@@ -1,6 +1,7 @@
 import { ANALYTICS_EVENTS } from "@shared/types/analytics.js";
 import { app } from "electron";
 import { injectable } from "inversify";
+import type { DatabaseService } from "../../db/service.js";
 import { container } from "../../di/container.js";
 import { MAIN_TOKENS } from "../../di/tokens.js";
 import { withTimeout } from "../../utils/async.js";
@@ -69,6 +70,12 @@ export class AppLifecycleService {
   async shutdownWithoutContainer(): Promise<void> {
     log.info("Partial shutdown started (keeping container)");
     await this.teardownNativeResources();
+    try {
+      const db = container.get<DatabaseService>(MAIN_TOKENS.DatabaseService);
+      db.close();
+    } catch (error) {
+      log.warn("Failed to close database during partial shutdown", error);
+    }
   }
 
   /**

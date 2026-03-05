@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { Container } from "inversify";
+import { DatabaseService } from "../db/service.js";
 import { AgentService } from "../services/agent/service.js";
 import { AppLifecycleService } from "../services/app-lifecycle/service.js";
 import { ArchiveService } from "../services/archive/service.js";
@@ -36,6 +37,7 @@ export const container = new Container({
   defaultScope: "Singleton",
 });
 
+container.bind(MAIN_TOKENS.DatabaseService).to(DatabaseService);
 container.bind(MAIN_TOKENS.AgentService).to(AgentService);
 container.bind(MAIN_TOKENS.ArchiveService).to(ArchiveService);
 container.bind(MAIN_TOKENS.AppLifecycleService).to(AppLifecycleService);

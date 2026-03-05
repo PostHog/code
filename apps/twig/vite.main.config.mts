@@ -389,6 +389,26 @@ function copyPosthogPlugin(isDev: boolean): Plugin {
   };
 }
 
+function copyDrizzleMigrations(): Plugin {
+  const migrationsDir = join(__dirname, "src/main/db/migrations");
+  return {
+    name: "copy-drizzle-migrations",
+    buildStart() {
+      if (existsSync(migrationsDir)) {
+        for (const file of getFilesRecursive(migrationsDir)) {
+          this.addWatchFile(file);
+        }
+      }
+    },
+    writeBundle() {
+      const destDir = join(__dirname, ".vite/build/db-migrations");
+      if (existsSync(migrationsDir)) {
+        cpSync(migrationsDir, destDir, { recursive: true });
+      }
+    },
+  };
+}
+
 function copyCodexAcpBinaries(): Plugin {
   return {
     name: "copy-codex-acp-binaries",
@@ -447,6 +467,7 @@ export default defineConfig(({ mode }) => {
       fixFilenameCircularRef(),
       copyClaudeExecutable(),
       copyPosthogPlugin(isDev),
+      copyDrizzleMigrations(),
       copyCodexAcpBinaries(),
       createPosthogPlugin(env),
     ].filter(Boolean),
@@ -476,7 +497,12 @@ export default defineConfig(({ mode }) => {
         transformMixedEsModules: true,
       },
       rollupOptions: {
-        external: ["node-pty", "@parcel/watcher", "file-icon"],
+        external: [
+          "node-pty",
+          "@parcel/watcher",
+          "file-icon",
+          "better-sqlite3",
+        ],
         onwarn(warning, warn) {
           if (warning.code === "UNUSED_EXTERNAL_IMPORT") return;
           warn(warning);

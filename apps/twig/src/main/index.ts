@@ -5,6 +5,7 @@ import log from "electron-log/main";
 import "./utils/logger";
 import "./services/index.js";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics.js";
+import type { DatabaseService } from "./db/service.js";
 import { initializeDeepLinks, registerDeepLinkHandlers } from "./deep-links.js";
 import { container } from "./di/container.js";
 import { MAIN_TOKENS } from "./di/tokens.js";
@@ -34,7 +35,7 @@ if (!gotTheLock) {
 }
 
 function initializeServices(): void {
-  // Initialize services that need early startup
+  container.get<DatabaseService>(MAIN_TOKENS.DatabaseService);
   container.get<OAuthService>(MAIN_TOKENS.OAuthService);
   container.get<NotificationService>(MAIN_TOKENS.NotificationService);
   container.get<UpdatesService>(MAIN_TOKENS.UpdatesService);
