@@ -1,6 +1,10 @@
 import { useAuthenticatedMutation } from "@hooks/useAuthenticatedMutation";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
-import type { McpRecommendedServer } from "@renderer/api/posthogClient";
+import type {
+  McpRecommendedServer,
+  PostHogAPIClient,
+} from "@renderer/api/posthogClient";
+import { trpcReact, trpcVanilla } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -10,9 +14,53 @@ const mcpKeys = {
   installations: ["mcp", "installations"] as const,
 };
 
+/**
+ * Install an MCP server with OAuth through the main process.
+ * 1. Gets callback URL from main process (deep link or local HTTP server)
+ * 2. Calls PostHog API with install_source="twig" + twig_callback_url
+ * 3. If redirect_url returned, main process opens browser and waits for callback
+ */
+async function installWithOAuth(
+  client: PostHogAPIClient,
+  vars: {
+    name: string;
+    url: string;
+    description: string;
+    auth_type: "none" | "api_key" | "oauth";
+    api_key?: string;
+    oauth_provider_kind?: string;
+  },
+) {
+  // Step 1: Get callback URL from main process
+  const { callbackUrl } = await trpcVanilla.mcpCallback.getCallbackUrl.query();
+
+  // Step 2: Call PostHog API with Twig-specific params
+  const data = await client.installCustomMcpServer({
+    ...vars,
+    install_source: "twig",
+    twig_callback_url: callbackUrl,
+  });
+
+  // Step 3: If OAuth redirect needed, open browser via main process and wait
+  if ("redirect_url" in data && data.redirect_url) {
+    const result = await trpcVanilla.mcpCallback.openAndWaitForCallback.mutate({
+      redirectUrl: data.redirect_url,
+    });
+    return result;
+  }
+
+  // Non-OAuth: return installation directly
+  return { success: true };
+}
+
 export function useMcpServers() {
   const [installingUrl, setInstallingUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const markSessionsForMcpRefresh = useCallback(() => {
+    trpcVanilla.agent.markAllForRecreation.mutate().catch(() => {
+      // Non-blocking best effort: sessions will still refresh on next reconnect.
+    });
+  }, []);
 
   const { data: installations, isLoading: installationsLoading } =
     useAuthenticatedQuery(mcpKeys.installations, (client) =>
@@ -36,6 +84,7 @@ export function useMcpServers() {
       onSuccess: () => {
         toast.success("Server uninstalled");
         queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
+        markSessionsForMcpRefresh();
       },
       onError: (error: Error) => {
         toast.error(error.message || "Failed to uninstall server");
@@ -51,6 +100,7 @@ export function useMcpServers() {
     {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
+        markSessionsForMcpRefresh();
       },
       onError: (error: Error) => {
         toast.error(error.message || "Failed to update server");
@@ -75,13 +125,14 @@ export function useMcpServers() {
         auth_type: "none" | "api_key" | "oauth";
         oauth_provider_kind?: string;
       },
-    ) => client.installCustomMcpServer(vars),
+    ) => installWithOAuth(client, vars),
     {
       onSuccess: (data) => {
-        if ("redirect_url" in data && data.redirect_url) {
-          window.open(data.redirect_url, "_blank");
-        } else {
+        if (data && "success" in data && data.success) {
           toast.success("Server connected");
+          markSessionsForMcpRefresh();
+        } else if (data && "error" in data && data.error) {
+          toast.error(data.error);
         }
         queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
         setInstallingUrl(null);
@@ -109,6 +160,16 @@ export function useMcpServers() {
     [installRecommendedMutation],
   );
 
+  // Subscribe to MCP OAuth completion events for background refresh
+  trpcReact.mcpCallback.onOAuthComplete.useSubscription(undefined, {
+    onData: (data) => {
+      if (data.status === "success") {
+        queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
+        markSessionsForMcpRefresh();
+      }
+    },
+  });
+
   return {
     installations,
     installationsLoading,
@@ -119,7 +180,9 @@ export function useMcpServers() {
     uninstallMutation,
     toggleEnabled,
     installRecommended,
-    invalidateInstallations: () =>
-      queryClient.invalidateQueries({ queryKey: mcpKeys.installations }),
+    invalidateInstallations: () => {
+      queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
+      markSessionsForMcpRefresh();
+    },
   };
 }

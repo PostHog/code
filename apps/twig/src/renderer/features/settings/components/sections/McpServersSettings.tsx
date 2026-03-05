@@ -24,7 +24,9 @@ import type {
   McpRecommendedServer,
   McpServerInstallation,
 } from "@renderer/api/posthogClient";
-import { useCallback, useMemo, useState } from "react";
+import { trpcVanilla } from "@renderer/trpc/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useMcpServers } from "../../hooks/useMcpServers";
 
@@ -44,7 +46,7 @@ function AddCustomServerDialog({
   const [apiKey, setApiKey] = useState("");
 
   const installMutation = useAuthenticatedMutation(
-    (
+    async (
       client,
       vars: {
         name: string;
@@ -53,12 +55,30 @@ function AddCustomServerDialog({
         auth_type: "api_key" | "oauth";
         api_key?: string;
       },
-    ) => client.installCustomMcpServer(vars),
+    ) => {
+      // For OAuth, use the main process flow (handles deep links / HTTP callback)
+      if (vars.auth_type === "oauth") {
+        const { callbackUrl } =
+          await trpcVanilla.mcpCallback.getCallbackUrl.query();
+        const data = await client.installCustomMcpServer({
+          ...vars,
+          install_source: "twig",
+          twig_callback_url: callbackUrl,
+        });
+        if ("redirect_url" in data && data.redirect_url) {
+          return trpcVanilla.mcpCallback.openAndWaitForCallback.mutate({
+            redirectUrl: data.redirect_url,
+          });
+        }
+        return data;
+      }
+      return client.installCustomMcpServer(vars);
+    },
     {
       onSuccess: (data) => {
-        if ("redirect_url" in data && data.redirect_url) {
-          window.open(data.redirect_url, "_blank");
-        } else {
+        if (data && "success" in data && data.success) {
+          toast.success("Server added");
+        } else if (!("success" in data)) {
           toast.success("Server added");
         }
         onInstalled();
@@ -369,6 +389,7 @@ function getInstallationStatus(
 }
 
 export function McpServersSettings() {
+  const queryClient = useQueryClient();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [uninstallTarget, setUninstallTarget] =
     useState<McpServerInstallation | null>(null);
@@ -386,6 +407,26 @@ export function McpServersSettings() {
     installRecommended,
     invalidateInstallations,
   } = useMcpServers();
+
+  useEffect(() => {
+    const refreshMcpState = () => {
+      queryClient.invalidateQueries({ queryKey: ["mcp"] });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshMcpState();
+      }
+    };
+
+    window.addEventListener("focus", refreshMcpState);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", refreshMcpState);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [queryClient]);
 
   const filteredServers = useMemo(() => {
     if (!servers) return [];

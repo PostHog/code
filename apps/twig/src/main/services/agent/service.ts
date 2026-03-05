@@ -474,6 +474,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
           name: string;
           display_name: string;
           auth_type: string;
+          is_enabled?: boolean;
           pending_oauth: boolean;
           needs_reauth: boolean;
         }>;
@@ -481,7 +482,9 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       const installations = data.results ?? [];
 
       return installations
-        .filter((i) => !i.pending_oauth && !i.needs_reauth)
+        .filter(
+          (i) => !i.pending_oauth && !i.needs_reauth && i.is_enabled !== false,
+        )
         .map((i) => ({
           ...i,
           proxy_url:
