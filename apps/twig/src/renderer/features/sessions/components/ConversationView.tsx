@@ -10,7 +10,7 @@ import {
 import { ArrowDown, XCircle } from "@phosphor-icons/react";
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import type { AcpMessage } from "@shared/types/session-events";
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildConversationItems,
   type ConversationItem,
@@ -47,7 +47,7 @@ export function ConversationView({
 }: ConversationViewProps) {
   const listRef = useRef<VirtualizedListHandle>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const { saveScrollState, getScrollState } = useSessionViewActions();
+  const { saveScrollState } = useSessionViewActions();
 
   const { items: conversationItems, lastTurnInfo } = useMemo(
     () => buildConversationItems(events, isPromptPending),
@@ -84,11 +84,6 @@ export function ConversationView({
     [conversationItems, queuedItems],
   );
 
-  const savedState = useMemo(
-    () => (taskId ? getScrollState(taskId) : undefined),
-    [taskId, getScrollState],
-  );
-
   const handleSaveState = useCallback(
     (state: ScrollState) => {
       if (taskId) saveScrollState(taskId, state);
@@ -103,6 +98,19 @@ export function ConversationView({
   const scrollToBottom = useCallback(() => {
     listRef.current?.scrollToBottom();
     setShowScrollButton(false);
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        listRef.current?.scrollToBottom();
+        setShowScrollButton(false);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
   const renderItem = useCallback(
@@ -171,7 +179,6 @@ export function ConversationView({
         items={items}
         getItemKey={getItemKey}
         renderItem={renderItem}
-        savedState={savedState}
         onSaveState={handleSaveState}
         onScrollStateChange={handleScrollStateChange}
         className="absolute inset-0 bg-gray-1"
