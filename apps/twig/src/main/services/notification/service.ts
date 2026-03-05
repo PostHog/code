@@ -1,6 +1,9 @@
 import { app, Notification } from "electron";
-import { injectable, postConstruct } from "inversify";
+import { inject, injectable, postConstruct } from "inversify";
+import { MAIN_TOKENS } from "../../di/tokens.js";
+import { getMainWindow } from "../../trpc/context.js";
 import { logger } from "../../utils/logger";
+import { TaskLinkEvent, type TaskLinkService } from "../task-link/service.js";
 
 const log = logger.scope("notification");
 
@@ -8,21 +11,42 @@ const log = logger.scope("notification");
 export class NotificationService {
   private hasBadge = false;
 
+  constructor(
+    @inject(MAIN_TOKENS.TaskLinkService)
+    private readonly taskLinkService: TaskLinkService,
+  ) {}
+
   @postConstruct()
   init(): void {
     app.on("browser-window-focus", () => this.clearDockBadge());
     log.info("Notification service initialized");
   }
 
-  send(title: string, body: string, silent: boolean): void {
+  send(title: string, body: string, silent: boolean, taskId?: string): void {
     if (!Notification.isSupported()) {
       log.warn("Notifications not supported on this platform");
       return;
     }
 
     const notification = new Notification({ title, body, silent });
+
+    notification.on("click", () => {
+      const mainWindow = getMainWindow();
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) {
+          mainWindow.restore();
+        }
+        mainWindow.focus();
+      }
+
+      if (taskId) {
+        this.taskLinkService.emit(TaskLinkEvent.OpenTask, { taskId });
+        log.info("Notification clicked, navigating to task", { taskId });
+      }
+    });
+
     notification.show();
-    log.info("Notification sent", { title, body, silent });
+    log.info("Notification sent", { title, body, silent, taskId });
   }
 
   showDockBadge(): void {

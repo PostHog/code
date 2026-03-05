@@ -16,10 +16,13 @@ function sendDesktopNotification(
   title: string,
   body: string,
   silent: boolean,
+  taskId?: string,
 ): void {
-  trpcVanilla.notification.send.mutate({ title, body, silent }).catch((err) => {
-    log.error("Failed to send notification", err);
-  });
+  trpcVanilla.notification.send
+    .mutate({ title, body, silent, taskId })
+    .catch((err) => {
+      log.error("Failed to send notification", err);
+    });
 }
 
 function showDockBadge(): void {
@@ -37,6 +40,7 @@ function bounceDock(): void {
 export function notifyPromptComplete(
   taskTitle: string,
   stopReason: string,
+  taskId?: string,
 ): void {
   if (stopReason !== "end_turn") return;
 
@@ -59,6 +63,7 @@ export function notifyPromptComplete(
       "PostHog Code",
       `"${truncateTitle(taskTitle)}" finished`,
       willPlayCustomSound,
+      taskId,
     );
   }
   if (dockBadgeNotifications) {
@@ -69,7 +74,10 @@ export function notifyPromptComplete(
   }
 }
 
-export function notifyPermissionRequest(taskTitle: string): void {
+export function notifyPermissionRequest(
+  taskTitle: string,
+  taskId?: string,
+): void {
   const {
     completionSound,
     completionVolume,
@@ -88,6 +96,7 @@ export function notifyPermissionRequest(taskTitle: string): void {
         "PostHog Code",
         `"${truncateTitle(taskTitle)}" needs your input`,
         willPlayCustomSound,
+        taskId,
       );
     }
     if (dockBadgeNotifications) {

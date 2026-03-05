@@ -820,7 +820,7 @@ export class SessionService {
 
       // Only notify when queue is empty - queued messages will start a new turn
       if (stopReason && !hasQueuedMessages) {
-        notifyPromptComplete(session.taskTitle, stopReason);
+        notifyPromptComplete(session.taskTitle, stopReason, session.taskId);
       }
 
       useTaskViewedStore.getState().markActivity(session.taskId);
@@ -913,7 +913,7 @@ export class SessionService {
 
     sessionStoreSetters.setPendingPermissions(taskRunId, newPermissions);
     useTaskViewedStore.getState().markActivity(session.taskId);
-    notifyPermissionRequest(session.taskTitle);
+    notifyPermissionRequest(session.taskTitle, session.taskId);
   }
 
   // --- Prompt Handling ---
