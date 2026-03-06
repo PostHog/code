@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
-import { app, shell } from "electron";
+import { app } from "electron";
 import { z } from "zod";
-import { getLogFilePath, logger } from "../../utils/logger";
+import { logger } from "../../utils/logger";
 import { publicProcedure, router } from "../trpc.js";
 
 const log = logger.scope("logsRouter");
@@ -18,12 +18,6 @@ function getLocalLogPath(taskRunId: string): string {
 }
 
 export const logsRouter = router({
-  getLogFilePath: publicProcedure.query(() => getLogFilePath()),
-
-  openLogDirectory: publicProcedure.mutation(() => {
-    shell.showItemInFolder(getLogFilePath());
-  }),
-
   fetchS3Logs: publicProcedure
     .input(z.object({ logUrl: z.string() }))
     .query(async ({ input }) => {

@@ -3,7 +3,8 @@ import { join } from "node:path";
 import { app } from "electron";
 import log from "electron-log/main";
 
-const LOG_DIR = join(app.getPath("home"), ".twig", "logs");
+const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+const LOG_DIR = join(app.getPath("home"), ".twig", isDev ? "logs-dev" : "logs");
 const LOG_FILE = "main.log";
 const MAX_ARCHIVES = 3;
 
@@ -14,8 +15,7 @@ log.initialize();
 log.transports.file.resolvePathFn = () => join(LOG_DIR, LOG_FILE);
 log.transports.file.maxSize = 10 * 1024 * 1024; // 10 MB
 log.transports.file.archiveLogFn = (oldLogFile) => {
-  const dir = LOG_DIR;
-  const archivePath = (n: number) => join(dir, `main.${n}.log`);
+  const archivePath = (n: number) => join(LOG_DIR, `main.${n}.log`);
 
   try {
     const lastArchive = archivePath(MAX_ARCHIVES);
@@ -36,7 +36,6 @@ log.transports.file.archiveLogFn = (oldLogFile) => {
   }
 };
 
-const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const level = isDev ? "debug" : "info";
 log.transports.file.level = level;
 log.transports.console.level = level;

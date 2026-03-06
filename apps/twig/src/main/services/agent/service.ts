@@ -1,4 +1,4 @@
-import fs, { existsSync, mkdirSync, symlinkSync } from "node:fs";
+import fs, { mkdirSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
@@ -1143,17 +1143,15 @@ For git operations while detached:
       try {
         mkdirSync(SHARED_MOCK_NODE_DIR, { recursive: true });
         const nodeSymlinkPath = join(SHARED_MOCK_NODE_DIR, "node");
-        if (!existsSync(nodeSymlinkPath)) {
-          try {
-            symlinkSync(process.execPath, nodeSymlinkPath);
-          } catch (err) {
-            if (
-              !(err instanceof Error) ||
-              !("code" in err) ||
-              err.code !== "EEXIST"
-            ) {
-              throw err;
-            }
+        try {
+          symlinkSync(process.execPath, nodeSymlinkPath);
+        } catch (err) {
+          if (
+            !(err instanceof Error) ||
+            !("code" in err) ||
+            err.code !== "EEXIST"
+          ) {
+            throw err;
           }
         }
         this.mockNodeReady = true;

@@ -1,6 +1,3 @@
-declare const __BUILD_COMMIT__: string | undefined;
-declare const __BUILD_DATE__: string | undefined;
-
 import os from "node:os";
 import {
   app,
@@ -117,17 +114,15 @@ function buildFileMenu(): MenuItemConstructorOptions {
         label: "Developer",
         submenu: [
           {
-            label: "Show log file in Finder",
+            label:
+              process.platform === "darwin"
+                ? "Show log file in Finder"
+                : "Show log file in file manager",
             click: () => {
               shell.showItemInFolder(getLogFilePath());
             },
           },
-          {
-            label: "Clear application storage",
-            click: () => {
-              container.get<UIService>(MAIN_TOKENS.UIService).clearStorage();
-            },
-          },
+          { type: "separator" },
           {
             label: "Invalidate OAuth token",
             click: () => {
@@ -145,6 +140,13 @@ function buildFileMenu(): MenuItemConstructorOptions {
                 title: "Sessions Marked",
                 message: `Marked ${count} session(s) for recreation.\n\nThey will be recreated on the next prompt.`,
               });
+            },
+          },
+          { type: "separator" },
+          {
+            label: "Clear application storage",
+            click: () => {
+              container.get<UIService>(MAIN_TOKENS.UIService).clearStorage();
             },
           },
         ],

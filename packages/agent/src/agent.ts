@@ -36,6 +36,12 @@ export class Agent {
         logger: this.logger.child("SessionLogWriter"),
         localCachePath: config.localCachePath,
       });
+
+      if (config.localCachePath) {
+        SessionLogWriter.cleanupOldSessions(config.localCachePath).catch(
+          () => {},
+        );
+      }
     }
   }
 

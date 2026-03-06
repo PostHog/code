@@ -1,10 +1,5 @@
-declare const __BUILD_COMMIT__: string | undefined;
-declare const __BUILD_DATE__: string | undefined;
-
 import "reflect-metadata";
-import { readdir, rm, stat } from "node:fs/promises";
 import os from "node:os";
-import { join } from "node:path";
 import { app, powerMonitor } from "electron";
 import log from "electron-log/main";
 import "./utils/logger";
@@ -57,29 +52,6 @@ function initializeServices(): void {
   trackAppEvent(ANALYTICS_EVENTS.APP_STARTED);
 }
 
-const SESSIONS_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-
-async function cleanupOldSessions(): Promise<void> {
-  const sessionsDir = join(app.getPath("home"), ".twig", "sessions");
-  try {
-    const entries = await readdir(sessionsDir);
-    const now = Date.now();
-    for (const entry of entries) {
-      const entryPath = join(sessionsDir, entry);
-      try {
-        const stats = await stat(entryPath);
-        if (stats.isDirectory() && now - stats.mtimeMs > SESSIONS_MAX_AGE_MS) {
-          await rm(entryPath, { recursive: true, force: true });
-        }
-      } catch {
-        // Skip entries we can't stat
-      }
-    }
-  } catch {
-    // Sessions dir may not exist yet
-  }
-}
-
 // ========================================================
 // App lifecycle
 // ========================================================
@@ -110,8 +82,6 @@ app.whenReady().then(() => {
   createWindow();
   initializeServices();
   initializeDeepLinks();
-  cleanupOldSessions();
-
   powerMonitor.on("suspend", () => {
     log.info("System entering sleep");
   });
@@ -195,7 +165,6 @@ process.on("SIGHUP", () => handleShutdownSignal("SIGHUP"));
 process.on("uncaughtException", (error) => {
   if (error.message === "write EIO") {
     log.transports.console.level = false;
-    log.error("Stdout pipe broken during shutdown (write EIO)");
     return;
   }
   log.error("Uncaught exception", error);
