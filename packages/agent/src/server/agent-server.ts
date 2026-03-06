@@ -187,8 +187,6 @@ export class AgentServer {
 
   constructor(config: AgentServerConfig) {
     this.config = config;
-    // Pre-session logger: console-only. Replaced in initSession with one
-    // that also emits _posthog/console notifications to the client.
     this.logger = new Logger({ debug: true, prefix: "[AgentServer]" });
     this.posthogAPI = new PostHogAPIClient({
       apiUrl: config.apiUrl,
