@@ -1,3 +1,4 @@
+import { CloudDiffEditorPanel } from "@features/code-editor/components/CloudDiffEditorPanel";
 import { CodeEditorPanel } from "@features/code-editor/components/CodeEditorPanel";
 import { DiffEditorPanel } from "@features/code-editor/components/DiffEditorPanel";
 import type { Tab } from "@features/panels/store/panelTypes";
@@ -54,6 +55,14 @@ export function TabContentRenderer({
           taskId={taskId}
           task={task}
           absolutePath={data.absolutePath}
+        />
+      );
+
+    case "cloud-diff":
+      return (
+        <CloudDiffEditorPanel
+          taskId={taskId}
+          relativePath={data.relativePath}
         />
       );
 

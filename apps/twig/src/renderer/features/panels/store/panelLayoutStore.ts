@@ -10,9 +10,11 @@ import {
 import {
   addNewTabToPanel,
   applyCleanupWithFallback,
+  createCloudDiffTabId,
   createDiffTabId,
   createFileTabId,
   generatePanelId,
+  getCloudDiffTabIdsForFile,
   getDiffTabIdsForFile,
   getLeafPanel,
   getSplitConfig,
@@ -34,6 +36,24 @@ import type { PanelNode, Tab } from "./panelTypes";
 function getFileExtension(filePath: string): string {
   const parts = filePath.split(".");
   return parts.length > 1 ? parts[parts.length - 1] : "";
+}
+
+function trackDiffViewed(
+  taskId: string,
+  filePath: string,
+  status?: string,
+): void {
+  const changeType =
+    status === "added"
+      ? "added"
+      : status === "deleted"
+        ? "deleted"
+        : "modified";
+  track(ANALYTICS_EVENTS.FILE_DIFF_VIEWED, {
+    file_extension: getFileExtension(filePath),
+    change_type: changeType,
+    task_id: taskId,
+  });
 }
 
 const MAX_RECENT_FILES = 10;
@@ -61,6 +81,12 @@ export interface PanelLayoutStore {
     asPreview?: boolean,
   ) => void;
   openDiffByMode: (
+    taskId: string,
+    filePath: string,
+    status?: string,
+    asPreview?: boolean,
+  ) => void;
+  openCloudDiffByMode: (
     taskId: string,
     filePath: string,
     status?: string,
@@ -226,6 +252,39 @@ function findNonMainLeafPanel(node: PanelNode): PanelNode | null {
     }
   }
   return null;
+}
+
+function openTabByDiffMode(
+  state: { taskLayouts: Record<string, TaskLayout> },
+  taskId: string,
+  tabId: string,
+  asPreview: boolean,
+): { taskLayouts: Record<string, TaskLayout> } {
+  const mode = useSettingsStore.getState().diffOpenMode;
+  switch (mode) {
+    case "split":
+      return openTabInSplit(state, taskId, tabId, asPreview);
+    case "same-pane":
+      return openTab(
+        state,
+        taskId,
+        tabId,
+        asPreview,
+        DEFAULT_PANEL_IDS.MAIN_PANEL,
+      );
+    case "last-active-pane":
+      return openTab(state, taskId, tabId, asPreview);
+    default:
+      return window.outerWidth >= 1440
+        ? openTabInSplit(state, taskId, tabId, asPreview)
+        : openTab(
+            state,
+            taskId,
+            tabId,
+            asPreview,
+            DEFAULT_PANEL_IDS.MAIN_PANEL,
+          );
+  }
 }
 
 function openTabInSplit(
@@ -397,47 +456,15 @@ export const usePanelLayoutStore = createWithEqualityFn<PanelLayoutStore>()(
       },
 
       openDiffByMode: (taskId, filePath, status, asPreview = true) => {
-        const mode = useSettingsStore.getState().diffOpenMode;
         const tabId = createDiffTabId(filePath, status);
+        set((state) => openTabByDiffMode(state, taskId, tabId, asPreview));
+        trackDiffViewed(taskId, filePath, status);
+      },
 
-        set((state) => {
-          switch (mode) {
-            case "split":
-              return openTabInSplit(state, taskId, tabId, asPreview);
-            case "same-pane":
-              return openTab(
-                state,
-                taskId,
-                tabId,
-                asPreview,
-                DEFAULT_PANEL_IDS.MAIN_PANEL,
-              );
-            case "last-active-pane":
-              return openTab(state, taskId, tabId, asPreview);
-            default:
-              return window.outerWidth >= 1440
-                ? openTabInSplit(state, taskId, tabId, asPreview)
-                : openTab(
-                    state,
-                    taskId,
-                    tabId,
-                    asPreview,
-                    DEFAULT_PANEL_IDS.MAIN_PANEL,
-                  );
-          }
-        });
-
-        const changeType =
-          status === "added"
-            ? "added"
-            : status === "deleted"
-              ? "deleted"
-              : "modified";
-        track(ANALYTICS_EVENTS.FILE_DIFF_VIEWED, {
-          file_extension: getFileExtension(filePath),
-          change_type: changeType,
-          task_id: taskId,
-        });
+      openCloudDiffByMode: (taskId, filePath, status, asPreview = true) => {
+        const tabId = createCloudDiffTabId(filePath, status);
+        set((state) => openTabByDiffMode(state, taskId, tabId, asPreview));
+        trackDiffViewed(taskId, filePath, status);
       },
 
       keepTab: (taskId, panelId, tabId) => {
@@ -582,6 +609,7 @@ export const usePanelLayoutStore = createWithEqualityFn<PanelLayoutStore>()(
         const tabIds = [
           createFileTabId(filePath),
           ...getDiffTabIdsForFile(filePath),
+          ...getCloudDiffTabIdsForFile(filePath),
         ];
 
         for (const tabId of tabIds) {
@@ -596,7 +624,10 @@ export const usePanelLayoutStore = createWithEqualityFn<PanelLayoutStore>()(
         const layout = get().taskLayouts[taskId];
         if (!layout) return;
 
-        const tabIds = getDiffTabIdsForFile(filePath);
+        const tabIds = [
+          ...getDiffTabIdsForFile(filePath),
+          ...getCloudDiffTabIdsForFile(filePath),
+        ];
 
         for (const tabId of tabIds) {
           const tabLocation = findTabInTree(layout.panelTree, tabId);
