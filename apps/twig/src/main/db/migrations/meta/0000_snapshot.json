@@ -48,9 +48,7 @@
       "indexes": {
         "repositories_path_unique": {
           "name": "repositories_path_unique",
-          "columns": [
-            "path"
-          ],
+          "columns": ["path"],
           "isUnique": true
         }
       },
@@ -160,9 +158,7 @@
       "indexes": {
         "workspaces_active_task_id_unique": {
           "name": "workspaces_active_task_id_unique",
-          "columns": [
-            "task_id"
-          ],
+          "columns": ["task_id"],
           "isUnique": true,
           "where": "\"workspaces\".\"state\" = 'active'"
         }
@@ -172,12 +168,8 @@
           "name": "workspaces_repository_id_repositories_id_fk",
           "tableFrom": "workspaces",
           "tableTo": "repositories",
-          "columnsFrom": [
-            "repository_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["repository_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -253,9 +245,7 @@
       "indexes": {
         "worktrees_workspace_id_unique": {
           "name": "worktrees_workspace_id_unique",
-          "columns": [
-            "workspace_id"
-          ],
+          "columns": ["workspace_id"],
           "isUnique": true
         }
       },
@@ -264,12 +254,8 @@
           "name": "worktrees_workspace_id_workspaces_id_fk",
           "tableFrom": "worktrees",
           "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
