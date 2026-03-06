@@ -27,6 +27,7 @@ interface SettingsStore {
   sendMessagesWith: SendMessagesWith;
   allowBypassPermissions: boolean;
   preventSleepWhileRunning: boolean;
+  debugLogsCloudRuns: boolean;
   customInstructions: string;
   diffOpenMode: DiffOpenMode;
 
@@ -46,6 +47,7 @@ interface SettingsStore {
   setSendMessagesWith: (mode: SendMessagesWith) => void;
   setAllowBypassPermissions: (enabled: boolean) => void;
   setPreventSleepWhileRunning: (enabled: boolean) => void;
+  setDebugLogsCloudRuns: (enabled: boolean) => void;
   setCustomInstructions: (instructions: string) => void;
   setDiffOpenMode: (mode: DiffOpenMode) => void;
 }
@@ -69,6 +71,7 @@ export const useSettingsStore = create<SettingsStore>()(
       sendMessagesWith: "enter",
       allowBypassPermissions: false,
       preventSleepWhileRunning: false,
+      debugLogsCloudRuns: false,
       customInstructions: "",
       diffOpenMode: "auto",
 
@@ -95,6 +98,7 @@ export const useSettingsStore = create<SettingsStore>()(
         set({ allowBypassPermissions: enabled }),
       setPreventSleepWhileRunning: (enabled) =>
         set({ preventSleepWhileRunning: enabled }),
+      setDebugLogsCloudRuns: (enabled) => set({ debugLogsCloudRuns: enabled }),
       setCustomInstructions: (instructions) =>
         set({ customInstructions: instructions }),
       setDiffOpenMode: (mode) => set({ diffOpenMode: mode }),
@@ -119,6 +123,7 @@ export const useSettingsStore = create<SettingsStore>()(
         sendMessagesWith: state.sendMessagesWith,
         allowBypassPermissions: state.allowBypassPermissions,
         preventSleepWhileRunning: state.preventSleepWhileRunning,
+        debugLogsCloudRuns: state.debugLogsCloudRuns,
         customInstructions: state.customInstructions,
         diffOpenMode: state.diffOpenMode,
       }),
