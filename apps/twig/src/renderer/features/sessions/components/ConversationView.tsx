@@ -3,6 +3,7 @@ import {
   usePendingPermissionsForTask,
   useQueuedMessagesForTask,
 } from "@features/sessions/stores/sessionStore";
+import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { ArrowDown, XCircle } from "@phosphor-icons/react";
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import type { AcpMessage } from "@shared/types/session-events";
@@ -43,10 +44,14 @@ export function ConversationView({
 }: ConversationViewProps) {
   const listRef = useRef<VirtualizedListHandle>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const debugLogsCloudRuns = useSettingsStore((s) => s.debugLogsCloudRuns);
 
   const { items: conversationItems, lastTurnInfo } = useMemo(
-    () => buildConversationItems(events, isPromptPending),
-    [events, isPromptPending],
+    () =>
+      buildConversationItems(events, isPromptPending, {
+        showDebugLogs: debugLogsCloudRuns,
+      }),
+    [events, isPromptPending, debugLogsCloudRuns],
   );
 
   const firstUserMessageIdRef = useRef<string | undefined>(undefined);

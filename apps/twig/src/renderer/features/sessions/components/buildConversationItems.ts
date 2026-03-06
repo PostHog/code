@@ -123,9 +123,14 @@ function pushItem(b: ItemBuilder, update: RenderItem) {
   });
 }
 
+export interface BuildConversationOptions {
+  showDebugLogs?: boolean;
+}
+
 export function buildConversationItems(
   events: AcpMessage[],
   isPromptPending: boolean | null,
+  options?: BuildConversationOptions,
 ): BuildResult {
   const b = createItemBuilder();
 
@@ -133,7 +138,7 @@ export function buildConversationItems(
     const msg = event.message;
 
     if (isJsonRpcNotification(msg)) {
-      handleNotification(b, msg, event.ts);
+      handleNotification(b, msg, event.ts, options);
       continue;
     }
 
@@ -157,6 +162,12 @@ export function buildConversationItems(
     }
   }
 
+  // Mark implicit turn complete if it's still the current turn after all events
+  if (b.currentTurn?.promptId === -1) {
+    b.currentTurn.isComplete = true;
+    b.currentTurn.context.turnComplete = true;
+  }
+
   markThoughtCompletion(b.items);
 
   const lastTurnInfo: LastTurnInfo | null = b.currentTurn
@@ -175,6 +186,12 @@ function handlePromptRequest(
   msg: { id: number; params?: unknown },
   ts: number,
 ) {
+  // If the current turn is the implicit one, mark it complete before starting a real turn
+  if (b.currentTurn && b.currentTurn.promptId === -1) {
+    b.currentTurn.isComplete = true;
+    b.currentTurn.context.turnComplete = true;
+  }
+
   const userContent = extractUserContent(msg.params);
 
   if (userContent.trim().length === 0) return;
@@ -261,60 +278,99 @@ function handlePromptResponse(
   b.pendingPrompts.delete(msg.id);
 }
 
+/** Check if a method matches a PostHog notification name, accounting for
+ *  the SDK sometimes double-prefixing (`__posthog/` instead of `_posthog/`). */
+function isPosthogMethod(method: string, name: string): boolean {
+  return method === `_posthog/${name}` || method === `__posthog/${name}`;
+}
+
 function handleNotification(
   b: ItemBuilder,
   msg: { method: string; params?: unknown },
   ts: number,
+  options?: BuildConversationOptions,
 ) {
-  switch (msg.method) {
-    case "_array/user_shell_execute": {
-      const params = msg.params as UserShellExecuteParams;
-      const existing = b.shellExecutes.get(params.id);
-      if (existing) {
-        existing.item.result = params.result;
-      } else {
-        const item: UserShellExecute = {
-          type: "user_shell_execute",
-          id: params.id,
-          command: params.command,
-          cwd: params.cwd,
-          result: params.result,
-        };
-        b.shellExecutes.set(params.id, { item, index: b.items.length });
-        b.items.push(item);
-      }
-      return;
+  if (msg.method === "_array/user_shell_execute") {
+    const params = msg.params as UserShellExecuteParams;
+    const existing = b.shellExecutes.get(params.id);
+    if (existing) {
+      existing.item.result = params.result;
+    } else {
+      const item: UserShellExecute = {
+        type: "user_shell_execute",
+        id: params.id,
+        command: params.command,
+        cwd: params.cwd,
+        result: params.result,
+      };
+      b.shellExecutes.set(params.id, { item, index: b.items.length });
+      b.items.push(item);
     }
-
-    case "session/update": {
-      if (!b.currentTurn) return;
-      const update = (msg.params as SessionNotification)?.update;
-      if (update) processSessionUpdate(b, update);
-      return;
-    }
-
-    case "_posthog/console": {
-      if (!b.currentTurn) return;
-      const params = msg.params as { level?: string; message?: string };
-      if (params?.message) {
-        pushItem(b, {
-          sessionUpdate: "console",
-          level: params.level ?? "info",
-          message: params.message,
-          timestamp: new Date(ts).toISOString(),
-        });
-      }
-      return;
-    }
-
-    case "_posthog/compact_boundary":
-    case "_posthog/status":
-    case "_posthog/task_notification": {
-      if (!b.currentTurn) return;
-      pushItem(b, msg.params as RenderItem);
-      return;
-    }
+    return;
   }
+
+  if (msg.method === "session/update") {
+    const update = (msg.params as SessionNotification)?.update;
+    if (!update) return;
+    if (!b.currentTurn) {
+      ensureImplicitTurn(b, ts);
+    }
+    processSessionUpdate(b, update);
+    return;
+  }
+
+  if (isPosthogMethod(msg.method, "console")) {
+    if (!b.currentTurn) {
+      ensureImplicitTurn(b, ts);
+    }
+    const params = msg.params as { level?: string; message?: string };
+    if (!params?.message) return;
+    if (params.level === "debug" && !options?.showDebugLogs) return;
+    pushItem(b, {
+      sessionUpdate: "console",
+      level: params.level ?? "info",
+      message: params.message,
+      timestamp: new Date(ts).toISOString(),
+    });
+    return;
+  }
+
+  if (
+    isPosthogMethod(msg.method, "compact_boundary") ||
+    isPosthogMethod(msg.method, "status") ||
+    isPosthogMethod(msg.method, "task_notification")
+  ) {
+    if (!b.currentTurn) {
+      ensureImplicitTurn(b, ts);
+    }
+    pushItem(b, msg.params as RenderItem);
+    return;
+  }
+}
+
+function ensureImplicitTurn(b: ItemBuilder, ts: number) {
+  if (b.currentTurn) return;
+
+  const turnId = `turn-${ts}-implicit`;
+  const toolCalls = new Map<string, ToolCall>();
+  const childItems = new Map<string, ConversationItem[]>();
+  const context: TurnContext = {
+    toolCalls,
+    childItems,
+    turnCancelled: false,
+    turnComplete: false,
+  };
+
+  b.currentTurn = {
+    id: turnId,
+    promptId: -1,
+    isComplete: false,
+    durationMs: 0,
+    toolCalls,
+    context,
+    gitAction: { isGitAction: false, actionType: null, prompt: "" },
+    itemCount: 0,
+  };
 }
 
 interface TextBlockWithMeta {
