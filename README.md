@@ -82,3 +82,15 @@ twig/
 ## Troubleshooting
 
 See [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) for common issues (black screen, Electron install failures, native module crashes, etc.).
+
+## Fish Poem
+
+Silver scales in morning light,
+Darting through the deep,
+Rivers, reefs, and ocean floors—
+A world they silent keep.
+
+Gills that breathe what we cannot,
+Fins that chart the tide,
+From minnow small to marlin bold,
+The waters are their guide.
