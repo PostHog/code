@@ -15,6 +15,10 @@ import { createApiClient, type Schemas } from "./generated";
 
 const log = logger.scope("posthog-client");
 
+export type McpRecommendedServer = Schemas.RecommendedServer;
+
+export type McpServerInstallation = Schemas.MCPServerInstallation;
+
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -863,6 +867,128 @@ export class PostHogAPIClient {
       cacheAgeSeconds: data.cacheAgeSeconds,
       scan: data.scan,
     } as RepoAutonomyStatus;
+  }
+
+  async getMcpServers(): Promise<McpRecommendedServer[]> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/environments/${teamId}/mcp_servers/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: `/api/environments/${teamId}/mcp_servers/`,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch MCP servers: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.results ?? data ?? [];
+  }
+
+  async getMcpServerInstallations(): Promise<McpServerInstallation[]> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/environments/${teamId}/mcp_server_installations/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: `/api/environments/${teamId}/mcp_server_installations/`,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch MCP server installations: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return data.results ?? data ?? [];
+  }
+
+  async installCustomMcpServer(options: {
+    name: string;
+    url: string;
+    auth_type: "none" | "api_key" | "oauth";
+    api_key?: string;
+    description?: string;
+    oauth_provider_kind?: string;
+    install_source?: "posthog" | "twig";
+    twig_callback_url?: string;
+  }): Promise<McpServerInstallation | Schemas.OAuthRedirectResponse> {
+    const teamId = await this.getTeamId();
+    const apiUrl = new URL(
+      `${this.api.baseUrl}/api/environments/${teamId}/mcp_server_installations/install_custom/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url: apiUrl,
+      path: `/api/environments/${teamId}/mcp_server_installations/install_custom/`,
+      overrides: {
+        body: JSON.stringify(options),
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        (errorData as { detail?: string }).detail ??
+          `Failed to install MCP server: ${response.statusText}`,
+      );
+    }
+
+    return await response.json();
+  }
+
+  async updateMcpServerInstallation(
+    installationId: string,
+    updates: {
+      display_name?: string;
+      description?: string;
+      is_enabled?: boolean;
+    },
+  ): Promise<McpServerInstallation> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/environments/${teamId}/mcp_server_installations/${installationId}/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "patch",
+      url,
+      path: `/api/environments/${teamId}/mcp_server_installations/${installationId}/`,
+      overrides: {
+        body: JSON.stringify(updates),
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        (errorData as { detail?: string }).detail ??
+          `Failed to update MCP server: ${response.statusText}`,
+      );
+    }
+
+    return await response.json();
+  }
+
+  async uninstallMcpServer(installationId: string): Promise<void> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/environments/${teamId}/mcp_server_installations/${installationId}/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "delete",
+      url,
+      path: `/api/environments/${teamId}/mcp_server_installations/${installationId}/`,
+    });
+
+    if (!response.ok && response.status !== 204) {
+      throw new Error(`Failed to uninstall MCP server: ${response.statusText}`);
+    }
   }
 
   /**

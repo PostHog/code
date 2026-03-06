@@ -11,6 +11,7 @@ import {
   GearSix,
   Keyboard,
   Palette,
+  Plugs,
   PlugsConnected,
   User,
   Wrench,
@@ -23,6 +24,7 @@ import { AdvancedSettings } from "./sections/AdvancedSettings";
 import { ClaudeCodeSettings } from "./sections/ClaudeCodeSettings";
 import { GeneralSettings } from "./sections/GeneralSettings";
 import { IntegrationsSettings } from "./sections/IntegrationsSettings";
+import { McpServersSettings } from "./sections/McpServersSettings";
 import { PersonalizationSettings } from "./sections/PersonalizationSettings";
 import { ShortcutsSettings } from "./sections/ShortcutsSettings";
 import { UpdatesSettings } from "./sections/UpdatesSettings";
@@ -45,6 +47,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: <Palette size={16} />,
   },
   { id: "claude-code", label: "Claude Code", icon: <Code size={16} /> },
+  { id: "mcp-servers", label: "MCP Servers", icon: <Plugs size={16} /> },
   { id: "shortcuts", label: "Shortcuts", icon: <Keyboard size={16} /> },
   {
     id: "integrations",
@@ -61,6 +64,7 @@ const CATEGORY_TITLES: Record<SettingsCategory, string> = {
   workspaces: "Workspaces",
   personalization: "Personalization",
   "claude-code": "Claude Code",
+  "mcp-servers": "MCP Servers",
   shortcuts: "Shortcuts",
   integrations: "Integrations",
   updates: "Updates",
@@ -73,6 +77,7 @@ const CATEGORY_COMPONENTS: Record<SettingsCategory, React.ComponentType> = {
   workspaces: WorkspacesSettings,
   personalization: PersonalizationSettings,
   "claude-code": ClaudeCodeSettings,
+  "mcp-servers": McpServersSettings,
   shortcuts: ShortcutsSettings,
   integrations: IntegrationsSettings,
   updates: UpdatesSettings,

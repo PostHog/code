@@ -29,6 +29,7 @@ export const MAIN_TOKENS = Object.freeze({
   GitHubIntegrationService: Symbol.for("Main.GitHubIntegrationService"),
   DeepLinkService: Symbol.for("Main.DeepLinkService"),
   NotificationService: Symbol.for("Main.NotificationService"),
+  McpCallbackService: Symbol.for("Main.McpCallbackService"),
   OAuthService: Symbol.for("Main.OAuthService"),
   ProcessTrackingService: Symbol.for("Main.ProcessTrackingService"),
   SleepService: Symbol.for("Main.SleepService"),

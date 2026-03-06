@@ -16,6 +16,7 @@ import { FsService } from "../services/fs/service.js";
 import { GitService } from "../services/git/service.js";
 import { GitHubIntegrationService } from "../services/github-integration/service.js";
 import { LlmGatewayService } from "../services/llm-gateway/service.js";
+import { McpCallbackService } from "../services/mcp-callback/service.js";
 import { NotificationService } from "../services/notification/service.js";
 import { OAuthService } from "../services/oauth/service.js";
 import { PosthogPluginService } from "../services/posthog-plugin/service.js";
@@ -54,6 +55,7 @@ container
   .bind(MAIN_TOKENS.GitHubIntegrationService)
   .to(GitHubIntegrationService);
 container.bind(MAIN_TOKENS.GitService).to(GitService);
+container.bind(MAIN_TOKENS.McpCallbackService).to(McpCallbackService);
 container.bind(MAIN_TOKENS.NotificationService).to(NotificationService);
 container.bind(MAIN_TOKENS.OAuthService).to(OAuthService);
 container.bind(MAIN_TOKENS.ProcessTrackingService).to(ProcessTrackingService);

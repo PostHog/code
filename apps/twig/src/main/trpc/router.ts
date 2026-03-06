@@ -16,6 +16,7 @@ import { gitRouter } from "./routers/git.js";
 import { githubIntegrationRouter } from "./routers/github-integration.js";
 import { llmGatewayRouter } from "./routers/llm-gateway.js";
 import { logsRouter } from "./routers/logs.js";
+import { mcpCallbackRouter } from "./routers/mcp-callback.js";
 import { notificationRouter } from "./routers/notification.js";
 import { oauthRouter } from "./routers/oauth.js";
 import { osRouter } from "./routers/os.js";
@@ -45,6 +46,7 @@ export const trpcRouter = router({
   git: gitRouter,
   githubIntegration: githubIntegrationRouter,
   llmGateway: llmGatewayRouter,
+  mcpCallback: mcpCallbackRouter,
   notification: notificationRouter,
   oauth: oauthRouter,
   logs: logsRouter,
