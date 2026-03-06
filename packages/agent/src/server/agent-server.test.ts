@@ -364,14 +364,15 @@ describe("AgentServer HTTP Mode", () => {
       expect(prompt).toContain("Do NOT create a new branch");
       expect(prompt).toContain("https://github.com/org/repo/pull/1");
       expect(prompt).toContain("gh pr checkout");
-      expect(prompt).not.toContain("Create a pull request");
+      expect(prompt).not.toContain("Create a draft pull request");
     });
 
     it("returns default prompt when no prUrl", () => {
       const s = createServer();
       const prompt = (s as unknown as TestableServer).buildCloudSystemPrompt();
       expect(prompt).toContain("Create a new branch");
-      expect(prompt).toContain("Create a pull request");
+      expect(prompt).toContain("Create a draft pull request");
+      expect(prompt).toContain("gh pr create --draft");
     });
 
     it("returns default prompt when prUrl is null", () => {
@@ -380,7 +381,8 @@ describe("AgentServer HTTP Mode", () => {
         null,
       );
       expect(prompt).toContain("Create a new branch");
-      expect(prompt).toContain("Create a pull request");
+      expect(prompt).toContain("Create a draft pull request");
+      expect(prompt).toContain("gh pr create --draft");
     });
   });
 });

@@ -706,10 +706,10 @@ After completing the requested changes:
 1. Create a new branch with a descriptive name based on the work done
 2. Stage and commit all changes with a clear commit message
 3. Push the branch to origin
-4. Create a pull request using \`gh pr create\` with a descriptive title and body
+4. Create a draft pull request using \`gh pr create --draft\` with a descriptive title and body
 
 Important:
-- Always create the PR. Do not ask for confirmation.
+- Always create the PR as a draft. Do not ask for confirmation.
 - Do NOT add "Co-Authored-By" trailers to commit messages.
 - Do NOT add "Generated with [Claude Code]" or similar attribution lines to PR descriptions.
 `;
