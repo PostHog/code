@@ -14,9 +14,11 @@ interface BranchSelectorProps {
   disabled?: boolean;
   loading?: boolean;
   variant?: "outline" | "ghost";
-  workspaceMode?: "worktree" | "local";
+  workspaceMode?: "worktree" | "local" | "cloud";
   selectedBranch?: string | null;
   onBranchSelect?: (branch: string | null) => void;
+  cloudBranches?: string[];
+  cloudBranchesLoading?: boolean;
 }
 
 export function BranchSelector({
@@ -29,29 +31,35 @@ export function BranchSelector({
   workspaceMode,
   selectedBranch,
   onBranchSelect,
+  cloudBranches,
+  cloudBranchesLoading,
 }: BranchSelectorProps) {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const { actions } = useGitInteractionStore();
 
-  const isWorktreeMode = workspaceMode === "worktree";
-  const displayedBranch = isWorktreeMode ? selectedBranch : currentBranch;
+  const isCloudMode = workspaceMode === "cloud";
+  const isSelectionOnly = workspaceMode === "worktree" || isCloudMode;
+  const displayedBranch = isSelectionOnly ? selectedBranch : currentBranch;
 
   useEffect(() => {
-    if (isWorktreeMode && defaultBranch && !selectedBranch && onBranchSelect) {
+    if (isSelectionOnly && defaultBranch && !selectedBranch && onBranchSelect) {
       onBranchSelect(defaultBranch);
     }
-  }, [isWorktreeMode, defaultBranch, selectedBranch, onBranchSelect]);
+  }, [isSelectionOnly, defaultBranch, selectedBranch, onBranchSelect]);
 
-  const { data: branches = [] } = useQuery({
+  const { data: localBranches = [] } = useQuery({
     queryKey: ["git-all-branches", repoPath],
     queryFn: () =>
       trpcVanilla.git.getAllBranches.query({
         directoryPath: repoPath as string,
       }),
-    enabled: !!repoPath && open,
+    enabled: !isCloudMode && !!repoPath && open,
     staleTime: 10_000,
   });
+
+  const branches = isCloudMode ? (cloudBranches ?? []) : localBranches;
+  const effectiveLoading = loading || (isCloudMode && cloudBranchesLoading);
 
   const checkoutMutation = useMutation({
     mutationFn: (branchName: string) =>
@@ -73,7 +81,7 @@ export function BranchSelector({
   });
 
   const handleBranchChange = (value: string) => {
-    if (isWorktreeMode) {
+    if (isSelectionOnly) {
       onBranchSelect?.(value || null);
     } else if (value && value !== currentBranch) {
       checkoutMutation.mutate(value);
@@ -81,11 +89,13 @@ export function BranchSelector({
     setOpen(false);
   };
 
-  const displayText = loading ? "Loading..." : (displayedBranch ?? "No branch");
+  const displayText = effectiveLoading
+    ? "Loading..."
+    : (displayedBranch ?? "No branch");
 
   const triggerContent = (
     <Flex align="center" gap="1" style={{ minWidth: 0 }}>
-      {loading ? (
+      {effectiveLoading ? (
         <Spinner size="1" />
       ) : (
         <GitBranch size={16} weight="regular" style={{ flexShrink: 0 }} />
@@ -111,7 +121,9 @@ export function BranchSelector({
         <Combobox.Input placeholder="Search branches" />
         <Combobox.Empty>No branches found.</Combobox.Empty>
 
-        <Combobox.Group heading="Local branches">
+        <Combobox.Group
+          heading={isCloudMode ? "Remote branches" : "Local branches"}
+        >
           {branches.map((branch) => (
             <Combobox.Item
               key={branch}
@@ -123,21 +135,27 @@ export function BranchSelector({
           ))}
         </Combobox.Group>
 
-        <Combobox.Footer>
-          <button
-            type="button"
-            className="combobox-footer-button"
-            onClick={() => {
-              setOpen(false);
-              actions.openBranch();
-            }}
-          >
-            <Flex align="center" gap="2" style={{ color: "var(--accent-11)" }}>
-              <Plus size={11} weight="bold" />
-              <span>Create new branch</span>
-            </Flex>
-          </button>
-        </Combobox.Footer>
+        {!isCloudMode && (
+          <Combobox.Footer>
+            <button
+              type="button"
+              className="combobox-footer-button"
+              onClick={() => {
+                setOpen(false);
+                actions.openBranch();
+              }}
+            >
+              <Flex
+                align="center"
+                gap="2"
+                style={{ color: "var(--accent-11)" }}
+              >
+                <Plus size={11} weight="bold" />
+                <span>Create new branch</span>
+              </Flex>
+            </button>
+          </Combobox.Footer>
+        )}
       </Combobox.Content>
     </Combobox.Root>
   );

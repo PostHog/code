@@ -1,4 +1,5 @@
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
+import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
 import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
 import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
@@ -12,9 +13,13 @@ import {
 import type { AgentAdapter } from "@features/settings/stores/settingsStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
-import { useRepositoryIntegration } from "@hooks/useIntegrations";
+import {
+  useGithubBranches,
+  useRepositoryIntegration,
+} from "@hooks/useIntegrations";
 import { Flex } from "@radix-ui/themes";
 import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
+import { repositoryWorkspaceStore } from "@renderer/stores/repositoryWorkspaceStore";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useTaskDirectoryStore } from "@stores/taskDirectoryStore";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -30,8 +35,9 @@ export function TaskInput() {
   const { view } = useNavigationStore();
   const { lastUsedDirectory, setLastUsedDirectory } = useTaskDirectoryStore();
   const {
-    lastUsedLocalWorkspaceMode,
     setLastUsedLocalWorkspaceMode,
+    lastUsedWorkspaceMode,
+    setLastUsedWorkspaceMode,
     lastUsedAdapter,
     setLastUsedAdapter,
     allowBypassPermissions,
@@ -41,25 +47,35 @@ export function TaskInput() {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragCounterRef = useRef(0);
 
-  const runMode = "local";
   const [editorIsEmpty, setEditorIsEmpty] = useState(true);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
 
   const selectedDirectory = lastUsedDirectory || "";
-  const workspaceMode = lastUsedLocalWorkspaceMode || "local";
+  const workspaceMode = lastUsedWorkspaceMode || "local";
   const adapter = lastUsedAdapter;
 
   const setSelectedDirectory = (path: string) =>
     setLastUsedDirectory(path || null);
-  const setWorkspaceMode = (mode: WorkspaceMode) =>
-    setLastUsedLocalWorkspaceMode(mode as "worktree" | "local");
+  const setWorkspaceMode = (mode: WorkspaceMode) => {
+    setLastUsedWorkspaceMode(mode);
+    if (mode !== "cloud") {
+      setLastUsedLocalWorkspaceMode(mode);
+    }
+  };
   const setAdapter = (newAdapter: AgentAdapter) =>
     setLastUsedAdapter(newAdapter);
 
-  const { githubIntegration } = useRepositoryIntegration();
+  const { githubIntegration, repositories, isLoadingRepos } =
+    useRepositoryIntegration();
+  const selectedRepository = repositoryWorkspaceStore(
+    (s) => s.selectedRepository,
+  );
   const { currentBranch, branchLoading, defaultBranch } =
     useGitQueries(selectedDirectory);
+
+  const { data: cloudBranches, isPending: cloudBranchesLoading } =
+    useGithubBranches(githubIntegration?.id, selectedRepository);
 
   // Preview session provides adapter-specific config options
   const {
@@ -91,11 +107,14 @@ export function TaskInput() {
   const currentReasoningLevel = thoughtOption?.currentValue;
 
   const branchForTaskCreation =
-    effectiveWorkspaceMode === "worktree" ? selectedBranch : null;
+    effectiveWorkspaceMode === "worktree" || effectiveWorkspaceMode === "cloud"
+      ? selectedBranch
+      : null;
 
   const { isCreatingTask, canSubmit, handleSubmit } = useTaskCreation({
     editorRef,
     selectedDirectory,
+    selectedRepository,
     githubIntegrationId: githubIntegration?.id,
     workspaceMode: effectiveWorkspaceMode,
     branch: branchForTaskCreation,
@@ -252,32 +271,49 @@ export function TaskInput() {
             align="center"
             style={{ minWidth: 0, overflow: "hidden" }}
           >
-            <FolderPicker
-              value={selectedDirectory}
-              onChange={setSelectedDirectory}
-              placeholder="Select repository..."
-              size="1"
-            />
+            {workspaceMode === "cloud" ? (
+              <GitHubRepoPicker
+                value={selectedRepository}
+                onChange={(repo) =>
+                  repositoryWorkspaceStore.getState().selectRepository(repo)
+                }
+                repositories={repositories}
+                isLoading={isLoadingRepos}
+                placeholder="Select repository..."
+                size="1"
+                disabled={isCreatingTask}
+              />
+            ) : (
+              <FolderPicker
+                value={selectedDirectory}
+                onChange={setSelectedDirectory}
+                placeholder="Select repository..."
+                size="1"
+              />
+            )}
             <WorkspaceModeSelect
               value={workspaceMode}
-              onChange={(mode) => {
-                setWorkspaceMode(mode);
-                // Only persist local modes, not cloud
-                if (mode !== "cloud") {
-                  setLastUsedLocalWorkspaceMode(mode);
-                }
-              }}
+              onChange={setWorkspaceMode}
               size="1"
             />
             <BranchSelector
-              repoPath={selectedDirectory}
+              repoPath={
+                workspaceMode === "cloud"
+                  ? selectedRepository
+                  : selectedDirectory
+              }
               currentBranch={currentBranch}
               defaultBranch={defaultBranch}
-              disabled={isCreatingTask}
+              disabled={
+                isCreatingTask ||
+                (workspaceMode === "cloud" && !selectedRepository)
+              }
               loading={branchLoading}
-              workspaceMode={effectiveWorkspaceMode}
+              workspaceMode={workspaceMode}
               selectedBranch={selectedBranch}
               onBranchSelect={setSelectedBranch}
+              cloudBranches={cloudBranches}
+              cloudBranchesLoading={cloudBranchesLoading}
             />
           </Flex>
 
@@ -286,10 +322,18 @@ export function TaskInput() {
             sessionId="task-input"
             repoPath={selectedDirectory}
             isCreatingTask={isCreatingTask}
-            runMode={runMode}
             canSubmit={canSubmit}
             onSubmit={handleSubmit}
-            hasDirectory={!!selectedDirectory}
+            hasDirectory={
+              workspaceMode === "cloud"
+                ? !!selectedRepository
+                : !!selectedDirectory
+            }
+            directoryTooltip={
+              workspaceMode === "cloud"
+                ? "Select a repository first"
+                : "Select a folder first"
+            }
             onEmptyChange={setEditorIsEmpty}
             adapter={adapter}
             previewTaskId={previewTaskId}

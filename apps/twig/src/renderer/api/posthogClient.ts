@@ -344,14 +344,18 @@ export class PostHogAPIClient {
     }
   }
 
-  async runTaskInCloud(taskId: string): Promise<Task> {
+  async runTaskInCloud(taskId: string, branch?: string | null): Promise<Task> {
     const teamId = await this.getTeamId();
+    const body: Record<string, unknown> = {};
+    if (branch) {
+      body.branch = branch;
+    }
 
     const data = await this.api.post(
       `/api/projects/{project_id}/tasks/{id}/run/`,
       {
         path: { project_id: teamId.toString(), id: taskId },
-        body: {},
+        body,
       },
     );
 
@@ -548,6 +552,31 @@ export class PostHogAPIClient {
     return data.results ?? data ?? [];
   }
 
+  async getGithubBranches(
+    integrationId: string | number,
+    repo: string,
+  ): Promise<string[]> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/environments/${teamId}/integrations/${integrationId}/github_branches/`,
+    );
+    url.searchParams.set("repo", repo);
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: `/api/environments/${teamId}/integrations/${integrationId}/github_branches/`,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch GitHub branches: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return data.branches ?? data.results ?? data ?? [];
+  }
+
   async getGithubRepositories(
     integrationId: string | number,
   ): Promise<string[]> {
@@ -569,24 +598,11 @@ export class PostHogAPIClient {
 
     const data = await response.json();
 
-    const integrations = await this.getIntegrations();
-    const integration = integrations.find(
-      (i: {
-        id: number | string;
-        display_name?: string;
-        config?: { account?: { login?: string } };
-      }) => i.id === integrationId,
-    );
-    const organization =
-      integration?.display_name ||
-      integration?.config?.account?.login ||
-      "unknown";
-
-    const repoNames = data.repositories ?? data.results ?? data ?? [];
-    return repoNames.map(
-      (repoName: string) =>
-        `${organization.toLowerCase()}/${repoName.toLowerCase()}` as string,
-    );
+    const repos = data.repositories ?? data.results ?? data ?? [];
+    return repos.map((repo: string | { full_name?: string; name?: string }) => {
+      if (typeof repo === "string") return repo;
+      return (repo.full_name ?? repo.name ?? "").toLowerCase();
+    });
   }
 
   async getAgents() {

@@ -154,14 +154,13 @@ export class TaskCreationSaga extends Saga<
 
     // Step 4: Create workspace if we have a directory
     let workspace: Workspace | null = null;
+    const branch = input.branch ?? task.latest_run?.branch ?? null;
 
     if (repoPath) {
       // Save repo → directory mapping (ensures it exists for future opens)
       if (repoKey) {
         useTaskDirectoryStore.getState().setRepoDirectory(repoKey, repoPath);
       }
-
-      const branch = input.branch ?? task.latest_run?.branch ?? null;
 
       // Use the pre-fetched folder if we started it in parallel, otherwise fetch now
       const folder = folderPromise
@@ -205,13 +204,29 @@ export class TaskCreationSaga extends Saga<
         terminalSessionIds: workspaceInfo.terminalSessionIds,
         hasStartScripts: workspaceInfo.hasStartScripts,
       };
+    } else if (workspaceMode === "cloud") {
+      // Cloud tasks don't need a local repo path — create a minimal workspace
+      workspace = {
+        taskId: task.id,
+        folderId: "",
+        folderPath: "",
+        mode: "cloud",
+        worktreePath: null,
+        worktreeName: null,
+        branchName: null,
+        baseBranch: branch,
+        createdAt: new Date().toISOString(),
+        terminalSessionIds: [],
+        hasStartScripts: false,
+      };
+      useWorkspaceStore.getState().updateWorkspace(task.id, workspace);
     }
 
     // Step 5: Start cloud run (only for new cloud tasks)
     if (workspaceMode === "cloud" && !task.latest_run) {
       await this.step({
         name: "cloud_run",
-        execute: () => this.deps.posthogClient.runTaskInCloud(task.id),
+        execute: () => this.deps.posthogClient.runTaskInCloud(task.id, branch),
         rollback: async () => {
           log.info("Rolling back: cloud run (no-op)", { taskId: task.id });
         },
