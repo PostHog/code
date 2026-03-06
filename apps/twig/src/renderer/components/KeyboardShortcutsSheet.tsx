@@ -7,6 +7,7 @@ import {
 } from "@renderer/constants/keyboard-shortcuts";
 import { isMac } from "@utils/platform";
 import { useMemo } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 
 interface KeyboardShortcutsSheetProps {
   open: boolean;
@@ -17,11 +18,19 @@ export function KeyboardShortcutsSheet({
   open,
   onOpenChange,
 }: KeyboardShortcutsSheetProps) {
+  useHotkeys("escape", () => onOpenChange(false), {
+    enabled: open,
+    enableOnContentEditable: true,
+    enableOnFormTags: true,
+    preventDefault: true,
+  });
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Content
         maxWidth="600px"
         style={{ maxHeight: "80vh", overflow: "hidden" }}
+        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <Dialog.Title size="4" mb="4">
           Keyboard Shortcuts
