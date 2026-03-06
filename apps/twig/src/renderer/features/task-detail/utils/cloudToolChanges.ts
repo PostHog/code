@@ -1,0 +1,286 @@
+import type {
+  ToolCallContent,
+  ToolCallLocation,
+} from "@features/sessions/types";
+import type { ChangedFile, GitFileStatus } from "@shared/types";
+import {
+  type AcpMessage,
+  isJsonRpcNotification,
+} from "@shared/types/session-events";
+
+interface ParsedToolCall {
+  toolCallId: string;
+  kind?: string | null;
+  title?: string;
+  status?: string | null;
+  locations?: ToolCallLocation[];
+  content?: ToolCallContent[];
+}
+
+// Match file paths that may differ in format (absolute vs relative)
+function pathsMatch(a: string | undefined, b: string): boolean {
+  if (!a) return false;
+  if (a === b) return true;
+  return a.endsWith(`/${b}`) || b.endsWith(`/${a}`);
+}
+
+function inferKind(kind?: string | null, title?: string): string | null {
+  if (kind) return kind;
+  if (!title) return null;
+
+  const normalized = title.toLowerCase();
+  if (normalized.startsWith("write")) return "write";
+  if (normalized.startsWith("edit")) return "edit";
+  if (normalized.startsWith("delete")) return "delete";
+  if (normalized.startsWith("move") || normalized.startsWith("rename")) {
+    return "move";
+  }
+
+  return null;
+}
+
+function mergeToolCall(
+  existing: ParsedToolCall | undefined,
+  patch: Partial<ParsedToolCall>,
+): ParsedToolCall {
+  return {
+    toolCallId: patch.toolCallId ?? existing?.toolCallId ?? "",
+    kind: patch.kind ?? existing?.kind,
+    title: patch.title ?? existing?.title,
+    status: patch.status ?? existing?.status,
+    locations:
+      patch.locations && patch.locations.length > 0
+        ? patch.locations
+        : existing?.locations,
+    content:
+      patch.content && patch.content.length > 0
+        ? patch.content
+        : existing?.content,
+  };
+}
+
+function getDiffContent(
+  content: ToolCallContent[] | undefined,
+): Extract<ToolCallContent, { type: "diff" }> | undefined {
+  return content?.find(
+    (item): item is Extract<ToolCallContent, { type: "diff" }> =>
+      item.type === "diff",
+  );
+}
+
+/**
+ * diff stats with bag of lines, these are computed for every changed file whenever the session events update
+ * so we want this to be fast
+ */
+function getDiffStats(
+  oldText: string | null | undefined,
+  newText: string | null | undefined,
+): { added?: number; removed?: number } {
+  if (!oldText && !newText) return {};
+
+  const oldLines = oldText ? oldText.split("\n") : [];
+  const newLines = newText ? newText.split("\n") : [];
+
+  if (!oldText) {
+    return { added: newLines.length, removed: 0 };
+  }
+
+  const oldCounts = new Map<string, number>();
+  for (const line of oldLines) {
+    oldCounts.set(line, (oldCounts.get(line) ?? 0) + 1);
+  }
+
+  const newCounts = new Map<string, number>();
+  for (const line of newLines) {
+    newCounts.set(line, (newCounts.get(line) ?? 0) + 1);
+  }
+
+  let added = 0;
+  let removed = 0;
+
+  for (const [line, count] of newCounts) {
+    const oldCount = oldCounts.get(line) ?? 0;
+    if (count > oldCount) added += count - oldCount;
+  }
+
+  for (const [line, count] of oldCounts) {
+    const newCount = newCounts.get(line) ?? 0;
+    if (count > newCount) removed += count - newCount;
+  }
+
+  return { added, removed };
+}
+
+export interface CloudEventSummary {
+  toolCalls: Map<string, ParsedToolCall>;
+  treeSnapshotFiles: ChangedFile[];
+}
+
+const TREE_SNAPSHOT_STATUS_MAP: Record<string, GitFileStatus> = {
+  A: "added",
+  M: "modified",
+  D: "deleted",
+};
+
+/**
+ * Single-pass extraction of tool calls and the last tree snapshot from events.
+ */
+export function buildCloudEventSummary(
+  events: AcpMessage[],
+): CloudEventSummary {
+  const toolCalls = new Map<string, ParsedToolCall>();
+  let treeSnapshotFiles: ChangedFile[] = [];
+
+  for (const event of events) {
+    const message = event.message;
+    if (!isJsonRpcNotification(message)) continue;
+
+    if (message.method === "session/update") {
+      const params = message.params as
+        | { update?: Record<string, unknown> }
+        | undefined;
+      const update = params?.update;
+      if (!update || typeof update !== "object") continue;
+
+      const sessionUpdate = update.sessionUpdate;
+      if (
+        sessionUpdate !== "tool_call" &&
+        sessionUpdate !== "tool_call_update"
+      ) {
+        continue;
+      }
+
+      const toolCallId =
+        typeof update.toolCallId === "string" ? update.toolCallId : undefined;
+      if (!toolCallId) continue;
+
+      const patch: Partial<ParsedToolCall> = {
+        toolCallId,
+        kind: typeof update.kind === "string" ? update.kind : null,
+        title: typeof update.title === "string" ? update.title : undefined,
+        status: typeof update.status === "string" ? update.status : null,
+        locations: Array.isArray(update.locations)
+          ? (update.locations as ToolCallLocation[])
+          : undefined,
+        content: Array.isArray(update.content)
+          ? (update.content as ToolCallContent[])
+          : undefined,
+      };
+
+      const merged = mergeToolCall(toolCalls.get(toolCallId), patch);
+      toolCalls.set(toolCallId, merged);
+    } else if (isPosthogMethod(message.method, "tree_snapshot")) {
+      const params = message.params as
+        | {
+            changes?: Array<{ path: string; status: "A" | "M" | "D" }>;
+          }
+        | undefined;
+      const changes = params?.changes;
+      if (!Array.isArray(changes) || changes.length === 0) continue;
+
+      // Overwrite — we only care about the last snapshot
+      treeSnapshotFiles = changes
+        .filter((c) => c.path && c.status in TREE_SNAPSHOT_STATUS_MAP)
+        .map((c) => ({
+          path: c.path,
+          status: TREE_SNAPSHOT_STATUS_MAP[c.status],
+        }));
+    }
+  }
+
+  return { toolCalls, treeSnapshotFiles };
+}
+
+export function extractCloudFileDiff(
+  toolCalls: Map<string, ParsedToolCall>,
+  filePath: string,
+): { oldText: string | null; newText: string | null } | null {
+  // Iterate forward to compute cumulative diff:
+  // oldText from the *first* tool call, newText from the *last*.
+  let firstOldText: string | null | undefined;
+  let lastNewText: string | null | undefined;
+  let found = false;
+
+  for (const toolCall of toolCalls.values()) {
+    if (toolCall.status === "failed") continue;
+
+    const kind = inferKind(toolCall.kind, toolCall.title);
+    if (!kind || !["write", "edit", "delete", "move"].includes(kind)) continue;
+
+    const diff = getDiffContent(toolCall.content);
+    const locationPath = toolCall.locations?.[0]?.path;
+    const destinationPath = toolCall.locations?.[1]?.path;
+    const path =
+      diff?.path ?? (kind === "move" ? destinationPath : locationPath);
+    if (!pathsMatch(path, filePath)) continue;
+
+    if (!found) {
+      firstOldText = diff?.oldText ?? null;
+      found = true;
+    }
+    lastNewText = diff?.newText ?? null;
+  }
+
+  if (!found) return null;
+
+  return {
+    oldText: firstOldText ?? null,
+    newText: lastNewText ?? null,
+  };
+}
+
+function isPosthogMethod(method: string, name: string): boolean {
+  return method === `_posthog/${name}` || method === `__posthog/${name}`;
+}
+
+export function extractCloudToolChangedFiles(
+  toolCalls: Map<string, ParsedToolCall>,
+): ChangedFile[] {
+  const filesByPath = new Map<string, ChangedFile>();
+
+  for (const toolCall of toolCalls.values()) {
+    if (toolCall.status === "failed") continue;
+
+    const kind = inferKind(toolCall.kind, toolCall.title);
+    if (!kind || !["write", "edit", "delete", "move"].includes(kind)) {
+      continue;
+    }
+
+    const diff = getDiffContent(toolCall.content);
+    const locationPath = toolCall.locations?.[0]?.path;
+    const destinationPath = toolCall.locations?.[1]?.path;
+    const path =
+      diff?.path ?? (kind === "move" ? destinationPath : locationPath);
+    if (!path) continue;
+
+    let file: ChangedFile;
+    if (kind === "move") {
+      file = {
+        path,
+        originalPath: locationPath,
+        status: "renamed",
+      };
+    } else if (kind === "delete") {
+      file = {
+        path,
+        status: "deleted",
+      };
+    } else {
+      const diffStats = getDiffStats(diff?.oldText, diff?.newText);
+      file = {
+        path,
+        status: kind === "write" && !diff?.oldText ? "added" : "modified",
+        linesAdded: diffStats.added,
+        linesRemoved: diffStats.removed,
+      };
+    }
+
+    // Delete and re-insert so the last tool call for a path appears at the end of iteration order
+    if (filesByPath.has(path)) {
+      filesByPath.delete(path);
+    }
+    filesByPath.set(path, file);
+  }
+
+  return [...filesByPath.values()];
+}

@@ -1,13 +1,20 @@
 import { FileIcon } from "@components/ui/FileIcon";
 import { PanelMessage } from "@components/ui/PanelMessage";
-import { isFileTabActiveInTree, usePanelLayoutStore } from "@features/panels";
+import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
+import { isFileTabActiveInTree } from "@features/panels/store/panelStoreHelpers";
 import {
   selectIsPathExpanded,
   useFileTreeStore,
 } from "@features/right-sidebar/stores/fileTreeStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
-import { CaretRight, FolderIcon, FolderOpenIcon } from "@phosphor-icons/react";
-import { Box, Flex } from "@radix-ui/themes";
+import { useCloudRunState } from "@features/task-detail/hooks/useCloudRunState";
+import {
+  CaretRight,
+  Cloud,
+  FolderIcon,
+  FolderOpenIcon,
+} from "@phosphor-icons/react";
+import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
 import { useWorkspaceStore } from "@renderer/features/workspace/stores/workspaceStore";
 import { trpcReact, trpcVanilla } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
@@ -179,7 +186,69 @@ function LazyTreeItem({
   );
 }
 
-export function FileTreePanel({ taskId, task: _task }: FileTreePanelProps) {
+function CloudFileTreePanel({ taskId, task }: FileTreePanelProps) {
+  const { prUrl, effectiveBranch, repo, isRunActive, fallbackFiles } =
+    useCloudRunState(taskId, task);
+
+  const hasFallbackChanges = fallbackFiles.length > 0;
+
+  if (isRunActive && !hasFallbackChanges) {
+    return (
+      <PanelMessage detail="Files are in the cloud sandbox">
+        <Flex align="center" gap="2">
+          <Spinner size="1" />
+          <Text size="2">Running in cloud...</Text>
+        </Flex>
+      </PanelMessage>
+    );
+  }
+
+  const githubUrl = prUrl
+    ? `${prUrl}/files`
+    : repo && effectiveBranch
+      ? `https://github.com/${repo}/tree/${effectiveBranch}`
+      : null;
+
+  return (
+    <PanelMessage detail="Files are in the cloud sandbox">
+      <Flex direction="column" align="center" gap="2">
+        <Flex align="center" gap="2">
+          <Cloud size={16} weight="regular" />
+          <Text size="2">
+            {hasFallbackChanges
+              ? `${fallbackFiles.length} file${fallbackFiles.length === 1 ? "" : "s"} changed in cloud sandbox`
+              : "Files are in the cloud sandbox"}
+          </Text>
+        </Flex>
+        {githubUrl && (
+          <Button
+            size="1"
+            variant="soft"
+            onClick={() =>
+              trpcVanilla.os.openExternal.mutate({ url: githubUrl })
+            }
+          >
+            View on GitHub
+          </Button>
+        )}
+      </Flex>
+    </PanelMessage>
+  );
+}
+
+export function FileTreePanel({ taskId, task }: FileTreePanelProps) {
+  const workspace = useWorkspaceStore((s) => s.workspaces[taskId]);
+  const isCloud =
+    workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
+
+  if (isCloud) {
+    return <CloudFileTreePanel taskId={taskId} task={task} />;
+  }
+
+  return <LocalFileTreePanel taskId={taskId} task={task} />;
+}
+
+function LocalFileTreePanel({ taskId, task: _task }: FileTreePanelProps) {
   const workspace = useWorkspaceStore((s) => s.workspaces[taskId]);
   const repoPath = useCwd(taskId);
   const mainRepoPath = workspace?.folderPath;

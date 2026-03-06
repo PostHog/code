@@ -7,10 +7,14 @@ import {
   useGitQueries,
 } from "@features/git-interaction/hooks/useGitQueries";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
-import { isDiffTabActiveInTree, usePanelLayoutStore } from "@features/panels";
+import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
+import {
+  isCloudDiffTabActiveInTree,
+  isDiffTabActiveInTree,
+} from "@features/panels/store/panelStoreHelpers";
 import { usePendingPermissionsForTask } from "@features/sessions/stores/sessionStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
-import { useTasks } from "@features/tasks/hooks/useTasks";
+import { useCloudRunState } from "@features/task-detail/hooks/useCloudRunState";
 import { useFocusWorkspace } from "@features/workspace/hooks/useFocusWorkspace";
 import {
   ArrowCounterClockwiseIcon,
@@ -38,7 +42,7 @@ import { useExternalAppsStore } from "@stores/externalAppsStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { showMessageBox } from "@utils/dialog";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 interface ChangesPanelProps {
@@ -388,18 +392,27 @@ function ChangedFileItem({
 
 function CloudChangedFileItem({
   file,
-  prUrl,
+  taskId,
+  isActive,
 }: {
   file: ChangedFile;
-  prUrl: string;
+  taskId: string;
+  isActive: boolean;
 }) {
+  const openCloudDiffByMode = usePanelLayoutStore(
+    (state) => state.openCloudDiffByMode,
+  );
   const fileName = file.path.split("/").pop() || file.path;
   const indicator = getStatusIndicator(file.status);
   const hasLineStats =
     file.linesAdded !== undefined || file.linesRemoved !== undefined;
 
   const handleClick = () => {
-    trpcVanilla.os.openExternal.mutate({ url: `${prUrl}/files` });
+    openCloudDiffByMode(taskId, file.path, file.status);
+  };
+
+  const handleDoubleClick = () => {
+    openCloudDiffByMode(taskId, file.path, file.status, false);
   };
 
   return (
@@ -412,7 +425,12 @@ function CloudChangedFileItem({
         align="center"
         gap="1"
         onClick={handleClick}
-        className="border-transparent border-y hover:bg-gray-3"
+        onDoubleClick={handleDoubleClick}
+        className={
+          isActive
+            ? "border-accent-8 border-y bg-accent-4"
+            : "border-transparent border-y hover:bg-gray-3"
+        }
         style={{
           cursor: "pointer",
           whiteSpace: "nowrap",
@@ -485,17 +503,15 @@ function CloudChangedFileItem({
 }
 
 function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
-  // Resolve freshest task data — the prop may be stale (e.g. right sidebar
-  // receives the initial navigation snapshot before output.pr_url is set).
-  const { data: tasks = [] } = useTasks();
-  const freshTask = useMemo(
-    () => tasks.find((t) => t.id === taskId) ?? task,
-    [tasks, taskId, task],
-  );
+  const { prUrl, effectiveBranch, repo, isRunActive, fallbackFiles } =
+    useCloudRunState(taskId, task);
 
-  const prUrl = (freshTask.latest_run?.output?.pr_url as string) ?? null;
-  const branch = freshTask.latest_run?.branch ?? null;
-  const repo = freshTask.repository ?? null;
+  const layout = usePanelLayoutStore((state) => state.getLayout(taskId));
+
+  const isFileActive = (file: ChangedFile): boolean => {
+    if (!layout) return false;
+    return isCloudDiffTabActiveInTree(layout.panelTree, file.path, file.status);
+  };
 
   // PR-based files (preferred when PR exists, to avoid possible state weirdness)
   const {
@@ -504,26 +520,42 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
     isError: prError,
   } = useCloudPrChangedFiles(prUrl);
 
-  // Branch-based files (no PR)
+  // Branch-based files — use effectiveBranch (includes live cloudBranch)
   const {
     data: branchFiles,
     isPending: branchPending,
     isError: branchError,
-  } = useCloudBranchChangedFiles(!prUrl ? repo : null, !prUrl ? branch : null);
+  } = useCloudBranchChangedFiles(
+    !prUrl ? repo : null,
+    !prUrl ? effectiveBranch : null,
+  );
 
   const changedFiles = prUrl ? (prFiles ?? []) : (branchFiles ?? []);
-  const isLoading = prUrl ? prPending : branchPending;
-  const hasError = prUrl ? prError : branchError;
+  const isLoading = prUrl ? prPending : effectiveBranch ? branchPending : false;
+  const hasError = prUrl ? prError : effectiveBranch ? branchError : false;
 
-  if (!prUrl && !branch) {
+  const effectiveFiles = changedFiles.length > 0 ? changedFiles : fallbackFiles;
+
+  // No branch/PR yet and run is active — show waiting state
+  if (!prUrl && !effectiveBranch && effectiveFiles.length === 0) {
+    if (isRunActive) {
+      return (
+        <PanelMessage detail="Changes will appear once the agent starts writing code">
+          <Flex align="center" gap="2">
+            <Spinner size="1" />
+            <Text size="2">Waiting for changes...</Text>
+          </Flex>
+        </PanelMessage>
+      );
+    }
     return <PanelMessage>No file changes yet</PanelMessage>;
   }
 
-  if (isLoading) {
+  if (isLoading && effectiveFiles.length === 0) {
     return <PanelMessage>Loading changes...</PanelMessage>;
   }
 
-  if (changedFiles.length === 0) {
+  if (effectiveFiles.length === 0) {
     if (hasError && prUrl) {
       return (
         <PanelMessage>
@@ -541,19 +573,38 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
     if (prUrl) {
       return <PanelMessage>No file changes in pull request</PanelMessage>;
     }
+    if (isRunActive) {
+      return (
+        <PanelMessage detail="Changes will appear as the agent modifies files">
+          <Flex align="center" gap="2">
+            <Spinner size="1" />
+            <Text size="2">Waiting for changes...</Text>
+          </Flex>
+        </PanelMessage>
+      );
+    }
     return <PanelMessage>No file changes yet</PanelMessage>;
   }
 
   return (
     <Box height="100%" overflowY="auto" py="2">
       <Flex direction="column">
-        {changedFiles.map((file) => (
+        {effectiveFiles.map((file) => (
           <CloudChangedFileItem
             key={file.path}
             file={file}
-            prUrl={prUrl ?? `https://github.com/${repo}/tree/${branch}`}
+            taskId={taskId}
+            isActive={isFileActive(file)}
           />
         ))}
+        {isRunActive && (
+          <Flex align="center" gap="2" px="3" py="2">
+            <Spinner size="1" />
+            <Text size="1" color="gray">
+              Agent is still running...
+            </Text>
+          </Flex>
+        )}
       </Flex>
     </Box>
   );
@@ -561,8 +612,10 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
 
 export function ChangesPanel({ taskId, task }: ChangesPanelProps) {
   const workspace = useWorkspaceStore((s) => s.workspaces[taskId]);
+  const isCloud =
+    workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
 
-  if (workspace?.mode === "cloud") {
+  if (isCloud) {
     return <CloudChangesPanel taskId={taskId} task={task} />;
   }
 

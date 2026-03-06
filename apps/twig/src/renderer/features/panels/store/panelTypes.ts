@@ -34,6 +34,11 @@ export type TabData =
       scriptType: "init" | "start";
     }
   | {
+      type: "cloud-diff";
+      relativePath: string;
+      status: GitFileStatus;
+    }
+  | {
       type: "logs";
     }
   | {
