@@ -13,7 +13,6 @@ import {
   ViewVerticalIcon,
 } from "@radix-ui/react-icons";
 import { Flex, Text } from "@radix-ui/themes";
-import { track } from "@renderer/lib/analytics";
 import {
   ANALYTICS_EVENTS,
   type CommandMenuAction,
@@ -21,6 +20,7 @@ import {
 import { useNavigationStore } from "@stores/navigationStore";
 import { useRegisteredFoldersStore } from "@stores/registeredFoldersStore";
 import { THEME_CYCLE_LABELS, useThemeStore } from "@stores/themeStore";
+import { track } from "@utils/analytics";
 import { useCallback, useEffect, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 

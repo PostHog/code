@@ -23,6 +23,7 @@ export class DiscardFileChangesSaga extends GitSaga<
   DiscardFileChangesInput,
   DiscardFileChangesOutput
 > {
+  readonly sagaName = "DiscardFileChangesSaga";
   private backupContent: Buffer | null = null;
   private backupStashSha: string | null = null;
   private stashCountBefore = 0;

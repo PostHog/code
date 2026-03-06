@@ -1,6 +1,6 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
-import { logger } from "@renderer/lib/logger";
 import { useQuery } from "@tanstack/react-query";
+import { logger } from "@utils/logger";
 import { useEffect, useMemo } from "react";
 
 const log = logger.scope("useProjects");

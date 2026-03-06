@@ -47,6 +47,8 @@ export class CaptureCheckpointSaga extends GitSaga<
   CaptureCheckpointInput,
   CaptureCheckpointOutput
 > {
+  readonly sagaName = "CaptureCheckpointSaga";
+
   protected async executeGitOperations(
     input: CaptureCheckpointInput,
   ): Promise<CaptureCheckpointOutput> {
@@ -168,6 +170,8 @@ export class RevertCheckpointSaga extends GitSaga<
   RevertCheckpointInput,
   RevertCheckpointOutput
 > {
+  readonly sagaName = "RevertCheckpointSaga";
+
   protected async executeGitOperations(
     input: RevertCheckpointInput,
   ): Promise<RevertCheckpointOutput> {
@@ -307,6 +311,8 @@ export class DiffCheckpointSaga extends GitSaga<
   DiffCheckpointInput,
   DiffCheckpointOutput
 > {
+  readonly sagaName = "DiffCheckpointSaga";
+
   protected async executeGitOperations(
     input: DiffCheckpointInput,
   ): Promise<DiffCheckpointOutput> {

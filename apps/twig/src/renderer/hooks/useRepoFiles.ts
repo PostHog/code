@@ -1,6 +1,6 @@
-import { queryClient } from "@renderer/lib/queryClient";
 import { trpcReact, trpcVanilla } from "@renderer/trpc/client";
 import type { MentionItem } from "@shared/types";
+import { queryClient } from "@utils/queryClient";
 import { byLengthAsc, Fzf } from "fzf";
 import { useMemo } from "react";
 

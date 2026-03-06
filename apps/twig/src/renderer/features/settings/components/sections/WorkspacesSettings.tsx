@@ -1,9 +1,9 @@
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import { SettingRow } from "@features/settings/components/SettingRow";
 import { Flex } from "@radix-ui/themes";
-import { logger } from "@renderer/lib/logger";
 import { trpcVanilla } from "@renderer/trpc";
 import { useQuery } from "@tanstack/react-query";
+import { logger } from "@utils/logger";
 import { useEffect, useState } from "react";
 
 const log = logger.scope("workspaces-settings");

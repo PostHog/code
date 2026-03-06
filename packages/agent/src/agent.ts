@@ -36,6 +36,12 @@ export class Agent {
         logger: this.logger.child("SessionLogWriter"),
         localCachePath: config.localCachePath,
       });
+
+      if (config.localCachePath) {
+        SessionLogWriter.cleanupOldSessions(config.localCachePath).catch(
+          () => {},
+        );
+      }
     }
   }
 
@@ -69,7 +75,9 @@ export class Agent {
     options: TaskExecutionOptions = {},
   ): Promise<InProcessAcpConnection> {
     const gatewayConfig = this._configureLlmGateway(options.adapter);
-    this.logger.info("Configured LLM gateway", options);
+    this.logger.info("Configured LLM gateway", {
+      adapter: options.adapter,
+    });
     this.taskRunId = taskRunId;
 
     let allowedModelIds: Set<string> | undefined;

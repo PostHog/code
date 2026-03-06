@@ -1,7 +1,7 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { ShieldWarning } from "@phosphor-icons/react";
 import { Button, Dialog, Flex, Text } from "@radix-ui/themes";
-import { logger } from "@renderer/lib/logger";
+import { logger } from "@utils/logger";
 import { useState } from "react";
 
 const log = logger.scope("scope-reauth-prompt");

@@ -2,12 +2,12 @@ import { getSessionService } from "@features/sessions/service/service";
 import { usePinnedTasksStore } from "@features/sidebar/stores/pinnedTasksStore";
 import { useTerminalStore } from "@features/terminal/stores/terminalStore";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
-import { logger } from "@renderer/lib/logger";
 import { trpcVanilla } from "@renderer/trpc";
 import type { ArchivedTask } from "@shared/types/archive";
 import { useFocusStore } from "@stores/focusStore";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useQueryClient } from "@tanstack/react-query";
+import { logger } from "@utils/logger";
 import { toast } from "@utils/toast";
 
 const log = logger.scope("archive-task");

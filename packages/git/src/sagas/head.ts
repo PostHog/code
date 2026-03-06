@@ -8,6 +8,8 @@ export interface DetachHeadOutput {
 }
 
 export class DetachHeadSaga extends GitSaga<DetachHeadInput, DetachHeadOutput> {
+  readonly sagaName = "DetachHeadSaga";
+
   protected async executeGitOperations(
     _input: DetachHeadInput,
   ): Promise<DetachHeadOutput> {
@@ -49,6 +51,7 @@ export class ReattachBranchSaga extends GitSaga<
   ReattachBranchInput,
   ReattachBranchOutput
 > {
+  readonly sagaName = "ReattachBranchSaga";
   private branchExistedBefore = false;
   private originalBranchSha: string | null = null;
 

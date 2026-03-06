@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 import path from "node:path";
 import type { SessionContext } from "./otel-log-writer.js";
 import type { PostHogAPIClient } from "./posthog-api.js";
@@ -30,6 +31,7 @@ export class SessionLogWriter {
   private static readonly FLUSH_MAX_INTERVAL_MS = 5000;
   private static readonly MAX_FLUSH_RETRIES = 10;
   private static readonly MAX_RETRY_DELAY_MS = 30_000;
+  private static readonly SESSIONS_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
   private posthogAPI?: PostHogAPIClient;
   private pendingEntries: Map<string, StoredNotification[]> = new Map();
@@ -196,10 +198,16 @@ export class SessionLogWriter {
         );
         this.retryCounts.set(sessionId, 0);
       } else {
-        this.logger.error(
-          `Failed to persist session logs (attempt ${retryCount}/${SessionLogWriter.MAX_FLUSH_RETRIES}):`,
-          error,
-        );
+        if (retryCount === 1) {
+          this.logger.warn(
+            `Failed to persist session logs, will retry (up to ${SessionLogWriter.MAX_FLUSH_RETRIES} attempts)`,
+            {
+              taskId: session.context.taskId,
+              runId: session.context.runId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          );
+        }
         const currentPending = this.pendingEntries.get(sessionId) ?? [];
         this.pendingEntries.set(sessionId, [...pending, ...currentPending]);
         this.scheduleFlush(sessionId);
@@ -343,5 +351,32 @@ export class SessionLogWriter {
         error,
       });
     }
+  }
+
+  static async cleanupOldSessions(localCachePath: string): Promise<number> {
+    const sessionsDir = path.join(localCachePath, "sessions");
+    let deleted = 0;
+    try {
+      const entries = await fsp.readdir(sessionsDir);
+      const now = Date.now();
+      for (const entry of entries) {
+        const entryPath = path.join(sessionsDir, entry);
+        try {
+          const stats = await fsp.stat(entryPath);
+          if (
+            stats.isDirectory() &&
+            now - stats.birthtimeMs > SessionLogWriter.SESSIONS_MAX_AGE_MS
+          ) {
+            await fsp.rm(entryPath, { recursive: true, force: true });
+            deleted++;
+          }
+        } catch {
+          // Skip entries we can't stat
+        }
+      }
+    } catch {
+      // Sessions dir may not exist yet
+    }
+    return deleted;
   }
 }

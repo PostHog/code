@@ -374,7 +374,7 @@ vi.mock("node-pty", () => mockPty);
 
 **Simple module mocks:**
 ```typescript
-vi.mock("@renderer/lib/analytics", () => ({ track: vi.fn() }));
+vi.mock("@utils/analytics", () => ({ track: vi.fn() }));
 ```
 
 **Global fetch stubbing:**
@@ -410,9 +410,7 @@ apps/twig/src/
 │   ├── hooks/                # Custom React hooks
 │   ├── components/           # Shared components
 │   ├── trpc/client.ts        # tRPC client setup
-│   └── lib/
-│       ├── analytics.ts      # PostHog integration
-│       └── logger.ts
+│   └── utils/                # Utilities, logger, analytics, etc.
 ├── shared/                   # Shared between main & renderer
 │   ├── types.ts              # Shared type definitions
 │   └── constants.ts

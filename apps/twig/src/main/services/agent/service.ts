@@ -1,4 +1,4 @@
-import fs, { existsSync, mkdirSync, symlinkSync } from "node:fs";
+import fs, { mkdirSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
@@ -381,7 +381,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         return true;
       }
     }
-    log.info("No active sessions found");
+    log.debug("No active sessions found");
     return false;
   }
 
@@ -880,6 +880,14 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     session.promptPending = true;
     this.sleepService.acquire(sessionId);
 
+    const promptJson = JSON.stringify(finalPrompt);
+    log.info("Sending prompt to agent", {
+      sessionId,
+      blockCount: finalPrompt.length,
+      blocks: promptJson.slice(0, 10000),
+      totalSize: promptJson.length,
+    });
+
     try {
       const result = await session.clientSideConnection.prompt({
         sessionId: getAgentSessionId(session),
@@ -1143,8 +1151,16 @@ For git operations while detached:
       try {
         mkdirSync(SHARED_MOCK_NODE_DIR, { recursive: true });
         const nodeSymlinkPath = join(SHARED_MOCK_NODE_DIR, "node");
-        if (!existsSync(nodeSymlinkPath)) {
+        try {
           symlinkSync(process.execPath, nodeSymlinkPath);
+        } catch (err) {
+          if (
+            !(err instanceof Error) ||
+            !("code" in err) ||
+            err.code !== "EEXIST"
+          ) {
+            throw err;
+          }
         }
         this.mockNodeReady = true;
       } catch (err) {

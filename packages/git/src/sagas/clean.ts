@@ -12,6 +12,7 @@ export class CleanWorkingTreeSaga extends GitSaga<
   CleanWorkingTreeInput,
   CleanWorkingTreeOutput
 > {
+  readonly sagaName = "CleanWorkingTreeSaga";
   private backupStashCreated = false;
   private stashCountBefore = 0;
 

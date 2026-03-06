@@ -35,6 +35,7 @@ export class CaptureTreeSaga extends GitSaga<
   CaptureTreeInput,
   CaptureTreeOutput
 > {
+  readonly sagaName = "CaptureTreeSaga";
   private tempIndexPath: string | null = null;
 
   protected async executeGitOperations(
@@ -217,6 +218,7 @@ export interface ApplyTreeOutput {
 }
 
 export class ApplyTreeSaga extends GitSaga<ApplyTreeInput, ApplyTreeOutput> {
+  readonly sagaName = "ApplyTreeSaga";
   private originalHead: string | null = null;
   private originalBranch: string | null = null;
   private extractedFiles: string[] = [];
@@ -384,6 +386,8 @@ export interface ReadTreeOutput {
 }
 
 export class ReadTreeSaga extends GitSaga<ReadTreeInput, ReadTreeOutput> {
+  readonly sagaName = "ReadTreeSaga";
+
   protected async executeGitOperations(
     input: ReadTreeInput,
   ): Promise<ReadTreeOutput> {

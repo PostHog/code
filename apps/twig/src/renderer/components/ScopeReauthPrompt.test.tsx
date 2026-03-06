@@ -27,13 +27,13 @@ vi.mock("@renderer/trpc/client", () => ({
   },
 }));
 
-vi.mock("@renderer/lib/analytics", () => ({
+vi.mock("@utils/analytics", () => ({
   identifyUser: vi.fn(),
   resetUser: vi.fn(),
   track: vi.fn(),
 }));
 
-vi.mock("@renderer/lib/logger", () => ({
+vi.mock("@utils/logger", () => ({
   logger: {
     scope: () => ({
       info: vi.fn(),
@@ -44,7 +44,7 @@ vi.mock("@renderer/lib/logger", () => ({
   },
 }));
 
-vi.mock("@renderer/lib/queryClient", () => ({
+vi.mock("@utils/queryClient", () => ({
   queryClient: {
     clear: vi.fn(),
     setQueryData: vi.fn(),

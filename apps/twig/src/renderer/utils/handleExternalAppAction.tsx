@@ -1,9 +1,9 @@
 import type { ExternalAppAction } from "@main/services/context-menu/schemas";
-import { logger } from "@renderer/lib/logger";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { Workspace } from "@shared/types";
 import { useExternalAppsStore } from "@stores/externalAppsStore";
 import { useFocusStore } from "@stores/focusStore";
+import { logger } from "@utils/logger";
 import { toast } from "@utils/toast";
 import { showFocusSuccessToast } from "./focusToast";
 

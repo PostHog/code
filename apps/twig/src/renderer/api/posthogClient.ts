@@ -1,4 +1,3 @@
-import { logger } from "@renderer/lib/logger";
 import type {
   RepoAutonomyStatus,
   SignalReportArtefact,
@@ -10,6 +9,7 @@ import type {
   TaskRun,
 } from "@shared/types";
 import type { StoredLogEntry } from "@shared/types/session-events";
+import { logger } from "@utils/logger";
 import { buildApiFetcher } from "./fetcher";
 import { createApiClient, type Schemas } from "./generated";
 

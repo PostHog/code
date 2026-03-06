@@ -12,6 +12,7 @@ export interface PullOutput {
 }
 
 export class PullSaga extends GitSaga<PullInput, PullOutput> {
+  readonly sagaName = "PullSaga";
   private stashCreated = false;
 
   protected async executeGitOperations(input: PullInput): Promise<PullOutput> {

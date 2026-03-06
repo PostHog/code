@@ -12,11 +12,11 @@ import type {
 } from "@features/git-interaction/types";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
-import { track } from "@renderer/lib/analytics";
-import { logger } from "@renderer/lib/logger";
 import { trpcVanilla } from "@renderer/trpc";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useQueryClient } from "@tanstack/react-query";
+import { track } from "@utils/analytics";
+import { logger } from "@utils/logger";
 import { useMemo } from "react";
 
 const log = logger.scope("git-interaction");

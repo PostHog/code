@@ -135,8 +135,8 @@ vi.mock("@features/sidebar/stores/taskViewedStore", () => ({
   },
 }));
 
-vi.mock("@renderer/lib/analytics", () => ({ track: vi.fn() }));
-vi.mock("@renderer/lib/logger", () => ({
+vi.mock("@utils/analytics", () => ({ track: vi.fn() }));
+vi.mock("@utils/logger", () => ({
   logger: {
     scope: () => ({
       info: vi.fn(),
@@ -146,7 +146,7 @@ vi.mock("@renderer/lib/logger", () => ({
     }),
   },
 }));
-vi.mock("@renderer/lib/notifications", () => ({
+vi.mock("@utils/notifications", () => ({
   notifyPermissionRequest: vi.fn(),
   notifyPromptComplete: vi.fn(),
 }));

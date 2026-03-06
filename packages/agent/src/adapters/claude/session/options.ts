@@ -140,6 +140,7 @@ function buildSpawnWrapper(
   sessionId: string,
   onProcessSpawned: (info: ProcessSpawnedInfo) => void,
   onProcessExited?: (pid: number) => void,
+  logger?: Logger,
 ): (options: SpawnOptions) => SpawnedProcess {
   return (spawnOpts: SpawnOptions): SpawnedProcess => {
     const child = spawn(spawnOpts.command, spawnOpts.args, {
@@ -155,6 +156,13 @@ function buildSpawnWrapper(
         sessionId,
       });
     }
+
+    child.stderr?.on("data", (data: Buffer) => {
+      const msg = data.toString().trim();
+      if (msg && logger) {
+        logger.debug(`[claude-code:${child.pid}] stderr: ${msg}`);
+      }
+    });
 
     if (onProcessExited) {
       child.on("exit", () => {
@@ -256,6 +264,7 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
         params.sessionId,
         params.onProcessSpawned,
         params.onProcessExited,
+        params.logger,
       ),
     }),
   };

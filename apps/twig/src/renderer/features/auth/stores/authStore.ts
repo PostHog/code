@@ -1,14 +1,4 @@
 import { PostHogAPIClient } from "@renderer/api/posthogClient";
-import {
-  identifyUser,
-  isFeatureFlagEnabled,
-  reloadFeatureFlags,
-  resetUser,
-  track,
-} from "@renderer/lib/analytics";
-import { electronStorage } from "@renderer/lib/electronStorage";
-import { logger } from "@renderer/lib/logger";
-import { queryClient } from "@renderer/lib/queryClient";
 import { trpcVanilla } from "@renderer/trpc/client";
 import {
   getCloudUrlFromRegion,
@@ -21,6 +11,16 @@ import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { CloudRegion } from "@shared/types/oauth";
 import { sleepWithBackoff } from "@shared/utils/backoff";
 import { useNavigationStore } from "@stores/navigationStore";
+import {
+  identifyUser,
+  isFeatureFlagEnabled,
+  reloadFeatureFlags,
+  resetUser,
+  track,
+} from "@utils/analytics";
+import { electronStorage } from "@utils/electronStorage";
+import { logger } from "@utils/logger";
+import { queryClient } from "@utils/queryClient";
 import { create } from "zustand";
 import { persist, subscribeWithSelector } from "zustand/middleware";
 

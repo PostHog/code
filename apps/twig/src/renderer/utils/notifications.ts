@@ -1,7 +1,7 @@
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
-import { logger } from "@renderer/lib/logger";
-import { playCompletionSound } from "@renderer/lib/sounds";
 import { trpcVanilla } from "@renderer/trpc/client";
+import { logger } from "@utils/logger";
+import { playCompletionSound } from "@utils/sounds";
 
 const log = logger.scope("notifications");
 

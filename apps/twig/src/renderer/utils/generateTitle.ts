@@ -1,7 +1,7 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
-import { logger } from "@renderer/lib/logger";
 import { trpcVanilla } from "@renderer/trpc";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import { logger } from "@utils/logger";
 
 const log = logger.scope("title-generator");
 

@@ -1,10 +1,10 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { getSessionService } from "@features/sessions/service/service";
 import { useSessionStore } from "@features/sessions/stores/sessionStore";
-import { logger } from "@renderer/lib/logger";
-import { queryClient } from "@renderer/lib/queryClient";
 import type { Task } from "@shared/types";
 import { generateTitle } from "@utils/generateTitle";
+import { logger } from "@utils/logger";
+import { queryClient } from "@utils/queryClient";
 import { extractUserPromptsFromEvents } from "@utils/session";
 import { useEffect, useRef } from "react";
 

@@ -1,7 +1,7 @@
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { Flex, Text, TextArea } from "@radix-ui/themes";
-import { track } from "@renderer/lib/analytics";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
+import { track } from "@utils/analytics";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const MAX_INSTRUCTIONS_LENGTH = 2000;

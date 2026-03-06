@@ -1,6 +1,6 @@
 import { useWorkspaceStore } from "@renderer/features/workspace/stores/workspaceStore";
-import { electronStorage } from "@renderer/lib/electronStorage";
 import { trpcVanilla } from "@renderer/trpc/client";
+import { electronStorage } from "@utils/electronStorage";
 import { omitKey } from "@utils/object";
 import { expandTildePath } from "@utils/path";
 import { create } from "zustand";

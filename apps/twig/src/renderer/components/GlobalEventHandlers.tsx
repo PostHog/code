@@ -9,14 +9,14 @@ import { useTasks } from "@features/tasks/hooks/useTasks";
 import { useFocusWorkspace } from "@features/workspace/hooks/useFocusWorkspace";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { SHORTCUTS } from "@renderer/constants/keyboard-shortcuts";
-import { clearApplicationStorage } from "@renderer/lib/clearStorage";
-import { logger } from "@renderer/lib/logger";
 import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
 import { trpcReact } from "@renderer/trpc";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { useCommandMenuStore } from "@stores/commandMenuStore";
 import { useNavigationStore } from "@stores/navigationStore";
+import { clearApplicationStorage } from "@utils/clearStorage";
+import { logger } from "@utils/logger";
 import { useCallback, useEffect, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 

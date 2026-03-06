@@ -1,8 +1,8 @@
 import { SettingRow } from "@features/settings/components/SettingRow";
 import { CheckCircle, XCircle } from "@phosphor-icons/react";
 import { Badge, Button, Flex, Spinner, Text } from "@radix-ui/themes";
-import { logger } from "@renderer/lib/logger";
 import { trpcReact } from "@renderer/trpc";
+import { logger } from "@utils/logger";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const log = logger.scope("updates-settings");

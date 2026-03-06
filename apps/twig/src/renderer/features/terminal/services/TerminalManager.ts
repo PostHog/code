@@ -1,5 +1,5 @@
-import { logger } from "@renderer/lib/logger";
 import { trpcVanilla } from "@renderer/trpc";
+import { logger } from "@utils/logger";
 import { isMac } from "@utils/platform";
 import { FitAddon } from "@xterm/addon-fit";
 import { SerializeAddon } from "@xterm/addon-serialize";

@@ -16,8 +16,8 @@ vi.mock("@renderer/trpc/client", () => ({
   },
 }));
 
-vi.mock("@renderer/lib/analytics", () => ({ track: vi.fn() }));
-vi.mock("@renderer/lib/logger", () => ({
+vi.mock("@utils/analytics", () => ({ track: vi.fn() }));
+vi.mock("@utils/logger", () => ({
   logger: { scope: () => ({ info: vi.fn(), error: vi.fn(), debug: vi.fn() }) },
 }));
 vi.mock("@features/task-detail/stores/taskExecutionStore", () => ({

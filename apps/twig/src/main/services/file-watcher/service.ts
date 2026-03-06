@@ -179,7 +179,7 @@ export class FileWatcherService extends TypedEventEmitter<FileWatcherEvents> {
         log.warn(`Failed to stop watcher: ${e}`),
       );
     } else {
-      log.error("Watcher error:", err);
+      log.debug("Watcher error:", err);
     }
   }
 

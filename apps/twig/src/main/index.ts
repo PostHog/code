@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import os from "node:os";
 import { app, powerMonitor } from "electron";
 import log from "electron-log/main";
 import "./utils/logger";
@@ -62,13 +63,25 @@ registerDeepLinkHandlers();
 initializePostHog();
 
 app.whenReady().then(() => {
-  log.info(`Twig electron v${app.getVersion()} booting up`);
+  const commit = __BUILD_COMMIT__ ?? "dev";
+  const buildDate = __BUILD_DATE__ ?? "dev";
+  log.info(
+    [
+      `Twig electron v${app.getVersion()} booting up`,
+      `Commit: ${commit}`,
+      `Date: ${buildDate}`,
+      `Electron: ${process.versions.electron}`,
+      `Chromium: ${process.versions.chrome}`,
+      `Node.js: ${process.versions.node}`,
+      `V8: ${process.versions.v8}`,
+      `OS: ${process.platform} ${process.arch} ${os.release()}`,
+    ].join(" | "),
+  );
   migrateTaskAssociations();
   ensureClaudeConfigDir();
   createWindow();
   initializeServices();
   initializeDeepLinks();
-
   powerMonitor.on("suspend", () => {
     log.info("System entering sleep");
   });
@@ -152,7 +165,6 @@ process.on("SIGHUP", () => handleShutdownSignal("SIGHUP"));
 process.on("uncaughtException", (error) => {
   if (error.message === "write EIO") {
     log.transports.console.level = false;
-    log.error("Stdout pipe broken during shutdown (write EIO)");
     return;
   }
   log.error("Uncaught exception", error);

@@ -87,6 +87,8 @@ export class UpdateSkillsSaga extends Saga<
   UpdateSkillsInput,
   UpdateSkillsOutput
 > {
+  readonly sagaName = "UpdateSkillsSaga";
+
   protected async execute(
     input: UpdateSkillsInput,
   ): Promise<UpdateSkillsOutput> {

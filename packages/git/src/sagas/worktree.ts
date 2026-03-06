@@ -24,6 +24,8 @@ export class CreateWorktreeSaga extends GitSaga<
   CreateWorktreeInput,
   CreateWorktreeOutput
 > {
+  readonly sagaName = "CreateWorktreeSaga";
+
   protected async executeGitOperations(
     input: CreateWorktreeInput,
   ): Promise<CreateWorktreeOutput> {
@@ -114,6 +116,8 @@ export class CreateWorktreeForBranchSaga extends GitSaga<
   CreateWorktreeForBranchInput,
   CreateWorktreeForBranchOutput
 > {
+  readonly sagaName = "CreateWorktreeForBranchSaga";
+
   protected async executeGitOperations(
     input: CreateWorktreeForBranchInput,
   ): Promise<CreateWorktreeForBranchOutput> {
@@ -195,6 +199,8 @@ export class DeleteWorktreeSaga extends GitSaga<
   DeleteWorktreeInput,
   DeleteWorktreeOutput
 > {
+  readonly sagaName = "DeleteWorktreeSaga";
+
   protected async executeGitOperations(
     input: DeleteWorktreeInput,
   ): Promise<DeleteWorktreeOutput> {

@@ -1,5 +1,5 @@
-import { logger } from "@renderer/lib/logger";
 import { trpcVanilla } from "@renderer/trpc/client";
+import { logger } from "@utils/logger";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 
@@ -86,7 +86,6 @@ export function initializeConnectivityStore() {
     undefined,
     {
       onData: (status) => {
-        log.info("Connectivity status changed", { isOnline: status.isOnline });
         useConnectivityStore.getState().setOnline(status.isOnline);
       },
       onError: (error) => {

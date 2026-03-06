@@ -1,5 +1,5 @@
 import type { FocusResult, FocusSession } from "@main/services/focus/schemas";
-import { queryClient } from "@renderer/lib/queryClient";
+import { queryClient } from "@utils/queryClient";
 import { create } from "zustand";
 import {
   type FocusSagaResult,

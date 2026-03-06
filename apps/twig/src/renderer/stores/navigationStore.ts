@@ -1,12 +1,12 @@
 import { useTaskExecutionStore } from "@features/task-detail/stores/taskExecutionStore";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
-import { track } from "@renderer/lib/analytics";
-import { electronStorage } from "@renderer/lib/electronStorage";
-import { logger } from "@renderer/lib/logger";
 import type { Task, WorkspaceMode } from "@shared/types";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useRegisteredFoldersStore } from "@stores/registeredFoldersStore";
 import { useTaskDirectoryStore } from "@stores/taskDirectoryStore";
+import { track } from "@utils/analytics";
+import { electronStorage } from "@utils/electronStorage";
+import { logger } from "@utils/logger";
 import { getTaskRepository } from "@utils/repository";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";

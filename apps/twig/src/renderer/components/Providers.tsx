@@ -1,7 +1,7 @@
 import { ThemeWrapper } from "@components/ThemeWrapper";
-import { queryClient } from "@renderer/lib/queryClient";
 import { createTrpcClient, trpcReact } from "@renderer/trpc";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@utils/queryClient";
 import type React from "react";
 import { useState } from "react";
 import { HotkeysProvider } from "react-hotkeys-hook";

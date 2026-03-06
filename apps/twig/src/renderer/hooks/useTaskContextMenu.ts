@@ -1,10 +1,10 @@
 import { useArchiveTask } from "@features/tasks/hooks/useArchiveTask";
 import { useDeleteTask } from "@features/tasks/hooks/useTasks";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
-import { logger } from "@renderer/lib/logger";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
+import { logger } from "@utils/logger";
 import { useCallback, useState } from "react";
 
 const log = logger.scope("context-menu");

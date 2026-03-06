@@ -1,6 +1,6 @@
 import type { AvailableCommand } from "@agentclientprotocol/sdk";
-import { track } from "@renderer/lib/analytics";
 import { ANALYTICS_EVENTS, type FeedbackType } from "@shared/types/analytics";
+import { track } from "@utils/analytics";
 import { toast } from "@utils/toast";
 
 interface CommandContext {
