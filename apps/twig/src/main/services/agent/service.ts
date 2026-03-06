@@ -880,14 +880,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     session.promptPending = true;
     this.sleepService.acquire(sessionId);
 
-    const promptJson = JSON.stringify(finalPrompt);
-    log.info("Sending prompt to agent", {
-      sessionId,
-      blockCount: finalPrompt.length,
-      blocks: promptJson.slice(0, 10000),
-      totalSize: promptJson.length,
-    });
-
     try {
       const result = await session.clientSideConnection.prompt({
         sessionId: getAgentSessionId(session),
