@@ -17,6 +17,7 @@ import { TreeTracker } from "../tree-tracker.js";
 import type {
   AgentMode,
   DeviceInfo,
+  LogLevel,
   TaskRun,
   TreeSnapshotEvent,
 } from "../types.js";
@@ -155,8 +156,42 @@ export class AgentServer {
   private questionRelayedToSlack = false;
   private detectedPrUrl: string | null = null;
 
+  private emitConsoleLog = (
+    level: LogLevel,
+    _scope: string,
+    message: string,
+    data?: unknown,
+  ): void => {
+    if (!this.session) return;
+
+    // Don't include [scope] here — the Logger prefix already adds it to
+    // console output, and the onLog callback in initSession formats scope
+    // for the console separately.
+    const formatted =
+      data !== undefined ? `${message} ${JSON.stringify(data)}` : message;
+
+    const notification = {
+      jsonrpc: "2.0",
+      method: POSTHOG_NOTIFICATIONS.CONSOLE,
+      params: { level, message: formatted },
+    };
+
+    this.broadcastEvent({
+      type: "notification",
+      timestamp: new Date().toISOString(),
+      notification,
+    });
+
+    this.session.logWriter.appendRawLine(
+      this.session.payload.run_id,
+      JSON.stringify(notification),
+    );
+  };
+
   constructor(config: AgentServerConfig) {
     this.config = config;
+    // Pre-session logger: console-only. Replaced in initSession with one
+    // that also emits _posthog/console notifications to the client.
     this.logger = new Logger({ debug: true, prefix: "[AgentServer]" });
     this.posthogAPI = new PostHogAPIClient({
       apiUrl: config.apiUrl,
@@ -589,6 +624,20 @@ export class AgentServer {
       deviceInfo,
       logWriter,
     };
+
+    // Wire logger to emit _posthog/console notifications now that session exists.
+    // Only the AgentServer logger is wired — internal component loggers (SessionLogWriter,
+    // TreeTracker) keep going to console only, avoiding circular dependencies.
+    this.logger = new Logger({
+      debug: true,
+      prefix: "[AgentServer]",
+      onLog: (level, scope, message, data) => {
+        // Preserve console output (onLog suppresses default console.*)
+        const _formatted =
+          data !== undefined ? `${message} ${JSON.stringify(data)}` : message;
+        this.emitConsoleLog(level, scope, message, data);
+      },
+    });
 
     this.logger.info("Session initialized successfully");
 
@@ -1103,15 +1152,32 @@ Important:
           ...snapshot,
           device: this.session.deviceInfo,
         };
+
+        const notification = {
+          jsonrpc: "2.0" as const,
+          method: POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT,
+          params: snapshotWithDevice,
+        };
+
         this.broadcastEvent({
           type: "notification",
           timestamp: new Date().toISOString(),
-          notification: {
-            jsonrpc: "2.0",
-            method: POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT,
-            params: snapshotWithDevice,
-          },
+          notification,
         });
+
+        // Persist to log writer so cloud runs have tree snapshots in
+        // historical logs (desktop app polls session_logs, not SSE).
+        // Strip archiveUrl since presigned URLs expire and are useless
+        // in historical logs.
+        const { archiveUrl: _, ...paramsWithoutArchive } = snapshotWithDevice;
+        const logNotification = {
+          ...notification,
+          params: paramsWithoutArchive,
+        };
+        this.session.logWriter.appendRawLine(
+          this.session.payload.run_id,
+          JSON.stringify(logNotification),
+        );
       }
     } catch (error) {
       this.logger.error("Failed to capture tree state", error);

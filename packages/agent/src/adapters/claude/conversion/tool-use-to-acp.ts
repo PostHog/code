@@ -34,7 +34,11 @@ type ToolInfo = Pick<ToolCall, "title" | "kind" | "content" | "locations">;
 
 export function toolInfoFromToolUse(
   toolUse: Pick<ToolUseBlock, "name" | "input">,
-  options?: { supportsTerminalOutput?: boolean; toolUseId?: string },
+  options?: {
+    supportsTerminalOutput?: boolean;
+    toolUseId?: string;
+    cachedFileContent?: Record<string, string>;
+  },
 ): ToolInfo {
   const name = toolUse.name;
   const input = toolUse.input as Record<string, unknown> | undefined;
@@ -144,8 +148,24 @@ export function toolInfoFromToolUse(
 
     case "Edit": {
       const path = input?.file_path ? String(input.file_path) : undefined;
-      const oldText = input?.old_string ? String(input.old_string) : null;
-      const newText = input?.new_string ? String(input.new_string) : "";
+      let oldText: string | null = input?.old_string
+        ? String(input.old_string)
+        : null;
+      let newText: string = input?.new_string ? String(input.new_string) : "";
+
+      // If we have cached file content, show a full-file diff
+      if (
+        path &&
+        options?.cachedFileContent &&
+        path in options.cachedFileContent
+      ) {
+        const oldContent = options.cachedFileContent[path];
+        const newContent = input?.replace_all
+          ? oldContent.replaceAll(oldText ?? "", newText)
+          : oldContent.replace(oldText ?? "", newText);
+        oldText = oldContent;
+        newText = newContent;
+      }
 
       return {
         title: path ? `Edit \`${path}\`` : "Edit",
@@ -170,8 +190,12 @@ export function toolInfoFromToolUse(
       const filePath = input?.file_path ? String(input.file_path) : undefined;
       const contentStr = input?.content ? String(input.content) : undefined;
       if (filePath) {
+        const oldContent =
+          options?.cachedFileContent && filePath in options.cachedFileContent
+            ? options.cachedFileContent[filePath]
+            : null;
         contentResult = toolContent()
-          .diff(filePath, null, contentStr ?? "")
+          .diff(filePath, oldContent, contentStr ?? "")
           .build();
       } else if (contentStr) {
         contentResult = toolContent().text(contentStr).build();
@@ -453,7 +477,11 @@ export function toolUpdateFromToolResult(
     | BetaRequestMCPToolResultBlockParam
     | BetaToolSearchToolResultBlockParam,
   toolUse: Pick<ToolUseBlock, "name" | "input"> | undefined,
-  options?: { supportsTerminalOutput?: boolean; toolUseId?: string },
+  options?: {
+    supportsTerminalOutput?: boolean;
+    toolUseId?: string;
+    cachedFileContent?: Record<string, string>;
+  },
 ): Pick<ToolCallUpdate, "title" | "content" | "locations" | "_meta"> {
   if (
     "is_error" in toolResult &&
