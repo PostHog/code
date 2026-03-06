@@ -94,3 +94,15 @@ Gills that breathe what we cannot,
 Fins that chart the tide,
 From minnow small to marlin bold,
 The waters are their guide.
+
+## Dog Poem
+
+A waggling tail, a muddy paw,
+A bark that shakes the hall,
+No secret kept from knowing nose,
+No stranger left at all.
+
+They greet the dawn with boundless joy,
+Chase shadows through the yard,
+And curl beside you, warm and close,
+Your ever-faithful guard.
