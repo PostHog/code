@@ -22,6 +22,8 @@ const execFileAsync = promisify(execFile);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SKILLS_ZIP_URL =
   "https://github.com/PostHog/posthog/releases/download/agent-skills-latest/skills.zip";
+const CONTEXT_MILL_ZIP_URL =
+  "https://github.com/PostHog/context-mill/releases/latest/download/skills-mcp-resources.zip";
 const LOCAL_SKILLS_DIR = join(
   __dirname,
   "..",
@@ -94,6 +96,51 @@ try {
   // Copy to local-skills/
   await rm(LOCAL_SKILLS_DIR, { recursive: true, force: true });
   await cp(skillsSource, LOCAL_SKILLS_DIR, { recursive: true });
+
+  // Download and merge context-mill omnibus skills (non-fatal)
+  try {
+    const cmZipPath = join(tempDir, "context-mill.zip");
+    console.log("Downloading context-mill skills-mcp-resources.zip...");
+    await execFileAsync(
+      "curl",
+      ["-fsSL", "-o", cmZipPath, CONTEXT_MILL_ZIP_URL],
+      { timeout: 30_000 },
+    );
+
+    const cmZipData = readFileSync(cmZipPath);
+    const cmOuter = unzipSync(new Uint8Array(cmZipData));
+
+    for (const [filename, content] of Object.entries(cmOuter)) {
+      const base = filename.replace(/^.*\//, "");
+      if (!base.startsWith("omnibus-") || !base.endsWith(".zip")) continue;
+
+      const strippedName = base.replace(/^omnibus-/, "").replace(/\.zip$/, "");
+      const innerEntries = unzipSync(new Uint8Array(content));
+      const destDir = join(LOCAL_SKILLS_DIR, strippedName);
+      await mkdir(destDir, { recursive: true });
+
+      for (const [innerFile, innerContent] of Object.entries(innerEntries)) {
+        if (innerFile.endsWith("/")) {
+          await mkdir(join(destDir, innerFile), { recursive: true });
+        } else {
+          await mkdir(dirname(join(destDir, innerFile)), { recursive: true });
+          if (innerFile === "SKILL.md" || innerFile.endsWith("/SKILL.md")) {
+            const text = new TextDecoder().decode(innerContent);
+            const patched = text.replace(/^(name:\s*)omnibus-/m, "$1");
+            await writeFile(join(destDir, innerFile), patched);
+          } else {
+            await writeFile(join(destDir, innerFile), innerContent);
+          }
+        }
+      }
+    }
+    console.log("Context-mill omnibus skills merged into local-skills/");
+  } catch (err) {
+    console.warn(
+      "Failed to download context-mill skills (non-fatal):",
+      err.message,
+    );
+  }
 
   console.log(`Skills extracted to ${LOCAL_SKILLS_DIR}`);
   console.log("Edit skills locally — Vite will hot-reload them in dev mode.");

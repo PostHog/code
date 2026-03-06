@@ -149,6 +149,9 @@ function getFilesRecursive(dir: string): string[] {
 const SKILLS_ZIP_URL =
   "https://github.com/PostHog/posthog/releases/download/agent-skills-latest/skills.zip";
 
+const CONTEXT_MILL_ZIP_URL =
+  "https://github.com/PostHog/context-mill/releases/latest/download/skills-mcp-resources.zip";
+
 const execFileAsync = promisify(execFile);
 
 /**
@@ -244,6 +247,75 @@ async function findSkillsDirInExtract(
   return null;
 }
 
+/**
+ * Downloads context-mill skills-mcp-resources.zip (a zip-of-zips), extracts
+ * omnibus-* inner zips, strips the "omnibus-" prefix, and writes into targetDir.
+ * Returns true on success, false on failure (non-fatal).
+ */
+async function downloadAndExtractContextMillSkills(
+  targetDir: string,
+): Promise<boolean> {
+  try {
+    const tempDir = join(tmpdir(), `twig-vite-cm-skills-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
+
+    try {
+      const zipPath = join(tempDir, "context-mill.zip");
+
+      await execFileAsync(
+        "curl",
+        ["-fsSL", "-o", zipPath, CONTEXT_MILL_ZIP_URL],
+        { timeout: 30_000 },
+      );
+
+      const zipData = readFileSync(zipPath);
+      const outerEntries = unzipSync(new Uint8Array(zipData));
+
+      await mkdir(targetDir, { recursive: true });
+
+      for (const [filename, content] of Object.entries(outerEntries)) {
+        const base = filename.replace(/^.*\//, ""); // strip any directory prefix
+        if (!base.startsWith("omnibus-") || !base.endsWith(".zip")) continue;
+
+        const strippedName = base
+          .replace(/^omnibus-/, "")
+          .replace(/\.zip$/, "");
+        const innerEntries = unzipSync(new Uint8Array(content));
+        const destDir = join(targetDir, strippedName);
+        await mkdir(destDir, { recursive: true });
+
+        for (const [innerFile, innerContent] of Object.entries(innerEntries)) {
+          if (innerFile.endsWith("/")) {
+            await mkdir(join(destDir, innerFile), { recursive: true });
+          } else {
+            await mkdir(dirname(join(destDir, innerFile)), { recursive: true });
+            let data = innerContent;
+            if (innerFile === "SKILL.md" || innerFile.endsWith("/SKILL.md")) {
+              const text = new TextDecoder().decode(innerContent);
+              const patched = text.replace(/^(name:\s*)omnibus-/m, "$1");
+              data = new TextEncoder().encode(patched);
+            }
+            await writeFile(join(destDir, innerFile), data);
+          }
+        }
+      }
+
+      console.log(
+        "[copy-posthog-plugin] Context-mill omnibus skills downloaded and merged",
+      );
+      return true;
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  } catch (err) {
+    console.warn(
+      "[copy-posthog-plugin] Failed to download context-mill skills (non-fatal):",
+      err,
+    );
+    return false;
+  }
+}
+
 const PLUGIN_ALLOW_LIST = [
   "plugin.json",
   ".mcp.json",
@@ -295,6 +367,9 @@ function copyPosthogPlugin(isDev: boolean): Plugin {
 
       // 2. Download and overlay remote skills (overrides same-named shipped skills)
       await downloadAndExtractSkills(destSkillsDir);
+
+      // 2b. Download and overlay context-mill omnibus skills (overrides same-named skills)
+      await downloadAndExtractContextMillSkills(destSkillsDir);
 
       // 3. In dev mode: overlay local-skills (overrides both shipped and remote)
       if (isDev && existsSync(localSkillsDir)) {
@@ -385,6 +460,7 @@ export default defineConfig(({ mode }) => {
         env.VITE_POSTHOG_API_HOST || "",
       ),
       "process.env.SKILLS_ZIP_URL": JSON.stringify(SKILLS_ZIP_URL),
+      "process.env.CONTEXT_MILL_ZIP_URL": JSON.stringify(CONTEXT_MILL_ZIP_URL),
       ...createForceDevModeDefine(),
     },
     resolve: {

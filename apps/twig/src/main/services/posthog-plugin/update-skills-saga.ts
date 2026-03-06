@@ -1,8 +1,17 @@
 import { existsSync } from "node:fs";
-import { cp, mkdir, readdir, rename, rm } from "node:fs/promises";
-import { join } from "node:path";
+import {
+  cp,
+  mkdir,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
 import { extractZip } from "@main/utils/extract-zip.js";
 import { Saga } from "@posthog/shared";
+import { unzipSync } from "fflate";
 
 /**
  * Overlays previously-downloaded skills on top of the runtime plugin dir.
@@ -66,6 +75,7 @@ export interface UpdateSkillsInput {
   codexSkillsDir: string;
   tempDir: string;
   skillsZipUrl: string;
+  contextMillZipUrl: string;
   downloadFile: (url: string, destPath: string) => Promise<void>;
 }
 
@@ -106,6 +116,23 @@ export class UpdateSkillsSaga extends Saga<
         );
       } catch (err) {
         this.log.warn("Failed to download skills", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
+
+    // Step 2b: download context-mill omnibus skills (non-fatal)
+    await this.readOnlyStep("download-context-mill-skills", async () => {
+      if (!input.contextMillZipUrl) return;
+      try {
+        await this.downloadAndMergeContextMillSkills(
+          input.contextMillZipUrl,
+          input.tempDir,
+          newSkillsDir,
+          input.downloadFile,
+        );
+      } catch (err) {
+        this.log.warn("Failed to download context-mill skills", {
           error: err instanceof Error ? err.message : String(err),
         });
       }
@@ -239,5 +266,53 @@ export class UpdateSkillsSaga extends Saga<
     }
 
     return null;
+  }
+
+  /**
+   * Downloads context-mill zip-of-zips, extracts omnibus-* inner zips,
+   * strips the "omnibus-" prefix, patches SKILL.md, and merges into destDir.
+   */
+  private async downloadAndMergeContextMillSkills(
+    url: string,
+    tempDir: string,
+    destDir: string,
+    downloadFile: (url: string, destPath: string) => Promise<void>,
+  ): Promise<void> {
+    const zipPath = join(tempDir, "context-mill.zip");
+    await downloadFile(url, zipPath);
+
+    const extractDir = join(tempDir, "cm-extracted");
+    await mkdir(extractDir, { recursive: true });
+    await extractZip(zipPath, extractDir);
+
+    const files = await readdir(extractDir);
+    for (const file of files) {
+      if (!file.startsWith("omnibus-") || !file.endsWith(".zip")) continue;
+
+      const strippedName = file.replace(/^omnibus-/, "").replace(/\.zip$/, "");
+      const innerZipPath = join(extractDir, file);
+      const innerZipData = await readFile(innerZipPath);
+      const innerEntries = unzipSync(new Uint8Array(innerZipData));
+      const skillDestDir = join(destDir, strippedName);
+      await mkdir(skillDestDir, { recursive: true });
+
+      for (const [innerFile, innerContent] of Object.entries(innerEntries)) {
+        if (innerFile.endsWith("/")) {
+          await mkdir(join(skillDestDir, innerFile), { recursive: true });
+        } else {
+          const fullPath = join(skillDestDir, innerFile);
+          await mkdir(dirname(fullPath), { recursive: true });
+          if (basename(innerFile) === "SKILL.md") {
+            const text = new TextDecoder().decode(innerContent);
+            const patched = text.replace(/^(name:\s*)omnibus-/m, "$1");
+            await writeFile(fullPath, patched);
+          } else {
+            await writeFile(fullPath, innerContent);
+          }
+        }
+      }
+    }
+
+    this.log.info("Context-mill omnibus skills merged");
   }
 }

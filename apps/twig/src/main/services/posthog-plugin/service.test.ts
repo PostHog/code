@@ -1,9 +1,10 @@
 import { vol } from "memfs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Set env before module loads (SKILLS_ZIP_URL is captured at module level)
+// Set env before module loads (SKILLS_ZIP_URL / CONTEXT_MILL_ZIP_URL are captured at module level)
 vi.hoisted(() => {
   process.env.SKILLS_ZIP_URL = "https://example.com/skills.zip";
+  process.env.CONTEXT_MILL_ZIP_URL = "https://example.com/context-mill.zip";
 });
 
 const mockApp = vi.hoisted(() => ({
@@ -37,6 +38,11 @@ vi.mock("node:fs/promises", async () => {
 
 vi.mock("../../utils/extract-zip.js", () => ({
   extractZip: mockExtractZip,
+}));
+
+const mockFflateUnzipSync = vi.hoisted(() => vi.fn());
+vi.mock("fflate", () => ({
+  unzipSync: mockFflateUnzipSync,
 }));
 
 vi.mock("node:os", () => ({
@@ -86,16 +92,33 @@ function mockFetchResponse(ok: boolean, status = 200) {
 /** Simulate zip extraction by creating skill files in the extracted dir */
 function simulateExtractZip() {
   mockExtractZip.mockImplementation(
-    async (_zipPath: string, extractDir: string) => {
-      vol.mkdirSync(`${extractDir}/skills/remote-skill`, {
-        recursive: true,
-      });
-      vol.writeFileSync(
-        `${extractDir}/skills/remote-skill/SKILL.md`,
-        "# Remote",
-      );
+    async (zipPath: string, extractDir: string) => {
+      if (zipPath.includes("context-mill")) {
+        // Context-mill outer zip: produce omnibus-*.zip files (dummy bytes — unzipSync is mocked)
+        vol.mkdirSync(extractDir, { recursive: true });
+        vol.writeFileSync(`${extractDir}/omnibus-test-skill.zip`, "dummy");
+        vol.writeFileSync(`${extractDir}/manifest.json`, "{}");
+        // Non-omnibus zip should be ignored
+        vol.writeFileSync(`${extractDir}/other-skill.zip`, "dummy");
+      } else {
+        // Primary skills zip
+        vol.mkdirSync(`${extractDir}/skills/remote-skill`, {
+          recursive: true,
+        });
+        vol.writeFileSync(
+          `${extractDir}/skills/remote-skill/SKILL.md`,
+          "# Remote",
+        );
+      }
     },
   );
+
+  // Mock fflate unzipSync for inner zip extraction
+  mockFflateUnzipSync.mockImplementation(() => ({
+    "SKILL.md": new TextEncoder().encode(
+      "---\nname: omnibus-test-skill\n---\n# Test Skill",
+    ),
+  }));
 }
 
 /** Create the bundled plugin directory in memfs */
@@ -304,6 +327,56 @@ describe("PosthogPluginService", () => {
       // Clean up hanging promise
       resolveDownload(mockFetchResponse(true));
       await first.catch(() => {});
+    });
+
+    it("downloads and merges context-mill omnibus skills with prefix stripped", async () => {
+      setupBundledPlugin();
+      simulateExtractZip();
+
+      await service.updateSkills();
+
+      // Omnibus skill should exist with prefix stripped
+      expect(vol.existsSync(`${RUNTIME_SKILLS_DIR}/test-skill/SKILL.md`)).toBe(
+        true,
+      );
+
+      // SKILL.md should have "omnibus-" stripped from name field
+      const content = vol.readFileSync(
+        `${RUNTIME_SKILLS_DIR}/test-skill/SKILL.md`,
+        "utf-8",
+      );
+      expect(content).toContain("name: test-skill");
+      expect(content).not.toContain("omnibus-");
+    });
+
+    it("context-mill failure is non-fatal", async () => {
+      setupBundledPlugin();
+      // Primary skills succeed
+      mockExtractZip.mockImplementation(
+        async (zipPath: string, extractDir: string) => {
+          if (zipPath.includes("context-mill")) {
+            throw new Error("context-mill download failed");
+          }
+          vol.mkdirSync(`${extractDir}/skills/remote-skill`, {
+            recursive: true,
+          });
+          vol.writeFileSync(
+            `${extractDir}/skills/remote-skill/SKILL.md`,
+            "# Remote",
+          );
+        },
+      );
+
+      const handler = vi.fn();
+      service.on("skillsUpdated", handler);
+      await service.updateSkills();
+
+      // Primary skills should still be installed
+      expect(
+        vol.existsSync(`${RUNTIME_SKILLS_DIR}/remote-skill/SKILL.md`),
+      ).toBe(true);
+      // Update should still succeed
+      expect(handler).toHaveBeenCalledWith(true);
     });
 
     it("handles download failure gracefully", async () => {
