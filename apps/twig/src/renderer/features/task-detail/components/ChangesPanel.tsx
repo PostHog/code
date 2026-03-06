@@ -503,8 +503,14 @@ function CloudChangedFileItem({
 }
 
 function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
-  const { prUrl, effectiveBranch, repo, isRunActive, fallbackFiles } =
-    useCloudRunState(taskId, task);
+  const {
+    prUrl,
+    effectiveBranch,
+    baseBranch,
+    repo,
+    isRunActive,
+    fallbackFiles,
+  } = useCloudRunState(taskId, task);
 
   const layout = usePanelLayoutStore((state) => state.getLayout(taskId));
 
@@ -528,6 +534,7 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
   } = useCloudBranchChangedFiles(
     !prUrl ? repo : null,
     !prUrl ? effectiveBranch : null,
+    baseBranch,
   );
 
   const changedFiles = prUrl ? (prFiles ?? []) : (branchFiles ?? []);

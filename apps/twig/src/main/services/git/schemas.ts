@@ -301,6 +301,7 @@ export const getPrChangedFilesOutput = z.array(changedFileSchema);
 export const getBranchChangedFilesInput = z.object({
   repo: z.string(),
   branch: z.string(),
+  baseBranch: z.string().optional(),
 });
 export const getBranchChangedFilesOutput = z.array(changedFileSchema);
 

@@ -276,7 +276,11 @@ export const gitRouter = router({
     .input(getBranchChangedFilesInput)
     .output(getBranchChangedFilesOutput)
     .query(({ input }) =>
-      getService().getBranchChangedFiles(input.repo, input.branch),
+      getService().getBranchChangedFiles(
+        input.repo,
+        input.branch,
+        input.baseBranch,
+      ),
     ),
 
   generateCommitMessage: publicProcedure

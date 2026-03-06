@@ -23,6 +23,11 @@ export function useCloudRunState(taskId: string, task: Task) {
   const effectiveBranch = branch ?? cloudBranch;
   const repo = freshTask.repository ?? null;
 
+  const rawBaseBranch = (
+    freshTask.latest_run?.state as Record<string, unknown> | undefined
+  )?.branch;
+  const baseBranch = typeof rawBaseBranch === "string" ? rawBaseBranch : null;
+
   const cloudStatus =
     session?.cloudStatus ?? freshTask.latest_run?.status ?? null;
   const isRunActive =
@@ -46,6 +51,7 @@ export function useCloudRunState(taskId: string, task: Task) {
     session,
     prUrl,
     effectiveBranch,
+    baseBranch,
     repo,
     cloudStatus,
     isRunActive,

@@ -152,13 +152,15 @@ export function useCloudPrChangedFiles(prUrl: string | null) {
 export function useCloudBranchChangedFiles(
   repo: string | null,
   branch: string | null,
+  baseBranch?: string | null,
 ) {
   return useQuery({
-    queryKey: ["branch-changed-files", repo, branch],
+    queryKey: ["branch-changed-files", repo, branch, baseBranch],
     queryFn: () =>
       trpcVanilla.git.getBranchChangedFiles.query({
         repo: repo as string,
         branch: branch as string,
+        baseBranch: baseBranch ?? undefined,
       }),
     enabled: !!repo && !!branch,
     staleTime: 30_000,

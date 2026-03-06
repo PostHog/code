@@ -751,6 +751,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
   public async getBranchChangedFiles(
     repo: string,
     branch: string,
+    baseBranch?: string,
   ): Promise<ChangedFile[]> {
     const parts = repo.split("/");
     if (parts.length !== 2) return [];
@@ -758,21 +759,24 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     const [owner, repoName] = parts;
 
     try {
-      const repoResult = await execGh([
-        "api",
-        `repos/${owner}/${repoName}`,
-        "--jq",
-        ".default_branch",
-      ]);
+      let compareBase = baseBranch;
+      if (!compareBase) {
+        const repoResult = await execGh([
+          "api",
+          `repos/${owner}/${repoName}`,
+          "--jq",
+          ".default_branch",
+        ]);
 
-      const defaultBranch =
-        repoResult.exitCode === 0 && repoResult.stdout.trim()
-          ? repoResult.stdout.trim()
-          : "main";
+        compareBase =
+          repoResult.exitCode === 0 && repoResult.stdout.trim()
+            ? repoResult.stdout.trim()
+            : "main";
+      }
 
       const result = await execGh([
         "api",
-        `repos/${owner}/${repoName}/compare/${defaultBranch}...${branch}`,
+        `repos/${owner}/${repoName}/compare/${compareBase}...${branch}`,
         "--jq",
         ".files",
       ]);
