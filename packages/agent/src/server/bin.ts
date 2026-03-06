@@ -45,6 +45,7 @@ program
   .requiredOption("--repositoryPath <path>", "Path to the repository")
   .requiredOption("--taskId <id>", "Task ID")
   .requiredOption("--runId <id>", "Task run ID")
+  .option("--baseBranch <branch>", "Base branch for pull requests")
   .action(async (options) => {
     const envResult = envSchema.safeParse(process.env);
 
@@ -70,6 +71,7 @@ program
       mode,
       taskId: options.taskId,
       runId: options.runId,
+      baseBranch: options.baseBranch,
     });
 
     process.on("SIGINT", async () => {
