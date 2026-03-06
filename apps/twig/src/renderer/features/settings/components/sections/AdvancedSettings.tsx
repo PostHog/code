@@ -1,9 +1,13 @@
 import { SettingRow } from "@features/settings/components/SettingRow";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { Button, Flex, Switch } from "@radix-ui/themes";
 import { clearApplicationStorage } from "@renderer/lib/clearStorage";
 
 export function AdvancedSettings() {
+  const showDebugLogsToggle = useFeatureFlag(
+    "posthog-code-background-agent-logs",
+  );
   const debugLogsCloudRuns = useSettingsStore((s) => s.debugLogsCloudRuns);
   const setDebugLogsCloudRuns = useSettingsStore(
     (s) => s.setDebugLogsCloudRuns,
@@ -14,6 +18,7 @@ export function AdvancedSettings() {
       <SettingRow
         label="Clear application storage"
         description="This will remove all locally stored application data."
+        noBorder={!showDebugLogsToggle}
       >
         <Button
           variant="soft"
@@ -24,17 +29,19 @@ export function AdvancedSettings() {
           Clear all data
         </Button>
       </SettingRow>
-      <SettingRow
-        label="Debug logs for cloud runs"
-        description="Show debug-level console output in the conversation view for cloud-executed runs."
-        noBorder
-      >
-        <Switch
-          checked={debugLogsCloudRuns}
-          onCheckedChange={setDebugLogsCloudRuns}
-          size="1"
-        />
-      </SettingRow>
+      {showDebugLogsToggle && (
+        <SettingRow
+          label="Debug logs for cloud runs"
+          description="Show debug-level console output in the conversation view for cloud-executed runs."
+          noBorder
+        >
+          <Switch
+            checked={debugLogsCloudRuns}
+            onCheckedChange={setDebugLogsCloudRuns}
+            size="1"
+          />
+        </SettingRow>
+      )}
     </Flex>
   );
 }
