@@ -16,6 +16,8 @@ const integrationKeys = {
   list: () => [...integrationKeys.all, "list"] as const,
   repositories: (integrationId?: number) =>
     [...integrationKeys.all, "repositories", integrationId] as const,
+  branches: (integrationId?: number, repo?: string | null) =>
+    [...integrationKeys.all, "branches", integrationId, repo] as const,
 };
 
 export function useIntegrations() {
@@ -55,10 +57,23 @@ function useRepositories(integrationId?: number) {
   return query;
 }
 
+export function useGithubBranches(
+  integrationId?: number,
+  repo?: string | null,
+) {
+  return useAuthenticatedQuery(
+    integrationKeys.branches(integrationId, repo),
+    async (client) => {
+      if (!integrationId || !repo) return [];
+      return await client.getGithubBranches(integrationId, repo);
+    },
+  );
+}
+
 export function useRepositoryIntegration() {
-  useIntegrations();
+  const { isPending: integrationsPending } = useIntegrations();
   const { githubIntegration } = useIntegrationSelectors();
-  useRepositories(githubIntegration?.id);
+  const { isPending: reposPending } = useRepositories(githubIntegration?.id);
 
   const repositories = useIntegrationStore((state) => state.repositories);
   const { isRepoInIntegration } = useIntegrationSelectors();
@@ -67,5 +82,6 @@ export function useRepositoryIntegration() {
     githubIntegration,
     repositories,
     isRepoInIntegration,
+    isLoadingRepos: integrationsPending || reposPending,
   };
 }

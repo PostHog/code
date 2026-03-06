@@ -11,17 +11,16 @@ import { ArrowUp } from "@phosphor-icons/react";
 import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { EditorContent } from "@tiptap/react";
 import { forwardRef, useImperativeHandle } from "react";
-import type { RunMode } from "./RunModeSelect";
 import "./TaskInput.css";
 
 interface TaskInputEditorProps {
   sessionId: string;
   repoPath: string;
   isCreatingTask: boolean;
-  runMode: RunMode;
   canSubmit: boolean;
   onSubmit: () => void;
   hasDirectory: boolean;
+  directoryTooltip?: string;
   onEmptyChange?: (isEmpty: boolean) => void;
   adapter?: "claude" | "codex";
   previewTaskId?: string;
@@ -41,6 +40,7 @@ export const TaskInputEditor = forwardRef<
       canSubmit,
       onSubmit,
       hasDirectory,
+      directoryTooltip = "Select a folder first",
       onEmptyChange,
       adapter,
       previewTaskId,
@@ -115,7 +115,7 @@ export const TaskInputEditor = forwardRef<
       if (isCreatingTask) return "Creating task...";
       if (!isOnline) return "You're offline — send when reconnected";
       if (isEmpty) return "Enter a task description";
-      if (!hasDirectory) return "Select a folder first";
+      if (!hasDirectory) return directoryTooltip;
       if (!canSubmit) return "Missing required fields";
       return "Create task";
     };
