@@ -43,7 +43,6 @@ export function createMockWorktreeRepository(
         workspaceId: data.workspaceId,
         name: data.name,
         path: data.path,
-        branch: data.branch,
         createdAt: now,
         updatedAt: now,
       };
@@ -51,11 +50,11 @@ export function createMockWorktreeRepository(
       workspaceIndex.set(worktree.workspaceId, worktree.id);
       return worktree;
     },
-    updateBranch: (workspaceId: string, branch: string) => {
+    updatePath: (workspaceId: string, path: string) => {
       const id = workspaceIndex.get(workspaceId);
       if (id) {
         const wt = worktrees.get(id);
-        if (wt) wt.branch = branch;
+        if (wt) wt.path = path;
       }
     },
     deleteByWorkspaceId: (workspaceId: string) => {

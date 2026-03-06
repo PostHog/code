@@ -1,3 +1,4 @@
+import type { ChildProcess } from "node:child_process";
 import { execSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
@@ -62,6 +63,19 @@ const notarizeConfig =
   !skipNotarize && shouldSignMacApp && notarizeCredentials
     ? notarizeCredentials
     : undefined;
+
+let electronChild: ChildProcess | null = null;
+
+function killElectronChild() {
+  if (electronChild && !electronChild.killed) {
+    console.log("[forge] Killing Electron child process");
+    electronChild.kill("SIGTERM");
+    electronChild = null;
+  }
+}
+
+process.on("SIGINT", killElectronChild);
+process.on("SIGTERM", killElectronChild);
 const osxSignConfig =
   shouldSignMacApp && appleCodesignIdentity
     ? ({
@@ -195,6 +209,9 @@ const config: ForgeConfig = {
           execSync("npm install", { cwd: modulePath, stdio: "inherit" });
         }
       }
+    },
+    postStart: async (_forgeConfig, child) => {
+      electronChild = child;
     },
     packageAfterCopy: async (_forgeConfig, buildPath) => {
       copyNativeDependency("node-pty", buildPath);

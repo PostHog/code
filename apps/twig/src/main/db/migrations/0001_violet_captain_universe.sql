@@ -1,1 +1,0 @@
-ALTER TABLE `repositories` ADD `remote_url` text;

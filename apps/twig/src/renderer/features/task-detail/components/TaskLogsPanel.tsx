@@ -1,5 +1,6 @@
 import { BackgroundWrapper } from "@components/BackgroundWrapper";
 import { ErrorBoundary } from "@components/ErrorBoundary";
+import { useFolders } from "@features/folders/hooks/useFolders";
 import {
   useCloudBranchChangedFiles,
   useCloudPrChangedFiles,
@@ -14,7 +15,7 @@ import {
   useSessionForTask,
 } from "@features/sessions/stores/sessionStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
-import { useTaskViewedStore } from "@features/sidebar/stores/taskViewedStore";
+import { useTaskViewed } from "@features/sidebar/hooks/useTaskViewed";
 import { WorkspaceSetupPrompt } from "@features/task-detail/components/WorkspaceSetupPrompt";
 import {
   useCreateWorkspace,
@@ -24,7 +25,6 @@ import {
 import { useConnectivity } from "@hooks/useConnectivity";
 import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
 import { useNavigationStore } from "@renderer/stores/navigationStore";
-import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
@@ -47,13 +47,13 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   const isWorkspaceLoaded = useWorkspaceLoaded();
   const { isPending: isCreatingWorkspace } = useCreateWorkspace();
   const repoKey = getTaskRepository(task);
-  const hasDirectoryMapping = useRegisteredFoldersStore((s) =>
-    repoKey ? s.folders.some((f) => f.remoteUrl === repoKey) : false,
-  );
+  const { folders } = useFolders();
+  const hasDirectoryMapping = repoKey
+    ? folders.some((f) => f.remoteUrl === repoKey)
+    : false;
 
   const session = useSessionForTask(taskId);
-  const markActivity = useTaskViewedStore((state) => state.markActivity);
-  const markAsViewed = useTaskViewedStore((state) => state.markAsViewed);
+  const { markActivity, markAsViewed } = useTaskViewed();
   const { requestFocus, setPendingContent } = useDraftStore((s) => s.actions);
   const { isOnline } = useConnectivity();
 

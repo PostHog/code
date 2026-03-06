@@ -65,12 +65,9 @@ export const workspaceRouter = router({
       getService().deleteWorkspace(input.taskId, input.mainRepoPath),
     ),
 
-  update: publicProcedure.input(updateWorkspaceInput).mutation(({ input }) => {
-    const repo = getWorkspaceRepo();
-    if (input.updates.branchName !== undefined) {
-      repo.updateBranchName(input.taskId, input.updates.branchName);
-    }
-  }),
+  update: publicProcedure
+    .input(updateWorkspaceInput)
+    .mutation(({ input: _input }) => {}),
 
   verify: publicProcedure
     .input(verifyWorkspaceInput)

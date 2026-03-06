@@ -1,4 +1,5 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
+import { useFolders } from "@features/folders/hooks/useFolders";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { useRightSidebarStore } from "@features/right-sidebar";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
@@ -9,7 +10,6 @@ import { useTasks } from "@features/tasks/hooks/useTasks";
 import { useFocusWorkspace } from "@features/workspace/hooks/useFocusWorkspace";
 import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
 import { SHORTCUTS } from "@renderer/constants/keyboard-shortcuts";
-import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
 import { trpcReact } from "@renderer/trpc";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
@@ -41,7 +41,7 @@ export function GlobalEventHandlers({
   const view = useNavigationStore((state) => state.view);
   const goBack = useNavigationStore((state) => state.goBack);
   const goForward = useNavigationStore((state) => state.goForward);
-  const folders = useRegisteredFoldersStore((state) => state.folders);
+  const { folders, loadFolders } = useFolders();
   const { data: workspaces = {} } = useWorkspaces();
   const clearAllLayouts = usePanelLayoutStore((state) => state.clearAllLayouts);
   const toggleLeftSidebar = useSidebarStore((state) => state.toggle);
@@ -229,14 +229,13 @@ export function GlobalEventHandlers({
     };
   }, [goBack, goForward]);
 
-  // Reload folders when window regains focus to detect moved/deleted folders
   useEffect(() => {
     const handleFocus = () => {
-      useRegisteredFoldersStore.getState().loadFolders();
+      loadFolders();
     };
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
-  }, []);
+  }, [loadFolders]);
 
   // Check if current task's folder became invalid (e.g., moved while app was open)
   useEffect(() => {

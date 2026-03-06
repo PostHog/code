@@ -299,7 +299,7 @@ export class ShellService extends TypedEventEmitter<ShellEvents> {
   ): Promise<Record<string, string> | undefined> {
     if (!taskId) return undefined;
 
-    const workspace = this.workspaceRepo.findActiveByTaskId(taskId);
+    const workspace = this.workspaceRepo.findByTaskId(taskId);
     if (!workspace || workspace.mode === "cloud" || !workspace.repositoryId) {
       return undefined;
     }

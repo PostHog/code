@@ -17,8 +17,8 @@ const mockRepositoryRepo = vi.hoisted(() => ({
   delete: vi.fn(),
 }));
 const mockWorkspaceRepo = vi.hoisted(() => ({
-  findAllActiveByRepositoryId: vi.fn(),
-  findAllActive: vi.fn(),
+  findAllByRepositoryId: vi.fn(),
+  findAll: vi.fn(),
 }));
 const mockWorktreeRepo = vi.hoisted(() => ({
   findByWorkspaceId: vi.fn(),
@@ -113,8 +113,8 @@ describe("FoldersService", () => {
     vi.clearAllMocks();
 
     mockRepositoryRepo.findAll.mockReturnValue([]);
-    mockWorkspaceRepo.findAllActiveByRepositoryId.mockReturnValue([]);
-    mockWorkspaceRepo.findAllActive.mockReturnValue([]);
+    mockWorkspaceRepo.findAllByRepositoryId.mockReturnValue([]);
+    mockWorkspaceRepo.findAll.mockReturnValue([]);
     mockWorktreeRepo.findAll.mockReturnValue([]);
 
     service = new FoldersService(
@@ -261,7 +261,7 @@ describe("FoldersService", () => {
         createdAt: "2024-01-01T00:00:00.000Z",
         updatedAt: "2024-01-01T00:00:00.000Z",
       });
-      mockWorkspaceRepo.findAllActiveByRepositoryId.mockReturnValue([]);
+      mockWorkspaceRepo.findAllByRepositoryId.mockReturnValue([]);
 
       await service.removeFolder("folder-1");
 
@@ -276,7 +276,7 @@ describe("FoldersService", () => {
         createdAt: "2024-01-01T00:00:00.000Z",
         updatedAt: "2024-01-01T00:00:00.000Z",
       });
-      mockWorkspaceRepo.findAllActiveByRepositoryId.mockReturnValue([
+      mockWorkspaceRepo.findAllByRepositoryId.mockReturnValue([
         {
           id: "workspace-1",
           taskId: "task-1",

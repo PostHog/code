@@ -1,8 +1,9 @@
+import { foldersApi } from "@features/folders/hooks/useFolders";
 import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
-import { getTaskDirectorySync } from "@hooks/useRepositoryDirectory";
-import type { Task, WorkspaceMode } from "@shared/types";
+import { getTaskDirectory } from "@hooks/useRepositoryDirectory";
+import type { WorkspaceMode } from "@main/services/workspace/schemas";
+import type { Task } from "@shared/types";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
-import { useRegisteredFoldersStore } from "@stores/registeredFoldersStore";
 import { track } from "@utils/analytics";
 import { electronStorage } from "@utils/electronStorage";
 import { logger } from "@utils/logger";
@@ -93,9 +94,10 @@ export const useNavigationStore = create<NavigationStore>()(
 
           const existingWorkspace = await workspaceApi.get(task.id);
           if (existingWorkspace?.folderId) {
-            const folder = useRegisteredFoldersStore
-              .getState()
-              .folders.find((f) => f.id === existingWorkspace.folderId);
+            const folders = await foldersApi.getFolders();
+            const folder = folders.find(
+              (f) => f.id === existingWorkspace.folderId,
+            );
 
             if (folder && folder.exists === false) {
               log.info("Folder path is stale, redirecting to folder settings", {
@@ -111,11 +113,14 @@ export const useNavigationStore = create<NavigationStore>()(
             }
           }
 
-          const directory = getTaskDirectorySync(task.id, repoKey ?? undefined);
+          const directory = await getTaskDirectory(
+            task.id,
+            repoKey ?? undefined,
+          );
 
           if (directory) {
             try {
-              await useRegisteredFoldersStore.getState().addFolder(directory);
+              await foldersApi.addFolder(directory);
 
               const workspaceMode: WorkspaceMode =
                 task.latest_run?.environment === "cloud" ? "cloud" : "local";

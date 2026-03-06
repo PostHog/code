@@ -1,5 +1,5 @@
 import { getSessionService } from "@features/sessions/service/service";
-import { usePinnedTasksStore } from "@features/sidebar/stores/pinnedTasksStore";
+import { pinnedTasksApi } from "@features/sidebar/hooks/usePinnedTasks";
 import { useTerminalStore } from "@features/terminal/stores/terminalStore";
 import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
 import { trpcVanilla } from "@renderer/trpc";
@@ -23,15 +23,15 @@ export function useArchiveTask() {
     const { taskId } = input;
     const focusStore = useFocusStore.getState();
     const workspace = await workspaceApi.get(taskId);
-    const pinnedTasksStore = usePinnedTasksStore.getState();
-    const wasPinned = pinnedTasksStore.pinnedTaskIds.has(taskId);
+    const pinnedTaskIds = await pinnedTasksApi.getPinnedTaskIds();
+    const wasPinned = pinnedTaskIds.includes(taskId);
 
     const nav = useNavigationStore.getState();
     if (nav.view.type === "task-detail" && nav.view.data?.id === taskId) {
       nav.navigateToTaskInput();
     }
 
-    pinnedTasksStore.unpin(taskId);
+    pinnedTasksApi.unpin(taskId);
     useTerminalStore.getState().clearTerminalStatesForTask(taskId);
 
     queryClient.setQueryData<string[]>(
@@ -86,7 +86,7 @@ export function useArchiveTask() {
         (old) => (old ? old.filter((a) => a.taskId !== taskId) : []),
       );
       if (wasPinned) {
-        pinnedTasksStore.togglePin(taskId);
+        pinnedTasksApi.togglePin(taskId);
       }
 
       throw error;

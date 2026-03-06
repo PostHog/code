@@ -1,8 +1,8 @@
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
+import { foldersApi } from "@features/folders/hooks/useFolders";
 import { useEnsureWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { Folder } from "@phosphor-icons/react";
 import { Box, Code, Flex, Spinner, Text } from "@radix-ui/themes";
-import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
 import type { Task } from "@shared/types";
 import { logger } from "@utils/logger";
 import { getTaskRepository } from "@utils/repository";
@@ -31,8 +31,7 @@ export function WorkspaceSetupPrompt({
       setIsSettingUp(true);
 
       try {
-        const addFolder = useRegisteredFoldersStore.getState().addFolder;
-        await addFolder(path);
+        await foldersApi.addFolder(path);
 
         await ensureWorkspace(taskId, path, "worktree");
 

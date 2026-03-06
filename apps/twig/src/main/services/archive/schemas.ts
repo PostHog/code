@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  type ArchivedTask,
+  archivedTaskSchema,
+} from "../../../shared/types/archive.js";
+
+export { archivedTaskSchema, type ArchivedTask };
 
 export const archiveTaskInput = z.object({
   taskId: z.string(),
@@ -12,18 +18,6 @@ export const unarchiveTaskInput = z.object({
 });
 
 export type UnarchiveTaskInput = z.infer<typeof unarchiveTaskInput>;
-
-export const archivedTaskSchema = z.object({
-  taskId: z.string(),
-  archivedAt: z.string(),
-  folderId: z.string(),
-  mode: z.enum(["worktree", "local", "cloud"]),
-  worktreeName: z.string().nullable(),
-  branchName: z.string().nullable(),
-  checkpointId: z.string().nullable(),
-});
-
-export type ArchivedTask = z.infer<typeof archivedTaskSchema>;
 
 export const archiveTaskOutput = archivedTaskSchema;
 

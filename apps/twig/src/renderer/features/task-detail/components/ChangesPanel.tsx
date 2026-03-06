@@ -1,6 +1,7 @@
 import { FileIcon } from "@components/ui/FileIcon";
 import { PanelMessage } from "@components/ui/PanelMessage";
 import { Tooltip } from "@components/ui/Tooltip";
+import { useExternalApps } from "@features/external-apps/hooks/useExternalApps";
 import {
   useCloudBranchChangedFiles,
   useCloudPrChangedFiles,
@@ -38,7 +39,6 @@ import {
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 import { trpcVanilla } from "@renderer/trpc/client";
 import type { ChangedFile, GitFileStatus, Task } from "@shared/types";
-import { useExternalAppsStore } from "@stores/externalAppsStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { showMessageBox } from "@utils/dialog";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
@@ -128,7 +128,7 @@ function ChangedFileItem({
     (state) => state.closeDiffTabsForFile,
   );
   const queryClient = useQueryClient();
-  const { detectedApps } = useExternalAppsStore();
+  const { detectedApps } = useExternalApps();
   const workspace = useWorkspace(taskId);
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);

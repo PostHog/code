@@ -5,7 +5,6 @@ const EMPTY_DIFF_STATS = { filesChanged: 0, linesAdded: 0, linesRemoved: 0 };
 
 const GIT_QUERY_DEFAULTS = {
   staleTime: 30_000,
-  refetchOnWindowFocus: true,
 } as const;
 
 export function useGitQueries(repoPath?: string) {

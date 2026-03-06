@@ -10,7 +10,7 @@ export const registeredFolderSchema = z.object({
 });
 
 export const registeredFolderWithExistsSchema = registeredFolderSchema.extend({
-  exists: z.boolean(),
+  exists: z.boolean().optional(),
 });
 
 export const getFoldersOutput = z.array(registeredFolderWithExistsSchema);
@@ -43,7 +43,7 @@ export const cleanupOrphanedWorktreesOutput = z.object({
   ),
 });
 
-export type RegisteredFolder = z.infer<typeof registeredFolderSchema>;
+export type RegisteredFolder = z.infer<typeof registeredFolderWithExistsSchema>;
 export type GetFoldersOutput = z.infer<typeof getFoldersOutput>;
 export type AddFolderInput = z.infer<typeof addFolderInput>;
 export type AddFolderOutput = z.infer<typeof addFolderOutput>;

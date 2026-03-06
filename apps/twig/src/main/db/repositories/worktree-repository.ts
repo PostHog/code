@@ -11,7 +11,6 @@ export interface CreateWorktreeData {
   workspaceId: string;
   name: string;
   path: string;
-  branch: string;
 }
 
 export interface IWorktreeRepository {
@@ -20,7 +19,7 @@ export interface IWorktreeRepository {
   findByPath(path: string): Worktree | null;
   findAll(): Worktree[];
   create(data: CreateWorktreeData): Worktree;
-  updateBranch(workspaceId: string, branch: string): void;
+  updatePath(workspaceId: string, path: string): void;
   deleteByWorkspaceId(workspaceId: string): void;
   deleteAll(): void;
 }
@@ -71,7 +70,6 @@ export class WorktreeRepository implements IWorktreeRepository {
       workspaceId: data.workspaceId,
       name: data.name,
       path: data.path,
-      branch: data.branch,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -83,10 +81,10 @@ export class WorktreeRepository implements IWorktreeRepository {
     return created;
   }
 
-  updateBranch(workspaceId: string, branch: string): void {
+  updatePath(workspaceId: string, path: string): void {
     this.db
       .update(worktrees)
-      .set({ branch, updatedAt: now() })
+      .set({ path, updatedAt: now() })
       .where(byWorkspaceId(workspaceId))
       .run();
   }

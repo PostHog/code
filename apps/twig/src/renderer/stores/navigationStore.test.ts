@@ -27,13 +27,14 @@ vi.mock("@features/workspace/hooks/useWorkspace", () => ({
     create: vi.fn().mockResolvedValue(null),
   },
 }));
-vi.mock("@stores/registeredFoldersStore", () => ({
-  useRegisteredFoldersStore: {
-    getState: () => ({ addFolder: vi.fn(), folders: [] }),
+vi.mock("@features/folders/hooks/useFolders", () => ({
+  foldersApi: {
+    getFolders: vi.fn().mockResolvedValue([]),
+    addFolder: vi.fn().mockResolvedValue(null),
   },
 }));
 vi.mock("@hooks/useRepositoryDirectory", () => ({
-  getTaskDirectorySync: () => null,
+  getTaskDirectory: vi.fn().mockResolvedValue(null),
 }));
 
 import { useNavigationStore } from "./navigationStore";

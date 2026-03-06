@@ -1,3 +1,4 @@
+import { useFolders } from "@features/folders/hooks/useFolders";
 import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
 import { ArrowLeft, Warning } from "@phosphor-icons/react";
 import {
@@ -11,7 +12,6 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { useNavigationStore } from "@renderer/stores/navigationStore";
-import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
 import { logger } from "@utils/logger";
 import { useState } from "react";
 
@@ -21,7 +21,7 @@ export function FolderSettingsView() {
   useSetHeaderContent(null);
 
   const { view, navigateToTaskInput } = useNavigationStore();
-  const { folders, removeFolder } = useRegisteredFoldersStore();
+  const { folders, removeFolder } = useFolders();
 
   const folderId = view.type === "folder-settings" ? view.folderId : undefined;
   const folder = folders.find((f) => f.id === folderId);

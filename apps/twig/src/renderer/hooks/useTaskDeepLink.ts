@@ -1,5 +1,5 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
-import { useTaskViewedStore } from "@features/sidebar/stores/taskViewedStore";
+import { useTaskViewed } from "@features/sidebar/hooks/useTaskViewed";
 import type { TaskService } from "@features/task-detail/service/service";
 import { get } from "@renderer/di/container";
 import { RENDERER_TOKENS } from "@renderer/di/tokens";
@@ -26,7 +26,7 @@ const taskKeys = {
  */
 export function useTaskDeepLink() {
   const navigateToTask = useNavigationStore((state) => state.navigateToTask);
-  const markAsViewed = useTaskViewedStore((state) => state.markAsViewed);
+  const { markAsViewed } = useTaskViewed();
   const queryClient = useQueryClient();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const hasFetchedPending = useRef(false);

@@ -95,6 +95,13 @@ export class AppLifecycleService {
     await this.teardownNativeResources();
 
     try {
+      const db = container.get<DatabaseService>(MAIN_TOKENS.DatabaseService);
+      db.close();
+    } catch (error) {
+      log.warn("Failed to close database during shutdown", error);
+    }
+
+    try {
       await container.unbindAll();
     } catch (error) {
       log.warn("Failed to unbind container", error);

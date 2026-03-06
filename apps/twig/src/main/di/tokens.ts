@@ -10,10 +10,10 @@ export const MAIN_TOKENS = Object.freeze({
 
   // Database
   DatabaseService: Symbol.for("Main.DatabaseService"),
-  DataMigrationService: Symbol.for("Main.DataMigrationService"),
   RepositoryRepository: Symbol.for("Main.RepositoryRepository"),
   WorkspaceRepository: Symbol.for("Main.WorkspaceRepository"),
   WorktreeRepository: Symbol.for("Main.WorktreeRepository"),
+  ArchiveRepository: Symbol.for("Main.ArchiveRepository"),
 
   // Services
   AgentService: Symbol.for("Main.AgentService"),

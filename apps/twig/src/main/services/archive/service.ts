@@ -8,6 +8,10 @@ import {
 } from "@twig/git/sagas/checkpoint";
 import { type WorktreeInfo, WorktreeManager } from "@twig/git/worktree";
 import { inject, injectable } from "inversify";
+import type {
+  Archive,
+  ArchiveRepository,
+} from "../../db/repositories/archive-repository.js";
 import type { RepositoryRepository } from "../../db/repositories/repository-repository.js";
 import type {
   Workspace,
@@ -41,6 +45,8 @@ export class ArchiveService {
     private readonly workspaceRepo: WorkspaceRepository,
     @inject(MAIN_TOKENS.WorktreeRepository)
     private readonly worktreeRepo: WorktreeRepository,
+    @inject(MAIN_TOKENS.ArchiveRepository)
+    private readonly archiveRepo: ArchiveRepository,
   ) {}
 
   async archiveTask(input: ArchiveTaskInput): Promise<ArchivedTask> {
@@ -77,35 +83,40 @@ export class ArchiveService {
   ): Promise<ArchivedTask> {
     const { taskId } = input;
 
-    const workspace = this.workspaceRepo.findActiveByTaskId(taskId);
-    const worktree = workspace
-      ? this.worktreeRepo.findByWorkspaceId(workspace.id)
-      : null;
+    const workspace = this.workspaceRepo.findByTaskId(taskId);
+    if (!workspace) {
+      return {
+        taskId,
+        archivedAt: new Date().toISOString(),
+        folderId: "",
+        mode: "cloud",
+        worktreeName: null,
+        branchName: null,
+        checkpointId: null,
+      };
+    }
 
-    const archivedTask: ArchivedTask = workspace
-      ? {
-          taskId,
-          archivedAt: new Date().toISOString(),
-          folderId: workspace.repositoryId ?? "",
-          mode: workspace.mode,
-          worktreeName: worktree?.name ?? null,
-          branchName: null,
-          checkpointId:
-            workspace.mode === "worktree" && worktree
-              ? `worktree-${worktree.name}`
-              : null,
-        }
-      : {
-          taskId,
-          archivedAt: new Date().toISOString(),
-          folderId: "",
-          mode: "cloud",
-          worktreeName: null,
-          branchName: null,
-          checkpointId: null,
-        };
+    const existingArchive = this.archiveRepo.findByWorkspaceId(workspace.id);
+    if (existingArchive) {
+      throw new Error(`Task ${taskId} is already archived`);
+    }
 
-    if (workspace?.repositoryId) {
+    const worktree = this.worktreeRepo.findByWorkspaceId(workspace.id);
+
+    const archivedTask: ArchivedTask = {
+      taskId,
+      archivedAt: new Date().toISOString(),
+      folderId: workspace.repositoryId ?? "",
+      mode: workspace.mode,
+      worktreeName: worktree?.name ?? null,
+      branchName: null,
+      checkpointId:
+        workspace.mode === "worktree" && worktree
+          ? `worktree-${worktree.name}`
+          : null,
+    };
+
+    if (workspace.repositoryId) {
       const repo = this.repositoryRepo.findById(workspace.repositoryId);
       if (!repo) {
         throw new Error(`Repository not found for task ${taskId}`);
@@ -160,24 +171,10 @@ export class ArchiveService {
           },
           async () => {},
         );
-
-        await step(
-          async () => {
-            this.worktreeRepo.deleteByWorkspaceId(workspace.id);
-          },
-          async () => {
-            this.worktreeRepo.create({
-              workspaceId: workspace.id,
-              name: worktree.name,
-              path: worktree.path,
-              branch: worktree.branch,
-            });
-          },
-        );
       }
     }
 
-    if (workspace?.mode !== "worktree") {
+    if (workspace.mode !== "worktree") {
       await step(
         async () => {
           await this.agentService.cancelSessionsByTaskId(taskId);
@@ -189,14 +186,14 @@ export class ArchiveService {
 
     await step(
       async () => {
-        this.workspaceRepo.archive(taskId, {
-          worktreeName: archivedTask.worktreeName,
+        this.archiveRepo.create({
+          workspaceId: workspace.id,
           branchName: archivedTask.branchName,
           checkpointId: archivedTask.checkpointId,
         });
       },
       async () => {
-        this.workspaceRepo.unarchive(taskId);
+        this.archiveRepo.deleteByWorkspaceId(workspace.id);
       },
     );
 
@@ -245,29 +242,36 @@ export class ArchiveService {
     recreateBranch: boolean | undefined,
     step: (execute: () => Promise<void>, rollback: RollbackFn) => Promise<void>,
   ): Promise<{ taskId: string; worktreeName: string | null }> {
-    const archived = this.workspaceRepo.findArchivedByTaskId(taskId);
-    if (!archived) {
+    const workspace = this.workspaceRepo.findByTaskId(taskId);
+    if (!workspace) {
+      throw new Error(`Workspace not found: ${taskId}`);
+    }
+
+    const archive = this.archiveRepo.findByWorkspaceId(workspace.id);
+    if (!archive) {
       throw new Error(`Archived task not found: ${taskId}`);
     }
 
-    let restoredWorktreeName: string | null = null;
+    const worktree = this.worktreeRepo.findByWorkspaceId(workspace.id);
+    let restoredWorktreeName: string | null = worktree?.name ?? null;
 
-    if (archived.repositoryId) {
-      const repo = this.repositoryRepo.findById(archived.repositoryId);
+    if (workspace.repositoryId) {
+      const repo = this.repositoryRepo.findById(workspace.repositoryId);
       if (!repo) {
         throw new Error(`Repository not found for task ${taskId}`);
       }
       const folderPath = repo.path;
 
       const shouldRestoreWorktree =
-        archived.mode === "worktree" && archived.checkpointId;
+        workspace.mode === "worktree" && archive.checkpointId;
 
       if (shouldRestoreWorktree) {
         await step(
           async () => {
             restoredWorktreeName = await this.restoreWorktreeFromCheckpoint(
               folderPath,
-              archived,
+              workspace,
+              archive,
               recreateBranch,
             );
           },
@@ -290,25 +294,8 @@ export class ArchiveService {
 
         await step(
           async () => {
-            this.workspaceRepo.unarchive(taskId);
-          },
-          async () => {
-            this.workspaceRepo.archive(taskId, {
-              worktreeName: archived.worktreeName,
-              branchName: archived.branchName,
-              checkpointId: archived.checkpointId,
-            });
-          },
-        );
-
-        await step(
-          async () => {
             if (!restoredWorktreeName) {
               throw new Error("Failed to restore worktree");
-            }
-            const workspace = this.workspaceRepo.findActiveByTaskId(taskId);
-            if (!workspace) {
-              throw new Error("Workspace not found after unarchive");
             }
             const worktreePath = await this.deriveWorktreePath(
               folderPath,
@@ -318,96 +305,103 @@ export class ArchiveService {
               workspaceId: workspace.id,
               name: restoredWorktreeName,
               path: worktreePath,
-              branch: archived.branchName ?? "HEAD",
             });
           },
           async () => {
-            const workspace = this.workspaceRepo.findActiveByTaskId(taskId);
-            if (workspace) {
-              this.worktreeRepo.deleteByWorkspaceId(workspace.id);
-            }
-          },
-        );
-      } else {
-        await step(
-          async () => {
-            this.workspaceRepo.unarchive(taskId);
-          },
-          async () => {
-            this.workspaceRepo.archive(taskId, {
-              worktreeName: archived.worktreeName,
-              branchName: archived.branchName,
-              checkpointId: archived.checkpointId,
-            });
+            this.worktreeRepo.deleteByWorkspaceId(workspace.id);
           },
         );
       }
-    } else {
-      await step(
-        async () => {
-          this.workspaceRepo.unarchive(taskId);
-        },
-        async () => {
-          this.workspaceRepo.archive(taskId, {
-            worktreeName: archived.worktreeName,
-            branchName: archived.branchName,
-            checkpointId: archived.checkpointId,
-          });
-        },
-      );
     }
+
+    await step(
+      async () => {
+        this.archiveRepo.deleteByWorkspaceId(workspace.id);
+      },
+      async () => {
+        this.archiveRepo.create({
+          workspaceId: workspace.id,
+          branchName: archive.branchName,
+          checkpointId: archive.checkpointId,
+        });
+      },
+    );
 
     return { taskId, worktreeName: restoredWorktreeName };
   }
 
   getArchivedTasks(): ArchivedTask[] {
-    const archived = this.workspaceRepo.findAllArchived();
-    return archived.map((w) => this.workspaceToArchivedTask(w));
+    const archives = this.archiveRepo.findAll();
+    return archives.map((archive) => {
+      const workspace = this.workspaceRepo.findById(
+        archive.workspaceId,
+      ) as Workspace;
+      const worktree = this.worktreeRepo.findByWorkspaceId(workspace.id);
+      return this.toArchivedTask(workspace, archive, worktree?.name ?? null);
+    });
   }
 
   getArchivedTaskIds(): string[] {
-    return this.workspaceRepo.findAllArchived().map((w) => w.taskId);
+    const archives = this.archiveRepo.findAll();
+    return archives
+      .map((archive) => {
+        const workspace = this.workspaceRepo.findById(archive.workspaceId);
+        return workspace?.taskId;
+      })
+      .filter((id): id is string => id !== undefined);
   }
 
   isArchived(taskId: string): boolean {
-    return this.workspaceRepo.findArchivedByTaskId(taskId) !== null;
+    const workspace = this.workspaceRepo.findByTaskId(taskId);
+    if (!workspace) return false;
+    return this.archiveRepo.findByWorkspaceId(workspace.id) !== null;
   }
 
   async deleteArchivedTask(taskId: string): Promise<void> {
     log.info(`Deleting archived task ${taskId}`);
 
-    const archived = this.workspaceRepo.findArchivedByTaskId(taskId);
-    if (!archived) {
+    const workspace = this.workspaceRepo.findByTaskId(taskId);
+    if (!workspace) {
+      throw new Error(`Workspace not found: ${taskId}`);
+    }
+
+    const archive = this.archiveRepo.findByWorkspaceId(workspace.id);
+    if (!archive) {
       throw new Error(`Archived task ${taskId} not found`);
     }
 
-    if (archived.checkpointId && archived.repositoryId) {
-      const repo = this.repositoryRepo.findById(archived.repositoryId);
+    if (archive.checkpointId && workspace.repositoryId) {
+      const repo = this.repositoryRepo.findById(workspace.repositoryId);
       if (repo) {
         try {
           const git = createGitClient(repo.path);
-          await deleteCheckpoint(git, archived.checkpointId);
+          await deleteCheckpoint(git, archive.checkpointId);
         } catch (error) {
-          log.warn(`Failed to delete checkpoint ${archived.checkpointId}`, {
+          log.warn(`Failed to delete checkpoint ${archive.checkpointId}`, {
             error,
           });
         }
       }
     }
 
+    this.archiveRepo.deleteByWorkspaceId(workspace.id);
     this.workspaceRepo.deleteByTaskId(taskId);
     log.info(`Deleted archived task ${taskId}`);
   }
 
-  private workspaceToArchivedTask(workspace: Workspace): ArchivedTask {
+  private toArchivedTask(
+    workspace: Workspace,
+    archive: Archive,
+    worktreeName: string | null,
+  ): ArchivedTask {
     return {
       taskId: workspace.taskId,
-      archivedAt: workspace.archivedAt ?? new Date().toISOString(),
+      archivedAt: archive.archivedAt,
       folderId: workspace.repositoryId ?? "",
       mode: workspace.mode,
-      worktreeName: workspace.worktreeName,
-      branchName: workspace.branchName,
-      checkpointId: workspace.checkpointId,
+      worktreeName,
+      branchName: archive.branchName,
+      checkpointId: archive.checkpointId,
     };
   }
 
@@ -467,36 +461,38 @@ export class ArchiveService {
 
   private async restoreWorktreeFromCheckpoint(
     folderPath: string,
-    archived: Workspace,
+    workspace: Workspace,
+    archive: Archive,
     recreateBranch?: boolean,
   ): Promise<string> {
+    const worktree = this.worktreeRepo.findByWorkspaceId(workspace.id);
     const manager = new WorktreeManager({
       mainRepoPath: folderPath,
       worktreeBasePath: getWorktreeLocation(),
     });
-    const preferredName = archived.worktreeName ?? undefined;
+    const preferredName = worktree?.name ?? undefined;
 
-    let worktree: WorktreeInfo;
-    if (archived.branchName && !recreateBranch) {
-      worktree = await manager.createWorktreeForExistingBranch(
-        archived.branchName,
+    let newWorktree: WorktreeInfo;
+    if (archive.branchName && !recreateBranch) {
+      newWorktree = await manager.createWorktreeForExistingBranch(
+        archive.branchName,
         preferredName,
       );
     } else {
-      worktree = await manager.createDetachedWorktreeAtCommit(
+      newWorktree = await manager.createDetachedWorktreeAtCommit(
         "HEAD",
         preferredName,
       );
     }
 
-    if (!archived.checkpointId) {
+    if (!archive.checkpointId) {
       throw new Error("checkpointId is required for restoring worktree");
     }
 
     const revertSaga = new RevertCheckpointSaga();
     const result = await revertSaga.run({
-      baseDir: worktree.worktreePath,
-      checkpointId: archived.checkpointId,
+      baseDir: newWorktree.worktreePath,
+      checkpointId: archive.checkpointId,
     });
 
     if (!result.success) {
@@ -505,11 +501,15 @@ export class ArchiveService {
       );
     }
 
-    if (recreateBranch && archived.branchName) {
-      const git = createGitClient(worktree.worktreePath);
-      await git.checkoutLocalBranch(archived.branchName);
+    if (recreateBranch && archive.branchName) {
+      const git = createGitClient(newWorktree.worktreePath);
+      await git.checkoutLocalBranch(archive.branchName);
     }
 
-    return worktree.worktreeName;
+    if (worktree) {
+      this.worktreeRepo.deleteByWorkspaceId(workspace.id);
+    }
+
+    return newWorktree.worktreeName;
   }
 }

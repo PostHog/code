@@ -4,20 +4,28 @@ import { AppLifecycleService } from "./service.js";
 const {
   mockApp,
   mockContainer,
+  mockDatabaseService,
   mockTrackAppEvent,
   mockShutdownPostHog,
   mockProcessExit,
-} = vi.hoisted(() => ({
-  mockApp: {
-    exit: vi.fn(),
-  },
-  mockContainer: {
-    unbindAll: vi.fn(() => Promise.resolve()),
-  },
-  mockTrackAppEvent: vi.fn(),
-  mockShutdownPostHog: vi.fn(() => Promise.resolve()),
-  mockProcessExit: vi.fn() as unknown as (code?: number) => never,
-}));
+} = vi.hoisted(() => {
+  const mockDatabaseService = {
+    close: vi.fn(),
+  };
+  return {
+    mockApp: {
+      exit: vi.fn(),
+    },
+    mockContainer: {
+      unbindAll: vi.fn(() => Promise.resolve()),
+      get: vi.fn(() => mockDatabaseService),
+    },
+    mockDatabaseService,
+    mockTrackAppEvent: vi.fn(),
+    mockShutdownPostHog: vi.fn(() => Promise.resolve()),
+    mockProcessExit: vi.fn() as unknown as (code?: number) => never,
+  };
+});
 
 vi.mock("electron", () => ({
   app: mockApp,
@@ -114,6 +122,9 @@ describe("AppLifecycleService", () => {
     it("calls cleanup steps in order", async () => {
       const callOrder: string[] = [];
 
+      mockDatabaseService.close.mockImplementation(() => {
+        callOrder.push("dbClose");
+      });
       mockContainer.unbindAll.mockImplementation(async () => {
         callOrder.push("unbindAll");
       });
@@ -129,10 +140,18 @@ describe("AppLifecycleService", () => {
       await promise;
 
       expect(callOrder).toEqual([
+        "dbClose",
         "unbindAll",
         "trackAppEvent",
         "shutdownPostHog",
       ]);
+    });
+
+    it("closes the database", async () => {
+      const promise = service.shutdown();
+      await vi.runAllTimersAsync();
+      await promise;
+      expect(mockDatabaseService.close).toHaveBeenCalled();
     });
 
     it("continues shutdown if container unbind fails", async () => {
@@ -178,6 +197,9 @@ describe("AppLifecycleService", () => {
     it("calls shutdown before exit", async () => {
       const callOrder: string[] = [];
 
+      mockDatabaseService.close.mockImplementation(() => {
+        callOrder.push("dbClose");
+      });
       mockContainer.unbindAll.mockImplementation(async () => {
         callOrder.push("unbindAll");
       });
@@ -189,7 +211,7 @@ describe("AppLifecycleService", () => {
       await vi.runAllTimersAsync();
       await promise;
 
-      expect(callOrder[0]).toBe("unbindAll");
+      expect(callOrder[0]).toBe("dbClose");
       expect(callOrder[callOrder.length - 1]).toBe("exit");
     });
 

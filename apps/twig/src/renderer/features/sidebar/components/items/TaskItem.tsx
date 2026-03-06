@@ -1,5 +1,6 @@
 import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
 import { Tooltip } from "@components/ui/Tooltip";
+import type { WorkspaceMode } from "@main/services/workspace/schemas";
 import {
   Archive,
   ArrowsClockwise,
@@ -9,7 +10,6 @@ import {
   Laptop as LaptopIcon,
   PushPin,
 } from "@phosphor-icons/react";
-import type { WorkspaceMode } from "@shared/types";
 import { selectIsFocusedOnWorktree, useFocusStore } from "@stores/focusStore";
 import { useEffect, useRef, useState } from "react";
 import { SidebarItem } from "../SidebarItem";

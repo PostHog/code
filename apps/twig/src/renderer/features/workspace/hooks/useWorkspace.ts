@@ -1,5 +1,8 @@
+import type {
+  Workspace,
+  WorkspaceMode,
+} from "@main/services/workspace/schemas";
 import { trpcReact, trpcVanilla } from "@renderer/trpc/client";
-import type { Workspace, WorkspaceMode } from "@shared/types";
 import { useCallback, useMemo } from "react";
 
 function useWorkspacesQuery() {

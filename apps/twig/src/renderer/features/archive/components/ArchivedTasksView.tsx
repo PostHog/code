@@ -2,6 +2,7 @@ import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
 import { Tooltip } from "@components/ui/Tooltip";
 import { useTasks } from "@features/tasks/hooks/useTasks";
 import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
+import type { WorkspaceMode } from "@main/services/workspace/schemas";
 import {
   Cloud as CloudIcon,
   GitBranch as GitBranchIcon,
@@ -9,7 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import { Box, Button, Dialog, Flex, Table, Text } from "@radix-ui/themes";
 import { trpcReact, trpcVanilla } from "@renderer/trpc";
-import type { Task, WorkspaceMode } from "@shared/types";
+import type { Task } from "@shared/types";
 import type { ArchivedTask } from "@shared/types/archive";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useQueryClient } from "@tanstack/react-query";

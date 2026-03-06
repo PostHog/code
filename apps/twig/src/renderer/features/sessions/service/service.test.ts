@@ -126,12 +126,10 @@ vi.mock("@features/settings/stores/settingsStore", () => ({
   },
 }));
 
-vi.mock("@features/sidebar/stores/taskViewedStore", () => ({
-  useTaskViewedStore: {
-    getState: () => ({
-      markActivity: vi.fn(),
-      markAsViewed: vi.fn(),
-    }),
+vi.mock("@features/sidebar/hooks/useTaskViewed", () => ({
+  taskViewedApi: {
+    markActivity: vi.fn(),
+    markAsViewed: vi.fn(),
   },
 }));
 

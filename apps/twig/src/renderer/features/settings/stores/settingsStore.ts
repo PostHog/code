@@ -1,4 +1,4 @@
-import type { WorkspaceMode } from "@shared/types";
+import type { WorkspaceMode } from "@main/services/workspace/schemas";
 import { electronStorage } from "@utils/electronStorage";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";

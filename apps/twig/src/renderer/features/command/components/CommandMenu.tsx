@@ -1,5 +1,6 @@
 import { Command } from "@features/command/components/Command";
 import { CommandKeyHints } from "@features/command/components/CommandKeyHints";
+import { useFolders } from "@features/folders/hooks/useFolders";
 import { useRightSidebarStore } from "@features/right-sidebar";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useSidebarStore } from "@features/sidebar/stores/sidebarStore";
@@ -18,7 +19,6 @@ import {
   type CommandMenuAction,
 } from "@shared/types/analytics";
 import { useNavigationStore } from "@stores/navigationStore";
-import { useRegisteredFoldersStore } from "@stores/registeredFoldersStore";
 import { THEME_CYCLE_LABELS, useThemeStore } from "@stores/themeStore";
 import { track } from "@utils/analytics";
 import { useCallback, useEffect, useRef } from "react";
@@ -32,7 +32,7 @@ interface CommandMenuProps {
 export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
   const { navigateToTaskInput } = useNavigationStore();
   const openSettingsDialog = useSettingsDialogStore((state) => state.open);
-  const { folders } = useRegisteredFoldersStore();
+  const { folders } = useFolders();
   const { theme, cycleTheme } = useThemeStore();
   const toggleLeftSidebar = useSidebarStore((state) => state.toggle);
   const toggleRightSidebar = useRightSidebarStore((state) => state.toggle);

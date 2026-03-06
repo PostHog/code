@@ -16,7 +16,6 @@ import {
 } from "@phosphor-icons/react";
 import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
-import { useWorkspaceStore } from "@renderer/features/workspace/stores/workspaceStore";
 import { trpcReact, trpcVanilla } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -238,10 +237,7 @@ function CloudFileTreePanel({ taskId, task }: FileTreePanelProps) {
 }
 
 export function FileTreePanel({ taskId, task }: FileTreePanelProps) {
-  const workspace = useWorkspaceStore(
-    (s: { workspaces: Record<string, { mode?: string }> }) =>
-      s.workspaces[taskId],
-  );
+  const workspace = useWorkspace(taskId);
   const isCloud =
     workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
 

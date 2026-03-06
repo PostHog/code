@@ -5,7 +5,6 @@ import log from "electron-log/main";
 import "./utils/logger";
 import "./services/index.js";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics.js";
-import type { DataMigrationService } from "./db/data-migration.js";
 import type { DatabaseService } from "./db/service.js";
 import { initializeDeepLinks, registerDeepLinkHandlers } from "./deep-links.js";
 import { container } from "./di/container.js";
@@ -36,9 +35,6 @@ if (!gotTheLock) {
 
 function initializeServices(): void {
   container.get<DatabaseService>(MAIN_TOKENS.DatabaseService);
-  container
-    .get<DataMigrationService>(MAIN_TOKENS.DataMigrationService)
-    .migrate();
   container.get<OAuthService>(MAIN_TOKENS.OAuthService);
   container.get<NotificationService>(MAIN_TOKENS.NotificationService);
   container.get<UpdatesService>(MAIN_TOKENS.UpdatesService);

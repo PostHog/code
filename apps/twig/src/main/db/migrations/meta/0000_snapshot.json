@@ -1,24 +1,45 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "39afcbaf-53aa-4806-b4b2-379139a68881",
+  "id": "3ea9a080-30c3-4303-8dfd-e87e428f9ffc",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "app_meta": {
-      "name": "app_meta",
+    "archives": {
+      "name": "archives",
       "columns": {
-        "key": {
-          "name": "key",
+        "id": {
+          "name": "id",
           "type": "text",
           "primaryKey": true,
           "notNull": true,
           "autoincrement": false
         },
-        "value": {
-          "name": "value",
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "branch_name": {
+          "name": "branch_name",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
+          "autoincrement": false
+        },
+        "checkpoint_id": {
+          "name": "checkpoint_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
           "autoincrement": false
         },
         "created_at": {
@@ -28,10 +49,34 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(CURRENT_TIMESTAMP)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(CURRENT_TIMESTAMP)"
         }
       },
-      "indexes": {},
-      "foreignKeys": {},
+      "indexes": {
+        "archives_workspaceId_unique": {
+          "name": "archives_workspaceId_unique",
+          "columns": ["workspace_id"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "archives_workspace_id_workspaces_id_fk": {
+          "name": "archives_workspace_id_workspaces_id_fk",
+          "tableFrom": "archives",
+          "tableTo": "workspaces",
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -51,6 +96,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "remote_url": {
+          "name": "remote_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "last_accessed_at": {
@@ -120,42 +172,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "state": {
-          "name": "state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'active'"
-        },
-        "worktree_name": {
-          "name": "worktree_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "branch_name": {
-          "name": "branch_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "checkpoint_id": {
-          "name": "checkpoint_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "archived_at": {
-          "name": "archived_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "pinned_at": {
           "name": "pinned_at",
           "type": "text",
@@ -195,11 +211,10 @@
         }
       },
       "indexes": {
-        "workspaces_active_task_id_unique": {
-          "name": "workspaces_active_task_id_unique",
+        "workspaces_taskId_unique": {
+          "name": "workspaces_taskId_unique",
           "columns": ["task_id"],
-          "isUnique": true,
-          "where": "\"workspaces\".\"state\" = 'active'"
+          "isUnique": true
         }
       },
       "foreignKeys": {
@@ -215,16 +230,7 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {
-        "workspaces_active_archive_fields_null": {
-          "name": "workspaces_active_archive_fields_null",
-          "value": "\"workspaces\".\"state\" = 'archived' OR (\n        \"workspaces\".\"worktree_name\" IS NULL AND\n        \"workspaces\".\"branch_name\" IS NULL AND\n        \"workspaces\".\"checkpoint_id\" IS NULL AND\n        \"workspaces\".\"archived_at\" IS NULL\n      )"
-        },
-        "workspaces_archived_at_required": {
-          "name": "workspaces_archived_at_required",
-          "value": "(\"workspaces\".\"state\" = 'active' AND \"workspaces\".\"archived_at\" IS NULL) OR\n          (\"workspaces\".\"state\" = 'archived' AND \"workspaces\".\"archived_at\" IS NOT NULL)"
-        }
-      }
+      "checkConstraints": {}
     },
     "worktrees": {
       "name": "worktrees",
@@ -252,13 +258,6 @@
         },
         "path": {
           "name": "path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "branch": {
-          "name": "branch",
           "type": "text",
           "primaryKey": false,
           "notNull": true,

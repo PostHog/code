@@ -36,7 +36,6 @@ export function DiffEditorPanel({
       }),
     enabled: !!repoPath,
     staleTime: 30_000,
-    refetchOnWindowFocus: true,
   });
 
   const fileInfo = changedFiles.find((f) => f.path === filePath);
@@ -56,7 +55,6 @@ export function DiffEditorPanel({
       }),
     enabled: !!repoPath && !isDeleted,
     staleTime: 30_000,
-    refetchOnWindowFocus: true,
   });
 
   const { data: originalContent, isLoading: loadingOriginal } = useQuery({
@@ -68,7 +66,6 @@ export function DiffEditorPanel({
       }),
     enabled: !!repoPath && !isNew,
     staleTime: 30_000,
-    refetchOnWindowFocus: true,
   });
 
   const handleRefresh = useCallback(() => {

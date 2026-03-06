@@ -6,9 +6,10 @@ import {
 } from "@features/message-editor/utils/content";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
 import { useConnectivity } from "@hooks/useConnectivity";
+import type { WorkspaceMode } from "@main/services/workspace/schemas";
 import { get } from "@renderer/di/container";
 import { RENDERER_TOKENS } from "@renderer/di/tokens";
-import type { ExecutionMode, WorkspaceMode } from "@shared/types";
+import type { ExecutionMode } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { logger } from "@utils/logger";
 import { useCallback, useState } from "react";

@@ -7,7 +7,6 @@ import {
   setSessionResetCallback,
   useAuthStore,
 } from "@features/auth/stores/authStore";
-import { useModelsStore } from "@features/sessions/stores/modelsStore";
 import { useSessionAdapterStore } from "@features/sessions/stores/sessionAdapterStore";
 import {
   getPersistedConfigOptions,
@@ -25,7 +24,8 @@ import {
   sessionStoreSetters,
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
-import { useTaskViewedStore } from "@features/sidebar/stores/taskViewedStore";
+import { taskViewedApi } from "@features/sidebar/hooks/useTaskViewed";
+import { DEFAULT_GATEWAY_MODEL } from "@posthog/agent/gateway-models";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpcVanilla } from "@renderer/trpc/client";
 import { toast } from "@renderer/utils/toast";
@@ -551,9 +551,7 @@ export class SessionService {
       execution_type: "local",
     });
 
-    // Set model and reasoning level in parallel
-    const preferredModel =
-      model ?? useModelsStore.getState().getEffectiveModel();
+    const preferredModel = model ?? DEFAULT_GATEWAY_MODEL;
     const configPromises: Promise<void>[] = [];
     if (preferredModel) {
       configPromises.push(
@@ -823,7 +821,7 @@ export class SessionService {
         notifyPromptComplete(session.taskTitle, stopReason, session.taskId);
       }
 
-      useTaskViewedStore.getState().markActivity(session.taskId);
+      taskViewedApi.markActivity(session.taskId);
 
       // Process queued messages after turn completes - send all as one prompt
       if (hasQueuedMessages) {
@@ -912,7 +910,7 @@ export class SessionService {
     });
 
     sessionStoreSetters.setPendingPermissions(taskRunId, newPermissions);
-    useTaskViewedStore.getState().markActivity(session.taskId);
+    taskViewedApi.markActivity(session.taskId);
     notifyPermissionRequest(session.taskTitle, session.taskId);
   }
 

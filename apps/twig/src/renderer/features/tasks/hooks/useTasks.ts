@@ -1,4 +1,4 @@
-import { usePinnedTasksStore } from "@features/sidebar/stores/pinnedTasksStore";
+import { pinnedTasksApi } from "@features/sidebar/hooks/usePinnedTasks";
 import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
 import { useAuthenticatedMutation } from "@hooks/useAuthenticatedMutation";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
@@ -126,7 +126,6 @@ interface DeleteTaskOptions {
 export function useDeleteTask() {
   const queryClient = useQueryClient();
   const { view, navigateToTaskInput } = useNavigationStore();
-  const unpinTask = usePinnedTasksStore((state) => state.unpin);
 
   const mutation = useAuthenticatedMutation(
     async (client, taskId: string) => {
@@ -214,15 +213,13 @@ export function useDeleteTask() {
         navigateToTaskInput();
       }
 
-      // Clean up pinned state
-      unpinTask(taskId);
+      pinnedTasksApi.unpin(taskId);
 
-      // Delete the task
       await mutation.mutateAsync(taskId);
 
       return true;
     },
-    [mutation, view, navigateToTaskInput, unpinTask],
+    [mutation, view, navigateToTaskInput],
   );
 
   return { ...mutation, deleteWithConfirm };

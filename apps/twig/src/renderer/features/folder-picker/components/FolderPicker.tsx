@@ -1,3 +1,4 @@
+import { useFolders } from "@features/folders/hooks/useFolders";
 import {
   Folder as FolderIcon,
   FolderOpen,
@@ -6,7 +7,6 @@ import {
 import { ChevronDownIcon } from "@radix-ui/react-icons";
 import { Button, DropdownMenu, Flex, Text } from "@radix-ui/themes";
 import type { Responsive } from "@radix-ui/themes/dist/esm/props/prop-def.js";
-import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
 import { trpcVanilla } from "@renderer/trpc";
 
 interface FolderPickerProps {
@@ -22,19 +22,16 @@ export function FolderPicker({
   placeholder = "Select folder...",
   size = "1",
 }: FolderPickerProps) {
-  const recentFolders = useRegisteredFoldersStore((state) =>
-    state.getRecentFolders(),
-  );
-  const displayValue = useRegisteredFoldersStore((state) =>
-    state.getFolderDisplayName(value),
-  );
-  const addFolder = useRegisteredFoldersStore((state) => state.addFolder);
-  const updateLastAccessed = useRegisteredFoldersStore(
-    (state) => state.updateLastAccessed,
-  );
-  const getFolderByPath = useRegisteredFoldersStore(
-    (state) => state.getFolderByPath,
-  );
+  const {
+    getRecentFolders,
+    getFolderDisplayName,
+    addFolder,
+    updateLastAccessed,
+    getFolderByPath,
+  } = useFolders();
+
+  const recentFolders = getRecentFolders();
+  const displayValue = getFolderDisplayName(value);
 
   const handleSelect = async (path: string) => {
     onChange(path);

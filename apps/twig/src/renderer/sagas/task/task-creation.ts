@@ -4,18 +4,17 @@ import {
   getSessionService,
 } from "@features/sessions/service/service";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
-import { getTaskDirectoryAsync } from "@hooks/useRepositoryDirectory";
+import { getTaskDirectory } from "@hooks/useRepositoryDirectory";
+import type {
+  Workspace,
+  WorkspaceMode,
+} from "@main/services/workspace/schemas";
 import { Saga, type SagaLogger } from "@posthog/shared";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { trpcVanilla } from "@renderer/trpc";
 import { generateTitle } from "@renderer/utils/generateTitle";
 import { getTaskRepository } from "@renderer/utils/repository";
-import type {
-  ExecutionMode,
-  Task,
-  Workspace,
-  WorkspaceMode,
-} from "@shared/types";
+import type { ExecutionMode, Task } from "@shared/types";
 import { logger } from "@utils/logger";
 import { queryClient } from "@utils/queryClient";
 import striptags from "striptags";
@@ -128,7 +127,7 @@ export class TaskCreationSaga extends Saga<
     const repoPath =
       input.repoPath ??
       (await this.readOnlyStep("resolve_repo_path", () =>
-        getTaskDirectoryAsync(task.id, repoKey ?? undefined),
+        getTaskDirectory(task.id, repoKey ?? undefined),
       ));
 
     // Step 3: Resolve workspaceMode - input takes precedence, then derive from task

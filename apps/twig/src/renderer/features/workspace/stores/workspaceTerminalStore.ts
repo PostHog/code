@@ -1,5 +1,5 @@
+import type { WorkspaceTerminalInfo } from "@main/services/workspace/schemas";
 import { omitKey } from "@renderer/utils/object";
-import type { WorkspaceTerminalInfo } from "@shared/types";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 

@@ -1,5 +1,6 @@
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
+import { useFolders } from "@features/folders/hooks/useFolders";
 import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
 import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
@@ -18,8 +19,6 @@ import {
   useRepositoryIntegration,
 } from "@hooks/useIntegrations";
 import { Flex } from "@radix-ui/themes";
-import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
-import { repositoryWorkspaceStore } from "@renderer/stores/repositoryWorkspaceStore";
 import { trpcReact } from "@renderer/trpc/client";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -73,8 +72,8 @@ export function TaskInput() {
 
   const { githubIntegration, repositories, isLoadingRepos } =
     useRepositoryIntegration();
-  const selectedRepository = repositoryWorkspaceStore(
-    (s: { selectedRepository: string | null }) => s.selectedRepository,
+  const [selectedRepository, setSelectedRepository] = useState<string | null>(
+    null,
   );
   const { currentBranch, branchLoading, defaultBranch } =
     useGitQueries(selectedDirectory);
@@ -91,15 +90,16 @@ export function TaskInput() {
     isConnecting,
   } = usePreviewSession(adapter);
 
+  const { folders } = useFolders();
+
   useEffect(() => {
     if (view.folderId) {
-      const currentFolders = useRegisteredFoldersStore.getState().folders;
-      const folder = currentFolders.find((f) => f.id === view.folderId);
+      const folder = folders.find((f) => f.id === view.folderId);
       if (folder) {
         setSelectedDirectory(folder.path);
       }
     }
-  }, [view.folderId]);
+  }, [view.folderId, folders]);
 
   const effectiveWorkspaceMode = workspaceMode;
 
@@ -279,9 +279,7 @@ export function TaskInput() {
             {workspaceMode === "cloud" ? (
               <GitHubRepoPicker
                 value={selectedRepository}
-                onChange={(repo) =>
-                  repositoryWorkspaceStore.getState().selectRepository(repo)
-                }
+                onChange={setSelectedRepository}
                 repositories={repositories}
                 isLoading={isLoadingRepos}
                 placeholder="Select repository..."

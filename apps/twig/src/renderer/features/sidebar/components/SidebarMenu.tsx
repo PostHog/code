@@ -11,9 +11,9 @@ import { useNavigationStore } from "@stores/navigationStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { memo, useCallback, useEffect, useRef } from "react";
+import { usePinnedTasks } from "../hooks/usePinnedTasks";
 import { useSidebarData } from "../hooks/useSidebarData";
-import { usePinnedTasksStore } from "../stores/pinnedTasksStore";
-import { useTaskViewedStore } from "../stores/taskViewedStore";
+import { useTaskViewed } from "../hooks/useTaskViewed";
 import { InboxItem, NewTaskItem } from "./items/HomeItem";
 import { SidebarItem } from "./SidebarItem";
 import { TaskListView } from "./TaskListView";
@@ -25,12 +25,12 @@ function SidebarMenuComponent() {
   const { data: allTasks = [] } = useTasks();
 
   const { data: workspaces = {} } = useWorkspaces();
-  const markAsViewed = useTaskViewedStore((state) => state.markAsViewed);
+  const { markAsViewed } = useTaskViewed();
 
   const { showContextMenu, editingTaskId, setEditingTaskId } =
     useTaskContextMenu();
   const { archiveTask } = useArchiveTask();
-  const togglePin = usePinnedTasksStore((state) => state.togglePin);
+  const { togglePin } = usePinnedTasks();
 
   const sidebarData = useSidebarData({
     activeView: view,

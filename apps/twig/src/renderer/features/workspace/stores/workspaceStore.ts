@@ -1,14 +1,14 @@
-import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
-import { trpcVanilla } from "@renderer/trpc";
-import { omitKey } from "@renderer/utils/object";
 import type {
-  CreateWorkspaceOptions,
+  CreateWorkspaceInput,
   ScriptExecutionResult,
   Workspace,
   WorkspaceInfo,
   WorkspaceMode,
   WorkspaceTerminalInfo,
-} from "@shared/types";
+} from "@main/services/workspace/schemas";
+import { foldersApi } from "@renderer/features/folders/hooks/useFolders";
+import { trpcVanilla } from "@renderer/trpc";
+import { omitKey } from "@renderer/utils/object";
 import { logger } from "@utils/logger";
 import type { StoreApi, UseBoundStore } from "zustand";
 import { create } from "zustand";
@@ -38,7 +38,7 @@ interface WorkspaceState {
   loadWorkspaces: () => Promise<void>;
 
   // CRUD
-  createWorkspace: (options: CreateWorkspaceOptions) => Promise<Workspace>;
+  createWorkspace: (options: CreateWorkspaceInput) => Promise<Workspace>;
   deleteWorkspace: (taskId: string, mainRepoPath: string) => Promise<void>;
   verifyWorkspace: (taskId: string) => Promise<boolean>;
 
@@ -121,7 +121,7 @@ const useWorkspaceStoreBase = create<WorkspaceState>()((set, get) => {
       }
     },
 
-    createWorkspace: async (options: CreateWorkspaceOptions) => {
+    createWorkspace: async (options: CreateWorkspaceInput) => {
       const { taskId, folderId, folderPath } = options;
       set((state) => ({
         isCreating: { ...state.isCreating, [taskId]: true },
@@ -181,11 +181,10 @@ const useWorkspaceStoreBase = create<WorkspaceState>()((set, get) => {
 
       // For cloud tasks, create a minimal workspace entry (no local worktree)
       if (mode === "cloud") {
-        const { getFolderByPath, addFolder } =
-          useRegisteredFoldersStore.getState();
-        let folder = getFolderByPath(repoPath);
+        const folders = await foldersApi.getFolders();
+        let folder = foldersApi.getFolderByPath(folders, repoPath);
         if (!folder) {
-          folder = await addFolder(repoPath);
+          folder = await foldersApi.addFolder(repoPath);
         }
 
         const cloudWorkspace: Workspace = {
@@ -253,11 +252,10 @@ const useWorkspaceStoreBase = create<WorkspaceState>()((set, get) => {
 
       try {
         // Ensure folder is registered
-        const { getFolderByPath, addFolder } =
-          useRegisteredFoldersStore.getState();
-        let folder = getFolderByPath(repoPath);
+        const folders = await foldersApi.getFolders();
+        let folder = foldersApi.getFolderByPath(folders, repoPath);
         if (!folder) {
-          folder = await addFolder(repoPath);
+          folder = await foldersApi.addFolder(repoPath);
         }
 
         const workspaceInfo = await trpcVanilla.workspace.create.mutate({

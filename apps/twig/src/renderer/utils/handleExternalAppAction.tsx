@@ -1,7 +1,7 @@
+import { externalAppsApi } from "@features/external-apps/hooks/useExternalApps";
 import type { ExternalAppAction } from "@main/services/context-menu/schemas";
+import type { Workspace } from "@main/services/workspace/schemas";
 import { trpcVanilla } from "@renderer/trpc/client";
-import type { Workspace } from "@shared/types";
-import { useExternalAppsStore } from "@stores/externalAppsStore";
 import { useFocusStore } from "@stores/focusStore";
 import { logger } from "@utils/logger";
 import { toast } from "@utils/toast";
@@ -103,9 +103,9 @@ export async function handleExternalAppAction(
       targetPath: effectivePath,
     });
     if (openResult.success) {
-      await useExternalAppsStore.getState().setLastUsedApp(action.appId);
+      await externalAppsApi.setLastUsed(action.appId);
 
-      const apps = await trpcVanilla.externalApps.getDetectedApps.query();
+      const apps = await externalAppsApi.getDetectedApps();
       const app = apps.find((a) => a.id === action.appId);
       toast.success(`Opening in ${app?.name || "external app"}`, {
         description: displayName,

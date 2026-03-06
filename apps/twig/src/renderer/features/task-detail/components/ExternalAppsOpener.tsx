@@ -1,10 +1,10 @@
+import { useExternalApps } from "@features/external-apps/hooks/useExternalApps";
 import { CodeIcon, CopyIcon } from "@phosphor-icons/react";
 import { ChevronDownIcon } from "@radix-ui/react-icons";
 import { Button, DropdownMenu, Flex, Text } from "@radix-ui/themes";
 import { SHORTCUTS } from "@renderer/constants/keyboard-shortcuts";
-import { useExternalAppsStore } from "@stores/externalAppsStore";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 const THUMBNAIL_ICON_SIZE = 20;
@@ -19,20 +19,7 @@ export function ExternalAppsOpener({
   targetPath,
   label = "Open",
 }: ExternalAppsOpenerProps) {
-  const { detectedApps, lastUsedAppId, isLoading, initialize } =
-    useExternalAppsStore();
-
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
-
-  const defaultApp = useMemo(() => {
-    if (lastUsedAppId) {
-      const app = detectedApps.find((a) => a.id === lastUsedAppId);
-      if (app) return app;
-    }
-    return detectedApps[0] || null;
-  }, [detectedApps, lastUsedAppId]);
+  const { detectedApps, defaultApp, isLoading } = useExternalApps();
 
   const handleOpenDefault = useCallback(async () => {
     if (!defaultApp || !targetPath) return;

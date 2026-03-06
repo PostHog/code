@@ -21,6 +21,10 @@ vi.mock("../settingsStore.js", () => ({
   getWorktreeLocation: () => testWorktreeBasePath,
 }));
 
+import {
+  createMockArchiveRepository,
+  type MockArchiveRepository,
+} from "../../db/repositories/archive-repository.mock";
 import type { IRepositoryRepository } from "../../db/repositories/repository-repository";
 import { createMockRepositoryRepository } from "../../db/repositories/repository-repository.mock";
 import {
@@ -65,6 +69,7 @@ interface TestContext {
   repositoryRepo: IRepositoryRepository;
   workspaceRepo: MockWorkspaceRepository;
   worktreeRepo: MockWorktreeRepository;
+  archiveRepo: MockArchiveRepository;
   repoPath: string;
   repoId: string;
   worktreeBasePath: string;
@@ -80,8 +85,8 @@ interface CreateTestContextOpts {
   mode?: "local" | "cloud" | "worktree";
   hasWorkspace?: boolean;
   isArchived?: boolean;
-  failOnArchive?: boolean;
-  failOnUnarchive?: boolean;
+  failOnArchiveCreate?: boolean;
+  failOnArchiveDelete?: boolean;
   failOnWorktreeCreate?: boolean;
   failOnWorktreeDelete?: boolean;
 }
@@ -98,13 +103,14 @@ async function withTestContext(
   testWorktreeBasePath = worktreeBasePath;
 
   const repositoryRepo = createMockRepositoryRepository();
-  const workspaceRepo = createMockWorkspaceRepository({
-    failOnArchive: opts.failOnArchive,
-    failOnUnarchive: opts.failOnUnarchive,
-  });
+  const workspaceRepo = createMockWorkspaceRepository();
   const worktreeRepo = createMockWorktreeRepository({
     failOnCreate: opts.failOnWorktreeCreate,
     failOnDelete: opts.failOnWorktreeDelete,
+  });
+  const archiveRepo = createMockArchiveRepository({
+    failOnCreate: opts.failOnArchiveCreate,
+    failOnDelete: opts.failOnArchiveDelete,
   });
 
   const repo = repositoryRepo.create({ path: repoPath });
@@ -123,6 +129,7 @@ async function withTestContext(
     repositoryRepo as never,
     workspaceRepo as never,
     worktreeRepo as never,
+    archiveRepo as never,
   );
 
   const git = (cmd: string) =>
@@ -150,7 +157,7 @@ async function withTestContext(
             "test-wt",
           );
 
-    const workspace = workspaceRepo.createActive({
+    const workspace = workspaceRepo.create({
       taskId: TASK_ID,
       repositoryId: repoId,
       mode: "worktree",
@@ -160,22 +167,21 @@ async function withTestContext(
       workspaceId: workspace.id,
       name: result.worktreeName,
       path: result.worktreePath,
-      branch: result.branchName ?? "HEAD",
     });
 
     return result;
   };
 
   if (opts.hasWorkspace !== false && opts.mode && opts.mode !== "worktree") {
-    workspaceRepo.createActive({
+    const workspace = workspaceRepo.create({
       taskId: TASK_ID,
       repositoryId: repoId,
       mode: opts.mode,
     });
 
     if (opts.isArchived) {
-      workspaceRepo.archive(TASK_ID, {
-        worktreeName: null,
+      archiveRepo.create({
+        workspaceId: workspace.id,
         branchName: null,
         checkpointId: null,
       });
@@ -187,6 +193,7 @@ async function withTestContext(
     repositoryRepo,
     workspaceRepo,
     worktreeRepo,
+    archiveRepo,
     repoPath,
     repoId,
     worktreeBasePath,
@@ -217,9 +224,8 @@ describe("ArchiveService integration", () => {
         const archived = await ctx.service.archiveTask(ctx.archiveInput());
 
         expect(await pathExists(worktreePath)).toBe(false);
-        expect(ctx.workspaceRepo.findAllArchived()).toHaveLength(1);
+        expect(ctx.archiveRepo.findAll()).toHaveLength(1);
         expect(archived.checkpointId).toBeTruthy();
-        expect(ctx.workspaceRepo.findAllActive()).toHaveLength(0);
 
         const result = await ctx.service.unarchiveTask(TASK_ID);
 
@@ -238,14 +244,7 @@ describe("ArchiveService integration", () => {
         );
         expect(content).toBe("my precious work");
 
-        const activeWorkspaces = ctx.workspaceRepo.findAllActive();
-        expect(activeWorkspaces).toHaveLength(1);
-        expect(activeWorkspaces[0]).toMatchObject({
-          taskId: TASK_ID,
-          repositoryId: ctx.repoId,
-          mode: "worktree",
-        });
-        expect(ctx.workspaceRepo.findAllArchived()).toHaveLength(0);
+        expect(ctx.archiveRepo.findAll()).toHaveLength(0);
       }));
 
     it("archive and unarchive preserves branch name", () =>
@@ -263,14 +262,7 @@ describe("ArchiveService integration", () => {
 
         await ctx.service.unarchiveTask(TASK_ID);
 
-        const activeWorkspaces = ctx.workspaceRepo.findAllActive();
-        expect(activeWorkspaces).toHaveLength(1);
-
-        const worktree = ctx.worktreeRepo.findByWorkspaceId(
-          activeWorkspaces[0].id,
-        );
-        expect(worktree).toBeTruthy();
-        expect(worktree?.branch).toBe(branchName);
+        expect(ctx.archiveRepo.findAll()).toHaveLength(0);
       }));
 
     it("unarchive with recreateBranch creates new branch", () =>
@@ -318,21 +310,15 @@ describe("ArchiveService integration", () => {
         expect(await pathExists(worktreePath)).toBe(false);
       }));
 
-    it("re-archiving task updates existing archived entry", () =>
-      withTestContext({ mode: "local" }, async (ctx) => {
-        await ctx.service.archiveTask(ctx.archiveInput());
-        const firstArchivedAt =
-          ctx.workspaceRepo.findArchivedByTaskId(TASK_ID)?.archivedAt;
+    it("throws when trying to archive already archived task", () =>
+      withTestContext({}, async (ctx) => {
+        await ctx.setupWorktree("detached");
 
-        ctx.workspaceRepo.unarchive(TASK_ID);
-
-        await new Promise((r) => setTimeout(r, 10));
         await ctx.service.archiveTask(ctx.archiveInput());
 
-        expect(ctx.workspaceRepo.findAllArchived()).toHaveLength(1);
-        expect(
-          ctx.workspaceRepo.findArchivedByTaskId(TASK_ID)?.archivedAt,
-        ).not.toBe(firstArchivedAt);
+        await expect(
+          ctx.service.archiveTask(ctx.archiveInput()),
+        ).rejects.toThrow("already archived");
       }));
 
     it("archive finds worktree at legacy path format", () =>
@@ -352,7 +338,7 @@ describe("ArchiveService integration", () => {
           "legacy content",
         );
 
-        const workspace = ctx.workspaceRepo.createActive({
+        const workspace = ctx.workspaceRepo.create({
           taskId: TASK_ID,
           repositoryId: ctx.repoId,
           mode: "worktree",
@@ -362,7 +348,6 @@ describe("ArchiveService integration", () => {
           workspaceId: workspace.id,
           name: worktreeName,
           path: legacyPath,
-          branch: "HEAD",
         });
 
         const archived = await ctx.service.archiveTask(ctx.archiveInput());
@@ -379,26 +364,12 @@ describe("ArchiveService integration", () => {
         withTestContext({ mode }, async (ctx) => {
           await ctx.service.archiveTask(ctx.archiveInput());
 
-          expect(ctx.workspaceRepo.findAllArchived()).toHaveLength(1);
-          expect(ctx.workspaceRepo.findArchivedByTaskId(TASK_ID)?.mode).toBe(
-            mode,
-          );
-          expect(
-            ctx.workspaceRepo.findArchivedByTaskId(TASK_ID)?.checkpointId,
-          ).toBeNull();
-          expect(ctx.workspaceRepo.findAllActive()).toHaveLength(0);
+          expect(ctx.archiveRepo.findAll()).toHaveLength(1);
 
           const result = await ctx.service.unarchiveTask(TASK_ID);
 
           expect(result.worktreeName).toBeNull();
-          const activeWorkspaces = ctx.workspaceRepo.findAllActive();
-          expect(activeWorkspaces).toHaveLength(1);
-          expect(activeWorkspaces[0]).toMatchObject({
-            taskId: TASK_ID,
-            repositoryId: ctx.repoId,
-            mode,
-          });
-          expect(ctx.workspaceRepo.findAllArchived()).toHaveLength(0);
+          expect(ctx.archiveRepo.findAll()).toHaveLength(0);
         }),
     );
   });
@@ -421,13 +392,13 @@ describe("ArchiveService integration", () => {
 
     it("unarchives task without repository association", () =>
       withTestContext({}, async (ctx) => {
-        ctx.workspaceRepo.createActive({
+        const workspace = ctx.workspaceRepo.create({
           taskId: TASK_ID,
           repositoryId: null,
           mode: "cloud",
         });
-        ctx.workspaceRepo.archive(TASK_ID, {
-          worktreeName: null,
+        ctx.archiveRepo.create({
+          workspaceId: workspace.id,
           branchName: null,
           checkpointId: null,
         });
@@ -435,20 +406,26 @@ describe("ArchiveService integration", () => {
         const result = await ctx.service.unarchiveTask(TASK_ID);
 
         expect(result).toEqual({ taskId: TASK_ID, worktreeName: null });
-        expect(ctx.workspaceRepo.findAllArchived()).toHaveLength(0);
-        expect(ctx.workspaceRepo.findAllActive()).toHaveLength(1);
+        expect(ctx.archiveRepo.findAll()).toHaveLength(0);
+      }));
+
+    it("throws when workspace not found for unarchive", () =>
+      withTestContext({}, async (ctx) => {
+        await expect(ctx.service.unarchiveTask("nonexistent")).rejects.toThrow(
+          "Workspace not found",
+        );
       }));
 
     it("throws when archived task not found for unarchive", () =>
-      withTestContext({}, async (ctx) => {
-        await expect(ctx.service.unarchiveTask("nonexistent")).rejects.toThrow(
+      withTestContext({ mode: "local", isArchived: false }, async (ctx) => {
+        await expect(ctx.service.unarchiveTask(TASK_ID)).rejects.toThrow(
           "Archived task not found",
         );
       }));
 
     it("throws when repository not found for archive", () =>
       withTestContext({}, async (ctx) => {
-        ctx.workspaceRepo.createActive({
+        ctx.workspaceRepo.create({
           taskId: TASK_ID,
           repositoryId: "missing-repo-id",
           mode: "local",
@@ -461,13 +438,18 @@ describe("ArchiveService integration", () => {
 
     it("throws when repository not found for unarchive", () =>
       withTestContext({}, async (ctx) => {
-        ctx.workspaceRepo.createActive({
+        const workspace = ctx.workspaceRepo.create({
           taskId: TASK_ID,
           repositoryId: "missing-repo-id",
           mode: "worktree",
         });
-        ctx.workspaceRepo.archive(TASK_ID, {
-          worktreeName: "test-wt",
+        ctx.worktreeRepo.create({
+          workspaceId: workspace.id,
+          name: "test-wt",
+          path: "/some/path",
+        });
+        ctx.archiveRepo.create({
+          workspaceId: workspace.id,
           branchName: null,
           checkpointId: "worktree-test-wt",
         });
@@ -495,7 +477,7 @@ describe("ArchiveService integration", () => {
     it("deletes archived task without checkpoint", () =>
       withTestContext({ mode: "local", isArchived: true }, async (ctx) => {
         await ctx.service.deleteArchivedTask(TASK_ID);
-        expect(ctx.workspaceRepo.findAllArchived()).toHaveLength(0);
+        expect(ctx.archiveRepo.findAll()).toHaveLength(0);
         expect(ctx.workspaceRepo.findByTaskId(TASK_ID)).toBeNull();
       }));
 
@@ -506,93 +488,77 @@ describe("ArchiveService integration", () => {
 
         const archived = await ctx.service.archiveTask(ctx.archiveInput());
         expect(archived.checkpointId).toBeTruthy();
-        expect(ctx.workspaceRepo.findAllArchived()).toHaveLength(1);
+        expect(ctx.archiveRepo.findAll()).toHaveLength(1);
 
         const refs = ctx.git("for-each-ref --format='%(refname)'");
         expect(refs).toContain(archived.checkpointId);
 
         await ctx.service.deleteArchivedTask(TASK_ID);
 
-        expect(ctx.workspaceRepo.findAllArchived()).toHaveLength(0);
+        expect(ctx.archiveRepo.findAll()).toHaveLength(0);
         const refsAfter = ctx.git("for-each-ref --format='%(refname)'");
         expect(refsAfter).not.toContain(archived.checkpointId);
       }));
 
-    it("throws when archived task not found", () =>
+    it("throws when workspace not found for delete", () =>
       withTestContext({}, async (ctx) => {
         await expect(
           ctx.service.deleteArchivedTask("nonexistent"),
-        ).rejects.toThrow("Archived task nonexistent not found");
+        ).rejects.toThrow("Workspace not found");
+      }));
+
+    it("throws when archived task not found for delete", () =>
+      withTestContext({ mode: "local", isArchived: false }, async (ctx) => {
+        await expect(ctx.service.deleteArchivedTask(TASK_ID)).rejects.toThrow(
+          "Archived task",
+        );
       }));
 
     it("still removes from repository if checkpoint deletion fails", () =>
       withTestContext({}, async (ctx) => {
-        ctx.workspaceRepo.createActive({
+        const workspace = ctx.workspaceRepo.create({
           taskId: TASK_ID,
           repositoryId: ctx.repoId,
           mode: "worktree",
         });
-        ctx.workspaceRepo.archive(TASK_ID, {
-          worktreeName: "nonexistent",
+        ctx.worktreeRepo.create({
+          workspaceId: workspace.id,
+          name: "nonexistent",
+          path: "/some/path",
+        });
+        ctx.archiveRepo.create({
+          workspaceId: workspace.id,
           branchName: null,
           checkpointId: "worktree-nonexistent",
         });
 
         await ctx.service.deleteArchivedTask(TASK_ID);
-        expect(ctx.workspaceRepo.findAllArchived()).toHaveLength(0);
-      }));
-
-    it("still removes from repository if repository not found", () =>
-      withTestContext({}, async (ctx) => {
-        ctx.workspaceRepo.createActive({
-          taskId: TASK_ID,
-          repositoryId: "missing-folder",
-          mode: "worktree",
-        });
-        ctx.workspaceRepo.archive(TASK_ID, {
-          worktreeName: "test",
-          branchName: null,
-          checkpointId: "worktree-test",
-        });
-
-        await ctx.service.deleteArchivedTask(TASK_ID);
-        expect(ctx.workspaceRepo.findAllArchived()).toHaveLength(0);
+        expect(ctx.archiveRepo.findAll()).toHaveLength(0);
       }));
   });
 
   describe("rollback behavior", () => {
-    it("archive rolls back if archive step fails", () =>
-      withTestContext({ mode: "local", failOnArchive: true }, async (ctx) => {
-        await expect(
-          ctx.service.archiveTask(ctx.archiveInput()),
-        ).rejects.toThrow("Injected failure");
-
-        expect(ctx.workspaceRepo.findAllActive()).toHaveLength(1);
-        expect(ctx.workspaceRepo.findAllArchived()).toHaveLength(0);
-      }));
-
-    it("archive worktree rolls back checkpoint if worktree delete fails", () =>
-      withTestContext({ failOnWorktreeDelete: true }, async (ctx) => {
-        const { worktreeName } = await ctx.setupWorktree("detached");
-
-        await expect(
-          ctx.service.archiveTask(ctx.archiveInput()),
-        ).rejects.toThrow("Injected failure");
-
-        const refs = ctx.git("for-each-ref --format='%(refname)'");
-        expect(refs).not.toContain(`worktree-${worktreeName}`);
-      }));
-
-    it("unarchive rolls back if unarchive step fails", () =>
+    it("archive rolls back if archive create fails", () =>
       withTestContext(
-        { mode: "local", isArchived: true, failOnUnarchive: true },
+        { mode: "local", failOnArchiveCreate: true },
+        async (ctx) => {
+          await expect(
+            ctx.service.archiveTask(ctx.archiveInput()),
+          ).rejects.toThrow("Injected failure");
+
+          expect(ctx.archiveRepo.findAll()).toHaveLength(0);
+        },
+      ));
+
+    it("unarchive rolls back if archive delete fails", () =>
+      withTestContext(
+        { mode: "local", isArchived: true, failOnArchiveDelete: true },
         async (ctx) => {
           await expect(ctx.service.unarchiveTask(TASK_ID)).rejects.toThrow(
             "Injected failure",
           );
 
-          expect(ctx.workspaceRepo.findAllActive()).toHaveLength(0);
-          expect(ctx.workspaceRepo.findAllArchived()).toHaveLength(1);
+          expect(ctx.archiveRepo.findAll()).toHaveLength(1);
         },
       ));
   });

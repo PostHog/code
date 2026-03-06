@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { Container } from "inversify";
-import { DataMigrationService } from "../db/data-migration.js";
+import { ArchiveRepository } from "../db/repositories/archive-repository.js";
 import { RepositoryRepository } from "../db/repositories/repository-repository.js";
 import { WorkspaceRepository } from "../db/repositories/workspace-repository.js";
 import { WorktreeRepository } from "../db/repositories/worktree-repository.js";
@@ -41,10 +41,10 @@ export const container = new Container({
 });
 
 container.bind(MAIN_TOKENS.DatabaseService).to(DatabaseService);
-container.bind(MAIN_TOKENS.DataMigrationService).to(DataMigrationService);
 container.bind(MAIN_TOKENS.RepositoryRepository).to(RepositoryRepository);
 container.bind(MAIN_TOKENS.WorkspaceRepository).to(WorkspaceRepository);
 container.bind(MAIN_TOKENS.WorktreeRepository).to(WorktreeRepository);
+container.bind(MAIN_TOKENS.ArchiveRepository).to(ArchiveRepository);
 container.bind(MAIN_TOKENS.AgentService).to(AgentService);
 container.bind(MAIN_TOKENS.ArchiveService).to(ArchiveService);
 container.bind(MAIN_TOKENS.AppLifecycleService).to(AppLifecycleService);

@@ -3,11 +3,11 @@ import { useSessions } from "@features/sessions/stores/sessionStore";
 import { useTasks } from "@features/tasks/hooks/useTasks";
 import { getTaskRepository, parseRepository } from "@renderer/utils/repository";
 import type { Task } from "@shared/types";
-import { useMemo } from "react";
-import { usePinnedTasksStore } from "../stores/pinnedTasksStore";
+import { useEffect, useMemo, useRef } from "react";
 import { useSidebarStore } from "../stores/sidebarStore";
-import { useTaskViewedStore } from "../stores/taskViewedStore";
 import type { SortMode } from "../types";
+import { usePinnedTasks } from "./usePinnedTasks";
+import { useTaskViewed } from "./useTaskViewed";
 
 export interface TaskRepositoryInfo {
   fullPath: string;
@@ -132,11 +132,11 @@ export function useSidebarData({
     [rawTasks, archivedTaskIds],
   );
   const sessions = useSessions();
-  const timestamps = useTaskViewedStore((state) => state.timestamps);
+  const { timestamps } = useTaskViewed();
   const historyVisibleCount = useSidebarStore(
     (state) => state.historyVisibleCount,
   );
-  const pinnedTaskIds = usePinnedTasksStore((state) => state.pinnedTaskIds);
+  const { pinnedTaskIds } = usePinnedTasks();
   const organizeMode = useSidebarStore((state) => state.organizeMode);
   const sortMode = useSidebarStore((state) => state.sortMode);
   const folderOrder = useSidebarStore((state) => state.folderOrder);
@@ -217,16 +217,25 @@ export function useSidebarData({
     return sortedUnpinnedTasks.slice(0, historyVisibleCount);
   }, [organizeMode, sortedUnpinnedTasks, historyVisibleCount]);
 
-  const groupedTasks = useMemo(() => {
-    const groups = groupByRepository(sortedUnpinnedTasks, folderOrder);
-    if (groups.length > 0) {
-      const groupIds = groups.map((g) => g.id);
-      queueMicrotask(() =>
-        useSidebarStore.getState().syncFolderOrder(groupIds),
-      );
+  const groupedTasks = useMemo(
+    () => groupByRepository(sortedUnpinnedTasks, folderOrder),
+    [sortedUnpinnedTasks, folderOrder],
+  );
+
+  const groupIdsRef = useRef<string[]>([]);
+  useEffect(() => {
+    if (groupedTasks.length === 0) return;
+    const groupIds = groupedTasks.map((g) => g.id);
+    const prev = groupIdsRef.current;
+    if (
+      groupIds.length === prev.length &&
+      groupIds.every((id, i) => id === prev[i])
+    ) {
+      return;
     }
-    return groups;
-  }, [sortedUnpinnedTasks, folderOrder]);
+    groupIdsRef.current = groupIds;
+    useSidebarStore.getState().syncFolderOrder(groupIds);
+  }, [groupedTasks]);
 
   return {
     isHomeActive,

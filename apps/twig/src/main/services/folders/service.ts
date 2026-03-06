@@ -4,11 +4,11 @@ import { getRemoteUrl, isGitRepository } from "@twig/git/queries";
 import { InitRepositorySaga } from "@twig/git/sagas/init";
 
 function extractRepoKey(url: string): string | null {
-  const httpsMatch = url.match(/github\.com\/([^/]+\/[^/.]+)/);
-  if (httpsMatch) return httpsMatch[1];
+  const httpsMatch = url.match(/github\.com\/([^/]+\/[^/]+)/);
+  if (httpsMatch) return httpsMatch[1].replace(/\.git$/, "");
 
-  const sshMatch = url.match(/github\.com:([^/]+\/[^/.]+)/);
-  if (sshMatch) return sshMatch[1];
+  const sshMatch = url.match(/github\.com:([^/]+\/[^/]+)/);
+  if (sshMatch) return sshMatch[1].replace(/\.git$/, "");
 
   return null;
 }
@@ -156,7 +156,7 @@ export class FoldersService {
       return;
     }
 
-    const workspaces = this.workspaceRepo.findAllActiveByRepositoryId(folderId);
+    const workspaces = this.workspaceRepo.findAllByRepositoryId(folderId);
     const worktreeBasePath = getWorktreeLocation();
     const repoName = path.basename(repo.path);
 
@@ -217,7 +217,7 @@ export class FoldersService {
   }
 
   async clearAllData(): Promise<void> {
-    const workspaces = this.workspaceRepo.findAllActive();
+    const workspaces = this.workspaceRepo.findAll();
     const worktreeBasePath = getWorktreeLocation();
 
     for (const workspace of workspaces) {

@@ -1,5 +1,6 @@
 import type { DragDropEvents } from "@dnd-kit/react";
 import { DragDropProvider } from "@dnd-kit/react";
+import { useFolders } from "@features/folders/hooks/useFolders";
 import {
   ArrowsClockwise,
   CalendarPlus,
@@ -11,7 +12,6 @@ import {
 } from "@phosphor-icons/react";
 import { Box, Flex, Popover, Text } from "@radix-ui/themes";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
-import { useRegisteredFoldersStore } from "@renderer/stores/registeredFoldersStore";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useCallback, useEffect, useMemo } from "react";
 import type { TaskData, TaskGroup } from "../hooks/useSidebarData";
@@ -250,7 +250,7 @@ export function TaskListView({
   const resetHistoryVisibleCount = useSidebarStore(
     (state) => state.resetHistoryVisibleCount,
   );
-  const folders = useRegisteredFoldersStore((state) => state.folders);
+  const { folders } = useFolders();
   const navigateToTaskInput = useNavigationStore(
     (state) => state.navigateToTaskInput,
   );
