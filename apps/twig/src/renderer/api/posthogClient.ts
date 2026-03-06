@@ -15,14 +15,7 @@ import { createApiClient, type Schemas } from "./generated";
 
 const log = logger.scope("posthog-client");
 
-// The RecommendedServer type is not in the generated schema — define it manually.
-export type McpRecommendedServer = {
-  name: string;
-  url: string;
-  description: string;
-  auth_type: "none" | "api_key" | "oauth";
-  oauth_provider_kind?: string;
-};
+export type McpRecommendedServer = Schemas.RecommendedServer;
 
 export type McpServerInstallation = Schemas.MCPServerInstallation;
 
