@@ -5,8 +5,8 @@ Fork of `@anthropic-ai/claude-agent-acp`. Upstream repo: https://github.com/anth
 ## Fork Point
 
 - **Forked**: v0.10.9, commit `5411e0f4`, Dec 2 2025
-- **Last sync**: v0.19.2, March 2 2026
-- **SDK**: `@anthropic-ai/claude-agent-sdk` 0.2.63, `@agentclientprotocol/sdk` ^0.14.0
+- **Last sync**: v0.20.2, commit `dd9fe3a98ea494ba1982516f8aa0464b48fdd5e1`, March 6 2026
+- **SDK**: `@anthropic-ai/claude-agent-sdk` 0.2.68, `@agentclientprotocol/sdk` ^0.14.0
 
 ## File Mapping
 
@@ -55,7 +55,7 @@ Fork of `@anthropic-ai/claude-agent-acp`. Upstream repo: https://github.com/anth
 
 ## Next Sync
 
-1. Check upstream changelog since v0.19.2
+1. Check upstream changelog since v0.20.2
 2. Diff upstream source against Twig using the file mapping above
 3. Port in phases: bug fixes first, then features
 4. After each phase: `pnpm --filter agent typecheck && pnpm --filter agent build && pnpm lint`

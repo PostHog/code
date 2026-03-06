@@ -385,14 +385,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
             const result = handleResultMessage(message);
             if (result.error) throw result.error;
 
-            switch (message.subtype) {
-              case "error_max_budget_usd":
-              case "error_max_turns":
-              case "error_max_structured_output_retries":
-                return { stopReason: "max_turn_requests", usage };
-              default:
-                return { stopReason: "end_turn", usage };
-            }
+            return { stopReason: result.stopReason ?? "end_turn", usage };
           }
 
           case "stream_event":
@@ -418,6 +411,14 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
                 // the loop of the next prompt continues running
                 return { stopReason: "end_turn" };
               }
+            }
+
+            // Skip replayed user messages that aren't pending prompts
+            if (
+              "isReplay" in message &&
+              (message as Record<string, unknown>).isReplay
+            ) {
+              break;
             }
 
             // Store latest assistant usage (excluding subagents)
@@ -451,6 +452,8 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
           case "tool_progress":
           case "auth_status":
           case "tool_use_summary":
+          case "prompt_suggestion":
+          case "rate_limit_event":
             break;
 
           default:
@@ -459,6 +462,28 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         }
       }
       throw new Error("Session did not end in result");
+    } catch (error) {
+      if (error instanceof RequestError || !(error instanceof Error)) {
+        throw error;
+      }
+      const msg = error.message;
+      if (
+        msg.includes("ProcessTransport") ||
+        msg.includes("terminated process") ||
+        msg.includes("process exited with") ||
+        msg.includes("process terminated by signal") ||
+        msg.includes("Failed to write to process stdin")
+      ) {
+        this.logger.error(`Process died: ${msg}`, {
+          sessionId: this.sessionId,
+        });
+        this.session.input.end();
+        throw RequestError.internalError(
+          undefined,
+          "The Claude Agent process exited unexpectedly. Please start a new session.",
+        );
+      }
+      throw error;
     } finally {
       if (!handedOff) {
         this.session.promptRunning = false;
@@ -704,6 +729,13 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       }
     } catch (err) {
       settingsManager.dispose();
+      if (
+        isResume &&
+        err instanceof Error &&
+        err.message === "Query closed before response received"
+      ) {
+        throw RequestError.resourceNotFound(sessionId);
+      }
       this.logger.error(
         isResume
           ? forkSession

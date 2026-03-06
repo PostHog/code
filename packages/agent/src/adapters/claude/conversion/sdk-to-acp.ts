@@ -4,7 +4,7 @@ import type {
   SessionNotification,
   SessionUpdate,
 } from "@agentclientprotocol/sdk";
-import { RequestError } from "@agentclientprotocol/sdk";
+import { RequestError, type StopReason } from "@agentclientprotocol/sdk";
 import type {
   SDKAssistantMessage,
   SDKMessage,
@@ -574,7 +574,7 @@ export async function handleSystemMessage(
 
 export type ResultMessageHandlerResult = {
   shouldStop: boolean;
-  stopReason?: string;
+  stopReason?: StopReason;
   error?: Error;
   usage?: {
     inputTokens: number;
@@ -600,6 +600,9 @@ export function handleResultMessage(
           usage,
         };
       }
+      if ((message as Record<string, unknown>).stop_reason === "max_tokens") {
+        return { shouldStop: true, stopReason: "max_tokens", usage };
+      }
       if (message.is_error) {
         return {
           shouldStop: true,
@@ -610,6 +613,9 @@ export function handleResultMessage(
       return { shouldStop: true, stopReason: "end_turn", usage };
     }
     case "error_during_execution":
+      if ((message as Record<string, unknown>).stop_reason === "max_tokens") {
+        return { shouldStop: true, stopReason: "max_tokens", usage };
+      }
       if (message.is_error) {
         return {
           shouldStop: true,
