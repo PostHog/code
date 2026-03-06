@@ -222,7 +222,6 @@ function handleToolUseChunk(
   };
 }
 
-/** Extract plain text from tool result content for file content caching. */
 function extractTextFromContent(content: unknown): string | null {
   if (Array.isArray(content)) {
     const parts: string[] = [];
@@ -242,6 +241,45 @@ function extractTextFromContent(content: unknown): string | null {
     return content;
   }
   return null;
+}
+
+function stripCatLineNumbers(text: string): string {
+  return text.replace(/^ *\d+[\t→]/gm, "");
+}
+
+function updateFileContentCache(
+  toolUse: { name: string; input: unknown },
+  chunk: { content?: unknown },
+  ctx: ChunkHandlerContext,
+): void {
+  const input = toolUse.input as Record<string, unknown> | undefined;
+  const filePath = input?.file_path ? String(input.file_path) : undefined;
+  if (!filePath) return;
+
+  if (toolUse.name === "Read" && !input?.limit && !input?.offset) {
+    const fileText = extractTextFromContent(chunk.content);
+    if (fileText !== null) {
+      ctx.fileContentCache[filePath] = stripCatLineNumbers(fileText);
+    }
+  } else if (toolUse.name === "Write") {
+    const content = input?.content;
+    if (typeof content === "string") {
+      ctx.fileContentCache[filePath] = content;
+    }
+  } else if (toolUse.name === "Edit") {
+    const oldString = input?.old_string;
+    const newString = input?.new_string;
+    if (
+      typeof oldString === "string" &&
+      typeof newString === "string" &&
+      filePath in ctx.fileContentCache
+    ) {
+      const current = ctx.fileContentCache[filePath];
+      ctx.fileContentCache[filePath] = input?.replace_all
+        ? current.replaceAll(oldString, newString)
+        : current.replace(oldString, newString);
+    }
+  }
 }
 
 function handleToolResultChunk(
@@ -264,42 +302,8 @@ function handleToolResultChunk(
     return [];
   }
 
-  // Cache file content from Read/Write results so subsequent Write diffs
-  // can show the original (before) content.
   if (!chunk.is_error) {
-    const input = toolUse.input as Record<string, unknown> | undefined;
-    const filePath = input?.file_path ? String(input.file_path) : undefined;
-
-    if (filePath) {
-      if (toolUse.name === "Read" && !input?.limit && !input?.offset) {
-        // Cache full file reads (not partial reads with limit/offset)
-        const resultContent = (chunk as unknown as Record<string, unknown>)
-          .content;
-        const fileText = extractTextFromContent(resultContent);
-        if (fileText !== null) {
-          ctx.fileContentCache[filePath] = fileText;
-        }
-      } else if (toolUse.name === "Write") {
-        // Update cache after write so future edits have the latest content
-        const content = input?.content;
-        if (typeof content === "string") {
-          ctx.fileContentCache[filePath] = content;
-        }
-      } else if (toolUse.name === "Edit") {
-        const oldString = input?.old_string;
-        const newString = input?.new_string;
-        if (
-          typeof oldString === "string" &&
-          typeof newString === "string" &&
-          filePath in ctx.fileContentCache
-        ) {
-          const current = ctx.fileContentCache[filePath];
-          ctx.fileContentCache[filePath] = input?.replace_all
-            ? current.replaceAll(oldString, newString)
-            : current.replace(oldString, newString);
-        }
-      }
-    }
+    updateFileContentCache(toolUse, chunk, ctx);
   }
 
   const { _meta: resultMeta, ...toolUpdate } = toolUpdateFromToolResult(

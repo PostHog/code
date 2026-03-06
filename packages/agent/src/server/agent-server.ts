@@ -164,9 +164,6 @@ export class AgentServer {
   ): void => {
     if (!this.session) return;
 
-    // Don't include [scope] here — the Logger prefix already adds it to
-    // console output, and the onLog callback in initSession formats scope
-    // for the console separately.
     const formatted =
       data !== undefined ? `${message} ${JSON.stringify(data)}` : message;
 
@@ -190,8 +187,6 @@ export class AgentServer {
 
   constructor(config: AgentServerConfig) {
     this.config = config;
-    // Pre-session logger: console-only. Replaced in initSession with one
-    // that also emits _posthog/console notifications to the client.
     this.logger = new Logger({ debug: true, prefix: "[AgentServer]" });
     this.posthogAPI = new PostHogAPIClient({
       apiUrl: config.apiUrl,
@@ -625,9 +620,6 @@ export class AgentServer {
       logWriter,
     };
 
-    // Wire logger to emit _posthog/console notifications now that session exists.
-    // Only the AgentServer logger is wired — internal component loggers (SessionLogWriter,
-    // TreeTracker) keep going to console only, avoiding circular dependencies.
     this.logger = new Logger({
       debug: true,
       prefix: "[AgentServer]",
@@ -1165,10 +1157,7 @@ Important:
           notification,
         });
 
-        // Persist to log writer so cloud runs have tree snapshots in
-        // historical logs (desktop app polls session_logs, not SSE).
-        // Strip archiveUrl since presigned URLs expire and are useless
-        // in historical logs.
+        // Persist to log writer so cloud runs have tree snapshots
         const { archiveUrl: _, ...paramsWithoutArchive } = snapshotWithDevice;
         const logNotification = {
           ...notification,
