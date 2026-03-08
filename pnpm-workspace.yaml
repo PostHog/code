@@ -2,8 +2,13 @@ packages:
   - apps/*
   - packages/*
 
+minimumReleaseAge: 1440
+
+minimumReleaseAgeExclude:
+  - '@agentclientprotocol/sdk'
+
 onlyBuiltDependencies:
-  - "@parcel/watcher"
+  - '@parcel/watcher'
   - core-js
   - electron
   - esbuild
@@ -11,7 +16,3 @@ onlyBuiltDependencies:
   - macos-alias
   - node-pty
 
-minimumReleaseAge: 1440
-
-minimumReleaseAgeExclude:
-  - "@agentclientprotocol/sdk"

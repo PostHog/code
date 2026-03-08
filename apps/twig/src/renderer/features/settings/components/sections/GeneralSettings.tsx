@@ -67,6 +67,7 @@ export function GeneralSettings() {
     autoConvertLongText,
     diffOpenMode,
     sendMessagesWith,
+    hedgehogMode,
     setDesktopNotifications,
     setDockBadgeNotifications,
     setDockBounceNotifications,
@@ -75,6 +76,7 @@ export function GeneralSettings() {
     setAutoConvertLongText,
     setDiffOpenMode,
     setSendMessagesWith,
+    setHedgehogMode,
   } = useSettingsStore();
 
   // Sync toggle off if the user denied notification permission at the OS level
@@ -287,6 +289,18 @@ export function GeneralSettings() {
       setSendMessagesWith(value);
     },
     [sendMessagesWith, setSendMessagesWith],
+  );
+
+  const handleHedgehogModeChange = useCallback(
+    (checked: boolean) => {
+      track(ANALYTICS_EVENTS.SETTING_CHANGED, {
+        setting_name: "hedgehog_mode",
+        new_value: checked,
+        old_value: hedgehogMode,
+      });
+      setHedgehogMode(checked);
+    },
+    [hedgehogMode, setHedgehogMode],
   );
 
   const terminalFontSelection = TERMINAL_FONT_PRESETS.some(
@@ -518,6 +532,23 @@ export function GeneralSettings() {
             <Select.Item value="last-active-pane">Last active pane</Select.Item>
           </Select.Content>
         </Select.Root>
+      </SettingRow>
+
+      {/* Fun */}
+      <Text size="2" weight="medium" className="mt-4 mb-2">
+        Fun
+      </Text>
+
+      <SettingRow
+        label="Hedgehog mode"
+        description="Release a hedgehog buddy to walk around your screen. It might take a few seconds to appear."
+        noBorder
+      >
+        <Switch
+          checked={hedgehogMode}
+          onCheckedChange={handleHedgehogModeChange}
+          size="1"
+        />
       </SettingRow>
     </Flex>
   );

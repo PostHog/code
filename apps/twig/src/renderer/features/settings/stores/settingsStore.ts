@@ -30,6 +30,7 @@ interface SettingsStore {
   debugLogsCloudRuns: boolean;
   customInstructions: string;
   diffOpenMode: DiffOpenMode;
+  hedgehogMode: boolean;
 
   setCompletionSound: (sound: CompletionSound) => void;
   setCompletionVolume: (volume: number) => void;
@@ -50,6 +51,7 @@ interface SettingsStore {
   setDebugLogsCloudRuns: (enabled: boolean) => void;
   setCustomInstructions: (instructions: string) => void;
   setDiffOpenMode: (mode: DiffOpenMode) => void;
+  setHedgehogMode: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -74,6 +76,7 @@ export const useSettingsStore = create<SettingsStore>()(
       debugLogsCloudRuns: false,
       customInstructions: "",
       diffOpenMode: "auto",
+      hedgehogMode: false,
 
       setCompletionSound: (sound) => set({ completionSound: sound }),
       setCompletionVolume: (volume) => set({ completionVolume: volume }),
@@ -102,6 +105,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setCustomInstructions: (instructions) =>
         set({ customInstructions: instructions }),
       setDiffOpenMode: (mode) => set({ diffOpenMode: mode }),
+      setHedgehogMode: (enabled) => set({ hedgehogMode: enabled }),
     }),
     {
       name: "settings-storage",
@@ -126,6 +130,7 @@ export const useSettingsStore = create<SettingsStore>()(
         debugLogsCloudRuns: state.debugLogsCloudRuns,
         customInstructions: state.customInstructions,
         diffOpenMode: state.diffOpenMode,
+        hedgehogMode: state.hedgehogMode,
       }),
       merge: (persisted, current) => ({
         ...current,

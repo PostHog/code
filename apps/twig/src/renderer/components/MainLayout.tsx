@@ -1,5 +1,6 @@
 import { ConnectivityPrompt } from "@components/ConnectivityPrompt";
 import { HeaderRow } from "@components/HeaderRow";
+import { HedgehogMode } from "@components/HedgehogMode";
 import { KeyboardShortcutsSheet } from "@components/KeyboardShortcutsSheet";
 
 import { ArchivedTasksView } from "@features/archive/components/ArchivedTasksView";
@@ -103,6 +104,7 @@ export function MainLayout() {
         onToggleShortcutsSheet={toggleShortcutsSheet}
       />
       <SettingsDialog />
+      <HedgehogMode />
     </Flex>
   );
 }
