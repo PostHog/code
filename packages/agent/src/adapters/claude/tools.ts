@@ -1,8 +1,8 @@
 export {
-  getAvailableModes,
-  type ModeInfo,
   CODE_EXECUTION_MODES,
   type CodeExecutionMode,
+  getAvailableModes,
+  type ModeInfo,
 } from "../../execution-mode.js";
 
 import type { CodeExecutionMode } from "../../execution-mode.js";

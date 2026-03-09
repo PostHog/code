@@ -49,7 +49,9 @@ describe("DeepLinkService", () => {
 
       service.registerProtocol();
 
-      expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledWith("posthog-code");
+      expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledWith(
+        "posthog-code",
+      );
       expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledWith("twig");
       expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledTimes(2);
     });
@@ -153,7 +155,9 @@ describe("DeepLinkService", () => {
         });
         service.registerHandler("auth", handler);
 
-        service.handleUrl("posthog-code://auth/callback?token=secret&redirect=home");
+        service.handleUrl(
+          "posthog-code://auth/callback?token=secret&redirect=home",
+        );
         expect(handler).toHaveBeenCalled();
       });
 

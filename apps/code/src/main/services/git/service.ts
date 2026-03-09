@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { isCodeBranch } from "@shared/constants";
 import { execGh } from "@posthog/git/gh";
 import {
   getAllBranches,
@@ -27,6 +26,7 @@ import { DiscardFileChangesSaga } from "@posthog/git/sagas/discard";
 import { PullSaga } from "@posthog/git/sagas/pull";
 import { PushSaga } from "@posthog/git/sagas/push";
 import { parseGitHubUrl } from "@posthog/git/utils";
+import { isCodeBranch } from "@shared/constants";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
 import { logger } from "../../utils/logger.js";

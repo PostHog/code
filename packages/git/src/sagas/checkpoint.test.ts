@@ -40,7 +40,9 @@ async function withRepoAndWorktree<T>(
   fn: (repoPath: string, worktreePath: string) => Promise<T>,
 ): Promise<T> {
   const repoPath = await setupRepo();
-  const worktreePath = await mkdtemp(path.join(tmpdir(), "posthog-code-worktree-"));
+  const worktreePath = await mkdtemp(
+    path.join(tmpdir(), "posthog-code-worktree-"),
+  );
   try {
     const git = createGitClient(repoPath);
     await git.raw(["worktree", "add", worktreePath]);
@@ -248,7 +250,9 @@ describe("checkpoint sagas", () => {
   });
 
   it("handles submodules without breaking", async () => {
-    const subRepo = await mkdtemp(path.join(tmpdir(), "posthog-code-submodule-"));
+    const subRepo = await mkdtemp(
+      path.join(tmpdir(), "posthog-code-submodule-"),
+    );
     await withRepo(async (repoPath) => {
       const subGit = createGitClient(subRepo);
       await subGit.init();
@@ -317,7 +321,9 @@ describe("checkpoint sagas", () => {
   });
 
   it("restores checkpoint on unborn HEAD", async () => {
-    const repoPath = await mkdtemp(path.join(tmpdir(), "posthog-code-checkpoint-"));
+    const repoPath = await mkdtemp(
+      path.join(tmpdir(), "posthog-code-checkpoint-"),
+    );
     try {
       const git = createGitClient(repoPath);
       await git.init();

@@ -1,4 +1,4 @@
-import type { ToolCall, CodeToolKind } from "@features/sessions/types";
+import type { CodeToolKind, ToolCall } from "@features/sessions/types";
 import { toolInfoFromToolUse } from "@posthog/agent/adapters/claude/conversion/tool-use-to-acp";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ToolCallBlock } from "./ToolCallBlock";

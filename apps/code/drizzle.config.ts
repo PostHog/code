@@ -2,7 +2,8 @@ import os from "node:os";
 import path from "node:path";
 import { defineConfig } from "drizzle-kit";
 
-const appName = process.env.NODE_ENV === "production" ? "PostHog Code" : "posthog-code-dev";
+const appName =
+  process.env.NODE_ENV === "production" ? "PostHog Code" : "posthog-code-dev";
 const userDataPath = path.join(
   os.homedir(),
   "Library",

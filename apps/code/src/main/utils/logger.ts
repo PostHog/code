@@ -4,7 +4,11 @@ import { app } from "electron";
 import log from "electron-log/main";
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
-const LOG_DIR = join(app.getPath("home"), ".posthog-code", isDev ? "logs-dev" : "logs");
+const LOG_DIR = join(
+  app.getPath("home"),
+  ".posthog-code",
+  isDev ? "logs-dev" : "logs",
+);
 const LOG_FILE = "main.log";
 const MAX_ARCHIVES = 3;
 

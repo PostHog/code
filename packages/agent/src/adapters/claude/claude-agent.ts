@@ -67,9 +67,9 @@ import {
 } from "./session/options.js";
 import { SettingsManager } from "./session/settings.js";
 import {
-  getAvailableModes,
   CODE_EXECUTION_MODES,
   type CodeExecutionMode,
+  getAvailableModes,
 } from "./tools.js";
 import type {
   BackgroundTerminal,

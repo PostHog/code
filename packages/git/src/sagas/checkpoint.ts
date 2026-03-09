@@ -533,7 +533,10 @@ async function createTempIndexGit(
   baseDir: string,
   label: string,
 ): Promise<{ tempGit: GitClient; tempIndexPath: string }> {
-  const tmpDir = path.join(await getGitCommonDir(git, baseDir), "posthog-code-tmp");
+  const tmpDir = path.join(
+    await getGitCommonDir(git, baseDir),
+    "posthog-code-tmp",
+  );
   await fs.mkdir(tmpDir, { recursive: true });
 
   const tempIndexPath = path.join(

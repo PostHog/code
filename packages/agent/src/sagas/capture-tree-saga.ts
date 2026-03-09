@@ -1,8 +1,8 @@
 import { existsSync } from "node:fs";
 import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { Saga } from "@posthog/shared";
 import { CaptureTreeSaga as GitCaptureTreeSaga } from "@posthog/git/sagas/tree";
+import { Saga } from "@posthog/shared";
 import type { PostHogAPIClient } from "../posthog-api.js";
 import type { TreeSnapshot } from "../types.js";
 
