@@ -5,7 +5,7 @@ import { logger } from "../../utils/logger.js";
 const log = logger.scope("deep-link-service");
 
 const PROTOCOL = "posthog-code";
-const LEGACY_PROTOCOL = "twig";
+const LEGACY_PROTOCOLS = ["twig", "array"];
 
 export type DeepLinkHandler = (
   path: string,
@@ -31,13 +31,15 @@ export class DeepLinkService {
       return;
     }
 
-    // Production: register both new and legacy protocols
+    // Production: register primary and legacy protocols
     app.setAsDefaultProtocolClient(PROTOCOL);
-    app.setAsDefaultProtocolClient(LEGACY_PROTOCOL);
+    for (const legacy of LEGACY_PROTOCOLS) {
+      app.setAsDefaultProtocolClient(legacy);
+    }
 
     this.protocolRegistered = true;
     log.info(
-      `Registered '${PROTOCOL}' and '${LEGACY_PROTOCOL}' protocol handlers`,
+      `Registered '${PROTOCOL}' and legacy [${LEGACY_PROTOCOLS.join(", ")}] protocol handlers`,
     );
   }
 
@@ -57,13 +59,15 @@ export class DeepLinkService {
    * Handle an incoming deep link URL
    *
    * NOTE: Strips the protocol and main key, passing only dynamic segments to handlers.
-   * Supports both posthog-code:// and legacy twig:// protocols.
+   * Supports posthog-code:// and legacy twig:// and array:// protocols.
    */
   public handleUrl(url: string): boolean {
     log.info("Received deep link:", url);
 
     const isPrimaryProtocol = url.startsWith(`${PROTOCOL}://`);
-    const isLegacyProtocol = url.startsWith(`${LEGACY_PROTOCOL}://`);
+    const isLegacyProtocol = LEGACY_PROTOCOLS.some((p) =>
+      url.startsWith(`${p}://`),
+    );
 
     if (!isPrimaryProtocol && !isLegacyProtocol) {
       log.warn("URL does not match protocol:", url);
@@ -73,7 +77,7 @@ export class DeepLinkService {
     try {
       const parsedUrl = new URL(url);
 
-      // The hostname is the main key (e.g., "task" in array://task/...)
+      // The hostname is the main key (e.g., "task" in posthog-code://task/...)
       const mainKey = parsedUrl.hostname;
 
       if (!mainKey) {

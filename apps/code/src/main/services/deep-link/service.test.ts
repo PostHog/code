@@ -44,7 +44,7 @@ describe("DeepLinkService", () => {
   });
 
   describe("registerProtocol", () => {
-    it("registers both posthog-code and twig protocols in production", () => {
+    it("registers posthog-code and legacy protocols in production", () => {
       setDefaultApp(false);
 
       service.registerProtocol();
@@ -53,7 +53,8 @@ describe("DeepLinkService", () => {
         "posthog-code",
       );
       expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledWith("twig");
-      expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledTimes(2);
+      expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledWith("array");
+      expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledTimes(3);
     });
 
     it("skips protocol registration in development mode", () => {
@@ -70,7 +71,7 @@ describe("DeepLinkService", () => {
       service.registerProtocol();
       service.registerProtocol();
 
-      expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledTimes(2);
+      expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -195,11 +196,21 @@ describe("DeepLinkService", () => {
       });
     });
 
+    describe("array:// protocol (legacy)", () => {
+      it("handles array:// URLs for backwards compatibility", () => {
+        const handler = vi.fn(() => true);
+        service.registerHandler("callback", handler);
+
+        const result = service.handleUrl("array://callback?code=abc");
+        expect(result).toBe(true);
+        expect(handler).toHaveBeenCalledWith("", expect.any(URLSearchParams));
+      });
+    });
+
     describe("error handling", () => {
       it("returns false for non-matching protocols", () => {
         expect(service.handleUrl("https://example.com")).toBe(false);
         expect(service.handleUrl("myapp://task/123")).toBe(false);
-        expect(service.handleUrl("array://task/123")).toBe(false);
         expect(service.handleUrl("file:///path/to/file")).toBe(false);
       });
 

@@ -16,7 +16,7 @@ import {
 
 const log = logger.scope("mcp-callback");
 
-const PROTOCOL = "array";
+const PROTOCOL = "posthog-code";
 const MCP_CALLBACK_KEY = "mcp-oauth-complete";
 const DEV_CALLBACK_PORT = 8238;
 const OAUTH_TIMEOUT_MS = 180_000; // 3 minutes

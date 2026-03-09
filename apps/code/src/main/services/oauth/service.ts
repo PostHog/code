@@ -21,7 +21,7 @@ import type {
 
 const log = logger.scope("oauth-service");
 
-const PROTOCOL = "array";
+const PROTOCOL = "posthog-code";
 const OAUTH_TIMEOUT_MS = 180_000; // 3 minutes
 const DEV_CALLBACK_PORT = 8237;
 

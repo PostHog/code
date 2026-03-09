@@ -42,8 +42,8 @@ export class TaskLinkService extends TypedEventEmitter<TaskLinkEvents> {
 
   private handleTaskLink(path: string): boolean {
     // path formats:
-    //   "abc123" from array://task/abc123
-    //   "abc123/run/xyz789" from array://task/abc123/run/xyz789
+    //   "abc123" from posthog-code://task/abc123
+    //   "abc123/run/xyz789" from posthog-code://task/abc123/run/xyz789
     const parts = path.split("/");
     const taskId = parts[0];
     const taskRunId = parts[1] === "run" ? parts[2] : undefined;

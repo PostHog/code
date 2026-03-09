@@ -31,7 +31,10 @@ export function registerDeepLinkHandlers(): void {
   // Handle deep link URLs on Windows/Linux (second instance sends URL via command line)
   app.on("second-instance", (_event, commandLine) => {
     const url = commandLine.find(
-      (arg) => arg.startsWith("posthog-code://") || arg.startsWith("twig://"),
+      (arg) =>
+        arg.startsWith("posthog-code://") ||
+        arg.startsWith("twig://") ||
+        arg.startsWith("array://"),
     );
     if (url) {
       getDeepLinkService().handleUrl(url);
@@ -56,7 +59,10 @@ export function initializeDeepLinks(): void {
     }
   } else {
     const deepLinkUrl = process.argv.find(
-      (arg) => arg.startsWith("posthog-code://") || arg.startsWith("twig://"),
+      (arg) =>
+        arg.startsWith("posthog-code://") ||
+        arg.startsWith("twig://") ||
+        arg.startsWith("array://"),
     );
     if (deepLinkUrl) {
       getDeepLinkService().handleUrl(deepLinkUrl);
