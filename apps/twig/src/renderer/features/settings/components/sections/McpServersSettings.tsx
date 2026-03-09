@@ -510,7 +510,7 @@ export function McpServersSettings() {
         <Flex direction="column" gap="3">
           <Flex align="center" justify="between">
             <Text size="2" weight="medium">
-              Recommended servers
+              Pre-configured servers
             </Text>
           </Flex>
 
