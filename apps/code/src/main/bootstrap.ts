@@ -15,7 +15,7 @@ import { fixPath } from "./utils/fixPath.js";
 const isDev = !app.isPackaged;
 
 // Set app name for single-instance lock, crashReporter, etc
-const appName = isDev ? "posthog-code-dev" : "PostHog Code";
+const appName = isDev ? "posthog-code-dev" : "posthog-code";
 app.setName(isDev ? "PostHog Code (Development)" : "PostHog Code");
 
 // Set userData path for @posthog/code
