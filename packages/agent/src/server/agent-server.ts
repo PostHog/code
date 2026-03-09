@@ -595,7 +595,7 @@ export class AgentServer {
 
     const sessionResponse = await clientConnection.newSession({
       cwd: this.config.repositoryPath,
-      mcpServers: [],
+      mcpServers: this.config.mcpServers ?? [],
       _meta: {
         sessionId: payload.run_id,
         taskRunId: payload.run_id,

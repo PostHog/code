@@ -1,4 +1,5 @@
 import type { AgentMode } from "../types.js";
+import type { RemoteMcpServer } from "./schemas.js";
 
 export interface AgentServerConfig {
   port: number;
@@ -11,4 +12,5 @@ export interface AgentServerConfig {
   taskId: string;
   runId: string;
   version?: string;
+  mcpServers?: RemoteMcpServer[];
 }
