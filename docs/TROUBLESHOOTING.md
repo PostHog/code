@@ -70,6 +70,24 @@ node apps/twig/scripts/download-binaries.mjs
 
 Then restart the app. This downloads the codex-acp binary to `apps/twig/resources/codex-acp/`, which gets copied to `.vite/build/codex-acp/` during build.
 
+## Database initialization failed (better-sqlite3 bindings not found)
+
+If you see this error on startup:
+
+```
+Database initialization failed Error: Could not locate the bindings file.
+```
+
+The `better-sqlite3` native binary wasn't compiled for your Electron version. This commonly happens after a merge, branch switch or fresh install because the postinstall rebuild can fail silently (`|| true`).
+
+### Fix
+
+```bash
+npx @electron/rebuild -f -m node_modules/better-sqlite3
+```
+
+Then restart the app.
+
 ## `pnpm i` shows "Packages: -198"
 
 You might see something like this every time you run `pnpm install`:
