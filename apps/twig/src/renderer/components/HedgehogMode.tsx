@@ -17,12 +17,10 @@ export function HedgehogMode() {
   const gameRef = useRef<HedgehogModeGame | null>(null);
 
   useEffect(() => {
-    if (!hedgehogMode || !containerRef.current) return;
-    if (gameRef.current) return;
+    if (!hedgehogMode || !containerRef.current || gameRef.current) return;
 
-    let destroyed = false;
+    let cancelled = false;
     const container = containerRef.current;
-    container.innerHTML = "";
 
     const hedgehogConfig = user?.hedgehog_config as Record<
       string,
@@ -34,7 +32,7 @@ export function HedgehogMode() {
 
     import("@posthog/hedgehog-mode")
       .then(async ({ HedgeHogMode }) => {
-        if (destroyed || !container) return;
+        if (cancelled) return;
 
         log.info("Creating hedgehog game instance");
 
@@ -63,15 +61,18 @@ export function HedgehogMode() {
       });
 
     return () => {
-      destroyed = true;
+      cancelled = true;
+    };
+  }, [hedgehogMode, user?.hedgehog_config, setHedgehogMode]);
+
+  useEffect(() => {
+    return () => {
       if (gameRef.current) {
         gameRef.current.destroy();
         gameRef.current = null;
       }
     };
-  }, [hedgehogMode, user?.hedgehog_config, setHedgehogMode]);
-
-  if (!hedgehogMode) return null;
+  }, []);
 
   return (
     <div
@@ -81,6 +82,7 @@ export function HedgehogMode() {
         inset: 0,
         zIndex: 999998,
         pointerEvents: "none",
+        visibility: hedgehogMode ? "visible" : "hidden",
       }}
     />
   );
