@@ -384,5 +384,33 @@ describe("AgentServer HTTP Mode", () => {
       expect(prompt).toContain("Create a draft pull request");
       expect(prompt).toContain("gh pr create --draft");
     });
+
+    it("includes --base flag when baseBranch is configured", () => {
+      server = new AgentServer({
+        port,
+        jwtPublicKey: TEST_PUBLIC_KEY,
+        repositoryPath: repo.path,
+        apiUrl: "http://localhost:8000",
+        apiKey: "test-api-key",
+        projectId: 1,
+        mode: "interactive",
+        taskId: "test-task-id",
+        runId: "test-run-id",
+        baseBranch: "add-yolo-to-readme",
+      });
+      const prompt = (
+        server as unknown as TestableServer
+      ).buildCloudSystemPrompt();
+      expect(prompt).toContain(
+        "gh pr create --draft --base add-yolo-to-readme",
+      );
+    });
+
+    it("omits --base flag when baseBranch is not configured", () => {
+      const s = createServer();
+      const prompt = (s as unknown as TestableServer).buildCloudSystemPrompt();
+      expect(prompt).toContain("gh pr create --draft`");
+      expect(prompt).not.toContain("--base");
+    });
   });
 });

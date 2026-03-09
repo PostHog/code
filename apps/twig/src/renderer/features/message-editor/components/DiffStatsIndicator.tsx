@@ -4,20 +4,30 @@ import { useQuery } from "@tanstack/react-query";
 
 interface DiffStatsIndicatorProps {
   repoPath: string | null | undefined;
+  overrideStats?: {
+    filesChanged: number;
+    linesAdded: number;
+    linesRemoved: number;
+  } | null;
 }
 
-export function DiffStatsIndicator({ repoPath }: DiffStatsIndicatorProps) {
-  const { data: diffStats } = useQuery({
+export function DiffStatsIndicator({
+  repoPath,
+  overrideStats,
+}: DiffStatsIndicatorProps) {
+  const { data: localStats } = useQuery({
     queryKey: ["diff-stats", repoPath],
     queryFn: () =>
       trpcVanilla.git.getDiffStats.query({
         directoryPath: repoPath as string,
       }),
-    enabled: !!repoPath,
+    enabled: !!repoPath && !overrideStats,
     staleTime: 5000,
     refetchInterval: 5000,
     placeholderData: (prev) => prev,
   });
+
+  const diffStats = overrideStats ?? localStats;
 
   if (!diffStats || diffStats.filesChanged === 0) {
     return null;

@@ -50,6 +50,7 @@ program
     "--mcpServers <json>",
     "MCP servers config as JSON array (ACP McpServer[] format)",
   )
+  .option("--baseBranch <branch>", "Base branch for PR creation")
   .action(async (options) => {
     const envResult = envSchema.safeParse(process.env);
 
@@ -99,6 +100,7 @@ program
       taskId: options.taskId,
       runId: options.runId,
       mcpServers,
+      baseBranch: options.baseBranch,
     });
 
     process.on("SIGINT", async () => {

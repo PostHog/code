@@ -1,5 +1,9 @@
 import { BackgroundWrapper } from "@components/BackgroundWrapper";
 import { ErrorBoundary } from "@components/ErrorBoundary";
+import {
+  useCloudBranchChangedFiles,
+  useCloudPrChangedFiles,
+} from "@features/git-interaction/hooks/useGitQueries";
 import { tryExecuteTwigCommand } from "@features/message-editor/commands";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { SessionView } from "@features/sessions/components/SessionView";
@@ -23,7 +27,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { getTaskRepository } from "@utils/repository";
 import { toast } from "@utils/toast";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 const log = logger.scope("task-logs-panel");
 
@@ -73,6 +77,27 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     typeof task.latest_run?.state?.slack_thread_url === "string"
       ? task.latest_run.state.slack_thread_url
       : undefined;
+
+  // Cloud diff stats — reuses React Query cache from ChangesPanel
+  const cloudBranch = isCloud
+    ? (workspace?.baseBranch ?? task.latest_run?.branch ?? null)
+    : null;
+  const cloudRepo = isCloud ? (task.repository ?? null) : null;
+  const { data: prFiles } = useCloudPrChangedFiles(prUrl);
+  const { data: branchFiles } = useCloudBranchChangedFiles(
+    !prUrl ? cloudRepo : null,
+    !prUrl ? cloudBranch : null,
+  );
+  const cloudDiffStats = useMemo(() => {
+    if (!isCloud) return null;
+    const files = prUrl ? prFiles : branchFiles;
+    if (!files || files.length === 0) return null;
+    return {
+      filesChanged: files.length,
+      linesAdded: files.reduce((sum, f) => sum + (f.linesAdded ?? 0), 0),
+      linesRemoved: files.reduce((sum, f) => sum + (f.linesRemoved ?? 0), 0),
+    };
+  }, [isCloud, prUrl, prFiles, branchFiles]);
 
   const isRunning = isCloud
     ? isCloudRunNotTerminal
@@ -337,6 +362,8 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
               onBashCommand={isCloud ? undefined : handleBashCommand}
               onCancelPrompt={handleCancelPrompt}
               repoPath={repoPath}
+              cloudBranch={cloudBranch}
+              cloudDiffStats={cloudDiffStats}
               hasError={hasError}
               errorTitle={errorTitle}
               errorMessage={errorMessage}

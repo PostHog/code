@@ -13,4 +13,5 @@ export interface AgentServerConfig {
   runId: string;
   version?: string;
   mcpServers?: RemoteMcpServer[];
+  baseBranch?: string;
 }

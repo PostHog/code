@@ -45,6 +45,12 @@ interface SessionViewProps {
   onBashCommand?: (command: string) => void;
   onCancelPrompt: () => void;
   repoPath?: string | null;
+  cloudBranch?: string | null;
+  cloudDiffStats?: {
+    filesChanged: number;
+    linesAdded: number;
+    linesRemoved: number;
+  } | null;
   hasError?: boolean;
   errorTitle?: string;
   errorMessage?: string;
@@ -68,6 +74,8 @@ export function SessionView({
   onBashCommand,
   onCancelPrompt,
   repoPath,
+  cloudBranch,
+  cloudDiffStats,
   hasError = false,
   errorTitle,
   errorMessage = DEFAULT_ERROR_MESSAGE,
@@ -126,6 +134,8 @@ export function SessionView({
   setContext(sessionId, {
     taskId,
     repoPath,
+    cloudBranch,
+    cloudDiffStats,
     disabled: !isRunning,
     isLoading: !!isPromptPending,
   });

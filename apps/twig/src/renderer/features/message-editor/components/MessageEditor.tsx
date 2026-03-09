@@ -22,6 +22,12 @@ interface ModeAndBranchRowProps {
   modeOption?: SessionConfigOption;
   onModeChange?: () => void;
   repoPath?: string | null;
+  cloudBranch?: string | null;
+  cloudDiffStats?: {
+    filesChanged: number;
+    linesAdded: number;
+    linesRemoved: number;
+  } | null;
   disabled?: boolean;
 }
 
@@ -29,17 +35,23 @@ function ModeAndBranchRow({
   modeOption,
   onModeChange,
   repoPath,
+  cloudBranch,
+  cloudDiffStats,
   disabled,
 }: ModeAndBranchRowProps) {
-  const { currentBranch, diffStats } = useGitQueries(repoPath ?? undefined);
+  const { currentBranch: gitBranch, diffStats } = useGitQueries(
+    repoPath ?? undefined,
+  );
+  const currentBranch = cloudBranch ?? gitBranch;
 
   const showModeIndicator = !!onModeChange;
   const showBranchSelector = !!currentBranch;
+  const effectiveDiffStats = cloudDiffStats ?? diffStats;
   const showDiffStats =
-    diffStats &&
-    (diffStats.filesChanged > 0 ||
-      diffStats.linesAdded > 0 ||
-      diffStats.linesRemoved > 0);
+    effectiveDiffStats &&
+    (effectiveDiffStats.filesChanged > 0 ||
+      effectiveDiffStats.linesAdded > 0 ||
+      effectiveDiffStats.linesRemoved > 0);
 
   if (!showModeIndicator && !showBranchSelector) {
     return null;
@@ -61,7 +73,10 @@ function ModeAndBranchRow({
         )}
       </Flex>
       <Flex align="center" gap="2" style={{ minWidth: 0, overflow: "hidden" }}>
-        <DiffStatsIndicator repoPath={repoPath} />
+        <DiffStatsIndicator
+          repoPath={repoPath}
+          overrideStats={cloudDiffStats}
+        />
         {showBranchSelector && showDiffStats && (
           <Flex
             align="center"
@@ -127,6 +142,8 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
     const disabled = context?.disabled ?? false;
     const isLoading = context?.isLoading ?? false;
     const repoPath = context?.repoPath;
+    const cloudBranch = context?.cloudBranch;
+    const cloudDiffStats = context?.cloudDiffStats;
     const isSubmitDisabled = disabled || !isOnline;
 
     const {
@@ -297,6 +314,8 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
           modeOption={modeOption}
           onModeChange={onModeChange}
           repoPath={repoPath}
+          cloudBranch={cloudBranch}
+          cloudDiffStats={cloudDiffStats}
           disabled={disabled}
         />
       </Flex>

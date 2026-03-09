@@ -34,7 +34,11 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
   const workspace = useWorkspaceStore((state) => state.workspaces[taskId]);
   const effectiveRepoPath = useCwd(taskId);
   const { currentBranch } = useGitQueries(effectiveRepoPath ?? undefined);
-  const branchName = currentBranch ?? workspace?.branchName;
+  const isCloud =
+    workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
+  const branchName = isCloud
+    ? (workspace?.baseBranch ?? task.latest_run?.branch ?? currentBranch)
+    : (currentBranch ?? workspace?.branchName);
 
   const [filePickerOpen, setFilePickerOpen] = useState(false);
 
