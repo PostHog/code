@@ -278,7 +278,7 @@ async function handleAskUserQuestionTool(
       kind: "other",
       content: toolInfo.content,
       _meta: {
-        twigToolKind: "question",
+        codeToolKind: "question",
         questions,
       },
     },

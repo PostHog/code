@@ -1,11 +1,11 @@
 export {
+  CODE_EXECUTION_MODES,
+  type CodeExecutionMode,
   getAvailableModes,
   type ModeInfo,
-  TWIG_EXECUTION_MODES,
-  type TwigExecutionMode,
 } from "../../execution-mode.js";
 
-import type { TwigExecutionMode } from "../../execution-mode.js";
+import type { CodeExecutionMode } from "../../execution-mode.js";
 import { isMcpToolReadOnly } from "./mcp/tool-metadata.js";
 
 export const READ_TOOLS: Set<string> = new Set(["Read", "NotebookRead"]);
@@ -44,7 +44,7 @@ const AUTO_ALLOWED_TOOLS: Record<string, Set<string>> = {
 
 export function isToolAllowedForMode(
   toolName: string,
-  mode: TwigExecutionMode,
+  mode: CodeExecutionMode,
 ): boolean {
   if (mode === "bypassPermissions") {
     return true;

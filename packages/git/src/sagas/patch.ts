@@ -25,7 +25,7 @@ export class ApplyPatchSaga extends GitSaga<ApplyPatchInput, ApplyPatchOutput> {
 
     this.tempFile = path.join(
       os.tmpdir(),
-      `twig-patch-${Date.now()}-${Math.random().toString(36).slice(2)}.patch`,
+      `posthog-code-patch-${Date.now()}-${Math.random().toString(36).slice(2)}.patch`,
     );
 
     const tempFile = this.tempFile;

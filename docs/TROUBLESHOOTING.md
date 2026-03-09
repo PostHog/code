@@ -48,7 +48,7 @@ libc++abi: terminating due to uncaught exception of type Napi::Error
 Native modules (like node-pty) need to be rebuilt for your Electron version:
 
 ```bash
-pnpm --filter twig exec electron-rebuild
+pnpm --filter code exec electron-rebuild
 ```
 
 ## Codex agent crashes with GPU process errors
@@ -65,10 +65,10 @@ The codex-acp binary hasn't been downloaded. When it's missing, the app falls ba
 ### Fix
 
 ```bash
-node apps/twig/scripts/download-binaries.mjs
+node apps/code/scripts/download-binaries.mjs
 ```
 
-Then restart the app. This downloads the codex-acp binary to `apps/twig/resources/codex-acp/`, which gets copied to `.vite/build/codex-acp/` during build.
+Then restart the app. This downloads the codex-acp binary to `apps/code/resources/codex-acp/`, which gets copied to `.vite/build/codex-acp/` during build.
 
 ## Database initialization failed (better-sqlite3 bindings not found)
 

@@ -16,7 +16,7 @@ import {
   createPreToolUseHook,
   type OnModeChange,
 } from "../hooks.js";
-import type { TwigExecutionMode } from "../tools.js";
+import type { CodeExecutionMode } from "../tools.js";
 import { DEFAULT_MODEL } from "./models.js";
 import type { SettingsManager } from "./settings.js";
 
@@ -29,7 +29,7 @@ export interface ProcessSpawnedInfo {
 export interface BuildOptionsParams {
   cwd: string;
   mcpServers: Record<string, McpServerConfig>;
-  permissionMode: TwigExecutionMode;
+  permissionMode: CodeExecutionMode;
   canUseTool: CanUseTool;
   logger: Logger;
   systemPrompt?: Options["systemPrompt"];

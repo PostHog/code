@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Twig (Main Process)",
+      "name": "Debug PostHog Code (Main Process)",
       "type": "node",
       "request": "attach",
       "port": 5858,
@@ -15,11 +15,11 @@
       "remoteRoot": "${workspaceFolder}"
     },
     {
-      "name": "Debug Twig (Renderer Process)",
+      "name": "Debug PostHog Code (Renderer Process)",
       "type": "chrome",
       "request": "attach",
       "port": 9222,
-      "webRoot": "${workspaceFolder}/apps/twig",
+      "webRoot": "${workspaceFolder}/apps/code",
       "timeout": 60000,
       "sourceMaps": true,
       "sourceMapPathOverrides": {
@@ -32,10 +32,10 @@
   ],
   "compounds": [
     {
-      "name": "Debug Twig (Main + Renderer)",
+      "name": "Debug PostHog Code (Main + Renderer)",
       "configurations": [
-        "Debug Twig (Main Process)",
-        "Debug Twig (Renderer Process)"
+        "Debug PostHog Code (Main Process)",
+        "Debug PostHog Code (Renderer Process)"
       ],
       "preLaunchTask": "start-dev-with-debug",
       "stopAll": true

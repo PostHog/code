@@ -73,7 +73,7 @@ describe("OtelLogWriter", () => {
     // Verify resource attributes contain task_id and run_id
     expect(log.resource.attributes.task_id).toBe("task-123");
     expect(log.resource.attributes.run_id).toBe("run-456");
-    expect(log.resource.attributes["service.name"]).toBe("twig-agent");
+    expect(log.resource.attributes["service.name"]).toBe("posthog-code-agent");
   });
 
   it("should batch multiple log entries", async () => {

@@ -43,7 +43,7 @@ export class PullSaga extends GitSaga<PullInput, PullOutput> {
             "push",
             "--include-untracked",
             "-m",
-            "twig-pull-backup",
+            "posthog-code-pull-backup",
           ]);
           const afterResult = await this.git.stashList();
           this.stashCreated = afterResult.all.length > stashCountBefore;

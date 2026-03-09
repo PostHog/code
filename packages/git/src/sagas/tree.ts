@@ -42,7 +42,7 @@ export class CaptureTreeSaga extends GitSaga<
     input: CaptureTreeInput,
   ): Promise<CaptureTreeOutput> {
     const { baseDir, lastTreeHash, archivePath, signal } = input;
-    const tmpDir = path.join(baseDir, ".git", "twig-tmp");
+    const tmpDir = path.join(baseDir, ".git", "posthog-code-tmp");
 
     await this.step({
       name: "create_tmp_dir",

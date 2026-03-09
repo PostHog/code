@@ -11,7 +11,7 @@ import type {
 import type { Pushable } from "../../utils/streams.js";
 import type { BaseSession } from "../base-acp-agent.js";
 import type { SettingsManager } from "./session/settings.js";
-import type { TwigExecutionMode } from "./tools.js";
+import type { CodeExecutionMode } from "./tools.js";
 
 export type AccumulatedUsage = {
   inputTokens: number;
@@ -40,7 +40,7 @@ export type Session = BaseSession & {
   query: Query;
   input: Pushable<SDKUserMessage>;
   settingsManager: SettingsManager;
-  permissionMode: TwigExecutionMode;
+  permissionMode: CodeExecutionMode;
   modelId?: string;
   cwd: string;
   taskRunId?: string;

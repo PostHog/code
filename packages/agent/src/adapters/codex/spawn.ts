@@ -57,7 +57,7 @@ function findCodexBinary(options: CodexProcessOptions): {
 
   if (options.binaryPath) {
     throw new Error(
-      `codex-acp binary not found at ${options.binaryPath}. Run "node apps/twig/scripts/download-binaries.mjs" to download it.`,
+      `codex-acp binary not found at ${options.binaryPath}. Run "node apps/code/scripts/download-binaries.mjs" to download it.`,
     );
   }
 

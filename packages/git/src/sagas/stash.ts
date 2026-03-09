@@ -110,7 +110,7 @@ export class StashApplySaga extends GitSaga<StashApplyInput, StashApplyOutput> {
             "push",
             "--include-untracked",
             "-m",
-            "twig-stash-apply-backup",
+            "posthog-code-stash-apply-backup",
           ]);
           const afterResult = await this.git.stashList();
           this.backupStashCreated =
@@ -197,11 +197,11 @@ export class StashPopSaga extends GitSaga<StashPopInput, StashPopOutput> {
         const result = await this.git.stashList();
         const message =
           result.all.length > 0
-            ? result.all[0].message || "twig-stash-pop-restore"
-            : "twig-stash-pop-restore";
+            ? result.all[0].message || "posthog-code-stash-pop-restore"
+            : "posthog-code-stash-pop-restore";
         return { sha, message };
       } catch {
-        return { sha: null, message: "twig-stash-pop-restore" };
+        return { sha: null, message: "posthog-code-stash-pop-restore" };
       }
     });
     this.stashSha = stashInfo.sha;

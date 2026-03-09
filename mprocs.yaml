@@ -1,6 +1,6 @@
 procs:
-  twig:
-    cmd: ["pnpm", "--filter", "twig", "run", "start"]
+  code:
+    cmd: ["pnpm", "--filter", "code", "run", "start"]
     cwd: .
     color: blue
     depends_on:
@@ -13,12 +13,12 @@ procs:
     color: magenta
 
   git:
-    cmd: ["pnpm", "--filter", "@twig/git", "run", "dev"]
+    cmd: ["pnpm", "--filter", "@posthog/git", "run", "dev"]
     cwd: .
     color: yellow
 
   storybook:
-    cmd: ["pnpm", "--filter", "twig", "run", "storybook"]
+    cmd: ["pnpm", "--filter", "code", "run", "storybook"]
     cwd: .
     color: cyan
     autostart: false

@@ -56,7 +56,7 @@ export class OtelLogWriter {
     // So we have fast queries by run_id/task_id in PostHog Logs UI
     this.loggerProvider = new LoggerProvider({
       resource: resourceFromAttributes({
-        [ATTR_SERVICE_NAME]: "twig-agent",
+        [ATTR_SERVICE_NAME]: "posthog-code-agent",
         run_id: sessionContext.runId,
         task_id: sessionContext.taskId,
         device_type: sessionContext.deviceType ?? "local",

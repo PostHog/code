@@ -24,7 +24,7 @@ Most cloud agent implementations force you to choose one or the other. The goal 
 ### Key Goals
 
 1. **Seamless handoff** — Move sessions between local and cloud without losing state
-2. **Local-first feel** — Edit in Twig or your IDE, changes sync automatically
+2. **Local-first feel** — Edit in PostHog Code or your IDE, changes sync automatically
 3. **Survive disconnection** — Close your laptop, agent keeps working
 4. **Seamless resume** — Reconnect and catch up instantly
 5. **Multiple clients** — Laptop, phone, Slack, API—all work
@@ -38,7 +38,7 @@ Most cloud agent implementations force you to choose one or the other. The goal 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                              CLIENTS                                     │
-│    Twig Desktop    │    Slack Bot    │    API    │    Mobile App       │
+│  PostHog Code Desktop │  Slack Bot  │    API    │    Mobile App       │
 └─────────────────────────────────────────────────────────────────────────┘
                                    │
                                    │ Streamable HTTP (/sync)
@@ -310,7 +310,7 @@ All handoffs are just: stop current environment, resume elsewhere.
 **Local → Cloud:**
 
 ```
-Local Twig                     Backend                         Cloud Sandbox
+Local PostHog Code             Backend                         Cloud Sandbox
     │                            │                                  │
     │── stop local agent         │                                  │
     │   (tree snapshot via       │                                  │
@@ -327,7 +327,7 @@ Local Twig                     Backend                         Cloud Sandbox
 **Cloud → Local:**
 
 ```
-Cloud Sandbox                  Backend                         Local Twig
+Cloud Sandbox                  Backend                         Local PostHog Code
     │                            │                                  │
     │── stop() ─────────────────►│                                  │
     │   (final tree via          │                                  │
@@ -566,9 +566,9 @@ class CloudSessionWorkflow:
 
 ---
 
-## Twig Integration
+## PostHog Code Integration
 
-In Twig, the `AgentService` (main process) talks to agents through a provider interface. For cloud mode, we swap the provider without changing the rest of the app.
+In PostHog Code, the `AgentService` (main process) talks to agents through a provider interface. For cloud mode, we swap the provider without changing the rest of the app.
 
 ```
 Renderer ──tRPC──► AgentService ──► SessionProvider
@@ -604,11 +604,11 @@ Array packages:
 - `packages/agent/src/server/` — Cloud sandbox runner (AgentServer class, exported via `@posthog/agent/server`)
 - `packages/core/` — Shared business logic for jj/GitHub operations
 
-Twig app:
+PostHog Code app:
 
-- `apps/twig/src/main/services/agent/service.ts` — AgentService, picks provider type
-- `apps/twig/src/main/services/agent/providers/local-provider.ts` — Local ACP/SDK logic
-- `apps/twig/src/main/services/agent/providers/cloud-provider.ts` — Cloud SSE logic (uses CloudConnection)
+- `apps/code/src/main/services/agent/service.ts` — AgentService, picks provider type
+- `apps/code/src/main/services/agent/providers/local-provider.ts` — Local ACP/SDK logic
+- `apps/code/src/main/services/agent/providers/cloud-provider.ts` — Cloud SSE logic (uses CloudConnection)
 
 PostHog backend (not in this repo):
 

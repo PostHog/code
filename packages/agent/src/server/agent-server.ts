@@ -823,7 +823,9 @@ Important:
 
   private createCloudClient(payload: JwtPayload) {
     const mode = this.getEffectiveMode(payload);
-    const interactionOrigin = process.env.TWIG_INTERACTION_ORIGIN;
+    const interactionOrigin =
+      process.env.CODE_INTERACTION_ORIGIN ??
+      process.env.TWIG_INTERACTION_ORIGIN;
 
     return {
       requestPermission: async (params: {
@@ -848,8 +850,8 @@ Important:
           allowOption?.optionId ?? params.options[0].optionId;
 
         if (interactionOrigin === "slack") {
-          const twigToolKind = params.toolCall?._meta?.twigToolKind;
-          if (twigToolKind === "question") {
+          const codeToolKind = params.toolCall?._meta?.codeToolKind;
+          if (codeToolKind === "question") {
             this.relaySlackQuestion(payload, params.toolCall?._meta);
             return {
               outcome: { outcome: "cancelled" as const },

@@ -55,7 +55,7 @@ const sharedOptions = {
   splitting: false,
   outDir: "dist",
   target: "node20",
-  noExternal: ["@posthog/shared", "@twig/git"],
+  noExternal: ["@posthog/shared", "@posthog/git"],
   external: [
     ...builtinModules,
     ...builtinModules.map((m) => `node:${m}`),
@@ -93,14 +93,14 @@ export default defineConfig([
 
       // Touch a trigger file to signal electron-forge to restart
       // This file is watched by Vite, triggering main process rebuild
-      // Skip in Docker/CI environments where the twig app doesn't exist
+      // Skip in Docker/CI environments where the code app doesn't exist
       const triggerFile = resolve(
         import.meta.dirname,
-        "../../apps/twig/src/main/.agent-trigger",
+        "../../apps/code/src/main/.agent-trigger",
       );
       const triggerDir = resolve(
         import.meta.dirname,
-        "../../apps/twig/src/main",
+        "../../apps/code/src/main",
       );
       if (existsSync(triggerDir)) {
         writeFileSync(triggerFile, `${Date.now()}`);

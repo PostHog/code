@@ -67,9 +67,9 @@ import {
 } from "./session/options.js";
 import { SettingsManager } from "./session/settings.js";
 import {
+  CODE_EXECUTION_MODES,
+  type CodeExecutionMode,
   getAvailableModes,
-  TWIG_EXECUTION_MODES,
-  type TwigExecutionMode,
 } from "./tools.js";
 import type {
   BackgroundTerminal,
@@ -589,13 +589,13 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   }
 
   private async applySessionMode(modeId: string): Promise<void> {
-    if (!TWIG_EXECUTION_MODES.includes(modeId as TwigExecutionMode)) {
+    if (!CODE_EXECUTION_MODES.includes(modeId as CodeExecutionMode)) {
       throw new Error("Invalid Mode");
     }
     const previousMode = this.session.permissionMode;
-    this.session.permissionMode = modeId as TwigExecutionMode;
+    this.session.permissionMode = modeId as CodeExecutionMode;
     try {
-      await this.session.query.setPermissionMode(modeId as TwigExecutionMode);
+      await this.session.query.setPermissionMode(modeId as CodeExecutionMode);
     } catch (error) {
       this.session.permissionMode = previousMode;
       if (error instanceof Error) {
@@ -654,10 +654,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       cwd,
     });
 
-    const permissionMode: TwigExecutionMode =
+    const permissionMode: CodeExecutionMode =
       meta?.permissionMode &&
-      TWIG_EXECUTION_MODES.includes(meta.permissionMode as TwigExecutionMode)
-        ? (meta.permissionMode as TwigExecutionMode)
+      CODE_EXECUTION_MODES.includes(meta.permissionMode as CodeExecutionMode)
+        ? (meta.permissionMode as CodeExecutionMode)
         : "default";
 
     const options = buildSessionOptions({
@@ -834,7 +834,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   }
 
   private createOnModeChange() {
-    return async (newMode: TwigExecutionMode) => {
+    return async (newMode: CodeExecutionMode) => {
       if (this.session) {
         this.session.permissionMode = newMode;
       }

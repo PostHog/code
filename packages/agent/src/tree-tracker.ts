@@ -10,7 +10,7 @@
  * Uses a temporary git index to avoid modifying the user's staging area.
  */
 
-import { isCommitOnRemote as gitIsCommitOnRemote } from "@twig/git/queries";
+import { isCommitOnRemote as gitIsCommitOnRemote } from "@posthog/git/queries";
 import type { PostHogAPIClient } from "./posthog-api.js";
 import { ApplySnapshotSaga } from "./sagas/apply-snapshot-saga.js";
 import { CaptureTreeSaga } from "./sagas/capture-tree-saga.js";

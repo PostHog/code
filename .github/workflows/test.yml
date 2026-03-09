@@ -79,24 +79,24 @@ jobs:
         run: |
           pnpm --filter @posthog/electron-trpc build &
           pnpm --filter @posthog/shared build
-          pnpm --filter @twig/git build
+          pnpm --filter @posthog/git build
           pnpm --filter agent build &
           wait
 
       - name: Build native modules
-        run: pnpm --filter twig run build-native
+        run: pnpm --filter code run build-native
 
       - name: Package Electron app
-        run: pnpm --filter twig run package
+        run: pnpm --filter code run package
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
 
       - name: Install Playwright
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter twig exec playwright install --with-deps chromium
+        run: pnpm --filter code exec playwright install --with-deps chromium
 
       - name: Run E2E smoke tests
-        run: pnpm --filter twig run test:e2e
+        run: pnpm --filter code run test:e2e
         env:
           CI: true
 
@@ -105,5 +105,5 @@ jobs:
         if: failure()
         with:
           name: playwright-report
-          path: apps/twig/playwright-report/
+          path: apps/code/playwright-report/
           retention-days: 7

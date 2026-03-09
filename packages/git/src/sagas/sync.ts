@@ -46,7 +46,7 @@ export class SyncSaga extends GitSaga<SyncInput, SyncOutput> {
             "push",
             "--include-untracked",
             "-m",
-            "twig-sync-backup",
+            "posthog-code-sync-backup",
           ]);
           const afterResult = await this.git.stashList();
           this.stashCreated = afterResult.all.length > stashCountBefore;
