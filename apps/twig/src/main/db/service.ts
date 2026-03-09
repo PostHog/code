@@ -29,7 +29,7 @@ export class DatabaseService {
 
   @postConstruct()
   initialize(): void {
-    const dbPath = path.join(app.getPath("userData"), "twig.db");
+    const dbPath = path.join(app.getPath("userData"), "posthog-code.db");
     log.info("Opening database", {
       path: dbPath,
       migrationsFolder: MIGRATIONS_FOLDER,

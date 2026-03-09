@@ -17,6 +17,6 @@ export default defineConfig({
   out: "./src/main/db/migrations",
   casing: "snake_case",
   dbCredentials: {
-    url: path.join(userDataPath, "twig.db"),
+    url: path.join(userDataPath, "posthog-code.db"),
   },
 });
