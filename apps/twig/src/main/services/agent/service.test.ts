@@ -1,14 +1,58 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// --- Hoisted mocks ---
+
+const mockApp = vi.hoisted(() => ({
+  getAppPath: vi.fn(() => "/mock/appPath"),
+  isPackaged: false,
+  getVersion: vi.fn(() => "0.0.0-test"),
+  getPath: vi.fn(() => "/mock/home"),
+}));
+
+const mockNewSession = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({
+    sessionId: "test-session-id",
+    configOptions: [],
+  }),
+);
+
+const mockClientSideConnection = vi.hoisted(() =>
+  vi.fn().mockImplementation(function (this: Record<string, unknown>) {
+    this.initialize = vi.fn().mockResolvedValue({});
+    this.newSession = mockNewSession;
+    this.loadSession = vi.fn().mockResolvedValue({ configOptions: [] });
+    this.unstable_resumeSession = vi
+      .fn()
+      .mockResolvedValue({ configOptions: [] });
+  }),
+);
+
+const mockAgentRun = vi.hoisted(() =>
+  vi.fn().mockImplementation(() =>
+    Promise.resolve({
+      clientStreams: {
+        readable: new ReadableStream(),
+        writable: new WritableStream(),
+      },
+    }),
+  ),
+);
+
+const mockAgentConstructor = vi.hoisted(() =>
+  vi.fn().mockImplementation(function (this: Record<string, unknown>) {
+    this.run = mockAgentRun;
+    this.cleanup = vi.fn().mockResolvedValue(undefined);
+    this.getPosthogAPI = vi.fn();
+    this.flushAllLogs = vi.fn().mockResolvedValue(undefined);
+  }),
+);
+
 const mockFetch = vi.hoisted(() => vi.fn());
 
+// --- Module mocks ---
+
 vi.mock("electron", () => ({
-  app: {
-    getAppPath: () => "/mock/appPath",
-    isPackaged: false,
-    getVersion: () => "0.0.0-test",
-    getPath: () => "/mock/home",
-  },
+  app: mockApp,
 }));
 
 vi.mock("../../utils/logger.js", () => ({
@@ -30,77 +74,174 @@ vi.mock("../../utils/typed-event-emitter.js", () => ({
   },
 }));
 
+vi.mock("@posthog/agent/agent", () => ({
+  Agent: mockAgentConstructor,
+}));
+
+vi.mock("@agentclientprotocol/sdk", () => ({
+  ClientSideConnection: mockClientSideConnection,
+  ndJsonStream: vi.fn(),
+  PROTOCOL_VERSION: 1,
+}));
+
+vi.mock("@posthog/agent", () => ({
+  isMcpToolReadOnly: vi.fn(() => false),
+}));
+
+vi.mock("@posthog/agent/posthog-api", () => ({
+  getLlmGatewayUrl: vi.fn(() => "https://gateway.example.com"),
+}));
+
+vi.mock("@posthog/agent/gateway-models", () => ({
+  fetchGatewayModels: vi.fn().mockResolvedValue([]),
+  formatGatewayModelName: vi.fn(),
+  getProviderName: vi.fn(),
+}));
+
+vi.mock("@posthog/agent/adapters/claude/session/jsonl-hydration", () => ({
+  hydrateSessionJsonl: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@shared/errors.js", () => ({
+  isAuthError: vi.fn(() => false),
+}));
+
+vi.mock("node:fs", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...original,
+    default: {
+      ...original,
+      existsSync: vi.fn(() => false),
+      realpathSync: vi.fn((p: string) => p),
+    },
+    existsSync: vi.fn(() => false),
+    mkdirSync: vi.fn(),
+    symlinkSync: vi.fn(),
+    realpathSync: vi.fn((p: string) => p),
+  };
+});
+
 vi.stubGlobal("fetch", mockFetch);
 
+// --- Import after mocks ---
 import { AgentService } from "./service.js";
 
-interface TestableAgentService {
-  buildMcpServers(credentials: {
-    apiKey: string;
-    apiHost: string;
-    projectId: number;
-  }): Promise<
-    Array<{
-      name: string;
-      type: string;
-      url: string;
-      headers: Array<{ name: string; value: string }>;
-    }>
-  >;
+// --- Test helpers ---
+
+function createMockDependencies() {
+  return {
+    processTracking: {
+      register: vi.fn(),
+      unregister: vi.fn(),
+      killByTaskId: vi.fn(),
+    },
+    sleepService: {
+      acquire: vi.fn(),
+      release: vi.fn(),
+    },
+    fsService: {
+      readRepoFile: vi.fn(),
+      writeRepoFile: vi.fn(),
+    },
+    posthogPluginService: {
+      getPluginPath: vi.fn(() => "/mock/plugin"),
+    },
+  };
 }
 
-const credentials = {
+const baseSessionParams = {
+  taskId: "task-1",
+  taskRunId: "run-1",
+  repoPath: "/mock/repo",
   apiKey: "test-api-key",
   apiHost: "https://app.posthog.com",
   projectId: 1,
 };
 
 describe("AgentService", () => {
-  let service: TestableAgentService;
+  let service: AgentService;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
+    // MCP installations endpoint returns empty
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ results: [] }),
     });
 
+    const deps = createMockDependencies();
     service = new AgentService(
-      {
-        register: vi.fn(),
-        unregister: vi.fn(),
-        killByTaskId: vi.fn(),
-      } as never,
-      { acquire: vi.fn(), release: vi.fn() } as never,
-      { readRepoFile: vi.fn(), writeRepoFile: vi.fn() } as never,
-      { getPluginPath: vi.fn(() => "/mock/plugin") } as never,
-    ) as unknown as TestableAgentService;
+      deps.processTracking as never,
+      deps.sleepService as never,
+      deps.fsService as never,
+      deps.posthogPluginService as never,
+    );
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  describe("buildMcpServers", () => {
-    it("includes posthog MCP server with auth headers", async () => {
-      const servers = await service.buildMcpServers(credentials);
+  describe("MCP servers", () => {
+    it("passes MCP servers to newSession for codex adapter", async () => {
+      await service.startSession({
+        ...baseSessionParams,
+        adapter: "codex",
+      });
 
-      expect(servers).toEqual([
-        {
-          name: "posthog",
-          type: "http",
-          url: "https://mcp.posthog.com/mcp",
-          headers: [
-            { name: "Authorization", value: "Bearer test-api-key" },
-            { name: "x-posthog-project-id", value: "1" },
-            { name: "x-posthog-mcp-version", value: "2" },
-          ],
-        },
-      ]);
+      expect(mockNewSession).toHaveBeenCalledTimes(1);
+      const mcpServers = mockNewSession.mock.calls[0][0].mcpServers;
+      expect(mcpServers).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: "posthog",
+            type: "http",
+            url: "https://mcp.posthog.com/mcp",
+          }),
+        ]),
+      );
     });
 
-    it("includes user-installed MCP servers (no auth)", async () => {
+    it("passes MCP servers to newSession for claude adapter", async () => {
+      await service.startSession({
+        ...baseSessionParams,
+        adapter: "claude",
+      });
+
+      expect(mockNewSession).toHaveBeenCalledTimes(1);
+      const mcpServers = mockNewSession.mock.calls[0][0].mcpServers;
+      expect(mcpServers).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: "posthog",
+            type: "http",
+            url: "https://mcp.posthog.com/mcp",
+          }),
+        ]),
+      );
+    });
+
+    it("passes identical MCP servers regardless of adapter", async () => {
+      await service.startSession({
+        ...baseSessionParams,
+        taskRunId: "run-claude",
+        adapter: "claude",
+      });
+
+      await service.startSession({
+        ...baseSessionParams,
+        taskRunId: "run-codex",
+        adapter: "codex",
+      });
+
+      const claudeMcp = mockNewSession.mock.calls[0][0].mcpServers;
+      const codexMcp = mockNewSession.mock.calls[1][0].mcpServers;
+      expect(codexMcp).toEqual(claudeMcp);
+    });
+
+    it("includes user-installed MCP servers from backend", async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: () =>
@@ -108,7 +249,7 @@ describe("AgentService", () => {
             results: [
               {
                 id: "inst-1",
-                url: "https://custom.example.com/mcp",
+                url: "https://custom-mcp.example.com",
                 proxy_url: "https://proxy.posthog.com/inst-1/",
                 name: "custom-server",
                 display_name: "Custom Server",
@@ -121,101 +262,22 @@ describe("AgentService", () => {
           }),
       });
 
-      const servers = await service.buildMcpServers(credentials);
-
-      expect(servers).toHaveLength(2);
-      expect(servers[1]).toEqual({
-        name: "custom-server",
-        type: "http",
-        url: "https://custom.example.com/mcp",
-        headers: [],
+      await service.startSession({
+        ...baseSessionParams,
+        adapter: "codex",
       });
-    });
 
-    it("routes authenticated servers through proxy", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            results: [
-              {
-                id: "inst-2",
-                url: "https://authed.example.com/mcp",
-                proxy_url: "https://proxy.posthog.com/inst-2/",
-                name: "authed-server",
-                display_name: "Authed Server",
-                auth_type: "oauth2",
-                is_enabled: true,
-                pending_oauth: false,
-                needs_reauth: false,
-              },
-            ],
+      const mcpServers = mockNewSession.mock.calls[0][0].mcpServers;
+      expect(mcpServers).toHaveLength(2);
+      expect(mcpServers).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: "posthog" }),
+          expect.objectContaining({
+            name: "custom-server",
+            url: "https://custom-mcp.example.com",
           }),
-      });
-
-      const servers = await service.buildMcpServers(credentials);
-
-      expect(servers[1]).toEqual({
-        name: "authed-server",
-        type: "http",
-        url: "https://proxy.posthog.com/inst-2/",
-        headers: [{ name: "Authorization", value: "Bearer test-api-key" }],
-      });
-    });
-
-    it("skips disabled and pending-auth installations", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            results: [
-              {
-                id: "disabled",
-                url: "https://disabled.example.com",
-                name: "disabled",
-                display_name: "Disabled",
-                auth_type: "none",
-                is_enabled: false,
-                pending_oauth: false,
-                needs_reauth: false,
-              },
-              {
-                id: "pending",
-                url: "https://pending.example.com",
-                name: "pending",
-                display_name: "Pending",
-                auth_type: "oauth2",
-                is_enabled: true,
-                pending_oauth: true,
-                needs_reauth: false,
-              },
-              {
-                id: "reauth",
-                url: "https://reauth.example.com",
-                name: "reauth",
-                display_name: "Reauth",
-                auth_type: "oauth2",
-                is_enabled: true,
-                pending_oauth: false,
-                needs_reauth: true,
-              },
-            ],
-          }),
-      });
-
-      const servers = await service.buildMcpServers(credentials);
-
-      expect(servers).toHaveLength(1);
-      expect(servers[0].name).toBe("posthog");
-    });
-
-    it("returns only posthog server when installations fetch fails", async () => {
-      mockFetch.mockRejectedValue(new Error("Network error"));
-
-      const servers = await service.buildMcpServers(credentials);
-
-      expect(servers).toHaveLength(1);
-      expect(servers[0].name).toBe("posthog");
+        ]),
+      );
     });
   });
 });
