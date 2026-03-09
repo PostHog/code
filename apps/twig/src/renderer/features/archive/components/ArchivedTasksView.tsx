@@ -267,8 +267,7 @@ export function ArchivedTasksView() {
 
   const invalidateArchiveQueries = async () => {
     await Promise.all([
-      queryClient.refetchQueries({ queryKey: ["archivedTaskIds"] }),
-      queryClient.refetchQueries({ queryKey: [["archive"]] }),
+      trpcUtils.archive.invalidate(),
       queryClient.refetchQueries({ queryKey: ["tasks"] }),
     ]);
   };

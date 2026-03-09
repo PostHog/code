@@ -95,6 +95,12 @@ export async function getRemoteUrl(
         const url = await git.remote(["get-url", remote]);
         return url || null;
       } catch {
+        if (remote === "origin") {
+          const remotes = await git.getRemotes(true);
+          if (remotes.length > 0 && remotes[0].refs.fetch) {
+            return remotes[0].refs.fetch;
+          }
+        }
         return null;
       }
     },

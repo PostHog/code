@@ -46,7 +46,8 @@ export function WorkspaceModeSelect({
   onChange,
   size = "1",
 }: WorkspaceModeSelectProps) {
-  const cloudModeEnabled = useFeatureFlag("twig-cloud-mode-toggle");
+  const cloudModeEnabled =
+    useFeatureFlag("twig-cloud-mode-toggle") || import.meta.env.DEV;
 
   const availableModes = useMemo<WorkspaceMode[]>(
     () =>

@@ -1,7 +1,6 @@
 import { foldersApi } from "@features/folders/hooks/useFolders";
 import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
 import { getTaskDirectory } from "@hooks/useRepositoryDirectory";
-import type { WorkspaceMode } from "@main/services/workspace/schemas";
 import type { Task } from "@shared/types";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { track } from "@utils/analytics";
@@ -122,7 +121,7 @@ export const useNavigationStore = create<NavigationStore>()(
             try {
               await foldersApi.addFolder(directory);
 
-              const workspaceMode: WorkspaceMode =
+              const workspaceMode =
                 task.latest_run?.environment === "cloud" ? "cloud" : "local";
 
               await workspaceApi.create({

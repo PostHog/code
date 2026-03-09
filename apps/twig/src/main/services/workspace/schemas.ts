@@ -52,17 +52,24 @@ export const scriptExecutionResultSchema = z.object({
 });
 
 // Input schemas
-export const createWorkspaceInput = z.object({
-  taskId: z.string(),
-  mainRepoPath: z
-    .string()
-    .min(2, "Repository path must be a valid directory path"),
-  folderId: z.string(),
-  folderPath: z.string().min(2, "Folder path must be a valid directory path"),
-  mode: workspaceModeSchema,
-  branch: z.string().optional(),
-  useExistingBranch: z.boolean().optional(),
-});
+export const createWorkspaceInput = z
+  .object({
+    taskId: z.string(),
+    mainRepoPath: z.string(),
+    folderId: z.string(),
+    folderPath: z.string(),
+    mode: workspaceModeSchema,
+    branch: z.string().optional(),
+    useExistingBranch: z.boolean().optional(),
+  })
+  .refine(
+    (data) =>
+      data.mode === "cloud" ||
+      (data.mainRepoPath.length >= 2 && data.folderPath.length >= 2),
+    {
+      message: "Repository and folder paths must be valid for non-cloud mode",
+    },
+  );
 
 export const deleteWorkspaceInput = z.object({
   taskId: z.string(),

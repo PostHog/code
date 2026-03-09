@@ -3,7 +3,6 @@ import {
   type ConnectParams,
   getSessionService,
 } from "@features/sessions/service/service";
-import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { getTaskDirectory } from "@hooks/useRepositoryDirectory";
 import type {
   Workspace,
@@ -193,7 +192,29 @@ export class TaskCreationSaga extends Saga<
         hasStartScripts: workspaceInfo.hasStartScripts,
       };
     } else if (workspaceMode === "cloud") {
-      // Cloud tasks don't need a local repo path — create a minimal workspace
+      await this.step({
+        name: "cloud_workspace_creation",
+        execute: async () => {
+          return trpcVanilla.workspace.create.mutate({
+            taskId: task.id,
+            mainRepoPath: "",
+            folderId: "",
+            folderPath: "",
+            mode: "cloud",
+            branch: branch ?? undefined,
+          });
+        },
+        rollback: async () => {
+          log.info("Rolling back: deleting cloud workspace", {
+            taskId: task.id,
+          });
+          await trpcVanilla.workspace.delete.mutate({
+            taskId: task.id,
+            mainRepoPath: "",
+          });
+        },
+      });
+
       workspace = {
         taskId: task.id,
         folderId: "",
@@ -207,7 +228,6 @@ export class TaskCreationSaga extends Saga<
         terminalSessionIds: [],
         hasStartScripts: false,
       };
-      useWorkspaceStore.getState().updateWorkspace(task.id, workspace);
     }
 
     // Step 5: Start cloud run (only for new cloud tasks)

@@ -1,6 +1,7 @@
 import { useArchivedTaskIds } from "@features/archive/hooks/useArchivedTaskIds";
 import { useSessions } from "@features/sessions/stores/sessionStore";
 import { useTasks } from "@features/tasks/hooks/useTasks";
+import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
 import { getTaskRepository, parseRepository } from "@renderer/utils/repository";
 import type { Task } from "@shared/types";
 import { useEffect, useMemo, useRef } from "react";
@@ -66,14 +67,26 @@ interface UseSidebarDataProps {
   activeView: ViewState;
 }
 
-function getRepositoryInfo(task: Task): TaskRepositoryInfo | null {
+function getRepositoryInfo(
+  task: Task,
+  folderPath?: string,
+): TaskRepositoryInfo | null {
   const repository = getTaskRepository(task);
-  if (!repository) return null;
-  const parsed = parseRepository(repository);
-  return {
-    fullPath: repository,
-    name: parsed?.repoName ?? repository,
-  };
+  if (repository) {
+    const parsed = parseRepository(repository);
+    return {
+      fullPath: repository,
+      name: parsed?.repoName ?? repository,
+    };
+  }
+  if (folderPath) {
+    const name = folderPath.split("/").pop() ?? folderPath;
+    return {
+      fullPath: folderPath,
+      name,
+    };
+  }
+  return null;
 }
 
 function getSortValue(task: TaskData, sortMode: SortMode): number {
@@ -125,11 +138,16 @@ function groupByRepository(
 export function useSidebarData({
   activeView,
 }: UseSidebarDataProps): SidebarData {
-  const { data: rawTasks = [], isLoading } = useTasks();
+  const { data: rawTasks = [], isLoading: isLoadingTasks } = useTasks();
+  const { data: workspaces, isFetched: isWorkspacesFetched } = useWorkspaces();
   const archivedTaskIds = useArchivedTaskIds();
+  const isLoading = isLoadingTasks || !isWorkspacesFetched;
   const allTasks = useMemo(
-    () => rawTasks.filter((task) => !archivedTaskIds.has(task.id)),
-    [rawTasks, archivedTaskIds],
+    () =>
+      rawTasks.filter(
+        (task) => !archivedTaskIds.has(task.id) && workspaces?.[task.id],
+      ),
+    [rawTasks, archivedTaskIds, workspaces],
   );
   const sessions = useSessions();
   const { timestamps } = useTaskViewed();
@@ -162,6 +180,7 @@ export function useSidebarData({
   const taskData = useMemo(() => {
     return allTasks.map((task) => {
       const session = sessionByTaskId.get(task.id);
+      const workspace = workspaces?.[task.id];
       const apiUpdatedAt = new Date(task.updated_at).getTime();
       const taskTimestamps = timestamps[task.id];
       const localActivity = taskTimestamps?.lastActivityAt;
@@ -183,12 +202,12 @@ export function useSidebarData({
         isUnread,
         isPinned: pinnedTaskIds.has(task.id),
         needsPermission: (session?.pendingPermissions?.size ?? 0) > 0,
-        repository: getRepositoryInfo(task),
+        repository: getRepositoryInfo(task, workspace?.folderPath),
         taskRunStatus: task.latest_run?.status,
         taskRunEnvironment: task.latest_run?.environment,
       };
     });
-  }, [allTasks, timestamps, pinnedTaskIds, sessionByTaskId]);
+  }, [allTasks, timestamps, pinnedTaskIds, sessionByTaskId, workspaces]);
 
   const pinnedTasks = useMemo(() => {
     const pinned = taskData.filter((task) => task.isPinned);

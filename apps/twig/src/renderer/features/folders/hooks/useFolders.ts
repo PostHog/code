@@ -1,19 +1,14 @@
 import type { RegisteredFolder } from "@main/services/folders/schemas";
 import { useFocusStore } from "@renderer/stores/focusStore";
 import { trpcReact, trpcVanilla } from "@renderer/trpc";
-import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
+import { queryClient } from "@utils/queryClient";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 const log = logger.scope("folders");
 
-const folderKeys = {
-  all: ["folders"] as const,
-  list: () => [...folderKeys.all, "list"] as const,
-};
-
 export function useFolders() {
-  const queryClient = useQueryClient();
+  const utils = trpcReact.useUtils();
   const hasInitialized = useRef(false);
 
   const { data: folders = [], isLoading } =
@@ -41,7 +36,7 @@ export function useFolders() {
             ),
         ),
       ).then(() => {
-        queryClient.invalidateQueries({ queryKey: folderKeys.list() });
+        void utils.folders.getFolders.invalidate();
       });
     }
 
@@ -62,21 +57,17 @@ export function useFolders() {
           );
         });
     }
-  }, [folders, existingFolders, isLoading, queryClient]);
+  }, [folders, existingFolders, isLoading, utils]);
 
   const addFolderMutation = trpcReact.folders.addFolder.useMutation({
-    onSuccess: (newFolder) => {
-      queryClient.setQueryData<RegisteredFolder[]>(folderKeys.list(), (old) =>
-        old ? [...old, newFolder] : [newFolder],
-      );
+    onSuccess: () => {
+      void utils.folders.getFolders.invalidate();
     },
   });
 
   const removeFolderMutation = trpcReact.folders.removeFolder.useMutation({
-    onSuccess: (_, { folderId }) => {
-      queryClient.setQueryData<RegisteredFolder[]>(folderKeys.list(), (old) =>
-        old?.filter((f) => f.id !== folderId),
-      );
+    onSuccess: () => {
+      void utils.folders.getFolders.invalidate();
     },
   });
 
@@ -131,8 +122,8 @@ export function useFolders() {
   );
 
   const loadFolders = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: folderKeys.list() });
-  }, [queryClient]);
+    void utils.folders.getFolders.invalidate();
+  }, [utils]);
 
   return {
     folders: existingFolders,
@@ -147,15 +138,25 @@ export function useFolders() {
   };
 }
 
+const invalidateFolders = () => {
+  void queryClient.invalidateQueries({ queryKey: [["folders", "getFolders"]] });
+};
+
 export const foldersApi = {
   async getFolders() {
     return trpcVanilla.folders.getFolders.query();
   },
   async addFolder(folderPath: string) {
-    return trpcVanilla.folders.addFolder.mutate({ folderPath });
+    const newFolder = await trpcVanilla.folders.addFolder.mutate({
+      folderPath,
+    });
+    invalidateFolders();
+    return newFolder;
   },
   async removeFolder(folderId: string) {
-    return trpcVanilla.folders.removeFolder.mutate({ folderId });
+    const result = await trpcVanilla.folders.removeFolder.mutate({ folderId });
+    invalidateFolders();
+    return result;
   },
   async updateFolderAccessed(folderId: string) {
     return trpcVanilla.folders.updateFolderAccessed.mutate({ folderId });
