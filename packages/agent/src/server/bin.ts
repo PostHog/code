@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { z } from "zod";
 import { AgentServer } from "./agent-server.js";
+import { mcpServersSchema } from "./schemas.js";
 
 const envSchema = z.object({
   JWT_PUBLIC_KEY: z
@@ -45,6 +46,10 @@ program
   .requiredOption("--repositoryPath <path>", "Path to the repository")
   .requiredOption("--taskId <id>", "Task ID")
   .requiredOption("--runId <id>", "Task run ID")
+  .option(
+    "--mcpServers <json>",
+    "MCP servers config as JSON array (ACP McpServer[] format)",
+  )
   .action(async (options) => {
     const envResult = envSchema.safeParse(process.env);
 
@@ -60,6 +65,29 @@ program
 
     const mode = options.mode === "background" ? "background" : "interactive";
 
+    let mcpServers: z.infer<typeof mcpServersSchema> | undefined;
+    if (options.mcpServers) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(options.mcpServers);
+      } catch {
+        program.error("--mcpServers must be valid JSON");
+        return;
+      }
+
+      const result = mcpServersSchema.safeParse(parsed);
+      if (!result.success) {
+        const errors = result.error.issues
+          .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
+          .join("\n");
+        program.error(
+          `--mcpServers validation failed (only remote http/sse servers are supported):\n${errors}`,
+        );
+        return;
+      }
+      mcpServers = result.data;
+    }
+
     const server = new AgentServer({
       port: parseInt(options.port, 10),
       jwtPublicKey: env.JWT_PUBLIC_KEY,
@@ -70,6 +98,7 @@ program
       mode,
       taskId: options.taskId,
       runId: options.runId,
+      mcpServers,
     });
 
     process.on("SIGINT", async () => {
