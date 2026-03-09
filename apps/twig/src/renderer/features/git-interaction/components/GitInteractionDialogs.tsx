@@ -555,9 +555,9 @@ export function GitBranchDialog({
       onOpenChange={onOpenChange}
       icon={<GitFork size={ICON_SIZE} />}
       title="New branch"
-      error={error}
+      error={null}
       buttonLabel="Create"
-      buttonDisabled={!branchName.trim()}
+      buttonDisabled={!branchName.trim() || !!error}
       isSubmitting={isSubmitting}
       onSubmit={onConfirm}
     >
@@ -573,7 +573,12 @@ export function GitBranchDialog({
           value={branchName}
           onChange={(e) => onBranchNameChange(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && branchName.trim() && !isSubmitting) {
+            if (
+              e.key === "Enter" &&
+              branchName.trim() &&
+              !error &&
+              !isSubmitting
+            ) {
               e.preventDefault();
               onConfirm();
             }
@@ -582,6 +587,11 @@ export function GitBranchDialog({
           size="1"
           autoFocus
         />
+        {error && (
+          <Text size="1" color="red">
+            {error}
+          </Text>
+        )}
       </Flex>
     </GitDialog>
   );

@@ -10,6 +10,10 @@ import type {
   GitMenuAction,
   GitMenuActionId,
 } from "@features/git-interaction/types";
+import {
+  sanitizeBranchName,
+  validateBranchName,
+} from "@features/git-interaction/utils/branchNameValidation";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
 import { useWorkspaceStore } from "@features/workspace/stores/workspaceStore";
 import { trpcVanilla } from "@renderer/trpc";
@@ -482,6 +486,12 @@ export function useGitInteraction(
       return;
     }
 
+    const validationError = validateBranchName(branchName);
+    if (validationError) {
+      modal.setBranchError(validationError);
+      return;
+    }
+
     modal.setIsSubmitting(true);
     modal.setBranchError(null);
 
@@ -545,7 +555,11 @@ export function useGitInteraction(
       setCommitNextStep: modal.setCommitNextStep,
       setPrTitle: modal.setPrTitle,
       setPrBody: modal.setPrBody,
-      setBranchName: modal.setBranchName,
+      setBranchName: (value: string) => {
+        const sanitized = sanitizeBranchName(value);
+        modal.setBranchName(sanitized);
+        modal.setBranchError(validateBranchName(sanitized));
+      },
       runCommit,
       runPush,
       runPr,
