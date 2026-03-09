@@ -653,8 +653,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         },
       });
 
-      const mcpServers =
-        adapter === "codex" ? [] : await this.buildMcpServers(credentials);
+      const mcpServers = await this.buildMcpServers(credentials);
 
       let configOptions: SessionConfigOption[] | undefined;
       let agentSessionId: string;
