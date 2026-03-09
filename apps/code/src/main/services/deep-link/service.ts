@@ -62,10 +62,10 @@ export class DeepLinkService {
   public handleUrl(url: string): boolean {
     log.info("Received deep link:", url);
 
-    const isTwigProtocol = url.startsWith(`${PROTOCOL}://`);
+    const isPrimaryProtocol = url.startsWith(`${PROTOCOL}://`);
     const isLegacyProtocol = url.startsWith(`${LEGACY_PROTOCOL}://`);
 
-    if (!isTwigProtocol && !isLegacyProtocol) {
+    if (!isPrimaryProtocol && !isLegacyProtocol) {
       log.warn("URL does not match protocol:", url);
       return false;
     }

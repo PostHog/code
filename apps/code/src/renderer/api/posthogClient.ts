@@ -301,7 +301,7 @@ export class PostHogAPIClient {
       jsonrpc: "2.0",
       method,
       params: params ?? {},
-      id: `twig-${Date.now()}`,
+      id: `posthog-code-${Date.now()}`,
     };
 
     try {

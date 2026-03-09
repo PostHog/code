@@ -20,20 +20,24 @@ export async function loadConfig(
   worktreePath: string,
   worktreeName: string,
 ): Promise<LoadConfigResult> {
-  // Search order (twig.json takes precedence over legacy array.json):
-  // 1. .twig/{WORKSPACE_NAME}/twig.json (workspace-specific, new)
-  // 2. .twig/{WORKSPACE_NAME}/array.json (workspace-specific, legacy)
-  // 3. .array/{WORKSPACE_NAME}/array.json (workspace-specific, legacy location)
-  // 4. {repo-root}/twig.json (repository root, new)
-  // 5. {repo-root}/array.json (repository root, legacy)
+  // Search order (first match wins):
+  // 1. .posthog-code/{WORKSPACE_NAME}/posthog-code.json (workspace-specific)
+  // 2. .twig/{WORKSPACE_NAME}/twig.json (workspace-specific, legacy)
+  // 3. .twig/{WORKSPACE_NAME}/array.json (workspace-specific, legacy)
+  // 4. .array/{WORKSPACE_NAME}/array.json (workspace-specific, legacy)
+  // 5. {repo-root}/posthog-code.json (repository root)
+  // 6. {repo-root}/twig.json (repository root, legacy)
+  // 7. {repo-root}/array.json (repository root, legacy)
 
   const workspaceConfigPaths = [
+    path.join(worktreePath, ".posthog-code", worktreeName, "posthog-code.json"),
     path.join(worktreePath, ".twig", worktreeName, "twig.json"),
     path.join(worktreePath, ".twig", worktreeName, "array.json"),
     path.join(worktreePath, ".array", worktreeName, "array.json"),
   ];
 
   const repoConfigPaths = [
+    path.join(worktreePath, "posthog-code.json"),
     path.join(worktreePath, "twig.json"),
     path.join(worktreePath, "array.json"),
   ];

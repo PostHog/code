@@ -252,8 +252,8 @@ describe("checkpoint sagas", () => {
     await withRepo(async (repoPath) => {
       const subGit = createGitClient(subRepo);
       await subGit.init();
-      await subGit.addConfig("user.name", "Twig Test");
-      await subGit.addConfig("user.email", "twig-test@example.com");
+      await subGit.addConfig("user.name", "PostHog Code Test");
+      await subGit.addConfig("user.email", "posthog-code-test@example.com");
       await writeFile(path.join(subRepo, "sub.txt"), "sub\n");
       await subGit.add(["sub.txt"]);
       await subGit.commit("sub-init");
@@ -321,8 +321,8 @@ describe("checkpoint sagas", () => {
     try {
       const git = createGitClient(repoPath);
       await git.init();
-      await git.addConfig("user.name", "Twig Test");
-      await git.addConfig("user.email", "twig-test@example.com");
+      await git.addConfig("user.name", "PostHog Code Test");
+      await git.addConfig("user.email", "posthog-code-test@example.com");
 
       await writeFile(path.join(repoPath, "x.txt"), "one\n");
       await captureCheckpoint(repoPath, "unborn-head");

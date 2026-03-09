@@ -45,7 +45,7 @@ export function trackAppEvent(
     distinctId,
     event: eventName,
     properties: {
-      team: "twig",
+      team: "posthog-code",
       ...properties,
       $process_person_profile: !!currentUserId,
     },
@@ -93,7 +93,7 @@ export function captureException(
 
   const distinctId = currentUserId || "anonymous-app-event";
   posthogClient.captureException(error, distinctId, {
-    team: "twig",
+    team: "posthog-code",
     ...additionalProperties,
   });
 }

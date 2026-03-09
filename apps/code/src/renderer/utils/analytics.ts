@@ -42,7 +42,7 @@ export function initializePostHog() {
     },
   });
 
-  posthog.register({ team: "twig" });
+  posthog.register({ team: "posthog-code" });
 
   isInitialized = true;
 }
@@ -141,7 +141,7 @@ export function captureException(
   }
 
   posthog.captureException(error, {
-    team: "twig",
+    team: "posthog-code",
     ...additionalProperties,
   });
 }

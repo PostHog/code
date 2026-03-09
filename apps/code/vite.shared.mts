@@ -16,7 +16,7 @@ export function createPosthogPlugin(
     envId: env.POSTHOG_ENV_ID,
     host: env.POSTHOG_HOST,
     sourcemaps: {
-      team: "twig",
+      team: "posthog-code",
       deleteAfterUpload: true,
     },
   });

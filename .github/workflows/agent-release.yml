@@ -53,7 +53,7 @@ jobs:
         run: pnpm --filter @posthog/shared run build
 
       - name: Build git (agent dependency)
-        run: pnpm --filter @twig/git run build
+        run: pnpm --filter @posthog/git run build
 
       - name: Build the package
         run: pnpm --filter agent run build

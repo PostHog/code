@@ -11,7 +11,7 @@ export interface SessionLogWriterOptions {
   posthogAPI?: PostHogAPIClient;
   /** Logger instance */
   logger?: Logger;
-  /** Local cache path for instant log loading (e.g., ~/.twig) */
+  /** Local cache path for instant log loading (e.g., ~/.posthog-code) */
   localCachePath?: string;
 }
 

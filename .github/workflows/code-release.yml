@@ -89,7 +89,7 @@ jobs:
         run: pnpm --filter @posthog/shared run build
 
       - name: Build git package
-        run: pnpm --filter @twig/git run build
+        run: pnpm --filter @posthog/git run build
 
       - name: Build agent package
         run: pnpm --filter @posthog/agent run build
