@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "apps/twig/**"
+      - "apps/code/**"
       - "packages/agent/**"
       - "packages/electron-trpc/**"
       - "pnpm-lock.yaml"

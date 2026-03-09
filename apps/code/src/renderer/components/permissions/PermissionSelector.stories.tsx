@@ -36,7 +36,7 @@ const meta: Meta<typeof PermissionSelector> = {
 export default meta;
 type Story = StoryObj<typeof PermissionSelector>;
 
-const CWD = "/Users/jonathan/dev/twig";
+const CWD = "/Users/jonathan/dev/posthog-code";
 
 const bashInput = { command: "pnpm add -D vitest" };
 export const Execute: Story = {
@@ -427,7 +427,7 @@ export const LargeNewFile: Story = {
   },
 };
 
-const readInput = { file_path: "/Users/jonathan/dev/twig/.env" };
+const readInput = { file_path: "/Users/jonathan/dev/posthog-code/.env" };
 export const Read: Story = {
   args: {
     toolCall: buildToolCallData("Read", readInput),
@@ -491,9 +491,9 @@ Add dark mode toggle to Twig app with theme persistence.
 - Test theme switching persists across app restarts
 
 ## Critical Files
-- \`apps/twig/src/renderer/stores/theme-store.ts\` (new)
-- \`apps/twig/src/renderer/App.tsx\` (modify Theme provider)
-- \`apps/twig/src/renderer/features/settings/SettingsPanel.tsx\` (add toggle)
+- \`apps/code/src/renderer/stores/theme-store.ts\` (new)
+- \`apps/code/src/renderer/App.tsx\` (modify Theme provider)
+- \`apps/code/src/renderer/features/settings/SettingsPanel.tsx\` (add toggle)
 
 ## Verification
 - Launch app, toggle dark mode, verify colors change

@@ -1,4 +1,4 @@
-import type { TwigToolKind } from "@features/sessions/types";
+import type { CodeToolKind } from "@features/sessions/types";
 import {
   ArrowsClockwise,
   ArrowsLeftRight,
@@ -31,7 +31,7 @@ import {
   useToolCallStatus,
 } from "./toolCallUtils";
 
-const kindIcons: Record<TwigToolKind, Icon> = {
+const kindIcons: Record<CodeToolKind, Icon> = {
   read: FileText,
   edit: PencilSimple,
   delete: Trash,

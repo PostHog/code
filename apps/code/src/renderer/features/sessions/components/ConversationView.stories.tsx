@@ -124,14 +124,14 @@ function buildAllToolCallsConversation(): AcpMessage[] {
   events.push(
     toolCall(
       "Read",
-      { file_path: "/Users/jonathan/dev/twig/package.json" },
+      { file_path: "/Users/jonathan/dev/posthog-code/package.json" },
       {
         result: {
           content: [
             {
               type: "text",
               text: `{
-  "name": "twig-monorepo",
+  "name": "posthog-code",
   "version": "1.0.0",
   "private": true,
   "workspaces": ["apps/*", "packages/*"],
@@ -218,7 +218,7 @@ export function capitalize(str: string): string {
           content: [
             {
               type: "text",
-              text: `> twig@1.0.0 test
+              text: `> posthog-code@1.0.0 test
 > vitest run
 
  ✓ src/utils/helpers.test.ts (3 tests) 12ms
@@ -431,7 +431,7 @@ export const AllToolCalls: Story = {
   args: {
     events: buildAllToolCallsConversation(),
     isPromptPending: false,
-    repoPath: "/Users/jonathan/dev/twig",
+    repoPath: "/Users/jonathan/dev/posthog-code",
   },
 };
 
@@ -452,7 +452,7 @@ export const WithPendingPrompt: Story = {
     })(),
     isPromptPending: true,
     promptStartedAt: Date.now() - 5000,
-    repoPath: "/Users/jonathan/dev/twig",
+    repoPath: "/Users/jonathan/dev/posthog-code",
   },
 };
 
@@ -533,7 +533,7 @@ export const LongConversation: Story = {
       return events;
     })(),
     isPromptPending: false,
-    repoPath: "/Users/jonathan/dev/twig",
+    repoPath: "/Users/jonathan/dev/posthog-code",
   },
 };
 
@@ -718,7 +718,7 @@ export const MarkdownShowcase: Story = {
   args: {
     events: buildMarkdownShowcaseConversation(),
     isPromptPending: false,
-    repoPath: "/Users/jonathan/dev/twig",
+    repoPath: "/Users/jonathan/dev/posthog-code",
   },
 };
 
@@ -939,6 +939,6 @@ export const MarkdownDebug: Story = {
   args: {
     events: buildMarkdownDebugConversation(),
     isPromptPending: false,
-    repoPath: "/Users/jonathan/dev/twig",
+    repoPath: "/Users/jonathan/dev/posthog-code",
   },
 };

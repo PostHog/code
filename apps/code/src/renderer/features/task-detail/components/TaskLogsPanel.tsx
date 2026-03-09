@@ -5,7 +5,7 @@ import {
   useCloudBranchChangedFiles,
   useCloudPrChangedFiles,
 } from "@features/git-interaction/hooks/useGitQueries";
-import { tryExecuteTwigCommand } from "@features/message-editor/commands";
+import { tryExecuteCodeCommand } from "@features/message-editor/commands";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { SessionView } from "@features/sessions/components/SessionView";
 import { useChatTitleGenerator } from "@features/sessions/hooks/useChatTitleGenerator";
@@ -203,7 +203,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
 
   const handleSendPrompt = useCallback(
     async (text: string) => {
-      const handled = await tryExecuteTwigCommand(text, {
+      const handled = await tryExecuteCodeCommand(text, {
         taskId,
         repoPath,
         session: session

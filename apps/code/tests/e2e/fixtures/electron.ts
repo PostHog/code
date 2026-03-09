@@ -24,7 +24,7 @@ function getAppPath(): string {
     if (existsSync(x64Path)) return x64Path;
 
     throw new Error(
-      `No packaged app found in ${outDir}. Run 'pnpm --filter twig package' first.`,
+      `No packaged app found in ${outDir}. Run 'pnpm --filter code package' first.`,
     );
   }
 
@@ -36,7 +36,7 @@ function getAppPath(): string {
     if (existsSync(winPath)) return winPath;
 
     throw new Error(
-      `No packaged app found in ${outDir}. Run 'pnpm --filter twig package' first.`,
+      `No packaged app found in ${outDir}. Run 'pnpm --filter code package' first.`,
     );
   }
 
@@ -45,7 +45,7 @@ function getAppPath(): string {
     if (existsSync(linuxPath)) return linuxPath;
 
     throw new Error(
-      `No packaged app found in ${outDir}. Run 'pnpm --filter twig package' first.`,
+      `No packaged app found in ${outDir}. Run 'pnpm --filter code package' first.`,
     );
   }
 

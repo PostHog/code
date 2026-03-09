@@ -152,7 +152,7 @@ src/renderer/features/git-interaction/components/GitInteractionDialogs.stories.t
 Tasks: 8 successful, 9 total
 Cached: 8 cached, 9 total
 Time: 5.801s
-Failed: @posthog/twig#typecheck
+Failed: @posthog/code#typecheck
 
 husky - pre-commit script failed (code 1)`}
       onGenerateMessage={() => {}}

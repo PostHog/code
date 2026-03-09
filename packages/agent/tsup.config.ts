@@ -96,11 +96,11 @@ export default defineConfig([
       // Skip in Docker/CI environments where the twig app doesn't exist
       const triggerFile = resolve(
         import.meta.dirname,
-        "../../apps/twig/src/main/.agent-trigger",
+        "../../apps/code/src/main/.agent-trigger",
       );
       const triggerDir = resolve(
         import.meta.dirname,
-        "../../apps/twig/src/main",
+        "../../apps/code/src/main",
       );
       if (existsSync(triggerDir)) {
         writeFileSync(triggerFile, `${Date.now()}`);

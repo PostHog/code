@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { getRemoteUrl, isGitRepository } from "@twig/git/queries";
-import { InitRepositorySaga } from "@twig/git/sagas/init";
+import { getRemoteUrl, isGitRepository } from "@posthog/git/queries";
+import { InitRepositorySaga } from "@posthog/git/sagas/init";
 
 function extractRepoKey(url: string): string | null {
   const httpsMatch = url.match(/github\.com\/([^/]+\/[^/]+)/);
@@ -13,7 +13,7 @@ function extractRepoKey(url: string): string | null {
   return null;
 }
 
-import { WorktreeManager } from "@twig/git/worktree";
+import { WorktreeManager } from "@posthog/git/worktree";
 import { dialog } from "electron";
 import { inject, injectable } from "inversify";
 import type {

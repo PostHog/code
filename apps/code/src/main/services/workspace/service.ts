@@ -1,15 +1,15 @@
 import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import path from "node:path";
-import { createGitClient } from "@twig/git/client";
+import { createGitClient } from "@posthog/git/client";
 import {
   getCurrentBranch,
   getDefaultBranch,
   hasTrackedFiles,
-} from "@twig/git/queries";
-import { CreateOrSwitchBranchSaga } from "@twig/git/sagas/branch";
-import { DetachHeadSaga } from "@twig/git/sagas/head";
-import { WorktreeManager } from "@twig/git/worktree";
+} from "@posthog/git/queries";
+import { CreateOrSwitchBranchSaga } from "@posthog/git/sagas/branch";
+import { DetachHeadSaga } from "@posthog/git/sagas/head";
+import { WorktreeManager } from "@posthog/git/worktree";
 import { inject, injectable } from "inversify";
 import type { RepositoryRepository } from "../../db/repositories/repository-repository.js";
 import type { WorkspaceRepository } from "../../db/repositories/workspace-repository.js";

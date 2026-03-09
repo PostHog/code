@@ -1,5 +1,5 @@
 import path from "node:path";
-import { getCurrentBranch, getDefaultBranch } from "@twig/git/queries";
+import { getCurrentBranch, getDefaultBranch } from "@posthog/git/queries";
 import type { WorkspaceMode } from "./schemas.js";
 
 export interface WorkspaceEnvContext {
@@ -60,6 +60,16 @@ export async function buildWorkspaceEnv(
   const portAllocation = allocateWorkspacePorts(context.taskId);
 
   return {
+    POSTHOG_CODE_WORKSPACE_NAME: workspaceName,
+    POSTHOG_CODE_WORKSPACE_PATH: workspacePath,
+    POSTHOG_CODE_ROOT_PATH: rootPath,
+    POSTHOG_CODE_DEFAULT_BRANCH: defaultBranch,
+    POSTHOG_CODE_WORKSPACE_BRANCH: workspaceBranch,
+    POSTHOG_CODE_WORKSPACE_PORTS: portAllocation.ports.join(","),
+    POSTHOG_CODE_WORKSPACE_PORTS_RANGE: String(PORTS_PER_WORKSPACE),
+    POSTHOG_CODE_WORKSPACE_PORTS_START: String(portAllocation.start),
+    POSTHOG_CODE_WORKSPACE_PORTS_END: String(portAllocation.end),
+    // Legacy env vars for backwards compatibility
     TWIG_WORKSPACE_NAME: workspaceName,
     TWIG_WORKSPACE_PATH: workspacePath,
     TWIG_ROOT_PATH: rootPath,

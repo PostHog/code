@@ -65,8 +65,8 @@ jobs:
         env:
           APP_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          jq --arg v "$APP_VERSION" '.version = $v' apps/twig/package.json > tmp.json && mv tmp.json apps/twig/package.json
-          echo "Set apps/twig/package.json version to $APP_VERSION"
+          jq --arg v "$APP_VERSION" '.version = $v' apps/code/package.json > tmp.json && mv tmp.json apps/code/package.json
+          echo "Set apps/code/package.json version to $APP_VERSION"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -80,7 +80,7 @@ jobs:
           unset-current-credentials: true
 
       - name: Download BerkeleyMono fonts from S3
-        run: aws s3 cp s3://${{ secrets.AWS_TWIG_APP_ASSETS_BUCKET }}/fonts/BerkeleyMono/ apps/twig/assets/fonts/BerkeleyMono/ --recursive
+        run: aws s3 cp s3://${{ secrets.AWS_TWIG_APP_ASSETS_BUCKET }}/fonts/BerkeleyMono/ apps/code/assets/fonts/BerkeleyMono/ --recursive
 
       - name: Build electron-trpc package
         run: pnpm --filter @posthog/electron-trpc run build

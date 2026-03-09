@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { isTwigBranch } from "@shared/constants";
-import { execGh } from "@twig/git/gh";
+import { isCodeBranch } from "@shared/constants";
+import { execGh } from "@posthog/git/gh";
 import {
   getAllBranches,
   getChangedFilesBetweenBranches,
@@ -19,14 +19,14 @@ import {
   getUnstagedDiff,
   fetch as gitFetch,
   isGitRepository,
-} from "@twig/git/queries";
-import { CreateBranchSaga, SwitchBranchSaga } from "@twig/git/sagas/branch";
-import { CloneSaga } from "@twig/git/sagas/clone";
-import { CommitSaga } from "@twig/git/sagas/commit";
-import { DiscardFileChangesSaga } from "@twig/git/sagas/discard";
-import { PullSaga } from "@twig/git/sagas/pull";
-import { PushSaga } from "@twig/git/sagas/push";
-import { parseGitHubUrl } from "@twig/git/utils";
+} from "@posthog/git/queries";
+import { CreateBranchSaga, SwitchBranchSaga } from "@posthog/git/sagas/branch";
+import { CloneSaga } from "@posthog/git/sagas/clone";
+import { CommitSaga } from "@posthog/git/sagas/commit";
+import { DiscardFileChangesSaga } from "@posthog/git/sagas/discard";
+import { PullSaga } from "@posthog/git/sagas/pull";
+import { PushSaga } from "@posthog/git/sagas/push";
+import { parseGitHubUrl } from "@posthog/git/utils";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
 import { logger } from "../../utils/logger.js";
@@ -229,7 +229,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
 
   public async getAllBranches(directoryPath: string): Promise<string[]> {
     const branches = await getAllBranches(directoryPath);
-    return branches.filter((branch) => !isTwigBranch(branch));
+    return branches.filter((branch) => !isCodeBranch(branch));
   }
 
   public async createBranch(

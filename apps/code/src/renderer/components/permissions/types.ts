@@ -4,11 +4,11 @@ import type {
   ToolCallContent,
 } from "@agentclientprotocol/sdk";
 import type { SelectorOption } from "@components/ActionSelector";
-import type { TwigToolKind } from "@features/sessions/types";
+import type { CodeToolKind } from "@features/sessions/types";
 
 type AcpToolCall = RequestPermissionRequest["toolCall"];
 export type PermissionToolCall = Omit<AcpToolCall, "kind"> & {
-  kind?: TwigToolKind | null;
+  kind?: CodeToolKind | null;
 };
 
 export interface BasePermissionProps {

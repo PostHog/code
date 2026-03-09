@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { WorktreeManager } from "@twig/git/worktree";
+import { WorktreeManager } from "@posthog/git/worktree";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", () => ({

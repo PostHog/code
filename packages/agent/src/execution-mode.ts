@@ -1,7 +1,7 @@
 import { IS_ROOT } from "./utils/common.js";
 
 export interface ModeInfo {
-  id: TwigExecutionMode;
+  id: CodeExecutionMode;
   name: string;
   description: string;
 }
@@ -41,7 +41,7 @@ if (ALLOW_BYPASS) {
 }
 
 // Expose execution mode IDs in type-safe order for type checks
-export const TWIG_EXECUTION_MODES = [
+export const CODE_EXECUTION_MODES = [
   "default",
   "acceptEdits",
   "plan",
@@ -49,7 +49,7 @@ export const TWIG_EXECUTION_MODES = [
   "bypassPermissions",
 ] as const;
 
-export type TwigExecutionMode = (typeof TWIG_EXECUTION_MODES)[number];
+export type CodeExecutionMode = (typeof CODE_EXECUTION_MODES)[number];
 
 export function getAvailableModes(): ModeInfo[] {
   // When IS_ROOT, do not allow bypassPermissions

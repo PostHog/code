@@ -202,7 +202,7 @@ function clearInboxDemoData(): void {
 
 function printHelp(): string {
   const help =
-    "Twig inbox demo command ready. Use window.__twigInboxDemo('seed'), window.__twigInboxDemo('seed', 'artefacts-unavailable'), window.__twigInboxDemo('seed', 'empty'), or window.__twigInboxDemo('clear').";
+    "Code inbox demo command ready. Use window.__codeInboxDemo('seed'), window.__codeInboxDemo('seed', 'artefacts-unavailable'), window.__codeInboxDemo('seed', 'empty'), or window.__codeInboxDemo('clear').";
   log.info(help);
   return help;
 }
@@ -212,7 +212,7 @@ export function registerInboxDemoConsoleCommand(): void {
     return;
   }
 
-  if (typeof window.__twigInboxDemo === "function") {
+  if (typeof window.__codeInboxDemo === "function") {
     return;
   }
 
@@ -237,7 +237,7 @@ export function registerInboxDemoConsoleCommand(): void {
     return message;
   };
 
-  Object.defineProperty(window, "__twigInboxDemo", {
+  Object.defineProperty(window, "__codeInboxDemo", {
     value: command,
     configurable: true,
     writable: false,
@@ -248,6 +248,6 @@ export function registerInboxDemoConsoleCommand(): void {
 
 declare global {
   interface Window {
-    __twigInboxDemo?: InboxDemoConsoleCommand;
+    __codeInboxDemo?: InboxDemoConsoleCommand;
   }
 }

@@ -32,7 +32,7 @@ const LOCAL_SKILLS_DIR = join(
   "local-skills",
 );
 
-const tempDir = join(tmpdir(), `twig-pull-skills-${Date.now()}`);
+const tempDir = join(tmpdir(), `posthog-code-pull-skills-${Date.now()}`);
 await mkdir(tempDir, { recursive: true });
 
 try {

@@ -1,4 +1,4 @@
-import type { ToolCall, TwigToolKind } from "@features/sessions/types";
+import type { ToolCall, CodeToolKind } from "@features/sessions/types";
 import { toolInfoFromToolUse } from "@posthog/agent/adapters/claude/conversion/tool-use-to-acp";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ToolCallBlock } from "./ToolCallBlock";
@@ -12,7 +12,7 @@ function buildToolCallData(
   return {
     toolCallId: `story-${Date.now()}-${Math.random()}`,
     title: info.title,
-    kind: info.kind as TwigToolKind,
+    kind: info.kind as CodeToolKind,
     content: info.content,
     locations: info.locations,
     rawInput: toolInput,
@@ -36,7 +36,7 @@ export const ReadFile: Story = {
   args: {
     toolCall: {
       ...buildToolCallData("Read", {
-        file_path: "/Users/jonathan/dev/twig/src/utils/helpers.ts",
+        file_path: "/Users/jonathan/dev/posthog-code/src/utils/helpers.ts",
       }),
       content: [
         {
@@ -72,7 +72,7 @@ export const ReadFileLoading: Story = {
   args: {
     toolCall: buildToolCallData(
       "Read",
-      { file_path: "/Users/jonathan/dev/twig/package.json" },
+      { file_path: "/Users/jonathan/dev/posthog-code/package.json" },
       { status: "in_progress" },
     ),
   },
@@ -92,7 +92,7 @@ export const ReadFileWithOffset: Story = {
   args: {
     toolCall: {
       ...buildToolCallData("Read", {
-        file_path: "/Users/jonathan/dev/twig/src/utils/helpers.ts",
+        file_path: "/Users/jonathan/dev/posthog-code/src/utils/helpers.ts",
         offset: 49,
         limit: 15,
       }),
@@ -459,7 +459,7 @@ export const ExecuteCommand: Story = {
           type: "content",
           content: {
             type: "text",
-            text: `> twig@1.0.0 test
+            text: `> posthog-code@1.0.0 test
 > vitest run
 
  ✓ src/utils/helpers.test.ts (3 tests) 12ms
@@ -516,7 +516,7 @@ export const ExecuteCommandLongInput: Story = {
     toolCall: {
       ...buildToolCallData("Bash", {
         command:
-          "find /Users/jonathan/dev/twig -type f -name '*.ts' -not -path '*/node_modules/*' -not -path '*/dist/*' | xargs grep -l 'import.*from.*@agentclientprotocol' | head -50",
+          "find /Users/jonathan/dev/posthog-code -type f -name '*.ts' -not -path '*/node_modules/*' -not -path '*/dist/*' | xargs grep -l 'import.*from.*@agentclientprotocol' | head -50",
         description: "Find files importing ACP SDK",
       }),
       content: [
@@ -524,9 +524,9 @@ export const ExecuteCommandLongInput: Story = {
           type: "content",
           content: {
             type: "text",
-            text: `apps/twig/src/renderer/components/permissions/types.ts
-apps/twig/src/renderer/features/sessions/types.ts
-apps/twig/src/renderer/features/sessions/components/ConversationView.tsx
+            text: `apps/code/src/renderer/components/permissions/types.ts
+apps/code/src/renderer/features/sessions/types.ts
+apps/code/src/renderer/features/sessions/components/ConversationView.tsx
 packages/agent/src/adapters/claude/conversion/tool-use-to-acp.ts`,
           },
         },
@@ -549,7 +549,7 @@ export const ThinkTask: Story = {
             type: "text",
             text: `The codebase follows a monorepo structure with pnpm workspaces:
 
-1. apps/twig - Main Electron desktop app
+1. apps/code - Main Electron desktop app
 2. apps/cli - Command line interface
 3. packages/agent - Agent framework
 4. packages/core - Shared business logic

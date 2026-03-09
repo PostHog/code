@@ -3,7 +3,7 @@
 ## Project Structure
 
 - Monorepo with pnpm workspaces and turbo
-- `apps/twig` - Twig Electron desktop app (React + Vite)
+- `apps/code` - Twig Electron desktop app (React + Vite)
 - `apps/cli` - CLI tool (thin wrapper around @twig/core)
 - `apps/mobile` - React Native mobile app (Expo)
 - `packages/agent` - TypeScript agent framework wrapping Claude Agent SDK
@@ -84,9 +84,9 @@ Import directly from source files instead.
 
 ## Architecture
 
-See [ARCHITECTURE.md](./apps/twig/ARCHITECTURE.md) for detailed patterns (DI, services, tRPC, state management).
+See [ARCHITECTURE.md](./apps/code/ARCHITECTURE.md) for detailed patterns (DI, services, tRPC, state management).
 
-### Electron App (apps/twig)
+### Electron App (apps/code)
 
 - **Main process** (`src/main/`) - Services own all business logic, orchestration, polling, data fetching, and system I/O
 - **Renderer process** (`src/renderer/`) - React app with Zustand stores holding pure UI state and thin action wrappers over tRPC
@@ -103,8 +103,8 @@ See [ARCHITECTURE.md](./apps/twig/ARCHITECTURE.md) for detailed patterns (DI, se
 
 ### CLI Package (packages/cli)
 
-- **Dumb shell, imperative core**: CLI commands should be thin wrappers that call `@twig/core`
-- All business logic belongs in `@twig/core`, not in CLI command files
+- **Dumb shell, imperative core**: CLI commands should be thin wrappers that call `@posthog/core`
+- All business logic belongs in `@posthog/core`, not in CLI command files
 - CLI only handles: argument parsing, calling core, formatting output
 - No data transformation, tree building, or complex logic in CLI
 
@@ -395,7 +395,7 @@ Test utilities are in `src/test/`:
 ## Directory Structure
 
 ```
-apps/twig/src/
+apps/code/src/
 ├── main/
 │   ├── di/                   # InversifyJS container + tokens
 │   ├── services/             # Stateless services (git, shell, workspace, etc.)

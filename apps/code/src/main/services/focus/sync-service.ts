@@ -5,8 +5,8 @@ import {
   getStagedDiff,
   getUnstagedDiff,
   listUntrackedFiles,
-} from "@twig/git/queries";
-import { ApplyPatchSaga } from "@twig/git/sagas/patch";
+} from "@posthog/git/queries";
+import { ApplyPatchSaga } from "@posthog/git/sagas/patch";
 import ignore, { type Ignore } from "ignore";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";

@@ -6,7 +6,7 @@ The core runtime for PostHog cloud runs. Provides two things: an **Agent SDK** f
 
 ```text
 ┌──────────────────────────────────────────────────────────────────┐
-│  Client (Twig IDE or local CLI)                                  │
+│  Client (PostHog Code IDE or local CLI)                                  │
 │    connects via SSE/JSON-RPC (cloud) or in-process streams (local)│
 └────────────────────┬─────────────────────────────────────────────┘
                      │
@@ -57,7 +57,7 @@ The same ACP agent runs in both contexts. The difference is how it's connected:
 
 **Cloud (AgentServer):** The agent runs inside a sandbox. `AgentServer` is an HTTP server (Hono) that wraps the ACP connection. Clients connect via `GET /events` (SSE) and `POST /command` (JSON-RPC). Authentication uses JWT tokens (RS256) — the sandbox holds a public key, PostHog Django holds the private key. In background mode, the server auto-starts, prompts the agent with the task description, and signals completion via the PostHog API. In interactive mode, it stays open for conversation.
 
-**Local (Twig desktop):** The agent runs in-process. Twig calls `createAcpConnection()` directly — no HTTP server, no JWT. The bidirectional ACP streams connect client ↔ agent within the same process.
+**Local (PostHog Code desktop):** The agent runs in-process. PostHog Code calls `createAcpConnection()` directly — no HTTP server, no JWT. The bidirectional ACP streams connect client ↔ agent within the same process.
 
 **TreeTracker** handles the bridge between these contexts: it captures the git working tree as snapshots (tree hash + file archive) so work can be transferred between cloud and local. This enables the "hand off" flow — start locally, continue in cloud, or vice versa. Tree snapshots use the Saga pattern (`src/sagas/`) for atomic operations with automatic rollback on failure.
 
@@ -194,7 +194,7 @@ await agent.attachPullRequestToTask(taskId, prUrl)
 await agent.cleanup()
 ```
 
-Key difference from `AgentServer`: the SDK returns raw ACP streams for the caller to manage. There's no HTTP layer, no SSE broadcasting, and no auto-prompting. The caller is responsible for creating a `ClientSideConnection`, running the ACP handshake, and sending prompts. This is what Twig does when running agents locally.
+Key difference from `AgentServer`: the SDK returns raw ACP streams for the caller to manage. There's no HTTP layer, no SSE broadcasting, and no auto-prompting. The caller is responsible for creating a `ClientSideConnection`, running the ACP handshake, and sending prompts. This is what PostHog Code does when running agents locally.
 
 For Codex adapters, `agent.run()` also fetches available models from the PostHog gateway and filters to OpenAI-compatible models, passing the allowed set to the ACP connection for model list filtering.
 

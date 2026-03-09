@@ -36,6 +36,6 @@ test.describe("Main Process", () => {
       return app.getPath("userData");
     });
 
-    expect(userDataPath).toContain("Twig");
+    expect(userDataPath).toContain("PostHog Code");
   });
 });

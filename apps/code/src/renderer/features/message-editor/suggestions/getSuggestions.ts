@@ -1,5 +1,5 @@
 import type { AvailableCommand } from "@agentclientprotocol/sdk";
-import { TWIG_COMMANDS } from "@features/message-editor/commands";
+import { CODE_COMMANDS } from "@features/message-editor/commands";
 import { getAvailableCommandsForTask } from "@features/sessions/stores/sessionStore";
 import { fetchRepoFiles, searchFiles } from "@hooks/useRepoFiles";
 import Fuse, { type IFuseOptions } from "fuse.js";
@@ -68,7 +68,7 @@ export function getCommandSuggestions(
   query: string,
 ): CommandSuggestionItem[] {
   const taskId = useDraftStore.getState().contexts[sessionId]?.taskId;
-  const commands = [...TWIG_COMMANDS, ...getAvailableCommandsForTask(taskId)];
+  const commands = [...CODE_COMMANDS, ...getAvailableCommandsForTask(taskId)];
   const filtered = searchCommands(commands, query);
 
   return filtered.map((cmd) => ({

@@ -78,7 +78,7 @@ interface AuthState {
   needsScopeReauth: boolean; // True when stored token scope version is stale
 
   // Access gate state
-  hasTwigAccess: boolean | null; // null = not yet checked
+  hasCodeAccess: boolean | null; // null = not yet checked
 
   // Onboarding state
   hasCompletedOnboarding: boolean;
@@ -86,7 +86,7 @@ interface AuthState {
   selectedOrgId: string | null;
 
   // Access gate methods
-  checkTwigAccess: () => void;
+  checkCodeAccess: () => void;
   redeemInviteCode: (code: string) => Promise<void>;
 
   // OAuth methods
@@ -206,21 +206,21 @@ export const useAuthStore = create<AuthState>()(
         needsScopeReauth: false,
 
         // Access gate state
-        hasTwigAccess: null,
+        hasCodeAccess: null,
 
         // Onboarding state
         hasCompletedOnboarding: false,
         selectedPlan: null,
         selectedOrgId: null,
 
-        checkTwigAccess: () => {
+        checkCodeAccess: () => {
           const state = get();
           if (!state.cloudRegion || !state.oauthAccessToken) {
-            set({ hasTwigAccess: false });
+            set({ hasCodeAccess: false });
             return;
           }
 
-          set({ hasTwigAccess: null });
+          set({ hasCodeAccess: null });
 
           const baseUrl = getCloudUrlFromRegion(state.cloudRegion);
           fetch(`${baseUrl}/api/code/invites/check-access/`, {
@@ -230,12 +230,12 @@ export const useAuthStore = create<AuthState>()(
           })
             .then((res) => res.json())
             .then((data) => {
-              set({ hasTwigAccess: data.has_access === true });
+              set({ hasCodeAccess: data.has_access === true });
             })
             .catch((err) => {
-              log.error("Failed to check Twig access", err);
+              log.error("Failed to check code access", err);
               // On network error, fall back to feature flag check
-              set({ hasTwigAccess: isFeatureFlagEnabled("tasks") });
+              set({ hasCodeAccess: isFeatureFlagEnabled("tasks") });
             });
         },
 
@@ -262,7 +262,7 @@ export const useAuthStore = create<AuthState>()(
           }
 
           // Optimistically grant access — the flag will catch up on next launch
-          set({ hasTwigAccess: true });
+          set({ hasCodeAccess: true });
           reloadFeatureFlags();
         },
 
@@ -371,7 +371,7 @@ export const useAuthStore = create<AuthState>()(
               },
             });
 
-            get().checkTwigAccess();
+            get().checkCodeAccess();
           } catch (error) {
             log.error("Failed to authenticate with PostHog", error);
             throw new Error("Failed to authenticate with PostHog");
@@ -697,7 +697,7 @@ export const useAuthStore = create<AuthState>()(
                   },
                 });
 
-                get().checkTwigAccess();
+                get().checkCodeAccess();
 
                 return true;
               } catch (error) {
@@ -837,7 +837,7 @@ export const useAuthStore = create<AuthState>()(
               },
             });
 
-            get().checkTwigAccess();
+            get().checkCodeAccess();
           } catch (error) {
             log.error("Failed to authenticate with PostHog", error);
             throw new Error("Failed to authenticate with PostHog");
@@ -965,7 +965,7 @@ export const useAuthStore = create<AuthState>()(
             availableOrgIds: [],
             needsProjectSelection: false,
             needsScopeReauth: false,
-            hasTwigAccess: null,
+            hasCodeAccess: null,
             hasCompletedOnboarding: false,
             selectedPlan: null,
             selectedOrgId: null,
@@ -983,7 +983,7 @@ export const useAuthStore = create<AuthState>()(
           projectId: state.projectId,
           availableProjectIds: state.availableProjectIds,
           availableOrgIds: state.availableOrgIds,
-          hasTwigAccess: state.hasTwigAccess,
+          hasCodeAccess: state.hasCodeAccess,
           hasCompletedOnboarding: state.hasCompletedOnboarding,
           selectedPlan: state.selectedPlan,
           selectedOrgId: state.selectedOrgId,

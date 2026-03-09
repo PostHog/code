@@ -121,12 +121,12 @@ describe("DeepLinkService", () => {
       service.registerHandler("oauth", () => true);
     });
 
-    describe("twig:// protocol", () => {
-      it("handles twig:// URLs", () => {
+    describe("posthog-code:// protocol", () => {
+      it("handles posthog-code:// URLs", () => {
         const handler = vi.fn(() => true);
         service.registerHandler("test", handler);
 
-        const result = service.handleUrl("twig://test/foo");
+        const result = service.handleUrl("posthog-code://test/foo");
         expect(result).toBe(true);
         expect(handler).toHaveBeenCalledWith(
           "foo",
@@ -138,7 +138,7 @@ describe("DeepLinkService", () => {
         const handler = vi.fn(() => true);
         service.registerHandler("task", handler);
 
-        service.handleUrl("twig://task/abc123/details");
+        service.handleUrl("posthog-code://task/abc123/details");
         expect(handler).toHaveBeenCalledWith(
           "abc123/details",
           expect.any(URLSearchParams),
@@ -153,7 +153,7 @@ describe("DeepLinkService", () => {
         });
         service.registerHandler("auth", handler);
 
-        service.handleUrl("twig://auth/callback?token=secret&redirect=home");
+        service.handleUrl("posthog-code://auth/callback?token=secret&redirect=home");
         expect(handler).toHaveBeenCalled();
       });
 
@@ -161,17 +161,17 @@ describe("DeepLinkService", () => {
         const handler = vi.fn(() => true);
         service.registerHandler("ping", handler);
 
-        service.handleUrl("twig://ping");
+        service.handleUrl("posthog-code://ping");
         expect(handler).toHaveBeenCalledWith("", expect.any(URLSearchParams));
       });
     });
 
-    describe("array:// protocol (legacy)", () => {
-      it("handles array:// URLs for backwards compatibility", () => {
+    describe("twig:// protocol (legacy)", () => {
+      it("handles twig:// URLs for backwards compatibility", () => {
         const handler = vi.fn(() => true);
         service.registerHandler("task", handler);
 
-        const result = service.handleUrl("array://task/123");
+        const result = service.handleUrl("twig://task/123");
         expect(result).toBe(true);
         expect(handler).toHaveBeenCalledWith(
           "123",
@@ -179,11 +179,11 @@ describe("DeepLinkService", () => {
         );
       });
 
-      it("works identically to twig:// protocol", () => {
+      it("works identically to posthog-code:// protocol", () => {
         const handler = vi.fn(() => true);
         service.registerHandler("oauth", handler);
 
-        service.handleUrl("array://oauth/callback?code=abc");
+        service.handleUrl("twig://oauth/callback?code=abc");
         expect(handler).toHaveBeenCalledWith(
           "callback",
           expect.any(URLSearchParams),
@@ -195,33 +195,34 @@ describe("DeepLinkService", () => {
       it("returns false for non-matching protocols", () => {
         expect(service.handleUrl("https://example.com")).toBe(false);
         expect(service.handleUrl("myapp://task/123")).toBe(false);
+        expect(service.handleUrl("array://task/123")).toBe(false);
         expect(service.handleUrl("file:///path/to/file")).toBe(false);
       });
 
       it("returns false for URLs without main key", () => {
-        expect(service.handleUrl("twig://")).toBe(false);
+        expect(service.handleUrl("posthog-code://")).toBe(false);
       });
 
       it("returns false for unregistered handlers", () => {
-        const result = service.handleUrl("twig://unknown/path");
+        const result = service.handleUrl("posthog-code://unknown/path");
         expect(result).toBe(false);
       });
 
       it("returns false for malformed URLs", () => {
-        expect(service.handleUrl("twig://[invalid")).toBe(false);
+        expect(service.handleUrl("posthog-code://[invalid")).toBe(false);
       });
 
       it("returns handler result when handler returns false", () => {
         service.registerHandler("failing", () => false);
-        const result = service.handleUrl("twig://failing/test");
+        const result = service.handleUrl("posthog-code://failing/test");
         expect(result).toBe(false);
       });
     });
   });
 
   describe("getProtocol", () => {
-    it("returns the twig protocol", () => {
-      expect(service.getProtocol()).toBe("twig");
+    it("returns the posthog-code protocol", () => {
+      expect(service.getProtocol()).toBe("posthog-code");
     });
   });
 });

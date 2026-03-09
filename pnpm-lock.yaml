@@ -154,7 +154,7 @@ importers:
         specifier: ~5.9.2
         version: 5.9.3
 
-  apps/twig:
+  apps/code:
     dependencies:
       '@codemirror/lang-angular':
         specifier: ^0.1.4

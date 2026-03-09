@@ -1,10 +1,10 @@
-# PostHog - Twig
+# PostHog Code
 
 The PostHog desktop task manager
 
 ## The Goal
 
-Free product engineers from distractions so they can focus on what they love: building great features. By using agents to transform all data collected across PostHog’s products into actionable “tasks,” then exposing them with that context through a single interface, we can automate all the chores and save developers hours every day, giving them more time to ship.
+Free product engineers from distractions so they can focus on what they love: building great features. By using agents to transform all data collected across PostHog's products into actionable "tasks," then exposing them with that context through a single interface, we can automate all the chores and save developers hours every day, giving them more time to ship.
 
 ## Development
 
@@ -53,12 +53,12 @@ The `generateAssets` hook will automatically attempt to compile the icon during 
 
 ### BerkeleyMono Font (PostHog employees)
 
-Twig uses [Berkeley Mono](https://usgraphics.com/products/berkeley-mono) as its primary font, falling back to JetBrains Mono if the files aren't present. The font is licensed and not committed to the repo — it's downloaded from S3 during CI builds.
+PostHog Code uses [Berkeley Mono](https://usgraphics.com/products/berkeley-mono) as its primary font, falling back to JetBrains Mono if the files aren't present. The font is licensed and not committed to the repo — it's downloaded from S3 during CI builds.
 
-To use it locally, go to the Twig app assets S3 bucket in the AWS console, download the `.woff2` files from the `fonts/` folder, and place them in:
+To use it locally, go to the PostHog Code app assets S3 bucket in the AWS console, download the `.woff2` files from the `fonts/` folder, and place them in:
 
 ```
-apps/twig/assets/fonts/BerkeleyMono/
+apps/code/assets/fonts/BerkeleyMono/
 ```
 
 The directory is gitignored, so these files won't be committed.
@@ -82,7 +82,7 @@ You can set these environment variables instead of entering credentials in the a
 ## Project Structure
 
 ```
-twig/
+code/
 ├── src/
 │   ├── main/           # Electron main process
 │   ├── renderer/       # React app
@@ -114,8 +114,8 @@ pnpm make
 
 Output will be in:
 
-- `out/Twig-darwin-arm64/Twig.app` - Packaged app
-- `out/make/Twig-*.dmg` - macOS installer
+- `out/PostHog Code-darwin-arm64/PostHog Code.app` - Packaged app
+- `out/make/PostHog Code-*.dmg` - macOS installer
 - `out/make/zip/` - ZIP archives
 
 **Note:** Native modules for the DMG maker are automatically compiled via the `prePackage` hook. If you need to manually rebuild them, run:
@@ -126,7 +126,7 @@ pnpm build-native
 
 ### Auto Updates & Releases
 
-Twig uses Electron's built-in `autoUpdater` pointed at the public `update.electronjs.org` service for `PostHog/Twig`. Every time a non-draft GitHub release is published with the platform archives, packaged apps will automatically download and install the newest version on macOS and Windows.
+PostHog Code uses Electron's built-in `autoUpdater` pointed at the public `update.electronjs.org` service for `PostHog/code`. Every time a non-draft GitHub release is published with the platform archives, packaged apps will automatically download and install the newest version on macOS and Windows.
 
 Publishing a new release:
 
@@ -157,7 +157,7 @@ For CI releases, configure matching GitHub Actions secrets:
 - `APPLE_CODESIGN_CERT_PASSWORD` – Password used when exporting the `.p12`
 - `APPLE_CODESIGN_KEYCHAIN_PASSWORD` – Password for the temporary keychain the workflow creates on the runner
 
-The `Publish Release` workflow imports the certificate into a temporary keychain, signs each artifact with hardened runtime enabled (using Electron’s default entitlements), and notarizes it before upload whenever these secrets are available.
+The `Publish Release` workflow imports the certificate into a temporary keychain, signs each artifact with hardened runtime enabled (using Electron's default entitlements), and notarizes it before upload whenever these secrets are available.
 
 For local testing, copy `codesign.env.example` to `.env.codesign`, fill in the real values, and load it before running `pnpm run make`:
 
@@ -174,16 +174,16 @@ Set `SKIP_NOTARIZE=1` if you need to generate signed artifacts without submittin
 SKIP_NOTARIZE=1 pnpm run make
 ```
 
-## Workspace Configuration (twig.json)
+## Workspace Configuration (posthog-code.json)
 
-Twig supports per-repository configuration through a `twig.json` file. This lets you define scripts that run automatically when workspaces are created or destroyed.
+PostHog Code supports per-repository configuration through a `posthog-code.json` file. This lets you define scripts that run automatically when workspaces are created or destroyed.
 
 ### File Locations
 
-Twig searches for configuration in this order (first match wins):
+PostHog Code searches for configuration in this order (first match wins):
 
-1. `.twig/{workspace-name}/twig.json` - Workspace-specific config
-2. `twig.json` - Repository root config
+1. `.posthog-code/{workspace-name}/posthog-code.json` - Workspace-specific config
+2. `posthog-code.json` - Repository root config
 
 ### Schema
 
@@ -237,21 +237,21 @@ Clean up Docker containers:
 
 ## Workspace Environment Variables
 
-Twig automatically sets environment variables in all workspace terminals and scripts. These are available in `init`, `start`, and `destroy` scripts, as well as any terminal sessions opened within a workspace.
+PostHog Code automatically sets environment variables in all workspace terminals and scripts. These are available in `init`, `start`, and `destroy` scripts, as well as any terminal sessions opened within a workspace.
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `TWIG_WORKSPACE_NAME` | Worktree name, or folder name in root mode | `my-feature-branch` |
-| `TWIG_WORKSPACE_PATH` | Absolute path to the workspace | `/Users/dev/.twig/worktrees/repo/my-feature` |
-| `TWIG_ROOT_PATH` | Absolute path to the repository root | `/Users/dev/repos/my-project` |
-| `TWIG_DEFAULT_BRANCH` | Default branch detected from git | `main` |
-| `TWIG_WORKSPACE_BRANCH` | Initial branch when workspace was created | `twig/my-feature` |
-| `TWIG_WORKSPACE_PORTS` | Comma-separated list of allocated ports | `50000,50001,...,50019` |
-| `TWIG_WORKSPACE_PORTS_RANGE` | Number of ports allocated | `20` |
-| `TWIG_WORKSPACE_PORTS_START` | First port in the range | `50000` |
-| `TWIG_WORKSPACE_PORTS_END` | Last port in the range | `50019` |
+| `POSTHOG_CODE_WORKSPACE_NAME` | Worktree name, or folder name in root mode | `my-feature-branch` |
+| `POSTHOG_CODE_WORKSPACE_PATH` | Absolute path to the workspace | `/Users/dev/.posthog-code/worktrees/repo/my-feature` |
+| `POSTHOG_CODE_ROOT_PATH` | Absolute path to the repository root | `/Users/dev/repos/my-project` |
+| `POSTHOG_CODE_DEFAULT_BRANCH` | Default branch detected from git | `main` |
+| `POSTHOG_CODE_WORKSPACE_BRANCH` | Initial branch when workspace was created | `posthog-code/my-feature` |
+| `POSTHOG_CODE_WORKSPACE_PORTS` | Comma-separated list of allocated ports | `50000,50001,...,50019` |
+| `POSTHOG_CODE_WORKSPACE_PORTS_RANGE` | Number of ports allocated | `20` |
+| `POSTHOG_CODE_WORKSPACE_PORTS_START` | First port in the range | `50000` |
+| `POSTHOG_CODE_WORKSPACE_PORTS_END` | Last port in the range | `50019` |
 
-Note: `TWIG_WORKSPACE_BRANCH` reflects the branch at workspace creation time. If you or the agent checks out a different branch, this variable will still show the original branch name.
+Note: `POSTHOG_CODE_WORKSPACE_BRANCH` reflects the branch at workspace creation time. If you or the agent checks out a different branch, this variable will still show the original branch name.
 
 ### Port Allocation
 
@@ -263,13 +263,13 @@ Use ports in your start scripts:
 ```json
 {
   "scripts": {
-    "start": "npm run dev -- --port $TWIG_WORKSPACE_PORTS_START"
+    "start": "npm run dev -- --port $POSTHOG_CODE_WORKSPACE_PORTS_START"
   }
 }
 ```
 
 Reference the workspace path:
 ```bash
-echo "Working in: $TWIG_WORKSPACE_NAME"
-echo "Root repo: $TWIG_ROOT_PATH"
+echo "Working in: $POSTHOG_CODE_WORKSPACE_NAME"
+echo "Root repo: $POSTHOG_CODE_ROOT_PATH"
 ```

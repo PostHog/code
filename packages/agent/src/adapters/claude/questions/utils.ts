@@ -60,7 +60,7 @@ interface QuestionToolCallData {
   kind: ToolKind;
   content: ToolCallContent[];
   _meta: {
-    twigToolKind: "question";
+    codeToolKind: "question";
     questions: QuestionItem[];
   };
 }
@@ -74,7 +74,7 @@ export function buildQuestionToolCallData(
     kind: "other",
     content: [],
     _meta: {
-      twigToolKind: "question",
+      codeToolKind: "question",
       questions,
     },
   };

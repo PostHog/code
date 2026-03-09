@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { getChangedFiles, listAllFiles } from "@twig/git/queries";
+import { getChangedFiles, listAllFiles } from "@posthog/git/queries";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
 import { logger } from "../../utils/logger.js";

@@ -1,7 +1,7 @@
 import type { HookCallback, HookInput } from "@anthropic-ai/claude-agent-sdk";
 import type { Logger } from "../../utils/logger.js";
 import type { SettingsManager } from "./session/settings.js";
-import type { TwigExecutionMode } from "./tools.js";
+import type { CodeExecutionMode } from "./tools.js";
 
 const toolUseCallbacks: {
   [toolUseId: string]: {
@@ -30,7 +30,7 @@ export const registerHookCallback = (
   };
 };
 
-export type OnModeChange = (mode: TwigExecutionMode) => Promise<void>;
+export type OnModeChange = (mode: CodeExecutionMode) => Promise<void>;
 
 interface CreatePostToolUseHookParams {
   onModeChange?: OnModeChange;

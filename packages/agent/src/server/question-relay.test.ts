@@ -36,7 +36,7 @@ const TEST_PAYLOAD = {
 };
 
 const QUESTION_META = {
-  twigToolKind: "question",
+  codeToolKind: "question",
   questions: [
     {
       question: "Which license should I use?",
@@ -161,7 +161,7 @@ describe("Question relay", () => {
         .spyOn(server.posthogAPI, "relayMessage")
         .mockResolvedValue(undefined);
 
-      server.relaySlackQuestion(TEST_PAYLOAD, { twigToolKind: "question" });
+      server.relaySlackQuestion(TEST_PAYLOAD, { codeToolKind: "question" });
       expect(server.questionRelayedToSlack).toBe(false);
       expect(relaySpy).not.toHaveBeenCalled();
     });
@@ -172,13 +172,13 @@ describe("Question relay", () => {
       { kind: "allow_once", optionId: "allow", name: "Allow" },
     ];
 
-    describe("with TWIG_INTERACTION_ORIGIN=slack", () => {
+    describe("with CODE_INTERACTION_ORIGIN=slack", () => {
       beforeEach(() => {
-        process.env.TWIG_INTERACTION_ORIGIN = "slack";
+        process.env.CODE_INTERACTION_ORIGIN = "slack";
       });
 
       afterEach(() => {
-        delete process.env.TWIG_INTERACTION_ORIGIN;
+        delete process.env.CODE_INTERACTION_ORIGIN;
       });
 
       it("returns cancelled with relay message for question tool", async () => {
@@ -202,7 +202,7 @@ describe("Question relay", () => {
 
         const result = await client.requestPermission({
           options: ALLOW_OPTIONS,
-          toolCall: { _meta: { twigToolKind: "bash" } },
+          toolCall: { _meta: { codeToolKind: "bash" } },
         });
 
         expect(result.outcome.outcome).toBe("selected");
@@ -220,9 +220,9 @@ describe("Question relay", () => {
       });
     });
 
-    describe("without TWIG_INTERACTION_ORIGIN", () => {
+    describe("without CODE_INTERACTION_ORIGIN", () => {
       beforeEach(() => {
-        delete process.env.TWIG_INTERACTION_ORIGIN;
+        delete process.env.CODE_INTERACTION_ORIGIN;
       });
 
       it("auto-approves question tools (no Slack relay)", async () => {

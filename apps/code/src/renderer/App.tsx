@@ -22,7 +22,7 @@ import { Toaster } from "sonner";
 const log = logger.scope("app");
 
 function App() {
-  const { isAuthenticated, hasCompletedOnboarding, hasTwigAccess } =
+  const { isAuthenticated, hasCompletedOnboarding, hasCodeAccess } =
     useAuthStore();
   const isDarkMode = useThemeStore((state) => state.isDarkMode);
   const [isLoading, setIsLoading] = useState(true);
@@ -146,7 +146,7 @@ function App() {
     }
 
     // Access check loading state
-    if (hasTwigAccess === null) {
+    if (hasCodeAccess === null) {
       return (
         <motion.div key="access-check">
           <Flex align="center" justify="center" minHeight="100vh">
@@ -160,7 +160,7 @@ function App() {
     }
 
     // Access gate: show invite code screen if flag is not enabled
-    if (!hasTwigAccess) {
+    if (!hasCodeAccess) {
       return (
         <motion.div key="invite-code">
           <InviteCodeScreen />

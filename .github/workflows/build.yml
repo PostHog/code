@@ -42,5 +42,5 @@ jobs:
       - name: Build agent
         run: pnpm --filter agent build
 
-      - name: Build twig
-        run: pnpm --filter twig build
+      - name: Build code
+        run: pnpm --filter code build

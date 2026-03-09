@@ -1,12 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createGitClient } from "@twig/git/client";
+import { createGitClient } from "@posthog/git/client";
 import {
   CaptureCheckpointSaga,
   deleteCheckpoint,
   RevertCheckpointSaga,
-} from "@twig/git/sagas/checkpoint";
-import { type WorktreeInfo, WorktreeManager } from "@twig/git/worktree";
+} from "@posthog/git/sagas/checkpoint";
+import { type WorktreeInfo, WorktreeManager } from "@posthog/git/worktree";
 import { inject, injectable } from "inversify";
 import type {
   Archive,

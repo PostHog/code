@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockExecGh = vi.hoisted(() => vi.fn());
 
-vi.mock("@twig/git/gh", () => ({
+vi.mock("@posthog/git/gh", () => ({
   execGh: mockExecGh,
 }));
 
@@ -65,12 +65,12 @@ describe("GitService.getPrChangedFiles", () => {
     });
 
     const result = await service.getPrChangedFiles(
-      "https://github.com/posthog/twig/pull/123",
+      "https://github.com/posthog/code/pull/123",
     );
 
     expect(mockExecGh).toHaveBeenCalledWith([
       "api",
-      "repos/posthog/twig/pulls/123/files",
+      "repos/posthog/code/pulls/123/files",
       "--paginate",
       "--slurp",
     ]);
@@ -123,7 +123,7 @@ describe("GitService.getPrChangedFiles", () => {
     });
 
     await expect(
-      service.getPrChangedFiles("https://github.com/posthog/twig/pull/123"),
+      service.getPrChangedFiles("https://github.com/posthog/code/pull/123"),
     ).rejects.toThrow("Failed to fetch PR files");
   });
 });

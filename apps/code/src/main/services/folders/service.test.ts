@@ -51,7 +51,7 @@ vi.mock("electron", () => ({
   dialog: mockDialog,
 }));
 
-vi.mock("@twig/git/worktree", () => ({
+vi.mock("@posthog/git/worktree", () => ({
   WorktreeManager: class MockWorktreeManager {
     deleteWorktree = mockWorktreeManager.deleteWorktree;
     cleanupOrphanedWorktrees = mockWorktreeManager.cleanupOrphanedWorktrees;
@@ -73,12 +73,12 @@ vi.mock("../../trpc/context.js", () => ({
   getMainWindow: vi.fn(() => ({ id: 1 })),
 }));
 
-vi.mock("@twig/git/queries", () => ({
+vi.mock("@posthog/git/queries", () => ({
   isGitRepository: vi.fn(() => Promise.resolve(true)),
   getRemoteUrl: vi.fn(() => Promise.resolve(null)),
 }));
 
-vi.mock("@twig/git/sagas/init", () => ({
+vi.mock("@posthog/git/sagas/init", () => ({
   InitRepositorySaga: class {
     run = mockInitRepositorySaga.run;
   },
@@ -100,7 +100,7 @@ vi.mock("../../db/repositories/worktree-repository.js", () => ({
   WorktreeRepository: vi.fn(() => mockWorktreeRepo),
 }));
 
-import { isGitRepository } from "@twig/git/queries";
+import { isGitRepository } from "@posthog/git/queries";
 import type { IRepositoryRepository } from "../../db/repositories/repository-repository.js";
 import type { IWorkspaceRepository } from "../../db/repositories/workspace-repository.js";
 import type { IWorktreeRepository } from "../../db/repositories/worktree-repository.js";
@@ -288,8 +288,8 @@ describe("FoldersService", () => {
       mockWorktreeRepo.findByWorkspaceId.mockReturnValue({
         id: "worktree-1",
         workspaceId: "workspace-1",
-        name: "twig-task-1",
-        path: "/tmp/worktrees/project/twig-task-1",
+        name: "code-task-1",
+        path: "/tmp/worktrees/project/code-task-1",
         branch: "main",
       });
       mockWorktreeManager.deleteWorktree.mockResolvedValue(undefined);
@@ -330,8 +330,8 @@ describe("FoldersService", () => {
         {
           id: "worktree-1",
           workspaceId: "workspace-1",
-          name: "twig-task-1",
-          path: "/tmp/worktrees/project/twig-task-1",
+          name: "code-task-1",
+          path: "/tmp/worktrees/project/code-task-1",
           branch: "main",
         },
       ]);
@@ -343,7 +343,7 @@ describe("FoldersService", () => {
       await service.cleanupOrphanedWorktrees("/home/user/project");
 
       expect(mockWorktreeManager.cleanupOrphanedWorktrees).toHaveBeenCalledWith(
-        ["/tmp/worktrees/project/twig-task-1"],
+        ["/tmp/worktrees/project/code-task-1"],
       );
     });
   });

@@ -1,13 +1,13 @@
 > [!IMPORTANT]
-> Twig is pre-alpha and not production-ready. Interested? Email jonathan@posthog.com
+> PostHog Code is pre-alpha and not production-ready. Interested? Email jonathan@posthog.com
 
-**[Download the latest version](https://github.com/PostHog/twig/releases/latest)**
+**[Download the latest version](https://github.com/PostHog/code/releases/latest)**
 
-Found a bug or have feedback? [Open an issue](https://github.com/PostHog/twig/issues/new) on GitHub.
+Found a bug or have feedback? [Open an issue](https://github.com/PostHog/code/issues/new) on GitHub.
 
-# Twig
+# PostHog Code
 
-This is the monorepo for PostHog's Twig apps and the agent framework that powers them.
+This is the monorepo for PostHog Code apps and the agent framework that powers them.
 
 ## Development
 
@@ -32,12 +32,12 @@ cp .env.example .env
 ### Running in Development
 
 ```bash
-# Run both agent (watch mode) and twig app in parallel
+# Run both agent (watch mode) and code app in parallel
 pnpm dev
 
 # Or run them separately:
 pnpm dev:agent  # Run agent in watch mode
-pnpm dev:twig   # Run twig app
+pnpm dev:code   # Run code app
 ```
 
 > **Want to connect to a local PostHog instance?** See [docs/LOCAL-DEVELOPMENT.md](./docs/LOCAL-DEVELOPMENT.md) for OAuth setup and connecting to localhost:8010.
@@ -48,15 +48,15 @@ Scripts in `scripts/` for development and debugging:
 
 | Script | Description |
 |--------|-------------|
-| `scripts/clean-twig-macos.sh` | Remove all Twig app data from macOS (caches, preferences, logs, saved state). Use `--app` flag to also delete Twig.app from /Applications. |
+| `scripts/clean-posthog-code-macos.sh` | Remove all PostHog Code app data from macOS (caches, preferences, logs, saved state). Use `--app` flag to also delete PostHog Code.app from /Applications. |
 | `scripts/test-access-token.js` | Validate a PostHog OAuth access token by testing API endpoints. Usage: `node scripts/test-access-token.js <token> <project_id> [region]` |
 
 ## Project Structure
 
 ```
-twig/
+posthog-code/
 ├── apps/
-│   ├── twig/            # Electron desktop app (React, Vite)
+│   ├── code/            # Electron desktop app (React, Vite)
 │   ├── mobile/          # React Native mobile app (Expo)
 │   └── cli/             # CLI for stacked PRs
 ├── packages/
@@ -70,12 +70,12 @@ twig/
 
 | File | Description |
 |------|-------------|
-| [apps/twig/README.md](./apps/twig/README.md) | Desktop app: building, signing, distribution, and workspace configuration |
-| [apps/twig/ARCHITECTURE.md](./apps/twig/ARCHITECTURE.md) | Desktop app: dependency injection, tRPC, state management, and events |
+| [apps/code/README.md](./apps/code/README.md) | Desktop app: building, signing, distribution, and workspace configuration |
+| [apps/code/ARCHITECTURE.md](./apps/code/ARCHITECTURE.md) | Desktop app: dependency injection, tRPC, state management, and events |
 | [apps/mobile/README.md](./apps/mobile/README.md) | Mobile app: Expo setup, EAS builds, and TestFlight deployment |
 | [apps/cli/README.md](./apps/cli/README.md) | CLI: stacked PR management with Jujutsu |
 | [CLAUDE.md](./CLAUDE.md) | Code style, patterns, and testing guidelines |
-| [docs/LOCAL-DEVELOPMENT.md](./docs/LOCAL-DEVELOPMENT.md) | Connecting Twig to a local PostHog instance |
+| [docs/LOCAL-DEVELOPMENT.md](./docs/LOCAL-DEVELOPMENT.md) | Connecting PostHog Code to a local PostHog instance |
 | [docs/UPDATES.md](./docs/UPDATES.md) | Release versioning and git tagging |
 | [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) | Common issues and fixes |
 

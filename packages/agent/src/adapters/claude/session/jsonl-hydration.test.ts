@@ -49,10 +49,10 @@ describe("getSessionJsonlPath", () => {
     try {
       const result = getSessionJsonlPath(
         "sess-1",
-        "/Users/dev/.twig/worktrees/repo",
+        "/Users/dev/.posthog-code/worktrees/repo",
       );
       expect(result).toBe(
-        "/tmp/claude-test/projects/-Users-dev--twig-worktrees-repo/sess-1.jsonl",
+        "/tmp/claude-test/projects/-Users-dev--posthog-code-worktrees-repo/sess-1.jsonl",
       );
     } finally {
       if (original === undefined) delete process.env.CLAUDE_CONFIG_DIR;
