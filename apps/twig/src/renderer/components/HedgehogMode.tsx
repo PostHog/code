@@ -22,6 +22,7 @@ export function HedgehogMode() {
 
     let destroyed = false;
     const container = containerRef.current;
+    container.innerHTML = "";
 
     const hedgehogConfig = user?.hedgehog_config as Record<
       string,

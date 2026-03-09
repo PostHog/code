@@ -1,3 +1,4 @@
+import { useAuthStore } from "@features/auth/stores/authStore";
 import { SettingRow } from "@features/settings/components/SettingRow";
 import {
   type CompletionSound,
@@ -8,12 +9,14 @@ import {
 import {
   Button,
   Flex,
+  Link,
   Select,
   Slider,
   Switch,
   Text,
   TextField,
 } from "@radix-ui/themes";
+import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useSettingsStore as useTerminalSettingsStore } from "@stores/settingsStore";
 import type { ThemePreference } from "@stores/themeStore";
@@ -541,7 +544,7 @@ export function GeneralSettings() {
 
       <SettingRow
         label="Hedgehog mode"
-        description="Release a hedgehog buddy to walk around your screen. It might take a few seconds to appear."
+        description={<HedgehogDescription />}
         noBorder
       >
         <Switch
@@ -550,6 +553,32 @@ export function GeneralSettings() {
           size="1"
         />
       </SettingRow>
+    </Flex>
+  );
+}
+
+function HedgehogDescription() {
+  const cloudRegion = useAuthStore((s) => s.cloudRegion);
+  const projectId = useAuthStore((s) => s.projectId);
+
+  const customizeUrl =
+    cloudRegion && projectId
+      ? `${getCloudUrlFromRegion(cloudRegion)}/project/${projectId}/settings/user-customization`
+      : null;
+
+  return (
+    <Flex direction="column" gap="1">
+      <Text size="1" color="gray">
+        Release a hedgehog buddy to walk around your screen. It might take a few
+        seconds to appear.
+      </Text>
+      {customizeUrl && (
+        <Text size="1" color="gray">
+          <Link href={customizeUrl} target="_blank">
+            Customize your hedgehog
+          </Link>
+        </Text>
+      )}
     </Flex>
   );
 }
