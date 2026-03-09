@@ -15,7 +15,6 @@ import {
   validateBranchName,
 } from "@features/git-interaction/utils/branchNameValidation";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
-import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
 import { trpcVanilla } from "@renderer/trpc";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useQueryClient } from "@tanstack/react-query";
@@ -503,16 +502,9 @@ export function useGitInteraction(
 
       trackGitAction(taskId, "branch-here", true);
 
-      const workspace = await workspaceApi.get(taskId);
-      if (workspace) {
-        await trpcVanilla.workspace.update.mutate({
-          taskId,
-          updates: { branchName },
-        });
-        await queryClient.invalidateQueries({
-          queryKey: [["workspace", "getAll"]],
-        });
-      }
+      await queryClient.invalidateQueries({
+        queryKey: [["workspace", "getAll"]],
+      });
 
       await queryClient.invalidateQueries({
         queryKey: ["git-sync-status", repoPath],

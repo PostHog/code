@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 const id = () =>
   text()
@@ -18,19 +18,23 @@ export const repositories = sqliteTable("repositories", {
   updatedAt: updatedAt(),
 });
 
-export const workspaces = sqliteTable("workspaces", {
-  id: id(),
-  taskId: text().notNull().unique(),
-  repositoryId: text().references(() => repositories.id, {
-    onDelete: "set null",
-  }),
-  mode: text({ enum: ["cloud", "local", "worktree"] }).notNull(),
-  pinnedAt: text(),
-  lastViewedAt: text(),
-  lastActivityAt: text(),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
+export const workspaces = sqliteTable(
+  "workspaces",
+  {
+    id: id(),
+    taskId: text().notNull().unique(),
+    repositoryId: text().references(() => repositories.id, {
+      onDelete: "set null",
+    }),
+    mode: text({ enum: ["cloud", "local", "worktree"] }).notNull(),
+    pinnedAt: text(),
+    lastViewedAt: text(),
+    lastActivityAt: text(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("workspaces_repository_id_idx").on(t.repositoryId)],
+);
 
 export const worktrees = sqliteTable("worktrees", {
   id: id(),

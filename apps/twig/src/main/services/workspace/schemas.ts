@@ -69,13 +69,6 @@ export const deleteWorkspaceInput = z.object({
   mainRepoPath: z.string(),
 });
 
-export const updateWorkspaceInput = z.object({
-  taskId: z.string(),
-  updates: z.object({
-    branchName: z.string().optional(),
-  }),
-});
-
 export const verifyWorkspaceInput = z.object({
   taskId: z.string(),
 });

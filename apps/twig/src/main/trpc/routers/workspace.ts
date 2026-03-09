@@ -26,7 +26,6 @@ import {
   runStartScriptsOutput,
   togglePinInput,
   togglePinOutput,
-  updateWorkspaceInput,
   verifyWorkspaceInput,
   verifyWorkspaceOutput,
 } from "../../services/workspace/schemas.js";
@@ -64,10 +63,6 @@ export const workspaceRouter = router({
     .mutation(({ input }) =>
       getService().deleteWorkspace(input.taskId, input.mainRepoPath),
     ),
-
-  update: publicProcedure
-    .input(updateWorkspaceInput)
-    .mutation(({ input: _input }) => {}),
 
   verify: publicProcedure
     .input(verifyWorkspaceInput)
