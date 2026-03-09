@@ -6,7 +6,7 @@ export const POSTHOG_DEV_CLIENT_ID = "DC5uRLVbGI02YQ82grxgnK6Qn12SXWpCqdPb60oZ";
 
 // Bump OAUTH_SCOPE_VERSION below whenever OAUTH_SCOPES changes to force re-authentication
 export const OAUTH_SCOPES = [
-  // Twig app needs
+  // PostHog Code app needs
   "user:read",
   "user:write",
   "project:read",

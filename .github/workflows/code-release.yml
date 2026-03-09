@@ -1,4 +1,4 @@
-name: Release Twig
+name: Release PostHog Code
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - "v*"
 
 concurrency:
-  group: twig-release
+  group: code-release
   cancel-in-progress: false
 
 jobs:
@@ -116,10 +116,10 @@ jobs:
           rm "$RUNNER_TEMP/certificate.p12"
 
       - name: Build native modules
-        run: pnpm --filter twig run build-native
+        run: pnpm --filter code run build-native
 
       - name: Publish with Electron Forge
         env:
           APP_VERSION: ${{ steps.version.outputs.version }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: pnpm --filter twig run publish
+        run: pnpm --filter code run publish

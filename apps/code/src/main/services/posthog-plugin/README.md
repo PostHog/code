@@ -8,7 +8,7 @@ Provides the PostHog plugin to agent sessions (Claude Code and Codex). The plugi
 
 Skills are the main content of the plugin. Each skill is a directory containing a `SKILL.md` and optional `references/` folder with supporting docs. For example, the `query-data` skill teaches agents how to write HogQL queries against PostHog's API.
 
-Skills are published independently from Twig at a stable GitHub releases URL (`skills.zip`). This service ensures agents always have the latest skills without requiring a Twig update.
+Skills are published independently from PostHog Code at a stable GitHub releases URL (`skills.zip`). This service ensures agents always have the latest skills without requiring a PostHog Code update.
 
 ### Skill Sources
 
@@ -69,7 +69,7 @@ After every assembly, skills are copied to `$HOME/.agents/skills/` so that Codex
    ```
    plugins/posthog/local-skills/my-skill/SKILL.md
    ```
-2. Run `pnpm dev:twig` — Vite watches and hot-reloads
+2. Run `pnpm dev:code` — Vite watches and hot-reloads
 3. The local skill overrides any shipped or remote skill with the same name
 
 ### Pulling remote skills locally for editing

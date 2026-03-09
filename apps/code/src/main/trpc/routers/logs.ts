@@ -10,7 +10,7 @@ const log = logger.scope("logsRouter");
 function getLocalLogPath(taskRunId: string): string {
   return path.join(
     app.getPath("home"),
-    ".twig",
+    ".posthog-code",
     "sessions",
     taskRunId,
     "logs.ndjson",

@@ -13,8 +13,8 @@ const getService = () =>
 export const deepLinkRouter = router({
   /**
    * Subscribe to task link deep link events.
-   * Emits task ID (and optional task run ID) when twig://task/{taskId} or
-   * twig://task/{taskId}/run/{taskRunId} is opened.
+   * Emits task ID (and optional task run ID) when posthog-code://task/{taskId} or
+   * posthog-code://task/{taskId}/run/{taskRunId} is opened.
    */
   onOpenTask: publicProcedure.subscription(async function* (opts) {
     const service = getService();

@@ -481,7 +481,7 @@ const exitPlanModeInput = {
   plan: `# Add Dark Mode Support
 
 ## Overview
-Add dark mode toggle to Twig app with theme persistence.
+Add dark mode toggle to PostHog Code app with theme persistence.
 
 ## Implementation Steps
 - Create \`useThemeStore\` Zustand store with theme state (\`light\` | \`dark\` | \`system\`)

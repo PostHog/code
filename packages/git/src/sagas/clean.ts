@@ -48,7 +48,7 @@ export class CleanWorkingTreeSaga extends GitSaga<
             "push",
             "--include-untracked",
             "-m",
-            "twig-clean-backup",
+            "posthog-code-clean-backup",
           ]);
           const afterResult = await this.git.stashList();
           this.backupStashCreated =

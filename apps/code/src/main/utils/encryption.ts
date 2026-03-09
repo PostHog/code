@@ -4,7 +4,7 @@ import { machineIdSync } from "node-machine-id";
 
 // Key derived from hardware UUID - data only decryptable on this machine
 // No keychain prompts, prevents token theft via cloud sync/backups
-// TODO: Migrate to twig
+// TODO: Migrate to posthog-code
 const APP_SALT = "array-v1";
 const ENCRYPTION_VERSION = 1;
 

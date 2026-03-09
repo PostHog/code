@@ -151,7 +151,7 @@ class FocusEnableSaga extends Saga<EnableInput, EnableOutput> {
         });
         const result = await trpcVanilla.focus.stash.mutate({
           repoPath: mainRepoPath,
-          message: `twig: focusing ${branch} (${timestamp})`,
+          message: `posthog-code: focusing ${branch} (${timestamp})`,
         });
         if (!result.success) throw new Error(result.error ?? "Failed to stash");
         return result.stashRef ?? null;

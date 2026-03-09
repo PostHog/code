@@ -13,11 +13,11 @@ import {
 } from "./checkpoint.js";
 
 async function setupRepo(): Promise<string> {
-  const dir = await mkdtemp(path.join(tmpdir(), "twig-checkpoint-"));
+  const dir = await mkdtemp(path.join(tmpdir(), "posthog-code-checkpoint-"));
   const git = createGitClient(dir);
   await git.init();
-  await git.addConfig("user.name", "Twig Test");
-  await git.addConfig("user.email", "twig-test@example.com");
+  await git.addConfig("user.name", "PostHog Code Test");
+  await git.addConfig("user.email", "posthog-code-test@example.com");
 
   await writeFile(path.join(dir, "a.txt"), "one\n");
   await writeFile(path.join(dir, "b.txt"), "base\n");
@@ -40,7 +40,7 @@ async function withRepoAndWorktree<T>(
   fn: (repoPath: string, worktreePath: string) => Promise<T>,
 ): Promise<T> {
   const repoPath = await setupRepo();
-  const worktreePath = await mkdtemp(path.join(tmpdir(), "twig-worktree-"));
+  const worktreePath = await mkdtemp(path.join(tmpdir(), "posthog-code-worktree-"));
   try {
     const git = createGitClient(repoPath);
     await git.raw(["worktree", "add", worktreePath]);
@@ -248,7 +248,7 @@ describe("checkpoint sagas", () => {
   });
 
   it("handles submodules without breaking", async () => {
-    const subRepo = await mkdtemp(path.join(tmpdir(), "twig-submodule-"));
+    const subRepo = await mkdtemp(path.join(tmpdir(), "posthog-code-submodule-"));
     await withRepo(async (repoPath) => {
       const subGit = createGitClient(subRepo);
       await subGit.init();
@@ -317,7 +317,7 @@ describe("checkpoint sagas", () => {
   });
 
   it("restores checkpoint on unborn HEAD", async () => {
-    const repoPath = await mkdtemp(path.join(tmpdir(), "twig-checkpoint-"));
+    const repoPath = await mkdtemp(path.join(tmpdir(), "posthog-code-checkpoint-"));
     try {
       const git = createGitClient(repoPath);
       await git.init();

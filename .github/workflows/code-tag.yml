@@ -1,4 +1,4 @@
-name: Tag Twig Release
+name: Tag PostHog Code Release
 
 on:
   push:
@@ -11,11 +11,11 @@ on:
       - "pnpm-lock.yaml"
       - "package.json"
       - "turbo.json"
-      - ".github/workflows/twig-tag.yml"
-      - ".github/workflows/twig-release.yml"
+      - ".github/workflows/code-tag.yml"
+      - ".github/workflows/code-release.yml"
 
 concurrency:
-  group: twig-tag
+  group: code-tag
   cancel-in-progress: false
 
 jobs:

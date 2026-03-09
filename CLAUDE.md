@@ -1,10 +1,10 @@
-# Twig Development Guide
+# PostHog Code Development Guide
 
 ## Project Structure
 
 - Monorepo with pnpm workspaces and turbo
-- `apps/code` - Twig Electron desktop app (React + Vite)
-- `apps/cli` - CLI tool (thin wrapper around @twig/core)
+- `apps/code` - PostHog Code Electron desktop app (React + Vite)
+- `apps/cli` - CLI tool (thin wrapper around @posthog/core)
 - `apps/mobile` - React Native mobile app (Expo)
 - `packages/agent` - TypeScript agent framework wrapping Claude Agent SDK
 - `packages/core` - Shared business logic for jj/GitHub operations
@@ -14,21 +14,21 @@
 ## Commands
 
 - `pnpm install` - Install all dependencies
-- `pnpm dev` - Run both agent (watch) and twig app via mprocs
+- `pnpm dev` - Run both agent (watch) and code app via mprocs
 - `pnpm dev:agent` - Run agent package in watch mode only
-- `pnpm dev:twig` - Run twig desktop app only
+- `pnpm dev:code` - Run code desktop app only
 - `pnpm build` - Build all packages (turbo)
 - `pnpm typecheck` - Type check all packages
 - `pnpm lint` - Lint and auto-fix with biome
 - `pnpm format` - Format with biome
 - `pnpm test` - Run tests across all packages
 
-### Twig App Specific
+### Code App Specific
 
-- `pnpm --filter twig test` - Run vitest tests
-- `pnpm --filter twig typecheck` - Type check twig app
-- `pnpm --filter twig package` - Package electron app
-- `pnpm --filter twig make` - Make distributable
+- `pnpm --filter code test` - Run vitest tests
+- `pnpm --filter code typecheck` - Type check code app
+- `pnpm --filter code package` - Package electron app
+- `pnpm --filter code make` - Make distributable
 
 ### Agent Package Specific
 
@@ -317,7 +317,7 @@ export const useNavigationStore = create<NavigationStore>()(
 ### Commands
 
 - `pnpm test` - Run unit tests across all packages
-- `pnpm --filter twig test` - Run twig unit tests only
+- `pnpm --filter code test` - Run code unit tests only
 - `pnpm test:e2e` - Run Playwright E2E tests
 
 ### When to Write Unit Tests vs E2E Tests

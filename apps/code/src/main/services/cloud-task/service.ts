@@ -166,7 +166,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       jsonrpc: "2.0",
       method: input.method,
       params: input.params ?? {},
-      id: `twig-${Date.now()}`,
+      id: `posthog-code-${Date.now()}`,
     };
 
     try {

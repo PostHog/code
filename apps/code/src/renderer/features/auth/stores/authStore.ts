@@ -973,7 +973,7 @@ export const useAuthStore = create<AuthState>()(
         },
       }),
       {
-        // TODO: Migrate to twig
+        // TODO: Migrate to posthog-code
         name: "array-auth",
         storage: electronStorage,
         partialize: (state) => ({

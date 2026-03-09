@@ -34,7 +34,7 @@ async function installWithOAuth(
   // Step 1: Get callback URL from main process
   const { callbackUrl } = await trpcVanilla.mcpCallback.getCallbackUrl.query();
 
-  // Step 2: Call PostHog API with Twig-specific params
+  // Step 2: Call PostHog API with PostHog Code-specific params
   const data = await client.installCustomMcpServer({
     ...vars,
     install_source: "twig",

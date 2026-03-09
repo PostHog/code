@@ -4,15 +4,15 @@ import * as path from "node:path";
 import { createGitClient, type GitClient } from "../client.js";
 import { GitSaga, type GitSagaInput } from "../git-saga.js";
 
-const CHECKPOINT_REF_PREFIX = "refs/twig-checkpoint/";
+const CHECKPOINT_REF_PREFIX = "refs/posthog-code-checkpoint/";
 const CHECKPOINT_VERSION = "v1";
 const UNMERGED_INDEX_ERROR =
   "Cannot capture checkpoint with unresolved merge conflicts in the index";
 const GIT_BUSY_ERROR =
   "Cannot capture checkpoint while git operation is in progress";
 const CHECKPOINT_AUTHOR = {
-  name: "Twig",
-  email: "twig@local",
+  name: "PostHog Code",
+  email: "posthog-code@local",
 };
 
 export interface CheckpointState {
@@ -510,7 +510,7 @@ function formatCheckpointMessage(meta: {
   timestamp: string;
 }): string {
   return [
-    `TWIG-CHECKPOINT ${CHECKPOINT_VERSION}`,
+    `POSTHOG-CODE-CHECKPOINT ${CHECKPOINT_VERSION}`,
     `head=${meta.head ?? "null"}`,
     `branch=${meta.branch ?? "null"}`,
     `index=${meta.indexTree}`,
@@ -533,7 +533,7 @@ async function createTempIndexGit(
   baseDir: string,
   label: string,
 ): Promise<{ tempGit: GitClient; tempIndexPath: string }> {
-  const tmpDir = path.join(await getGitCommonDir(git, baseDir), "twig-tmp");
+  const tmpDir = path.join(await getGitCommonDir(git, baseDir), "posthog-code-tmp");
   await fs.mkdir(tmpDir, { recursive: true });
 
   const tempIndexPath = path.join(
@@ -562,8 +562,8 @@ function parseCheckpointMessage(message: string): CheckpointMetadata {
     .map((line) => line.trim())
     .filter(Boolean);
 
-  if (!lines[0]?.startsWith("TWIG-CHECKPOINT")) {
-    throw new Error("Not a twig checkpoint commit");
+  if (!lines[0]?.startsWith("POSTHOG-CODE-CHECKPOINT")) {
+    throw new Error("Not a posthog-code checkpoint commit");
   }
 
   for (const line of lines.slice(1)) {

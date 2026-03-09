@@ -138,7 +138,7 @@ JWT validation (`src/server/jwt.ts`) uses RS256 with a configurable public key. 
 
 ### Commands flow through ACP
 
-When `POST /command` receives a `user_message`, it doesn't handle it directly — it calls `clientConnection.prompt()` on the ACP `ClientSideConnection`, which sends a `session/prompt` message through the ACP streams to the agent. Similarly, `cancel` sends `session/cancel`. This means all commands follow the same path as in-process calls from Twig, with the HTTP layer just being a thin translation.
+When `POST /command` receives a `user_message`, it doesn't handle it directly — it calls `clientConnection.prompt()` on the ACP `ClientSideConnection`, which sends a `session/prompt` message through the ACP streams to the agent. Similarly, `cancel` sends `session/cancel`. This means all commands follow the same path as in-process calls from PostHog Code, with the HTTP layer just being a thin translation.
 
 ### Auto-approval in cloud mode
 

@@ -51,7 +51,7 @@ export function WorkspacesSettings() {
           <FolderPicker
             value={localWorktreeLocation}
             onChange={handleWorktreeLocationChange}
-            placeholder="~/.twig"
+            placeholder="~/.posthog-code"
             size="1"
           />
         </div>

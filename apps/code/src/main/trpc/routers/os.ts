@@ -210,7 +210,7 @@ export const osRouter = router({
   getAppVersion: publicProcedure.query(() => app.getVersion()),
 
   /**
-   * Get the worktree base location (e.g., ~/.twig)
+   * Get the worktree base location (e.g., ~/.posthog-code)
    */
   getWorktreeLocation: publicProcedure.query(() => getWorktreeLocation()),
 
@@ -255,7 +255,7 @@ export const osRouter = router({
     )
     .mutation(async ({ input }) => {
       const filename = `pasted-text-${Date.now()}.txt`;
-      const tempDir = path.join(os.tmpdir(), "twig-clipboard");
+      const tempDir = path.join(os.tmpdir(), "posthog-code-clipboard");
 
       await fsPromises.mkdir(tempDir, { recursive: true });
       const filePath = path.join(tempDir, filename);
@@ -297,7 +297,7 @@ export const osRouter = router({
           );
       const baseName = displayName.replace(/\.[^.]+$/, "");
       const filename = `${baseName}-${Date.now()}.${extension}`;
-      const tempDir = path.join(os.tmpdir(), "twig-clipboard");
+      const tempDir = path.join(os.tmpdir(), "posthog-code-clipboard");
 
       await fsPromises.mkdir(tempDir, { recursive: true });
       const filePath = path.join(tempDir, filename);

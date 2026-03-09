@@ -68,7 +68,7 @@ export class DiscardFileChangesSaga extends GitSaga<
             "push",
             "--include-untracked",
             "-m",
-            `twig-discard-backup: ${filePath}`,
+            `posthog-code-discard-backup: ${filePath}`,
             "--",
             filePath,
           ]);

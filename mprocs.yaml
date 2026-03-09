@@ -18,7 +18,7 @@ procs:
     color: yellow
 
   storybook:
-    cmd: ["pnpm", "--filter", "twig", "run", "storybook"]
+    cmd: ["pnpm", "--filter", "code", "run", "storybook"]
     cwd: .
     color: cyan
     autostart: false

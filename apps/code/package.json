@@ -1,7 +1,7 @@
 {
   "name": "@posthog/code",
   "version": "0.0.0-dev",
-  "description": "Twig - PostHog desktop task manager",
+  "description": "PostHog Code - desktop task manager",
   "main": ".vite/build/bootstrap.js",
   "versionHash": "dynamic",
   "engines": {
@@ -35,7 +35,7 @@
   },
   "keywords": [
     "posthog",
-    "twig",
+    "posthog-code",
     "tasks",
     "developer-tools"
   ],

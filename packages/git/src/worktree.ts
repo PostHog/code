@@ -23,7 +23,7 @@ export interface WorktreeConfig {
   worktreeBasePath?: string;
 }
 
-const WORKTREE_FOLDER_NAME = ".twig";
+const WORKTREE_FOLDER_NAME = ".posthog-code";
 
 export class WorktreeManager {
   private mainRepoPath: string;
@@ -98,7 +98,7 @@ export class WorktreeManager {
     const infoDir = path.join(this.mainRepoPath, ".git", "info");
     await fs.mkdir(infoDir, { recursive: true });
 
-    const newContent = `${content.trimEnd()}\n\n# Twig worktrees\n${ignorePattern}\n`;
+    const newContent = `${content.trimEnd()}\n\n# PostHog Code worktrees\n${ignorePattern}\n`;
     await fs.writeFile(excludePath, newContent);
   }
 

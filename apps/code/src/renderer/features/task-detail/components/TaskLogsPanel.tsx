@@ -59,7 +59,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
 
   useChatTitleGenerator(taskId);
 
-  // Workspace store is only populated once a task is opened in Twig.
+  // Workspace store is only populated once a task is opened in PostHog Code.
   // For Slack-created tasks that haven't been opened yet, fall back to the API run environment.
   const isCloud =
     workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";

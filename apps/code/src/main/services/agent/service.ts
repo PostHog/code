@@ -606,7 +606,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         userAgent: `posthog/desktop.hog.dev; version: ${app.getVersion()}`,
       },
       skipLogPersistence: isPreview,
-      localCachePath: join(app.getPath("home"), ".twig"),
+      localCachePath: join(app.getPath("home"), ".posthog-code"),
       debug: !app.isPackaged,
       onLog: onAgentLog,
     });

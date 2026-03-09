@@ -117,7 +117,7 @@ export class PosthogPluginService extends TypedEventEmitter<PosthogPluginEvents>
     this.updating = true;
     this.lastCheckAt = now;
 
-    const tempDir = join(tmpdir(), `twig-skills-${Date.now()}`);
+    const tempDir = join(tmpdir(), `posthog-code-skills-${Date.now()}`);
 
     try {
       await mkdir(tempDir, { recursive: true });
