@@ -250,7 +250,7 @@ export function ProjectSwitcher() {
                 >
                   <DropdownMenu.Item
                     className="cursor-pointer"
-                    onClick={() => handleOpenExternal("https://twig.com")}
+                    onClick={() => handleOpenExternal("https://posthog.com/code")}
                   >
                     <ArrowSquareOut size={14} className="text-gray-11" />
                     <Text size="1">PostHog Code Website</Text>
@@ -259,7 +259,7 @@ export function ProjectSwitcher() {
                   <DropdownMenu.Item
                     className="cursor-pointer"
                     onClick={() =>
-                      handleOpenExternal("https://twig.com/privacy")
+                      handleOpenExternal("https://posthog.com/privacy")
                     }
                   >
                     <ShieldCheck size={14} className="text-gray-11" />

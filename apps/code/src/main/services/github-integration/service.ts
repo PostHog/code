@@ -14,7 +14,7 @@ import type {
 
 const log = logger.scope("github-integration-service");
 
-const PROTOCOL = "twig";
+const PROTOCOL = "posthog-code";
 const TIMEOUT_MS = 300_000; // 5 minutes
 const DEV_CALLBACK_PORT = 8238; // Different from OAuth's 8237
 

@@ -14,7 +14,7 @@ interface CommandContext {
   taskRun: { id?: string; log_url?: string } | null;
 }
 
-interface TwigCommand {
+interface CodeCommand {
   name: string;
   description: string;
   input?: { hint: string };
@@ -28,7 +28,7 @@ function makeFeedbackCommand(
   name: string,
   feedbackType: FeedbackType,
   label: string,
-): TwigCommand {
+): CodeCommand {
   return {
     name,
     description: `Capture ${label.toLowerCase()} feedback`,
@@ -47,13 +47,13 @@ function makeFeedbackCommand(
   };
 }
 
-const commands: TwigCommand[] = [
+const commands: CodeCommand[] = [
   makeFeedbackCommand("good", "good", "Positive"),
   makeFeedbackCommand("bad", "bad", "Negative"),
   makeFeedbackCommand("feedback", "general", "General"),
 ];
 
-export const TWIG_COMMANDS: AvailableCommand[] = commands.map((cmd) => ({
+export const CODE_COMMANDS: AvailableCommand[] = commands.map((cmd) => ({
   name: cmd.name,
   description: cmd.description,
   input: cmd.input,
@@ -61,7 +61,7 @@ export const TWIG_COMMANDS: AvailableCommand[] = commands.map((cmd) => ({
 
 const commandMap = new Map(commands.map((cmd) => [cmd.name, cmd]));
 
-export async function tryExecuteTwigCommand(
+export async function tryExecuteCodeCommand(
   text: string,
   context: CommandContext,
 ): Promise<boolean> {

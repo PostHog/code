@@ -67,7 +67,7 @@ app.whenReady().then(() => {
   const buildDate = __BUILD_DATE__ ?? "dev";
   log.info(
     [
-      `Twig electron v${app.getVersion()} booting up`,
+      `PostHog Code electron v${app.getVersion()} booting up`,
       `Commit: ${commit}`,
       `Date: ${buildDate}`,
       `Electron: ${process.versions.electron}`,

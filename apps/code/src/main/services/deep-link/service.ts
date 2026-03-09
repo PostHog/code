@@ -4,8 +4,8 @@ import { logger } from "../../utils/logger.js";
 
 const log = logger.scope("deep-link-service");
 
-const PROTOCOL = "twig";
-const LEGACY_PROTOCOL = "array";
+const PROTOCOL = "posthog-code";
+const LEGACY_PROTOCOL = "twig";
 
 export type DeepLinkHandler = (
   path: string,
@@ -57,7 +57,7 @@ export class DeepLinkService {
    * Handle an incoming deep link URL
    *
    * NOTE: Strips the protocol and main key, passing only dynamic segments to handlers.
-   * Supports both twig:// and legacy array:// protocols.
+   * Supports both posthog-code:// and legacy twig:// protocols.
    */
   public handleUrl(url: string): boolean {
     log.info("Received deep link:", url);

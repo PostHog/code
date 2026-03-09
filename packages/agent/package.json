@@ -1,7 +1,7 @@
 {
   "name": "@posthog/agent",
   "version": "0.0.0-dev",
-  "repository": "https://github.com/PostHog/twig",
+  "repository": "https://github.com/PostHog/code",
   "description": "TypeScript agent framework wrapping Claude Agent SDK with Git-based task execution for PostHog",
   "exports": {
     ".": {
@@ -77,7 +77,7 @@
   },
   "devDependencies": {
     "@posthog/shared": "workspace:*",
-    "@twig/git": "workspace:*",
+    "@posthog/git": "workspace:*",
     "@types/bun": "latest",
     "@types/tar": "^6.1.13",
     "msw": "^2.12.7",

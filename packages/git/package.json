@@ -1,5 +1,5 @@
 {
-  "name": "@twig/git",
+  "name": "@posthog/git",
   "version": "1.0.0",
   "description": "Git utilities for Twig",
   "type": "module",

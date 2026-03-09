@@ -6,7 +6,7 @@ import type {
   ToolCallStatus,
 } from "@agentclientprotocol/sdk";
 
-export type TwigToolKind = AcpToolKind | "question";
+export type CodeToolKind = AcpToolKind | "question";
 
 export type {
   SessionUpdate,
@@ -18,7 +18,7 @@ export type {
 export interface ToolCall {
   _meta?: { [key: string]: unknown } | null;
   content?: ToolCallContent[];
-  kind?: TwigToolKind | null;
+  kind?: CodeToolKind | null;
   locations?: ToolCallLocation[];
   rawInput?: unknown;
   rawOutput?: unknown;

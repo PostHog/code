@@ -34,7 +34,7 @@ import "./styles/globals.css";
 }
 
 const log = logger.scope("app");
-log.info("Twig renderer booting up");
+log.info("PostHog Code renderer booting up");
 
 document.title = import.meta.env.DEV
   ? "PostHog Code (Development)"

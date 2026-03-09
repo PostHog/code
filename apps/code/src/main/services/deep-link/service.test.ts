@@ -44,13 +44,13 @@ describe("DeepLinkService", () => {
   });
 
   describe("registerProtocol", () => {
-    it("registers both twig and array protocols in production", () => {
+    it("registers both posthog-code and twig protocols in production", () => {
       setDefaultApp(false);
 
       service.registerProtocol();
 
+      expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledWith("posthog-code");
       expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledWith("twig");
-      expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledWith("array");
       expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledTimes(2);
     });
 
@@ -78,7 +78,7 @@ describe("DeepLinkService", () => {
 
       service.registerHandler("task", handler);
 
-      const result = service.handleUrl("twig://task/123");
+      const result = service.handleUrl("posthog-code://task/123");
       expect(handler).toHaveBeenCalledWith("123", expect.any(URLSearchParams));
       expect(result).toBe(true);
     });
@@ -90,7 +90,7 @@ describe("DeepLinkService", () => {
       service.registerHandler("task", handler1);
       service.registerHandler("task", handler2);
 
-      service.handleUrl("twig://task/123");
+      service.handleUrl("posthog-code://task/123");
       expect(handler1).not.toHaveBeenCalled();
       expect(handler2).toHaveBeenCalled();
     });
@@ -103,7 +103,7 @@ describe("DeepLinkService", () => {
 
       service.unregisterHandler("task");
 
-      const result = service.handleUrl("twig://task/123");
+      const result = service.handleUrl("posthog-code://task/123");
       expect(handler).not.toHaveBeenCalled();
       expect(result).toBe(false);
     });

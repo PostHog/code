@@ -160,7 +160,7 @@ const execFileAsync = promisify(execFile);
  */
 async function downloadAndExtractSkills(targetDir: string): Promise<boolean> {
   try {
-    const tempDir = join(tmpdir(), `twig-vite-skills-${Date.now()}`);
+    const tempDir = join(tmpdir(), `posthog-code-vite-skills-${Date.now()}`);
     await mkdir(tempDir, { recursive: true });
 
     try {
@@ -256,7 +256,7 @@ async function downloadAndExtractContextMillSkills(
   targetDir: string,
 ): Promise<boolean> {
   try {
-    const tempDir = join(tmpdir(), `twig-vite-cm-skills-${Date.now()}`);
+    const tempDir = join(tmpdir(), `posthog-code-vite-cm-skills-${Date.now()}`);
     await mkdir(tempDir, { recursive: true });
 
     try {

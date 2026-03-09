@@ -15,10 +15,10 @@ import { fixPath } from "./utils/fixPath.js";
 const isDev = !app.isPackaged;
 
 // Set app name for single-instance lock, crashReporter, etc
-const appName = isDev ? "twig-dev" : "Twig";
+const appName = isDev ? "posthog-code-dev" : "PostHog Code";
 app.setName(isDev ? "PostHog Code (Development)" : "PostHog Code");
 
-// Set userData path for @posthog/twig
+// Set userData path for @posthog/code
 const appDataPath = app.getPath("appData");
 const userDataPath = path.join(appDataPath, "@posthog", appName);
 app.setPath("userData", userDataPath);

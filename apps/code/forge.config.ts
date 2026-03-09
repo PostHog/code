@@ -148,7 +148,7 @@ const config: ForgeConfig = {
     name: "PostHog Code",
     executableName: "PostHog Code",
     icon: "./build/app-icon", // Forge adds .icns/.ico/.png based on platform
-    appBundleId: "com.posthog.array", // TODO: Migrate to twig
+    appBundleId: "com.posthog.array",
     appCategoryType: "public.app-category.productivity",
     extraResource: existsSync("build/Assets.car") ? ["build/Assets.car"] : [],
     extendInfo: existsSync("build/Assets.car")
@@ -176,7 +176,7 @@ const config: ForgeConfig = {
         ? {
             "code-sign": {
               "signing-identity": appleCodesignIdentity,
-              identifier: "com.posthog.array", // TODO: Migrate to twig
+              identifier: "com.posthog.array",
             },
           }
         : {}),
@@ -241,7 +241,7 @@ const config: ForgeConfig = {
     new PublisherGithub({
       repository: {
         owner: "PostHog",
-        name: "Twig",
+        name: "code",
       },
       draft: false,
       prerelease: false,
