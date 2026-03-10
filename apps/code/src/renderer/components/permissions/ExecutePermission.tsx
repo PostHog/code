@@ -1,5 +1,5 @@
 import { ActionSelector } from "@components/ActionSelector";
-import { Code } from "@radix-ui/themes";
+import { Box, Code } from "@radix-ui/themes";
 import { compactHomePath } from "@utils/path";
 import {
   type BasePermissionProps,
@@ -20,9 +20,16 @@ export function ExecutePermission({
       title={toolCall.title ?? "Execute command"}
       pendingAction={
         command ? (
-          <Code variant="ghost" size="1" title={command}>
-            {compactHomePath(command)}
-          </Code>
+          <Box className="max-h-[30vh] overflow-auto">
+            <Code
+              variant="ghost"
+              size="1"
+              title={command}
+              className="whitespace-pre-wrap break-all"
+            >
+              {compactHomePath(command)}
+            </Code>
+          </Box>
         ) : undefined
       }
       question="Do you want to proceed?"

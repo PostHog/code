@@ -9,10 +9,12 @@ import {
   StatusIndicators,
   ToolTitle,
   type ToolViewProps,
+  truncateText,
   useToolCallStatus,
 } from "./toolCallUtils";
 
 const ANSI_REGEX = new RegExp(`${String.fromCharCode(0x1b)}\\[[0-9;]*m`, "g");
+const MAX_COMMAND_LENGTH = 120;
 
 interface ExecuteRawInput {
   command?: string;
@@ -65,9 +67,9 @@ export function ExecuteToolView({
         <Flex align="center" gap="2" wrap="wrap">
           {description && <ToolTitle>{description}</ToolTitle>}
           {command && (
-            <ToolTitle>
+            <ToolTitle className="truncate">
               <span className="font-mono text-accent-11" title={command}>
-                {compactHomePath(command)}
+                {truncateText(compactHomePath(command), MAX_COMMAND_LENGTH)}
               </span>
             </ToolTitle>
           )}
