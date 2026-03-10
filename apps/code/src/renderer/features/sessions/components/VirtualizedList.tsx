@@ -63,15 +63,13 @@ function VirtualizedListInner<T>(
     const handle = listRef.current;
     if (!handle) return;
 
-    if (items.length > 0) {
+    if (items.length > 0 && !initializedRef.current) {
       handle.scrollToIndex(items.length - 1, { align: "end" });
-    }
 
-    // Allow measurements to settle before reporting scroll state,
-    // otherwise the scroll-to-bottom button flashes on task open.
-    requestAnimationFrame(() => {
-      initializedRef.current = true;
-    });
+      requestAnimationFrame(() => {
+        initializedRef.current = true;
+      });
+    }
   }, [items.length]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally re-run when items change for streaming scroll
