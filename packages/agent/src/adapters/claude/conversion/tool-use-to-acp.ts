@@ -1,3 +1,4 @@
+import path from "node:path";
 import type {
   PlanEntry,
   ToolCall,
@@ -32,12 +33,30 @@ import { getMcpToolMetadata } from "../mcp/tool-metadata.js";
 
 type ToolInfo = Pick<ToolCall, "title" | "kind" | "content" | "locations">;
 
+/**
+ * Convert an absolute file path to a project-relative path for display.
+ * Returns the original path if it's outside the project directory or if no cwd is provided.
+ */
+export function toDisplayPath(filePath: string, cwd?: string): string {
+  if (!cwd) return filePath;
+  const resolvedCwd = path.resolve(cwd);
+  const resolvedFile = path.resolve(filePath);
+  if (
+    resolvedFile.startsWith(resolvedCwd + path.sep) ||
+    resolvedFile === resolvedCwd
+  ) {
+    return path.relative(resolvedCwd, resolvedFile);
+  }
+  return filePath;
+}
+
 export function toolInfoFromToolUse(
   toolUse: Pick<ToolUseBlock, "name" | "input">,
   options?: {
     supportsTerminalOutput?: boolean;
     toolUseId?: string;
     cachedFileContent?: Record<string, string>;
+    cwd?: string;
   },
 ): ToolInfo {
   const name = toolUse.name;
@@ -123,8 +142,11 @@ export function toolInfoFromToolUse(
       } else if (inputOffset > 1) {
         limit = ` (from line ${inputOffset})`;
       }
+      const displayPath = input?.file_path
+        ? toDisplayPath(String(input.file_path), options?.cwd)
+        : "File";
       return {
-        title: `Read ${input?.file_path ? String(input.file_path) : "File"}${limit}`,
+        title: `Read ${displayPath}${limit}`,
         kind: "read",
         locations: input?.file_path
           ? [
@@ -147,7 +169,10 @@ export function toolInfoFromToolUse(
       };
 
     case "Edit": {
-      const path = input?.file_path ? String(input.file_path) : undefined;
+      const filePath = input?.file_path ? String(input.file_path) : undefined;
+      const displayPath = filePath
+        ? toDisplayPath(filePath, options?.cwd)
+        : undefined;
       let oldText: string | null = input?.old_string
         ? String(input.old_string)
         : null;
@@ -155,11 +180,11 @@ export function toolInfoFromToolUse(
 
       // If we have cached file content, show a full-file diff
       if (
-        path &&
+        filePath &&
         options?.cachedFileContent &&
-        path in options.cachedFileContent
+        filePath in options.cachedFileContent
       ) {
-        const oldContent = options.cachedFileContent[path];
+        const oldContent = options.cachedFileContent[filePath];
         const newContent = input?.replace_all
           ? oldContent.replaceAll(oldText ?? "", newText)
           : oldContent.replace(oldText ?? "", newText);
@@ -168,43 +193,49 @@ export function toolInfoFromToolUse(
       }
 
       return {
-        title: path ? `Edit \`${path}\`` : "Edit",
+        title: displayPath ? `Edit \`${displayPath}\`` : "Edit",
         kind: "edit",
         content:
-          input && path
+          input && filePath
             ? [
                 {
                   type: "diff",
-                  path,
+                  path: filePath,
                   oldText,
                   newText,
                 },
               ]
             : [],
-        locations: path ? [{ path }] : [],
+        locations: filePath ? [{ path: filePath }] : [],
       };
     }
 
     case "Write": {
       let contentResult: ToolCallContent[] = [];
-      const filePath = input?.file_path ? String(input.file_path) : undefined;
+      const writeFilePath = input?.file_path
+        ? String(input.file_path)
+        : undefined;
+      const writeDisplayPath = writeFilePath
+        ? toDisplayPath(writeFilePath, options?.cwd)
+        : undefined;
       const contentStr = input?.content ? String(input.content) : undefined;
-      if (filePath) {
+      if (writeFilePath) {
         const oldContent =
-          options?.cachedFileContent && filePath in options.cachedFileContent
-            ? options.cachedFileContent[filePath]
+          options?.cachedFileContent &&
+          writeFilePath in options.cachedFileContent
+            ? options.cachedFileContent[writeFilePath]
             : null;
         contentResult = toolContent()
-          .diff(filePath, oldContent, contentStr ?? "")
+          .diff(writeFilePath, oldContent, contentStr ?? "")
           .build();
       } else if (contentStr) {
         contentResult = toolContent().text(contentStr).build();
       }
       return {
-        title: filePath ? `Write ${filePath}` : "Write",
+        title: writeDisplayPath ? `Write ${writeDisplayPath}` : "Write",
         kind: "edit",
         content: contentResult,
-        locations: filePath ? [{ path: filePath }] : [],
+        locations: writeFilePath ? [{ path: writeFilePath }] : [],
       };
     }
 

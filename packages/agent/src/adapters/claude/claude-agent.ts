@@ -344,8 +344,8 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
                 sessionId: params.sessionId,
                 update: {
                   sessionUpdate: "usage_update",
-                  used: lastAssistantTotalUsage as unknown as bigint,
-                  size: contextWindowSize as unknown as bigint,
+                  used: lastAssistantTotalUsage,
+                  size: contextWindowSize,
                   cost: {
                     amount: message.total_cost_usd,
                     currency: "USD",
@@ -365,11 +365,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
               cost: message.total_cost_usd,
             });
 
-            // Build usage for PromptResponse
-            // ACP SDK types declare these as bigint but JSON.stringify can't
-            // serialize BigInt. Token counts never exceed MAX_SAFE_INTEGER so
-            // we pass plain numbers and cast to satisfy the type system.
-            const usage = {
+            const usage: Usage = {
               inputTokens: this.session.accumulatedUsage.inputTokens,
               outputTokens: this.session.accumulatedUsage.outputTokens,
               cachedReadTokens: this.session.accumulatedUsage.cachedReadTokens,
@@ -380,7 +376,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
                 this.session.accumulatedUsage.outputTokens +
                 this.session.accumulatedUsage.cachedReadTokens +
                 this.session.accumulatedUsage.cachedWriteTokens,
-            } as unknown as Usage;
+            };
 
             const result = handleResultMessage(message);
             if (result.error) throw result.error;

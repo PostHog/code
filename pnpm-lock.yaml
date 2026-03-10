@@ -557,11 +557,11 @@ importers:
   packages/agent:
     dependencies:
       '@agentclientprotocol/sdk':
-        specifier: ^0.14.0
-        version: 0.14.0(zod@3.25.76)
+        specifier: 0.15.0
+        version: 0.15.0(zod@3.25.76)
       '@anthropic-ai/claude-agent-sdk':
-        specifier: 0.2.68
-        version: 0.2.68(zod@3.25.76)
+        specifier: 0.2.71
+        version: 0.2.71(zod@3.25.76)
       '@anthropic-ai/sdk':
         specifier: ^0.78.0
         version: 0.78.0(zod@3.25.76)
@@ -716,8 +716,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@agentclientprotocol/sdk@0.14.0':
-    resolution: {integrity: sha512-PNaDAiFIRzthaBjPljioHoadzYD2mRovA00ksCeCaerAU9qyqUQJdRBiJwlOxJ3SucY/nyJg8+0sh1sZrPhgmA==}
+  '@agentclientprotocol/sdk@0.15.0':
+    resolution: {integrity: sha512-TH4utu23Ix8ec34srBHmDD4p3HI0cYleS1jN9lghRczPfhFlMBNrQgZWeBBe12DWy27L11eIrtciY2MXFSEiDg==}
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
 
@@ -729,8 +729,8 @@ packages:
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
 
-  '@anthropic-ai/claude-agent-sdk@0.2.68':
-    resolution: {integrity: sha512-y4n6hTTgAqmiV/pqy1G4OgIdg6gDiAKPJaEgO1NOh7/rdsrXyc/HQoUmUy0ty4HkBq1hasm7hB92wtX3W1UMEw==}
+  '@anthropic-ai/claude-agent-sdk@0.2.71':
+    resolution: {integrity: sha512-pIsQJnM7Y+cJHL7aFY6SCCW3FIni218gVEpPqG8XGowfYxboFNBbNssWiUNRwthT8bp9jypcX7q5kx0Xsw14xg==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       zod: ^4.0.0
@@ -10787,7 +10787,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@agentclientprotocol/sdk@0.14.0(zod@3.25.76)':
+  '@agentclientprotocol/sdk@0.15.0(zod@3.25.76)':
     dependencies:
       zod: 3.25.76
 
@@ -10798,7 +10798,7 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.31
 
-  '@anthropic-ai/claude-agent-sdk@0.2.68(zod@3.25.76)':
+  '@anthropic-ai/claude-agent-sdk@0.2.71(zod@3.25.76)':
     dependencies:
       zod: 3.25.76
     optionalDependencies:

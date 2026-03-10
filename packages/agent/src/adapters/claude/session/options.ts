@@ -229,6 +229,16 @@ function ensureLocalSettings(cwd: string): void {
 export function buildSessionOptions(params: BuildOptionsParams): Options {
   ensureLocalSettings(params.cwd);
 
+  // Resolve which built-in tools to expose.
+  // Explicit tools array from userProvidedOptions takes precedence.
+  // disableBuiltInTools is a legacy shorthand for tools: [] — kept for
+  // backward compatibility but callers should prefer the tools array.
+  const tools: Options["tools"] =
+    params.userProvidedOptions?.tools ??
+    (params.disableBuiltInTools
+      ? []
+      : { type: "preset", preset: "claude_code" });
+
   const options: Options = {
     ...params.userProvidedOptions,
     systemPrompt: params.systemPrompt ?? buildSystemPrompt(),
@@ -240,7 +250,7 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
     permissionMode: params.permissionMode,
     canUseTool: params.canUseTool,
     executable: "node",
-    tools: { type: "preset", preset: "claude_code" },
+    tools,
     extraArgs: {
       ...params.userProvidedOptions?.extraArgs,
       "replay-user-messages": "",
@@ -283,29 +293,6 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
 
   if (params.additionalDirectories) {
     options.additionalDirectories = params.additionalDirectories;
-  }
-
-  if (params.disableBuiltInTools) {
-    const builtInTools = [
-      "Read",
-      "Write",
-      "Edit",
-      "Bash",
-      "Glob",
-      "Grep",
-      "Task",
-      "TodoWrite",
-      "ExitPlanMode",
-      "WebSearch",
-      "WebFetch",
-      "SlashCommand",
-      "Skill",
-      "NotebookEdit",
-    ];
-    options.disallowedTools = [
-      ...(options.disallowedTools ?? []),
-      ...builtInTools,
-    ];
   }
 
   clearStatsigCache();

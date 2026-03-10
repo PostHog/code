@@ -19,7 +19,7 @@ export function resourceLink(
     mimeType?: string;
     title?: string;
     description?: string;
-    size?: bigint;
+    size?: number | null;
   },
 ): ContentBlock {
   return {

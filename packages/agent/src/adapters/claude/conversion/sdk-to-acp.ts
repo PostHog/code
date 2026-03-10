@@ -55,6 +55,7 @@ type ChunkHandlerContext = {
   parentToolCallId?: string;
   registerHooks?: boolean;
   supportsTerminalOutput?: boolean;
+  cwd?: string;
 };
 
 export interface MessageHandlerContext {
@@ -193,6 +194,7 @@ function handleToolUseChunk(
     supportsTerminalOutput: ctx.supportsTerminalOutput,
     toolUseId: chunk.id,
     cachedFileContent: ctx.fileContentCache,
+    cwd: ctx.cwd,
   });
 
   const meta: Record<string, unknown> = {
@@ -432,6 +434,7 @@ function toAcpNotifications(
   parentToolCallId?: string,
   registerHooks?: boolean,
   supportsTerminalOutput?: boolean,
+  cwd?: string,
 ): SessionNotification[] {
   if (typeof content === "string") {
     const update: SessionUpdate = {
@@ -457,6 +460,7 @@ function toAcpNotifications(
     parentToolCallId,
     registerHooks,
     supportsTerminalOutput,
+    cwd,
   };
   const output: SessionNotification[] = [];
 
@@ -479,6 +483,7 @@ function streamEventToAcpNotifications(
   parentToolCallId?: string,
   registerHooks?: boolean,
   supportsTerminalOutput?: boolean,
+  cwd?: string,
 ): SessionNotification[] {
   const event = message.event;
   switch (event.type) {
@@ -494,6 +499,7 @@ function streamEventToAcpNotifications(
         parentToolCallId,
         registerHooks,
         supportsTerminalOutput,
+        cwd,
       );
     case "content_block_delta":
       return toAcpNotifications(
@@ -507,6 +513,7 @@ function streamEventToAcpNotifications(
         parentToolCallId,
         registerHooks,
         supportsTerminalOutput,
+        cwd,
       );
     case "message_start":
     case "message_delta":
@@ -694,6 +701,7 @@ export async function handleStreamEvent(
     parentToolCallId,
     context.registerHooks,
     context.supportsTerminalOutput,
+    context.session.cwd,
   )) {
     await client.sessionUpdate(notification);
     context.session.notificationHistory.push(notification);
@@ -832,6 +840,7 @@ export async function handleUserAssistantMessage(
     parentToolCallId,
     context.registerHooks,
     context.supportsTerminalOutput,
+    session.cwd,
   )) {
     await client.sessionUpdate(notification);
     session.notificationHistory.push(notification);
