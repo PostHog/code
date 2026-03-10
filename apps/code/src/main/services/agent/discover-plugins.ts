@@ -27,7 +27,7 @@ export async function discoverExternalPlugins(
   options: DiscoverPluginsOptions,
 ): Promise<SdkPluginConfig[]> {
   const [globalSkills, marketplacePlugins, repoSkills] = await Promise.all([
-    discoverGlobalSkills(options.userDataDir),
+    discoverUserSkills(options.userDataDir),
     discoverMarketplacePlugins(),
     options.repoPath
       ? discoverRepoSkills(options.userDataDir, options.repoPath)
@@ -37,14 +37,14 @@ export async function discoverExternalPlugins(
   return [...globalSkills, ...marketplacePlugins, ...repoSkills];
 }
 
-async function discoverGlobalSkills(
+async function discoverUserSkills(
   userDataDir: string,
 ): Promise<SdkPluginConfig[]> {
   return buildSyntheticPlugin(
     path.join(os.homedir(), ".claude", "skills"),
-    path.join(userDataDir, "plugins", "global-skills"),
-    "global-skills",
-    "User global Claude skills",
+    path.join(userDataDir, "plugins", "user-skills"),
+    "user-skills",
+    "User Claude skills",
   );
 }
 
