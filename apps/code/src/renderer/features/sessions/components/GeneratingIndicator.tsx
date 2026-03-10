@@ -90,7 +90,9 @@ const THINKING_MESSAGES = [
 ];
 
 function getRandomThinkingMessage(): string {
-  return THINKING_MESSAGES[Math.floor(Math.random() * THINKING_MESSAGES.length)];
+  return THINKING_MESSAGES[
+    Math.floor(Math.random() * THINKING_MESSAGES.length)
+  ];
 }
 
 export function formatDuration(ms: number): string {
