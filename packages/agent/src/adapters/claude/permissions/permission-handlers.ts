@@ -429,7 +429,7 @@ export async function canUseTool(
 ): Promise<ToolPermissionResult> {
   const { toolName, toolInput, session } = context;
 
-  if (isToolAllowedForMode(toolName, session.permissionMode, toolInput)) {
+  if (isToolAllowedForMode(toolName, session.permissionMode)) {
     return {
       behavior: "allow",
       updatedInput: toolInput as Record<string, unknown>,
