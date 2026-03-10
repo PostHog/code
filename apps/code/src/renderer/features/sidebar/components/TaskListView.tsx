@@ -13,7 +13,7 @@ import {
 import { Box, Flex, Popover, Text } from "@radix-ui/themes";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 import { useNavigationStore } from "@stores/navigationStore";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect } from "react";
 import type { TaskData, TaskGroup } from "../hooks/useSidebarData";
 import { useSidebarStore } from "../stores/sidebarStore";
 import { DraggableFolder } from "./DraggableFolder";
@@ -255,16 +255,6 @@ export function TaskListView({
     (state) => state.navigateToTaskInput,
   );
 
-  const repoDirectories = useMemo(() => {
-    const mapping: Record<string, string> = {};
-    for (const folder of folders) {
-      if (folder.remoteUrl) {
-        mapping[folder.remoteUrl] = folder.path;
-      }
-    }
-    return mapping;
-  }, [folders]);
-
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset pagination when filters change
   useEffect(() => {
     resetHistoryVisibleCount();
@@ -323,10 +313,11 @@ export function TaskListView({
           <Flex direction="column">
             {groupedTasks.map((group, index) => {
               const isExpanded = !collapsedSections.has(group.id);
-              const groupPath = repoDirectories[group.id];
-              const folder = groupPath
-                ? folders.find((f) => f.path === groupPath)
-                : undefined;
+              const folder = folders.find(
+                (f) =>
+                  f.remoteUrl?.toLowerCase() === group.id.toLowerCase() ||
+                  f.path === group.id,
+              );
               return (
                 <DraggableFolder key={group.id} id={group.id} index={index}>
                   <SidebarSection
@@ -342,7 +333,7 @@ export function TaskListView({
                     isExpanded={isExpanded}
                     onToggle={() => toggleSection(group.id)}
                     addSpacingBefore={false}
-                    tooltipContent={groupPath ?? group.id}
+                    tooltipContent={folder?.path ?? group.id}
                     onNewTask={() => {
                       if (folder) {
                         navigateToTaskInput(folder.id);
