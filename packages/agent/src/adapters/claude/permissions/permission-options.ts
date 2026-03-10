@@ -105,8 +105,9 @@ export function buildExitPlanModePermissionOptions(): PermissionOption[] {
     },
     {
       kind: "reject_once",
-      name: "No, keep planning",
-      optionId: "plan",
+      name: "No, and tell the agent what to do differently",
+      optionId: "reject_with_feedback",
+      _meta: { customInput: true },
     },
   ];
 }

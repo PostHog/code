@@ -190,10 +190,15 @@ async function applyPlanApproval(
     };
   }
 
-  const message =
-    "User wants to continue planning. Please refine your plan based on any feedback provided, or ask clarifying questions if needed.";
+  const customInput = (response._meta as Record<string, unknown> | undefined)
+    ?.customInput as string | undefined;
+  const feedback = customInput?.trim();
+
+  const message = feedback
+    ? `User rejected the plan with feedback: ${feedback}`
+    : "User rejected the plan. Wait for the user to provide direction.";
   await emitToolDenial(context, message);
-  return { behavior: "deny", message, interrupt: false };
+  return { behavior: "deny", message, interrupt: !feedback };
 }
 
 async function handleEnterPlanModeTool(
