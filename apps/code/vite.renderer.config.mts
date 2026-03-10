@@ -19,9 +19,11 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, path.resolve(__dirname, "../.."), "");
 
   return {
-    plugins: [react(), tsconfigPaths(), createPosthogPlugin(env, "posthog-code-renderer")].filter(
-      Boolean,
-    ),
+    plugins: [
+      react(),
+      tsconfigPaths(),
+      createPosthogPlugin(env, "posthog-code-renderer"),
+    ].filter(Boolean),
     build: {
       sourcemap: true,
     },
