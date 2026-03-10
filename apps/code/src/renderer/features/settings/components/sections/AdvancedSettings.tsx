@@ -17,7 +17,7 @@ export function AdvancedSettings() {
     <Flex direction="column">
       <SettingRow
         label="Clear application storage"
-        description="This will remove all locally stored application data."
+        description="This will remove all locally stored application data"
         noBorder={!showDebugLogsToggle}
       >
         <Button
@@ -32,7 +32,7 @@ export function AdvancedSettings() {
       {showDebugLogsToggle && (
         <SettingRow
           label="Debug logs for cloud runs"
-          description="Show debug-level console output in the conversation view for cloud-executed runs."
+          description="Show debug-level console output in the conversation view for cloud-executed runs"
           noBorder
         >
           <Switch

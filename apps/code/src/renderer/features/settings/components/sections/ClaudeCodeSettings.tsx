@@ -170,7 +170,7 @@ export function ClaudeCodeSettings() {
 
       <SettingRow
         label="Permission rules"
-        description="Tool permissions from your Claude settings. Allowed tools run without prompting. Denied tools are always blocked."
+        description="Tool permissions from your Claude settings. Allowed tools run without prompting. Denied tools are always blocked"
       >
         <CopyableCommand command="claude config" />
       </SettingRow>
@@ -179,7 +179,7 @@ export function ClaudeCodeSettings() {
 
       <SettingRow
         label="Bypass Permissions mode"
-        description="Skips all permission rules. PostHog Code will run every tool without asking for approval."
+        description="Skips all permission rules. PostHog Code will run every tool without asking for approval"
         noBorder
       >
         <Switch

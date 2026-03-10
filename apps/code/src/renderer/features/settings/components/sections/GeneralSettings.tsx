@@ -366,7 +366,7 @@ export function GeneralSettings() {
 
       <SettingRow
         label="Terminal font"
-        description="Uses locally installed fonts. Nerd fonts are recommended for prompt glyphs."
+        description="Uses locally installed fonts. Nerd fonts are recommended for prompt glyphs"
         noBorder={terminalFontSelection !== CUSTOM_TERMINAL_FONT_VALUE}
       >
         <Select.Root
@@ -518,7 +518,7 @@ export function GeneralSettings() {
 
       <SettingRow
         label="Send messages with"
-        description="Choose which key combination sends messages. Use Shift+Enter for new lines."
+        description="Choose which key combination sends messages. Use Shift+Enter for new lines"
       >
         <Select.Root
           value={sendMessagesWith}
