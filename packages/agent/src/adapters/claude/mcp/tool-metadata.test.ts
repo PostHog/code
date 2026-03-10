@@ -11,7 +11,6 @@ describe("isMcpToolReadOnly", () => {
 
   it("returns true for known PostHog read-only tools", () => {
     const readOnlyTools = [
-      "mcp__posthog__execute-sql",
       "mcp__posthog__read-data-schema",
       "mcp__posthog__read-data-warehouse-schema",
       "mcp__posthog__dashboard-get",
@@ -42,6 +41,7 @@ describe("isMcpToolReadOnly", () => {
 
   it("returns false for PostHog mutating tools", () => {
     const mutatingTools = [
+      "mcp__posthog__execute-sql",
       "mcp__posthog__create-feature-flag",
       "mcp__posthog__delete-feature-flag",
       "mcp__posthog__update-feature-flag",
