@@ -16,6 +16,7 @@ import {
   Text,
   TextField,
 } from "@radix-ui/themes";
+import { trpcReact } from "@renderer/trpc";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useSettingsStore as useTerminalSettingsStore } from "@stores/settingsStore";
@@ -58,6 +59,31 @@ export function GeneralSettings() {
   );
   const setTerminalFontFamily = useTerminalSettingsStore(
     (state) => state.setTerminalFontFamily,
+  );
+
+  // Power state
+  const { preventSleepWhileRunning, setPreventSleepWhileRunning } =
+    useSettingsStore();
+  const { data: serverPreventSleep } = trpcReact.sleep.getEnabled.useQuery();
+  const preventSleepMutation = trpcReact.sleep.setEnabled.useMutation();
+
+  useEffect(() => {
+    if (serverPreventSleep !== undefined) {
+      setPreventSleepWhileRunning(serverPreventSleep);
+    }
+  }, [serverPreventSleep, setPreventSleepWhileRunning]);
+
+  const handlePreventSleepChange = useCallback(
+    (checked: boolean) => {
+      track(ANALYTICS_EVENTS.SETTING_CHANGED, {
+        setting_name: "prevent_sleep_while_running",
+        new_value: checked,
+        old_value: !checked,
+      });
+      setPreventSleepWhileRunning(checked);
+      preventSleepMutation.mutate({ enabled: checked });
+    },
+    [setPreventSleepWhileRunning, preventSleepMutation],
   );
 
   // Chat state
@@ -535,6 +561,22 @@ export function GeneralSettings() {
             <Select.Item value="last-active-pane">Last active pane</Select.Item>
           </Select.Content>
         </Select.Root>
+      </SettingRow>
+
+      {/* Power */}
+      <Text size="2" weight="medium" className="mt-4 mb-2">
+        Power
+      </Text>
+
+      <SettingRow
+        label="Keep awake while agents work"
+        description="Prevent your computer from sleeping while the agent is running a task"
+      >
+        <Switch
+          checked={preventSleepWhileRunning}
+          onCheckedChange={handlePreventSleepChange}
+          size="1"
+        />
       </SettingRow>
 
       {/* Fun */}

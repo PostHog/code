@@ -12,10 +12,10 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { Tooltip } from "@renderer/components/ui/Tooltip";
-import { trpcReact } from "@renderer/trpc";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { track } from "@utils/analytics";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { PermissionsSettings } from "./PermissionsSettings";
 
 function CopyableCommand({ command }: { command: string }) {
   const [copied, setCopied] = useState(false);
@@ -72,36 +72,10 @@ function SettingDescription({
 }
 
 export function ClaudeCodeSettings() {
-  const {
-    allowBypassPermissions,
-    setAllowBypassPermissions,
-    preventSleepWhileRunning,
-    setPreventSleepWhileRunning,
-  } = useSettingsStore();
-
-  const { data: serverPreventSleep } = trpcReact.sleep.getEnabled.useQuery();
-  const preventSleepMutation = trpcReact.sleep.setEnabled.useMutation();
-
-  useEffect(() => {
-    if (serverPreventSleep !== undefined) {
-      setPreventSleepWhileRunning(serverPreventSleep);
-    }
-  }, [serverPreventSleep, setPreventSleepWhileRunning]);
+  const { allowBypassPermissions, setAllowBypassPermissions } =
+    useSettingsStore();
 
   const [showBypassWarning, setShowBypassWarning] = useState(false);
-
-  const handlePreventSleepChange = useCallback(
-    (checked: boolean) => {
-      track(ANALYTICS_EVENTS.SETTING_CHANGED, {
-        setting_name: "prevent_sleep_while_running",
-        new_value: checked,
-        old_value: !checked,
-      });
-      setPreventSleepWhileRunning(checked);
-      preventSleepMutation.mutate({ enabled: checked });
-    },
-    [setPreventSleepWhileRunning, preventSleepMutation],
-  );
 
   const handleBypassPermissionsChange = useCallback(
     (checked: boolean) => {
@@ -131,38 +105,10 @@ export function ClaudeCodeSettings() {
 
   return (
     <Flex direction="column">
-      <SettingRow
-        label="Keep awake while agents work"
-        description="Prevent your computer from sleeping while the agent is running a task"
-      >
-        <Switch
-          checked={preventSleepWhileRunning}
-          onCheckedChange={handlePreventSleepChange}
-          size="1"
-        />
-      </SettingRow>
-
-      <SettingRow
-        label="Enable Bypass Permissions mode"
-        description="Enables 'Bypass Permissions' mode in the execution mode selector. When active, PostHog Code will not ask for approval before running potentially dangerous commands."
-      >
-        <Switch
-          checked={allowBypassPermissions}
-          onCheckedChange={handleBypassPermissionsChange}
-          size="1"
-          color="red"
-        />
-      </SettingRow>
-      {allowBypassPermissions && (
-        <Callout.Root size="1" color="red" mb="3">
-          <Callout.Icon>
-            <Warning weight="fill" />
-          </Callout.Icon>
-          <Callout.Text>
-            Bypass Permissions mode is enabled. Use with extreme caution.
-          </Callout.Text>
-        </Callout.Root>
-      )}
+      {/* Extensions */}
+      <Text size="2" weight="medium" className="mt-1 mb-2">
+        Extensions
+      </Text>
 
       <SettingRow
         label="MCP servers"
@@ -212,6 +158,35 @@ export function ClaudeCodeSettings() {
       >
         <CopyableCommand command="claude /hooks" />
       </SettingRow>
+
+      {/* Permissions */}
+      <Text size="2" weight="medium" className="mt-5 mb-2">
+        Permissions
+      </Text>
+
+      <SettingRow
+        label="Enable Bypass Permissions mode"
+        description="Enables 'Bypass Permissions' mode in the execution mode selector. When active, PostHog Code will not ask for approval before running potentially dangerous commands."
+      >
+        <Switch
+          checked={allowBypassPermissions}
+          onCheckedChange={handleBypassPermissionsChange}
+          size="1"
+          color="red"
+        />
+      </SettingRow>
+      {allowBypassPermissions && (
+        <Callout.Root size="1" color="red" mb="3">
+          <Callout.Icon>
+            <Warning weight="fill" />
+          </Callout.Icon>
+          <Callout.Text>
+            Bypass Permissions mode is enabled. Use with extreme caution.
+          </Callout.Text>
+        </Callout.Root>
+      )}
+
+      <PermissionsSettings />
 
       <AlertDialog.Root
         open={showBypassWarning}
