@@ -7,6 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export function createPosthogPlugin(
   env: Record<string, string>,
+  project: string,
 ): Plugin | null {
   if (!env.POSTHOG_SOURCEMAP_API_KEY || !env.POSTHOG_ENV_ID) {
     return null;
@@ -16,7 +17,7 @@ export function createPosthogPlugin(
     envId: env.POSTHOG_ENV_ID,
     host: env.POSTHOG_HOST,
     sourcemaps: {
-      team: "posthog-code",
+      project,
       deleteAfterUpload: true,
     },
   });

@@ -469,7 +469,7 @@ export default defineConfig(({ mode }) => {
       copyPosthogPlugin(isDev),
       copyDrizzleMigrations(),
       copyCodexAcpBinaries(),
-      createPosthogPlugin(env),
+      createPosthogPlugin(env, "posthog-code-main"),
     ].filter(Boolean),
     define: {
       __BUILD_COMMIT__: JSON.stringify(getGitCommit()),
