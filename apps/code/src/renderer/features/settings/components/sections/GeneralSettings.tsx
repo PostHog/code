@@ -550,8 +550,8 @@ export function GeneralSettings() {
           <Select.Content>
             <Select.Item value="off">Off</Select.Item>
             <Select.Item value="500">500 chars</Select.Item>
-            <Select.Item value="1000">1000 chars</Select.Item>
-            <Select.Item value="2500">2500 chars</Select.Item>
+            <Select.Item value="1000">1,000 chars</Select.Item>
+            <Select.Item value="2500">2,500 chars</Select.Item>
           </Select.Content>
         </Select.Root>
       </SettingRow>

@@ -95,8 +95,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setDockBounceNotifications: (enabled) =>
         set({ dockBounceNotifications: enabled }),
 
-      setAutoConvertLongText: (value) =>
-        set({ autoConvertLongText: value }),
+      setAutoConvertLongText: (value) => set({ autoConvertLongText: value }),
       setSendMessagesWith: (mode) => set({ sendMessagesWith: mode }),
       setAllowBypassPermissions: (enabled) =>
         set({ allowBypassPermissions: enabled }),
@@ -139,10 +138,8 @@ export const useSettingsStore = create<SettingsStore>()(
           ...(persisted as Partial<SettingsStore>),
         };
         if (typeof merged.autoConvertLongText === "boolean") {
-          (merged as Record<string, unknown>).autoConvertLongText = merged
-            .autoConvertLongText
-            ? "1000"
-            : "off";
+          (merged as Record<string, unknown>).autoConvertLongText =
+            merged.autoConvertLongText ? "1000" : "off";
         }
         return merged;
       },
