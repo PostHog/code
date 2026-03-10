@@ -88,7 +88,33 @@ function downscaleImage(raw: Buffer, mimeType: string): DownscaledImage {
   };
 }
 
+const claudeSettingsPath = path.join(os.homedir(), ".claude", "settings.json");
+
 export const osRouter = router({
+  getClaudePermissions: publicProcedure
+    .output(
+      z.object({
+        allow: z.array(z.string()),
+        deny: z.array(z.string()),
+      }),
+    )
+    .query(async () => {
+      try {
+        const content = await fsPromises.readFile(claudeSettingsPath, "utf-8");
+        const settings = JSON.parse(content);
+        return {
+          allow: Array.isArray(settings?.permissions?.allow)
+            ? settings.permissions.allow
+            : [],
+          deny: Array.isArray(settings?.permissions?.deny)
+            ? settings.permissions.deny
+            : [],
+        };
+      } catch {
+        return { allow: [], deny: [] };
+      }
+    }),
+
   /**
    * Show directory picker dialog
    */

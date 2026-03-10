@@ -16,6 +16,7 @@ import {
   Text,
   TextField,
 } from "@radix-ui/themes";
+import { trpcReact } from "@renderer/trpc";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useSettingsStore as useTerminalSettingsStore } from "@stores/settingsStore";
@@ -58,6 +59,31 @@ export function GeneralSettings() {
   );
   const setTerminalFontFamily = useTerminalSettingsStore(
     (state) => state.setTerminalFontFamily,
+  );
+
+  // Power state
+  const { preventSleepWhileRunning, setPreventSleepWhileRunning } =
+    useSettingsStore();
+  const { data: serverPreventSleep } = trpcReact.sleep.getEnabled.useQuery();
+  const preventSleepMutation = trpcReact.sleep.setEnabled.useMutation();
+
+  useEffect(() => {
+    if (serverPreventSleep !== undefined) {
+      setPreventSleepWhileRunning(serverPreventSleep);
+    }
+  }, [serverPreventSleep, setPreventSleepWhileRunning]);
+
+  const handlePreventSleepChange = useCallback(
+    (checked: boolean) => {
+      track(ANALYTICS_EVENTS.SETTING_CHANGED, {
+        setting_name: "prevent_sleep_while_running",
+        new_value: checked,
+        old_value: !checked,
+      });
+      setPreventSleepWhileRunning(checked);
+      preventSleepMutation.mutate({ enabled: checked });
+    },
+    [setPreventSleepWhileRunning, preventSleepMutation],
   );
 
   // Chat state
@@ -381,7 +407,11 @@ export function GeneralSettings() {
       )}
 
       {/* Notifications */}
-      <Text size="2" weight="medium" className="mt-4 mb-2">
+      <Text
+        size="2"
+        weight="medium"
+        className="mb-2 block border-gray-6 border-t pt-4"
+      >
         Notifications
       </Text>
 
@@ -430,6 +460,7 @@ export function GeneralSettings() {
       <SettingRow
         label="Sound effect"
         description="Play a sound when the agent finishes a task or needs your input"
+        noBorder={completionSound === "none"}
       >
         <Flex align="center" gap="2">
           <Select.Root
@@ -457,7 +488,7 @@ export function GeneralSettings() {
       </SettingRow>
 
       {completionSound !== "none" && (
-        <SettingRow label="Sound volume">
+        <SettingRow label="Sound volume" noBorder>
           <Flex align="center" gap="3">
             <Slider
               value={[completionVolume]}
@@ -476,7 +507,11 @@ export function GeneralSettings() {
       )}
 
       {/* Input */}
-      <Text size="2" weight="medium" className="mt-4 mb-2">
+      <Text
+        size="2"
+        weight="medium"
+        className="mb-2 block border-gray-6 border-t pt-4"
+      >
         Input
       </Text>
 
@@ -502,6 +537,7 @@ export function GeneralSettings() {
       <SettingRow
         label="Auto-convert long text"
         description="Automatically convert pasted text over 500 characters into an attachment"
+        noBorder
       >
         <Switch
           checked={autoConvertLongText}
@@ -511,7 +547,11 @@ export function GeneralSettings() {
       </SettingRow>
 
       {/* Editor */}
-      <Text size="2" weight="medium" className="mt-4 mb-2">
+      <Text
+        size="2"
+        weight="medium"
+        className="mb-2 block border-gray-6 border-t pt-4"
+      >
         Editor
       </Text>
 
@@ -537,8 +577,33 @@ export function GeneralSettings() {
         </Select.Root>
       </SettingRow>
 
+      {/* Power */}
+      <Text
+        size="2"
+        weight="medium"
+        className="mb-2 block border-gray-6 border-t pt-4"
+      >
+        Power
+      </Text>
+
+      <SettingRow
+        label="Keep awake while agents work"
+        description="Prevent your computer from sleeping while the agent is running a task"
+        noBorder
+      >
+        <Switch
+          checked={preventSleepWhileRunning}
+          onCheckedChange={handlePreventSleepChange}
+          size="1"
+        />
+      </SettingRow>
+
       {/* Fun */}
-      <Text size="2" weight="medium" className="mt-4 mb-2">
+      <Text
+        size="2"
+        weight="medium"
+        className="mb-2 block border-gray-6 border-t pt-4"
+      >
         Fun
       </Text>
 
