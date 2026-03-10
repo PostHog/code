@@ -252,7 +252,10 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
       >
         <AttachmentsBar attachments={attachments} onRemove={removeAttachment} />
 
-        <div className="max-h-[200px] min-h-[50px] flex-1 overflow-y-auto font-mono text-sm">
+        <div
+          className="max-h-[200px] min-h-[50px] flex-1 overflow-y-auto font-mono text-sm"
+          style={{ position: "relative" }}
+        >
           <EditorContent editor={editor} />
         </div>
 
@@ -265,12 +268,12 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
               onAttachFiles={onAttachFiles}
             />
             {isBashMode && (
-              <Text size="1" className="font-mono text-accent-11">
+              <Text size="1" className="ml-2 font-mono text-accent-11">
                 bash mode
               </Text>
             )}
           </Flex>
-          <Flex gap="4" align="center">
+          <Flex gap="2" align="center">
             {isLoading && onCancel ? (
               <Tooltip content="Stop">
                 <IconButton

@@ -157,7 +157,12 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
             const isAtStart = from === 1;
             const isAtEnd = from === view.state.doc.content.size - 1;
 
-            if (event.key === "ArrowUp" && (isEmpty || isAtStart)) {
+            const forceNavigate = event.shiftKey;
+
+            if (
+              event.key === "ArrowUp" &&
+              (forceNavigate || isEmpty || isAtStart)
+            ) {
               const queuedContent =
                 sessionStoreSetters.dequeueMessagesAsText(taskId);
               if (queuedContent !== null && queuedContent !== undefined) {
@@ -182,7 +187,10 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
               }
             }
 
-            if (event.key === "ArrowDown" && (isEmpty || isAtEnd)) {
+            if (
+              event.key === "ArrowDown" &&
+              (forceNavigate || isEmpty || isAtEnd)
+            ) {
               const newText = historyActions.navigateDown(taskId);
               if (newText !== null) {
                 event.preventDefault();

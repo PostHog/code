@@ -138,6 +138,20 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
     context: "Task detail",
   },
   {
+    id: "prompt-history-prev",
+    keys: "shift+up",
+    description: "Previous prompt",
+    category: "editor",
+    context: "Message editor",
+  },
+  {
+    id: "prompt-history-next",
+    keys: "shift+down",
+    description: "Next prompt",
+    category: "editor",
+    context: "Message editor",
+  },
+  {
     id: "editor-bold",
     keys: "mod+b",
     description: "Bold",
