@@ -1,40 +1,5 @@
-import { Check, Copy } from "@phosphor-icons/react";
-import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
-import { Tooltip } from "@renderer/components/ui/Tooltip";
+import { Box, Flex, Text } from "@radix-ui/themes";
 import { trpcReact } from "@renderer/trpc";
-import { useCallback, useState } from "react";
-
-function CopyableCommand({ command }: { command: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(command);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [command]);
-
-  return (
-    <Flex
-      align="center"
-      gap="2"
-      className="rounded border border-gray-6 bg-gray-2 px-2 py-1"
-    >
-      <Text size="1" className="font-mono text-gray-11">
-        {command}
-      </Text>
-      <Tooltip content={copied ? "Copied!" : "Copy"}>
-        <IconButton
-          variant="ghost"
-          size="1"
-          color={copied ? "green" : "gray"}
-          onClick={handleCopy}
-        >
-          {copied ? <Check size={12} /> : <Copy size={12} />}
-        </IconButton>
-      </Tooltip>
-    </Flex>
-  );
-}
 
 function PermissionBadge({
   permission,
@@ -109,12 +74,6 @@ export function PermissionsSettings() {
         emptyMessage="No denied permissions configured"
       />
 
-      <Flex align="center" gap="2">
-        <Text size="1" color="gray">
-          Modify permissions with
-        </Text>
-        <CopyableCommand command="claude config" />
-      </Flex>
     </Flex>
   );
 }

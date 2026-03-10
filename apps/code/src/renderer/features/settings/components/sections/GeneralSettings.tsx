@@ -456,6 +456,7 @@ export function GeneralSettings() {
       <SettingRow
         label="Sound effect"
         description="Play a sound when the agent finishes a task or needs your input"
+        noBorder={completionSound === "none"}
       >
         <Flex align="center" gap="2">
           <Select.Root
@@ -483,7 +484,7 @@ export function GeneralSettings() {
       </SettingRow>
 
       {completionSound !== "none" && (
-        <SettingRow label="Sound volume">
+        <SettingRow label="Sound volume" noBorder>
           <Flex align="center" gap="3">
             <Slider
               value={[completionVolume]}
@@ -528,6 +529,7 @@ export function GeneralSettings() {
       <SettingRow
         label="Auto-convert long text"
         description="Automatically convert pasted text over 500 characters into an attachment"
+        noBorder
       >
         <Switch
           checked={autoConvertLongText}
@@ -571,6 +573,7 @@ export function GeneralSettings() {
       <SettingRow
         label="Keep awake while agents work"
         description="Prevent your computer from sleeping while the agent is running a task"
+        noBorder
       >
         <Switch
           checked={preventSleepWhileRunning}
