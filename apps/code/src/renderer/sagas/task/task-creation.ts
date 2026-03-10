@@ -50,6 +50,9 @@ async function generateTaskTitle(
     queryClient.setQueriesData<Task[]>({ queryKey: ["tasks", "list"] }, (old) =>
       old?.map((task) => (task.id === taskId ? { ...task, title } : task)),
     );
+
+    // Sync to session store so notifications use the updated title
+    getSessionService().updateSessionTaskTitle(taskId, title);
   } catch (error) {
     log.error("Failed to save task title", { taskId, error });
   }

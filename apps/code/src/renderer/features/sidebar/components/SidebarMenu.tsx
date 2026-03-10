@@ -1,5 +1,6 @@
 import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
 import { useInboxReports } from "@features/inbox/hooks/useInboxReports";
+import { getSessionService } from "@features/sessions/service/service";
 import { useArchiveTask } from "@features/tasks/hooks/useArchiveTask";
 import { useTasks, useUpdateTask } from "@features/tasks/hooks/useTasks";
 import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
@@ -124,6 +125,9 @@ function SidebarMenuComponent() {
               : task,
           ),
       );
+
+      // Sync to session store so notifications use the updated title
+      getSessionService().updateSessionTaskTitle(taskId, newTitle);
 
       try {
         await updateTask.mutateAsync({

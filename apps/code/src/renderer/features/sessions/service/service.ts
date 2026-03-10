@@ -1746,7 +1746,7 @@ export class SessionService {
       );
   }
 
-  public updateCloudTaskTitle(taskId: string, taskTitle: string): void {
+  public updateSessionTaskTitle(taskId: string, taskTitle: string): void {
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) return;
 

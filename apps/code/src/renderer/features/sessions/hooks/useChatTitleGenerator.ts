@@ -81,7 +81,7 @@ export function useChatTitleGenerator(taskId: string): void {
                   task.id === taskId ? { ...task, title } : task,
                 ),
             );
-            getSessionService().updateCloudTaskTitle(taskId, title);
+            getSessionService().updateSessionTaskTitle(taskId, title);
             log.debug("Updated task title from conversation", {
               taskId,
               title,

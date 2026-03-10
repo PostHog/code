@@ -135,7 +135,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   // Keep cloud session title aligned with latest task metadata.
   useEffect(() => {
     if (!isCloud) return;
-    getSessionService().updateCloudTaskTitle(
+    getSessionService().updateSessionTaskTitle(
       task.id,
       task.title || task.description || "Cloud Task",
     );
