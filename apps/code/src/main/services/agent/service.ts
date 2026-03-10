@@ -669,10 +669,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
           userDataDir: app.getPath("userData"),
           repoPath,
         });
-        log.info("Discovered external plugins", {
-          count: externalPlugins.length,
-          paths: externalPlugins.map((p) => p.path),
-        });
       } catch (err) {
         log.warn("Failed to discover external plugins", {
           error: err instanceof Error ? err.message : String(err),
