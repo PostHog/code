@@ -4,7 +4,7 @@ import {
   PencilSimple,
 } from "@phosphor-icons/react";
 import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CodePreview } from "./CodePreview";
 import { FileMentionChip } from "./FileMentionChip";
 import {
@@ -73,6 +73,12 @@ export function EditToolView({
 
   const isPlanFile = filePath.includes("claude/plans/");
   const [isExpanded, setIsExpanded] = useState(!isPlanFile);
+
+  useEffect(() => {
+    if (isPlanFile) {
+      setIsExpanded(false);
+    }
+  }, [isPlanFile]);
 
   return (
     <Box className="max-w-4xl overflow-hidden rounded-lg border border-gray-6">
