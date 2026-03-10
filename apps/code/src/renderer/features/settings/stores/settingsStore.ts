@@ -8,6 +8,7 @@ export type LocalWorkspaceMode = "worktree" | "local";
 export type SendMessagesWith = "enter" | "cmd+enter";
 export type CompletionSound = "none" | "guitar" | "danilo" | "revi" | "meep";
 export type AgentAdapter = "claude" | "codex";
+export type AutoConvertLongText = "off" | "500" | "1000" | "2500";
 export type DiffOpenMode = "auto" | "split" | "same-pane" | "last-active-pane";
 
 interface SettingsStore {
@@ -21,7 +22,7 @@ interface SettingsStore {
   dockBadgeNotifications: boolean;
   dockBounceNotifications: boolean;
 
-  autoConvertLongText: boolean;
+  autoConvertLongText: AutoConvertLongText;
   completionSound: CompletionSound;
   completionVolume: number;
   sendMessagesWith: SendMessagesWith;
@@ -44,7 +45,7 @@ interface SettingsStore {
   setDockBadgeNotifications: (enabled: boolean) => void;
   setDockBounceNotifications: (enabled: boolean) => void;
 
-  setAutoConvertLongText: (enabled: boolean) => void;
+  setAutoConvertLongText: (value: AutoConvertLongText) => void;
   setSendMessagesWith: (mode: SendMessagesWith) => void;
   setAllowBypassPermissions: (enabled: boolean) => void;
   setPreventSleepWhileRunning: (enabled: boolean) => void;
@@ -69,7 +70,7 @@ export const useSettingsStore = create<SettingsStore>()(
       completionSound: "none",
       completionVolume: 80,
 
-      autoConvertLongText: true,
+      autoConvertLongText: "1000",
       sendMessagesWith: "enter",
       allowBypassPermissions: false,
       preventSleepWhileRunning: false,
@@ -94,8 +95,8 @@ export const useSettingsStore = create<SettingsStore>()(
       setDockBounceNotifications: (enabled) =>
         set({ dockBounceNotifications: enabled }),
 
-      setAutoConvertLongText: (enabled) =>
-        set({ autoConvertLongText: enabled }),
+      setAutoConvertLongText: (value) =>
+        set({ autoConvertLongText: value }),
       setSendMessagesWith: (mode) => set({ sendMessagesWith: mode }),
       setAllowBypassPermissions: (enabled) =>
         set({ allowBypassPermissions: enabled }),
@@ -132,10 +133,19 @@ export const useSettingsStore = create<SettingsStore>()(
         diffOpenMode: state.diffOpenMode,
         hedgehogMode: state.hedgehogMode,
       }),
-      merge: (persisted, current) => ({
-        ...current,
-        ...(persisted as Partial<SettingsStore>),
-      }),
+      merge: (persisted, current) => {
+        const merged = {
+          ...current,
+          ...(persisted as Partial<SettingsStore>),
+        };
+        if (typeof merged.autoConvertLongText === "boolean") {
+          (merged as Record<string, unknown>).autoConvertLongText = merged
+            .autoConvertLongText
+            ? "1000"
+            : "off";
+        }
+        return merged;
+      },
     },
   ),
 );

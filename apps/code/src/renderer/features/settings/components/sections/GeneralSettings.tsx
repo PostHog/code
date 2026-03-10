@@ -1,6 +1,7 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { SettingRow } from "@features/settings/components/SettingRow";
 import {
+  type AutoConvertLongText,
   type CompletionSound,
   type DiffOpenMode,
   type SendMessagesWith,
@@ -285,13 +286,13 @@ export function GeneralSettings() {
   }, [completionSound, completionVolume]);
 
   const handleAutoConvertLongTextChange = useCallback(
-    (checked: boolean) => {
+    (value: AutoConvertLongText) => {
       track(ANALYTICS_EVENTS.SETTING_CHANGED, {
         setting_name: "auto_convert_long_text",
-        new_value: checked,
+        new_value: value,
         old_value: autoConvertLongText,
       });
-      setAutoConvertLongText(checked);
+      setAutoConvertLongText(value);
     },
     [autoConvertLongText, setAutoConvertLongText],
   );
@@ -536,14 +537,23 @@ export function GeneralSettings() {
 
       <SettingRow
         label="Auto-convert long text"
-        description="Automatically convert pasted text over 500 characters into an attachment"
-        noBorder
+        description="Automatically convert pasted text over this length into an attachment"
       >
-        <Switch
-          checked={autoConvertLongText}
-          onCheckedChange={handleAutoConvertLongTextChange}
+        <Select.Root
+          value={autoConvertLongText}
+          onValueChange={(value) =>
+            handleAutoConvertLongTextChange(value as AutoConvertLongText)
+          }
           size="1"
-        />
+        >
+          <Select.Trigger style={{ minWidth: "120px" }} />
+          <Select.Content>
+            <Select.Item value="off">Off</Select.Item>
+            <Select.Item value="500">500 chars</Select.Item>
+            <Select.Item value="1000">1000 chars</Select.Item>
+            <Select.Item value="2500">2500 chars</Select.Item>
+          </Select.Content>
+        </Select.Root>
       </SettingRow>
 
       {/* Editor */}
