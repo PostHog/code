@@ -32,7 +32,8 @@ import { discoverExternalPlugins } from "./discover-plugins.js";
 
 const USER_DATA_DIR = "/mock/userData";
 const USER_SKILLS_DIR = "/mock/home/.claude/skills";
-const INSTALLED_PLUGINS_PATH = "/mock/home/.claude/plugins/installed_plugins.json";
+const INSTALLED_PLUGINS_PATH =
+  "/mock/home/.claude/plugins/installed_plugins.json";
 
 function createSkillDir(basePath: string, skillName: string) {
   const skillPath = `${basePath}/${skillName}`;
@@ -149,9 +150,7 @@ describe("discoverExternalPlugins", () => {
       const installedPlugins = {
         version: 1,
         plugins: {
-          "my-plugin": [
-            { scope: "global", installPath, version: "1.0.0" },
-          ],
+          "my-plugin": [{ scope: "global", installPath, version: "1.0.0" }],
         },
       };
 
@@ -216,10 +215,7 @@ describe("discoverExternalPlugins", () => {
 
     it("returns empty when plugins field is missing", async () => {
       vol.mkdirSync("/mock/home/.claude/plugins", { recursive: true });
-      vol.writeFileSync(
-        INSTALLED_PLUGINS_PATH,
-        JSON.stringify({ version: 1 }),
-      );
+      vol.writeFileSync(INSTALLED_PLUGINS_PATH, JSON.stringify({ version: 1 }));
 
       const result = await discoverExternalPlugins({
         userDataDir: USER_DATA_DIR,
