@@ -26,6 +26,7 @@ import type { AcpMessage } from "@shared/types/session-events.js";
 import { app } from "electron";
 import { inject, injectable, preDestroy } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
+import { isDevBuild } from "../../utils/env.js";
 import { logger } from "../../utils/logger.js";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import type { FsService } from "../fs/service.js";
@@ -47,7 +48,12 @@ export type { InterruptReason };
 
 const log = logger.scope("agent-service");
 
-const SHARED_MOCK_NODE_DIR = join(tmpdir(), "agent-node-shared");
+const MOCK_NODE_DIR_PREFIX = "agent-node";
+
+function getMockNodeDir(): string {
+  const suffix = isDevBuild() ? "dev" : "prod";
+  return join(tmpdir(), `${MOCK_NODE_DIR_PREFIX}-${suffix}`);
+}
 
 /** Mark all content blocks as hidden so the renderer doesn't show a duplicate user message on retry. */
 function hidePromptBlocks(prompt: ContentBlock[]): ContentBlock[] {
@@ -607,7 +613,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       },
       skipLogPersistence: isPreview,
       localCachePath: join(app.getPath("home"), ".posthog-code"),
-      debug: !app.isPackaged,
+      debug: isDevBuild(),
       onLog: onAgentLog,
     });
 
@@ -1146,10 +1152,11 @@ For git operations while detached:
   }
 
   private setupMockNodeEnvironment(): string {
+    const mockNodeDir = getMockNodeDir();
     if (!this.mockNodeReady) {
       try {
-        mkdirSync(SHARED_MOCK_NODE_DIR, { recursive: true });
-        const nodeSymlinkPath = join(SHARED_MOCK_NODE_DIR, "node");
+        mkdirSync(mockNodeDir, { recursive: true });
+        const nodeSymlinkPath = join(mockNodeDir, "node");
         try {
           symlinkSync(process.execPath, nodeSymlinkPath);
         } catch (err) {
@@ -1166,7 +1173,7 @@ For git operations while detached:
         log.warn("Failed to setup mock node environment", err);
       }
     }
-    return SHARED_MOCK_NODE_DIR;
+    return mockNodeDir;
   }
 
   private async cleanupSession(taskRunId: string): Promise<void> {

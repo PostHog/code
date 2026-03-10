@@ -4,6 +4,7 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { app, net } from "electron";
 import { injectable, postConstruct, preDestroy } from "inversify";
+import { isDevBuild } from "../../utils/env.js";
 import { logger } from "../../utils/logger.js";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import { captureException } from "../posthog-analytics.js";
@@ -93,7 +94,7 @@ export class PosthogPluginService extends TypedEventEmitter<PosthogPluginEvents>
    * - Fallback: bundled plugin path.
    */
   getPluginPath(): string {
-    if (!app.isPackaged) {
+    if (isDevBuild()) {
       return this.bundledPluginDir;
     }
 
