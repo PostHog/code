@@ -1,3 +1,4 @@
+import { isOtherOption } from "@components/action-selector/constants";
 import { PermissionSelector } from "@components/permissions/PermissionSelector";
 import {
   MessageEditor,
@@ -236,7 +237,7 @@ export function SessionView({
       }
 
       if (customInput) {
-        if (optionId === "other") {
+        if (isOtherOption(optionId)) {
           await getSessionService().respondToPermission(
             taskId,
             firstPendingPermission.toolCallId,
@@ -275,6 +276,7 @@ export function SessionView({
       taskId,
       firstPendingPermission.toolCallId,
     );
+    await getSessionService().cancelPrompt(taskId);
     requestFocus(sessionId);
   }, [firstPendingPermission, taskId, requestFocus, sessionId]);
 

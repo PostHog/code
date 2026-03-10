@@ -16,7 +16,7 @@ const log = logger.scope("github-integration-service");
 
 const PROTOCOL = "posthog-code";
 const TIMEOUT_MS = 300_000; // 5 minutes
-const DEV_CALLBACK_PORT = 8238; // Different from OAuth's 8237
+const DEV_CALLBACK_PORT = 8239; // Different from OAuth's 8237 and MCP's 8238
 
 // Use HTTP callback in development, deep link in production
 const IS_DEV = process.defaultApp || false;
