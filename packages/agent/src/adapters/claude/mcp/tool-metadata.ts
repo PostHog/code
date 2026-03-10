@@ -7,7 +7,7 @@ export interface McpToolMetadata {
   description?: string;
 }
 
-const POSTHOG_READ_ONLY_TOOLS: Set<string> = new Set([
+export const POSTHOG_READ_ONLY_TOOLS: Set<string> = new Set([
   "mcp__posthog__read-data-schema",
   "mcp__posthog__read-data-warehouse-schema",
   "mcp__posthog__dashboard-get",

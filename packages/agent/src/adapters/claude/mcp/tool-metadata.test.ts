@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   clearMcpToolMetadataCache,
   isMcpToolReadOnly,
+  POSTHOG_READ_ONLY_TOOLS,
 } from "./tool-metadata.js";
 
 describe("isMcpToolReadOnly", () => {
@@ -9,30 +10,9 @@ describe("isMcpToolReadOnly", () => {
     clearMcpToolMetadataCache();
   });
 
-  it("returns true for known PostHog read-only tools", () => {
-    const readOnlyTools = [
-      "mcp__posthog__read-data-schema",
-      "mcp__posthog__read-data-warehouse-schema",
-      "mcp__posthog__dashboard-get",
-      "mcp__posthog__dashboards-get-all",
-      "mcp__posthog__docs-search",
-      "mcp__posthog__error-details",
-      "mcp__posthog__list-errors",
-      "mcp__posthog__experiment-results-get",
-      "mcp__posthog__insight-query",
-      "mcp__posthog__get-llm-total-costs-for-project",
-      "mcp__posthog__organization-details-get",
-      "mcp__posthog__organizations-get",
-      "mcp__posthog__projects-get",
-      "mcp__posthog__surveys-global-stats",
-      "mcp__posthog__survey-stats",
-      "mcp__posthog__logs-query",
-      "mcp__posthog__logs-list-attributes",
-      "mcp__posthog__logs-list-attribute-values",
-      "mcp__posthog__debug-mcp-ui-apps",
-    ];
-
-    for (const tool of readOnlyTools) {
+  it("returns true for all tools in POSTHOG_READ_ONLY_TOOLS", () => {
+    expect(POSTHOG_READ_ONLY_TOOLS.size).toBeGreaterThan(0);
+    for (const tool of POSTHOG_READ_ONLY_TOOLS) {
       expect(isMcpToolReadOnly(tool), `expected ${tool} to be read-only`).toBe(
         true,
       );

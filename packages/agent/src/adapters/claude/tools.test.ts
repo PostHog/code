@@ -66,6 +66,10 @@ describe("isBashCommandReadOnly", () => {
       "cat $(whoami)",
       "cat `whoami`",
       "ls\nrm -rf /",
+      "cat /etc/passwd > /tmp/exfil.txt",
+      "echo malicious >> ~/.bashrc",
+      "sort < file.txt",
+      "ls > out.txt",
     ];
 
     for (const command of commands) {

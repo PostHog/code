@@ -8,7 +8,7 @@ export {
 import type { CodeExecutionMode } from "../../execution-mode.js";
 import { isMcpToolReadOnly } from "./mcp/tool-metadata.js";
 
-const SHELL_OPERATORS = ["&&", "||", ";", "|", "$(", "`", "\n"];
+const SHELL_OPERATORS = ["&&", "||", ";", "|", "$(", "`", "\n", ">>", ">", "<"];
 
 function containsShellOperator(command: string): boolean {
   return SHELL_OPERATORS.some((op) => command.includes(op));
