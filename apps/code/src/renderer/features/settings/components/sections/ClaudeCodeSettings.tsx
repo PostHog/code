@@ -160,7 +160,11 @@ export function ClaudeCodeSettings() {
       </SettingRow>
 
       {/* Permissions */}
-      <Text size="2" weight="medium" className="mb-2 block border-t border-gray-6 pt-4">
+      <Text
+        size="2"
+        weight="medium"
+        className="mb-2 block border-gray-6 border-t pt-4"
+      >
         Permissions
       </Text>
 

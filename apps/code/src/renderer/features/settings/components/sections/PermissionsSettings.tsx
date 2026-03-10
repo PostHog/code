@@ -73,7 +73,6 @@ export function PermissionsSettings() {
         color="red"
         emptyMessage="No denied permissions configured"
       />
-
     </Flex>
   );
 }

@@ -407,7 +407,11 @@ export function GeneralSettings() {
       )}
 
       {/* Notifications */}
-      <Text size="2" weight="medium" className="mb-2 block border-t border-gray-6 pt-4">
+      <Text
+        size="2"
+        weight="medium"
+        className="mb-2 block border-gray-6 border-t pt-4"
+      >
         Notifications
       </Text>
 
@@ -503,7 +507,11 @@ export function GeneralSettings() {
       )}
 
       {/* Input */}
-      <Text size="2" weight="medium" className="mb-2 block border-t border-gray-6 pt-4">
+      <Text
+        size="2"
+        weight="medium"
+        className="mb-2 block border-gray-6 border-t pt-4"
+      >
         Input
       </Text>
 
@@ -539,7 +547,11 @@ export function GeneralSettings() {
       </SettingRow>
 
       {/* Editor */}
-      <Text size="2" weight="medium" className="mb-2 block border-t border-gray-6 pt-4">
+      <Text
+        size="2"
+        weight="medium"
+        className="mb-2 block border-gray-6 border-t pt-4"
+      >
         Editor
       </Text>
 
@@ -566,7 +578,11 @@ export function GeneralSettings() {
       </SettingRow>
 
       {/* Power */}
-      <Text size="2" weight="medium" className="mb-2 block border-t border-gray-6 pt-4">
+      <Text
+        size="2"
+        weight="medium"
+        className="mb-2 block border-gray-6 border-t pt-4"
+      >
         Power
       </Text>
 
@@ -583,7 +599,11 @@ export function GeneralSettings() {
       </SettingRow>
 
       {/* Fun */}
-      <Text size="2" weight="medium" className="mb-2 block border-t border-gray-6 pt-4">
+      <Text
+        size="2"
+        weight="medium"
+        className="mb-2 block border-gray-6 border-t pt-4"
+      >
         Fun
       </Text>
 
