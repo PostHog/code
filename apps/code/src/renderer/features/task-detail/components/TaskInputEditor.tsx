@@ -1,4 +1,5 @@
 import "@features/message-editor/components/message-editor.css";
+import { TourHighlight } from "@components/TourHighlight";
 import { AttachmentsBar } from "@features/message-editor/components/AttachmentsBar";
 import { EditorToolbar } from "@features/message-editor/components/EditorToolbar";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
@@ -26,6 +27,9 @@ interface TaskInputEditorProps {
   previewTaskId?: string;
   onAdapterChange?: (adapter: AgentAdapter) => void;
   isPreviewConnecting?: boolean;
+  autoFocus?: boolean;
+  tourHighlight?: "model-selector" | "submit-button" | null;
+  onModelChange?: (model: string) => void;
 }
 
 export const TaskInputEditor = forwardRef<
@@ -46,6 +50,9 @@ export const TaskInputEditor = forwardRef<
       previewTaskId,
       onAdapterChange,
       isPreviewConnecting,
+      autoFocus = true,
+      tourHighlight,
+      onModelChange,
     },
     ref,
   ) => {
@@ -71,7 +78,7 @@ export const TaskInputEditor = forwardRef<
       disabled: isCreatingTask,
       submitDisabled: !isOnline,
       isLoading: isCreatingTask,
-      autoFocus: true,
+      autoFocus,
       context: { repoPath },
       capabilities: { commands: false, bashMode: false },
       clearOnSubmit: false,
@@ -212,13 +219,16 @@ export const TaskInputEditor = forwardRef<
               iconSize={16}
               hideSelectors
             />
-            <UnifiedModelSelector
-              taskId={previewTaskId}
-              adapter={adapter ?? "claude"}
-              onAdapterChange={onAdapterChange ?? (() => {})}
-              disabled={isCreatingTask}
-              isConnecting={isPreviewConnecting}
-            />
+            <TourHighlight active={tourHighlight === "model-selector"}>
+              <UnifiedModelSelector
+                taskId={previewTaskId}
+                adapter={adapter ?? "claude"}
+                onAdapterChange={onAdapterChange ?? (() => {})}
+                disabled={isCreatingTask}
+                isConnecting={isPreviewConnecting}
+                onModelChange={onModelChange}
+              />
+            </TourHighlight>
             {!isPreviewConnecting && (
               <ReasoningLevelSelector
                 taskId={previewTaskId}
@@ -228,30 +238,32 @@ export const TaskInputEditor = forwardRef<
           </Flex>
 
           <Flex align="center" gap="4">
-            <Tooltip content={getSubmitTooltip()}>
-              <IconButton
-                size="1"
-                variant="solid"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSubmit();
-                }}
-                disabled={!canSubmit || isSubmitDisabled}
-                loading={isCreatingTask}
-                style={{
-                  backgroundColor:
-                    !canSubmit || isSubmitDisabled
-                      ? "var(--accent-a4)"
-                      : undefined,
-                  color:
-                    !canSubmit || isSubmitDisabled
-                      ? "var(--accent-8)"
-                      : undefined,
-                }}
-              >
-                <ArrowUp size={16} weight="bold" />
-              </IconButton>
-            </Tooltip>
+            <TourHighlight active={tourHighlight === "submit-button"}>
+              <Tooltip content={getSubmitTooltip()}>
+                <IconButton
+                  size="1"
+                  variant="solid"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSubmit();
+                  }}
+                  disabled={!canSubmit || isSubmitDisabled}
+                  loading={isCreatingTask}
+                  style={{
+                    backgroundColor:
+                      !canSubmit || isSubmitDisabled
+                        ? "var(--accent-a4)"
+                        : undefined,
+                    color:
+                      !canSubmit || isSubmitDisabled
+                        ? "var(--accent-8)"
+                        : undefined,
+                  }}
+                >
+                  <ArrowUp size={16} weight="bold" />
+                </IconButton>
+              </Tooltip>
+            </TourHighlight>
           </Flex>
         </Flex>
       </Flex>

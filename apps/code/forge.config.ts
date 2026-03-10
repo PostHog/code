@@ -187,7 +187,7 @@ const config: ForgeConfig = {
     generateAssets: async () => {
       // Generate ICNS from source PNG (skip if already exists)
       if (
-        existsSync("build/icon@3x.png") &&
+        existsSync("build/app-icon.png") &&
         !existsSync("build/app-icon.icns")
       ) {
         execSync("bash scripts/generate-icns.sh", { stdio: "inherit" });

@@ -3,7 +3,8 @@ export type OnboardingStep =
   | "billing"
   | "org-billing"
   | "git-integration"
-  | "signals";
+  | "signals"
+  | "tutorial";
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   "welcome",
@@ -11,4 +12,5 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   "org-billing",
   "git-integration",
   "signals",
+  "tutorial",
 ];

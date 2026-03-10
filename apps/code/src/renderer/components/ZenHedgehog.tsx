@@ -1,5 +1,6 @@
 import roboZen from "@renderer/assets/images/robo-zen.png";
 import zenHedgehog from "@renderer/assets/images/zen.png";
+import { motion } from "framer-motion";
 import { useRef, useState } from "react";
 
 const DELAY_MS = 400; // calm pause before shaking starts
@@ -59,8 +60,9 @@ export function ZenHedgehog() {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <img
+      <motion.img
         ref={imgRef}
+        layoutId="zen-hedgehog"
         src={hovered ? roboZen : zenHedgehog}
         alt=""
         style={{
@@ -69,6 +71,7 @@ export function ZenHedgehog() {
           cursor: "default",
           display: "block",
         }}
+        transition={{ type: "spring", stiffness: 120, damping: 20, mass: 0.8 }}
       />
     </div>
   );

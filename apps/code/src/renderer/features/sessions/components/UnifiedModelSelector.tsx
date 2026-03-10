@@ -36,6 +36,7 @@ interface UnifiedModelSelectorProps {
   onAdapterChange: (adapter: AgentAdapter) => void;
   disabled?: boolean;
   isConnecting?: boolean;
+  onModelChange?: (model: string) => void;
 }
 
 export function UnifiedModelSelector({
@@ -44,6 +45,7 @@ export function UnifiedModelSelector({
   onAdapterChange,
   disabled,
   isConnecting,
+  onModelChange,
 }: UnifiedModelSelectorProps) {
   const session = useSessionForTask(taskId);
   const modelOption = useModelConfigOptionForTask(taskId);
@@ -66,6 +68,7 @@ export function UnifiedModelSelector({
   const handleModelSelect = (value: string) => {
     if (taskId && session?.status === "connected" && modelOption) {
       getSessionService().setSessionConfigOption(taskId, modelOption.id, value);
+      onModelChange?.(value);
     }
   };
 

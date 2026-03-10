@@ -6,7 +6,7 @@
 
 set -e
 
-SOURCE_PNG="${1:-build/icon@3x.png}"
+SOURCE_PNG="${1:-build/app-icon.png}"
 OUTPUT_ICNS="${2:-build/app-icon.icns}"
 ICONSET_DIR=$(mktemp -d)/icon.iconset
 

@@ -16,22 +16,8 @@ import { getTaskRepository } from "@renderer/utils/repository";
 import type { ExecutionMode, Task } from "@shared/types";
 import { logger } from "@utils/logger";
 import { queryClient } from "@utils/queryClient";
-import striptags from "striptags";
 
 const log = logger.scope("task-creation-saga");
-
-function truncateToTitle(content: string): string {
-  // Strip XML/HTML tags using a robust library to avoid incomplete sanitization
-  const stripped = striptags(content).trim();
-  if (!stripped) return "Untitled";
-  if (stripped.length <= 80) return stripped;
-  // Truncate at word boundary
-  const truncated = stripped.slice(0, 80);
-  const lastSpace = truncated.lastIndexOf(" ");
-  return lastSpace > 20
-    ? `${truncated.slice(0, lastSpace)}...`
-    : `${truncated}...`;
-}
 
 async function generateTaskTitle(
   taskId: string,
@@ -328,7 +314,6 @@ export class TaskCreationSaga extends Saga<
       name: "task_creation",
       execute: async () => {
         const result = await this.deps.posthogClient.createTask({
-          title: truncateToTitle(input.content ?? ""),
           description: input.content ?? "",
           repository: repository ?? undefined,
           github_integration:

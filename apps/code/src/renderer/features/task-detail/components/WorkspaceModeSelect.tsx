@@ -12,6 +12,9 @@ interface WorkspaceModeSelectProps {
   value: WorkspaceMode;
   onChange: (mode: WorkspaceMode) => void;
   size?: Responsive<"1" | "2">;
+  disabled?: boolean;
+  /** Override the available modes instead of deriving from feature flags */
+  overrideModes?: WorkspaceMode[];
 }
 
 const MODE_CONFIG: Record<
@@ -45,22 +48,27 @@ export function WorkspaceModeSelect({
   value,
   onChange,
   size = "1",
+  disabled,
+  overrideModes,
 }: WorkspaceModeSelectProps) {
   const cloudModeEnabled =
     useFeatureFlag("twig-cloud-mode-toggle") || import.meta.env.DEV;
 
   const availableModes = useMemo<WorkspaceMode[]>(
     () =>
-      cloudModeEnabled ? ["worktree", "local", "cloud"] : ["worktree", "local"],
-    [cloudModeEnabled],
+      overrideModes ??
+      (cloudModeEnabled
+        ? ["worktree", "local", "cloud"]
+        : ["worktree", "local"]),
+    [cloudModeEnabled, overrideModes],
   );
 
   const currentMode = MODE_CONFIG[value] ?? MODE_CONFIG.worktree;
 
   return (
     <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        <Button color="gray" variant="outline" size={size}>
+      <DropdownMenu.Trigger disabled={disabled}>
+        <Button color="gray" variant="outline" size={size} disabled={disabled}>
           <Flex justify="between" align="center" gap="2">
             <Flex align="center" gap="2" style={{ minWidth: 0 }}>
               {currentMode.icon}
