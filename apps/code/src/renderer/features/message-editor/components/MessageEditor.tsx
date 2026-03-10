@@ -5,8 +5,7 @@ import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { ArrowUp, Circle, Stop } from "@phosphor-icons/react";
-import { Flex, IconButton, Kbd, Text, Tooltip } from "@radix-ui/themes";
-import { formatHotkey } from "@renderer/constants/keyboard-shortcuts";
+import { Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { useCommandMenuStore } from "@stores/commandMenuStore";
 import { useShortcutsSheetStore } from "@stores/shortcutsSheetStore";
 import { EditorContent } from "@tiptap/react";
@@ -258,30 +257,6 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
           style={{ position: "relative" }}
         >
           <EditorContent editor={editor} />
-          {taskId && !isLoading && isEmpty && (
-            <Tooltip content="Shift+Up/Down to navigate prompt history">
-              <Text
-                size="1"
-                style={{
-                  position: "absolute",
-                  top: 4,
-                  right: 4,
-                  color: "var(--gray-7)",
-                  pointerEvents: "auto",
-                  userSelect: "none",
-                }}
-              >
-                <Kbd size="1" style={{ fontFamily: "system-ui" }}>
-                  {formatHotkey("shift+up")}
-                </Kbd>
-                {" / "}
-                <Kbd size="1" style={{ fontFamily: "system-ui" }}>
-                  {formatHotkey("shift+down")}
-                </Kbd>
-                {" history"}
-              </Text>
-            </Tooltip>
-          )}
         </div>
 
         <Flex justify="between" align="center">
