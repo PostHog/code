@@ -299,10 +299,12 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
 
           // Auto-convert long pasted text into a file attachment
           const pastedText = event.clipboardData?.getData("text/plain");
+          const autoConvertThreshold =
+            useFeatureSettingsStore.getState().autoConvertLongText;
           if (
             pastedText &&
-            pastedText.length > 500 &&
-            useFeatureSettingsStore.getState().autoConvertLongText
+            autoConvertThreshold !== "off" &&
+            pastedText.length > Number(autoConvertThreshold)
           ) {
             event.preventDefault();
 
