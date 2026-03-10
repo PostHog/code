@@ -139,9 +139,9 @@ describe("isBashCommandReadOnly", () => {
 
 describe("isToolAllowedForMode with Bash", () => {
   it("auto-allows read-only Bash commands in default mode", () => {
-    expect(
-      isToolAllowedForMode("Bash", "default", { command: "ls -la" }),
-    ).toBe(true);
+    expect(isToolAllowedForMode("Bash", "default", { command: "ls -la" })).toBe(
+      true,
+    );
   });
 
   it("auto-allows read-only Bash commands in plan mode", () => {
