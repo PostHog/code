@@ -5,7 +5,7 @@ import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { ArrowUp, Circle, Stop } from "@phosphor-icons/react";
-import { Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
+import { Flex, IconButton, Kbd, Text, Tooltip } from "@radix-ui/themes";
 import { useCommandMenuStore } from "@stores/commandMenuStore";
 import { useShortcutsSheetStore } from "@stores/shortcutsSheetStore";
 import { EditorContent } from "@tiptap/react";
@@ -270,7 +270,14 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
               </Text>
             )}
           </Flex>
-          <Flex gap="4" align="center">
+          <Flex gap="2" align="center">
+            {taskId && !isLoading && (
+              <Tooltip content="Shift+Up/Down to navigate prompt history">
+                <Text size="1" style={{ color: "var(--gray-8)" }}>
+                  <Kbd size="1">⇧↑↓</Kbd> history
+                </Text>
+              </Tooltip>
+            )}
             {isLoading && onCancel ? (
               <Tooltip content="Stop">
                 <IconButton
