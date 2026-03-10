@@ -6,8 +6,6 @@ import Fuse, { type IFuseOptions } from "fuse.js";
 import { useDraftStore } from "../stores/draftStore";
 import type { CommandSuggestionItem, FileSuggestionItem } from "../types";
 
-const COMMAND_LIMIT = 5;
-
 const COMMAND_FUSE_OPTIONS: IFuseOptions<AvailableCommand> = {
   keys: [
     { name: "name", weight: 0.7 },
@@ -22,11 +20,11 @@ function searchCommands(
   query: string,
 ): AvailableCommand[] {
   if (!query.trim()) {
-    return commands.slice(0, COMMAND_LIMIT);
+    return commands;
   }
 
   const fuse = new Fuse(commands, COMMAND_FUSE_OPTIONS);
-  const results = fuse.search(query, { limit: COMMAND_LIMIT * 2 });
+  const results = fuse.search(query);
 
   const lowerQuery = query.toLowerCase();
   results.sort((a, b) => {
@@ -38,7 +36,7 @@ function searchCommands(
     return (a.score ?? 0) - (b.score ?? 0);
   });
 
-  return results.slice(0, COMMAND_LIMIT).map((result) => result.item);
+  return results.map((result) => result.item);
 }
 
 export async function getFileSuggestions(
