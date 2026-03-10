@@ -30,7 +30,6 @@ jobs:
         with:
           node-version: 24
           cache: "pnpm"
-          registry-url: https://registry.npmjs.org
 
       - name: Extract version from tag
         id: version
@@ -61,12 +60,8 @@ jobs:
       - name: Run tests
         run: pnpm --filter agent run test
 
-      - name: Ensure modern npm (OIDC support)
-        run: npm install -g npm@11.6.4
-
       - name: Publish the package to npm registry
         working-directory: packages/agent
         run: pnpm publish --access public --no-git-checks
         env:
           NPM_CONFIG_PROVENANCE: true
-          NODE_AUTH_TOKEN: ''
