@@ -265,7 +265,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
               onAttachFiles={onAttachFiles}
             />
             {isBashMode && (
-              <Text size="1" className="font-mono text-accent-11">
+              <Text size="1" className="ml-2 font-mono text-accent-11">
                 bash mode
               </Text>
             )}
