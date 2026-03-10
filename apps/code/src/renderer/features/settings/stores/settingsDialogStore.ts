@@ -9,6 +9,7 @@ export type SettingsCategory =
   | "shortcuts"
   | "integrations"
   | "mcp-servers"
+  | "signals"
   | "updates"
   | "advanced";
 

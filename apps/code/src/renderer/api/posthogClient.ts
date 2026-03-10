@@ -1,5 +1,4 @@
 import type {
-  RepoAutonomyStatus,
   SignalReportArtefact,
   SignalReportArtefactsResponse,
   SignalReportSignalsResponse,
@@ -18,6 +17,16 @@ const log = logger.scope("posthog-client");
 export type McpRecommendedServer = Schemas.RecommendedServer;
 
 export type McpServerInstallation = Schemas.MCPServerInstallation;
+
+export interface SignalSourceConfig {
+  id: string;
+  source_product: "session_replay" | "llm_analytics";
+  source_type: "session_analysis_cluster" | "evaluation";
+  enabled: boolean;
+  config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -166,34 +175,83 @@ export class PostHogAPIClient {
     return data as Schemas.Team;
   }
 
-  async getProjectAutonomySettings(projectId: number): Promise<{
-    proactive_tasks_enabled?: boolean;
-  }> {
-    try {
-      const urlPath = `/api/environments/${projectId}/`;
-      const url = new URL(`${this.api.baseUrl}${urlPath}`);
-      const response = await this.api.fetcher.fetch({
-        method: "get",
-        url,
-        path: urlPath,
-      });
-      const data = (await response.json()) as {
-        proactive_tasks_enabled?: boolean;
-      };
-
-      return {
-        proactive_tasks_enabled:
-          typeof data.proactive_tasks_enabled === "boolean"
-            ? data.proactive_tasks_enabled
-            : false,
-      };
-    } catch (error) {
-      log.warn("Failed to resolve autonomy settings; defaulting to disabled", {
-        projectId,
-        error,
-      });
-      return { proactive_tasks_enabled: false };
+  async listSignalSourceConfigs(
+    projectId: number,
+  ): Promise<SignalSourceConfig[]> {
+    const urlPath = `/api/projects/${projectId}/signal_source_configs/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: urlPath,
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch signal source configs: ${response.statusText}`,
+      );
     }
+    const data = (await response.json()) as
+      | { results: SignalSourceConfig[] }
+      | SignalSourceConfig[];
+    return Array.isArray(data) ? data : (data.results ?? []);
+  }
+
+  async createSignalSourceConfig(
+    projectId: number,
+    options: {
+      source_product: "session_replay" | "llm_analytics";
+      source_type: "session_analysis_cluster" | "evaluation";
+      enabled: boolean;
+      config?: Record<string, unknown>;
+    },
+  ): Promise<SignalSourceConfig> {
+    const urlPath = `/api/projects/${projectId}/signal_source_configs/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: urlPath,
+      overrides: {
+        body: JSON.stringify(options),
+      },
+    });
+    if (!response.ok) {
+      const errorData = (await response.json().catch(() => ({}))) as {
+        detail?: string;
+      };
+      throw new Error(
+        errorData.detail ??
+          `Failed to create signal source config: ${response.statusText}`,
+      );
+    }
+    return (await response.json()) as SignalSourceConfig;
+  }
+
+  async updateSignalSourceConfig(
+    projectId: number,
+    configId: string,
+    updates: { enabled: boolean },
+  ): Promise<SignalSourceConfig> {
+    const urlPath = `/api/projects/${projectId}/signal_source_configs/${configId}/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "patch",
+      url,
+      path: urlPath,
+      overrides: {
+        body: JSON.stringify(updates),
+      },
+    });
+    if (!response.ok) {
+      const errorData = (await response.json().catch(() => ({}))) as {
+        detail?: string;
+      };
+      throw new Error(
+        errorData.detail ??
+          `Failed to update signal source config: ${response.statusText}`,
+      );
+    }
+    return (await response.json()) as SignalSourceConfig;
   }
 
   async getTasks(options?: {
@@ -838,51 +896,6 @@ export class PostHogAPIClient {
         unavailableReason: "request_failed",
       };
     }
-  }
-
-  async getRepositoryReadiness(
-    repository: string,
-    options?: { refresh?: boolean; windowDays?: number },
-  ): Promise<RepoAutonomyStatus> {
-    const teamId = await this.getTeamId();
-    const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/tasks/repository_readiness/`,
-    );
-    url.searchParams.set("repository", repository.toLowerCase());
-    if (options?.refresh) {
-      url.searchParams.set("refresh", "true");
-    }
-    if (typeof options?.windowDays === "number") {
-      url.searchParams.set("window_days", String(options.windowDays));
-    }
-
-    const response = await this.api.fetcher.fetch({
-      method: "get",
-      url,
-      path: `/api/projects/${teamId}/tasks/repository_readiness/`,
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch repository readiness: ${response.statusText}`,
-      );
-    }
-
-    const data = await response.json();
-    return {
-      repository: data.repository,
-      classification: data.classification,
-      excluded: data.excluded,
-      coreSuggestions: data.coreSuggestions,
-      replayInsights: data.replayInsights,
-      errorInsights: data.errorInsights,
-      overall: data.overall,
-      evidenceTaskCount: data.evidenceTaskCount ?? 0,
-      windowDays: data.windowDays,
-      generatedAt: data.generatedAt,
-      cacheAgeSeconds: data.cacheAgeSeconds,
-      scan: data.scan,
-    } as RepoAutonomyStatus;
   }
 
   async getMcpServers(): Promise<McpRecommendedServer[]> {

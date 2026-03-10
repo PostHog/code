@@ -4,7 +4,6 @@ import { HedgehogMode } from "@components/HedgehogMode";
 import { KeyboardShortcutsSheet } from "@components/KeyboardShortcutsSheet";
 
 import { ArchivedTasksView } from "@features/archive/components/ArchivedTasksView";
-import { useAutonomy } from "@features/autonomy/hooks/useAutonomy";
 import { CommandMenu } from "@features/command/components/CommandMenu";
 import { InboxView } from "@features/inbox/components/InboxView";
 import { RightSidebar, RightSidebarContent } from "@features/right-sidebar";
@@ -25,7 +24,7 @@ import { useTaskDeepLink } from "../hooks/useTaskDeepLink";
 import { GlobalEventHandlers } from "./GlobalEventHandlers";
 
 export function MainLayout() {
-  const { view, hydrateTask, navigateToTaskInput } = useNavigationStore();
+  const { view, hydrateTask } = useNavigationStore();
   const {
     isOpen: commandMenuOpen,
     setOpen: setCommandMenuOpen,
@@ -38,7 +37,6 @@ export function MainLayout() {
   } = useShortcutsSheetStore();
   const { data: tasks } = useTasks();
   const { showPrompt, isChecking, check, dismiss } = useConnectivity();
-  const inboxEnabled = useAutonomy();
 
   useIntegrations();
   useTaskDeepLink();
@@ -48,12 +46,6 @@ export function MainLayout() {
       hydrateTask(tasks);
     }
   }, [tasks, hydrateTask]);
-
-  useEffect(() => {
-    if (view.type === "inbox" && !inboxEnabled) {
-      navigateToTaskInput();
-    }
-  }, [view.type, inboxEnabled, navigateToTaskInput]);
 
   const handleToggleCommandMenu = useCallback(() => {
     toggleCommandMenu();
@@ -74,9 +66,7 @@ export function MainLayout() {
 
           {view.type === "folder-settings" && <FolderSettingsView />}
 
-          {view.type === "inbox" && inboxEnabled && <InboxView />}
-
-          {view.type === "inbox" && !inboxEnabled && <TaskInput />}
+          {view.type === "inbox" && <InboxView />}
 
           {view.type === "archived" && <ArchivedTasksView />}
         </Box>

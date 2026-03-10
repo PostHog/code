@@ -109,8 +109,8 @@ export function GitIntegrationStep({
             Connect your git repository
           </Text>
           <Text size="2" style={{ color: "var(--gray-12)", opacity: 0.7 }}>
-            PostHog Code needs access to your GitHub repositories to create
-            branches, commits, and pull requests.
+            PostHog Code needs access to your GitHub repositories to enable
+            cloud runs and PR creation.
           </Text>
 
           {selectedProject && (
@@ -261,8 +261,7 @@ export function GitIntegrationStep({
                         opacity: 0.7,
                       }}
                     >
-                      Connect GitHub to enable agent-powered development
-                      workflows.
+                      Connect GitHub.
                     </Text>
                   </motion.div>
                 )}

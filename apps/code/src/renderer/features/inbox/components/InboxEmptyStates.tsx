@@ -51,11 +51,9 @@ export function SignalsLoadingState() {
 
 export function SignalsErrorState({
   onRetry,
-  onGoToSetup,
   isRetrying,
 }: {
   onRetry: () => void;
-  onGoToSetup: () => void;
   isRetrying: boolean;
 }) {
   return (
@@ -74,34 +72,23 @@ export function SignalsErrorState({
             Could not load signals
           </Text>
           <Text size="1" color="gray" className="font-mono text-[11px]">
-            Check your connection or permissions, then retry. You can still use
-            Setup while this is unavailable.
+            Check your connection or permissions, then retry.
           </Text>
         </Flex>
-        <Flex align="center" gap="2" wrap="wrap" justify="center">
-          <Button
-            size="1"
-            variant="soft"
-            onClick={onRetry}
-            className="font-mono text-[11px]"
-            disabled={isRetrying}
-          >
-            {isRetrying ? (
-              <CircleNotchIcon size={12} className="animate-spin" />
-            ) : (
-              <ArrowsClockwiseIcon size={12} />
-            )}
-            Retry
-          </Button>
-          <Button
-            size="1"
-            variant="ghost"
-            onClick={onGoToSetup}
-            className="font-mono text-[11px]"
-          >
-            Go to Setup
-          </Button>
-        </Flex>
+        <Button
+          size="1"
+          variant="soft"
+          onClick={onRetry}
+          className="font-mono text-[11px]"
+          disabled={isRetrying}
+        >
+          {isRetrying ? (
+            <CircleNotchIcon size={12} className="animate-spin" />
+          ) : (
+            <ArrowsClockwiseIcon size={12} />
+          )}
+          Retry
+        </Button>
       </Flex>
     </Flex>
   );

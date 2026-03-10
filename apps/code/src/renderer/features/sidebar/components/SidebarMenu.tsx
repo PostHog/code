@@ -1,5 +1,4 @@
 import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
-import { useAutonomy } from "@features/autonomy/hooks/useAutonomy";
 import { useInboxReports } from "@features/inbox/hooks/useInboxReports";
 import { useArchiveTask } from "@features/tasks/hooks/useArchiveTask";
 import { useTasks, useUpdateTask } from "@features/tasks/hooks/useTasks";
@@ -35,11 +34,7 @@ function SidebarMenuComponent() {
   const sidebarData = useSidebarData({
     activeView: view,
   });
-  const inboxEnabled = useAutonomy();
-  const { data: inboxSignals } = useInboxReports(
-    { status: "ready" },
-    { enabled: inboxEnabled },
-  );
+  const { data: inboxSignals } = useInboxReports({ status: "ready" });
   const inboxSignalCount =
     inboxSignals?.count ?? inboxSignals?.results?.length ?? 0;
 
@@ -165,15 +160,13 @@ function SidebarMenuComponent() {
             />
           </Box>
 
-          {inboxEnabled && (
-            <Box mb="2">
-              <InboxItem
-                isActive={sidebarData.isInboxActive}
-                onClick={handleInboxClick}
-                signalCount={inboxSignalCount}
-              />
-            </Box>
-          )}
+          <Box mb="2">
+            <InboxItem
+              isActive={sidebarData.isInboxActive}
+              onClick={handleInboxClick}
+              signalCount={inboxSignalCount}
+            />
+          </Box>
 
           {sidebarData.isLoading ? (
             <SidebarItem

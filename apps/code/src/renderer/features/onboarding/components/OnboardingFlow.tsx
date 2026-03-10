@@ -9,6 +9,7 @@ import { useOnboardingFlow } from "../hooks/useOnboardingFlow";
 import { BillingStep } from "./BillingStep";
 import { GitIntegrationStep } from "./GitIntegrationStep";
 import { OrgBillingStep } from "./OrgBillingStep";
+import { SignalsStep } from "./SignalsStep";
 import { StepIndicator } from "./StepIndicator";
 import { WelcomeStep } from "./WelcomeStep";
 
@@ -120,7 +121,20 @@ export function OnboardingFlow() {
                   transition={{ duration: 0.3 }}
                   style={{ width: "100%", flex: 1, minHeight: 0 }}
                 >
-                  <GitIntegrationStep onNext={handleComplete} onBack={back} />
+                  <GitIntegrationStep onNext={next} onBack={back} />
+                </motion.div>
+              )}
+
+              {currentStep === "signals" && (
+                <motion.div
+                  key="signals"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ width: "100%", flex: 1, minHeight: 0 }}
+                >
+                  <SignalsStep onNext={handleComplete} onBack={back} />
                 </motion.div>
               )}
             </AnimatePresence>

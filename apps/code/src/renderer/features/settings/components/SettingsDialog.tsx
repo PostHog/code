@@ -13,6 +13,7 @@ import {
   Palette,
   Plugs,
   PlugsConnected,
+  TrafficSignal,
   User,
   Wrench,
 } from "@phosphor-icons/react";
@@ -27,6 +28,7 @@ import { IntegrationsSettings } from "./sections/IntegrationsSettings";
 import { McpServersSettings } from "./sections/McpServersSettings";
 import { PersonalizationSettings } from "./sections/PersonalizationSettings";
 import { ShortcutsSettings } from "./sections/ShortcutsSettings";
+import { SignalSourcesSettings } from "./sections/SignalSourcesSettings";
 import { UpdatesSettings } from "./sections/UpdatesSettings";
 import { WorkspacesSettings } from "./sections/WorkspacesSettings";
 
@@ -54,6 +56,11 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     label: "Integrations",
     icon: <PlugsConnected size={16} />,
   },
+  {
+    id: "signals",
+    label: "Signals",
+    icon: <TrafficSignal size={16} />,
+  },
   { id: "updates", label: "Updates", icon: <ArrowsClockwise size={16} /> },
   { id: "advanced", label: "Advanced", icon: <Wrench size={16} /> },
 ];
@@ -67,6 +74,7 @@ const CATEGORY_TITLES: Record<SettingsCategory, string> = {
   "mcp-servers": "MCP Servers",
   shortcuts: "Shortcuts",
   integrations: "Integrations",
+  signals: "Signals",
   updates: "Updates",
   advanced: "Advanced",
 };
@@ -80,6 +88,7 @@ const CATEGORY_COMPONENTS: Record<SettingsCategory, React.ComponentType> = {
   "mcp-servers": McpServersSettings,
   shortcuts: ShortcutsSettings,
   integrations: IntegrationsSettings,
+  signals: SignalSourcesSettings,
   updates: UpdatesSettings,
   advanced: AdvancedSettings,
 };

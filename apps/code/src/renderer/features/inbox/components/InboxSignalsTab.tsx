@@ -47,10 +47,6 @@ import { ReportCard } from "./ReportCard";
 import { SignalCard } from "./SignalCard";
 import { SignalsToolbar } from "./SignalsToolbar";
 
-interface InboxSignalsTabProps {
-  onGoToSetup: () => void;
-}
-
 function getArtefactsUnavailableMessage(
   reason: SignalReportArtefactsResponse["unavailableReason"],
 ): string {
@@ -108,7 +104,7 @@ function LoadMoreTrigger({
   );
 }
 
-export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
+export function InboxSignalsTab() {
   const sortField = useInboxSignalsFilterStore((s) => s.sortField);
   const sortDirection = useInboxSignalsFilterStore((s) => s.sortDirection);
   const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
@@ -270,7 +266,6 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
           void refetch();
         }}
         isRetrying={isFetching}
-        onGoToSetup={onGoToSetup}
       />
     );
   }
@@ -295,17 +290,8 @@ export function InboxSignalsTab({ onGoToSetup }: InboxSignalsTabProps) {
           className="font-mono text-[11px]"
           style={{ maxWidth: 520 }}
         >
-          Autonomy has not surfaced repository signals yet. Complete setup and
-          wait for fresh events to arrive.
+          Signals are processing. Check back soon as fresh events arrive.
         </Text>
-        <Button
-          size="1"
-          variant="ghost"
-          onClick={onGoToSetup}
-          className="font-mono text-[11px]"
-        >
-          Go to Setup
-        </Button>
       </Flex>
     );
   }
