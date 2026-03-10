@@ -45,6 +45,14 @@ function AddCustomServerDialog({
   const [authType, setAuthType] = useState<"api_key" | "oauth">("oauth");
   const [apiKey, setApiKey] = useState("");
 
+  const resetFormState = useCallback(() => {
+    setName("");
+    setUrl("");
+    setDescription("");
+    setAuthType("oauth");
+    setApiKey("");
+  }, []);
+
   const installMutation = useAuthenticatedMutation(
     async (
       client,
@@ -82,7 +90,8 @@ function AddCustomServerDialog({
           toast.success("Server added");
         }
         onInstalled();
-        resetAndClose();
+        resetFormState();
+        onOpenChange(false);
       },
       onError: (error: Error) => {
         toast.error(error.message || "Failed to add server");
@@ -90,14 +99,21 @@ function AddCustomServerDialog({
     },
   );
 
-  const resetAndClose = useCallback(() => {
-    setName("");
-    setUrl("");
-    setDescription("");
-    setAuthType("oauth");
-    setApiKey("");
-    onOpenChange(false);
-  }, [onOpenChange]);
+  useEffect(() => {
+    if (open) {
+      resetFormState();
+    }
+  }, [open, resetFormState]);
+
+  const handleDialogOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        resetFormState();
+      }
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange, resetFormState],
+  );
 
   const handleSubmit = useCallback(() => {
     installMutation.mutate({
@@ -112,7 +128,7 @@ function AddCustomServerDialog({
   const canSubmit = name.trim() !== "" && url.trim() !== "";
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root open={open} onOpenChange={handleDialogOpenChange}>
       <Dialog.Content maxWidth="480px">
         <Dialog.Title>Add custom MCP server</Dialog.Title>
         <Dialog.Description size="2" color="gray" mb="4">
