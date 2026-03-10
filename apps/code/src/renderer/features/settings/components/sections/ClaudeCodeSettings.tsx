@@ -165,8 +165,18 @@ export function ClaudeCodeSettings() {
       </Text>
 
       <SettingRow
-        label="Enable Bypass Permissions mode"
-        description="Enables 'Bypass Permissions' mode in the execution mode selector. When active, PostHog Code will not ask for approval before running potentially dangerous commands."
+        label="Permission rules"
+        description="Tool permissions from your Claude settings. Allowed tools run without prompting. Denied tools are always blocked."
+      >
+        <CopyableCommand command="claude config" />
+      </SettingRow>
+
+      <PermissionsSettings />
+
+      <SettingRow
+        label="Bypass Permissions mode"
+        description="Skips all permission rules. PostHog Code will run every tool without asking for approval."
+        noBorder
       >
         <Switch
           checked={allowBypassPermissions}
@@ -181,12 +191,11 @@ export function ClaudeCodeSettings() {
             <Warning weight="fill" />
           </Callout.Icon>
           <Callout.Text>
-            Bypass Permissions mode is enabled. Use with extreme caution.
+            Bypass Permissions mode is enabled. All permission rules are
+            ignored.
           </Callout.Text>
         </Callout.Root>
       )}
-
-      <PermissionsSettings />
 
       <AlertDialog.Root
         open={showBypassWarning}
