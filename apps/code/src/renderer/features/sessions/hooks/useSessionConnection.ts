@@ -1,0 +1,115 @@
+import { useCwd } from "@features/sidebar/hooks/useCwd";
+import { useTaskViewed } from "@features/sidebar/hooks/useTaskViewed";
+import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
+import { useConnectivity } from "@hooks/useConnectivity";
+import { trpcClient } from "@renderer/trpc/client";
+import type { Task } from "@shared/types";
+import { useQueryClient } from "@tanstack/react-query";
+import { logger } from "@utils/logger";
+import { useEffect, useRef } from "react";
+import { getSessionService } from "../service/service";
+import { useSessionForTask } from "../stores/sessionStore";
+import { useChatTitleGenerator } from "./useChatTitleGenerator";
+
+const log = logger.scope("session-connection");
+
+interface UseSessionConnectionOptions {
+  taskId: string;
+  task: Task;
+}
+
+export function useSessionConnection({
+  taskId,
+  task,
+}: UseSessionConnectionOptions) {
+  const session = useSessionForTask(taskId);
+  const repoPath = useCwd(taskId);
+  const workspace = useWorkspace(taskId);
+  const queryClient = useQueryClient();
+  const { markActivity } = useTaskViewed();
+  const { isOnline } = useConnectivity();
+
+  const isCloud =
+    workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
+
+  useChatTitleGenerator(taskId);
+
+  const isConnecting = useRef(false);
+
+  useEffect(() => {
+    const taskRunId = session?.taskRunId;
+    if (!taskRunId) return;
+    trpcClient.agent.recordActivity.mutate({ taskRunId }).catch(() => {});
+    const heartbeat = setInterval(
+      () => {
+        trpcClient.agent.recordActivity.mutate({ taskRunId }).catch(() => {});
+      },
+      5 * 60 * 1000,
+    );
+    return () => clearInterval(heartbeat);
+  }, [session?.taskRunId]);
+
+  useEffect(() => {
+    if (!isCloud) return;
+    getSessionService().updateSessionTaskTitle(
+      task.id,
+      task.title || task.description || "Cloud Task",
+    );
+  }, [isCloud, task.id, task.title, task.description]);
+
+  useEffect(() => {
+    if (!isCloud || !task.latest_run?.id) return;
+    const runId = task.latest_run.id;
+    const cleanup = getSessionService().watchCloudTask(
+      task.id,
+      runId,
+      () => {
+        queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      },
+      true,
+    );
+    return cleanup;
+  }, [isCloud, task.id, task.latest_run?.id, queryClient]);
+
+  useEffect(() => {
+    if (!repoPath) return;
+    if (isConnecting.current) return;
+    if (!isOnline) return;
+    if (isCloud) return;
+
+    if (
+      session?.status === "connected" ||
+      session?.status === "connecting" ||
+      session?.status === "error"
+    ) {
+      return;
+    }
+
+    isConnecting.current = true;
+
+    const isNewSession = !task.latest_run?.id;
+    const hasInitialPrompt = isNewSession && task.description;
+
+    if (hasInitialPrompt) {
+      markActivity(task.id);
+    }
+
+    log.info("Connecting to task session", {
+      taskId: task.id,
+      hasLatestRun: !!task.latest_run,
+      sessionStatus: session?.status ?? "none",
+    });
+
+    getSessionService()
+      .connectToTask({
+        task,
+        repoPath,
+        initialPrompt: hasInitialPrompt
+          ? [{ type: "text", text: task.description }]
+          : undefined,
+      })
+      .finally(() => {
+        isConnecting.current = false;
+      });
+  }, [task, repoPath, session, markActivity, isOnline, isCloud]);
+}

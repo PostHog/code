@@ -5,6 +5,7 @@ import { KeyboardShortcutsSheet } from "@components/KeyboardShortcutsSheet";
 
 import { ArchivedTasksView } from "@features/archive/components/ArchivedTasksView";
 import { CommandMenu } from "@features/command/components/CommandMenu";
+import { CommandCenterView } from "@features/command-center/components/CommandCenterView";
 import { InboxView } from "@features/inbox/components/InboxView";
 import { RightSidebar, RightSidebarContent } from "@features/right-sidebar";
 import { FolderSettingsView } from "@features/settings/components/FolderSettingsView";
@@ -75,6 +76,8 @@ export function MainLayout() {
           {view.type === "inbox" && <InboxView />}
 
           {view.type === "archived" && <ArchivedTasksView />}
+
+          {view.type === "command-center" && <CommandCenterView />}
         </Box>
 
         {view.type === "task-detail" && view.data && (

@@ -11,7 +11,7 @@ import {
   PushPin,
 } from "@phosphor-icons/react";
 import { selectIsFocusedOnWorktree, useFocusStore } from "@stores/focusStore";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SidebarItem } from "../SidebarItem";
 
 interface TaskItemProps {
@@ -175,7 +175,7 @@ function CloudStatusIcon({
 
 export function TaskItem({
   depth = 0,
-  taskId: _taskId,
+  taskId,
   label,
   isActive,
   workspaceMode,
@@ -266,6 +266,14 @@ export function TaskItem({
       </>
     ) : null;
 
+  const handleDragStart = useCallback(
+    (e: React.DragEvent) => {
+      e.dataTransfer.setData("text/x-task-id", taskId);
+      e.dataTransfer.effectAllowed = "copy";
+    },
+    [taskId],
+  );
+
   if (isEditing) {
     return (
       <InlineEditInput
@@ -285,6 +293,8 @@ export function TaskItem({
       icon={icon}
       label={label}
       isActive={isActive}
+      draggable
+      onDragStart={handleDragStart}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}

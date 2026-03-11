@@ -56,6 +56,7 @@ interface SessionViewProps {
   onNewSession?: () => void;
   isInitializing?: boolean;
   slackThreadUrl?: string;
+  compact?: boolean;
 }
 
 const DEFAULT_ERROR_MESSAGE =
@@ -80,6 +81,7 @@ export function SessionView({
   onNewSession,
   isInitializing = false,
   slackThreadUrl,
+  compact = false,
 }: SessionViewProps) {
   const showRawLogs = useShowRawLogs();
   const { setShowRawLogs } = useSessionViewActions();
@@ -380,6 +382,7 @@ export function SessionView({
                   repoPath={repoPath}
                   taskId={taskId}
                   slackThreadUrl={slackThreadUrl}
+                  compact={compact}
                 />
               )}
 
@@ -459,7 +462,9 @@ export function SessionView({
                         : "pointer-events-none translate-y-4 opacity-0"
                     }`}
                   >
-                    <Box className="mx-auto max-w-[750px] p-2">
+                    <Box
+                      className={compact ? "p-1" : "mx-auto max-w-[750px] p-2"}
+                    >
                       <MessageEditor
                         ref={editorRef}
                         sessionId={sessionId}

@@ -1,0 +1,113 @@
+import { ArrowsOut, Plus, X } from "@phosphor-icons/react";
+import { Flex, Text } from "@radix-ui/themes";
+import type { Task } from "@shared/types";
+import { useNavigationStore } from "@stores/navigationStore";
+import { useCallback, useState } from "react";
+import type { CommandCenterCellData } from "../hooks/useCommandCenterData";
+import { useCommandCenterStore } from "../stores/commandCenterStore";
+import { CommandCenterSessionView } from "./CommandCenterSessionView";
+import { StatusBadge } from "./StatusBadge";
+import { TaskSelector } from "./TaskSelector";
+
+interface CommandCenterPanelProps {
+  cell: CommandCenterCellData;
+}
+
+function EmptyCell({ cellIndex }: { cellIndex: number }) {
+  const [selectorOpen, setSelectorOpen] = useState(false);
+
+  return (
+    <Flex align="center" justify="center" height="100%">
+      <TaskSelector
+        cellIndex={cellIndex}
+        open={selectorOpen}
+        onOpenChange={setSelectorOpen}
+      >
+        <button
+          type="button"
+          onClick={() => setSelectorOpen(true)}
+          className="flex items-center gap-1.5 rounded-md border border-gray-7 border-dashed px-3 py-1.5 font-mono text-[11px] text-gray-10 transition-colors hover:border-gray-9 hover:text-gray-12"
+        >
+          <Plus size={12} />
+          Add task
+        </button>
+      </TaskSelector>
+    </Flex>
+  );
+}
+
+function PopulatedCell({
+  cell,
+}: {
+  cell: CommandCenterCellData & { task: Task };
+}) {
+  const navigateToTask = useNavigationStore((s) => s.navigateToTask);
+  const removeTask = useCommandCenterStore((s) => s.removeTask);
+
+  const handleExpand = useCallback(() => {
+    navigateToTask(cell.task);
+  }, [navigateToTask, cell.task]);
+
+  const handleRemove = useCallback(() => {
+    removeTask(cell.cellIndex);
+  }, [removeTask, cell.cellIndex]);
+
+  return (
+    <Flex direction="column" height="100%">
+      <Flex
+        align="center"
+        gap="2"
+        px="2"
+        py="1"
+        className="shrink-0 border-gray-6 border-b"
+      >
+        <Text
+          size="1"
+          weight="medium"
+          className="min-w-0 flex-1 truncate font-mono text-[11px]"
+          title={cell.task.title}
+        >
+          {cell.task.title}
+        </Text>
+        <Flex align="center" gap="1" className="shrink-0">
+          <StatusBadge status={cell.status} />
+          {cell.repoName && (
+            <span className="rounded bg-gray-3 px-1 py-0.5 font-mono text-[9px] text-gray-10">
+              {cell.repoName}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleExpand}
+            className="flex h-5 w-5 items-center justify-center rounded text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
+            title="Open task"
+          >
+            <ArrowsOut size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={handleRemove}
+            className="flex h-5 w-5 items-center justify-center rounded text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
+            title="Remove from grid"
+          >
+            <X size={12} />
+          </button>
+        </Flex>
+      </Flex>
+
+      <Flex direction="column" className="min-h-0 flex-1">
+        <CommandCenterSessionView taskId={cell.task.id} task={cell.task} />
+      </Flex>
+    </Flex>
+  );
+}
+
+export function CommandCenterPanel({ cell }: CommandCenterPanelProps) {
+  if (!cell.taskId || !cell.task) {
+    return <EmptyCell cellIndex={cell.cellIndex} />;
+  }
+
+  return (
+    <PopulatedCell cell={cell as CommandCenterCellData & { task: Task }} />
+  );
+}

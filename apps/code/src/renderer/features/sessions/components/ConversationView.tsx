@@ -34,6 +34,7 @@ interface ConversationViewProps {
   repoPath?: string | null;
   taskId?: string;
   slackThreadUrl?: string;
+  compact?: boolean;
 }
 
 export function ConversationView({
@@ -43,6 +44,7 @@ export function ConversationView({
   repoPath,
   taskId,
   slackThreadUrl,
+  compact = false,
 }: ConversationViewProps) {
   const listRef = useRef<VirtualizedListHandle>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -181,7 +183,7 @@ export function ConversationView({
         className="absolute inset-0 bg-gray-1"
         itemClassName="mx-auto max-w-[750px] px-2 py-1.5"
         footer={
-          <div className="pb-16">
+          <div className={compact ? "pb-1" : "pb-16"}>
             <SessionFooter
               isPromptPending={isPromptPending}
               promptStartedAt={promptStartedAt}
