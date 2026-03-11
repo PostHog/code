@@ -26,6 +26,9 @@ export const POSTHOG_NOTIFICATIONS = {
   /** Task has completed (success or failure) */
   TASK_COMPLETE: "_posthog/task_complete",
 
+  /** Agent finished processing a turn (prompt returned, waiting for next input) */
+  TURN_COMPLETE: "_posthog/turn_complete",
+
   /** Error occurred during task execution */
   ERROR: "_posthog/error",
 

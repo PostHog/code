@@ -73,7 +73,6 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     (!cloudStatus ||
       cloudStatus === "started" ||
       cloudStatus === "in_progress");
-  const isCloudRunTerminal = isCloud && !isCloudRunNotTerminal;
   const prUrl =
     isCloud && cloudOutput?.pr_url ? (cloudOutput.pr_url as string) : null;
   const slackThreadUrl =
@@ -102,9 +101,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     };
   }, [isCloud, prUrl, prFiles, branchFiles]);
 
-  const isRunning = isCloud
-    ? isCloudRunNotTerminal
-    : session?.status === "connected";
+  const isRunning = isCloud ? true : session?.status === "connected";
   const hasError = isCloud ? false : session?.status === "error";
   const errorTitle = isCloud ? undefined : session?.errorTitle;
   const errorMessage = isCloud ? undefined : session?.errorMessage;
@@ -367,9 +364,6 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
               onRetry={isCloud ? undefined : handleRetry}
               onNewSession={isCloud ? undefined : handleNewSession}
               isInitializing={isInitializing}
-              readOnlyMessage={
-                isCloudRunTerminal ? "This cloud run has finished" : undefined
-              }
               slackThreadUrl={slackThreadUrl}
             />
           </ErrorBoundary>

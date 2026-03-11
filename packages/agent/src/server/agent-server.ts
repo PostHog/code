@@ -11,7 +11,13 @@ import {
   createAcpConnection,
   type InProcessAcpConnection,
 } from "../adapters/acp-connection.js";
+import { selectRecentTurns } from "../adapters/claude/session/jsonl-hydration.js";
 import { PostHogAPIClient } from "../posthog-api.js";
+import {
+  type ConversationTurn,
+  type ResumeState,
+  resumeFromLog,
+} from "../resume.js";
 import { SessionLogWriter } from "../session-log-writer.js";
 import { TreeTracker } from "../tree-tracker.js";
 import type {
@@ -155,6 +161,7 @@ export class AgentServer {
   private posthogAPI: PostHogAPIClient;
   private questionRelayedToSlack = false;
   private detectedPrUrl: string | null = null;
+  private resumeState: ResumeState | null = null;
 
   private emitConsoleLog = (
     level: LogLevel,
@@ -380,6 +387,34 @@ export class AgentServer {
 
     this.logger.info("Auto-initializing session", { taskId, runId, mode });
 
+    // Check if this is a resume from a previous run
+    const resumeRunId = process.env.POSTHOG_RESUME_RUN_ID;
+    if (resumeRunId) {
+      this.logger.info("Resuming from previous run", {
+        resumeRunId,
+        currentRunId: runId,
+      });
+      try {
+        this.resumeState = await resumeFromLog({
+          taskId,
+          runId: resumeRunId,
+          repositoryPath: this.config.repositoryPath,
+          apiClient: this.posthogAPI,
+          logger: new Logger({ debug: true, prefix: "[Resume]" }),
+        });
+        this.logger.info("Resume state loaded", {
+          conversationTurns: this.resumeState.conversation.length,
+          snapshotApplied: this.resumeState.snapshotApplied,
+          logEntries: this.resumeState.logEntryCount,
+        });
+      } catch (error) {
+        this.logger.warn("Failed to load resume state, starting fresh", {
+          error,
+        });
+        this.resumeState = null;
+      }
+    }
+
     // Create a synthetic payload from config (no JWT needed for auto-init)
     const payload: JwtPayload = {
       task_id: taskId,
@@ -464,6 +499,8 @@ export class AgentServer {
           }),
         });
 
+        this.broadcastTurnComplete(result.stopReason);
+
         return { stopReason: result.stopReason };
       }
 
@@ -510,21 +547,22 @@ export class AgentServer {
 
     this.configureEnvironment();
 
-    const treeTracker = this.config.repositoryPath
-      ? new TreeTracker({
-          repositoryPath: this.config.repositoryPath,
-          taskId: payload.task_id,
-          runId: payload.run_id,
-          logger: new Logger({ debug: true, prefix: "[TreeTracker]" }),
-        })
-      : null;
-
     const posthogAPI = new PostHogAPIClient({
       apiUrl: this.config.apiUrl,
       projectId: this.config.projectId,
       getApiKey: () => this.config.apiKey,
       userAgent: `posthog/cloud.hog.dev; version: ${this.config.version ?? packageJson.version}`,
     });
+
+    const treeTracker = this.config.repositoryPath
+      ? new TreeTracker({
+          repositoryPath: this.config.repositoryPath,
+          taskId: payload.task_id,
+          runId: payload.run_id,
+          apiClient: posthogAPI,
+          logger: new Logger({ debug: true, prefix: "[TreeTracker]" }),
+        })
+      : null;
 
     const logWriter = new SessionLogWriter({
       posthogAPI,
@@ -653,27 +691,61 @@ export class AgentServer {
   ): Promise<void> {
     if (!this.session) return;
 
-    try {
-      const task = await this.posthogAPI.getTask(payload.task_id);
+    // Fetch TaskRun early — needed for both resume detection and initial prompt
+    let taskRun = prefetchedRun ?? null;
+    if (!taskRun) {
+      try {
+        taskRun = await this.posthogAPI.getTaskRun(
+          payload.task_id,
+          payload.run_id,
+        );
+      } catch (error) {
+        this.logger.warn("Failed to fetch task run", {
+          taskId: payload.task_id,
+          runId: payload.run_id,
+          error,
+        });
+      }
+    }
 
-      let taskRun = prefetchedRun ?? null;
-      if (!taskRun) {
+    // Check for resume if not already loaded from env var in autoInitializeSession
+    if (!this.resumeState) {
+      const resumeRunId = this.getResumeRunId(taskRun);
+      if (resumeRunId) {
+        this.logger.info("Resuming from previous run (via TaskRun state)", {
+          resumeRunId,
+          currentRunId: payload.run_id,
+        });
         try {
-          taskRun = await this.posthogAPI.getTaskRun(
-            payload.task_id,
-            payload.run_id,
-          );
+          this.resumeState = await resumeFromLog({
+            taskId: payload.task_id,
+            runId: resumeRunId,
+            repositoryPath: this.config.repositoryPath,
+            apiClient: this.posthogAPI,
+            logger: new Logger({ debug: true, prefix: "[Resume]" }),
+          });
+          this.logger.info("Resume state loaded (via TaskRun state)", {
+            conversationTurns: this.resumeState.conversation.length,
+            snapshotApplied: this.resumeState.snapshotApplied,
+            logEntries: this.resumeState.logEntryCount,
+          });
         } catch (error) {
-          this.logger.warn(
-            "Failed to fetch task run for initial prompt override",
-            {
-              taskId: payload.task_id,
-              runId: payload.run_id,
-              error,
-            },
-          );
+          this.logger.warn("Failed to load resume state, starting fresh", {
+            error,
+          });
+          this.resumeState = null;
         }
       }
+    }
+
+    // Resume flow: if we have resume state, format conversation history as context
+    if (this.resumeState && this.resumeState.conversation.length > 0) {
+      await this.sendResumeMessage(payload, taskRun);
+      return;
+    }
+
+    try {
+      const task = await this.posthogAPI.getTask(payload.task_id);
 
       const initialPromptOverride = taskRun
         ? this.getInitialPromptOverride(taskRun)
@@ -700,6 +772,8 @@ export class AgentServer {
         stopReason: result.stopReason,
       });
 
+      this.broadcastTurnComplete(result.stopReason);
+
       if (result.stopReason === "end_turn") {
         await this.relayAgentResponse(payload);
       }
@@ -712,6 +786,127 @@ export class AgentServer {
     }
   }
 
+  private async sendResumeMessage(
+    payload: JwtPayload,
+    taskRun: TaskRun | null,
+  ): Promise<void> {
+    if (!this.session || !this.resumeState) return;
+
+    try {
+      const conversationSummary = this.formatConversationForResume(
+        this.resumeState.conversation,
+      );
+
+      // Read the pending user message from TaskRun state (set by the workflow
+      // when the user sends a follow-up message that triggers a resume).
+      const pendingUserMessage = this.getPendingUserMessage(taskRun);
+
+      const sandboxContext = this.resumeState.snapshotApplied
+        ? `The sandbox environment (all files, packages, and code changes) has been fully restored from a snapshot.`
+        : `The sandbox could not be restored from a snapshot (it may have expired). You are starting with a fresh environment but have the full conversation history below.`;
+
+      let resumePrompt: string;
+      if (pendingUserMessage) {
+        // Include the pending message as the user's new question so the agent
+        // responds to it directly instead of the generic resume context.
+        resumePrompt =
+          `You are resuming a previous conversation. ${sandboxContext}\n\n` +
+          `Here is the conversation history from the previous session:\n\n` +
+          `${conversationSummary}\n\n` +
+          `The user has sent a new message:\n\n` +
+          `${pendingUserMessage}\n\n` +
+          `Respond to the user's new message above. You have full context from the previous session.`;
+      } else {
+        resumePrompt =
+          `You are resuming a previous conversation. ${sandboxContext}\n\n` +
+          `Here is the conversation history from the previous session:\n\n` +
+          `${conversationSummary}\n\n` +
+          `Continue from where you left off. The user is waiting for your response.`;
+      }
+
+      this.logger.info("Sending resume message", {
+        taskId: payload.task_id,
+        conversationTurns: this.resumeState.conversation.length,
+        promptLength: resumePrompt.length,
+        hasPendingUserMessage: !!pendingUserMessage,
+        snapshotApplied: this.resumeState.snapshotApplied,
+      });
+
+      // Clear resume state so it's not reused
+      this.resumeState = null;
+
+      const result = await this.session.clientConnection.prompt({
+        sessionId: this.session.acpSessionId,
+        prompt: [{ type: "text", text: resumePrompt }],
+      });
+
+      this.logger.info("Resume message completed", {
+        stopReason: result.stopReason,
+      });
+
+      this.broadcastTurnComplete(result.stopReason);
+    } catch (error) {
+      this.logger.error("Failed to send resume message", error);
+      if (this.session) {
+        await this.session.logWriter.flushAll();
+      }
+      await this.signalTaskComplete(payload, "error");
+    }
+  }
+
+  private static RESUME_HISTORY_TOKEN_BUDGET = 50_000;
+  private static TOOL_RESULT_MAX_CHARS = 2000;
+
+  private formatConversationForResume(
+    conversation: ConversationTurn[],
+  ): string {
+    const selected = selectRecentTurns(
+      conversation,
+      AgentServer.RESUME_HISTORY_TOKEN_BUDGET,
+    );
+    const parts: string[] = [];
+
+    if (selected.length < conversation.length) {
+      parts.push(
+        `*(${conversation.length - selected.length} earlier turns omitted)*`,
+      );
+    }
+
+    for (const turn of selected) {
+      const role = turn.role === "user" ? "User" : "Assistant";
+
+      const textParts = turn.content
+        .filter((block) => block.type === "text")
+        .map((block) => (block as { type: "text"; text: string }).text);
+
+      if (textParts.length > 0) {
+        parts.push(`**${role}**: ${textParts.join("\n")}`);
+      }
+
+      if (turn.toolCalls?.length) {
+        const toolSummary = turn.toolCalls
+          .map((tc) => {
+            let resultStr = "";
+            if (tc.result !== undefined) {
+              const raw =
+                typeof tc.result === "string"
+                  ? tc.result
+                  : JSON.stringify(tc.result);
+              resultStr =
+                raw.length > AgentServer.TOOL_RESULT_MAX_CHARS
+                  ? ` → ${raw.substring(0, AgentServer.TOOL_RESULT_MAX_CHARS)}...(truncated)`
+                  : ` → ${raw}`;
+            }
+            return `  - ${tc.toolName}${resultStr}`;
+          })
+          .join("\n");
+        parts.push(`**${role} (tools)**:\n${toolSummary}`);
+      }
+    }
+
+    return parts.join("\n\n");
+  }
+
   private getInitialPromptOverride(taskRun: TaskRun): string | null {
     const state = taskRun.state as Record<string, unknown> | undefined;
     const override = state?.initial_prompt_override;
@@ -721,6 +916,32 @@ export class AgentServer {
 
     const trimmed = override.trim();
     return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private getPendingUserMessage(taskRun: TaskRun | null): string | null {
+    if (!taskRun) return null;
+    const state = taskRun.state as Record<string, unknown> | undefined;
+    const message = state?.pending_user_message;
+    if (typeof message !== "string") {
+      return null;
+    }
+
+    const trimmed = message.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private getResumeRunId(taskRun: TaskRun | null): string | null {
+    // Env var takes precedence (set by backend infra)
+    const envRunId = process.env.POSTHOG_RESUME_RUN_ID;
+    if (envRunId) return envRunId;
+
+    // Fallback: read from TaskRun state (set by API when creating the run)
+    if (!taskRun) return null;
+    const state = taskRun.state as Record<string, unknown> | undefined;
+    const stateRunId = state?.resume_from_run_id;
+    return typeof stateRunId === "string" && stateRunId.trim().length > 0
+      ? stateRunId.trim()
+      : null;
   }
 
   private buildCloudSystemPrompt(prUrl?: string | null): string {
@@ -1161,20 +1382,34 @@ Important:
           notification,
         });
 
-        // Persist to log writer so cloud runs have tree snapshots
-        const { archiveUrl: _, ...paramsWithoutArchive } = snapshotWithDevice;
-        const logNotification = {
-          ...notification,
-          params: paramsWithoutArchive,
-        };
+        // Persist full snapshot (including archiveUrl) so resume can restore files.
+        // archiveUrl is a pre-signed S3 URL that expires — if the user resumes
+        // after expiry, ApplySnapshotSaga fails gracefully and the agent continues
+        // with conversation context but a fresh sandbox (snapshotApplied=false).
         this.session.logWriter.appendRawLine(
           this.session.payload.run_id,
-          JSON.stringify(logNotification),
+          JSON.stringify(notification),
         );
       }
     } catch (error) {
       this.logger.error("Failed to capture tree state", error);
     }
+  }
+
+  private broadcastTurnComplete(stopReason: string): void {
+    if (!this.session) return;
+    this.broadcastEvent({
+      type: "notification",
+      timestamp: new Date().toISOString(),
+      notification: {
+        jsonrpc: "2.0",
+        method: POSTHOG_NOTIFICATIONS.TURN_COMPLETE,
+        params: {
+          sessionId: this.session.acpSessionId,
+          stopReason,
+        },
+      },
+    });
   }
 
   private broadcastEvent(event: Record<string, unknown>): void {

@@ -26,7 +26,7 @@ export interface ToolCallInfo {
 export interface ResumeInput {
   taskId: string;
   runId: string;
-  repositoryPath: string;
+  repositoryPath?: string;
   apiClient: PostHogAPIClient;
   logger?: Logger;
 }
@@ -78,7 +78,7 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
     // Step 4: Apply snapshot if present (wrapped in step for consistent logging)
     // Note: We use a try/catch inside the step because snapshot failure should NOT fail the saga
     let snapshotApplied = false;
-    if (latestSnapshot?.archiveUrl) {
+    if (latestSnapshot?.archiveUrl && repositoryPath) {
       this.log.info("Found tree snapshot", {
         treeHash: latestSnapshot.treeHash,
         hasArchiveUrl: true,
@@ -120,6 +120,14 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
           // Inner ApplySnapshotSaga handles its own rollback
         },
       });
+    } else if (latestSnapshot?.archiveUrl && !repositoryPath) {
+      this.log.warn(
+        "Snapshot found but no repositoryPath configured - files cannot be restored",
+        {
+          treeHash: latestSnapshot.treeHash,
+          changes: latestSnapshot.changes?.length ?? 0,
+        },
+      );
     } else if (latestSnapshot) {
       this.log.warn(
         "Snapshot found but has no archive URL - files cannot be restored",

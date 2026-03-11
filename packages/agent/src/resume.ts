@@ -47,7 +47,7 @@ export interface ToolCallInfo {
 export interface ResumeConfig {
   taskId: string;
   runId: string;
-  repositoryPath: string;
+  repositoryPath?: string;
   apiClient: PostHogAPIClient;
   logger?: Logger;
 }

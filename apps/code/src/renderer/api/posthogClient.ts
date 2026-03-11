@@ -402,11 +402,19 @@ export class PostHogAPIClient {
     }
   }
 
-  async runTaskInCloud(taskId: string, branch?: string | null): Promise<Task> {
+  async runTaskInCloud(
+    taskId: string,
+    branch?: string | null,
+    resumeOptions?: { resumeFromRunId: string; pendingUserMessage: string },
+  ): Promise<Task> {
     const teamId = await this.getTeamId();
-    const body: Record<string, unknown> = {};
+    const body: Record<string, unknown> = { mode: "interactive" };
     if (branch) {
       body.branch = branch;
+    }
+    if (resumeOptions) {
+      body.resume_from_run_id = resumeOptions.resumeFromRunId;
+      body.pending_user_message = resumeOptions.pendingUserMessage;
     }
 
     const data = await this.api.post(

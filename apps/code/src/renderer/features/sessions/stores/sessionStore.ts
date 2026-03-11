@@ -61,6 +61,8 @@ export interface AgentSession {
   cloudErrorMessage?: string | null;
   /** Cloud task branch */
   cloudBranch?: string | null;
+  /** Number of session/prompt events to skip from polled logs (set during resume) */
+  skipPolledPromptCount?: number;
 }
 
 // --- Config Option Helpers ---
