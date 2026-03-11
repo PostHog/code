@@ -2,6 +2,7 @@ import { useAuthStore } from "@features/auth/stores/authStore";
 import { Command } from "@features/command/components/Command";
 import { useProjects } from "@features/projects/hooks/useProjects";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
+import { useMeQuery } from "@hooks/useMeQuery";
 import {
   ArrowSquareOut,
   CaretDown,
@@ -55,13 +56,8 @@ export function ProjectSwitcher() {
   const cloudRegion = useAuthStore((s) => s.cloudRegion);
   const selectProject = useAuthStore((s) => s.selectProject);
   const logout = useAuthStore((s) => s.logout);
-  const {
-    groupedProjects,
-    currentProject,
-    currentProjectId,
-    currentUser,
-    isLoading,
-  } = useProjects();
+  const { groupedProjects, currentProject, currentProjectId } = useProjects();
+  const { data: currentUser } = useMeQuery();
 
   const handleProjectSelect = (projectId: number) => {
     if (projectId !== currentProjectId) {
@@ -135,7 +131,7 @@ export function ProjectSwitcher() {
               gap="1"
               style={{ minWidth: 0, flex: 1, maxWidth: "calc(100% - 24px)" }}
             >
-              {isLoading ? (
+              {!currentProject && !currentUser ? (
                 <>
                   <Box className="h-4 w-24 animate-pulse rounded bg-gray-6" />
                   <Box className="h-3.5 w-32 animate-pulse rounded bg-gray-5" />

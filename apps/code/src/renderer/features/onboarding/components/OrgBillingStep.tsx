@@ -26,7 +26,7 @@ interface OrgBillingStepProps {
 export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
   const selectedOrgId = useAuthStore((s) => s.selectedOrgId);
   const selectOrg = useAuthStore((s) => s.selectOrg);
-  const client = useAuthStore((s) => s.client);
+  const switchOrg = useAuthStore((s) => s.switchOrg);
   const queryClient = useQueryClient();
   const [isSwitching, setIsSwitching] = useState(false);
 
@@ -44,11 +44,10 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
       selectOrg(effectiveSelectedOrgId);
     }
 
-    if (client && effectiveSelectedOrgId !== currentUserOrgId) {
+    if (effectiveSelectedOrgId !== currentUserOrgId) {
       setIsSwitching(true);
       try {
-        await client.switchOrganization(effectiveSelectedOrgId);
-        await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+        await switchOrg(effectiveSelectedOrgId);
       } catch (err) {
         log.error("Failed to switch organization", err);
       } finally {

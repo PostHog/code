@@ -20,5 +20,4 @@ export interface StoredTokens {
   refreshToken: string;
   expiresAt: number;
   cloudRegion: CloudRegion;
-  scopedTeams?: number[];
 }

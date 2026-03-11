@@ -52,8 +52,12 @@ interface StoredTokens {
   refreshToken: string;
   expiresAt: number;
   cloudRegion: CloudRegion;
-  scopedTeams?: number[];
   scopeVersion?: number;
+}
+
+export interface OrgProjects {
+  orgName: string;
+  projects: { id: number; name: string }[];
 }
 
 interface AuthState {
@@ -70,9 +74,8 @@ interface AuthState {
   client: PostHogAPIClient | null;
   projectId: number | null; // Current team/project ID
 
-  // Multi-project state
-  availableProjectIds: number[]; // All projects from scoped_teams
-  availableOrgIds: string[]; // All orgs from scoped_organizations
+  // Multi-project state — keyed by org ID
+  orgProjectsMap: Record<string, OrgProjects>;
   needsProjectSelection: boolean; // True when multiple projects and no selection stored
 
   needsScopeReauth: boolean; // True when stored token scope version is stale
@@ -100,6 +103,9 @@ interface AuthState {
 
   // Project selection
   selectProject: (projectId: number) => void;
+
+  // Organization switching
+  switchOrg: (orgId: string) => Promise<void>;
 
   // Onboarding methods
   completeOnboarding: () => void;
@@ -181,6 +187,81 @@ async function attemptRefreshWithActivityCheck(
   }
 }
 
+function buildOrgProjectsMapFromUser(
+  user: Record<string, unknown>,
+): Record<string, OrgProjects> {
+  const org = user?.organization as
+    | {
+        id?: string;
+        name?: string;
+        teams?: { id: number | string; name?: string }[];
+      }
+    | undefined;
+
+  if (!org?.id) return {};
+
+  const orgId = String(org.id);
+  const teams = Array.isArray(org.teams) ? org.teams : [];
+
+  return {
+    [orgId]: {
+      orgName: org.name ?? "Unknown Organization",
+      projects: teams
+        .filter(
+          (t): t is { id: number | string; name?: string } =>
+            t != null &&
+            typeof t === "object" &&
+            (typeof t.id === "number" || typeof t.id === "string"),
+        )
+        .map((t) => ({
+          id: Number(t.id),
+          name: t.name ?? `Project ${t.id}`,
+        }))
+        .filter((t) => !Number.isNaN(t.id)),
+    },
+  };
+}
+
+async function buildOrgProjectsMap(
+  user: Record<string, unknown>,
+  client: PostHogAPIClient,
+): Promise<Record<string, OrgProjects>> {
+  const orgs = (user?.organizations ?? []) as {
+    id: string;
+    name?: string;
+  }[];
+
+  const entries = await Promise.all(
+    orgs.map(async (org) => {
+      const projects = await client.listOrgProjects(org.id).catch((err) => {
+        log.warn("Failed to fetch projects for org", { orgId: org.id, err });
+        return null;
+      });
+      return { orgId: org.id, orgName: org.name, projects };
+    }),
+  );
+
+  const allFailed =
+    entries.length > 0 && entries.every((e) => e.projects === null);
+
+  if (allFailed) {
+    log.warn(
+      "All org project calls failed, falling back to user organization teams",
+    );
+    return buildOrgProjectsMapFromUser(user);
+  }
+
+  return Object.fromEntries(
+    entries.map((e) => [
+      e.orgId,
+      {
+        orgName: e.orgName ?? "Unknown Organization",
+        projects: e.projects ?? [],
+      },
+    ]),
+  );
+}
+
 export const useAuthStore = create<AuthState>()(
   subscribeWithSelector(
     persist(
@@ -199,8 +280,7 @@ export const useAuthStore = create<AuthState>()(
         projectId: null,
 
         // Multi-project state
-        availableProjectIds: [],
-        availableOrgIds: [],
+        orgProjectsMap: {},
         needsProjectSelection: false,
         // Scope re-auth state
         needsScopeReauth: false,
@@ -275,20 +355,11 @@ export const useAuthStore = create<AuthState>()(
 
           const tokenResponse = result.data;
           const expiresAt = Date.now() + tokenResponse.expires_in * 1000;
-
-          const scopedTeams = tokenResponse.scoped_teams ?? [];
-          const scopedOrgs = tokenResponse.scoped_organizations ?? [];
-
-          if (scopedTeams.length === 0) {
-            throw new Error("No team found in OAuth scopes");
-          }
-
           const storedTokens: StoredTokens = {
             accessToken: tokenResponse.access_token,
             refreshToken: tokenResponse.refresh_token,
             expiresAt,
             cloudRegion: region,
-            scopedTeams,
             scopeVersion: OAUTH_SCOPE_VERSION,
           };
 
@@ -305,24 +376,16 @@ export const useAuthStore = create<AuthState>()(
               }
               return token;
             },
-            scopedTeams[0],
           );
 
           try {
             const user = await client.getCurrentUser();
+            const orgProjectsMap = await buildOrgProjectsMap(user, client);
 
-            // Determine project: prefer user's current PostHog project, then previously stored, then first available
             const userCurrentTeam = user?.team?.id;
             const storedProjectId = get().projectId;
-            const selectedProjectId =
-              userCurrentTeam != null && scopedTeams.includes(userCurrentTeam)
-                ? userCurrentTeam
-                : storedProjectId !== null &&
-                    scopedTeams.includes(storedProjectId)
-                  ? storedProjectId
-                  : scopedTeams[0];
+            const selectedProjectId = userCurrentTeam ?? storedProjectId;
 
-            // Update client's teamId to match selected project
             client.setTeamId(selectedProjectId);
 
             set({
@@ -334,8 +397,7 @@ export const useAuthStore = create<AuthState>()(
               isAuthenticated: true,
               client,
               projectId: selectedProjectId,
-              availableProjectIds: scopedTeams,
-              availableOrgIds: scopedOrgs,
+              orgProjectsMap,
               needsProjectSelection: false,
               needsScopeReauth: false,
             });
@@ -353,11 +415,11 @@ export const useAuthStore = create<AuthState>()(
             identifyUser(distinctId, {
               email: user.email,
               uuid: user.uuid,
-              project_id: selectedProjectId.toString(),
+              project_id: selectedProjectId?.toString(),
               region,
             });
             track(ANALYTICS_EVENTS.USER_LOGGED_IN, {
-              project_id: selectedProjectId.toString(),
+              project_id: selectedProjectId?.toString(),
               region,
             });
 
@@ -366,7 +428,7 @@ export const useAuthStore = create<AuthState>()(
               properties: {
                 email: user.email,
                 uuid: user.uuid,
-                project_id: selectedProjectId.toString(),
+                project_id: selectedProjectId?.toString(),
                 region,
               },
             });
@@ -445,17 +507,11 @@ export const useAuthStore = create<AuthState>()(
                   refreshToken: tokenResponse.refresh_token,
                   expiresAt,
                   cloudRegion: state.cloudRegion,
-                  scopedTeams: tokenResponse.scoped_teams,
                   scopeVersion: state.storedTokens?.scopeVersion ?? 0,
                 };
 
                 const apiHost = getCloudUrlFromRegion(state.cloudRegion);
-                const scopedTeams = tokenResponse.scoped_teams ?? [];
-                const storedProjectId = state.projectId;
-                const projectId =
-                  storedProjectId && scopedTeams.includes(storedProjectId)
-                    ? storedProjectId
-                    : (scopedTeams[0] ?? storedProjectId ?? undefined);
+                const projectId = state.projectId ?? undefined;
 
                 const client = new PostHogAPIClient(
                   tokenResponse.access_token,
@@ -478,10 +534,6 @@ export const useAuthStore = create<AuthState>()(
                   storedTokens,
                   client,
                   ...(projectId && { projectId }),
-                  availableProjectIds:
-                    scopedTeams.length > 0
-                      ? scopedTeams
-                      : state.availableProjectIds,
                 });
 
                 updateServiceTokens(tokenResponse.access_token);
@@ -618,22 +670,7 @@ export const useAuthStore = create<AuthState>()(
               }
 
               const apiHost = getCloudUrlFromRegion(currentTokens.cloudRegion);
-              const scopedTeams = currentTokens.scopedTeams ?? [];
-
-              if (scopedTeams.length === 0) {
-                log.error("No projects found in stored tokens");
-                get().logout();
-                return false;
-              }
-
               const storedProjectId = get().projectId;
-              const availableProjects =
-                get().availableProjectIds.length > 0
-                  ? get().availableProjectIds
-                  : scopedTeams;
-              const hasValidStoredProject =
-                storedProjectId !== null &&
-                availableProjects.includes(storedProjectId);
 
               const client = new PostHogAPIClient(
                 currentTokens.accessToken,
@@ -646,29 +683,23 @@ export const useAuthStore = create<AuthState>()(
                   }
                   return token;
                 },
-                hasValidStoredProject ? storedProjectId : scopedTeams[0],
+                storedProjectId ?? undefined,
               );
 
               try {
                 const user = await client.getCurrentUser();
+                const orgProjectsMap = await buildOrgProjectsMap(user, client);
 
-                // Prefer stored project, then user's current PostHog project, then first available
                 const userCurrentTeam = user?.team?.id;
-                const selectedProjectId = hasValidStoredProject
-                  ? storedProjectId
-                  : userCurrentTeam != null &&
-                      scopedTeams.includes(userCurrentTeam)
-                    ? userCurrentTeam
-                    : scopedTeams[0];
+                const selectedProjectId = storedProjectId ?? userCurrentTeam;
 
-                // Update client's teamId to match selected project
                 client.setTeamId(selectedProjectId);
 
                 set({
                   isAuthenticated: true,
                   client,
                   projectId: selectedProjectId,
-                  availableProjectIds: scopedTeams,
+                  orgProjectsMap,
                   needsProjectSelection: false,
                 });
 
@@ -683,7 +714,7 @@ export const useAuthStore = create<AuthState>()(
                 identifyUser(distinctId, {
                   email: user.email,
                   uuid: user.uuid,
-                  project_id: selectedProjectId.toString(),
+                  project_id: selectedProjectId?.toString(),
                   region: tokens.cloudRegion,
                 });
 
@@ -692,7 +723,7 @@ export const useAuthStore = create<AuthState>()(
                   properties: {
                     email: user.email,
                     uuid: user.uuid,
-                    project_id: selectedProjectId.toString(),
+                    project_id: selectedProjectId?.toString(),
                     region: tokens.cloudRegion,
                   },
                 });
@@ -711,14 +742,10 @@ export const useAuthStore = create<AuthState>()(
                   log.warn(
                     "Network error during session validation - keeping session active",
                   );
-                  const fallbackProjectId = hasValidStoredProject
-                    ? storedProjectId
-                    : scopedTeams[0];
                   set({
                     isAuthenticated: true,
                     client,
-                    projectId: fallbackProjectId,
-                    availableProjectIds: scopedTeams,
+                    projectId: storedProjectId,
                     needsProjectSelection: false,
                   });
                   get().scheduleTokenRefresh();
@@ -756,25 +783,15 @@ export const useAuthStore = create<AuthState>()(
 
           const tokenResponse = result.data;
           const expiresAt = Date.now() + tokenResponse.expires_in * 1000;
-
-          const scopedTeams = tokenResponse.scoped_teams ?? [];
-          const scopedOrgs = tokenResponse.scoped_organizations ?? [];
-
-          if (scopedTeams.length === 0) {
-            throw new Error("No team found in OAuth scopes");
-          }
-
           const storedTokens: StoredTokens = {
             accessToken: tokenResponse.access_token,
             refreshToken: tokenResponse.refresh_token,
             expiresAt,
             cloudRegion: region,
-            scopedTeams,
             scopeVersion: OAUTH_SCOPE_VERSION,
           };
 
           const apiHost = getCloudUrlFromRegion(region);
-          const selectedProjectId = scopedTeams[0];
 
           const client = new PostHogAPIClient(
             tokenResponse.access_token,
@@ -787,11 +804,15 @@ export const useAuthStore = create<AuthState>()(
               }
               return token;
             },
-            selectedProjectId,
           );
 
           try {
             const user = await client.getCurrentUser();
+            const orgProjectsMap = await buildOrgProjectsMap(user, client);
+
+            const selectedProjectId = user?.team?.id;
+
+            client.setTeamId(selectedProjectId);
 
             set({
               oauthAccessToken: tokenResponse.access_token,
@@ -802,8 +823,7 @@ export const useAuthStore = create<AuthState>()(
               isAuthenticated: true,
               client,
               projectId: selectedProjectId,
-              availableProjectIds: scopedTeams,
-              availableOrgIds: scopedOrgs,
+              orgProjectsMap,
               needsProjectSelection: false,
               needsScopeReauth: false,
             });
@@ -819,11 +839,11 @@ export const useAuthStore = create<AuthState>()(
             identifyUser(distinctId, {
               email: user.email,
               uuid: user.uuid,
-              project_id: selectedProjectId.toString(),
+              project_id: selectedProjectId?.toString(),
               region,
             });
             track(ANALYTICS_EVENTS.USER_LOGGED_IN, {
-              project_id: selectedProjectId.toString(),
+              project_id: selectedProjectId?.toString(),
               region,
             });
 
@@ -832,7 +852,7 @@ export const useAuthStore = create<AuthState>()(
               properties: {
                 email: user.email,
                 uuid: user.uuid,
-                project_id: selectedProjectId.toString(),
+                project_id: selectedProjectId?.toString(),
                 region,
               },
             });
@@ -847,8 +867,10 @@ export const useAuthStore = create<AuthState>()(
         selectProject: (projectId: number) => {
           const state = get();
 
-          // Validate that the project is in the available list
-          if (!state.availableProjectIds.includes(projectId)) {
+          const allProjectIds = Object.values(state.orgProjectsMap).flatMap(
+            (o) => o.projects.map((p) => p.id),
+          );
+          if (!allProjectIds.includes(projectId)) {
             log.error("Attempted to select invalid project", { projectId });
             throw new Error("Invalid project selection");
           }
@@ -883,16 +905,10 @@ export const useAuthStore = create<AuthState>()(
             projectId,
           );
 
-          // Update stored tokens with the selected project
-          const updatedTokens = state.storedTokens
-            ? { ...state.storedTokens, scopedTeams: state.availableProjectIds }
-            : null;
-
           set({
             projectId,
             client,
             needsProjectSelection: false,
-            storedTokens: updatedTokens,
           });
 
           // Clear project-scoped queries, but keep project list/user for the switcher
@@ -917,6 +933,20 @@ export const useAuthStore = create<AuthState>()(
           });
 
           log.info("Project selected", { projectId });
+        },
+
+        switchOrg: async (orgId: string) => {
+          const state = get();
+          if (!state.client) {
+            throw new Error("No client available");
+          }
+
+          await state.client.switchOrganization(orgId);
+          const user = await state.client.getCurrentUser();
+          const orgProjectsMap = await buildOrgProjectsMap(user, state.client);
+
+          set({ orgProjectsMap });
+          queryClient.setQueryData(["currentUser"], user);
         },
 
         completeOnboarding: () => {
@@ -961,8 +991,7 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             client: null,
             projectId: null,
-            availableProjectIds: [],
-            availableOrgIds: [],
+            orgProjectsMap: {},
             needsProjectSelection: false,
             needsScopeReauth: false,
             hasCodeAccess: null,
@@ -981,8 +1010,7 @@ export const useAuthStore = create<AuthState>()(
           storedTokens: state.storedTokens,
           staleTokens: state.staleTokens,
           projectId: state.projectId,
-          availableProjectIds: state.availableProjectIds,
-          availableOrgIds: state.availableOrgIds,
+          orgProjectsMap: state.orgProjectsMap,
           hasCodeAccess: state.hasCodeAccess,
           hasCompletedOnboarding: state.hasCompletedOnboarding,
           selectedPlan: state.selectedPlan,
