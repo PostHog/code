@@ -32,7 +32,7 @@ function storedEntryToAcpMessage(entry: StoredLogEntry): AcpMessage {
 /**
  * Create a user message event for display.
  */
-function createUserMessageEvent(text: string, ts: number): AcpMessage {
+export function createUserMessageEvent(text: string, ts: number): AcpMessage {
   return {
     type: "acp_message",
     ts,
