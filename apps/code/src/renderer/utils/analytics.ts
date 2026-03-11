@@ -28,6 +28,7 @@ export function initializePostHog() {
     api_host: apiHost,
     ui_host: uiHost,
     disable_session_recording: false,
+    enable_recording_console_log: true,
     capture_exceptions: import.meta.env.DEV
       ? false
       : {
