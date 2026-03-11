@@ -49,6 +49,7 @@ export function CodePreview({
             highlightChanges: false,
             gutter: false,
             mergeControls: false,
+            collapseUnchanged: { margin: 3, minSize: 4 },
           }),
         ]
       : [];
