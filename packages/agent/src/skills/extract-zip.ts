@@ -2,9 +2,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { unzipSync } from "fflate";
 
-/**
- * Extracts a ZIP file to a directory using fflate (cross-platform, no native dependencies).
- */
 export async function extractZip(
   zipPath: string,
   extractDir: string,

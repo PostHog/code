@@ -14,4 +14,5 @@ export interface AgentServerConfig {
   version?: string;
   mcpServers?: RemoteMcpServer[];
   baseBranch?: string;
+  skillsDir?: string;
 }

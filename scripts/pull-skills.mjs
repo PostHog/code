@@ -17,13 +17,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { unzipSync } from "fflate";
+import {
+  CONTEXT_MILL_ZIP_URL,
+  SKILLS_ZIP_URL,
+} from "@posthog/agent/skills/constants";
 
 const execFileAsync = promisify(execFile);
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SKILLS_ZIP_URL =
-  "https://github.com/PostHog/posthog/releases/download/agent-skills-latest/skills.zip";
-const CONTEXT_MILL_ZIP_URL =
-  "https://github.com/PostHog/context-mill/releases/latest/download/skills-mcp-resources.zip";
 const LOCAL_SKILLS_DIR = join(
   __dirname,
   "..",

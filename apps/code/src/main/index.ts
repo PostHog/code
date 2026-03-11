@@ -9,6 +9,7 @@ import type { DatabaseService } from "./db/service.js";
 import { initializeDeepLinks, registerDeepLinkHandlers } from "./deep-links.js";
 import { container } from "./di/container.js";
 import { MAIN_TOKENS } from "./di/tokens.js";
+import type { AgentService } from "./services/agent/service.js";
 import type { AppLifecycleService } from "./services/app-lifecycle/service.js";
 import type { ExternalAppsService } from "./services/external-apps/service.js";
 import type { NotificationService } from "./services/notification/service.js";
@@ -18,7 +19,6 @@ import {
   initializePostHog,
   trackAppEvent,
 } from "./services/posthog-analytics.js";
-import type { PosthogPluginService } from "./services/posthog-plugin/service.js";
 import type { TaskLinkService } from "./services/task-link/service";
 import type { UpdatesService } from "./services/updates/service.js";
 import type { WorkspaceService } from "./services/workspace/service.js";
@@ -34,13 +34,13 @@ if (!gotTheLock) {
 }
 
 function initializeServices(): void {
+  container.get<AgentService>(MAIN_TOKENS.AgentService);
   container.get<DatabaseService>(MAIN_TOKENS.DatabaseService);
   container.get<OAuthService>(MAIN_TOKENS.OAuthService);
   container.get<NotificationService>(MAIN_TOKENS.NotificationService);
   container.get<UpdatesService>(MAIN_TOKENS.UpdatesService);
   container.get<TaskLinkService>(MAIN_TOKENS.TaskLinkService);
   container.get<ExternalAppsService>(MAIN_TOKENS.ExternalAppsService);
-  container.get<PosthogPluginService>(MAIN_TOKENS.PosthogPluginService);
 
   // Initialize workspace branch watcher for live branch rename detection
   const workspaceService = container.get<WorkspaceService>(

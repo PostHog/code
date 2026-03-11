@@ -49,10 +49,21 @@ const mockAgentConstructor = vi.hoisted(() =>
 
 const mockFetch = vi.hoisted(() => vi.fn());
 
+const mockSetupSkills = vi.hoisted(() => vi.fn().mockResolvedValue(() => {}));
+
 // --- Module mocks ---
 
 vi.mock("electron", () => ({
   app: mockApp,
+  net: { fetch: vi.fn() },
+}));
+
+vi.mock("@posthog/agent/skills/setup-skills", () => ({
+  setupSkills: mockSetupSkills,
+}));
+
+vi.mock("../posthog-analytics.js", () => ({
+  captureException: vi.fn(),
 }));
 
 vi.mock("../../utils/logger.js", () => ({
@@ -144,9 +155,6 @@ function createMockDependencies() {
       readRepoFile: vi.fn(),
       writeRepoFile: vi.fn(),
     },
-    posthogPluginService: {
-      getPluginPath: vi.fn(() => "/mock/plugin"),
-    },
   };
 }
 
@@ -176,7 +184,6 @@ describe("AgentService", () => {
       deps.processTracking as never,
       deps.sleepService as never,
       deps.fsService as never,
-      deps.posthogPluginService as never,
     );
   });
 
