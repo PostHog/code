@@ -7,6 +7,7 @@ Found a bug or have feedback? [Open an issue](https://github.com/PostHog/code/is
 
 # PostHog Code
 
+
 This is the monorepo for PostHog Code apps and the agent framework that powers them.
 
 ## Development
