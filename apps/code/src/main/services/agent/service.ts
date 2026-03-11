@@ -55,7 +55,7 @@ function getMockNodeDir(): string {
   return join(tmpdir(), `${MOCK_NODE_DIR_PREFIX}-${suffix}`);
 }
 
-/** Mark all content blocks as hidden so the renderer doesn't show a duplicate user message on retry. */
+/** Mark all content blocks as hidden so the renderer doesn't show a duplicate user message on retry */
 function hidePromptBlocks(prompt: ContentBlock[]): ContentBlock[] {
   return prompt.map((block) => {
     const existing = (
