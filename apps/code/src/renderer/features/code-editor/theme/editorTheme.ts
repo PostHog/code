@@ -272,44 +272,47 @@ export const mergeViewTheme = EditorView.baseTheme({
   ".cm-merge-revert:hover button": {
     opacity: "1",
   },
-  // Light mode - subtle backgrounds
+  // Light mode - line-level diffs (subtle)
   "&light.cm-merge-a .cm-changedLine, &light .cm-deletedChunk": {
-    backgroundColor: "rgba(220, 80, 80, .15)",
+    backgroundColor: "rgba(220, 80, 80, 0.15)",
   },
   "&light.cm-merge-b .cm-changedLine, &light .cm-inlineChangedLine": {
-    backgroundColor: "rgba(80, 180, 100, .15)",
+    backgroundColor: "rgba(80, 180, 100, 0.15)",
   },
-  // Dark mode - more visible backgrounds
+  // Dark mode - line-level diffs (subtle)
   "&dark.cm-merge-a .cm-changedLine, &dark .cm-deletedChunk": {
-    backgroundColor: "rgba(255, 100, 100, .25)",
+    backgroundColor: "rgba(220, 80, 80, 0.15)",
   },
   "&dark.cm-merge-b .cm-changedLine, &dark .cm-inlineChangedLine": {
-    backgroundColor: "rgba(100, 220, 120, .25)",
+    backgroundColor: "rgba(80, 180, 100, 0.15)",
+  },
+  ".cm-changedText": {
+    backgroundImage: "none !important",
+    backgroundSize: "0 0 !important",
+    backgroundPosition: "0 0 !important",
+    borderRadius: "0",
+    padding: "1px 0",
   },
   "&light.cm-merge-a .cm-changedText, &light .cm-deletedChunk .cm-deletedText":
     {
-      background: "none",
-      backgroundColor: "rgba(248, 81, 73, 0.40)",
-      borderRadius: "3px",
+      backgroundColor: "rgba(220, 80, 80, 0.35)",
+      backgroundImage: "none",
     },
   "&dark.cm-merge-a .cm-changedText, &dark .cm-deletedChunk .cm-deletedText": {
-    background: "none",
-    backgroundColor: "rgba(248, 81, 73, 0.70)",
-    borderRadius: "3px",
+    backgroundColor: "rgba(220, 80, 80, 0.35)",
+    backgroundImage: "none",
   },
   "&light.cm-merge-b .cm-changedText": {
-    background: "none",
-    backgroundColor: "rgba(46, 160, 67, 0.40)",
-    borderRadius: "3px",
+    backgroundColor: "rgba(80, 180, 100, 0.35)",
+    backgroundImage: "none",
   },
   "&dark.cm-merge-b .cm-changedText": {
-    background: "none",
-    backgroundColor: "rgba(46, 160, 67, 0.70)",
-    borderRadius: "3px",
+    backgroundColor: "rgba(80, 180, 100, 0.35)",
+    backgroundImage: "none",
   },
   "&.cm-merge-b .cm-deletedText": {
-    background: "none",
-    backgroundColor: "rgba(248, 81, 73, 0.40)",
+    backgroundColor: "rgba(220, 80, 80, 0.35)",
+    backgroundImage: "none",
   },
   ".cm-insertedLine, .cm-deletedLine, .cm-deletedLine del": {
     textDecoration: "none",

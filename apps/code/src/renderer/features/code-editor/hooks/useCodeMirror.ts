@@ -68,7 +68,7 @@ const getBaseDiffConfig = (
   collapseUnchanged: options?.loadFullFiles
     ? undefined
     : { margin: 3, minSize: 4 },
-  highlightChanges: options?.wordDiffs ?? true,
+  highlightChanges: false,
   gutter: true,
   mergeControls: createMergeControls(onReject),
 });

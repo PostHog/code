@@ -26,7 +26,7 @@ export const useDiffViewerStore = create<DiffViewerStore>()(
       viewMode: "unified",
       wordWrap: true,
       loadFullFiles: false,
-      wordDiffs: true,
+      wordDiffs: false,
       setViewMode: (mode) => set({ viewMode: mode }),
       toggleViewMode: () =>
         set((s) => ({
