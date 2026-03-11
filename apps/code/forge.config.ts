@@ -243,7 +243,7 @@ const config: ForgeConfig = {
         owner: "PostHog",
         name: "code",
       },
-      draft: false,
+      draft: true,
       prerelease: false,
     }),
   ],

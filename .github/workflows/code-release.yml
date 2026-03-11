@@ -123,3 +123,8 @@ jobs:
           APP_VERSION: ${{ steps.version.outputs.version }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: pnpm --filter code run publish
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: gh release edit "v${{ steps.version.outputs.version }}" --repo PostHog/code --draft=false
