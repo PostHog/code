@@ -13,6 +13,7 @@ import { MAIN_TOKENS } from "./di/tokens.js";
 import type { AgentService } from "./services/agent/service.js";
 import type { UIService } from "./services/ui/service.js";
 import type { UpdatesService } from "./services/updates/service.js";
+import { isDevBuild } from "./utils/env.js";
 import { getLogFilePath } from "./utils/logger.js";
 
 function getSystemInfo(): string {
@@ -68,7 +69,7 @@ function buildAppMenu(): MenuItemConstructorOptions {
         },
       },
       { type: "separator" },
-      ...(app.isPackaged
+      ...(!isDevBuild()
         ? [
             {
               label: "Check for Updates...",

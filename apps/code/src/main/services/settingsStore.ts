@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { LEGACY_DATA_DIRS, WORKTREES_DIR } from "@shared/constants";
 import { app } from "electron";
 import Store from "electron-store";
+import { isDevBuild } from "../utils/env.js";
 
 interface SettingsSchema {
   worktreeLocation: string;
@@ -11,13 +12,13 @@ interface SettingsSchema {
 }
 
 function getDefaultWorktreeLocation(): string {
-  const isDev = !app.isPackaged;
+  const isDev = isDevBuild();
   const dir = isDev ? `${WORKTREES_DIR}-dev` : WORKTREES_DIR;
   return path.join(os.homedir(), dir);
 }
 
 function getLegacyWorktreeLocations(): string[] {
-  const isDev = !app.isPackaged;
+  const isDev = isDevBuild();
   const locations: string[] = [];
   for (const dir of LEGACY_DATA_DIRS) {
     if (isDev) {

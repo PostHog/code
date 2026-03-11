@@ -1,6 +1,7 @@
 import { app, autoUpdater } from "electron";
 import { inject, injectable, postConstruct, preDestroy } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
+import { isDevBuild } from "../../utils/env.js";
 import { logger } from "../../utils/logger.js";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import type { AppLifecycleService } from "../app-lifecycle/service.js";
@@ -43,7 +44,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
 
   get isEnabled(): boolean {
     return (
-      app.isPackaged &&
+      !isDevBuild() &&
       !process.env[UpdatesService.DISABLE_ENV_FLAG] &&
       UpdatesService.SUPPORTED_PLATFORMS.includes(process.platform)
     );
@@ -63,7 +64,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
         !UpdatesService.SUPPORTED_PLATFORMS.includes(process.platform)
       ) {
         log.info("Auto updates only supported on macOS and Windows");
-      } else if (!app.isPackaged) {
+      } else if (isDevBuild()) {
         log.info("Auto updates only available in packaged builds");
       }
       return;
@@ -79,7 +80,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
 
   checkForUpdates(source: CheckSource = "user"): CheckForUpdatesOutput {
     if (!this.isEnabled) {
-      const reason = !app.isPackaged
+      const reason = isDevBuild()
         ? "Updates only available in packaged builds"
         : "Auto updates only supported on macOS and Windows";
       return { success: false, errorMessage: reason, errorCode: "disabled" };
