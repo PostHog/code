@@ -3,7 +3,7 @@ import type { RemoteMcpServer } from "./schemas.js";
 
 export interface AgentServerConfig {
   port: number;
-  repositoryPath: string;
+  repositoryPath?: string;
   apiUrl: string;
   apiKey: string;
   projectId: number;

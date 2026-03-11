@@ -140,7 +140,7 @@ interface ActiveSession {
   acpSessionId: string;
   acpConnection: InProcessAcpConnection;
   clientConnection: ClientSideConnection;
-  treeTracker: TreeTracker;
+  treeTracker: TreeTracker | null;
   sseController: SseController | null;
   deviceInfo: DeviceInfo;
   logWriter: SessionLogWriter;
@@ -510,12 +510,14 @@ export class AgentServer {
 
     this.configureEnvironment();
 
-    const treeTracker = new TreeTracker({
-      repositoryPath: this.config.repositoryPath,
-      taskId: payload.task_id,
-      runId: payload.run_id,
-      logger: new Logger({ debug: true, prefix: "[TreeTracker]" }),
-    });
+    const treeTracker = this.config.repositoryPath
+      ? new TreeTracker({
+          repositoryPath: this.config.repositoryPath,
+          taskId: payload.task_id,
+          runId: payload.run_id,
+          logger: new Logger({ debug: true, prefix: "[TreeTracker]" }),
+        })
+      : null;
 
     const posthogAPI = new PostHogAPIClient({
       apiUrl: this.config.apiUrl,
@@ -594,7 +596,7 @@ export class AgentServer {
     }
 
     const sessionResponse = await clientConnection.newSession({
-      cwd: this.config.repositoryPath,
+      cwd: this.config.repositoryPath ?? "/tmp/workspace",
       mcpServers: this.config.mcpServers ?? [],
       _meta: {
         sessionId: payload.run_id,

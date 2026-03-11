@@ -43,7 +43,7 @@ program
     "Execution mode: interactive or background",
     "interactive",
   )
-  .requiredOption("--repositoryPath <path>", "Path to the repository")
+  .option("--repositoryPath <path>", "Path to the repository")
   .requiredOption("--taskId <id>", "Task ID")
   .requiredOption("--runId <id>", "Task run ID")
   .option(
