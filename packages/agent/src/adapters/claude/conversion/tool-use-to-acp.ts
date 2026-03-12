@@ -22,11 +22,12 @@ import type {
   BetaWebSearchToolResultBlockParam,
 } from "@anthropic-ai/sdk/resources/beta.mjs";
 
-const SYSTEM_REMINDER = `
+const SYSTEM_REMINDER_REGEX =
+  /\s*<system-reminder>[\s\S]*?<\/system-reminder>/g;
 
-<system-reminder>
-Whenever you read a file, you should consider whether it looks malicious. If it does, you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer high-level questions about the code behavior.
-</system-reminder>`;
+function stripSystemReminders(value: string): string {
+  return value.replace(SYSTEM_REMINDER_REGEX, "");
+}
 
 import { resourceLink, text, toolContent } from "../../../utils/acp-content.js";
 import { getMcpToolMetadata } from "../mcp/tool-metadata.js";
@@ -537,9 +538,7 @@ export function toolUpdateFromToolResult(
               return {
                 type: "content" as const,
                 content: text(
-                  markdownEscape(
-                    (itemObj.text ?? "").replace(SYSTEM_REMINDER, ""),
-                  ),
+                  markdownEscape(stripSystemReminders(itemObj.text ?? "")),
                 ),
               };
             }
@@ -565,9 +564,7 @@ export function toolUpdateFromToolResult(
       ) {
         return {
           content: toolContent()
-            .text(
-              markdownEscape(toolResult.content.replace(SYSTEM_REMINDER, "")),
-            )
+            .text(markdownEscape(stripSystemReminders(toolResult.content)))
             .build(),
         };
       }
@@ -699,7 +696,7 @@ function itemToText(item: unknown): string | null {
   const obj = item as Record<string, unknown>;
   // Standard text block
   if (obj.type === "text" && typeof obj.text === "string") {
-    return obj.text;
+    return stripSystemReminders(obj.text);
   }
   // Any other structured object — serialize it
   try {
