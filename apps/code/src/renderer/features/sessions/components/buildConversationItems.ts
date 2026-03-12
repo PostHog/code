@@ -342,6 +342,7 @@ function handleNotification(
       trigger: "manual" | "auto";
       preTokens: number;
     };
+    markCompactingStatusComplete(b);
     pushItem(b, {
       sessionUpdate: "compact_boundary",
       trigger: params.trigger,
@@ -377,6 +378,20 @@ function handleNotification(
       outputFile: params.outputFile,
     });
     return;
+  }
+}
+
+function markCompactingStatusComplete(b: ItemBuilder) {
+  for (let i = b.items.length - 1; i >= 0; i--) {
+    const item = b.items[i];
+    if (
+      item.type === "session_update" &&
+      item.update.sessionUpdate === "status" &&
+      item.update.status === "compacting"
+    ) {
+      item.update.isComplete = true;
+      return;
+    }
   }
 }
 
