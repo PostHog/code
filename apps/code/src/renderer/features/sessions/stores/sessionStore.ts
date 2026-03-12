@@ -70,7 +70,7 @@ export interface AgentSession {
   cloudBranch?: string | null;
   /** Number of session/prompt events to skip from polled logs (set during resume) */
   skipPolledPromptCount?: number;
-  optimisticItems?: OptimisticItem[];
+  optimisticItems: OptimisticItem[];
 }
 
 // --- Config Option Helpers ---
@@ -347,13 +347,10 @@ export const sessionStoreSetters = {
     taskRunId: string,
     item: Omit<OptimisticItem, "id">,
   ): void => {
-    const id = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const id = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     useSessionStore.setState((state) => {
       const session = state.sessions[taskRunId];
       if (session) {
-        if (!session.optimisticItems) {
-          session.optimisticItems = [];
-        }
         session.optimisticItems.push({ ...item, id });
       }
     });
@@ -368,10 +365,7 @@ export const sessionStoreSetters = {
     });
   },
 
-  appendEventAndClearOptimisticItems: (
-    taskRunId: string,
-    event: AcpMessage,
-  ): void => {
+  replaceOptimisticWithEvent: (taskRunId: string, event: AcpMessage): void => {
     useSessionStore.setState((state) => {
       const session = state.sessions[taskRunId];
       if (session) {

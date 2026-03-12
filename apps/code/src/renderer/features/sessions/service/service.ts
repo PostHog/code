@@ -819,16 +819,15 @@ export class SessionService {
     const session = sessionStoreSetters.getSessions()[taskRunId];
     if (!session) return;
 
-    if (
+    const isUserPromptEcho =
       isJsonRpcRequest(acpMsg.message) &&
-      acpMsg.message.method === "session/prompt"
-    ) {
-      sessionStoreSetters.appendEventAndClearOptimisticItems(taskRunId, acpMsg);
-      this.updatePromptStateFromEvents(taskRunId, [acpMsg]);
-      return;
-    }
+      acpMsg.message.method === "session/prompt";
 
-    sessionStoreSetters.appendEvents(taskRunId, [acpMsg]);
+    if (isUserPromptEcho) {
+      sessionStoreSetters.replaceOptimisticWithEvent(taskRunId, acpMsg);
+    } else {
+      sessionStoreSetters.appendEvents(taskRunId, [acpMsg]);
+    }
     this.updatePromptStateFromEvents(taskRunId, [acpMsg]);
 
     const msg = acpMsg.message;
@@ -1006,7 +1005,7 @@ export class SessionService {
       prompt_length_chars: promptText.length,
     });
 
-    return this.sendLocalPrompt(session, blocks);
+    return this.sendLocalPrompt(session, blocks, promptText);
   }
 
   /**
@@ -1053,7 +1052,7 @@ export class SessionService {
     });
 
     try {
-      return await this.sendLocalPrompt(session, blocks);
+      return await this.sendLocalPrompt(session, blocks, combinedText);
     } catch (error) {
       // Log that queued messages were lost due to send failure
       log.error("Failed to send queued messages, messages lost", {
@@ -1068,6 +1067,7 @@ export class SessionService {
   private async sendLocalPrompt(
     session: AgentSession,
     blocks: ContentBlock[],
+    promptText: string,
   ): Promise<{ stopReason: string }> {
     sessionStoreSetters.updateSession(session.taskRunId, {
       isPromptPending: true,
@@ -1076,7 +1076,7 @@ export class SessionService {
 
     sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
       type: "user_message",
-      content: extractPromptText(blocks),
+      content: promptText,
       timestamp: Date.now(),
     });
 
@@ -1085,7 +1085,6 @@ export class SessionService {
         sessionId: session.taskRunId,
         prompt: blocks,
       });
-      // Clear pending state on success
       sessionStoreSetters.updateSession(session.taskRunId, {
         isPromptPending: false,
         promptStartedAt: null,
@@ -2161,6 +2160,7 @@ export class SessionService {
       promptStartedAt: null,
       pendingPermissions: new Map(),
       messageQueue: [],
+      optimisticItems: [],
     };
   }
 
