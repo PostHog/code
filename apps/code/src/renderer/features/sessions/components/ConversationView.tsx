@@ -82,7 +82,10 @@ export function ConversationView({
   );
 
   const items = useMemo<ConversationItem[]>(() => {
-    const result: ConversationItem[] = [...conversationItems, ...optimisticItems];
+    const result: ConversationItem[] = [
+      ...conversationItems,
+      ...optimisticItems,
+    ];
     return queuedItems.length > 0 ? [...result, ...queuedItems] : result;
   }, [conversationItems, optimisticItems, queuedItems]);
 

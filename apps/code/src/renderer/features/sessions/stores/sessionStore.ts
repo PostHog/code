@@ -351,7 +351,10 @@ export const sessionStoreSetters = {
     useSessionStore.setState((state) => {
       const session = state.sessions[taskRunId];
       if (session) {
-        (session.optimisticItems ??= []).push({ ...item, id });
+        if (!session.optimisticItems) {
+          session.optimisticItems = [];
+        }
+        session.optimisticItems.push({ ...item, id });
       }
     });
   },
