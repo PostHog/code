@@ -1,7 +1,8 @@
+import { useTaskViewed } from "@features/sidebar/hooks/useTaskViewed";
 import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
 import { SquaresFour } from "@phosphor-icons/react";
 import { Box, Flex, Text } from "@radix-ui/themes";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useCommandCenterData } from "../hooks/useCommandCenterData";
 import { useCommandCenterStore } from "../stores/commandCenterStore";
 import { CommandCenterGrid } from "./CommandCenterGrid";
@@ -10,6 +11,18 @@ import { CommandCenterToolbar } from "./CommandCenterToolbar";
 export function CommandCenterView() {
   const layout = useCommandCenterStore((s) => s.layout);
   const { cells, summary } = useCommandCenterData();
+  const { markAsViewed } = useTaskViewed();
+
+  const visibleTaskIds = useMemo(
+    () => cells.map((c) => c.taskId).filter((id): id is string => id != null),
+    [cells],
+  );
+
+  useEffect(() => {
+    for (const taskId of visibleTaskIds) {
+      markAsViewed(taskId);
+    }
+  }, [visibleTaskIds, markAsViewed]);
 
   const headerContent = useMemo(
     () => (
