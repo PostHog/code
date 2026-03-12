@@ -1,6 +1,6 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk";
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   AgentServiceEvent,
   cancelPermissionInput,
@@ -21,13 +21,13 @@ import {
   startSessionInput,
   subscribeSessionInput,
   tokenUpdateInput,
-} from "../../services/agent/schemas.js";
-import type { AgentService } from "../../services/agent/service.js";
-import type { ProcessTrackingService } from "../../services/process-tracking/service.js";
-import type { ShellService } from "../../services/shell/service.js";
-import type { SleepService } from "../../services/sleep/service.js";
-import { logger } from "../../utils/logger.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/agent/schemas";
+import type { AgentService } from "../../services/agent/service";
+import type { ProcessTrackingService } from "../../services/process-tracking/service";
+import type { ShellService } from "../../services/shell/service";
+import type { SleepService } from "../../services/sleep/service";
+import { logger } from "../../utils/logger";
+import { publicProcedure, router } from "../trpc";
 
 const log = logger.scope("agent-router");
 

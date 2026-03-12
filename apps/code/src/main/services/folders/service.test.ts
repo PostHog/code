@@ -101,10 +101,10 @@ vi.mock("../../db/repositories/worktree-repository.js", () => ({
 }));
 
 import { isGitRepository } from "@posthog/git/queries";
-import type { IRepositoryRepository } from "../../db/repositories/repository-repository.js";
-import type { IWorkspaceRepository } from "../../db/repositories/workspace-repository.js";
-import type { IWorktreeRepository } from "../../db/repositories/worktree-repository.js";
-import { FoldersService } from "./service.js";
+import type { IRepositoryRepository } from "../../db/repositories/repository-repository";
+import type { IWorkspaceRepository } from "../../db/repositories/workspace-repository";
+import type { IWorktreeRepository } from "../../db/repositories/worktree-repository";
+import { FoldersService } from "./service";
 
 describe("FoldersService", () => {
   let service: FoldersService;

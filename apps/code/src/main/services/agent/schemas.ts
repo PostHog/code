@@ -2,11 +2,11 @@ import type {
   RequestPermissionRequest,
   PermissionOption as SdkPermissionOption,
 } from "@agentclientprotocol/sdk";
-import { effortLevelSchema } from "@shared/types.js";
+import { effortLevelSchema } from "@shared/types";
 import { z } from "zod";
 
 export { effortLevelSchema };
-export type { EffortLevel } from "@shared/types.js";
+export type { EffortLevel } from "@shared/types";
 
 // Session credentials schema
 export const credentialsSchema = z.object({

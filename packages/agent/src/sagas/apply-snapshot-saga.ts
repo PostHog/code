@@ -2,8 +2,8 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ApplyTreeSaga as GitApplyTreeSaga } from "@posthog/git/sagas/tree";
 import { Saga } from "@posthog/shared";
-import type { PostHogAPIClient } from "../posthog-api.js";
-import type { TreeSnapshot } from "../types.js";
+import type { PostHogAPIClient } from "../posthog-api";
+import type { TreeSnapshot } from "../types";
 
 export interface ApplySnapshotInput {
   snapshot: TreeSnapshot;

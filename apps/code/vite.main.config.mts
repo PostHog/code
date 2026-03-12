@@ -21,7 +21,7 @@ import {
   createPosthogPlugin,
   mainAliases,
 } from "./vite.shared.mjs";
-import { autoServicesPlugin } from "./vite-plugin-auto-services.js";
+import { autoServicesPlugin } from "./vite-plugin-auto-services";
 
 function getGitCommit(): string {
   try {

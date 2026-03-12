@@ -1,7 +1,7 @@
 import type { HookCallback, HookInput } from "@anthropic-ai/claude-agent-sdk";
-import type { Logger } from "../../utils/logger.js";
-import type { SettingsManager } from "./session/settings.js";
-import type { CodeExecutionMode } from "./tools.js";
+import type { Logger } from "../../utils/logger";
+import type { SettingsManager } from "./session/settings";
+import type { CodeExecutionMode } from "./tools";
 
 const toolUseCallbacks: {
   [toolUseId: string]: {

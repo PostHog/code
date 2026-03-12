@@ -1,8 +1,8 @@
 import { eq, isNotNull } from "drizzle-orm";
 import { inject, injectable } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { workspaces } from "../schema.js";
-import type { DatabaseService } from "../service.js";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { workspaces } from "../schema";
+import type { DatabaseService } from "../service";
 
 export type Workspace = typeof workspaces.$inferSelect;
 export type NewWorkspace = typeof workspaces.$inferInsert;

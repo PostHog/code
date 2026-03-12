@@ -1,8 +1,8 @@
-import type { StoredLogEntry } from "@shared/types/session-events.js";
+import type { StoredLogEntry } from "@shared/types/session-events";
 import { net } from "electron";
 import { injectable, preDestroy } from "inversify";
-import { logger } from "../../utils/logger.js";
-import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
+import { logger } from "../../utils/logger";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 import {
   CloudTaskEvent,
   type CloudTaskEvents,
@@ -11,7 +11,7 @@ import {
   type TaskRunStatus,
   TERMINAL_STATUSES,
   type WatchInput,
-} from "./schemas.js";
+} from "./schemas";
 
 const log = logger.scope("cloud-task");
 

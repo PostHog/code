@@ -30,6 +30,15 @@
               {
                 "group": ["./*", "../*"],
                 "message": "Relative imports are forbidden. Use path aliases instead (@api/*, @main/*, @shared/*)."
+              },
+              {
+                "group": [
+                  "**/*.js",
+                  "!fuse.js",
+                  "!tippy.js",
+                  "!@radix-ui/**/*.js"
+                ],
+                "message": "Do not use .js extension in imports. TypeScript resolves extensions automatically."
               }
             ]
           }
@@ -134,6 +143,15 @@
                   {
                     "group": ["./*", "../*"],
                     "message": "Use path aliases instead: @features/*, @components/*, @stores/*, @hooks/*, @utils/*, @renderer/*, @shared/*, @api/*"
+                  },
+                  {
+                    "group": [
+                      "**/*.js",
+                      "!fuse.js",
+                      "!tippy.js",
+                      "!@radix-ui/**/*.js"
+                    ],
+                    "message": "Do not use .js extension in imports. TypeScript resolves extensions automatically."
                   }
                 ]
               }

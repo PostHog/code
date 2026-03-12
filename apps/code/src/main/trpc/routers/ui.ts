@@ -1,11 +1,11 @@
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   UIServiceEvent,
   type UIServiceEvents,
-} from "../../services/ui/schemas.js";
-import type { UIService } from "../../services/ui/service.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/ui/schemas";
+import type { UIService } from "../../services/ui/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () => container.get<UIService>(MAIN_TOKENS.UIService);
 

@@ -5,8 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { vi } from "vitest";
-import type { PostHogAPIClient } from "../../posthog-api.js";
-import type { TaskRun, TreeSnapshot } from "../../types.js";
+import type { PostHogAPIClient } from "../../posthog-api";
+import type { TaskRun, TreeSnapshot } from "../../types";
 
 const execFileAsync = promisify(execFile);
 

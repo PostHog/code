@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import { inject, injectable } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { worktrees } from "../schema.js";
-import type { DatabaseService } from "../service.js";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { worktrees } from "../schema";
+import type { DatabaseService } from "../service";
 
 export type Worktree = typeof worktrees.$inferSelect;
 export type NewWorktree = typeof worktrees.$inferInsert;

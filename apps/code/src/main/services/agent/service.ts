@@ -21,19 +21,19 @@ import {
 } from "@posthog/agent/gateway-models";
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import type { OnLogCallback } from "@posthog/agent/types";
-import { isAuthError } from "@shared/errors.js";
-import type { AcpMessage } from "@shared/types/session-events.js";
+import { isAuthError } from "@shared/errors";
+import type { AcpMessage } from "@shared/types/session-events";
 import { app, powerMonitor } from "electron";
 import { inject, injectable, preDestroy } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { isDevBuild } from "../../utils/env.js";
-import { logger } from "../../utils/logger.js";
-import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
-import type { FsService } from "../fs/service.js";
-import type { PosthogPluginService } from "../posthog-plugin/service.js";
-import type { ProcessTrackingService } from "../process-tracking/service.js";
-import type { SleepService } from "../sleep/service.js";
-import { discoverExternalPlugins } from "./discover-plugins.js";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { isDevBuild } from "../../utils/env";
+import { logger } from "../../utils/logger";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import type { FsService } from "../fs/service";
+import type { PosthogPluginService } from "../posthog-plugin/service";
+import type { ProcessTrackingService } from "../process-tracking/service";
+import type { SleepService } from "../sleep/service";
+import { discoverExternalPlugins } from "./discover-plugins";
 import {
   AgentServiceEvent,
   type AgentServiceEvents,
@@ -44,7 +44,7 @@ import {
   type ReconnectSessionInput,
   type SessionResponse,
   type StartSessionInput,
-} from "./schemas.js";
+} from "./schemas";
 
 export type { InterruptReason };
 

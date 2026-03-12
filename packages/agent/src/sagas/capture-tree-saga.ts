@@ -3,8 +3,8 @@ import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { CaptureTreeSaga as GitCaptureTreeSaga } from "@posthog/git/sagas/tree";
 import { Saga } from "@posthog/shared";
-import type { PostHogAPIClient } from "../posthog-api.js";
-import type { TreeSnapshot } from "../types.js";
+import type { PostHogAPIClient } from "../posthog-api";
+import type { TreeSnapshot } from "../types";
 
 export interface CaptureTreeInput {
   repositoryPath: string;

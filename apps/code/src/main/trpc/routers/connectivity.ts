@@ -1,12 +1,12 @@
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   ConnectivityEvent,
   type ConnectivityEvents,
   connectivityStatusOutput,
-} from "../../services/connectivity/schemas.js";
-import type { ConnectivityService } from "../../services/connectivity/service.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/connectivity/schemas";
+import type { ConnectivityService } from "../../services/connectivity/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () =>
   container.get<ConnectivityService>(MAIN_TOKENS.ConnectivityService);

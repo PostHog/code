@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import type { NotificationService } from "../../services/notification/service.js";
-import { publicProcedure, router } from "../trpc.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
+import type { NotificationService } from "../../services/notification/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () =>
   container.get<NotificationService>(MAIN_TOKENS.NotificationService);

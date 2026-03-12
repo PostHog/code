@@ -1,6 +1,6 @@
 import { injectable } from "inversify";
-import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
-import { UIServiceEvent, type UIServiceEvents } from "./schemas.js";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import { UIServiceEvent, type UIServiceEvents } from "./schemas";
 
 @injectable()
 export class UIService extends TypedEventEmitter<UIServiceEvents> {

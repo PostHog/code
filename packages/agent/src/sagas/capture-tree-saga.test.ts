@@ -1,15 +1,15 @@
 import { join } from "node:path";
 import type { SagaLogger } from "@posthog/shared";
 import { afterEach, beforeEach, describe, expect, it, type vi } from "vitest";
-import { isCommitOnRemote, validateForCloudHandoff } from "../tree-tracker.js";
-import { CaptureTreeSaga } from "./capture-tree-saga.js";
+import { isCommitOnRemote, validateForCloudHandoff } from "../tree-tracker";
+import { CaptureTreeSaga } from "./capture-tree-saga";
 import {
   createMockApiClient,
   createMockLogger,
   createSnapshot,
   createTestRepo,
   type TestRepo,
-} from "./test-fixtures.js";
+} from "./test-fixtures";
 
 describe("CaptureTreeSaga", () => {
   let repo: TestRepo;

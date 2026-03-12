@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { UpdatesEvent } from "./schemas.js";
+import { UpdatesEvent } from "./schemas";
 
 // Use vi.hoisted to ensure mocks are available when vi.mock is hoisted
 const { mockApp, mockAutoUpdater, mockLifecycleService } = vi.hoisted(() => ({
@@ -45,7 +45,7 @@ vi.mock("../../di/tokens.js", () => ({
 }));
 
 // Import the service after mocks are set up
-import { UpdatesService } from "./service.js";
+import { UpdatesService } from "./service";
 
 // Helper to initialize service and wait for setup without running the periodic interval infinitely
 async function initializeService(service: UpdatesService): Promise<void> {

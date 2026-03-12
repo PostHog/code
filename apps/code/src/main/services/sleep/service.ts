@@ -1,7 +1,7 @@
 import { powerSaveBlocker } from "electron";
 import { injectable, preDestroy } from "inversify";
-import { logger } from "../../utils/logger.js";
-import { settingsStore } from "../settingsStore.js";
+import { logger } from "../../utils/logger";
+import { settingsStore } from "../settingsStore";
 
 const log = logger.scope("sleep");
 

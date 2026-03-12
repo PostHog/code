@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ShellEvent } from "./schemas.js";
+import { ShellEvent } from "./schemas";
 
 const mockPty = vi.hoisted(() => ({
   spawn: vi.fn(),
@@ -73,11 +73,11 @@ vi.mock("../../di/tokens.js", () => ({
   },
 }));
 
-import type { RepositoryRepository } from "../../db/repositories/repository-repository.js";
-import type { WorkspaceRepository } from "../../db/repositories/workspace-repository.js";
-import type { WorktreeRepository } from "../../db/repositories/worktree-repository.js";
-import type { ProcessTrackingService } from "../process-tracking/service.js";
-import { ShellService } from "./service.js";
+import type { RepositoryRepository } from "../../db/repositories/repository-repository";
+import type { WorkspaceRepository } from "../../db/repositories/workspace-repository";
+import type { WorktreeRepository } from "../../db/repositories/worktree-repository";
+import type { ProcessTrackingService } from "../process-tracking/service";
+import { ShellService } from "./service";
 
 function createMockProcessTracking(): ProcessTrackingService {
   return {

@@ -9,17 +9,17 @@ import type {
   SpawnedProcess,
   SpawnOptions,
 } from "@anthropic-ai/claude-agent-sdk";
-import { IS_ROOT } from "../../../utils/common.js";
-import type { Logger } from "../../../utils/logger.js";
+import { IS_ROOT } from "../../../utils/common";
+import type { Logger } from "../../../utils/logger";
 import {
   createPostToolUseHook,
   createPreToolUseHook,
   type OnModeChange,
-} from "../hooks.js";
-import type { CodeExecutionMode } from "../tools.js";
-import type { EffortLevel } from "../types.js";
-import { DEFAULT_MODEL } from "./models.js";
-import type { SettingsManager } from "./settings.js";
+} from "../hooks";
+import type { CodeExecutionMode } from "../tools";
+import type { EffortLevel } from "../types";
+import { DEFAULT_MODEL } from "./models";
+import type { SettingsManager } from "./settings";
 
 export interface ProcessSpawnedInfo {
   pid: number;

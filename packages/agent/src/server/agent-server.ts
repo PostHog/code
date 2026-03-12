@@ -6,33 +6,33 @@ import {
 import { type ServerType, serve } from "@hono/node-server";
 import { Hono } from "hono";
 import packageJson from "../../package.json" with { type: "json" };
-import { POSTHOG_NOTIFICATIONS } from "../acp-extensions.js";
+import { POSTHOG_NOTIFICATIONS } from "../acp-extensions";
 import {
   createAcpConnection,
   type InProcessAcpConnection,
-} from "../adapters/acp-connection.js";
-import { selectRecentTurns } from "../adapters/claude/session/jsonl-hydration.js";
-import { PostHogAPIClient } from "../posthog-api.js";
+} from "../adapters/acp-connection";
+import { selectRecentTurns } from "../adapters/claude/session/jsonl-hydration";
+import { PostHogAPIClient } from "../posthog-api";
 import {
   type ConversationTurn,
   type ResumeState,
   resumeFromLog,
-} from "../resume.js";
-import { SessionLogWriter } from "../session-log-writer.js";
-import { TreeTracker } from "../tree-tracker.js";
+} from "../resume";
+import { SessionLogWriter } from "../session-log-writer";
+import { TreeTracker } from "../tree-tracker";
 import type {
   AgentMode,
   DeviceInfo,
   LogLevel,
   TaskRun,
   TreeSnapshotEvent,
-} from "../types.js";
-import { AsyncMutex } from "../utils/async-mutex.js";
-import { getLlmGatewayUrl } from "../utils/gateway.js";
-import { Logger } from "../utils/logger.js";
-import { type JwtPayload, JwtValidationError, validateJwt } from "./jwt.js";
-import { jsonRpcRequestSchema, validateCommandParams } from "./schemas.js";
-import type { AgentServerConfig } from "./types.js";
+} from "../types";
+import { AsyncMutex } from "../utils/async-mutex";
+import { getLlmGatewayUrl } from "../utils/gateway";
+import { Logger } from "../utils/logger";
+import { type JwtPayload, JwtValidationError, validateJwt } from "./jwt";
+import { jsonRpcRequestSchema, validateCommandParams } from "./schemas";
+import type { AgentServerConfig } from "./types";
 
 type MessageCallback = (message: unknown) => void;
 

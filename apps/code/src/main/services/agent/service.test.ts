@@ -130,7 +130,7 @@ vi.mock("node:fs", async (importOriginal) => {
 vi.stubGlobal("fetch", mockFetch);
 
 // --- Import after mocks ---
-import { AgentService } from "./service.js";
+import { AgentService } from "./service";
 
 // --- Test helpers ---
 

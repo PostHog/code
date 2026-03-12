@@ -1,6 +1,6 @@
 import { Saga } from "@posthog/shared";
-import type { GitClient } from "./client.js";
-import { getGitOperationManager } from "./operation-manager.js";
+import type { GitClient } from "./client";
+import { getGitOperationManager } from "./operation-manager";
 
 export interface GitSagaInput {
   baseDir: string;

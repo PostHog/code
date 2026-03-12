@@ -3,10 +3,10 @@ export {
   type CodeExecutionMode,
   getAvailableModes,
   type ModeInfo,
-} from "../../execution-mode.js";
+} from "../../execution-mode";
 
-import type { CodeExecutionMode } from "../../execution-mode.js";
-import { isMcpToolReadOnly } from "./mcp/tool-metadata.js";
+import type { CodeExecutionMode } from "../../execution-mode";
+import { isMcpToolReadOnly } from "./mcp/tool-metadata";
 
 export const READ_TOOLS: Set<string> = new Set(["Read", "NotebookRead"]);
 

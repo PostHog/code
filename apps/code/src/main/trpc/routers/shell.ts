@@ -1,5 +1,5 @@
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   createInput,
   executeInput,
@@ -9,9 +9,9 @@ import {
   type ShellEvents,
   sessionIdInput,
   writeInput,
-} from "../../services/shell/schemas.js";
-import type { ShellService } from "../../services/shell/service.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/shell/schemas";
+import type { ShellService } from "../../services/shell/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () => container.get<ShellService>(MAIN_TOKENS.ShellService);
 

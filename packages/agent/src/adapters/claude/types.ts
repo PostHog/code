@@ -8,10 +8,10 @@ import type {
   Query,
   SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
-import type { Pushable } from "../../utils/streams.js";
-import type { BaseSession } from "../base-acp-agent.js";
-import type { SettingsManager } from "./session/settings.js";
-import type { CodeExecutionMode } from "./tools.js";
+import type { Pushable } from "../../utils/streams";
+import type { BaseSession } from "../base-acp-agent";
+import type { SettingsManager } from "./session/settings";
+import type { CodeExecutionMode } from "./tools";
 
 export type EffortLevel = "low" | "medium" | "high" | "max";
 

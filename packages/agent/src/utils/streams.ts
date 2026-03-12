@@ -1,6 +1,6 @@
 import type { Readable, Writable } from "node:stream";
 import { ReadableStream, WritableStream } from "node:stream/web";
-import type { Logger } from "./logger.js";
+import type { Logger } from "./logger";
 
 export class Pushable<T> implements AsyncIterable<T> {
   private queue: T[] = [];

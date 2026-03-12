@@ -14,22 +14,22 @@ import { CreateOrSwitchBranchSaga } from "@posthog/git/sagas/branch";
 import { DetachHeadSaga } from "@posthog/git/sagas/head";
 import { WorktreeManager } from "@posthog/git/worktree";
 import { inject, injectable } from "inversify";
-import type { RepositoryRepository } from "../../db/repositories/repository-repository.js";
-import type { WorkspaceRepository } from "../../db/repositories/workspace-repository.js";
-import type { WorktreeRepository } from "../../db/repositories/worktree-repository.js";
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import type { RepositoryRepository } from "../../db/repositories/repository-repository";
+import type { WorkspaceRepository } from "../../db/repositories/workspace-repository";
+import type { WorktreeRepository } from "../../db/repositories/worktree-repository";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
-import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 import { deriveWorktreePath } from "../../utils/worktree-helpers";
-import type { AgentService } from "../agent/service.js";
-import { FileWatcherEvent } from "../file-watcher/schemas.js";
-import type { FileWatcherService } from "../file-watcher/service.js";
-import type { FocusService } from "../focus/service.js";
-import { FocusServiceEvent } from "../focus/service.js";
-import type { ProcessTrackingService } from "../process-tracking/service.js";
+import type { AgentService } from "../agent/service";
+import { FileWatcherEvent } from "../file-watcher/schemas";
+import type { FileWatcherService } from "../file-watcher/service";
+import type { FocusService } from "../focus/service";
+import { FocusServiceEvent } from "../focus/service";
+import type { ProcessTrackingService } from "../process-tracking/service";
 import { getWorktreeLocation } from "../settingsStore";
-import type { ShellService } from "../shell/service.js";
+import type { ShellService } from "../shell/service";
 import { loadConfig, normalizeScripts } from "./configLoader";
 import type {
   BranchChangedPayload,
@@ -43,7 +43,7 @@ import type {
   WorkspaceTerminalInfo,
   WorkspaceWarningPayload,
   WorktreeInfo,
-} from "./schemas.js";
+} from "./schemas";
 import { ScriptRunner } from "./scriptRunner";
 import { buildWorkspaceEnv } from "./workspaceEnv";
 

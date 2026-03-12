@@ -1,12 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { GitSaga, type GitSagaInput } from "../git-saga.js";
-import {
-  addToLocalExclude,
-  branchExists,
-  getDefaultBranch,
-} from "../queries.js";
-import { safeSymlink } from "../utils.js";
+import { GitSaga, type GitSagaInput } from "../git-saga";
+import { addToLocalExclude, branchExists, getDefaultBranch } from "../queries";
+import { safeSymlink } from "../utils";
 
 export interface CreateWorktreeInput extends GitSagaInput {
   worktreePath: string;

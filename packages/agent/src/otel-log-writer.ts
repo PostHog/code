@@ -6,8 +6,8 @@ import {
   LoggerProvider,
 } from "@opentelemetry/sdk-logs";
 import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
-import type { StoredNotification } from "./types.js";
-import type { Logger } from "./utils/logger.js";
+import type { StoredNotification } from "./types";
+import type { Logger } from "./utils/logger";
 
 export interface OtelLogConfig {
   /** PostHog ingest host, e.g., "https://us.i.posthog.com" */

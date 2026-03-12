@@ -9,9 +9,9 @@ import {
 import { ApplyPatchSaga } from "@posthog/git/sagas/patch";
 import ignore, { type Ignore } from "ignore";
 import { inject, injectable } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../utils/logger.js";
-import type { WatcherRegistryService } from "../watcher-registry/service.js";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { logger } from "../../utils/logger";
+import type { WatcherRegistryService } from "../watcher-registry/service";
 
 const log = logger.scope("focus-sync");
 

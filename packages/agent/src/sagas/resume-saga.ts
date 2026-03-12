@@ -1,14 +1,14 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import { Saga } from "@posthog/shared";
-import { POSTHOG_NOTIFICATIONS } from "../acp-extensions.js";
-import type { PostHogAPIClient } from "../posthog-api.js";
-import { TreeTracker } from "../tree-tracker.js";
+import { POSTHOG_NOTIFICATIONS } from "../acp-extensions";
+import type { PostHogAPIClient } from "../posthog-api";
+import { TreeTracker } from "../tree-tracker";
 import type {
   DeviceInfo,
   StoredNotification,
   TreeSnapshotEvent,
-} from "../types.js";
-import { Logger } from "../utils/logger.js";
+} from "../types";
+import { Logger } from "../utils/logger";
 
 export interface ConversationTurn {
   role: "user" | "assistant";

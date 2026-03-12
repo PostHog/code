@@ -1,14 +1,14 @@
-import { ANALYTICS_EVENTS } from "@shared/types/analytics.js";
+import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { app } from "electron";
 import { injectable } from "inversify";
-import type { DatabaseService } from "../../db/service.js";
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { withTimeout } from "../../utils/async.js";
-import { logger } from "../../utils/logger.js";
-import { shutdownPostHog, trackAppEvent } from "../posthog-analytics.js";
-import type { ProcessTrackingService } from "../process-tracking/service.js";
-import type { WatcherRegistryService } from "../watcher-registry/service.js";
+import type { DatabaseService } from "../../db/service";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { withTimeout } from "../../utils/async";
+import { logger } from "../../utils/logger";
+import { shutdownPostHog, trackAppEvent } from "../posthog-analytics";
+import type { ProcessTrackingService } from "../process-tracking/service";
+import type { WatcherRegistryService } from "../watcher-registry/service";
 
 const log = logger.scope("app-lifecycle");
 

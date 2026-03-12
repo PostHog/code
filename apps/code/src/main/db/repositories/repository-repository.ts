@@ -1,8 +1,8 @@
 import { desc, eq } from "drizzle-orm";
 import { inject, injectable } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { repositories } from "../schema.js";
-import type { DatabaseService } from "../service.js";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { repositories } from "../schema";
+import type { DatabaseService } from "../service";
 
 export type Repository = typeof repositories.$inferSelect;
 export type NewRepository = typeof repositories.$inferInsert;

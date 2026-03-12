@@ -1,5 +1,5 @@
-import type { GitClient } from "../client.js";
-import { GitSaga, type GitSagaInput } from "../git-saga.js";
+import type { GitClient } from "../client";
+import { GitSaga, type GitSagaInput } from "../git-saga";
 
 export interface CleanWorkingTreeInput extends GitSagaInput {}
 

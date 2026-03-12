@@ -1,5 +1,5 @@
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   addFolderInput,
   addFolderOutput,
@@ -10,9 +10,9 @@ import {
   removeFolderInput,
   repositoryLookupResult,
   updateFolderAccessedInput,
-} from "../../services/folders/schemas.js";
-import type { FoldersService } from "../../services/folders/service.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/folders/schemas";
+import type { FoldersService } from "../../services/folders/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () =>
   container.get<FoldersService>(MAIN_TOKENS.FoldersService);

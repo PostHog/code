@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ConnectivityEvent } from "./schemas.js";
+import { ConnectivityEvent } from "./schemas";
 
 const mockNet = vi.hoisted(() => ({
   isOnline: vi.fn(() => true),
@@ -21,7 +21,7 @@ vi.mock("../../utils/logger.js", () => ({
   },
 }));
 
-import { ConnectivityService } from "./service.js";
+import { ConnectivityService } from "./service";
 
 describe("ConnectivityService", () => {
   let service: ConnectivityService;

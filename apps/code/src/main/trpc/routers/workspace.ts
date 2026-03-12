@@ -1,6 +1,6 @@
-import type { WorkspaceRepository } from "../../db/repositories/workspace-repository.js";
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import type { WorkspaceRepository } from "../../db/repositories/workspace-repository";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   createWorkspaceInput,
   createWorkspaceOutput,
@@ -33,13 +33,13 @@ import {
   togglePinOutput,
   verifyWorkspaceInput,
   verifyWorkspaceOutput,
-} from "../../services/workspace/schemas.js";
+} from "../../services/workspace/schemas";
 import {
   type WorkspaceService,
   WorkspaceServiceEvent,
   type WorkspaceServiceEvents,
-} from "../../services/workspace/service.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/workspace/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () =>
   container.get<WorkspaceService>(MAIN_TOKENS.WorkspaceService);

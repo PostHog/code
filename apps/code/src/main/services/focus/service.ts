@@ -16,13 +16,13 @@ import {
   StashPushSaga,
 } from "@posthog/git/sagas/stash";
 import { inject, injectable } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
-import { type FocusSession, focusStore } from "../../utils/store.js";
+import { type FocusSession, focusStore } from "../../utils/store";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 import { getWorktreeLocation } from "../settingsStore";
-import type { WatcherRegistryService } from "../watcher-registry/service.js";
-import type { FocusResult, StashResult } from "./schemas.js";
+import type { WatcherRegistryService } from "../watcher-registry/service";
+import type { FocusResult, StashResult } from "./schemas";
 
 const log = logger.scope("focus");
 

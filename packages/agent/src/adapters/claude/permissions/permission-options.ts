@@ -1,5 +1,5 @@
 import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
-import { BASH_TOOLS, READ_TOOLS, SEARCH_TOOLS, WRITE_TOOLS } from "../tools.js";
+import { BASH_TOOLS, READ_TOOLS, SEARCH_TOOLS, WRITE_TOOLS } from "../tools";
 
 export interface PermissionOption {
   kind: "allow_once" | "allow_always" | "reject_once" | "reject_always";

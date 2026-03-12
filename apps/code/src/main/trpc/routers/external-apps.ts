@@ -1,5 +1,5 @@
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   copyPathInput,
   getDetectedAppsOutput,
@@ -7,9 +7,9 @@ import {
   openInAppInput,
   openInAppOutput,
   setLastUsedInput,
-} from "../../services/external-apps/schemas.js";
-import type { ExternalAppsService } from "../../services/external-apps/service.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/external-apps/schemas";
+import type { ExternalAppsService } from "../../services/external-apps/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () =>
   container.get<ExternalAppsService>(MAIN_TOKENS.ExternalAppsService);

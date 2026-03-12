@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import type { SagaLogger } from "@posthog/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApplySnapshotSaga } from "./apply-snapshot-saga.js";
+import { ApplySnapshotSaga } from "./apply-snapshot-saga";
 import {
   createArchiveBuffer,
   createMockApiClient,
@@ -9,7 +9,7 @@ import {
   createSnapshot,
   createTestRepo,
   type TestRepo,
-} from "./test-fixtures.js";
+} from "./test-fixtures";
 
 describe("ApplySnapshotSaga", () => {
   let repo: TestRepo;

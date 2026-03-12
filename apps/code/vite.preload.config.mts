@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
-import { autoServicesPlugin } from "./vite-plugin-auto-services.js";
+import { autoServicesPlugin } from "./vite-plugin-auto-services";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

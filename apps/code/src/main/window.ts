@@ -2,11 +2,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createIPCHandler } from "@posthog/electron-trpc/main";
 import { BrowserWindow, screen, shell } from "electron";
-import { buildApplicationMenu } from "./menu.js";
-import { setMainWindowGetter } from "./trpc/context.js";
-import { trpcRouter } from "./trpc/router.js";
-import { isDevBuild } from "./utils/env.js";
-import { type WindowStateSchema, windowStateStore } from "./utils/store.js";
+import { buildApplicationMenu } from "./menu";
+import { setMainWindowGetter } from "./trpc/context";
+import { trpcRouter } from "./trpc/router";
+import { isDevBuild } from "./utils/env";
+import { type WindowStateSchema, windowStateStore } from "./utils/store";
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;

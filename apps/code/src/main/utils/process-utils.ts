@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import { platform } from "node:os";
-import { logger } from "./logger.js";
+import { logger } from "./logger";
 
 const log = logger.scope("process-utils");
 

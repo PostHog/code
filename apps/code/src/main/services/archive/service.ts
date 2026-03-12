@@ -11,20 +11,20 @@ import { inject, injectable } from "inversify";
 import type {
   Archive,
   ArchiveRepository,
-} from "../../db/repositories/archive-repository.js";
-import type { RepositoryRepository } from "../../db/repositories/repository-repository.js";
+} from "../../db/repositories/archive-repository";
+import type { RepositoryRepository } from "../../db/repositories/repository-repository";
 import type {
   Workspace,
   WorkspaceRepository,
-} from "../../db/repositories/workspace-repository.js";
-import type { WorktreeRepository } from "../../db/repositories/worktree-repository.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../utils/logger.js";
-import type { AgentService } from "../agent/service.js";
-import type { FileWatcherService } from "../file-watcher/service.js";
-import type { ProcessTrackingService } from "../process-tracking/service.js";
-import { getWorktreeLocation } from "../settingsStore.js";
-import type { ArchivedTask, ArchiveTaskInput } from "./schemas.js";
+} from "../../db/repositories/workspace-repository";
+import type { WorktreeRepository } from "../../db/repositories/worktree-repository";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { logger } from "../../utils/logger";
+import type { AgentService } from "../agent/service";
+import type { FileWatcherService } from "../file-watcher/service";
+import type { ProcessTrackingService } from "../process-tracking/service";
+import { getWorktreeLocation } from "../settingsStore";
+import type { ArchivedTask, ArchiveTaskInput } from "./schemas";
 
 const log = logger.scope("archive");
 

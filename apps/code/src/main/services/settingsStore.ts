@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { LEGACY_DATA_DIRS, WORKTREES_DIR } from "@shared/constants";
 import { app } from "electron";
 import Store from "electron-store";
-import { isDevBuild } from "../utils/env.js";
+import { isDevBuild } from "../utils/env";
 
 interface SettingsSchema {
   worktreeLocation: string;

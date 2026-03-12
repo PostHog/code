@@ -1,10 +1,10 @@
 import { type SetupServerApi, setupServer } from "msw/node";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PostHogAPIClient } from "../posthog-api.js";
-import { createTestRepo, type TestRepo } from "../test/fixtures/api.js";
-import { createPostHogHandlers } from "../test/mocks/msw-handlers.js";
-import type { Task, TaskRun } from "../types.js";
-import { AgentServer } from "./agent-server.js";
+import type { PostHogAPIClient } from "../posthog-api";
+import { createTestRepo, type TestRepo } from "../test/fixtures/api";
+import { createPostHogHandlers } from "../test/mocks/msw-handlers";
+import type { Task, TaskRun } from "../types";
+import { AgentServer } from "./agent-server";
 
 interface TestableAgentServer {
   posthogAPI: PostHogAPIClient;

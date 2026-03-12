@@ -1,11 +1,8 @@
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import {
-  promptInput,
-  promptOutput,
-} from "../../services/llm-gateway/schemas.js";
-import type { LlmGatewayService } from "../../services/llm-gateway/service.js";
-import { publicProcedure, router } from "../trpc.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { promptInput, promptOutput } from "../../services/llm-gateway/schemas";
+import type { LlmGatewayService } from "../../services/llm-gateway/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () =>
   container.get<LlmGatewayService>(MAIN_TOKENS.LlmGatewayService);

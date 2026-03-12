@@ -1,9 +1,9 @@
 import { app, Notification } from "electron";
 import { inject, injectable, postConstruct } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { getMainWindow } from "../../trpc/context.js";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { getMainWindow } from "../../trpc/context";
 import { logger } from "../../utils/logger";
-import { TaskLinkEvent, type TaskLinkService } from "../task-link/service.js";
+import { TaskLinkEvent, type TaskLinkService } from "../task-link/service";
 
 const log = logger.scope("notification");
 

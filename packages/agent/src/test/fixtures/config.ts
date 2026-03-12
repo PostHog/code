@@ -1,5 +1,5 @@
-import type { AgentServerConfig } from "../../server/types.js";
-import type { TestRepo } from "./api.js";
+import type { AgentServerConfig } from "../../server/types";
+import type { TestRepo } from "./api";
 
 export type { AgentServerConfig };
 

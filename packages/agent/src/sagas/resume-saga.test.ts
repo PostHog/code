@@ -1,8 +1,8 @@
 import type { SagaLogger } from "@posthog/shared";
 import { afterEach, beforeEach, describe, expect, it, type vi } from "vitest";
-import { POSTHOG_NOTIFICATIONS } from "../acp-extensions.js";
-import type { PostHogAPIClient } from "../posthog-api.js";
-import { ResumeSaga } from "./resume-saga.js";
+import { POSTHOG_NOTIFICATIONS } from "../acp-extensions";
+import type { PostHogAPIClient } from "../posthog-api";
+import { ResumeSaga } from "./resume-saga";
 import {
   createAgentChunk,
   createAgentMessage,
@@ -17,7 +17,7 @@ import {
   createTreeSnapshotNotification,
   createUserMessage,
   type TestRepo,
-} from "./test-fixtures.js";
+} from "./test-fixtures";
 
 describe("ResumeSaga", () => {
   let repo: TestRepo;

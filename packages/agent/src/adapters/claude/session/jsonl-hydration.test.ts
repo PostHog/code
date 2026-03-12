@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { StoredEntry } from "../../../types.js";
+import type { StoredEntry } from "../../../types";
 import {
   conversationTurnsToJsonlEntries,
   getSessionJsonlPath,
   rebuildConversation,
-} from "./jsonl-hydration.js";
+} from "./jsonl-hydration";
 
 function entry(
   sessionUpdate: string,

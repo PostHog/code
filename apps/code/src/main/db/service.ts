@@ -7,9 +7,9 @@ import {
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { app } from "electron";
 import { injectable, postConstruct, preDestroy } from "inversify";
-import { logger } from "../utils/logger.js";
+import { logger } from "../utils/logger";
 
-import * as schema from "./schema.js";
+import * as schema from "./schema";
 
 const log = logger.scope("database");
 

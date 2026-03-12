@@ -11,11 +11,11 @@
  */
 
 import { isCommitOnRemote as gitIsCommitOnRemote } from "@posthog/git/queries";
-import type { PostHogAPIClient } from "./posthog-api.js";
-import { ApplySnapshotSaga } from "./sagas/apply-snapshot-saga.js";
-import { CaptureTreeSaga } from "./sagas/capture-tree-saga.js";
-import type { TreeSnapshot } from "./types.js";
-import { Logger } from "./utils/logger.js";
+import type { PostHogAPIClient } from "./posthog-api";
+import { ApplySnapshotSaga } from "./sagas/apply-snapshot-saga";
+import { CaptureTreeSaga } from "./sagas/capture-tree-saga";
+import type { TreeSnapshot } from "./types";
+import { Logger } from "./utils/logger";
 
 export type { TreeSnapshot };
 

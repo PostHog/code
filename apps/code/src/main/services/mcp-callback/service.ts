@@ -2,17 +2,17 @@ import * as http from "node:http";
 import type { Socket } from "node:net";
 import { shell } from "electron";
 import { inject, injectable } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../utils/logger.js";
-import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
-import type { DeepLinkService } from "../deep-link/service.js";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { logger } from "../../utils/logger";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import type { DeepLinkService } from "../deep-link/service";
 import {
   type GetCallbackUrlOutput,
   McpCallbackEvent,
   type McpCallbackEvents,
   type McpCallbackResult,
   type OpenAndWaitOutput,
-} from "./schemas.js";
+} from "./schemas";
 
 const log = logger.scope("mcp-callback");
 

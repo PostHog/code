@@ -4,26 +4,26 @@ import { app, powerMonitor } from "electron";
 import log from "electron-log/main";
 import "./utils/logger";
 import "./services/index.js";
-import { ANALYTICS_EVENTS } from "@shared/types/analytics.js";
-import type { DatabaseService } from "./db/service.js";
-import { initializeDeepLinks, registerDeepLinkHandlers } from "./deep-links.js";
-import { container } from "./di/container.js";
-import { MAIN_TOKENS } from "./di/tokens.js";
-import type { AppLifecycleService } from "./services/app-lifecycle/service.js";
-import type { ExternalAppsService } from "./services/external-apps/service.js";
-import type { NotificationService } from "./services/notification/service.js";
-import type { OAuthService } from "./services/oauth/service.js";
+import { ANALYTICS_EVENTS } from "@shared/types/analytics";
+import type { DatabaseService } from "./db/service";
+import { initializeDeepLinks, registerDeepLinkHandlers } from "./deep-links";
+import { container } from "./di/container";
+import { MAIN_TOKENS } from "./di/tokens";
+import type { AppLifecycleService } from "./services/app-lifecycle/service";
+import type { ExternalAppsService } from "./services/external-apps/service";
+import type { NotificationService } from "./services/notification/service";
+import type { OAuthService } from "./services/oauth/service";
 import {
   captureException,
   initializePostHog,
   trackAppEvent,
-} from "./services/posthog-analytics.js";
-import type { PosthogPluginService } from "./services/posthog-plugin/service.js";
+} from "./services/posthog-analytics";
+import type { PosthogPluginService } from "./services/posthog-plugin/service";
 import type { TaskLinkService } from "./services/task-link/service";
-import type { UpdatesService } from "./services/updates/service.js";
-import type { WorkspaceService } from "./services/workspace/service.js";
-import { ensureClaudeConfigDir } from "./utils/env.js";
-import { createWindow } from "./window.js";
+import type { UpdatesService } from "./services/updates/service";
+import type { WorkspaceService } from "./services/workspace/service";
+import { ensureClaudeConfigDir } from "./utils/env";
+import { createWindow } from "./window";
 
 // Single instance lock must be acquired FIRST before any other app setup
 const additionalData = process.defaultApp ? { argv: process.argv } : undefined;

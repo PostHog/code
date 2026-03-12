@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { OtelLogWriter } from "./otel-log-writer.js";
-import type { StoredNotification } from "./types.js";
+import { OtelLogWriter } from "./otel-log-writer";
+import type { StoredNotification } from "./types";
 
 // Mock the OTEL exporter
 const mockExport = vi.fn((_logs, callback) => {

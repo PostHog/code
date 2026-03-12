@@ -1,5 +1,5 @@
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   cancelFlowOutput,
   openExternalUrlInput,
@@ -8,9 +8,9 @@ import {
   startFlowInput,
   startFlowOutput,
   startSignupFlowInput,
-} from "../../services/oauth/schemas.js";
-import type { OAuthService } from "../../services/oauth/service.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/oauth/schemas";
+import type { OAuthService } from "../../services/oauth/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () => container.get<OAuthService>(MAIN_TOKENS.OAuthService);
 

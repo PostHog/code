@@ -1,9 +1,9 @@
 import { inject, injectable } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { getMainWindow } from "../../trpc/context.js";
-import { logger } from "../../utils/logger.js";
-import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
-import type { DeepLinkService } from "../deep-link/service.js";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { getMainWindow } from "../../trpc/context";
+import { logger } from "../../utils/logger";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import type { DeepLinkService } from "../deep-link/service";
 
 const log = logger.scope("task-link-service");
 

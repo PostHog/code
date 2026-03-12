@@ -16,10 +16,10 @@
  */
 
 import type { ContentBlock } from "@agentclientprotocol/sdk";
-import type { PostHogAPIClient } from "./posthog-api.js";
-import { ResumeSaga } from "./sagas/resume-saga.js";
-import type { DeviceInfo, TreeSnapshotEvent } from "./types.js";
-import { Logger } from "./utils/logger.js";
+import type { PostHogAPIClient } from "./posthog-api";
+import { ResumeSaga } from "./sagas/resume-saga";
+import type { DeviceInfo, TreeSnapshotEvent } from "./types";
+import { Logger } from "./utils/logger";
 
 export interface ResumeState {
   conversation: ConversationTurn[];

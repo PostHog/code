@@ -1,4 +1,4 @@
-import { IS_ROOT } from "./utils/common.js";
+import { IS_ROOT } from "./utils/common";
 
 export interface ModeInfo {
   id: CodeExecutionMode;

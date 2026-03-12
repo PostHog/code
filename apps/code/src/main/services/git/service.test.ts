@@ -17,8 +17,8 @@ vi.mock("../../utils/logger.js", () => ({
   },
 }));
 
-import type { LlmGatewayService } from "../llm-gateway/service.js";
-import { GitService } from "./service.js";
+import type { LlmGatewayService } from "../llm-gateway/service";
+import { GitService } from "./service";
 
 describe("GitService.getPrChangedFiles", () => {
   let service: GitService;

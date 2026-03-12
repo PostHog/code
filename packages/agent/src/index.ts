@@ -1,1 +1,1 @@
-export { isMcpToolReadOnly } from "./adapters/claude/mcp/tool-metadata.js";
+export { isMcpToolReadOnly } from "./adapters/claude/mcp/tool-metadata";

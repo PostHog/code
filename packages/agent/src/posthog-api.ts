@@ -6,8 +6,8 @@ import type {
   Task,
   TaskRun,
   TaskRunArtifact,
-} from "./types.js";
-import { getLlmGatewayUrl } from "./utils/gateway.js";
+} from "./types";
+import { getLlmGatewayUrl } from "./utils/gateway";
 
 export { getLlmGatewayUrl };
 

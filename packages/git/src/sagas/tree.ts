@@ -2,9 +2,9 @@ import { existsSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as tar from "tar";
-import type { GitClient } from "../client.js";
-import { GitSaga, type GitSagaInput } from "../git-saga.js";
-import { getHeadSha } from "../queries.js";
+import type { GitClient } from "../client";
+import { GitSaga, type GitSagaInput } from "../git-saga";
+import { getHeadSha } from "../queries";
 
 export type FileStatus = "A" | "M" | "D";
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AsyncMutex } from "./async-mutex.js";
+import { AsyncMutex } from "./async-mutex";
 
 describe("AsyncMutex", () => {
   it("acquires lock when unlocked", async () => {

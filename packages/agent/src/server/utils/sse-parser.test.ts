@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SseEventParser } from "./sse-parser.js";
+import { SseEventParser } from "./sse-parser";
 
 describe("SseEventParser", () => {
   it("parses complete SSE event", () => {

@@ -44,40 +44,40 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { v7 as uuidv7 } from "uuid";
 import packageJson from "../../../package.json" with { type: "json" };
-import { unreachable, withTimeout } from "../../utils/common.js";
-import { Logger } from "../../utils/logger.js";
-import { Pushable } from "../../utils/streams.js";
-import { BaseAcpAgent } from "../base-acp-agent.js";
-import { promptToClaude } from "./conversion/acp-to-sdk.js";
+import { unreachable, withTimeout } from "../../utils/common";
+import { Logger } from "../../utils/logger";
+import { Pushable } from "../../utils/streams";
+import { BaseAcpAgent } from "../base-acp-agent";
+import { promptToClaude } from "./conversion/acp-to-sdk";
 import {
   handleResultMessage,
   handleStreamEvent,
   handleSystemMessage,
   handleUserAssistantMessage,
-} from "./conversion/sdk-to-acp.js";
-import { fetchMcpToolMetadata } from "./mcp/tool-metadata.js";
-import { canUseTool } from "./permissions/permission-handlers.js";
-import { getAvailableSlashCommands } from "./session/commands.js";
-import { parseMcpServers } from "./session/mcp-config.js";
-import { DEFAULT_MODEL, toSdkModelId } from "./session/models.js";
+} from "./conversion/sdk-to-acp";
+import { fetchMcpToolMetadata } from "./mcp/tool-metadata";
+import { canUseTool } from "./permissions/permission-handlers";
+import { getAvailableSlashCommands } from "./session/commands";
+import { parseMcpServers } from "./session/mcp-config";
+import { DEFAULT_MODEL, toSdkModelId } from "./session/models";
 import {
   buildSessionOptions,
   buildSystemPrompt,
   type ProcessSpawnedInfo,
-} from "./session/options.js";
-import { SettingsManager } from "./session/settings.js";
+} from "./session/options";
+import { SettingsManager } from "./session/settings";
 import {
   CODE_EXECUTION_MODES,
   type CodeExecutionMode,
   getAvailableModes,
-} from "./tools.js";
+} from "./tools";
 import type {
   BackgroundTerminal,
   EffortLevel,
   NewSessionMeta,
   Session,
   ToolUseCache,
-} from "./types.js";
+} from "./types";
 
 const SESSION_VALIDATION_TIMEOUT_MS = 10_000;
 const MAX_TITLE_LENGTH = 256;

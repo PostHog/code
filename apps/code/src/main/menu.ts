@@ -8,13 +8,13 @@ import {
   type MenuItemConstructorOptions,
   shell,
 } from "electron";
-import { container } from "./di/container.js";
-import { MAIN_TOKENS } from "./di/tokens.js";
-import type { AgentService } from "./services/agent/service.js";
-import type { UIService } from "./services/ui/service.js";
-import type { UpdatesService } from "./services/updates/service.js";
-import { isDevBuild } from "./utils/env.js";
-import { getLogFilePath } from "./utils/logger.js";
+import { container } from "./di/container";
+import { MAIN_TOKENS } from "./di/tokens";
+import type { AgentService } from "./services/agent/service";
+import type { UIService } from "./services/ui/service";
+import type { UpdatesService } from "./services/updates/service";
+import { isDevBuild } from "./utils/env";
+import { getLogFilePath } from "./utils/logger";
 
 function getSystemInfo(): string {
   const commit = __BUILD_COMMIT__ ?? "dev";
