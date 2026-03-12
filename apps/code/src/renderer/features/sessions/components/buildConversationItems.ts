@@ -158,6 +158,7 @@ export function buildConversationItems(
   if (isPromptPending === false) {
     for (const turn of b.pendingPrompts.values()) {
       turn.isComplete = true;
+      turn.durationMs = 0;
       turn.context.turnComplete = true;
     }
   }
