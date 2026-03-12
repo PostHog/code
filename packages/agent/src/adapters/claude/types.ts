@@ -46,6 +46,7 @@ export type Session = BaseSession & {
   taskRunId?: string;
   lastPlanFilePath?: string;
   lastPlanContent?: string;
+  effort?: "low" | "medium" | "high" | "max";
   configOptions: SessionConfigOption[];
   accumulatedUsage: AccumulatedUsage;
   promptRunning: boolean;

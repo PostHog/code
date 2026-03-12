@@ -2,6 +2,7 @@ import { Select, Text } from "@radix-ui/themes";
 import { getSessionService } from "../service/service";
 import {
   flattenSelectOptions,
+  useAdapterForTask,
   useSessionForTask,
   useThoughtLevelConfigOptionForTask,
 } from "../stores/sessionStore";
@@ -17,6 +18,7 @@ export function ReasoningLevelSelector({
 }: ReasoningLevelSelectorProps) {
   const session = useSessionForTask(taskId);
   const thoughtOption = useThoughtLevelConfigOptionForTask(taskId);
+  const adapter = useAdapterForTask(taskId);
 
   if (!thoughtOption) {
     return null;
@@ -57,7 +59,7 @@ export function ReasoningLevelSelector({
         }}
       >
         <Text size="1" style={{ fontFamily: "var(--font-mono)" }}>
-          Reasoning: {activeLabel}
+          {adapter === "codex" ? "Reasoning" : "Effort"}: {activeLabel}
         </Text>
       </Select.Trigger>
       <Select.Content position="popper" sideOffset={4}>

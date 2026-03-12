@@ -1,5 +1,4 @@
 import { ModelSelector } from "@features/sessions/components/ModelSelector";
-import { ReasoningLevelSelector } from "@features/sessions/components/ReasoningLevelSelector";
 import { Paperclip } from "@phosphor-icons/react";
 import { Flex, IconButton, Tooltip } from "@radix-ui/themes";
 import { useRef } from "react";
@@ -45,7 +44,7 @@ export function EditorToolbar({
   };
 
   return (
-    <Flex align="center" gap="1">
+    <Flex align="center" gap="3">
       <input
         ref={fileInputRef}
         type="file"
@@ -68,14 +67,7 @@ export function EditorToolbar({
         </IconButton>
       </Tooltip>
       {!hideSelectors && (
-        <>
-          <ModelSelector
-            taskId={taskId}
-            adapter={adapter}
-            disabled={disabled}
-          />
-          <ReasoningLevelSelector taskId={taskId} disabled={disabled} />
-        </>
+        <ModelSelector taskId={taskId} adapter={adapter} disabled={disabled} />
       )}
     </Flex>
   );
