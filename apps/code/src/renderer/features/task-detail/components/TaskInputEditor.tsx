@@ -210,7 +210,7 @@ export const TaskInputEditor = forwardRef<
         </Flex>
 
         <Flex justify="between" align="center" px="3" pb="3">
-          <Flex align="center" gap="1">
+          <Flex align="center" gap="3">
             <EditorToolbar
               disabled={isCreatingTask}
               adapter={adapter}

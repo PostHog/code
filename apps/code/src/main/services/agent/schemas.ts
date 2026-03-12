@@ -46,6 +46,7 @@ export const startSessionInput = z.object({
   adapter: z.enum(["claude", "codex"]).optional(),
   additionalDirectories: z.array(z.string()).optional(),
   customInstructions: z.string().max(2000).optional(),
+  effort: z.enum(["low", "medium", "high", "max"]).optional(),
 });
 
 export type StartSessionInput = z.infer<typeof startSessionInput>;

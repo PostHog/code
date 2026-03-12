@@ -539,6 +539,7 @@ export class SessionService {
       permissionMode: executionMode,
       adapter,
       customInstructions: startCustomInstructions || undefined,
+      effort: reasoningLevel as "low" | "medium" | "high" | "max" | undefined,
     });
 
     const session = this.createBaseSession(taskRun.id, taskId, taskTitle);

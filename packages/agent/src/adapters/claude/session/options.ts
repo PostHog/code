@@ -43,6 +43,7 @@ export interface BuildOptionsParams {
   onModeChange?: OnModeChange;
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
   onProcessExited?: (pid: number) => void;
+  effort?: "low" | "medium" | "high" | "max";
 }
 
 const BRANCH_NAMING_INSTRUCTIONS = `
@@ -293,6 +294,10 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
 
   if (params.additionalDirectories) {
     options.additionalDirectories = params.additionalDirectories;
+  }
+
+  if (params.effort) {
+    options.effort = params.effort;
   }
 
   clearStatsigCache();
