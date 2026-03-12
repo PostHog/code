@@ -9,12 +9,10 @@ import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { SessionView } from "@features/sessions/components/SessionView";
 import { useSessionCallbacks } from "@features/sessions/hooks/useSessionCallbacks";
 import { useSessionConnection } from "@features/sessions/hooks/useSessionConnection";
-import { useSessionForTask } from "@features/sessions/stores/sessionStore";
-import { useCwd } from "@features/sidebar/hooks/useCwd";
+import { useSessionViewState } from "@features/sessions/hooks/useSessionViewState";
 import { WorkspaceSetupPrompt } from "@features/task-detail/components/WorkspaceSetupPrompt";
 import {
   useCreateWorkspace,
-  useWorkspace,
   useWorkspaceLoaded,
 } from "@features/workspace/hooks/useWorkspace";
 import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
@@ -28,8 +26,6 @@ interface TaskLogsPanelProps {
 }
 
 export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
-  const repoPath = useCwd(taskId);
-  const workspace = useWorkspace(taskId);
   const isWorkspaceLoaded = useWorkspaceLoaded();
   const { isPending: isCreatingWorkspace } = useCreateWorkspace();
   const repoKey = getTaskRepository(task);
@@ -38,11 +34,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     ? folders.some((f) => f.remoteUrl === repoKey)
     : false;
 
-  const session = useSessionForTask(taskId);
   const { requestFocus } = useDraftStore((s) => s.actions);
-
-  const isCloud =
-    workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
 
   useSessionConnection({ taskId, task });
 
@@ -54,15 +46,27 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     handleBashCommand,
   } = useSessionCallbacks({ taskId, task });
 
-  const cloudStatus = session?.cloudStatus ?? null;
+  const {
+    session,
+    repoPath,
+    isCloud,
+    isCloudRunNotTerminal,
+    cloudStatus,
+    isRunning,
+    hasError,
+    events,
+    isPromptPending,
+    promptStartedAt,
+    isInitializing,
+    cloudBranch,
+    readOnlyMessage,
+    errorTitle,
+    errorMessage,
+  } = useSessionViewState(taskId, task);
+
   const cloudStage = session?.cloudStage ?? null;
   const cloudOutput = session?.cloudOutput ?? null;
   const cloudErrorMessage = session?.cloudErrorMessage ?? null;
-  const isCloudRunNotTerminal =
-    isCloud &&
-    (!cloudStatus ||
-      cloudStatus === "started" ||
-      cloudStatus === "in_progress");
   const prUrl =
     isCloud && cloudOutput?.pr_url ? (cloudOutput.pr_url as string) : null;
   const slackThreadUrl =
@@ -70,9 +74,6 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
       ? task.latest_run.state.slack_thread_url
       : undefined;
 
-  const cloudBranch = isCloud
-    ? (workspace?.baseBranch ?? task.latest_run?.branch ?? null)
-    : null;
   const cloudRepo = isCloud ? (task.repository ?? null) : null;
   const { data: prFiles } = useCloudPrChangedFiles(prUrl);
   const { data: branchFiles } = useCloudBranchChangedFiles(
@@ -89,28 +90,6 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
       linesRemoved: files.reduce((sum, f) => sum + (f.linesRemoved ?? 0), 0),
     };
   }, [isCloud, prUrl, prFiles, branchFiles]);
-
-  const isRunning = isCloud ? true : session?.status === "connected";
-  const hasError = isCloud ? false : session?.status === "error";
-  const errorTitle = isCloud ? undefined : session?.errorTitle;
-  const errorMessage = isCloud ? undefined : session?.errorMessage;
-
-  const events = session?.events ?? [];
-  const isPromptPending = session?.isPromptPending ?? false;
-  const promptStartedAt = session?.promptStartedAt;
-
-  const isNewSessionWithInitialPrompt =
-    !task.latest_run?.id && !!task.description;
-  const isResumingExistingSession = !!task.latest_run?.id;
-  const isInitializing = isCloud
-    ? !session || (events.length === 0 && isCloudRunNotTerminal)
-    : !session ||
-      (session.status === "connecting" && events.length === 0) ||
-      (session.status === "connected" &&
-        events.length === 0 &&
-        (isPromptPending ||
-          isNewSessionWithInitialPrompt ||
-          isResumingExistingSession));
 
   useEffect(() => {
     requestFocus(taskId);
@@ -140,7 +119,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
             <SessionView
               events={events}
               taskId={taskId}
-              isRunning={!!isRunning}
+              isRunning={isRunning}
               isPromptPending={isCloud ? null : isPromptPending}
               promptStartedAt={isCloud ? undefined : promptStartedAt}
               onSendPrompt={handleSendPrompt}
@@ -155,6 +134,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
               onRetry={isCloud ? undefined : handleRetry}
               onNewSession={isCloud ? undefined : handleNewSession}
               isInitializing={isInitializing}
+              readOnlyMessage={readOnlyMessage}
               slackThreadUrl={slackThreadUrl}
             />
           </ErrorBoundary>

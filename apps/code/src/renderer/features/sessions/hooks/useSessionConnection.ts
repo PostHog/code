@@ -6,12 +6,14 @@ import { trpcClient } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { getSessionService } from "../service/service";
 import { useSessionForTask } from "../stores/sessionStore";
 import { useChatTitleGenerator } from "./useChatTitleGenerator";
 
 const log = logger.scope("session-connection");
+
+const connectingTasks = new Set<string>();
 
 interface UseSessionConnectionOptions {
   taskId: string;
@@ -33,8 +35,6 @@ export function useSessionConnection({
     workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
 
   useChatTitleGenerator(taskId);
-
-  const isConnecting = useRef(false);
 
   useEffect(() => {
     const taskRunId = session?.taskRunId;
@@ -73,7 +73,7 @@ export function useSessionConnection({
 
   useEffect(() => {
     if (!repoPath) return;
-    if (isConnecting.current) return;
+    if (connectingTasks.has(taskId)) return;
     if (!isOnline) return;
     if (isCloud) return;
 
@@ -85,7 +85,7 @@ export function useSessionConnection({
       return;
     }
 
-    isConnecting.current = true;
+    connectingTasks.add(taskId);
 
     const isNewSession = !task.latest_run?.id;
     const hasInitialPrompt = isNewSession && task.description;
@@ -109,7 +109,7 @@ export function useSessionConnection({
           : undefined,
       })
       .finally(() => {
-        isConnecting.current = false;
+        connectingTasks.delete(taskId);
       });
-  }, [task, repoPath, session, markActivity, isOnline, isCloud]);
+  }, [task, taskId, repoPath, session, markActivity, isOnline, isCloud]);
 }

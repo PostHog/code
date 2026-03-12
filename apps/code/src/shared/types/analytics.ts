@@ -201,6 +201,7 @@ export const ANALYTICS_EVENTS = {
   SETTINGS_VIEWED: "Settings viewed",
   COMMAND_MENU_OPENED: "Command menu opened",
   COMMAND_MENU_ACTION: "Command menu action",
+  COMMAND_CENTER_VIEWED: "Command center viewed",
 
   // Settings events
   SETTING_CHANGED: "Setting changed",
@@ -246,6 +247,7 @@ export type EventPropertyMap = {
   [ANALYTICS_EVENTS.SETTINGS_VIEWED]: never;
   [ANALYTICS_EVENTS.COMMAND_MENU_OPENED]: never;
   [ANALYTICS_EVENTS.COMMAND_MENU_ACTION]: CommandMenuActionProperties;
+  [ANALYTICS_EVENTS.COMMAND_CENTER_VIEWED]: never;
 
   // Settings events
   [ANALYTICS_EVENTS.SETTING_CHANGED]: SettingChangedProperties;

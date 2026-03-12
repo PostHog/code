@@ -23,14 +23,19 @@ function useTaskDragActive() {
     };
     const onDragEnd = () => setActive(false);
     const onDrop = () => setActive(false);
+    const onDragLeave = (e: DragEvent) => {
+      if (!e.relatedTarget) setActive(false);
+    };
 
     document.addEventListener("dragstart", onDragStart);
     document.addEventListener("dragend", onDragEnd);
     document.addEventListener("drop", onDrop);
+    document.addEventListener("dragleave", onDragLeave);
     return () => {
       document.removeEventListener("dragstart", onDragStart);
       document.removeEventListener("dragend", onDragEnd);
       document.removeEventListener("drop", onDrop);
+      document.removeEventListener("dragleave", onDragLeave);
     };
   }, []);
 

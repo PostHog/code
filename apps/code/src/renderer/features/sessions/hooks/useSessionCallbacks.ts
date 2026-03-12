@@ -7,7 +7,7 @@ import type { Task } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { logger } from "@utils/logger";
 import { toast } from "@utils/toast";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { getSessionService } from "../service/service";
 import { sessionStoreSetters, useSessionForTask } from "../stores/sessionStore";
 
@@ -27,18 +27,21 @@ export function useSessionCallbacks({
   const { markActivity, markAsViewed } = useTaskViewed();
   const { requestFocus, setPendingContent } = useDraftStore((s) => s.actions);
 
-  const events = session?.events ?? [];
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
 
   const handleSendPrompt = useCallback(
     async (text: string) => {
+      const currentSession = sessionRef.current;
+      const currentEvents = currentSession?.events ?? [];
       const handled = await tryExecuteCodeCommand(text, {
         taskId,
         repoPath,
-        session: session
+        session: currentSession
           ? {
-              taskRunId: session.taskRunId,
-              logUrl: session.logUrl,
-              events,
+              taskRunId: currentSession.taskRunId,
+              logUrl: currentSession.logUrl,
+              events: currentEvents,
             }
           : null,
         taskRun: task.latest_run ?? null,
@@ -64,15 +67,7 @@ export function useSessionCallbacks({
         log.error("Failed to send prompt", error);
       }
     },
-    [
-      taskId,
-      repoPath,
-      markActivity,
-      markAsViewed,
-      events,
-      session,
-      task.latest_run,
-    ],
+    [taskId, repoPath, markActivity, markAsViewed, task.latest_run],
   );
 
   const handleCancelPrompt = useCallback(async () => {

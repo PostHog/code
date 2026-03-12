@@ -188,11 +188,13 @@ function SidebarMenuComponent() {
             />
           </Box>
 
-          <CommandCenterItem
-            isActive={sidebarData.isCommandCenterActive}
-            onClick={handleCommandCenterClick}
-            activeCount={commandCenterActiveCount}
-          />
+          <Box mb="2">
+            <CommandCenterItem
+              isActive={sidebarData.isCommandCenterActive}
+              onClick={handleCommandCenterClick}
+              activeCount={commandCenterActiveCount}
+            />
+          </Box>
 
           {sidebarData.isLoading ? (
             <SidebarItem

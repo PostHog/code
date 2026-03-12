@@ -69,6 +69,7 @@ export const useCommandCenterStore = create<CommandCenterStore>()(
 
       assignTask: (cellIndex, taskId) =>
         set((state) => {
+          if (cellIndex < 0 || cellIndex >= state.cells.length) return state;
           const cells = [...state.cells];
           const existingIndex = cells.indexOf(taskId);
           if (existingIndex !== -1) {

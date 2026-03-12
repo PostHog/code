@@ -64,7 +64,7 @@ const isSameView = (view1: ViewState, view2: ViewState): boolean => {
   if (view1.type === "command-center" && view2.type === "command-center") {
     return true;
   }
-  return true;
+  return false;
 };
 
 export const useNavigationStore = create<NavigationStore>()(
@@ -171,9 +171,7 @@ export const useNavigationStore = create<NavigationStore>()(
 
         navigateToCommandCenter: () => {
           navigate({ type: "command-center" });
-          track(ANALYTICS_EVENTS.TASK_VIEWED, {
-            task_id: "command-center",
-          });
+          track(ANALYTICS_EVENTS.COMMAND_CENTER_VIEWED);
         },
 
         goBack: () => {

@@ -1,10 +1,5 @@
 import { useSortable } from "@dnd-kit/react/sortable";
-import {
-  cloneElement,
-  isValidElement,
-  type ReactElement,
-  type ReactNode,
-} from "react";
+import { cloneElement, isValidElement, type ReactNode } from "react";
 
 interface DraggableFolderProps {
   id: string;
@@ -31,15 +26,12 @@ export function DraggableFolder({ id, index, children }: DraggableFolderProps) {
         cursor: isDragging ? "grabbing" : undefined,
       }}
     >
-      {isValidElement(children)
-        ? cloneElement(
-            children as ReactElement<{
-              dragHandleRef?: (el: Element | null) => void;
-            }>,
-            {
-              dragHandleRef: handleRef,
-            },
-          )
+      {isValidElement<{ dragHandleRef?: React.RefCallback<HTMLButtonElement> }>(
+        children,
+      )
+        ? cloneElement(children, {
+            dragHandleRef: handleRef as React.RefCallback<HTMLButtonElement>,
+          })
         : children}
     </div>
   );
