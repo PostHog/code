@@ -1,11 +1,14 @@
+import { execFile } from "node:child_process";
 import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import { createGitClient } from "@posthog/git/client";
 import {
   getCurrentBranch,
   getDefaultBranch,
   hasTrackedFiles,
+  listWorktrees,
 } from "@posthog/git/queries";
 import { CreateOrSwitchBranchSaga } from "@posthog/git/sagas/branch";
 import { DetachHeadSaga } from "@posthog/git/sagas/head";
@@ -43,6 +46,8 @@ import type {
 } from "./schemas.js";
 import { ScriptRunner } from "./scriptRunner";
 import { buildWorkspaceEnv } from "./workspaceEnv";
+
+const execFileAsync = promisify(execFile);
 
 type TaskAssociation =
   | { taskId: string; folderId: string; mode: "local" }
@@ -1195,6 +1200,70 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     }
 
     return result;
+  }
+
+  async listGitWorktrees(mainRepoPath: string): Promise<
+    Array<{
+      worktreePath: string;
+      head: string;
+      branch: string | null;
+      taskIds: string[];
+    }>
+  > {
+    const worktreeBasePath = getWorktreeLocation();
+    const rawWorktrees = await listWorktrees(mainRepoPath);
+
+    const twigWorktrees = rawWorktrees.filter((wt) => {
+      const isMainRepo = path.resolve(wt.path) === path.resolve(mainRepoPath);
+      const isUnderTwig = path
+        .resolve(wt.path)
+        .startsWith(path.resolve(worktreeBasePath));
+      return !isMainRepo && isUnderTwig;
+    });
+
+    return twigWorktrees.map((wt) => {
+      const taskIds = this.getWorktreeTasks(wt.path).map((t) => t.taskId);
+      return {
+        worktreePath: wt.path,
+        head: wt.head,
+        branch: wt.branch,
+        taskIds,
+      };
+    });
+  }
+
+  async getWorktreeSize(worktreePath: string): Promise<{ sizeBytes: number }> {
+    try {
+      const { stdout } = await execFileAsync("du", ["-s", worktreePath]);
+      const [sizeStr] = stdout.trim().split("\t");
+      const sizeBytes = sizeStr ? parseInt(sizeStr, 10) * 512 : 0;
+      return { sizeBytes };
+    } catch (error) {
+      log.warn(`Failed to get size for ${worktreePath}:`, error);
+      return { sizeBytes: 0 };
+    }
+  }
+
+  async deleteWorktree(
+    mainRepoPath: string,
+    worktreePath: string,
+  ): Promise<void> {
+    const worktree = this.worktreeRepo.findByPath(worktreePath);
+    if (worktree) {
+      const workspace = this.workspaceRepo.findById(worktree.workspaceId);
+      if (workspace) {
+        await this.deleteWorkspace(workspace.taskId, mainRepoPath);
+        return;
+      }
+    }
+
+    const worktreeBasePath = getWorktreeLocation();
+    const manager = new WorktreeManager({ mainRepoPath, worktreeBasePath });
+    await manager.deleteWorktree(worktreePath);
+
+    if (worktree) {
+      this.worktreeRepo.deleteByWorkspaceId(worktree.workspaceId);
+    }
   }
 
   private async cleanupWorktree(

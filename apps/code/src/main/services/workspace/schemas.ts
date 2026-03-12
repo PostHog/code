@@ -190,6 +190,32 @@ export const getWorktreeTasksInput = z.object({
 
 export const getWorktreeTasksOutput = z.array(localTaskSchema);
 
+export const listGitWorktreesInput = z.object({
+  mainRepoPath: z.string(),
+});
+
+export const gitWorktreeEntrySchema = z.object({
+  worktreePath: z.string(),
+  head: z.string(),
+  branch: z.string().nullable(),
+  taskIds: z.array(z.string()),
+});
+
+export const listGitWorktreesOutput = z.array(gitWorktreeEntrySchema);
+
+export const getWorktreeSizeInput = z.object({
+  worktreePath: z.string(),
+});
+
+export const getWorktreeSizeOutput = z.object({
+  sizeBytes: z.number(),
+});
+
+export const deleteWorktreeInput = z.object({
+  worktreePath: z.string(),
+  mainRepoPath: z.string(),
+});
+
 export const togglePinInput = z.object({
   taskId: z.string(),
 });
@@ -245,6 +271,9 @@ export type IsWorkspaceRunningInput = z.infer<typeof isWorkspaceRunningInput>;
 export type GetWorkspaceTerminalsInput = z.infer<
   typeof getWorkspaceTerminalsInput
 >;
+export type ListGitWorktreesInput = z.infer<typeof listGitWorktreesInput>;
+export type GetWorktreeSizeInput = z.infer<typeof getWorktreeSizeInput>;
+export type DeleteWorktreeInput = z.infer<typeof deleteWorktreeInput>;
 
 export type WorkspaceTerminalCreatedPayload = z.infer<
   typeof workspaceTerminalCreatedPayload

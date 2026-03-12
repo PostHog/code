@@ -112,6 +112,15 @@ export const confirmDeleteArchivedTaskOutput = z.object({
   confirmed: z.boolean(),
 });
 
+export const confirmDeleteWorktreeInput = z.object({
+  worktreePath: z.string(),
+  linkedTaskCount: z.number(),
+});
+
+export const confirmDeleteWorktreeOutput = z.object({
+  confirmed: z.boolean(),
+});
+
 export type ConfirmDeleteTaskInput = z.infer<typeof confirmDeleteTaskInput>;
 export type ConfirmDeleteTaskResult = z.infer<typeof confirmDeleteTaskOutput>;
 export type ConfirmDeleteArchivedTaskInput = z.infer<
@@ -119,6 +128,12 @@ export type ConfirmDeleteArchivedTaskInput = z.infer<
 >;
 export type ConfirmDeleteArchivedTaskResult = z.infer<
   typeof confirmDeleteArchivedTaskOutput
+>;
+export type ConfirmDeleteWorktreeInput = z.infer<
+  typeof confirmDeleteWorktreeInput
+>;
+export type ConfirmDeleteWorktreeResult = z.infer<
+  typeof confirmDeleteWorktreeOutput
 >;
 
 export type TaskContextMenuResult = z.infer<typeof taskContextMenuOutput>;

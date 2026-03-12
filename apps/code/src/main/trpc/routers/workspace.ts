@@ -5,6 +5,7 @@ import {
   createWorkspaceInput,
   createWorkspaceOutput,
   deleteWorkspaceInput,
+  deleteWorktreeInput,
   getAllTaskTimestampsOutput,
   getAllWorkspacesOutput,
   getLocalTasksInput,
@@ -16,10 +17,14 @@ import {
   getWorkspaceInfoOutput,
   getWorkspaceTerminalsInput,
   getWorkspaceTerminalsOutput,
+  getWorktreeSizeInput,
+  getWorktreeSizeOutput,
   getWorktreeTasksInput,
   getWorktreeTasksOutput,
   isWorkspaceRunningInput,
   isWorkspaceRunningOutput,
+  listGitWorktreesInput,
+  listGitWorktreesOutput,
   markActivityInput,
   markViewedInput,
   runStartScriptsInput,
@@ -110,6 +115,22 @@ export const workspaceRouter = router({
     .input(getWorktreeTasksInput)
     .output(getWorktreeTasksOutput)
     .query(({ input }) => getService().getWorktreeTasks(input.worktreePath)),
+
+  listGitWorktrees: publicProcedure
+    .input(listGitWorktreesInput)
+    .output(listGitWorktreesOutput)
+    .query(({ input }) => getService().listGitWorktrees(input.mainRepoPath)),
+
+  getWorktreeSize: publicProcedure
+    .input(getWorktreeSizeInput)
+    .output(getWorktreeSizeOutput)
+    .query(({ input }) => getService().getWorktreeSize(input.worktreePath)),
+
+  deleteWorktree: publicProcedure
+    .input(deleteWorktreeInput)
+    .mutation(({ input }) =>
+      getService().deleteWorktree(input.mainRepoPath, input.worktreePath),
+    ),
 
   togglePin: publicProcedure
     .input(togglePinInput)

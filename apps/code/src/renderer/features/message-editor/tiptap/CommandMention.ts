@@ -48,6 +48,7 @@ function createSuggestion(
             trigger: "manual",
             placement: "top-start",
             offset: [0, 12],
+            duration: 0,
           });
         },
 
@@ -66,6 +67,7 @@ function createSuggestion(
 
         onKeyDown: (props) => {
           if (props.event.key === "Escape") {
+            props.event.stopPropagation();
             popup?.hide();
             return true;
           }

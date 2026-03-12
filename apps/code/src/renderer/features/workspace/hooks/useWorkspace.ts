@@ -15,6 +15,27 @@ function useWorkspacesQuery() {
   );
 }
 
+function useInvalidateWorkspaceCaches() {
+  const trpcReact = useTRPC();
+  const queryClient = useQueryClient();
+  return useCallback(
+    async (mainRepoPath?: string) => {
+      const tasks: Promise<void>[] = [
+        queryClient.invalidateQueries(trpcReact.workspace.getAll.pathFilter()),
+      ];
+      if (mainRepoPath) {
+        tasks.push(
+          queryClient.invalidateQueries(
+            trpcReact.workspace.listGitWorktrees.queryFilter({ mainRepoPath }),
+          ),
+        );
+      }
+      await Promise.all(tasks);
+    },
+    [queryClient, trpcReact],
+  );
+}
+
 export function useWorkspaces(): {
   data: Record<string, Workspace> | undefined;
   isFetched: boolean;
@@ -38,14 +59,12 @@ export function useWorkspaceLoaded(): boolean {
 
 export function useCreateWorkspace(): { isPending: boolean } {
   const trpcReact = useTRPC();
-  const queryClient = useQueryClient();
+  const invalidateCaches = useInvalidateWorkspaceCaches();
 
   const mutation = useMutation(
     trpcReact.workspace.create.mutationOptions({
-      onSuccess: () => {
-        void queryClient.invalidateQueries(
-          trpcReact.workspace.getAll.pathFilter(),
-        );
+      onSuccess: (_data, variables) => {
+        void invalidateCaches(variables.mainRepoPath);
       },
     }),
   );
@@ -55,14 +74,12 @@ export function useCreateWorkspace(): { isPending: boolean } {
 
 export function useDeleteWorkspace(): { isPending: boolean } {
   const trpcReact = useTRPC();
-  const queryClient = useQueryClient();
+  const invalidateCaches = useInvalidateWorkspaceCaches();
 
   const mutation = useMutation(
     trpcReact.workspace.delete.mutationOptions({
-      onSuccess: () => {
-        void queryClient.invalidateQueries(
-          trpcReact.workspace.getAll.pathFilter(),
-        );
+      onSuccess: (_data, variables) => {
+        void invalidateCaches(variables.mainRepoPath);
       },
     }),
   );
@@ -94,12 +111,12 @@ export function useEnsureWorkspace(): {
 } {
   const trpcReact = useTRPC();
   const queryClient = useQueryClient();
+  const invalidateCaches = useInvalidateWorkspaceCaches();
+
   const createMutation = useMutation(
     trpcReact.workspace.create.mutationOptions({
-      onSuccess: () => {
-        void queryClient.invalidateQueries(
-          trpcReact.workspace.getAll.pathFilter(),
-        );
+      onSuccess: (_data, variables) => {
+        void invalidateCaches(variables.mainRepoPath);
       },
     }),
   );
@@ -131,16 +148,14 @@ export function useEnsureWorkspace(): {
         throw new Error("Failed to create workspace");
       }
 
-      await queryClient.invalidateQueries(
-        trpcReact.workspace.getAll.pathFilter(),
-      );
+      await invalidateCaches(repoPath);
       return (
         queryClient.getQueryData(trpcReact.workspace.getAll.queryKey())?.[
           taskId
         ] ?? null
       );
     },
-    [createMutation, queryClient, trpcReact],
+    [createMutation, queryClient, trpcReact, invalidateCaches],
   );
 
   return {

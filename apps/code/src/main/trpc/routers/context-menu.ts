@@ -7,6 +7,8 @@ import {
   confirmDeleteArchivedTaskOutput,
   confirmDeleteTaskInput,
   confirmDeleteTaskOutput,
+  confirmDeleteWorktreeInput,
+  confirmDeleteWorktreeOutput,
   fileContextMenuInput,
   fileContextMenuOutput,
   folderContextMenuInput,
@@ -33,6 +35,11 @@ export const contextMenuRouter = router({
     .input(confirmDeleteArchivedTaskInput)
     .output(confirmDeleteArchivedTaskOutput)
     .mutation(({ input }) => getService().confirmDeleteArchivedTask(input)),
+
+  confirmDeleteWorktree: publicProcedure
+    .input(confirmDeleteWorktreeInput)
+    .output(confirmDeleteWorktreeOutput)
+    .mutation(({ input }) => getService().confirmDeleteWorktree(input)),
 
   showTaskContextMenu: publicProcedure
     .input(taskContextMenuInput)
