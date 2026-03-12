@@ -1,3 +1,4 @@
+import { PointerSensor } from "@dnd-kit/dom";
 import type { DragDropEvents } from "@dnd-kit/react";
 import { DragDropProvider } from "@dnd-kit/react";
 import { useFolders } from "@features/folders/hooks/useFolders";
@@ -309,7 +310,19 @@ export function TaskListView({
       <SectionLabel label="Tasks" endContent={<TaskFilterMenu />} />
 
       {organizeMode === "by-project" ? (
-        <DragDropProvider onDragOver={handleDragOver}>
+        <DragDropProvider
+          onDragOver={handleDragOver}
+          sensors={[
+            {
+              plugin: PointerSensor,
+              options: {
+                activationConstraints: {
+                  distance: { value: 5 },
+                },
+              },
+            },
+          ]}
+        >
           <Flex direction="column">
             {groupedTasks.map((group, index) => {
               const isExpanded = !collapsedSections.has(group.id);
