@@ -31,6 +31,7 @@ import { AsyncMutex } from "../utils/async-mutex";
 import { getLlmGatewayUrl } from "../utils/gateway";
 import { Logger } from "../utils/logger";
 import { type JwtPayload, JwtValidationError, validateJwt } from "./jwt";
+import { ResultMcpServer } from "./result-mcp-server.js";
 import { jsonRpcRequestSchema, validateCommandParams } from "./schemas";
 import type { AgentServerConfig } from "./types";
 
@@ -162,6 +163,7 @@ export class AgentServer {
   private questionRelayedToSlack = false;
   private detectedPrUrl: string | null = null;
   private resumeState: ResumeState | null = null;
+  private resultMcpServer: ResultMcpServer | null = null;
 
   private emitConsoleLog = (
     level: LogLevel,
@@ -379,6 +381,17 @@ export class AgentServer {
       );
     });
 
+    if (this.config.outputSchema) {
+      this.resultMcpServer = new ResultMcpServer({
+        port: this.config.port + 1,
+        outputSchema: this.config.outputSchema,
+        taskId: this.config.taskId,
+        runId: this.config.runId,
+        posthogAPI: this.posthogAPI,
+      });
+      await this.resultMcpServer.start();
+    }
+
     await this.autoInitializeSession();
   }
 
@@ -433,6 +446,11 @@ export class AgentServer {
 
     if (this.session) {
       await this.cleanupSession();
+    }
+
+    if (this.resultMcpServer) {
+      await this.resultMcpServer.stop();
+      this.resultMcpServer = null;
     }
 
     if (this.server) {
@@ -633,9 +651,19 @@ export class AgentServer {
       this.detectedPrUrl = prUrl;
     }
 
+    const mcpServers = [...(this.config.mcpServers ?? [])];
+    if (this.resultMcpServer) {
+      mcpServers.push({
+        type: "http",
+        name: "posthog-result",
+        url: this.resultMcpServer.url,
+        headers: [],
+      });
+    }
+
     const sessionResponse = await clientConnection.newSession({
       cwd: this.config.repositoryPath ?? "/tmp/workspace",
-      mcpServers: this.config.mcpServers ?? [],
+      mcpServers,
       _meta: {
         sessionId: payload.run_id,
         taskRunId: payload.run_id,
@@ -776,6 +804,17 @@ export class AgentServer {
 
       if (result.stopReason === "end_turn") {
         await this.relayAgentResponse(payload);
+      }
+
+      // If structured output was submitted, flush logs first then mark completed
+      if (this.resultMcpServer?.isResultSubmitted) {
+        if (this.session) {
+          await this.session.logWriter.flushAll();
+        }
+        await this.posthogAPI.updateTaskRun(payload.task_id, payload.run_id, {
+          status: "completed",
+        });
+        this.logger.info("Task marked completed after submit_result");
       }
     } catch (error) {
       this.logger.error("Failed to send initial task message", error);
@@ -945,6 +984,27 @@ export class AgentServer {
   }
 
   private buildCloudSystemPrompt(prUrl?: string | null): string {
+    // When outputSchema is provided, the agent's job is to gather information
+    // and submit structured results — not create PRs or branches.
+    if (this.config.outputSchema) {
+      return `
+# Structured Output Task
+
+You have access to a tool called \`submit_result\` (from the "posthog-result" MCP server).
+Your job is to complete the task described in the user message, then call \`submit_result\` with the result data.
+
+The output schema is:
+\`\`\`json
+${JSON.stringify(this.config.outputSchema, null, 2)}
+\`\`\`
+
+Instructions:
+1. Read the task carefully and gather all the information needed.
+2. Once you have the answer, call the \`submit_result\` tool with a \`data\` argument that conforms to the schema above.
+3. You MUST call \`submit_result\` exactly once before finishing.
+`;
+    }
+
     if (prUrl) {
       return `
 # Cloud Task Execution

@@ -349,7 +349,7 @@ describe("AgentService", () => {
       service.recordActivity("run-1");
       const secondDeadline = getIdleTimeouts(service).get("run-1")?.deadline;
 
-      expect(secondDeadline).toBeGreaterThan(firstDeadline!);
+      expect(secondDeadline).toBeGreaterThan(firstDeadline as number);
     });
 
     it("kills idle session after timeout expires", () => {

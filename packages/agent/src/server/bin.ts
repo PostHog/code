@@ -51,6 +51,10 @@ program
     "MCP servers config as JSON array (ACP McpServer[] format)",
   )
   .option("--baseBranch <branch>", "Base branch for PR creation")
+  .option(
+    "--outputSchema <json>",
+    "JSON Schema for structured output (enables submit_result MCP tool)",
+  )
   .action(async (options) => {
     const envResult = envSchema.safeParse(process.env);
 
@@ -89,6 +93,16 @@ program
       mcpServers = result.data;
     }
 
+    let outputSchema: Record<string, unknown> | undefined;
+    if (options.outputSchema) {
+      try {
+        outputSchema = JSON.parse(options.outputSchema);
+      } catch {
+        program.error("--outputSchema must be valid JSON");
+        return;
+      }
+    }
+
     const server = new AgentServer({
       port: parseInt(options.port, 10),
       jwtPublicKey: env.JWT_PUBLIC_KEY,
@@ -101,6 +115,7 @@ program
       runId: options.runId,
       mcpServers,
       baseBranch: options.baseBranch,
+      outputSchema,
     });
 
     process.on("SIGINT", async () => {

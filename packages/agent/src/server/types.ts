@@ -14,4 +14,5 @@ export interface AgentServerConfig {
   version?: string;
   mcpServers?: RemoteMcpServer[];
   baseBranch?: string;
+  outputSchema?: Record<string, unknown>;
 }
