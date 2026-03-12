@@ -36,16 +36,6 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
 
   const { requestFocus } = useDraftStore((s) => s.actions);
 
-  useSessionConnection({ taskId, task });
-
-  const {
-    handleSendPrompt,
-    handleCancelPrompt,
-    handleRetry,
-    handleNewSession,
-    handleBashCommand,
-  } = useSessionCallbacks({ taskId, task });
-
   const {
     session,
     repoPath,
@@ -63,6 +53,16 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     errorTitle,
     errorMessage,
   } = useSessionViewState(taskId, task);
+
+  useSessionConnection({ taskId, task, session, repoPath, isCloud });
+
+  const {
+    handleSendPrompt,
+    handleCancelPrompt,
+    handleRetry,
+    handleNewSession,
+    handleBashCommand,
+  } = useSessionCallbacks({ taskId, task, session, repoPath });
 
   const cloudStage = session?.cloudStage ?? null;
   const cloudOutput = session?.cloudOutput ?? null;

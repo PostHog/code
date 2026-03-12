@@ -6,7 +6,7 @@ import { useSessionForTask } from "../stores/sessionStore";
 
 export function useSessionViewState(taskId: string, task: Task) {
   const session = useSessionForTask(taskId);
-  const repoPath = useCwd(taskId);
+  const repoPath = useCwd(taskId) ?? null;
   const workspace = useWorkspace(taskId);
 
   const isCloud =

@@ -1,6 +1,5 @@
 import { tryExecuteCodeCommand } from "@features/message-editor/commands";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
-import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useTaskViewed } from "@features/sidebar/hooks/useTaskViewed";
 import { trpcClient } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
@@ -9,21 +8,24 @@ import { logger } from "@utils/logger";
 import { toast } from "@utils/toast";
 import { useCallback, useRef } from "react";
 import { getSessionService } from "../service/service";
-import { sessionStoreSetters, useSessionForTask } from "../stores/sessionStore";
+import type { AgentSession } from "../stores/sessionStore";
+import { sessionStoreSetters } from "../stores/sessionStore";
 
 const log = logger.scope("session-callbacks");
 
 interface UseSessionCallbacksOptions {
   taskId: string;
   task: Task;
+  session: AgentSession | undefined;
+  repoPath: string | null;
 }
 
 export function useSessionCallbacks({
   taskId,
   task,
+  session,
+  repoPath,
 }: UseSessionCallbacksOptions) {
-  const session = useSessionForTask(taskId);
-  const repoPath = useCwd(taskId);
   const { markActivity, markAsViewed } = useTaskViewed();
   const { requestFocus, setPendingContent } = useDraftStore((s) => s.actions);
 

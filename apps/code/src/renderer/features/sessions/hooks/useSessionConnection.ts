@@ -1,6 +1,4 @@
-import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useTaskViewed } from "@features/sidebar/hooks/useTaskViewed";
-import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { trpcClient } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
@@ -8,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { useEffect } from "react";
 import { getSessionService } from "../service/service";
-import { useSessionForTask } from "../stores/sessionStore";
+import type { AgentSession } from "../stores/sessionStore";
 import { useChatTitleGenerator } from "./useChatTitleGenerator";
 
 const log = logger.scope("session-connection");
@@ -18,21 +16,21 @@ const connectingTasks = new Set<string>();
 interface UseSessionConnectionOptions {
   taskId: string;
   task: Task;
+  session: AgentSession | undefined;
+  repoPath: string | null;
+  isCloud: boolean;
 }
 
 export function useSessionConnection({
   taskId,
   task,
+  session,
+  repoPath,
+  isCloud,
 }: UseSessionConnectionOptions) {
-  const session = useSessionForTask(taskId);
-  const repoPath = useCwd(taskId);
-  const workspace = useWorkspace(taskId);
   const queryClient = useQueryClient();
   const { markActivity } = useTaskViewed();
   const { isOnline } = useConnectivity();
-
-  const isCloud =
-    workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
 
   useChatTitleGenerator(taskId);
 
@@ -111,5 +109,9 @@ export function useSessionConnection({
       .finally(() => {
         connectingTasks.delete(taskId);
       });
+
+    return () => {
+      connectingTasks.delete(taskId);
+    };
   }, [task, taskId, repoPath, session, markActivity, isOnline, isCloud]);
 }

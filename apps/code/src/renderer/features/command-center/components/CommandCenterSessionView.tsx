@@ -18,17 +18,8 @@ export function CommandCenterSessionView({
 }: CommandCenterSessionViewProps) {
   const { requestFocus } = useDraftStore((s) => s.actions);
 
-  useSessionConnection({ taskId, task });
-
   const {
-    handleSendPrompt,
-    handleCancelPrompt,
-    handleRetry,
-    handleNewSession,
-    handleBashCommand,
-  } = useSessionCallbacks({ taskId, task });
-
-  const {
+    session,
     repoPath,
     isCloud,
     isRunning,
@@ -42,6 +33,16 @@ export function CommandCenterSessionView({
     errorTitle,
     errorMessage,
   } = useSessionViewState(taskId, task);
+
+  useSessionConnection({ taskId, task, session, repoPath, isCloud });
+
+  const {
+    handleSendPrompt,
+    handleCancelPrompt,
+    handleRetry,
+    handleNewSession,
+    handleBashCommand,
+  } = useSessionCallbacks({ taskId, task, session, repoPath });
 
   useEffect(() => {
     requestFocus(taskId);
