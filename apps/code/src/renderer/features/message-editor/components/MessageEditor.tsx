@@ -59,7 +59,12 @@ function ModeAndBranchRow({
   }
 
   return (
-    <Flex align="center" justify="between" style={{ overflow: "hidden" }}>
+    <Flex
+      align="center"
+      justify="between"
+      pl="1"
+      style={{ overflow: "hidden" }}
+    >
       <Flex align="center" gap="2" flexShrink="0">
         {showModeIndicator && modeOption && (
           <ModeIndicatorInput modeOption={modeOption} />
@@ -253,7 +258,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
           <EditorContent editor={editor} />
         </div>
 
-        <Flex justify="between" align="center">
+        <Flex justify="between" align="center" pl="1">
           <Flex gap="2" align="center">
             <EditorToolbar
               disabled={disabled}
