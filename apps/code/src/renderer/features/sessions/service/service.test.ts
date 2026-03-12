@@ -52,6 +52,7 @@ const mockSessionStoreSetters = vi.hoisted(() => ({
   clearAll: vi.fn(),
   appendOptimisticItem: vi.fn(),
   clearOptimisticItems: vi.fn(),
+  replaceOptimisticWithEvent: vi.fn(),
 }));
 
 vi.mock("@features/sessions/stores/sessionStore", () => ({
@@ -207,6 +208,7 @@ const createMockSession = (
   promptStartedAt: null,
   pendingPermissions: new Map(),
   messageQueue: [],
+  optimisticItems: [],
   ...overrides,
 });
 
