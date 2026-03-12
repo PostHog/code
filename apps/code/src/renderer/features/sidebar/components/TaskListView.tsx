@@ -318,6 +318,8 @@ export function TaskListView({
                   f.remoteUrl?.toLowerCase() === group.id.toLowerCase() ||
                   f.path === group.id,
               );
+              const groupFolderId =
+                folder?.id ?? group.tasks.find((t) => t.folderId)?.folderId;
               return (
                 <DraggableFolder key={group.id} id={group.id} index={index}>
                   <SidebarSection
@@ -335,8 +337,8 @@ export function TaskListView({
                     addSpacingBefore={false}
                     tooltipContent={folder?.path ?? group.id}
                     onNewTask={() => {
-                      if (folder) {
-                        navigateToTaskInput(folder.id);
+                      if (groupFolderId) {
+                        navigateToTaskInput(groupFolderId);
                       } else {
                         navigateToTaskInput();
                       }

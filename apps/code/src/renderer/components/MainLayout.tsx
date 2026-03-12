@@ -24,7 +24,7 @@ import { useTaskDeepLink } from "../hooks/useTaskDeepLink";
 import { GlobalEventHandlers } from "./GlobalEventHandlers";
 
 export function MainLayout() {
-  const { view, hydrateTask } = useNavigationStore();
+  const { view, hydrateTask, navigateToTaskInput } = useNavigationStore();
   const {
     isOpen: commandMenuOpen,
     setOpen: setCommandMenuOpen,
@@ -46,6 +46,12 @@ export function MainLayout() {
       hydrateTask(tasks);
     }
   }, [tasks, hydrateTask]);
+
+  useEffect(() => {
+    if (view.type === "task-detail" && !view.data && !view.taskId) {
+      navigateToTaskInput();
+    }
+  }, [view, navigateToTaskInput]);
 
   const handleToggleCommandMenu = useCallback(() => {
     toggleCommandMenu();

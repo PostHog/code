@@ -2,6 +2,7 @@ import { useAuthStore } from "@features/auth/stores/authStore";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
+import type { Workspace } from "@main/services/workspace/schemas";
 import type { SagaResult } from "@posthog/shared";
 import {
   type TaskCreationInput,
@@ -60,6 +61,7 @@ export class TaskService {
     const result = await saga.run(input);
 
     if (result.success) {
+      this.optimisticallyUpdateWorkspaceCache(result.data);
       this.updateStoresOnSuccess(result.data, input);
       void queryClient.invalidateQueries({
         queryKey: [["workspace", "getAll"]],
@@ -124,6 +126,7 @@ export class TaskService {
     const result = await saga.run({ taskId });
 
     if (result.success) {
+      this.optimisticallyUpdateWorkspaceCache(result.data);
       this.updateStoresOnSuccess(result.data);
       void queryClient.invalidateQueries({
         queryKey: [["workspace", "getAll"]],
@@ -149,6 +152,15 @@ export class TaskService {
     }
 
     return result;
+  }
+
+  private optimisticallyUpdateWorkspaceCache(output: TaskCreationOutput): void {
+    if (!output.workspace) return;
+    const workspace = output.workspace;
+    queryClient.setQueriesData<Record<string, Workspace>>(
+      { queryKey: [["workspace", "getAll"]] },
+      (old) => ({ ...old, [output.task.id]: workspace }),
+    );
   }
 
   /**

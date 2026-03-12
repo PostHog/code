@@ -25,6 +25,7 @@ export interface TaskData {
   isPinned: boolean;
   needsPermission: boolean;
   repository: TaskRepositoryInfo | null;
+  folderId?: string;
   taskRunStatus?:
     | "started"
     | "in_progress"
@@ -203,6 +204,7 @@ export function useSidebarData({
         isPinned: pinnedTaskIds.has(task.id),
         needsPermission: (session?.pendingPermissions?.size ?? 0) > 0,
         repository: getRepositoryInfo(task, workspace?.folderPath),
+        folderId: workspace?.folderId || undefined,
         taskRunStatus: task.latest_run?.status,
         taskRunEnvironment: task.latest_run?.environment,
       };
