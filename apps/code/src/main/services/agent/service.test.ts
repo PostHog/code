@@ -51,8 +51,13 @@ const mockFetch = vi.hoisted(() => vi.fn());
 
 // --- Module mocks ---
 
+const mockPowerMonitor = vi.hoisted(() => ({
+  on: vi.fn(),
+}));
+
 vi.mock("electron", () => ({
   app: mockApp,
+  powerMonitor: mockPowerMonitor,
 }));
 
 vi.mock("../../utils/logger.js", () => ({
@@ -277,6 +282,147 @@ describe("AgentService", () => {
             url: "https://custom-mcp.example.com",
           }),
         ]),
+      );
+    });
+  });
+
+  describe("idle timeout", () => {
+    function injectSession(
+      svc: AgentService,
+      taskRunId: string,
+      overrides: Record<string, unknown> = {},
+    ) {
+      const sessions = (svc as unknown as { sessions: Map<string, unknown> })
+        .sessions;
+      sessions.set(taskRunId, {
+        taskRunId,
+        taskId: `task-for-${taskRunId}`,
+        repoPath: "/mock/repo",
+        agent: { cleanup: vi.fn().mockResolvedValue(undefined) },
+        clientSideConnection: {},
+        channel: `ch-${taskRunId}`,
+        createdAt: Date.now(),
+        lastActivityAt: Date.now(),
+        config: {},
+        needsRecreation: false,
+        promptPending: false,
+        ...overrides,
+      });
+    }
+
+    function getIdleTimeouts(svc: AgentService) {
+      return (
+        svc as unknown as {
+          idleTimeouts: Map<
+            string,
+            { handle: ReturnType<typeof setTimeout>; deadline: number }
+          >;
+        }
+      ).idleTimeouts;
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("recordActivity is a no-op for unknown sessions", () => {
+      service.recordActivity("unknown-run");
+      expect(getIdleTimeouts(service).size).toBe(0);
+    });
+
+    it("recordActivity sets a timeout for a known session", () => {
+      injectSession(service, "run-1");
+      service.recordActivity("run-1");
+      expect(getIdleTimeouts(service).has("run-1")).toBe(true);
+    });
+
+    it("recordActivity resets the timeout on subsequent calls", () => {
+      injectSession(service, "run-1");
+      service.recordActivity("run-1");
+      const firstDeadline = getIdleTimeouts(service).get("run-1")?.deadline;
+
+      vi.advanceTimersByTime(5 * 60 * 1000);
+      service.recordActivity("run-1");
+      const secondDeadline = getIdleTimeouts(service).get("run-1")?.deadline;
+
+      expect(secondDeadline).toBeGreaterThan(firstDeadline!);
+    });
+
+    it("kills idle session after timeout expires", () => {
+      injectSession(service, "run-1");
+      service.recordActivity("run-1");
+
+      vi.advanceTimersByTime(15 * 60 * 1000);
+
+      expect(service.emit).toHaveBeenCalledWith(
+        "session-idle-killed",
+        expect.objectContaining({ taskRunId: "run-1" }),
+      );
+    });
+
+    it("does not kill session if activity is recorded before timeout", () => {
+      injectSession(service, "run-1");
+      service.recordActivity("run-1");
+
+      vi.advanceTimersByTime(14 * 60 * 1000);
+      service.recordActivity("run-1");
+      vi.advanceTimersByTime(14 * 60 * 1000);
+
+      expect(service.emit).not.toHaveBeenCalledWith(
+        "session-idle-killed",
+        expect.anything(),
+      );
+    });
+
+    it("reschedules when promptPending is true at timeout", () => {
+      injectSession(service, "run-1", { promptPending: true });
+      service.recordActivity("run-1");
+
+      vi.advanceTimersByTime(15 * 60 * 1000);
+
+      expect(service.emit).not.toHaveBeenCalledWith(
+        "session-idle-killed",
+        expect.anything(),
+      );
+      expect(getIdleTimeouts(service).has("run-1")).toBe(true);
+    });
+
+    it("checkIdleDeadlines kills expired sessions on resume", () => {
+      injectSession(service, "run-1");
+      service.recordActivity("run-1");
+
+      const resumeHandler = mockPowerMonitor.on.mock.calls.find(
+        ([event]: string[]) => event === "resume",
+      )?.[1] as () => void;
+      expect(resumeHandler).toBeDefined();
+
+      vi.advanceTimersByTime(20 * 60 * 1000);
+      resumeHandler();
+
+      expect(service.emit).toHaveBeenCalledWith(
+        "session-idle-killed",
+        expect.objectContaining({ taskRunId: "run-1" }),
+      );
+    });
+
+    it("checkIdleDeadlines does not kill non-expired sessions", () => {
+      injectSession(service, "run-1");
+      service.recordActivity("run-1");
+
+      const resumeHandler = mockPowerMonitor.on.mock.calls.find(
+        ([event]: string[]) => event === "resume",
+      )?.[1] as () => void;
+
+      vi.advanceTimersByTime(5 * 60 * 1000);
+      resumeHandler();
+
+      expect(service.emit).not.toHaveBeenCalledWith(
+        "session-idle-killed",
+        expect.anything(),
       );
     });
   });

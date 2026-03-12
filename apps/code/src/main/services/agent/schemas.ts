@@ -183,9 +183,9 @@ export const subscribeSessionInput = z.object({
   taskRunId: z.string(),
 });
 
-// Report activity input — keeps the idle timeout debounce alive for the given task
-export const reportActivityInput = z.object({
-  taskId: z.string().nullable(),
+// Record activity input — resets the idle timeout for the given session
+export const recordActivityInput = z.object({
+  taskRunId: z.string(),
 });
 
 // Agent events

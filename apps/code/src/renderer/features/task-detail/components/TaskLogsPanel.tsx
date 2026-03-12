@@ -34,6 +34,7 @@ import { toast } from "@utils/toast";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 const log = logger.scope("task-logs-panel");
+const ACTIVITY_HEARTBEAT_MS = 5 * 60 * 1000;
 
 interface TaskLogsPanelProps {
   taskId: string;
@@ -130,15 +131,18 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   }, [taskId, requestFocus]);
 
   useEffect(() => {
-    trpcVanilla.agent.reportActivity.mutate({ taskId }).catch(() => {});
-    const heartbeat = setInterval(
-      () => {
-        trpcVanilla.agent.reportActivity.mutate({ taskId }).catch(() => {});
-      },
-      5 * 60 * 1000,
-    );
+    const taskRunId = session?.taskRunId;
+    if (!taskRunId) return;
+    trpcClient.agent.recordActivity
+      .mutate({ taskRunId })
+      .catch((err) => log.debug("Failed to record activity", { err }));
+    const heartbeat = setInterval(() => {
+      trpcClient.agent.recordActivity
+        .mutate({ taskRunId })
+        .catch((err) => log.debug("Failed to record activity", { err }));
+    }, ACTIVITY_HEARTBEAT_MS);
     return () => clearInterval(heartbeat);
-  }, [taskId]);
+  }, [session?.taskRunId]);
 
   // Keep cloud session title aligned with latest task metadata.
   useEffect(() => {

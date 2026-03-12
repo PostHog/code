@@ -23,7 +23,7 @@ import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import type { OnLogCallback } from "@posthog/agent/types";
 import { isAuthError } from "@shared/errors.js";
 import type { AcpMessage } from "@shared/types/session-events.js";
-import { app } from "electron";
+import { app, powerMonitor } from "electron";
 import { inject, injectable, preDestroy } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
 import { isDevBuild } from "../../utils/env.js";
@@ -258,7 +258,10 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private currentToken: string | null = null;
   private pendingPermissions = new Map<string, PendingPermission>();
   private mockNodeReady = false;
-  private idleTimeoutHandles = new Map<string, ReturnType<typeof setTimeout>>();
+  private idleTimeouts = new Map<
+    string,
+    { handle: ReturnType<typeof setTimeout>; deadline: number }
+  >();
   private processTracking: ProcessTrackingService;
   private sleepService: SleepService;
   private fsService: FsService;
@@ -279,6 +282,8 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     this.sleepService = sleepService;
     this.fsService = fsService;
     this.posthogPluginService = posthogPluginService;
+
+    powerMonitor.on("resume", () => this.checkIdleDeadlines());
   }
 
   public updateToken(newToken: string): void {
@@ -397,34 +402,46 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     return false;
   }
 
-  public reportActivity(taskId: string | null): void {
-    if (!taskId) return;
-    for (const session of this.sessions.values()) {
-      if (session.taskId === taskId) {
-        this.recordActivity(session.taskRunId);
-      }
-    }
-  }
+  public recordActivity(taskRunId: string): void {
+    if (!this.sessions.has(taskRunId)) return;
 
-  private recordActivity(taskRunId: string): void {
-    const existing = this.idleTimeoutHandles.get(taskRunId);
-    if (existing) clearTimeout(existing);
+    const existing = this.idleTimeouts.get(taskRunId);
+    if (existing) clearTimeout(existing.handle);
 
+    const deadline = Date.now() + AgentService.IDLE_TIMEOUT_MS;
     const handle = setTimeout(() => {
-      this.idleTimeoutHandles.delete(taskRunId);
-      const session = this.sessions.get(taskRunId);
-      if (!session || session.promptPending) return;
-      log.info("Killing idle session", { taskRunId, taskId: session.taskId });
-      this.emit(AgentServiceEvent.SessionIdleKilled, {
-        taskRunId,
-        taskId: session.taskId,
-      });
-      this.cleanupSession(taskRunId).catch((err) => {
-        log.error("Failed to cleanup idle session", { taskRunId, err });
-      });
+      this.killIdleSession(taskRunId);
     }, AgentService.IDLE_TIMEOUT_MS);
 
-    this.idleTimeoutHandles.set(taskRunId, handle);
+    this.idleTimeouts.set(taskRunId, { handle, deadline });
+  }
+
+  private killIdleSession(taskRunId: string): void {
+    const session = this.sessions.get(taskRunId);
+    if (!session) return;
+    if (session.promptPending) {
+      this.recordActivity(taskRunId);
+      return;
+    }
+    log.info("Killing idle session", { taskRunId, taskId: session.taskId });
+    this.emit(AgentServiceEvent.SessionIdleKilled, {
+      taskRunId,
+      taskId: session.taskId,
+    });
+    this.cleanupSession(taskRunId).catch((err) => {
+      log.error("Failed to cleanup idle session", { taskRunId, err });
+    });
+  }
+
+  private checkIdleDeadlines(): void {
+    const now = Date.now();
+    const expired = [...this.idleTimeouts.entries()].filter(
+      ([, { deadline }]) => now >= deadline,
+    );
+    for (const [taskRunId, { handle }] of expired) {
+      clearTimeout(handle);
+      this.killIdleSession(taskRunId);
+    }
   }
 
   private getToken(fallback: string): string {
@@ -821,6 +838,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       };
 
       this.sessions.set(taskRunId, session);
+      this.recordActivity(taskRunId);
       if (isRetry) {
         log.info("Session created after auth retry", { taskRunId });
       }
@@ -1176,8 +1194,8 @@ For git operations while detached:
 
   @preDestroy()
   async cleanupAll(): Promise<void> {
-    for (const handle of this.idleTimeoutHandles.values()) clearTimeout(handle);
-    this.idleTimeoutHandles.clear();
+    for (const { handle } of this.idleTimeouts.values()) clearTimeout(handle);
+    this.idleTimeouts.clear();
     const sessionIds = Array.from(this.sessions.keys());
     log.info("Cleaning up all agent sessions", {
       sessionCount: sessionIds.length,
@@ -1265,10 +1283,10 @@ For git operations while detached:
 
       this.sessions.delete(taskRunId);
 
-      const handle = this.idleTimeoutHandles.get(taskRunId);
-      if (handle) {
-        clearTimeout(handle);
-        this.idleTimeoutHandles.delete(taskRunId);
+      const timeout = this.idleTimeouts.get(taskRunId);
+      if (timeout) {
+        clearTimeout(timeout.handle);
+        this.idleTimeouts.delete(taskRunId);
       }
     }
   }
