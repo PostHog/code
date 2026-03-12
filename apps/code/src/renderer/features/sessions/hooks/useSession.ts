@@ -10,6 +10,7 @@ import {
   type Adapter,
   type AgentSession,
   getConfigOptionByCategory,
+  type OptimisticItem,
   type QueuedMessage,
   useSessionStore,
 } from "../stores/sessionStore";
@@ -95,6 +96,17 @@ export const useQueuedMessagesForTask = (
     if (!taskRunId) return [];
     const session = s.sessions[taskRunId];
     return session?.messageQueue ?? [];
+  });
+};
+
+export const useOptimisticItemsForTask = (
+  taskId: string | undefined,
+): OptimisticItem[] => {
+  return useSessionStore((s) => {
+    if (!taskId) return [];
+    const taskRunId = s.taskIdIndex[taskId];
+    if (!taskRunId) return [];
+    return s.sessions[taskRunId]?.optimisticItems ?? [];
   });
 };
 
