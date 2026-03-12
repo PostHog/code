@@ -836,6 +836,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     // Preserve state that should survive recreation
     const config = existing.config;
     const pendingContext = existing.pendingContext;
+    const configOptions = existing.configOptions;
 
     await this.cleanupSession(taskRunId);
 
@@ -844,9 +845,26 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       throw new Error(`Failed to recreate session: ${taskRunId}`);
     }
 
-    // Restore preserved state
     if (pendingContext) {
       newSession.pendingContext = pendingContext;
+    }
+
+    if (configOptions) {
+      await Promise.all(
+        configOptions.map((opt) =>
+          this.setSessionConfigOption(
+            taskRunId,
+            opt.id,
+            opt.currentValue,
+          ).catch((err) => {
+            log.warn("Failed to restore config option during recreation", {
+              taskRunId,
+              configId: opt.id,
+              err,
+            });
+          }),
+        ),
+      );
     }
 
     return newSession;
@@ -1001,6 +1019,14 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         value,
       });
       session.configOptions = result.configOptions ?? session.configOptions;
+
+      const updatedModeOption = session.configOptions?.find(
+        (opt) => opt.category === "mode",
+      );
+      if (updatedModeOption) {
+        session.config.permissionMode = updatedModeOption.currentValue;
+      }
+
       log.info("Session config option updated", { sessionId, configId, value });
     } catch (err) {
       log.error("Failed to set session config option", {
