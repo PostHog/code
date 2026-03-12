@@ -13,6 +13,10 @@ import { tmpdir } from "node:os";
 import path, { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import {
+  CONTEXT_MILL_ZIP_URL,
+  SKILLS_ZIP_URL,
+} from "@posthog/agent/skills/constants";
 import { unzipSync } from "fflate";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
@@ -145,12 +149,6 @@ function getFilesRecursive(dir: string): string[] {
   }
   return files;
 }
-
-const SKILLS_ZIP_URL =
-  "https://github.com/PostHog/posthog/releases/download/agent-skills-latest/skills.zip";
-
-const CONTEXT_MILL_ZIP_URL =
-  "https://github.com/PostHog/context-mill/releases/latest/download/skills-mcp-resources.zip";
 
 const execFileAsync = promisify(execFile);
 

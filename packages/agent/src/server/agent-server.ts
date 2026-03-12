@@ -1,3 +1,7 @@
+import { existsSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   ClientSideConnection,
   ndJsonStream,
@@ -13,6 +17,7 @@ import {
 } from "../adapters/acp-connection.js";
 import { PostHogAPIClient } from "../posthog-api.js";
 import { SessionLogWriter } from "../session-log-writer.js";
+import { SkillsManager } from "../skills/skills-manager.js";
 import { TreeTracker } from "../tree-tracker.js";
 import type {
   AgentMode,
@@ -155,6 +160,7 @@ export class AgentServer {
   private posthogAPI: PostHogAPIClient;
   private questionRelayedToSlack = false;
   private detectedPrUrl: string | null = null;
+  private skillsPluginPath: string | null = null;
 
   private emitConsoleLog = (
     level: LogLevel,
@@ -372,6 +378,7 @@ export class AgentServer {
       );
     });
 
+    await this.downloadSkills();
     await this.autoInitializeSession();
   }
 
@@ -406,6 +413,52 @@ export class AgentServer {
     }
 
     this.logger.info("Agent server stopped");
+  }
+
+  private async downloadSkills(): Promise<void> {
+    const skillsDir =
+      this.config.skillsDir ?? join(tmpdir(), "posthog-agent-skills");
+    const pluginDir = join(skillsDir, "plugin");
+    const skillsCacheDir = join(skillsDir, "cache");
+    const codexSkillsDir = join(homedir(), ".agents", "skills");
+
+    await mkdir(pluginDir, { recursive: true });
+    await mkdir(skillsCacheDir, { recursive: true });
+
+    const pluginJsonPath = join(pluginDir, "plugin.json");
+    if (!existsSync(pluginJsonPath)) {
+      await writeFile(pluginJsonPath, JSON.stringify({ name: "posthog" }));
+    }
+
+    const manager = new SkillsManager({
+      runtimeSkillsDir: skillsCacheDir,
+      runtimePluginDir: pluginDir,
+      pluginPath: pluginDir,
+      codexSkillsDir,
+      downloadFile: async (url, destPath) => {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(
+            `Download failed: ${response.status} ${response.statusText}`,
+          );
+        }
+        const buffer = await response.arrayBuffer();
+        await writeFile(destPath, Buffer.from(buffer));
+      },
+      logger: this.logger,
+    });
+
+    const updated = await manager.updateSkills();
+    if (updated) {
+      this.skillsPluginPath = pluginDir;
+      this.logger.info("Skills downloaded for cloud sessions", {
+        pluginPath: pluginDir,
+      });
+    } else {
+      this.logger.warn(
+        "Skills download did not succeed, sessions will run without skills",
+      );
+    }
   }
 
   private authenticateRequest(
@@ -602,6 +655,15 @@ export class AgentServer {
         sessionId: payload.run_id,
         taskRunId: payload.run_id,
         systemPrompt: { append: this.buildCloudSystemPrompt(prUrl) },
+        ...(this.skillsPluginPath && {
+          claudeCode: {
+            options: {
+              plugins: [
+                { type: "local" as const, path: this.skillsPluginPath },
+              ],
+            },
+          },
+        }),
       },
     });
 

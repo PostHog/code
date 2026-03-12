@@ -55,7 +55,7 @@ const sharedOptions = {
   splitting: false,
   outDir: "dist",
   target: "node20",
-  noExternal: ["@posthog/shared", "@posthog/git"],
+  noExternal: ["@posthog/shared", "@posthog/git", "fflate"],
   external: [
     ...builtinModules,
     ...builtinModules.map((m) => `node:${m}`),
@@ -81,6 +81,9 @@ export default defineConfig([
       "src/adapters/claude/tools.ts",
       "src/adapters/claude/conversion/tool-use-to-acp.ts",
       "src/adapters/claude/session/jsonl-hydration.ts",
+      "src/skills/skills-manager.ts",
+      "src/skills/setup-skills.ts",
+      "src/skills/constants.ts",
       "src/server/agent-server.ts",
     ],
     format: ["esm"],

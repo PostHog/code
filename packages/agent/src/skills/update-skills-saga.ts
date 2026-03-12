@@ -9,14 +9,10 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import { extractZip } from "@main/utils/extract-zip.js";
 import { Saga } from "@posthog/shared";
 import { unzipSync } from "fflate";
+import { extractZip } from "./extract-zip.js";
 
-/**
- * Overlays previously-downloaded skills on top of the runtime plugin dir.
- * Each skill directory in the cache replaces the same-named one in the plugin.
- */
 export async function overlayDownloadedSkills(
   runtimeSkillsDir: string,
   runtimePluginDir: string,
@@ -39,9 +35,6 @@ export async function overlayDownloadedSkills(
   }
 }
 
-/**
- * Syncs skills from the effective plugin dir to `codexSkillsDir` for Codex.
- */
 export async function syncCodexSkills(
   pluginPath: string,
   codexSkillsDir: string,
@@ -94,7 +87,6 @@ export class UpdateSkillsSaga extends Saga<
   ): Promise<UpdateSkillsOutput> {
     const newSkillsDir = `${input.runtimeSkillsDir}.new`;
 
-    // Step 1: create staging dir
     await this.step({
       name: "create-staging-dir",
       execute: async () => {
@@ -107,7 +99,6 @@ export class UpdateSkillsSaga extends Saga<
       },
     });
 
-    // Step 2: download skills (non-fatal)
     await this.readOnlyStep("download-skills", async () => {
       try {
         await this.downloadAndMergeSkills(
@@ -123,7 +114,6 @@ export class UpdateSkillsSaga extends Saga<
       }
     });
 
-    // Step 2b: download context-mill omnibus skills (non-fatal)
     await this.readOnlyStep("download-context-mill-skills", async () => {
       if (!input.contextMillZipUrl) return;
       try {
@@ -140,7 +130,6 @@ export class UpdateSkillsSaga extends Saga<
       }
     });
 
-    // Step 3: validate skills (fatal if empty → triggers rollback of step 1)
     await this.readOnlyStep("validate-skills", async () => {
       const entries = await readdir(newSkillsDir);
       if (entries.length === 0) {
@@ -148,7 +137,6 @@ export class UpdateSkillsSaga extends Saga<
       }
     });
 
-    // Step 4: atomic swap
     const oldSkillsDir = `${input.runtimeSkillsDir}.old`;
     await this.step({
       name: "swap-skills-cache",
@@ -176,7 +164,6 @@ export class UpdateSkillsSaga extends Saga<
       },
     });
 
-    // Step 5: overlay skills (non-fatal)
     await this.readOnlyStep("overlay-skills", async () => {
       try {
         await overlayDownloadedSkills(
@@ -190,7 +177,6 @@ export class UpdateSkillsSaga extends Saga<
       }
     });
 
-    // Step 6: sync codex skills (non-fatal)
     await this.readOnlyStep("sync-codex-skills", async () => {
       try {
         await syncCodexSkills(input.pluginPath, input.codexSkillsDir);
@@ -204,9 +190,6 @@ export class UpdateSkillsSaga extends Saga<
     return { updated: true };
   }
 
-  /**
-   * Downloads a skills zip from `url`, extracts it, and merges skill directories into `destDir`.
-   */
   private async downloadAndMergeSkills(
     url: string,
     tempDir: string,
@@ -239,10 +222,6 @@ export class UpdateSkillsSaga extends Saga<
     this.log.info("Skills merged");
   }
 
-  /**
-   * Finds the skills directory inside an extracted zip.
-   * Handles: skills/ at root, nested (e.g. posthog/skills/), or skill dirs directly at root.
-   */
   private async findSkillsDir(extractDir: string): Promise<string | null> {
     const direct = join(extractDir, "skills");
     if (existsSync(direct)) {
@@ -270,10 +249,6 @@ export class UpdateSkillsSaga extends Saga<
     return null;
   }
 
-  /**
-   * Downloads context-mill zip-of-zips, extracts omnibus-* inner zips,
-   * strips the "omnibus-" prefix, patches SKILL.md, and merges into destDir.
-   */
   private async downloadAndMergeContextMillSkills(
     url: string,
     tempDir: string,

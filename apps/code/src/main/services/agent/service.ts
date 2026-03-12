@@ -1,5 +1,6 @@
 import fs, { mkdirSync, symlinkSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFile } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import { delimiter, isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
   type Client,
@@ -20,17 +21,24 @@ import {
   getProviderName,
 } from "@posthog/agent/gateway-models";
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
+import { setupSkills } from "@posthog/agent/skills/setup-skills";
 import type { OnLogCallback } from "@posthog/agent/types";
 import { isAuthError } from "@shared/errors.js";
 import type { AcpMessage } from "@shared/types/session-events.js";
-import { app } from "electron";
+import { app, net } from "electron";
 import { inject, injectable, preDestroy } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens.js";
 import { isDevBuild } from "../../utils/env.js";
 import { logger } from "../../utils/logger.js";
+import {
+  bundledPluginDir,
+  getPluginPath,
+  runtimePluginDir,
+  runtimeSkillsDir,
+} from "../../utils/plugin-paths.js";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
 import type { FsService } from "../fs/service.js";
-import type { PosthogPluginService } from "../posthog-plugin/service.js";
+import { captureException } from "../posthog-analytics.js";
 import type { ProcessTrackingService } from "../process-tracking/service.js";
 import type { SleepService } from "../sleep/service.js";
 import { discoverExternalPlugins } from "./discover-plugins.js";
@@ -259,7 +267,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private processTracking: ProcessTrackingService;
   private sleepService: SleepService;
   private fsService: FsService;
-  private posthogPluginService: PosthogPluginService;
+  private skillsCleanup: (() => void) | null = null;
 
   constructor(
     @inject(MAIN_TOKENS.ProcessTrackingService)
@@ -268,14 +276,49 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     sleepService: SleepService,
     @inject(MAIN_TOKENS.FsService)
     fsService: FsService,
-    @inject(MAIN_TOKENS.PosthogPluginService)
-    posthogPluginService: PosthogPluginService,
   ) {
     super();
     this.processTracking = processTracking;
     this.sleepService = sleepService;
     this.fsService = fsService;
-    this.posthogPluginService = posthogPluginService;
+    this.initSkills();
+  }
+
+  private initSkills(): void {
+    setupSkills({
+      bundledPluginDir: bundledPluginDir(),
+      runtimePluginDir: runtimePluginDir(),
+      runtimeSkillsDir: runtimeSkillsDir(),
+      codexSkillsDir: join(homedir(), ".agents", "skills"),
+      isDevBuild: isDevBuild(),
+      skillsZipUrl: process.env.SKILLS_ZIP_URL ?? "",
+      contextMillZipUrl: process.env.CONTEXT_MILL_ZIP_URL ?? "",
+      downloadFile: async (url, destPath) => {
+        const response = await net.fetch(url);
+        if (!response.ok) {
+          throw new Error(
+            `Download failed: ${response.status} ${response.statusText}`,
+          );
+        }
+        const buffer = await response.arrayBuffer();
+        await writeFile(destPath, Buffer.from(buffer));
+      },
+      logger: log,
+      onError: (err) => {
+        captureException(err, {
+          source: "posthog-plugin",
+          operation: "updateSkills",
+        });
+      },
+    })
+      .then((cleanup) => {
+        this.skillsCleanup = cleanup;
+      })
+      .catch((err) => {
+        log.error("Plugin skills setup failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
   }
 
   public updateToken(newToken: string): void {
@@ -677,7 +720,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       const plugins = [
         {
           type: "local" as const,
-          path: this.posthogPluginService.getPluginPath(),
+          path: getPluginPath(),
         },
         ...externalPlugins,
       ];
@@ -1112,6 +1155,8 @@ For git operations while detached:
 
   @preDestroy()
   async cleanupAll(): Promise<void> {
+    this.skillsCleanup?.();
+
     const sessionIds = Array.from(this.sessions.keys());
     log.info("Cleaning up all agent sessions", {
       sessionCount: sessionIds.length,
