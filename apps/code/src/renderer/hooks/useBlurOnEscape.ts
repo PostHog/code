@@ -1,10 +1,12 @@
 import { SHORTCUTS } from "@renderer/constants/keyboard-shortcuts";
+import { hasOpenOverlay } from "@utils/overlay";
 import { useHotkeys } from "react-hotkeys-hook";
 
 export function useBlurOnEscape() {
   useHotkeys(
     SHORTCUTS.BLUR,
     () => {
+      if (hasOpenOverlay()) return;
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
       }

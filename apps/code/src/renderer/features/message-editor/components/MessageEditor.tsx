@@ -2,13 +2,11 @@ import "./message-editor.css";
 import type { SessionConfigOption } from "@agentclientprotocol/sdk";
 import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
 import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
-import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { ArrowUp, Circle, Stop } from "@phosphor-icons/react";
 import { Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
-import { useCommandMenuStore } from "@stores/commandMenuStore";
-import { useShortcutsSheetStore } from "@stores/shortcutsSheetStore";
 import { EditorContent } from "@tiptap/react";
+import { hasOpenOverlay } from "@utils/overlay";
 import { forwardRef, useEffect, useImperativeHandle } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useDraftStore } from "../stores/draftStore";
@@ -148,11 +146,6 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
     const cloudBranch = context?.cloudBranch;
     const cloudDiffStats = context?.cloudDiffStats;
     const isSubmitDisabled = disabled || !isOnline;
-    const isSettingsOpen = useSettingsDialogStore((s) => s.isOpen);
-    const isCommandMenuOpen = useCommandMenuStore((s) => s.isOpen);
-    const isShortcutsSheetOpen = useShortcutsSheetStore((s) => s.isOpen);
-    const hasOverlay =
-      isSettingsOpen || isCommandMenuOpen || isShortcutsSheetOpen;
 
     const {
       editor,
@@ -223,6 +216,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
     useHotkeys(
       "escape",
       (e) => {
+        if (hasOpenOverlay()) return;
         if (isLoading && onCancel) {
           e.preventDefault();
           onCancel();
@@ -231,9 +225,9 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
       {
         enableOnFormTags: true,
         enableOnContentEditable: true,
-        enabled: isLoading && !!onCancel && !hasOverlay,
+        enabled: isLoading && !!onCancel,
       },
-      [isLoading, onCancel, hasOverlay],
+      [isLoading, onCancel],
     );
 
     const handleContainerClick = (e: React.MouseEvent) => {

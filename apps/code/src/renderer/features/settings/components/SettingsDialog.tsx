@@ -125,6 +125,7 @@ export function SettingsDialog() {
     <div
       className="fixed inset-0 z-[100] flex"
       style={{ backgroundColor: "var(--color-background)" }}
+      data-overlay="settings"
     >
       <div className="flex h-full w-[256px] shrink-0 flex-col border-gray-6 border-r pt-8">
         <button

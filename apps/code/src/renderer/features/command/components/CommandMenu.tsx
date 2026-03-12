@@ -110,6 +110,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
       justify="center"
       className="fixed inset-0 z-50 bg-black/20"
       pt="9"
+      data-overlay="command-menu"
     >
       <div
         ref={commandRef}
