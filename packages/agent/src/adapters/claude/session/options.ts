@@ -18,6 +18,7 @@ import {
 } from "../hooks";
 import type { CodeExecutionMode } from "../tools";
 import type { EffortLevel } from "../types";
+import { APPENDED_INSTRUCTIONS } from "./instructions";
 import { DEFAULT_MODEL } from "./models";
 import type { SettingsManager } from "./settings";
 
@@ -47,11 +48,6 @@ export interface BuildOptionsParams {
   effort?: EffortLevel;
 }
 
-const BRANCH_NAMING_INSTRUCTIONS = `
-# Branch Naming
-
-When working in a detached HEAD state, create a descriptive branch name based on the work being done before committing. Do this automatically without asking the user.
-`;
 
 export function buildSystemPrompt(
   customPrompt?: unknown,
@@ -59,7 +55,7 @@ export function buildSystemPrompt(
   const defaultPrompt: Options["systemPrompt"] = {
     type: "preset",
     preset: "claude_code",
-    append: BRANCH_NAMING_INSTRUCTIONS,
+    append: APPENDED_INSTRUCTIONS,
   };
 
   if (!customPrompt) {
@@ -67,7 +63,7 @@ export function buildSystemPrompt(
   }
 
   if (typeof customPrompt === "string") {
-    return customPrompt + BRANCH_NAMING_INSTRUCTIONS;
+    return customPrompt + APPENDED_INSTRUCTIONS;
   }
 
   if (
@@ -78,7 +74,7 @@ export function buildSystemPrompt(
   ) {
     return {
       ...defaultPrompt,
-      append: customPrompt.append + BRANCH_NAMING_INSTRUCTIONS,
+      append: customPrompt.append + APPENDED_INSTRUCTIONS,
     };
   }
 
