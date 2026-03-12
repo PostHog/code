@@ -48,7 +48,6 @@ export interface BuildOptionsParams {
   effort?: EffortLevel;
 }
 
-
 export function buildSystemPrompt(
   customPrompt?: unknown,
 ): Options["systemPrompt"] {
