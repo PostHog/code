@@ -1,5 +1,6 @@
 import {
   sessionStoreSetters,
+  useOptimisticItemsForTask,
   usePendingPermissionsForTask,
   useQueuedMessagesForTask,
 } from "@features/sessions/stores/sessionStore";
@@ -68,6 +69,7 @@ export function ConversationView({
   const pendingPermissions = usePendingPermissionsForTask(taskId ?? "");
   const pendingPermissionsCount = pendingPermissions.size;
   const queuedMessages = useQueuedMessagesForTask(taskId);
+  const optimisticItems = useOptimisticItemsForTask(taskId);
 
   const queuedItems = useMemo<Extract<ConversationItem, { type: "queued" }>[]>(
     () =>
@@ -79,13 +81,10 @@ export function ConversationView({
     [queuedMessages],
   );
 
-  const items = useMemo<ConversationItem[]>(
-    () =>
-      queuedItems.length > 0
-        ? [...conversationItems, ...queuedItems]
-        : conversationItems,
-    [conversationItems, queuedItems],
-  );
+  const items = useMemo<ConversationItem[]>(() => {
+    const result: ConversationItem[] = [...conversationItems, ...optimisticItems];
+    return queuedItems.length > 0 ? [...result, ...queuedItems] : result;
+  }, [conversationItems, optimisticItems, queuedItems]);
 
   const handleScrollStateChange = useCallback((isAtBottom: boolean) => {
     setShowScrollButton(!isAtBottom);

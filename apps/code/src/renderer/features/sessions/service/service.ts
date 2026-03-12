@@ -819,6 +819,15 @@ export class SessionService {
     const session = sessionStoreSetters.getSessions()[taskRunId];
     if (!session) return;
 
+    if (
+      isJsonRpcRequest(acpMsg.message) &&
+      acpMsg.message.method === "session/prompt"
+    ) {
+      sessionStoreSetters.appendEventAndClearOptimisticItems(taskRunId, acpMsg);
+      this.updatePromptStateFromEvents(taskRunId, [acpMsg]);
+      return;
+    }
+
     sessionStoreSetters.appendEvents(taskRunId, [acpMsg]);
     this.updatePromptStateFromEvents(taskRunId, [acpMsg]);
 
@@ -1065,6 +1074,12 @@ export class SessionService {
       promptStartedAt: Date.now(),
     });
 
+    sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
+      type: "user_message",
+      content: extractPromptText(blocks),
+      timestamp: Date.now(),
+    });
+
     try {
       const result = await trpcClient.agent.prompt.mutate({
         sessionId: session.taskRunId,
@@ -1081,6 +1096,8 @@ export class SessionService {
         error instanceof Error ? error.message : String(error);
       const errorDetails = (error as { data?: { details?: string } }).data
         ?.details;
+
+      sessionStoreSetters.clearOptimisticItems(session.taskRunId);
 
       if (isFatalSessionError(errorMessage, errorDetails)) {
         log.error("Fatal prompt error, setting session to error state", {
