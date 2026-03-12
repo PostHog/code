@@ -1,7 +1,7 @@
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import { SettingRow } from "@features/settings/components/SettingRow";
 import { Flex } from "@radix-ui/themes";
-import { trpcClient } from "@renderer/trpc";
+import { trpcClient, useTRPC } from "@renderer/trpc";
 import { useQuery } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { useEffect, useState } from "react";
@@ -9,18 +9,16 @@ import { useEffect, useState } from "react";
 const log = logger.scope("workspaces-settings");
 
 export function WorkspacesSettings() {
+  const trpc = useTRPC();
   const [localWorktreeLocation, setLocalWorktreeLocation] =
     useState<string>("");
 
-  const { data: worktreeLocation } = useQuery({
-    queryKey: ["settings", "worktreeLocation"],
-    queryFn: async () => {
-      const result = await trpcClient.secureStore.getItem.query({
-        key: "worktreeLocation",
-      });
-      return result ?? null;
-    },
-  });
+  const { data: worktreeLocation } = useQuery(
+    trpc.secureStore.getItem.queryOptions(
+      { key: "worktreeLocation" },
+      { select: (result) => result ?? null },
+    ),
+  );
 
   useEffect(() => {
     if (worktreeLocation) {

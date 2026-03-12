@@ -14,8 +14,8 @@ Main Process (Node.js)                      Renderer Process (React)
 │  └── ...              │                   │  └── TaskService, ...     │
 ├───────────────────────┤                   ├───────────────────────────┤
 │  tRPC Routers         │ ◄─tRPC(ipcLink)─► │ tRPC Clients              │
-│  (use DI services)    │                   │  ├── trpcReact (hooks)    │
-├───────────────────────┤                   │  └── trpcVanilla          │
+│  (use DI services)    │                   │  ├── useTRPC() (hooks)    │
+├───────────────────────┤                   │  └── trpcClient (vanilla) │
 │  System I/O           │                   ├───────────────────────────┤
 │  (fs, git, shell)     │                   │  Zustand Stores (state)   │
 │  STATELESS            │                   │  ├── taskStore            │
@@ -166,27 +166,84 @@ export const trpcRouter = router({
 
 ### Using tRPC in Renderer
 
-**React hooks:**
+There are three tRPC exports, each for a different context:
+
+| Export | Where to use | Purpose |
+|--------|-------------|---------|
+| `useTRPC()` | React components/hooks | Options proxy via React context |
+| `trpc` | Outside React (module scope, services, stores) | Options proxy bound to the singleton `queryClient` |
+| `trpcClient` | Anywhere (imperative calls) | Vanilla tRPC client for direct `.query()` / `.mutate()` / `.subscribe()` |
+
+**React components** use `useTRPC()` + TanStack Query hooks:
 
 ```typescript
-import { trpcReact } from "@renderer/trpc/client";
+import { useTRPC } from "@renderer/trpc/client";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 function MyComponent() {
-  // Queries
-  const { data } = trpcReact.my.getData.useQuery({ id: "123" });
+  const trpc = useTRPC();
 
-  // Mutations
-  const mutation = trpcReact.my.updateData.useMutation();
+  // Queries — pass queryOptions() to useQuery
+  const { data } = useQuery(
+    trpc.my.getData.queryOptions({ id: "123" }),
+  );
+
+  // Mutations — pass mutationOptions() to useMutation
+  const mutation = useMutation(
+    trpc.my.updateData.mutationOptions({
+      onSuccess: () => { /* ... */ },
+    }),
+  );
   const handleUpdate = () => mutation.mutate({ id: "123", value: "new" });
 }
 ```
 
-**Outside React (vanilla client):**
+**Subscriptions** use `useSubscription` from `@trpc/tanstack-react-query`:
 
 ```typescript
-import { trpcVanilla } from "@renderer/trpc/client";
+import { useSubscription } from "@trpc/tanstack-react-query";
 
-const data = await trpcVanilla.my.getData.query({ id: "123" });
+useSubscription(
+  trpc.my.onItemCreated.subscriptionOptions(undefined, {
+    onData: (item) => { /* ... */ },
+  }),
+);
+```
+
+**Cache invalidation** uses `pathFilter()` or `queryFilter()` with the query client:
+
+```typescript
+const queryClient = useQueryClient();
+
+// Invalidate all queries under a router path
+queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter());
+
+// Invalidate a specific query by input
+queryClient.invalidateQueries(
+  trpc.git.getCurrentBranch.queryFilter({ directoryPath: repoPath }),
+);
+
+// Set cache data directly
+queryClient.setQueryData(
+  trpc.git.getLatestCommit.queryKey({ directoryPath: repoPath }),
+  commitData,
+);
+```
+
+**Outside React** (stores, sagas, services, module-scope utilities):
+
+```typescript
+// Imperative calls — use trpcClient
+import { trpcClient } from "@renderer/trpc/client";
+
+const data = await trpcClient.my.getData.query({ id: "123" });
+await trpcClient.my.updateData.mutate({ id: "123", value: "new" });
+
+// Cache operations outside React — use trpc (the module-level options proxy)
+import { trpc } from "@renderer/trpc";
+import { queryClient } from "@utils/queryClient";
+
+queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter());
 ```
 
 ## State Management
@@ -308,7 +365,7 @@ This pattern provides:
 3. **Register service** in `src/main/di/container.ts`
 4. **Create tRPC router** in `src/main/trpc/routers/`
 5. **Add router** to `src/main/trpc/router.ts`
-6. **Use in renderer** via `trpcReact` hooks
+6. **Use in renderer** via `useTRPC()` + TanStack Query hooks
 
 ## Events (tRPC Subscriptions)
 
@@ -409,25 +466,32 @@ export const shellRouter = router({
 ### 4. Subscribe in Renderer
 
 ```typescript
+import { useSubscription } from "@trpc/tanstack-react-query";
+
+const trpc = useTRPC();
+
 // React component - global events
-trpcReact.my.onItemCreated.useSubscription(undefined, {
-  enabled: true,
-  onData: (item) => {
-    // item is typed as { id: string; name: string }
-    console.log("Created:", item);
-  },
-});
+useSubscription(
+  trpc.my.onItemCreated.subscriptionOptions(undefined, {
+    enabled: true,
+    onData: (item) => {
+      // item is typed as { id: string; name: string }
+    },
+  }),
+);
 
 // React component - per-session events
-trpcReact.shell.onData.useSubscription(
-  { sessionId },
-  {
-    enabled: !!sessionId,
-    onData: (event) => {
-      // event is typed as { sessionId: string; data: string }
-      terminal.write(event.data);
+useSubscription(
+  trpc.shell.onData.subscriptionOptions(
+    { sessionId },
+    {
+      enabled: !!sessionId,
+      onData: (event) => {
+        // event is typed as { sessionId: string; data: string }
+        terminal.write(event.data);
+      },
     },
-  },
+  ),
 );
 ```
 

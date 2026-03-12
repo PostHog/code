@@ -23,7 +23,7 @@ export function useExternalApps() {
     trpcReact.externalApps.setLastUsed.mutationOptions({
       onSuccess: (_, { appId }) => {
         queryClient.setQueryData(
-          [["externalApps", "getLastUsed"], { type: "query" }],
+          trpcReact.externalApps.getLastUsed.queryKey(),
           { lastUsedApp: appId },
         );
       },
