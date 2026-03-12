@@ -1,7 +1,7 @@
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import { SettingRow } from "@features/settings/components/SettingRow";
 import { Flex } from "@radix-ui/themes";
-import { trpcVanilla } from "@renderer/trpc";
+import { trpcClient } from "@renderer/trpc";
 import { useQuery } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { useEffect, useState } from "react";
@@ -15,7 +15,7 @@ export function WorkspacesSettings() {
   const { data: worktreeLocation } = useQuery({
     queryKey: ["settings", "worktreeLocation"],
     queryFn: async () => {
-      const result = await trpcVanilla.secureStore.getItem.query({
+      const result = await trpcClient.secureStore.getItem.query({
         key: "worktreeLocation",
       });
       return result ?? null;
@@ -31,7 +31,7 @@ export function WorkspacesSettings() {
   const handleWorktreeLocationChange = async (newLocation: string) => {
     setLocalWorktreeLocation(newLocation);
     try {
-      await trpcVanilla.secureStore.setItem.query({
+      await trpcClient.secureStore.setItem.query({
         key: "worktreeLocation",
         value: newLocation,
       });

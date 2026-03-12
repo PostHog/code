@@ -1,5 +1,5 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
-import { trpcVanilla } from "@renderer/trpc";
+import { trpcClient } from "@renderer/trpc";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { logger } from "@utils/logger";
 
@@ -49,7 +49,7 @@ export async function generateTitle(content: string): Promise<string | null> {
 
     const apiHost = getCloudUrlFromRegion(cloudRegion);
 
-    const result = await trpcVanilla.llmGateway.prompt.mutate({
+    const result = await trpcClient.llmGateway.prompt.mutate({
       credentials: { apiKey, apiHost },
       system: SYSTEM_PROMPT,
       messages: [

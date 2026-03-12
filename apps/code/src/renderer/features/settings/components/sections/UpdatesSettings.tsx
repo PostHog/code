@@ -1,14 +1,19 @@
 import { SettingRow } from "@features/settings/components/SettingRow";
 import { CheckCircle, XCircle } from "@phosphor-icons/react";
 import { Badge, Button, Flex, Spinner, Text } from "@radix-ui/themes";
-import { trpcReact } from "@renderer/trpc";
+import { useTRPC } from "@renderer/trpc";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useSubscription } from "@trpc/tanstack-react-query";
 import { logger } from "@utils/logger";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const log = logger.scope("updates-settings");
 
 export function UpdatesSettings() {
-  const { data: appVersion } = trpcReact.os.getAppVersion.useQuery();
+  const trpcReact = useTRPC();
+  const { data: appVersion } = useQuery(
+    trpcReact.os.getAppVersion.queryOptions(),
+  );
   const [checkingForUpdates, setCheckingForUpdates] = useState(false);
   const [updatesDisabled, setUpdatesDisabled] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<{
@@ -17,7 +22,9 @@ export function UpdatesSettings() {
   }>({});
   const hasCheckedRef = useRef(false);
 
-  const checkUpdatesMutation = trpcReact.updates.check.useMutation();
+  const checkUpdatesMutation = useMutation(
+    trpcReact.updates.check.mutationOptions(),
+  );
 
   const handleCheckForUpdates = useCallback(async () => {
     setCheckingForUpdates(true);
@@ -58,19 +65,21 @@ export function UpdatesSettings() {
     }
   }, [handleCheckForUpdates]);
 
-  trpcReact.updates.onStatus.useSubscription(undefined, {
-    onData: (status) => {
-      if (status.checking === false && status.upToDate) {
-        setUpdateStatus({
-          message: "You're on the latest version",
-          type: "success",
-        });
-        setCheckingForUpdates(false);
-      } else if (status.checking === false) {
-        setCheckingForUpdates(false);
-      }
-    },
-  });
+  useSubscription(
+    trpcReact.updates.onStatus.subscriptionOptions(undefined, {
+      onData: (status) => {
+        if (status.checking === false && status.upToDate) {
+          setUpdateStatus({
+            message: "You're on the latest version",
+            type: "success",
+          });
+          setCheckingForUpdates(false);
+        } else if (status.checking === false) {
+          setCheckingForUpdates(false);
+        }
+      },
+    }),
+  );
 
   return (
     <Flex direction="column">

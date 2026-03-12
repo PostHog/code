@@ -1,7 +1,7 @@
 import { useArchiveTask } from "@features/tasks/hooks/useArchiveTask";
 import { useDeleteTask } from "@features/tasks/hooks/useTasks";
 import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
 import { logger } from "@utils/logger";
@@ -30,13 +30,11 @@ export function useTaskContextMenu() {
       const { worktreePath, isPinned, onTogglePin } = options ?? {};
 
       try {
-        const result = await trpcVanilla.contextMenu.showTaskContextMenu.mutate(
-          {
-            taskTitle: task.title,
-            worktreePath,
-            isPinned,
-          },
-        );
+        const result = await trpcClient.contextMenu.showTaskContextMenu.mutate({
+          taskTitle: task.title,
+          worktreePath,
+          isPinned,
+        });
 
         if (!result.action) return;
 

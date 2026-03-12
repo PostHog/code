@@ -16,9 +16,10 @@ import {
 } from "@phosphor-icons/react";
 import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
-import { trpcReact, trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSubscription } from "@trpc/tanstack-react-query";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
 
 interface FileTreePanelProps {
@@ -54,14 +55,17 @@ function LazyTreeItem({
   const collapseAll = useFileTreeStore((state) => state.collapseAll);
   const openFileInSplit = usePanelLayoutStore((state) => state.openFileInSplit);
   const workspace = useWorkspace(taskId);
+  const trpc = useTRPC();
 
-  const { data: children } = useQuery({
-    queryKey: ["directory", entry.path],
-    queryFn: () =>
-      trpcVanilla.fileWatcher.listDirectory.query({ dirPath: entry.path }),
-    enabled: entry.type === "directory" && isExpanded,
-    staleTime: Infinity,
-  });
+  const { data: children } = useQuery(
+    trpc.fileWatcher.listDirectory.queryOptions(
+      { dirPath: entry.path },
+      {
+        enabled: entry.type === "directory" && isExpanded,
+        staleTime: Infinity,
+      },
+    ),
+  );
 
   const relativePath = entry.path.replace(`${repoPath}/`, "");
   const isActive = entry.type === "file" && isFileActive(relativePath);
@@ -82,7 +86,7 @@ function LazyTreeItem({
 
   const handleContextMenu = async (e: React.MouseEvent) => {
     e.preventDefault();
-    const result = await trpcVanilla.contextMenu.showFileContextMenu.mutate({
+    const result = await trpcClient.contextMenu.showFileContextMenu.mutate({
       filePath: entry.path,
       showCollapseAll: true,
     });
@@ -225,7 +229,7 @@ function CloudFileTreePanel({ taskId, task }: FileTreePanelProps) {
             size="1"
             variant="soft"
             onClick={() =>
-              trpcVanilla.os.openExternal.mutate({ url: githubUrl })
+              trpcClient.os.openExternal.mutate({ url: githubUrl })
             }
           >
             View on GitHub
@@ -249,6 +253,7 @@ export function FileTreePanel({ taskId, task }: FileTreePanelProps) {
 }
 
 function LocalFileTreePanel({ taskId, task: _task }: FileTreePanelProps) {
+  const trpc = useTRPC();
   const workspace = useWorkspace(taskId);
   const repoPath = useCwd(taskId);
   const mainRepoPath = workspace?.folderPath;
@@ -259,22 +264,23 @@ function LocalFileTreePanel({ taskId, task: _task }: FileTreePanelProps) {
     data: rootEntries,
     isLoading,
     error,
-  } = useQuery({
-    queryKey: ["directory", repoPath],
-    queryFn: () => {
-      if (!repoPath) throw new Error("repoPath is required");
-      return trpcVanilla.fileWatcher.listDirectory.query({ dirPath: repoPath });
-    },
-    enabled: !!repoPath,
-    staleTime: Infinity,
-  });
+  } = useQuery(
+    trpc.fileWatcher.listDirectory.queryOptions(
+      { dirPath: repoPath as string },
+      { enabled: !!repoPath, staleTime: Infinity },
+    ),
+  );
 
-  trpcReact.fileWatcher.onDirectoryChanged.useSubscription(undefined, {
-    enabled: !!repoPath,
-    onData: ({ dirPath }) => {
-      queryClient.invalidateQueries({ queryKey: ["directory", dirPath] });
-    },
-  });
+  useSubscription(
+    trpc.fileWatcher.onDirectoryChanged.subscriptionOptions(undefined, {
+      enabled: !!repoPath,
+      onData: ({ dirPath }) => {
+        queryClient.invalidateQueries(
+          trpc.fileWatcher.listDirectory.queryFilter({ dirPath }),
+        );
+      },
+    }),
+  );
 
   const isFileActive = (relativePath: string): boolean => {
     if (!layout) return false;

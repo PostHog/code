@@ -1,1 +1,6 @@
-export { createTrpcClient, trpcReact, trpcVanilla } from "./client.js";
+export {
+  TRPCProvider,
+  trpc,
+  trpcClient,
+  useTRPC,
+} from "./client.js";

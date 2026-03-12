@@ -5,7 +5,7 @@ import { getRelativePath } from "@features/code-editor/utils/pathUtils";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { Box } from "@radix-ui/themes";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect } from "react";
@@ -21,6 +21,7 @@ export function DiffEditorPanel({
   task: _task,
   absolutePath,
 }: DiffEditorPanelProps) {
+  const trpc = useTRPC();
   const repoPath = useCwd(taskId);
   const filePath = getRelativePath(absolutePath, repoPath);
   const queryClient = useQueryClient();
@@ -28,15 +29,12 @@ export function DiffEditorPanel({
     (s) => s.closeDiffTabsForFile,
   );
 
-  const { data: changedFiles = [], isLoading: loadingChangelist } = useQuery({
-    queryKey: ["changed-files-head", repoPath],
-    queryFn: () =>
-      trpcVanilla.git.getChangedFilesHead.query({
-        directoryPath: repoPath as string,
-      }),
-    enabled: !!repoPath,
-    staleTime: 30_000,
-  });
+  const { data: changedFiles = [], isLoading: loadingChangelist } = useQuery(
+    trpc.git.getChangedFilesHead.queryOptions(
+      { directoryPath: repoPath as string },
+      { enabled: !!repoPath, staleTime: 30_000 },
+    ),
+  );
 
   const fileInfo = changedFiles.find((f) => f.path === filePath);
   const isFileStillChanged = !!fileInfo;
@@ -45,60 +43,51 @@ export function DiffEditorPanel({
   const isDeleted = status === "deleted";
   const isNew = status === "untracked" || status === "added";
 
-  // Modified content: always read working tree
-  const { data: modifiedContent, isLoading: loadingModified } = useQuery({
-    queryKey: ["repo-file", repoPath, filePath],
-    queryFn: () =>
-      trpcVanilla.fs.readRepoFile.query({
-        repoPath: repoPath as string,
-        filePath,
-      }),
-    enabled: !!repoPath && !isDeleted,
-    staleTime: 30_000,
-  });
+  const { data: modifiedContent, isLoading: loadingModified } = useQuery(
+    trpc.fs.readRepoFile.queryOptions(
+      { repoPath: repoPath as string, filePath },
+      { enabled: !!repoPath && !isDeleted, staleTime: 30_000 },
+    ),
+  );
 
-  const { data: originalContent, isLoading: loadingOriginal } = useQuery({
-    queryKey: ["file-at-head", repoPath, originalPath],
-    queryFn: () =>
-      trpcVanilla.git.getFileAtHead.query({
-        directoryPath: repoPath as string,
-        filePath: originalPath,
-      }),
-    enabled: !!repoPath && !isNew,
-    staleTime: 30_000,
-  });
+  const { data: originalContent, isLoading: loadingOriginal } = useQuery(
+    trpc.git.getFileAtHead.queryOptions(
+      { directoryPath: repoPath as string, filePath: originalPath },
+      { enabled: !!repoPath && !isNew, staleTime: 30_000 },
+    ),
+  );
 
   const handleRefresh = useCallback(() => {
     if (!repoPath) return;
-    queryClient.invalidateQueries({
-      queryKey: ["repo-file", repoPath, filePath],
-    });
-    queryClient.invalidateQueries({ queryKey: ["file-at-head", repoPath] });
-    queryClient.invalidateQueries({
-      queryKey: ["changed-files-head", repoPath],
-    });
-  }, [repoPath, filePath, queryClient]);
+    queryClient.invalidateQueries(
+      trpc.fs.readRepoFile.queryFilter({ repoPath, filePath }),
+    );
+    queryClient.invalidateQueries(trpc.git.getFileAtHead.pathFilter());
+    queryClient.invalidateQueries(
+      trpc.git.getChangedFilesHead.queryFilter({ directoryPath: repoPath }),
+    );
+  }, [repoPath, filePath, queryClient, trpc]);
 
   const handleContentChange = useCallback(
     async (newContent: string) => {
       if (!repoPath) return;
 
       try {
-        await trpcVanilla.fs.writeRepoFile.mutate({
+        await trpcClient.fs.writeRepoFile.mutate({
           repoPath,
           filePath,
           content: newContent,
         });
 
-        queryClient.invalidateQueries({
-          queryKey: ["repo-file", repoPath, filePath],
-        });
-        queryClient.invalidateQueries({
-          queryKey: ["changed-files-head", repoPath],
-        });
+        queryClient.invalidateQueries(
+          trpc.fs.readRepoFile.queryFilter({ repoPath, filePath }),
+        );
+        queryClient.invalidateQueries(
+          trpc.git.getChangedFilesHead.queryFilter({ directoryPath: repoPath }),
+        );
       } catch (_error) {}
     },
-    [repoPath, filePath, queryClient],
+    [repoPath, filePath, queryClient, trpc],
   );
 
   const isLoading =

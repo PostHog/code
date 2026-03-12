@@ -4,7 +4,7 @@ import { useAuthStore } from "@features/auth/stores/authStore";
 import { Callout, Flex, Spinner, Text, Theme } from "@radix-ui/themes";
 import posthogIcon from "@renderer/assets/images/posthog-icon.svg";
 import phWordmark from "@renderer/assets/images/wordmark-alt.png";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { REGION_LABELS } from "@shared/constants/oauth";
 import type { CloudRegion } from "@shared/types/oauth";
 import { useMutation } from "@tanstack/react-query";
@@ -76,7 +76,7 @@ export function AuthScreen() {
   const handleCancel = async () => {
     loginMutation.reset();
     signupMutation.reset();
-    await trpcVanilla.oauth.cancelFlow.mutate();
+    await trpcClient.oauth.cancelFlow.mutate();
   };
 
   const isPending = loginMutation.isPending || signupMutation.isPending;

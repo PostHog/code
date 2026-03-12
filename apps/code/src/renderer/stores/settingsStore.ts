@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { trpcVanilla } from "../trpc";
+import { trpcClient } from "../trpc";
 
 export type SendMessagesWith = "enter" | "cmd+enter";
 
@@ -20,7 +20,7 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
 
   loadSendMessagesWith: async () => {
     try {
-      const mode = await trpcVanilla.secureStore.getItem.query({
+      const mode = await trpcClient.secureStore.getItem.query({
         key: "sendMessagesWith",
       });
       if (mode === "enter" || mode === "cmd+enter") {
@@ -31,7 +31,7 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
 
   setSendMessagesWith: async (mode: SendMessagesWith) => {
     try {
-      await trpcVanilla.secureStore.setItem.query({
+      await trpcClient.secureStore.setItem.query({
         key: "sendMessagesWith",
         value: mode,
       });
@@ -41,7 +41,7 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
 
   loadTerminalFontFamily: async () => {
     try {
-      const fontFamily = await trpcVanilla.secureStore.getItem.query({
+      const fontFamily = await trpcClient.secureStore.getItem.query({
         key: "terminalFontFamily",
       });
       if (typeof fontFamily === "string" && fontFamily.trim()) {
@@ -58,7 +58,7 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
     const trimmedFontFamily = fontFamily.trim();
     const normalizedFontFamily = trimmedFontFamily || "monospace";
     try {
-      await trpcVanilla.secureStore.setItem.query({
+      await trpcClient.secureStore.setItem.query({
         key: "terminalFontFamily",
         value: normalizedFontFamily,
       });

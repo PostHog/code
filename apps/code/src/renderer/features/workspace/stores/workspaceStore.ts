@@ -7,7 +7,7 @@ import type {
   WorkspaceTerminalInfo,
 } from "@main/services/workspace/schemas";
 import { foldersApi } from "@renderer/features/folders/hooks/useFolders";
-import { trpcVanilla } from "@renderer/trpc";
+import { trpcClient } from "@renderer/trpc";
 import { omitKey } from "@renderer/utils/object";
 import { logger } from "@utils/logger";
 import type { StoreApi, UseBoundStore } from "zustand";
@@ -90,7 +90,7 @@ function workspaceInfoToWorkspace(
 const useWorkspaceStoreBase = create<WorkspaceState>()((set, get) => {
   (async () => {
     try {
-      const workspaces = await trpcVanilla.workspace.getAll.query();
+      const workspaces = await trpcClient.workspace.getAll.query();
       if (workspaces) {
         // Merge with existing state to preserve workspaces created during load
         set((state) => ({
@@ -113,7 +113,7 @@ const useWorkspaceStoreBase = create<WorkspaceState>()((set, get) => {
 
     loadWorkspaces: async () => {
       try {
-        const workspaces = await trpcVanilla.workspace.getAll.query();
+        const workspaces = await trpcClient.workspace.getAll.query();
         set({ workspaces: workspaces ?? {}, isLoaded: true });
       } catch (error) {
         log.error("Failed to load workspaces:", error);
@@ -128,8 +128,7 @@ const useWorkspaceStoreBase = create<WorkspaceState>()((set, get) => {
       }));
 
       try {
-        const workspaceInfo =
-          await trpcVanilla.workspace.create.mutate(options);
+        const workspaceInfo = await trpcClient.workspace.create.mutate(options);
         if (!workspaceInfo) {
           throw new Error("Failed to create workspace");
         }
@@ -155,12 +154,12 @@ const useWorkspaceStoreBase = create<WorkspaceState>()((set, get) => {
     },
 
     deleteWorkspace: async (taskId: string, mainRepoPath: string) => {
-      await trpcVanilla.workspace.delete.mutate({ taskId, mainRepoPath });
+      await trpcClient.workspace.delete.mutate({ taskId, mainRepoPath });
       set((state) => ({ workspaces: omitKey(state.workspaces, taskId) }));
     },
 
     verifyWorkspace: async (taskId: string) => {
-      const result = await trpcVanilla.workspace.verify.query({ taskId });
+      const result = await trpcClient.workspace.verify.query({ taskId });
       if (!result.exists) {
         set((state) => ({ workspaces: omitKey(state.workspaces, taskId) }));
       }
@@ -206,7 +205,7 @@ const useWorkspaceStoreBase = create<WorkspaceState>()((set, get) => {
         }));
 
         // Persist cloud workspace to main process
-        await trpcVanilla.workspace.create.mutate({
+        await trpcClient.workspace.create.mutate({
           taskId,
           mainRepoPath: repoPath,
           folderId: folder.id,
@@ -258,7 +257,7 @@ const useWorkspaceStoreBase = create<WorkspaceState>()((set, get) => {
           folder = await foldersApi.addFolder(repoPath);
         }
 
-        const workspaceInfo = await trpcVanilla.workspace.create.mutate({
+        const workspaceInfo = await trpcClient.workspace.create.mutate({
           taskId,
           mainRepoPath: repoPath,
           folderId: folder.id,
@@ -306,7 +305,7 @@ const useWorkspaceStoreBase = create<WorkspaceState>()((set, get) => {
       const scriptName =
         workspace.worktreeName ?? workspace.folderPath.split("/").pop() ?? "";
 
-      const result = await trpcVanilla.workspace.runStart.mutate({
+      const result = await trpcClient.workspace.runStart.mutate({
         taskId,
         worktreePath: scriptPath,
         worktreeName: scriptName,
@@ -321,12 +320,12 @@ const useWorkspaceStoreBase = create<WorkspaceState>()((set, get) => {
     },
 
     isWorkspaceRunning: async (taskId: string) => {
-      const running = await trpcVanilla.workspace.isRunning.query({ taskId });
+      const running = await trpcClient.workspace.isRunning.query({ taskId });
       return running ?? false;
     },
 
     getWorkspaceTerminals: async (taskId: string) => {
-      const terminals = await trpcVanilla.workspace.getTerminals.query({
+      const terminals = await trpcClient.workspace.getTerminals.query({
         taskId,
       });
       return terminals ?? [];

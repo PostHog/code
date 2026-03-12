@@ -1,4 +1,4 @@
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { create } from "zustand";
 
 type CloneStatus = "cloning" | "complete" | "error";
@@ -35,7 +35,7 @@ const ensureGlobalSubscription = (store: CloneStore) => {
   }
 
   subscriptionRefCount = 1;
-  globalSubscription = trpcVanilla.git.onCloneProgress.subscribe(undefined, {
+  globalSubscription = trpcClient.git.onCloneProgress.subscribe(undefined, {
     onData: (event) => {
       store.updateClone(event.cloneId, event.status, event.message);
     },
@@ -86,7 +86,7 @@ export const cloneStore = create<CloneStore>((set, get) => {
       }));
 
       // Start the clone operation via tRPC mutation
-      trpcVanilla.git.cloneRepository
+      trpcClient.git.cloneRepository
         .mutate({ repoUrl: repository, targetPath, cloneId })
         .then(() => {
           handleComplete(cloneId);

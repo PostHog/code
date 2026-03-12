@@ -25,7 +25,7 @@ import {
 import { useConnectivity } from "@hooks/useConnectivity";
 import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
 import { useNavigationStore } from "@renderer/stores/navigationStore";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
@@ -299,7 +299,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
       );
 
       try {
-        const result = await trpcVanilla.shell.execute.mutate({
+        const result = await trpcClient.shell.execute.mutate({
           cwd: repoPath,
           command,
         });

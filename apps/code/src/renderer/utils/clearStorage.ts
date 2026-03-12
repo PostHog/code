@@ -1,4 +1,4 @@
-import { trpcVanilla } from "@renderer/trpc";
+import { trpcClient } from "@renderer/trpc";
 import { logger } from "./logger";
 
 const log = logger.scope("clear-storage");
@@ -9,7 +9,7 @@ export function clearApplicationStorage(): void {
   );
 
   if (confirmed) {
-    trpcVanilla.folders.clearAllData
+    trpcClient.folders.clearAllData
       .mutate()
       .then(() => {
         localStorage.clear();

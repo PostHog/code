@@ -3,7 +3,7 @@ import type { TabData } from "@features/panels/store/panelTypes";
 import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
 import type React from "react";
 import { useCallback } from "react";
@@ -74,7 +74,7 @@ export const DraggableTab: React.FC<DraggableTabProps> = ({
         filePath = tabData.absolutePath;
       }
 
-      const result = await trpcVanilla.contextMenu.showTabContextMenu.mutate({
+      const result = await trpcClient.contextMenu.showTabContextMenu.mutate({
         canClose: closeable,
         filePath,
       });

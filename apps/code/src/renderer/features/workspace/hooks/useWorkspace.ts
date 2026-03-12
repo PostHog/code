@@ -2,13 +2,17 @@ import type {
   Workspace,
   WorkspaceMode,
 } from "@main/services/workspace/schemas";
-import { trpcReact, trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient, useTRPC } from "@renderer/trpc/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
 function useWorkspacesQuery() {
-  return trpcReact.workspace.getAll.useQuery(undefined, {
-    staleTime: 1000 * 60,
-  });
+  const trpcReact = useTRPC();
+  return useQuery(
+    trpcReact.workspace.getAll.queryOptions(undefined, {
+      staleTime: 1000 * 60,
+    }),
+  );
 }
 
 export function useWorkspaces(): {
@@ -33,25 +37,35 @@ export function useWorkspaceLoaded(): boolean {
 }
 
 export function useCreateWorkspace(): { isPending: boolean } {
-  const utils = trpcReact.useUtils();
+  const trpcReact = useTRPC();
+  const queryClient = useQueryClient();
 
-  const mutation = trpcReact.workspace.create.useMutation({
-    onSuccess: () => {
-      void utils.workspace.getAll.invalidate();
-    },
-  });
+  const mutation = useMutation(
+    trpcReact.workspace.create.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries(
+          trpcReact.workspace.getAll.pathFilter(),
+        );
+      },
+    }),
+  );
 
   return { isPending: mutation.isPending };
 }
 
 export function useDeleteWorkspace(): { isPending: boolean } {
-  const utils = trpcReact.useUtils();
+  const trpcReact = useTRPC();
+  const queryClient = useQueryClient();
 
-  const mutation = trpcReact.workspace.delete.useMutation({
-    onSuccess: () => {
-      void utils.workspace.getAll.invalidate();
-    },
-  });
+  const mutation = useMutation(
+    trpcReact.workspace.delete.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries(
+          trpcReact.workspace.getAll.pathFilter(),
+        );
+      },
+    }),
+  );
 
   return { isPending: mutation.isPending };
 }
@@ -64,7 +78,8 @@ export function useRunStartScripts(): {
   }) => Promise<{ success: boolean; terminalSessionIds: string[] }>;
   isPending: boolean;
 } {
-  const mutation = trpcReact.workspace.runStart.useMutation();
+  const trpcReact = useTRPC();
+  const mutation = useMutation(trpcReact.workspace.runStart.mutationOptions());
   return { mutateAsync: mutation.mutateAsync, isPending: mutation.isPending };
 }
 
@@ -77,12 +92,17 @@ export function useEnsureWorkspace(): {
   ) => Promise<Workspace | null>;
   isCreating: boolean;
 } {
-  const utils = trpcReact.useUtils();
-  const createMutation = trpcReact.workspace.create.useMutation({
-    onSuccess: () => {
-      void utils.workspace.getAll.invalidate();
-    },
-  });
+  const trpcReact = useTRPC();
+  const queryClient = useQueryClient();
+  const createMutation = useMutation(
+    trpcReact.workspace.create.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries(
+          trpcReact.workspace.getAll.pathFilter(),
+        );
+      },
+    }),
+  );
 
   const ensureWorkspace = useCallback(
     async (
@@ -91,7 +111,9 @@ export function useEnsureWorkspace(): {
       mode: WorkspaceMode = "worktree",
       branch?: string | null,
     ): Promise<Workspace | null> => {
-      const existing = utils.workspace.getAll.getData()?.[taskId];
+      const existing = queryClient.getQueryData(
+        trpcReact.workspace.getAll.queryKey(),
+      )?.[taskId];
       if (existing) {
         return existing;
       }
@@ -109,10 +131,16 @@ export function useEnsureWorkspace(): {
         throw new Error("Failed to create workspace");
       }
 
-      await utils.workspace.getAll.invalidate();
-      return utils.workspace.getAll.getData()?.[taskId] ?? null;
+      await queryClient.invalidateQueries(
+        trpcReact.workspace.getAll.pathFilter(),
+      );
+      return (
+        queryClient.getQueryData(trpcReact.workspace.getAll.queryKey())?.[
+          taskId
+        ] ?? null
+      );
     },
-    [createMutation, utils],
+    [createMutation, queryClient, trpcReact],
   );
 
   return {
@@ -123,11 +151,11 @@ export function useEnsureWorkspace(): {
 
 export const workspaceApi = {
   async getAll(): Promise<Record<string, Workspace>> {
-    return (await trpcVanilla.workspace.getAll.query()) ?? {};
+    return (await trpcClient.workspace.getAll.query()) ?? {};
   },
 
   async get(taskId: string): Promise<Workspace | null> {
-    const workspaces = await trpcVanilla.workspace.getAll.query();
+    const workspaces = await trpcClient.workspace.getAll.query();
     return workspaces?.[taskId] ?? null;
   },
 
@@ -139,14 +167,14 @@ export const workspaceApi = {
     mode: WorkspaceMode;
     branch?: string;
   }) {
-    return trpcVanilla.workspace.create.mutate(options);
+    return trpcClient.workspace.create.mutate(options);
   },
 
   async delete(taskId: string, mainRepoPath: string) {
-    return trpcVanilla.workspace.delete.mutate({ taskId, mainRepoPath });
+    return trpcClient.workspace.delete.mutate({ taskId, mainRepoPath });
   },
 
   async verify(taskId: string) {
-    return trpcVanilla.workspace.verify.query({ taskId });
+    return trpcClient.workspace.verify.query({ taskId });
   },
 };

@@ -5,7 +5,7 @@ import {
   GitPullRequest,
 } from "@phosphor-icons/react";
 import { Badge, Box, Button, Flex, Text } from "@radix-ui/themes";
-import { trpcVanilla } from "@renderer/trpc";
+import { trpcClient, useTRPC } from "@renderer/trpc";
 import { useQuery } from "@tanstack/react-query";
 import type { GitActionType } from "./GitActionMessage";
 
@@ -18,26 +18,26 @@ interface GitActionResultProps {
 export function GitActionResult({
   actionType,
   repoPath,
-  turnId,
+  turnId: _turnId,
 }: GitActionResultProps) {
-  const { data: commitInfo } = useQuery({
-    queryKey: ["git-latest-commit", repoPath, turnId],
-    queryFn: () =>
-      trpcVanilla.git.getLatestCommit.query({ directoryPath: repoPath }),
-    enabled: !!repoPath,
-    staleTime: 0,
-  });
+  const trpc = useTRPC();
 
-  const { data: repoInfo } = useQuery({
-    queryKey: ["git-repo-info", repoPath, turnId],
-    queryFn: () =>
-      trpcVanilla.git.getGitRepoInfo.query({ directoryPath: repoPath }),
-    enabled: !!repoPath,
-    staleTime: 30000,
-  });
+  const { data: commitInfo } = useQuery(
+    trpc.git.getLatestCommit.queryOptions(
+      { directoryPath: repoPath },
+      { enabled: !!repoPath, staleTime: 0 },
+    ),
+  );
+
+  const { data: repoInfo } = useQuery(
+    trpc.git.getGitRepoInfo.queryOptions(
+      { directoryPath: repoPath },
+      { enabled: !!repoPath, staleTime: 30000 },
+    ),
+  );
 
   const handleOpenUrl = (url: string) => {
-    trpcVanilla.os.openExternal.mutate({ url });
+    trpcClient.os.openExternal.mutate({ url });
   };
 
   const showCommit = commitInfo != null;

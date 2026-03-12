@@ -1,6 +1,7 @@
 import { File, X } from "@phosphor-icons/react";
 import { Dialog, Flex, IconButton, Text } from "@radix-ui/themes";
-import { trpcReact } from "@renderer/trpc/client";
+import { useTRPC } from "@renderer/trpc/client";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import type { FileAttachment } from "../utils/content";
 import { isGifFile, isImageFile } from "../utils/imageUtils";
@@ -38,9 +39,12 @@ function ImageThumbnail({
   attachment: FileAttachment;
   onRemove: () => void;
 }) {
-  const { data: dataUrl } = trpcReact.os.readFileAsDataUrl.useQuery(
-    { filePath: attachment.id },
-    { staleTime: Infinity },
+  const trpcReact = useTRPC();
+  const { data: dataUrl } = useQuery(
+    trpcReact.os.readFileAsDataUrl.queryOptions(
+      { filePath: attachment.id },
+      { staleTime: Infinity },
+    ),
   );
 
   const isGif = isGifFile(attachment.label);

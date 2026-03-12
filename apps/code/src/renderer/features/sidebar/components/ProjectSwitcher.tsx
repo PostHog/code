@@ -25,7 +25,7 @@ import {
   Popover,
   Text,
 } from "@radix-ui/themes";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { isMac } from "@utils/platform";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -74,7 +74,7 @@ export function ProjectSwitcher() {
   const handleCreateProject = async () => {
     if (cloudRegion) {
       const cloudUrl = getCloudUrlFromRegion(cloudRegion);
-      await trpcVanilla.oauth.openExternalUrl.mutate({
+      await trpcClient.oauth.openExternalUrl.mutate({
         url: `${cloudUrl}/organization/create-project`,
       });
     }
@@ -99,12 +99,12 @@ export function ProjectSwitcher() {
   };
 
   const handleOpenExternal = async (url: string) => {
-    await trpcVanilla.oauth.openExternalUrl.mutate({ url });
+    await trpcClient.oauth.openExternalUrl.mutate({ url });
     setPopoverOpen(false);
   };
 
   const handleDiscord = async () => {
-    await trpcVanilla.oauth.openExternalUrl.mutate({
+    await trpcClient.oauth.openExternalUrl.mutate({
       url: "https://discord.gg/c3qYyJXSWp",
     });
     setPopoverOpen(false);

@@ -2,7 +2,7 @@ import { Tooltip } from "@components/ui/Tooltip";
 import { useDroppable } from "@dnd-kit/react";
 import { Plus, SquareSplitHorizontalIcon } from "@phosphor-icons/react";
 import { Box, Flex } from "@radix-ui/themes";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import type React from "react";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import type { SplitDirection } from "../store/panelLayoutStore";
@@ -83,7 +83,7 @@ export const TabbedPanel: React.FC<TabbedPanelProps> = ({
   emptyState,
 }) => {
   const handleSplitClick = async () => {
-    const result = await trpcVanilla.contextMenu.showSplitContextMenu.mutate();
+    const result = await trpcClient.contextMenu.showSplitContextMenu.mutate();
     if (result.direction) {
       onSplitPanel?.(result.direction as SplitDirection);
     }

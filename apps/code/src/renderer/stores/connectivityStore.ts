@@ -1,4 +1,4 @@
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { logger } from "@utils/logger";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
@@ -39,7 +39,7 @@ export const useConnectivityStore = create<ConnectivityState>()(
     check: async () => {
       set({ isChecking: true });
       try {
-        const result = await trpcVanilla.connectivity.checkNow.mutate();
+        const result = await trpcClient.connectivity.checkNow.mutate();
         const wasOnline = get().isOnline;
 
         if (wasOnline && !result.isOnline) {
@@ -72,7 +72,7 @@ export const useConnectivityStore = create<ConnectivityState>()(
 // Initialize: fetch initial status and subscribe to changes
 export function initializeConnectivityStore() {
   // Get initial status
-  trpcVanilla.connectivity.getStatus
+  trpcClient.connectivity.getStatus
     .query()
     .then((status) => {
       useConnectivityStore.getState().setOnline(status.isOnline);
@@ -82,7 +82,7 @@ export function initializeConnectivityStore() {
     });
 
   // Subscribe to status changes
-  const subscription = trpcVanilla.connectivity.onStatusChange.subscribe(
+  const subscription = trpcClient.connectivity.onStatusChange.subscribe(
     undefined,
     {
       onData: (status) => {

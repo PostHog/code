@@ -7,7 +7,7 @@ const { getItem, setItem } = vi.hoisted(() => ({
 }));
 
 vi.mock("@renderer/trpc/client", () => ({
-  trpcVanilla: {
+  trpcClient: {
     secureStore: {
       getItem: { query: getItem },
       setItem: { query: setItem },

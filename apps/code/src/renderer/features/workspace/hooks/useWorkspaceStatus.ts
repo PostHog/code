@@ -1,4 +1,5 @@
-import { trpcReact } from "@renderer/trpc";
+import { useTRPC } from "@renderer/trpc";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { useWorkspaceTerminalStore } from "../stores/workspaceTerminalStore";
 import { useCreateWorkspace, useWorkspace } from "./useWorkspace";
@@ -11,6 +12,7 @@ interface WorkspaceStatus {
 }
 
 export function useWorkspaceStatus(taskId: string): WorkspaceStatus {
+  const trpcReact = useTRPC();
   const workspace = useWorkspace(taskId);
   const { isPending: isCreating } = useCreateWorkspace();
   const terminalsRunning = useWorkspaceTerminalStore((s) =>
@@ -20,19 +22,21 @@ export function useWorkspaceStatus(taskId: string): WorkspaceStatus {
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [isRunning, setIsRunning] = useState(terminalsRunning);
 
-  const utils = trpcReact.useUtils();
+  const queryClient = useQueryClient();
 
   const checkStatus = useCallback(async () => {
     setIsCheckingStatus(true);
     try {
-      const isRunning = await utils.workspace.isRunning.fetch({ taskId });
+      const isRunning = await queryClient.fetchQuery(
+        trpcReact.workspace.isRunning.queryOptions({ taskId }),
+      );
       setIsRunning(isRunning);
     } catch {
       setIsRunning(false);
     } finally {
       setIsCheckingStatus(false);
     }
-  }, [taskId, utils.workspace.isRunning]);
+  }, [taskId, queryClient, trpcReact]);
 
   useEffect(() => {
     if (workspace) {

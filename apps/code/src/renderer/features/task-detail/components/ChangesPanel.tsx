@@ -37,7 +37,7 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import type { ChangedFile, GitFileStatus, Task } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { showMessageBox } from "@utils/dialog";
@@ -156,7 +156,7 @@ function ChangedFileItem({
 
   const handleContextMenu = async (e: React.MouseEvent) => {
     e.preventDefault();
-    const result = await trpcVanilla.contextMenu.showFileContextMenu.mutate({
+    const result = await trpcClient.contextMenu.showFileContextMenu.mutate({
       filePath: fullPath,
     });
 
@@ -207,7 +207,7 @@ function ChangedFileItem({
 
     if (dialogResult.response !== 1) return;
 
-    const discardResult = await trpcVanilla.git.discardFileChanges.mutate({
+    const discardResult = await trpcClient.git.discardFileChanges.mutate({
       directoryPath: repoPath,
       filePath: file.originalPath ?? file.path,
       fileStatus: file.status,

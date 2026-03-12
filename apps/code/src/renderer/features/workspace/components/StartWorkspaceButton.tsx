@@ -1,6 +1,7 @@
 import { PlayIcon } from "@phosphor-icons/react";
 import { Button, Tooltip } from "@radix-ui/themes";
-import { trpcReact } from "@renderer/trpc/client";
+import { useTRPC } from "@renderer/trpc/client";
+import { useMutation } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { useWorkspace } from "../hooks/useWorkspace";
@@ -11,8 +12,11 @@ interface StartWorkspaceButtonProps {
 }
 
 export function StartWorkspaceButton({ taskId }: StartWorkspaceButtonProps) {
+  const trpcReact = useTRPC();
   const workspace = useWorkspace(taskId);
-  const runStartScriptsMutation = trpcReact.workspace.runStart.useMutation();
+  const runStartScriptsMutation = useMutation(
+    trpcReact.workspace.runStart.mutationOptions(),
+  );
   const { isRunning, isCheckingStatus } = useWorkspaceStatus(taskId);
 
   const [isStarting, setIsStarting] = useState(false);

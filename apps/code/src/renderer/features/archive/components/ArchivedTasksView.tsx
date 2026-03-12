@@ -9,11 +9,11 @@ import {
   Laptop as LaptopIcon,
 } from "@phosphor-icons/react";
 import { Box, Button, Dialog, Flex, Table, Text } from "@radix-ui/themes";
-import { trpcReact, trpcVanilla } from "@renderer/trpc";
+import { trpcClient, useTRPC } from "@renderer/trpc";
 import type { Task } from "@shared/types";
 import type { ArchivedTask } from "@shared/types/archive";
 import { useNavigationStore } from "@stores/navigationStore";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@utils/toast";
 import { useMemo, useState } from "react";
 
@@ -240,11 +240,12 @@ export function ArchivedTasksViewPresentation({
 }
 
 export function ArchivedTasksView() {
-  const { data: archivedTasks = [], isLoading: isLoadingArchived } =
-    trpcReact.archive.list.useQuery();
+  const trpcReact = useTRPC();
+  const { data: archivedTasks = [], isLoading: isLoadingArchived } = useQuery(
+    trpcReact.archive.list.queryOptions(),
+  );
   const { data: tasks = [], isLoading: isLoadingTasks } = useTasks();
   const queryClient = useQueryClient();
-  const trpcUtils = trpcReact.useUtils();
 
   useSetHeaderContent(
     <Text size="1" weight="medium" className="font-mono text-[12px]">
@@ -267,7 +268,7 @@ export function ArchivedTasksView() {
 
   const invalidateArchiveQueries = async () => {
     await Promise.all([
-      trpcUtils.archive.invalidate(),
+      queryClient.invalidateQueries(trpcReact.archive.pathFilter()),
       queryClient.refetchQueries({ queryKey: ["tasks"] }),
     ]);
   };
@@ -277,8 +278,10 @@ export function ArchivedTasksView() {
     const task = item?.task;
 
     try {
-      await trpcVanilla.archive.unarchive.mutate({ taskId });
-      await trpcUtils.workspace.getAll.invalidate();
+      await trpcClient.archive.unarchive.mutate({ taskId });
+      await queryClient.invalidateQueries(
+        trpcReact.workspace.getAll.pathFilter(),
+      );
       await invalidateArchiveQueries();
       toast.success("Task unarchived", {
         action: task
@@ -301,7 +304,7 @@ export function ArchivedTasksView() {
 
   const executeDelete = async (taskId: string) => {
     try {
-      await trpcVanilla.archive.delete.mutate({ taskId });
+      await trpcClient.archive.delete.mutate({ taskId });
       invalidateArchiveQueries();
       toast.success("Task deleted");
     } catch (error) {
@@ -312,7 +315,7 @@ export function ArchivedTasksView() {
 
   const handleDelete = async (taskId: string, taskTitle: string) => {
     const { confirmed } =
-      await trpcVanilla.contextMenu.confirmDeleteArchivedTask.mutate({
+      await trpcClient.contextMenu.confirmDeleteArchivedTask.mutate({
         taskTitle,
       });
     if (!confirmed) return;
@@ -331,7 +334,7 @@ export function ArchivedTasksView() {
 
     try {
       const result =
-        await trpcVanilla.contextMenu.showArchivedTaskContextMenu.mutate({
+        await trpcClient.contextMenu.showArchivedTaskContextMenu.mutate({
           taskTitle,
         });
 
@@ -358,11 +361,13 @@ export function ArchivedTasksView() {
     const task = item?.task;
     setBranchNotFound(null);
     try {
-      await trpcVanilla.archive.unarchive.mutate({
+      await trpcClient.archive.unarchive.mutate({
         taskId,
         recreateBranch: true,
       });
-      await trpcUtils.workspace.getAll.invalidate();
+      await queryClient.invalidateQueries(
+        trpcReact.workspace.getAll.pathFilter(),
+      );
       await invalidateArchiveQueries();
       toast.success("Task unarchived", {
         action: task

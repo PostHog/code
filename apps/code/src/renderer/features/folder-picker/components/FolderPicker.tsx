@@ -7,7 +7,7 @@ import {
 import { ChevronDownIcon } from "@radix-ui/react-icons";
 import { Button, DropdownMenu, Flex, Text } from "@radix-ui/themes";
 import type { Responsive } from "@radix-ui/themes/dist/esm/props/prop-def.js";
-import { trpcVanilla } from "@renderer/trpc";
+import { trpcClient } from "@renderer/trpc";
 
 interface FolderPickerProps {
   value: string;
@@ -42,7 +42,7 @@ export function FolderPicker({
   };
 
   const handleOpenFilePicker = async () => {
-    const selectedPath = await trpcVanilla.os.selectDirectory.query();
+    const selectedPath = await trpcClient.os.selectDirectory.query();
     if (selectedPath) {
       await addFolder(selectedPath);
       onChange(selectedPath);

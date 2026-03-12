@@ -1,9 +1,8 @@
 import { ThemeWrapper } from "@components/ThemeWrapper";
-import { createTrpcClient, trpcReact } from "@renderer/trpc";
+import { TRPCProvider, trpcClient } from "@renderer/trpc/client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@utils/queryClient";
 import type React from "react";
-import { useState } from "react";
 import { HotkeysProvider } from "react-hotkeys-hook";
 
 interface ProvidersProps {
@@ -11,15 +10,13 @@ interface ProvidersProps {
 }
 
 export const Providers: React.FC<ProvidersProps> = ({ children }) => {
-  const [trpcClient] = useState(() => createTrpcClient());
-
   return (
     <HotkeysProvider>
-      <trpcReact.Provider client={trpcClient} queryClient={queryClient}>
-        <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
           <ThemeWrapper>{children}</ThemeWrapper>
-        </QueryClientProvider>
-      </trpcReact.Provider>
+        </TRPCProvider>
+      </QueryClientProvider>
     </HotkeysProvider>
   );
 };

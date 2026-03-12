@@ -1,8 +1,10 @@
 import { Box } from "@radix-ui/themes";
-import { trpcReact } from "@renderer/trpc";
+import { useTRPC } from "@renderer/trpc";
 import { useSettingsStore } from "@stores/settingsStore";
 import { useThemeStore } from "@stores/themeStore";
 import "@xterm/xterm/css/xterm.css";
+
+import { useSubscription } from "@trpc/tanstack-react-query";
 import { useCallback, useEffect, useRef } from "react";
 import { terminalManager } from "../services/TerminalManager";
 
@@ -25,6 +27,7 @@ export function Terminal({
   onReady,
   onExit,
 }: TerminalProps) {
+  const trpcReact = useTRPC();
   const terminalRef = useRef<HTMLDivElement>(null);
   const isDarkMode = useThemeStore((state) => state.isDarkMode);
   const terminalFontFamily = useSettingsStore(
@@ -77,25 +80,29 @@ export function Terminal({
   }, [terminalFontFamily]);
 
   // Subscribe to shell data events
-  trpcReact.shell.onData.useSubscription(
-    { sessionId },
-    {
-      enabled: !!sessionId,
-      onData: (event) => {
-        terminalManager.writeData(event.sessionId, event.data);
+  useSubscription(
+    trpcReact.shell.onData.subscriptionOptions(
+      { sessionId },
+      {
+        enabled: !!sessionId,
+        onData: (event) => {
+          terminalManager.writeData(event.sessionId, event.data);
+        },
       },
-    },
+    ),
   );
 
   // Subscribe to shell exit events
-  trpcReact.shell.onExit.useSubscription(
-    { sessionId },
-    {
-      enabled: !!sessionId,
-      onData: (event) => {
-        terminalManager.handleExit(event.sessionId);
+  useSubscription(
+    trpcReact.shell.onExit.subscriptionOptions(
+      { sessionId },
+      {
+        enabled: !!sessionId,
+        onData: (event) => {
+          terminalManager.handleExit(event.sessionId);
+        },
       },
-    },
+    ),
   );
 
   // Event callbacks

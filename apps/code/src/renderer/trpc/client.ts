@@ -1,18 +1,21 @@
 import { ipcLink } from "@posthog/electron-trpc/renderer";
-import { createTRPCProxyClient } from "@trpc/client";
-import { type CreateTRPCReact, createTRPCReact } from "@trpc/react-query";
+import { createTRPCClient } from "@trpc/client";
+import {
+  createTRPCContext,
+  createTRPCOptionsProxy,
+} from "@trpc/tanstack-react-query";
+import { queryClient } from "@utils/queryClient";
 import type { TrpcRouter } from "../../main/trpc/router.js";
 
-export function createTrpcClient() {
-  return trpcReact.createClient({
-    links: [ipcLink()],
-  });
-}
-
-export const trpcReact: CreateTRPCReact<TrpcRouter, unknown> =
-  createTRPCReact<TrpcRouter>();
-
-// vanilla trpc client for use outside React components
-export const trpcVanilla = createTRPCProxyClient<TrpcRouter>({
+export const trpcClient = createTRPCClient<TrpcRouter>({
   links: [ipcLink()],
+});
+
+const context = createTRPCContext<TrpcRouter>();
+export const TRPCProvider = context.TRPCProvider;
+export const useTRPC = context.useTRPC;
+
+export const trpc = createTRPCOptionsProxy<TrpcRouter>({
+  client: trpcClient,
+  queryClient,
 });

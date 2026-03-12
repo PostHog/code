@@ -27,7 +27,7 @@ import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { taskViewedApi } from "@features/sidebar/hooks/useTaskViewed";
 import { DEFAULT_GATEWAY_MODEL } from "@posthog/agent/gateway-models";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { toast } from "@renderer/utils/toast";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type {
@@ -94,7 +94,7 @@ export function resetSessionService(): void {
 
   sessionStoreSetters.clearAll();
 
-  trpcVanilla.agent.resetAll.mutate().catch((err) => {
+  trpcClient.agent.resetAll.mutate().catch((err) => {
     log.error("Failed to reset all sessions on main process", err);
   });
 }
@@ -210,7 +210,7 @@ export class SessionService {
         }
 
         const [workspaceResult, logResult] = await Promise.all([
-          trpcVanilla.workspace.verify.query({ taskId }),
+          trpcClient.workspace.verify.query({ taskId }),
           this.fetchSessionLogs(latestRun.log_url, latestRun.id),
         ]);
 
@@ -341,7 +341,7 @@ export class SessionService {
         "mode",
       )?.currentValue;
 
-      trpcVanilla.workspace.verify
+      trpcClient.workspace.verify
         .query({ taskId })
         .then((workspaceResult) => {
           if (!workspaceResult.exists) {
@@ -362,7 +362,7 @@ export class SessionService {
         });
 
       const { customInstructions } = useSettingsStore.getState();
-      const result = await trpcVanilla.agent.reconnect.mutate({
+      const result = await trpcClient.agent.reconnect.mutate({
         taskId,
         taskRunId,
         repoPath,
@@ -406,7 +406,7 @@ export class SessionService {
         if (persistedConfigOptions) {
           await Promise.all(
             persistedConfigOptions.map((opt) =>
-              trpcVanilla.agent.setConfigOption
+              trpcClient.agent.setConfigOption
                 .mutate({
                   sessionId: taskRunId,
                   configId: opt.id,
@@ -450,7 +450,7 @@ export class SessionService {
 
   private async teardownSession(taskRunId: string): Promise<void> {
     try {
-      await trpcVanilla.agent.cancel.mutate({ sessionId: taskRunId });
+      await trpcClient.agent.cancel.mutate({ sessionId: taskRunId });
     } catch (error) {
       log.debug("Cancel during teardown failed (session may already be gone)", {
         taskRunId,
@@ -512,7 +512,7 @@ export class SessionService {
 
     const { customInstructions: startCustomInstructions } =
       useSettingsStore.getState();
-    const result = await trpcVanilla.agent.start.mutate({
+    const result = await trpcClient.agent.start.mutate({
       taskId,
       taskRunId: taskRun.id,
       repoPath,
@@ -619,7 +619,7 @@ export class SessionService {
     try {
       const { customInstructions: previewCustomInstructions } =
         useSettingsStore.getState();
-      const result = await trpcVanilla.agent.start.mutate({
+      const result = await trpcClient.agent.start.mutate({
         taskId: PREVIEW_TASK_ID,
         taskRunId,
         repoPath: "__preview__",
@@ -632,7 +632,7 @@ export class SessionService {
       });
 
       if (abort.signal.aborted) {
-        trpcVanilla.agent.cancel
+        trpcClient.agent.cancel
           .mutate({ sessionId: taskRunId })
           .catch((err) => {
             log.warn("Failed to cancel stale preview session", {
@@ -684,7 +684,7 @@ export class SessionService {
     sessionStoreSetters.removeSession(taskRunId);
 
     try {
-      await trpcVanilla.agent.cancel.mutate({ sessionId: taskRunId });
+      await trpcClient.agent.cancel.mutate({ sessionId: taskRunId });
     } catch (error) {
       log.warn("Failed to cancel preview session", { taskRunId, error });
     }
@@ -697,7 +697,7 @@ export class SessionService {
       return;
     }
 
-    const eventSubscription = trpcVanilla.agent.onSessionEvent.subscribe(
+    const eventSubscription = trpcClient.agent.onSessionEvent.subscribe(
       { taskRunId },
       {
         onData: (payload: unknown) => {
@@ -715,7 +715,7 @@ export class SessionService {
     );
 
     const permissionSubscription =
-      trpcVanilla.agent.onPermissionRequest.subscribe(
+      trpcClient.agent.onPermissionRequest.subscribe(
         { taskRunId },
         {
           onData: async (payload) => {
@@ -1047,7 +1047,7 @@ export class SessionService {
     });
 
     try {
-      const result = await trpcVanilla.agent.prompt.mutate({
+      const result = await trpcClient.agent.prompt.mutate({
         sessionId: session.taskRunId,
         prompt: blocks,
       });
@@ -1105,7 +1105,7 @@ export class SessionService {
     }
 
     try {
-      const result = await trpcVanilla.agent.cancelPrompt.mutate({
+      const result = await trpcClient.agent.cancelPrompt.mutate({
         sessionId: session.taskRunId,
       });
 
@@ -1171,7 +1171,7 @@ export class SessionService {
     });
 
     try {
-      const result = await trpcVanilla.cloudTask.sendCommand.mutate({
+      const result = await trpcClient.cloudTask.sendCommand.mutate({
         taskId: session.taskId,
         runId: session.taskRunId,
         apiHost: auth.apiHost,
@@ -1253,7 +1253,7 @@ export class SessionService {
     }
 
     try {
-      const result = await trpcVanilla.cloudTask.sendCommand.mutate({
+      const result = await trpcClient.cloudTask.sendCommand.mutate({
         taskId: session.taskId,
         runId: session.taskRunId,
         apiHost: auth.apiHost,
@@ -1324,7 +1324,7 @@ export class SessionService {
     );
 
     try {
-      await trpcVanilla.agent.respondToPermission.mutate({
+      await trpcClient.agent.respondToPermission.mutate({
         taskRunId: session.taskRunId,
         toolCallId,
         optionId,
@@ -1366,7 +1366,7 @@ export class SessionService {
     );
 
     try {
-      await trpcVanilla.agent.cancelPermission.mutate({
+      await trpcClient.agent.cancelPermission.mutate({
         taskRunId: session.taskRunId,
         toolCallId,
       });
@@ -1420,7 +1420,7 @@ export class SessionService {
     updatePersistedConfigOptionValue(session.taskRunId, configId, value);
 
     try {
-      await trpcVanilla.agent.setConfigOption.mutate({
+      await trpcClient.agent.setConfigOption.mutate({
         sessionId: session.taskRunId,
         configId,
         value,
@@ -1587,7 +1587,7 @@ export class SessionService {
     // Cancel lingering backend agent (ignore errors — it may not exist
     // after a failed reconnect)
     try {
-      await trpcVanilla.agent.cancel.mutate({ sessionId: taskRunId });
+      await trpcClient.agent.cancel.mutate({ sessionId: taskRunId });
     } catch {
       // expected when backend has no session
     }
@@ -1643,11 +1643,11 @@ export class SessionService {
     // Resuming same run — just toggle viewing back on
     if (existingWatcher && existingWatcher.runId === runId) {
       existingWatcher.onStatusChange = onStatusChange;
-      trpcVanilla.cloudTask.setViewing
+      trpcClient.cloudTask.setViewing
         .mutate({ taskId, runId, viewing: viewing ?? true })
         .catch(() => {});
       return () => {
-        trpcVanilla.cloudTask.setViewing
+        trpcClient.cloudTask.setViewing
           .mutate({ taskId, runId, viewing: false })
           .catch(() => {});
       };
@@ -1680,12 +1680,12 @@ export class SessionService {
     }
 
     // Ensure main-process service has current token
-    trpcVanilla.cloudTask.updateToken
+    trpcClient.cloudTask.updateToken
       .mutate({ token: auth.oauthAccessToken })
       .catch(() => {});
 
     // Start main-process watcher
-    trpcVanilla.cloudTask.watch
+    trpcClient.cloudTask.watch
       .mutate({
         taskId,
         runId,
@@ -1698,7 +1698,7 @@ export class SessionService {
       );
 
     // Subscribe to updates
-    const subscription = trpcVanilla.cloudTask.onUpdate.subscribe(
+    const subscription = trpcClient.cloudTask.onUpdate.subscribe(
       { taskId, runId },
       {
         onData: (update: CloudTaskUpdatePayload) => {
@@ -1723,7 +1723,7 @@ export class SessionService {
     });
 
     return () => {
-      trpcVanilla.cloudTask.setViewing
+      trpcClient.cloudTask.setViewing
         .mutate({ taskId, runId, viewing: false })
         .catch(() => {});
     };
@@ -1739,7 +1739,7 @@ export class SessionService {
 
     watcher.subscription.unsubscribe();
     this.cloudTaskWatchers.delete(taskId);
-    trpcVanilla.cloudTask.unwatch
+    trpcClient.cloudTask.unwatch
       .mutate({ taskId, runId: watcher.runId })
       .catch((err: unknown) =>
         log.warn("Failed to unwatch cloud task", { taskId, err }),
@@ -1871,7 +1871,7 @@ export class SessionService {
 
     if (taskRunId) {
       try {
-        const localContent = await trpcVanilla.logs.readLocalLogs.query({
+        const localContent = await trpcClient.logs.readLocalLogs.query({
           taskRunId,
         });
         if (localContent?.trim()) {
@@ -1887,13 +1887,13 @@ export class SessionService {
     if (!logUrl) return { rawEntries: [] };
 
     try {
-      const content = await trpcVanilla.logs.fetchS3Logs.query({ logUrl });
+      const content = await trpcClient.logs.fetchS3Logs.query({ logUrl });
       if (!content?.trim()) return { rawEntries: [] };
 
       const result = this.parseLogContent(content);
 
       if (taskRunId && result.rawEntries.length > 0) {
-        trpcVanilla.logs.writeLocalLogs
+        trpcClient.logs.writeLocalLogs
           .mutate({ taskRunId, content })
           .catch((err) => {
             log.warn("Failed to cache S3 logs locally", { taskRunId, err });

@@ -1,4 +1,4 @@
-import { trpcVanilla } from "@renderer/trpc";
+import { useTRPC } from "@renderer/trpc";
 import { useQuery } from "@tanstack/react-query";
 
 const EMPTY_DIFF_STATS = { filesChanged: 0, linesAdded: 0, linesRemoved: 0 };
@@ -8,101 +8,103 @@ const GIT_QUERY_DEFAULTS = {
 } as const;
 
 export function useGitQueries(repoPath?: string) {
+  const trpc = useTRPC();
   const enabled = !!repoPath;
 
-  const { data: isRepo = false, isLoading: isRepoLoading } = useQuery({
-    queryKey: ["git-validate-repo", repoPath],
-    queryFn: () =>
-      trpcVanilla.git.validateRepo.query({ directoryPath: repoPath as string }),
-    enabled,
-    ...GIT_QUERY_DEFAULTS,
-  });
+  const { data: isRepo = false, isLoading: isRepoLoading } = useQuery(
+    trpc.git.validateRepo.queryOptions(
+      { directoryPath: repoPath as string },
+      { enabled, ...GIT_QUERY_DEFAULTS },
+    ),
+  );
 
   const repoEnabled = enabled && isRepo;
 
-  const { data: changedFiles = [], isLoading: changesLoading } = useQuery({
-    queryKey: ["changed-files-head", repoPath],
-    queryFn: () =>
-      trpcVanilla.git.getChangedFilesHead.query({
-        directoryPath: repoPath as string,
-      }),
-    enabled: repoEnabled,
-    ...GIT_QUERY_DEFAULTS,
-    refetchOnMount: "always",
-    placeholderData: (prev) => prev,
-  });
+  const { data: changedFiles = [], isLoading: changesLoading } = useQuery(
+    trpc.git.getChangedFilesHead.queryOptions(
+      { directoryPath: repoPath as string },
+      {
+        enabled: repoEnabled,
+        ...GIT_QUERY_DEFAULTS,
+        refetchOnMount: "always",
+        placeholderData: (prev) => prev,
+      },
+    ),
+  );
 
-  const { data: diffStats = EMPTY_DIFF_STATS } = useQuery({
-    queryKey: ["git-diff-stats", repoPath],
-    queryFn: () =>
-      trpcVanilla.git.getDiffStats.query({
-        directoryPath: repoPath as string,
-      }),
-    enabled: repoEnabled,
-    ...GIT_QUERY_DEFAULTS,
-    placeholderData: (prev) => prev ?? EMPTY_DIFF_STATS,
-  });
+  const { data: diffStats = EMPTY_DIFF_STATS } = useQuery(
+    trpc.git.getDiffStats.queryOptions(
+      { directoryPath: repoPath as string },
+      {
+        enabled: repoEnabled,
+        ...GIT_QUERY_DEFAULTS,
+        placeholderData: (prev) => prev ?? EMPTY_DIFF_STATS,
+      },
+    ),
+  );
 
-  const { data: currentBranchData, isLoading: branchLoading } = useQuery({
-    queryKey: ["git-current-branch", repoPath],
-    queryFn: () =>
-      trpcVanilla.git.getCurrentBranch.query({
-        directoryPath: repoPath as string,
-      }),
-    enabled: repoEnabled,
-    staleTime: 10_000,
-    placeholderData: (prev) => prev,
-  });
+  const { data: currentBranchData, isLoading: branchLoading } = useQuery(
+    trpc.git.getCurrentBranch.queryOptions(
+      { directoryPath: repoPath as string },
+      {
+        enabled: repoEnabled,
+        staleTime: 10_000,
+        placeholderData: (prev) => prev,
+      },
+    ),
+  );
 
-  const { data: syncStatus, isLoading: syncLoading } = useQuery({
-    queryKey: ["git-sync-status", repoPath],
-    queryFn: () =>
-      trpcVanilla.git.getGitSyncStatus.query({
-        directoryPath: repoPath as string,
-      }),
-    enabled: repoEnabled,
-    ...GIT_QUERY_DEFAULTS,
-    refetchInterval: 60_000,
-  });
+  const { data: syncStatus, isLoading: syncLoading } = useQuery(
+    trpc.git.getGitSyncStatus.queryOptions(
+      { directoryPath: repoPath as string },
+      {
+        enabled: repoEnabled,
+        ...GIT_QUERY_DEFAULTS,
+        refetchInterval: 60_000,
+      },
+    ),
+  );
 
-  const { data: repoInfo } = useQuery({
-    queryKey: ["git-repo-info", repoPath],
-    queryFn: () =>
-      trpcVanilla.git.getGitRepoInfo.query({
-        directoryPath: repoPath as string,
-      }),
-    enabled: repoEnabled,
-    ...GIT_QUERY_DEFAULTS,
-    staleTime: 60_000,
-  });
+  const { data: repoInfo } = useQuery(
+    trpc.git.getGitRepoInfo.queryOptions(
+      { directoryPath: repoPath as string },
+      {
+        enabled: repoEnabled,
+        ...GIT_QUERY_DEFAULTS,
+        staleTime: 60_000,
+      },
+    ),
+  );
 
-  const { data: ghStatus } = useQuery({
-    queryKey: ["git-gh-status"],
-    queryFn: () => trpcVanilla.git.getGhStatus.query(),
-    enabled,
-    ...GIT_QUERY_DEFAULTS,
-    staleTime: 60_000,
-  });
+  const { data: ghStatus } = useQuery(
+    trpc.git.getGhStatus.queryOptions(undefined, {
+      enabled,
+      ...GIT_QUERY_DEFAULTS,
+      staleTime: 60_000,
+    }),
+  );
 
   const currentBranch = currentBranchData ?? syncStatus?.currentBranch ?? null;
 
-  const { data: prStatus } = useQuery({
-    queryKey: ["git-pr-status", repoPath, currentBranch],
-    queryFn: () =>
-      trpcVanilla.git.getPrStatus.query({ directoryPath: repoPath as string }),
-    enabled: repoEnabled && !!ghStatus?.installed && !!currentBranch,
-    ...GIT_QUERY_DEFAULTS,
-  });
+  const { data: prStatus } = useQuery(
+    trpc.git.getPrStatus.queryOptions(
+      { directoryPath: repoPath as string },
+      {
+        enabled: repoEnabled && !!ghStatus?.installed && !!currentBranch,
+        ...GIT_QUERY_DEFAULTS,
+      },
+    ),
+  );
 
-  const { data: latestCommit } = useQuery({
-    queryKey: ["git-latest-commit", repoPath],
-    queryFn: () =>
-      trpcVanilla.git.getLatestCommit.query({
-        directoryPath: repoPath as string,
-      }),
-    enabled: repoEnabled,
-    ...GIT_QUERY_DEFAULTS,
-  });
+  const { data: latestCommit } = useQuery(
+    trpc.git.getLatestCommit.queryOptions(
+      { directoryPath: repoPath as string },
+      {
+        enabled: repoEnabled,
+        ...GIT_QUERY_DEFAULTS,
+      },
+    ),
+  );
 
   const hasChanges = changedFiles.length > 0;
   const aheadOfRemote = syncStatus?.aheadOfRemote ?? 0;
@@ -138,30 +140,29 @@ export function useGitQueries(repoPath?: string) {
 }
 
 export function useCloudPrChangedFiles(prUrl: string | null) {
-  return useQuery({
-    queryKey: ["pr-changed-files", prUrl],
-    queryFn: () =>
-      trpcVanilla.git.getPrChangedFiles.query({ prUrl: prUrl as string }),
-    enabled: !!prUrl,
-    staleTime: 5 * 60_000,
-    retry: 1,
-  });
+  const trpc = useTRPC();
+  return useQuery(
+    trpc.git.getPrChangedFiles.queryOptions(
+      { prUrl: prUrl as string },
+      { enabled: !!prUrl, staleTime: 5 * 60_000, retry: 1 },
+    ),
+  );
 }
 
 export function useCloudBranchChangedFiles(
   repo: string | null,
   branch: string | null,
 ) {
-  return useQuery({
-    queryKey: ["branch-changed-files", repo, branch],
-    queryFn: () =>
-      trpcVanilla.git.getBranchChangedFiles.query({
-        repo: repo as string,
-        branch: branch as string,
-      }),
-    enabled: !!repo && !!branch,
-    staleTime: 30_000,
-    refetchInterval: 30_000,
-    retry: 1,
-  });
+  const trpc = useTRPC();
+  return useQuery(
+    trpc.git.getBranchChangedFiles.queryOptions(
+      { repo: repo as string, branch: branch as string },
+      {
+        enabled: !!repo && !!branch,
+        staleTime: 30_000,
+        refetchInterval: 30_000,
+        retry: 1,
+      },
+    ),
+  );
 }

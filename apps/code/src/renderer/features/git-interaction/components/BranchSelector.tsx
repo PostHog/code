@@ -2,7 +2,7 @@ import { Combobox } from "@components/ui/combobox/Combobox";
 import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
 import { GitBranch, Plus } from "@phosphor-icons/react";
 import { Flex, Spinner, Tooltip } from "@radix-ui/themes";
-import { trpcVanilla } from "@renderer/trpc";
+import { useTRPC } from "@renderer/trpc";
 import { toast } from "@renderer/utils/toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -35,6 +35,7 @@ export function BranchSelector({
   cloudBranchesLoading,
 }: BranchSelectorProps) {
   const [open, setOpen] = useState(false);
+  const trpc = useTRPC();
   const queryClient = useQueryClient();
   const { actions } = useGitInteractionStore();
 
@@ -48,43 +49,44 @@ export function BranchSelector({
     }
   }, [isSelectionOnly, defaultBranch, selectedBranch, onBranchSelect]);
 
-  const { data: localBranches = [] } = useQuery({
-    queryKey: ["git-all-branches", repoPath],
-    queryFn: () =>
-      trpcVanilla.git.getAllBranches.query({
-        directoryPath: repoPath as string,
-      }),
-    enabled: !isCloudMode && !!repoPath && open,
-    staleTime: 10_000,
-  });
+  const { data: localBranches = [] } = useQuery(
+    trpc.git.getAllBranches.queryOptions(
+      { directoryPath: repoPath as string },
+      { enabled: !isCloudMode && !!repoPath && open, staleTime: 10_000 },
+    ),
+  );
 
   const branches = isCloudMode ? (cloudBranches ?? []) : localBranches;
   const effectiveLoading = loading || (isCloudMode && cloudBranchesLoading);
 
-  const checkoutMutation = useMutation({
-    mutationFn: (branchName: string) =>
-      trpcVanilla.git.checkoutBranch.mutate({
-        directoryPath: repoPath as string,
-        branchName,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["git-current-branch"] });
-      queryClient.invalidateQueries({ queryKey: ["git-sync-status"] });
-      queryClient.invalidateQueries({ queryKey: ["git-all-branches"] });
-      queryClient.invalidateQueries({ queryKey: ["changed-files-head"] });
-    },
-    onError: (error, branchName) => {
-      const message =
-        error instanceof Error ? error.message : "Unknown error occurred";
-      toast.error(`Failed to checkout ${branchName}`, { description: message });
-    },
-  });
+  const checkoutMutation = useMutation(
+    trpc.git.checkoutBranch.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries(trpc.git.getCurrentBranch.pathFilter());
+        queryClient.invalidateQueries(trpc.git.getGitSyncStatus.pathFilter());
+        queryClient.invalidateQueries(trpc.git.getAllBranches.pathFilter());
+        queryClient.invalidateQueries(
+          trpc.git.getChangedFilesHead.pathFilter(),
+        );
+      },
+      onError: (error, { branchName }) => {
+        const message =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        toast.error(`Failed to checkout ${branchName}`, {
+          description: message,
+        });
+      },
+    }),
+  );
 
   const handleBranchChange = (value: string) => {
     if (isSelectionOnly) {
       onBranchSelect?.(value || null);
     } else if (value && value !== currentBranch) {
-      checkoutMutation.mutate(value);
+      checkoutMutation.mutate({
+        directoryPath: repoPath as string,
+        branchName: value,
+      });
     }
     setOpen(false);
   };

@@ -1,7 +1,7 @@
 import { externalAppsApi } from "@features/external-apps/hooks/useExternalApps";
 import type { ExternalAppAction } from "@main/services/context-menu/schemas";
 import type { Workspace } from "@main/services/workspace/schemas";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { useFocusStore } from "@stores/focusStore";
 import { logger } from "@utils/logger";
 import { toast } from "@utils/toast";
@@ -98,7 +98,7 @@ export async function handleExternalAppAction(
       filePath: effectivePath,
       displayName,
     });
-    const openResult = await trpcVanilla.externalApps.openInApp.mutate({
+    const openResult = await trpcClient.externalApps.openInApp.mutate({
       appId: action.appId,
       targetPath: effectivePath,
     });
@@ -116,7 +116,7 @@ export async function handleExternalAppAction(
       });
     }
   } else if (action.type === "copy-path") {
-    await trpcVanilla.externalApps.copyPath.mutate({ targetPath: filePath });
+    await trpcClient.externalApps.copyPath.mutate({ targetPath: filePath });
     toast.success("Path copied to clipboard", {
       description: filePath,
     });

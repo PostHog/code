@@ -12,7 +12,7 @@ const mockStartFlow = vi.hoisted(() => ({ mutate: vi.fn() }));
 const mockStartSignupFlow = vi.hoisted(() => ({ mutate: vi.fn() }));
 
 vi.mock("@renderer/trpc/client", () => ({
-  trpcVanilla: {
+  trpcClient: {
     secureStore: {
       getItem: { query: getItem },
       setItem: { query: setItem },

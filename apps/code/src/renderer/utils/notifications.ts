@@ -1,5 +1,5 @@
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { logger } from "@utils/logger";
 import { playCompletionSound } from "@utils/sounds";
 
@@ -18,7 +18,7 @@ function sendDesktopNotification(
   silent: boolean,
   taskId?: string,
 ): void {
-  trpcVanilla.notification.send
+  trpcClient.notification.send
     .mutate({ title, body, silent, taskId })
     .catch((err) => {
       log.error("Failed to send notification", err);
@@ -26,13 +26,13 @@ function sendDesktopNotification(
 }
 
 function showDockBadge(): void {
-  trpcVanilla.notification.showDockBadge.mutate().catch((err) => {
+  trpcClient.notification.showDockBadge.mutate().catch((err) => {
     log.error("Failed to show dock badge", err);
   });
 }
 
 function bounceDock(): void {
-  trpcVanilla.notification.bounceDock.mutate().catch((err) => {
+  trpcClient.notification.bounceDock.mutate().catch((err) => {
     log.error("Failed to bounce dock", err);
   });
 }

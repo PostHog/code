@@ -9,6 +9,7 @@ import {
   type TaskCreationOutput,
   TaskCreationSaga,
 } from "@renderer/sagas/task/task-creation";
+import { trpc } from "@renderer/trpc";
 import { logger } from "@utils/logger";
 import { queryClient } from "@utils/queryClient";
 import { injectable } from "inversify";
@@ -63,9 +64,7 @@ export class TaskService {
     if (result.success) {
       this.optimisticallyUpdateWorkspaceCache(result.data);
       this.updateStoresOnSuccess(result.data, input);
-      void queryClient.invalidateQueries({
-        queryKey: [["workspace", "getAll"]],
-      });
+      void queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter());
     }
 
     return result;
@@ -128,9 +127,7 @@ export class TaskService {
     if (result.success) {
       this.optimisticallyUpdateWorkspaceCache(result.data);
       this.updateStoresOnSuccess(result.data);
-      void queryClient.invalidateQueries({
-        queryKey: [["workspace", "getAll"]],
-      });
+      void queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter());
 
       // If a specific run was requested, update the task with that run
       if (taskRunId && result.data.task) {
@@ -158,7 +155,7 @@ export class TaskService {
     if (!output.workspace) return;
     const workspace = output.workspace;
     queryClient.setQueriesData<Record<string, Workspace>>(
-      { queryKey: [["workspace", "getAll"]] },
+      trpc.workspace.getAll.pathFilter(),
       (old) => ({ ...old, [output.task.id]: workspace }),
     );
   }

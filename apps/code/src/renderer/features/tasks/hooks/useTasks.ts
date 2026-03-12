@@ -5,7 +5,7 @@ import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import { useMeQuery } from "@hooks/useMeQuery";
 import { useFocusStore } from "@renderer/stores/focusStore";
 import { useNavigationStore } from "@renderer/stores/navigationStore";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useQueryClient } from "@tanstack/react-query";
@@ -199,7 +199,7 @@ export function useDeleteTask() {
 
   const deleteWithConfirm = useCallback(
     async ({ taskId, taskTitle, hasWorktree }: DeleteTaskOptions) => {
-      const result = await trpcVanilla.contextMenu.confirmDeleteTask.mutate({
+      const result = await trpcClient.contextMenu.confirmDeleteTask.mutate({
         taskTitle,
         hasWorktree,
       });

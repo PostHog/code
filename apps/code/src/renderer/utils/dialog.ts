@@ -1,4 +1,4 @@
-import { trpcVanilla } from "@renderer/trpc";
+import { trpcClient } from "@renderer/trpc";
 
 interface MessageBoxOptions {
   type?: "none" | "info" | "error" | "question" | "warning";
@@ -21,5 +21,5 @@ export async function showMessageBox(
     document.activeElement.blur();
   }
 
-  return trpcVanilla.os.showMessageBox.mutate({ options });
+  return trpcClient.os.showMessageBox.mutate({ options });
 }

@@ -1,5 +1,7 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
-import { trpcReact } from "@renderer/trpc";
+import { useTRPC } from "@renderer/trpc";
+
+import { useQuery } from "@tanstack/react-query";
 
 function PermissionBadge({
   permission,
@@ -56,7 +58,8 @@ function PermissionList({
 }
 
 export function PermissionsSettings() {
-  const { data } = trpcReact.os.getClaudePermissions.useQuery();
+  const trpcReact = useTRPC();
+  const { data } = useQuery(trpcReact.os.getClaudePermissions.queryOptions());
 
   return (
     <Flex direction="column" gap="3" mb="2">

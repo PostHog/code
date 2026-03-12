@@ -11,7 +11,9 @@ import { Flex, Spinner, Text } from "@radix-ui/themes";
 import { initializeConnectivityStore } from "@renderer/stores/connectivityStore";
 import { useFocusStore } from "@renderer/stores/focusStore";
 import { useThemeStore } from "@renderer/stores/themeStore";
-import { trpcReact, trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient, useTRPC } from "@renderer/trpc/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useSubscription } from "@trpc/tanstack-react-query";
 import { initializePostHog } from "@utils/analytics";
 import { logger } from "@utils/logger";
 import { toast } from "@utils/toast";
@@ -22,6 +24,7 @@ import { Toaster } from "sonner";
 const log = logger.scope("app");
 
 function App() {
+  const trpcReact = useTRPC();
   const { isAuthenticated, hasCompletedOnboarding, hasCodeAccess } =
     useAuthStore();
   const isDarkMode = useThemeStore((state) => state.isDarkMode);
@@ -54,7 +57,7 @@ function App() {
 
   // Global workspace error listener for toasts
   useEffect(() => {
-    const subscription = trpcVanilla.workspace.onError.subscribe(undefined, {
+    const subscription = trpcClient.workspace.onError.subscribe(undefined, {
       onData: (data) => {
         toast.error("Workspace error", { description: data.message });
       },
@@ -62,40 +65,54 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const trpcUtils = trpcReact.useUtils();
+  const queryClient = useQueryClient();
 
-  trpcReact.workspace.onPromoted.useSubscription(undefined, {
-    onData: (data) => {
-      void trpcUtils.workspace.getAll.invalidate();
-      toast.info(
-        "Task moved to worktree",
-        `Task is now working in its own worktree on branch "${data.fromBranch}"`,
-      );
-    },
-  });
+  useSubscription(
+    trpcReact.workspace.onPromoted.subscriptionOptions(undefined, {
+      onData: (data) => {
+        void queryClient.invalidateQueries(
+          trpcReact.workspace.getAll.pathFilter(),
+        );
+        toast.info(
+          "Task moved to worktree",
+          `Task is now working in its own worktree on branch "${data.fromBranch}"`,
+        );
+      },
+    }),
+  );
 
-  trpcReact.workspace.onBranchChanged.useSubscription(undefined, {
-    onData: () => {
-      void trpcUtils.workspace.getAll.invalidate();
-    },
-  });
+  useSubscription(
+    trpcReact.workspace.onBranchChanged.subscriptionOptions(undefined, {
+      onData: () => {
+        void queryClient.invalidateQueries(
+          trpcReact.workspace.getAll.pathFilter(),
+        );
+      },
+    }),
+  );
 
-  trpcReact.focus.onBranchRenamed.useSubscription(undefined, {
-    onData: ({ worktreePath, newBranch }) => {
-      useFocusStore.getState().updateSessionBranch(worktreePath, newBranch);
-      void trpcUtils.workspace.getAll.invalidate();
-    },
-  });
+  useSubscription(
+    trpcReact.focus.onBranchRenamed.subscriptionOptions(undefined, {
+      onData: ({ worktreePath, newBranch }) => {
+        useFocusStore.getState().updateSessionBranch(worktreePath, newBranch);
+        void queryClient.invalidateQueries(
+          trpcReact.workspace.getAll.pathFilter(),
+        );
+      },
+    }),
+  );
 
   // Auto-unfocus when user manually checks out to a different branch
-  trpcReact.focus.onForeignBranchCheckout.useSubscription(undefined, {
-    onData: async ({ focusedBranch, foreignBranch }) => {
-      log.warn(
-        `Foreign branch checkout detected: ${focusedBranch} -> ${foreignBranch}. Auto-unfocusing.`,
-      );
-      await useFocusStore.getState().disableFocus();
-    },
-  });
+  useSubscription(
+    trpcReact.focus.onForeignBranchCheckout.subscriptionOptions(undefined, {
+      onData: async ({ focusedBranch, foreignBranch }) => {
+        log.warn(
+          `Foreign branch checkout detected: ${focusedBranch} -> ${foreignBranch}. Auto-unfocusing.`,
+        );
+        await useFocusStore.getState().disableFocus();
+      },
+    }),
+  );
 
   // Wait for authStore to hydrate, then restore session from stored tokens
   useEffect(() => {

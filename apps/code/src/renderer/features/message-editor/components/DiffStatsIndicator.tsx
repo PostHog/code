@@ -1,5 +1,5 @@
 import { Flex, Text } from "@radix-ui/themes";
-import { trpcVanilla } from "@renderer/trpc";
+import { useTRPC } from "@renderer/trpc";
 import { useQuery } from "@tanstack/react-query";
 
 interface DiffStatsIndicatorProps {
@@ -15,17 +15,18 @@ export function DiffStatsIndicator({
   repoPath,
   overrideStats,
 }: DiffStatsIndicatorProps) {
-  const { data: localStats } = useQuery({
-    queryKey: ["diff-stats", repoPath],
-    queryFn: () =>
-      trpcVanilla.git.getDiffStats.query({
-        directoryPath: repoPath as string,
-      }),
-    enabled: !!repoPath && !overrideStats,
-    staleTime: 5000,
-    refetchInterval: 5000,
-    placeholderData: (prev) => prev,
-  });
+  const trpc = useTRPC();
+  const { data: localStats } = useQuery(
+    trpc.git.getDiffStats.queryOptions(
+      { directoryPath: repoPath as string },
+      {
+        enabled: !!repoPath && !overrideStats,
+        staleTime: 5000,
+        refetchInterval: 5000,
+        placeholderData: (prev) => prev,
+      },
+    ),
+  );
 
   const diffStats = overrideStats ?? localStats;
 

@@ -8,7 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { Box, Button, Flex, Skeleton, Text } from "@radix-ui/themes";
 import phWordmark from "@renderer/assets/images/wordmark-alt.png";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useMemo, useState } from "react";
@@ -60,7 +60,7 @@ export function GitIntegrationStep({
     if (!cloudRegion || !selectedProjectId) return;
     setIsConnecting(true);
     try {
-      const result = await trpcVanilla.githubIntegration.startFlow.mutate({
+      const result = await trpcClient.githubIntegration.startFlow.mutate({
         region: cloudRegion,
         projectId: selectedProjectId,
       });

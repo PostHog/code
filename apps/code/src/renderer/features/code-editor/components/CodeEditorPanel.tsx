@@ -4,8 +4,10 @@ import { getRelativePath } from "@features/code-editor/utils/pathUtils";
 import { isImageFile } from "@features/message-editor/utils/imageUtils";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { Box, Flex } from "@radix-ui/themes";
-import { trpcReact } from "@renderer/trpc/client";
+import { useTRPC } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
+
+import { useQuery } from "@tanstack/react-query";
 
 const IMAGE_MIME_TYPES: Record<string, string> = {
   png: "image/png",
@@ -36,24 +38,31 @@ export function CodeEditorPanel({
   task: _task,
   absolutePath,
 }: CodeEditorPanelProps) {
+  const trpcReact = useTRPC();
   const repoPath = useCwd(taskId);
   const isInsideRepo = !!repoPath && absolutePath.startsWith(repoPath);
   const filePath = getRelativePath(absolutePath, repoPath);
   const isImage = isImageFile(absolutePath);
 
-  const repoQuery = trpcReact.fs.readRepoFile.useQuery(
-    { repoPath: repoPath ?? "", filePath },
-    { enabled: isInsideRepo && !isImage, staleTime: Infinity },
+  const repoQuery = useQuery(
+    trpcReact.fs.readRepoFile.queryOptions(
+      { repoPath: repoPath ?? "", filePath },
+      { enabled: isInsideRepo && !isImage, staleTime: Infinity },
+    ),
   );
 
-  const absoluteQuery = trpcReact.fs.readAbsoluteFile.useQuery(
-    { filePath: absolutePath },
-    { enabled: !isInsideRepo && !isImage, staleTime: Infinity },
+  const absoluteQuery = useQuery(
+    trpcReact.fs.readAbsoluteFile.queryOptions(
+      { filePath: absolutePath },
+      { enabled: !isInsideRepo && !isImage, staleTime: Infinity },
+    ),
   );
 
-  const imageQuery = trpcReact.fs.readFileAsBase64.useQuery(
-    { filePath: absolutePath },
-    { enabled: isImage, staleTime: Infinity },
+  const imageQuery = useQuery(
+    trpcReact.fs.readFileAsBase64.queryOptions(
+      { filePath: absolutePath },
+      { enabled: isImage, staleTime: Infinity },
+    ),
   );
 
   const {

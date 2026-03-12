@@ -1,6 +1,6 @@
 import { sessionStoreSetters } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore as useFeatureSettingsStore } from "@features/settings/stores/settingsStore";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { toast } from "@renderer/utils/toast";
 import { useSettingsStore } from "@stores/settingsStore";
 import { useEditor } from "@tiptap/react";
@@ -284,13 +284,11 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
                     ),
                   );
 
-                  const result = await trpcVanilla.os.saveClipboardImage.mutate(
-                    {
-                      base64Data: base64,
-                      mimeType: file.type,
-                      originalName: file.name,
-                    },
-                  );
+                  const result = await trpcClient.os.saveClipboardImage.mutate({
+                    base64Data: base64,
+                    mimeType: file.type,
+                    originalName: file.name,
+                  });
 
                   setAttachments((prev) => {
                     if (prev.some((a) => a.id === result.path)) return prev;
@@ -318,7 +316,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
 
             (async () => {
               try {
-                const result = await trpcVanilla.os.saveClipboardText.mutate({
+                const result = await trpcClient.os.saveClipboardText.mutate({
                   text: pastedText,
                 });
 

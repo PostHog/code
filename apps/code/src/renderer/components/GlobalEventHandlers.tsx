@@ -10,11 +10,12 @@ import { useTasks } from "@features/tasks/hooks/useTasks";
 import { useFocusWorkspace } from "@features/workspace/hooks/useFocusWorkspace";
 import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
 import { SHORTCUTS } from "@renderer/constants/keyboard-shortcuts";
-import { trpcReact } from "@renderer/trpc";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { useTRPC } from "@renderer/trpc";
+import { trpcClient } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { useCommandMenuStore } from "@stores/commandMenuStore";
 import { useNavigationStore } from "@stores/navigationStore";
+import { useSubscription } from "@trpc/tanstack-react-query";
 import { clearApplicationStorage } from "@utils/clearStorage";
 import { logger } from "@utils/logger";
 import { useCallback, useEffect, useMemo } from "react";
@@ -29,6 +30,7 @@ export function GlobalEventHandlers({
   onToggleCommandMenu,
   onToggleShortcutsSheet,
 }: GlobalEventHandlersProps) {
+  const trpcReact = useTRPC();
   const commandMenuOpen = useCommandMenuStore((s) => s.isOpen);
   const openSettingsDialog = useSettingsDialogStore((state) => state.open);
   const navigateToTaskInput = useNavigationStore(
@@ -153,10 +155,10 @@ export function GlobalEventHandlers({
     }
     const invalidToken = `${currentToken}_invalid`;
     useAuthStore.setState({ oauthAccessToken: invalidToken });
-    trpcVanilla.agent.updateToken
+    trpcClient.agent.updateToken
       .mutate({ token: invalidToken })
       .catch((err) => log.warn("Failed to update agent token", err));
-    trpcVanilla.cloudTask.updateToken
+    trpcClient.cloudTask.updateToken
       .mutate({ token: invalidToken })
       .catch((err) => log.warn("Failed to update cloud task token", err));
     log.info("OAuth access token invalidated for testing");
@@ -250,25 +252,35 @@ export function GlobalEventHandlers({
     }
   }, [view, folders, workspaces, navigateToFolderSettings]);
 
-  trpcReact.ui.onOpenSettings.useSubscription(undefined, {
-    onData: handleOpenSettings,
-  });
+  useSubscription(
+    trpcReact.ui.onOpenSettings.subscriptionOptions(undefined, {
+      onData: handleOpenSettings,
+    }),
+  );
 
-  trpcReact.ui.onNewTask.useSubscription(undefined, {
-    onData: handleFocusTaskMode,
-  });
+  useSubscription(
+    trpcReact.ui.onNewTask.subscriptionOptions(undefined, {
+      onData: handleFocusTaskMode,
+    }),
+  );
 
-  trpcReact.ui.onResetLayout.useSubscription(undefined, {
-    onData: handleResetLayout,
-  });
+  useSubscription(
+    trpcReact.ui.onResetLayout.subscriptionOptions(undefined, {
+      onData: handleResetLayout,
+    }),
+  );
 
-  trpcReact.ui.onClearStorage.useSubscription(undefined, {
-    onData: handleClearStorage,
-  });
+  useSubscription(
+    trpcReact.ui.onClearStorage.subscriptionOptions(undefined, {
+      onData: handleClearStorage,
+    }),
+  );
 
-  trpcReact.ui.onInvalidateToken.useSubscription(undefined, {
-    onData: handleInvalidateToken,
-  });
+  useSubscription(
+    trpcReact.ui.onInvalidateToken.subscriptionOptions(undefined, {
+      onData: handleInvalidateToken,
+    }),
+  );
 
   return null;
 }

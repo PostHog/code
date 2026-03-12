@@ -1,6 +1,7 @@
 import type { RegisteredFolder } from "@main/services/folders/schemas";
 import { useFocusStore } from "@renderer/stores/focusStore";
-import { trpcReact, trpcVanilla } from "@renderer/trpc";
+import { trpc, trpcClient, useTRPC } from "@renderer/trpc";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { queryClient } from "@utils/queryClient";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -8,13 +9,15 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 const log = logger.scope("folders");
 
 export function useFolders() {
-  const utils = trpcReact.useUtils();
+  const trpcReact = useTRPC();
+  const queryClient = useQueryClient();
   const hasInitialized = useRef(false);
 
-  const { data: folders = [], isLoading } =
-    trpcReact.folders.getFolders.useQuery(undefined, {
+  const { data: folders = [], isLoading } = useQuery(
+    trpcReact.folders.getFolders.queryOptions(undefined, {
       staleTime: 30_000,
-    });
+    }),
+  );
 
   const existingFolders = useMemo(
     () => folders.filter((f) => f.exists !== false),
@@ -29,14 +32,16 @@ export function useFolders() {
     if (deletedFolders.length > 0) {
       Promise.all(
         deletedFolders.map((folder) =>
-          trpcVanilla.folders.removeFolder
+          trpcClient.folders.removeFolder
             .mutate({ folderId: folder.id })
             .catch((err) =>
               log.error(`Failed to remove deleted folder ${folder.path}:`, err),
             ),
         ),
       ).then(() => {
-        void utils.folders.getFolders.invalidate();
+        void queryClient.invalidateQueries(
+          trpcReact.folders.getFolders.pathFilter(),
+        );
       });
     }
 
@@ -48,7 +53,7 @@ export function useFolders() {
           log.error(`Failed to restore focus state for ${folder.path}:`, error);
         });
 
-      trpcVanilla.folders.cleanupOrphanedWorktrees
+      trpcClient.folders.cleanupOrphanedWorktrees
         .mutate({ mainRepoPath: folder.path })
         .catch((error) => {
           log.error(
@@ -57,22 +62,31 @@ export function useFolders() {
           );
         });
     }
-  }, [folders, existingFolders, isLoading, utils]);
+  }, [folders, existingFolders, isLoading, queryClient, trpcReact]);
 
-  const addFolderMutation = trpcReact.folders.addFolder.useMutation({
-    onSuccess: () => {
-      void utils.folders.getFolders.invalidate();
-    },
-  });
+  const addFolderMutation = useMutation(
+    trpcReact.folders.addFolder.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries(
+          trpcReact.folders.getFolders.pathFilter(),
+        );
+      },
+    }),
+  );
 
-  const removeFolderMutation = trpcReact.folders.removeFolder.useMutation({
-    onSuccess: () => {
-      void utils.folders.getFolders.invalidate();
-    },
-  });
+  const removeFolderMutation = useMutation(
+    trpcReact.folders.removeFolder.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries(
+          trpcReact.folders.getFolders.pathFilter(),
+        );
+      },
+    }),
+  );
 
-  const updateAccessedMutation =
-    trpcReact.folders.updateFolderAccessed.useMutation();
+  const updateAccessedMutation = useMutation(
+    trpcReact.folders.updateFolderAccessed.mutationOptions(),
+  );
 
   const addFolder = useCallback(
     async (folderPath: string) => {
@@ -122,8 +136,10 @@ export function useFolders() {
   );
 
   const loadFolders = useCallback(() => {
-    void utils.folders.getFolders.invalidate();
-  }, [utils]);
+    void queryClient.invalidateQueries(
+      trpcReact.folders.getFolders.pathFilter(),
+    );
+  }, [queryClient, trpcReact]);
 
   return {
     folders: existingFolders,
@@ -139,30 +155,30 @@ export function useFolders() {
 }
 
 const invalidateFolders = () => {
-  void queryClient.invalidateQueries({ queryKey: [["folders", "getFolders"]] });
+  void queryClient.invalidateQueries(trpc.folders.getFolders.pathFilter());
 };
 
 export const foldersApi = {
   async getFolders() {
-    return trpcVanilla.folders.getFolders.query();
+    return trpcClient.folders.getFolders.query();
   },
   async addFolder(folderPath: string) {
-    const newFolder = await trpcVanilla.folders.addFolder.mutate({
+    const newFolder = await trpcClient.folders.addFolder.mutate({
       folderPath,
     });
     invalidateFolders();
     return newFolder;
   },
   async removeFolder(folderId: string) {
-    const result = await trpcVanilla.folders.removeFolder.mutate({ folderId });
+    const result = await trpcClient.folders.removeFolder.mutate({ folderId });
     invalidateFolders();
     return result;
   },
   async updateFolderAccessed(folderId: string) {
-    return trpcVanilla.folders.updateFolderAccessed.mutate({ folderId });
+    return trpcClient.folders.updateFolderAccessed.mutate({ folderId });
   },
   async cleanupOrphanedWorktrees(mainRepoPath: string) {
-    return trpcVanilla.folders.cleanupOrphanedWorktrees.mutate({
+    return trpcClient.folders.cleanupOrphanedWorktrees.mutate({
       mainRepoPath,
     });
   },

@@ -3,10 +3,11 @@ import { useTaskViewed } from "@features/sidebar/hooks/useTaskViewed";
 import type { TaskService } from "@features/task-detail/service/service";
 import { get } from "@renderer/di/container";
 import { RENDERER_TOKENS } from "@renderer/di/tokens";
-import { trpcReact, trpcVanilla } from "@renderer/trpc";
+import { trpcClient, useTRPC } from "@renderer/trpc";
 import type { Task } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSubscription } from "@trpc/tanstack-react-query";
 import { logger } from "@utils/logger";
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ const taskKeys = {
  * Uses TaskService to fetch task and set up workspace via the saga pattern.
  */
 export function useTaskDeepLink() {
+  const trpcReact = useTRPC();
   const navigateToTask = useNavigationStore((state) => state.navigateToTask);
   const { markAsViewed } = useTaskViewed();
   const queryClient = useQueryClient();
@@ -90,7 +92,7 @@ export function useTaskDeepLink() {
     const fetchPending = async () => {
       hasFetchedPending.current = true;
       try {
-        const pending = await trpcVanilla.deepLink.getPendingDeepLink.query();
+        const pending = await trpcClient.deepLink.getPendingDeepLink.query();
         if (pending) {
           log.info(
             `Found pending deep link: taskId=${pending.taskId}, taskRunId=${pending.taskRunId ?? "none"}`,
@@ -106,13 +108,15 @@ export function useTaskDeepLink() {
   }, [isAuthenticated, handleOpenTask]);
 
   // Subscribe to deep link events (for warm start via deep link)
-  trpcReact.deepLink.onOpenTask.useSubscription(undefined, {
-    onData: (data) => {
-      log.info(
-        `Received deep link event: taskId=${data.taskId}, taskRunId=${data.taskRunId ?? "none"}`,
-      );
-      if (!data?.taskId) return;
-      handleOpenTask(data.taskId, data.taskRunId);
-    },
-  });
+  useSubscription(
+    trpcReact.deepLink.onOpenTask.subscriptionOptions(undefined, {
+      onData: (data) => {
+        log.info(
+          `Received deep link event: taskId=${data.taskId}, taskRunId=${data.taskRunId ?? "none"}`,
+        );
+        if (!data?.taskId) return;
+        handleOpenTask(data.taskId, data.taskRunId);
+      },
+    }),
+  );
 }

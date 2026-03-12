@@ -19,8 +19,9 @@ import {
   useRepositoryIntegration,
 } from "@hooks/useIntegrations";
 import { Flex } from "@radix-ui/themes";
-import { trpcReact } from "@renderer/trpc/client";
+import { useTRPC } from "@renderer/trpc/client";
 import { useNavigationStore } from "@stores/navigationStore";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { usePreviewSession } from "../hooks/usePreviewSession";
@@ -31,9 +32,11 @@ import { type WorkspaceMode, WorkspaceModeSelect } from "./WorkspaceModeSelect";
 const DOT_FILL = "var(--gray-6)";
 
 export function TaskInput() {
+  const trpcReact = useTRPC();
   const { view } = useNavigationStore();
-  const { data: mostRecentRepo } =
-    trpcReact.folders.getMostRecentlyAccessedRepository.useQuery();
+  const { data: mostRecentRepo } = useQuery(
+    trpcReact.folders.getMostRecentlyAccessedRepository.queryOptions(),
+  );
   const {
     setLastUsedLocalWorkspaceMode,
     lastUsedWorkspaceMode,

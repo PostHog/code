@@ -2,7 +2,7 @@ import { MergeView, unifiedMergeView } from "@codemirror/merge";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
 import { useEffect, useRef } from "react";
 
@@ -181,7 +181,7 @@ export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
 
     const handleContextMenu = async (e: MouseEvent) => {
       e.preventDefault();
-      const result = await trpcVanilla.contextMenu.showFileContextMenu.mutate({
+      const result = await trpcClient.contextMenu.showFileContextMenu.mutate({
         filePath,
       });
 

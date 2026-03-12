@@ -24,7 +24,7 @@ import type {
   McpRecommendedServer,
   McpServerInstallation,
 } from "@renderer/api/posthogClient";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -59,14 +59,14 @@ function AddCustomServerDialog({
       // For OAuth, use the main process flow (handles deep links / HTTP callback)
       if (vars.auth_type === "oauth") {
         const { callbackUrl } =
-          await trpcVanilla.mcpCallback.getCallbackUrl.query();
+          await trpcClient.mcpCallback.getCallbackUrl.query();
         const data = await client.installCustomMcpServer({
           ...vars,
           install_source: "twig",
           twig_callback_url: callbackUrl,
         });
         if ("redirect_url" in data && data.redirect_url) {
-          return trpcVanilla.mcpCallback.openAndWaitForCallback.mutate({
+          return trpcClient.mcpCallback.openAndWaitForCallback.mutate({
             redirectUrl: data.redirect_url,
           });
         }

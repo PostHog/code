@@ -1,5 +1,5 @@
 import { useWorkspaceStore } from "@renderer/features/workspace/stores/workspaceStore";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { electronStorage } from "@utils/electronStorage";
 import { omitKey } from "@utils/object";
 import { expandTildePath } from "@utils/path";
@@ -67,7 +67,7 @@ export const useTaskDirectoryStore = create<TaskDirectoryState>()(
         const { lastUsedDirectory } = get();
         if (!lastUsedDirectory) return;
 
-        const exists = await trpcVanilla.git.validateRepo.query({
+        const exists = await trpcClient.git.validateRepo.query({
           directoryPath: lastUsedDirectory,
         });
         if (!exists) {

@@ -1,5 +1,5 @@
 import { PostHogAPIClient } from "@renderer/api/posthogClient";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import {
   getCloudUrlFromRegion,
   OAUTH_SCOPE_VERSION,
@@ -39,10 +39,10 @@ const REFRESH_MAX_RETRIES = 3;
 const REFRESH_INITIAL_DELAY_MS = 1000;
 
 function updateServiceTokens(token: string): void {
-  trpcVanilla.agent.updateToken
+  trpcClient.agent.updateToken
     .mutate({ token })
     .catch((err) => log.warn("Failed to update agent token", err));
-  trpcVanilla.cloudTask.updateToken
+  trpcClient.cloudTask.updateToken
     .mutate({ token })
     .catch((err) => log.warn("Failed to update cloud task token", err));
 }
@@ -132,7 +132,7 @@ async function attemptRefreshWithActivityCheck(
     }
 
     // Refresh if there are no active sessions
-    const hasActive = await trpcVanilla.agent.hasActiveSessions.query();
+    const hasActive = await trpcClient.agent.hasActiveSessions.query();
     if (!hasActive) {
       await getState().refreshAccessToken();
       return;
@@ -150,7 +150,7 @@ async function attemptRefreshWithActivityCheck(
       };
 
       // Subscribe to the idle event
-      const subscription = trpcVanilla.agent.onSessionsIdle.subscribe(
+      const subscription = trpcClient.agent.onSessionsIdle.subscribe(
         undefined,
         {
           onData: () =>
@@ -267,7 +267,7 @@ export const useAuthStore = create<AuthState>()(
         },
 
         loginWithOAuth: async (region: CloudRegion) => {
-          const result = await trpcVanilla.oauth.startFlow.mutate({ region });
+          const result = await trpcClient.oauth.startFlow.mutate({ region });
 
           if (!result.success || !result.data) {
             throw new Error(result.error || "OAuth flow failed");
@@ -361,7 +361,7 @@ export const useAuthStore = create<AuthState>()(
               region,
             });
 
-            trpcVanilla.analytics.setUserId.mutate({
+            trpcClient.analytics.setUserId.mutate({
               userId: distinctId,
               properties: {
                 email: user.email,
@@ -407,7 +407,7 @@ export const useAuthStore = create<AuthState>()(
                   });
                 }
 
-                const result = await trpcVanilla.oauth.refreshToken.mutate({
+                const result = await trpcClient.oauth.refreshToken.mutate({
                   refreshToken: state.oauthRefreshToken,
                   region: state.cloudRegion,
                 });
@@ -687,7 +687,7 @@ export const useAuthStore = create<AuthState>()(
                   region: tokens.cloudRegion,
                 });
 
-                trpcVanilla.analytics.setUserId.mutate({
+                trpcClient.analytics.setUserId.mutate({
                   userId: distinctId,
                   properties: {
                     email: user.email,
@@ -746,7 +746,7 @@ export const useAuthStore = create<AuthState>()(
         },
 
         signupWithOAuth: async (region: CloudRegion) => {
-          const result = await trpcVanilla.oauth.startSignupFlow.mutate({
+          const result = await trpcClient.oauth.startSignupFlow.mutate({
             region,
           });
 
@@ -827,7 +827,7 @@ export const useAuthStore = create<AuthState>()(
               region,
             });
 
-            trpcVanilla.analytics.setUserId.mutate({
+            trpcClient.analytics.setUserId.mutate({
               userId: distinctId,
               properties: {
                 email: user.email,
@@ -938,7 +938,7 @@ export const useAuthStore = create<AuthState>()(
           // Clean up session service subscriptions before clearing auth state
           sessionResetCallback?.();
 
-          trpcVanilla.analytics.resetUser.mutate();
+          trpcClient.analytics.resetUser.mutate();
 
           if (refreshTimeoutId) {
             window.clearTimeout(refreshTimeoutId);

@@ -4,8 +4,9 @@ import type {
   McpRecommendedServer,
   PostHogAPIClient,
 } from "@renderer/api/posthogClient";
-import { trpcReact, trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSubscription } from "@trpc/tanstack-react-query";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -32,7 +33,7 @@ async function installWithOAuth(
   },
 ) {
   // Step 1: Get callback URL from main process
-  const { callbackUrl } = await trpcVanilla.mcpCallback.getCallbackUrl.query();
+  const { callbackUrl } = await trpcClient.mcpCallback.getCallbackUrl.query();
 
   // Step 2: Call PostHog API with PostHog Code-specific params
   const data = await client.installCustomMcpServer({
@@ -43,7 +44,7 @@ async function installWithOAuth(
 
   // Step 3: If OAuth redirect needed, open browser via main process and wait
   if ("redirect_url" in data && data.redirect_url) {
-    const result = await trpcVanilla.mcpCallback.openAndWaitForCallback.mutate({
+    const result = await trpcClient.mcpCallback.openAndWaitForCallback.mutate({
       redirectUrl: data.redirect_url,
     });
     return result;
@@ -54,10 +55,11 @@ async function installWithOAuth(
 }
 
 export function useMcpServers() {
+  const trpcReact = useTRPC();
   const [installingUrl, setInstallingUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const markSessionsForMcpRefresh = useCallback(() => {
-    trpcVanilla.agent.markAllForRecreation.mutate().catch(() => {
+    trpcClient.agent.markAllForRecreation.mutate().catch(() => {
       // Non-blocking best effort: sessions will still refresh on next reconnect.
     });
   }, []);
@@ -161,14 +163,16 @@ export function useMcpServers() {
   );
 
   // Subscribe to MCP OAuth completion events for background refresh
-  trpcReact.mcpCallback.onOAuthComplete.useSubscription(undefined, {
-    onData: (data) => {
-      if (data.status === "success") {
-        queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
-        markSessionsForMcpRefresh();
-      }
-    },
-  });
+  useSubscription(
+    trpcReact.mcpCallback.onOAuthComplete.subscriptionOptions(undefined, {
+      onData: (data) => {
+        if (data.status === "success") {
+          queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
+          markSessionsForMcpRefresh();
+        }
+      },
+    }),
+  );
 
   return {
     installations,

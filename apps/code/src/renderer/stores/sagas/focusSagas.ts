@@ -1,6 +1,6 @@
 import type { FocusResult, FocusSession } from "@main/services/focus/schemas";
 import { Saga, type SagaLogger } from "@posthog/shared";
-import { trpcVanilla } from "@renderer/trpc";
+import { trpcClient } from "@renderer/trpc";
 import { logger } from "@utils/logger";
 
 const log = logger.scope("focus-saga");
@@ -22,9 +22,9 @@ async function notifyTaskSessions(
   taskId: string,
   context: SessionContext,
 ): Promise<void> {
-  const sessions = await trpcVanilla.agent.listSessions.query({ taskId });
+  const sessions = await trpcClient.agent.listSessions.query({ taskId });
   for (const session of sessions) {
-    trpcVanilla.agent.notifySessionContext
+    trpcClient.agent.notifySessionContext
       .mutate({ sessionId: session.taskRunId, context })
       .catch((e) => log.warn("Failed to notify session:", e));
   }
@@ -34,7 +34,7 @@ async function notifyWorktreeTasks(
   worktreePath: string,
   context: SessionContext,
 ): Promise<void> {
-  const tasks = await trpcVanilla.workspace.getWorktreeTasks.query({
+  const tasks = await trpcClient.workspace.getWorktreeTasks.query({
     worktreePath,
   });
   for (const { taskId } of tasks) {
@@ -43,13 +43,13 @@ async function notifyWorktreeTasks(
 }
 
 async function interruptLocalAgents(mainRepoPath: string): Promise<void> {
-  const tasks = await trpcVanilla.workspace.getLocalTasks.query({
+  const tasks = await trpcClient.workspace.getLocalTasks.query({
     mainRepoPath,
   });
   for (const { taskId } of tasks) {
-    const sessions = await trpcVanilla.agent.listSessions.query({ taskId });
+    const sessions = await trpcClient.agent.listSessions.query({ taskId });
     for (const session of sessions) {
-      trpcVanilla.agent.cancelPrompt
+      trpcClient.agent.cancelPrompt
         .mutate({ sessionId: session.taskRunId, reason: "moving_to_worktree" })
         .catch((e) => log.warn("Failed to interrupt session:", e));
     }
@@ -60,21 +60,21 @@ async function toRelativePath(
   absolutePath: string,
   mainRepoPath: string,
 ): Promise<string> {
-  return trpcVanilla.focus.toRelativeWorktreePath.query({
+  return trpcClient.focus.toRelativeWorktreePath.query({
     absolutePath,
     mainRepoPath,
   });
 }
 
 async function checkout(repoPath: string, branch: string): Promise<void> {
-  const result = await trpcVanilla.focus.checkout.mutate({ repoPath, branch });
+  const result = await trpcClient.focus.checkout.mutate({ repoPath, branch });
   if (!result.success) {
     throw new Error(result.error ?? `Failed to checkout ${branch}`);
   }
 }
 
 async function detachWorktree(worktreePath: string): Promise<void> {
-  const result = await trpcVanilla.focus.detachWorktree.mutate({
+  const result = await trpcClient.focus.detachWorktree.mutate({
     worktreePath,
   });
   if (!result.success) {
@@ -86,7 +86,7 @@ async function reattachWorktree(
   worktreePath: string,
   branch: string,
 ): Promise<void> {
-  const result = await trpcVanilla.focus.reattachWorktree.mutate({
+  const result = await trpcClient.focus.reattachWorktree.mutate({
     worktreePath,
     branch,
   });
@@ -138,7 +138,7 @@ class FocusEnableSaga extends Saga<EnableInput, EnableOutput> {
     const mainStashRef = await this.step({
       name: "stash_dirty_changes",
       execute: async () => {
-        const isDirty = await trpcVanilla.focus.isDirty.query({
+        const isDirty = await trpcClient.focus.isDirty.query({
           repoPath: mainRepoPath,
         });
         if (!isDirty) return null;
@@ -149,7 +149,7 @@ class FocusEnableSaga extends Saga<EnableInput, EnableOutput> {
           hour: "2-digit",
           minute: "2-digit",
         });
-        const result = await trpcVanilla.focus.stash.mutate({
+        const result = await trpcClient.focus.stash.mutate({
           repoPath: mainRepoPath,
           message: `posthog-code: focusing ${branch} (${timestamp})`,
         });
@@ -158,7 +158,7 @@ class FocusEnableSaga extends Saga<EnableInput, EnableOutput> {
       },
       rollback: async (ref) => {
         if (ref)
-          await trpcVanilla.focus.stashApply
+          await trpcClient.focus.stashApply
             .mutate({ repoPath: mainRepoPath, stashRef: ref })
             .catch(() => {});
       },
@@ -175,7 +175,7 @@ class FocusEnableSaga extends Saga<EnableInput, EnableOutput> {
         });
       },
       rollback: async () => {
-        await trpcVanilla.focus.reattachWorktree
+        await trpcClient.focus.reattachWorktree
           .mutate({ worktreePath, branch })
           .catch(() => {});
         await notifyWorktreeTasks(worktreePath, {
@@ -190,7 +190,7 @@ class FocusEnableSaga extends Saga<EnableInput, EnableOutput> {
       name: "checkout_branch",
       execute: () => checkout(mainRepoPath, branch),
       rollback: async () => {
-        await trpcVanilla.focus.checkout
+        await trpcClient.focus.checkout
           .mutate({ repoPath: mainRepoPath, branch: originalBranch })
           .catch(() => {});
       },
@@ -199,18 +199,18 @@ class FocusEnableSaga extends Saga<EnableInput, EnableOutput> {
     await this.step({
       name: "start_sync",
       execute: () =>
-        trpcVanilla.focus.startSync.mutate({ mainRepoPath, worktreePath }),
-      rollback: () => trpcVanilla.focus.stopSync.mutate().catch(() => {}),
+        trpcClient.focus.startSync.mutate({ mainRepoPath, worktreePath }),
+      rollback: () => trpcClient.focus.stopSync.mutate().catch(() => {}),
     });
 
     const commitSha = await this.readOnlyStep("get_commit_sha", () =>
-      trpcVanilla.focus.getCommitSha.query({ repoPath: mainRepoPath }),
+      trpcClient.focus.getCommitSha.query({ repoPath: mainRepoPath }),
     );
 
     await this.step({
       name: "save_session",
       execute: () =>
-        trpcVanilla.focus.saveSession.mutate({
+        trpcClient.focus.saveSession.mutate({
           mainRepoPath,
           worktreePath,
           branch,
@@ -219,17 +219,15 @@ class FocusEnableSaga extends Saga<EnableInput, EnableOutput> {
           commitSha,
         }),
       rollback: () =>
-        trpcVanilla.focus.deleteSession
-          .mutate({ mainRepoPath })
-          .catch(() => {}),
+        trpcClient.focus.deleteSession.mutate({ mainRepoPath }).catch(() => {}),
     });
 
     await this.step({
       name: "start_watching_main_repo",
       execute: () =>
-        trpcVanilla.focus.startWatchingMainRepo.mutate({ mainRepoPath }),
+        trpcClient.focus.startWatchingMainRepo.mutate({ mainRepoPath }),
       rollback: () =>
-        trpcVanilla.focus.stopWatchingMainRepo.mutate().catch(() => {}),
+        trpcClient.focus.stopWatchingMainRepo.mutate().catch(() => {}),
     });
 
     return { mainStashRef, commitSha };
@@ -253,27 +251,27 @@ class FocusDisableSaga extends Saga<
       input;
 
     await this.readOnlyStep("stop_watching_main_repo", () =>
-      trpcVanilla.focus.stopWatchingMainRepo.mutate(),
+      trpcClient.focus.stopWatchingMainRepo.mutate(),
     );
 
     await this.step({
       name: "stop_sync",
-      execute: () => trpcVanilla.focus.stopSync.mutate(),
+      execute: () => trpcClient.focus.stopSync.mutate(),
       rollback: () =>
-        trpcVanilla.focus.startSync
+        trpcClient.focus.startSync
           .mutate({ mainRepoPath, worktreePath })
           .catch(() => {}),
     });
 
     await this.readOnlyStep("clean_working_tree", () =>
-      trpcVanilla.focus.cleanWorkingTree.mutate({ repoPath: mainRepoPath }),
+      trpcClient.focus.cleanWorkingTree.mutate({ repoPath: mainRepoPath }),
     );
 
     await this.step({
       name: "checkout_original_branch",
       execute: () => checkout(mainRepoPath, originalBranch),
       rollback: async () => {
-        await trpcVanilla.focus.checkout
+        await trpcClient.focus.checkout
           .mutate({ repoPath: mainRepoPath, branch })
           .catch(() => {});
       },
@@ -290,7 +288,7 @@ class FocusDisableSaga extends Saga<
         });
       },
       rollback: async () => {
-        await trpcVanilla.focus.detachWorktree
+        await trpcClient.focus.detachWorktree
           .mutate({ worktreePath })
           .catch(() => {});
       },
@@ -299,7 +297,7 @@ class FocusDisableSaga extends Saga<
     let stashPopWarning: string | undefined;
     if (mainStashRef) {
       stashPopWarning = await this.readOnlyStep("restore_stash", async () => {
-        const result = await trpcVanilla.focus.stashApply.mutate({
+        const result = await trpcClient.focus.stashApply.mutate({
           repoPath: mainRepoPath,
           stashRef: mainStashRef,
         });
@@ -313,7 +311,7 @@ class FocusDisableSaga extends Saga<
     }
 
     await this.readOnlyStep("delete_session", () =>
-      trpcVanilla.focus.deleteSession.mutate({ mainRepoPath }),
+      trpcClient.focus.deleteSession.mutate({ mainRepoPath }),
     );
 
     return { stashPopWarning };
@@ -360,7 +358,7 @@ class FocusSaga extends Saga<FocusSagaInput, FocusOutput> {
     const currentBranch = await this.readOnlyStep(
       "get_current_branch",
       async () => {
-        const branch = await trpcVanilla.git.getCurrentBranch.query({
+        const branch = await trpcClient.git.getCurrentBranch.query({
           directoryPath: mainRepoPath,
         });
         if (!branch) throw new Error("Could not determine current branch");
@@ -369,7 +367,7 @@ class FocusSaga extends Saga<FocusSagaInput, FocusOutput> {
     );
 
     await this.readOnlyStep("validate", async () => {
-      const error = await trpcVanilla.focus.validateFocusOperation.query({
+      const error = await trpcClient.focus.validateFocusOperation.query({
         mainRepoPath,
         currentBranch,
         targetBranch: branch,
@@ -427,7 +425,7 @@ class FocusRestoreSaga extends Saga<RestoreInput, FocusSession | null> {
     const { mainRepoPath } = input;
 
     const session = await this.readOnlyStep("get_session", () =>
-      trpcVanilla.focus.getSession.query({ mainRepoPath }),
+      trpcClient.focus.getSession.query({ mainRepoPath }),
     );
 
     if (!session) return null;
@@ -443,32 +441,32 @@ class FocusRestoreSaga extends Saga<RestoreInput, FocusSession | null> {
           log.error(
             `Corrupt session: originalBranch === branch (${originalBranch})`,
           );
-          await trpcVanilla.focus.deleteSession.mutate({ mainRepoPath });
+          await trpcClient.focus.deleteSession.mutate({ mainRepoPath });
           return null;
         }
 
-        const exists = await trpcVanilla.focus.worktreeExistsAtPath.query({
+        const exists = await trpcClient.focus.worktreeExistsAtPath.query({
           relativePath: relWorktreePath,
         });
         if (!exists) {
           log.warn(
             `Worktree not found at ${relWorktreePath}. Clearing session.`,
           );
-          await trpcVanilla.focus.deleteSession.mutate({ mainRepoPath });
+          await trpcClient.focus.deleteSession.mutate({ mainRepoPath });
           return null;
         }
 
-        const currentBranch = await trpcVanilla.git.getCurrentBranch.query({
+        const currentBranch = await trpcClient.git.getCurrentBranch.query({
           directoryPath: mainRepoPath,
         });
         if (!currentBranch) {
           log.warn("Main repo is in detached HEAD state. Clearing session.");
-          await trpcVanilla.focus.deleteSession.mutate({ mainRepoPath });
+          await trpcClient.focus.deleteSession.mutate({ mainRepoPath });
           return null;
         }
 
         if (currentBranch !== branch) {
-          const currentCommitSha = await trpcVanilla.focus.getCommitSha.query({
+          const currentCommitSha = await trpcClient.focus.getCommitSha.query({
             repoPath: mainRepoPath,
           });
 
@@ -480,13 +478,13 @@ class FocusRestoreSaga extends Saga<RestoreInput, FocusSession | null> {
               ...session,
               branch: currentBranch,
             };
-            await trpcVanilla.focus.saveSession.mutate(updatedSession);
+            await trpcClient.focus.saveSession.mutate(updatedSession);
             return updatedSession;
           } else {
             log.warn(
               `Branch changed and commit differs. Likely checkout to different branch. Clearing session.`,
             );
-            await trpcVanilla.focus.deleteSession.mutate({ mainRepoPath });
+            await trpcClient.focus.deleteSession.mutate({ mainRepoPath });
             return null;
           }
         }
@@ -498,14 +496,14 @@ class FocusRestoreSaga extends Saga<RestoreInput, FocusSession | null> {
     if (!validatedSession) return null;
 
     await this.readOnlyStep("start_sync", () =>
-      trpcVanilla.focus.startSync.mutate({
+      trpcClient.focus.startSync.mutate({
         mainRepoPath,
         worktreePath: validatedSession.worktreePath,
       }),
     );
 
     await this.readOnlyStep("start_watching_main_repo", () =>
-      trpcVanilla.focus.startWatchingMainRepo.mutate({ mainRepoPath }),
+      trpcClient.focus.startWatchingMainRepo.mutate({ mainRepoPath }),
     );
 
     log.info(`Restored focus session for branch ${validatedSession.branch}`);

@@ -1,5 +1,5 @@
 import { workspaceApi } from "@renderer/features/workspace/hooks/useWorkspace";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { expandTildePath } from "@utils/path";
 
 export async function getTaskDirectory(
@@ -12,7 +12,7 @@ export async function getTaskDirectory(
   }
 
   if (repoKey) {
-    const repo = await trpcVanilla.folders.getRepositoryByRemoteUrl.query({
+    const repo = await trpcClient.folders.getRepositoryByRemoteUrl.query({
       remoteUrl: repoKey,
     });
     if (repo) {
@@ -25,6 +25,6 @@ export async function getTaskDirectory(
 
 export async function getLastUsedDirectory(): Promise<string | null> {
   const repo =
-    await trpcVanilla.folders.getMostRecentlyAccessedRepository.query();
+    await trpcClient.folders.getMostRecentlyAccessedRepository.query();
   return repo?.path ?? null;
 }

@@ -1,5 +1,6 @@
-import { trpcReact, trpcVanilla } from "@renderer/trpc/client";
+import { trpc, useTRPC } from "@renderer/trpc/client";
 import type { MentionItem } from "@shared/types";
+import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@utils/queryClient";
 import { byLengthAsc, Fzf } from "fzf";
 import { useMemo } from "react";
@@ -34,9 +35,12 @@ function createFzf(files: FileItem[]): Fzf<FileItem[]> {
 }
 
 export function useRepoFiles(repoPath: string | undefined, enabled = true) {
-  const { data: rawFiles, isLoading } = trpcReact.fs.listRepoFiles.useQuery(
-    { repoPath: repoPath ?? "" },
-    { enabled: enabled && !!repoPath },
+  const trpcReact = useTRPC();
+  const { data: rawFiles, isLoading } = useQuery(
+    trpcReact.fs.listRepoFiles.queryOptions(
+      { repoPath: repoPath ?? "" },
+      { enabled: enabled && !!repoPath },
+    ),
   );
 
   const files: FileItem[] = useMemo(() => {
@@ -70,14 +74,8 @@ export async function fetchRepoFiles(repoPath: string): Promise<{
   files: FileItem[];
   fzf: Fzf<FileItem[]>;
 }> {
-  const queryKey = [
-    ["fs", "listRepoFiles"],
-    { input: { repoPath }, type: "query" },
-  ];
-
   const rawFiles = await queryClient.fetchQuery({
-    queryKey,
-    queryFn: () => trpcVanilla.fs.listRepoFiles.query({ repoPath }),
+    ...trpc.fs.listRepoFiles.queryOptions({ repoPath }),
     staleTime: 1000 * 60 * 5,
   });
 

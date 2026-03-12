@@ -1,5 +1,5 @@
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { toast } from "@utils/toast";
 import { useEffect } from "react";
 import { useWorkspaceTerminalStore } from "../stores/workspaceTerminalStore";
@@ -12,7 +12,7 @@ export function useWorkspaceEvents(taskId: string) {
 
   useEffect(() => {
     const terminalSubscription =
-      trpcVanilla.workspace.onTerminalCreated.subscribe(undefined, {
+      trpcClient.workspace.onTerminalCreated.subscribe(undefined, {
         onData: (data) => {
           if (data.taskId !== taskId) return;
 
@@ -35,7 +35,7 @@ export function useWorkspaceEvents(taskId: string) {
 
     // Note: workspace errors are handled globally in App.tsx
 
-    const warningSubscription = trpcVanilla.workspace.onWarning.subscribe(
+    const warningSubscription = trpcClient.workspace.onWarning.subscribe(
       undefined,
       {
         onData: (data) => {

@@ -6,7 +6,7 @@ import {
   type SessionConfigOption,
   type SessionNotification,
 } from "@agentclientprotocol/sdk";
-import { trpcVanilla } from "@renderer/trpc";
+import { trpcClient } from "@renderer/trpc";
 import type { StoredLogEntry as BaseStoredLogEntry } from "@shared/types/session-events";
 
 export interface StoredLogEntry extends BaseStoredLogEntry {
@@ -33,7 +33,7 @@ export async function fetchSessionLogs(
   }
 
   try {
-    const content = await trpcVanilla.logs.fetchS3Logs.query({ logUrl });
+    const content = await trpcClient.logs.fetchS3Logs.query({ logUrl });
     if (!content?.trim()) {
       return { notifications: [], rawEntries: [] };
     }

@@ -1,8 +1,9 @@
 import { useTasks } from "@features/tasks/hooks/useTasks";
 import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
-import { trpcReact } from "@renderer/trpc/client";
+import { useTRPC } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { cloneStore } from "@stores/cloneStore";
+import { useQuery } from "@tanstack/react-query";
 import { getTaskRepository } from "@utils/repository";
 import { useMemo } from "react";
 
@@ -12,6 +13,7 @@ interface UseTaskDataParams {
 }
 
 export function useTaskData({ taskId, initialTask }: UseTaskDataParams) {
+  const trpcReact = useTRPC();
   const { data: tasks = [] } = useTasks();
 
   const task = useMemo(
@@ -22,9 +24,11 @@ export function useTaskData({ taskId, initialTask }: UseTaskDataParams) {
   const workspace = useWorkspace(taskId);
   const repoPath = workspace?.folderPath ?? null;
 
-  const { data: repoExists } = trpcReact.git.validateRepo.useQuery(
-    { directoryPath: repoPath ?? "" },
-    { enabled: !!repoPath },
+  const { data: repoExists } = useQuery(
+    trpcReact.git.validateRepo.queryOptions(
+      { directoryPath: repoPath ?? "" },
+      { enabled: !!repoPath },
+    ),
   );
 
   const repository = getTaskRepository(task);

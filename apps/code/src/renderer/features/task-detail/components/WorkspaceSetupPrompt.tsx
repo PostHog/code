@@ -3,7 +3,7 @@ import { foldersApi } from "@features/folders/hooks/useFolders";
 import { useEnsureWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { Folder, Warning } from "@phosphor-icons/react";
 import { Box, Button, Code, Flex, Spinner, Text } from "@radix-ui/themes";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { logger } from "@utils/logger";
 import { getTaskRepository } from "@utils/repository";
@@ -55,7 +55,7 @@ export function WorkspaceSetupPrompt({
       if (repository) {
         let detected = null;
         try {
-          detected = await trpcVanilla.git.detectRepo.query({
+          detected = await trpcClient.git.detectRepo.query({
             directoryPath: path,
           });
         } catch (error) {

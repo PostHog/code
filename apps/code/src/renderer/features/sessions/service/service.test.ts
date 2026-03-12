@@ -29,7 +29,7 @@ const mockTrpcLogs = vi.hoisted(() => ({
 }));
 
 vi.mock("@renderer/trpc/client", () => ({
-  trpcVanilla: {
+  trpcClient: {
     agent: mockTrpcAgent,
     workspace: mockTrpcWorkspace,
     logs: mockTrpcLogs,

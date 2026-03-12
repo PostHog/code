@@ -4,7 +4,7 @@ import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useTaskStore } from "@features/tasks/stores/taskStore";
 import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { Flex, Text } from "@radix-ui/themes";
-import { trpcVanilla } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
 import { memo, useCallback } from "react";
 import { getFilename } from "./toolCallUtils";
@@ -54,7 +54,7 @@ export const FileMentionChip = memo(function FileMentionChip({
           ? `${repoPath}/${filePath}`
           : filePath;
 
-      const result = await trpcVanilla.contextMenu.showFileContextMenu.mutate({
+      const result = await trpcClient.contextMenu.showFileContextMenu.mutate({
         filePath: absolutePath,
         showCollapseAll: false,
       });

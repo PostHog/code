@@ -17,12 +17,13 @@ import {
   Text,
   TextField,
 } from "@radix-ui/themes";
-import { trpcReact } from "@renderer/trpc";
+import { useTRPC } from "@renderer/trpc";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useSettingsStore as useTerminalSettingsStore } from "@stores/settingsStore";
 import type { ThemePreference } from "@stores/themeStore";
 import { useThemeStore } from "@stores/themeStore";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { track } from "@utils/analytics";
 import { playCompletionSound } from "@utils/sounds";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -46,6 +47,7 @@ const TERMINAL_FONT_PRESETS = [
 ];
 
 export function GeneralSettings() {
+  const trpcReact = useTRPC();
   // Appearance state
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
@@ -65,8 +67,12 @@ export function GeneralSettings() {
   // Power state
   const { preventSleepWhileRunning, setPreventSleepWhileRunning } =
     useSettingsStore();
-  const { data: serverPreventSleep } = trpcReact.sleep.getEnabled.useQuery();
-  const preventSleepMutation = trpcReact.sleep.setEnabled.useMutation();
+  const { data: serverPreventSleep } = useQuery(
+    trpcReact.sleep.getEnabled.queryOptions(),
+  );
+  const preventSleepMutation = useMutation(
+    trpcReact.sleep.setEnabled.mutationOptions(),
+  );
 
   useEffect(() => {
     if (serverPreventSleep !== undefined) {

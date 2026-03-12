@@ -1,4 +1,5 @@
 import type { FocusResult, FocusSession } from "@main/services/focus/schemas";
+import { trpc } from "@renderer/trpc";
 import { queryClient } from "@utils/queryClient";
 import { create } from "zustand";
 import {
@@ -26,10 +27,10 @@ interface FocusState {
 }
 
 function invalidateQueries() {
-  queryClient.invalidateQueries({ queryKey: ["current-branch"] });
-  queryClient.invalidateQueries({ queryKey: ["diff-stats"] });
-  queryClient.invalidateQueries({ queryKey: ["changed-files-head"] });
-  queryClient.invalidateQueries({ queryKey: ["git-sync-status"] });
+  queryClient.invalidateQueries(trpc.git.getCurrentBranch.pathFilter());
+  queryClient.invalidateQueries(trpc.git.getDiffStats.pathFilter());
+  queryClient.invalidateQueries(trpc.git.getChangedFilesHead.pathFilter());
+  queryClient.invalidateQueries(trpc.git.getGitSyncStatus.pathFilter());
 }
 
 export const useFocusStore = create<FocusState>()((set, get) => ({

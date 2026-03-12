@@ -1,4 +1,4 @@
-import { trpcVanilla } from "@renderer/trpc";
+import { trpcClient } from "@renderer/trpc";
 import { logger } from "@utils/logger";
 import { isMac } from "@utils/platform";
 import { FitAddon } from "@xterm/addon-fit";
@@ -95,7 +95,7 @@ function loadAddons(term: XTerm) {
   const serialize = new SerializeAddon();
 
   const activateLink = (_event: MouseEvent, uri: string) => {
-    trpcVanilla.os.openExternal.mutate({ url: uri }).catch((error: Error) => {
+    trpcClient.os.openExternal.mutate({ url: uri }).catch((error: Error) => {
       log.error("Failed to open link:", uri, error);
     });
   };
@@ -195,7 +195,7 @@ class TerminalManagerImpl {
 
     // Setup user input handler
     const disposable = term.onData((data: string) => {
-      trpcVanilla.shell.write
+      trpcClient.shell.write
         .mutate({ sessionId, data })
         .catch((error: Error) => {
           log.error("Failed to write to shell:", error);
@@ -218,9 +218,9 @@ class TerminalManagerImpl {
     taskId?: string,
   ): Promise<void> {
     try {
-      const sessionExists = await trpcVanilla.shell.check.query({ sessionId });
+      const sessionExists = await trpcClient.shell.check.query({ sessionId });
       if (!sessionExists) {
-        await trpcVanilla.shell.create.mutate({ sessionId, cwd, taskId });
+        await trpcClient.shell.create.mutate({ sessionId, cwd, taskId });
       }
 
       instance.isReady = true;
@@ -228,7 +228,7 @@ class TerminalManagerImpl {
 
       if (instance.attachedElement) {
         instance.fitAddon.fit();
-        trpcVanilla.shell.resize
+        trpcClient.shell.resize
           .mutate({
             sessionId,
             cols: instance.term.cols,
@@ -314,7 +314,7 @@ class TerminalManagerImpl {
         instance.fitAddon.fit();
 
         if (instance.isReady) {
-          trpcVanilla.shell.resize
+          trpcClient.shell.resize
             .mutate({
               sessionId,
               cols: instance.term.cols,

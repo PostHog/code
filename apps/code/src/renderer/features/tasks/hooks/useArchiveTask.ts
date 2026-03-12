@@ -2,7 +2,7 @@ import { getSessionService } from "@features/sessions/service/service";
 import { pinnedTasksApi } from "@features/sidebar/hooks/usePinnedTasks";
 import { useTerminalStore } from "@features/terminal/stores/terminalStore";
 import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
-import { trpcVanilla } from "@renderer/trpc";
+import { trpc, trpcClient } from "@renderer/trpc";
 import type { ArchivedTask } from "@shared/types/archive";
 import { useFocusStore } from "@stores/focusStore";
 import { useNavigationStore } from "@stores/navigationStore";
@@ -35,7 +35,7 @@ export function useArchiveTask() {
     useTerminalStore.getState().clearTerminalStatesForTask(taskId);
 
     queryClient.setQueryData<string[]>(
-      [["archive", "archivedTaskIds"], { type: "query" }],
+      trpc.archive.archivedTaskIds.queryKey(),
       (old) => (old ? [...old, taskId] : [taskId]),
     );
 
@@ -49,7 +49,7 @@ export function useArchiveTask() {
       checkpointId: null,
     };
     queryClient.setQueryData<ArchivedTask[]>(
-      [["archive", "list"], { type: "query" }],
+      trpc.archive.list.queryKey(),
       (old) => (old ? [...old, optimisticArchived] : [optimisticArchived]),
     );
 
@@ -64,13 +64,11 @@ export function useArchiveTask() {
     try {
       await getSessionService().disconnectFromTask(taskId);
 
-      await trpcVanilla.archive.archive.mutate({
+      await trpcClient.archive.archive.mutate({
         taskId,
       });
 
-      queryClient.invalidateQueries({
-        queryKey: [["archive"]],
-      });
+      queryClient.invalidateQueries(trpc.archive.pathFilter());
 
       toast.success("Task archived");
     } catch (error) {
@@ -78,11 +76,11 @@ export function useArchiveTask() {
       toast.error("Failed to archive task");
 
       queryClient.setQueryData<string[]>(
-        [["archive", "archivedTaskIds"], { type: "query" }],
+        trpc.archive.archivedTaskIds.queryKey(),
         (old) => (old ? old.filter((id) => id !== taskId) : []),
       );
       queryClient.setQueryData<ArchivedTask[]>(
-        [["archive", "list"], { type: "query" }],
+        trpc.archive.list.queryKey(),
         (old) => (old ? old.filter((a) => a.taskId !== taskId) : []),
       );
       if (wasPinned) {

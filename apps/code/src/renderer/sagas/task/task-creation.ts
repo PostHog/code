@@ -10,7 +10,7 @@ import type {
 } from "@main/services/workspace/schemas";
 import { Saga, type SagaLogger } from "@posthog/shared";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
-import { trpcVanilla } from "@renderer/trpc";
+import { trpcClient } from "@renderer/trpc";
 import { generateTitle } from "@renderer/utils/generateTitle";
 import { getTaskRepository } from "@renderer/utils/repository";
 import type { ExecutionMode, Task } from "@shared/types";
@@ -148,7 +148,7 @@ export class TaskCreationSaga extends Saga<
       const workspaceInfo = await this.step({
         name: "workspace_creation",
         execute: async () => {
-          return trpcVanilla.workspace.create.mutate({
+          return trpcClient.workspace.create.mutate({
             taskId: task.id,
             mainRepoPath: repoPath,
             folderId: folder.id,
@@ -159,7 +159,7 @@ export class TaskCreationSaga extends Saga<
         },
         rollback: async () => {
           log.info("Rolling back: deleting workspace", { taskId: task.id });
-          await trpcVanilla.workspace.delete.mutate({
+          await trpcClient.workspace.delete.mutate({
             taskId: task.id,
             mainRepoPath: repoPath,
           });
@@ -184,7 +184,7 @@ export class TaskCreationSaga extends Saga<
       await this.step({
         name: "cloud_workspace_creation",
         execute: async () => {
-          return trpcVanilla.workspace.create.mutate({
+          return trpcClient.workspace.create.mutate({
             taskId: task.id,
             mainRepoPath: "",
             folderId: "",
@@ -197,7 +197,7 @@ export class TaskCreationSaga extends Saga<
           log.info("Rolling back: deleting cloud workspace", {
             taskId: task.id,
           });
-          await trpcVanilla.workspace.delete.mutate({
+          await trpcClient.workspace.delete.mutate({
             taskId: task.id,
             mainRepoPath: "",
           });
@@ -284,11 +284,11 @@ export class TaskCreationSaga extends Saga<
   }
 
   private async resolveFolder(repoPath: string) {
-    const folders = await trpcVanilla.folders.getFolders.query();
+    const folders = await trpcClient.folders.getFolders.query();
     let existingFolder = folders.find((f) => f.path === repoPath);
 
     if (!existingFolder) {
-      existingFolder = await trpcVanilla.folders.addFolder.mutate({
+      existingFolder = await trpcClient.folders.addFolder.mutate({
         folderPath: repoPath,
       });
     }
@@ -301,7 +301,7 @@ export class TaskCreationSaga extends Saga<
     const repoPathForDetection = input.repoPath;
     if (!repository && repoPathForDetection) {
       const detected = await this.readOnlyStep("repo_detection", () =>
-        trpcVanilla.git.detectRepo.query({
+        trpcClient.git.detectRepo.query({
           directoryPath: repoPathForDetection,
         }),
       );
