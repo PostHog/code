@@ -82,6 +82,25 @@ export class ContextMenuService {
     return { confirmed };
   }
 
+  async confirmDeleteWorktree({
+    worktreePath,
+    linkedTaskCount,
+  }: {
+    worktreePath: string;
+    linkedTaskCount: number;
+  }): Promise<{ confirmed: boolean }> {
+    const confirmed = await this.confirm({
+      title: "Delete Worktree",
+      message: `Delete worktree at ${worktreePath}?`,
+      detail:
+        linkedTaskCount > 0
+          ? `This will remove ${linkedTaskCount} linked task${linkedTaskCount === 1 ? "" : "s"} and delete the worktree.`
+          : "This will delete the worktree from disk.",
+      confirmLabel: "Delete",
+    });
+    return { confirmed };
+  }
+
   async showTaskContextMenu(
     input: TaskContextMenuInput,
   ): Promise<TaskContextMenuResult> {

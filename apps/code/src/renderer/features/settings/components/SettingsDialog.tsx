@@ -14,6 +14,7 @@ import {
   Plugs,
   PlugsConnected,
   TrafficSignal,
+  TreeStructure,
   User,
   Wrench,
 } from "@phosphor-icons/react";
@@ -31,6 +32,7 @@ import { ShortcutsSettings } from "./sections/ShortcutsSettings";
 import { SignalSourcesSettings } from "./sections/SignalSourcesSettings";
 import { UpdatesSettings } from "./sections/UpdatesSettings";
 import { WorkspacesSettings } from "./sections/WorkspacesSettings";
+import { WorktreesSettings } from "./sections/worktrees/WorktreesSettings";
 
 interface SidebarItem {
   id: SettingsCategory;
@@ -43,6 +45,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "general", label: "General", icon: <GearSix size={16} /> },
   { id: "account", label: "Account", icon: <User size={16} /> },
   { id: "workspaces", label: "Workspaces", icon: <Folder size={16} /> },
+  { id: "worktrees", label: "Worktrees", icon: <TreeStructure size={16} /> },
   {
     id: "personalization",
     label: "Personalization",
@@ -69,6 +72,7 @@ const CATEGORY_TITLES: Record<SettingsCategory, string> = {
   general: "General",
   account: "Account",
   workspaces: "Workspaces",
+  worktrees: "Worktrees",
   personalization: "Personalization",
   "claude-code": "Claude Code",
   "mcp-servers": "MCP Servers",
@@ -83,6 +87,7 @@ const CATEGORY_COMPONENTS: Record<SettingsCategory, React.ComponentType> = {
   general: GeneralSettings,
   account: AccountSettings,
   workspaces: WorkspacesSettings,
+  worktrees: WorktreesSettings,
   personalization: PersonalizationSettings,
   "claude-code": ClaudeCodeSettings,
   "mcp-servers": McpServersSettings,

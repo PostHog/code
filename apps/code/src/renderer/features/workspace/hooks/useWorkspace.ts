@@ -11,6 +11,17 @@ function useWorkspacesQuery() {
   });
 }
 
+async function invalidateWorkspaceCaches(
+  utils: ReturnType<typeof trpcReact.useUtils>,
+  mainRepoPath?: string,
+) {
+  const tasks = [utils.workspace.getAll.invalidate()];
+  if (mainRepoPath) {
+    tasks.push(utils.workspace.listGitWorktrees.invalidate({ mainRepoPath }));
+  }
+  await Promise.all(tasks);
+}
+
 export function useWorkspaces(): {
   data: Record<string, Workspace> | undefined;
   isFetched: boolean;
@@ -36,8 +47,8 @@ export function useCreateWorkspace(): { isPending: boolean } {
   const utils = trpcReact.useUtils();
 
   const mutation = trpcReact.workspace.create.useMutation({
-    onSuccess: () => {
-      void utils.workspace.getAll.invalidate();
+    onSuccess: (_data, variables) => {
+      void invalidateWorkspaceCaches(utils, variables.mainRepoPath);
     },
   });
 
@@ -48,8 +59,8 @@ export function useDeleteWorkspace(): { isPending: boolean } {
   const utils = trpcReact.useUtils();
 
   const mutation = trpcReact.workspace.delete.useMutation({
-    onSuccess: () => {
-      void utils.workspace.getAll.invalidate();
+    onSuccess: (_data, variables) => {
+      void invalidateWorkspaceCaches(utils, variables.mainRepoPath);
     },
   });
 
@@ -79,8 +90,8 @@ export function useEnsureWorkspace(): {
 } {
   const utils = trpcReact.useUtils();
   const createMutation = trpcReact.workspace.create.useMutation({
-    onSuccess: () => {
-      void utils.workspace.getAll.invalidate();
+    onSuccess: (_data, variables) => {
+      void invalidateWorkspaceCaches(utils, variables.mainRepoPath);
     },
   });
 
@@ -109,7 +120,7 @@ export function useEnsureWorkspace(): {
         throw new Error("Failed to create workspace");
       }
 
-      await utils.workspace.getAll.invalidate();
+      await invalidateWorkspaceCaches(utils, repoPath);
       return utils.workspace.getAll.getData()?.[taskId] ?? null;
     },
     [createMutation, utils],
