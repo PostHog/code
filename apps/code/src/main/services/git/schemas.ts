@@ -128,10 +128,6 @@ export const getDiffStatsOutput = diffStatsSchema;
 export const getCurrentBranchInput = directoryPathInput;
 export const getCurrentBranchOutput = z.string().nullable();
 
-// getDefaultBranch schemas
-export const getDefaultBranchInput = directoryPathInput;
-export const getDefaultBranchOutput = z.string();
-
 // getAllBranches schemas
 export const getAllBranchesInput = directoryPathInput;
 export const getAllBranchesOutput = z.array(z.string());

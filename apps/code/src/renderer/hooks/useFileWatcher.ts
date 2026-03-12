@@ -1,3 +1,7 @@
+import {
+  invalidateGitBranchQueries,
+  invalidateGitWorkingTreeQueries,
+} from "@features/git-interaction/utils/gitCacheKeys";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -36,12 +40,7 @@ export function useFileWatcher(repoPath: string | null, taskId?: string) {
             filePath: relativePath,
           }),
         );
-        queryClient.invalidateQueries(
-          trpc.git.getChangedFilesHead.queryFilter({ directoryPath: repoPath }),
-        );
-        queryClient.invalidateQueries(
-          trpc.git.getDiffStats.queryFilter({ directoryPath: repoPath }),
-        );
+        invalidateGitWorkingTreeQueries(repoPath);
       },
     }),
   );
@@ -51,12 +50,7 @@ export function useFileWatcher(repoPath: string | null, taskId?: string) {
       enabled: !!repoPath,
       onData: ({ repoPath: rp, filePath }) => {
         if (rp !== repoPath) return;
-        queryClient.invalidateQueries(
-          trpc.git.getChangedFilesHead.queryFilter({ directoryPath: repoPath }),
-        );
-        queryClient.invalidateQueries(
-          trpc.git.getDiffStats.queryFilter({ directoryPath: repoPath }),
-        );
+        invalidateGitWorkingTreeQueries(repoPath);
         if (!taskId) return;
         const relativePath = filePath.replace(`${repoPath}/`, "");
         closeTabsForFile(taskId, relativePath);
@@ -69,16 +63,7 @@ export function useFileWatcher(repoPath: string | null, taskId?: string) {
       enabled: !!repoPath,
       onData: ({ repoPath: rp }) => {
         if (rp !== repoPath) return;
-        queryClient.invalidateQueries(trpc.git.getFileAtHead.pathFilter());
-        queryClient.invalidateQueries(
-          trpc.git.getChangedFilesHead.queryFilter({ directoryPath: repoPath }),
-        );
-        queryClient.invalidateQueries(
-          trpc.git.getDiffStats.queryFilter({ directoryPath: repoPath }),
-        );
-        queryClient.invalidateQueries(
-          trpc.git.getGitSyncStatus.queryFilter({ directoryPath: repoPath }),
-        );
+        invalidateGitBranchQueries(repoPath);
       },
     }),
   );

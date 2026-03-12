@@ -14,6 +14,7 @@ import {
   sanitizeBranchName,
   validateBranchName,
 } from "@features/git-interaction/utils/branchNameValidation";
+import { invalidateGitBranchQueries } from "@features/git-interaction/utils/gitCacheKeys";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
 import { trpc, trpcClient } from "@renderer/trpc";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
@@ -502,13 +503,8 @@ export function useGitInteraction(
 
       trackGitAction(taskId, "branch-here", true);
 
-      await queryClient.invalidateQueries({
-        ...trpc.workspace.getAll.pathFilter(),
-      });
-
-      await queryClient.invalidateQueries(
-        trpc.git.getGitSyncStatus.queryFilter({ directoryPath: repoPath }),
-      );
+      invalidateGitBranchQueries(repoPath);
+      await queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter());
 
       modal.closeBranch();
     } catch (error) {

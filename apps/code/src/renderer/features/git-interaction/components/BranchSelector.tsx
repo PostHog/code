@@ -1,10 +1,11 @@
 import { Combobox } from "@components/ui/combobox/Combobox";
 import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
+import { invalidateGitBranchQueries } from "@features/git-interaction/utils/gitCacheKeys";
 import { GitBranch, Plus } from "@phosphor-icons/react";
 import { Flex, Spinner, Tooltip } from "@radix-ui/themes";
 import { useTRPC } from "@renderer/trpc";
 import { toast } from "@renderer/utils/toast";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 interface BranchSelectorProps {
@@ -36,7 +37,6 @@ export function BranchSelector({
 }: BranchSelectorProps) {
   const [open, setOpen] = useState(false);
   const trpc = useTRPC();
-  const queryClient = useQueryClient();
   const { actions } = useGitInteractionStore();
 
   const isCloudMode = workspaceMode === "cloud";
@@ -62,12 +62,7 @@ export function BranchSelector({
   const checkoutMutation = useMutation(
     trpc.git.checkoutBranch.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries(trpc.git.getCurrentBranch.pathFilter());
-        queryClient.invalidateQueries(trpc.git.getGitSyncStatus.pathFilter());
-        queryClient.invalidateQueries(trpc.git.getAllBranches.pathFilter());
-        queryClient.invalidateQueries(
-          trpc.git.getChangedFilesHead.pathFilter(),
-        );
+        if (repoPath) invalidateGitBranchQueries(repoPath);
       },
       onError: (error, { branchName }) => {
         const message =

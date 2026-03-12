@@ -1,11 +1,5 @@
-import type {
-  ChangedFile,
-  DiffStats,
-  GitCommitInfo,
-  GitStateSnapshot,
-  GitSyncStatus,
-  PrStatusOutput,
-} from "@main/services/git/schemas";
+import type { GitStateSnapshot } from "@main/services/git/schemas";
+import { trpc } from "@renderer/trpc";
 import type { QueryClient } from "@tanstack/react-query";
 
 export function updateGitCacheFromSnapshot(
@@ -13,38 +7,45 @@ export function updateGitCacheFromSnapshot(
   repoPath: string,
   snapshot: GitStateSnapshot,
 ): void {
+  const input = { directoryPath: repoPath };
+
   if (snapshot.changedFiles !== undefined) {
-    queryClient.setQueryData<ChangedFile[]>(
-      ["changed-files-head", repoPath],
+    queryClient.setQueryData(
+      trpc.git.getChangedFilesHead.queryKey(input),
       snapshot.changedFiles,
     );
   }
 
   if (snapshot.diffStats !== undefined) {
-    queryClient.setQueryData<DiffStats>(
-      ["git-diff-stats", repoPath],
+    queryClient.setQueryData(
+      trpc.git.getDiffStats.queryKey(input),
       snapshot.diffStats,
     );
   }
 
   if (snapshot.syncStatus !== undefined) {
-    queryClient.setQueryData<GitSyncStatus>(
-      ["git-sync-status", repoPath],
+    queryClient.setQueryData(
+      trpc.git.getGitSyncStatus.queryKey(input),
       snapshot.syncStatus,
     );
+    if (snapshot.syncStatus.currentBranch !== undefined) {
+      queryClient.setQueryData(
+        trpc.git.getCurrentBranch.queryKey(input),
+        snapshot.syncStatus.currentBranch,
+      );
+    }
   }
 
   if (snapshot.latestCommit !== undefined) {
-    queryClient.setQueryData<GitCommitInfo | null>(
-      ["git-latest-commit", repoPath],
+    queryClient.setQueryData(
+      trpc.git.getLatestCommit.queryKey(input),
       snapshot.latestCommit,
     );
   }
 
   if (snapshot.prStatus !== undefined) {
-    const currentBranch = snapshot.syncStatus?.currentBranch ?? null;
-    queryClient.setQueryData<PrStatusOutput>(
-      ["git-pr-status", repoPath, currentBranch],
+    queryClient.setQueryData(
+      trpc.git.getPrStatus.queryKey(input),
       snapshot.prStatus,
     );
   }

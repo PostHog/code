@@ -29,8 +29,6 @@ import {
   getCommitConventionsOutput,
   getCurrentBranchInput,
   getCurrentBranchOutput,
-  getDefaultBranchInput,
-  getDefaultBranchOutput,
   getDiffStatsInput,
   getDiffStatsOutput,
   getFileAtHeadInput,
@@ -105,11 +103,6 @@ export const gitRouter = router({
     .input(getCurrentBranchInput)
     .output(getCurrentBranchOutput)
     .query(({ input }) => getService().getCurrentBranch(input.directoryPath)),
-
-  getDefaultBranch: publicProcedure
-    .input(getDefaultBranchInput)
-    .output(getDefaultBranchOutput)
-    .query(({ input }) => getService().getDefaultBranch(input.directoryPath)),
 
   getAllBranches: publicProcedure
     .input(getAllBranchesInput)
