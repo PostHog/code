@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { CommandCenterCellData } from "../hooks/useCommandCenterData";
 import {
   getGridDimensions,
@@ -12,12 +12,39 @@ interface CommandCenterGridProps {
   cells: CommandCenterCellData[];
 }
 
+function useTaskDragActive() {
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    const onDragStart = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes("text/x-task-id")) {
+        setActive(true);
+      }
+    };
+    const onDragEnd = () => setActive(false);
+    const onDrop = () => setActive(false);
+
+    document.addEventListener("dragstart", onDragStart);
+    document.addEventListener("dragend", onDragEnd);
+    document.addEventListener("drop", onDrop);
+    return () => {
+      document.removeEventListener("dragstart", onDragStart);
+      document.removeEventListener("dragend", onDragEnd);
+      document.removeEventListener("drop", onDrop);
+    };
+  }, []);
+
+  return active;
+}
+
 function GridCell({
   cell,
   zoom,
+  isDragActive,
 }: {
   cell: CommandCenterCellData;
   zoom: number;
+  isDragActive: boolean;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -46,17 +73,7 @@ function GridCell({
   );
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: drop target for drag-and-drop task assignment
-    <div
-      className="overflow-hidden bg-gray-1"
-      style={{
-        outline: isDragOver ? "2px solid var(--accent-9)" : undefined,
-        outlineOffset: "-2px",
-      }}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
+    <div className="relative overflow-hidden bg-gray-1">
       <div
         className="h-full w-full origin-top-left"
         style={{
@@ -65,6 +82,19 @@ function GridCell({
       >
         <CommandCenterPanel cell={cell} />
       </div>
+      {isDragActive && (
+        // biome-ignore lint/a11y/noStaticElementInteractions: transparent overlay to capture drag events over session content
+        <div
+          className="absolute inset-0"
+          style={{
+            outline: isDragOver ? "2px solid var(--accent-9)" : undefined,
+            outlineOffset: "-2px",
+          }}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        />
+      )}
     </div>
   );
 }
@@ -72,6 +102,7 @@ function GridCell({
 export function CommandCenterGrid({ layout, cells }: CommandCenterGridProps) {
   const { cols, rows } = getGridDimensions(layout);
   const zoom = useCommandCenterStore((s) => s.zoom);
+  const isDragActive = useTaskDragActive();
 
   return (
     <div
@@ -84,7 +115,12 @@ export function CommandCenterGrid({ layout, cells }: CommandCenterGridProps) {
       }}
     >
       {cells.map((cell) => (
-        <GridCell key={cell.cellIndex} cell={cell} zoom={zoom} />
+        <GridCell
+          key={cell.cellIndex}
+          cell={cell}
+          zoom={zoom}
+          isDragActive={isDragActive}
+        />
       ))}
     </div>
   );
