@@ -154,9 +154,7 @@ export class TaskService {
     return result;
   }
 
-  private optimisticallyUpdateWorkspaceCache(
-    output: TaskCreationOutput,
-  ): void {
+  private optimisticallyUpdateWorkspaceCache(output: TaskCreationOutput): void {
     if (!output.workspace) return;
     const workspace = output.workspace;
     queryClient.setQueriesData<Record<string, Workspace>>(
