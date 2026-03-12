@@ -38,6 +38,7 @@ import {
   AgentServiceEvent,
   type AgentServiceEvents,
   type Credentials,
+  type EffortLevel,
   type InterruptReason,
   type PromptOutput,
   type ReconnectSessionInput,
@@ -201,7 +202,7 @@ interface SessionConfig {
   /** Custom instructions injected into the system prompt */
   customInstructions?: string;
   /** Effort level for Claude sessions */
-  effort?: "low" | "medium" | "high" | "max";
+  effort?: EffortLevel;
 }
 
 interface ManagedSession {

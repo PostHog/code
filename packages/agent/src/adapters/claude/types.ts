@@ -13,6 +13,8 @@ import type { BaseSession } from "../base-acp-agent.js";
 import type { SettingsManager } from "./session/settings.js";
 import type { CodeExecutionMode } from "./tools.js";
 
+export type EffortLevel = "low" | "medium" | "high" | "max";
+
 export type AccumulatedUsage = {
   inputTokens: number;
   outputTokens: number;
@@ -38,6 +40,8 @@ export type PendingMessage = {
 
 export type Session = BaseSession & {
   query: Query;
+  /** The Options object passed to query() — mutating it affects subsequent prompts */
+  queryOptions: Options;
   input: Pushable<SDKUserMessage>;
   settingsManager: SettingsManager;
   permissionMode: CodeExecutionMode;
@@ -46,7 +50,7 @@ export type Session = BaseSession & {
   taskRunId?: string;
   lastPlanFilePath?: string;
   lastPlanContent?: string;
-  effort?: "low" | "medium" | "high" | "max";
+  effort?: EffortLevel;
   configOptions: SessionConfigOption[];
   accumulatedUsage: AccumulatedUsage;
   promptRunning: boolean;

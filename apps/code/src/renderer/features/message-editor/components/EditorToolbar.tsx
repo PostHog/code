@@ -44,7 +44,7 @@ export function EditorToolbar({
   };
 
   return (
-    <Flex align="center" gap="3">
+    <Flex align="center" gap="1">
       <input
         ref={fileInputRef}
         type="file"

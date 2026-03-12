@@ -10,6 +10,10 @@ export const executionModeSchema = z.enum([
 ]);
 export type ExecutionMode = z.infer<typeof executionModeSchema>;
 
+// Effort level schema and type - shared between main and renderer
+export const effortLevelSchema = z.enum(["low", "medium", "high", "max"]);
+export type EffortLevel = z.infer<typeof effortLevelSchema>;
+
 interface UserBasic {
   id: number;
   uuid: string;

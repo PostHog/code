@@ -30,10 +30,12 @@ import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpcClient } from "@renderer/trpc/client";
 import { toast } from "@renderer/utils/toast";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
-import type {
-  CloudTaskUpdatePayload,
-  ExecutionMode,
-  Task,
+import {
+  type CloudTaskUpdatePayload,
+  type EffortLevel,
+  type ExecutionMode,
+  effortLevelSchema,
+  type Task,
 } from "@shared/types";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { AcpMessage, StoredLogEntry } from "@shared/types/session-events";
@@ -539,7 +541,9 @@ export class SessionService {
       permissionMode: executionMode,
       adapter,
       customInstructions: startCustomInstructions || undefined,
-      effort: reasoningLevel as "low" | "medium" | "high" | "max" | undefined,
+      effort: effortLevelSchema.safeParse(reasoningLevel).success
+        ? (reasoningLevel as EffortLevel)
+        : undefined,
     });
 
     const session = this.createBaseSession(taskRun.id, taskId, taskTitle);

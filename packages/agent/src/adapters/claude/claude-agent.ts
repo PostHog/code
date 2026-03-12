@@ -73,6 +73,7 @@ import {
 } from "./tools.js";
 import type {
   BackgroundTerminal,
+  EffortLevel,
   NewSessionMeta,
   Session,
   ToolUseCache,
@@ -559,7 +560,9 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       await this.session.query.setModel(sdkModelId);
       this.session.modelId = params.value;
     } else if (params.configId === "effort") {
-      this.session.effort = params.value as "low" | "medium" | "high" | "max";
+      const newEffort = params.value as EffortLevel;
+      this.session.effort = newEffort;
+      this.session.queryOptions.effort = newEffort;
     }
 
     this.session.configOptions = this.session.configOptions.map((o) =>
@@ -625,12 +628,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
     const meta = params._meta as NewSessionMeta | undefined;
     const taskId = meta?.persistence?.taskId;
-    const effort = meta?.claudeCode?.options?.effort as
-      | "low"
-      | "medium"
-      | "high"
-      | "max"
-      | undefined;
+    const effort = meta?.claudeCode?.options?.effort as EffortLevel | undefined;
 
     // We want to create a new session id unless it is resume,
     // but not resume + forkSession.
@@ -691,6 +689,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
     const session: Session = {
       query: q,
+      queryOptions: options,
       input,
       cancelled: false,
       settingsManager,
@@ -858,7 +857,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       currentModelId: string;
       options: SessionConfigSelectOption[];
     },
-    currentEffort: "low" | "medium" | "high" | "max" = "high",
+    currentEffort: EffortLevel = "high",
   ): SessionConfigOption[] {
     const modeOptions = getAvailableModes().map((mode) => ({
       value: mode.id,

@@ -2,7 +2,11 @@ import type {
   RequestPermissionRequest,
   PermissionOption as SdkPermissionOption,
 } from "@agentclientprotocol/sdk";
+import { effortLevelSchema } from "@shared/types.js";
 import { z } from "zod";
+
+export { effortLevelSchema };
+export type { EffortLevel } from "@shared/types.js";
 
 // Session credentials schema
 export const credentialsSchema = z.object({
@@ -46,7 +50,7 @@ export const startSessionInput = z.object({
   adapter: z.enum(["claude", "codex"]).optional(),
   additionalDirectories: z.array(z.string()).optional(),
   customInstructions: z.string().max(2000).optional(),
-  effort: z.enum(["low", "medium", "high", "max"]).optional(),
+  effort: effortLevelSchema.optional(),
 });
 
 export type StartSessionInput = z.infer<typeof startSessionInput>;
@@ -163,6 +167,7 @@ export const reconnectSessionInput = z.object({
   additionalDirectories: z.array(z.string()).optional(),
   permissionMode: z.string().optional(),
   customInstructions: z.string().max(2000).optional(),
+  effort: effortLevelSchema.optional(),
 });
 
 export type ReconnectSessionInput = z.infer<typeof reconnectSessionInput>;

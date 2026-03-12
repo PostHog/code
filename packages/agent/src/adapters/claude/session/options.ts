@@ -17,6 +17,7 @@ import {
   type OnModeChange,
 } from "../hooks.js";
 import type { CodeExecutionMode } from "../tools.js";
+import type { EffortLevel } from "../types.js";
 import { DEFAULT_MODEL } from "./models.js";
 import type { SettingsManager } from "./settings.js";
 
@@ -43,7 +44,7 @@ export interface BuildOptionsParams {
   onModeChange?: OnModeChange;
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
   onProcessExited?: (pid: number) => void;
-  effort?: "low" | "medium" | "high" | "max";
+  effort?: EffortLevel;
 }
 
 const BRANCH_NAMING_INSTRUCTIONS = `
