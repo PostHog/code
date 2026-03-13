@@ -9,8 +9,6 @@ import { SuggestionList, type SuggestionListRef } from "./SuggestionList";
 
 function createSuggestion(
   sessionId: string,
-  onSubmit?: (text: string) => void,
-  onClearDraft?: () => void,
 ): Partial<SuggestionOptions<SuggestionItem>> {
   return {
     char: "/",
@@ -85,15 +83,7 @@ function createSuggestion(
     command: ({ editor, range, props }) => {
       const item = props as CommandSuggestionItem;
 
-      // Commands without input hints execute immediately
-      if (!item.command.input?.hint) {
-        editor.commands.clearContent();
-        onClearDraft?.();
-        onSubmit?.(`/${item.command.name}`);
-        return;
-      }
-
-      // Commands with input insert a chip
+      // Insert command as a chip, let user add context and submit when ready
       editor
         .chain()
         .focus()
@@ -116,12 +106,10 @@ function createSuggestion(
 
 export interface CommandMentionOptions {
   sessionId: string;
-  onSubmit?: (text: string) => void;
-  onClearDraft?: () => void;
 }
 
 export function createCommandMention(options: CommandMentionOptions) {
-  const { sessionId, onSubmit, onClearDraft } = options;
+  const { sessionId } = options;
 
   return Mention.extend<CommandMentionOptions>({
     name: "commandMention",
@@ -130,9 +118,7 @@ export function createCommandMention(options: CommandMentionOptions) {
       return {
         ...this.parent?.(),
         sessionId,
-        onSubmit,
-        onClearDraft,
-        suggestion: createSuggestion(sessionId, onSubmit, onClearDraft),
+        suggestion: createSuggestion(sessionId),
       };
     },
   });

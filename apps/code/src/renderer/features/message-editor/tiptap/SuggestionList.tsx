@@ -41,9 +41,10 @@ export const SuggestionList = forwardRef<
     setHasMouseMoved(false);
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-scroll when items change
   useEffect(() => {
     itemRefs.current[selectedIndex]?.scrollIntoView({ block: "nearest" });
-  }, [selectedIndex]);
+  }, [selectedIndex, items]);
 
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event }) => {

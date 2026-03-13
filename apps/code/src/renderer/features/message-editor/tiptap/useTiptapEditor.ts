@@ -95,14 +95,6 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const attachmentsRef = useRef<FileAttachment[]>([]);
 
-  const handleCommandSubmit = useCallback((text: string) => {
-    callbackRefs.current.onSubmit?.(text);
-  }, []);
-
-  const handleClearDraft = useCallback(() => {
-    draftRef.current?.clearDraft();
-  }, []);
-
   const editor = useEditor(
     {
       extensions: getEditorExtensions({
@@ -110,8 +102,6 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
         placeholder,
         fileMentions,
         commands,
-        onCommandSubmit: handleCommandSubmit,
-        onClearDraft: handleClearDraft,
       }),
       editable: !disabled,
       autofocus: autoFocus ? "end" : false,
