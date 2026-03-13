@@ -88,6 +88,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
   const submitRef = useRef<() => void>(() => {});
   const draftRef = useRef<ReturnType<typeof useDraftSync> | null>(null);
 
+  const pasteCountRef = useRef(0);
   const historyActions = usePromptHistoryStore.getState();
   const [isEmptyState, setIsEmptyState] = useState(true);
   const [isReady, setIsReady] = useState(false);
@@ -320,10 +321,22 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
                   text: pastedText,
                 });
 
-                setAttachments((prev) => {
-                  if (prev.some((a) => a.id === result.path)) return prev;
-                  return [...prev, { id: result.path, label: result.name }];
+                pasteCountRef.current += 1;
+                const lineCount = pastedText.split("\n").length;
+                const label = `Pasted text #${pasteCountRef.current} (${lineCount} lines)`;
+                const chipNode = view.state.schema.nodes.mentionChip.create({
+                  type: "file",
+                  id: result.path,
+                  label,
                 });
+                const space = view.state.schema.text(" ");
+                const { tr } = view.state;
+                tr.replaceSelectionWith(chipNode).insert(
+                  tr.selection.from,
+                  space,
+                );
+                view.dispatch(tr);
+                view.focus();
               } catch (_error) {
                 toast.error("Failed to convert pasted text to attachment");
               }
@@ -421,6 +434,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
     if (clearOnSubmit) {
       editor.commands.clearContent();
       prevBashModeRef.current = false;
+      pasteCountRef.current = 0;
       setAttachments([]);
       draft.clearDraft();
     }
