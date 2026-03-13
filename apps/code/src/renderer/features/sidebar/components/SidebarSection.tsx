@@ -66,7 +66,7 @@ export function SidebarSection({
               </span>
             )}
             {tooltipContent ? (
-              <Tooltip content={tooltipContent} side="right">
+              <Tooltip content={tooltipContent} side="right" align="start">
                 <span className="overflow-hidden text-ellipsis whitespace-nowrap font-medium">
                   {label}
                 </span>
