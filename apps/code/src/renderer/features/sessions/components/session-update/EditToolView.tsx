@@ -69,6 +69,7 @@ export function EditToolView({
   const oldText = diff?.oldText;
   const newText = diff?.newText;
   const isNewFile = diff && !oldText;
+  const hasDiff = diff && (oldText || newText);
   const diffStats = diff ? getDiffStats(oldText, newText) : null;
 
   const isPlanFile = filePath.includes("claude/plans/");
@@ -98,7 +99,7 @@ export function EditToolView({
           )}
           <StatusIndicators isFailed={isFailed} wasCancelled={wasCancelled} />
         </Flex>
-        {newText && (
+        {hasDiff && (
           <IconButton asChild size="1" variant="ghost" color="gray">
             <span>
               {isExpanded ? (
@@ -111,9 +112,9 @@ export function EditToolView({
         )}
       </button>
 
-      {isExpanded && newText && (
+      {isExpanded && hasDiff && (
         <CodePreview
-          content={newText}
+          content={newText ?? ""}
           filePath={filePath}
           oldContent={isNewFile ? null : oldText}
           maxHeight="700px"
