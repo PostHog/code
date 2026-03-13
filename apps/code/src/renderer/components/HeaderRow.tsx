@@ -106,14 +106,11 @@ export function HeaderRow() {
       {showRightSidebarSection && view.type === "task-detail" && view.data && (
         <Flex
           align="center"
-          justify="between"
-          pr="4"
-          pl="3"
+          justify={rightSidebarOpen ? "between" : "end"}
+          px="3"
           style={{
-            width: rightSidebarOpen
-              ? `${rightSidebarWidth}px`
-              : `${COLLAPSED_WIDTH}px`,
-            minWidth: `${COLLAPSED_WIDTH}px`,
+            width: rightSidebarOpen ? `${rightSidebarWidth}px` : undefined,
+            minWidth: rightSidebarOpen ? `${COLLAPSED_WIDTH}px` : undefined,
             height: "100%",
             borderLeft: "1px solid var(--gray-6)",
             transition: rightSidebarIsResizing
