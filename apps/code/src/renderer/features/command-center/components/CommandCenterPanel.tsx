@@ -18,20 +18,25 @@ function EmptyCell({ cellIndex }: { cellIndex: number }) {
 
   return (
     <Flex align="center" justify="center" height="100%">
-      <TaskSelector
-        cellIndex={cellIndex}
-        open={selectorOpen}
-        onOpenChange={setSelectorOpen}
-      >
-        <button
-          type="button"
-          onClick={() => setSelectorOpen(true)}
-          className="flex items-center gap-1.5 rounded-md border border-gray-7 border-dashed px-3 py-1.5 font-mono text-[11px] text-gray-10 transition-colors hover:border-gray-9 hover:text-gray-12"
+      <Flex direction="column" align="center" gap="2">
+        <TaskSelector
+          cellIndex={cellIndex}
+          open={selectorOpen}
+          onOpenChange={setSelectorOpen}
         >
-          <Plus size={12} />
-          Add task
-        </button>
-      </TaskSelector>
+          <button
+            type="button"
+            onClick={() => setSelectorOpen(true)}
+            className="flex items-center gap-1.5 rounded-md border border-gray-7 border-dashed px-3 py-1.5 font-mono text-[11px] text-gray-10 transition-colors hover:border-gray-9 hover:text-gray-12"
+          >
+            <Plus size={12} />
+            Add task
+          </button>
+        </TaskSelector>
+        <Text size="1" className="font-mono text-[10px] text-gray-9">
+          or drag a task from the sidebar
+        </Text>
+      </Flex>
     </Flex>
   );
 }
