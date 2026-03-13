@@ -15,6 +15,13 @@
       "when": 1773063486685,
       "tag": "0001_tan_lifeguard",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1773335630838,
+      "tag": "0002_massive_bishop",
+      "breakpoints": true
     }
   ]
 }

@@ -19,6 +19,7 @@ import {
   trackAppEvent,
 } from "./services/posthog-analytics.js";
 import type { PosthogPluginService } from "./services/posthog-plugin/service.js";
+import type { SuspensionService } from "./services/suspension/service.js";
 import type { TaskLinkService } from "./services/task-link/service";
 import type { UpdatesService } from "./services/updates/service.js";
 import type { WorkspaceService } from "./services/workspace/service.js";
@@ -47,6 +48,11 @@ function initializeServices(): void {
     MAIN_TOKENS.WorkspaceService,
   );
   workspaceService.initBranchWatcher();
+
+  const suspensionService = container.get<SuspensionService>(
+    MAIN_TOKENS.SuspensionService,
+  );
+  suspensionService.startInactivityChecker();
 
   // Track app started event
   trackAppEvent(ANALYTICS_EVENTS.APP_STARTED);

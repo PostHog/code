@@ -111,6 +111,9 @@ export class ContextMenuService {
       this.item("Rename", { type: "rename" }),
       this.item(isPinned ? "Unpin" : "Pin", { type: "pin" }),
       this.separator(),
+      ...(worktreePath
+        ? [this.item("Suspend", { type: "suspend" as const })]
+        : []),
       this.item("Archive", { type: "archive" }),
       this.item("Delete", { type: "delete" }),
       ...(worktreePath

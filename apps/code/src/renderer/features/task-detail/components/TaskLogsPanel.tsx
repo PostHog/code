@@ -16,6 +16,8 @@ import {
 } from "@features/sessions/stores/sessionStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useTaskViewed } from "@features/sidebar/hooks/useTaskViewed";
+import { useRestoreTask } from "@features/suspension/hooks/useRestoreTask";
+import { useSuspendedTaskIds } from "@features/suspension/hooks/useSuspendedTaskIds";
 import { WorkspaceSetupPrompt } from "@features/task-detail/components/WorkspaceSetupPrompt";
 import {
   useCreateWorkspace,
@@ -51,6 +53,10 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   const hasDirectoryMapping = repoKey
     ? folders.some((f) => f.remoteUrl === repoKey)
     : false;
+
+  const suspendedTaskIds = useSuspendedTaskIds();
+  const isSuspended = suspendedTaskIds.has(taskId);
+  const { restoreTask, isRestoring } = useRestoreTask();
 
   const session = useSessionForTask(taskId);
   const { markActivity, markAsViewed } = useTaskViewed();
@@ -161,8 +167,8 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     if (!repoPath) return;
     if (isConnecting.current) return;
     if (!isOnline) return;
+    if (isSuspended) return;
 
-    // Cloud tasks use the cloud watcher effect above
     if (isCloud) return;
 
     if (
@@ -199,7 +205,29 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
       .finally(() => {
         isConnecting.current = false;
       });
-  }, [task, repoPath, session, markActivity, isOnline, isCloud]);
+  }, [task, repoPath, session, markActivity, isOnline, isCloud, isSuspended]);
+
+  const cannotConnect = !repoPath && !isCloud;
+  useEffect(() => {
+    if (!cannotConnect) return;
+    if (session && session.events.length > 0) return;
+    if (!task.latest_run?.id || !task.latest_run?.log_url) return;
+
+    getSessionService().loadLogsOnly({
+      taskId: task.id,
+      taskRunId: task.latest_run.id,
+      taskTitle: task.title || task.description || "Task",
+      logUrl: task.latest_run.log_url,
+    });
+  }, [
+    cannotConnect,
+    task.id,
+    task.latest_run?.id,
+    task.latest_run?.log_url,
+    task.title,
+    task.description,
+    session,
+  ]);
 
   const handleSendPrompt = useCallback(
     async (text: string) => {
@@ -274,6 +302,10 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     }
   }, [taskId, repoPath]);
 
+  const handleRestoreWorktree = useCallback(async () => {
+    await restoreTask(taskId);
+  }, [taskId, restoreTask]);
+
   const handleNewSession = useCallback(async () => {
     if (!repoPath) return;
     try {
@@ -331,6 +363,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   if (
     !repoPath &&
     !isCloud &&
+    !isSuspended &&
     isWorkspaceLoaded &&
     !hasDirectoryMapping &&
     !isCreatingWorkspace
@@ -353,6 +386,11 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
               events={events}
               taskId={taskId}
               isRunning={!!isRunning}
+              isSuspended={isSuspended}
+              onRestoreWorktree={
+                isSuspended ? handleRestoreWorktree : undefined
+              }
+              isRestoring={isRestoring}
               isPromptPending={isCloud ? null : isPromptPending}
               promptStartedAt={isCloud ? undefined : promptStartedAt}
               onSendPrompt={handleSendPrompt}

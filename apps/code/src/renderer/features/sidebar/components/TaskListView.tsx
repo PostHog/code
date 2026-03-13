@@ -98,6 +98,7 @@ function TaskRow({
       isEditing={isEditing}
       workspaceMode={effectiveMode}
       worktreePath={workspace?.worktreePath ?? undefined}
+      isSuspended={task.isSuspended}
       isGenerating={task.isGenerating}
       isUnread={task.isUnread}
       isPinned={task.isPinned}
