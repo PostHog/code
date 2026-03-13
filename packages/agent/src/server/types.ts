@@ -1,6 +1,13 @@
 import type { AgentMode } from "../types";
 import type { RemoteMcpServer } from "./schemas";
 
+export interface ClaudeCodeConfig {
+  systemPrompt?:
+    | string
+    | { type: "preset"; preset: "claude_code"; append?: string };
+  plugins?: { type: "local"; path: string }[];
+}
+
 export interface AgentServerConfig {
   port: number;
   repositoryPath?: string;
@@ -14,4 +21,5 @@ export interface AgentServerConfig {
   version?: string;
   mcpServers?: RemoteMcpServer[];
   baseBranch?: string;
+  claudeCode?: ClaudeCodeConfig;
 }
