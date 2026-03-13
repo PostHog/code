@@ -55,7 +55,11 @@ export function SessionFooter({
   const wasCancelled =
     lastStopReason === "cancelled" || lastStopReason === "refusal";
 
-  if (lastGenerationDuration !== null && !wasCancelled) {
+  if (
+    lastGenerationDuration !== null &&
+    lastGenerationDuration > 0 &&
+    !wasCancelled
+  ) {
     return (
       <Box className="pb-1">
         <Text
