@@ -30,6 +30,7 @@ interface ModeAndBranchRowProps {
     linesRemoved: number;
   } | null;
   disabled?: boolean;
+  isBashMode?: boolean;
 }
 
 function ModeAndBranchRow({
@@ -39,6 +40,7 @@ function ModeAndBranchRow({
   cloudBranch,
   cloudDiffStats,
   disabled,
+  isBashMode,
 }: ModeAndBranchRowProps) {
   const { currentBranch: gitBranch, diffStats } = useGitQueries(
     repoPath ?? undefined,
@@ -54,7 +56,7 @@ function ModeAndBranchRow({
       effectiveDiffStats.linesAdded > 0 ||
       effectiveDiffStats.linesRemoved > 0);
 
-  if (!showModeIndicator && !showBranchSelector) {
+  if (!showModeIndicator && !showBranchSelector && !isBashMode) {
     return null;
   }
 
@@ -66,16 +68,27 @@ function ModeAndBranchRow({
       style={{ overflow: "hidden" }}
     >
       <Flex align="center" gap="2" flexShrink="0">
-        {showModeIndicator && modeOption && (
-          <ModeIndicatorInput modeOption={modeOption} />
-        )}
-        {showModeIndicator && !modeOption && (
+        {isBashMode ? (
           <Text
             size="1"
-            style={{ color: "var(--gray-8)", fontFamily: "monospace" }}
+            style={{ color: "var(--blue-9)", fontFamily: "monospace" }}
           >
-            Loading...
+            ! bash mode
           </Text>
+        ) : (
+          <>
+            {showModeIndicator && modeOption && (
+              <ModeIndicatorInput modeOption={modeOption} />
+            )}
+            {showModeIndicator && !modeOption && (
+              <Text
+                size="1"
+                style={{ color: "var(--gray-8)", fontFamily: "monospace" }}
+              >
+                Loading...
+              </Text>
+            )}
+          </>
         )}
       </Flex>
       <Flex align="center" gap="2" style={{ minWidth: 0, overflow: "hidden" }}>
@@ -247,6 +260,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
         direction="column"
         gap="2"
         onClick={handleContainerClick}
+        className={`rounded-md p-2 ${isBashMode ? "ring-1 ring-blue-9" : ""}`}
         style={{ cursor: "text" }}
       >
         <AttachmentsBar attachments={attachments} onRemove={removeAttachment} />
@@ -266,11 +280,6 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
               onAddAttachment={addAttachment}
               onAttachFiles={onAttachFiles}
             />
-            {isBashMode && (
-              <Text size="1" className="ml-2 font-mono text-accent-11">
-                bash mode
-              </Text>
-            )}
           </Flex>
           <Flex gap="2" align="center">
             {isLoading && onCancel ? (
@@ -328,6 +337,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
           cloudBranch={cloudBranch}
           cloudDiffStats={cloudDiffStats}
           disabled={disabled}
+          isBashMode={isBashMode}
         />
       </Flex>
     );
