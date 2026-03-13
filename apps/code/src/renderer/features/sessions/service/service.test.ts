@@ -207,6 +207,7 @@ const createMockSession = (
   isPromptPending: false,
   promptStartedAt: null,
   pendingPermissions: new Map(),
+  pausedDurationMs: 0,
   messageQueue: [],
   optimisticItems: [],
   ...overrides,

@@ -55,6 +55,8 @@ export interface AgentSession {
   /** Session configuration options (model, mode, thought level, etc.) */
   configOptions?: SessionConfigOption[];
   pendingPermissions: Map<string, PermissionRequest>;
+  /** Accumulated time (ms) spent waiting for user input (permissions, questions, etc.) */
+  pausedDurationMs: number;
   messageQueue: QueuedMessage[];
   /** Whether this session is for a cloud run */
   isCloud?: boolean;

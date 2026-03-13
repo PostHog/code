@@ -803,6 +803,7 @@ export class SessionService {
         sessionStoreSetters.updateSession(taskRunId, {
           isPromptPending: true,
           promptStartedAt: acpMsg.ts,
+          pausedDurationMs: 0,
         });
       }
       if (
@@ -1077,6 +1078,7 @@ export class SessionService {
     sessionStoreSetters.updateSession(session.taskRunId, {
       isPromptPending: true,
       promptStartedAt: Date.now(),
+      pausedDurationMs: 0,
     });
 
     sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
@@ -1457,6 +1459,24 @@ export class SessionService {
 
   // --- Permissions ---
 
+  private resolvePermission(session: AgentSession, toolCallId: string): void {
+    const permission = session.pendingPermissions.get(toolCallId);
+    const newPermissions = new Map(session.pendingPermissions);
+    newPermissions.delete(toolCallId);
+    sessionStoreSetters.setPendingPermissions(
+      session.taskRunId,
+      newPermissions,
+    );
+
+    if (permission?.receivedAt) {
+      sessionStoreSetters.updateSession(session.taskRunId, {
+        pausedDurationMs:
+          (session.pausedDurationMs ?? 0) +
+          (Date.now() - permission.receivedAt),
+      });
+    }
+  }
+
   /**
    * Respond to a permission request.
    */
@@ -1473,12 +1493,7 @@ export class SessionService {
       return;
     }
 
-    const newPermissions = new Map(session.pendingPermissions);
-    newPermissions.delete(toolCallId);
-    sessionStoreSetters.setPendingPermissions(
-      session.taskRunId,
-      newPermissions,
-    );
+    this.resolvePermission(session, toolCallId);
 
     try {
       await trpcClient.agent.respondToPermission.mutate({
@@ -1515,12 +1530,7 @@ export class SessionService {
       return;
     }
 
-    const newPermissions = new Map(session.pendingPermissions);
-    newPermissions.delete(toolCallId);
-    sessionStoreSetters.setPendingPermissions(
-      session.taskRunId,
-      newPermissions,
-    );
+    this.resolvePermission(session, toolCallId);
 
     try {
       await trpcClient.agent.cancelPermission.mutate({
@@ -2164,6 +2174,7 @@ export class SessionService {
       isPromptPending: false,
       promptStartedAt: null,
       pendingPermissions: new Map(),
+      pausedDurationMs: 0,
       messageQueue: [],
       optimisticItems: [],
     };
