@@ -1,14 +1,14 @@
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   FileWatcherEvent,
   type FileWatcherEvents,
   listDirectoryInput,
   listDirectoryOutput,
   watcherInput,
-} from "../../services/file-watcher/schemas.js";
-import type { FileWatcherService } from "../../services/file-watcher/service.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/file-watcher/schemas";
+import type { FileWatcherService } from "../../services/file-watcher/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () =>
   container.get<FileWatcherService>(MAIN_TOKENS.FileWatcherService);

@@ -28,6 +28,13 @@ export type TaskRunStatus =
   | "failed"
   | "cancelled";
 
+export type OptimisticItem = {
+  type: "user_message";
+  id: string;
+  content: string;
+  timestamp: number;
+};
+
 export interface AgentSession {
   taskRunId: string;
   taskId: string;
@@ -61,6 +68,9 @@ export interface AgentSession {
   cloudErrorMessage?: string | null;
   /** Cloud task branch */
   cloudBranch?: string | null;
+  /** Number of session/prompt events to skip from polled logs (set during resume) */
+  skipPolledPromptCount?: number;
+  optimisticItems: OptimisticItem[];
 }
 
 // --- Config Option Helpers ---
@@ -189,6 +199,7 @@ export {
   useConfigOptionForTask,
   useModeConfigOptionForTask,
   useModelConfigOptionForTask,
+  useOptimisticItemsForTask,
   usePendingPermissionsForTask,
   useQueuedMessagesForTask,
   useSessionForTask,
@@ -330,6 +341,38 @@ export const sessionStoreSetters = {
       session.messageQueue = [];
     });
     return result;
+  },
+
+  appendOptimisticItem: (
+    taskRunId: string,
+    item: Omit<OptimisticItem, "id">,
+  ): void => {
+    const id = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    useSessionStore.setState((state) => {
+      const session = state.sessions[taskRunId];
+      if (session) {
+        session.optimisticItems.push({ ...item, id });
+      }
+    });
+  },
+
+  clearOptimisticItems: (taskRunId: string): void => {
+    useSessionStore.setState((state) => {
+      const session = state.sessions[taskRunId];
+      if (session) {
+        session.optimisticItems = [];
+      }
+    });
+  },
+
+  replaceOptimisticWithEvent: (taskRunId: string, event: AcpMessage): void => {
+    useSessionStore.setState((state) => {
+      const session = state.sessions[taskRunId];
+      if (session) {
+        session.events.push(event);
+        session.optimisticItems = [];
+      }
+    });
   },
 
   /** O(1) lookup using taskIdIndex */

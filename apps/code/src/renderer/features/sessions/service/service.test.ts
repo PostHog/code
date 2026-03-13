@@ -15,6 +15,7 @@ const mockTrpcAgent = vi.hoisted(() => ({
   cancelPermission: { mutate: vi.fn() },
   onSessionEvent: { subscribe: vi.fn() },
   onPermissionRequest: { subscribe: vi.fn() },
+  onSessionIdleKilled: { subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })) },
   resetAll: { mutate: vi.fn().mockResolvedValue(undefined) },
 }));
 
@@ -49,6 +50,9 @@ const mockSessionStoreSetters = vi.hoisted(() => ({
   getSessionByTaskId: vi.fn(),
   getSessions: vi.fn(() => ({})),
   clearAll: vi.fn(),
+  appendOptimisticItem: vi.fn(),
+  clearOptimisticItems: vi.fn(),
+  replaceOptimisticWithEvent: vi.fn(),
 }));
 
 vi.mock("@features/sessions/stores/sessionStore", () => ({
@@ -204,6 +208,7 @@ const createMockSession = (
   promptStartedAt: null,
   pendingPermissions: new Map(),
   messageQueue: [],
+  optimisticItems: [],
   ...overrides,
 });
 

@@ -1,16 +1,16 @@
 import { app, autoUpdater } from "electron";
 import { inject, injectable, postConstruct, preDestroy } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { isDevBuild } from "../../utils/env.js";
-import { logger } from "../../utils/logger.js";
-import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
-import type { AppLifecycleService } from "../app-lifecycle/service.js";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { isDevBuild } from "../../utils/env";
+import { logger } from "../../utils/logger";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import type { AppLifecycleService } from "../app-lifecycle/service";
 import {
   type CheckForUpdatesOutput,
   type InstallUpdateOutput,
   UpdatesEvent,
   type UpdatesEvents,
-} from "./schemas.js";
+} from "./schemas";
 
 type CheckSource = "user" | "periodic";
 

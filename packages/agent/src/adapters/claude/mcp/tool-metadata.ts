@@ -1,5 +1,5 @@
 import type { McpServerStatus, Query } from "@anthropic-ai/claude-agent-sdk";
-import { Logger } from "../../../utils/logger.js";
+import { Logger } from "../../../utils/logger";
 
 export interface McpToolMetadata {
   readOnly: boolean;

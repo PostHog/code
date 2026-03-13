@@ -9,11 +9,11 @@ import {
   expect,
   it,
 } from "vitest";
-import { createTestRepo, type TestRepo } from "../test/fixtures/api.js";
-import { createPostHogHandlers } from "../test/mocks/msw-handlers.js";
-import type { TaskRun } from "../types.js";
-import { AgentServer } from "./agent-server.js";
-import { type JwtPayload, SANDBOX_CONNECTION_AUDIENCE } from "./jwt.js";
+import { createTestRepo, type TestRepo } from "../test/fixtures/api";
+import { createPostHogHandlers } from "../test/mocks/msw-handlers";
+import type { TaskRun } from "../types";
+import { AgentServer } from "./agent-server";
+import { type JwtPayload, SANDBOX_CONNECTION_AUDIENCE } from "./jwt";
 
 interface TestableServer {
   getInitialPromptOverride(run: TaskRun): string | null;

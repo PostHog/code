@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import { Saga } from "@posthog/shared";
-import { createGitClient } from "../client.js";
-import { getGitOperationManager } from "../operation-manager.js";
+import { createGitClient } from "../client";
+import { getGitOperationManager } from "../operation-manager";
 
 export interface CloneInput {
   repoUrl: string;

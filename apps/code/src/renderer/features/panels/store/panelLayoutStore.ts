@@ -723,7 +723,12 @@ export const usePanelLayoutStore = createWithEqualityFn<PanelLayoutStore>()(
               layout.panelTree,
             );
 
-            return { panelTree: cleanedTree };
+            const focusedPanelId =
+              layout.focusedPanelId === sourcePanelId
+                ? targetPanelId
+                : layout.focusedPanelId;
+
+            return { panelTree: cleanedTree, focusedPanelId };
           }),
         );
       },

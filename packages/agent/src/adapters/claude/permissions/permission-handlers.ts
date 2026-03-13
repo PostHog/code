@@ -3,27 +3,27 @@ import type {
   RequestPermissionResponse,
 } from "@agentclientprotocol/sdk";
 import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
-import { text } from "../../../utils/acp-content.js";
-import type { Logger } from "../../../utils/logger.js";
-import { toolInfoFromToolUse } from "../conversion/tool-use-to-acp.js";
+import { text } from "../../../utils/acp-content";
+import type { Logger } from "../../../utils/logger";
+import { toolInfoFromToolUse } from "../conversion/tool-use-to-acp";
 import {
   getClaudePlansDir,
   getLatestAssistantText,
   isClaudePlanFilePath,
   isPlanReady,
-} from "../plan/utils.js";
+} from "../plan/utils";
 import {
   type AskUserQuestionInput,
   normalizeAskUserQuestionInput,
   OPTION_PREFIX,
   type QuestionItem,
-} from "../questions/utils.js";
-import { isToolAllowedForMode, WRITE_TOOLS } from "../tools.js";
-import type { Session } from "../types.js";
+} from "../questions/utils";
+import { isToolAllowedForMode, WRITE_TOOLS } from "../tools";
+import type { Session } from "../types";
 import {
   buildExitPlanModePermissionOptions,
   buildPermissionOptions,
-} from "./permission-options.js";
+} from "./permission-options";
 
 export type ToolPermissionResult =
   | {

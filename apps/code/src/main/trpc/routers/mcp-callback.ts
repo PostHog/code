@@ -1,13 +1,13 @@
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   getCallbackUrlOutput,
   McpCallbackEvent,
   openAndWaitInput,
   openAndWaitOutput,
-} from "../../services/mcp-callback/schemas.js";
-import type { McpCallbackService } from "../../services/mcp-callback/service.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/mcp-callback/schemas";
+import type { McpCallbackService } from "../../services/mcp-callback/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () =>
   container.get<McpCallbackService>(MAIN_TOKENS.McpCallbackService);

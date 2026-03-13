@@ -10,6 +10,7 @@ import type {
 import type {
   AcpMessage,
   JsonRpcMessage,
+  JsonRpcRequest,
   StoredLogEntry,
   UserShellExecuteParams,
 } from "@shared/types/session-events";
@@ -32,19 +33,18 @@ function storedEntryToAcpMessage(entry: StoredLogEntry): AcpMessage {
 /**
  * Create a user message event for display.
  */
-function createUserMessageEvent(text: string, ts: number): AcpMessage {
+export function createUserMessageEvent(text: string, ts: number): AcpMessage {
   return {
     type: "acp_message",
     ts,
     message: {
-      method: "session/update",
+      jsonrpc: "2.0",
+      id: ts,
+      method: "session/prompt",
       params: {
-        update: {
-          sessionUpdate: "user_message_chunk",
-          content: { type: "text", text },
-        },
-      } as SessionNotification,
-    },
+        prompt: [{ type: "text", text }],
+      },
+    } as JsonRpcRequest,
   };
 }
 

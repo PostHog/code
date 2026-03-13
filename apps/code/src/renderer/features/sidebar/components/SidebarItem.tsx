@@ -9,6 +9,8 @@ interface SidebarItemProps {
   subtitle?: React.ReactNode;
   isActive?: boolean;
   isDimmed?: boolean;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
   onClick?: () => void;
   onDoubleClick?: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
@@ -23,6 +25,8 @@ export function SidebarItem({
   subtitle,
   isActive,
   isDimmed,
+  draggable,
+  onDragStart,
   onClick,
   onDoubleClick,
   onContextMenu,
@@ -33,6 +37,8 @@ export function SidebarItem({
       type="button"
       className="group focus-visible:-outline-offset-2 flex w-full cursor-pointer items-start bg-transparent px-2 py-1.5 text-left font-mono text-[12px] text-gray-11 transition-colors hover:bg-gray-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-8 data-[active]:bg-accent-4 data-[active]:text-gray-12"
       data-active={isActive || undefined}
+      draggable={draggable}
+      onDragStart={onDragStart}
       style={{
         paddingLeft: `${depth * INDENT_SIZE + 8 + (depth > 0 ? 4 : 0)}px`,
         gap: "4px",

@@ -28,7 +28,7 @@ vi.mock("../../utils/logger.js", () => ({
   },
 }));
 
-import { discoverExternalPlugins } from "./discover-plugins.js";
+import { discoverExternalPlugins } from "./discover-plugins";
 
 const USER_DATA_DIR = "/mock/userData";
 const USER_SKILLS_DIR = "/mock/home/.claude/skills";

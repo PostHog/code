@@ -2,15 +2,15 @@ import { exec } from "node:child_process";
 import * as fs from "node:fs";
 import { promisify } from "node:util";
 import { randomSuffix } from "@shared/utils/id";
-import { getMainWindow } from "../../trpc/context.js";
+import { getMainWindow } from "../../trpc/context";
 import { logger } from "../../utils/logger";
-import { ShellEvent } from "../shell/schemas.js";
-import type { ShellService } from "../shell/service.js";
+import { ShellEvent } from "../shell/schemas";
+import type { ShellService } from "../shell/service";
 import type {
   ScriptExecutionResult,
   WorkspaceTerminalCreatedPayload,
   WorkspaceTerminalInfo,
-} from "./schemas.js";
+} from "./schemas";
 
 const execAsync = promisify(exec);
 const log = logger.scope("workspace:scripts");

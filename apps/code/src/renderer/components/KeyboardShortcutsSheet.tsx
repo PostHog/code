@@ -94,7 +94,7 @@ export function KeyboardShortcutsList() {
 
         return (
           <Flex key={category} direction="column" gap="2">
-            <Text size="2" weight="bold" color="gray">
+            <Text size="3" weight="bold" color="gray">
               {CATEGORY_LABELS[category]}
             </Text>
             <Box
@@ -110,8 +110,9 @@ export function KeyboardShortcutsList() {
                   align="center"
                   justify="between"
                   px="3"
-                  py="2"
                   style={{
+                    paddingTop: "6px",
+                    paddingBottom: "6px",
                     borderBottom:
                       index < uniqueShortcuts.length - 1
                         ? "1px solid var(--gray-4)"

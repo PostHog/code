@@ -1,17 +1,17 @@
 import { AgentSideConnection, ndJsonStream } from "@agentclientprotocol/sdk";
-import { POSTHOG_NOTIFICATIONS } from "../acp-extensions.js";
-import type { SessionLogWriter } from "../session-log-writer.js";
-import type { ProcessSpawnedCallback } from "../types.js";
-import { Logger } from "../utils/logger.js";
+import { POSTHOG_NOTIFICATIONS } from "../acp-extensions";
+import type { SessionLogWriter } from "../session-log-writer";
+import type { ProcessSpawnedCallback } from "../types";
+import { Logger } from "../utils/logger";
 import {
   createBidirectionalStreams,
   createTappedWritableStream,
   nodeReadableToWebReadable,
   nodeWritableToWebWritable,
   type StreamPair,
-} from "../utils/streams.js";
-import { ClaudeAcpAgent } from "./claude/claude-agent.js";
-import { type CodexProcessOptions, spawnCodexProcess } from "./codex/spawn.js";
+} from "../utils/streams";
+import { ClaudeAcpAgent } from "./claude/claude-agent";
+import { type CodexProcessOptions, spawnCodexProcess } from "./codex/spawn";
 
 type AgentAdapter = "claude" | "codex";
 

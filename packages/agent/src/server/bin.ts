@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { z } from "zod";
-import { AgentServer } from "./agent-server.js";
-import { mcpServersSchema } from "./schemas.js";
+import { AgentServer } from "./agent-server";
+import { mcpServersSchema } from "./schemas";
 
 const envSchema = z.object({
   JWT_PUBLIC_KEY: z

@@ -28,11 +28,11 @@ import { PushSaga } from "@posthog/git/sagas/push";
 import { parseGitHubUrl } from "@posthog/git/utils";
 import { isCodeBranch } from "@shared/constants";
 import { inject, injectable } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../utils/logger.js";
-import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
-import type { LlmCredentials } from "../llm-gateway/schemas.js";
-import type { LlmGatewayService } from "../llm-gateway/service.js";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { logger } from "../../utils/logger";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import type { LlmCredentials } from "../llm-gateway/schemas";
+import type { LlmGatewayService } from "../llm-gateway/service";
 import type {
   ChangedFile,
   CloneProgressPayload,
@@ -55,7 +55,7 @@ import type {
   PullOutput,
   PushOutput,
   SyncOutput,
-} from "./schemas.js";
+} from "./schemas";
 
 const fsPromises = fs.promises;
 

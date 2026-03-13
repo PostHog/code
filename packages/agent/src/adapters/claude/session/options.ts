@@ -9,16 +9,17 @@ import type {
   SpawnedProcess,
   SpawnOptions,
 } from "@anthropic-ai/claude-agent-sdk";
-import { IS_ROOT } from "../../../utils/common.js";
-import type { Logger } from "../../../utils/logger.js";
+import { IS_ROOT } from "../../../utils/common";
+import type { Logger } from "../../../utils/logger";
 import {
   createPostToolUseHook,
   createPreToolUseHook,
   type OnModeChange,
-} from "../hooks.js";
-import type { CodeExecutionMode } from "../tools.js";
-import { DEFAULT_MODEL } from "./models.js";
-import type { SettingsManager } from "./settings.js";
+} from "../hooks";
+import type { CodeExecutionMode } from "../tools";
+import type { EffortLevel } from "../types";
+import { DEFAULT_MODEL } from "./models";
+import type { SettingsManager } from "./settings";
 
 export interface ProcessSpawnedInfo {
   pid: number;
@@ -43,6 +44,7 @@ export interface BuildOptionsParams {
   onModeChange?: OnModeChange;
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
   onProcessExited?: (pid: number) => void;
+  effort?: EffortLevel;
 }
 
 const BRANCH_NAMING_INSTRUCTIONS = `
@@ -293,6 +295,10 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
 
   if (params.additionalDirectories) {
     options.additionalDirectories = params.additionalDirectories;
+  }
+
+  if (params.effort) {
+    options.effort = params.effort;
   }
 
   clearStatsigCache();

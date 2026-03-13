@@ -5,7 +5,7 @@ import {
   createTRPCOptionsProxy,
 } from "@trpc/tanstack-react-query";
 import { queryClient } from "@utils/queryClient";
-import type { TrpcRouter } from "../../main/trpc/router.js";
+import type { TrpcRouter } from "../../main/trpc/router";
 
 export const trpcClient = createTRPCClient<TrpcRouter>({
   links: [ipcLink()],

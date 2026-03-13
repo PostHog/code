@@ -6,7 +6,7 @@ import {
 } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
-import * as schema from "./schema.js";
+import * as schema from "./schema";
 
 const MIGRATIONS_FOLDER = path.resolve(__dirname, "migrations");
 

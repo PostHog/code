@@ -4,15 +4,15 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { app, net } from "electron";
 import { injectable, postConstruct, preDestroy } from "inversify";
-import { isDevBuild } from "../../utils/env.js";
-import { logger } from "../../utils/logger.js";
-import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
-import { captureException } from "../posthog-analytics.js";
+import { isDevBuild } from "../../utils/env";
+import { logger } from "../../utils/logger";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import { captureException } from "../posthog-analytics";
 import {
   overlayDownloadedSkills,
   syncCodexSkills,
   UpdateSkillsSaga,
-} from "./update-skills-saga.js";
+} from "./update-skills-saga";
 
 const log = logger.scope("posthog-plugin");
 

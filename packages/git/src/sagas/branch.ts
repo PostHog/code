@@ -1,5 +1,5 @@
-import { GitSaga, type GitSagaInput } from "../git-saga.js";
-import { detectDefaultBranch } from "../queries.js";
+import { GitSaga, type GitSagaInput } from "../git-saga";
+import { detectDefaultBranch } from "../queries";
 
 export interface CreateBranchInput extends GitSagaInput {
   branchName: string;

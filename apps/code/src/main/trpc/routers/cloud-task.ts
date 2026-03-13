@@ -1,5 +1,5 @@
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   CloudTaskEvent,
   onUpdateInput,
@@ -9,9 +9,9 @@ import {
   unwatchInput,
   updateTokenInput,
   watchInput,
-} from "../../services/cloud-task/schemas.js";
-import type { CloudTaskService } from "../../services/cloud-task/service.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/cloud-task/schemas";
+import type { CloudTaskService } from "../../services/cloud-task/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () =>
   container.get<CloudTaskService>(MAIN_TOKENS.CloudTaskService);

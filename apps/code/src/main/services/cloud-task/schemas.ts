@@ -1,4 +1,4 @@
-import type { CloudTaskUpdatePayload, TaskRun } from "@shared/types.js";
+import type { CloudTaskUpdatePayload, TaskRun } from "@shared/types";
 import { z } from "zod";
 
 export type { CloudTaskUpdatePayload };

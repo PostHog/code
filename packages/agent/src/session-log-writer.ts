@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
-import type { SessionContext } from "./otel-log-writer.js";
-import type { PostHogAPIClient } from "./posthog-api.js";
-import type { StoredNotification } from "./types.js";
-import { Logger } from "./utils/logger.js";
+import type { SessionContext } from "./otel-log-writer";
+import type { PostHogAPIClient } from "./posthog-api";
+import type { StoredNotification } from "./types";
+import { Logger } from "./utils/logger";
 
 export interface SessionLogWriterOptions {
   /** PostHog API client for log persistence */

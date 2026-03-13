@@ -1,12 +1,12 @@
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   cancelGitHubFlowOutput,
   startGitHubFlowInput,
   startGitHubFlowOutput,
-} from "../../services/github-integration/schemas.js";
-import type { GitHubIntegrationService } from "../../services/github-integration/service.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/github-integration/schemas";
+import type { GitHubIntegrationService } from "../../services/github-integration/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () =>
   container.get<GitHubIntegrationService>(MAIN_TOKENS.GitHubIntegrationService);

@@ -3,4 +3,4 @@ export {
   trpc,
   trpcClient,
   useTRPC,
-} from "./client.js";
+} from "./client";

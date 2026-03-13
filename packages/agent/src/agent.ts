@@ -1,16 +1,16 @@
 import {
   createAcpConnection,
   type InProcessAcpConnection,
-} from "./adapters/acp-connection.js";
+} from "./adapters/acp-connection";
 import {
   BLOCKED_MODELS,
   DEFAULT_GATEWAY_MODEL,
   fetchArrayModels,
-} from "./gateway-models.js";
-import { PostHogAPIClient, type TaskRunUpdate } from "./posthog-api.js";
-import { SessionLogWriter } from "./session-log-writer.js";
-import type { AgentConfig, TaskExecutionOptions } from "./types.js";
-import { Logger } from "./utils/logger.js";
+} from "./gateway-models";
+import { PostHogAPIClient, type TaskRunUpdate } from "./posthog-api";
+import { SessionLogWriter } from "./session-log-writer";
+import type { AgentConfig, TaskExecutionOptions } from "./types";
+import { Logger } from "./utils/logger";
 
 export class Agent {
   private posthogAPI?: PostHogAPIClient;

@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import type { SleepService } from "../../services/sleep/service.js";
-import { publicProcedure, router } from "../trpc.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
+import type { SleepService } from "../../services/sleep/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () => container.get<SleepService>(MAIN_TOKENS.SleepService);
 

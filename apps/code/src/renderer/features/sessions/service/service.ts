@@ -30,10 +30,12 @@ import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpcClient } from "@renderer/trpc/client";
 import { toast } from "@renderer/utils/toast";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
-import type {
-  CloudTaskUpdatePayload,
-  ExecutionMode,
-  Task,
+import {
+  type CloudTaskUpdatePayload,
+  type EffortLevel,
+  type ExecutionMode,
+  effortLevelSchema,
+  type Task,
 } from "@shared/types";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { AcpMessage, StoredLogEntry } from "@shared/types/session-events";
@@ -44,8 +46,10 @@ import {
   notifyPermissionRequest,
   notifyPromptComplete,
 } from "@utils/notifications";
+import { queryClient } from "@utils/queryClient";
 import {
   convertStoredEntriesToEvents,
+  createUserMessageEvent,
   createUserShellExecuteEvent,
   extractPromptText,
   getUserShellExecutesSinceLastPrompt,
@@ -121,6 +125,21 @@ export class SessionService {
       onStatusChange?: () => void;
     }
   >();
+  private idleKilledSubscription: { unsubscribe: () => void } | null = null;
+
+  constructor() {
+    this.idleKilledSubscription =
+      trpcClient.agent.onSessionIdleKilled.subscribe(undefined, {
+        onData: (event: { taskRunId: string }) => {
+          const { taskRunId } = event;
+          log.info("Session idle-killed by main process", { taskRunId });
+          this.teardownSession(taskRunId);
+        },
+        onError: (err: unknown) => {
+          log.debug("Idle-killed subscription error", { error: err });
+        },
+      });
+  }
 
   /**
    * Connect to a task session.
@@ -522,6 +541,9 @@ export class SessionService {
       permissionMode: executionMode,
       adapter,
       customInstructions: startCustomInstructions || undefined,
+      effort: effortLevelSchema.safeParse(reasoningLevel).success
+        ? (reasoningLevel as EffortLevel)
+        : undefined,
     });
 
     const session = this.createBaseSession(taskRun.id, taskId, taskTitle);
@@ -786,6 +808,8 @@ export class SessionService {
     this.connectingTasks.clear();
     this.previewAbort?.abort();
     this.previewAbort = null;
+    this.idleKilledSubscription?.unsubscribe();
+    this.idleKilledSubscription = null;
   }
 
   private updatePromptStateFromEvents(
@@ -819,7 +843,15 @@ export class SessionService {
     const session = sessionStoreSetters.getSessions()[taskRunId];
     if (!session) return;
 
-    sessionStoreSetters.appendEvents(taskRunId, [acpMsg]);
+    const isUserPromptEcho =
+      isJsonRpcRequest(acpMsg.message) &&
+      acpMsg.message.method === "session/prompt";
+
+    if (isUserPromptEcho) {
+      sessionStoreSetters.replaceOptimisticWithEvent(taskRunId, acpMsg);
+    } else {
+      sessionStoreSetters.appendEvents(taskRunId, [acpMsg]);
+    }
     this.updatePromptStateFromEvents(taskRunId, [acpMsg]);
 
     const msg = acpMsg.message;
@@ -997,7 +1029,7 @@ export class SessionService {
       prompt_length_chars: promptText.length,
     });
 
-    return this.sendLocalPrompt(session, blocks);
+    return this.sendLocalPrompt(session, blocks, promptText);
   }
 
   /**
@@ -1044,7 +1076,7 @@ export class SessionService {
     });
 
     try {
-      return await this.sendLocalPrompt(session, blocks);
+      return await this.sendLocalPrompt(session, blocks, combinedText);
     } catch (error) {
       // Log that queued messages were lost due to send failure
       log.error("Failed to send queued messages, messages lost", {
@@ -1059,10 +1091,17 @@ export class SessionService {
   private async sendLocalPrompt(
     session: AgentSession,
     blocks: ContentBlock[],
+    promptText: string,
   ): Promise<{ stopReason: string }> {
     sessionStoreSetters.updateSession(session.taskRunId, {
       isPromptPending: true,
       promptStartedAt: Date.now(),
+    });
+
+    sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
+      type: "user_message",
+      content: promptText,
+      timestamp: Date.now(),
     });
 
     try {
@@ -1070,7 +1109,6 @@ export class SessionService {
         sessionId: session.taskRunId,
         prompt: blocks,
       });
-      // Clear pending state on success
       sessionStoreSetters.updateSession(session.taskRunId, {
         isPromptPending: false,
         promptStartedAt: null,
@@ -1081,6 +1119,8 @@ export class SessionService {
         error instanceof Error ? error.message : String(error);
       const errorDetails = (error as { data?: { details?: string } }).data
         ?.details;
+
+      sessionStoreSetters.clearOptimisticItems(session.taskRunId);
 
       if (isFatalSessionError(errorMessage, errorDetails)) {
         log.error("Fatal prompt error, setting session to error state", {
@@ -1153,6 +1193,7 @@ export class SessionService {
   private async sendCloudPrompt(
     session: AgentSession,
     prompt: string | ContentBlock[],
+    options?: { skipQueueGuard?: boolean },
   ): Promise<{ stopReason: string }> {
     const promptText = extractPromptText(prompt);
     if (!promptText.trim()) {
@@ -1161,10 +1202,10 @@ export class SessionService {
 
     const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
     if (session.cloudStatus && terminalStatuses.has(session.cloudStatus)) {
-      throw new Error("This cloud run has already finished");
+      return this.resumeCloudRun(session, promptText);
     }
 
-    if (session.isPromptPending) {
+    if (!options?.skipQueueGuard && session.isPromptPending) {
       sessionStoreSetters.enqueueMessage(session.taskId, promptText);
       log.info("Cloud message queued", {
         taskId: session.taskId,
@@ -1235,24 +1276,140 @@ export class SessionService {
 
   private async sendQueuedCloudMessages(
     taskId: string,
+    attempt = 0,
+    pendingText?: string,
   ): Promise<{ stopReason: string }> {
-    const combinedText = sessionStoreSetters.dequeueMessagesAsText(taskId);
-    if (!combinedText) {
-      return { stopReason: "skipped" };
-    }
+    // First attempt: atomically dequeue. Retries reuse the already-dequeued text.
+    const combinedText =
+      pendingText ?? sessionStoreSetters.dequeueMessagesAsText(taskId);
+    if (!combinedText) return { stopReason: "skipped" };
 
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) {
-      log.warn("No session found for queued cloud messages", { taskId });
+      log.warn("No session found for queued cloud messages, message lost", {
+        taskId,
+      });
       return { stopReason: "no_session" };
     }
 
     log.info("Sending queued cloud messages", {
       taskId,
       promptLength: combinedText.length,
+      attempt,
     });
 
-    return this.sendCloudPrompt(session, combinedText);
+    try {
+      return await this.sendCloudPrompt(session, combinedText, {
+        skipQueueGuard: true,
+      });
+    } catch (error) {
+      const maxRetries = 5;
+      if (attempt < maxRetries) {
+        const delayMs = Math.min(1000 * 2 ** attempt, 10_000);
+        log.warn("Cloud message send failed, scheduling retry", {
+          taskId,
+          attempt,
+          delayMs,
+          error: String(error),
+        });
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            resolve(
+              this.sendQueuedCloudMessages(
+                taskId,
+                attempt + 1,
+                combinedText,
+              ).catch((err) => {
+                log.error("Queued cloud message retry failed", {
+                  taskId,
+                  attempt: attempt + 1,
+                  error: err,
+                });
+                return { stopReason: "error" };
+              }),
+            );
+          }, delayMs);
+        });
+      }
+
+      log.error("Queued cloud message send failed after max retries", {
+        taskId,
+        attempts: attempt + 1,
+      });
+      toast.error("Failed to send follow-up message. Please try again.");
+      return { stopReason: "error" };
+    }
+  }
+
+  private async resumeCloudRun(
+    session: AgentSession,
+    promptText: string,
+  ): Promise<{ stopReason: string }> {
+    const client = useAuthStore.getState().client;
+    if (!client) {
+      throw new Error("Authentication required for cloud commands");
+    }
+
+    log.info("Creating resume run for terminal cloud task", {
+      taskId: session.taskId,
+      previousRunId: session.taskRunId,
+      previousStatus: session.cloudStatus,
+    });
+
+    // Create a new run WITH resume context — backend validates the previous run,
+    // derives snapshot_external_id server-side, and passes everything as extra_state.
+    // The agent will load conversation history and restore the sandbox snapshot.
+    const updatedTask = await client.runTaskInCloud(
+      session.taskId,
+      session.cloudBranch,
+      {
+        resumeFromRunId: session.taskRunId,
+        pendingUserMessage: promptText,
+      },
+    );
+    const newRun = updatedTask.latest_run;
+    if (!newRun?.id) {
+      throw new Error("Failed to create resume run");
+    }
+
+    // Replace session with one for the new run, preserving conversation history.
+    // setSession handles old session cleanup via taskIdIndex.
+    const newSession = this.createBaseSession(
+      newRun.id,
+      session.taskId,
+      session.taskTitle,
+    );
+    newSession.status = "disconnected";
+    newSession.isCloud = true;
+    // Carry over existing events and add optimistic user bubble for the follow-up.
+    // Reset processedLineCount to 0 because the new run's log stream starts fresh.
+    newSession.events = [
+      ...session.events,
+      createUserMessageEvent(promptText, Date.now()),
+    ];
+    newSession.processedLineCount = 0;
+    // Skip the first session/prompt from polled logs — we already have the
+    // optimistic user event, so showing the polled one would duplicate it.
+    newSession.skipPolledPromptCount = 1;
+    sessionStoreSetters.setSession(newSession);
+
+    // No enqueueMessage / isPromptPending needed — the follow-up is passed
+    // in run state (pending_user_message), NOT via user_message command.
+
+    // Start the watcher immediately so we don't miss status updates.
+    this.watchCloudTask(session.taskId, newRun.id);
+
+    // Invalidate task queries so the UI picks up the new run metadata
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
+
+    track(ANALYTICS_EVENTS.PROMPT_SENT, {
+      task_id: session.taskId,
+      is_initial: false,
+      execution_type: "cloud",
+      prompt_length_chars: promptText.length,
+    });
+
+    return { stopReason: "queued" };
   }
 
   private async cancelCloudPrompt(session: AgentSession): Promise<boolean> {
@@ -1617,9 +1774,7 @@ export class SessionService {
       throw new Error("Unable to reach server. Please check your connection.");
     }
 
-    const prefetchedLogs = logUrl
-      ? await this.fetchSessionLogs(logUrl, taskRunId)
-      : { rawEntries: [] as StoredLogEntry[], adapter: undefined };
+    const prefetchedLogs = await this.fetchSessionLogs(logUrl, taskRunId);
 
     // Determine sessionId: undefined = use from logs, null = strip (fresh), string = use as-is
     const sessionId =
@@ -1791,7 +1946,12 @@ export class SessionService {
       } else if (delta <= update.newEntries.length) {
         // Normal case: append only the tail (last `delta` entries)
         const entriesToAppend = update.newEntries.slice(-delta);
-        const newEvents = convertStoredEntriesToEvents(entriesToAppend);
+        let newEvents = convertStoredEntriesToEvents(entriesToAppend);
+        newEvents = this.filterSkippedPromptEvents(
+          taskRunId,
+          session,
+          newEvents,
+        );
         sessionStoreSetters.appendEvents(taskRunId, newEvents, expectedCount);
         this.updatePromptStateFromEvents(taskRunId, newEvents);
       } else {
@@ -1802,7 +1962,12 @@ export class SessionService {
           expectedCount,
           entriesReceived: update.newEntries.length,
         });
-        const newEvents = convertStoredEntriesToEvents(update.newEntries);
+        let newEvents = convertStoredEntriesToEvents(update.newEntries);
+        newEvents = this.filterSkippedPromptEvents(
+          taskRunId,
+          session,
+          newEvents,
+        );
         sessionStoreSetters.appendEvents(
           taskRunId,
           newEvents,
@@ -1811,6 +1976,22 @@ export class SessionService {
         this.updatePromptStateFromEvents(taskRunId, newEvents);
       }
     }
+
+    // Flush queued messages when a cloud turn completes (detected via log polling)
+    const sessionAfterLogs = sessionStoreSetters.getSessions()[taskRunId];
+    if (
+      sessionAfterLogs &&
+      !sessionAfterLogs.isPromptPending &&
+      sessionAfterLogs.messageQueue.length > 0
+    ) {
+      this.sendQueuedCloudMessages(sessionAfterLogs.taskId).catch((err) => {
+        log.error("Failed to send queued cloud messages after turn complete", {
+          taskId: sessionAfterLogs.taskId,
+          error: err,
+        });
+      });
+    }
+
     // Update cloud status fields if present
     if (update.kind === "status" || update.kind === "snapshot") {
       sessionStoreSetters.updateCloudStatus(taskRunId, {
@@ -1821,11 +2002,72 @@ export class SessionService {
         branch: update.branch,
       });
 
+      // Auto-send queued messages when a resumed run becomes active
+      if (update.status === "in_progress") {
+        const session = sessionStoreSetters.getSessions()[taskRunId];
+        if (session && session.messageQueue.length > 0) {
+          // Clear the pending flag first — resumeCloudRun sets it as a guard
+          // while waiting for the run to start. Now that the run is active,
+          // sendCloudPrompt needs the flag clear to actually send.
+          sessionStoreSetters.updateSession(taskRunId, {
+            isPromptPending: false,
+          });
+          this.sendQueuedCloudMessages(session.taskId).catch(() => {
+            // Retries exhausted — message was re-enqueued by
+            // sendQueuedCloudMessages, poll-based flush will keep trying
+          });
+        }
+      }
+
       const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
       if (update.status && terminalStatuses.has(update.status)) {
+        // Clean up any pending resume messages that couldn't be sent
+        const session = sessionStoreSetters.getSessions()[taskRunId];
+        if (
+          session &&
+          (session.messageQueue.length > 0 || session.isPromptPending)
+        ) {
+          sessionStoreSetters.clearMessageQueue(session.taskId);
+          sessionStoreSetters.updateSession(taskRunId, {
+            isPromptPending: false,
+          });
+        }
         this.stopCloudTaskWatch(update.taskId);
       }
     }
+  }
+
+  /**
+   * Filter out session/prompt events that should be skipped during resume.
+   * When resuming a cloud run, the initial session/prompt from the new run's
+   * logs would duplicate the optimistic user bubble we already added.
+   */
+  // Note: `session` is a snapshot from the start of handleCloudTaskUpdate.
+  // The updateSession call below makes it stale, but this is safe because
+  // skipPolledPromptCount is only ever 1, so this method runs at most once.
+  private filterSkippedPromptEvents(
+    taskRunId: string,
+    session: AgentSession | undefined,
+    events: AcpMessage[],
+  ): AcpMessage[] {
+    if (!session?.skipPolledPromptCount || session.skipPolledPromptCount <= 0) {
+      return events;
+    }
+
+    const promptIdx = events.findIndex(
+      (e) =>
+        isJsonRpcRequest(e.message) && e.message.method === "session/prompt",
+    );
+    if (promptIdx !== -1) {
+      const filtered = [...events];
+      filtered.splice(promptIdx, 1);
+      sessionStoreSetters.updateSession(taskRunId, {
+        skipPolledPromptCount: (session.skipPolledPromptCount ?? 0) - 1,
+      });
+      return filtered;
+    }
+
+    return events;
   }
 
   // --- Helper Methods ---
@@ -1942,6 +2184,7 @@ export class SessionService {
       promptStartedAt: null,
       pendingPermissions: new Map(),
       messageQueue: [],
+      optimisticItems: [],
     };
   }
 

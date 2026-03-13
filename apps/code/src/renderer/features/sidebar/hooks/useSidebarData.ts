@@ -46,6 +46,7 @@ export interface TaskGroup {
 export interface SidebarData {
   isHomeActive: boolean;
   isInboxActive: boolean;
+  isCommandCenterActive: boolean;
   isLoading: boolean;
   activeTaskId: string | null;
   pinnedTasks: TaskData[];
@@ -62,7 +63,8 @@ interface ViewState {
     | "settings"
     | "folder-settings"
     | "inbox"
-    | "archived";
+    | "archived"
+    | "command-center";
   data?: Task;
 }
 
@@ -165,6 +167,7 @@ export function useSidebarData({
 
   const isHomeActive = activeView.type === "task-input";
   const isInboxActive = activeView.type === "inbox";
+  const isCommandCenterActive = activeView.type === "command-center";
 
   const activeTaskId =
     activeView.type === "task-detail" && activeView.data
@@ -272,6 +275,7 @@ export function useSidebarData({
   return {
     isHomeActive,
     isInboxActive,
+    isCommandCenterActive,
     isLoading,
     activeTaskId,
     pinnedTasks,

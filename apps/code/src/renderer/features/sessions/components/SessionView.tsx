@@ -60,6 +60,7 @@ interface SessionViewProps {
   isInitializing?: boolean;
   readOnlyMessage?: string;
   slackThreadUrl?: string;
+  compact?: boolean;
 }
 
 const DEFAULT_ERROR_MESSAGE =
@@ -88,6 +89,7 @@ export function SessionView({
   isInitializing = false,
   readOnlyMessage,
   slackThreadUrl,
+  compact = false,
 }: SessionViewProps) {
   const showRawLogs = useShowRawLogs();
   const { setShowRawLogs } = useSessionViewActions();
@@ -446,6 +448,7 @@ export function SessionView({
                   repoPath={repoPath}
                   taskId={taskId}
                   slackThreadUrl={slackThreadUrl}
+                  compact={compact}
                 />
               )}
 
@@ -504,21 +507,16 @@ export function SessionView({
                   </Box>
                 </Box>
               ) : readOnlyMessage ? (
-                <Box className="border-gray-4 border-t">
-                  <Box className="mx-auto max-w-[750px] p-2">
-                    <Flex align="center" justify="center" py="3">
-                      <Text
-                        size="2"
-                        style={{
-                          color: "var(--gray-9)",
-                          fontFamily: "var(--font-mono)",
-                        }}
-                      >
-                        {readOnlyMessage}
-                      </Text>
-                    </Flex>
-                  </Box>
-                </Box>
+                <Flex
+                  align="center"
+                  justify="center"
+                  py="2"
+                  className="border-gray-4 border-t"
+                >
+                  <Text size="2" color="gray">
+                    {readOnlyMessage}
+                  </Text>
+                </Flex>
               ) : (
                 <Box className="relative border-gray-4 border-t">
                   <Box
@@ -541,7 +539,9 @@ export function SessionView({
                         : "pointer-events-none translate-y-4 opacity-0"
                     }`}
                   >
-                    <Box className="mx-auto max-w-[750px] p-2">
+                    <Box
+                      className={compact ? "p-1" : "mx-auto max-w-[750px] p-2"}
+                    >
                       <MessageEditor
                         ref={editorRef}
                         sessionId={sessionId}

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   checkoutInput,
   findWorktreeInput,
@@ -13,14 +13,14 @@ import {
   stashResultSchema,
   syncInput,
   worktreeInput,
-} from "../../services/focus/schemas.js";
+} from "../../services/focus/schemas";
 import {
   type FocusService,
   FocusServiceEvent,
   type FocusServiceEvents,
-} from "../../services/focus/service.js";
-import type { FocusSyncService } from "../../services/focus/sync-service.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/focus/service";
+import type { FocusSyncService } from "../../services/focus/sync-service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () => container.get<FocusService>(MAIN_TOKENS.FocusService);
 const getSyncService = () =>

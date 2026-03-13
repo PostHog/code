@@ -1,7 +1,7 @@
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import { net } from "electron";
 import { injectable } from "inversify";
-import { logger } from "../../utils/logger.js";
+import { logger } from "../../utils/logger";
 import type {
   AnthropicErrorResponse,
   AnthropicMessagesRequest,
@@ -9,7 +9,7 @@ import type {
   LlmCredentials,
   LlmMessage,
   PromptOutput,
-} from "./schemas.js";
+} from "./schemas";
 
 const log = logger.scope("llm-gateway");
 

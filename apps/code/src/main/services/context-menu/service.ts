@@ -1,4 +1,4 @@
-import type { DetectedApplication } from "@shared/types.js";
+import type { DetectedApplication } from "@shared/types";
 import {
   dialog,
   Menu,
@@ -6,9 +6,9 @@ import {
   nativeImage,
 } from "electron";
 import { inject, injectable } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { getMainWindow } from "../../trpc/context.js";
-import type { ExternalAppsService } from "../external-apps/service.js";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { getMainWindow } from "../../trpc/context";
+import type { ExternalAppsService } from "../external-apps/service";
 import type {
   ArchivedTaskAction,
   ArchivedTaskContextMenuInput,
@@ -31,13 +31,13 @@ import type {
   TaskAction,
   TaskContextMenuInput,
   TaskContextMenuResult,
-} from "./schemas.js";
+} from "./schemas";
 import type {
   ActionItemDef,
   ConfirmOptions,
   MenuItemDef,
   SeparatorDef,
-} from "./types.js";
+} from "./types";
 
 @injectable()
 export class ContextMenuService {

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PostHogAPIClient } from "./posthog-api.js";
-import { SessionLogWriter } from "./session-log-writer.js";
-import type { StoredNotification } from "./types.js";
+import type { PostHogAPIClient } from "./posthog-api";
+import { SessionLogWriter } from "./session-log-writer";
+import type { StoredNotification } from "./types";
 
 function makeSessionUpdate(
   sessionUpdate: string,

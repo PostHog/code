@@ -2,8 +2,8 @@ import { exec } from "node:child_process";
 import { platform } from "node:os";
 import { promisify } from "node:util";
 import { injectable, preDestroy } from "inversify";
-import { logger } from "../../utils/logger.js";
-import { isProcessAlive, killProcessTree } from "../../utils/process-utils.js";
+import { logger } from "../../utils/logger";
+import { isProcessAlive, killProcessTree } from "../../utils/process-utils";
 
 const log = logger.scope("process-tracking");
 const execAsync = promisify(exec);

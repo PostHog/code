@@ -15,6 +15,7 @@ interface SidebarSectionProps {
   tooltipContent?: string;
   onNewTask?: () => void;
   newTaskTooltip?: string;
+  dragHandleRef?: React.RefCallback<HTMLButtonElement>;
 }
 
 export function SidebarSection({
@@ -28,6 +29,7 @@ export function SidebarSection({
   tooltipContent,
   onNewTask,
   newTaskTooltip,
+  dragHandleRef,
 }: SidebarSectionProps) {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -35,6 +37,7 @@ export function SidebarSection({
     <Collapsible.Root open={isExpanded} onOpenChange={onToggle}>
       <Collapsible.Trigger asChild>
         <button
+          ref={dragHandleRef}
           type="button"
           className="flex w-full cursor-pointer items-center justify-between border-0 bg-transparent px-2 py-1 text-left font-mono text-[12px] text-gray-11 transition-colors hover:bg-gray-3"
           style={{
@@ -63,7 +66,7 @@ export function SidebarSection({
               </span>
             )}
             {tooltipContent ? (
-              <Tooltip content={tooltipContent} side="right">
+              <Tooltip content={tooltipContent} side="right" align="start">
                 <span className="overflow-hidden text-ellipsis whitespace-nowrap font-medium">
                   {label}
                 </span>

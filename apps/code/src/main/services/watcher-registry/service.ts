@@ -1,6 +1,6 @@
 import type * as watcher from "@parcel/watcher";
 import { injectable } from "inversify";
-import { logger } from "../../utils/logger.js";
+import { logger } from "../../utils/logger";
 
 const log = logger.scope("watcher-registry");
 

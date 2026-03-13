@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { createGitClient, type GitClient } from "../client.js";
-import { GitSaga, type GitSagaInput } from "../git-saga.js";
+import { createGitClient, type GitClient } from "../client";
+import { GitSaga, type GitSagaInput } from "../git-saga";
 
 const CHECKPOINT_REF_PREFIX = "refs/posthog-code-checkpoint/";
 const CHECKPOINT_VERSION = "v1";

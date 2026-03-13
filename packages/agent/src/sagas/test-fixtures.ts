@@ -7,9 +7,9 @@ import { promisify } from "node:util";
 import type { SagaLogger } from "@posthog/shared";
 import * as tar from "tar";
 import { vi } from "vitest";
-import { POSTHOG_NOTIFICATIONS } from "../acp-extensions.js";
-import type { PostHogAPIClient } from "../posthog-api.js";
-import type { StoredNotification, TaskRun, TreeSnapshot } from "../types.js";
+import { POSTHOG_NOTIFICATIONS } from "../acp-extensions";
+import type { PostHogAPIClient } from "../posthog-api";
+import type { StoredNotification, TaskRun, TreeSnapshot } from "../types";
 
 const execFileAsync = promisify(execFile);
 

@@ -3,16 +3,16 @@ import { existsSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { inject, injectable, preDestroy } from "inversify";
 import * as pty from "node-pty";
-import type { RepositoryRepository } from "../../db/repositories/repository-repository.js";
-import type { WorkspaceRepository } from "../../db/repositories/workspace-repository.js";
-import type { WorktreeRepository } from "../../db/repositories/worktree-repository.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../utils/logger.js";
-import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
-import { deriveWorktreePath } from "../../utils/worktree-helpers.js";
-import type { ProcessTrackingService } from "../process-tracking/service.js";
-import { buildWorkspaceEnv } from "../workspace/workspaceEnv.js";
-import { type ExecuteOutput, ShellEvent, type ShellEvents } from "./schemas.js";
+import type { RepositoryRepository } from "../../db/repositories/repository-repository";
+import type { WorkspaceRepository } from "../../db/repositories/workspace-repository";
+import type { WorktreeRepository } from "../../db/repositories/worktree-repository";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { logger } from "../../utils/logger";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import { deriveWorktreePath } from "../../utils/worktree-helpers";
+import type { ProcessTrackingService } from "../process-tracking/service";
+import { buildWorkspaceEnv } from "../workspace/workspaceEnv";
+import { type ExecuteOutput, ShellEvent, type ShellEvents } from "./schemas";
 
 // node-pty exposes destroy() at runtime but it's missing from type definitions
 declare module "node-pty" {

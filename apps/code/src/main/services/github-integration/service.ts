@@ -1,16 +1,16 @@
 import * as http from "node:http";
 import type { Socket } from "node:net";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth.js";
+import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { shell } from "electron";
 import { inject, injectable } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../utils/logger.js";
-import type { DeepLinkService } from "../deep-link/service.js";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { logger } from "../../utils/logger";
+import type { DeepLinkService } from "../deep-link/service";
 import type {
   CancelGitHubFlowOutput,
   CloudRegion,
   StartGitHubFlowOutput,
-} from "./schemas.js";
+} from "./schemas";
 
 const log = logger.scope("github-integration-service");
 

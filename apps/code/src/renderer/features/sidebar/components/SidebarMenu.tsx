@@ -1,4 +1,5 @@
 import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
+import { useCommandCenterStore } from "@features/command-center/stores/commandCenterStore";
 import { useInboxReports } from "@features/inbox/hooks/useInboxReports";
 import { getSessionService } from "@features/sessions/service/service";
 import { useArchiveTask } from "@features/tasks/hooks/useArchiveTask";
@@ -14,13 +15,19 @@ import { memo, useCallback, useEffect, useRef } from "react";
 import { usePinnedTasks } from "../hooks/usePinnedTasks";
 import { useSidebarData } from "../hooks/useSidebarData";
 import { useTaskViewed } from "../hooks/useTaskViewed";
+import { CommandCenterItem } from "./items/CommandCenterItem";
 import { InboxItem, NewTaskItem } from "./items/HomeItem";
 import { SidebarItem } from "./SidebarItem";
 import { TaskListView } from "./TaskListView";
 
 function SidebarMenuComponent() {
-  const { view, navigateToTask, navigateToTaskInput, navigateToInbox } =
-    useNavigationStore();
+  const {
+    view,
+    navigateToTask,
+    navigateToTaskInput,
+    navigateToInbox,
+    navigateToCommandCenter,
+  } = useNavigationStore();
 
   const { data: allTasks = [] } = useTasks();
 
@@ -38,6 +45,11 @@ function SidebarMenuComponent() {
   const { data: inboxSignals } = useInboxReports({ status: "ready" });
   const inboxSignalCount =
     inboxSignals?.count ?? inboxSignals?.results?.length ?? 0;
+
+  const commandCenterCells = useCommandCenterStore((s) => s.cells);
+  const commandCenterActiveCount = commandCenterCells.filter(
+    (taskId) => taskId != null,
+  ).length;
 
   const previousTaskIdRef = useRef<string | null>(null);
 
@@ -70,6 +82,10 @@ function SidebarMenuComponent() {
 
   const handleInboxClick = () => {
     navigateToInbox();
+  };
+
+  const handleCommandCenterClick = () => {
+    navigateToCommandCenter();
   };
 
   const handleTaskClick = (taskId: string) => {
@@ -164,11 +180,19 @@ function SidebarMenuComponent() {
             />
           </Box>
 
-          <Box mb="2">
+          <Box mb="1">
             <InboxItem
               isActive={sidebarData.isInboxActive}
               onClick={handleInboxClick}
               signalCount={inboxSignalCount}
+            />
+          </Box>
+
+          <Box mb="2">
+            <CommandCenterItem
+              isActive={sidebarData.isCommandCenterActive}
+              onClick={handleCommandCenterClick}
+              activeCount={commandCenterActiveCount}
             />
           </Box>
 

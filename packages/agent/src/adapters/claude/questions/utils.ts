@@ -1,6 +1,6 @@
 import type { ToolCallContent, ToolKind } from "@agentclientprotocol/sdk";
 import { z } from "zod";
-import type { PermissionOption } from "../permissions/permission-options.js";
+import type { PermissionOption } from "../permissions/permission-options";
 
 export const OPTION_PREFIX = "option_";
 

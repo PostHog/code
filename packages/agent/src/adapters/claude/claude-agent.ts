@@ -44,39 +44,40 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { v7 as uuidv7 } from "uuid";
 import packageJson from "../../../package.json" with { type: "json" };
-import { unreachable, withTimeout } from "../../utils/common.js";
-import { Logger } from "../../utils/logger.js";
-import { Pushable } from "../../utils/streams.js";
-import { BaseAcpAgent } from "../base-acp-agent.js";
-import { promptToClaude } from "./conversion/acp-to-sdk.js";
+import { unreachable, withTimeout } from "../../utils/common";
+import { Logger } from "../../utils/logger";
+import { Pushable } from "../../utils/streams";
+import { BaseAcpAgent } from "../base-acp-agent";
+import { promptToClaude } from "./conversion/acp-to-sdk";
 import {
   handleResultMessage,
   handleStreamEvent,
   handleSystemMessage,
   handleUserAssistantMessage,
-} from "./conversion/sdk-to-acp.js";
-import { fetchMcpToolMetadata } from "./mcp/tool-metadata.js";
-import { canUseTool } from "./permissions/permission-handlers.js";
-import { getAvailableSlashCommands } from "./session/commands.js";
-import { parseMcpServers } from "./session/mcp-config.js";
-import { DEFAULT_MODEL, toSdkModelId } from "./session/models.js";
+} from "./conversion/sdk-to-acp";
+import { fetchMcpToolMetadata } from "./mcp/tool-metadata";
+import { canUseTool } from "./permissions/permission-handlers";
+import { getAvailableSlashCommands } from "./session/commands";
+import { parseMcpServers } from "./session/mcp-config";
+import { DEFAULT_MODEL, toSdkModelId } from "./session/models";
 import {
   buildSessionOptions,
   buildSystemPrompt,
   type ProcessSpawnedInfo,
-} from "./session/options.js";
-import { SettingsManager } from "./session/settings.js";
+} from "./session/options";
+import { SettingsManager } from "./session/settings";
 import {
   CODE_EXECUTION_MODES,
   type CodeExecutionMode,
   getAvailableModes,
-} from "./tools.js";
+} from "./tools";
 import type {
   BackgroundTerminal,
+  EffortLevel,
   NewSessionMeta,
   Session,
   ToolUseCache,
-} from "./types.js";
+} from "./types";
 
 const SESSION_VALIDATION_TIMEOUT_MS = 10_000;
 const MAX_TITLE_LENGTH = 256;
@@ -558,6 +559,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       const sdkModelId = toSdkModelId(params.value);
       await this.session.query.setModel(sdkModelId);
       this.session.modelId = params.value;
+    } else if (params.configId === "effort") {
+      const newEffort = params.value as EffortLevel;
+      this.session.effort = newEffort;
+      this.session.queryOptions.effort = newEffort;
     }
 
     this.session.configOptions = this.session.configOptions.map((o) =>
@@ -623,6 +628,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
     const meta = params._meta as NewSessionMeta | undefined;
     const taskId = meta?.persistence?.taskId;
+    const effort = meta?.claudeCode?.options?.effort as EffortLevel | undefined;
 
     // We want to create a new session id unless it is resume,
     // but not resume + forkSession.
@@ -673,6 +679,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       onModeChange: this.createOnModeChange(),
       onProcessSpawned: this.options?.onProcessSpawned,
       onProcessExited: this.options?.onProcessExited,
+      effort,
     });
 
     // Use the same abort controller that buildSessionOptions gave to the query
@@ -682,6 +689,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
     const session: Session = {
       query: q,
+      queryOptions: options,
       input,
       cancelled: false,
       settingsManager,
@@ -693,6 +701,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         cachedReadTokens: 0,
         cachedWriteTokens: 0,
       },
+      effort,
       configOptions: [],
       promptRunning: false,
       pendingMessages: new Map(),
@@ -790,7 +799,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       ),
     };
 
-    const configOptions = this.buildConfigOptions(permissionMode, modelOptions);
+    const configOptions = this.buildConfigOptions(
+      permissionMode,
+      modelOptions,
+      effort ?? "high",
+    );
     session.configOptions = configOptions;
 
     if (!creationOpts.skipBackgroundFetches) {
@@ -844,6 +857,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       currentModelId: string;
       options: SessionConfigSelectOption[];
     },
+    currentEffort: EffortLevel = "high",
   ): SessionConfigOption[] {
     const modeOptions = getAvailableModes().map((mode) => ({
       value: mode.id,
@@ -870,6 +884,20 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         options: modelOptions.options,
         category: "model" as SessionConfigOptionCategory,
         description: "Choose which model Claude should use",
+      },
+      {
+        id: "effort",
+        name: "Effort",
+        type: "select",
+        currentValue: currentEffort,
+        options: [
+          { value: "low", name: "Low" },
+          { value: "medium", name: "Medium" },
+          { value: "high", name: "High" },
+          { value: "max", name: "Max" },
+        ],
+        category: "thought_level" as SessionConfigOptionCategory,
+        description: "Controls how much effort Claude puts into its response",
       },
     ];
   }

@@ -19,17 +19,17 @@ import { inject, injectable } from "inversify";
 import type {
   IRepositoryRepository,
   Repository,
-} from "../../db/repositories/repository-repository.js";
-import type { IWorkspaceRepository } from "../../db/repositories/workspace-repository.js";
-import type { IWorktreeRepository } from "../../db/repositories/worktree-repository.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { getMainWindow } from "../../trpc/context.js";
-import { logger } from "../../utils/logger.js";
-import { getWorktreeLocation } from "../settingsStore.js";
+} from "../../db/repositories/repository-repository";
+import type { IWorkspaceRepository } from "../../db/repositories/workspace-repository";
+import type { IWorktreeRepository } from "../../db/repositories/worktree-repository";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { getMainWindow } from "../../trpc/context";
+import { logger } from "../../utils/logger";
+import { getWorktreeLocation } from "../settingsStore";
 import type {
   CleanupOrphanedWorktreesOutput,
   RegisteredFolder,
-} from "./schemas.js";
+} from "./schemas";
 
 const log = logger.scope("folders-service");
 

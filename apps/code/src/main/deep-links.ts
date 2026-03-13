@@ -1,8 +1,8 @@
 import { app } from "electron";
-import { container } from "./di/container.js";
-import { MAIN_TOKENS } from "./di/tokens.js";
-import type { DeepLinkService } from "./services/deep-link/service.js";
-import { focusMainWindow } from "./window.js";
+import { container } from "./di/container";
+import { MAIN_TOKENS } from "./di/tokens";
+import type { DeepLinkService } from "./services/deep-link/service";
+import { focusMainWindow } from "./window";
 
 let pendingDeepLinkUrl: string | null = null;
 

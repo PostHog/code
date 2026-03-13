@@ -1,5 +1,5 @@
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   archivedTaskContextMenuInput,
   archivedTaskContextMenuOutput,
@@ -18,9 +18,9 @@ import {
   tabContextMenuOutput,
   taskContextMenuInput,
   taskContextMenuOutput,
-} from "../../services/context-menu/schemas.js";
-import type { ContextMenuService } from "../../services/context-menu/service.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/context-menu/schemas";
+import type { ContextMenuService } from "../../services/context-menu/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () =>
   container.get<ContextMenuService>(MAIN_TOKENS.ContextMenuService);

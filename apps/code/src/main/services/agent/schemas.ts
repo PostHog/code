@@ -2,7 +2,11 @@ import type {
   RequestPermissionRequest,
   PermissionOption as SdkPermissionOption,
 } from "@agentclientprotocol/sdk";
+import { effortLevelSchema } from "@shared/types";
 import { z } from "zod";
+
+export { effortLevelSchema };
+export type { EffortLevel } from "@shared/types";
 
 // Session credentials schema
 export const credentialsSchema = z.object({
@@ -46,6 +50,7 @@ export const startSessionInput = z.object({
   adapter: z.enum(["claude", "codex"]).optional(),
   additionalDirectories: z.array(z.string()).optional(),
   customInstructions: z.string().max(2000).optional(),
+  effort: effortLevelSchema.optional(),
 });
 
 export type StartSessionInput = z.infer<typeof startSessionInput>;
@@ -162,6 +167,7 @@ export const reconnectSessionInput = z.object({
   additionalDirectories: z.array(z.string()).optional(),
   permissionMode: z.string().optional(),
   customInstructions: z.string().max(2000).optional(),
+  effort: effortLevelSchema.optional(),
 });
 
 export type ReconnectSessionInput = z.infer<typeof reconnectSessionInput>;
@@ -183,11 +189,17 @@ export const subscribeSessionInput = z.object({
   taskRunId: z.string(),
 });
 
+// Record activity input — resets the idle timeout for the given session
+export const recordActivityInput = z.object({
+  taskRunId: z.string(),
+});
+
 // Agent events
 export const AgentServiceEvent = {
   SessionEvent: "session-event",
   PermissionRequest: "permission-request",
   SessionsIdle: "sessions-idle",
+  SessionIdleKilled: "session-idle-killed",
 } as const;
 
 export interface AgentSessionEventPayload {
@@ -203,10 +215,16 @@ export type PermissionRequestPayload = Omit<
   taskRunId: string;
 };
 
+export interface SessionIdleKilledPayload {
+  taskRunId: string;
+  taskId: string;
+}
+
 export interface AgentServiceEvents {
   [AgentServiceEvent.SessionEvent]: AgentSessionEventPayload;
   [AgentServiceEvent.PermissionRequest]: PermissionRequestPayload;
   [AgentServiceEvent.SessionsIdle]: undefined;
+  [AgentServiceEvent.SessionIdleKilled]: SessionIdleKilledPayload;
 }
 
 // Permission response input for tRPC

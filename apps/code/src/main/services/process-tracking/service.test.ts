@@ -36,7 +36,7 @@ vi.mock("../../utils/process-utils.js", () => ({
   killProcessTree: mockKillProcessTree,
 }));
 
-import { ProcessTrackingService } from "./service.js";
+import { ProcessTrackingService } from "./service";
 
 function mockExecResolves(stdout: string): void {
   mockExecAsync.mockResolvedValueOnce({ stdout, stderr: "" });

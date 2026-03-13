@@ -1,6 +1,6 @@
-import { createGitClient, type GitClient } from "./client.js";
-import { removeLock, waitForUnlock } from "./lock-detector.js";
-import { AsyncReaderWriterLock } from "./rw-lock.js";
+import { createGitClient, type GitClient } from "./client";
+import { removeLock, waitForUnlock } from "./lock-detector";
+import { AsyncReaderWriterLock } from "./rw-lock";
 
 interface RepoState {
   lock: AsyncReaderWriterLock;

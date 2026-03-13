@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AppLifecycleService } from "./service.js";
+import { AppLifecycleService } from "./service";
 
 const {
   mockApp,

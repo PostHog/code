@@ -1,14 +1,14 @@
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   checkForUpdatesOutput,
   installUpdateOutput,
   isEnabledOutput,
   UpdatesEvent,
   type UpdatesEvents,
-} from "../../services/updates/schemas.js";
-import type { UpdatesService } from "../../services/updates/service.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/updates/schemas";
+import type { UpdatesService } from "../../services/updates/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () =>
   container.get<UpdatesService>(MAIN_TOKENS.UpdatesService);

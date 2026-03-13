@@ -3,8 +3,8 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
-import type { PostHogAPIClient } from "../../../posthog-api.js";
-import type { StoredEntry } from "../../../types.js";
+import type { PostHogAPIClient } from "../../../posthog-api";
+import type { StoredEntry } from "../../../types";
 
 interface ConversationTurn {
   role: "user" | "assistant";

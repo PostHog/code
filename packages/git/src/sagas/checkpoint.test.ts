@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createGitClient } from "../client.js";
+import { createGitClient } from "../client";
 import {
   CaptureCheckpointSaga,
   DiffCheckpointSaga,
@@ -10,7 +10,7 @@ import {
   getGitBusyState,
   listCheckpoints,
   RevertCheckpointSaga,
-} from "./checkpoint.js";
+} from "./checkpoint";
 
 async function setupRepo(): Promise<string> {
   const dir = await mkdtemp(path.join(tmpdir(), "posthog-code-checkpoint-"));

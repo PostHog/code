@@ -1,14 +1,14 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getGitOperationManager } from "./operation-manager.js";
+import { getGitOperationManager } from "./operation-manager";
 import {
   addToLocalExclude,
   branchExists,
   getDefaultBranch,
   listWorktrees as listWorktreesRaw,
-} from "./queries.js";
-import { safeSymlink } from "./utils.js";
+} from "./queries";
+import { safeSymlink } from "./utils";
 
 export interface WorktreeInfo {
   worktreePath: string;

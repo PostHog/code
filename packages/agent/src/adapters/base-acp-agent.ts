@@ -21,9 +21,9 @@ import {
   fetchGatewayModels,
   formatGatewayModelName,
   isAnthropicModel,
-} from "../gateway-models.js";
-import { Logger } from "../utils/logger.js";
-import type { SettingsManager } from "./claude/session/settings.js";
+} from "../gateway-models";
+import { Logger } from "../utils/logger";
+import type { SettingsManager } from "./claude/session/settings";
 
 export interface BaseSession {
   notificationHistory: SessionNotification[];

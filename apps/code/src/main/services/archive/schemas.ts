@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   type ArchivedTask,
   archivedTaskSchema,
-} from "../../../shared/types/archive.js";
+} from "../../../shared/types/archive";
 
 export { archivedTaskSchema, type ArchivedTask };
 

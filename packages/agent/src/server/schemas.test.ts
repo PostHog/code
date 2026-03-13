@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mcpServersSchema } from "./schemas.js";
+import { mcpServersSchema } from "./schemas";
 
 describe("mcpServersSchema", () => {
   it("accepts a valid HTTP server", () => {

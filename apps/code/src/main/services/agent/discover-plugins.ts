@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { SdkPluginConfig } from "@anthropic-ai/claude-agent-sdk";
-import { logger } from "../../utils/logger.js";
+import { logger } from "../../utils/logger";
 
 const log = logger.scope("discover-plugins");
 

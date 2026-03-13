@@ -3,8 +3,8 @@ import {
   identifyUser,
   resetUser,
   setCurrentUserId,
-} from "../../services/posthog-analytics.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/posthog-analytics";
+import { publicProcedure, router } from "../trpc";
 
 export const analyticsRouter = router({
   /**

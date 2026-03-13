@@ -17,18 +17,18 @@ import type {
   BetaContentBlock,
   BetaRawContentBlockDelta,
 } from "@anthropic-ai/sdk/resources/beta.mjs";
-import { image, text } from "../../../utils/acp-content.js";
-import { unreachable } from "../../../utils/common.js";
-import type { Logger } from "../../../utils/logger.js";
-import { registerHookCallback } from "../hooks.js";
-import type { Session, ToolUpdateMeta, ToolUseCache } from "../types.js";
+import { image, text } from "../../../utils/acp-content";
+import { unreachable } from "../../../utils/common";
+import type { Logger } from "../../../utils/logger";
+import { registerHookCallback } from "../hooks";
+import type { Session, ToolUpdateMeta, ToolUseCache } from "../types";
 import {
   type ClaudePlanEntry,
   planEntries,
   toolInfoFromToolUse,
   toolUpdateFromEditToolResponse,
   toolUpdateFromToolResult,
-} from "./tool-use-to-acp.js";
+} from "./tool-use-to-acp";
 
 type AnthropicContentChunk =
   | ContentBlockParam

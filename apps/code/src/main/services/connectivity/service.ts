@@ -1,13 +1,13 @@
-import { getBackoffDelay } from "@shared/utils/backoff.js";
+import { getBackoffDelay } from "@shared/utils/backoff";
 import { net } from "electron";
 import { injectable, postConstruct, preDestroy } from "inversify";
-import { logger } from "../../utils/logger.js";
-import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
+import { logger } from "../../utils/logger";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 import {
   ConnectivityEvent,
   type ConnectivityEvents,
   type ConnectivityStatusOutput,
-} from "./schemas.js";
+} from "./schemas";
 
 const log = logger.scope("connectivity");
 

@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { GitSaga, type GitSagaInput } from "../git-saga.js";
+import { GitSaga, type GitSagaInput } from "../git-saga";
 
 export interface InitRepositoryInput extends GitSagaInput {
   initialCommit?: boolean;

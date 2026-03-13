@@ -2,11 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { getChangedFiles, listAllFiles } from "@posthog/git/queries";
 import { inject, injectable } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../utils/logger.js";
-import { FileWatcherEvent } from "../file-watcher/schemas.js";
-import type { FileWatcherService } from "../file-watcher/service.js";
-import type { FileEntry } from "./schemas.js";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { logger } from "../../utils/logger";
+import { FileWatcherEvent } from "../file-watcher/schemas";
+import type { FileWatcherService } from "../file-watcher/service";
+import type { FileEntry } from "./schemas";
 
 const log = logger.scope("fs");
 

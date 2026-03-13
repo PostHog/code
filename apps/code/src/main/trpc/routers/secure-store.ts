@@ -2,7 +2,7 @@ import { decrypt, encrypt } from "@main/utils/encryption";
 import { rendererStore } from "@main/utils/store";
 import { z } from "zod";
 import { logger } from "../../utils/logger";
-import { publicProcedure, router } from "../trpc.js";
+import { publicProcedure, router } from "../trpc";
 
 const log = logger.scope("secureStoreRouter");
 

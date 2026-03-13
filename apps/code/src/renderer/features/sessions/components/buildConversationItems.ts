@@ -158,6 +158,7 @@ export function buildConversationItems(
   if (isPromptPending === false) {
     for (const turn of b.pendingPrompts.values()) {
       turn.isComplete = true;
+      turn.durationMs = 0;
       turn.context.turnComplete = true;
     }
   }
@@ -335,16 +336,62 @@ function handleNotification(
     return;
   }
 
-  if (
-    isPosthogMethod(msg.method, "compact_boundary") ||
-    isPosthogMethod(msg.method, "status") ||
-    isPosthogMethod(msg.method, "task_notification")
-  ) {
-    if (!b.currentTurn) {
-      ensureImplicitTurn(b, ts);
-    }
-    pushItem(b, msg.params as RenderItem);
+  if (isPosthogMethod(msg.method, "compact_boundary")) {
+    if (!b.currentTurn) ensureImplicitTurn(b, ts);
+    const params = msg.params as {
+      trigger: "manual" | "auto";
+      preTokens: number;
+    };
+    markCompactingStatusComplete(b);
+    pushItem(b, {
+      sessionUpdate: "compact_boundary",
+      trigger: params.trigger,
+      preTokens: params.preTokens,
+    });
     return;
+  }
+
+  if (isPosthogMethod(msg.method, "status")) {
+    if (!b.currentTurn) ensureImplicitTurn(b, ts);
+    const params = msg.params as { status: string; isComplete?: boolean };
+    pushItem(b, {
+      sessionUpdate: "status",
+      status: params.status,
+      isComplete: params.isComplete,
+    });
+    return;
+  }
+
+  if (isPosthogMethod(msg.method, "task_notification")) {
+    if (!b.currentTurn) ensureImplicitTurn(b, ts);
+    const params = msg.params as {
+      taskId: string;
+      status: "completed" | "failed" | "stopped";
+      summary: string;
+      outputFile: string;
+    };
+    pushItem(b, {
+      sessionUpdate: "task_notification",
+      taskId: params.taskId,
+      status: params.status,
+      summary: params.summary,
+      outputFile: params.outputFile,
+    });
+    return;
+  }
+}
+
+function markCompactingStatusComplete(b: ItemBuilder) {
+  for (let i = b.items.length - 1; i >= 0; i--) {
+    const item = b.items[i];
+    if (
+      item.type === "session_update" &&
+      item.update.sessionUpdate === "status" &&
+      item.update.status === "compacting"
+    ) {
+      item.update.isComplete = true;
+      return;
+    }
   }
 }
 

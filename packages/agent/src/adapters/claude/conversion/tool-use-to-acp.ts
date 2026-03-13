@@ -29,8 +29,8 @@ function stripSystemReminders(value: string): string {
   return value.replace(SYSTEM_REMINDER_REGEX, "");
 }
 
-import { resourceLink, text, toolContent } from "../../../utils/acp-content.js";
-import { getMcpToolMetadata } from "../mcp/tool-metadata.js";
+import { resourceLink, text, toolContent } from "../../../utils/acp-content";
+import { getMcpToolMetadata } from "../mcp/tool-metadata";
 
 type ToolInfo = Pick<ToolCall, "title" | "kind" | "content" | "locations">;
 

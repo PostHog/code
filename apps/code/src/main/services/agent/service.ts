@@ -21,29 +21,30 @@ import {
 } from "@posthog/agent/gateway-models";
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import type { OnLogCallback } from "@posthog/agent/types";
-import { isAuthError } from "@shared/errors.js";
-import type { AcpMessage } from "@shared/types/session-events.js";
-import { app } from "electron";
+import { isAuthError } from "@shared/errors";
+import type { AcpMessage } from "@shared/types/session-events";
+import { app, powerMonitor } from "electron";
 import { inject, injectable, preDestroy } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { isDevBuild } from "../../utils/env.js";
-import { logger } from "../../utils/logger.js";
-import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
-import type { FsService } from "../fs/service.js";
-import type { PosthogPluginService } from "../posthog-plugin/service.js";
-import type { ProcessTrackingService } from "../process-tracking/service.js";
-import type { SleepService } from "../sleep/service.js";
-import { discoverExternalPlugins } from "./discover-plugins.js";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { isDevBuild } from "../../utils/env";
+import { logger } from "../../utils/logger";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import type { FsService } from "../fs/service";
+import type { PosthogPluginService } from "../posthog-plugin/service";
+import type { ProcessTrackingService } from "../process-tracking/service";
+import type { SleepService } from "../sleep/service";
+import { discoverExternalPlugins } from "./discover-plugins";
 import {
   AgentServiceEvent,
   type AgentServiceEvents,
   type Credentials,
+  type EffortLevel,
   type InterruptReason,
   type PromptOutput,
   type ReconnectSessionInput,
   type SessionResponse,
   type StartSessionInput,
-} from "./schemas.js";
+} from "./schemas";
 
 export type { InterruptReason };
 
@@ -200,6 +201,8 @@ interface SessionConfig {
   permissionMode?: string;
   /** Custom instructions injected into the system prompt */
   customInstructions?: string;
+  /** Effort level for Claude sessions */
+  effort?: EffortLevel;
 }
 
 interface ManagedSession {
@@ -252,10 +255,16 @@ interface PendingPermission {
 
 @injectable()
 export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
+  private static readonly IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+
   private sessions = new Map<string, ManagedSession>();
   private currentToken: string | null = null;
   private pendingPermissions = new Map<string, PendingPermission>();
   private mockNodeReady = false;
+  private idleTimeouts = new Map<
+    string,
+    { handle: ReturnType<typeof setTimeout>; deadline: number }
+  >();
   private processTracking: ProcessTrackingService;
   private sleepService: SleepService;
   private fsService: FsService;
@@ -276,6 +285,8 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     this.sleepService = sleepService;
     this.fsService = fsService;
     this.posthogPluginService = posthogPluginService;
+
+    powerMonitor.on("resume", () => this.checkIdleDeadlines());
   }
 
   public updateToken(newToken: string): void {
@@ -349,6 +360,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     });
 
     this.pendingPermissions.delete(key);
+    this.recordActivity(taskRunId);
   }
 
   /**
@@ -376,6 +388,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     });
 
     this.pendingPermissions.delete(key);
+    this.recordActivity(taskRunId);
   }
 
   /**
@@ -390,6 +403,48 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     }
     log.debug("No active sessions found");
     return false;
+  }
+
+  public recordActivity(taskRunId: string): void {
+    if (!this.sessions.has(taskRunId)) return;
+
+    const existing = this.idleTimeouts.get(taskRunId);
+    if (existing) clearTimeout(existing.handle);
+
+    const deadline = Date.now() + AgentService.IDLE_TIMEOUT_MS;
+    const handle = setTimeout(() => {
+      this.killIdleSession(taskRunId);
+    }, AgentService.IDLE_TIMEOUT_MS);
+
+    this.idleTimeouts.set(taskRunId, { handle, deadline });
+  }
+
+  private killIdleSession(taskRunId: string): void {
+    const session = this.sessions.get(taskRunId);
+    if (!session) return;
+    if (session.promptPending) {
+      this.recordActivity(taskRunId);
+      return;
+    }
+    log.info("Killing idle session", { taskRunId, taskId: session.taskId });
+    this.emit(AgentServiceEvent.SessionIdleKilled, {
+      taskRunId,
+      taskId: session.taskId,
+    });
+    this.cleanupSession(taskRunId).catch((err) => {
+      log.error("Failed to cleanup idle session", { taskRunId, err });
+    });
+  }
+
+  private checkIdleDeadlines(): void {
+    const now = Date.now();
+    const expired = [...this.idleTimeouts.entries()].filter(
+      ([, { deadline }]) => now >= deadline,
+    );
+    for (const [taskRunId, { handle }] of expired) {
+      clearTimeout(handle);
+      this.killIdleSession(taskRunId);
+    }
   }
 
   private getToken(fallback: string): string {
@@ -580,6 +635,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       additionalDirectories,
       permissionMode,
       customInstructions,
+      effort,
     } = config;
 
     // Preview sessions don't need a real repo — use a temp directory
@@ -731,6 +787,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
                 ...(additionalDirectories?.length && {
                   additionalDirectories,
                 }),
+                ...(effort && { effort }),
                 plugins,
               },
             },
@@ -759,6 +816,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
             claudeCode: {
               options: {
                 ...(additionalDirectories?.length && { additionalDirectories }),
+                ...(effort && { effort }),
                 plugins,
               },
             },
@@ -786,6 +844,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       };
 
       this.sessions.set(taskRunId, session);
+      this.recordActivity(taskRunId);
       if (isRetry) {
         log.info("Session created after auth retry", { taskRunId });
       }
@@ -912,6 +971,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
 
     session.lastActivityAt = Date.now();
     session.promptPending = true;
+    this.recordActivity(sessionId);
     this.sleepService.acquire(sessionId);
 
     const promptJson = JSON.stringify(finalPrompt);
@@ -947,6 +1007,8 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       throw err;
     } finally {
       session.promptPending = false;
+      session.lastActivityAt = Date.now();
+      this.recordActivity(sessionId);
       this.sleepService.release(sessionId);
 
       if (!this.hasActiveSessions()) {
@@ -1138,6 +1200,8 @@ For git operations while detached:
 
   @preDestroy()
   async cleanupAll(): Promise<void> {
+    for (const { handle } of this.idleTimeouts.values()) clearTimeout(handle);
+    this.idleTimeouts.clear();
     const sessionIds = Array.from(this.sessions.keys());
     log.info("Cleaning up all agent sessions", {
       sessionCount: sessionIds.length,
@@ -1224,6 +1288,12 @@ For git operations while detached:
       }
 
       this.sessions.delete(taskRunId);
+
+      const timeout = this.idleTimeouts.get(taskRunId);
+      if (timeout) {
+        clearTimeout(timeout.handle);
+        this.idleTimeouts.delete(taskRunId);
+      }
     }
   }
 
@@ -1487,6 +1557,7 @@ For git operations while detached:
         "permissionMode" in params ? params.permissionMode : undefined,
       customInstructions:
         "customInstructions" in params ? params.customInstructions : undefined,
+      effort: "effort" in params ? params.effort : undefined,
     };
   }
 

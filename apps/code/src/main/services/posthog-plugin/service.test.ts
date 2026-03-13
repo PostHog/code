@@ -62,8 +62,8 @@ vi.mock("../../utils/logger.js", () => ({
   },
 }));
 
-import { PosthogPluginService } from "./service.js";
-import { syncCodexSkills } from "./update-skills-saga.js";
+import { PosthogPluginService } from "./service";
+import { syncCodexSkills } from "./update-skills-saga";
 
 /** Expose private members for testing without `as any`. */
 interface TestablePluginService {

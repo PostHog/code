@@ -1,5 +1,6 @@
 import {
   sessionStoreSetters,
+  useOptimisticItemsForTask,
   usePendingPermissionsForTask,
   useQueuedMessagesForTask,
 } from "@features/sessions/stores/sessionStore";
@@ -33,6 +34,7 @@ interface ConversationViewProps {
   repoPath?: string | null;
   taskId?: string;
   slackThreadUrl?: string;
+  compact?: boolean;
 }
 
 export function ConversationView({
@@ -42,6 +44,7 @@ export function ConversationView({
   repoPath,
   taskId,
   slackThreadUrl,
+  compact = false,
 }: ConversationViewProps) {
   const listRef = useRef<VirtualizedListHandle>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -68,6 +71,7 @@ export function ConversationView({
   const pendingPermissions = usePendingPermissionsForTask(taskId ?? "");
   const pendingPermissionsCount = pendingPermissions.size;
   const queuedMessages = useQueuedMessagesForTask(taskId);
+  const optimisticItems = useOptimisticItemsForTask(taskId);
 
   const queuedItems = useMemo<Extract<ConversationItem, { type: "queued" }>[]>(
     () =>
@@ -79,13 +83,13 @@ export function ConversationView({
     [queuedMessages],
   );
 
-  const items = useMemo<ConversationItem[]>(
-    () =>
-      queuedItems.length > 0
-        ? [...conversationItems, ...queuedItems]
-        : conversationItems,
-    [conversationItems, queuedItems],
-  );
+  const items = useMemo<ConversationItem[]>(() => {
+    const result: ConversationItem[] = [
+      ...conversationItems,
+      ...optimisticItems,
+    ];
+    return queuedItems.length > 0 ? [...result, ...queuedItems] : result;
+  }, [conversationItems, optimisticItems, queuedItems]);
 
   const handleScrollStateChange = useCallback((isAtBottom: boolean) => {
     setShowScrollButton(!isAtBottom);
@@ -179,7 +183,7 @@ export function ConversationView({
         className="absolute inset-0 bg-gray-1"
         itemClassName="mx-auto max-w-[750px] px-2 py-1.5"
         footer={
-          <div className="pb-16">
+          <div className={compact ? "pb-1" : "pb-16"}>
             <SessionFooter
               isPromptPending={isPromptPending}
               promptStartedAt={promptStartedAt}

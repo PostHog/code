@@ -1,4 +1,4 @@
-import { GitSaga, type GitSagaInput } from "../git-saga.js";
+import { GitSaga, type GitSagaInput } from "../git-saga";
 
 export interface PullInput extends GitSagaInput {
   remote?: string;

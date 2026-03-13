@@ -1,5 +1,5 @@
-import type { AgentMode } from "../types.js";
-import type { RemoteMcpServer } from "./schemas.js";
+import type { AgentMode } from "../types";
+import type { RemoteMcpServer } from "./schemas";
 
 export interface AgentServerConfig {
   port: number;

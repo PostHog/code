@@ -1,6 +1,6 @@
 import path from "node:path";
 import { getCurrentBranch, getDefaultBranch } from "@posthog/git/queries";
-import type { WorkspaceMode } from "./schemas.js";
+import type { WorkspaceMode } from "./schemas";
 
 export interface WorkspaceEnvContext {
   taskId: string;

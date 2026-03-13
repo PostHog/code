@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { CreateGitClientOptions } from "./client.js";
-import { getGitOperationManager } from "./operation-manager.js";
+import type { CreateGitClientOptions } from "./client";
+import { getGitOperationManager } from "./operation-manager";
 
 export interface WorktreeListEntry {
   path: string;

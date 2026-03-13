@@ -19,7 +19,7 @@ vi.mock("../../utils/logger.js", () => ({
   },
 }));
 
-import { DeepLinkService } from "./service.js";
+import { DeepLinkService } from "./service";
 
 describe("DeepLinkService", () => {
   let service: DeepLinkService;

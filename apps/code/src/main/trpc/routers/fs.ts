@@ -1,5 +1,5 @@
-import { container } from "../../di/container.js";
-import { MAIN_TOKENS } from "../../di/tokens.js";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import {
   listRepoFilesInput,
   listRepoFilesOutput,
@@ -7,9 +7,9 @@ import {
   readRepoFileInput,
   readRepoFileOutput,
   writeRepoFileInput,
-} from "../../services/fs/schemas.js";
-import type { FsService } from "../../services/fs/service.js";
-import { publicProcedure, router } from "../trpc.js";
+} from "../../services/fs/schemas";
+import type { FsService } from "../../services/fs/service";
+import { publicProcedure, router } from "../trpc";
 
 const getService = () => container.get<FsService>(MAIN_TOKENS.FsService);
 

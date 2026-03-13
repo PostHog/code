@@ -4,15 +4,15 @@ import path from "node:path";
 import * as watcher from "@parcel/watcher";
 import { app } from "electron";
 import { inject, injectable } from "inversify";
-import { MAIN_TOKENS } from "../../di/tokens.js";
-import { logger } from "../../utils/logger.js";
-import { TypedEventEmitter } from "../../utils/typed-event-emitter.js";
-import type { WatcherRegistryService } from "../watcher-registry/service.js";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { logger } from "../../utils/logger";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import type { WatcherRegistryService } from "../watcher-registry/service";
 import {
   type DirectoryEntry,
   FileWatcherEvent,
   type FileWatcherEvents,
-} from "./schemas.js";
+} from "./schemas";
 
 const log = logger.scope("file-watcher");
 

@@ -60,9 +60,10 @@ export const useDragDropHandlers = (taskId: string) => {
   };
 
   const handleDragEnd: DragDropEvents["dragend"] = (event) => {
-    usePanelLayoutStore.getState().clearDraggingTab(taskId);
-
-    if (event.canceled) return;
+    if (event.canceled) {
+      usePanelLayoutStore.getState().clearDraggingTab(taskId);
+      return;
+    }
 
     const sourceData = event.operation.source?.data;
     const targetData = event.operation.target?.data;
@@ -72,15 +73,21 @@ export const useDragDropHandlers = (taskId: string) => {
       !sourceData.tabId ||
       !sourceData.panelId
     ) {
+      usePanelLayoutStore.getState().clearDraggingTab(taskId);
       return;
     }
 
     const { tabId, panelId: sourcePanelId } = sourceData;
 
-    // Defer structural tree changes to the next frame so @dnd-kit can finish
-    // its DOM cleanup first. Without this, React tries to removeChild on nodes
-    // that @dnd-kit has already repositioned, causing a DOM exception.
-    const applyMove = (fn: () => void) => requestAnimationFrame(fn);
+    // Defer structural tree changes AND drag state cleanup to the next frame
+    // so @dnd-kit can finish its DOM cleanup first. Clearing drag state
+    // synchronously unmounts drop zones while @dnd-kit still holds references
+    // to them, which can corrupt its internal state and prevent the move.
+    const applyMove = (fn: () => void) =>
+      requestAnimationFrame(() => {
+        fn();
+        usePanelLayoutStore.getState().clearDraggingTab(taskId);
+      });
 
     // Handle drop on tab bar or on a tab in a different panel -> move tab
     if (
@@ -101,6 +108,7 @@ export const useDragDropHandlers = (taskId: string) => {
       !targetData.panelId ||
       !targetData.zone
     ) {
+      usePanelLayoutStore.getState().clearDraggingTab(taskId);
       return;
     }
 
@@ -116,6 +124,8 @@ export const useDragDropHandlers = (taskId: string) => {
         splitPanel(taskId, tabId, sourcePanelId, targetPanelId, zone);
         setFocusedPanel(taskId, targetPanelId);
       });
+    } else {
+      usePanelLayoutStore.getState().clearDraggingTab(taskId);
     }
   };
 

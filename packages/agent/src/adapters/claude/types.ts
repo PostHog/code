@@ -8,10 +8,12 @@ import type {
   Query,
   SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
-import type { Pushable } from "../../utils/streams.js";
-import type { BaseSession } from "../base-acp-agent.js";
-import type { SettingsManager } from "./session/settings.js";
-import type { CodeExecutionMode } from "./tools.js";
+import type { Pushable } from "../../utils/streams";
+import type { BaseSession } from "../base-acp-agent";
+import type { SettingsManager } from "./session/settings";
+import type { CodeExecutionMode } from "./tools";
+
+export type EffortLevel = "low" | "medium" | "high" | "max";
 
 export type AccumulatedUsage = {
   inputTokens: number;
@@ -38,6 +40,8 @@ export type PendingMessage = {
 
 export type Session = BaseSession & {
   query: Query;
+  /** The Options object passed to query() — mutating it affects subsequent prompts */
+  queryOptions: Options;
   input: Pushable<SDKUserMessage>;
   settingsManager: SettingsManager;
   permissionMode: CodeExecutionMode;
@@ -46,6 +50,7 @@ export type Session = BaseSession & {
   taskRunId?: string;
   lastPlanFilePath?: string;
   lastPlanContent?: string;
+  effort?: EffortLevel;
   configOptions: SessionConfigOption[];
   accumulatedUsage: AccumulatedUsage;
   promptRunning: boolean;

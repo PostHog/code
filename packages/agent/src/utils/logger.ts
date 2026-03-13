@@ -1,4 +1,4 @@
-import type { LogLevel as LogLevelType, OnLogCallback } from "../types.js";
+import type { LogLevel as LogLevelType, OnLogCallback } from "../types";
 
 export interface LoggerConfig {
   debug?: boolean;
