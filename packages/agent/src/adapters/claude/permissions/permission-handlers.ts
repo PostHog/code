@@ -356,7 +356,7 @@ async function handleDefaultPermissionFlow(
       kind: toolInfo.kind,
       content: toolInfo.content,
       locations: toolInfo.locations,
-      rawInput: toolInput as Record<string, unknown>,
+      rawInput: { ...(toolInput as Record<string, unknown>), toolName },
     },
   });
 

@@ -137,7 +137,10 @@ vi.mock("@features/sidebar/hooks/useTaskViewed", () => ({
   },
 }));
 
-vi.mock("@utils/analytics", () => ({ track: vi.fn() }));
+vi.mock("@utils/analytics", () => ({
+  track: vi.fn(),
+  buildPermissionToolMetadata: vi.fn(() => ({})),
+}));
 vi.mock("@utils/logger", () => ({
   logger: {
     scope: () => ({

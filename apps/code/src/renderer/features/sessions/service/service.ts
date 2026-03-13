@@ -40,7 +40,7 @@ import {
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { AcpMessage, StoredLogEntry } from "@shared/types/session-events";
 import { isJsonRpcRequest } from "@shared/types/session-events";
-import { track } from "@utils/analytics";
+import { buildPermissionToolMetadata, track } from "@utils/analytics";
 import { logger } from "@utils/logger";
 import {
   notifyPermissionRequest,
@@ -571,6 +571,8 @@ export class SessionService {
     track(ANALYTICS_EVENTS.TASK_RUN_STARTED, {
       task_id: taskId,
       execution_type: "local",
+      initial_mode: executionMode,
+      adapter,
     });
 
     const preferredModel = model ?? DEFAULT_GATEWAY_MODEL;
@@ -1493,6 +1495,12 @@ export class SessionService {
       return;
     }
 
+    const permission = session.pendingPermissions.get(toolCallId);
+    track(ANALYTICS_EVENTS.PERMISSION_RESPONDED, {
+      task_id: taskId,
+      ...buildPermissionToolMetadata(permission, optionId, customInput),
+    });
+
     this.resolvePermission(session, toolCallId);
 
     try {
@@ -1529,6 +1537,12 @@ export class SessionService {
       log.error("No session found for permission cancellation", { taskId });
       return;
     }
+
+    const permission = session.pendingPermissions.get(toolCallId);
+    track(ANALYTICS_EVENTS.PERMISSION_CANCELLED, {
+      task_id: taskId,
+      ...buildPermissionToolMetadata(permission),
+    });
 
     this.resolvePermission(session, toolCallId);
 
@@ -1634,6 +1648,15 @@ export class SessionService {
     if (!configOption) {
       log.warn("Config option not found for category", { taskId, category });
       return;
+    }
+
+    if (configOption.currentValue !== value) {
+      track(ANALYTICS_EVENTS.SESSION_CONFIG_CHANGED, {
+        task_id: taskId,
+        category,
+        from_value: configOption.currentValue,
+        to_value: value,
+      });
     }
 
     await this.setSessionConfigOption(taskId, configOption.id, value);
