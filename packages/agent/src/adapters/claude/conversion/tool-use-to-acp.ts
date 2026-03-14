@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import type {
   PlanEntry,
@@ -179,18 +180,22 @@ export function toolInfoFromToolUse(
         : null;
       let newText: string = input?.new_string ? String(input.new_string) : "";
 
-      // If we have cached file content, show a full-file diff
-      if (
-        filePath &&
-        options?.cachedFileContent &&
-        filePath in options.cachedFileContent
-      ) {
-        const oldContent = options.cachedFileContent[filePath];
-        const newContent = input?.replace_all
-          ? oldContent.replaceAll(oldText ?? "", newText)
-          : oldContent.replace(oldText ?? "", newText);
-        oldText = oldContent;
-        newText = newContent;
+      // try to display a rich diff by first checking if file content is cached
+      // and valid (old_text exists in the content), then fall back to reading
+      // file from disk, then fall back to fragemented snippet diff
+      if (filePath && oldText !== null) {
+        const fileContent = resolveFileContent(
+          filePath,
+          oldText,
+          options?.cachedFileContent,
+        );
+        if (fileContent) {
+          const newContent = input?.replace_all
+            ? fileContent.replaceAll(oldText, newText)
+            : fileContent.replace(oldText, newText);
+          oldText = fileContent;
+          newText = newContent;
+        }
       }
 
       return {
@@ -757,6 +762,37 @@ export function planEntries(input: { todos: ClaudePlanEntry[] }): PlanEntry[] {
     status: input.status,
     priority: "medium",
   }));
+}
+
+/**
+ * attempt to resolve full file contents for diff generation
+ *
+ * 1) check file content cache exists, and is valid (old_text in content)
+ * 2) if missing or invalid, read file from disk
+ * 3) if both fail, return null, we'll fall back to fragmented snippet diff
+ */
+function resolveFileContent(
+  filePath: string,
+  oldText: string,
+  cachedFileContent?: Record<string, string>,
+): string | null {
+  if (cachedFileContent && filePath in cachedFileContent) {
+    const cached = cachedFileContent[filePath];
+    if (cached.includes(oldText)) {
+      return cached;
+    }
+  }
+
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    if (content.includes(oldText)) {
+      return content;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 function markdownEscape(text: string): string {
