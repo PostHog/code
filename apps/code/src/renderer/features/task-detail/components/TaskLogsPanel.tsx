@@ -10,6 +10,8 @@ import { SessionView } from "@features/sessions/components/SessionView";
 import { useSessionCallbacks } from "@features/sessions/hooks/useSessionCallbacks";
 import { useSessionConnection } from "@features/sessions/hooks/useSessionConnection";
 import { useSessionViewState } from "@features/sessions/hooks/useSessionViewState";
+import { useRestoreTask } from "@features/suspension/hooks/useRestoreTask";
+import { useSuspendedTaskIds } from "@features/suspension/hooks/useSuspendedTaskIds";
 import { WorkspaceSetupPrompt } from "@features/task-detail/components/WorkspaceSetupPrompt";
 import {
   useCreateWorkspace,
@@ -18,7 +20,7 @@ import {
 import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { getTaskRepository } from "@utils/repository";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 interface TaskLogsPanelProps {
   taskId: string;
@@ -33,6 +35,10 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   const hasDirectoryMapping = repoKey
     ? folders.some((f) => f.remoteUrl === repoKey)
     : false;
+
+  const suspendedTaskIds = useSuspendedTaskIds();
+  const isSuspended = suspendedTaskIds.has(taskId);
+  const { restoreTask, isRestoring } = useRestoreTask();
 
   const { requestFocus } = useDraftStore((s) => s.actions);
 
@@ -54,7 +60,14 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     errorMessage,
   } = useSessionViewState(taskId, task);
 
-  useSessionConnection({ taskId, task, session, repoPath, isCloud });
+  useSessionConnection({
+    taskId,
+    task,
+    session,
+    repoPath,
+    isCloud,
+    isSuspended,
+  });
 
   const {
     handleSendPrompt,
@@ -95,9 +108,14 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     requestFocus(taskId);
   }, [taskId, requestFocus]);
 
+  const handleRestoreWorktree = useCallback(async () => {
+    await restoreTask(taskId);
+  }, [taskId, restoreTask]);
+
   if (
     !repoPath &&
     !isCloud &&
+    !isSuspended &&
     isWorkspaceLoaded &&
     !hasDirectoryMapping &&
     !isCreatingWorkspace
@@ -120,6 +138,11 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
               events={events}
               taskId={taskId}
               isRunning={isRunning}
+              isSuspended={isSuspended}
+              onRestoreWorktree={
+                isSuspended ? handleRestoreWorktree : undefined
+              }
+              isRestoring={isRestoring}
               isPromptPending={isCloud ? null : isPromptPending}
               promptStartedAt={isCloud ? undefined : promptStartedAt}
               onSendPrompt={handleSendPrompt}

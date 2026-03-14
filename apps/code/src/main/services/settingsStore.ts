@@ -9,6 +9,9 @@ import { isDevBuild } from "../utils/env";
 interface SettingsSchema {
   worktreeLocation: string;
   preventSleepWhileRunning: boolean;
+  autoSuspendEnabled: boolean;
+  maxActiveWorktrees: number;
+  autoSuspendAfterDays: number;
 }
 
 function getDefaultWorktreeLocation(): string {
@@ -66,6 +69,22 @@ const schema = {
     type: "boolean" as const,
     default: false,
   },
+  autoSuspendEnabled: {
+    type: "boolean" as const,
+    default: true,
+  },
+  maxActiveWorktrees: {
+    type: "number" as const,
+    default: 5,
+    minimum: 1,
+    maximum: 50,
+  },
+  autoSuspendAfterDays: {
+    type: "number" as const,
+    default: 7,
+    minimum: 1,
+    maximum: 365,
+  },
 };
 
 export const settingsStore = new Store<SettingsSchema>({
@@ -75,6 +94,9 @@ export const settingsStore = new Store<SettingsSchema>({
   defaults: {
     worktreeLocation: getDefaultWorktreeLocation(),
     preventSleepWhileRunning: false,
+    autoSuspendEnabled: true,
+    maxActiveWorktrees: 5,
+    autoSuspendAfterDays: 7,
   },
 });
 
@@ -120,4 +142,28 @@ export function getAllWorktreeLocations(): string[] {
 
 export function setWorktreeLocation(location: string): void {
   settingsStore.set("worktreeLocation", location);
+}
+
+export function getAutoSuspendEnabled(): boolean {
+  return settingsStore.get("autoSuspendEnabled", true);
+}
+
+export function setAutoSuspendEnabled(value: boolean): void {
+  settingsStore.set("autoSuspendEnabled", value);
+}
+
+export function getMaxActiveWorktrees(): number {
+  return settingsStore.get("maxActiveWorktrees", 5);
+}
+
+export function setMaxActiveWorktrees(value: number): void {
+  settingsStore.set("maxActiveWorktrees", value);
+}
+
+export function getAutoSuspendAfterDays(): number {
+  return settingsStore.get("autoSuspendAfterDays", 7);
+}
+
+export function setAutoSuspendAfterDays(value: number): void {
+  settingsStore.set("autoSuspendAfterDays", value);
 }
