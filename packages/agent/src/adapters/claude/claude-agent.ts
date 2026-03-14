@@ -59,7 +59,11 @@ import { fetchMcpToolMetadata } from "./mcp/tool-metadata";
 import { canUseTool } from "./permissions/permission-handlers";
 import { getAvailableSlashCommands } from "./session/commands";
 import { parseMcpServers } from "./session/mcp-config";
-import { DEFAULT_MODEL, toSdkModelId } from "./session/models";
+import {
+  DEFAULT_MODEL,
+  getDefaultContextWindow,
+  toSdkModelId,
+} from "./session/models";
 import {
   buildSessionOptions,
   buildSystemPrompt,
@@ -337,7 +341,9 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
               (m) => m.contextWindow,
             );
             const contextWindowSize =
-              contextWindows.length > 0 ? Math.min(...contextWindows) : 200000;
+              contextWindows.length > 0
+                ? Math.min(...contextWindows)
+                : getDefaultContextWindow(this.session.modelId ?? "");
 
             // Send usage_update notification
             if (lastAssistantTotalUsage !== null) {
