@@ -37,7 +37,7 @@ export function HedgehogMode() {
         log.info("Creating hedgehog game instance");
 
         const game = new HedgeHogMode({
-          assetsUrl: "/hedgehog-mode",
+          assetsUrl: "./hedgehog-mode",
           state: actorOptions ? { options: actorOptions } : undefined,
           onQuit: (g) => {
             g.getAllHedgehogs().forEach((hedgehog) => {

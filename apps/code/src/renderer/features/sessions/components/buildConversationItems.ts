@@ -361,24 +361,6 @@ function handleNotification(
     });
     return;
   }
-
-  if (isPosthogMethod(msg.method, "task_notification")) {
-    if (!b.currentTurn) ensureImplicitTurn(b, ts);
-    const params = msg.params as {
-      taskId: string;
-      status: "completed" | "failed" | "stopped";
-      summary: string;
-      outputFile: string;
-    };
-    pushItem(b, {
-      sessionUpdate: "task_notification",
-      taskId: params.taskId,
-      status: params.status,
-      summary: params.summary,
-      outputFile: params.outputFile,
-    });
-    return;
-  }
 }
 
 function markCompactingStatusComplete(b: ItemBuilder) {
