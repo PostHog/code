@@ -37,6 +37,17 @@ function getDefaultShell(): string {
   return process.env.SHELL || "/bin/bash";
 }
 
+function getShellArgs(shell: string): string[] {
+  if (platform() === "win32") {
+    const lower = shell.toLowerCase();
+    if (lower.includes("powershell") || lower.includes("pwsh")) {
+      return ["-NoLogo"];
+    }
+    return [];
+  }
+  return ["-l"];
+}
+
 function buildShellEnv(
   additionalEnv?: Record<string, string>,
 ): Record<string, string> {
@@ -122,7 +133,7 @@ export class ShellService extends TypedEventEmitter<ShellEvents> {
       `Creating shell session ${sessionId}: shell=${shell}, cwd=${workingDir}`,
     );
 
-    const ptyProcess = pty.spawn(shell, ["-l"], {
+    const ptyProcess = pty.spawn(shell, getShellArgs(shell), {
       name: "xterm-256color",
       cols: 80,
       rows: 24,

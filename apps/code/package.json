@@ -28,7 +28,7 @@
     "postinstall": "cd ../.. && npx @electron/rebuild -f -m node_modules/node-pty && npx @electron/rebuild -f -m node_modules/better-sqlite3 || true && bash apps/code/scripts/patch-electron-name.sh && node apps/code/scripts/download-binaries.mjs",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "clean": "rm -rf .vite .turbo out node_modules/.vite",
+    "clean": "node ../../scripts/rimraf.mjs .vite .turbo out node_modules/.vite",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:view": "drizzle-kit studio"
@@ -45,6 +45,7 @@
     "@biomejs/biome": "2.2.4",
     "@electron-forge/cli": "^7.10.2",
     "@electron-forge/maker-dmg": "^7.10.2",
+    "@electron-forge/maker-squirrel": "^7.11.1",
     "@electron-forge/maker-zip": "^7.10.2",
     "@electron-forge/plugin-vite": "^7.10.2",
     "@electron-forge/publisher-github": "^7.10.2",
