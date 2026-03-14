@@ -3,6 +3,7 @@ import { execSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { MakerDMG } from "@electron-forge/maker-dmg";
+import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerZIP } from "@electron-forge/maker-zip";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import { PublisherGithub } from "@electron-forge/publisher-github";
@@ -181,7 +182,11 @@ const config: ForgeConfig = {
           }
         : {}),
     }),
-    new MakerZIP({}, ["darwin", "linux", "win32"]),
+    new MakerSquirrel({
+      name: "PostHogCode",
+      setupIcon: "./build/app-icon.ico",
+    }),
+    new MakerZIP({}, ["darwin", "linux"]),
   ],
   hooks: {
     generateAssets: async () => {

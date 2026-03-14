@@ -138,12 +138,19 @@ export function createWindow(): void {
     },
   });
 
-  mainWindow.once("ready-to-show", () => {
+  let windowShown = false;
+  const showWindow = () => {
+    if (windowShown) return;
+    windowShown = true;
+    clearTimeout(showFallback);
     if (savedState.isMaximized) {
       mainWindow?.maximize();
     }
     mainWindow?.show();
-  });
+  };
+
+  mainWindow.once("ready-to-show", showWindow);
+  const showFallback = setTimeout(showWindow, 3000);
 
   // Persist window state on changes
   mainWindow.on(
