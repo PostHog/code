@@ -59,7 +59,12 @@ import { fetchMcpToolMetadata } from "./mcp/tool-metadata";
 import { canUseTool } from "./permissions/permission-handlers";
 import { getAvailableSlashCommands } from "./session/commands";
 import { parseMcpServers } from "./session/mcp-config";
-import { DEFAULT_MODEL, toSdkModelId } from "./session/models";
+import {
+  DEFAULT_MODEL,
+  getDefaultContextWindow,
+  getEffortOptions,
+  toSdkModelId,
+} from "./session/models";
 import {
   buildSessionOptions,
   buildSystemPrompt,
@@ -337,7 +342,9 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
               (m) => m.contextWindow,
             );
             const contextWindowSize =
-              contextWindows.length > 0 ? Math.min(...contextWindows) : 200000;
+              contextWindows.length > 0
+                ? Math.min(...contextWindows)
+                : getDefaultContextWindow(this.session.modelId ?? "");
 
             // Send usage_update notification
             if (lastAssistantTotalUsage !== null) {
@@ -509,6 +516,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const sdkModelId = toSdkModelId(params.modelId);
     await this.session.query.setModel(sdkModelId);
     this.session.modelId = params.modelId;
+    this.rebuildEffortConfigOption(params.modelId);
     await this.updateConfigOption("model", params.modelId);
     return {};
   }
@@ -559,6 +567,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       const sdkModelId = toSdkModelId(params.value);
       await this.session.query.setModel(sdkModelId);
       this.session.modelId = params.value;
+      this.rebuildEffortConfigOption(params.value);
     } else if (params.configId === "effort") {
       const newEffort = params.value as EffortLevel;
       this.session.effort = newEffort;
@@ -865,7 +874,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       description: mode.description ?? undefined,
     }));
 
-    return [
+    const configOptions: SessionConfigOption[] = [
       {
         id: "mode",
         name: "Approval Preset",
@@ -885,21 +894,67 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         category: "model" as SessionConfigOptionCategory,
         description: "Choose which model Claude should use",
       },
-      {
+    ];
+
+    const effortOptions = getEffortOptions(modelOptions.currentModelId);
+    if (effortOptions) {
+      configOptions.push({
         id: "effort",
         name: "Effort",
         type: "select",
         currentValue: currentEffort,
-        options: [
-          { value: "low", name: "Low" },
-          { value: "medium", name: "Medium" },
-          { value: "high", name: "High" },
-          { value: "max", name: "Max" },
-        ],
+        options: effortOptions,
         category: "thought_level" as SessionConfigOptionCategory,
         description: "Controls how much effort Claude puts into its response",
-      },
-    ];
+      });
+    }
+
+    return configOptions;
+  }
+
+  private rebuildEffortConfigOption(modelId: string): void {
+    const effortOptions = getEffortOptions(modelId);
+    const existingEffort = this.session.configOptions.find(
+      (o) => o.id === "effort",
+    );
+
+    if (!effortOptions) {
+      this.session.configOptions = this.session.configOptions.filter(
+        (o) => o.id !== "effort",
+      );
+      if (this.session.effort) {
+        this.session.effort = undefined;
+        this.session.queryOptions.effort = undefined;
+      }
+      return;
+    }
+
+    const currentValue = existingEffort?.currentValue ?? "high";
+    const isValidValue = effortOptions.some((o) => o.value === currentValue);
+    const resolvedValue = isValidValue ? currentValue : "high";
+
+    if (resolvedValue !== currentValue && this.session.effort) {
+      this.session.effort = resolvedValue as EffortLevel;
+      this.session.queryOptions.effort = resolvedValue as EffortLevel;
+    }
+
+    const effortConfig: SessionConfigOption = {
+      id: "effort",
+      name: "Effort",
+      type: "select",
+      currentValue: resolvedValue,
+      options: effortOptions,
+      category: "thought_level" as SessionConfigOptionCategory,
+      description: "Controls how much effort Claude puts into its response",
+    };
+
+    if (existingEffort) {
+      this.session.configOptions = this.session.configOptions.map((o) =>
+        o.id === "effort" ? effortConfig : o,
+      );
+    } else {
+      this.session.configOptions.push(effortConfig);
+    }
   }
 
   private async sendAvailableCommandsUpdate(): Promise<void> {
