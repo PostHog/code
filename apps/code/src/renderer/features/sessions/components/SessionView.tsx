@@ -433,7 +433,7 @@ export function SessionView({
                 </Flex>
               ) : firstPendingPermission ? (
                 <Box className="border-gray-4 border-t">
-                  <Box className="mx-auto max-w-[750px] p-2">
+                  <Box className="mx-auto max-w-conversation p-2">
                     <PermissionSelector
                       toolCall={firstPendingPermission.toolCall}
                       options={firstPendingPermission.options}
@@ -476,7 +476,9 @@ export function SessionView({
                     }`}
                   >
                     <Box
-                      className={compact ? "p-1" : "mx-auto max-w-[750px] p-2"}
+                      className={
+                        compact ? "p-1" : "mx-auto max-w-conversation p-2"
+                      }
                     >
                       <MessageEditor
                         ref={editorRef}
