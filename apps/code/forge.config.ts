@@ -3,6 +3,7 @@ import { execSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { MakerDMG } from "@electron-forge/maker-dmg";
+import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerZIP } from "@electron-forge/maker-zip";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import { PublisherGithub } from "@electron-forge/publisher-github";
@@ -181,10 +182,16 @@ const config: ForgeConfig = {
           }
         : {}),
     }),
+    new MakerSquirrel({
+      name: "PostHogCode",
+      setupIcon: "./build/app-icon.ico",
+    }),
     new MakerZIP({}, ["darwin", "linux", "win32"]),
   ],
   hooks: {
     generateAssets: async () => {
+      if (process.platform !== "darwin") return;
+
       // Generate ICNS from source PNG (skip if already exists)
       if (
         existsSync("build/app-icon.png") &&
@@ -199,6 +206,8 @@ const config: ForgeConfig = {
       }
     },
     prePackage: async () => {
+      if (process.platform !== "darwin") return;
+
       // Build native modules for DMG maker on Node.js 22
       const modules = ["macos-alias", "fs-xattr"];
 
@@ -217,9 +226,20 @@ const config: ForgeConfig = {
       copyNativeDependency("node-pty", buildPath);
       copyNativeDependency("node-addon-api", buildPath);
       copyNativeDependency("@parcel/watcher", buildPath);
-      copyNativeDependency("@parcel/watcher-darwin-arm64", buildPath);
-      copyNativeDependency("file-icon", buildPath);
-      copyNativeDependency("p-map", buildPath);
+
+      // Platform-specific native dependencies
+      if (process.platform === "darwin") {
+        copyNativeDependency("@parcel/watcher-darwin-arm64", buildPath);
+        copyNativeDependency("file-icon", buildPath);
+        copyNativeDependency("p-map", buildPath);
+      } else if (process.platform === "win32") {
+        const watcherPkg =
+          process.arch === "arm64"
+            ? "@parcel/watcher-win32-arm64"
+            : "@parcel/watcher-win32-x64";
+        copyNativeDependency(watcherPkg, buildPath);
+      }
+
       // Copy @parcel/watcher's hoisted dependencies
       copyNativeDependency("micromatch", buildPath);
       copyNativeDependency("is-glob", buildPath);

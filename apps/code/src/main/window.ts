@@ -103,6 +103,21 @@ export function createWindow(): void {
     }, 200);
   };
 
+  const platformWindowConfig =
+    process.platform === "darwin"
+      ? {
+          titleBarStyle: "hiddenInset" as const,
+          trafficLightPosition: { x: 12, y: 9 },
+        }
+      : {
+          titleBarStyle: "hidden" as const,
+          titleBarOverlay: {
+            color: "#0a0a0a",
+            symbolColor: "#ffffff",
+            height: 36,
+          },
+        };
+
   mainWindow = new BrowserWindow({
     ...(savedState.x !== undefined && { x: savedState.x }),
     ...(savedState.y !== undefined && { y: savedState.y }),
@@ -111,8 +126,7 @@ export function createWindow(): void {
     minWidth: 1200,
     minHeight: 600,
     backgroundColor: "#0a0a0a",
-    titleBarStyle: "hiddenInset",
-    trafficLightPosition: { x: 12, y: 9 },
+    ...platformWindowConfig,
     show: false,
     webPreferences: {
       nodeIntegration: true,

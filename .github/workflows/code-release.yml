@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
+  publish-macos:
     runs-on: macos-latest
     permissions:
       id-token: write
@@ -129,3 +129,74 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           APP_VERSION: ${{ steps.version.outputs.version }}
         run: gh release edit "v$APP_VERSION" --repo PostHog/code --draft=false
+
+  publish-windows:
+    runs-on: windows-latest
+    permissions:
+      id-token: write
+      contents: write
+    env:
+      NODE_OPTIONS: "--max-old-space-size=8192"
+      NODE_ENV: production
+      VITE_POSTHOG_API_KEY: ${{ secrets.VITE_POSTHOG_API_KEY }}
+      VITE_POSTHOG_API_HOST: ${{ secrets.VITE_POSTHOG_API_HOST }}
+    steps:
+      - name: Get app token
+        id: app-token
+        uses: getsentry/action-github-app-token@d4b5da6c5e37703f8c3b3e43abb5705b46e159cc # v3
+        with:
+          app_id: ${{ secrets.GH_APP_ARRAY_RELEASER_APP_ID }}
+          private_key: ${{ secrets.GH_APP_ARRAY_RELEASER_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Extract version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $tagVersion = "${{ github.ref }}" -replace "refs/tags/v", ""
+          echo "Version: $tagVersion"
+          echo "version=$tagVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Set version in package.json
+        shell: pwsh
+        run: |
+          $pkg = Get-Content apps/code/package.json -Raw | ConvertFrom-Json
+          $pkg.version = "${{ steps.version.outputs.version }}"
+          $pkg | ConvertTo-Json -Depth 10 | Set-Content apps/code/package.json
+          echo "Set apps/code/package.json version to ${{ steps.version.outputs.version }}"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build electron-trpc package
+        run: pnpm --filter @posthog/electron-trpc run build
+
+      - name: Build shared package
+        run: pnpm --filter @posthog/shared run build
+
+      - name: Build git package
+        run: pnpm --filter @posthog/git run build
+
+      - name: Build agent package
+        run: pnpm --filter @posthog/agent run build
+
+      - name: Publish with Electron Forge
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: pnpm --filter code run publish
