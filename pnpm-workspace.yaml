@@ -16,3 +16,5 @@ onlyBuiltDependencies:
   - macos-alias
   - node-pty
 
+patchedDependencies:
+  node-pty: patches/node-pty.patch

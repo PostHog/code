@@ -64,13 +64,13 @@
   "author": "PostHog",
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
-    "build": "rm -rf dist && tsup",
+    "build": "node ../../scripts/rimraf.mjs dist && tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "pnpm exec tsc --noEmit",
     "prepublishOnly": "pnpm run build",
-    "clean": "rm -rf dist .turbo"
+    "clean": "node ../../scripts/rimraf.mjs dist .turbo"
   },
   "engines": {
     "node": ">=20.0.0"

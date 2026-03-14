@@ -1,6 +1,6 @@
 procs:
   code:
-    cmd: ["pnpm", "--filter", "code", "run", "start"]
+    cmd: ["node", "scripts/pnpm-run.mjs", "--filter", "code", "run", "start"]
     cwd: .
     color: blue
     depends_on:
@@ -8,23 +8,23 @@ procs:
       - git
 
   agent:
-    cmd: ["pnpm", "--filter", "agent", "run", "dev"]
+    cmd: ["node", "scripts/pnpm-run.mjs", "--filter", "agent", "run", "dev"]
     cwd: .
     color: magenta
 
   git:
-    cmd: ["pnpm", "--filter", "@posthog/git", "run", "dev"]
+    cmd: ["node", "scripts/pnpm-run.mjs", "--filter", "@posthog/git", "run", "dev"]
     cwd: .
     color: yellow
 
   storybook:
-    cmd: ["pnpm", "--filter", "code", "run", "storybook"]
+    cmd: ["node", "scripts/pnpm-run.mjs", "--filter", "code", "run", "storybook"]
     cwd: .
     color: cyan
     autostart: false
 
   mobile-ios:
-    cmd: ["pnpm", "--filter", "@posthog/mobile", "run", "ios"]
+    cmd: ["node", "scripts/pnpm-run.mjs", "--filter", "@posthog/mobile", "run", "ios"]
     cwd: .
     color: green
     autostart: false
