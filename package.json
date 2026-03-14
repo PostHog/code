@@ -53,10 +53,5 @@
       "biome check --write --unsafe --files-ignore-unknown=true --no-errors-on-unmatched",
       "bash -c 'pnpm typecheck'"
     ]
-  },
-  "pnpm": {
-    "patchedDependencies": {
-      "node-pty": "patches/node-pty.patch"
-    }
   }
 }
