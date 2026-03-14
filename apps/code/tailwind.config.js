@@ -6,6 +6,9 @@ module.exports = {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
+      maxWidth: {
+        conversation: "min(90%, 1100px)",
+      },
       animation: {
         "sync-rotate": "sync-rotate 3s ease-in-out infinite",
       },

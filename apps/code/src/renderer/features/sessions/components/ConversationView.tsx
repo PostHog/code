@@ -181,7 +181,7 @@ export function ConversationView({
         renderItem={renderItem}
         onScrollStateChange={handleScrollStateChange}
         className="absolute inset-0 bg-gray-1"
-        itemClassName="mx-auto max-w-[750px] px-2 py-1.5"
+        itemClassName="mx-auto max-w-conversation px-2 py-1.5"
         footer={
           <div className={compact ? "pb-1" : "pb-16"}>
             <SessionFooter
