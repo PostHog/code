@@ -64,4 +64,7 @@ export const POSTHOG_NOTIFICATIONS = {
 
   /** Marks a boundary for log compaction */
   COMPACT_BOUNDARY: "_posthog/compact_boundary",
+
+  /** Request to clear session history and continue from an approved plan */
+  CLEAR_AND_CONTINUE: "_posthog/clear_and_continue",
 } as const;

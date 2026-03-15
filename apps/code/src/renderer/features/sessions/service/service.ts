@@ -25,6 +25,8 @@ import {
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { taskViewedApi } from "@features/sidebar/hooks/useTaskViewed";
+import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
+import { POSTHOG_NOTIFICATIONS } from "@posthog/agent/acp-extensions";
 import { DEFAULT_GATEWAY_MODEL } from "@posthog/agent/gateway-models";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpcClient } from "@renderer/trpc/client";
@@ -116,6 +118,8 @@ export class SessionService {
   >();
   /** AbortController for the current in-flight preview session start */
   private previewAbort: AbortController | null = null;
+  /** Pending plan text to inject after session clear, keyed by taskRunId */
+  private pendingPlanContinuations = new Map<string, string>();
   /** Active cloud task watchers, keyed by taskId */
   private cloudTaskWatchers = new Map<
     string,
@@ -858,8 +862,35 @@ export class SessionService {
 
       taskViewedApi.markActivity(session.taskId);
 
-      // Process queued messages after turn completes - send all as one prompt
-      if (hasQueuedMessages) {
+      // Clear-and-continue from plan takes priority over queued messages
+      const pendingPlan = this.pendingPlanContinuations.get(taskRunId);
+      if (pendingPlan) {
+        this.pendingPlanContinuations.delete(taskRunId);
+        const { taskId } = session;
+        // Look up repoPath from workspace — session doesn't store it directly
+        workspaceApi
+          .get(taskId)
+          .then((workspace) => {
+            const repoPath = workspace?.worktreePath ?? workspace?.folderPath;
+            if (repoPath) {
+              return this.executeClearAndContinue(
+                taskId,
+                repoPath,
+                pendingPlan,
+              );
+            }
+            log.error("Cannot clear-and-continue: no workspace for task", {
+              taskId,
+            });
+            return undefined;
+          })
+          .catch((err) => {
+            log.error("Failed to clear and continue from plan", {
+              taskId,
+              error: err,
+            });
+          });
+      } else if (hasQueuedMessages) {
         setTimeout(() => {
           this.sendQueuedMessages(session.taskId).catch((err) => {
             log.error("Failed to send queued messages", {
@@ -912,6 +943,21 @@ export class SessionService {
           taskRunId,
           adapter: params.adapter,
         });
+      }
+    }
+
+    // Handle clear_and_continue — store plan text for post-turn injection
+    // extNotification may double the underscore prefix, so match both forms
+    if (
+      "method" in msg &&
+      (msg.method === POSTHOG_NOTIFICATIONS.CLEAR_AND_CONTINUE ||
+        msg.method === `_${POSTHOG_NOTIFICATIONS.CLEAR_AND_CONTINUE}`) &&
+      "params" in msg
+    ) {
+      const params = msg.params as { plan?: string };
+      if (params?.plan) {
+        this.pendingPlanContinuations.set(taskRunId, params.plan);
+        log.info("Plan continuation queued", { taskRunId });
       }
     }
   }
@@ -1764,6 +1810,22 @@ export class SessionService {
     }
 
     await this.createNewLocalSession(taskId, taskTitle, repoPath, auth);
+  }
+
+  /**
+   * Clear conversation history and re-inject an approved plan as the first prompt.
+   * Used by the "clear and continue from plan" flow.
+   */
+  private async executeClearAndContinue(
+    taskId: string,
+    repoPath: string,
+    plan: string,
+  ): Promise<void> {
+    await this.resetSession(taskId, repoPath);
+    await this.sendPrompt(
+      taskId,
+      `Continue implementing this approved plan:\n\n${plan}`,
+    );
   }
 
   /**

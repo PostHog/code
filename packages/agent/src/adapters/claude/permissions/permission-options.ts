@@ -104,6 +104,11 @@ export function buildExitPlanModePermissionOptions(): PermissionOption[] {
       optionId: "default",
     },
     {
+      kind: "allow_once",
+      name: "Yes, clear history and continue from plan",
+      optionId: "clearAndContinue",
+    },
+    {
       kind: "reject_once",
       name: "No, and tell the agent what to do differently",
       optionId: "reject_with_feedback",
