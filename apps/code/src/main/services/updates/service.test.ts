@@ -686,21 +686,21 @@ describe("UpdatesService", () => {
       expect(mockAutoUpdater.checkForUpdates).toHaveBeenCalled();
     });
 
-    it("performs check every hour", async () => {
+    it("performs check every 24 hours", async () => {
       await initializeService(service);
 
       const initialCallCount =
         mockAutoUpdater.checkForUpdates.mock.calls.length;
 
-      // Advance 1 hour
-      await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+      // Advance 24 hours
+      await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000);
 
       expect(mockAutoUpdater.checkForUpdates.mock.calls.length).toBe(
         initialCallCount + 1,
       );
 
-      // Advance another hour
-      await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+      // Advance another 24 hours
+      await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000);
 
       expect(mockAutoUpdater.checkForUpdates.mock.calls.length).toBe(
         initialCallCount + 2,

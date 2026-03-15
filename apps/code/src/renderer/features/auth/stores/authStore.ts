@@ -966,7 +966,6 @@ export const useAuthStore = create<AuthState>()(
             needsProjectSelection: false,
             needsScopeReauth: false,
             hasCodeAccess: null,
-            hasCompletedOnboarding: false,
             selectedPlan: null,
             selectedOrgId: null,
           });
