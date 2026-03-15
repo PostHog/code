@@ -59,7 +59,11 @@ import { fetchMcpToolMetadata } from "./mcp/tool-metadata";
 import { canUseTool } from "./permissions/permission-handlers";
 import { getAvailableSlashCommands } from "./session/commands";
 import { parseMcpServers } from "./session/mcp-config";
-import { DEFAULT_MODEL, toSdkModelId } from "./session/models";
+import {
+  DEFAULT_MODEL,
+  getDefaultContextWindow,
+  toSdkModelId,
+} from "./session/models";
 import {
   buildSessionOptions,
   buildSystemPrompt,
@@ -275,6 +279,13 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     this.session.promptRunning = true;
     let handedOff = false;
     let lastAssistantTotalUsage: number | null = null;
+    // Context window size: use model-aware default, refined by SDK result messages.
+    if (this.session.lastContextWindowSize == null) {
+      this.session.lastContextWindowSize = getDefaultContextWindow(
+        this.session.modelId ?? "",
+      );
+    }
+    let lastContextWindowSize = this.session.lastContextWindowSize;
 
     const supportsTerminalOutput =
       (
@@ -336,8 +347,12 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
             const contextWindows = Object.values(message.modelUsage).map(
               (m) => m.contextWindow,
             );
-            const contextWindowSize =
-              contextWindows.length > 0 ? Math.min(...contextWindows) : 200000;
+            lastContextWindowSize =
+              contextWindows.length > 0
+                ? Math.min(...contextWindows)
+                : getDefaultContextWindow(this.session.modelId ?? "");
+            // Persist SDK-reported value so it survives across prompt() calls
+            this.session.lastContextWindowSize = lastContextWindowSize;
 
             // Send usage_update notification
             if (lastAssistantTotalUsage !== null) {
@@ -346,7 +361,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
                 update: {
                   sessionUpdate: "usage_update",
                   used: lastAssistantTotalUsage,
-                  size: contextWindowSize,
+                  size: lastContextWindowSize,
                   cost: {
                     amount: message.total_cost_usd,
                     currency: "USD",
@@ -436,6 +451,17 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
                 usage.output_tokens +
                 usage.cache_read_input_tokens +
                 usage.cache_creation_input_tokens;
+
+              // Broadcast live usage update during streaming
+              await this.client.sessionUpdate({
+                sessionId: params.sessionId,
+                update: {
+                  sessionUpdate: "usage_update",
+                  used: lastAssistantTotalUsage,
+                  size: lastContextWindowSize,
+                  cost: null,
+                },
+              });
             }
 
             const result = await handleUserAssistantMessage(message, context);
@@ -509,6 +535,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const sdkModelId = toSdkModelId(params.modelId);
     await this.session.query.setModel(sdkModelId);
     this.session.modelId = params.modelId;
+    // Reset context window to new model's default
+    this.session.lastContextWindowSize = getDefaultContextWindow(
+      params.modelId,
+    );
     await this.updateConfigOption("model", params.modelId);
     return {};
   }
@@ -559,6 +589,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       const sdkModelId = toSdkModelId(params.value);
       await this.session.query.setModel(sdkModelId);
       this.session.modelId = params.value;
+      // Reset context window to new model's default
+      this.session.lastContextWindowSize = getDefaultContextWindow(
+        params.value,
+      );
     } else if (params.configId === "effort") {
       const newEffort = params.value as EffortLevel;
       this.session.effort = newEffort;
@@ -770,6 +804,9 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const modelOptions = await this.getModelConfigOptions();
     const resolvedModelId = settingsModel || modelOptions.currentModelId;
     session.modelId = resolvedModelId;
+
+    // Seed context window size from model-aware default
+    session.lastContextWindowSize = getDefaultContextWindow(resolvedModelId);
 
     if (!isResume) {
       const resolvedSdkModel = toSdkModelId(resolvedModelId);

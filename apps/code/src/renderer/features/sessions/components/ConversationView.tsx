@@ -1,3 +1,4 @@
+import { useContextUsage } from "@features/sessions/hooks/useContextUsage";
 import {
   sessionStoreSetters,
   useOptimisticItemsForTask,
@@ -52,6 +53,7 @@ export function ConversationView({
   const agentLogsEnabled = useFeatureFlag("posthog-code-background-agent-logs");
   const debugLogsCloudRuns = useSettingsStore((s) => s.debugLogsCloudRuns);
   const showDebugLogs = agentLogsEnabled && debugLogsCloudRuns;
+  const contextUsage = useContextUsage(events);
 
   const { items: conversationItems, lastTurnInfo } = useMemo(
     () =>
@@ -199,6 +201,7 @@ export function ConversationView({
               queuedCount={queuedMessages.length}
               hasPendingPermission={pendingPermissionsCount > 0}
               pausedDurationMs={pausedDurationMs}
+              usage={contextUsage}
             />
           </div>
         }
