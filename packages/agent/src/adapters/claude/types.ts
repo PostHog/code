@@ -53,6 +53,8 @@ export type Session = BaseSession & {
   effort?: EffortLevel;
   configOptions: SessionConfigOption[];
   accumulatedUsage: AccumulatedUsage;
+  /** Persists across prompt() calls so SDK-reported values survive turn boundaries */
+  lastContextWindowSize?: number;
   promptRunning: boolean;
   pendingMessages: Map<string, PendingMessage>;
   nextPendingOrder: number;
