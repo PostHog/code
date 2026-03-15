@@ -1751,7 +1751,7 @@ export class SessionService {
    * session instead of attempting to resume the stale one.
    */
   async resetSession(taskId: string, repoPath: string): Promise<void> {
-    await this.reconnectInPlace(taskId, repoPath, null);
+    await this.reconnectInPlace(taskId, repoPath, null, true);
   }
 
   /**
@@ -1768,6 +1768,7 @@ export class SessionService {
     taskId: string,
     repoPath: string,
     overrideSessionId?: string | null,
+    clearHistory = false,
   ): Promise<void> {
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) return;
@@ -1788,7 +1789,13 @@ export class SessionService {
       throw new Error("Unable to reach server. Please check your connection.");
     }
 
-    const prefetchedLogs = await this.fetchSessionLogs(logUrl, taskRunId);
+    const prefetchedLogs = clearHistory
+      ? {
+          rawEntries: [] as StoredLogEntry[],
+          sessionId: undefined,
+          adapter: undefined as Adapter | undefined,
+        }
+      : await this.fetchSessionLogs(logUrl, taskRunId);
 
     // Determine sessionId: undefined = use from logs, null = strip (fresh), string = use as-is
     const sessionId =

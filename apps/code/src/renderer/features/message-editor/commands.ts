@@ -51,6 +51,21 @@ const commands: CodeCommand[] = [
   makeFeedbackCommand("good", "good", "Positive"),
   makeFeedbackCommand("bad", "bad", "Negative"),
   makeFeedbackCommand("feedback", "general", "General"),
+  {
+    name: "clear",
+    description: "Clear conversation history and start fresh",
+    async execute(_args, ctx) {
+      if (!ctx.repoPath || !ctx.taskId) {
+        toast.error("Cannot clear: no active session");
+        return;
+      }
+      const { getSessionService } = await import(
+        "@features/sessions/service/service"
+      );
+      await getSessionService().resetSession(ctx.taskId, ctx.repoPath);
+      toast.success("Conversation cleared");
+    },
+  },
 ];
 
 export const CODE_COMMANDS: AvailableCommand[] = commands.map((cmd) => ({
