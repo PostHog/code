@@ -72,6 +72,7 @@ export default defineConfig([
   {
     entry: [
       "src/index.ts",
+      "src/acp-extensions.ts",
       "src/agent.ts",
       "src/gateway-models.ts",
       "src/posthog-api.ts",
