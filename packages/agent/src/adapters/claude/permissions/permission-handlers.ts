@@ -3,6 +3,7 @@ import type {
   RequestPermissionResponse,
 } from "@agentclientprotocol/sdk";
 import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
+import { POSTHOG_NOTIFICATIONS } from "../../../acp-extensions";
 import { text } from "../../../utils/acp-content";
 import type { Logger } from "../../../utils/logger";
 import { toolInfoFromToolUse } from "../conversion/tool-use-to-acp";
@@ -186,6 +187,44 @@ async function applyPlanApproval(
           mode: response.outcome.optionId,
           destination: "localSettings",
         },
+      ],
+    };
+  }
+
+  // Clear history and continue from plan — approve, switch mode, then signal renderer
+  if (
+    response.outcome?.outcome === "selected" &&
+    response.outcome.optionId === "clearAndContinue"
+  ) {
+    const planText = extractPlanText(updatedInput);
+
+    session.permissionMode = "default";
+    await session.query.setPermissionMode("default");
+    await context.client.sessionUpdate({
+      sessionId: context.sessionId,
+      update: {
+        sessionUpdate: "current_mode_update",
+        currentModeId: "default",
+      },
+    });
+    await context.updateConfigOption("mode", "default");
+
+    // Signal the renderer to clear the session and re-inject the plan
+    if (planText) {
+      await context.client.extNotification(
+        POSTHOG_NOTIFICATIONS.CLEAR_AND_CONTINUE,
+        {
+          sessionId: context.sessionId,
+          plan: planText,
+        },
+      );
+    }
+
+    return {
+      behavior: "allow",
+      updatedInput,
+      updatedPermissions: context.suggestions ?? [
+        { type: "setMode", mode: "default", destination: "localSettings" },
       ],
     };
   }

@@ -12,6 +12,10 @@
       "types": "./dist/agent.d.ts",
       "import": "./dist/agent.js"
     },
+    "./acp-extensions": {
+      "types": "./dist/acp-extensions.d.ts",
+      "import": "./dist/acp-extensions.js"
+    },
     "./gateway-models": {
       "types": "./dist/gateway-models.d.ts",
       "import": "./dist/gateway-models.js"
