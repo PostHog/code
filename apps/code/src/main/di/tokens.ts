@@ -14,10 +14,12 @@ export const MAIN_TOKENS = Object.freeze({
   WorkspaceRepository: Symbol.for("Main.WorkspaceRepository"),
   WorktreeRepository: Symbol.for("Main.WorktreeRepository"),
   ArchiveRepository: Symbol.for("Main.ArchiveRepository"),
+  SuspensionRepository: Symbol.for("Main.SuspensionRepository"),
 
   // Services
   AgentService: Symbol.for("Main.AgentService"),
   ArchiveService: Symbol.for("Main.ArchiveService"),
+  SuspensionService: Symbol.for("Main.SuspensionService"),
   AppLifecycleService: Symbol.for("Main.AppLifecycleService"),
   CloudTaskService: Symbol.for("Main.CloudTaskService"),
   ConnectivityService: Symbol.for("Main.ConnectivityService"),

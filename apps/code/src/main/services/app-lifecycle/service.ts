@@ -8,6 +8,7 @@ import { withTimeout } from "../../utils/async";
 import { logger } from "../../utils/logger";
 import { shutdownPostHog, trackAppEvent } from "../posthog-analytics";
 import type { ProcessTrackingService } from "../process-tracking/service";
+import type { SuspensionService } from "../suspension/service.js";
 import type { WatcherRegistryService } from "../watcher-registry/service";
 
 const log = logger.scope("app-lifecycle");
@@ -93,6 +94,15 @@ export class AppLifecycleService {
     log.info("Shutdown started");
 
     await this.teardownNativeResources();
+
+    try {
+      const suspensionService = container.get<SuspensionService>(
+        MAIN_TOKENS.SuspensionService,
+      );
+      suspensionService.stopInactivityChecker();
+    } catch (error) {
+      log.warn("Failed to stop inactivity checker during shutdown", error);
+    }
 
     try {
       const db = container.get<DatabaseService>(MAIN_TOKENS.DatabaseService);

@@ -8,6 +8,7 @@ import {
   BellRinging,
   Cloud as CloudIcon,
   Laptop as LaptopIcon,
+  Pause,
   PushPin,
 } from "@phosphor-icons/react";
 import { selectIsFocusedOnWorktree, useFocusStore } from "@stores/focusStore";
@@ -24,6 +25,7 @@ interface TaskItemProps {
   isGenerating?: boolean;
   isUnread?: boolean;
   isPinned?: boolean;
+  isSuspended?: boolean;
   needsPermission?: boolean;
   taskRunStatus?:
     | "started"
@@ -180,6 +182,7 @@ export function TaskItem({
   isActive,
   workspaceMode,
   worktreePath,
+  isSuspended = false,
   isGenerating,
   isUnread,
   isPinned = false,
@@ -202,7 +205,13 @@ export function TaskItem({
   const isWorktreeTask = workspaceMode === "worktree";
   const isCloudTask = workspaceMode === "cloud";
 
-  const icon = needsPermission ? (
+  const icon = isSuspended ? (
+    <Tooltip content="Suspended" side="right">
+      <span className="flex items-center justify-center">
+        <Pause size={ICON_SIZE} className="text-gray-9" />
+      </span>
+    </Tooltip>
+  ) : needsPermission ? (
     <BellRinging size={ICON_SIZE} className="text-blue-11" />
   ) : isGenerating ? (
     <DotsCircleSpinner size={ICON_SIZE} className="text-accent-11" />

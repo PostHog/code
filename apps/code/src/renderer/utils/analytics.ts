@@ -3,6 +3,7 @@ import posthog from "posthog-js/dist/module.full.no-external";
 // The module.full.no-external bundle includes rrweb but not the initSessionRecording function
 // posthog-recorder (vs lazy-recorder) ensures recording is ready immediately
 import "posthog-js/dist/posthog-recorder";
+import type { PermissionRequest } from "@renderer/features/sessions/utils/parseSessionLogs";
 import type {
   EventPropertyMap,
   UserIdentifyProperties,
@@ -126,6 +127,29 @@ export function track<K extends keyof EventPropertyMap>(
   }
 
   posthog.capture(eventName, args[0]);
+}
+
+/**
+ * Build tool metadata for analytics on permission requests
+ */
+export function buildPermissionToolMetadata(
+  permission?: PermissionRequest,
+  selectedOptionId?: string,
+  customInput?: string,
+): Record<string, any> {
+  const selectedOption = permission?.options?.find(
+    (o) => o.optionId === selectedOptionId,
+  );
+  const rawInput = permission?.toolCall?.rawInput as
+    | Record<string, unknown>
+    | undefined;
+
+  return {
+    tool_name: rawInput?.toolName,
+    option_id: selectedOptionId,
+    option_kind: selectedOption?.kind ?? "unknown",
+    custom_input: customInput,
+  };
 }
 
 /**

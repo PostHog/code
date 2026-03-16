@@ -27,6 +27,7 @@ import {
 } from "../../db/repositories/archive-repository.mock";
 import type { IRepositoryRepository } from "../../db/repositories/repository-repository";
 import { createMockRepositoryRepository } from "../../db/repositories/repository-repository.mock";
+import { createMockSuspensionRepository } from "../../db/repositories/suspension-repository.mock";
 import {
   createMockWorkspaceRepository,
   type MockWorkspaceRepository,
@@ -122,6 +123,8 @@ async function withTestContext(
     fileWatcher: { stopWatching: vi.fn() },
   };
 
+  const suspensionRepo = createMockSuspensionRepository();
+
   const service = new ArchiveService(
     mocks.agentService as never,
     mocks.processTracking as never,
@@ -130,6 +133,7 @@ async function withTestContext(
     workspaceRepo as never,
     worktreeRepo as never,
     archiveRepo as never,
+    suspensionRepo as never,
   );
 
   const git = (cmd: string) =>

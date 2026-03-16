@@ -9,8 +9,6 @@ export interface EditorExtensionsOptions {
   placeholder?: string;
   fileMentions?: boolean;
   commands?: boolean;
-  onCommandSubmit?: (text: string) => void;
-  onClearDraft?: () => void;
 }
 
 export function getEditorExtensions(options: EditorExtensionsOptions) {
@@ -19,8 +17,6 @@ export function getEditorExtensions(options: EditorExtensionsOptions) {
     placeholder = "",
     fileMentions = true,
     commands = true,
-    onCommandSubmit,
-    onClearDraft,
   } = options;
 
   const extensions = [
@@ -46,13 +42,7 @@ export function getEditorExtensions(options: EditorExtensionsOptions) {
   }
 
   if (commands) {
-    extensions.push(
-      createCommandMention({
-        sessionId,
-        onSubmit: onCommandSubmit,
-        onClearDraft,
-      }),
-    );
+    extensions.push(createCommandMention({ sessionId }));
   }
 
   return extensions;

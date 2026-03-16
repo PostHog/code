@@ -3,6 +3,7 @@ import {
   useOptimisticItemsForTask,
   usePendingPermissionsForTask,
   useQueuedMessagesForTask,
+  useSessionForTask,
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
@@ -72,6 +73,8 @@ export function ConversationView({
   const pendingPermissionsCount = pendingPermissions.size;
   const queuedMessages = useQueuedMessagesForTask(taskId);
   const optimisticItems = useOptimisticItemsForTask(taskId);
+  const session = useSessionForTask(taskId);
+  const pausedDurationMs = session?.pausedDurationMs ?? 0;
 
   const queuedItems = useMemo<Extract<ConversationItem, { type: "queued" }>[]>(
     () =>
@@ -188,11 +191,14 @@ export function ConversationView({
               isPromptPending={isPromptPending}
               promptStartedAt={promptStartedAt}
               lastGenerationDuration={
-                lastTurnInfo?.isComplete ? lastTurnInfo.durationMs : null
+                lastTurnInfo?.isComplete
+                  ? Math.max(0, lastTurnInfo.durationMs - pausedDurationMs)
+                  : null
               }
               lastStopReason={lastTurnInfo?.stopReason}
               queuedCount={queuedMessages.length}
               hasPendingPermission={pendingPermissionsCount > 0}
+              pausedDurationMs={pausedDurationMs}
             />
           </div>
         }

@@ -10,6 +10,7 @@ interface SessionFooterProps {
   lastStopReason?: string;
   queuedCount?: number;
   hasPendingPermission?: boolean;
+  pausedDurationMs?: number;
 }
 
 export function SessionFooter({
@@ -19,6 +20,7 @@ export function SessionFooter({
   lastStopReason,
   queuedCount = 0,
   hasPendingPermission = false,
+  pausedDurationMs,
 }: SessionFooterProps) {
   if (isPromptPending) {
     // Show static "waiting" state when permission is pending
@@ -41,7 +43,10 @@ export function SessionFooter({
     return (
       <Box className="pt-3 pb-1">
         <Flex align="center" gap="2">
-          <GeneratingIndicator startedAt={promptStartedAt} />
+          <GeneratingIndicator
+            startedAt={promptStartedAt}
+            pausedDurationMs={pausedDurationMs}
+          />
           {queuedCount > 0 && (
             <Text size="1" color="gray">
               ({queuedCount} queued)
