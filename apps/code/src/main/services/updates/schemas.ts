@@ -30,7 +30,9 @@ export const UpdatesEvent = {
 
 export type UpdatesStatusPayload = {
   checking: boolean;
+  downloading?: boolean;
   upToDate?: boolean;
+  updateReady?: boolean;
   version?: string;
   error?: string;
 };

@@ -10,6 +10,7 @@ import {
   type InstallUpdateOutput,
   UpdatesEvent,
   type UpdatesEvents,
+  type UpdatesStatusPayload,
 } from "./schemas";
 
 type CheckSource = "user" | "periodic";
@@ -101,6 +102,11 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
       });
       this.pendingNotification = true;
       this.flushPendingNotification();
+      this.emitStatus({
+        checking: false,
+        updateReady: true,
+        version: this.downloadedVersion ?? undefined,
+      });
       return { success: true };
     }
 
@@ -203,7 +209,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
     this.clearCheckTimeout();
     log.info("Update available, downloading...");
     // Keep checkingForUpdates true while downloading
-    // The download is now in progress
+    this.emitStatus({ checking: true, downloading: true });
   }
 
   private handleNoUpdate(): void {
@@ -265,12 +271,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
     }
   }
 
-  private emitStatus(status: {
-    checking: boolean;
-    upToDate?: boolean;
-    version?: string;
-    error?: string;
-  }): void {
+  private emitStatus(status: UpdatesStatusPayload): void {
     this.emit(UpdatesEvent.Status, status);
   }
 
