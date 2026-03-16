@@ -118,6 +118,9 @@ export function ActionSelector({
       if (showInlineEdit || document.activeElement?.tagName === "TEXTAREA")
         return;
 
+      const container = containerRef.current;
+      if (container && !container.contains(document.activeElement)) return;
+
       switch (e.key) {
         case "ArrowUp":
           e.preventDefault();
@@ -186,7 +189,7 @@ export function ActionSelector({
     document.addEventListener("keydown", handler, { capture: true });
     return () =>
       document.removeEventListener("keydown", handler, { capture: true });
-  }, []);
+  }, [containerRef.current]);
 
   const getSubmitLabel = () => {
     return hasSteps && activeStep < numSteps - 1 ? "Next" : "Submit";
