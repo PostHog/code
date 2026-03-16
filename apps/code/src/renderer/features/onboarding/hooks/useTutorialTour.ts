@@ -1,5 +1,5 @@
 import type { SignalSourceValues } from "@features/inbox/components/SignalSourceToggles";
-import { useSignalSourceSelectionsStore } from "@features/inbox/stores/signalSourceSelectionsStore";
+import { useSignalSourceConfigs } from "@features/inbox/hooks/useSignalSourceConfigs";
 import { useCallback, useMemo, useState } from "react";
 import { generateInstrumentationPrompt } from "../utils/generateInstrumentationPrompt";
 
@@ -58,12 +58,30 @@ const HIGHLIGHTED_MAP: Record<TutorialSubStep, TutorialComponent | null> = {
 
 export function useTutorialTour() {
   const [subStep, setSubStep] = useState<TutorialSubStep>("select-repo");
-  const { userSelections } = useSignalSourceSelectionsStore();
+  const { data: configs } = useSignalSourceConfigs();
 
-  const signals: SignalSourceValues = userSelections ?? {
-    session_replay: true,
-    llm_analytics: false,
-  };
+  const signals: SignalSourceValues = useMemo(
+    () => ({
+      session_replay:
+        configs?.some(
+          (c) => c.source_product === "session_replay" && c.enabled,
+        ) ?? true,
+      llm_analytics:
+        configs?.some(
+          (c) => c.source_product === "llm_analytics" && c.enabled,
+        ) ?? false,
+      github:
+        configs?.some((c) => c.source_product === "github" && c.enabled) ??
+        false,
+      linear:
+        configs?.some((c) => c.source_product === "linear" && c.enabled) ??
+        false,
+      zendesk:
+        configs?.some((c) => c.source_product === "zendesk" && c.enabled) ??
+        false,
+    }),
+    [configs],
+  );
 
   const generatedPrompt = useMemo(
     () => generateInstrumentationPrompt(signals),

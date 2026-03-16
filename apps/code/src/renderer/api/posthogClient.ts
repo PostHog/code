@@ -20,12 +20,30 @@ export type McpServerInstallation = Schemas.MCPServerInstallation;
 
 export interface SignalSourceConfig {
   id: string;
-  source_product: "session_replay" | "llm_analytics";
-  source_type: "session_analysis_cluster" | "evaluation";
+  source_product:
+    | "session_replay"
+    | "llm_analytics"
+    | "github"
+    | "linear"
+    | "zendesk";
+  source_type: "session_analysis_cluster" | "evaluation" | "issue" | "ticket";
   enabled: boolean;
   config: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+}
+
+export interface ExternalDataSourceSchema {
+  id: string;
+  name: string;
+  should_sync: boolean;
+}
+
+export interface ExternalDataSource {
+  id: string;
+  source_type: string;
+  status: string;
+  schemas?: ExternalDataSourceSchema[];
 }
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
@@ -199,8 +217,17 @@ export class PostHogAPIClient {
   async createSignalSourceConfig(
     projectId: number,
     options: {
-      source_product: "session_replay" | "llm_analytics";
-      source_type: "session_analysis_cluster" | "evaluation";
+      source_product:
+        | "session_replay"
+        | "llm_analytics"
+        | "github"
+        | "linear"
+        | "zendesk";
+      source_type:
+        | "session_analysis_cluster"
+        | "evaluation"
+        | "issue"
+        | "ticket";
       enabled: boolean;
       config?: Record<string, unknown>;
     },
@@ -252,6 +279,82 @@ export class PostHogAPIClient {
       );
     }
     return (await response.json()) as SignalSourceConfig;
+  }
+
+  async listExternalDataSources(
+    projectId: number,
+  ): Promise<ExternalDataSource[]> {
+    const urlPath = `/api/environments/${projectId}/external_data_sources/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: urlPath,
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch external data sources: ${response.statusText}`,
+      );
+    }
+    const data = (await response.json()) as
+      | { results: ExternalDataSource[] }
+      | ExternalDataSource[];
+    return Array.isArray(data) ? data : (data.results ?? []);
+  }
+
+  async createExternalDataSource(
+    projectId: number,
+    payload: {
+      source_type: string;
+      payload: Record<string, unknown>;
+    },
+  ): Promise<ExternalDataSource> {
+    const urlPath = `/api/environments/${projectId}/external_data_sources/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: urlPath,
+      overrides: {
+        body: JSON.stringify(payload),
+      },
+    });
+    if (!response.ok) {
+      const errorData = (await response.json().catch(() => ({}))) as {
+        detail?: string;
+      };
+      throw new Error(
+        errorData.detail ??
+          `Failed to create external data source: ${response.statusText}`,
+      );
+    }
+    return (await response.json()) as ExternalDataSource;
+  }
+
+  async updateExternalDataSchema(
+    projectId: number,
+    schemaId: string,
+    updates: { should_sync: boolean },
+  ): Promise<void> {
+    const urlPath = `/api/environments/${projectId}/external_data_schemas/${schemaId}/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "patch",
+      url,
+      path: urlPath,
+      overrides: {
+        body: JSON.stringify(updates),
+      },
+    });
+    if (!response.ok) {
+      const errorData = (await response.json().catch(() => ({}))) as {
+        detail?: string;
+      };
+      throw new Error(
+        errorData.detail ??
+          `Failed to update external data schema: ${response.statusText}`,
+      );
+    }
   }
 
   async getTasks(options?: {
