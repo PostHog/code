@@ -14,7 +14,7 @@ import {
 import type { Plan } from "@features/sessions/types";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
-import { Spinner, Warning } from "@phosphor-icons/react";
+import { Pause, Spinner, Warning } from "@phosphor-icons/react";
 import { Box, Button, ContextMenu, Flex, Text } from "@radix-ui/themes";
 import {
   type AcpMessage,
@@ -49,6 +49,9 @@ interface SessionViewProps {
     linesAdded: number;
     linesRemoved: number;
   } | null;
+  isSuspended?: boolean;
+  onRestoreWorktree?: () => void;
+  isRestoring?: boolean;
   hasError?: boolean;
   errorTitle?: string;
   errorMessage?: string;
@@ -75,6 +78,9 @@ export function SessionView({
   repoPath,
   cloudBranch,
   cloudDiffStats,
+  isSuspended = false,
+  onRestoreWorktree,
+  isRestoring = false,
   hasError = false,
   errorTitle,
   errorMessage = DEFAULT_ERROR_MESSAGE,
@@ -363,7 +369,65 @@ export function SessionView({
           onDragOver={handleDragOver}
           onDrop={handleDrop}
         >
-          {isInitializing ? (
+          {isSuspended ? (
+            <>
+              {showRawLogs ? (
+                <RawLogsView events={events} />
+              ) : (
+                <ConversationView
+                  events={events}
+                  isPromptPending={isPromptPending}
+                  promptStartedAt={promptStartedAt}
+                  repoPath={repoPath}
+                  taskId={taskId}
+                  slackThreadUrl={slackThreadUrl}
+                />
+              )}
+              <Box className="border-gray-4 border-t">
+                <Box className="mx-auto max-w-[750px] p-2">
+                  <Flex
+                    align="center"
+                    justify="between"
+                    gap="3"
+                    py="2"
+                    px="3"
+                    className="rounded-2 bg-gray-3"
+                  >
+                    <Flex align="center" gap="2">
+                      <Pause
+                        size={14}
+                        weight="duotone"
+                        color="var(--gray-11)"
+                      />
+                      <Text size="1" weight="medium">
+                        Worktree suspended
+                      </Text>
+                      <Text size="1" color="gray">
+                        Worktree was removed to save disk space
+                      </Text>
+                    </Flex>
+                    {onRestoreWorktree && (
+                      <Button
+                        variant="outline"
+                        size="1"
+                        onClick={onRestoreWorktree}
+                        disabled={isRestoring}
+                      >
+                        {isRestoring ? (
+                          <>
+                            <Spinner size={14} className="animate-spin" />
+                            Restoring...
+                          </>
+                        ) : (
+                          "Restore worktree"
+                        )}
+                      </Button>
+                    )}
+                  </Flex>
+                </Box>
+              </Box>
+            </>
+          ) : isInitializing ? (
             <Flex
               align="center"
               justify="center"

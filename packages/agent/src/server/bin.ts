@@ -2,7 +2,7 @@
 import { Command } from "commander";
 import { z } from "zod";
 import { AgentServer } from "./agent-server";
-import { mcpServersSchema } from "./schemas";
+import { claudeCodeConfigSchema, mcpServersSchema } from "./schemas";
 
 const envSchema = z.object({
   JWT_PUBLIC_KEY: z
@@ -34,6 +34,30 @@ const envSchema = z.object({
 
 const program = new Command();
 
+function parseJsonOption<S extends z.ZodTypeAny>(
+  raw: string | undefined,
+  schema: S,
+  flag: string,
+): z.output<S> | undefined {
+  if (!raw) return undefined;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    program.error(`${flag} must be valid JSON`);
+  }
+
+  const result = schema.safeParse(parsed);
+  if (!result.success) {
+    const errors = result.error.issues
+      .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
+      .join("\n");
+    program.error(`${flag} validation failed:\n${errors}`);
+  }
+  return result.data;
+}
+
 program
   .name("agent-server")
   .description("PostHog cloud agent server - runs in sandbox environments")
@@ -51,6 +75,10 @@ program
     "MCP servers config as JSON array (ACP McpServer[] format)",
   )
   .option("--baseBranch <branch>", "Base branch for PR creation")
+  .option(
+    "--claudeCodeConfig <json>",
+    "Claude Code config as JSON (systemPrompt, systemPromptAppend, plugins)",
+  )
   .action(async (options) => {
     const envResult = envSchema.safeParse(process.env);
 
@@ -66,28 +94,16 @@ program
 
     const mode = options.mode === "background" ? "background" : "interactive";
 
-    let mcpServers: z.infer<typeof mcpServersSchema> | undefined;
-    if (options.mcpServers) {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(options.mcpServers);
-      } catch {
-        program.error("--mcpServers must be valid JSON");
-        return;
-      }
-
-      const result = mcpServersSchema.safeParse(parsed);
-      if (!result.success) {
-        const errors = result.error.issues
-          .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
-          .join("\n");
-        program.error(
-          `--mcpServers validation failed (only remote http/sse servers are supported):\n${errors}`,
-        );
-        return;
-      }
-      mcpServers = result.data;
-    }
+    const mcpServers = parseJsonOption(
+      options.mcpServers,
+      mcpServersSchema,
+      "--mcpServers",
+    );
+    const claudeCode = parseJsonOption(
+      options.claudeCodeConfig,
+      claudeCodeConfigSchema,
+      "--claudeCodeConfig",
+    );
 
     const server = new AgentServer({
       port: parseInt(options.port, 10),
@@ -101,6 +117,7 @@ program
       runId: options.runId,
       mcpServers,
       baseBranch: options.baseBranch,
+      claudeCode,
     });
 
     process.on("SIGINT", async () => {

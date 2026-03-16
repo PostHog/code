@@ -21,7 +21,7 @@ import {
   useRepositoryIntegration,
 } from "@hooks/useIntegrations";
 import { ArrowLeft } from "@phosphor-icons/react";
-import { Button, Flex, Text } from "@radix-ui/themes";
+import { Button, Flex } from "@radix-ui/themes";
 import { motion } from "framer-motion";
 import {
   useCallback,
@@ -436,14 +436,8 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
           <ArrowLeft size={14} />
           Back
         </Button>
-        <Button
-          size="2"
-          variant="ghost"
-          color="gray"
-          onClick={onComplete}
-          style={{ opacity: 0.7 }}
-        >
-          <Text size="1">Skip tutorial</Text>
+        <Button size="2" variant="ghost" color="gray" onClick={onComplete}>
+          Skip tutorial
         </Button>
       </Flex>
     </Flex>

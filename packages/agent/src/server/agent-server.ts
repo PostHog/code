@@ -639,7 +639,14 @@ export class AgentServer {
       _meta: {
         sessionId: payload.run_id,
         taskRunId: payload.run_id,
-        systemPrompt: { append: this.buildCloudSystemPrompt(prUrl) },
+        systemPrompt: this.buildSessionSystemPrompt(prUrl),
+        ...(this.config.claudeCode?.plugins?.length && {
+          claudeCode: {
+            options: {
+              plugins: this.config.claudeCode.plugins,
+            },
+          },
+        }),
       },
     });
 
@@ -942,6 +949,28 @@ export class AgentServer {
     return typeof stateRunId === "string" && stateRunId.trim().length > 0
       ? stateRunId.trim()
       : null;
+  }
+
+  private buildSessionSystemPrompt(
+    prUrl?: string | null,
+  ): string | { append: string } {
+    const cloudAppend = this.buildCloudSystemPrompt(prUrl);
+    const userPrompt = this.config.claudeCode?.systemPrompt;
+
+    // String override: combine user prompt with cloud instructions
+    if (typeof userPrompt === "string") {
+      return [userPrompt, cloudAppend].join("\n\n");
+    }
+
+    // Preset with append: merge user append with cloud instructions
+    if (typeof userPrompt === "object") {
+      return {
+        append: [userPrompt.append, cloudAppend].filter(Boolean).join("\n\n"),
+      };
+    }
+
+    // Default: just cloud instructions
+    return { append: cloudAppend };
   }
 
   private buildCloudSystemPrompt(prUrl?: string | null): string {

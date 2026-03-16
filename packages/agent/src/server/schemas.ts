@@ -16,6 +16,22 @@ export const mcpServersSchema = z.array(remoteMcpServerSchema);
 
 export type RemoteMcpServer = z.infer<typeof remoteMcpServerSchema>;
 
+export const claudeCodeConfigSchema = z.object({
+  systemPrompt: z
+    .union([
+      z.string(),
+      z.object({
+        type: z.literal("preset"),
+        preset: z.literal("claude_code"),
+        append: z.string().optional(),
+      }),
+    ])
+    .optional(),
+  plugins: z
+    .array(z.object({ type: z.literal("local"), path: z.string() }))
+    .optional(),
+});
+
 export const jsonRpcRequestSchema = z.object({
   jsonrpc: z.literal("2.0"),
   method: z.string(),

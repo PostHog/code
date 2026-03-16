@@ -606,6 +606,25 @@ export class SessionService {
     }
   }
 
+  async loadLogsOnly(params: {
+    taskId: string;
+    taskRunId: string;
+    taskTitle: string;
+    logUrl: string;
+  }): Promise<void> {
+    const { taskId, taskRunId, taskTitle, logUrl } = params;
+    const existing = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (existing && existing.events.length > 0) return;
+
+    const { rawEntries } = await this.fetchSessionLogs(logUrl, taskRunId);
+    const events = convertStoredEntriesToEvents(rawEntries);
+    const session = this.createBaseSession(taskRunId, taskId, taskTitle);
+    session.events = events;
+    session.logUrl = logUrl;
+    session.status = "disconnected";
+    sessionStoreSetters.setSession(session);
+  }
+
   async disconnectFromTask(taskId: string): Promise<void> {
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) return;
