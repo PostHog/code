@@ -281,6 +281,26 @@ const useTaskStore = create<TaskState>((set) => ({
 }));
 ```
 
+### Learned Hints
+
+The settings store (`src/renderer/features/settings/stores/settingsStore.ts`) provides a reusable "learned hints" system for progressive feature discovery. Hints are shown a limited number of times until the user demonstrates they've learned the behavior.
+
+```typescript
+// In the store: hints is Record<string, { count: number; learned: boolean }>
+const store = useFeatureSettingsStore.getState();
+
+// Check if a hint should still be shown (max N times, not yet learned)
+if (store.shouldShowHint("my-hint-key", 3)) {
+  store.recordHintShown("my-hint-key");
+  toast.info("Did you know?", "You can do X with Y.");
+}
+
+// When the user demonstrates the behavior, mark it learned (stops showing)
+store.markHintLearned("my-hint-key");
+```
+
+Hint state is persisted via `electronStorage`. Use this pattern instead of ad-hoc boolean flags when introducing new discoverable features.
+
 ## Services
 
 Services encapsulate business logic and exist in both processes:
