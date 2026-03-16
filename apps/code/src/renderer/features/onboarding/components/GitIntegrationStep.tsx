@@ -11,9 +11,12 @@ import phWordmark from "@renderer/assets/images/wordmark-alt.png";
 import { trpcClient } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useProjectsWithIntegrations } from "../hooks/useProjectsWithIntegrations";
 import { ProjectSelect } from "./ProjectSelect";
+
+const POLL_INTERVAL_MS = 3_000;
+const POLL_TIMEOUT_MS = 300_000; // 5 minutes
 
 interface GitIntegrationStepProps {
   onNext: () => void;
@@ -27,11 +30,14 @@ export function GitIntegrationStep({
   const cloudRegion = useAuthStore((s) => s.cloudRegion);
   const currentProjectId = useAuthStore((s) => s.projectId);
   const selectProject = useAuthStore((s) => s.selectProject);
+  const client = useAuthStore((s) => s.client);
 
   const queryClient = useQueryClient();
   const { projects, isLoading, isFetching } = useProjectsWithIntegrations();
 
   const [isConnecting, setIsConnecting] = useState(false);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // User can manually select a different project
   const [manuallySelectedProjectId, setManuallySelectedProjectId] = useState<
@@ -56,20 +62,48 @@ export function GitIntegrationStep({
 
   const hasGitIntegration = selectedProject?.hasGithubIntegration ?? false;
 
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Stop polling when integration is detected
+  useEffect(() => {
+    if (hasGitIntegration && isConnecting) {
+      stopPolling();
+      setIsConnecting(false);
+    }
+  }, [hasGitIntegration, isConnecting, stopPolling]);
+
+  // Cleanup on unmount
+  useEffect(() => stopPolling, [stopPolling]);
+
   const handleConnectGitHub = async () => {
-    if (!cloudRegion || !selectedProjectId) return;
+    if (!cloudRegion || !selectedProjectId || !client) return;
     setIsConnecting(true);
     try {
-      const result = await trpcClient.githubIntegration.startFlow.mutate({
+      await trpcClient.githubIntegration.startFlow.mutate({
         region: cloudRegion,
         projectId: selectedProjectId,
       });
-      if (result.success) {
+
+      // Start polling for the new integration
+      pollTimerRef.current = setInterval(async () => {
         queryClient.invalidateQueries({ queryKey: ["integrations"] });
-      }
+      }, POLL_INTERVAL_MS);
+
+      // Timeout after 5 minutes
+      pollTimeoutRef.current = setTimeout(() => {
+        stopPolling();
+        setIsConnecting(false);
+      }, POLL_TIMEOUT_MS);
     } catch {
-      // Flow was cancelled or timed out — user can retry
-    } finally {
       setIsConnecting(false);
     }
   };
