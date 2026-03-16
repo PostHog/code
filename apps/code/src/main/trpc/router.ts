@@ -24,6 +24,7 @@ import { osRouter } from "./routers/os";
 import { processTrackingRouter } from "./routers/process-tracking";
 import { secureStoreRouter } from "./routers/secure-store";
 import { shellRouter } from "./routers/shell";
+import { skillsRouter } from "./routers/skills";
 import { sleepRouter } from "./routers/sleep";
 import { suspensionRouter } from "./routers/suspension.js";
 import { uiRouter } from "./routers/ui";
@@ -59,6 +60,7 @@ export const trpcRouter = router({
   suspension: suspensionRouter,
   secureStore: secureStoreRouter,
   shell: shellRouter,
+  skills: skillsRouter,
   ui: uiRouter,
   updates: updatesRouter,
   deepLink: deepLinkRouter,
