@@ -88,6 +88,28 @@ npx @electron/rebuild -f -m node_modules/better-sqlite3
 
 Then restart the app.
 
+## NODE_MODULE_VERSION mismatch after Electron upgrade
+
+If you see an error like:
+
+```
+Database initialization failed Error: The module '.../better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 145. This version of Node.js requires
+NODE_MODULE_VERSION 123. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+```
+
+A native module (usually `better-sqlite3`) was compiled against your system Node instead of Electron's bundled Node. This happens after pulling an Electron version bump because `electron-rebuild` picked up the wrong Node binary.
+
+### Fix
+
+```bash
+cd apps/code && npx electron-rebuild -f
+```
+
+Then restart the app.
+
 ## `pnpm i` shows "Packages: -198"
 
 You might see something like this every time you run `pnpm install`:
