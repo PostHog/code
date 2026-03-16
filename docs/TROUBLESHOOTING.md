@@ -45,10 +45,12 @@ If the app crashes with something like:
 libc++abi: terminating due to uncaught exception of type Napi::Error
 ```
 
-Native modules (like node-pty) need to be rebuilt for your Electron version:
+Native modules (like node-pty) need to be rebuilt for your Electron version.
+
+### Fix
 
 ```bash
-pnpm --filter code exec electron-rebuild
+cd apps/code && npx electron-rebuild -f
 ```
 
 ## Codex agent crashes with GPU process errors
@@ -70,37 +72,22 @@ node apps/code/scripts/download-binaries.mjs
 
 Then restart the app. This downloads the codex-acp binary to `apps/code/resources/codex-acp/`, which gets copied to `.vite/build/codex-acp/` during build.
 
-## Database initialization failed (better-sqlite3 bindings not found)
+## Database initialization failed (better-sqlite3)
 
-If you see this error on startup:
+If you see either of these errors on startup:
 
 ```
 Database initialization failed Error: Could not locate the bindings file.
 ```
 
-The `better-sqlite3` native binary wasn't compiled for your Electron version. This commonly happens after a merge, branch switch or fresh install because the postinstall rebuild can fail silently (`|| true`).
-
-### Fix
-
-```bash
-npx @electron/rebuild -f -m node_modules/better-sqlite3
-```
-
-Then restart the app.
-
-## NODE_MODULE_VERSION mismatch after Electron upgrade
-
-If you see an error like:
-
 ```
 Database initialization failed Error: The module '.../better_sqlite3.node'
 was compiled against a different Node.js version using
 NODE_MODULE_VERSION 145. This version of Node.js requires
-NODE_MODULE_VERSION 123. Please try re-compiling or re-installing
-the module (for instance, using `npm rebuild` or `npm install`).
+NODE_MODULE_VERSION 123.
 ```
 
-A native module (usually `better-sqlite3`) was compiled against your system Node instead of Electron's bundled Node. This happens after pulling an Electron version bump because `electron-rebuild` picked up the wrong Node binary.
+The `better-sqlite3` native binary wasn't compiled for your Electron version. This commonly happens after a merge, branch switch or Electron upgrade because the postinstall rebuild can fail silently (`|| true`).
 
 ### Fix
 
