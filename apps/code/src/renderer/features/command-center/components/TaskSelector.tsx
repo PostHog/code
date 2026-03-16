@@ -9,6 +9,7 @@ interface TaskSelectorProps {
   cellIndex: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onNewTask?: () => void;
   children: ReactNode;
 }
 
@@ -16,6 +17,7 @@ export function TaskSelector({
   cellIndex,
   open,
   onOpenChange,
+  onNewTask,
   children,
 }: TaskSelectorProps) {
   const availableTasks = useAvailableTasks();
@@ -32,8 +34,12 @@ export function TaskSelector({
 
   const handleNewTask = useCallback(() => {
     onOpenChange(false);
-    navigateToTaskInput();
-  }, [onOpenChange, navigateToTaskInput]);
+    if (onNewTask) {
+      onNewTask();
+    } else {
+      navigateToTaskInput();
+    }
+  }, [onOpenChange, onNewTask, navigateToTaskInput]);
 
   return (
     <Popover.Root open={open} onOpenChange={onOpenChange}>
@@ -44,29 +50,31 @@ export function TaskSelector({
         sideOffset={4}
         style={{ padding: 4, minWidth: 240, maxHeight: 300 }}
       >
-        <div className="overflow-y-auto" style={{ maxHeight: 280 }}>
-          <button
-            type="button"
-            onClick={handleNewTask}
-            className="flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left font-mono text-[11px] text-gray-12 transition-colors hover:bg-gray-3"
-          >
-            <Plus size={12} className="shrink-0" />
-            <span>New task</span>
-          </button>
-          {availableTasks.length > 0 && (
-            <>
-              <Separator size="4" my="1" />
-              {availableTasks.map((task) => (
-                <button
-                  key={task.id}
-                  type="button"
-                  onClick={() => handleSelect(task.id)}
-                  className="flex w-full items-center rounded-sm px-2 py-1.5 text-left font-mono text-[11px] text-gray-12 transition-colors hover:bg-gray-3"
-                >
-                  <span className="min-w-0 flex-1 truncate">{task.title}</span>
-                </button>
-              ))}
-            </>
+        <button
+          type="button"
+          onClick={handleNewTask}
+          className="flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left font-mono text-[11px] text-gray-12 transition-colors hover:bg-gray-3"
+        >
+          <Plus size={12} />
+          New task
+        </button>
+        <Separator size="4" className="my-1" />
+        <div className="overflow-y-auto" style={{ maxHeight: 240 }}>
+          {availableTasks.length === 0 ? (
+            <div className="px-2 py-3 text-center font-mono text-[11px] text-gray-10">
+              No available tasks
+            </div>
+          ) : (
+            availableTasks.map((task) => (
+              <button
+                key={task.id}
+                type="button"
+                onClick={() => handleSelect(task.id)}
+                className="flex w-full items-center rounded-sm px-2 py-1.5 text-left font-mono text-[11px] text-gray-12 transition-colors hover:bg-gray-3"
+              >
+                <span className="min-w-0 flex-1 truncate">{task.title}</span>
+              </button>
+            ))
           )}
         </div>
       </Popover.Content>

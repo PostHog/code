@@ -31,7 +31,11 @@ import { type WorkspaceMode, WorkspaceModeSelect } from "./WorkspaceModeSelect";
 
 const DOT_FILL = "var(--gray-6)";
 
-export function TaskInput() {
+interface TaskInputProps {
+  onTaskCreated?: (task: import("@shared/types").Task) => void;
+}
+
+export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
   const trpcReact = useTRPC();
   const { view } = useNavigationStore();
   const { data: mostRecentRepo } = useQuery(
@@ -131,6 +135,7 @@ export function TaskInput() {
     executionMode: currentExecutionMode,
     model: currentModel,
     reasoningLevel: currentReasoningLevel,
+    onTaskCreated,
   });
 
   const handleCycleMode = useCallback(() => {

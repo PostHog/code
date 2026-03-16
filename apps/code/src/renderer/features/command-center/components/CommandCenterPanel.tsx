@@ -1,3 +1,4 @@
+import { TaskInput } from "@features/task-detail/components/TaskInput";
 import { ArrowsOut, Plus, X } from "@phosphor-icons/react";
 import { Flex, Text } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
@@ -15,6 +16,48 @@ interface CommandCenterPanelProps {
 
 function EmptyCell({ cellIndex }: { cellIndex: number }) {
   const [selectorOpen, setSelectorOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const assignTask = useCommandCenterStore((s) => s.assignTask);
+
+  const handleTaskCreated = useCallback(
+    (task: Task) => {
+      assignTask(cellIndex, task.id);
+    },
+    [assignTask, cellIndex],
+  );
+
+  if (isCreating) {
+    return (
+      <Flex direction="column" height="100%">
+        <Flex
+          align="center"
+          justify="between"
+          px="2"
+          py="1"
+          className="shrink-0 border-gray-6 border-b"
+        >
+          <Text
+            size="1"
+            weight="medium"
+            className="font-mono text-[11px] text-gray-11"
+          >
+            New task
+          </Text>
+          <button
+            type="button"
+            onClick={() => setIsCreating(false)}
+            className="flex h-5 w-5 items-center justify-center rounded text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
+            title="Cancel"
+          >
+            <X size={12} />
+          </button>
+        </Flex>
+        <Flex direction="column" className="min-h-0 flex-1">
+          <TaskInput onTaskCreated={handleTaskCreated} />
+        </Flex>
+      </Flex>
+    );
+  }
 
   return (
     <Flex align="center" justify="center" height="100%">
@@ -23,6 +66,7 @@ function EmptyCell({ cellIndex }: { cellIndex: number }) {
           cellIndex={cellIndex}
           open={selectorOpen}
           onOpenChange={setSelectorOpen}
+          onNewTask={() => setIsCreating(true)}
         >
           <button
             type="button"

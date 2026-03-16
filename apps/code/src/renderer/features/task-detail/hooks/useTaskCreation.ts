@@ -9,7 +9,7 @@ import { useConnectivity } from "@hooks/useConnectivity";
 import type { WorkspaceMode } from "@main/services/workspace/schemas";
 import { get } from "@renderer/di/container";
 import { RENDERER_TOKENS } from "@renderer/di/tokens";
-import type { ExecutionMode } from "@shared/types";
+import type { ExecutionMode, Task } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { logger } from "@utils/logger";
 import { useCallback, useState } from "react";
@@ -30,6 +30,7 @@ interface UseTaskCreationOptions {
   adapter?: "claude" | "codex";
   model?: string;
   reasoningLevel?: string;
+  onTaskCreated?: (task: Task) => void;
 }
 
 interface UseTaskCreationReturn {
@@ -91,6 +92,7 @@ export function useTaskCreation({
   adapter,
   model,
   reasoningLevel,
+  onTaskCreated,
 }: UseTaskCreationOptions): UseTaskCreationReturn {
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const { navigateToTask } = useNavigationStore();
@@ -140,8 +142,12 @@ export function useTaskCreation({
         // Invalidate tasks query
         invalidateTasks(task);
 
-        // Navigate to the new task
-        navigateToTask(task);
+        // Navigate to the new task or notify caller
+        if (onTaskCreated) {
+          onTaskCreated(task);
+        } else {
+          navigateToTask(task);
+        }
 
         // Clear editor
         editor.clear();
@@ -176,6 +182,7 @@ export function useTaskCreation({
     reasoningLevel,
     invalidateTasks,
     navigateToTask,
+    onTaskCreated,
   ]);
 
   return {
