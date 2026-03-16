@@ -1,30 +1,20 @@
 procs:
   code:
-    cmd: ["pnpm", "--filter", "code", "run", "start"]
-    cwd: .
-    color: blue
+    shell: 'pnpm --filter code run start'
     depends_on:
       - agent
       - git
 
   agent:
-    cmd: ["pnpm", "--filter", "agent", "run", "dev"]
-    cwd: .
-    color: magenta
-
+    shell: 'pnpm --filter agent run dev'
+  
   git:
-    cmd: ["pnpm", "--filter", "@posthog/git", "run", "dev"]
-    cwd: .
-    color: yellow
+    shell: 'pnpm --filter @posthog/git run dev'
 
   storybook:
-    cmd: ["pnpm", "--filter", "code", "run", "storybook"]
-    cwd: .
-    color: cyan
+    shell: 'pnpm --filter code run storybook'
     autostart: false
 
   mobile-ios:
-    cmd: ["pnpm", "--filter", "@posthog/mobile", "run", "ios"]
-    cwd: .
-    color: green
+    shell: 'pnpm --filter @posthog/mobile run ios'
     autostart: false

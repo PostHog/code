@@ -27,6 +27,9 @@ pnpm install
 
 # Copy environment config
 cp .env.example .env
+
+# Install phrocs
+curl -L https://github.com/PostHog/posthog/releases/download/phrocs-latest/phrocs-darwin-arm64 -o bin/phrocs && chmod +x bin/phrocs
 ```
 
 ### Running in Development

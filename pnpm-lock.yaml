@@ -26,9 +26,6 @@ importers:
       lint-staged:
         specifier: ^15.5.2
         version: 15.5.2
-      mprocs:
-        specifier: ^0.7.1
-        version: 0.7.3
       turbo:
         specifier: ^2.6.2
         version: 2.8.3
@@ -8217,11 +8214,6 @@ packages:
 
   motion-utils@12.29.2:
     resolution: {integrity: sha512-G3kc34H2cX2gI63RqU+cZq+zWRRPSsNIOjpdl9TN4AQwC4sgwYPl/Q/Obf/d53nOm569T0fYK+tcoSV50BWx8A==}
-
-  mprocs@0.7.3:
-    resolution: {integrity: sha512-I1Ptja/UnNVVSV5QEnBdiiwW70HMWJlmnMq6nvw4J7fwZ3s8UZGuf/FG+FTAUr6CLfat8kriHj+mWLx7xsLKSw==}
-    engines: {node: '>=0.10.0'}
-    hasBin: true
 
   mrmime@2.0.1:
     resolution: {integrity: sha512-Y3wQdFg2Va6etvQ5I82yUhGdsKrcYox6p7FfL1LbK2J4V01F9TGlepTIhnK24t7koZibmg82KGglhA1XK5IsLQ==}
@@ -19552,8 +19544,6 @@ snapshots:
       motion-utils: 12.29.2
 
   motion-utils@12.29.2: {}
-
-  mprocs@0.7.3: {}
 
   mrmime@2.0.1: {}
 
