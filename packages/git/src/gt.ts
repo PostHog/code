@@ -19,10 +19,18 @@ export async function execGt(
     // consumed by yargs array-type options like --message
     const [subcommand, ...rest] = args;
     const fullArgs = [subcommand, "--no-interactive", ...rest];
+    console.log(
+      "[execGt] running:",
+      "gt",
+      fullArgs.join(" "),
+      "| cwd:",
+      options.cwd,
+    );
     const { stdout, stderr } = await execFileAsync("gt", fullArgs, {
       cwd: options.cwd,
       env: process.env,
     });
+    console.log("[execGt] success | stdout:", stdout, "| stderr:", stderr);
     return { stdout, stderr, exitCode: 0 };
   } catch (error) {
     const err = error as Error & {
@@ -34,6 +42,16 @@ export async function execGt(
     const exitCode =
       typeof err.code === "number" ? err.code : err.code === "ENOENT" ? 127 : 1;
 
+    console.log(
+      "[execGt] failed | code:",
+      exitCode,
+      "| stdout:",
+      err.stdout,
+      "| stderr:",
+      err.stderr,
+      "| error:",
+      err.message,
+    );
     return {
       stdout: err.stdout ?? "",
       stderr: err.stderr ?? "",
