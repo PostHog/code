@@ -25,7 +25,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test --config=tests/e2e/playwright.config.ts",
     "test:e2e:headed": "playwright test --config=tests/e2e/playwright.config.ts --headed",
-    "postinstall": "cd ../.. && npx @electron/rebuild -f -m node_modules/node-pty && npx @electron/rebuild -f -m node_modules/better-sqlite3 || true && bash apps/code/scripts/patch-electron-name.sh && node apps/code/scripts/download-binaries.mjs",
+    "postinstall": "bash scripts/postinstall.sh",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "clean": "rm -rf .vite .turbo out node_modules/.vite",

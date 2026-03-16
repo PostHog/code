@@ -110,6 +110,31 @@ cd apps/code && npx electron-rebuild -f
 
 Then restart the app.
 
+## node-gyp failed to rebuild @parcel/watcher
+
+If you see this error after pulling or switching branches:
+
+```
+Error: node-gyp failed to rebuild '/path/to/node_modules/@parcel/watcher'
+```
+
+`@parcel/watcher` ships prebuilt N-API binaries per platform (e.g. `@parcel/watcher-darwin-arm64`) and should not need recompilation. This error usually means a stale or partial install state is triggering a source rebuild that fails.
+
+### Fix
+
+```bash
+rm -rf node_modules/@parcel/watcher
+pnpm install
+```
+
+If that doesn't work, nuke and reinstall:
+
+```bash
+rm -rf node_modules && pnpm install
+```
+
+Do **not** run `npx @electron/rebuild` against `@parcel/watcher` — it doesn't need it and the rebuild will fail.
+
 ## `pnpm i` shows "Packages: -198"
 
 You might see something like this every time you run `pnpm install`:
