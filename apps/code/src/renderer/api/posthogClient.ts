@@ -284,21 +284,12 @@ export class PostHogAPIClient {
   async listExternalDataSources(
     projectId: number,
   ): Promise<ExternalDataSource[]> {
-    const urlPath = `/api/environments/${projectId}/external_data_sources/`;
-    const url = new URL(`${this.api.baseUrl}${urlPath}`);
-    const response = await this.api.fetcher.fetch({
-      method: "get",
-      url,
-      path: urlPath,
-    });
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch external data sources: ${response.statusText}`,
-      );
-    }
-    const data = (await response.json()) as
-      | { results: ExternalDataSource[] }
-      | ExternalDataSource[];
+    const data = (await this.api.get(
+      "/api/projects/{project_id}/external_data_sources/",
+      {
+        path: { project_id: projectId.toString() },
+      },
+    )) as { results?: ExternalDataSource[] } | ExternalDataSource[];
     return Array.isArray(data) ? data : (data.results ?? []);
   }
 
@@ -309,26 +300,25 @@ export class PostHogAPIClient {
       payload: Record<string, unknown>;
     },
   ): Promise<ExternalDataSource> {
-    const urlPath = `/api/environments/${projectId}/external_data_sources/`;
-    const url = new URL(`${this.api.baseUrl}${urlPath}`);
-    const response = await this.api.fetcher.fetch({
-      method: "post",
-      url,
-      path: urlPath,
-      overrides: {
-        body: JSON.stringify(payload),
+    const response = await this.api.post(
+      "/api/projects/{project_id}/external_data_sources/",
+      {
+        path: { project_id: projectId.toString() },
+        body: payload as unknown as Schemas.ExternalDataSourceSerializers,
+        withResponse: true,
+        throwOnStatusError: false,
       },
-    });
+    );
     if (!response.ok) {
-      const errorData = (await response.json().catch(() => ({}))) as {
-        detail?: string;
-      };
+      const errorData = isObjectRecord(response.data)
+        ? (response.data as { detail?: string })
+        : {};
       throw new Error(
         errorData.detail ??
           `Failed to create external data source: ${response.statusText}`,
       );
     }
-    return (await response.json()) as ExternalDataSource;
+    return response.data as ExternalDataSource;
   }
 
   async updateExternalDataSchema(
