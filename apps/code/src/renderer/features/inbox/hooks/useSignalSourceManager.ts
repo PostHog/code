@@ -142,7 +142,7 @@ export function useSignalSourceManager() {
       if (!dwConfig) return;
 
       const source = findExternalSource(product);
-      if (!source?.schemas) return;
+      if (!source?.schemas || !Array.isArray(source.schemas)) return;
 
       const requiredSchema = source.schemas.find(
         (s) => s.name.toLowerCase() === dwConfig.requiredTable,
@@ -213,71 +213,71 @@ export function useSignalSourceManager() {
       if (savingRef.current) return;
 
       setOptimistic(values);
+      try {
+        const operations: Array<() => Promise<unknown>> = [];
 
-      const operations: Array<() => Promise<unknown>> = [];
+        for (const product of ALL_SOURCE_PRODUCTS) {
+          const wanted = values[product];
+          const current = serverValues[product];
+          if (wanted === current) continue;
 
-      for (const product of ALL_SOURCE_PRODUCTS) {
-        const wanted = values[product];
-        const current = serverValues[product];
-        if (wanted === current) continue;
+          // If enabling a warehouse source without an external data source, open setup
+          if (wanted && product in DATA_WAREHOUSE_SOURCES) {
+            const hasExternalSource = !!findExternalSource(product);
+            if (!hasExternalSource) {
+              setSetupSource(product as "github" | "linear" | "zendesk");
+              return;
+            }
 
-        // If enabling a warehouse source without an external data source, open setup
-        if (wanted && product in DATA_WAREHOUSE_SOURCES) {
-          const hasExternalSource = !!findExternalSource(product);
-          if (!hasExternalSource) {
-            setOptimistic(null);
-            setSetupSource(product as "github" | "linear" | "zendesk");
-            return;
+            // Ensure required table is syncing
+            setLoadingSources((prev) => ({ ...prev, [product]: true }));
+            try {
+              await ensureRequiredTableSyncing(product);
+            } finally {
+              setLoadingSources((prev) => ({ ...prev, [product]: false }));
+            }
           }
 
-          // Ensure required table is syncing
-          setLoadingSources((prev) => ({ ...prev, [product]: true }));
-          try {
-            await ensureRequiredTableSyncing(product);
-          } finally {
-            setLoadingSources((prev) => ({ ...prev, [product]: false }));
+          const existing = configs?.find((c) => c.source_product === product);
+
+          if (wanted && !existing) {
+            operations.push(() =>
+              createConfig.mutateAsync({
+                source_product: product,
+                source_type: SOURCE_TYPE_MAP[product],
+              }),
+            );
+          } else if (existing) {
+            operations.push(() =>
+              updateConfig.mutateAsync({
+                configId: existing.id,
+                enabled: wanted,
+              }),
+            );
           }
         }
 
-        const existing = configs?.find((c) => c.source_product === product);
-
-        if (wanted && !existing) {
-          operations.push(() =>
-            createConfig.mutateAsync({
-              source_product: product,
-              source_type: SOURCE_TYPE_MAP[product],
-            }),
-          );
-        } else if (existing) {
-          operations.push(() =>
-            updateConfig.mutateAsync({
-              configId: existing.id,
-              enabled: wanted,
-            }),
-          );
+        if (operations.length === 0) {
+          return;
         }
-      }
 
-      if (operations.length === 0) {
-        setOptimistic(null);
-        return;
-      }
+        savingRef.current = true;
+        const results = await Promise.allSettled(operations.map((op) => op()));
+        const failed = results.filter((r) => r.status === "rejected");
+        if (failed.length > 0) {
+          toast.error("Failed to update signal sources. Please try again.");
+          return;
+        }
 
-      savingRef.current = true;
-      const results = await Promise.allSettled(operations.map((op) => op()));
-      savingRef.current = false;
-
-      const failed = results.filter((r) => r.status === "rejected");
-      if (failed.length > 0) {
-        setOptimistic(null);
+        await queryClient.invalidateQueries({
+          queryKey: ["signals", "source-configs"],
+        });
+      } catch {
         toast.error("Failed to update signal sources. Please try again.");
-        return;
+      } finally {
+        savingRef.current = false;
+        setOptimistic(null);
       }
-
-      await queryClient.invalidateQueries({
-        queryKey: ["signals", "source-configs"],
-      });
-      setOptimistic(null);
     },
     [
       serverValues,

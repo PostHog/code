@@ -117,7 +117,7 @@ export function SignalSourceToggles({
       <SignalSourceToggleCard
         icon={<VideoIcon size={20} />}
         label="Session replay"
-        description="Analyzes session recordings to cluster user behavior patterns."
+        description="Let PostHog watch session recordings for you, and identify problem patterns."
         checked={value.session_replay}
         onCheckedChange={(checked) =>
           onChange({ ...value, session_replay: checked })
@@ -127,7 +127,7 @@ export function SignalSourceToggles({
       <SignalSourceToggleCard
         icon={<BrainIcon size={20} />}
         label="LLM analytics"
-        description="Evaluates LLM traces for quality issues and surfaces patterns in your evals."
+        description="Let PostHog evaluate live LLM traces for you, and identify problem patterns."
         checked={value.llm_analytics}
         onCheckedChange={(checked) =>
           onChange({ ...value, llm_analytics: checked })
@@ -136,8 +136,8 @@ export function SignalSourceToggles({
       />
       <SignalSourceToggleCard
         icon={<GithubLogoIcon size={20} />}
-        label="GitHub issues"
-        description="Surfaces patterns and clusters from your GitHub issues."
+        label="GitHub"
+        description="Let PostHog read GitHub issues for you, and surface action items."
         checked={value.github}
         onCheckedChange={(checked) => onChange({ ...value, github: checked })}
         disabled={disabled}
@@ -147,8 +147,8 @@ export function SignalSourceToggles({
       />
       <SignalSourceToggleCard
         icon={<KanbanIcon size={20} />}
-        label="Linear issues"
-        description="Analyzes Linear issues to identify trends and recurring patterns."
+        label="Linear"
+        description="Let PostHog read Linear issues for you, and surface action items."
         checked={value.linear}
         onCheckedChange={(checked) => onChange({ ...value, linear: checked })}
         disabled={disabled}
@@ -158,8 +158,8 @@ export function SignalSourceToggles({
       />
       <SignalSourceToggleCard
         icon={<TicketIcon size={20} />}
-        label="Zendesk tickets"
-        description="Clusters support tickets to highlight common customer pain points."
+        label="Zendesk"
+        description="Let PostHog investigate support tickets for you, and surface action items."
         checked={value.zendesk}
         onCheckedChange={(checked) => onChange({ ...value, zendesk: checked })}
         disabled={disabled}

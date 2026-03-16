@@ -232,9 +232,6 @@ function LinearSetup({ onComplete, onCancel }: SetupFormProps) {
         )}
 
         <Flex gap="2" justify="end">
-          <Button size="2" variant="soft" onClick={onCancel} disabled={loading}>
-            Cancel
-          </Button>
           <Button
             size="2"
             onClick={handleSubmit}

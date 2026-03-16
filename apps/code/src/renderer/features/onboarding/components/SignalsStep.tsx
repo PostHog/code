@@ -66,11 +66,12 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
                   lineHeight: 1.3,
                 }}
               >
-                Enable "the inbox"
+                Enable Inbox
               </Text>
               <Text size="2" style={{ color: "var(--gray-12)", opacity: 0.7 }}>
-                Automatically analyze your product data and surface actionable
-                insights. Choose which sources to enable for this project.
+                Inbox automatically analyzes your product data and prioritizes
+                actionable tasks. Choose which sources to enable for this
+                project.
               </Text>
             </Flex>
 

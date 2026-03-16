@@ -43,7 +43,9 @@ export interface ExternalDataSource {
   id: string;
   source_type: string;
   status: string;
-  schemas?: ExternalDataSourceSchema[];
+  // The generated `ExternalDataSourceSerializers` types this as `string`,
+  // but the actual API returns an array of schema objects
+  schemas?: ExternalDataSourceSchema[] | string;
 }
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
@@ -288,6 +290,7 @@ export class PostHogAPIClient {
       "/api/projects/{project_id}/external_data_sources/",
       {
         path: { project_id: projectId.toString() },
+        query: {},
       },
     )) as { results?: ExternalDataSource[] } | ExternalDataSource[];
     return Array.isArray(data) ? data : (data.results ?? []);
@@ -326,7 +329,7 @@ export class PostHogAPIClient {
     schemaId: string,
     updates: { should_sync: boolean },
   ): Promise<void> {
-    const urlPath = `/api/environments/${projectId}/external_data_schemas/${schemaId}/`;
+    const urlPath = `/api/projects/${projectId}/external_data_schemas/${schemaId}/`;
     const url = new URL(`${this.api.baseUrl}${urlPath}`);
     const response = await this.api.fetcher.fetch({
       method: "patch",
