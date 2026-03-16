@@ -953,8 +953,8 @@ export class PostHogAPIClient {
     api_key?: string;
     description?: string;
     oauth_provider_kind?: string;
-    install_source?: "posthog" | "twig";
-    twig_callback_url?: string;
+    install_source?: "posthog" | "posthog-code";
+    posthog_code_callback_url?: string;
   }): Promise<McpServerInstallation | Schemas.OAuthRedirectResponse> {
     const teamId = await this.getTeamId();
     const apiUrl = new URL(

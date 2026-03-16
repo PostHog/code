@@ -8556,7 +8556,7 @@ export namespace Schemas {
     values?: null | undefined;
   };
   export type InstallCustomAuthTypeEnum = "api_key" | "oauth";
-  export type InstallSourceEnum = "posthog" | "twig";
+  export type InstallSourceEnum = "posthog" | "posthog-code";
   export type InstallCustom = {
     name: string;
     url: string;
@@ -8565,7 +8565,7 @@ export namespace Schemas {
     description?: string | undefined;
     oauth_provider_kind?: string | undefined;
     install_source?: (InstallSourceEnum & unknown) | undefined;
-    twig_callback_url?: string | undefined;
+    posthog_code_callback_url?: string | undefined;
   };
   export type InterestingNote = { text: string; line_refs: string };
   export type JsonrpcEnum = "2.0";
@@ -14423,9 +14423,9 @@ export namespace Endpoints {
     requestFormat: "json";
     parameters: {
       query: {
-        install_source?: ("posthog" | "twig") | undefined;
+        install_source?: ("posthog" | "posthog-code") | undefined;
         server_id: string;
-        twig_callback_url?: string | undefined;
+        posthog_code_callback_url?: string | undefined;
       };
       path: { project_id: string };
     };

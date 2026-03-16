@@ -62,8 +62,8 @@ function AddCustomServerDialog({
           await trpcClient.mcpCallback.getCallbackUrl.query();
         const data = await client.installCustomMcpServer({
           ...vars,
-          install_source: "twig",
-          twig_callback_url: callbackUrl,
+          install_source: "posthog-code",
+          posthog_code_callback_url: callbackUrl,
         });
         if ("redirect_url" in data && data.redirect_url) {
           return trpcClient.mcpCallback.openAndWaitForCallback.mutate({

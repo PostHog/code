@@ -38,8 +38,8 @@ async function installWithOAuth(
   // Step 2: Call PostHog API with PostHog Code-specific params
   const data = await client.installCustomMcpServer({
     ...vars,
-    install_source: "twig",
-    twig_callback_url: callbackUrl,
+    install_source: "posthog-code",
+    posthog_code_callback_url: callbackUrl,
   });
 
   // Step 3: If OAuth redirect needed, open browser via main process and wait
