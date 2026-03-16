@@ -31,9 +31,9 @@
   "devDependencies": {
     "@trpc/client": "^11.8.0",
     "@trpc/server": "^11.8.0",
-    "@types/node": "^20.3.1",
+    "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^0.34.0",
-    "electron": "^35.2.1",
+    "electron": "^41.0.0",
     "superjson": "^2.2.2",
     "typescript": "^5.8.3",
     "vite": "^6.0.7",
