@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 
 export interface GitHubRepo {
@@ -31,7 +32,9 @@ export async function safeSymlink(
   }
 
   try {
-    await fs.symlink(source, target, type);
+    const linkType =
+      type === "dir" && os.platform() === "win32" ? "junction" : type;
+    await fs.symlink(source, target, linkType);
     return true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "EEXIST") {

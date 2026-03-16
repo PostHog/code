@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import type { PromptRequest } from "@agentclientprotocol/sdk";
 import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { ContentBlockParam } from "@anthropic-ai/sdk/resources";
@@ -12,12 +13,11 @@ function formatUriAsLink(uri: string): string {
   try {
     if (uri.startsWith("file://")) {
       const filePath = uri.slice(7);
-      const name = filePath.split("/").pop() || filePath;
+      const name = path.basename(filePath) || filePath;
       return `[@${name}](${uri})`;
     }
     if (uri.startsWith("zed://")) {
-      const parts = uri.split("/");
-      const name = parts[parts.length - 1] || uri;
+      const name = path.basename(uri) || uri;
       return `[@${name}](${uri})`;
     }
     return uri;

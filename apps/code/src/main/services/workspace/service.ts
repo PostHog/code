@@ -87,7 +87,7 @@ async function getBranchFromPath(repoPath: string): Promise<string | null> {
       const gitContent = await fsPromises.readFile(gitPath, "utf-8");
       const gitdirMatch = gitContent.match(/gitdir:\s*(.+)/);
       if (!gitdirMatch) return null;
-      headPath = path.join(gitdirMatch[1].trim(), "HEAD");
+      headPath = path.join(path.resolve(gitdirMatch[1].trim()), "HEAD");
     }
 
     const headContent = await fsPromises.readFile(headPath, "utf-8");
