@@ -21,6 +21,7 @@ import type { Task } from "@shared/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
+import { toRelativePath } from "@utils/path";
 
 interface FileTreePanelProps {
   taskId: string;
@@ -67,7 +68,7 @@ function LazyTreeItem({
     ),
   );
 
-  const relativePath = entry.path.replace(`${repoPath}/`, "");
+  const relativePath = toRelativePath(entry.path, repoPath);
   const isActive = entry.type === "file" && isFileActive(relativePath);
 
   const handleClick = () => {

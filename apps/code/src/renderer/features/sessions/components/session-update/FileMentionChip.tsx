@@ -6,6 +6,7 @@ import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { Flex, Text } from "@radix-ui/themes";
 import { trpcClient } from "@renderer/trpc/client";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
+import { isAbsolutePath } from "@utils/path";
 import { memo, useCallback } from "react";
 import { getFilename } from "./toolCallUtils";
 
@@ -48,7 +49,7 @@ export const FileMentionChip = memo(function FileMentionChip({
   const handleContextMenu = useCallback(
     async (e: React.MouseEvent) => {
       e.preventDefault();
-      const absolutePath = filePath.startsWith("/")
+      const absolutePath = isAbsolutePath(filePath)
         ? filePath
         : repoPath
           ? `${repoPath}/${filePath}`
