@@ -12,7 +12,6 @@ import {
   Keyboard,
   Palette,
   Plugs,
-
   TrafficSignal,
   TreeStructure,
   User,
