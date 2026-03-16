@@ -1747,11 +1747,23 @@ export class SessionService {
 
   /**
    * Start a fresh session for a task, abandoning the old conversation.
-   * Clears the backend sessionId so the next reconnect creates a new
-   * session instead of attempting to resume the stale one.
+   * Tears down the current session and creates a new task run so that
+   * S3 logs start clean — old messages won't reappear on restart.
    */
   async resetSession(taskId: string, repoPath: string): Promise<void> {
-    await this.reconnectInPlace(taskId, repoPath, null, true);
+    const session = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (!session) return;
+
+    const { taskTitle } = session;
+
+    await this.teardownSession(session.taskRunId);
+
+    const auth = this.getAuthCredentials();
+    if (!auth) {
+      throw new Error("Unable to reach server. Please check your connection.");
+    }
+
+    await this.createNewLocalSession(taskId, taskTitle, repoPath, auth);
   }
 
   /**
@@ -1768,7 +1780,6 @@ export class SessionService {
     taskId: string,
     repoPath: string,
     overrideSessionId?: string | null,
-    clearHistory = false,
   ): Promise<void> {
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) return;
@@ -1789,13 +1800,7 @@ export class SessionService {
       throw new Error("Unable to reach server. Please check your connection.");
     }
 
-    const prefetchedLogs = clearHistory
-      ? {
-          rawEntries: [] as StoredLogEntry[],
-          sessionId: undefined,
-          adapter: undefined as Adapter | undefined,
-        }
-      : await this.fetchSessionLogs(logUrl, taskRunId);
+    const prefetchedLogs = await this.fetchSessionLogs(logUrl, taskRunId);
 
     // Determine sessionId: undefined = use from logs, null = strip (fresh), string = use as-is
     const sessionId =

@@ -1,4 +1,5 @@
 import type { AvailableCommand } from "@agentclientprotocol/sdk";
+import { getSessionService } from "@features/sessions/service/service";
 import { ANALYTICS_EVENTS, type FeedbackType } from "@shared/types/analytics";
 import { track } from "@utils/analytics";
 import { toast } from "@utils/toast";
@@ -59,9 +60,6 @@ const commands: CodeCommand[] = [
         toast.error("Cannot clear: no active session");
         return;
       }
-      const { getSessionService } = await import(
-        "@features/sessions/service/service"
-      );
       await getSessionService().resetSession(ctx.taskId, ctx.repoPath);
       toast.success("Conversation cleared");
     },
