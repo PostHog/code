@@ -92,9 +92,14 @@ posthog-code/
 | [apps/mobile/README.md](./apps/mobile/README.md) | Mobile app: Expo setup, EAS builds, and TestFlight deployment |
 | [apps/cli/README.md](./apps/cli/README.md) | CLI: stacked PR management with Jujutsu |
 | [CLAUDE.md](./CLAUDE.md) | Code style, patterns, and testing guidelines |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | How to contribute to PostHog Code |
 | [docs/LOCAL-DEVELOPMENT.md](./docs/LOCAL-DEVELOPMENT.md) | Connecting PostHog Code to a local PostHog instance |
 | [docs/UPDATES.md](./docs/UPDATES.md) | Release versioning and git tagging |
 | [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) | Common issues and fixes |
+
+## Contributing
+
+We love contributions big and small. See [CONTRIBUTING.md](./CONTRIBUTING.md) to get started.
 
 ## Troubleshooting
 
