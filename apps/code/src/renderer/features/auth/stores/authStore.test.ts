@@ -38,6 +38,20 @@ vi.mock("@renderer/api/posthogClient", () => ({
     this.getCurrentUser = mockGetCurrentUser;
     this.setTeamId = vi.fn();
   }),
+  SeatSubscriptionRequiredError: class SeatSubscriptionRequiredError extends Error {
+    redirectUrl: string;
+    constructor(redirectUrl: string) {
+      super("Billing subscription required");
+      this.name = "SeatSubscriptionRequiredError";
+      this.redirectUrl = redirectUrl;
+    }
+  },
+  SeatPaymentFailedError: class SeatPaymentFailedError extends Error {
+    constructor(message?: string) {
+      super(message ?? "Payment failed");
+      this.name = "SeatPaymentFailedError";
+    }
+  },
 }));
 
 vi.mock("@utils/analytics", () => ({

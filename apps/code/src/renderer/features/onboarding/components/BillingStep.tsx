@@ -1,6 +1,14 @@
+import { useSeatStore } from "@features/billing/stores/seatStore";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
-import { ArrowLeft, ArrowRight, Check } from "@phosphor-icons/react";
-import { Badge, Button, Flex, Text } from "@radix-ui/themes";
+import { useSeat } from "@hooks/useSeat";
+import {
+  ArrowLeft,
+  ArrowRight,
+  ArrowSquareOut,
+  Check,
+  WarningCircle,
+} from "@phosphor-icons/react";
+import { Badge, Button, Callout, Flex, Spinner, Text } from "@radix-ui/themes";
 import codeLogo from "@renderer/assets/images/code.svg";
 import { useEffect } from "react";
 
@@ -26,6 +34,8 @@ const PRO_FEATURES: PlanFeature[] = [
 export function BillingStep({ onNext, onBack }: BillingStepProps) {
   const selectedPlan = useOnboardingStore((state) => state.selectedPlan);
   const selectPlan = useOnboardingStore((state) => state.selectPlan);
+  const { isLoading, error, redirectUrl } = useSeat();
+  const { provisionFreeSeat, upgradeToPro, clearError } = useSeatStore();
 
   useEffect(() => {
     if (!selectedPlan) {
@@ -33,8 +43,21 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
     }
   }, [selectedPlan, selectPlan]);
 
-  const handleContinue = () => {
-    onNext();
+  useEffect(() => {
+    return () => clearError();
+  }, [clearError]);
+
+  const handleContinue = async () => {
+    if (selectedPlan === "free") {
+      await provisionFreeSeat();
+    } else {
+      await upgradeToPro();
+    }
+
+    const storeState = useSeatStore.getState();
+    if (!storeState.error) {
+      onNext();
+    }
   };
 
   return (
@@ -75,8 +98,43 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
             >
               Choose your plan
             </Text>
+
+            {error && !redirectUrl && (
+              <Callout.Root color="red" size="1">
+                <Callout.Icon>
+                  <WarningCircle size={16} />
+                </Callout.Icon>
+                <Callout.Text>{error}</Callout.Text>
+              </Callout.Root>
+            )}
+
+            {redirectUrl && (
+              <Callout.Root color="amber" size="1">
+                <Callout.Icon>
+                  <WarningCircle size={16} />
+                </Callout.Icon>
+                <Callout.Text>
+                  <Flex direction="column" gap="2">
+                    <Text size="2">
+                      Your organization needs an active billing subscription
+                      before you can select a plan.
+                    </Text>
+                    <Button
+                      size="1"
+                      variant="outline"
+                      color="amber"
+                      onClick={() => window.open(redirectUrl, "_blank")}
+                      style={{ alignSelf: "flex-start" }}
+                    >
+                      Set up billing
+                      <ArrowSquareOut size={12} />
+                    </Button>
+                  </Flex>
+                </Callout.Text>
+              </Callout.Root>
+            )}
+
             <Flex direction="column" gap="3">
-              {/* Free Plan */}
               <PlanCard
                 name="Free"
                 price="$0"
@@ -86,7 +144,6 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
                 onSelect={() => selectPlan("free")}
               />
 
-              {/* Pro Plan */}
               <PlanCard
                 name="Pro"
                 price="$200"
@@ -112,14 +169,24 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
               size="2"
               variant="ghost"
               onClick={onBack}
+              disabled={isLoading}
               style={{ color: "var(--gray-12)" }}
             >
               <ArrowLeft size={16} />
               Back
             </Button>
-            <Button size="2" onClick={handleContinue}>
-              Continue
-              <ArrowRight size={16} />
+            <Button size="2" onClick={handleContinue} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Spinner size="1" />
+                  Setting up...
+                </>
+              ) : (
+                <>
+                  Continue
+                  <ArrowRight size={16} />
+                </>
+              )}
             </Button>
           </Flex>
         </Flex>

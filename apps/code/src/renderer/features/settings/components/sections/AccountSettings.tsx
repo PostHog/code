@@ -4,10 +4,19 @@ import {
   useAuthStateValue,
   useCurrentUser,
 } from "@features/auth/hooks/authQueries";
-import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
+import { useSeatStore } from "@features/billing/stores/seatStore";
 import { SettingRow } from "@features/settings/components/SettingRow";
-import { SignOut } from "@phosphor-icons/react";
-import { Avatar, Badge, Button, Flex, Spinner, Text } from "@radix-ui/themes";
+import { useSeat } from "@hooks/useSeat";
+import { ArrowSquareOut, SignOut } from "@phosphor-icons/react";
+import {
+  Avatar,
+  Badge,
+  Button,
+  Callout,
+  Flex,
+  Spinner,
+  Text,
+} from "@radix-ui/themes";
 import { REGION_LABELS } from "@shared/constants/oauth";
 
 export function AccountSettings() {
@@ -15,13 +24,24 @@ export function AccountSettings() {
     (state) => state.status === "authenticated",
   );
   const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
-  const selectedPlan = useOnboardingStore((state) => state.selectedPlan);
   const logoutMutation = useLogoutMutation();
   const client = useOptionalAuthenticatedClient();
   const { data: user, isLoading } = useCurrentUser({
     client,
     enabled: isAuthenticated,
   });
+  const {
+    seat,
+    isPro,
+    isCanceling,
+    planLabel,
+    activeUntil,
+    isLoading: seatLoading,
+    error: seatError,
+    redirectUrl,
+  } = useSeat();
+  const { upgradeToPro, cancelSeat, reactivateSeat, clearError } =
+    useSeatStore();
 
   const handleLogout = () => {
     logoutMutation.mutate();
@@ -51,6 +71,14 @@ export function AccountSettings() {
       ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
       : (user.email?.substring(0, 2).toUpperCase() ?? "U");
 
+  const formattedActiveUntil = activeUntil
+    ? activeUntil.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
+
   return (
     <Flex direction="column">
       <Flex
@@ -75,13 +103,9 @@ export function AccountSettings() {
                 {REGION_LABELS[cloudRegion]}
               </Badge>
             )}
-            {selectedPlan && (
-              <Badge
-                size="1"
-                variant="soft"
-                color={selectedPlan === "pro" ? "orange" : "gray"}
-              >
-                {selectedPlan === "pro" ? "Pro" : "Free"}
+            {seat && (
+              <Badge size="1" variant="soft" color={isPro ? "orange" : "gray"}>
+                {planLabel}
               </Badge>
             )}
           </Flex>
@@ -98,19 +122,95 @@ export function AccountSettings() {
         </Button>
       </Flex>
 
-      <SettingRow
-        label="Plan"
-        description="Your current subscription plan"
-        noBorder
-      >
-        <Badge
-          size="2"
-          variant="soft"
-          color={selectedPlan === "pro" ? "orange" : "gray"}
-        >
-          {selectedPlan === "pro" ? "Pro — $200/mo" : "Free"}
-        </Badge>
+      <SettingRow label="Plan" description="Your current subscription plan">
+        <Flex align="center" gap="3">
+          {seatLoading ? (
+            <Spinner size="1" />
+          ) : seat ? (
+            <>
+              <Badge size="2" variant="soft" color={isPro ? "orange" : "gray"}>
+                {isPro ? `Pro — $200/mo` : "Free"}
+              </Badge>
+              {isCanceling && formattedActiveUntil && (
+                <Text size="1" color="gray">
+                  Cancels {formattedActiveUntil}
+                </Text>
+              )}
+            </>
+          ) : (
+            <Badge size="2" variant="soft" color="gray">
+              No plan
+            </Badge>
+          )}
+        </Flex>
       </SettingRow>
+
+      {seat && (
+        <SettingRow
+          label="Manage plan"
+          description={
+            isCanceling
+              ? "Your plan will remain active until the end of your billing period"
+              : isPro
+                ? "Cancel your Pro subscription"
+                : "Upgrade to Pro for more credits and cloud execution"
+          }
+          noBorder
+        >
+          <Flex direction="column" gap="2" align="end">
+            {seatError && !redirectUrl && (
+              <Callout.Root color="red" size="1" style={{ maxWidth: 240 }}>
+                <Callout.Text>{seatError}</Callout.Text>
+              </Callout.Root>
+            )}
+            {redirectUrl && (
+              <Button
+                size="1"
+                variant="outline"
+                color="amber"
+                onClick={() => {
+                  window.open(redirectUrl, "_blank");
+                  clearError();
+                }}
+              >
+                Set up billing
+                <ArrowSquareOut size={12} />
+              </Button>
+            )}
+            {!redirectUrl && isCanceling && (
+              <Button
+                size="1"
+                variant="solid"
+                onClick={reactivateSeat}
+                disabled={seatLoading}
+              >
+                {seatLoading ? <Spinner size="1" /> : "Reactivate"}
+              </Button>
+            )}
+            {!redirectUrl && !isCanceling && isPro && (
+              <Button
+                size="1"
+                variant="outline"
+                color="red"
+                onClick={cancelSeat}
+                disabled={seatLoading}
+              >
+                {seatLoading ? <Spinner size="1" /> : "Cancel"}
+              </Button>
+            )}
+            {!redirectUrl && !isCanceling && !isPro && (
+              <Button
+                size="1"
+                variant="solid"
+                onClick={upgradeToPro}
+                disabled={seatLoading}
+              >
+                {seatLoading ? <Spinner size="1" /> : "Upgrade to Pro"}
+              </Button>
+            )}
+          </Flex>
+        </SettingRow>
+      )}
     </Flex>
   );
 }

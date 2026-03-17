@@ -1,3 +1,4 @@
+import { useSeatStore } from "@features/billing/stores/seatStore";
 import { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { trpcClient } from "@renderer/trpc/client";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
@@ -281,6 +282,9 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
 
   completeOnboarding: () => {
     set({ hasCompletedOnboarding: true });
+    if (!useSeatStore.getState().seat) {
+      useSeatStore.getState().provisionFreeSeat();
+    }
   },
 
   selectPlan: (plan: "free" | "pro") => {
@@ -294,6 +298,7 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
   logout: async () => {
     track(ANALYTICS_EVENTS.USER_LOGGED_OUT);
     sessionResetCallback?.();
+    useSeatStore.getState().reset();
     clearAuthenticatedRendererState({ clearAllQueries: true });
     await trpcClient.auth.logout.mutate();
     useNavigationStore.getState().navigateToTaskInput();

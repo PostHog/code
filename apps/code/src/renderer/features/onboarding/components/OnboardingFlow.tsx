@@ -98,19 +98,6 @@ export function OnboardingFlow() {
                       </motion.div>
                     )}
 
-                    {currentStep === "billing" && (
-                      <motion.div
-                        key="billing"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.3 }}
-                        style={{ width: "100%", flex: 1, minHeight: 0 }}
-                      >
-                        <BillingStep onNext={next} onBack={back} />
-                      </motion.div>
-                    )}
-
                     {currentStep === "org-billing" && (
                       <motion.div
                         key="org-billing"
@@ -121,6 +108,19 @@ export function OnboardingFlow() {
                         style={{ width: "100%", flex: 1, minHeight: 0 }}
                       >
                         <OrgBillingStep onNext={next} onBack={back} />
+                      </motion.div>
+                    )}
+
+                    {currentStep === "billing" && (
+                      <motion.div
+                        key="billing"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.3 }}
+                        style={{ width: "100%", flex: 1, minHeight: 0 }}
+                      >
+                        <BillingStep onNext={next} onBack={back} />
                       </motion.div>
                     )}
 

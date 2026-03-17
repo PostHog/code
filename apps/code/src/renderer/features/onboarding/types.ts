@@ -8,8 +8,8 @@ export type OnboardingStep =
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   "welcome",
-  "billing",
   "org-billing",
+  "billing",
   "git-integration",
   "signals",
   "tutorial",
