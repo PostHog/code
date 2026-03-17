@@ -32,6 +32,7 @@ interface UseTaskCreationOptions {
   model?: string;
   reasoningLevel?: string;
   environmentId?: string | null;
+  sandboxEnvironmentId?: string;
 }
 
 interface UseTaskCreationReturn {
@@ -53,6 +54,7 @@ function prepareTaskInput(
     model?: string;
     reasoningLevel?: string;
     environmentId?: string | null;
+    sandboxEnvironmentId?: string;
   },
 ): TaskCreationInput {
   return {
@@ -68,6 +70,7 @@ function prepareTaskInput(
     model: options.model,
     reasoningLevel: options.reasoningLevel,
     environmentId: options.environmentId ?? undefined,
+    sandboxEnvironmentId: options.sandboxEnvironmentId,
   };
 }
 
@@ -95,6 +98,7 @@ export function useTaskCreation({
   model,
   reasoningLevel,
   environmentId,
+  sandboxEnvironmentId,
 }: UseTaskCreationOptions): UseTaskCreationReturn {
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const { navigateToTask } = useNavigationStore();
@@ -134,6 +138,7 @@ export function useTaskCreation({
         model,
         reasoningLevel,
         environmentId,
+        sandboxEnvironmentId,
       });
 
       if (executionMode) {
@@ -177,6 +182,7 @@ export function useTaskCreation({
     model,
     reasoningLevel,
     environmentId,
+    sandboxEnvironmentId,
     invalidateTasks,
     navigateToTask,
   ]);

@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowsClockwise,
   CaretRight,
+  Cloud,
   Code,
   Folder,
   GearSix,
@@ -32,6 +33,7 @@ import { ShortcutsSettings } from "./sections/ShortcutsSettings";
 import { SignalSourcesSettings } from "./sections/SignalSourcesSettings";
 import { UpdatesSettings } from "./sections/UpdatesSettings";
 import { WorkspacesSettings } from "./sections/WorkspacesSettings";
+import { CloudEnvironmentsSettings } from "./sections/CloudEnvironmentsSettings";
 import { WorktreesSettings } from "./sections/worktrees/WorktreesSettings";
 
 interface SidebarItem {
@@ -47,9 +49,9 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "workspaces", label: "Workspaces", icon: <Folder size={16} /> },
   { id: "worktrees", label: "Worktrees", icon: <TreeStructure size={16} /> },
   {
-    id: "environments",
-    label: "Environments",
-    icon: <HardDrives size={16} />,
+    id: "cloud-environments",
+    label: "Cloud environments",
+    icon: <Cloud size={16} />,
   },
   {
     id: "personalization",
@@ -74,7 +76,7 @@ const CATEGORY_TITLES: Record<SettingsCategory, string> = {
   account: "Account",
   workspaces: "Workspaces",
   worktrees: "Worktrees",
-  environments: "Environments",
+  "cloud-environments": "Cloud environments",
   personalization: "Personalization",
   "claude-code": "Claude Code",
   "mcp-servers": "MCP Servers",
@@ -90,7 +92,7 @@ const CATEGORY_COMPONENTS: Record<SettingsCategory, React.ComponentType> = {
   account: AccountSettings,
   workspaces: WorkspacesSettings,
   worktrees: WorktreesSettings,
-  environments: EnvironmentsSettings,
+  "cloud-environments": CloudEnvironmentsSettings,
   personalization: PersonalizationSettings,
   "claude-code": ClaudeCodeSettings,
   "mcp-servers": McpServersSettings,
