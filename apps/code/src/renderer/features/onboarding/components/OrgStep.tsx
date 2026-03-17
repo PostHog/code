@@ -17,7 +17,6 @@ import {
   Skeleton,
   Text,
 } from "@radix-ui/themes";
-import codeLogo from "@renderer/assets/images/code.svg";
 import { trpcClient } from "@renderer/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
@@ -110,20 +109,11 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
           width: "100%",
           maxWidth: 520,
           height: "100%",
-          paddingTop: 80,
+          paddingTop: 24,
           paddingBottom: 40,
         }}
       >
-        <Flex direction="column" gap="3" mb="4">
-          <img
-            src={codeLogo}
-            alt="PostHog"
-            style={{
-              height: "24px",
-              objectFit: "contain",
-              alignSelf: "flex-start",
-            }}
-          />
+        <Flex direction="column" gap="3" mb="6">
           <Text
             size="6"
             weight="bold"
@@ -132,7 +122,7 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
               lineHeight: 1.3,
             }}
           >
-            Choose your organization
+            Who's footing the bill?
           </Text>
           <Text size="3" style={{ color: "var(--gray-12)", opacity: 0.7 }}>
             Select which PostHog organization and project to use with PostHog

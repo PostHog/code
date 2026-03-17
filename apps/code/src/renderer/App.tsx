@@ -164,8 +164,16 @@ function App() {
     );
   }
 
-  // Four-phase rendering: auth → access gate → onboarding → main app
+  // Rendering: onboarding → auth → access gate → main app
   const renderContent = () => {
+    if (!hasCompletedOnboarding) {
+      return (
+        <motion.div key="onboarding" initial={{ opacity: 1 }}>
+          <OnboardingFlow />
+        </motion.div>
+      );
+    }
+
     if (!isAuthenticated) {
       return (
         <motion.div key="auth" initial={{ opacity: 1 }}>
@@ -193,14 +201,6 @@ function App() {
       return (
         <motion.div key="invite-code">
           <InviteCodeScreen />
-        </motion.div>
-      );
-    }
-
-    if (!hasCompletedOnboarding) {
-      return (
-        <motion.div key="onboarding">
-          <OnboardingFlow />
         </motion.div>
       );
     }

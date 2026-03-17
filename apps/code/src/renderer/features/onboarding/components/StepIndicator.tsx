@@ -10,11 +10,15 @@ export function StepIndicator({
   currentStep,
   activeSteps,
 }: StepIndicatorProps) {
-  const currentIndex = activeSteps.indexOf(currentStep);
+  // Welcome is a splash screen, not a numbered step
+  const displaySteps = activeSteps.filter((s) => s !== "welcome");
+  const currentIndex = displaySteps.indexOf(
+    currentStep as (typeof displaySteps)[number],
+  );
 
   return (
     <Flex align="center" gap="2" justify="center" py="6">
-      {activeSteps.map((step, index) => (
+      {displaySteps.map((step, index) => (
         <div
           key={step}
           style={{
