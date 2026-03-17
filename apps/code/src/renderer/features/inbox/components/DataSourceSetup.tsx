@@ -95,7 +95,7 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
 
   if (!githubIntegration) {
     return (
-      <SetupFormContainer title="Connect GitHub" onCancel={onCancel}>
+      <SetupFormContainer title="Connect GitHub">
         <Text size="2" style={{ color: "var(--gray-11)" }}>
           No GitHub integration found. Please connect GitHub during onboarding
           first.
@@ -105,7 +105,7 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
   }
 
   return (
-    <SetupFormContainer title="Connect GitHub" onCancel={onCancel}>
+    <SetupFormContainer title="Connect GitHub">
       <Flex direction="column" gap="3">
         <GitHubRepoPicker
           value={repo}
@@ -132,7 +132,7 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
 const POLL_INTERVAL_MS = 3_000;
 const POLL_TIMEOUT_MS = 300_000; // 5 minutes
 
-function LinearSetup({ onComplete, onCancel }: SetupFormProps) {
+function LinearSetup({ onComplete }: SetupFormProps) {
   const cloudRegion = useAuthStore((s) => s.cloudRegion);
   const projectId = useAuthStore((s) => s.projectId);
   const client = useAuthStore((s) => s.client);
@@ -220,7 +220,7 @@ function LinearSetup({ onComplete, onCancel }: SetupFormProps) {
   }, [projectId, client, onComplete]);
 
   return (
-    <SetupFormContainer title="Connect Linear" onCancel={onCancel}>
+    <SetupFormContainer title="Connect Linear">
       <Flex direction="column" gap="3">
         <Button
           size="2"
@@ -232,7 +232,7 @@ function LinearSetup({ onComplete, onCancel }: SetupFormProps) {
             ? "Linear connected"
             : loading
               ? "Waiting for authorization..."
-              : "Connect Linear"}
+              : "Log into Linear to continue"}
         </Button>
 
         {pollError && (
@@ -295,7 +295,7 @@ function ZendeskSetup({ onComplete, onCancel }: SetupFormProps) {
   const canSubmit = subdomain.trim() && apiKey.trim() && email.trim();
 
   return (
-    <SetupFormContainer title="Connect Zendesk" onCancel={onCancel}>
+    <SetupFormContainer title="Connect Zendesk">
       <Flex direction="column" gap="3">
         <TextField.Root
           placeholder="Subdomain (e.g. mycompany)"
@@ -334,11 +334,9 @@ function ZendeskSetup({ onComplete, onCancel }: SetupFormProps) {
 
 function SetupFormContainer({
   title,
-  onCancel,
   children,
 }: {
   title: string;
-  onCancel: () => void;
   children: React.ReactNode;
 }) {
   return (
@@ -354,9 +352,6 @@ function SetupFormContainer({
           <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
             {title}
           </Text>
-          <Button size="1" variant="ghost" onClick={onCancel}>
-            Cancel
-          </Button>
         </Flex>
         {children}
       </Flex>
