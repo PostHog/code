@@ -292,7 +292,7 @@ export class PostHogAPIClient {
         path: { project_id: projectId.toString() },
         query: {},
       },
-    )) as { results?: ExternalDataSource[] } | ExternalDataSource[];
+    )) as unknown as { results?: ExternalDataSource[] } | ExternalDataSource[];
     return Array.isArray(data) ? data : (data.results ?? []);
   }
 
@@ -321,7 +321,7 @@ export class PostHogAPIClient {
           `Failed to create external data source: ${response.statusText}`,
       );
     }
-    return response.data as ExternalDataSource;
+    return response.data as unknown as ExternalDataSource;
   }
 
   async updateExternalDataSchema(
