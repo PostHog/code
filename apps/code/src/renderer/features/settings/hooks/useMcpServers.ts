@@ -59,9 +59,7 @@ export function useMcpServers() {
   const [installingUrl, setInstallingUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const markSessionsForMcpRefresh = useCallback(() => {
-    trpcClient.agent.markAllForRecreation.mutate().catch(() => {
-      // Non-blocking best effort: sessions will still refresh on next reconnect.
-    });
+    // MCP config changes are picked up on next session creation.
   }, []);
 
   const { data: installations, isLoading: installationsLoading } =
