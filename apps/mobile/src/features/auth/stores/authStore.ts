@@ -67,18 +67,12 @@ export const useAuthStore = create<AuthState>()(
 
         const tokenResponse = result.data;
         const expiresAt = Date.now() + tokenResponse.expires_in * 1000;
-        const projectId = tokenResponse.scoped_teams?.[0];
-
-        if (!projectId) {
-          throw new Error("No team found in OAuth scopes");
-        }
 
         const storedTokens: StoredTokens = {
           accessToken: tokenResponse.access_token,
           refreshToken: tokenResponse.refresh_token,
           expiresAt,
           cloudRegion: region,
-          scopedTeams: tokenResponse.scoped_teams,
         };
 
         // Save tokens securely
@@ -89,7 +83,6 @@ export const useAuthStore = create<AuthState>()(
           oauthRefreshToken: tokenResponse.refresh_token,
           tokenExpiry: expiresAt,
           cloudRegion: region,
-          projectId,
           isAuthenticated: true,
         });
 
@@ -109,14 +102,12 @@ export const useAuthStore = create<AuthState>()(
         );
 
         const expiresAt = Date.now() + tokenResponse.expires_in * 1000;
-        const projectId = tokenResponse.scoped_teams?.[0] || state.projectId;
 
         const storedTokens: StoredTokens = {
           accessToken: tokenResponse.access_token,
           refreshToken: tokenResponse.refresh_token,
           expiresAt,
           cloudRegion: state.cloudRegion,
-          scopedTeams: tokenResponse.scoped_teams,
         };
 
         // Save tokens securely
@@ -126,7 +117,6 @@ export const useAuthStore = create<AuthState>()(
           oauthAccessToken: tokenResponse.access_token,
           oauthRefreshToken: tokenResponse.refresh_token,
           tokenExpiry: expiresAt,
-          projectId,
         });
 
         get().scheduleTokenRefresh();
@@ -183,7 +173,6 @@ export const useAuthStore = create<AuthState>()(
             oauthRefreshToken: tokens.refreshToken,
             tokenExpiry: tokens.expiresAt,
             cloudRegion: tokens.cloudRegion,
-            projectId: tokens.scopedTeams?.[0] || null,
           });
 
           if (isExpired) {

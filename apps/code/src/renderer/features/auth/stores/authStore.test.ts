@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockGetCurrentUser = vi.fn();
+const mockListOrgProjects = vi.fn();
 
 const { getItem, setItem } = vi.hoisted(() => ({
   getItem: vi.fn(),
@@ -69,6 +70,7 @@ vi.mock("@renderer/api/posthogClient", () => ({
     this: Record<string, unknown>,
   ) {
     this.getCurrentUser = mockGetCurrentUser;
+    this.listOrgProjects = mockListOrgProjects;
     this.setTeamId = vi.fn();
   }),
 }));
@@ -88,7 +90,6 @@ function makeStoredTokens(overrides: Record<string, unknown> = {}) {
     refreshToken: "test-refresh-token",
     expiresAt: Date.now() + 3600 * 1000,
     cloudRegion: "us" as const,
-    scopedTeams: [1],
     scopeVersion: OAUTH_SCOPE_VERSION,
     ...overrides,
   };
@@ -107,6 +108,7 @@ describe("authStore - scope version", () => {
     getItem.mockResolvedValue(null);
     setItem.mockResolvedValue(undefined);
     mockGetCurrentUser.mockResolvedValue(mockUser);
+    mockListOrgProjects.mockResolvedValue([]);
 
     useAuthStore.setState({
       oauthAccessToken: null,
@@ -118,8 +120,7 @@ describe("authStore - scope version", () => {
       isAuthenticated: false,
       client: null,
       projectId: null,
-      availableProjectIds: [],
-      availableOrgIds: [],
+      orgProjectsMap: {},
       needsProjectSelection: false,
       needsScopeReauth: false,
     });
@@ -186,7 +187,6 @@ describe("authStore - scope version", () => {
           access_token: "new-access-token",
           refresh_token: "new-refresh-token",
           expires_in: 3600,
-          scoped_teams: [1],
           scoped_organizations: ["org-1"],
         },
       });
@@ -215,7 +215,7 @@ describe("authStore - scope version", () => {
           access_token: "new-access-token",
           refresh_token: "new-refresh-token",
           expires_in: 3600,
-          scoped_teams: [1],
+          scoped_organizations: ["org-1"],
         },
       });
 
@@ -242,7 +242,7 @@ describe("authStore - scope version", () => {
           access_token: "new-access-token",
           refresh_token: "new-refresh-token",
           expires_in: 3600,
-          scoped_teams: [1],
+          scoped_organizations: ["org-1"],
         },
       });
 

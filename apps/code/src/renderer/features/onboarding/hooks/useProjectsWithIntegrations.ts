@@ -13,7 +13,7 @@ export interface ProjectWithIntegrations {
 }
 
 export function useProjectsWithIntegrations() {
-  const { projects, isLoading: projectsLoading } = useProjects();
+  const { projects } = useProjects();
   const client = useAuthStore((s) => s.client);
 
   // Fetch integrations for each project in parallel
@@ -29,8 +29,7 @@ export function useProjectsWithIntegrations() {
     })),
   });
 
-  const isLoading =
-    projectsLoading || integrationQueries.some((q) => q.isLoading);
+  const isLoading = integrationQueries.some((q) => q.isLoading);
   const isFetching = integrationQueries.some((q) => q.isFetching);
 
   const projectsWithIntegrations: ProjectWithIntegrations[] = useMemo(() => {

@@ -343,13 +343,14 @@ describe("AgentService", () => {
     it("recordActivity resets the timeout on subsequent calls", () => {
       injectSession(service, "run-1");
       service.recordActivity("run-1");
-      const firstDeadline = getIdleTimeouts(service).get("run-1")?.deadline;
+      const firstDeadline =
+        getIdleTimeouts(service).get("run-1")?.deadline ?? 0;
 
       vi.advanceTimersByTime(5 * 60 * 1000);
       service.recordActivity("run-1");
       const secondDeadline = getIdleTimeouts(service).get("run-1")?.deadline;
 
-      expect(secondDeadline).toBeGreaterThan(firstDeadline!);
+      expect(secondDeadline).toBeGreaterThan(firstDeadline);
     });
 
     it("kills idle session after timeout expires", () => {

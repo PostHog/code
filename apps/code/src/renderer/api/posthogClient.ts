@@ -132,8 +132,8 @@ export class PostHogAPIClient {
     }
   }
 
-  setTeamId(teamId: number): void {
-    this._teamId = teamId;
+  setTeamId(teamId: number | null | undefined): void {
+    this._teamId = teamId ?? null;
   }
 
   private async getTeamId(): Promise<number> {
@@ -165,6 +165,32 @@ export class PostHogAPIClient {
       path: { uuid: "@me" },
       body: { set_current_organization: orgId } as Record<string, unknown>,
     });
+  }
+
+  async listOrgProjects(
+    orgId: string,
+  ): Promise<{ id: number; name: string }[]> {
+    const url = new URL(
+      `${this.api.baseUrl}/api/organizations/${orgId}/projects/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: `/api/organizations/${orgId}/projects/`,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch projects for org ${orgId}: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    const results = data.results ?? data ?? [];
+    return results.map((p: { id: number; name?: string }) => ({
+      id: p.id,
+      name: p.name ?? `Project ${p.id}`,
+    }));
   }
 
   async getProject(projectId: number) {
