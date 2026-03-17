@@ -911,6 +911,23 @@ export class SessionService {
         setPersistedConfigOptions(taskRunId, configOptions);
         log.info("Session config options updated", { taskRunId });
       }
+
+      // Handle context usage updates
+      if (params?.update?.sessionUpdate === "usage_update") {
+        const update = params.update as {
+          used?: number;
+          size?: number;
+        };
+        if (
+          typeof update.used === "number" &&
+          typeof update.size === "number"
+        ) {
+          sessionStoreSetters.updateSession(taskRunId, {
+            contextUsed: update.used,
+            contextSize: update.size,
+          });
+        }
+      }
     }
 
     // Handle _posthog/sdk_session notifications for adapter info

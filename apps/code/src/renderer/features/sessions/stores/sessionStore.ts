@@ -73,6 +73,10 @@ export interface AgentSession {
   /** Number of session/prompt events to skip from polled logs (set during resume) */
   skipPolledPromptCount?: number;
   optimisticItems: OptimisticItem[];
+  /** Context window tokens used (from usage_update) */
+  contextUsed?: number;
+  /** Context window total size in tokens (from usage_update) */
+  contextSize?: number;
 }
 
 // --- Config Option Helpers ---
