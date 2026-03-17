@@ -88,6 +88,36 @@ export class AuthProxyService {
     const incoming = (req.url ?? "/").replace(/^\//, "");
     const targetUrl = new URL(incoming, base);
 
+    // Validate that the resolved URL stays within the configured gateway origin
+    const gatewayBase = new URL(base);
+    const normalizePort = (u: URL): string => {
+      if (u.port) return u.port;
+      if (u.protocol === "https:") return "443";
+      if (u.protocol === "http:") return "80";
+      return "";
+    };
+
+    const targetPort = normalizePort(targetUrl);
+    const gatewayPort = normalizePort(gatewayBase);
+
+    const sameOrigin =
+      targetUrl.protocol === gatewayBase.protocol &&
+      targetUrl.hostname === gatewayBase.hostname &&
+      targetPort === gatewayPort;
+
+    const hasPathTraversal = targetUrl.pathname.includes("..");
+
+    if (!sameOrigin || hasPathTraversal) {
+      log.warn("Rejected proxy request with invalid target URL", {
+        method: req.method,
+        incoming: req.url,
+        target: targetUrl.toString(),
+      });
+      res.writeHead(403);
+      res.end("Forbidden");
+      return;
+    }
+
     log.debug("Proxying request", {
       method: req.method,
       incoming: req.url,
