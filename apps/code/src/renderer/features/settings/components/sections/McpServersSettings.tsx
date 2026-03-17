@@ -1,6 +1,5 @@
 import { useAuthenticatedMutation } from "@hooks/useAuthenticatedMutation";
 import {
-  CheckCircle,
   MagnifyingGlassIcon,
   PlugIcon,
   Plus,
@@ -321,12 +320,10 @@ function ServerRow({
 
 function RecommendedServerRow({
   server,
-  isInstalled,
   onInstall,
   isInstalling,
 }: {
   server: McpRecommendedServer;
-  isInstalled: boolean;
   onInstall: () => void;
   isInstalling: boolean;
 }) {
@@ -359,22 +356,15 @@ function RecommendedServerRow({
       </Flex>
 
       <Flex align="center" className="shrink-0">
-        {isInstalled ? (
-          <Badge color="green" variant="soft" size="1">
-            <CheckCircle size={12} weight="fill" />
-            Active
-          </Badge>
-        ) : (
-          <Button
-            variant="soft"
-            size="1"
-            onClick={onInstall}
-            disabled={isInstalling}
-          >
-            {isInstalling ? <Spinner size="1" /> : null}
-            Connect
-          </Button>
-        )}
+        <Button
+          variant="soft"
+          size="1"
+          onClick={onInstall}
+          disabled={isInstalling}
+        >
+          {isInstalling ? <Spinner size="1" /> : null}
+          Connect
+        </Button>
       </Flex>
     </Flex>
   );
@@ -430,14 +420,15 @@ export function McpServersSettings() {
 
   const filteredServers = useMemo(() => {
     if (!servers) return [];
-    if (!searchTerm) return servers;
+    const available = servers.filter((s) => !installedUrls.has(s.url));
+    if (!searchTerm) return available;
     const term = searchTerm.toLowerCase();
-    return servers.filter(
+    return available.filter(
       (s) =>
         s.name.toLowerCase().includes(term) ||
         s.description.toLowerCase().includes(term),
     );
-  }, [servers, searchTerm]);
+  }, [servers, searchTerm, installedUrls]);
 
   const handleUninstall = useCallback(() => {
     if (uninstallTarget) {
@@ -546,7 +537,6 @@ export function McpServersSettings() {
                 <RecommendedServerRow
                   key={server.url}
                   server={server}
-                  isInstalled={installedUrls.has(server.url)}
                   onInstall={() => installRecommended(server)}
                   isInstalling={installingUrl === server.url}
                 />
