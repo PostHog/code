@@ -346,6 +346,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
                 ? Math.min(...contextWindows)
                 : getDefaultContextWindow(this.session.modelId ?? "");
 
+            this.session.contextSize = contextWindowSize;
+            if (lastAssistantTotalUsage !== null) {
+              this.session.contextUsed = lastAssistantTotalUsage;
+            }
+
             // Send usage_update notification
             if (lastAssistantTotalUsage !== null) {
               await this.client.sessionUpdate({

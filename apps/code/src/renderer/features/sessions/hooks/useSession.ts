@@ -147,6 +147,25 @@ export const useThoughtLevelConfigOptionForTask = (
   return useConfigOptionForTask(taskId, "thought_level");
 };
 
+/** Get context window usage for a task (used / size) */
+export const useContextUsageForTask = (
+  taskId: string | undefined,
+): { used: number; size: number } | undefined => {
+  return useSessionStore((s) => {
+    if (!taskId) return undefined;
+    const taskRunId = s.taskIdIndex[taskId];
+    if (!taskRunId) return undefined;
+    const session = s.sessions[taskRunId];
+    if (
+      session?.contextUsed === undefined ||
+      session?.contextSize === undefined
+    ) {
+      return undefined;
+    }
+    return { used: session.contextUsed, size: session.contextSize };
+  });
+};
+
 /** Get the adapter type for a task */
 export const useAdapterForTask = (
   taskId: string | undefined,
