@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, renameSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
+import { initOtelTransport } from "@main/utils/otel-log-transport";
 import { app } from "electron";
 import log from "electron-log/main";
 
@@ -44,10 +45,13 @@ const level = isDev ? "debug" : "info";
 log.transports.file.level = level;
 log.transports.console.level = level;
 log.transports.ipc.level = level;
+log.transports.otel = initOtelTransport(level);
 
 export const logger = log;
 export type Logger = typeof logger;
 export type ScopedLogger = ReturnType<typeof logger.scope>;
+
+export { shutdownOtelTransport } from "@main/utils/otel-log-transport";
 
 export function getLogFilePath(): string {
   return join(LOG_DIR, LOG_FILE);
