@@ -55,7 +55,6 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     promptStartedAt,
     isInitializing,
     cloudBranch,
-    readOnlyMessage,
     errorTitle,
     errorMessage,
   } = useSessionViewState(taskId, task);
@@ -157,7 +156,6 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
               onRetry={isCloud ? undefined : handleRetry}
               onNewSession={isCloud ? undefined : handleNewSession}
               isInitializing={isInitializing}
-              readOnlyMessage={readOnlyMessage}
               slackThreadUrl={slackThreadUrl}
             />
           </ErrorBoundary>

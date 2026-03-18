@@ -58,7 +58,6 @@ interface SessionViewProps {
   onRetry?: () => void;
   onNewSession?: () => void;
   isInitializing?: boolean;
-  readOnlyMessage?: string;
   slackThreadUrl?: string;
   compact?: boolean;
 }
@@ -87,7 +86,6 @@ export function SessionView({
   onRetry,
   onNewSession,
   isInitializing = false,
-  readOnlyMessage,
   slackThreadUrl,
   compact = false,
 }: SessionViewProps) {
@@ -506,17 +504,6 @@ export function SessionView({
                     />
                   </Box>
                 </Box>
-              ) : readOnlyMessage ? (
-                <Flex
-                  align="center"
-                  justify="center"
-                  py="2"
-                  className="border-gray-4 border-t"
-                >
-                  <Text size="2" color="gray">
-                    {readOnlyMessage}
-                  </Text>
-                </Flex>
               ) : (
                 <Box className="relative border-gray-4 border-t">
                   <Box

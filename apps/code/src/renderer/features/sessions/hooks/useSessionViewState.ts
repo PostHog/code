@@ -1,7 +1,6 @@
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import type { Task } from "@shared/types";
-import { useMemo } from "react";
 import { useSessionForTask } from "../stores/sessionStore";
 
 export function useSessionViewState(taskId: string, task: Task) {
@@ -20,9 +19,7 @@ export function useSessionViewState(taskId: string, task: Task) {
       cloudStatus === "in_progress");
   const isCloudRunTerminal = isCloud && !isCloudRunNotTerminal;
 
-  const isRunning = isCloud
-    ? isCloudRunNotTerminal
-    : session?.status === "connected";
+  const isRunning = isCloud ? true : session?.status === "connected";
   const hasError = isCloud ? false : session?.status === "error";
 
   const events = session?.events ?? [];
@@ -46,12 +43,6 @@ export function useSessionViewState(taskId: string, task: Task) {
     ? (workspace?.baseBranch ?? task.latest_run?.branch ?? null)
     : null;
 
-  const readOnlyMessage = useMemo(() => {
-    if (!isCloud) return undefined;
-    if (isCloudRunTerminal) return "This cloud run has finished";
-    return undefined;
-  }, [isCloud, isCloudRunTerminal]);
-
   return {
     session,
     repoPath,
@@ -66,7 +57,6 @@ export function useSessionViewState(taskId: string, task: Task) {
     promptStartedAt,
     isInitializing,
     cloudBranch,
-    readOnlyMessage,
     errorTitle: isCloud ? undefined : session?.errorTitle,
     errorMessage: isCloud ? undefined : session?.errorMessage,
   };
