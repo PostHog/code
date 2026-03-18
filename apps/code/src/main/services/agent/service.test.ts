@@ -152,6 +152,13 @@ function createMockDependencies() {
     posthogPluginService: {
       getPluginPath: vi.fn(() => "/mock/plugin"),
     },
+    authProxy: {
+      start: vi.fn().mockResolvedValue("http://127.0.0.1:9999"),
+      stop: vi.fn().mockResolvedValue(undefined),
+      updateToken: vi.fn(),
+      getProxyUrl: vi.fn(() => "http://127.0.0.1:9999"),
+      isRunning: vi.fn(() => false),
+    },
   };
 }
 
@@ -182,6 +189,7 @@ describe("AgentService", () => {
       deps.sleepService as never,
       deps.fsService as never,
       deps.posthogPluginService as never,
+      deps.authProxy as never,
     );
   });
 
@@ -304,7 +312,6 @@ describe("AgentService", () => {
         createdAt: Date.now(),
         lastActivityAt: Date.now(),
         config: {},
-        needsRecreation: false,
         promptPending: false,
         ...overrides,
       });

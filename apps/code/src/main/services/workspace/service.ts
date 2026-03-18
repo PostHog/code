@@ -30,6 +30,7 @@ import { FocusServiceEvent } from "../focus/service";
 import type { ProcessTrackingService } from "../process-tracking/service";
 import { getWorktreeLocation } from "../settingsStore";
 import type { ShellService } from "../shell/service";
+import type { SuspensionService } from "../suspension/service.js";
 import { loadConfig, normalizeScripts } from "./configLoader";
 import type {
   BranchChangedPayload,
@@ -135,6 +136,9 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
 
   @inject(MAIN_TOKENS.WorktreeRepository)
   private worktreeRepo!: WorktreeRepository;
+
+  @inject(MAIN_TOKENS.SuspensionService)
+  private suspensionService!: SuspensionService;
 
   private scriptRunner!: ScriptRunner;
   private creatingWorkspaces = new Map<string, Promise<WorkspaceInfo>>();
@@ -523,7 +527,8 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       };
     }
 
-    // Worktree mode: create isolated worktree
+    await this.suspensionService.suspendLeastRecentIfOverLimit();
+
     const worktreeBasePath = getWorktreeLocation();
     const worktreeManager = new WorktreeManager({
       mainRepoPath,

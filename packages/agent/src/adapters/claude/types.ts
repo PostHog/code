@@ -53,6 +53,10 @@ export type Session = BaseSession & {
   effort?: EffortLevel;
   configOptions: SessionConfigOption[];
   accumulatedUsage: AccumulatedUsage;
+  /** Latest context window usage (total tokens from last assistant message) */
+  contextUsed?: number;
+  /** Context window size in tokens */
+  contextSize?: number;
   promptRunning: boolean;
   pendingMessages: Map<string, PendingMessage>;
   nextPendingOrder: number;

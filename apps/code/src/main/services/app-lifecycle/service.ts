@@ -6,8 +6,10 @@ import { container } from "../../di/container";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { withTimeout } from "../../utils/async";
 import { logger } from "../../utils/logger";
+import { shutdownOtelTransport } from "../../utils/otel-log-transport";
 import { shutdownPostHog, trackAppEvent } from "../posthog-analytics";
 import type { ProcessTrackingService } from "../process-tracking/service";
+import type { SuspensionService } from "../suspension/service.js";
 import type { WatcherRegistryService } from "../watcher-registry/service";
 
 const log = logger.scope("app-lifecycle");
@@ -95,6 +97,15 @@ export class AppLifecycleService {
     await this.teardownNativeResources();
 
     try {
+      const suspensionService = container.get<SuspensionService>(
+        MAIN_TOKENS.SuspensionService,
+      );
+      suspensionService.stopInactivityChecker();
+    } catch (error) {
+      log.warn("Failed to stop inactivity checker during shutdown", error);
+    }
+
+    try {
       const db = container.get<DatabaseService>(MAIN_TOKENS.DatabaseService);
       db.close();
     } catch (error) {
@@ -108,6 +119,12 @@ export class AppLifecycleService {
     }
 
     trackAppEvent(ANALYTICS_EVENTS.APP_QUIT);
+
+    try {
+      await shutdownOtelTransport();
+    } catch (error) {
+      log.warn("Failed to shutdown OTEL log transport", error);
+    }
 
     try {
       await shutdownPostHog();

@@ -64,6 +64,8 @@ export interface TaskRunStartedProperties {
   task_id: string;
   execution_type: ExecutionType;
   model?: string;
+  initial_mode?: string;
+  adapter?: string;
 }
 
 export interface TaskRunCompletedProperties {
@@ -151,6 +153,28 @@ export interface AgentSessionErrorProperties {
   error_type: string;
 }
 
+// Permission events
+export interface PermissionRespondedProperties {
+  task_id: string;
+  tool_name?: string;
+  option_id?: string;
+  option_kind?: string;
+  custom_input?: string;
+}
+
+export interface PermissionCancelledProperties {
+  task_id: string;
+  tool_name?: string;
+}
+
+// Session config events
+export interface SessionConfigChangedProperties {
+  task_id: string;
+  category: string;
+  from_value: string;
+  to_value: string;
+}
+
 // Feedback events
 export interface TaskFeedbackProperties {
   task_id: string;
@@ -203,6 +227,13 @@ export const ANALYTICS_EVENTS = {
   COMMAND_MENU_ACTION: "Command menu action",
   COMMAND_CENTER_VIEWED: "Command center viewed",
 
+  // Permission events
+  PERMISSION_RESPONDED: "Permission responded",
+  PERMISSION_CANCELLED: "Permission cancelled",
+
+  // Session config events
+  SESSION_CONFIG_CHANGED: "Session config changed",
+
   // Settings events
   SETTING_CHANGED: "Setting changed",
 
@@ -248,6 +279,13 @@ export type EventPropertyMap = {
   [ANALYTICS_EVENTS.COMMAND_MENU_OPENED]: never;
   [ANALYTICS_EVENTS.COMMAND_MENU_ACTION]: CommandMenuActionProperties;
   [ANALYTICS_EVENTS.COMMAND_CENTER_VIEWED]: never;
+
+  // Permission events
+  [ANALYTICS_EVENTS.PERMISSION_RESPONDED]: PermissionRespondedProperties;
+  [ANALYTICS_EVENTS.PERMISSION_CANCELLED]: PermissionCancelledProperties;
+
+  // Session config events
+  [ANALYTICS_EVENTS.SESSION_CONFIG_CHANGED]: SessionConfigChangedProperties;
 
   // Settings events
   [ANALYTICS_EVENTS.SETTING_CHANGED]: SettingChangedProperties;

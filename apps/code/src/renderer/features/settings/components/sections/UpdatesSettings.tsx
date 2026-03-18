@@ -38,6 +38,9 @@ export function UpdatesSettings() {
           message: "Checking for updates...",
           type: "info",
         });
+      } else if (result.errorCode === "already_checking") {
+        // A check is already in progress (e.g. boot check) — show spinner and wait
+        setUpdateStatus({ message: "Checking for updates...", type: "info" });
       } else {
         if (result.errorCode === "disabled") {
           setUpdatesDisabled(true);
@@ -68,9 +71,19 @@ export function UpdatesSettings() {
   useSubscription(
     trpcReact.updates.onStatus.subscriptionOptions(undefined, {
       onData: (status) => {
-        if (status.checking === false && status.upToDate) {
+        if (status.checking && status.downloading) {
+          setUpdateStatus({ message: "Downloading update...", type: "info" });
+        } else if (status.checking === false && status.upToDate) {
           setUpdateStatus({
             message: "You're on the latest version",
+            type: "success",
+          });
+          setCheckingForUpdates(false);
+        } else if (status.checking === false && status.updateReady) {
+          setUpdateStatus({
+            message: status.version
+              ? `Update ${status.version} ready to install`
+              : "Update ready to install",
             type: "success",
           });
           setCheckingForUpdates(false);

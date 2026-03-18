@@ -40,7 +40,7 @@ import {
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { AcpMessage, StoredLogEntry } from "@shared/types/session-events";
 import { isJsonRpcRequest } from "@shared/types/session-events";
-import { track } from "@utils/analytics";
+import { buildPermissionToolMetadata, track } from "@utils/analytics";
 import { logger } from "@utils/logger";
 import {
   notifyPermissionRequest,
@@ -571,6 +571,8 @@ export class SessionService {
     track(ANALYTICS_EVENTS.TASK_RUN_STARTED, {
       task_id: taskId,
       execution_type: "local",
+      initial_mode: executionMode,
+      adapter,
     });
 
     const preferredModel = model ?? DEFAULT_GATEWAY_MODEL;
@@ -602,6 +604,25 @@ export class SessionService {
     if (initialPrompt?.length) {
       await this.sendPrompt(taskId, initialPrompt);
     }
+  }
+
+  async loadLogsOnly(params: {
+    taskId: string;
+    taskRunId: string;
+    taskTitle: string;
+    logUrl: string;
+  }): Promise<void> {
+    const { taskId, taskRunId, taskTitle, logUrl } = params;
+    const existing = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (existing && existing.events.length > 0) return;
+
+    const { rawEntries } = await this.fetchSessionLogs(logUrl, taskRunId);
+    const events = convertStoredEntriesToEvents(rawEntries);
+    const session = this.createBaseSession(taskRunId, taskId, taskTitle);
+    session.events = events;
+    session.logUrl = logUrl;
+    session.status = "disconnected";
+    sessionStoreSetters.setSession(session);
   }
 
   async disconnectFromTask(taskId: string): Promise<void> {
@@ -803,6 +824,7 @@ export class SessionService {
         sessionStoreSetters.updateSession(taskRunId, {
           isPromptPending: true,
           promptStartedAt: acpMsg.ts,
+          pausedDurationMs: 0,
         });
       }
       if (
@@ -888,6 +910,23 @@ export class SessionService {
         // Persist the updated config options
         setPersistedConfigOptions(taskRunId, configOptions);
         log.info("Session config options updated", { taskRunId });
+      }
+
+      // Handle context usage updates
+      if (params?.update?.sessionUpdate === "usage_update") {
+        const update = params.update as {
+          used?: number;
+          size?: number;
+        };
+        if (
+          typeof update.used === "number" &&
+          typeof update.size === "number"
+        ) {
+          sessionStoreSetters.updateSession(taskRunId, {
+            contextUsed: update.used,
+            contextSize: update.size,
+          });
+        }
       }
     }
 
@@ -1077,6 +1116,7 @@ export class SessionService {
     sessionStoreSetters.updateSession(session.taskRunId, {
       isPromptPending: true,
       promptStartedAt: Date.now(),
+      pausedDurationMs: 0,
     });
 
     sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
@@ -1457,6 +1497,24 @@ export class SessionService {
 
   // --- Permissions ---
 
+  private resolvePermission(session: AgentSession, toolCallId: string): void {
+    const permission = session.pendingPermissions.get(toolCallId);
+    const newPermissions = new Map(session.pendingPermissions);
+    newPermissions.delete(toolCallId);
+    sessionStoreSetters.setPendingPermissions(
+      session.taskRunId,
+      newPermissions,
+    );
+
+    if (permission?.receivedAt) {
+      sessionStoreSetters.updateSession(session.taskRunId, {
+        pausedDurationMs:
+          (session.pausedDurationMs ?? 0) +
+          (Date.now() - permission.receivedAt),
+      });
+    }
+  }
+
   /**
    * Respond to a permission request.
    */
@@ -1473,12 +1531,13 @@ export class SessionService {
       return;
     }
 
-    const newPermissions = new Map(session.pendingPermissions);
-    newPermissions.delete(toolCallId);
-    sessionStoreSetters.setPendingPermissions(
-      session.taskRunId,
-      newPermissions,
-    );
+    const permission = session.pendingPermissions.get(toolCallId);
+    track(ANALYTICS_EVENTS.PERMISSION_RESPONDED, {
+      task_id: taskId,
+      ...buildPermissionToolMetadata(permission, optionId, customInput),
+    });
+
+    this.resolvePermission(session, toolCallId);
 
     try {
       await trpcClient.agent.respondToPermission.mutate({
@@ -1515,12 +1574,13 @@ export class SessionService {
       return;
     }
 
-    const newPermissions = new Map(session.pendingPermissions);
-    newPermissions.delete(toolCallId);
-    sessionStoreSetters.setPendingPermissions(
-      session.taskRunId,
-      newPermissions,
-    );
+    const permission = session.pendingPermissions.get(toolCallId);
+    track(ANALYTICS_EVENTS.PERMISSION_CANCELLED, {
+      task_id: taskId,
+      ...buildPermissionToolMetadata(permission),
+    });
+
+    this.resolvePermission(session, toolCallId);
 
     try {
       await trpcClient.agent.cancelPermission.mutate({
@@ -1624,6 +1684,15 @@ export class SessionService {
     if (!configOption) {
       log.warn("Config option not found for category", { taskId, category });
       return;
+    }
+
+    if (configOption.currentValue !== value) {
+      track(ANALYTICS_EVENTS.SESSION_CONFIG_CHANGED, {
+        task_id: taskId,
+        category,
+        from_value: configOption.currentValue,
+        to_value: value,
+      });
     }
 
     await this.setSessionConfigOption(taskId, configOption.id, value);
@@ -2164,6 +2233,7 @@ export class SessionService {
       isPromptPending: false,
       promptStartedAt: null,
       pendingPermissions: new Map(),
+      pausedDurationMs: 0,
       messageQueue: [],
       optimisticItems: [],
     };

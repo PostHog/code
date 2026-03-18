@@ -79,8 +79,8 @@ export const TaskInputEditor = forwardRef<
       submitDisabled: !isOnline,
       isLoading: isCreatingTask,
       autoFocus,
-      context: { repoPath },
-      capabilities: { commands: false, bashMode: false },
+      context: { repoPath, taskId: previewTaskId },
+      capabilities: { commands: true, bashMode: false },
       clearOnSubmit: false,
       onSubmit: (text) => {
         if (text && canSubmit) {

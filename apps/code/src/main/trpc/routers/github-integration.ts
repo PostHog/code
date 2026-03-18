@@ -1,7 +1,6 @@
 import { container } from "../../di/container";
 import { MAIN_TOKENS } from "../../di/tokens";
 import {
-  cancelGitHubFlowOutput,
   startGitHubFlowInput,
   startGitHubFlowOutput,
 } from "../../services/github-integration/schemas";
@@ -18,8 +17,4 @@ export const githubIntegrationRouter = router({
     .mutation(({ input }) =>
       getService().startFlow(input.region, input.projectId),
     ),
-
-  cancelFlow: publicProcedure
-    .output(cancelGitHubFlowOutput)
-    .mutation(() => getService().cancelFlow()),
 });

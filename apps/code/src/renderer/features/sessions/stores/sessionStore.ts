@@ -55,6 +55,8 @@ export interface AgentSession {
   /** Session configuration options (model, mode, thought level, etc.) */
   configOptions?: SessionConfigOption[];
   pendingPermissions: Map<string, PermissionRequest>;
+  /** Accumulated time (ms) spent waiting for user input (permissions, questions, etc.) */
+  pausedDurationMs: number;
   messageQueue: QueuedMessage[];
   /** Whether this session is for a cloud run */
   isCloud?: boolean;
@@ -71,6 +73,10 @@ export interface AgentSession {
   /** Number of session/prompt events to skip from polled logs (set during resume) */
   skipPolledPromptCount?: number;
   optimisticItems: OptimisticItem[];
+  /** Context window tokens used (from usage_update) */
+  contextUsed?: number;
+  /** Context window total size in tokens (from usage_update) */
+  contextSize?: number;
 }
 
 // --- Config Option Helpers ---

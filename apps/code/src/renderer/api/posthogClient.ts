@@ -20,12 +20,32 @@ export type McpServerInstallation = Schemas.MCPServerInstallation;
 
 export interface SignalSourceConfig {
   id: string;
-  source_product: "session_replay" | "llm_analytics";
-  source_type: "session_analysis_cluster" | "evaluation";
+  source_product:
+    | "session_replay"
+    | "llm_analytics"
+    | "github"
+    | "linear"
+    | "zendesk";
+  source_type: "session_analysis_cluster" | "evaluation" | "issue" | "ticket";
   enabled: boolean;
   config: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+}
+
+export interface ExternalDataSourceSchema {
+  id: string;
+  name: string;
+  should_sync: boolean;
+}
+
+export interface ExternalDataSource {
+  id: string;
+  source_type: string;
+  status: string;
+  // The generated `ExternalDataSourceSerializers` types this as `string`,
+  // but the actual API returns an array of schema objects
+  schemas?: ExternalDataSourceSchema[] | string;
 }
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
@@ -199,8 +219,17 @@ export class PostHogAPIClient {
   async createSignalSourceConfig(
     projectId: number,
     options: {
-      source_product: "session_replay" | "llm_analytics";
-      source_type: "session_analysis_cluster" | "evaluation";
+      source_product:
+        | "session_replay"
+        | "llm_analytics"
+        | "github"
+        | "linear"
+        | "zendesk";
+      source_type:
+        | "session_analysis_cluster"
+        | "evaluation"
+        | "issue"
+        | "ticket";
       enabled: boolean;
       config?: Record<string, unknown>;
     },
@@ -252,6 +281,73 @@ export class PostHogAPIClient {
       );
     }
     return (await response.json()) as SignalSourceConfig;
+  }
+
+  async listExternalDataSources(
+    projectId: number,
+  ): Promise<ExternalDataSource[]> {
+    const data = (await this.api.get(
+      "/api/projects/{project_id}/external_data_sources/",
+      {
+        path: { project_id: projectId.toString() },
+        query: {},
+      },
+    )) as unknown as { results?: ExternalDataSource[] } | ExternalDataSource[];
+    return Array.isArray(data) ? data : (data.results ?? []);
+  }
+
+  async createExternalDataSource(
+    projectId: number,
+    payload: {
+      source_type: string;
+      payload: Record<string, unknown>;
+    },
+  ): Promise<ExternalDataSource> {
+    const response = await this.api.post(
+      "/api/projects/{project_id}/external_data_sources/",
+      {
+        path: { project_id: projectId.toString() },
+        body: payload as unknown as Schemas.ExternalDataSourceSerializers,
+        withResponse: true,
+        throwOnStatusError: false,
+      },
+    );
+    if (!response.ok) {
+      const errorData = isObjectRecord(response.data)
+        ? (response.data as { detail?: string })
+        : {};
+      throw new Error(
+        errorData.detail ??
+          `Failed to create external data source: ${response.statusText}`,
+      );
+    }
+    return response.data as unknown as ExternalDataSource;
+  }
+
+  async updateExternalDataSchema(
+    projectId: number,
+    schemaId: string,
+    updates: { should_sync: boolean },
+  ): Promise<void> {
+    const urlPath = `/api/projects/${projectId}/external_data_schemas/${schemaId}/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "patch",
+      url,
+      path: urlPath,
+      overrides: {
+        body: JSON.stringify(updates),
+      },
+    });
+    if (!response.ok) {
+      const errorData = (await response.json().catch(() => ({}))) as {
+        detail?: string;
+      };
+      throw new Error(
+        errorData.detail ??
+          `Failed to update external data schema: ${response.statusText}`,
+      );
+    }
   }
 
   async getTasks(options?: {
@@ -953,8 +1049,8 @@ export class PostHogAPIClient {
     api_key?: string;
     description?: string;
     oauth_provider_kind?: string;
-    install_source?: "posthog" | "twig";
-    twig_callback_url?: string;
+    install_source?: "posthog" | "posthog-code";
+    posthog_code_callback_url?: string;
   }): Promise<McpServerInstallation | Schemas.OAuthRedirectResponse> {
     const teamId = await this.getTeamId();
     const apiUrl = new URL(

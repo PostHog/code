@@ -10,6 +10,7 @@ import {
   type InstallUpdateOutput,
   UpdatesEvent,
   type UpdatesEvents,
+  type UpdatesStatusPayload,
 } from "./schemas";
 
 type CheckSource = "user" | "periodic";
@@ -21,7 +22,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
   private static readonly SERVER_HOST = "https://update.electronjs.org";
   private static readonly REPO_OWNER = "PostHog";
   private static readonly REPO_NAME = "code";
-  private static readonly CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+  private static readonly CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
   private static readonly CHECK_TIMEOUT_MS = 60 * 1000; // 1 minute timeout for checks
   private static readonly DISABLE_ENV_FLAG = "ELECTRON_DISABLE_AUTO_UPDATE";
   private static readonly SUPPORTED_PLATFORMS = ["darwin", "win32"];
@@ -101,6 +102,11 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
       });
       this.pendingNotification = true;
       this.flushPendingNotification();
+      this.emitStatus({
+        checking: false,
+        updateReady: true,
+        version: this.downloadedVersion ?? undefined,
+      });
       return { success: true };
     }
 
@@ -203,7 +209,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
     this.clearCheckTimeout();
     log.info("Update available, downloading...");
     // Keep checkingForUpdates true while downloading
-    // The download is now in progress
+    this.emitStatus({ checking: true, downloading: true });
   }
 
   private handleNoUpdate(): void {
@@ -265,12 +271,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
     }
   }
 
-  private emitStatus(status: {
-    checking: boolean;
-    upToDate?: boolean;
-    version?: string;
-    error?: string;
-  }): void {
+  private emitStatus(status: UpdatesStatusPayload): void {
     this.emit(UpdatesEvent.Status, status);
   }
 

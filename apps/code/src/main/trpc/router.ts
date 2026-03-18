@@ -14,6 +14,7 @@ import { foldersRouter } from "./routers/folders";
 import { fsRouter } from "./routers/fs";
 import { gitRouter } from "./routers/git";
 import { githubIntegrationRouter } from "./routers/github-integration";
+import { linearIntegrationRouter } from "./routers/linear-integration.js";
 import { llmGatewayRouter } from "./routers/llm-gateway";
 import { logsRouter } from "./routers/logs";
 import { mcpCallbackRouter } from "./routers/mcp-callback";
@@ -24,6 +25,7 @@ import { processTrackingRouter } from "./routers/process-tracking";
 import { secureStoreRouter } from "./routers/secure-store";
 import { shellRouter } from "./routers/shell";
 import { sleepRouter } from "./routers/sleep";
+import { suspensionRouter } from "./routers/suspension.js";
 import { uiRouter } from "./routers/ui";
 import { updatesRouter } from "./routers/updates";
 import { workspaceRouter } from "./routers/workspace";
@@ -45,6 +47,7 @@ export const trpcRouter = router({
   fs: fsRouter,
   git: gitRouter,
   githubIntegration: githubIntegrationRouter,
+  linearIntegration: linearIntegrationRouter,
   llmGateway: llmGatewayRouter,
   mcpCallback: mcpCallbackRouter,
   notification: notificationRouter,
@@ -53,6 +56,7 @@ export const trpcRouter = router({
   os: osRouter,
   processTracking: processTrackingRouter,
   sleep: sleepRouter,
+  suspension: suspensionRouter,
   secureStore: secureStoreRouter,
   shell: shellRouter,
   ui: uiRouter,

@@ -188,14 +188,16 @@ export function UpdatePrompt() {
             { id: CHECK_TOAST_ID, duration: 3000 },
           );
         } else if (status.checking === true) {
-          // Show checking toast
+          // Show checking/downloading toast
           sonnerToast.custom(
             () => (
               <Card size="2">
                 <Flex gap="2" align="center">
                   <Spinner size="1" />
                   <Text size="2" weight="medium">
-                    Checking for updates...
+                    {status.downloading
+                      ? "Downloading update..."
+                      : "Checking for updates..."}
                   </Text>
                 </Flex>
               </Card>

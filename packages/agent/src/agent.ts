@@ -5,7 +5,7 @@ import {
 import {
   BLOCKED_MODELS,
   DEFAULT_GATEWAY_MODEL,
-  fetchArrayModels,
+  fetchModelsList,
 } from "./gateway-models";
 import { PostHogAPIClient, type TaskRunUpdate } from "./posthog-api";
 import { SessionLogWriter } from "./session-log-writer";
@@ -45,7 +45,7 @@ export class Agent {
     }
   }
 
-  private _configureLlmGateway(_adapter?: "claude" | "codex"): {
+  private _configureLlmGateway(overrideUrl?: string): {
     gatewayUrl: string;
     apiKey: string;
   } | null {
@@ -54,7 +54,7 @@ export class Agent {
     }
 
     try {
-      const gatewayUrl = this.posthogAPI.getLlmGatewayUrl();
+      const gatewayUrl = overrideUrl ?? this.posthogAPI.getLlmGatewayUrl();
       const apiKey = this.posthogAPI.getApiKey();
 
       process.env.OPENAI_BASE_URL = `${gatewayUrl}/v1`;
@@ -74,7 +74,7 @@ export class Agent {
     taskRunId: string,
     options: TaskExecutionOptions = {},
   ): Promise<InProcessAcpConnection> {
-    const gatewayConfig = this._configureLlmGateway(options.adapter);
+    const gatewayConfig = this._configureLlmGateway(options.gatewayUrl);
     this.logger.info("Configured LLM gateway", {
       adapter: options.adapter,
     });
@@ -86,7 +86,7 @@ export class Agent {
         ? options.model
         : undefined;
     if (options.adapter === "codex" && gatewayConfig) {
-      const models = await fetchArrayModels({
+      const models = await fetchModelsList({
         gatewayUrl: gatewayConfig.gatewayUrl,
       });
       const codexModelIds = models

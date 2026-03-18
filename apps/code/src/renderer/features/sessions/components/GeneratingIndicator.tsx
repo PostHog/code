@@ -1,6 +1,6 @@
 import { Brain, Circle } from "@phosphor-icons/react";
 import { Flex, Text } from "@radix-ui/themes";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const THINKING_MESSAGES = [
   "Booping",
@@ -110,16 +110,24 @@ export function formatDuration(ms: number): string {
 interface GeneratingIndicatorProps {
   /** Timestamp (ms) when the prompt started. Only render this component while a prompt is pending. */
   startedAt?: number | null;
+  /** Accumulated time (ms) spent waiting for user input, subtracted from elapsed display. */
+  pausedDurationMs?: number;
 }
 
-export function GeneratingIndicator({ startedAt }: GeneratingIndicatorProps) {
+export function GeneratingIndicator({
+  startedAt,
+  pausedDurationMs,
+}: GeneratingIndicatorProps) {
   const [elapsed, setElapsed] = useState(0);
   const [activity, setActivity] = useState(getRandomThinkingMessage);
+
+  const pausedRef = useRef(pausedDurationMs ?? 0);
+  pausedRef.current = pausedDurationMs ?? 0;
 
   useEffect(() => {
     const startTime = startedAt ?? Date.now();
     const interval = setInterval(() => {
-      setElapsed(Date.now() - startTime);
+      setElapsed(Math.max(0, Date.now() - startTime - pausedRef.current));
     }, 50);
 
     return () => clearInterval(interval);

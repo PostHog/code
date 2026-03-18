@@ -10,6 +10,8 @@ interface SessionFooterProps {
   lastStopReason?: string;
   queuedCount?: number;
   hasPendingPermission?: boolean;
+  pausedDurationMs?: number;
+  isCompacting?: boolean;
 }
 
 export function SessionFooter({
@@ -19,8 +21,10 @@ export function SessionFooter({
   lastStopReason,
   queuedCount = 0,
   hasPendingPermission = false,
+  pausedDurationMs,
+  isCompacting = false,
 }: SessionFooterProps) {
-  if (isPromptPending) {
+  if (isPromptPending && !isCompacting) {
     // Show static "waiting" state when permission is pending
     if (hasPendingPermission) {
       return (
@@ -41,7 +45,10 @@ export function SessionFooter({
     return (
       <Box className="pt-3 pb-1">
         <Flex align="center" gap="2">
-          <GeneratingIndicator startedAt={promptStartedAt} />
+          <GeneratingIndicator
+            startedAt={promptStartedAt}
+            pausedDurationMs={pausedDurationMs}
+          />
           {queuedCount > 0 && (
             <Text size="1" color="gray">
               ({queuedCount} queued)

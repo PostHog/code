@@ -8,7 +8,6 @@ export type SettingsCategory =
   | "personalization"
   | "claude-code"
   | "shortcuts"
-  | "integrations"
   | "mcp-servers"
   | "signals"
   | "updates"

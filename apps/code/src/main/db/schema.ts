@@ -60,3 +60,19 @@ export const archives = sqliteTable("archives", {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+export const suspensions = sqliteTable("suspensions", {
+  id: id(),
+  workspaceId: text()
+    .notNull()
+    .unique()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  branchName: text(),
+  checkpointId: text(),
+  suspendedAt: text().notNull(),
+  reason: text({
+    enum: ["max_worktrees", "inactivity", "manual"],
+  }).notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});

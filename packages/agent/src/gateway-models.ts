@@ -19,7 +19,7 @@ export const DEFAULT_GATEWAY_MODEL = "claude-opus-4-6";
 
 export const BLOCKED_MODELS = new Set(["gpt-5-mini", "openai/gpt-5-mini"]);
 
-type ArrayModelsResponse =
+type ModelsListResponse =
   | {
       data?: Array<{ id?: string; owned_by?: string }>;
       models?: Array<{ id?: string; owned_by?: string }>;
@@ -79,53 +79,50 @@ export function isAnthropicModel(model: GatewayModel): boolean {
   return model.id.startsWith("claude-") || model.id.startsWith("anthropic/");
 }
 
-export interface ArrayModelInfo {
+export interface ModelInfo {
   id: string;
   owned_by?: string;
 }
 
-let arrayModelsCache: {
-  models: ArrayModelInfo[];
+let modelsListCache: {
+  models: ModelInfo[];
   expiry: number;
   url: string;
 } | null = null;
 
-export async function fetchArrayModels(
+export async function fetchModelsList(
   options?: FetchGatewayModelsOptions,
-): Promise<ArrayModelInfo[]> {
+): Promise<ModelInfo[]> {
   const gatewayUrl = options?.gatewayUrl ?? process.env.ANTHROPIC_BASE_URL;
   if (!gatewayUrl) {
     return [];
   }
 
   if (
-    arrayModelsCache &&
-    arrayModelsCache.url === gatewayUrl &&
-    Date.now() < arrayModelsCache.expiry
+    modelsListCache &&
+    modelsListCache.url === gatewayUrl &&
+    Date.now() < modelsListCache.expiry
   ) {
-    return arrayModelsCache.models;
+    return modelsListCache.models;
   }
 
   try {
-    const base = new URL(gatewayUrl);
-    base.pathname = "/array/v1/models";
-    base.search = "";
-    base.hash = "";
-    const response = await fetch(base.toString());
+    const modelsUrl = `${gatewayUrl}/v1/models`;
+    const response = await fetch(modelsUrl);
     if (!response.ok) {
       return [];
     }
-    const data = (await response.json()) as ArrayModelsResponse;
+    const data = (await response.json()) as ModelsListResponse;
     const models = Array.isArray(data)
       ? data
       : (data.data ?? data.models ?? []);
-    const results: ArrayModelInfo[] = [];
+    const results: ModelInfo[] = [];
     for (const model of models) {
       const id = model?.id ? String(model.id) : "";
       if (!id) continue;
       results.push({ id, owned_by: model?.owned_by });
     }
-    arrayModelsCache = {
+    modelsListCache = {
       models: results,
       expiry: Date.now() + CACHE_TTL,
       url: gatewayUrl,

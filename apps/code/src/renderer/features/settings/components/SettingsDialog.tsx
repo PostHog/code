@@ -12,7 +12,6 @@ import {
   Keyboard,
   Palette,
   Plugs,
-  PlugsConnected,
   TrafficSignal,
   TreeStructure,
   User,
@@ -25,7 +24,7 @@ import { AccountSettings } from "./sections/AccountSettings";
 import { AdvancedSettings } from "./sections/AdvancedSettings";
 import { ClaudeCodeSettings } from "./sections/ClaudeCodeSettings";
 import { GeneralSettings } from "./sections/GeneralSettings";
-import { IntegrationsSettings } from "./sections/IntegrationsSettings";
+
 import { McpServersSettings } from "./sections/McpServersSettings";
 import { PersonalizationSettings } from "./sections/PersonalizationSettings";
 import { ShortcutsSettings } from "./sections/ShortcutsSettings";
@@ -54,11 +53,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "claude-code", label: "Claude Code", icon: <Code size={16} /> },
   { id: "mcp-servers", label: "MCP Servers", icon: <Plugs size={16} /> },
   { id: "shortcuts", label: "Shortcuts", icon: <Keyboard size={16} /> },
-  {
-    id: "integrations",
-    label: "Integrations",
-    icon: <PlugsConnected size={16} />,
-  },
+
   {
     id: "signals",
     label: "Signals",
@@ -77,7 +72,7 @@ const CATEGORY_TITLES: Record<SettingsCategory, string> = {
   "claude-code": "Claude Code",
   "mcp-servers": "MCP Servers",
   shortcuts: "Shortcuts",
-  integrations: "Integrations",
+
   signals: "Signals",
   updates: "Updates",
   advanced: "Advanced",
@@ -92,7 +87,7 @@ const CATEGORY_COMPONENTS: Record<SettingsCategory, React.ComponentType> = {
   "claude-code": ClaudeCodeSettings,
   "mcp-servers": McpServersSettings,
   shortcuts: ShortcutsSettings,
-  integrations: IntegrationsSettings,
+
   signals: SignalSourcesSettings,
   updates: UpdatesSettings,
   advanced: AdvancedSettings,

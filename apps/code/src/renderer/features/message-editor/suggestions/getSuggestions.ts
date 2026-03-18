@@ -66,7 +66,8 @@ export function getCommandSuggestions(
   query: string,
 ): CommandSuggestionItem[] {
   const taskId = useDraftStore.getState().contexts[sessionId]?.taskId;
-  const commands = [...CODE_COMMANDS, ...getAvailableCommandsForTask(taskId)];
+  const merged = [...CODE_COMMANDS, ...getAvailableCommandsForTask(taskId)];
+  const commands = [...new Map(merged.map((cmd) => [cmd.name, cmd])).values()];
   const filtered = searchCommands(commands, query);
 
   return filtered.map((cmd) => ({

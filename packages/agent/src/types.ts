@@ -109,6 +109,7 @@ export interface TaskExecutionOptions {
   repositoryPath?: string;
   adapter?: "claude" | "codex";
   model?: string;
+  gatewayUrl?: string;
   codexBinaryPath?: string;
   processCallbacks?: ProcessSpawnedCallback;
 }

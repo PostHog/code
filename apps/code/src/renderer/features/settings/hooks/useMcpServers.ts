@@ -38,8 +38,8 @@ async function installWithOAuth(
   // Step 2: Call PostHog API with PostHog Code-specific params
   const data = await client.installCustomMcpServer({
     ...vars,
-    install_source: "twig",
-    twig_callback_url: callbackUrl,
+    install_source: "posthog-code",
+    posthog_code_callback_url: callbackUrl,
   });
 
   // Step 3: If OAuth redirect needed, open browser via main process and wait
@@ -59,9 +59,7 @@ export function useMcpServers() {
   const [installingUrl, setInstallingUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const markSessionsForMcpRefresh = useCallback(() => {
-    trpcClient.agent.markAllForRecreation.mutate().catch(() => {
-      // Non-blocking best effort: sessions will still refresh on next reconnect.
-    });
+    // MCP config changes are picked up on next session creation.
   }, []);
 
   const { data: installations, isLoading: installationsLoading } =
