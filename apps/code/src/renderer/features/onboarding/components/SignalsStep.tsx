@@ -3,7 +3,7 @@ import { SignalSourceToggles } from "@features/inbox/components/SignalSourceTogg
 import { useSignalSourceManager } from "@features/inbox/hooks/useSignalSourceManager";
 import { ArrowLeft, ArrowRight } from "@phosphor-icons/react";
 import { Button, Flex, Text } from "@radix-ui/themes";
-import phWordmark from "@renderer/assets/images/wordmark-alt.png";
+import phWordmark from "@renderer/assets/images/wordmark.svg";
 import { motion } from "framer-motion";
 
 interface SignalsStepProps {
