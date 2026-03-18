@@ -1,8 +1,9 @@
 import "reflect-metadata";
+
 import { Container } from "inversify";
 import { ArchiveRepository } from "../db/repositories/archive-repository";
 import { RepositoryRepository } from "../db/repositories/repository-repository";
-import { SuspensionRepositoryImpl } from "../db/repositories/suspension-repository.js";
+import { SuspensionRepositoryImpl } from "../db/repositories/suspension-repository";
 import { WorkspaceRepository } from "../db/repositories/workspace-repository";
 import { WorktreeRepository } from "../db/repositories/worktree-repository";
 import { DatabaseService } from "../db/service";
@@ -25,6 +26,7 @@ import { GitService } from "../services/git/service";
 import { GitHubIntegrationService } from "../services/github-integration/service";
 import { LinearIntegrationService } from "../services/linear-integration/service";
 import { LlmGatewayService } from "../services/llm-gateway/service";
+import { McpAppsService } from "../services/mcp-apps/service";
 import { McpCallbackService } from "../services/mcp-callback/service";
 import { NotificationService } from "../services/notification/service";
 import { OAuthService } from "../services/oauth/service";
@@ -34,7 +36,7 @@ import { ProvisioningService } from "../services/provisioning/service";
 import { settingsStore } from "../services/settingsStore";
 import { ShellService } from "../services/shell/service";
 import { SleepService } from "../services/sleep/service";
-import { SuspensionService } from "../services/suspension/service.js";
+import { SuspensionService } from "../services/suspension/service";
 import { TaskLinkService } from "../services/task-link/service";
 import { UIService } from "../services/ui/service";
 import { UpdatesService } from "../services/updates/service";
@@ -66,6 +68,7 @@ container.bind(MAIN_TOKENS.ProvisioningService).to(ProvisioningService);
 
 container.bind(MAIN_TOKENS.ExternalAppsService).to(ExternalAppsService);
 container.bind(MAIN_TOKENS.LlmGatewayService).to(LlmGatewayService);
+container.bind(MAIN_TOKENS.McpAppsService).to(McpAppsService);
 container.bind(MAIN_TOKENS.FileWatcherService).to(FileWatcherService);
 container.bind(MAIN_TOKENS.FocusService).to(FocusService);
 container.bind(MAIN_TOKENS.FocusSyncService).to(FocusSyncService);

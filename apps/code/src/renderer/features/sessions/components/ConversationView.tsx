@@ -98,6 +98,25 @@ export function ConversationView({
     return queuedItems.length > 0 ? [...result, ...queuedItems] : result;
   }, [conversationItems, optimisticItems, queuedItems]);
 
+  // Keep MCP App tool call items mounted so their iframes and bridges
+  // survive scrolling out of the virtualized viewport.
+  const mcpAppIndices = useMemo(() => {
+    const indices: number[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type !== "session_update") continue;
+      const update = item.update;
+      if (!("_meta" in update)) continue;
+      const meta = update._meta as
+        | { claudeCode?: { toolName?: string } }
+        | undefined;
+      if (meta?.claudeCode?.toolName?.startsWith("mcp__")) {
+        indices.push(i);
+      }
+    }
+    return indices;
+  }, [items]);
+
   const handleScrollStateChange = useCallback((isAtBottom: boolean) => {
     setShowScrollButton(!isAtBottom);
   }, []);
@@ -181,12 +200,18 @@ export function ConversationView({
 
   return (
     <div className="relative flex-1">
+      <div
+        id="mcp-fullscreen-portal"
+        className="pointer-events-none absolute inset-0 z-20"
+      />
+
       <VirtualizedList
         ref={listRef}
         items={items}
         getItemKey={getItemKey}
         renderItem={renderItem}
         onScrollStateChange={handleScrollStateChange}
+        keepMounted={mcpAppIndices}
         className="absolute inset-0 bg-gray-1"
         itemClassName="mx-auto max-w-[750px] px-2 py-1.5"
         footer={

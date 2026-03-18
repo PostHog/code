@@ -38,6 +38,7 @@ interface SettingsStore {
   customInstructions: string;
   diffOpenMode: DiffOpenMode;
   hedgehogMode: boolean;
+  mcpAppsDisabledServers: string[];
   hints: Record<string, HintState>;
 
   shouldShowHint: (key: string, max?: number) => boolean;
@@ -69,6 +70,7 @@ interface SettingsStore {
   setCustomInstructions: (instructions: string) => void;
   setDiffOpenMode: (mode: DiffOpenMode) => void;
   setHedgehogMode: (enabled: boolean) => void;
+  setMcpAppsDisabledServers: (servers: string[]) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -95,6 +97,7 @@ export const useSettingsStore = create<SettingsStore>()(
       customInstructions: "",
       diffOpenMode: "auto",
       hedgehogMode: false,
+      mcpAppsDisabledServers: [],
       hints: {},
 
       shouldShowHint: (key, max = 3) => {
@@ -162,6 +165,8 @@ export const useSettingsStore = create<SettingsStore>()(
         set({ customInstructions: instructions }),
       setDiffOpenMode: (mode) => set({ diffOpenMode: mode }),
       setHedgehogMode: (enabled) => set({ hedgehogMode: enabled }),
+      setMcpAppsDisabledServers: (servers) =>
+        set({ mcpAppsDisabledServers: servers }),
     }),
     {
       name: "settings-storage",
@@ -189,6 +194,7 @@ export const useSettingsStore = create<SettingsStore>()(
         diffOpenMode: state.diffOpenMode,
         hedgehogMode: state.hedgehogMode,
         hints: state.hints,
+        mcpAppsDisabledServers: state.mcpAppsDisabledServers,
       }),
       merge: (persisted, current) => {
         const merged = {

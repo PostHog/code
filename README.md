@@ -25,7 +25,9 @@ npm install -g pnpm
 # Install dependencies for all packages
 pnpm install
 
-# Copy environment config
+# Optional: copy environment config
+# Only needed for code signing (APPLE_*) or PostHog analytics (VITE_POSTHOG_*).
+# The app runs fine in dev without it.
 cp .env.example .env
 
 ```

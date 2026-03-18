@@ -56,6 +56,8 @@ type ChunkHandlerContext = {
   registerHooks?: boolean;
   supportsTerminalOutput?: boolean;
   cwd?: string;
+  /** Raw MCP tool result from SDKUserMessage.tool_use_result (contains content, structuredContent, _meta) */
+  mcpToolUseResult?: Record<string, unknown>;
 };
 
 export interface MessageHandlerContext {
@@ -348,7 +350,16 @@ function handleToolResultChunk(
     toolCallId: chunk.tool_use_id,
     sessionUpdate: "tool_call_update",
     status: chunk.is_error ? "failed" : "completed",
-    rawOutput: chunk.content,
+    rawOutput: ctx.mcpToolUseResult
+      ? { ...ctx.mcpToolUseResult, isError: chunk.is_error ?? false }
+      : {
+          content: Array.isArray(chunk.content)
+            ? chunk.content
+            : typeof chunk.content === "string"
+              ? [{ type: "text" as const, text: chunk.content }]
+              : [],
+          isError: chunk.is_error ?? false,
+        },
     ...toolUpdate,
   });
 
@@ -435,6 +446,7 @@ function toAcpNotifications(
   registerHooks?: boolean,
   supportsTerminalOutput?: boolean,
   cwd?: string,
+  mcpToolUseResult?: Record<string, unknown>,
 ): SessionNotification[] {
   if (typeof content === "string") {
     const update: SessionUpdate = {
@@ -461,6 +473,7 @@ function toAcpNotifications(
     registerHooks,
     supportsTerminalOutput,
     cwd,
+    mcpToolUseResult,
   };
   const output: SessionNotification[] = [];
 
@@ -829,6 +842,13 @@ export async function handleUserAssistantMessage(
       ? (message.parent_tool_use_id ?? undefined)
       : undefined;
 
+  // Pass the raw MCP tool result (contains content, structuredContent, _meta)
+  // so it can be forwarded as-is to the renderer for MCP Apps
+  const mcpToolUseResult =
+    message.type === "user" && message.tool_use_result != null
+      ? (message.tool_use_result as Record<string, unknown>)
+      : undefined;
+
   for (const notification of toAcpNotifications(
     contentToProcess as typeof content,
     message.message.role,
@@ -841,6 +861,7 @@ export async function handleUserAssistantMessage(
     context.registerHooks,
     context.supportsTerminalOutput,
     session.cwd,
+    mcpToolUseResult,
   )) {
     await client.sessionUpdate(notification);
     session.notificationHistory.push(notification);

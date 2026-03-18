@@ -10,6 +10,7 @@ import {
   type RequestPermissionRequest,
   type RequestPermissionResponse,
   type SessionConfigOption,
+  type SessionNotification,
 } from "@agentclientprotocol/sdk";
 import { isMcpToolReadOnly } from "@posthog/agent";
 import { hydrateSessionJsonl } from "@posthog/agent/adapters/claude/session/jsonl-hydration";
@@ -31,6 +32,7 @@ import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 import type { AuthProxyService } from "../auth-proxy/service";
 import type { FsService } from "../fs/service";
+import type { McpAppsService } from "../mcp-apps/service";
 import type { PosthogPluginService } from "../posthog-plugin/service";
 import type { ProcessTrackingService } from "../process-tracking/service";
 import type { SleepService } from "../sleep/service";
@@ -60,6 +62,11 @@ function getMockNodeDir(): string {
 
 /** Mark all content blocks as hidden so the renderer doesn't show a duplicate user message on retry */
 type MessageCallback = (message: unknown) => void;
+
+/** Shape of the `_meta.claudeCode` extension field on tool call updates. */
+interface ClaudeCodeToolMeta {
+  claudeCode?: { toolName?: string };
+}
 
 class NdJsonTap {
   private decoder = new TextDecoder();
@@ -205,6 +212,8 @@ interface ManagedSession {
   promptPending: boolean;
   pendingContext?: string;
   configOptions?: SessionConfigOption[];
+  /** Tracks in-flight MCP tool calls (toolCallId → toolKey) for cancellation */
+  inFlightMcpToolCalls: Map<string, string>;
 }
 
 /** Get the agent session ID from a managed session, throwing if not set. */
@@ -254,6 +263,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private fsService: FsService;
   private posthogPluginService: PosthogPluginService;
   private authProxy: AuthProxyService;
+  private mcpAppsService: McpAppsService;
 
   constructor(
     @inject(MAIN_TOKENS.ProcessTrackingService)
@@ -266,6 +276,8 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     posthogPluginService: PosthogPluginService,
     @inject(MAIN_TOKENS.AuthProxyService)
     authProxy: AuthProxyService,
+    @inject(MAIN_TOKENS.McpAppsService)
+    mcpAppsService: McpAppsService,
   ) {
     super();
     this.processTracking = processTracking;
@@ -273,6 +285,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     this.fsService = fsService;
     this.posthogPluginService = posthogPluginService;
     this.authProxy = authProxy;
+    this.mcpAppsService = mcpAppsService;
 
     powerMonitor.on("resume", () => this.checkIdleDeadlines());
   }
@@ -675,6 +688,13 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
           onProcessExited: (pid) => {
             this.processTracking.unregister(pid, "agent-exited");
           },
+          onMcpServersReady: (serverNames) => {
+            this.mcpAppsService.handleDiscovery(serverNames).catch((err) => {
+              log.warn("MCP Apps discovery failed", {
+                error: err instanceof Error ? err.message : String(err),
+              });
+            });
+          },
         },
       });
       const { clientStreams } = acpConnection;
@@ -697,6 +717,16 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       });
 
       const mcpServers = await this.buildMcpServers(credentials);
+
+      // Store server configs for lazy MCP connections — actual connections
+      // are created on-demand when UI resources are first requested.
+      this.mcpAppsService.setServerConfigs(
+        mcpServers.map((s) => ({
+          name: s.name,
+          url: s.url,
+          headers: Object.fromEntries(s.headers.map((h) => [h.name, h.value])),
+        })),
+      );
 
       let externalPlugins: Awaited<ReturnType<typeof discoverExternalPlugins>> =
         [];
@@ -820,10 +850,12 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         config,
         promptPending: false,
         configOptions,
+        inFlightMcpToolCalls: new Map(),
       };
 
       this.sessions.set(taskRunId, session);
       this.recordActivity(taskRunId);
+
       if (isRetry) {
         log.info("Session created after auth retry", { taskRunId });
       }
@@ -949,6 +981,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     if (!session) return false;
 
     try {
+      this.cancelInFlightMcpToolCalls(session);
       await session.clientSideConnection.cancel({
         sessionId: getAgentSessionId(session),
         _meta: reason ? { interruptReason: reason } : undefined,
@@ -1187,9 +1220,18 @@ For git operations while detached:
     return mockNodeDir;
   }
 
+  private cancelInFlightMcpToolCalls(session: ManagedSession): void {
+    for (const [toolCallId, toolKey] of session.inFlightMcpToolCalls) {
+      this.mcpAppsService.notifyToolCancelled(toolKey, toolCallId);
+    }
+
+    session.inFlightMcpToolCalls.clear();
+  }
+
   private async cleanupSession(taskRunId: string): Promise<void> {
     const session = this.sessions.get(taskRunId);
     if (session) {
+      this.cancelInFlightMcpToolCalls(session);
       this.sleepService.release(taskRunId);
       try {
         await session.agent.cleanup();
@@ -1203,6 +1245,13 @@ For git operations while detached:
       if (timeout) {
         clearTimeout(timeout.handle);
         this.idleTimeouts.delete(taskRunId);
+      }
+
+      // When no sessions remain, tear down MCP Apps connections and cached resources
+      if (this.sessions.size === 0) {
+        this.mcpAppsService.cleanup().catch(() => {
+          log.debug("MCP Apps cleanup failed");
+        });
       }
     }
   }
@@ -1232,7 +1281,7 @@ For git operations while detached:
       emitToRenderer(acpMessage);
 
       // Detect PR URLs in bash tool results and attach to task
-      this.detectAndAttachPrUrl(taskRunId, message);
+      this.detectAndAttachPrUrl(taskRunId, message as AcpMessage["message"]);
     };
 
     const tappedReadable = createTappedReadableStream(
@@ -1361,8 +1410,41 @@ For git operations while detached:
         return {};
       },
 
-      async sessionUpdate() {
-        // session/update notifications flow through the tapped stream
+      async sessionUpdate(params: SessionNotification) {
+        // Forward MCP tool events to McpAppsService using the SDK's
+        // typed discriminated union instead of parsing raw JSON.
+        const { update } = params;
+        if (
+          update.sessionUpdate !== "tool_call" &&
+          update.sessionUpdate !== "tool_call_update"
+        ) {
+          return;
+        }
+
+        const toolName = (update._meta as ClaudeCodeToolMeta | undefined)
+          ?.claudeCode?.toolName;
+        if (!toolName?.startsWith("mcp__")) return;
+
+        const session = service.sessions.get(taskRunId);
+        if (update.sessionUpdate === "tool_call") {
+          session?.inFlightMcpToolCalls.set(update.toolCallId, toolName);
+          service.mcpAppsService.notifyToolInput(
+            toolName,
+            update.toolCallId,
+            update.rawInput,
+          );
+        } else if (
+          update.status === "completed" ||
+          update.status === "failed"
+        ) {
+          session?.inFlightMcpToolCalls.delete(update.toolCallId);
+          service.mcpAppsService.notifyToolResult(
+            toolName,
+            update.toolCallId,
+            update.rawOutput,
+            update.status === "failed",
+          );
+        }
       },
 
       extNotification: async (

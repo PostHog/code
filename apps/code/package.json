@@ -119,6 +119,8 @@
     "@opentelemetry/resources": "^2.5.0",
     "@opentelemetry/sdk-logs": "^0.208.0",
     "@opentelemetry/semantic-conventions": "^1.39.0",
+    "@modelcontextprotocol/ext-apps": "^1.1.2",
+    "@modelcontextprotocol/sdk": "^1.12.1",
     "@parcel/watcher": "^2.5.1",
     "@phosphor-icons/react": "^2.1.10",
     "@posthog/agent": "workspace:*",

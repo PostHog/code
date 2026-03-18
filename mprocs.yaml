@@ -1,20 +1,22 @@
 procs:
   code:
-    shell: 'pnpm --filter code run start'
+    shell: "pnpm --filter code run start"
+    env:
+      DEBUG: "false"
     depends_on:
       - agent
       - git
 
   agent:
-    shell: 'pnpm --filter agent run dev'
-  
+    shell: "pnpm --filter agent run dev"
+
   git:
-    shell: 'pnpm --filter @posthog/git run dev'
+    shell: "pnpm --filter @posthog/git run dev"
 
   storybook:
-    shell: 'pnpm --filter code run storybook'
+    shell: "pnpm --filter code run storybook"
     autostart: false
 
   mobile-ios:
-    shell: 'pnpm --filter @posthog/mobile run ios'
+    shell: "pnpm --filter @posthog/mobile run ios"
     autostart: false

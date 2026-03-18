@@ -48,6 +48,7 @@ export async function fetchMcpToolMetadata(
       for (const tool of server.tools) {
         const toolKey = buildToolKey(server.name, tool.name);
         const readOnly = tool.annotations?.readOnly === true;
+
         mcpToolMetadataCache.set(toolKey, {
           readOnly,
           name: tool.name,
@@ -92,6 +93,15 @@ export function getMcpToolMetadata(
 export function isMcpToolReadOnly(toolName: string): boolean {
   const metadata = mcpToolMetadataCache.get(toolName);
   return metadata?.readOnly === true;
+}
+
+export function getConnectedMcpServerNames(): string[] {
+  const names = new Set<string>();
+  for (const key of mcpToolMetadataCache.keys()) {
+    const parts = key.split("__");
+    if (parts.length >= 3) names.add(parts[1]);
+  }
+  return [...names];
 }
 
 export function clearMcpToolMetadataCache(): void {

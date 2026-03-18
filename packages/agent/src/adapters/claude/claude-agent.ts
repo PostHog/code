@@ -55,7 +55,10 @@ import {
   handleSystemMessage,
   handleUserAssistantMessage,
 } from "./conversion/sdk-to-acp";
-import { fetchMcpToolMetadata } from "./mcp/tool-metadata";
+import {
+  fetchMcpToolMetadata,
+  getConnectedMcpServerNames,
+} from "./mcp/tool-metadata";
 import { canUseTool } from "./permissions/permission-handlers";
 import { getAvailableSlashCommands } from "./session/commands";
 import { parseMcpServers } from "./session/mcp-config";
@@ -101,6 +104,7 @@ function sanitizeTitle(text: string): string {
 export interface ClaudeAcpAgentOptions {
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
   onProcessExited?: (pid: number) => void;
+  onMcpServersReady?: (serverNames: string[]) => void;
 }
 
 export class ClaudeAcpAgent extends BaseAcpAgent {
@@ -1020,11 +1024,17 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
    * Both populate caches used later — neither is needed to return configOptions.
    */
   private deferBackgroundFetches(q: Query): void {
+    this.logger.info("Starting background fetches (commands + MCP metadata)");
     Promise.all([
       new Promise<void>((resolve) => setTimeout(resolve, 10)).then(() =>
         this.sendAvailableCommandsUpdate(),
       ),
-      fetchMcpToolMetadata(q, this.logger),
+      fetchMcpToolMetadata(q, this.logger).then(() => {
+        const serverNames = getConnectedMcpServerNames();
+        if (serverNames.length > 0) {
+          this.options?.onMcpServersReady?.(serverNames);
+        }
+      }),
     ]).catch((err) =>
       this.logger.error("Background fetch failed", { error: err }),
     );
