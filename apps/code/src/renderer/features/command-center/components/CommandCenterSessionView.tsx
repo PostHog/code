@@ -29,7 +29,6 @@ export function CommandCenterSessionView({
     promptStartedAt,
     isInitializing,
     cloudBranch,
-    readOnlyMessage,
     errorTitle,
     errorMessage,
   } = useSessionViewState(taskId, task);
@@ -67,7 +66,6 @@ export function CommandCenterSessionView({
         onRetry={isCloud ? undefined : handleRetry}
         onNewSession={isCloud ? undefined : handleNewSession}
         isInitializing={isInitializing}
-        readOnlyMessage={readOnlyMessage}
         compact
       />
     </Flex>
