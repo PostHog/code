@@ -3,6 +3,7 @@ import { Paperclip } from "@phosphor-icons/react";
 import { Flex, IconButton, Tooltip } from "@radix-ui/themes";
 import { useRef } from "react";
 import type { FileAttachment } from "../utils/content";
+import { ContextUsageIndicator } from "./ContextUsageIndicator";
 
 interface EditorToolbarProps {
   disabled?: boolean;
@@ -69,6 +70,7 @@ export function EditorToolbar({
       {!hideSelectors && (
         <ModelSelector taskId={taskId} adapter={adapter} disabled={disabled} />
       )}
+      <ContextUsageIndicator taskId={taskId} />
     </Flex>
   );
 }

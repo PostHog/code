@@ -8,7 +8,12 @@ export type LocalWorkspaceMode = "worktree" | "local";
 export type SendMessagesWith = "enter" | "cmd+enter";
 export type CompletionSound = "none" | "guitar" | "danilo" | "revi" | "meep";
 export type AgentAdapter = "claude" | "codex";
-export type AutoConvertLongText = "off" | "500" | "1000" | "2500";
+export type AutoConvertLongText = "off" | "1000" | "2500" | "5000" | "10000";
+
+export interface HintState {
+  count: number;
+  learned: boolean;
+}
 export type DiffOpenMode = "auto" | "split" | "same-pane" | "last-active-pane";
 
 interface SettingsStore {
@@ -32,6 +37,11 @@ interface SettingsStore {
   customInstructions: string;
   diffOpenMode: DiffOpenMode;
   hedgehogMode: boolean;
+  hints: Record<string, HintState>;
+
+  shouldShowHint: (key: string, max?: number) => boolean;
+  recordHintShown: (key: string) => void;
+  markHintLearned: (key: string) => void;
 
   setCompletionSound: (sound: CompletionSound) => void;
   setCompletionVolume: (volume: number) => void;
@@ -57,7 +67,7 @@ interface SettingsStore {
 
 export const useSettingsStore = create<SettingsStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       defaultRunMode: "last_used",
       lastUsedRunMode: "local",
       lastUsedLocalWorkspaceMode: "local",
@@ -70,7 +80,7 @@ export const useSettingsStore = create<SettingsStore>()(
       completionSound: "none",
       completionVolume: 80,
 
-      autoConvertLongText: "1000",
+      autoConvertLongText: "2500",
       sendMessagesWith: "enter",
       allowBypassPermissions: false,
       preventSleepWhileRunning: false,
@@ -78,6 +88,33 @@ export const useSettingsStore = create<SettingsStore>()(
       customInstructions: "",
       diffOpenMode: "auto",
       hedgehogMode: false,
+      hints: {},
+
+      shouldShowHint: (key, max = 3) => {
+        const hint = get().hints[key];
+        if (!hint) return true;
+        return !hint.learned && hint.count < max;
+      },
+      recordHintShown: (key) =>
+        set((state) => {
+          const current = state.hints[key] ?? { count: 0, learned: false };
+          return {
+            hints: {
+              ...state.hints,
+              [key]: { ...current, count: current.count + 1 },
+            },
+          };
+        }),
+      markHintLearned: (key) =>
+        set((state) => {
+          const current = state.hints[key] ?? { count: 0, learned: false };
+          return {
+            hints: {
+              ...state.hints,
+              [key]: { ...current, learned: true },
+            },
+          };
+        }),
 
       setCompletionSound: (sound) => set({ completionSound: sound }),
       setCompletionVolume: (volume) => set({ completionVolume: volume }),
@@ -131,6 +168,7 @@ export const useSettingsStore = create<SettingsStore>()(
         customInstructions: state.customInstructions,
         diffOpenMode: state.diffOpenMode,
         hedgehogMode: state.hedgehogMode,
+        hints: state.hints,
       }),
       merge: (persisted, current) => {
         const merged = {
@@ -140,6 +178,9 @@ export const useSettingsStore = create<SettingsStore>()(
         if (typeof merged.autoConvertLongText === "boolean") {
           (merged as Record<string, unknown>).autoConvertLongText =
             merged.autoConvertLongText ? "1000" : "off";
+        }
+        if ((merged.autoConvertLongText as string) === "500") {
+          (merged as Record<string, unknown>).autoConvertLongText = "1000";
         }
         return merged;
       },

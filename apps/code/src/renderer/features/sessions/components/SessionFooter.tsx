@@ -11,6 +11,7 @@ interface SessionFooterProps {
   queuedCount?: number;
   hasPendingPermission?: boolean;
   pausedDurationMs?: number;
+  isCompacting?: boolean;
 }
 
 export function SessionFooter({
@@ -21,8 +22,9 @@ export function SessionFooter({
   queuedCount = 0,
   hasPendingPermission = false,
   pausedDurationMs,
+  isCompacting = false,
 }: SessionFooterProps) {
-  if (isPromptPending) {
+  if (isPromptPending && !isCompacting) {
     // Show static "waiting" state when permission is pending
     if (hasPendingPermission) {
       return (

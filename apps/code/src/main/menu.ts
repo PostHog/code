@@ -10,7 +10,6 @@ import {
 } from "electron";
 import { container } from "./di/container";
 import { MAIN_TOKENS } from "./di/tokens";
-import type { AgentService } from "./services/agent/service";
 import type { UIService } from "./services/ui/service";
 import type { UpdatesService } from "./services/updates/service";
 import { isDevBuild } from "./utils/env";
@@ -128,19 +127,6 @@ function buildFileMenu(): MenuItemConstructorOptions {
             label: "Invalidate OAuth token",
             click: () => {
               container.get<UIService>(MAIN_TOKENS.UIService).invalidateToken();
-            },
-          },
-          {
-            label: "Mark all agent sessions for recreation",
-            click: () => {
-              const count = container
-                .get<AgentService>(MAIN_TOKENS.AgentService)
-                .markAllSessionsForRecreation();
-              dialog.showMessageBox({
-                type: "info",
-                title: "Sessions Marked",
-                message: `Marked ${count} session(s) for recreation.\n\nThey will be recreated on the next prompt.`,
-              });
             },
           },
           { type: "separator" },

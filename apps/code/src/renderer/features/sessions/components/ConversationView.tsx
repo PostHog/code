@@ -53,7 +53,11 @@ export function ConversationView({
   const debugLogsCloudRuns = useSettingsStore((s) => s.debugLogsCloudRuns);
   const showDebugLogs = agentLogsEnabled && debugLogsCloudRuns;
 
-  const { items: conversationItems, lastTurnInfo } = useMemo(
+  const {
+    items: conversationItems,
+    lastTurnInfo,
+    isCompacting,
+  } = useMemo(
     () =>
       buildConversationItems(events, isPromptPending, {
         showDebugLogs,
@@ -199,6 +203,7 @@ export function ConversationView({
               queuedCount={queuedMessages.length}
               hasPendingPermission={pendingPermissionsCount > 0}
               pausedDurationMs={pausedDurationMs}
+              isCompacting={isCompacting}
             />
           </div>
         }

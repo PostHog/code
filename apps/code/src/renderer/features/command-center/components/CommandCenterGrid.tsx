@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CommandCenterCellData } from "../hooks/useCommandCenterData";
 import {
   getGridDimensions,
@@ -51,7 +51,14 @@ function GridCell({
   zoom: number;
   isDragActive: boolean;
 }) {
+  const cellRef = useRef<HTMLDivElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleCellClick = useCallback(() => {
+    const actionSelector =
+      cellRef.current?.querySelector<HTMLElement>("[tabindex='0']");
+    actionSelector?.focus();
+  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (e.dataTransfer.types.includes("text/x-task-id")) {
@@ -78,7 +85,12 @@ function GridCell({
   );
 
   return (
-    <div className="relative overflow-hidden bg-gray-1">
+    // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: click delegates focus to ActionSelector within
+    <div
+      ref={cellRef}
+      className="relative overflow-hidden bg-gray-1 focus-within:ring-2 focus-within:ring-accent-9 focus-within:ring-inset"
+      onClick={handleCellClick}
+    >
       <div
         className="h-full w-full origin-top-left"
         style={{

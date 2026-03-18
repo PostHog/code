@@ -9,6 +9,7 @@ import { DatabaseService } from "../db/service";
 import { AgentService } from "../services/agent/service";
 import { AppLifecycleService } from "../services/app-lifecycle/service";
 import { ArchiveService } from "../services/archive/service";
+import { AuthProxyService } from "../services/auth-proxy/service";
 import { CloudTaskService } from "../services/cloud-task/service";
 import { ConnectivityService } from "../services/connectivity/service";
 import { ContextMenuService } from "../services/context-menu/service";
@@ -21,6 +22,7 @@ import { FoldersService } from "../services/folders/service";
 import { FsService } from "../services/fs/service";
 import { GitService } from "../services/git/service";
 import { GitHubIntegrationService } from "../services/github-integration/service";
+import { LinearIntegrationService } from "../services/linear-integration/service";
 import { LlmGatewayService } from "../services/llm-gateway/service";
 import { McpCallbackService } from "../services/mcp-callback/service";
 import { NotificationService } from "../services/notification/service";
@@ -49,6 +51,7 @@ container.bind(MAIN_TOKENS.WorktreeRepository).to(WorktreeRepository);
 container.bind(MAIN_TOKENS.ArchiveRepository).to(ArchiveRepository);
 container.bind(MAIN_TOKENS.SuspensionRepository).to(SuspensionRepositoryImpl);
 container.bind(MAIN_TOKENS.AgentService).to(AgentService);
+container.bind(MAIN_TOKENS.AuthProxyService).to(AuthProxyService);
 container.bind(MAIN_TOKENS.ArchiveService).to(ArchiveService);
 container.bind(MAIN_TOKENS.SuspensionService).to(SuspensionService);
 container.bind(MAIN_TOKENS.AppLifecycleService).to(AppLifecycleService);
@@ -68,6 +71,9 @@ container
   .bind(MAIN_TOKENS.GitHubIntegrationService)
   .to(GitHubIntegrationService);
 container.bind(MAIN_TOKENS.GitService).to(GitService);
+container
+  .bind(MAIN_TOKENS.LinearIntegrationService)
+  .to(LinearIntegrationService);
 container.bind(MAIN_TOKENS.McpCallbackService).to(McpCallbackService);
 container.bind(MAIN_TOKENS.NotificationService).to(NotificationService);
 container.bind(MAIN_TOKENS.OAuthService).to(OAuthService);

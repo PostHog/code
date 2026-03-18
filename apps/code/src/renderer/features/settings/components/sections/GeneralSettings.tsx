@@ -555,9 +555,10 @@ export function GeneralSettings() {
           <Select.Trigger style={{ minWidth: "120px" }} />
           <Select.Content>
             <Select.Item value="off">Off</Select.Item>
-            <Select.Item value="500">500 chars</Select.Item>
             <Select.Item value="1000">1,000 chars</Select.Item>
             <Select.Item value="2500">2,500 chars</Select.Item>
+            <Select.Item value="5000">5,000 chars</Select.Item>
+            <Select.Item value="10000">10,000 chars</Select.Item>
           </Select.Content>
         </Select.Root>
       </SettingRow>

@@ -29,6 +29,7 @@ interface CommandCenterStoreActions {
   setLayout: (preset: LayoutPreset) => void;
   assignTask: (cellIndex: number, taskId: string) => void;
   removeTask: (cellIndex: number) => void;
+  removeTaskById: (taskId: string) => void;
   clearAll: () => void;
   setZoom: (zoom: number) => void;
   zoomIn: () => void;
@@ -83,6 +84,15 @@ export const useCommandCenterStore = create<CommandCenterStore>()(
         set((state) => {
           const cells = [...state.cells];
           cells[cellIndex] = null;
+          return { cells };
+        }),
+
+      removeTaskById: (taskId) =>
+        set((state) => {
+          const index = state.cells.indexOf(taskId);
+          if (index === -1) return state;
+          const cells = [...state.cells];
+          cells[index] = null;
           return { cells };
         }),
 

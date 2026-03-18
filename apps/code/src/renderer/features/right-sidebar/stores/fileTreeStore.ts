@@ -7,6 +7,7 @@ interface FileTreeStoreState {
 
 interface FileTreeStoreActions {
   togglePath: (taskId: string, path: string) => void;
+  expandToFile: (taskId: string, filePath: string) => void;
   collapseAll: (taskId: string) => void;
 }
 
@@ -22,6 +23,21 @@ export const useFileTreeStore = create<FileTreeStore>()((set) => ({
         newPaths.delete(path);
       } else {
         newPaths.add(path);
+      }
+      return {
+        expandedPaths: {
+          ...state.expandedPaths,
+          [taskId]: newPaths,
+        },
+      };
+    }),
+  expandToFile: (taskId, filePath) =>
+    set((state) => {
+      const taskPaths = state.expandedPaths[taskId] ?? new Set<string>();
+      const newPaths = new Set(taskPaths);
+      const parts = filePath.split("/");
+      for (let i = 1; i < parts.length; i++) {
+        newPaths.add(parts.slice(0, i).join("/"));
       }
       return {
         expandedPaths: {
