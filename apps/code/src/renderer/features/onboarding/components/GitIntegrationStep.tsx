@@ -7,7 +7,7 @@ import {
   GitBranch,
 } from "@phosphor-icons/react";
 import { Box, Button, Flex, Skeleton, Text } from "@radix-ui/themes";
-import phWordmark from "@renderer/assets/images/wordmark-alt.png";
+import phWordmark from "@renderer/assets/images/wordmark.svg";
 import { trpcClient } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";

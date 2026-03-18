@@ -1,6 +1,6 @@
 import type { ChildProcess } from "node:child_process";
 import { execSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
 import { MakerDMG } from "@electron-forge/maker-dmg";
 import { MakerZIP } from "@electron-forge/maker-zip";
@@ -185,16 +185,20 @@ const config: ForgeConfig = {
   ],
   hooks: {
     generateAssets: async () => {
-      // Generate ICNS from source PNG (skip if already exists)
+      const isNewer = (src: string, dest: string) =>
+        !existsSync(dest) || statSync(src).mtimeMs > statSync(dest).mtimeMs;
+
       if (
         existsSync("build/app-icon.png") &&
-        !existsSync("build/app-icon.icns")
+        isNewer("build/app-icon.png", "build/app-icon.icns")
       ) {
         execSync("bash scripts/generate-icns.sh", { stdio: "inherit" });
       }
 
-      // Compile liquid glass icon to Assets.car (skip if already exists)
-      if (existsSync("build/icon.icon") && !existsSync("build/Assets.car")) {
+      if (
+        existsSync("build/icon.icon") &&
+        isNewer("build/icon.icon/icon.json", "build/Assets.car")
+      ) {
         execSync("bash scripts/compile-glass-icon.sh", { stdio: "inherit" });
       }
     },

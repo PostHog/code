@@ -3,7 +3,7 @@ import { ZenHedgehog } from "@components/ZenHedgehog";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { Callout, Flex, Spinner, Text, Theme } from "@radix-ui/themes";
 import posthogIcon from "@renderer/assets/images/posthog-icon.svg";
-import phWordmark from "@renderer/assets/images/wordmark-alt.png";
+import phWordmark from "@renderer/assets/images/wordmark.svg";
 import { trpcClient } from "@renderer/trpc/client";
 import { REGION_LABELS } from "@shared/constants/oauth";
 import type { CloudRegion } from "@shared/types/oauth";
