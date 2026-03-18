@@ -1,12 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { injectable } from "inversify";
-import { parse as parseToml, stringify as stringifyToml } from "smol-toml";
+import { parse as parseToml } from "smol-toml";
 import {
   type CreateEnvironmentInput,
   type Environment,
-  type EnvironmentAction,
   environmentSchema,
+  slugifyEnvironmentName,
   type UpdateEnvironmentInput,
 } from "./schemas";
 
@@ -16,11 +16,41 @@ function environmentsDir(repoPath: string): string {
   return path.join(repoPath, ENVIRONMENTS_DIR);
 }
 
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+function tomlString(value: string): string {
+  if (value.includes("\n")) {
+    return `'''\n${value}\n'''`;
+  }
+  return JSON.stringify(value);
+}
+
+function serializeEnvironment(env: Environment): string {
+  const lines: string[] = [];
+
+  lines.push(`id = ${JSON.stringify(env.id)} # DO NOT EDIT MANUALLY`);
+  lines.push(`version = ${env.version}`);
+  lines.push("");
+  lines.push(`name = ${JSON.stringify(env.name)}`);
+
+  if (env.setup?.script) {
+    lines.push("");
+    lines.push("[setup]");
+    lines.push(`script = ${tomlString(env.setup.script)}`);
+  }
+
+  if (env.actions && env.actions.length > 0) {
+    for (const action of env.actions) {
+      lines.push("");
+      lines.push("[[actions]]");
+      lines.push(`name = ${JSON.stringify(action.name)}`);
+      if (action.icon) {
+        lines.push(`icon = ${JSON.stringify(action.icon)}`);
+      }
+      lines.push(`command = ${tomlString(action.command)}`);
+    }
+  }
+
+  lines.push("");
+  return lines.join("\n");
 }
 
 interface ScannedEnvironment {
@@ -102,25 +132,17 @@ export class EnvironmentService {
     const dir = environmentsDir(repoPath);
     await fs.mkdir(dir, { recursive: true });
 
-    const id = crypto.randomUUID();
-    const actions: EnvironmentAction[] | undefined = input.actions?.map(
-      (a) => ({
-        ...a,
-        id: crypto.randomUUID(),
-      }),
-    );
-
     const environment: Environment = {
-      id,
+      id: crypto.randomUUID(),
       version: 1,
       name: input.name,
       setup: input.setup,
-      actions,
+      actions: input.actions,
     };
 
-    const slug = slugify(input.name);
+    const slug = slugifyEnvironmentName(input.name);
     const filePath = await this.uniqueFilePath(dir, slug || "environment");
-    await fs.writeFile(filePath, stringifyToml(environment), "utf-8");
+    await fs.writeFile(filePath, serializeEnvironment(environment), "utf-8");
 
     return environment;
   }
@@ -136,22 +158,15 @@ export class EnvironmentService {
 
     const existing = found.environment;
 
-    const actions: EnvironmentAction[] | undefined = input.actions?.map(
-      (a) => ({
-        ...a,
-        id: a.id ?? crypto.randomUUID(),
-      }),
-    );
-
     const updated: Environment = {
       id: existing.id,
       version: existing.version,
       name: input.name ?? existing.name,
       setup: input.setup !== undefined ? input.setup : existing.setup,
-      actions: actions !== undefined ? actions : existing.actions,
+      actions: input.actions !== undefined ? input.actions : existing.actions,
     };
 
-    await fs.writeFile(found.filePath, stringifyToml(updated), "utf-8");
+    await fs.writeFile(found.filePath, serializeEnvironment(updated), "utf-8");
 
     return updated;
   }

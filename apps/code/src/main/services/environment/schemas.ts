@@ -7,7 +7,6 @@ const setupSchema = z.object({
 });
 
 export const environmentActionSchema = z.object({
-  id: z.string(),
   name: z.string().min(1),
   icon: z.string().optional(),
   command: z.string().min(1),
@@ -38,18 +37,23 @@ export const deleteEnvironmentInput = repoPathWithIdInput;
 export const createEnvironmentInput = repoPathInput.extend({
   name: z.string().min(1),
   setup: setupSchema.optional(),
-  actions: z.array(environmentActionSchema.omit({ id: true })).optional(),
+  actions: z.array(environmentActionSchema).optional(),
 });
 
 export const updateEnvironmentInput = repoPathWithIdInput.extend({
   name: z.string().min(1).optional(),
   setup: setupSchema.optional(),
-  actions: z
-    .array(environmentActionSchema.extend({ id: z.string().optional() }))
-    .optional(),
+  actions: z.array(environmentActionSchema).optional(),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;
 export type EnvironmentAction = z.infer<typeof environmentActionSchema>;
 export type CreateEnvironmentInput = z.infer<typeof createEnvironmentInput>;
 export type UpdateEnvironmentInput = z.infer<typeof updateEnvironmentInput>;
+
+export function slugifyEnvironmentName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}

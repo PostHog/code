@@ -1,3 +1,4 @@
+import { EnvironmentSelector } from "@features/environments/components/EnvironmentSelector";
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
 import { useFolders } from "@features/folders/hooks/useFolders";
@@ -53,6 +54,9 @@ export function TaskInput() {
   const [editorIsEmpty, setEditorIsEmpty] = useState(true);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
+  const [selectedEnvironment, setSelectedEnvironment] = useState<string | null>(
+    null,
+  );
 
   const [selectedDirectory, setSelectedDirectory] = useState("");
   const workspaceMode = lastUsedWorkspaceMode || "local";
@@ -103,6 +107,13 @@ export function TaskInput() {
       }
     }
   }, [view.folderId, folders]);
+
+  const effectiveRepoPath =
+    workspaceMode === "cloud" ? selectedRepository : selectedDirectory;
+
+  useEffect(() => {
+    setSelectedEnvironment(null);
+  }, []);
 
   const effectiveWorkspaceMode = workspaceMode;
 
@@ -320,6 +331,12 @@ export function TaskInput() {
               onBranchSelect={setSelectedBranch}
               cloudBranches={cloudBranches}
               cloudBranchesLoading={cloudBranchesLoading}
+            />
+            <EnvironmentSelector
+              repoPath={effectiveRepoPath ?? null}
+              value={selectedEnvironment}
+              onChange={setSelectedEnvironment}
+              disabled={isCreatingTask}
             />
           </Flex>
 

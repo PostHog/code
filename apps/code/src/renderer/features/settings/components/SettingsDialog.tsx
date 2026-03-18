@@ -9,6 +9,7 @@ import {
   Code,
   Folder,
   GearSix,
+  HardDrives,
   Keyboard,
   Palette,
   Plugs,
@@ -23,8 +24,8 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { AccountSettings } from "./sections/AccountSettings";
 import { AdvancedSettings } from "./sections/AdvancedSettings";
 import { ClaudeCodeSettings } from "./sections/ClaudeCodeSettings";
+import { EnvironmentsSettings } from "./sections/environments/EnvironmentsSettings";
 import { GeneralSettings } from "./sections/GeneralSettings";
-
 import { McpServersSettings } from "./sections/McpServersSettings";
 import { PersonalizationSettings } from "./sections/PersonalizationSettings";
 import { ShortcutsSettings } from "./sections/ShortcutsSettings";
@@ -45,6 +46,11 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "account", label: "Account", icon: <User size={16} /> },
   { id: "workspaces", label: "Workspaces", icon: <Folder size={16} /> },
   { id: "worktrees", label: "Worktrees", icon: <TreeStructure size={16} /> },
+  {
+    id: "environments",
+    label: "Environments",
+    icon: <HardDrives size={16} />,
+  },
   {
     id: "personalization",
     label: "Personalization",
@@ -68,6 +74,7 @@ const CATEGORY_TITLES: Record<SettingsCategory, string> = {
   account: "Account",
   workspaces: "Workspaces",
   worktrees: "Worktrees",
+  environments: "Environments",
   personalization: "Personalization",
   "claude-code": "Claude Code",
   "mcp-servers": "MCP Servers",
@@ -83,6 +90,7 @@ const CATEGORY_COMPONENTS: Record<SettingsCategory, React.ComponentType> = {
   account: AccountSettings,
   workspaces: WorkspacesSettings,
   worktrees: WorktreesSettings,
+  environments: EnvironmentsSettings,
   personalization: PersonalizationSettings,
   "claude-code": ClaudeCodeSettings,
   "mcp-servers": McpServersSettings,

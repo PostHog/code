@@ -100,10 +100,8 @@ describe("EnvironmentService", () => {
       });
 
       expect(env.actions).toHaveLength(2);
-      const [a, b] = env.actions!;
-      expect(a.id).toBeTruthy();
-      expect(b.id).toBeTruthy();
-      expect(a.id).not.toBe(b.id);
+      expect(env.actions?.[0].name).toBe("Build");
+      expect(env.actions?.[1].name).toBe("Test");
     });
 
     it("round-trips setup script through toml", async () => {
@@ -166,26 +164,6 @@ describe("EnvironmentService", () => {
     it("preserves fields not included in the update", async () => {
       const updated = await update({ id: env.id, name: "New Name" });
       expect(updated.actions).toEqual(env.actions);
-    });
-
-    it("generates ids for new actions without an id", async () => {
-      const updated = await update({
-        id: env.id,
-        actions: [{ name: "Run", command: "npm start" }],
-      });
-
-      expect(updated.actions?.[0].id).toBeTruthy();
-    });
-
-    it("preserves existing action ids", async () => {
-      const actionId = env.actions?.[0].id;
-      const updated = await update({
-        id: env.id,
-        actions: [{ id: actionId, name: "Build v2", command: "make all" }],
-      });
-
-      expect(updated.actions?.[0].id).toBe(actionId);
-      expect(updated.actions?.[0].command).toBe("make all");
     });
 
     it("persists update to disk", async () => {
