@@ -20,7 +20,8 @@
 
 @font-face {
   font-family: "Berkeley Mono";
-  src: url("../../../assets/fonts/BerkeleyMono/BerkeleyMono-Bold.woff2") format("woff2");
+  src: url("../../../assets/fonts/BerkeleyMono/BerkeleyMono-Bold.woff2")
+    format("woff2");
   font-weight: 700;
   font-style: normal;
 }

@@ -356,6 +356,7 @@ describe("AgentService", () => {
       service.recordActivity("run-1");
       const secondDeadline = getIdleTimeouts(service).get("run-1")?.deadline;
 
+      // biome-ignore lint/style/noNonNullAssertion: deadline is set by recordActivity above
       expect(secondDeadline).toBeGreaterThan(firstDeadline!);
     });
 

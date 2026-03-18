@@ -192,7 +192,6 @@ const config: ForgeConfig = {
     generateAssets: async () => {
       if (process.platform !== "darwin") return;
 
-      // Generate ICNS from source PNG (skip if already exists)
       if (
         existsSync("build/app-icon.png") &&
         !existsSync("build/app-icon.icns")
@@ -200,7 +199,6 @@ const config: ForgeConfig = {
         execSync("bash scripts/generate-icns.sh", { stdio: "inherit" });
       }
 
-      // Compile liquid glass icon to Assets.car (skip if already exists)
       if (existsSync("build/icon.icon") && !existsSync("build/Assets.car")) {
         execSync("bash scripts/compile-glass-icon.sh", { stdio: "inherit" });
       }

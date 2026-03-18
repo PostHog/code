@@ -10,7 +10,7 @@ import {
   Skeleton,
   Text,
 } from "@radix-ui/themes";
-import phWordmark from "@renderer/assets/images/wordmark-alt.png";
+import phWordmark from "@renderer/assets/images/wordmark.svg";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { AnimatePresence, motion } from "framer-motion";

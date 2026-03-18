@@ -330,11 +330,13 @@ export class SuspensionService extends TypedEventEmitter<SuspensionServiceEvents
           await this.captureWorktreeCheckpoint(
             folderPath,
             worktreePath,
+            // biome-ignore lint/style/noNonNullAssertion: checkpointId is set above
             suspendedTask.checkpointId!,
           );
         },
         async () => {
           const git = createGitClient(folderPath);
+          // biome-ignore lint/style/noNonNullAssertion: checkpointId is set above
           await deleteCheckpoint(git, suspendedTask.checkpointId!);
         },
       );
@@ -386,6 +388,7 @@ export class SuspensionService extends TypedEventEmitter<SuspensionServiceEvents
             folderPath,
             workspace,
             suspension.branchName,
+            // biome-ignore lint/style/noNonNullAssertion: checkpointId verified by caller
             suspension.checkpointId!,
             recreateBranch,
           );
