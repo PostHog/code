@@ -19,7 +19,7 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { useTRPC } from "@renderer/trpc";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import { getPostHogUrl } from "@shared/utils/urls";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { ThemePreference } from "@stores/themeStore";
 import { useThemeStore } from "@stores/themeStore";
@@ -34,7 +34,6 @@ export function GeneralSettings() {
   const isAuthenticated = useAuthStateValue(
     (state) => state.status === "authenticated",
   );
-  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
 
   // Appearance state
   const theme = useThemeStore((state) => state.theme);
@@ -214,13 +213,11 @@ export function GeneralSettings() {
     [hedgehogMode, setHedgehogMode],
   );
 
-  const accountUrl = cloudRegion
-    ? `${getCloudUrlFromRegion(cloudRegion)}/settings/user`
-    : null;
+  const accountUrl = getPostHogUrl("/settings/user");
 
   return (
     <Flex direction="column">
-      {isAuthenticated && accountUrl && (
+      {isAuthenticated && (
         <SettingRow
           label="Manage Account"
           description="Manage your account and billing on PostHog"
@@ -512,13 +509,11 @@ export function GeneralSettings() {
 }
 
 function HedgehogDescription() {
-  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
   const projectId = useAuthStateValue((state) => state.projectId);
 
-  const customizeUrl =
-    cloudRegion && projectId
-      ? `${getCloudUrlFromRegion(cloudRegion)}/project/${projectId}/settings/user-customization`
-      : null;
+  const customizeUrl = projectId
+    ? getPostHogUrl(`/project/${projectId}/settings/user-customization`)
+    : null;
 
   return (
     <Flex direction="column" gap="1">

@@ -1,4 +1,3 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
 import { useSeatStore } from "@features/billing/stores/seatStore";
 import { useSeat } from "@hooks/useSeat";
 import {
@@ -14,7 +13,7 @@ import {
   Spinner,
   Text,
 } from "@radix-ui/themes";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import { getPostHogUrl } from "@shared/utils/urls";
 
 export function PlanUsageSettings() {
   const {
@@ -272,11 +271,8 @@ export function PlanUsageSettings() {
               size="1"
               variant="outline"
               onClick={() => {
-                const region = useAuthStore.getState().cloudRegion;
-                const base = region
-                  ? getCloudUrlFromRegion(region)
-                  : "http://localhost:8010";
-                window.open(`${base}/organization/billing`, "_blank");
+                const url = getPostHogUrl("/organization/billing");
+                window.open(url, "_blank");
               }}
             >
               Open

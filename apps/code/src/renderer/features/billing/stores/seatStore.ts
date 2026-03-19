@@ -1,5 +1,5 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import { getPostHogUrl } from "@shared/utils/urls";
 import type { SeatData } from "@shared/types/seat";
 import { PLAN_FREE, PLAN_PRO } from "@shared/types/seat";
 import { electronStorage } from "@utils/electronStorage";
@@ -52,9 +52,7 @@ function parseFetcherError(
 }
 
 function getBillingUrl(): string {
-  const region = useAuthStore.getState().cloudRegion;
-  const base = region ? getCloudUrlFromRegion(region) : "http://localhost:8010";
-  return `${base}/organization/billing`;
+  return getPostHogUrl("/organization/billing");
 }
 
 function handleSeatError(
