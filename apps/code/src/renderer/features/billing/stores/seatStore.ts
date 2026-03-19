@@ -1,4 +1,5 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
+import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type { SeatData } from "@shared/types/seat";
 import { PLAN_FREE, PLAN_PRO } from "@shared/types/seat";
 import { electronStorage } from "@utils/electronStorage";
@@ -50,6 +51,12 @@ function parseFetcherError(
   }
 }
 
+function getBillingUrl(): string {
+  const region = useAuthStore.getState().cloudRegion;
+  const base = region ? getCloudUrlFromRegion(region) : "http://localhost:8010";
+  return `${base}/organization/billing`;
+}
+
 function handleSeatError(
   error: unknown,
   set: (state: Partial<SeatStoreState>) => void,
@@ -60,6 +67,8 @@ function handleSeatError(
     return;
   }
 
+  const billingUrl = getBillingUrl();
+
   if (
     "redirectUrl" in error &&
     typeof (error as { redirectUrl: unknown }).redirectUrl === "string"
@@ -67,7 +76,7 @@ function handleSeatError(
     set({
       isLoading: false,
       error: "Billing subscription required",
-      redirectUrl: (error as { redirectUrl: string }).redirectUrl,
+      redirectUrl: billingUrl,
     });
     return;
   }
@@ -81,7 +90,7 @@ function handleSeatError(
           typeof parsed.body.error === "string"
             ? parsed.body.error
             : "Billing subscription required",
-        redirectUrl: parsed.body.redirect_url,
+        redirectUrl: billingUrl,
       });
       return;
     }
@@ -130,12 +139,7 @@ export const useSeatStore = create<SeatStore>()(
           const client = getClient();
           const existing = await client.getMySeat();
           if (existing) {
-            if (existing.plan_key === PLAN_FREE) {
-              set({ seat: existing, isLoading: false });
-              return;
-            }
-            const seat = await client.upgradeSeat(PLAN_FREE);
-            set({ seat, isLoading: false });
+            set({ seat: existing, isLoading: false });
             return;
           }
           const seat = await client.createSeat(PLAN_FREE);

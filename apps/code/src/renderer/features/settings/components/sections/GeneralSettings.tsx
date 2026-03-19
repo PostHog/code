@@ -8,6 +8,7 @@ import {
   type SendMessagesWith,
   useSettingsStore,
 } from "@features/settings/stores/settingsStore";
+import { ArrowSquareOut } from "@phosphor-icons/react";
 import {
   Button,
   Flex,
@@ -30,6 +31,11 @@ import { toast } from "sonner";
 
 export function GeneralSettings() {
   const trpcReact = useTRPC();
+  const isAuthenticated = useAuthStateValue(
+    (state) => state.status === "authenticated",
+  );
+  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
+
   // Appearance state
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
@@ -208,10 +214,30 @@ export function GeneralSettings() {
     [hedgehogMode, setHedgehogMode],
   );
 
+  const accountUrl = cloudRegion
+    ? `${getCloudUrlFromRegion(cloudRegion)}/settings/user`
+    : null;
+
   return (
     <Flex direction="column">
+      {isAuthenticated && accountUrl && (
+        <SettingRow
+          label="Manage Account"
+          description="Manage your account and billing on PostHog"
+        >
+          <Button
+            size="1"
+            variant="outline"
+            onClick={() => window.open(accountUrl, "_blank")}
+          >
+            Manage
+            <ArrowSquareOut size={12} />
+          </Button>
+        </SettingRow>
+      )}
+
       {/* Appearance */}
-      <Text size="2" weight="medium" className="mt-1 mb-2">
+      <Text size="2" weight="medium" className="mb-2 pt-4">
         Appearance
       </Text>
 
