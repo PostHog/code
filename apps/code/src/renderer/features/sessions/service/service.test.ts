@@ -216,7 +216,7 @@ vi.mock("@utils/queryClient", () => ({
     setQueriesData: vi.fn(),
   },
 }));
-vi.mock("@shared/constants/oauth", () => ({
+vi.mock("@shared/utils/urls", () => ({
   getCloudUrlFromRegion: () => "https://api.anthropic.com",
 }));
 vi.mock("@utils/session", async () => {

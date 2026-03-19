@@ -42,7 +42,7 @@ import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpcClient } from "@renderer/trpc/client";
 import { getGhUserTokenOrThrow } from "@renderer/utils/github";
 import { toast } from "@renderer/utils/toast";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import {
   type CloudTaskPermissionRequestUpdate,
   type CloudTaskUpdatePayload,

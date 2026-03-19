@@ -1,7 +1,7 @@
 import { useSeatStore } from "@features/billing/stores/seatStore";
 import { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { trpcClient } from "@renderer/trpc/client";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { CloudRegion } from "@shared/types/oauth";
 import { useNavigationStore } from "@stores/navigationStore";
