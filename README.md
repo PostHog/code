@@ -28,10 +28,11 @@ pnpm install
 # Copy environment config
 cp .env.example .env
 
-# phrocs is auto-installed on first `pnpm dev`
 ```
 
 ### Running in Development
+
+By default, `pnpm dev` uses [mprocs](https://github.com/pvolok/mprocs) to run the agent and code app in parallel.
 
 ```bash
 # Run both agent (watch mode) and code app in parallel
@@ -41,6 +42,20 @@ pnpm dev
 pnpm dev:agent  # Run agent in watch mode
 pnpm dev:code   # Run code app
 ```
+
+### phrocs (alpha)
+
+phrocs is our custom process runner built as a replacement for mprocs. It's currently in alpha and can be used as an alternative dev runner. phrocs does not auto-update — you must manually run the update command to pull the latest version.
+
+```bash
+# Run dev with phrocs (auto-installs on first run)
+pnpm dev:ph
+
+# Manually update phrocs to the latest version
+pnpm update:phrocs
+```
+
+phrocs reads the same `mprocs.yaml` config file. The binary is downloaded to `bin/phrocs` and is git-ignored.
 
 > **Want to connect to a local PostHog instance?** See [docs/LOCAL-DEVELOPMENT.md](./docs/LOCAL-DEVELOPMENT.md) for OAuth setup and connecting to localhost:8010.
 

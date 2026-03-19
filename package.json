@@ -28,7 +28,8 @@
     "format": "biome format --write",
     "clean": "pnpm -r clean",
     "knip": "knip",
-    "skills:pull": "node scripts/pull-skills.mjs"
+    "skills:pull": "node scripts/pull-skills.mjs",
+    "update:phrocs": "rm -f bin/phrocs && bash scripts/ensure-phrocs.sh"
   },
   "keywords": [
     "posthog",
