@@ -214,8 +214,10 @@ export const TaskInputEditor = forwardRef<
             <EditorToolbar
               disabled={isCreatingTask}
               adapter={adapter}
+              repoPath={repoPath}
               onAddAttachment={addAttachment}
-              attachTooltip="Attach files from anywhere"
+              onInsertChip={insertChip}
+              attachTooltip="Attach"
               iconSize={16}
               hideSelectors
             />

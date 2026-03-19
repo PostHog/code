@@ -395,3 +395,22 @@ export const discardFileChangesOutput = z.object({
 });
 
 export type DiscardFileChangesOutput = z.infer<typeof discardFileChangesOutput>;
+
+export const githubIssueSchema = z.object({
+  number: z.number(),
+  title: z.string(),
+  state: z.string(),
+  labels: z.array(z.string()),
+  url: z.string(),
+  repo: z.string(),
+});
+
+export type GitHubIssue = z.infer<typeof githubIssueSchema>;
+
+export const searchGithubIssuesInput = z.object({
+  directoryPath: z.string(),
+  query: z.string().optional(),
+  limit: z.number().default(25),
+});
+
+export const searchGithubIssuesOutput = z.array(githubIssueSchema);

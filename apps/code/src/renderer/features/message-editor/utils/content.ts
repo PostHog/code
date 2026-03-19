@@ -5,7 +5,8 @@ export interface MentionChip {
     | "error"
     | "experiment"
     | "insight"
-    | "feature_flag";
+    | "feature_flag"
+    | "github_issue";
   id: string;
   label: string;
 }
@@ -62,6 +63,8 @@ export function contentToXml(content: EditorContent): string {
         return `<insight id="${escapedId}" />`;
       case "feature_flag":
         return `<feature_flag id="${escapedId}" />`;
+      case "github_issue":
+        return `<github_issue number="${escapedId}" />`;
       default:
         return `@${chip.label}`;
     }

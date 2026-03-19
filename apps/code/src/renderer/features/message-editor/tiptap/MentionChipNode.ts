@@ -8,7 +8,8 @@ export type ChipType =
   | "error"
   | "experiment"
   | "insight"
-  | "feature_flag";
+  | "feature_flag"
+  | "github_issue";
 
 export interface MentionChipAttrs {
   type: ChipType;
