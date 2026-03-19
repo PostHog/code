@@ -186,6 +186,84 @@ export class ShellService extends TypedEventEmitter<ShellEvents> {
     return session;
   }
 
+  async createCommandSession(options: {
+    sessionId: string;
+    command: string;
+    cwd: string;
+    taskId?: string;
+  }): Promise<void> {
+    const { sessionId, command, cwd, taskId } = options;
+
+    const existing = this.sessions.get(sessionId);
+    if (existing) {
+      return;
+    }
+
+    const taskEnv = await this.getTaskEnv(taskId);
+    const workingDir = this.resolveWorkingDir(sessionId, cwd);
+    const shell = getDefaultShell();
+
+    log.info(
+      `Creating command session ${sessionId}: shell=${shell} -c ..., cwd=${workingDir}`,
+    );
+
+    const ptyProcess = pty.spawn(shell, ["-c", command], {
+      name: "xterm-256color",
+      cols: 80,
+      rows: 24,
+      cwd: workingDir,
+      env: buildShellEnv(taskEnv),
+      encoding: null,
+    });
+
+    this.processTracking.register(
+      ptyProcess.pid,
+      "shell",
+      `shell:${sessionId}`,
+      { sessionId, cwd: workingDir, command },
+      taskId,
+    );
+
+    let resolveExit: (result: { exitCode: number }) => void;
+    const exitPromise = new Promise<{ exitCode: number }>((resolve) => {
+      resolveExit = resolve;
+    });
+
+    const disposables: pty.IDisposable[] = [];
+
+    disposables.push(
+      ptyProcess.onData((data: string) => {
+        this.emit(ShellEvent.Data, { sessionId, data });
+      }),
+    );
+
+    disposables.push(
+      ptyProcess.onExit(({ exitCode }) => {
+        log.info(`Command session ${sessionId} exited with code ${exitCode}`);
+        this.processTracking.unregister(ptyProcess.pid, "exited");
+        const session = this.sessions.get(sessionId);
+        if (session) {
+          for (const d of session.disposables) {
+            d.dispose();
+          }
+          session.pty.destroy();
+          this.sessions.delete(sessionId);
+        }
+        this.emit(ShellEvent.Exit, { sessionId, exitCode });
+        resolveExit({ exitCode });
+      }),
+    );
+
+    const session: ShellSession = {
+      pty: ptyProcess,
+      exitPromise,
+      command,
+      disposables,
+    };
+
+    this.sessions.set(sessionId, session);
+  }
+
   write(sessionId: string, data: string): void {
     this.getSessionOrThrow(sessionId).pty.write(data);
   }

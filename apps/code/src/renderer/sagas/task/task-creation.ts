@@ -1,4 +1,6 @@
 import { buildPromptBlocks } from "@features/editor/utils/prompt-builder";
+import { DEFAULT_PANEL_IDS } from "@features/panels/constants/panelConstants";
+import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { useProvisioningStore } from "@features/provisioning/stores/provisioningStore";
 import {
   type ConnectParams,
@@ -234,6 +236,20 @@ export class TaskCreationSaga extends Saga<
       useProvisioningStore.getState().clear(task.id);
     }
 
+    if (
+      input.environmentId &&
+      workspace?.worktreePath &&
+      repoPath &&
+      !input.taskId
+    ) {
+      this.dispatchEnvironmentSetup(
+        task.id,
+        input.environmentId,
+        repoPath,
+        workspace.worktreePath,
+      );
+    }
+
     // Step 5: Start cloud run (only for new cloud tasks)
     if (workspaceMode === "cloud" && !task.latest_run) {
       await this.step({
@@ -308,6 +324,36 @@ export class TaskCreationSaga extends Saga<
       });
     }
     return existingFolder;
+  }
+
+  private dispatchEnvironmentSetup(
+    taskId: string,
+    environmentId: string,
+    repoPath: string,
+    worktreePath: string,
+  ): void {
+    trpcClient.environment.get
+      .query({ repoPath, id: environmentId })
+      .then((env) => {
+        if (!env?.setup?.script) return;
+
+        const actionId = `setup-${environmentId}-${Date.now()}`;
+        usePanelLayoutStore
+          .getState()
+          .addActionTab(taskId, DEFAULT_PANEL_IDS.MAIN_PANEL, {
+            actionId,
+            command: env.setup.script,
+            cwd: worktreePath,
+            label: `Setup: ${env.name}`,
+          });
+      })
+      .catch((error) => {
+        log.error("Failed to dispatch environment setup script", {
+          taskId,
+          environmentId,
+          error,
+        });
+      });
   }
 
   private async createTask(input: TaskCreationInput): Promise<Task> {

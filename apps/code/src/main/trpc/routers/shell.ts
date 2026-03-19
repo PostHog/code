@@ -1,6 +1,7 @@
 import { container } from "../../di/container";
 import { MAIN_TOKENS } from "../../di/tokens";
 import {
+  createCommandInput,
   createInput,
   executeInput,
   executeOutput,
@@ -36,6 +37,17 @@ export const shellRouter = router({
     .input(createInput)
     .mutation(({ input }) =>
       getService().create(input.sessionId, input.cwd, input.taskId),
+    ),
+
+  createCommand: publicProcedure
+    .input(createCommandInput)
+    .mutation(({ input }) =>
+      getService().createCommandSession({
+        sessionId: input.sessionId,
+        command: input.command,
+        cwd: input.cwd,
+        taskId: input.taskId,
+      }),
     ),
 
   write: publicProcedure
