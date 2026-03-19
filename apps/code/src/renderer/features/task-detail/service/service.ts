@@ -30,7 +30,10 @@ export class TaskService {
    * 3. Updates renderer stores on success
    * 4. Returns a typed result for the hook to handle UI effects
    */
-  public async createTask(input: TaskCreationInput): Promise<CreateTaskResult> {
+  public async createTask(
+    input: TaskCreationInput,
+    onTaskReady?: (output: TaskCreationOutput) => void,
+  ): Promise<CreateTaskResult> {
     log.info("Creating task", {
       workspaceMode: input.workspaceMode,
       hasContent: !!input.content,
@@ -45,7 +48,6 @@ export class TaskService {
       };
     }
 
-    // Get posthogClient from auth store (created dynamically on login)
     const posthogClient = useAuthStore.getState().client;
     if (!posthogClient) {
       return {
@@ -57,13 +59,25 @@ export class TaskService {
 
     const saga = new TaskCreationSaga({
       posthogClient,
+      onTaskReady: onTaskReady
+        ? (output) => {
+            this.optimisticallyUpdateWorkspaceCache(output);
+            this.updateStoresOnSuccess(output, input);
+            void queryClient.invalidateQueries(
+              trpc.workspace.getAll.pathFilter(),
+            );
+            onTaskReady(output);
+          }
+        : undefined,
     });
 
     const result = await saga.run(input);
 
     if (result.success) {
       this.optimisticallyUpdateWorkspaceCache(result.data);
-      this.updateStoresOnSuccess(result.data, input);
+      if (!onTaskReady) {
+        this.updateStoresOnSuccess(result.data, input);
+      }
       void queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter());
     }
 

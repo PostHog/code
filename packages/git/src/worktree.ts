@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
@@ -16,6 +17,7 @@ export interface WorktreeInfo {
   branchName: string;
   baseBranch: string;
   createdAt: string;
+  output?: string;
 }
 
 export interface WorktreeConfig {
@@ -121,6 +123,7 @@ export class WorktreeManager {
 
   async createWorktree(options?: {
     baseBranch?: string;
+    onOutput?: (data: string) => void;
   }): Promise<WorktreeInfo> {
     const manager = getGitOperationManager();
 
@@ -147,27 +150,14 @@ export class WorktreeManager {
     const parentDir = path.dirname(worktreePath);
     await fs.mkdir(parentDir, { recursive: true });
 
-    await manager.executeWrite(this.mainRepoPath, async (git) => {
-      if (this.usesExternalPath()) {
-        await git.raw([
-          "worktree",
-          "add",
-          "--quiet",
-          "--detach",
-          worktreePath,
-          baseBranch,
-        ]);
-      } else {
-        const relativePath = `./${WORKTREE_FOLDER_NAME}/${worktreeName}/${this.repoName}`;
-        await git.raw([
-          "worktree",
-          "add",
-          "--quiet",
-          "--detach",
-          relativePath,
-          baseBranch,
-        ]);
-      }
+    const targetPath = this.usesExternalPath()
+      ? worktreePath
+      : `./${WORKTREE_FOLDER_NAME}/${worktreeName}/${this.repoName}`;
+
+    const output = await manager.executeWrite(this.mainRepoPath, async () => {
+      return this.spawnWorktreeAdd(["--detach", targetPath, baseBranch], {
+        onOutput: options?.onOutput,
+      });
     });
 
     await this.symlinkClaudeConfig(worktreePath);
@@ -178,12 +168,14 @@ export class WorktreeManager {
       branchName: "",
       baseBranch,
       createdAt: new Date().toISOString(),
+      output: output.trim() || undefined,
     };
   }
 
   async createWorktreeForExistingBranch(
     branch: string,
     preferredName?: string,
+    options?: { onOutput?: (data: string) => void },
   ): Promise<WorktreeInfo> {
     const manager = getGitOperationManager();
 
@@ -218,13 +210,14 @@ export class WorktreeManager {
     const parentDir = path.dirname(worktreePath);
     await fs.mkdir(parentDir, { recursive: true });
 
-    await manager.executeWrite(this.mainRepoPath, async (git) => {
-      if (this.usesExternalPath()) {
-        await git.raw(["worktree", "add", "--quiet", worktreePath, branch]);
-      } else {
-        const relativePath = `./${WORKTREE_FOLDER_NAME}/${worktreeName}/${this.repoName}`;
-        await git.raw(["worktree", "add", "--quiet", relativePath, branch]);
-      }
+    const targetPath = this.usesExternalPath()
+      ? worktreePath
+      : `./${WORKTREE_FOLDER_NAME}/${worktreeName}/${this.repoName}`;
+
+    const output = await manager.executeWrite(this.mainRepoPath, async () => {
+      return this.spawnWorktreeAdd([targetPath, branch], {
+        onOutput: options?.onOutput,
+      });
     });
 
     await this.symlinkClaudeConfig(worktreePath);
@@ -235,12 +228,14 @@ export class WorktreeManager {
       branchName: branch,
       baseBranch: branch,
       createdAt: new Date().toISOString(),
+      output: output.trim() || undefined,
     };
   }
 
   async createDetachedWorktreeAtCommit(
     commit: string,
     preferredName?: string,
+    options?: { onOutput?: (data: string) => void },
   ): Promise<WorktreeInfo> {
     const manager = getGitOperationManager();
 
@@ -269,27 +264,14 @@ export class WorktreeManager {
     const parentDir = path.dirname(worktreePath);
     await fs.mkdir(parentDir, { recursive: true });
 
-    await manager.executeWrite(this.mainRepoPath, async (git) => {
-      if (this.usesExternalPath()) {
-        await git.raw([
-          "worktree",
-          "add",
-          "--quiet",
-          "--detach",
-          worktreePath,
-          commit,
-        ]);
-      } else {
-        const relativePath = `./${WORKTREE_FOLDER_NAME}/${worktreeName}/${this.repoName}`;
-        await git.raw([
-          "worktree",
-          "add",
-          "--quiet",
-          "--detach",
-          relativePath,
-          commit,
-        ]);
-      }
+    const targetPath = this.usesExternalPath()
+      ? worktreePath
+      : `./${WORKTREE_FOLDER_NAME}/${worktreeName}/${this.repoName}`;
+
+    const output = await manager.executeWrite(this.mainRepoPath, async () => {
+      return this.spawnWorktreeAdd(["--detach", targetPath, commit], {
+        onOutput: options?.onOutput,
+      });
     });
 
     await this.symlinkClaudeConfig(worktreePath);
@@ -300,7 +282,43 @@ export class WorktreeManager {
       branchName: "",
       baseBranch: commit,
       createdAt: new Date().toISOString(),
+      output: output.trim() || undefined,
     };
+  }
+
+  private spawnWorktreeAdd(
+    args: string[],
+    options?: { onOutput?: (data: string) => void },
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const chunks: string[] = [];
+      const proc = spawn("git", ["worktree", "add", ...args], {
+        cwd: this.mainRepoPath,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+
+      const handleData = (data: Buffer) => {
+        const text = data.toString("utf-8");
+        chunks.push(text);
+        options?.onOutput?.(text);
+      };
+
+      proc.stdout.on("data", handleData);
+      proc.stderr.on("data", handleData);
+
+      proc.on("error", (err) => reject(err));
+      proc.on("close", (code) => {
+        if (code !== 0) {
+          reject(
+            new Error(
+              `git worktree add exited with code ${code}: ${chunks.join("")}`,
+            ),
+          );
+          return;
+        }
+        resolve(chunks.join(""));
+      });
+    });
   }
 
   async deleteWorktree(worktreePath: string): Promise<void> {

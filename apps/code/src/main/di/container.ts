@@ -30,6 +30,7 @@ import { NotificationService } from "../services/notification/service";
 import { OAuthService } from "../services/oauth/service";
 import { PosthogPluginService } from "../services/posthog-plugin/service";
 import { ProcessTrackingService } from "../services/process-tracking/service";
+import { ProvisioningService } from "../services/provisioning/service";
 import { settingsStore } from "../services/settingsStore";
 import { ShellService } from "../services/shell/service";
 import { SleepService } from "../services/sleep/service";
@@ -61,6 +62,7 @@ container.bind(MAIN_TOKENS.ConnectivityService).to(ConnectivityService);
 container.bind(MAIN_TOKENS.ContextMenuService).to(ContextMenuService);
 container.bind(MAIN_TOKENS.DeepLinkService).to(DeepLinkService);
 container.bind(MAIN_TOKENS.EnvironmentService).to(EnvironmentService);
+container.bind(MAIN_TOKENS.ProvisioningService).to(ProvisioningService);
 
 container.bind(MAIN_TOKENS.ExternalAppsService).to(ExternalAppsService);
 container.bind(MAIN_TOKENS.LlmGatewayService).to(LlmGatewayService);
