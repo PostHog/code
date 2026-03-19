@@ -1,18 +1,44 @@
 import { Tooltip } from "@components/ui/Tooltip";
 import { useSettingsStore as useFeatureSettingsStore } from "@features/settings/stores/settingsStore";
+import { GithubLogo } from "@phosphor-icons/react";
 import { trpcClient } from "@renderer/trpc/client";
 import type { Node as PmNode } from "@tiptap/pm/model";
 import type { Editor } from "@tiptap/react";
 import { type NodeViewProps, NodeViewWrapper } from "@tiptap/react";
 import type { MentionChipAttrs } from "./MentionChipNode";
 
-function DefaultChip({ type, label }: { type: string; label: string }) {
+const chipClass =
+  "inline cursor-default select-all rounded-[var(--radius-1)] bg-[var(--accent-a3)] px-1 py-px font-medium text-[var(--accent-11)] text-xs";
+
+function DefaultChip({
+  type,
+  id,
+  label,
+}: {
+  type: string;
+  id: string;
+  label: string;
+}) {
+  if (type === "github_issue") {
+    return (
+      <button
+        type="button"
+        className={`${chipClass} inline-flex cursor-pointer items-center gap-0.5 border-none`}
+        contentEditable={false}
+        onClick={() => window.open(id, "_blank")}
+      >
+        <GithubLogo size={12} />
+        {label}
+      </button>
+    );
+  }
+
   const isCommand = type === "command";
   const prefix = isCommand ? "/" : "@";
 
   return (
     <span
-      className={`${isCommand ? "cli-slash-command" : "cli-file-mention"} inline cursor-default select-all rounded-[var(--radius-1)] bg-[var(--accent-a3)] px-1 py-px font-medium text-[var(--accent-11)] text-xs`}
+      className={`${isCommand ? "cli-slash-command" : "cli-file-mention"} ${chipClass}`}
       contentEditable={false}
     >
       {prefix}
@@ -81,7 +107,7 @@ export function MentionChipView({ node, getPos, editor }: NodeViewProps) {
           getPos={getPos}
         />
       ) : (
-        <DefaultChip type={type} label={label} />
+        <DefaultChip type={type} id={id} label={label} />
       )}
     </NodeViewWrapper>
   );

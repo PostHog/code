@@ -46,6 +46,7 @@ import type {
   GhStatusOutput,
   GitCommitInfo,
   GitFileStatus,
+  GitHubIssue,
   GitRepoInfo,
   GitStateSnapshot,
   GitSyncStatus,
@@ -994,5 +995,107 @@ ${filesSummary || "(no file changes detected)"}`;
       title: titleMatch?.[1]?.trim() ?? "",
       body: bodyMatch?.[1]?.trim() ?? "",
     };
+  }
+
+  private async resolveCanonicalRepo(repo: string): Promise<string> {
+    const result = await execGh([
+      "repo",
+      "view",
+      repo,
+      "--json",
+      "name,owner",
+      "--jq",
+      '.owner.login + "/" + .name',
+    ]);
+    if (result.exitCode !== 0) return repo;
+    return result.stdout.trim() || repo;
+  }
+
+  private parseGhIssues(stdout: string, repo: string): GitHubIssue[] {
+    const raw = JSON.parse(stdout) as Array<{
+      number: number;
+      title: string;
+      state: string;
+      labels: Array<{ name: string }>;
+      url: string;
+    }>;
+    const items = Array.isArray(raw) ? raw : [raw];
+    return items.map((issue) => ({
+      number: issue.number,
+      title: issue.title,
+      state: issue.state.toUpperCase(),
+      labels: issue.labels.map((l) => l.name),
+      url: issue.url,
+      repo,
+    }));
+  }
+
+  public async searchGithubIssues(
+    directoryPath: string,
+    query?: string,
+    limit = 5,
+  ): Promise<GitHubIssue[]> {
+    const repoInfo = await this.getGitRepoInfo(directoryPath);
+    if (!repoInfo) return [];
+
+    const repo = await this.resolveCanonicalRepo(
+      `${repoInfo.organization}/${repoInfo.repository}`,
+    );
+    const trimmed = query?.trim().replace(/^#/, "");
+    const issueNumber = trimmed ? Number(trimmed) : Number.NaN;
+
+    if (!Number.isNaN(issueNumber) && Number.isInteger(issueNumber)) {
+      return this.fetchGhIssues(
+        ["issue", "view", String(issueNumber), "--repo", repo],
+        repo,
+      );
+    }
+
+    if (trimmed) {
+      return this.fetchGhIssues(
+        [
+          "search",
+          "issues",
+          trimmed,
+          "--repo",
+          repo,
+          "--limit",
+          String(limit),
+          "--match",
+          "title",
+        ],
+        repo,
+      );
+    }
+
+    return this.fetchGhIssues(
+      [
+        "issue",
+        "list",
+        "--repo",
+        repo,
+        "--limit",
+        String(limit),
+        "--state",
+        "all",
+      ],
+      repo,
+    );
+  }
+
+  private async fetchGhIssues(
+    args: string[],
+    repo: string,
+  ): Promise<GitHubIssue[]> {
+    const jsonFields = "number,title,state,labels,url";
+    const result = await execGh([...args, "--json", jsonFields]);
+    if (result.exitCode !== 0) return [];
+
+    try {
+      return this.parseGhIssues(result.stdout, repo);
+    } catch {
+      log.warn("Failed to parse GitHub issues response", { repo, args });
+      return [];
+    }
   }
 }

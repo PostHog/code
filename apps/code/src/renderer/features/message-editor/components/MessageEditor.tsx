@@ -277,8 +277,10 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
             <EditorToolbar
               disabled={disabled}
               taskId={taskId}
+              repoPath={repoPath}
               onAddAttachment={addAttachment}
               onAttachFiles={onAttachFiles}
+              onInsertChip={insertChip}
             />
           </Flex>
           <Flex gap="2" align="center">
