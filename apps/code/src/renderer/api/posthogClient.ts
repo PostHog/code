@@ -1843,12 +1843,11 @@ export class PostHogAPIClient {
     const parsed = this.parseFetcherError(error);
 
     if (parsed) {
-      if (parsed.status === 400) {
-        const redirectUrl =
-          typeof parsed.body.redirect_url === "string"
-            ? parsed.body.redirect_url
-            : `${this.api.baseUrl}/organization/billing`;
-        throw new SeatSubscriptionRequiredError(redirectUrl);
+      if (
+        parsed.status === 400 &&
+        typeof parsed.body.redirect_url === "string"
+      ) {
+        throw new SeatSubscriptionRequiredError(parsed.body.redirect_url);
       }
       if (parsed.status === 402) {
         const message =

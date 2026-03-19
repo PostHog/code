@@ -1,5 +1,4 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
-import type { SeatSubscriptionRequiredError } from "@renderer/api/posthogClient";
 import type { SeatData } from "@shared/types/seat";
 import { PLAN_FREE, PLAN_PRO } from "@shared/types/seat";
 import { electronStorage } from "@utils/electronStorage";
@@ -36,32 +35,70 @@ function getClient() {
   return client;
 }
 
+function parseFetcherError(
+  error: Error,
+): { status: number; body: Record<string, unknown> } | null {
+  const match = error.message.match(/\[(\d+)\]\s*(.*)/);
+  if (!match) return null;
+  try {
+    return {
+      status: Number.parseInt(match[1], 10),
+      body: JSON.parse(match[2]) as Record<string, unknown>,
+    };
+  } catch {
+    return { status: Number.parseInt(match[1], 10), body: {} };
+  }
+}
+
 function handleSeatError(
   error: unknown,
   set: (state: Partial<SeatStoreState>) => void,
 ): void {
-  if (error instanceof Error) {
-    if (
-      error.name === "SeatSubscriptionRequiredError" &&
-      "redirectUrl" in error
-    ) {
+  if (!(error instanceof Error)) {
+    log.error("Seat operation failed", error);
+    set({ isLoading: false, error: "An unexpected error occurred" });
+    return;
+  }
+
+  if (
+    "redirectUrl" in error &&
+    typeof (error as { redirectUrl: unknown }).redirectUrl === "string"
+  ) {
+    set({
+      isLoading: false,
+      error: "Billing subscription required",
+      redirectUrl: (error as { redirectUrl: string }).redirectUrl,
+    });
+    return;
+  }
+
+  const parsed = parseFetcherError(error);
+  if (parsed) {
+    if (parsed.status === 400 && typeof parsed.body.redirect_url === "string") {
       set({
         isLoading: false,
-        error: "Billing subscription required",
-        redirectUrl: (error as SeatSubscriptionRequiredError).redirectUrl,
+        error:
+          typeof parsed.body.error === "string"
+            ? parsed.body.error
+            : "Billing subscription required",
+        redirectUrl: parsed.body.redirect_url,
       });
       return;
     }
-    if (error.name === "SeatPaymentFailedError") {
-      set({ isLoading: false, error: error.message });
+    if (parsed.status === 402) {
+      set({
+        isLoading: false,
+        error:
+          typeof parsed.body.error === "string"
+            ? parsed.body.error
+            : "Payment failed",
+      });
       return;
     }
-    log.error("Seat operation failed", error);
-    set({ isLoading: false, error: error.message });
-    return;
   }
+
   log.error("Seat operation failed", error);
-  set({ isLoading: false, error: "An unexpected error occurred" });
+  set({ isLoading: false, error: error.message });
 }
 
 const initialState: SeatStoreState = {
@@ -91,6 +128,16 @@ export const useSeatStore = create<SeatStore>()(
         set({ isLoading: true, error: null, redirectUrl: null });
         try {
           const client = getClient();
+          const existing = await client.getMySeat();
+          if (existing) {
+            if (existing.plan_key === PLAN_FREE) {
+              set({ seat: existing, isLoading: false });
+              return;
+            }
+            const seat = await client.upgradeSeat(PLAN_FREE);
+            set({ seat, isLoading: false });
+            return;
+          }
           const seat = await client.createSeat(PLAN_FREE);
           set({ seat, isLoading: false });
         } catch (error) {
@@ -102,10 +149,17 @@ export const useSeatStore = create<SeatStore>()(
         set({ isLoading: true, error: null, redirectUrl: null });
         try {
           const client = getClient();
-          const currentSeat = useSeatStore.getState().seat;
-          const seat = currentSeat
-            ? await client.upgradeSeat(PLAN_PRO)
-            : await client.createSeat(PLAN_PRO);
+          const existing = await client.getMySeat();
+          if (existing) {
+            if (existing.plan_key === PLAN_PRO) {
+              set({ seat: existing, isLoading: false });
+              return;
+            }
+            const seat = await client.upgradeSeat(PLAN_PRO);
+            set({ seat, isLoading: false });
+            return;
+          }
+          const seat = await client.createSeat(PLAN_PRO);
           set({ seat, isLoading: false });
         } catch (error) {
           handleSeatError(error, set);
