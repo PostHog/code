@@ -22,6 +22,7 @@ import { notificationRouter } from "./routers/notification";
 import { oauthRouter } from "./routers/oauth";
 import { osRouter } from "./routers/os";
 import { processTrackingRouter } from "./routers/process-tracking";
+import { provisioningRouter } from "./routers/provisioning";
 import { secureStoreRouter } from "./routers/secure-store";
 import { shellRouter } from "./routers/shell";
 import { skillsRouter } from "./routers/skills";
@@ -57,6 +58,7 @@ export const trpcRouter = router({
   logs: logsRouter,
   os: osRouter,
   processTracking: processTrackingRouter,
+  provisioning: provisioningRouter,
   sleep: sleepRouter,
   suspension: suspensionRouter,
   secureStore: secureStoreRouter,
