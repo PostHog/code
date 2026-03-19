@@ -63,8 +63,12 @@ export function contentToXml(content: EditorContent): string {
         return `<insight id="${escapedId}" />`;
       case "feature_flag":
         return `<feature_flag id="${escapedId}" />`;
-      case "github_issue":
-        return `<github_issue number="${escapedId}" />`;
+      case "github_issue": {
+        const numberMatch = chip.label.match(/^#(\d+)/);
+        const number = numberMatch ? numberMatch[1] : "";
+        const title = chip.label.replace(/^#\d+\s*-\s*/, "");
+        return `<github_issue number="${escapeXmlAttr(number)}" title="${escapeXmlAttr(title)}" url="${escapedId}" />`;
+      }
       default:
         return `@${chip.label}`;
     }

@@ -41,7 +41,7 @@ export function IssuePicker({ repoPath, onSelect }: IssuePickerProps) {
   const handleSelect = (issue: (typeof issues)[number]) => {
     onSelect({
       type: "github_issue",
-      id: String(issue.number),
+      id: issue.url,
       label: `#${issue.number} - ${issue.title}`,
     });
   };
