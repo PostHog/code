@@ -4,6 +4,7 @@ import { CodeMirrorEditor } from "@features/code-editor/components/CodeMirrorEdi
 import { useMarkdownViewerStore } from "@features/code-editor/stores/markdownViewerStore";
 import { isMarkdownFile } from "@features/code-editor/utils/markdownUtils";
 import { getRelativePath } from "@features/code-editor/utils/pathUtils";
+import { getImageMimeType } from "@features/code-editor/utils/imageUtils";
 import { isImageFile } from "@features/message-editor/utils/imageUtils";
 import { usePanelLayoutStore } from "@features/panels";
 import { useFileTreeStore } from "@features/right-sidebar/stores/fileTreeStore";
@@ -18,24 +19,6 @@ import { useCallback, useMemo } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-
-const IMAGE_MIME_TYPES: Record<string, string> = {
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  gif: "image/gif",
-  webp: "image/webp",
-  bmp: "image/bmp",
-  ico: "image/x-icon",
-  svg: "image/svg+xml",
-  tiff: "image/tiff",
-  tif: "image/tiff",
-};
-
-function getImageMimeType(filePath: string): string {
-  const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
-  return IMAGE_MIME_TYPES[ext] ?? "image/png";
-}
 
 interface CodeEditorPanelProps {
   taskId: string;
