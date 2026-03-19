@@ -90,7 +90,7 @@ describe("EnvironmentService", () => {
       expect(await readEnvFiles()).toEqual(["environment.toml"]);
     });
 
-    it("generates unique ids for actions", async () => {
+    it("creates environment with actions", async () => {
       const env = await create({
         name: "Actions",
         actions: [
