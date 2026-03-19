@@ -140,6 +140,8 @@ function createMockDependencies() {
       register: vi.fn(),
       unregister: vi.fn(),
       killByTaskId: vi.fn(),
+      getByTaskId: vi.fn(() => []),
+      kill: vi.fn(),
     },
     sleepService: {
       acquire: vi.fn(),
