@@ -18,7 +18,7 @@ function environmentsDir(repoPath: string): string {
 
 function tomlString(value: string): string {
   if (value.includes("\n")) {
-    return `'''\n${value}\n'''`;
+    return `'''\n${value}'''`;
   }
   return JSON.stringify(value);
 }

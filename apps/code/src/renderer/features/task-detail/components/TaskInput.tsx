@@ -113,7 +113,7 @@ export function TaskInput() {
 
   useEffect(() => {
     setSelectedEnvironment(null);
-  }, [effectiveRepoPath]);
+  }, []);
 
   const effectiveWorkspaceMode = workspaceMode;
 
