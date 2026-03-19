@@ -174,11 +174,13 @@ jobs:
 
       - name: Set version in package.json
         shell: pwsh
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
         run: |
           $pkg = Get-Content apps/code/package.json -Raw | ConvertFrom-Json
-          $pkg.version = "${{ steps.version.outputs.version }}"
+          $pkg.version = "$env:APP_VERSION"
           $pkg | ConvertTo-Json -Depth 10 | Set-Content apps/code/package.json
-          echo "Set apps/code/package.json version to ${{ steps.version.outputs.version }}"
+          echo "Set apps/code/package.json version to $env:APP_VERSION"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
