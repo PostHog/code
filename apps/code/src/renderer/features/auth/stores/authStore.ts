@@ -1,4 +1,5 @@
 import { useSeatStore } from "@features/billing/stores/seatStore";
+import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { trpcClient } from "@renderer/trpc/client";
 import { getCloudUrlFromRegion } from "@shared/utils/urls";
@@ -299,6 +300,7 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     track(ANALYTICS_EVENTS.USER_LOGGED_OUT);
     sessionResetCallback?.();
     useSeatStore.getState().reset();
+    useSettingsDialogStore.getState().close();
     clearAuthenticatedRendererState({ clearAllQueries: true });
     await trpcClient.auth.logout.mutate();
     useNavigationStore.getState().navigateToTaskInput();
