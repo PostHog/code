@@ -182,30 +182,18 @@ export const TaskInputEditor = forwardRef<
             >
               &gt;
             </Text>
-            {isCreatingTask ? (
-              <Text
-                size="2"
-                color="gray"
-                style={{
-                  fontFamily: "monospace",
-                  fontSize: "var(--font-size-1)",
-                }}
-              >
-                Creating task...
-              </Text>
-            ) : (
-              <Box
-                style={{
-                  flex: 1,
-                  position: "relative",
-                  minWidth: 0,
-                  maxHeight: "200px",
-                  overflowY: "auto",
-                }}
-              >
-                <EditorContent editor={editor} />
-              </Box>
-            )}
+            <Box
+              style={{
+                flex: 1,
+                position: "relative",
+                minWidth: 0,
+                maxHeight: "200px",
+                overflowY: "auto",
+                opacity: isCreatingTask ? 0.5 : 1,
+              }}
+            >
+              <EditorContent editor={editor} />
+            </Box>
           </Flex>
         </Flex>
 
