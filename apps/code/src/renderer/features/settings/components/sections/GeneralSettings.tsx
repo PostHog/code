@@ -3,6 +3,7 @@ import { SettingRow } from "@features/settings/components/SettingRow";
 import {
   type AutoConvertLongText,
   type CompletionSound,
+  type DefaultInitialTaskMode,
   type DiffOpenMode,
   type SendMessagesWith,
   useSettingsStore,
@@ -101,6 +102,7 @@ export function GeneralSettings() {
     completionSound,
     completionVolume,
     autoConvertLongText,
+    defaultInitialTaskMode,
     diffOpenMode,
     sendMessagesWith,
     hedgehogMode,
@@ -110,6 +112,7 @@ export function GeneralSettings() {
     setCompletionSound,
     setCompletionVolume,
     setAutoConvertLongText,
+    setDefaultInitialTaskMode,
     setDiffOpenMode,
     setSendMessagesWith,
     setHedgehogMode,
@@ -313,6 +316,18 @@ export function GeneralSettings() {
       setDiffOpenMode(value);
     },
     [diffOpenMode, setDiffOpenMode],
+  );
+
+  const handleDefaultInitialTaskModeChange = useCallback(
+    (value: DefaultInitialTaskMode) => {
+      track(ANALYTICS_EVENTS.SETTING_CHANGED, {
+        setting_name: "default_initial_task_mode",
+        new_value: value,
+        old_value: defaultInitialTaskMode,
+      });
+      setDefaultInitialTaskMode(value);
+    },
+    [defaultInitialTaskMode, setDefaultInitialTaskMode],
   );
 
   const handleSendMessagesWithChange = useCallback(
@@ -521,6 +536,25 @@ export function GeneralSettings() {
       >
         Input
       </Text>
+
+      <SettingRow
+        label="Initial task mode"
+        description="Choose whether new tasks always start in Plan mode or remember your last-used mode"
+      >
+        <Select.Root
+          value={defaultInitialTaskMode}
+          onValueChange={(value) =>
+            handleDefaultInitialTaskModeChange(value as DefaultInitialTaskMode)
+          }
+          size="1"
+        >
+          <Select.Trigger style={{ minWidth: "100px" }} />
+          <Select.Content>
+            <Select.Item value="plan">Plan</Select.Item>
+            <Select.Item value="last_used">Last used</Select.Item>
+          </Select.Content>
+        </Select.Root>
+      </SettingRow>
 
       <SettingRow
         label="Send messages with"

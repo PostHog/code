@@ -660,8 +660,15 @@ export class SessionService {
     sessionStoreSetters.setSession(session);
 
     try {
-      const { customInstructions: previewCustomInstructions } =
-        useSettingsStore.getState();
+      const {
+        customInstructions: previewCustomInstructions,
+        defaultInitialTaskMode,
+        lastUsedInitialTaskMode,
+      } = useSettingsStore.getState();
+      const initialMode =
+        defaultInitialTaskMode === "last_used"
+          ? lastUsedInitialTaskMode
+          : "plan";
       const result = await trpcClient.agent.start.mutate({
         taskId: PREVIEW_TASK_ID,
         taskRunId,
@@ -670,7 +677,7 @@ export class SessionService {
         apiHost: auth.apiHost,
         projectId: auth.projectId,
         adapter: params.adapter,
-        permissionMode: "plan",
+        permissionMode: initialMode,
         customInstructions: previewCustomInstructions || undefined,
       });
 
