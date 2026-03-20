@@ -133,6 +133,16 @@ export interface PanelLayoutStore {
   updateTabLabel: (taskId: string, tabId: string, label: string) => void;
   setFocusedPanel: (taskId: string, panelId: string) => void;
   addTerminalTab: (taskId: string, panelId: string) => void;
+  addActionTab: (
+    taskId: string,
+    panelId: string,
+    action: {
+      actionId: string;
+      command: string;
+      cwd: string;
+      label: string;
+    },
+  ) => void;
   clearAllLayouts: () => void;
 }
 
@@ -943,6 +953,52 @@ export const usePanelLayoutStore = createWithEqualityFn<PanelLayoutStore>()(
                   draggable: true,
                   closeable: true,
                 });
+              },
+            );
+
+            return { panelTree: updatedTree };
+          }),
+        );
+      },
+
+      addActionTab: (taskId, panelId, action) => {
+        const tabId = `action-${action.actionId}`;
+        set((state) =>
+          updateTaskLayout(state, taskId, (layout) => {
+            const existingTab = findTabInTree(layout.panelTree, tabId);
+            if (existingTab) return {};
+
+            const targetPanel = getLeafPanel(layout.panelTree, panelId);
+            if (!targetPanel) return {};
+
+            const updatedTree = updateTreeNode(
+              layout.panelTree,
+              panelId,
+              (panel) => {
+                if (panel.type !== "leaf") return panel;
+
+                const newTab: Tab = {
+                  id: tabId,
+                  label: action.label,
+                  data: {
+                    type: "action",
+                    actionId: action.actionId,
+                    command: action.command,
+                    cwd: action.cwd,
+                    label: action.label,
+                  },
+                  component: null,
+                  draggable: true,
+                  closeable: true,
+                };
+
+                return {
+                  ...panel,
+                  content: {
+                    ...panel.content,
+                    tabs: [...panel.content.tabs, newTab],
+                  },
+                };
               },
             );
 

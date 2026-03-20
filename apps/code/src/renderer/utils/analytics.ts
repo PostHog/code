@@ -136,7 +136,7 @@ export function buildPermissionToolMetadata(
   permission?: PermissionRequest,
   selectedOptionId?: string,
   customInput?: string,
-): Record<string, any> {
+): Record<string, unknown> {
   const selectedOption = permission?.options?.find(
     (o) => o.optionId === selectedOptionId,
   );

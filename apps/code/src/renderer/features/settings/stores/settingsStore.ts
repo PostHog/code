@@ -23,6 +23,7 @@ interface SettingsStore {
   lastUsedWorkspaceMode: WorkspaceMode;
   lastUsedAdapter: AgentAdapter;
   lastUsedModel: string | null;
+  lastUsedEnvironments: Record<string, string>;
   desktopNotifications: boolean;
   dockBadgeNotifications: boolean;
   dockBounceNotifications: boolean;
@@ -51,6 +52,11 @@ interface SettingsStore {
   setLastUsedWorkspaceMode: (mode: WorkspaceMode) => void;
   setLastUsedAdapter: (adapter: AgentAdapter) => void;
   setLastUsedModel: (model: string) => void;
+  setLastUsedEnvironment: (
+    repoPath: string,
+    environmentId: string | null,
+  ) => void;
+  getLastUsedEnvironment: (repoPath: string) => string | null;
   setDesktopNotifications: (enabled: boolean) => void;
   setDockBadgeNotifications: (enabled: boolean) => void;
   setDockBounceNotifications: (enabled: boolean) => void;
@@ -74,6 +80,7 @@ export const useSettingsStore = create<SettingsStore>()(
       lastUsedWorkspaceMode: "local",
       lastUsedAdapter: "claude",
       lastUsedModel: null,
+      lastUsedEnvironments: {},
       desktopNotifications: true,
       dockBadgeNotifications: true,
       dockBounceNotifications: false,
@@ -125,6 +132,18 @@ export const useSettingsStore = create<SettingsStore>()(
       setLastUsedWorkspaceMode: (mode) => set({ lastUsedWorkspaceMode: mode }),
       setLastUsedAdapter: (adapter) => set({ lastUsedAdapter: adapter }),
       setLastUsedModel: (model) => set({ lastUsedModel: model }),
+      setLastUsedEnvironment: (repoPath, environmentId) =>
+        set((state) => {
+          const next = { ...state.lastUsedEnvironments };
+          if (environmentId) {
+            next[repoPath] = environmentId;
+          } else {
+            delete next[repoPath];
+          }
+          return { lastUsedEnvironments: next };
+        }),
+      getLastUsedEnvironment: (repoPath) =>
+        get().lastUsedEnvironments[repoPath] ?? null,
       setDesktopNotifications: (enabled) =>
         set({ desktopNotifications: enabled }),
       setDockBadgeNotifications: (enabled) =>
@@ -154,6 +173,7 @@ export const useSettingsStore = create<SettingsStore>()(
         lastUsedWorkspaceMode: state.lastUsedWorkspaceMode,
         lastUsedAdapter: state.lastUsedAdapter,
         lastUsedModel: state.lastUsedModel,
+        lastUsedEnvironments: state.lastUsedEnvironments,
         desktopNotifications: state.desktopNotifications,
         dockBadgeNotifications: state.dockBadgeNotifications,
         dockBounceNotifications: state.dockBounceNotifications,

@@ -136,11 +136,13 @@ function seedWorktreeWorkspace(
     repositoryId: overrides.repositoryId ?? "repo-1",
     mode: overrides.mode ?? "worktree",
   });
-  const stored = mocks.workspaceRepo._workspaces.get(ws.id)!;
+  const stored = mocks.workspaceRepo._workspaces.get(ws.id);
+  if (!stored) throw new Error(`Workspace not found: ${ws.id}`);
   if (overrides.lastActivityAt !== undefined)
     stored.lastActivityAt = overrides.lastActivityAt;
   if (overrides.createdAt !== undefined) stored.createdAt = overrides.createdAt;
-  const resolved = mocks.workspaceRepo.findById(ws.id)!;
+  const resolved = mocks.workspaceRepo.findById(ws.id);
+  if (!resolved) throw new Error(`Workspace not found: ${ws.id}`);
   mocks.worktreeRepo.create({
     workspaceId: resolved.id,
     name: `wt-${resolved.taskId}`,

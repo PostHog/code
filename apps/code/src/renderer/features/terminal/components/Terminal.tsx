@@ -14,6 +14,7 @@ export interface TerminalProps {
   cwd?: string;
   initialState?: string;
   taskId?: string;
+  command?: string;
   onReady?: () => void;
   onExit?: (exitCode?: number) => void;
 }
@@ -24,6 +25,7 @@ export function Terminal({
   cwd,
   initialState,
   taskId,
+  command,
   onReady,
   onExit,
 }: TerminalProps) {
@@ -49,9 +51,10 @@ export function Terminal({
         cwd,
         initialState,
         taskId,
+        command,
       });
     }
-  }, [sessionId, persistenceKey, cwd, initialState, taskId]);
+  }, [sessionId, persistenceKey, cwd, initialState, taskId, command]);
 
   // Attach/detach from DOM
   useEffect(() => {
@@ -99,7 +102,7 @@ export function Terminal({
       {
         enabled: !!sessionId,
         onData: (event) => {
-          terminalManager.handleExit(event.sessionId);
+          terminalManager.handleExit(event.sessionId, event.exitCode);
         },
       },
     ),
