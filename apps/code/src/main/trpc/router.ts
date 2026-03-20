@@ -5,8 +5,8 @@ import { cloudTaskRouter } from "./routers/cloud-task";
 import { connectivityRouter } from "./routers/connectivity";
 import { contextMenuRouter } from "./routers/context-menu";
 import { deepLinkRouter } from "./routers/deep-link";
-
 import { encryptionRouter } from "./routers/encryption";
+import { environmentRouter } from "./routers/environment";
 import { externalAppsRouter } from "./routers/external-apps";
 import { fileWatcherRouter } from "./routers/file-watcher";
 import { focusRouter } from "./routers/focus";
@@ -22,6 +22,7 @@ import { notificationRouter } from "./routers/notification";
 import { oauthRouter } from "./routers/oauth";
 import { osRouter } from "./routers/os";
 import { processTrackingRouter } from "./routers/process-tracking";
+import { provisioningRouter } from "./routers/provisioning";
 import { secureStoreRouter } from "./routers/secure-store";
 import { shellRouter } from "./routers/shell";
 import { skillsRouter } from "./routers/skills";
@@ -40,6 +41,7 @@ export const trpcRouter = router({
   connectivity: connectivityRouter,
   contextMenu: contextMenuRouter,
 
+  environment: environmentRouter,
   encryption: encryptionRouter,
   externalApps: externalAppsRouter,
   fileWatcher: fileWatcherRouter,
@@ -56,6 +58,7 @@ export const trpcRouter = router({
   logs: logsRouter,
   os: osRouter,
   processTracking: processTrackingRouter,
+  provisioning: provisioningRouter,
   sleep: sleepRouter,
   suspension: suspensionRouter,
   secureStore: secureStoreRouter,

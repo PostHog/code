@@ -6,6 +6,8 @@ import {
   useCloudPrChangedFiles,
 } from "@features/git-interaction/hooks/useGitQueries";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
+import { ProvisioningView } from "@features/provisioning/components/ProvisioningView";
+import { useProvisioningStore } from "@features/provisioning/stores/provisioningStore";
 import { SessionView } from "@features/sessions/components/SessionView";
 import { useSessionCallbacks } from "@features/sessions/hooks/useSessionCallbacks";
 import { useSessionConnection } from "@features/sessions/hooks/useSessionConnection";
@@ -40,6 +42,8 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
   const isSuspended = suspendedTaskIds.has(taskId);
   const { restoreTask, isRestoring } = useRestoreTask();
 
+  const isProvisioning = useProvisioningStore((s) => s.activeTasks.has(taskId));
+
   const { requestFocus } = useDraftStore((s) => s.actions);
 
   const {
@@ -55,7 +59,6 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     promptStartedAt,
     isInitializing,
     cloudBranch,
-    readOnlyMessage,
     errorTitle,
     errorMessage,
   } = useSessionViewState(taskId, task);
@@ -112,6 +115,10 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     await restoreTask(taskId);
   }, [taskId, restoreTask]);
 
+  if (isProvisioning) {
+    return <ProvisioningView taskId={taskId} />;
+  }
+
   if (
     !repoPath &&
     !isCloud &&
@@ -157,7 +164,6 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
               onRetry={isCloud ? undefined : handleRetry}
               onNewSession={isCloud ? undefined : handleNewSession}
               isInitializing={isInitializing}
-              readOnlyMessage={readOnlyMessage}
               slackThreadUrl={slackThreadUrl}
             />
           </ErrorBoundary>

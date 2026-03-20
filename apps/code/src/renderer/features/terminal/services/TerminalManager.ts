@@ -47,6 +47,7 @@ export interface CreateOptions {
   cwd?: string;
   initialState?: string;
   taskId?: string;
+  command?: string;
 }
 
 type ReadyPayload = { sessionId: string; persistenceKey: string };
@@ -150,7 +151,8 @@ class TerminalManagerImpl {
   }
 
   create(options: CreateOptions): TerminalInstance {
-    const { sessionId, persistenceKey, cwd, initialState, taskId } = options;
+    const { sessionId, persistenceKey, cwd, initialState, taskId, command } =
+      options;
 
     const existing = this.instances.get(sessionId);
     if (existing) {
@@ -205,7 +207,7 @@ class TerminalManagerImpl {
     instance.cleanups.push(() => disposable.dispose());
 
     // Initialize shell session
-    this.initializeSession(sessionId, instance, cwd, taskId);
+    this.initializeSession(sessionId, instance, cwd, taskId, command);
 
     this.instances.set(sessionId, instance);
     return instance;
@@ -216,11 +218,25 @@ class TerminalManagerImpl {
     instance: TerminalInstance,
     cwd?: string,
     taskId?: string,
+    command?: string,
   ): Promise<void> {
     try {
       const sessionExists = await trpcClient.shell.check.query({ sessionId });
       if (!sessionExists) {
-        await trpcClient.shell.create.mutate({ sessionId, cwd, taskId });
+        if (instance.attachedElement) {
+          instance.fitAddon.fit();
+        }
+
+        if (command && cwd) {
+          await trpcClient.shell.createCommand.mutate({
+            sessionId,
+            command,
+            cwd,
+            taskId,
+          });
+        } else {
+          await trpcClient.shell.create.mutate({ sessionId, cwd, taskId });
+        }
       }
 
       instance.isReady = true;
@@ -259,11 +275,14 @@ class TerminalManagerImpl {
     }
   }
 
-  handleExit(sessionId: string): void {
+  handleExit(sessionId: string, exitCode?: number): void {
     const instance = this.instances.get(sessionId);
     if (instance) {
-      instance.term.writeln("\r\n\x1b[33mProcess exited\x1b[0m\r\n");
-      this.emit("exit", { sessionId, persistenceKey: instance.persistenceKey });
+      this.emit("exit", {
+        sessionId,
+        persistenceKey: instance.persistenceKey,
+        exitCode,
+      });
     }
   }
 

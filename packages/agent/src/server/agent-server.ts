@@ -162,6 +162,12 @@ export class AgentServer {
   private questionRelayedToSlack = false;
   private detectedPrUrl: string | null = null;
   private resumeState: ResumeState | null = null;
+  // Guards against concurrent session initialization. autoInitializeSession() and
+  // the GET /events SSE handler can both call initializeSession() — the SSE connection
+  // often arrives while newSession() is still awaited (this.session is still null),
+  // causing a second session to be created and duplicate Slack messages to be sent.
+  private initializationPromise: Promise<void> | null = null;
+  private pendingEvents: Record<string, unknown>[] = [];
 
   private emitConsoleLog = (
     level: LogLevel,
@@ -264,6 +270,7 @@ export class AgentServer {
             await this.initializeSession(payload, sseController);
           } else {
             this.session.sseController = sseController;
+            this.replayPendingEvents();
           }
 
           this.sendSseEvent(sseController, {
@@ -483,6 +490,8 @@ export class AgentServer {
           `Processing user message (detectedPrUrl=${this.detectedPrUrl ?? "none"}): ${content.substring(0, 100)}...`,
         );
 
+        this.session.logWriter.resetTurnMessages(this.session.payload.run_id);
+
         const result = await this.session.clientConnection.prompt({
           sessionId: this.session.acpSessionId,
           prompt: [{ type: "text", text: content }],
@@ -501,7 +510,31 @@ export class AgentServer {
 
         this.broadcastTurnComplete(result.stopReason);
 
-        return { stopReason: result.stopReason };
+        if (result.stopReason === "end_turn") {
+          // Relay the response to Slack. For follow-ups this is the primary
+          // delivery path — the HTTP caller only handles reactions.
+          this.relayAgentResponse(this.session.payload).catch((err) =>
+            this.logger.warn("Failed to relay follow-up response", err),
+          );
+        }
+
+        // Flush logs and include the assistant's response text so callers
+        // (e.g. Slack follow-up forwarding) can extract it without racing
+        // against async log persistence to object storage.
+        let assistantMessage: string | undefined;
+        try {
+          await this.session.logWriter.flush(this.session.payload.run_id);
+          assistantMessage = this.session.logWriter.getFullAgentResponse(
+            this.session.payload.run_id,
+          );
+        } catch {
+          this.logger.warn("Failed to extract assistant message from logs");
+        }
+
+        return {
+          stopReason: result.stopReason,
+          ...(assistantMessage && { assistant_message: assistantMessage }),
+        };
       }
 
       case POSTHOG_NOTIFICATIONS.CANCEL:
@@ -528,6 +561,40 @@ export class AgentServer {
   }
 
   private async initializeSession(
+    payload: JwtPayload,
+    sseController: SseController | null,
+  ): Promise<void> {
+    // Race condition guard: autoInitializeSession() starts first, but while it awaits
+    // newSession() (which takes ~1-2s for MCP metadata fetch), the Temporal relay connects
+    // to GET /events. That handler sees this.session === null and calls initializeSession()
+    // again, creating a duplicate session that sends the same prompt twice — resulting in
+    // duplicate Slack messages. This lock ensures the second caller waits for the first
+    // initialization to finish and reuses the session.
+    if (this.initializationPromise) {
+      this.logger.info("Waiting for in-progress initialization", {
+        runId: payload.run_id,
+      });
+      await this.initializationPromise;
+      // After waiting, just attach the SSE controller if needed
+      if (this.session && sseController) {
+        this.session.sseController = sseController;
+        this.replayPendingEvents();
+      }
+      return;
+    }
+
+    this.initializationPromise = this._doInitializeSession(
+      payload,
+      sseController,
+    );
+    try {
+      await this.initializationPromise;
+    } finally {
+      this.initializationPromise = null;
+    }
+  }
+
+  private async _doInitializeSession(
     payload: JwtPayload,
     sseController: SseController | null,
   ): Promise<void> {
@@ -770,6 +837,8 @@ export class AgentServer {
         usedInitialPromptOverride: !!initialPromptOverride,
       });
 
+      this.session.logWriter.resetTurnMessages(payload.run_id);
+
       const result = await this.session.clientConnection.prompt({
         sessionId: this.session.acpSessionId,
         prompt: [{ type: "text", text: initialPrompt }],
@@ -809,8 +878,8 @@ export class AgentServer {
       const pendingUserMessage = this.getPendingUserMessage(taskRun);
 
       const sandboxContext = this.resumeState.snapshotApplied
-        ? `The sandbox environment (all files, packages, and code changes) has been fully restored from a snapshot.`
-        : `The sandbox could not be restored from a snapshot (it may have expired). You are starting with a fresh environment but have the full conversation history below.`;
+        ? `The workspace environment (all files, packages, and code changes) has been fully restored from where you left off.`
+        : `The workspace files from the previous session were not restored (the file snapshot may have expired), so you are starting with a fresh environment. Your conversation history is fully preserved below.`;
 
       let resumePrompt: string;
       if (pendingUserMessage) {
@@ -842,6 +911,8 @@ export class AgentServer {
       // Clear resume state so it's not reused
       this.resumeState = null;
 
+      this.session.logWriter.resetTurnMessages(payload.run_id);
+
       const result = await this.session.clientConnection.prompt({
         sessionId: this.session.acpSessionId,
         prompt: [{ type: "text", text: resumePrompt }],
@@ -852,6 +923,10 @@ export class AgentServer {
       });
 
       this.broadcastTurnComplete(result.stopReason);
+
+      if (result.stopReason === "end_turn") {
+        await this.relayAgentResponse(payload);
+      }
     } catch (error) {
       this.logger.error("Failed to send resume message", error);
       if (this.session) {
@@ -992,6 +1067,27 @@ Important:
 `;
     }
 
+    if (!this.config.repositoryPath) {
+      return `
+# Cloud Task Execution — No Repository Mode
+
+You are a helpful assistant with access to PostHog via MCP tools. You can help with both code tasks and data/analytics questions.
+
+When the user asks about analytics, data, metrics, events, funnels, dashboards, feature flags, experiments, or anything PostHog-related:
+- Use your PostHog MCP tools to query data, search insights, and provide real answers
+- Do NOT tell the user to check an external analytics platform — you ARE the analytics platform
+- Use tools like insight-query, query-run, event-definitions-list, and others to answer questions directly
+
+When the user asks for code changes or software engineering tasks:
+- Let them know you can help but don't have a repository connected for this session
+- Offer to write code snippets, scripts, or provide guidance
+
+Important:
+- Do NOT create branches, commits, or pull requests in this mode.
+- Prefer using MCP tools to answer questions with real data over giving generic advice.
+`;
+    }
+
     return `
 # Cloud Task Execution
 
@@ -1124,6 +1220,12 @@ Important:
           },
         };
       },
+      extNotification: async (
+        method: string,
+        params: Record<string, unknown>,
+      ) => {
+        this.logger.debug("Extension notification", { method, params });
+      },
       sessionUpdate: async (params: {
         sessionId: string;
         update?: Record<string, unknown>;
@@ -1176,7 +1278,7 @@ Important:
       });
     }
 
-    const message = this.session.logWriter.getLastAgentMessage(payload.run_id);
+    const message = this.session.logWriter.getFullAgentResponse(payload.run_id);
     if (!message) {
       this.logger.warn("No agent message found for Slack relay", {
         taskId: payload.task_id,
@@ -1385,6 +1487,7 @@ Important:
       this.session.sseController.close();
     }
 
+    this.pendingEvents = [];
     this.session = null;
   }
 
@@ -1443,6 +1546,18 @@ Important:
 
   private broadcastEvent(event: Record<string, unknown>): void {
     if (this.session?.sseController) {
+      this.sendSseEvent(this.session.sseController, event);
+    } else if (this.session) {
+      // Buffer events during initialization (sseController not yet attached)
+      this.pendingEvents.push(event);
+    }
+  }
+
+  private replayPendingEvents(): void {
+    if (!this.session?.sseController || this.pendingEvents.length === 0) return;
+    const events = this.pendingEvents;
+    this.pendingEvents = [];
+    for (const event of events) {
       this.sendSseEvent(this.session.sseController, event);
     }
   }

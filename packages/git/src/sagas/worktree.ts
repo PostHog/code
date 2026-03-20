@@ -35,15 +35,7 @@ export class CreateWorktreeSaga extends GitSaga<
     await this.step({
       name: "create-worktree",
       execute: () =>
-        this.git.raw([
-          "worktree",
-          "add",
-          "--quiet",
-          "-b",
-          branchName,
-          worktreePath,
-          base,
-        ]),
+        this.git.raw(["worktree", "add", "-b", branchName, worktreePath, base]),
       rollback: async () => {
         try {
           await this.git.raw(["worktree", "remove", worktreePath, "--force"]);
@@ -131,7 +123,7 @@ export class CreateWorktreeForBranchSaga extends GitSaga<
     await this.step({
       name: "create-worktree",
       execute: () =>
-        this.git.raw(["worktree", "add", "--quiet", worktreePath, branchName]),
+        this.git.raw(["worktree", "add", worktreePath, branchName]),
       rollback: async () => {
         try {
           await this.git.raw(["worktree", "remove", worktreePath, "--force"]);

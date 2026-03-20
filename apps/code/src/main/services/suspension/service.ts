@@ -325,19 +325,21 @@ export class SuspensionService extends TypedEventEmitter<SuspensionServiceEvents
       const branch = await this.getCurrentBranchName(worktreePath);
       if (branch && branch !== "HEAD") suspendedTask.branchName = branch;
 
+      const checkpointId = suspendedTask.checkpointId;
+      if (!checkpointId)
+        throw new Error("checkpointId must be set in worktree mode");
+
       await step(
         async () => {
           await this.captureWorktreeCheckpoint(
             folderPath,
             worktreePath,
-            // biome-ignore lint/style/noNonNullAssertion: checkpointId is set above
-            suspendedTask.checkpointId!,
+            checkpointId,
           );
         },
         async () => {
           const git = createGitClient(folderPath);
-          // biome-ignore lint/style/noNonNullAssertion: checkpointId is set above
-          await deleteCheckpoint(git, suspendedTask.checkpointId!);
+          await deleteCheckpoint(git, checkpointId);
         },
       );
 
@@ -382,14 +384,14 @@ export class SuspensionService extends TypedEventEmitter<SuspensionServiceEvents
       workspace.mode === "worktree" &&
       suspension.checkpointId
     ) {
+      const checkpointId = suspension.checkpointId;
       await step(
         async () => {
           restoredWorktreeName = await this.restoreWorktreeFromCheckpoint(
             folderPath,
             workspace,
             suspension.branchName,
-            // biome-ignore lint/style/noNonNullAssertion: checkpointId verified by caller
-            suspension.checkpointId!,
+            checkpointId,
             recreateBranch,
           );
         },

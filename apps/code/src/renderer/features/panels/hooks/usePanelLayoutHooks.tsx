@@ -1,4 +1,5 @@
 import { FileIcon } from "@components/ui/FileIcon";
+import { ActionTabIcon } from "@features/actions/components/ActionTabIcon";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { TabContentRenderer } from "@features/task-detail/components/TabContentRenderer";
 import { ChatCenteredText, Terminal } from "@phosphor-icons/react";
@@ -99,13 +100,12 @@ export function useTabInjection(
           if (tab.data.type === "file" || tab.data.type === "diff") {
             const filename = tab.data.relativePath.split("/").pop() || "";
             icon = <FileIcon filename={filename} size={14} />;
-          } else if (
-            tab.data.type === "terminal" ||
-            tab.data.type === "workspace-terminal"
-          ) {
+          } else if (tab.data.type === "terminal") {
             icon = <Terminal size={14} />;
           } else if (tab.data.type === "logs") {
             icon = <ChatCenteredText size={14} />;
+          } else if (tab.data.type === "action") {
+            icon = <ActionTabIcon actionId={tab.data.actionId} />;
           }
         }
 

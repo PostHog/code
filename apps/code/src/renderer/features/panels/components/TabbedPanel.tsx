@@ -10,8 +10,19 @@ import type { PanelContent } from "../store/panelStore";
 import { PanelDropZones } from "./PanelDropZones";
 import { PanelTab } from "./PanelTab";
 
-const activeTabStyle = { height: "100%" } as const;
-const hiddenTabStyle = { display: "none" } as const;
+const activeTabStyle: React.CSSProperties = {
+  height: "100%",
+  width: "100%",
+};
+const hiddenTabStyle: React.CSSProperties = {
+  height: "100%",
+  width: "100%",
+  position: "absolute",
+  top: 0,
+  left: 0,
+  visibility: "hidden",
+  pointerEvents: "none",
+};
 
 interface TabBarButtonProps {
   ariaLabel: string;

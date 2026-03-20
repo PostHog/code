@@ -2,11 +2,11 @@ import { CloudDiffEditorPanel } from "@features/code-editor/components/CloudDiff
 import { CodeEditorPanel } from "@features/code-editor/components/CodeEditorPanel";
 import { DiffEditorPanel } from "@features/code-editor/components/DiffEditorPanel";
 import type { Tab } from "@features/panels/store/panelTypes";
+import { ActionPanel } from "@features/task-detail/components/ActionPanel";
 import { ChangesPanel } from "@features/task-detail/components/ChangesPanel";
 import { FileTreePanel } from "@features/task-detail/components/FileTreePanel";
 import { TaskLogsPanel } from "@features/task-detail/components/TaskLogsPanel";
 import { TaskShellPanel } from "@features/task-detail/components/TaskShellPanel";
-import { WorkspaceTerminalPanel } from "@features/workspace/components/WorkspaceTerminalPanel";
 import type { Task } from "@shared/types";
 
 interface TabContentRendererProps {
@@ -31,15 +31,6 @@ export function TabContentRenderer({
         <TaskShellPanel taskId={taskId} task={task} shellId={data.terminalId} />
       );
 
-    case "workspace-terminal":
-      return (
-        <WorkspaceTerminalPanel
-          sessionId={data.sessionId}
-          command={data.command}
-          scriptType={data.scriptType}
-        />
-      );
-
     case "file":
       return (
         <CodeEditorPanel
@@ -55,6 +46,16 @@ export function TabContentRenderer({
           taskId={taskId}
           task={task}
           absolutePath={data.absolutePath}
+        />
+      );
+
+    case "action":
+      return (
+        <ActionPanel
+          taskId={taskId}
+          actionId={data.actionId}
+          command={data.command}
+          cwd={data.cwd}
         />
       );
 

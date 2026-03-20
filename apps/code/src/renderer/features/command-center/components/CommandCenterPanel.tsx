@@ -11,6 +11,7 @@ import { TaskSelector } from "./TaskSelector";
 
 interface CommandCenterPanelProps {
   cell: CommandCenterCellData;
+  isActiveSession: boolean;
 }
 
 function EmptyCell({ cellIndex }: { cellIndex: number }) {
@@ -43,8 +44,10 @@ function EmptyCell({ cellIndex }: { cellIndex: number }) {
 
 function PopulatedCell({
   cell,
+  isActiveSession,
 }: {
   cell: CommandCenterCellData & { task: Task };
+  isActiveSession: boolean;
 }) {
   const navigateToTask = useNavigationStore((s) => s.navigateToTask);
   const removeTask = useCommandCenterStore((s) => s.removeTask);
@@ -101,18 +104,28 @@ function PopulatedCell({
       </Flex>
 
       <Flex direction="column" className="min-h-0 flex-1">
-        <CommandCenterSessionView taskId={cell.task.id} task={cell.task} />
+        <CommandCenterSessionView
+          taskId={cell.task.id}
+          task={cell.task}
+          isActiveSession={isActiveSession}
+        />
       </Flex>
     </Flex>
   );
 }
 
-export function CommandCenterPanel({ cell }: CommandCenterPanelProps) {
+export function CommandCenterPanel({
+  cell,
+  isActiveSession,
+}: CommandCenterPanelProps) {
   if (!cell.taskId || !cell.task) {
     return <EmptyCell cellIndex={cell.cellIndex} />;
   }
 
   return (
-    <PopulatedCell cell={cell as CommandCenterCellData & { task: Task }} />
+    <PopulatedCell
+      cell={cell as CommandCenterCellData & { task: Task }}
+      isActiveSession={isActiveSession}
+    />
   );
 }

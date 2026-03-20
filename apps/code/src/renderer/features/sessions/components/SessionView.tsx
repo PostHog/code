@@ -58,9 +58,9 @@ interface SessionViewProps {
   onRetry?: () => void;
   onNewSession?: () => void;
   isInitializing?: boolean;
-  readOnlyMessage?: string;
   slackThreadUrl?: string;
   compact?: boolean;
+  isActiveSession?: boolean;
 }
 
 const DEFAULT_ERROR_MESSAGE =
@@ -87,9 +87,9 @@ export function SessionView({
   onRetry,
   onNewSession,
   isInitializing = false,
-  readOnlyMessage,
   slackThreadUrl,
   compact = false,
+  isActiveSession = true,
 }: SessionViewProps) {
   const showRawLogs = useShowRawLogs();
   const { setShowRawLogs } = useSessionViewActions();
@@ -163,9 +163,16 @@ export function SessionView({
     {
       enableOnFormTags: true,
       enableOnContentEditable: true,
-      enabled: isRunning && !!modeOption,
+      enabled: isRunning && !!modeOption && isActiveSession,
     },
-    [taskId, currentModeId, isRunning, modeOption, allowBypassPermissions],
+    [
+      taskId,
+      currentModeId,
+      isRunning,
+      modeOption,
+      allowBypassPermissions,
+      isActiveSession,
+    ],
   );
 
   const latestPlan = useMemo((): Plan | null => {
@@ -354,7 +361,7 @@ export function SessionView({
     editorRef.current?.focus();
   }, []);
 
-  useAutoFocusOnTyping(editorRef);
+  useAutoFocusOnTyping(editorRef, !isActiveSession);
 
   return (
     <ContextMenu.Root>
@@ -506,17 +513,6 @@ export function SessionView({
                     />
                   </Box>
                 </Box>
-              ) : readOnlyMessage ? (
-                <Flex
-                  align="center"
-                  justify="center"
-                  py="2"
-                  className="border-gray-4 border-t"
-                >
-                  <Text size="2" color="gray">
-                    {readOnlyMessage}
-                  </Text>
-                </Flex>
               ) : (
                 <Box className="relative border-gray-4 border-t">
                   <Box
@@ -551,6 +547,7 @@ export function SessionView({
                         onCancel={onCancelPrompt}
                         modeOption={modeOption}
                         onModeChange={modeOption ? handleModeChange : undefined}
+                        isActiveSession={isActiveSession}
                       />
                     </Box>
                   </Box>

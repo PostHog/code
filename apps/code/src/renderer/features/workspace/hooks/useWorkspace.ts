@@ -87,19 +87,6 @@ export function useDeleteWorkspace(): { isPending: boolean } {
   return { isPending: mutation.isPending };
 }
 
-export function useRunStartScripts(): {
-  mutateAsync: (input: {
-    taskId: string;
-    worktreePath: string;
-    worktreeName: string;
-  }) => Promise<{ success: boolean; terminalSessionIds: string[] }>;
-  isPending: boolean;
-} {
-  const trpcReact = useTRPC();
-  const mutation = useMutation(trpcReact.workspace.runStart.mutationOptions());
-  return { mutateAsync: mutation.mutateAsync, isPending: mutation.isPending };
-}
-
 export function useEnsureWorkspace(): {
   ensureWorkspace: (
     taskId: string,

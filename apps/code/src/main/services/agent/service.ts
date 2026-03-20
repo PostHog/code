@@ -623,8 +623,11 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         return existing;
       }
 
-      // Kill any lingering processes from previous runs of this task
-      this.processTracking.killByTaskId(taskId);
+      for (const proc of this.processTracking.getByTaskId(taskId)) {
+        if (proc.category === "agent" || proc.category === "child") {
+          this.processTracking.kill(proc.pid);
+        }
+      }
 
       // Clean up any prior session for this taskRunId before creating a new one
       await this.cleanupSession(taskRunId);

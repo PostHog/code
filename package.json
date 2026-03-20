@@ -11,6 +11,7 @@
     "setup": "bash apps/code/bin/setup",
     "prepare": "husky",
     "dev": "pnpm build:deps && mprocs",
+    "dev:ph": "pnpm build:deps && bash scripts/ensure-phrocs.sh && bin/phrocs --config mprocs.yaml",
     "dev:agent": "pnpm --filter agent dev",
     "dev:git": "pnpm --filter @posthog/git dev",
     "dev:code": "pnpm --filter code start",
@@ -27,7 +28,8 @@
     "format": "biome format --write",
     "clean": "pnpm -r clean",
     "knip": "knip",
-    "skills:pull": "node scripts/pull-skills.mjs"
+    "skills:pull": "node scripts/pull-skills.mjs",
+    "update:phrocs": "rm -f bin/phrocs && bash scripts/ensure-phrocs.sh"
   },
   "keywords": [
     "posthog",
