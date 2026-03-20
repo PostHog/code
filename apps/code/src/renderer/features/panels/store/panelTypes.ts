@@ -33,11 +33,17 @@ export type TabData =
       status: GitFileStatus;
     }
   | {
+      type: "action";
+      actionId: string;
+      command: string;
+      cwd: string;
+      label: string;
+    }
+  | {
       type: "logs";
     }
   | {
       type: "other";
-      // Generic tab without specific data
     };
 
 export type Tab = {
