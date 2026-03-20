@@ -133,6 +133,7 @@ interface MessageEditorProps {
   onModeChange?: () => void;
   onFocus?: () => void;
   onBlur?: () => void;
+  isActiveSession?: boolean;
 }
 
 export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
@@ -150,6 +151,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
       onModeChange,
       onFocus,
       onBlur,
+      isActiveSession = true,
     },
     ref,
   ) => {
@@ -235,6 +237,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
       "escape",
       (e) => {
         if (hasOpenOverlay()) return;
+        if (!isActiveSession) return;
         if (isLoading && onCancel) {
           e.preventDefault();
           onCancel();
@@ -245,7 +248,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
         enableOnContentEditable: true,
         enabled: isLoading && !!onCancel,
       },
-      [isLoading, onCancel],
+      [isActiveSession, isLoading, onCancel],
     );
 
     const handleContainerClick = (e: React.MouseEvent) => {

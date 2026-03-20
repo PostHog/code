@@ -60,6 +60,7 @@ interface SessionViewProps {
   isInitializing?: boolean;
   slackThreadUrl?: string;
   compact?: boolean;
+  isActiveSession?: boolean;
 }
 
 const DEFAULT_ERROR_MESSAGE =
@@ -88,6 +89,7 @@ export function SessionView({
   isInitializing = false,
   slackThreadUrl,
   compact = false,
+  isActiveSession = true,
 }: SessionViewProps) {
   const showRawLogs = useShowRawLogs();
   const { setShowRawLogs } = useSessionViewActions();
@@ -161,9 +163,16 @@ export function SessionView({
     {
       enableOnFormTags: true,
       enableOnContentEditable: true,
-      enabled: isRunning && !!modeOption,
+      enabled: isRunning && !!modeOption && isActiveSession,
     },
-    [taskId, currentModeId, isRunning, modeOption, allowBypassPermissions],
+    [
+      taskId,
+      currentModeId,
+      isRunning,
+      modeOption,
+      allowBypassPermissions,
+      isActiveSession,
+    ],
   );
 
   const latestPlan = useMemo((): Plan | null => {
@@ -352,7 +361,7 @@ export function SessionView({
     editorRef.current?.focus();
   }, []);
 
-  useAutoFocusOnTyping(editorRef);
+  useAutoFocusOnTyping(editorRef, !isActiveSession);
 
   return (
     <ContextMenu.Root>
@@ -538,6 +547,7 @@ export function SessionView({
                         onCancel={onCancelPrompt}
                         modeOption={modeOption}
                         onModeChange={modeOption ? handleModeChange : undefined}
+                        isActiveSession={isActiveSession}
                       />
                     </Box>
                   </Box>
