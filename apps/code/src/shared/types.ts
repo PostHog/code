@@ -129,7 +129,21 @@ export type SignalReportStatus =
   | "candidate"
   | "in_progress"
   | "ready"
-  | "failed";
+  | "failed"
+  | "pending_input"
+  | "suppressed"
+  | "deleted";
+
+/**
+ * One or more `SignalReportStatus` values joined by commas, e.g. `potential` or `potential,candidate,ready`.
+ * This looks horrendous but it's superb, trust me bro.
+ */
+export type CommaSeparatedSignalReportStatuses =
+  | SignalReportStatus
+  | `${SignalReportStatus},${SignalReportStatus}`
+  | `${SignalReportStatus},${SignalReportStatus},${SignalReportStatus}`
+  | `${SignalReportStatus},${SignalReportStatus},${SignalReportStatus},${SignalReportStatus}`
+  | `${SignalReportStatus},${SignalReportStatus},${SignalReportStatus},${SignalReportStatus},${SignalReportStatus}`;
 
 export interface SignalReport {
   id: string;
@@ -138,10 +152,13 @@ export interface SignalReport {
   status: SignalReportStatus;
   total_weight: number;
   signal_count: number;
+  signals_at_run?: number;
   relevant_user_count: number | null;
   created_at: string;
   updated_at: string;
   artefact_count: number;
+  /** P0–P4 from actionability judgment when the report is researched */
+  priority?: string | null;
 }
 
 export interface SignalReportArtefactContent {
@@ -214,6 +231,6 @@ export type SignalReportOrderingField =
 export interface SignalReportsQueryParams {
   limit?: number;
   offset?: number;
-  status?: SignalReportStatus;
+  status?: CommaSeparatedSignalReportStatuses;
   ordering?: `-${SignalReportOrderingField}` | SignalReportOrderingField;
 }

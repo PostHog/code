@@ -14,11 +14,14 @@ const REQUIRED_SCHEMAS: Record<DataSourceType, string[]> = {
   zendesk: ["tickets"],
 };
 
+/** PostHog DWH: full table replication (non-incremental); API enum value `full_refresh`. */
+const FULL_TABLE_REPLICATION = "full_refresh" as const;
+
 function schemasPayload(source: DataSourceType) {
   return REQUIRED_SCHEMAS[source].map((name) => ({
     name,
     should_sync: true,
-    sync_type: "full_refresh" as const,
+    sync_type: FULL_TABLE_REPLICATION,
   }));
 }
 
@@ -64,13 +67,20 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
   }, [repo, repositories]);
 
   const handleSubmit = useCallback(async () => {
-    if (!projectId || !client || !repo) return;
+    if (!projectId || !client || !repo || !githubIntegration) return;
 
     setLoading(true);
     try {
       await client.createExternalDataSource(projectId, {
         source_type: "Github",
-        payload: { repository: repo, schemas: schemasPayload("github") },
+        payload: {
+          repository: repo,
+          auth_method: {
+            selection: "oauth",
+            github_integration_id: githubIntegration.id,
+          },
+          schemas: schemasPayload("github"),
+        },
       });
       toast.success("GitHub data source created");
       onComplete();
@@ -81,7 +91,7 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
     } finally {
       setLoading(false);
     }
-  }, [projectId, client, repo, onComplete]);
+  }, [projectId, client, repo, githubIntegration, onComplete]);
 
   if (!githubIntegration) {
     return (

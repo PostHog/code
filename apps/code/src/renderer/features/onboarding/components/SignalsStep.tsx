@@ -4,6 +4,7 @@ import { useSignalSourceManager } from "@features/inbox/hooks/useSignalSourceMan
 import { ArrowLeft, ArrowRight } from "@phosphor-icons/react";
 import { Button, Flex, Text } from "@radix-ui/themes";
 import phWordmark from "@renderer/assets/images/wordmark.svg";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 
 interface SignalsStepProps {
@@ -12,6 +13,7 @@ interface SignalsStepProps {
 }
 
 export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
+  const queryClient = useQueryClient();
   const {
     displayValues,
     sourceStates,
@@ -29,6 +31,15 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
     displayValues.github ||
     displayValues.linear ||
     displayValues.zendesk;
+
+  const handleContinue = async (): Promise<void> => {
+    if (anyEnabled) {
+      await queryClient.invalidateQueries({
+        queryKey: ["inbox", "signal-reports"],
+      });
+    }
+    onNext();
+  };
 
   return (
     <Flex align="center" height="100%" px="8">
@@ -110,7 +121,11 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
               Back
             </Button>
             {anyEnabled ? (
-              <Button size="3" onClick={onNext} disabled={isLoading}>
+              <Button
+                size="3"
+                onClick={() => void handleContinue()}
+                disabled={isLoading}
+              >
                 <ArrowRight size={16} />
                 Continue
               </Button>

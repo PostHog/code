@@ -37,6 +37,8 @@ export interface ExternalDataSourceSchema {
   id: string;
   name: string;
   should_sync: boolean;
+  /** e.g. `full_refresh` (full table replication), `incremental`, `append` */
+  sync_type?: string | null;
 }
 
 export interface ExternalDataSource {
@@ -327,7 +329,7 @@ export class PostHogAPIClient {
   async updateExternalDataSchema(
     projectId: number,
     schemaId: string,
-    updates: { should_sync: boolean },
+    updates: { should_sync: boolean; sync_type?: string },
   ): Promise<void> {
     const urlPath = `/api/projects/${projectId}/external_data_schemas/${schemaId}/`;
     const url = new URL(`${this.api.baseUrl}${urlPath}`);

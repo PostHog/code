@@ -1,6 +1,10 @@
 import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
 import { useCommandCenterStore } from "@features/command-center/stores/commandCenterStore";
 import { useInboxReports } from "@features/inbox/hooks/useInboxReports";
+import {
+  INBOX_PIPELINE_STATUS_FILTER,
+  INBOX_REFETCH_INTERVAL_MS,
+} from "@features/inbox/utils/inboxConstants";
 import { getSessionService } from "@features/sessions/service/service";
 import { useArchiveTask } from "@features/tasks/hooks/useArchiveTask";
 import { useTasks, useUpdateTask } from "@features/tasks/hooks/useTasks";
@@ -9,6 +13,7 @@ import { useTaskContextMenu } from "@hooks/useTaskContextMenu";
 import { Box, Flex } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
+import { useRendererWindowFocusStore } from "@stores/rendererWindowFocusStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { memo, useCallback, useEffect, useRef } from "react";
@@ -44,9 +49,22 @@ function SidebarMenuComponent() {
   const sidebarData = useSidebarData({
     activeView: view,
   });
-  const { data: inboxSignals } = useInboxReports({ status: "ready" });
-  const inboxSignalCount =
-    inboxSignals?.count ?? inboxSignals?.results?.length ?? 0;
+  const inboxPollingActive = useRendererWindowFocusStore((s) => s.focused);
+  const { data: inboxProbe } = useInboxReports(
+    { status: INBOX_PIPELINE_STATUS_FILTER },
+    {
+      refetchInterval: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : false,
+      refetchIntervalInBackground: false,
+      staleTime: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : 15_000,
+    },
+  );
+  const inboxResults = inboxProbe?.results ?? [];
+  const inboxSignalCount = inboxResults.filter(
+    (r) => r.status === "ready",
+  ).length;
+  const inboxPipelineActive = inboxResults.some(
+    (r) => r.status === "in_progress",
+  );
 
   const commandCenterCells = useCommandCenterStore((s) => s.cells);
   const commandCenterActiveCount = commandCenterCells.filter(
@@ -191,6 +209,7 @@ function SidebarMenuComponent() {
               isActive={sidebarData.isInboxActive}
               onClick={handleInboxClick}
               signalCount={inboxSignalCount}
+              pipelineActive={inboxPipelineActive}
             />
           </Box>
 

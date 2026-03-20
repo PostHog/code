@@ -1,5 +1,7 @@
 import "reflect-metadata";
 import "@radix-ui/themes/styles.css";
+// Side effect: attaches window focus/visibility listeners so `focused` is accurate before inbox queries mount.
+import "@stores/rendererWindowFocusStore";
 import { Providers } from "@components/Providers";
 import App from "@renderer/App";
 import { logger } from "@utils/logger";

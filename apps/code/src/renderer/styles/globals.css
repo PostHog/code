@@ -865,3 +865,57 @@ button,
   display: block !important;
   width: 100% !important;
 }
+
+/* Inbox live-rail scan line */
+@keyframes inboxLiveRailSweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(420%);
+  }
+}
+
+/* Inbox toolbar polling indicator pulse */
+@keyframes inboxToolbarPulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Inbox warming-up ellipsis wave */
+@keyframes inboxEllipsisWave {
+  0%,
+  60%,
+  100% {
+    opacity: 0.12;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+
+.inbox-ellipsis-dot {
+  display: inline-block;
+  animation: inboxEllipsisWave 1.05s ease-in-out infinite;
+}
+
+.inbox-ellipsis-dot:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.inbox-ellipsis-dot:nth-child(2) {
+  animation-delay: 160ms;
+}
+
+.inbox-ellipsis-dot:nth-child(3) {
+  animation-delay: 320ms;
+}

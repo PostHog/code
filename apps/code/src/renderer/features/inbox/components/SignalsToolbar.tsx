@@ -14,6 +14,9 @@ interface SignalsToolbarProps {
   totalCount: number;
   filteredCount: number;
   isSearchActive: boolean;
+  livePolling?: boolean;
+  readyCount?: number;
+  processingCount?: number;
 }
 
 type SortOption = {
@@ -48,6 +51,9 @@ export function SignalsToolbar({
   totalCount,
   filteredCount,
   isSearchActive,
+  livePolling = false,
+  readyCount,
+  processingCount = 0,
 }: SignalsToolbarProps) {
   const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
   const setSearchQuery = useInboxSignalsFilterStore((s) => s.setSearchQuery);
@@ -59,6 +65,11 @@ export function SignalsToolbar({
     ? `${filteredCount} of ${totalCount}`
     : `${totalCount}`;
 
+  const pipelineHint =
+    readyCount != null && processingCount > 0
+      ? `${readyCount} ready · ${processingCount} in pipeline`
+      : null;
+
   return (
     <Flex
       direction="column"
@@ -68,9 +79,38 @@ export function SignalsToolbar({
       style={{ borderBottom: "1px solid var(--gray-5)" }}
     >
       <Flex align="center" justify="between" gap="2">
-        <Text size="1" color="gray" className="shrink-0 font-mono text-[11px]">
-          Signals ({countLabel})
-        </Text>
+        <Flex align="center" gap="2" className="min-w-0">
+          {livePolling ? (
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{
+                backgroundColor: "var(--amber-9)",
+                boxShadow: "0 0 10px var(--amber-9)",
+                animation: "inboxToolbarPulse 1.4s ease-in-out infinite",
+              }}
+              title="Watching for new and updated reports"
+              aria-hidden
+            />
+          ) : null}
+          <Flex direction="column" gap="0" className="min-w-0">
+            <Text
+              size="1"
+              color="gray"
+              className="shrink-0 font-mono text-[11px]"
+            >
+              Signals ({countLabel})
+            </Text>
+            {pipelineHint && !isSearchActive ? (
+              <Text
+                size="1"
+                color="gray"
+                className="font-mono text-[10px] opacity-80"
+              >
+                {pipelineHint}
+              </Text>
+            ) : null}
+          </Flex>
+        </Flex>
         <SortMenu
           sortField={sortField}
           sortDirection={sortDirection}

@@ -147,7 +147,27 @@ export function useSignalSourceManager() {
       const requiredSchema = source.schemas.find(
         (s) => s.name.toLowerCase() === dwConfig.requiredTable,
       );
-      if (requiredSchema && !requiredSchema.should_sync) {
+      if (!requiredSchema) return;
+
+      const issuesFullReplication =
+        (product === "github" || product === "linear") &&
+        dwConfig.requiredTable === "issues";
+
+      if (issuesFullReplication) {
+        const syncType = requiredSchema.sync_type;
+        const needsUpdate =
+          !requiredSchema.should_sync || syncType !== "full_refresh";
+
+        if (needsUpdate) {
+          await client.updateExternalDataSchema(projectId, requiredSchema.id, {
+            should_sync: true,
+            sync_type: "full_refresh",
+          });
+        }
+        return;
+      }
+
+      if (!requiredSchema.should_sync) {
         await client.updateExternalDataSchema(projectId, requiredSchema.id, {
           should_sync: true,
         });
@@ -201,6 +221,9 @@ export function useSignalSourceManager() {
     });
     await queryClient.invalidateQueries({
       queryKey: ["signals", "source-configs"],
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ["inbox", "signal-reports"],
     });
   }, [queryClient, setupSource, configs, createConfig, updateConfig]);
 
@@ -271,6 +294,9 @@ export function useSignalSourceManager() {
 
         await queryClient.invalidateQueries({
           queryKey: ["signals", "source-configs"],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["inbox", "signal-reports"],
         });
       } catch {
         toast.error("Failed to update signal sources. Please try again.");
