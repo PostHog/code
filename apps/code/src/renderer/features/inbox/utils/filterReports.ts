@@ -16,13 +16,13 @@ export function filterReportsBySearch(
 }
 
 /**
- * Comma-separated `ordering` for the signal report list API: stage (`pipeline`) then
- * the toolbar field (matches default inbox UX).
+ * Comma-separated `ordering` for the signal report list API: semantic `status` rank
+ * then the toolbar field (matches default inbox UX).
  */
 export function buildSignalReportListOrdering(
   field: SignalReportOrderingField,
   direction: "asc" | "desc",
 ): string {
   const secondary = direction === "desc" ? `-${field}` : field;
-  return `pipeline,${secondary}`;
+  return `status,${secondary}`;
 }

@@ -97,21 +97,21 @@ describe("filterReportsBySearch", () => {
 });
 
 describe("buildSignalReportListOrdering", () => {
-  it("puts pipeline first then descending field", () => {
+  it("puts status rank first then descending field", () => {
     expect(buildSignalReportListOrdering("total_weight", "desc")).toBe(
-      "pipeline,-total_weight",
+      "status,-total_weight",
     );
   });
 
-  it("puts pipeline first then ascending field", () => {
+  it("puts status rank first then ascending field", () => {
     expect(buildSignalReportListOrdering("created_at", "asc")).toBe(
-      "pipeline,created_at",
+      "status,created_at",
     );
   });
 
   it("works for signal_count", () => {
     expect(buildSignalReportListOrdering("signal_count", "desc")).toBe(
-      "pipeline,-signal_count",
+      "status,-signal_count",
     );
   });
 });

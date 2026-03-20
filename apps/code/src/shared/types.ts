@@ -236,9 +236,9 @@ export interface SignalReportsQueryParams {
   offset?: number;
   status?: CommaSeparatedSignalReportStatuses;
   /**
-   * Comma-separated sort keys (prefix `-` for descending). Use `pipeline` (or `stage`)
-   * for report stage rank; `signal_count`, `total_weight`, `created_at`, `updated_at`, `id`.
-   * Example: `pipeline,-total_weight`. Omit `pipeline` if you want a global sort only.
+   * Comma-separated sort keys (prefix `-` for descending). `status` is semantic stage
+   * rank (not lexicographic `status` column order). Also: `signal_count`, `total_weight`,
+   * `created_at`, `updated_at`, `id`. Example: `status,-total_weight`.
    */
   ordering?: string;
 }

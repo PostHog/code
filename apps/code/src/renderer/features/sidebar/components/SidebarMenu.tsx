@@ -62,9 +62,6 @@ function SidebarMenuComponent() {
   const inboxSignalCount = inboxResults.filter(
     (r) => r.status === "ready",
   ).length;
-  const inboxPipelineActive = inboxResults.some(
-    (r) => r.status === "in_progress",
-  );
 
   const commandCenterCells = useCommandCenterStore((s) => s.cells);
   const commandCenterActiveCount = commandCenterCells.filter(
@@ -209,7 +206,6 @@ function SidebarMenuComponent() {
               isActive={sidebarData.isInboxActive}
               onClick={handleInboxClick}
               signalCount={inboxSignalCount}
-              pipelineActive={inboxPipelineActive}
             />
           </Box>
 
