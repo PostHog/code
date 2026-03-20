@@ -1,15 +1,9 @@
+import type { SignalReportPriority } from "@shared/types";
 import type { ReactNode } from "react";
-
-const KNOWN_PRIORITIES = ["P0", "P1", "P2", "P3", "P4"] as const;
-type KnownPriority = (typeof KNOWN_PRIORITIES)[number];
-
-function isKnownPriority(value: string): value is KnownPriority {
-  return (KNOWN_PRIORITIES as readonly string[]).includes(value);
-}
 
 /** Matches `ReportCard` status chip: `rounded-sm px-1 py-px font-mono text-[9px] uppercase tracking-wider` + 1px border */
 const PRIORITY_CHIP_STYLE: Record<
-  KnownPriority,
+  SignalReportPriority,
   { color: string; backgroundColor: string; borderColor: string }
 > = {
   P0: {
@@ -40,13 +34,13 @@ const PRIORITY_CHIP_STYLE: Record<
 };
 
 interface SignalReportPriorityBadgeProps {
-  priority: string | null | undefined;
+  priority: SignalReportPriority | null | undefined;
 }
 
 export function SignalReportPriorityBadge({
   priority,
 }: SignalReportPriorityBadgeProps): ReactNode {
-  if (priority == null || priority === "" || !isKnownPriority(priority)) {
+  if (priority == null) {
     return null;
   }
 

@@ -1,6 +1,9 @@
 import type { SignalReport } from "@shared/types";
 import { describe, expect, it } from "vitest";
-import { buildOrdering, filterReportsBySearch } from "./filterReports";
+import {
+  buildSignalReportListOrdering,
+  filterReportsBySearch,
+} from "./filterReports";
 
 function makeReport(overrides: Partial<SignalReport> = {}): SignalReport {
   return {
@@ -93,16 +96,22 @@ describe("filterReportsBySearch", () => {
   });
 });
 
-describe("buildOrdering", () => {
-  it("returns descending with prefix", () => {
-    expect(buildOrdering("total_weight", "desc")).toBe("-total_weight");
+describe("buildSignalReportListOrdering", () => {
+  it("puts pipeline first then descending field", () => {
+    expect(buildSignalReportListOrdering("total_weight", "desc")).toBe(
+      "pipeline,-total_weight",
+    );
   });
 
-  it("returns ascending without prefix", () => {
-    expect(buildOrdering("created_at", "asc")).toBe("created_at");
+  it("puts pipeline first then ascending field", () => {
+    expect(buildSignalReportListOrdering("created_at", "asc")).toBe(
+      "pipeline,created_at",
+    );
   });
 
   it("works for signal_count", () => {
-    expect(buildOrdering("signal_count", "desc")).toBe("-signal_count");
+    expect(buildSignalReportListOrdering("signal_count", "desc")).toBe(
+      "pipeline,-signal_count",
+    );
   });
 });

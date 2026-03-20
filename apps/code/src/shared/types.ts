@@ -134,6 +134,9 @@ export type SignalReportStatus =
   | "suppressed"
   | "deleted";
 
+/** Actionability priority from the researched report (actionability judgment artefact). */
+export type SignalReportPriority = "P0" | "P1" | "P2" | "P3" | "P4";
+
 /**
  * One or more `SignalReportStatus` values joined by commas, e.g. `potential` or `potential,candidate,ready`.
  * This looks horrendous but it's superb, trust me bro.
@@ -158,7 +161,7 @@ export interface SignalReport {
   updated_at: string;
   artefact_count: number;
   /** P0–P4 from actionability judgment when the report is researched */
-  priority?: string | null;
+  priority?: SignalReportPriority | null;
 }
 
 export interface SignalReportArtefactContent {
@@ -232,5 +235,10 @@ export interface SignalReportsQueryParams {
   limit?: number;
   offset?: number;
   status?: CommaSeparatedSignalReportStatuses;
-  ordering?: `-${SignalReportOrderingField}` | SignalReportOrderingField;
+  /**
+   * Comma-separated sort keys (prefix `-` for descending). Use `pipeline` (or `stage`)
+   * for report stage rank; `signal_count`, `total_weight`, `created_at`, `updated_at`, `id`.
+   * Example: `pipeline,-total_weight`. Omit `pipeline` if you want a global sort only.
+   */
+  ordering?: string;
 }

@@ -10,15 +10,14 @@ import { useInboxCloudTaskStore } from "@features/inbox/stores/inboxCloudTaskSto
 import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsFilterStore";
 import { useInboxSignalsSidebarStore } from "@features/inbox/stores/inboxSignalsSidebarStore";
 import { buildSignalTaskPrompt } from "@features/inbox/utils/buildSignalTaskPrompt";
-import { filterReportsBySearch } from "@features/inbox/utils/filterReports";
+import {
+  buildSignalReportListOrdering,
+  filterReportsBySearch,
+} from "@features/inbox/utils/filterReports";
 import {
   INBOX_PIPELINE_STATUS_FILTER,
   INBOX_REFETCH_INTERVAL_MS,
 } from "@features/inbox/utils/inboxConstants";
-import {
-  isReportActionable,
-  sortInboxPipelineReports,
-} from "@features/inbox/utils/inboxSort";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
@@ -55,11 +54,6 @@ import { SignalCard } from "./SignalCard";
 import { SignalReportPriorityBadge } from "./SignalReportPriorityBadge";
 import { SignalReportSummaryMarkdown } from "./SignalReportSummaryMarkdown";
 import { SignalsToolbar } from "./SignalsToolbar";
-
-const INBOX_QUERY_PARAMS: SignalReportsQueryParams = {
-  status: INBOX_PIPELINE_STATUS_FILTER,
-  ordering: "-updated_at",
-};
 
 function getArtefactsUnavailableMessage(
   reason: SignalReportArtefactsResponse["unavailableReason"],
@@ -127,6 +121,14 @@ export function InboxSignalsTab() {
   const isInboxView = useNavigationStore((s) => s.view.type === "inbox");
   const inboxPollingActive = windowFocused && isInboxView;
 
+  const inboxQueryParams = useMemo(
+    (): SignalReportsQueryParams => ({
+      status: INBOX_PIPELINE_STATUS_FILTER,
+      ordering: buildSignalReportListOrdering(sortField, sortDirection),
+    }),
+    [sortField, sortDirection],
+  );
+
   const {
     allReports,
     totalCount,
@@ -137,15 +139,15 @@ export function InboxSignalsTab() {
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
-  } = useInboxReportsInfinite(INBOX_QUERY_PARAMS, {
+  } = useInboxReportsInfinite(inboxQueryParams, {
     refetchInterval: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : false,
     refetchIntervalInBackground: false,
     staleTime: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : 12_000,
   });
-  const reports = useMemo(() => {
-    const searched = filterReportsBySearch(allReports, searchQuery);
-    return sortInboxPipelineReports(searched, sortField, sortDirection);
-  }, [allReports, searchQuery, sortField, sortDirection]);
+  const reports = useMemo(
+    () => filterReportsBySearch(allReports, searchQuery),
+    [allReports, searchQuery],
+  );
 
   const readyCount = useMemo(
     () => allReports.filter((r) => r.status === "ready").length,
@@ -208,8 +210,7 @@ export function InboxSignalsTab() {
   });
   const signals = signalsQuery.data?.signals ?? [];
 
-  const canActOnReport =
-    !!selectedReport && isReportActionable(selectedReport.status);
+  const canActOnReport = !!selectedReport && selectedReport.status === "ready";
 
   const cloudRegion = useAuthStore((state) => state.cloudRegion);
   const projectId = useAuthStore((state) => state.projectId);
@@ -243,7 +244,7 @@ export function InboxSignalsTab() {
   }, [selectedReport, visibleArtefacts, signals, replayBaseUrl]);
 
   const handleCreateTask = () => {
-    if (!selectedReport || !isReportActionable(selectedReport.status)) {
+    if (!selectedReport || selectedReport.status !== "ready") {
       return;
     }
     const prompt = buildPrompt();
@@ -264,7 +265,7 @@ export function InboxSignalsTab() {
 
   const handleRunCloudTask = useCallback(async () => {
     const report = selectedReportRef.current;
-    if (!report || !isReportActionable(report.status)) {
+    if (!report || report.status !== "ready") {
       return;
     }
     const prompt = buildPrompt();
