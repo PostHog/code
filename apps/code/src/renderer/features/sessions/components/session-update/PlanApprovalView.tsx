@@ -40,7 +40,9 @@ export function PlanApprovalView({
 
   return (
     <Box className="my-3">
-      {showPlanContent && planText && <PlanContent plan={planText} />}
+      {showPlanContent && planText && (
+        <PlanContent id={toolCall.toolCallId} plan={planText} />
+      )}
 
       {showResult && (
         <Flex align="center" gap="2" className="px-1">
