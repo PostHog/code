@@ -8,9 +8,9 @@ import {
   Check,
   WarningCircle,
 } from "@phosphor-icons/react";
-import { Badge, Button, Callout, Flex, Spinner, Text } from "@radix-ui/themes";
+import { Badge, Button, Callout, Dialog, Flex, Spinner, Text } from "@radix-ui/themes";
 import codeLogo from "@renderer/assets/images/code.svg";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface BillingStepProps {
   onNext: () => void;
@@ -36,6 +36,7 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
   const selectPlan = useOnboardingStore((state) => state.selectPlan);
   const { isLoading, error, redirectUrl } = useSeat();
   const { provisionFreeSeat, upgradeToPro, clearError } = useSeatStore();
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
   useEffect(() => {
     if (!selectedPlan) {
@@ -50,10 +51,18 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
   const handleContinue = async () => {
     if (selectedPlan === "free") {
       await provisionFreeSeat();
+      const storeState = useSeatStore.getState();
+      if (!storeState.error) {
+        onNext();
+      }
     } else {
-      await upgradeToPro();
+      setShowUpgradeDialog(true);
     }
+  };
 
+  const handleConfirmUpgrade = async () => {
+    setShowUpgradeDialog(false);
+    await upgradeToPro();
     const storeState = useSeatStore.getState();
     if (!storeState.error) {
       onNext();
@@ -190,6 +199,40 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
             </Button>
           </Flex>
         </Flex>
+
+        <Dialog.Root open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
+          <Dialog.Content maxWidth="420px" size="2">
+            <Dialog.Title size="3">Upgrade to Pro</Dialog.Title>
+            <Dialog.Description size="2" color="gray">
+              You are about to subscribe to the Pro plan. Your organization will
+              be charged $200/month starting immediately.
+            </Dialog.Description>
+            <Flex direction="column" gap="2" mt="3">
+              <Flex align="center" gap="2">
+                <Check size={14} weight="bold" style={{ color: "var(--accent-9)" }} />
+                <Text size="2">Unlimited token usage</Text>
+              </Flex>
+              <Flex align="center" gap="2">
+                <Check size={14} weight="bold" style={{ color: "var(--accent-9)" }} />
+                <Text size="2">Local and cloud execution</Text>
+              </Flex>
+            </Flex>
+            <Flex justify="end" gap="3" mt="4">
+              <Dialog.Close>
+                <Button variant="soft" color="gray" size="2">
+                  Cancel
+                </Button>
+              </Dialog.Close>
+              <Button
+                size="2"
+                onClick={handleConfirmUpgrade}
+                disabled={isLoading}
+              >
+                {isLoading ? <Spinner size="1" /> : "Subscribe — $200/mo"}
+              </Button>
+            </Flex>
+          </Dialog.Content>
+        </Dialog.Root>
       </Flex>
     </Flex>
   );

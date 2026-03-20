@@ -1728,12 +1728,12 @@ export class PostHogAPIClient {
 
   async getMySeat(): Promise<SeatData | null> {
     try {
-      const url = new URL(`${this.api.baseUrl}/api/code/seats/me/`);
+      const url = new URL(`${this.api.baseUrl}/api/seats/me/`);
       url.searchParams.set("product_key", SEAT_PRODUCT_KEY);
       const response = await this.api.fetcher.fetch({
         method: "get",
         url,
-        path: "/api/code/seats/me/",
+        path: "/api/seats/me/",
       });
       return (await response.json()) as SeatData;
     } catch (error) {
@@ -1746,11 +1746,11 @@ export class PostHogAPIClient {
 
   async createSeat(planKey: string): Promise<SeatData> {
     try {
-      const url = new URL(`${this.api.baseUrl}/api/code/seats/`);
+      const url = new URL(`${this.api.baseUrl}/api/seats/`);
       const response = await this.api.fetcher.fetch({
         method: "post",
         url,
-        path: "/api/code/seats/",
+        path: "/api/seats/",
         overrides: {
           body: JSON.stringify({
             product_key: SEAT_PRODUCT_KEY,
@@ -1766,11 +1766,11 @@ export class PostHogAPIClient {
 
   async upgradeSeat(planKey: string): Promise<SeatData> {
     try {
-      const url = new URL(`${this.api.baseUrl}/api/code/seats/me/`);
+      const url = new URL(`${this.api.baseUrl}/api/seats/me/`);
       const response = await this.api.fetcher.fetch({
         method: "patch",
         url,
-        path: "/api/code/seats/me/",
+        path: "/api/seats/me/",
         overrides: {
           body: JSON.stringify({
             product_key: SEAT_PRODUCT_KEY,
@@ -1786,12 +1786,12 @@ export class PostHogAPIClient {
 
   async cancelSeat(): Promise<void> {
     try {
-      const url = new URL(`${this.api.baseUrl}/api/code/seats/me/`);
+      const url = new URL(`${this.api.baseUrl}/api/seats/me/`);
       url.searchParams.set("product_key", SEAT_PRODUCT_KEY);
       await this.api.fetcher.fetch({
         method: "delete",
         url,
-        path: "/api/code/seats/me/",
+        path: "/api/seats/me/",
       });
     } catch (error) {
       if (this.isFetcherStatusError(error, 204)) {
@@ -1803,11 +1803,11 @@ export class PostHogAPIClient {
 
   async reactivateSeat(): Promise<SeatData> {
     try {
-      const url = new URL(`${this.api.baseUrl}/api/code/seats/me/reactivate/`);
+      const url = new URL(`${this.api.baseUrl}/api/seats/me/reactivate/`);
       const response = await this.api.fetcher.fetch({
         method: "post",
         url,
-        path: "/api/code/seats/me/reactivate/",
+        path: "/api/seats/me/reactivate/",
         overrides: {
           body: JSON.stringify({ product_key: SEAT_PRODUCT_KEY }),
         },

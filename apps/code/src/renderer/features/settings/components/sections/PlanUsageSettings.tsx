@@ -2,17 +2,20 @@ import { useSeatStore } from "@features/billing/stores/seatStore";
 import { useSeat } from "@hooks/useSeat";
 import {
   ArrowSquareOut,
+  Check,
   CreditCard,
   WarningCircle,
 } from "@phosphor-icons/react";
 import {
   Button,
   Callout,
+  Dialog,
   Flex,
   Progress,
   Spinner,
   Text,
 } from "@radix-ui/themes";
+import { useState } from "react";
 import { getPostHogUrl } from "@shared/utils/urls";
 
 export function PlanUsageSettings() {
@@ -27,6 +30,7 @@ export function PlanUsageSettings() {
   } = useSeat();
   const { upgradeToPro, cancelSeat, reactivateSeat, clearError } =
     useSeatStore();
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
   const formattedActiveUntil = activeUntil
     ? activeUntil.toLocaleDateString(undefined, {
@@ -89,14 +93,14 @@ export function PlanUsageSettings() {
               name="Free"
               price="$0"
               period="/mo"
-              description="Limited usage"
+              features={["Limited usage", "Local execution only"]}
               isCurrent={!isPro}
             />
             <PlanCard
               name="Pro"
               price="$200"
               period="/mo"
-              description="Unlimited usage and cloud execution"
+              features={["Unlimited usage*", "Local and cloud execution"]}
               isCurrent={isPro}
               resetLabel={
                 isPro && isCanceling && formattedActiveUntil
@@ -133,7 +137,7 @@ export function PlanUsageSettings() {
                   <Button
                     size="1"
                     variant="solid"
-                    onClick={upgradeToPro}
+                    onClick={() => setShowUpgradeDialog(true)}
                     disabled={isLoading}
                     style={{ alignSelf: "flex-start" }}
                   >
@@ -281,6 +285,42 @@ export function PlanUsageSettings() {
           </Flex>
         </Flex>
       )}
+      <Dialog.Root open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
+        <Dialog.Content maxWidth="420px" size="2">
+          <Dialog.Title size="3">Upgrade to Pro</Dialog.Title>
+          <Dialog.Description size="2" color="gray">
+            You are about to subscribe to the Pro plan. Your organization will
+            be charged $200/month starting immediately.
+          </Dialog.Description>
+          <Flex direction="column" gap="2" mt="3">
+            <Flex align="center" gap="2">
+              <Check size={14} weight="bold" style={{ color: "var(--accent-9)" }} />
+              <Text size="2">Unlimited token usage</Text>
+            </Flex>
+            <Flex align="center" gap="2">
+              <Check size={14} weight="bold" style={{ color: "var(--accent-9)" }} />
+              <Text size="2">Local and cloud execution</Text>
+            </Flex>
+          </Flex>
+          <Flex justify="end" gap="3" mt="4">
+            <Dialog.Close>
+              <Button variant="soft" color="gray" size="2">
+                Cancel
+              </Button>
+            </Dialog.Close>
+            <Button
+              size="2"
+              onClick={async () => {
+                setShowUpgradeDialog(false);
+                await upgradeToPro();
+              }}
+              disabled={isLoading}
+            >
+              {isLoading ? <Spinner size="1" /> : "Subscribe — $200/mo"}
+            </Button>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
     </Flex>
   );
 }
@@ -289,7 +329,7 @@ interface PlanCardProps {
   name: string;
   price: string;
   period: string;
-  description: string;
+  features: string[];
   isCurrent: boolean;
   resetLabel?: string;
   action?: React.ReactNode;
@@ -299,7 +339,7 @@ function PlanCard({
   name,
   price,
   period,
-  description,
+  features,
   isCurrent,
   resetLabel,
   action,
@@ -319,37 +359,49 @@ function PlanCard({
         opacity: isCurrent ? 1 : 0.7,
       }}
     >
-      <Flex direction="column" gap="2">
-        <Text
-          size="1"
-          weight="medium"
-          style={{
-            color: isCurrent ? "var(--accent-9)" : "var(--gray-9)",
-            letterSpacing: "0.05em",
-          }}
-        >
-          {isCurrent ? "CURRENT PLAN" : name.toUpperCase()}
-        </Text>
-        <Flex align="baseline" gap="2">
-          <Text size="5" weight="bold">
-            {name}
+      <Flex direction="column" gap="3">
+        <Flex direction="column" gap="1">
+          <Text
+            size="1"
+            weight="medium"
+            style={{
+              color: isCurrent ? "var(--accent-9)" : "var(--gray-9)",
+              letterSpacing: "0.05em",
+            }}
+          >
+            {isCurrent ? "CURRENT PLAN" : name.toUpperCase()}
           </Text>
-          <Text size="3" style={{ color: "var(--gray-11)" }}>
-            {price}
-            <Text size="1" style={{ color: "var(--gray-9)" }}>
-              {period}
+          <Flex align="baseline" gap="2">
+            <Text size="5" weight="bold">
+              {name}
             </Text>
-          </Text>
+            <Text size="3" style={{ color: "var(--gray-11)" }}>
+              {price}
+              <Text size="1" style={{ color: "var(--gray-9)" }}>
+                {period}
+              </Text>
+            </Text>
+          </Flex>
+          {resetLabel && (
+            <Text size="1" style={{ color: "var(--gray-9)" }}>
+              {resetLabel}
+            </Text>
+          )}
         </Flex>
-        {resetLabel ? (
-          <Text size="1" style={{ color: "var(--gray-9)" }}>
-            {resetLabel}
-          </Text>
-        ) : (
-          <Text size="1" style={{ color: "var(--gray-9)" }}>
-            {description}
-          </Text>
-        )}
+        <Flex direction="column" gap="1">
+          {features.map((feature) => (
+            <Flex key={feature} align="center" gap="2">
+              <Check
+                size={14}
+                weight="bold"
+                style={{ color: "var(--accent-9)", flexShrink: 0 }}
+              />
+              <Text size="2" style={{ color: "var(--gray-11)" }}>
+                {feature}
+              </Text>
+            </Flex>
+          ))}
+        </Flex>
       </Flex>
       {action}
     </Flex>
