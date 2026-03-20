@@ -124,7 +124,11 @@ export const useSeatStore = create<SeatStore>()(
         set({ isLoading: true, error: null, redirectUrl: null });
         try {
           const client = getClient();
-          const seat = await client.getMySeat();
+          let seat = await client.getMySeat();
+          if (!seat) {
+            log.info("No seat found, auto-provisioning free plan");
+            seat = await client.createSeat(PLAN_FREE);
+          }
           set({ seat, isLoading: false });
         } catch (error) {
           handleSeatError(error, set);
