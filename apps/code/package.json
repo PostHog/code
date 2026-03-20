@@ -175,6 +175,7 @@
     "reflect-metadata": "^0.2.2",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
+    "smol-toml": "^1.6.0",
     "sonner": "^2.0.7",
     "striptags": "^3.2.0",
     "tippy.js": "^6.3.7",

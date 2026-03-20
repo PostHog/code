@@ -5,8 +5,8 @@ import { cloudTaskRouter } from "./routers/cloud-task";
 import { connectivityRouter } from "./routers/connectivity";
 import { contextMenuRouter } from "./routers/context-menu";
 import { deepLinkRouter } from "./routers/deep-link";
-
 import { encryptionRouter } from "./routers/encryption";
+import { environmentRouter } from "./routers/environment";
 import { externalAppsRouter } from "./routers/external-apps";
 import { fileWatcherRouter } from "./routers/file-watcher";
 import { focusRouter } from "./routers/focus";
@@ -40,6 +40,7 @@ export const trpcRouter = router({
   connectivity: connectivityRouter,
   contextMenu: contextMenuRouter,
 
+  environment: environmentRouter,
   encryption: encryptionRouter,
   externalApps: externalAppsRouter,
   fileWatcher: fileWatcherRouter,
