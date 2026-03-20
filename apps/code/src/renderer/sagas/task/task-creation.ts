@@ -1,4 +1,5 @@
 import { buildPromptBlocks } from "@features/editor/utils/prompt-builder";
+import { useProvisioningStore } from "@features/provisioning/stores/provisioningStore";
 import {
   type ConnectParams,
   getSessionService,
@@ -67,6 +68,7 @@ export interface TaskCreationInput {
   adapter?: "claude" | "codex";
   model?: string;
   reasoningLevel?: string;
+  environmentId?: string;
 }
 
 export interface TaskCreationOutput {
@@ -76,6 +78,7 @@ export interface TaskCreationOutput {
 
 export interface TaskCreationDeps {
   posthogClient: PostHogAPIClient;
+  onTaskReady?: (output: TaskCreationOutput) => void;
 }
 
 export class TaskCreationSaga extends Saga<
@@ -136,9 +139,17 @@ export class TaskCreationSaga extends Saga<
     // Step 4: Create workspace if we have a directory
     let workspace: Workspace | null = null;
     const branch = input.branch ?? task.latest_run?.branch ?? null;
+    const hasProvisioning =
+      workspaceMode === "worktree" && !!repoPath && !input.taskId;
+
+    if (hasProvisioning) {
+      useProvisioningStore.getState().setActive(task.id);
+      if (this.deps.onTaskReady) {
+        this.deps.onTaskReady({ task, workspace });
+      }
+    }
 
     if (repoPath) {
-      // Use the pre-fetched folder if we started it in parallel, otherwise fetch now
       const folder = folderPromise
         ? await this.readOnlyStep("folder_registration", () => folderPromise)
         : await this.readOnlyStep("folder_registration", () =>
@@ -215,6 +226,14 @@ export class TaskCreationSaga extends Saga<
       };
     }
 
+    if (!hasProvisioning && this.deps.onTaskReady) {
+      this.deps.onTaskReady({ task, workspace });
+    }
+
+    if (hasProvisioning) {
+      useProvisioningStore.getState().clear(task.id);
+    }
+
     // Step 5: Start cloud run (only for new cloud tasks)
     if (workspaceMode === "cloud" && !task.latest_run) {
       await this.step({
@@ -226,7 +245,7 @@ export class TaskCreationSaga extends Saga<
       });
     }
 
-    // Step 6: Connect to session
+    // Step 7: Connect to session
     // Cloud create: skip local session — the sandbox handles execution
     const agentCwd =
       workspace?.worktreePath ?? workspace?.folderPath ?? repoPath;

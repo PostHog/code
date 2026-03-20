@@ -28,6 +28,7 @@ import type { FileWatcherService } from "../file-watcher/service";
 import type { FocusService } from "../focus/service";
 import { FocusServiceEvent } from "../focus/service";
 import type { ProcessTrackingService } from "../process-tracking/service";
+import type { ProvisioningService } from "../provisioning/service";
 import { getWorktreeLocation } from "../settingsStore";
 import type { SuspensionService } from "../suspension/service.js";
 import type {
@@ -127,6 +128,9 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
 
   @inject(MAIN_TOKENS.SuspensionService)
   private suspensionService!: SuspensionService;
+
+  @inject(MAIN_TOKENS.ProvisioningService)
+  private provisioningService!: ProvisioningService;
 
   private creatingWorkspaces = new Map<string, Promise<WorkspaceInfo>>();
   private branchWatcherInitialized = false;
@@ -448,12 +452,17 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       const selectedBranch = branch ?? defaultBranch;
       const isTrunkSelected = selectedBranch === defaultBranch;
 
+      const onOutput = (data: string) => {
+        this.provisioningService.emitOutput(taskId, data);
+      };
+
       if (isTrunkSelected) {
         log.info(
           `Trunk branch selected (${defaultBranch}), creating detached worktree`,
         );
         worktree = await worktreeManager.createWorktree({
           baseBranch: defaultBranch,
+          onOutput,
         });
         log.info(
           `Created detached worktree from trunk: ${worktree.worktreeName} at ${worktree.worktreePath}`,
@@ -463,10 +472,11 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
           `Non-trunk branch selected (${selectedBranch}), attempting checkout`,
         );
         try {
-          worktree =
-            await worktreeManager.createWorktreeForExistingBranch(
-              selectedBranch,
-            );
+          worktree = await worktreeManager.createWorktreeForExistingBranch(
+            selectedBranch,
+            undefined,
+            { onOutput },
+          );
           log.info(
             `Created worktree with branch checkout: ${worktree.worktreeName} at ${worktree.worktreePath} (branch: ${selectedBranch})`,
           );
@@ -481,6 +491,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
             );
             worktree = await worktreeManager.createWorktree({
               baseBranch: selectedBranch,
+              onOutput,
             });
             log.info(
               `Created detached worktree from occupied branch: ${worktree.worktreeName} at ${worktree.worktreePath}`,

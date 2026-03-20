@@ -45,6 +45,8 @@ export function TaskInput() {
     lastUsedAdapter,
     setLastUsedAdapter,
     allowBypassPermissions,
+    setLastUsedEnvironment,
+    getLastUsedEnvironment,
   } = useSettingsStore();
 
   const editorRef = useRef<MessageEditorHandle>(null);
@@ -54,9 +56,9 @@ export function TaskInput() {
   const [editorIsEmpty, setEditorIsEmpty] = useState(true);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
-  const [selectedEnvironment, setSelectedEnvironment] = useState<string | null>(
-    null,
-  );
+  const [selectedEnvironment, setSelectedEnvironmentRaw] = useState<
+    string | null
+  >(null);
 
   const [selectedDirectory, setSelectedDirectory] = useState("");
   const workspaceMode = lastUsedWorkspaceMode || "local";
@@ -111,9 +113,24 @@ export function TaskInput() {
   const effectiveRepoPath =
     workspaceMode === "cloud" ? selectedRepository : selectedDirectory;
 
+  const setSelectedEnvironment = useCallback(
+    (envId: string | null) => {
+      setSelectedEnvironmentRaw(envId);
+      if (effectiveRepoPath) {
+        setLastUsedEnvironment(effectiveRepoPath, envId);
+      }
+    },
+    [effectiveRepoPath, setLastUsedEnvironment],
+  );
+
   useEffect(() => {
-    setSelectedEnvironment(null);
-  }, []);
+    setSelectedBranch(null);
+    if (effectiveRepoPath) {
+      setSelectedEnvironmentRaw(getLastUsedEnvironment(effectiveRepoPath));
+    } else {
+      setSelectedEnvironmentRaw(null);
+    }
+  }, [effectiveRepoPath, getLastUsedEnvironment]);
 
   const effectiveWorkspaceMode = workspaceMode;
 
@@ -142,6 +159,7 @@ export function TaskInput() {
     executionMode: currentExecutionMode,
     model: currentModel,
     reasoningLevel: currentReasoningLevel,
+    environmentId: selectedEnvironment,
   });
 
   const handleCycleMode = useCallback(() => {
@@ -332,12 +350,14 @@ export function TaskInput() {
               cloudBranches={cloudBranches}
               cloudBranchesLoading={cloudBranchesLoading}
             />
-            <EnvironmentSelector
-              repoPath={effectiveRepoPath ?? null}
-              value={selectedEnvironment}
-              onChange={setSelectedEnvironment}
-              disabled={isCreatingTask}
-            />
+            {workspaceMode === "worktree" && (
+              <EnvironmentSelector
+                repoPath={effectiveRepoPath ?? null}
+                value={selectedEnvironment}
+                onChange={setSelectedEnvironment}
+                disabled={isCreatingTask}
+              />
+            )}
           </Flex>
 
           <TaskInputEditor

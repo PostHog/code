@@ -32,8 +32,10 @@ export function EnvironmentSelector({
   const selectedEnvironment = environments.find((env) => env.id === value);
   const displayText = selectedEnvironment?.name ?? "No environment";
 
+  const NONE_VALUE = "__none__";
+
   const handleChange = (newValue: string) => {
-    onChange(newValue || null);
+    onChange(newValue === NONE_VALUE ? null : newValue || null);
     setOpen(false);
   };
 
@@ -70,6 +72,9 @@ export function EnvironmentSelector({
           <Combobox.Empty>No environments found.</Combobox.Empty>
 
           <Combobox.Group heading="Environments">
+            <Combobox.Item key={NONE_VALUE} value={NONE_VALUE}>
+              No environment
+            </Combobox.Item>
             {environments.map((env) => (
               <Combobox.Item
                 key={env.id}

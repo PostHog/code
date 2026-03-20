@@ -11,6 +11,7 @@ export const worktreeInfoSchema = z.object({
   branchName: z.string().nullable(),
   baseBranch: z.string(),
   createdAt: z.string(),
+  output: z.string().optional(),
 });
 
 export const workspaceInfoSchema = z.object({
