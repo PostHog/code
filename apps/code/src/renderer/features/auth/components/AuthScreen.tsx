@@ -9,7 +9,6 @@ import { Callout, Flex, Spinner, Text, Theme } from "@radix-ui/themes";
 import codeLogo from "@renderer/assets/images/code.svg";
 import logomark from "@renderer/assets/images/logomark.svg";
 import { trpcClient } from "@renderer/trpc/client";
-import { REGION_LABELS } from "@shared/types/regions";
 import type { CloudRegion } from "@shared/types/regions";
 import { RegionSelect } from "./RegionSelect";
 

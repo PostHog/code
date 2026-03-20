@@ -1,9 +1,9 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
-import { getPostHogUrl } from "@shared/utils/urls";
 import type { SeatData } from "@shared/types/seat";
 import { PLAN_FREE, PLAN_PRO } from "@shared/types/seat";
 import { electronStorage } from "@utils/electronStorage";
 import { logger } from "@utils/logger";
+import { getPostHogUrl } from "@utils/urls";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 

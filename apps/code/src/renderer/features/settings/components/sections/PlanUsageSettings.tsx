@@ -15,8 +15,8 @@ import {
   Spinner,
   Text,
 } from "@radix-ui/themes";
+import { getPostHogUrl } from "@utils/urls";
 import { useState } from "react";
-import { getPostHogUrl } from "@shared/utils/urls";
 
 export function PlanUsageSettings() {
   const {
@@ -294,11 +294,19 @@ export function PlanUsageSettings() {
           </Dialog.Description>
           <Flex direction="column" gap="2" mt="3">
             <Flex align="center" gap="2">
-              <Check size={14} weight="bold" style={{ color: "var(--accent-9)" }} />
+              <Check
+                size={14}
+                weight="bold"
+                style={{ color: "var(--accent-9)" }}
+              />
               <Text size="2">Unlimited token usage</Text>
             </Flex>
             <Flex align="center" gap="2">
-              <Check size={14} weight="bold" style={{ color: "var(--accent-9)" }} />
+              <Check
+                size={14}
+                weight="bold"
+                style={{ color: "var(--accent-9)" }}
+              />
               <Text size="2">Local and cloud execution</Text>
             </Flex>
           </Flex>

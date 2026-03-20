@@ -8,7 +8,15 @@ import {
   Check,
   WarningCircle,
 } from "@phosphor-icons/react";
-import { Badge, Button, Callout, Dialog, Flex, Spinner, Text } from "@radix-ui/themes";
+import {
+  Badge,
+  Button,
+  Callout,
+  Dialog,
+  Flex,
+  Spinner,
+  Text,
+} from "@radix-ui/themes";
 import codeLogo from "@renderer/assets/images/code.svg";
 import { useEffect, useState } from "react";
 
@@ -200,7 +208,10 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
           </Flex>
         </Flex>
 
-        <Dialog.Root open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
+        <Dialog.Root
+          open={showUpgradeDialog}
+          onOpenChange={setShowUpgradeDialog}
+        >
           <Dialog.Content maxWidth="420px" size="2">
             <Dialog.Title size="3">Upgrade to Pro</Dialog.Title>
             <Dialog.Description size="2" color="gray">
@@ -209,11 +220,19 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
             </Dialog.Description>
             <Flex direction="column" gap="2" mt="3">
               <Flex align="center" gap="2">
-                <Check size={14} weight="bold" style={{ color: "var(--accent-9)" }} />
+                <Check
+                  size={14}
+                  weight="bold"
+                  style={{ color: "var(--accent-9)" }}
+                />
                 <Text size="2">Unlimited token usage</Text>
               </Flex>
               <Flex align="center" gap="2">
-                <Check size={14} weight="bold" style={{ color: "var(--accent-9)" }} />
+                <Check
+                  size={14}
+                  weight="bold"
+                  style={{ color: "var(--accent-9)" }}
+                />
                 <Text size="2">Local and cloud execution</Text>
               </Flex>
             </Flex>

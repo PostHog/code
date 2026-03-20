@@ -19,13 +19,13 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { useTRPC } from "@renderer/trpc";
-import { getPostHogUrl } from "@shared/utils/urls";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { ThemePreference } from "@stores/themeStore";
 import { useThemeStore } from "@stores/themeStore";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { track } from "@utils/analytics";
 import { playCompletionSound } from "@utils/sounds";
+import { getPostHogUrl } from "@utils/urls";
 import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
 
