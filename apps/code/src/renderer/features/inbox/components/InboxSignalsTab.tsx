@@ -449,7 +449,9 @@ export function InboxSignalsTab() {
                   variant="detail"
                 />
                 <Flex align="center" gap="2" wrap="wrap">
-                  <SignalReportPriorityBadge priority={selectedReport.priority} />
+                  <SignalReportPriorityBadge
+                    priority={selectedReport.priority}
+                  />
                   <Badge variant="soft" color="gray" size="1">
                     {selectedReport.signal_count} occurrences
                   </Badge>

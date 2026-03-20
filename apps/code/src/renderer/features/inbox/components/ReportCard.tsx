@@ -101,25 +101,26 @@ export function ReportCard({
               {report.title ?? "Untitled signal"}
             </Text>
             <Flex align="center" gapX="2" wrap="wrap">
-            <span
-              className="shrink-0 rounded-sm px-1 py-px font-mono text-[9px] uppercase tracking-wider"
-              style={{
-                color: accent,
-                backgroundColor: isReady ? "var(--green-3)" : "var(--gray-3)",
-                border: `1px solid ${isReady ? "var(--green-6)" : "var(--gray-6)"}`,
-              }}
-            >
-              {statusLabel}
-            </span>
-            <SignalReportPriorityBadge priority={report.priority} />
+              <span
+                className="shrink-0 rounded-sm px-1 py-px font-mono text-[9px] uppercase tracking-wider"
+                style={{
+                  color: accent,
+                  backgroundColor: isReady ? "var(--green-3)" : "var(--gray-3)",
+                  border: `1px solid ${isReady ? "var(--green-6)" : "var(--gray-6)"}`,
+                }}
+              >
+                {statusLabel}
+              </span>
+              <SignalReportPriorityBadge priority={report.priority} />
+            </Flex>
+            <div style={{ opacity: isReady ? 1 : 0.82 }}>
+              <SignalReportSummaryMarkdown
+                content={report.summary}
+                fallback="No summary yet — still collecting context."
+                variant="list"
+              />
+            </div>
           </Flex>
-          <div style={{ opacity: isReady ? 1 : 0.82 }}>
-            <SignalReportSummaryMarkdown
-              content={report.summary}
-              fallback="No summary yet — still collecting context."
-              variant="list"
-            />
-          </div></Flex>
         </Flex>
         <Flex direction="column" align="end" gap="1" className="shrink-0">
           <Text size="1" color="gray" className="font-mono text-[11px]">
