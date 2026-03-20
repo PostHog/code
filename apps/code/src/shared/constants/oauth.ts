@@ -1,4 +1,4 @@
-import type { CloudRegion } from "../types/oauth";
+import type { CloudRegion } from "@shared/types/regions";
 
 export const POSTHOG_US_CLIENT_ID = "HCWoE0aRFMYxIxFNTTwkOORn5LBjOt2GVDzwSw5W";
 export const POSTHOG_EU_CLIENT_ID = "AIvijgMS0dxKEmr5z6odvRd8Pkh5vts3nPTzgzU9";
@@ -8,12 +8,6 @@ export const POSTHOG_DEV_CLIENT_ID = "DC5uRLVbGI02YQ82grxgnK6Qn12SXWpCqdPb60oZ";
 export const OAUTH_SCOPES = ["*"];
 
 export const OAUTH_SCOPE_VERSION = 4;
-
-export const REGION_LABELS: Record<CloudRegion, string> = {
-  us: "🇺🇸 US Cloud",
-  eu: "🇪🇺 EU Cloud",
-  dev: "🛠️ Development",
-};
 
 // Token refresh settings
 export const TOKEN_REFRESH_BUFFER_MS = 30 * 60 * 1000; // 30 minutes before expiry

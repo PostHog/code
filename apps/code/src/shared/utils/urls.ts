@@ -1,5 +1,5 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
-import type { CloudRegion } from "@shared/types/oauth";
+import type { CloudRegion } from "@shared/types/regions";
 
 export function getCloudUrlFromRegion(region: CloudRegion): string {
   switch (region) {

@@ -7,7 +7,7 @@ import {
 import { useSeat } from "@hooks/useSeat";
 import { SignOut } from "@phosphor-icons/react";
 import { Avatar, Badge, Button, Flex, Spinner, Text } from "@radix-ui/themes";
-import { REGION_LABELS } from "@shared/constants/oauth";
+import { REGION_LABELS } from "@shared/types/regions";
 
 export function AccountSettings() {
   const isAuthenticated = useAuthStateValue(

@@ -3,7 +3,7 @@ import { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { trpcClient } from "@renderer/trpc/client";
 import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
-import type { CloudRegion } from "@shared/types/oauth";
+import type { CloudRegion } from "@shared/types/regions";
 import { useNavigationStore } from "@stores/navigationStore";
 import { identifyUser, resetUser, track } from "@utils/analytics";
 import { logger } from "@utils/logger";
