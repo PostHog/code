@@ -32,11 +32,13 @@ interface PlanFeature {
 const FREE_FEATURES: PlanFeature[] = [
   { text: "Limited usage" },
   { text: "Local execution only" },
+  { text: "All Claude and Codex models" },
 ];
 
 const PRO_FEATURES: PlanFeature[] = [
   { text: "Unlimited usage*" },
   { text: "Local and cloud execution" },
+  { text: "All Claude and Codex models" },
 ];
 
 export function BillingStep({ onNext, onBack }: BillingStepProps) {
@@ -234,6 +236,14 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
                   style={{ color: "var(--accent-9)" }}
                 />
                 <Text size="2">Local and cloud execution</Text>
+              </Flex>
+              <Flex align="center" gap="2">
+                <Check
+                  size={14}
+                  weight="bold"
+                  style={{ color: "var(--accent-9)" }}
+                />
+                <Text size="2">All Claude and Codex models</Text>
               </Flex>
             </Flex>
             <Flex justify="end" gap="3" mt="4">

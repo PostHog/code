@@ -93,14 +93,22 @@ export function PlanUsageSettings() {
               name="Free"
               price="$0"
               period="/mo"
-              features={["Limited usage", "Local execution only"]}
+              features={[
+                "Limited usage",
+                "Local execution only",
+                "All Claude and Codex models",
+              ]}
               isCurrent={!isPro}
             />
             <PlanCard
               name="Pro"
               price="$200"
               period="/mo"
-              features={["Unlimited usage*", "Local and cloud execution"]}
+              features={[
+                "Unlimited usage*",
+                "Local and cloud execution",
+                "All Claude and Codex models",
+              ]}
               isCurrent={isPro}
               resetLabel={
                 isPro && isCanceling && formattedActiveUntil
@@ -308,6 +316,14 @@ export function PlanUsageSettings() {
                 style={{ color: "var(--accent-9)" }}
               />
               <Text size="2">Local and cloud execution</Text>
+            </Flex>
+            <Flex align="center" gap="2">
+              <Check
+                size={14}
+                weight="bold"
+                style={{ color: "var(--accent-9)" }}
+              />
+              <Text size="2">All Claude and Codex models</Text>
             </Flex>
           </Flex>
           <Flex justify="end" gap="3" mt="4">
