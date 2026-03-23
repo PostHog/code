@@ -142,6 +142,28 @@ export interface SettingChangedProperties {
   old_value?: string | boolean | number;
 }
 
+// Terminal events
+export interface TerminalOpenedProperties {
+  task_id: string;
+}
+
+// File tree events
+export interface FileTreeToggledProperties {
+  task_id: string;
+  visible: boolean;
+}
+
+// Session fork/resume events
+export interface SessionForkedProperties {
+  task_id: string;
+  original_session_id: string;
+}
+
+export interface SessionResumedProperties {
+  task_id: string;
+  original_session_id: string;
+}
+
 // Error events
 export interface TaskCreationFailedProperties {
   error_type: string;
@@ -240,6 +262,16 @@ export const ANALYTICS_EVENTS = {
   // Feedback events
   TASK_FEEDBACK: "Task feedback",
 
+  // Terminal events
+  TERMINAL_OPENED: "Terminal opened",
+
+  // File tree events
+  FILE_TREE_TOGGLED: "File tree toggled",
+
+  // Session fork/resume events
+  SESSION_FORKED: "Session forked",
+  SESSION_RESUMED: "Session resumed",
+
   // Error events
   TASK_CREATION_FAILED: "Task creation failed",
   AGENT_SESSION_ERROR: "Agent session error",
@@ -292,6 +324,16 @@ export type EventPropertyMap = {
 
   // Feedback events
   [ANALYTICS_EVENTS.TASK_FEEDBACK]: TaskFeedbackProperties;
+
+  // Terminal events
+  [ANALYTICS_EVENTS.TERMINAL_OPENED]: TerminalOpenedProperties;
+
+  // File tree events
+  [ANALYTICS_EVENTS.FILE_TREE_TOGGLED]: FileTreeToggledProperties;
+
+  // Session fork/resume events
+  [ANALYTICS_EVENTS.SESSION_FORKED]: SessionForkedProperties;
+  [ANALYTICS_EVENTS.SESSION_RESUMED]: SessionResumedProperties;
 
   // Error events
   [ANALYTICS_EVENTS.TASK_CREATION_FAILED]: TaskCreationFailedProperties;

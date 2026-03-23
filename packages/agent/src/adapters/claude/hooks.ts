@@ -1,4 +1,5 @@
 import type { HookCallback, HookInput } from "@anthropic-ai/claude-agent-sdk";
+import { trackEvent } from "../../analytics";
 import type { Logger } from "../../utils/logger";
 import type { SettingsManager } from "./session/settings";
 import type { CodeExecutionMode } from "./tools";
@@ -93,6 +94,10 @@ export const createPreToolUseHook =
 
     switch (permissionCheck.decision) {
       case "allow":
+        trackEvent("Permission auto allowed", {
+          tool_name: toolName,
+          rule: permissionCheck.rule,
+        });
         return {
           continue: true,
           hookSpecificOutput: {
@@ -102,6 +107,10 @@ export const createPreToolUseHook =
           },
         };
       case "deny":
+        trackEvent("Permission auto denied", {
+          tool_name: toolName,
+          rule: permissionCheck.rule,
+        });
         return {
           continue: true,
           hookSpecificOutput: {

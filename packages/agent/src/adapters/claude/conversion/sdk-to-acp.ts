@@ -17,6 +17,7 @@ import type {
   BetaContentBlock,
   BetaRawContentBlockDelta,
 } from "@anthropic-ai/sdk/resources/beta.mjs";
+import { trackEvent } from "../../../analytics";
 import { image, text } from "../../../utils/acp-content";
 import { unreachable } from "../../../utils/common";
 import type { Logger } from "../../../utils/logger";
@@ -69,6 +70,31 @@ export interface MessageHandlerContext {
   logger: Logger;
   registerHooks?: boolean;
   supportsTerminalOutput?: boolean;
+}
+
+const TOOL_KINDS: Record<string, string> = {
+  Read: "read",
+  NotebookRead: "read",
+  Edit: "edit",
+  Write: "edit",
+  NotebookEdit: "edit",
+  MultiEdit: "edit",
+  Bash: "execute",
+  BashOutput: "execute",
+  KillShell: "execute",
+  Glob: "search",
+  Grep: "search",
+  LS: "search",
+  WebFetch: "fetch",
+  WebSearch: "fetch",
+  Task: "think",
+  Agent: "think",
+  TodoWrite: "think",
+  ExitPlanMode: "switch_mode",
+};
+
+function toolKindFromName(name: string): string {
+  return TOOL_KINDS[name] ?? "other";
 }
 
 function messageUpdateType(role: Role) {
@@ -155,6 +181,15 @@ function handleToolUseChunk(
       };
     }
     return null;
+  }
+
+  if (!alreadyCached) {
+    trackEvent("Tool called", {
+      tool_name: chunk.name,
+      tool_kind: toolKindFromName(chunk.name),
+      tool_call_id: chunk.id,
+      is_subagent: !!ctx.parentToolCallId,
+    });
   }
 
   if (!alreadyCached && ctx.registerHooks !== false) {
@@ -305,6 +340,12 @@ function handleToolResultChunk(
   if (toolUse.name === "TodoWrite") {
     return [];
   }
+
+  trackEvent("Tool completed", {
+    tool_name: toolUse.name,
+    tool_call_id: chunk.tool_use_id,
+    success: !chunk.is_error,
+  });
 
   if (!chunk.is_error) {
     updateFileContentCache(toolUse, chunk, ctx);
@@ -550,6 +591,9 @@ export async function handleSystemMessage(
     case "init":
       break;
     case "compact_boundary":
+      trackEvent("Session compacted", {
+        pre_tokens: message.compact_metadata.pre_tokens,
+      });
       await client.extNotification("_posthog/compact_boundary", {
         sessionId,
         trigger: message.compact_metadata.trigger,

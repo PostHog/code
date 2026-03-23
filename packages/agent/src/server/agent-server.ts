@@ -706,7 +706,11 @@ export class AgentServer {
       _meta: {
         sessionId: payload.run_id,
         taskRunId: payload.run_id,
+        distinctId: payload.distinct_id,
         systemPrompt: this.buildSessionSystemPrompt(prUrl),
+        persistence: {
+          taskId: payload.task_id,
+        },
         ...(this.config.claudeCode?.plugins?.length && {
           claudeCode: {
             options: {

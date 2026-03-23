@@ -44,6 +44,7 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { v7 as uuidv7 } from "uuid";
 import packageJson from "../../../package.json" with { type: "json" };
+import { setAnalyticsContext, trackEvent } from "../../analytics";
 import { unreachable, withTimeout } from "../../utils/common";
 import { Logger } from "../../utils/logger";
 import { Pushable } from "../../utils/streams";
@@ -398,6 +399,16 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
             const result = handleResultMessage(message);
             if (result.error) throw result.error;
 
+            const toolCallsCount = Object.keys(this.toolUseCache).length;
+            trackEvent("Prompt completed", {
+              stop_reason: result.stopReason ?? "end_turn",
+              input_tokens: usage.inputTokens,
+              output_tokens: usage.outputTokens,
+              cached_read_tokens: usage.cachedReadTokens,
+              cached_write_tokens: usage.cachedWriteTokens,
+              tool_calls_count: toolCallsCount,
+            });
+
             return { stopReason: result.stopReason ?? "end_turn", usage };
           }
 
@@ -564,6 +575,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     }
 
     if (params.configId === "mode") {
+      const previousMode = this.session.permissionMode;
       await this.applySessionMode(params.value);
       await this.client.sessionUpdate({
         sessionId: this.sessionId,
@@ -572,15 +584,29 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
           currentModeId: params.value,
         },
       });
+      trackEvent("Mode changed", {
+        previous_mode: previousMode,
+        new_mode: params.value,
+      });
     } else if (params.configId === "model") {
+      const previousModel = this.session.modelId;
       const sdkModelId = toSdkModelId(params.value);
       await this.session.query.setModel(sdkModelId);
       this.session.modelId = params.value;
       this.rebuildEffortConfigOption(params.value);
+      trackEvent("Model changed", {
+        previous_model: previousModel,
+        new_model: params.value,
+      });
     } else if (params.configId === "effort") {
+      const previousEffort = this.session.effort;
       const newEffort = params.value as EffortLevel;
       this.session.effort = newEffort;
       this.session.queryOptions.effort = newEffort;
+      trackEvent("Effort changed", {
+        previous_effort: previousEffort,
+        new_effort: newEffort,
+      });
     }
 
     this.session.configOptions = this.session.configOptions.map((o) =>
@@ -780,6 +806,24 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         taskRunId: meta.taskRunId,
         sessionId,
         adapter: "claude",
+      });
+    }
+
+    if (meta?.distinctId) {
+      setAnalyticsContext({
+        distinctId: meta.distinctId,
+        sessionId,
+        taskId: taskId,
+        taskRunId: meta.taskRunId,
+        adapter: "claude",
+        executionType: meta.taskRunId ? "cloud" : "local",
+      });
+
+      trackEvent(isResume ? "Session resumed" : "Session created", {
+        model: resolvedModelId,
+        permission_mode: permissionMode,
+        is_resume: isResume,
+        is_fork: !!forkSession,
       });
     }
 

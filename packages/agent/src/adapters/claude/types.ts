@@ -99,6 +99,7 @@ export type ToolUpdateMeta = {
 
 export type NewSessionMeta = {
   taskRunId?: string;
+  distinctId?: string;
   disableBuiltInTools?: boolean;
   systemPrompt?: unknown;
   sessionId?: string;

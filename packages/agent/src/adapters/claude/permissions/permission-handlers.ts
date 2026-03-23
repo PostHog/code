@@ -3,6 +3,7 @@ import type {
   RequestPermissionResponse,
 } from "@agentclientprotocol/sdk";
 import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
+import { trackEvent } from "../../../analytics";
 import { text } from "../../../utils/acp-content";
 import type { Logger } from "../../../utils/logger";
 import { toolInfoFromToolUse } from "../conversion/tool-use-to-acp";
@@ -347,6 +348,11 @@ async function handleDefaultPermissionFlow(
     suggestions,
   );
 
+  trackEvent("Permission requested", {
+    tool_name: toolName,
+    permission_mode: session?.permissionMode,
+  });
+
   const response = await client.requestPermission({
     options,
     sessionId,
@@ -369,6 +375,14 @@ async function handleDefaultPermissionFlow(
     (response.outcome.optionId === "allow" ||
       response.outcome.optionId === "allow_always")
   ) {
+    trackEvent("Permission granted", {
+      tool_name: toolName,
+      option_id: response.outcome.optionId,
+      option_kind:
+        response.outcome.optionId === "allow_always"
+          ? "allow_always"
+          : "allow_once",
+    });
     if (response.outcome.optionId === "allow_always") {
       return {
         behavior: "allow",
@@ -388,6 +402,9 @@ async function handleDefaultPermissionFlow(
       updatedInput: toolInput as Record<string, unknown>,
     };
   } else {
+    trackEvent("Permission denied", {
+      tool_name: toolName,
+    });
     const message = "User refused permission to run tool";
     await emitToolDenial(context, message);
     return {

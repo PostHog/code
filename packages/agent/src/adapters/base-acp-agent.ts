@@ -16,6 +16,7 @@ import type {
   WriteTextFileRequest,
   WriteTextFileResponse,
 } from "@agentclientprotocol/sdk";
+import { shutdownAnalytics, trackEvent } from "../analytics";
 import {
   DEFAULT_GATEWAY_MODEL,
   fetchGatewayModels,
@@ -65,12 +66,14 @@ export abstract class BaseAcpAgent implements Agent {
 
   async closeSession(): Promise<void> {
     try {
+      trackEvent("Session closed", {});
       // Abort first so in-flight HTTP requests are cancelled,
       // otherwise interrupt() deadlocks waiting for the query to stop
       // while the query waits on an API call that will never abort.
       this.session.abortController.abort();
       await this.cancel({ sessionId: this.sessionId });
       this.session.settingsManager.dispose();
+      await shutdownAnalytics();
       this.logger.info("Closed session", { sessionId: this.sessionId });
     } catch (err) {
       this.logger.warn("Failed to close session", {

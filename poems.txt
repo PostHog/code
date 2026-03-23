@@ -1,0 +1,59 @@
+The Code That Runs at Dawn
+
+In circuits deep where electrons flow,
+A function wakes, begins to grow.
+It parses through the morning light,
+Transforms the data, sets it right.
+
+No bug shall pass this vigilant gate,
+Each test a guard, each lint a fate.
+The types are strict, the logic clear,
+A well-typed program knows no fear.
+
+---
+
+Ode to a Merge Conflict
+
+Two branches diverged in a repo of gold,
+And sorry I could not merge them both,
+I sat there staring, growing old,
+At chevrons pointing north and south.
+
+<<<<<<< mine
+I wrote this line with care and grace,
+=======
+I wrote this line in a different place,
+>>>>>>> theirs
+
+And so I chose, with trembling hand,
+To keep them both — as I had planned.
+
+---
+
+Haiku Collection
+
+    Null pointer found —
+    the program bows gracefully,
+    then crashes to earth.
+
+    Push to production.
+    Friday evening, lights go dark.
+    Monday will be fun.
+
+    One more dependency —
+    node_modules grows deeper still.
+    My disk weeps softly.
+
+---
+
+The Recursion
+
+To understand recursion,
+you must first understand recursion.
+And so I called myself again,
+hoping this time I'd comprehend.
+
+The stack grew tall, the memory thin,
+each frame a mirror looking in.
+Until at last, the base case came —
+return. And nothing was the same.
