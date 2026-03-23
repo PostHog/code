@@ -152,7 +152,9 @@ const handleShutdownSignal = async (signal: string) => {
 
 process.on("SIGTERM", () => handleShutdownSignal("SIGTERM"));
 process.on("SIGINT", () => handleShutdownSignal("SIGINT"));
-process.on("SIGHUP", () => handleShutdownSignal("SIGHUP"));
+if (process.platform !== "win32") {
+  process.on("SIGHUP", () => handleShutdownSignal("SIGHUP"));
+}
 
 process.on("uncaughtException", (error) => {
   if (error.message === "write EIO") {

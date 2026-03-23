@@ -1,6 +1,6 @@
 procs:
   code:
-    shell: "pnpm --filter code run start"
+    shell: 'node scripts/pnpm-run.mjs --filter code run start'
     env:
       DEBUG: "false"
     depends_on:
@@ -8,15 +8,15 @@ procs:
       - git
 
   agent:
-    shell: "pnpm --filter agent run dev"
+    shell: 'node scripts/pnpm-run.mjs --filter agent run dev'
 
   git:
-    shell: "pnpm --filter @posthog/git run dev"
+    shell: 'node scripts/pnpm-run.mjs --filter @posthog/git run dev'
 
   storybook:
-    shell: "pnpm --filter code run storybook"
+    shell: 'node scripts/pnpm-run.mjs --filter code run storybook'
     autostart: false
 
   mobile-ios:
-    shell: "pnpm --filter @posthog/mobile run ios"
+    shell: 'node scripts/pnpm-run.mjs --filter @posthog/mobile run ios'
     autostart: false

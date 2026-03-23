@@ -290,6 +290,6 @@ export class FileWatcherService extends TypedEventEmitter<FileWatcherEvents> {
     const content = await fs.readFile(gitPath, "utf-8");
     const match = content.match(/gitdir:\s*(.+)/);
     if (!match) throw new Error("Invalid .git file format");
-    return match[1].trim();
+    return path.resolve(match[1].trim());
   }
 }

@@ -28,7 +28,7 @@
     "postinstall": "bash scripts/postinstall.sh",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "clean": "rm -rf .vite .turbo out node_modules/.vite",
+    "clean": "node ../../scripts/rimraf.mjs .vite .turbo out node_modules/.vite",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:view": "drizzle-kit studio"
@@ -45,6 +45,7 @@
     "@biomejs/biome": "2.2.4",
     "@electron-forge/cli": "^7.11.1",
     "@electron-forge/maker-dmg": "^7.11.1",
+    "@electron-forge/maker-squirrel": "^7.11.1",
     "@electron-forge/maker-zip": "^7.11.1",
     "@electron-forge/plugin-vite": "^7.11.1",
     "@electron-forge/publisher-github": "^7.11.1",

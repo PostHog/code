@@ -7,6 +7,7 @@ import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import { logger } from "@utils/logger";
+import { toRelativePath } from "@utils/path";
 import { useEffect } from "react";
 
 const log = logger.scope("file-watcher");
@@ -33,7 +34,7 @@ export function useFileWatcher(repoPath: string | null, taskId?: string) {
       enabled: !!repoPath,
       onData: ({ repoPath: rp, filePath }) => {
         if (rp !== repoPath) return;
-        const relativePath = filePath.replace(`${repoPath}/`, "");
+        const relativePath = toRelativePath(filePath, repoPath);
         queryClient.invalidateQueries(
           trpc.fs.readRepoFile.queryFilter({
             repoPath,
@@ -52,7 +53,7 @@ export function useFileWatcher(repoPath: string | null, taskId?: string) {
         if (rp !== repoPath) return;
         invalidateGitWorkingTreeQueries(repoPath);
         if (!taskId) return;
-        const relativePath = filePath.replace(`${repoPath}/`, "");
+        const relativePath = toRelativePath(filePath, repoPath);
         closeTabsForFile(taskId, relativePath);
       },
     }),

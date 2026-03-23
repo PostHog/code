@@ -4,6 +4,7 @@ import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { TabContentRenderer } from "@features/task-detail/components/TabContentRenderer";
 import { ChatCenteredText, Terminal } from "@phosphor-icons/react";
 import type { Task } from "@shared/types";
+import { isAbsolutePath } from "@utils/path";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import type { SplitDirection } from "../store/panelLayoutStore";
@@ -86,7 +87,7 @@ export function useTabInjection(
         let updatedData = tab.data;
         if (tab.data.type === "file" || tab.data.type === "diff") {
           const rp = tab.data.relativePath;
-          const absolutePath = rp.startsWith("/") ? rp : `${repoPath}/${rp}`;
+          const absolutePath = isAbsolutePath(rp) ? rp : `${repoPath}/${rp}`;
           updatedData = {
             ...tab.data,
             absolutePath,

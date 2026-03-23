@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 
 export interface GitHubRepo {
@@ -31,7 +32,23 @@ export async function safeSymlink(
   }
 
   try {
-    await fs.symlink(source, target, type);
+    if (os.platform() === "win32") {
+      // On Windows, skip symlinks entirely — they need admin/Developer Mode.
+      // Use junctions for directories and hard links for files instead,
+      // matching the approach used by pnpm, Deno, and npm.
+      if (type === "dir") {
+        await fs.symlink(source, target, "junction");
+      } else {
+        try {
+          await fs.link(source, target);
+        } catch {
+          // Hard link can fail across drives — copy as last resort
+          await fs.copyFile(source, target);
+        }
+      }
+    } else {
+      await fs.symlink(source, target, type);
+    }
     return true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "EEXIST") {

@@ -4,7 +4,7 @@
 
 @font-face {
   font-family: "Berkeley Mono";
-  src: url("/assets/fonts/BerkeleyMono/BerkeleyMono-Regular.woff2")
+  src: url("../../../assets/fonts/BerkeleyMono/BerkeleyMono-Regular.woff2")
     format("woff2");
   font-weight: 400;
   font-style: normal;
@@ -12,7 +12,7 @@
 
 @font-face {
   font-family: "Berkeley Mono";
-  src: url("/assets/fonts/BerkeleyMono/BerkeleyMono-Oblique.woff2")
+  src: url("../../../assets/fonts/BerkeleyMono/BerkeleyMono-Oblique.woff2")
     format("woff2");
   font-weight: 400;
   font-style: italic;
@@ -20,14 +20,15 @@
 
 @font-face {
   font-family: "Berkeley Mono";
-  src: url("/assets/fonts/BerkeleyMono/BerkeleyMono-Bold.woff2") format("woff2");
+  src: url("../../../assets/fonts/BerkeleyMono/BerkeleyMono-Bold.woff2")
+    format("woff2");
   font-weight: 700;
   font-style: normal;
 }
 
 @font-face {
   font-family: "Berkeley Mono";
-  src: url("/assets/fonts/BerkeleyMono/BerkeleyMono-Bold-Oblique.woff2")
+  src: url("../../../assets/fonts/BerkeleyMono/BerkeleyMono-Bold-Oblique.woff2")
     format("woff2");
   font-weight: 700;
   font-style: italic;
@@ -35,7 +36,7 @@
 
 @font-face {
   font-family: "JetBrains Mono";
-  src: url("/assets/fonts/JetBrainsMono/JetBrainsMono-Light.woff2")
+  src: url("../../../assets/fonts/JetBrainsMono/JetBrainsMono-Light.woff2")
     format("woff2");
   font-weight: 300;
   font-style: normal;
@@ -43,7 +44,7 @@
 
 @font-face {
   font-family: "JetBrains Mono";
-  src: url("/assets/fonts/JetBrainsMono/JetBrainsMono-LightItalic.woff2")
+  src: url("../../../assets/fonts/JetBrainsMono/JetBrainsMono-LightItalic.woff2")
     format("woff2");
   font-weight: 300;
   font-style: italic;
@@ -51,7 +52,7 @@
 
 @font-face {
   font-family: "JetBrains Mono";
-  src: url("/assets/fonts/JetBrainsMono/JetBrainsMono-Regular.woff2")
+  src: url("../../../assets/fonts/JetBrainsMono/JetBrainsMono-Regular.woff2")
     format("woff2");
   font-weight: 400;
   font-style: normal;
@@ -59,7 +60,7 @@
 
 @font-face {
   font-family: "JetBrains Mono";
-  src: url("/assets/fonts/JetBrainsMono/JetBrainsMono-Italic.woff2")
+  src: url("../../../assets/fonts/JetBrainsMono/JetBrainsMono-Italic.woff2")
     format("woff2");
   font-weight: 400;
   font-style: italic;
@@ -67,7 +68,7 @@
 
 @font-face {
   font-family: "JetBrains Mono";
-  src: url("/assets/fonts/JetBrainsMono/JetBrainsMono-Medium.woff2")
+  src: url("../../../assets/fonts/JetBrainsMono/JetBrainsMono-Medium.woff2")
     format("woff2");
   font-weight: 500;
   font-style: normal;
@@ -75,7 +76,7 @@
 
 @font-face {
   font-family: "JetBrains Mono";
-  src: url("/assets/fonts/JetBrainsMono/JetBrainsMono-MediumItalic.woff2")
+  src: url("../../../assets/fonts/JetBrainsMono/JetBrainsMono-MediumItalic.woff2")
     format("woff2");
   font-weight: 500;
   font-style: italic;
@@ -83,7 +84,7 @@
 
 @font-face {
   font-family: "JetBrains Mono";
-  src: url("/assets/fonts/JetBrainsMono/JetBrainsMono-SemiBold.woff2")
+  src: url("../../../assets/fonts/JetBrainsMono/JetBrainsMono-SemiBold.woff2")
     format("woff2");
   font-weight: 600;
   font-style: normal;
@@ -91,7 +92,7 @@
 
 @font-face {
   font-family: "JetBrains Mono";
-  src: url("/assets/fonts/JetBrainsMono/JetBrainsMono-SemiBoldItalic.woff2")
+  src: url("../../../assets/fonts/JetBrainsMono/JetBrainsMono-SemiBoldItalic.woff2")
     format("woff2");
   font-weight: 600;
   font-style: italic;
@@ -99,7 +100,7 @@
 
 @font-face {
   font-family: "JetBrains Mono";
-  src: url("/assets/fonts/JetBrainsMono/JetBrainsMono-Bold.woff2")
+  src: url("../../../assets/fonts/JetBrainsMono/JetBrainsMono-Bold.woff2")
     format("woff2");
   font-weight: 700;
   font-style: normal;
@@ -107,7 +108,7 @@
 
 @font-face {
   font-family: "JetBrains Mono";
-  src: url("/assets/fonts/JetBrainsMono/JetBrainsMono-BoldItalic.woff2")
+  src: url("../../../assets/fonts/JetBrainsMono/JetBrainsMono-BoldItalic.woff2")
     format("woff2");
   font-weight: 700;
   font-style: italic;
@@ -115,7 +116,7 @@
 
 @font-face {
   font-family: "Halfre";
-  src: url("/assets/fonts/Halfre.otf") format("opentype");
+  src: url("../../../assets/fonts/Halfre.otf") format("opentype");
   font-weight: 400;
   font-style: normal;
 }

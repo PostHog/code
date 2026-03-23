@@ -1,8 +1,9 @@
 import type { ChildProcess } from "node:child_process";
 import { execSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, rmSync, statSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { MakerDMG } from "@electron-forge/maker-dmg";
+import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerZIP } from "@electron-forge/maker-zip";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import { PublisherGithub } from "@electron-forge/publisher-github";
@@ -181,28 +182,30 @@ const config: ForgeConfig = {
           }
         : {}),
     }),
-    new MakerZIP({}, ["darwin", "linux", "win32"]),
+    new MakerSquirrel({
+      name: "PostHogCode",
+      setupIcon: "./build/app-icon.ico",
+    }),
+    new MakerZIP({}, ["darwin", "linux"]),
   ],
   hooks: {
     generateAssets: async () => {
-      const isNewer = (src: string, dest: string) =>
-        !existsSync(dest) || statSync(src).mtimeMs > statSync(dest).mtimeMs;
+      if (process.platform !== "darwin") return;
 
       if (
         existsSync("build/app-icon.png") &&
-        isNewer("build/app-icon.png", "build/app-icon.icns")
+        !existsSync("build/app-icon.icns")
       ) {
         execSync("bash scripts/generate-icns.sh", { stdio: "inherit" });
       }
 
-      if (
-        existsSync("build/icon.icon") &&
-        isNewer("build/icon.icon/icon.json", "build/Assets.car")
-      ) {
+      if (existsSync("build/icon.icon") && !existsSync("build/Assets.car")) {
         execSync("bash scripts/compile-glass-icon.sh", { stdio: "inherit" });
       }
     },
     prePackage: async () => {
+      if (process.platform !== "darwin") return;
+
       // Build native modules for DMG maker on Node.js 22
       const modules = ["macos-alias", "fs-xattr"];
 
@@ -221,9 +224,20 @@ const config: ForgeConfig = {
       copyNativeDependency("node-pty", buildPath);
       copyNativeDependency("node-addon-api", buildPath);
       copyNativeDependency("@parcel/watcher", buildPath);
-      copyNativeDependency("@parcel/watcher-darwin-arm64", buildPath);
-      copyNativeDependency("file-icon", buildPath);
-      copyNativeDependency("p-map", buildPath);
+
+      // Platform-specific native dependencies
+      if (process.platform === "darwin") {
+        copyNativeDependency("@parcel/watcher-darwin-arm64", buildPath);
+        copyNativeDependency("file-icon", buildPath);
+        copyNativeDependency("p-map", buildPath);
+      } else if (process.platform === "win32") {
+        const watcherPkg =
+          process.arch === "arm64"
+            ? "@parcel/watcher-win32-arm64"
+            : "@parcel/watcher-win32-x64";
+        copyNativeDependency(watcherPkg, buildPath);
+      }
+
       // Copy @parcel/watcher's hoisted dependencies
       copyNativeDependency("micromatch", buildPath);
       copyNativeDependency("is-glob", buildPath);

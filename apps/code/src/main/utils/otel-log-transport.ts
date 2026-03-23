@@ -38,15 +38,24 @@ export function initOtelTransport(
   const apiKey = process.env.VITE_POSTHOG_API_KEY;
   const apiHost = process.env.VITE_POSTHOG_API_HOST;
 
+  const noop: ElectronLog.Transport = Object.assign(
+    (_message: ElectronLog.LogMessage) => {},
+    { level: false as const, transforms: [] as ElectronLog.TransformFn[] },
+  );
+
   if (!apiKey || !apiHost) {
-    const noop: ElectronLog.Transport = Object.assign(
-      (_message: ElectronLog.LogMessage) => {},
-      { level: false as const, transforms: [] as ElectronLog.TransformFn[] },
-    );
     return noop;
   }
+
+  const url = `${apiHost}/i/v1/logs`;
+  try {
+    new URL(url);
+  } catch {
+    return noop;
+  }
+
   const exporter = new OTLPLogExporter({
-    url: `${apiHost}/i/v1/logs`,
+    url,
     headers: { Authorization: `Bearer ${apiKey}` },
   });
 
