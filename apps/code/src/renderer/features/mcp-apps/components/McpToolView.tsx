@@ -1,6 +1,3 @@
-import { Plugs } from "@phosphor-icons/react";
-import { Box, Flex } from "@radix-ui/themes";
-import { useState } from "react";
 import {
   compactInput,
   ExpandableIcon,
@@ -12,18 +9,11 @@ import {
   ToolTitle,
   type ToolViewProps,
   useToolCallStatus,
-} from "./toolCallUtils";
-
-function parseMcpName(mcpToolName: string): {
-  serverName: string;
-  toolName: string;
-} {
-  const parts = mcpToolName.split("__");
-  return {
-    serverName: parts[1] ?? "",
-    toolName: parts.slice(2).join("__"),
-  };
-}
+} from "@features/sessions/components/session-update/toolCallUtils";
+import { Plugs } from "@phosphor-icons/react";
+import { Box, Flex } from "@radix-ui/themes";
+import { useState } from "react";
+import { parseMcpToolKey } from "../utils/mcp-app-host-utils";
 
 interface McpToolViewProps extends ToolViewProps {
   mcpToolName: string;
@@ -44,7 +34,7 @@ export function McpToolView({
     turnComplete,
   );
 
-  const { serverName, toolName } = parseMcpName(mcpToolName);
+  const { serverName, toolName } = parseMcpToolKey(mcpToolName);
   const inputPreview = compactInput(rawInput);
   const fullInput = formatInput(rawInput);
 

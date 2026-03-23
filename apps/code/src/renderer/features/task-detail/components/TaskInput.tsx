@@ -47,6 +47,8 @@ export function TaskInput() {
     allowBypassPermissions,
     setLastUsedEnvironment,
     getLastUsedEnvironment,
+    defaultInitialTaskMode,
+    lastUsedInitialTaskMode,
   } = useSettingsStore();
 
   const editorRef = useRef<MessageEditorHandle>(null);
@@ -137,9 +139,11 @@ export function TaskInput() {
   // Get current values from preview session config options for task creation.
   // Defaults ensure values are always passed even before the preview session loads.
   const currentModel = modelOption?.currentValue;
+  const modeFallback =
+    defaultInitialTaskMode === "last_used" ? lastUsedInitialTaskMode : "plan";
   const currentExecutionMode =
     getCurrentModeFromConfigOptions(modeOption ? [modeOption] : undefined) ??
-    "plan";
+    modeFallback;
   const currentReasoningLevel = thoughtOption?.currentValue;
 
   const branchForTaskCreation =

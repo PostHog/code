@@ -10,6 +10,7 @@ import {
 } from "electron";
 import { container } from "./di/container";
 import { MAIN_TOKENS } from "./di/tokens";
+import type { McpAppsService } from "./services/mcp-apps/service";
 import type { UIService } from "./services/ui/service";
 import type { UpdatesService } from "./services/updates/service";
 import { isDevBuild } from "./utils/env";
@@ -127,6 +128,29 @@ function buildFileMenu(): MenuItemConstructorOptions {
             label: "Invalidate OAuth token",
             click: () => {
               container.get<UIService>(MAIN_TOKENS.UIService).invalidateToken();
+            },
+          },
+          {
+            label: "Refresh MCP Apps discovery",
+            click: () => {
+              container
+                .get<McpAppsService>(MAIN_TOKENS.McpAppsService)
+                .refreshDiscovery()
+                .then(() => {
+                  dialog.showMessageBox({
+                    type: "info",
+                    title: "MCP Apps Refreshed",
+                    message:
+                      "Cleared all cached resources and re-ran discovery.\nCheck logs for details.",
+                  });
+                })
+                .catch((err: Error) => {
+                  dialog.showMessageBox({
+                    type: "error",
+                    title: "MCP Apps Refresh Failed",
+                    message: err.message,
+                  });
+                });
             },
           },
           { type: "separator" },

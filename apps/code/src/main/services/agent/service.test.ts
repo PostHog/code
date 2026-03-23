@@ -192,6 +192,14 @@ describe("AgentService", () => {
       deps.fsService as never,
       deps.posthogPluginService as never,
       deps.authProxy as never,
+      {
+        setServerConfigs: vi.fn(),
+        handleDiscovery: vi.fn().mockResolvedValue(undefined),
+        cleanup: vi.fn().mockResolvedValue(undefined),
+        notifyToolInput: vi.fn(),
+        notifyToolResult: vi.fn(),
+        notifyToolCancelled: vi.fn(),
+      } as never,
     );
   });
 
@@ -358,7 +366,10 @@ describe("AgentService", () => {
 
       vi.advanceTimersByTime(5 * 60 * 1000);
       service.recordActivity("run-1");
-      const secondDeadline = getIdleTimeouts(service).get("run-1")?.deadline;
+      const secondDeadline = getIdleTimeouts(service).get("run-1")
+        ?.deadline as number;
+      if (secondDeadline === undefined)
+        throw new Error("Expected secondDeadline to be defined");
 
       expect(secondDeadline).toBeGreaterThan(firstDeadline);
     });

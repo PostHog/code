@@ -4,6 +4,7 @@ import {
   contentToXml,
   extractFilePaths,
 } from "@features/message-editor/utils/content";
+import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
 import { useConnectivity } from "@hooks/useConnectivity";
 import type { WorkspaceMode } from "@main/services/workspace/schemas";
@@ -134,6 +135,10 @@ export function useTaskCreation({
         reasoningLevel,
         environmentId,
       });
+
+      if (executionMode) {
+        useSettingsStore.getState().setLastUsedInitialTaskMode(executionMode);
+      }
 
       const taskService = get<TaskService>(RENDERER_TOKENS.TaskService);
       const result = await taskService.createTask(input, (output) => {

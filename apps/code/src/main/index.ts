@@ -9,6 +9,7 @@ import type { DatabaseService } from "./db/service";
 import { initializeDeepLinks, registerDeepLinkHandlers } from "./deep-links";
 import { container } from "./di/container";
 import { MAIN_TOKENS } from "./di/tokens";
+import { registerMcpSandboxProtocol } from "./protocols/mcp-sandbox";
 import type { AppLifecycleService } from "./services/app-lifecycle/service";
 import type { ExternalAppsService } from "./services/external-apps/service";
 import type { NotificationService } from "./services/notification/service";
@@ -19,7 +20,7 @@ import {
   trackAppEvent,
 } from "./services/posthog-analytics";
 import type { PosthogPluginService } from "./services/posthog-plugin/service";
-import type { SuspensionService } from "./services/suspension/service.js";
+import type { SuspensionService } from "./services/suspension/service";
 import type { TaskLinkService } from "./services/task-link/service";
 import type { UpdatesService } from "./services/updates/service";
 import type { WorkspaceService } from "./services/workspace/service";
@@ -84,6 +85,7 @@ app.whenReady().then(() => {
     ].join(" | "),
   );
   ensureClaudeConfigDir();
+  registerMcpSandboxProtocol();
   createWindow();
   initializeServices();
   initializeDeepLinks();

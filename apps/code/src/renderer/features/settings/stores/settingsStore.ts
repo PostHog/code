@@ -1,4 +1,5 @@
 import type { WorkspaceMode } from "@main/services/workspace/schemas";
+import type { ExecutionMode } from "@shared/types";
 import { electronStorage } from "@utils/electronStorage";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -9,6 +10,7 @@ export type SendMessagesWith = "enter" | "cmd+enter";
 export type CompletionSound = "none" | "guitar" | "danilo" | "revi" | "meep";
 export type AgentAdapter = "claude" | "codex";
 export type AutoConvertLongText = "off" | "1000" | "2500" | "5000" | "10000";
+export type DefaultInitialTaskMode = "plan" | "last_used";
 
 export interface HintState {
   count: number;
@@ -36,8 +38,11 @@ interface SettingsStore {
   preventSleepWhileRunning: boolean;
   debugLogsCloudRuns: boolean;
   customInstructions: string;
+  defaultInitialTaskMode: DefaultInitialTaskMode;
+  lastUsedInitialTaskMode: ExecutionMode;
   diffOpenMode: DiffOpenMode;
   hedgehogMode: boolean;
+  mcpAppsDisabledServers: string[];
   hints: Record<string, HintState>;
 
   shouldShowHint: (key: string, max?: number) => boolean;
@@ -67,8 +72,11 @@ interface SettingsStore {
   setPreventSleepWhileRunning: (enabled: boolean) => void;
   setDebugLogsCloudRuns: (enabled: boolean) => void;
   setCustomInstructions: (instructions: string) => void;
+  setDefaultInitialTaskMode: (mode: DefaultInitialTaskMode) => void;
+  setLastUsedInitialTaskMode: (mode: ExecutionMode) => void;
   setDiffOpenMode: (mode: DiffOpenMode) => void;
   setHedgehogMode: (enabled: boolean) => void;
+  setMcpAppsDisabledServers: (servers: string[]) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -93,8 +101,11 @@ export const useSettingsStore = create<SettingsStore>()(
       preventSleepWhileRunning: false,
       debugLogsCloudRuns: false,
       customInstructions: "",
+      defaultInitialTaskMode: "plan",
+      lastUsedInitialTaskMode: "plan",
       diffOpenMode: "auto",
       hedgehogMode: false,
+      mcpAppsDisabledServers: [],
       hints: {},
 
       shouldShowHint: (key, max = 3) => {
@@ -160,8 +171,14 @@ export const useSettingsStore = create<SettingsStore>()(
       setDebugLogsCloudRuns: (enabled) => set({ debugLogsCloudRuns: enabled }),
       setCustomInstructions: (instructions) =>
         set({ customInstructions: instructions }),
+      setDefaultInitialTaskMode: (mode) =>
+        set({ defaultInitialTaskMode: mode }),
+      setLastUsedInitialTaskMode: (mode) =>
+        set({ lastUsedInitialTaskMode: mode }),
       setDiffOpenMode: (mode) => set({ diffOpenMode: mode }),
       setHedgehogMode: (enabled) => set({ hedgehogMode: enabled }),
+      setMcpAppsDisabledServers: (servers) =>
+        set({ mcpAppsDisabledServers: servers }),
     }),
     {
       name: "settings-storage",
@@ -186,9 +203,12 @@ export const useSettingsStore = create<SettingsStore>()(
         preventSleepWhileRunning: state.preventSleepWhileRunning,
         debugLogsCloudRuns: state.debugLogsCloudRuns,
         customInstructions: state.customInstructions,
+        defaultInitialTaskMode: state.defaultInitialTaskMode,
+        lastUsedInitialTaskMode: state.lastUsedInitialTaskMode,
         diffOpenMode: state.diffOpenMode,
         hedgehogMode: state.hedgehogMode,
         hints: state.hints,
+        mcpAppsDisabledServers: state.mcpAppsDisabledServers,
       }),
       merge: (persisted, current) => {
         const merged = {
