@@ -1184,7 +1184,9 @@ export class PostHogAPIClient {
       path: `/api/projects/${teamId}/sandbox_environments/`,
     });
     if (!response.ok) {
-      throw new Error(`Failed to fetch sandbox environments: ${response.statusText}`);
+      throw new Error(
+        `Failed to fetch sandbox environments: ${response.statusText}`,
+      );
     }
     const data = await response.json();
     return (data.results ?? data) as SandboxEnvironment[];
@@ -1206,7 +1208,9 @@ export class PostHogAPIClient {
       },
     });
     if (!response.ok) {
-      throw new Error(`Failed to create sandbox environment: ${response.statusText}`);
+      throw new Error(
+        `Failed to create sandbox environment: ${response.statusText}`,
+      );
     }
     return (await response.json()) as SandboxEnvironment;
   }
@@ -1228,7 +1232,9 @@ export class PostHogAPIClient {
       },
     });
     if (!response.ok) {
-      throw new Error(`Failed to update sandbox environment: ${response.statusText}`);
+      throw new Error(
+        `Failed to update sandbox environment: ${response.statusText}`,
+      );
     }
     return (await response.json()) as SandboxEnvironment;
   }
@@ -1244,7 +1250,9 @@ export class PostHogAPIClient {
       path: `/api/projects/${teamId}/sandbox_environments/${id}/`,
     });
     if (!response.ok) {
-      throw new Error(`Failed to delete sandbox environment: ${response.statusText}`);
+      throw new Error(
+        `Failed to delete sandbox environment: ${response.statusText}`,
+      );
     }
   }
 }

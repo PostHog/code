@@ -43,7 +43,7 @@ export function EnvironmentSelector({
     setOpen(false);
     useSettingsDialogStore
       .getState()
-      .open("environments", { repoPath: repoPath ?? undefined });
+      .open("cloud-environments", { repoPath: repoPath ?? undefined });
   };
 
   const triggerContent = (

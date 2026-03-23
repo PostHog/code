@@ -26,7 +26,10 @@ interface SettingsDialogState {
 }
 
 interface SettingsDialogActions {
-  open: (category?: SettingsCategory, context?: SettingsDialogContext) => void;
+  open: (
+    category?: SettingsCategory,
+    contextOrAction?: SettingsDialogContext | string,
+  ) => void;
   close: () => void;
   setCategory: (category: SettingsCategory) => void;
   clearContext: () => void;
@@ -42,14 +45,16 @@ export const useSettingsDialogStore = create<SettingsDialogStore>()(
     context: {},
     initialAction: null,
 
-    open: (category, context) => {
+    open: (category, contextOrAction) => {
       if (!get().isOpen) {
         window.history.pushState({ settingsOpen: true }, "");
       }
+      const isAction = typeof contextOrAction === "string";
       set({
         isOpen: true,
         activeCategory: category ?? "general",
-        context: context ?? {},
+        context: isAction ? {} : (contextOrAction ?? {}),
+        initialAction: isAction ? contextOrAction : null,
       });
     },
     close: () => {
@@ -58,7 +63,8 @@ export const useSettingsDialogStore = create<SettingsDialogStore>()(
       }
       set({ isOpen: false, context: {}, initialAction: null });
     },
-    setCategory: (category) => set({ activeCategory: category, initialAction: null }),
+    setCategory: (category) =>
+      set({ activeCategory: category, initialAction: null }),
     clearContext: () => set({ context: {} }),
     consumeInitialAction: () => {
       const action = get().initialAction;

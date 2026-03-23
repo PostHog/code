@@ -1,6 +1,7 @@
 import { useSandboxEnvironments } from "@features/settings/hooks/useSandboxEnvironments";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { PencilSimple, Plus, Trash } from "@phosphor-icons/react";
+import { ChevronDownIcon } from "@radix-ui/react-icons";
 import {
   Badge,
   Button,
@@ -10,8 +11,11 @@ import {
   TextArea,
   TextField,
 } from "@radix-ui/themes";
-import { ChevronDownIcon } from "@radix-ui/react-icons";
-import type { NetworkAccessLevel, SandboxEnvironment } from "@shared/types";
+import type {
+  NetworkAccessLevel,
+  SandboxEnvironment,
+  SandboxEnvironmentInput,
+} from "@shared/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -37,14 +41,18 @@ const NETWORK_ACCESS_OPTIONS: {
   },
 ];
 
-const DOMAIN_RE = /^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/;
+const DOMAIN_RE =
+  /^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/;
 const ENV_KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 function isValidDomain(domain: string): boolean {
   return DOMAIN_RE.test(domain);
 }
 
-function validateDomains(text: string): { domains: string[]; errors: string[] } {
+function validateDomains(text: string): {
+  domains: string[];
+  errors: string[];
+} {
   const domains: string[] = [];
   const errors: string[] = [];
   for (const line of text.split("\n")) {
@@ -161,7 +169,10 @@ function NetworkAccessSelect({
               className="flex w-full cursor-pointer flex-col gap-0 border-0 bg-transparent px-3 py-2 text-left transition-colors hover:bg-gray-3 data-[active]:bg-accent-4"
               data-active={opt.value === value || undefined}
             >
-              <Text size="2" weight={opt.value === value ? "medium" : undefined}>
+              <Text
+                size="2"
+                weight={opt.value === value ? "medium" : undefined}
+              >
                 {opt.label}
               </Text>
               <Text size="1" color="gray">
@@ -202,7 +213,8 @@ export function CloudEnvironmentsSettings() {
   const isFormOpen = isCreating || editingEnv !== null;
 
   const domainValidation = useMemo(() => {
-    if (form.network_access_level !== "custom") return { domains: [], errors: [] };
+    if (form.network_access_level !== "custom")
+      return { domains: [], errors: [] };
     return validateDomains(form.allowed_domains_text);
   }, [form.network_access_level, form.allowed_domains_text]);
 
@@ -237,24 +249,21 @@ export function CloudEnvironmentsSettings() {
       return;
     }
 
-    const payload: Record<string, unknown> = {
+    const payload: SandboxEnvironmentInput = {
       name: form.name,
       network_access_level: form.network_access_level,
       allowed_domains:
-        form.network_access_level === "custom"
-          ? domainValidation.domains
-          : [],
+        form.network_access_level === "custom" ? domainValidation.domains : [],
       include_default_domains:
         form.network_access_level === "custom"
           ? form.include_default_domains
           : false,
       private: form.private,
       repositories: [],
+      ...(form.environment_variables_text.trim()
+        ? { environment_variables: envVarValidation.vars }
+        : {}),
     };
-
-    if (form.environment_variables_text.trim()) {
-      payload.environment_variables = envVarValidation.vars;
-    }
 
     if (editingEnv) {
       await updateMutation.mutateAsync({ id: editingEnv.id, ...payload });

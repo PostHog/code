@@ -10,7 +10,6 @@ import {
   Code,
   Folder,
   GearSix,
-  HardDrives,
   Keyboard,
   Palette,
   Plugs,
@@ -25,7 +24,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { AccountSettings } from "./sections/AccountSettings";
 import { AdvancedSettings } from "./sections/AdvancedSettings";
 import { ClaudeCodeSettings } from "./sections/ClaudeCodeSettings";
-import { EnvironmentsSettings } from "./sections/environments/EnvironmentsSettings";
+import { CloudEnvironmentsSettings } from "./sections/CloudEnvironmentsSettings";
 import { GeneralSettings } from "./sections/GeneralSettings";
 import { McpServersSettings } from "./sections/McpServersSettings";
 import { PersonalizationSettings } from "./sections/PersonalizationSettings";
@@ -33,7 +32,6 @@ import { ShortcutsSettings } from "./sections/ShortcutsSettings";
 import { SignalSourcesSettings } from "./sections/SignalSourcesSettings";
 import { UpdatesSettings } from "./sections/UpdatesSettings";
 import { WorkspacesSettings } from "./sections/WorkspacesSettings";
-import { CloudEnvironmentsSettings } from "./sections/CloudEnvironmentsSettings";
 import { WorktreesSettings } from "./sections/worktrees/WorktreesSettings";
 
 interface SidebarItem {

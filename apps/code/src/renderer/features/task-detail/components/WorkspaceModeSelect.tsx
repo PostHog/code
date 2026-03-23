@@ -1,6 +1,6 @@
-import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useSandboxEnvironments } from "@features/settings/hooks/useSandboxEnvironments";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import type { WorkspaceMode } from "@main/services/workspace/schemas";
 import { ArrowsSplit, Cloud, Laptop, Plus } from "@phosphor-icons/react";
 import { ChevronDownIcon } from "@radix-ui/react-icons";
@@ -98,7 +98,9 @@ export function WorkspaceModeSelect({
 
   const triggerIcon = useMemo(() => {
     if (value === "cloud") return CLOUD_ICON;
-    return LOCAL_MODES.find((m) => m.mode === value)?.icon ?? LOCAL_MODES[0].icon;
+    return (
+      LOCAL_MODES.find((m) => m.mode === value)?.icon ?? LOCAL_MODES[0].icon
+    );
   }, [value]);
 
   return (
@@ -125,9 +127,7 @@ export function WorkspaceModeSelect({
             }}
             style={{ padding: "6px 8px", height: "auto" }}
           >
-            <div
-              style={{ display: "flex", gap: 6, alignItems: "flex-start" }}
-            >
+            <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
               <span
                 style={{
                   marginTop: 2,

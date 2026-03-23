@@ -1,6 +1,6 @@
 import { useAuthenticatedMutation } from "@hooks/useAuthenticatedMutation";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
-import type { SandboxEnvironment, SandboxEnvironmentInput } from "@shared/types";
+import type { SandboxEnvironmentInput } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
