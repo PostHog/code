@@ -399,14 +399,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
             this.session.accumulatedUsage.cachedWriteTokens +=
               message.usage.cache_creation_input_tokens;
 
-            // Calculate context window size from modelUsage (minimum across all models used)
-            const contextWindows = Object.values(message.modelUsage).map(
-              (m) => m.contextWindow,
+            // Use our model-aware default — the SDK binary may underreport
+            // context window size (e.g. 200k for models that support 1M).
+            lastContextWindowSize = getDefaultContextWindow(
+              this.session.modelId ?? "",
             );
-            lastContextWindowSize =
-              contextWindows.length > 0
-                ? Math.min(...contextWindows)
-                : getDefaultContextWindow(this.session.modelId ?? "");
             this.session.lastContextWindowSize = lastContextWindowSize;
 
             this.session.contextSize = lastContextWindowSize;
