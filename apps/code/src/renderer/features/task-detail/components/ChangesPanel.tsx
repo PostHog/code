@@ -1,13 +1,9 @@
-import { FileIcon } from "@components/ui/FileIcon";
 import { PanelMessage } from "@components/ui/PanelMessage";
-import { Tooltip } from "@components/ui/Tooltip";
-import { useExternalApps } from "@features/external-apps/hooks/useExternalApps";
 import {
   useCloudBranchChangedFiles,
   useCloudPrChangedFiles,
   useGitQueries,
 } from "@features/git-interaction/hooks/useGitQueries";
-import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import {
   isCloudDiffTabActiveInTree,
@@ -15,489 +11,20 @@ import {
 } from "@features/panels/store/panelStoreHelpers";
 import { usePendingPermissionsForTask } from "@features/sessions/stores/sessionStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
+import { ChangesCloudFileRow } from "@features/task-detail/components/ChangesCloudFileRow";
+import { ChangesLocalFileRow } from "@features/task-detail/components/ChangesLocalFileRow";
 import { useCloudRunState } from "@features/task-detail/hooks/useCloudRunState";
-import {
-  ArrowCounterClockwiseIcon,
-  CaretDownIcon,
-  CaretUpIcon,
-  CodeIcon,
-  CopyIcon,
-  FilePlus,
-} from "@phosphor-icons/react";
-import {
-  Badge,
-  Box,
-  Button,
-  DropdownMenu,
-  Flex,
-  IconButton,
-  Spinner,
-  Text,
-} from "@radix-ui/themes";
+import { getCloudChangesState } from "@features/task-detail/utils/getCloudChangesState";
+import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react";
+import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
-import { trpcClient } from "@renderer/trpc/client";
-import type { ChangedFile, GitFileStatus, Task } from "@shared/types";
-import { useQueryClient } from "@tanstack/react-query";
-import { showMessageBox } from "@utils/dialog";
-import { handleExternalAppAction } from "@utils/handleExternalAppAction";
-import { useCallback, useState } from "react";
+import type { ChangedFile, Task } from "@shared/types";
+import { useCallback } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 interface ChangesPanelProps {
   taskId: string;
   task: Task;
-}
-
-interface ChangedFileItemProps {
-  file: ChangedFile;
-  taskId: string;
-  repoPath: string;
-  isActive: boolean;
-  mainRepoPath?: string;
-}
-
-function getStatusIndicator(status: GitFileStatus): {
-  label: string;
-  fullLabel: string;
-  color: "green" | "orange" | "red" | "blue" | "gray";
-} {
-  switch (status) {
-    case "added":
-    case "untracked":
-      return { label: "A", fullLabel: "Added", color: "green" };
-    case "deleted":
-      return { label: "D", fullLabel: "Deleted", color: "red" };
-    case "modified":
-      return { label: "M", fullLabel: "Modified", color: "orange" };
-    case "renamed":
-      return { label: "R", fullLabel: "Renamed", color: "blue" };
-    default:
-      return { label: "?", fullLabel: "Unknown", color: "gray" };
-  }
-}
-
-function getDiscardInfo(
-  file: ChangedFile,
-  fileName: string,
-): { message: string; action: string } {
-  switch (file.status) {
-    case "modified":
-      return {
-        message: `Are you sure you want to discard changes in '${fileName}'?`,
-        action: "Discard File",
-      };
-    case "deleted":
-      return {
-        message: `Are you sure you want to restore '${fileName}'?`,
-        action: "Restore File",
-      };
-    case "added":
-      return {
-        message: `Are you sure you want to remove '${fileName}'?`,
-        action: "Remove File",
-      };
-    case "untracked":
-      return {
-        message: `Are you sure you want to delete '${fileName}'?`,
-        action: "Delete File",
-      };
-    case "renamed":
-      return {
-        message: `Are you sure you want to undo the rename of '${fileName}'?`,
-        action: "Undo Rename File",
-      };
-    default:
-      return {
-        message: `Are you sure you want to discard changes in '${fileName}'?`,
-        action: "Discard File",
-      };
-  }
-}
-
-function ChangedFileItem({
-  file,
-  taskId,
-  repoPath,
-  isActive,
-  mainRepoPath,
-}: ChangedFileItemProps) {
-  const openDiffByMode = usePanelLayoutStore((state) => state.openDiffByMode);
-  const closeDiffTabsForFile = usePanelLayoutStore(
-    (state) => state.closeDiffTabsForFile,
-  );
-  const queryClient = useQueryClient();
-  const { detectedApps } = useExternalApps();
-  const workspace = useWorkspace(taskId);
-
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-
-  // show toolbar when hovered OR when dropdown is open
-  const isToolbarVisible = isHovered || isDropdownOpen;
-
-  const fileName = file.path.split("/").pop() || file.path;
-  const fullPath = `${repoPath}/${file.path}`;
-  const indicator = getStatusIndicator(file.status);
-
-  const handleClick = () => {
-    openDiffByMode(taskId, file.path, file.status);
-  };
-
-  const handleDoubleClick = () => {
-    openDiffByMode(taskId, file.path, file.status, false);
-  };
-
-  const workspaceContext = {
-    workspace,
-    mainRepoPath,
-  };
-
-  const handleContextMenu = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    const result = await trpcClient.contextMenu.showFileContextMenu.mutate({
-      filePath: fullPath,
-    });
-
-    if (!result.action) return;
-
-    if (result.action.type === "external-app") {
-      await handleExternalAppAction(
-        result.action.action,
-        fullPath,
-        fileName,
-        workspaceContext,
-      );
-    }
-  };
-
-  const handleOpenWith = async (appId: string) => {
-    await handleExternalAppAction(
-      { type: "open-in-app", appId },
-      fullPath,
-      fileName,
-      workspaceContext,
-    );
-
-    // blur active element to dismiss any open tooltip
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-  };
-
-  const handleCopyPath = async () => {
-    await handleExternalAppAction({ type: "copy-path" }, fullPath, fileName);
-  };
-
-  const handleDiscard = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const { message, action } = getDiscardInfo(file, fileName);
-
-    const dialogResult = await showMessageBox({
-      type: "warning",
-      title: "Discard changes",
-      message,
-      buttons: ["Cancel", action],
-      defaultId: 0,
-      cancelId: 0,
-    });
-
-    if (dialogResult.response !== 1) return;
-
-    const discardResult = await trpcClient.git.discardFileChanges.mutate({
-      directoryPath: repoPath,
-      filePath: file.originalPath ?? file.path,
-      fileStatus: file.status,
-    });
-
-    closeDiffTabsForFile(taskId, file.path);
-
-    if (discardResult.state) {
-      updateGitCacheFromSnapshot(queryClient, repoPath, discardResult.state);
-    }
-  };
-
-  const hasLineStats =
-    file.linesAdded !== undefined || file.linesRemoved !== undefined;
-
-  const tooltipContent = `${file.path} - ${indicator.fullLabel}`;
-
-  return (
-    <Tooltip content={tooltipContent} side="top" delayDuration={500}>
-      <Flex
-        align="center"
-        gap="1"
-        onClick={handleClick}
-        onDoubleClick={handleDoubleClick}
-        onContextMenu={handleContextMenu}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        className={
-          isActive
-            ? "border-accent-8 border-y bg-accent-4"
-            : "border-transparent border-y hover:bg-gray-3"
-        }
-        style={{
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          height: "26px",
-          paddingLeft: "8px",
-          paddingRight: "8px",
-        }}
-      >
-        <FileIcon filename={fileName} size={14} />
-        <Text
-          size="1"
-          style={{
-            userSelect: "none",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            marginLeft: "2px",
-            flexShrink: 1,
-            minWidth: 0,
-          }}
-        >
-          {fileName}
-        </Text>
-        <Text
-          size="1"
-          color="gray"
-          style={{
-            userSelect: "none",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            flex: 1,
-            marginLeft: "4px",
-            minWidth: 0,
-          }}
-        >
-          {file.originalPath
-            ? `${file.originalPath} → ${file.path}`
-            : file.path}
-        </Text>
-
-        {hasLineStats && !isToolbarVisible && (
-          <Flex
-            align="center"
-            gap="1"
-            style={{ flexShrink: 0, fontSize: "10px", fontFamily: "monospace" }}
-          >
-            {(file.linesAdded ?? 0) > 0 && (
-              <Text style={{ color: "var(--green-9)" }}>
-                +{file.linesAdded}
-              </Text>
-            )}
-            {(file.linesRemoved ?? 0) > 0 && (
-              <Text style={{ color: "var(--red-9)" }}>
-                -{file.linesRemoved}
-              </Text>
-            )}
-          </Flex>
-        )}
-
-        {isToolbarVisible && (
-          <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
-            <Tooltip content="Discard changes">
-              <IconButton
-                size="1"
-                variant="ghost"
-                color="gray"
-                onClick={handleDiscard}
-                style={{
-                  flexShrink: 0,
-                  width: "18px",
-                  height: "18px",
-                  padding: 0,
-                  marginLeft: "2px",
-                  marginRight: "2px",
-                }}
-              >
-                <ArrowCounterClockwiseIcon size={12} />
-              </IconButton>
-            </Tooltip>
-
-            <DropdownMenu.Root
-              open={isDropdownOpen}
-              onOpenChange={setIsDropdownOpen}
-            >
-              <Tooltip content="Open file">
-                <DropdownMenu.Trigger>
-                  <IconButton
-                    size="1"
-                    variant="ghost"
-                    color="gray"
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      flexShrink: 0,
-                      width: "18px",
-                      height: "18px",
-                      padding: 0,
-                    }}
-                  >
-                    <FilePlus size={12} weight="regular" />
-                  </IconButton>
-                </DropdownMenu.Trigger>
-              </Tooltip>
-              <DropdownMenu.Content size="1" align="end">
-                {detectedApps
-                  .filter((app) => app.type !== "terminal")
-                  .map((app) => (
-                    <DropdownMenu.Item
-                      key={app.id}
-                      onSelect={() => handleOpenWith(app.id)}
-                    >
-                      <Flex align="center" gap="2">
-                        {app.icon ? (
-                          <img
-                            src={app.icon}
-                            width={16}
-                            height={16}
-                            alt=""
-                            style={{ borderRadius: "2px" }}
-                          />
-                        ) : (
-                          <CodeIcon size={16} weight="regular" />
-                        )}
-                        <Text size="1">{app.name}</Text>
-                      </Flex>
-                    </DropdownMenu.Item>
-                  ))}
-                <DropdownMenu.Separator />
-                <DropdownMenu.Item onSelect={handleCopyPath}>
-                  <Flex align="center" gap="2">
-                    <CopyIcon size={16} weight="regular" />
-                    <Text size="1">Copy Path</Text>
-                  </Flex>
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
-          </Flex>
-        )}
-
-        <Badge
-          size="1"
-          color={indicator.color}
-          style={{ flexShrink: 0, fontSize: "10px", padding: "0 4px" }}
-        >
-          {indicator.label}
-        </Badge>
-      </Flex>
-    </Tooltip>
-  );
-}
-
-function CloudChangedFileItem({
-  file,
-  taskId,
-  isActive,
-}: {
-  file: ChangedFile;
-  taskId: string;
-  isActive: boolean;
-}) {
-  const openCloudDiffByMode = usePanelLayoutStore(
-    (state) => state.openCloudDiffByMode,
-  );
-  const fileName = file.path.split("/").pop() || file.path;
-  const indicator = getStatusIndicator(file.status);
-  const hasLineStats =
-    file.linesAdded !== undefined || file.linesRemoved !== undefined;
-
-  const handleClick = () => {
-    openCloudDiffByMode(taskId, file.path, file.status);
-  };
-
-  const handleDoubleClick = () => {
-    openCloudDiffByMode(taskId, file.path, file.status, false);
-  };
-
-  return (
-    <Tooltip
-      content={`${file.path} - ${indicator.fullLabel}`}
-      side="top"
-      delayDuration={500}
-    >
-      <Flex
-        align="center"
-        gap="1"
-        onClick={handleClick}
-        onDoubleClick={handleDoubleClick}
-        className={
-          isActive
-            ? "border-accent-8 border-y bg-accent-4"
-            : "border-transparent border-y hover:bg-gray-3"
-        }
-        style={{
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          height: "26px",
-          paddingLeft: "8px",
-          paddingRight: "8px",
-        }}
-      >
-        <FileIcon filename={fileName} size={14} />
-        <Text
-          size="1"
-          style={{
-            userSelect: "none",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            marginLeft: "2px",
-            flexShrink: 1,
-            minWidth: 0,
-          }}
-        >
-          {fileName}
-        </Text>
-        <Text
-          size="1"
-          color="gray"
-          style={{
-            userSelect: "none",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            flex: 1,
-            marginLeft: "4px",
-            minWidth: 0,
-          }}
-        >
-          {file.originalPath
-            ? `${file.originalPath} → ${file.path}`
-            : file.path}
-        </Text>
-
-        {hasLineStats && (
-          <Flex
-            align="center"
-            gap="1"
-            style={{ flexShrink: 0, fontSize: "10px", fontFamily: "monospace" }}
-          >
-            {(file.linesAdded ?? 0) > 0 && (
-              <Text style={{ color: "var(--green-9)" }}>
-                +{file.linesAdded}
-              </Text>
-            )}
-            {(file.linesRemoved ?? 0) > 0 && (
-              <Text style={{ color: "var(--red-9)" }}>
-                -{file.linesRemoved}
-              </Text>
-            )}
-          </Flex>
-        )}
-
-        <Badge
-          size="1"
-          color={indicator.color}
-          style={{ flexShrink: 0, fontSize: "10px", padding: "0 4px" }}
-        >
-          {indicator.label}
-        </Badge>
-      </Flex>
-    </Tooltip>
-  );
 }
 
 function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
@@ -511,14 +38,12 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
     return isCloudDiffTabActiveInTree(layout.panelTree, file.path, file.status);
   };
 
-  // PR-based files (preferred when PR exists, to avoid possible state weirdness)
   const {
     data: prFiles,
     isPending: prPending,
     isError: prError,
   } = useCloudPrChangedFiles(prUrl);
 
-  // Branch-based files — use effectiveBranch (includes live cloudBranch)
   const {
     data: branchFiles,
     isPending: branchPending,
@@ -531,64 +56,60 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
   const changedFiles = prUrl ? (prFiles ?? []) : (branchFiles ?? []);
   const isLoading = prUrl ? prPending : effectiveBranch ? branchPending : false;
   const hasError = prUrl ? prError : effectiveBranch ? branchError : false;
-
   const effectiveFiles = changedFiles.length > 0 ? changedFiles : fallbackFiles;
 
-  // No branch/PR yet and run is active — show waiting state
-  if (!prUrl && !effectiveBranch && effectiveFiles.length === 0) {
-    if (isRunActive) {
-      return (
-        <PanelMessage detail="Changes will appear once the agent starts writing code">
-          <Flex align="center" gap="2">
-            <Spinner size="1" />
-            <Text size="2">Waiting for changes...</Text>
-          </Flex>
-        </PanelMessage>
-      );
-    }
-    return <PanelMessage>No file changes yet</PanelMessage>;
+  const cloudChangesState = getCloudChangesState({
+    prUrl,
+    effectiveBranch,
+    isRunActive,
+    effectiveFiles,
+    isLoading,
+    hasError,
+  });
+
+  if (cloudChangesState.kind === "waiting") {
+    return (
+      <PanelMessage detail={cloudChangesState.detail}>
+        <Flex align="center" gap="2">
+          <Spinner size="1" />
+          <Text size="2">Waiting for changes...</Text>
+        </Flex>
+      </PanelMessage>
+    );
   }
 
-  if (isLoading && effectiveFiles.length === 0) {
+  if (cloudChangesState.kind === "loading") {
     return <PanelMessage>Loading changes...</PanelMessage>;
   }
 
-  if (effectiveFiles.length === 0) {
-    if (hasError && prUrl) {
-      return (
-        <PanelMessage>
-          <Flex direction="column" align="center" gap="2">
-            <Text>Could not load file changes</Text>
-            <Button size="1" variant="soft" asChild>
-              <a href={prUrl} target="_blank" rel="noopener noreferrer">
-                View on GitHub
-              </a>
-            </Button>
-          </Flex>
-        </PanelMessage>
-      );
-    }
-    if (prUrl) {
-      return <PanelMessage>No file changes in pull request</PanelMessage>;
-    }
-    if (isRunActive) {
-      return (
-        <PanelMessage detail="Changes will appear as the agent modifies files">
-          <Flex align="center" gap="2">
-            <Spinner size="1" />
-            <Text size="2">Waiting for changes...</Text>
-          </Flex>
-        </PanelMessage>
-      );
-    }
-    return <PanelMessage>No file changes yet</PanelMessage>;
+  if (cloudChangesState.kind === "pr_error") {
+    return (
+      <PanelMessage>
+        <Flex direction="column" align="center" gap="2">
+          <Text>Could not load file changes</Text>
+          <Button size="1" variant="soft" asChild>
+            <a
+              href={cloudChangesState.prUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View on GitHub
+            </a>
+          </Button>
+        </Flex>
+      </PanelMessage>
+    );
+  }
+
+  if (cloudChangesState.kind === "empty") {
+    return <PanelMessage>{cloudChangesState.message}</PanelMessage>;
   }
 
   return (
     <Box height="100%" overflowY="auto" py="2">
       <Flex direction="column">
         {effectiveFiles.map((file) => (
-          <CloudChangedFileItem
+          <ChangesCloudFileRow
             key={file.path}
             file={file}
             taskId={taskId}
@@ -687,9 +208,7 @@ function LocalChangesPanel({ taskId, task: _task }: ChangesPanelProps) {
     return <PanelMessage>Loading changes...</PanelMessage>;
   }
 
-  const hasChanges = changedFiles.length > 0;
-
-  if (!hasChanges) {
+  if (changedFiles.length === 0) {
     return (
       <Box height="100%" overflowY="auto" py="2">
         <Flex direction="column" height="100%">
@@ -703,7 +222,7 @@ function LocalChangesPanel({ taskId, task: _task }: ChangesPanelProps) {
     <Box height="100%" overflowY="auto" py="2">
       <Flex direction="column">
         {changedFiles.map((file) => (
-          <ChangedFileItem
+          <ChangesLocalFileRow
             key={file.path}
             file={file}
             taskId={taskId}
