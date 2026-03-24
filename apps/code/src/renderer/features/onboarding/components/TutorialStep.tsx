@@ -97,8 +97,10 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
   >("local");
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
 
-  const { data: cloudBranches, isPending: cloudBranchesLoading } =
+  const { data: cloudBranchData, isPending: cloudBranchesLoading } =
     useGithubBranches(githubIntegration?.id, selectedRepository);
+  const cloudBranches = cloudBranchData?.branches;
+  const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
   // Preview session for config options — always claude
   const { modeOption, thoughtOption, previewTaskId, isConnecting } =
@@ -342,6 +344,7 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
                       : selectedDirectory
                   }
                   currentBranch={null}
+                  defaultBranch={cloudDefaultBranch}
                   disabled={!isEnabled("branch-selector") || isCreatingTask}
                   loading={cloudBranchesLoading}
                   workspaceMode={workspaceMode}

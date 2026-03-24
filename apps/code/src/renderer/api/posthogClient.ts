@@ -717,7 +717,7 @@ export class PostHogAPIClient {
   async getGithubBranches(
     integrationId: string | number,
     repo: string,
-  ): Promise<string[]> {
+  ): Promise<{ branches: string[]; defaultBranch: string | null }> {
     const teamId = await this.getTeamId();
     const url = new URL(
       `${this.api.baseUrl}/api/environments/${teamId}/integrations/${integrationId}/github_branches/`,
@@ -736,7 +736,10 @@ export class PostHogAPIClient {
     }
 
     const data = await response.json();
-    return data.branches ?? data.results ?? data ?? [];
+    return {
+      branches: data.branches ?? data.results ?? data ?? [],
+      defaultBranch: data.default_branch ?? null,
+    };
   }
 
   async getGithubRepositories(

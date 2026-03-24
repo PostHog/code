@@ -89,8 +89,10 @@ export function TaskInput() {
   const { currentBranch, branchLoading, defaultBranch } =
     useGitQueries(selectedDirectory);
 
-  const { data: cloudBranches, isPending: cloudBranchesLoading } =
+  const { data: cloudBranchData, isPending: cloudBranchesLoading } =
     useGithubBranches(githubIntegration?.id, selectedRepository);
+  const cloudBranches = cloudBranchData?.branches;
+  const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
   // Preview session provides adapter-specific config options
   const {
@@ -342,7 +344,9 @@ export function TaskInput() {
                   : selectedDirectory
               }
               currentBranch={currentBranch}
-              defaultBranch={defaultBranch}
+              defaultBranch={
+                workspaceMode === "cloud" ? cloudDefaultBranch : defaultBranch
+              }
               disabled={
                 isCreatingTask ||
                 (workspaceMode === "cloud" && !selectedRepository)
