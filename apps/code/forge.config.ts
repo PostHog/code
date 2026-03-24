@@ -209,10 +209,15 @@ const config: ForgeConfig = {
       // Build native modules for DMG maker on Node.js 22
       const modules = ["macos-alias", "fs-xattr"];
 
-      for (const module of modules) {
-        const modulePath = `node_modules/${module}`;
-        if (existsSync(modulePath)) {
-          console.log(`Building native module: ${module}`);
+      for (const mod of modules) {
+        const candidates = [
+          path.join("node_modules", mod),
+          path.resolve("../../node_modules", mod),
+        ];
+        const modulePath = candidates.find((p) => existsSync(p));
+
+        if (modulePath) {
+          console.log(`Building native module: ${mod} (${modulePath})`);
           execSync("npm install", { cwd: modulePath, stdio: "inherit" });
         }
       }
