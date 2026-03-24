@@ -113,7 +113,7 @@ export function SkillsView() {
                         key={source}
                         title={config.sectionTitle}
                         skills={items}
-                        selectedPath={selectedPath}
+                        selectedPath={selectedSkill?.path ?? null}
                         onSelect={handleSelect}
                       />
                     );
