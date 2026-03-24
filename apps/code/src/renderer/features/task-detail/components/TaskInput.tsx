@@ -3,7 +3,14 @@ import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
 import { useFolders } from "@features/folders/hooks/useFolders";
 import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
+import { GitBranchDialog } from "@features/git-interaction/components/GitInteractionDialogs";
 import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
+import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
+import {
+  sanitizeBranchName,
+  validateBranchName,
+} from "@features/git-interaction/utils/branchNameValidation";
+import { invalidateGitBranchQueries } from "@features/git-interaction/utils/gitCacheKeys";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
 import { ModeIndicatorInput } from "@features/message-editor/components/ModeIndicatorInput";
 import { DropZoneOverlay } from "@features/sessions/components/DropZoneOverlay";
@@ -23,7 +30,7 @@ import { Flex, Text } from "@radix-ui/themes";
 import { useAuthStore } from "@renderer/features/auth/stores/authStore";
 import { useTRPC } from "@renderer/trpc/client";
 import { useNavigationStore } from "@stores/navigationStore";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { usePreviewSession } from "../hooks/usePreviewSession";
@@ -102,6 +109,51 @@ export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
     useGithubBranches(githubIntegration?.id, selectedRepository);
   const cloudBranches = cloudBranchData?.branches;
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
+
+  const {
+    branchOpen,
+    branchName: newBranchName,
+    branchError,
+    actions: gitActions,
+  } = useGitInteractionStore();
+
+  const createBranchMutation = useMutation(
+    trpcReact.git.createBranch.mutationOptions({
+      onSuccess: (_data, { branchName }) => {
+        if (selectedDirectory) invalidateGitBranchQueries(selectedDirectory);
+        setSelectedBranch(branchName);
+        gitActions.closeBranch();
+      },
+      onError: (error) => {
+        const message =
+          error instanceof Error ? error.message : "Failed to create branch.";
+        gitActions.setBranchError(message);
+      },
+    }),
+  );
+
+  const handleNewBranchNameChange = useCallback(
+    (value: string) => {
+      const sanitized = sanitizeBranchName(value);
+      gitActions.setBranchName(sanitized);
+      gitActions.setBranchError(validateBranchName(sanitized));
+    },
+    [gitActions],
+  );
+
+  const handleCreateBranch = useCallback(() => {
+    const trimmed = newBranchName.trim();
+    if (!trimmed || !selectedDirectory) return;
+    const validationError = validateBranchName(trimmed);
+    if (validationError) {
+      gitActions.setBranchError(validationError);
+      return;
+    }
+    createBranchMutation.mutate({
+      directoryPath: selectedDirectory,
+      branchName: trimmed,
+    });
+  }, [newBranchName, selectedDirectory, gitActions, createBranchMutation]);
 
   // Preview session provides adapter-specific config options
   const {
@@ -426,6 +478,18 @@ export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
           />
         </Flex>
       </Flex>
+
+      <GitBranchDialog
+        open={branchOpen}
+        onOpenChange={(open) => {
+          if (!open) gitActions.closeBranch();
+        }}
+        branchName={newBranchName}
+        onBranchNameChange={handleNewBranchNameChange}
+        onConfirm={handleCreateBranch}
+        isSubmitting={createBranchMutation.isPending}
+        error={branchError}
+      />
     </div>
   );
 }
