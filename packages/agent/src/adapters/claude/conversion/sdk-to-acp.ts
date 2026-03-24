@@ -544,7 +544,7 @@ export async function handleSystemMessage(
   message: Extract<SDKMessage, { type: "system" }>,
   context: MessageHandlerContext,
 ): Promise<void> {
-  const { sessionId, client, logger } = context;
+  const { session, sessionId, client, logger } = context;
 
   switch (message.subtype) {
     case "init":
@@ -554,6 +554,7 @@ export async function handleSystemMessage(
         sessionId,
         trigger: message.compact_metadata.trigger,
         preTokens: message.compact_metadata.pre_tokens,
+        contextSize: session.contextSize,
       });
       break;
     case "hook_response":

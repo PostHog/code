@@ -595,8 +595,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   async unstable_setSessionModel(
     params: SetSessionModelRequest,
   ): Promise<SetSessionModelResponse | undefined> {
-    const sdkModelId = toSdkModelId(params.modelId);
-    await this.session.query.setModel(sdkModelId);
+    await this.session.query.setModel(params.modelId);
     this.session.modelId = params.modelId;
     this.rebuildEffortConfigOption(params.modelId);
     await this.updateConfigOption("model", params.modelId);
@@ -894,11 +893,8 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const resolvedModelId = settingsModel || modelOptions.currentModelId;
     session.modelId = resolvedModelId;
 
-    if (!isResume) {
-      const resolvedSdkModel = toSdkModelId(resolvedModelId);
-      if (resolvedSdkModel !== DEFAULT_MODEL) {
-        await this.session.query.setModel(resolvedSdkModel);
-      }
+    if (!isResume && resolvedModelId !== DEFAULT_MODEL) {
+      await this.session.query.setModel(resolvedModelId);
     }
 
     const availableModes = getAvailableModes();

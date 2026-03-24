@@ -1,8 +1,6 @@
 import { Text, Tooltip } from "@radix-ui/themes";
 import { useContextUsageForTask } from "@renderer/features/sessions/hooks/useSession";
 
-const CONTEXT_WARNING_THRESHOLD_PCT = 40;
-
 interface ContextUsageIndicatorProps {
   taskId?: string;
 }
@@ -12,8 +10,6 @@ export function ContextUsageIndicator({ taskId }: ContextUsageIndicatorProps) {
   if (!contextUsage || contextUsage.size <= 0) return null;
 
   const percent = Math.round((contextUsage.used / contextUsage.size) * 100);
-
-  if (percent < CONTEXT_WARNING_THRESHOLD_PCT) return null;
 
   return (
     <Tooltip
