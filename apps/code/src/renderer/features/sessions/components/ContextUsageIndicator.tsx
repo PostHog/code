@@ -32,19 +32,15 @@ interface ContextUsageIndicatorProps {
 export function ContextUsageIndicator({ usage }: ContextUsageIndicatorProps) {
   if (!usage) return null;
 
-  const { used, size, percentage, cost } = usage;
+  const { used, size, percentage } = usage;
   const strokeDashoffset = CIRCUMFERENCE - (percentage / 100) * CIRCUMFERENCE;
   const color = getUsageColor(percentage);
 
-  const tooltipLines = [
-    `Context: ${formatTokensFull(used)} / ${formatTokensFull(size)} tokens (${percentage}%)`,
-  ];
-  if (cost) {
-    tooltipLines.push(`Cost: $${cost.amount.toFixed(2)}`);
-  }
-
   return (
-    <Tooltip content={tooltipLines.join(" | ")} side="top">
+    <Tooltip
+      content={`${formatTokensFull(used)} / ${formatTokensFull(size)} tokens (${percentage}%)`}
+      side="top"
+    >
       <Flex align="center" gap="1" className="cursor-default select-none">
         <svg
           width={CIRCLE_SIZE}
