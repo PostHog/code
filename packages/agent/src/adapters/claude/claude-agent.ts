@@ -323,6 +323,12 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     this.session.promptRunning = true;
     let handedOff = false;
     let lastAssistantTotalUsage: number | null = null;
+    if (this.session.lastContextWindowSize == null) {
+      this.session.lastContextWindowSize = getDefaultContextWindow(
+        this.session.modelId ?? "",
+      );
+    }
+    let lastContextWindowSize = this.session.lastContextWindowSize;
 
     const supportsTerminalOutput =
       (
@@ -397,12 +403,13 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
             const contextWindows = Object.values(message.modelUsage).map(
               (m) => m.contextWindow,
             );
-            const contextWindowSize =
+            lastContextWindowSize =
               contextWindows.length > 0
                 ? Math.min(...contextWindows)
                 : getDefaultContextWindow(this.session.modelId ?? "");
+            this.session.lastContextWindowSize = lastContextWindowSize;
 
-            this.session.contextSize = contextWindowSize;
+            this.session.contextSize = lastContextWindowSize;
             if (lastAssistantTotalUsage !== null) {
               this.session.contextUsed = lastAssistantTotalUsage;
             }
@@ -414,7 +421,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
                 update: {
                   sessionUpdate: "usage_update",
                   used: lastAssistantTotalUsage,
-                  size: contextWindowSize,
+                  size: lastContextWindowSize,
                   cost: {
                     amount: message.total_cost_usd,
                     currency: "USD",
@@ -524,6 +531,16 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
                 usage.output_tokens +
                 usage.cache_read_input_tokens +
                 usage.cache_creation_input_tokens;
+
+              await this.client.sessionUpdate({
+                sessionId: params.sessionId,
+                update: {
+                  sessionUpdate: "usage_update",
+                  used: lastAssistantTotalUsage,
+                  size: lastContextWindowSize,
+                  cost: null,
+                },
+              });
             }
 
             const result = await handleUserAssistantMessage(message, context);
@@ -597,6 +614,9 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   ): Promise<SetSessionModelResponse | undefined> {
     await this.session.query.setModel(params.modelId);
     this.session.modelId = params.modelId;
+    this.session.lastContextWindowSize = getDefaultContextWindow(
+      params.modelId,
+    );
     this.rebuildEffortConfigOption(params.modelId);
     await this.updateConfigOption("model", params.modelId);
     return {};
@@ -673,6 +693,9 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       const sdkModelId = toSdkModelId(resolvedValue);
       await this.session.query.setModel(sdkModelId);
       this.session.modelId = resolvedValue;
+      this.session.lastContextWindowSize = getDefaultContextWindow(
+        resolvedValue,
+      );
       this.rebuildEffortConfigOption(resolvedValue);
     } else if (params.configId === "effort") {
       const newEffort = resolvedValue as EffortLevel;
@@ -892,6 +915,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const modelOptions = await this.getModelConfigOptions();
     const resolvedModelId = settingsModel || modelOptions.currentModelId;
     session.modelId = resolvedModelId;
+    session.lastContextWindowSize = getDefaultContextWindow(resolvedModelId);
 
     if (!isResume && resolvedModelId !== DEFAULT_MODEL) {
       await this.session.query.setModel(resolvedModelId);

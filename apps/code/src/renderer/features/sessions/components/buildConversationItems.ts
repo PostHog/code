@@ -551,6 +551,7 @@ function processSessionUpdate(b: ItemBuilder, update: SessionUpdate) {
     case "plan":
     case "available_commands_update":
     case "config_option_update":
+    case "usage_update":
       break;
 
     default: {

@@ -1,6 +1,8 @@
+import type { ContextUsage } from "@features/sessions/hooks/useContextUsage";
 import { Pause } from "@phosphor-icons/react";
 import { Box, Flex, Text } from "@radix-ui/themes";
 
+import { ContextUsageIndicator } from "./ContextUsageIndicator";
 import { formatDuration, GeneratingIndicator } from "./GeneratingIndicator";
 
 interface SessionFooterProps {
@@ -12,6 +14,7 @@ interface SessionFooterProps {
   hasPendingPermission?: boolean;
   pausedDurationMs?: number;
   isCompacting?: boolean;
+  usage?: ContextUsage | null;
 }
 
 export function SessionFooter({
@@ -23,20 +26,23 @@ export function SessionFooter({
   hasPendingPermission = false,
   pausedDurationMs,
   isCompacting = false,
+  usage,
 }: SessionFooterProps) {
   if (isPromptPending && !isCompacting) {
-    // Show static "waiting" state when permission is pending
     if (hasPendingPermission) {
       return (
         <Box className="pt-3 pb-1">
-          <Flex
-            align="center"
-            gap="2"
-            className="select-none text-gray-10"
-            style={{ userSelect: "none", WebkitUserSelect: "none" }}
-          >
-            <Pause size={14} weight="fill" />
-            <Text size="1">Awaiting permission...</Text>
+          <Flex align="center" justify="between" gap="2">
+            <Flex
+              align="center"
+              gap="2"
+              className="select-none text-gray-10"
+              style={{ userSelect: "none", WebkitUserSelect: "none" }}
+            >
+              <Pause size={14} weight="fill" />
+              <Text size="1">Awaiting permission...</Text>
+            </Flex>
+            <ContextUsageIndicator usage={usage ?? null} />
           </Flex>
         </Box>
       );
@@ -44,16 +50,19 @@ export function SessionFooter({
 
     return (
       <Box className="pt-3 pb-1">
-        <Flex align="center" gap="2">
-          <GeneratingIndicator
-            startedAt={promptStartedAt}
-            pausedDurationMs={pausedDurationMs}
-          />
-          {queuedCount > 0 && (
-            <Text size="1" color="gray">
-              ({queuedCount} queued)
-            </Text>
-          )}
+        <Flex align="center" justify="between" gap="2">
+          <Flex align="center" gap="2">
+            <GeneratingIndicator
+              startedAt={promptStartedAt}
+              pausedDurationMs={pausedDurationMs}
+            />
+            {queuedCount > 0 && (
+              <Text size="1" color="gray">
+                ({queuedCount} queued)
+              </Text>
+            )}
+          </Flex>
+          <ContextUsageIndicator usage={usage ?? null} />
         </Flex>
       </Box>
     );
@@ -69,13 +78,26 @@ export function SessionFooter({
   ) {
     return (
       <Box className="pb-1">
-        <Text
-          size="1"
-          color="gray"
-          style={{ fontVariantNumeric: "tabular-nums" }}
-        >
-          Generated in {formatDuration(lastGenerationDuration)}
-        </Text>
+        <Flex align="center" justify="between" gap="2">
+          <Text
+            size="1"
+            color="gray"
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
+            Generated in {formatDuration(lastGenerationDuration)}
+          </Text>
+          <ContextUsageIndicator usage={usage ?? null} />
+        </Flex>
+      </Box>
+    );
+  }
+
+  if (usage) {
+    return (
+      <Box className="pb-1">
+        <Flex justify="end">
+          <ContextUsageIndicator usage={usage} />
+        </Flex>
       </Box>
     );
   }

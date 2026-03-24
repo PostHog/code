@@ -57,6 +57,8 @@ export type Session = BaseSession & {
   contextUsed?: number;
   /** Context window size in tokens */
   contextSize?: number;
+  /** Persists across prompt() calls so SDK-reported values survive turn boundaries */
+  lastContextWindowSize?: number;
   promptRunning: boolean;
   pendingMessages: Map<string, PendingMessage>;
   nextPendingOrder: number;
