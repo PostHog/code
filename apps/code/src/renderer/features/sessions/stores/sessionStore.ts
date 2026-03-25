@@ -120,8 +120,10 @@ export function mergeConfigOptions(
   return live.map((liveOpt) => {
     const persistedOpt = persistedMap.get(liveOpt.id);
     if (persistedOpt) {
-      // Use persisted currentValue if available
-      return { ...liveOpt, currentValue: persistedOpt.currentValue };
+      return {
+        ...liveOpt,
+        currentValue: persistedOpt.currentValue,
+      } as SessionConfigOption;
     }
     return liveOpt;
   });
@@ -145,7 +147,7 @@ export function cycleModeOption(
   modeOption: SessionConfigOption | undefined,
   allowBypassPermissions: boolean,
 ): string | undefined {
-  if (!modeOption) return undefined;
+  if (!modeOption || modeOption.type !== "select") return undefined;
 
   const allOptions = flattenSelectOptions(modeOption.options);
   const filteredOptions = allowBypassPermissions

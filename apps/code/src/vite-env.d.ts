@@ -13,9 +13,6 @@ interface ImportMetaEnv {
   readonly VITE_POSTHOG_UI_HOST?: string;
 }
 
-// This interface is used by TypeScript to type-check `import.meta.env` in Vite.
-// It appears unused in this file, but it is intentionally kept for global augmentation.
-// biome-ignore lint: noUnusedVariables
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }

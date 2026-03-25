@@ -355,10 +355,9 @@ export class SessionService {
     this.subscribeToChannel(taskRunId);
 
     try {
-      const persistedMode = getConfigOptionByCategory(
-        persistedConfigOptions,
-        "mode",
-      )?.currentValue;
+      const modeOpt = getConfigOptionByCategory(persistedConfigOptions, "mode");
+      const persistedMode =
+        modeOpt?.type === "select" ? modeOpt.currentValue : undefined;
 
       trpcClient.workspace.verify
         .query({ taskId })
@@ -429,7 +428,7 @@ export class SessionService {
                 .mutate({
                   sessionId: taskRunId,
                   configId: opt.id,
-                  value: opt.currentValue,
+                  value: String(opt.currentValue),
                 })
                 .catch((error) => {
                   log.warn(
@@ -1636,7 +1635,9 @@ export class SessionService {
 
     // Optimistic update
     const updatedOptions = configOptions.map((opt) =>
-      opt.id === configId ? { ...opt, currentValue: value } : opt,
+      opt.id === configId
+        ? ({ ...opt, currentValue: value } as SessionConfigOption)
+        : opt,
     );
     sessionStoreSetters.updateSession(session.taskRunId, {
       configOptions: updatedOptions,
@@ -1652,7 +1653,9 @@ export class SessionService {
     } catch (error) {
       // Rollback on error
       const rolledBackOptions = configOptions.map((opt) =>
-        opt.id === configId ? { ...opt, currentValue: previousValue } : opt,
+        opt.id === configId
+          ? ({ ...opt, currentValue: previousValue } as SessionConfigOption)
+          : opt,
       );
       sessionStoreSetters.updateSession(session.taskRunId, {
         configOptions: rolledBackOptions,
@@ -1660,7 +1663,7 @@ export class SessionService {
       updatePersistedConfigOptionValue(
         session.taskRunId,
         configId,
-        previousValue,
+        String(previousValue),
       );
       log.error("Failed to set session config option", {
         taskId,
@@ -1697,7 +1700,7 @@ export class SessionService {
       track(ANALYTICS_EVENTS.SESSION_CONFIG_CHANGED, {
         task_id: taskId,
         category,
-        from_value: configOption.currentValue,
+        from_value: String(configOption.currentValue),
         to_value: value,
       });
     }

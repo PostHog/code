@@ -140,13 +140,15 @@ export function TaskInput() {
 
   // Get current values from preview session config options for task creation.
   // Defaults ensure values are always passed even before the preview session loads.
-  const currentModel = modelOption?.currentValue;
+  const currentModel =
+    modelOption?.type === "select" ? modelOption.currentValue : undefined;
   const modeFallback =
     defaultInitialTaskMode === "last_used" ? lastUsedInitialTaskMode : "plan";
   const currentExecutionMode =
     getCurrentModeFromConfigOptions(modeOption ? [modeOption] : undefined) ??
     modeFallback;
-  const currentReasoningLevel = thoughtOption?.currentValue;
+  const currentReasoningLevel =
+    thoughtOption?.type === "select" ? thoughtOption.currentValue : undefined;
 
   const branchForTaskCreation =
     effectiveWorkspaceMode === "worktree" || effectiveWorkspaceMode === "cloud"

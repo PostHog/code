@@ -631,7 +631,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       "options" in option && Array.isArray(option.options)
         ? (option.options as Array<Record<string, unknown>>).flatMap((o) =>
             "options" in o && Array.isArray(o.options)
-              ? (o.options as { value: string; name?: string; description?: string }[])
+              ? (o.options as {
+                  value: string;
+                  name?: string;
+                  description?: string;
+                }[])
               : [o as { value: string; name?: string; description?: string }],
           )
         : [];
@@ -992,13 +996,17 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       currentModelId: this.session.modelId ?? DEFAULT_MODEL,
       availableModels:
         modelOptions && "options" in modelOptions
-          ? (modelOptions.options as Array<{ value: string; name: string; description?: string }>).map(
-              (opt) => ({
-                modelId: opt.value,
-                name: opt.name,
-                description: opt.description,
-              }),
-            )
+          ? (
+              modelOptions.options as Array<{
+                value: string;
+                name: string;
+                description?: string;
+              }>
+            ).map((opt) => ({
+              modelId: opt.value,
+              name: opt.name,
+              description: opt.description,
+            }))
           : [],
     };
 

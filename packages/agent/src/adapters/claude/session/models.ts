@@ -67,9 +67,10 @@ export function getEffortOptions(modelId: string): EffortOption[] | null {
 
 const MODEL_CONTEXT_HINT_PATTERN = /\[(\d+m)\]$/i;
 
-function tokenizeModelPreference(
-  model: string,
-): { tokens: string[]; contextHint?: string } {
+function tokenizeModelPreference(model: string): {
+  tokens: string[];
+  contextHint?: string;
+} {
   const lower = model.trim().toLowerCase();
   const contextHint = lower
     .match(MODEL_CONTEXT_HINT_PATTERN)?.[1]
