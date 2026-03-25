@@ -19,7 +19,8 @@ import {
   useGithubBranches,
   useRepositoryIntegration,
 } from "@hooks/useIntegrations";
-import { Flex } from "@radix-ui/themes";
+import { Badge, Flex } from "@radix-ui/themes";
+import { useAuthStore } from "@renderer/features/auth/stores/authStore";
 import { useTRPC } from "@renderer/trpc/client";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
@@ -33,6 +34,7 @@ import { type WorkspaceMode, WorkspaceModeSelect } from "./WorkspaceModeSelect";
 const DOT_FILL = "var(--gray-6)";
 
 export function TaskInput() {
+  const { cloudRegion } = useAuthStore();
   const trpcReact = useTRPC();
   const { view } = useNavigationStore();
   const { data: mostRecentRepo } = useQuery(
@@ -367,6 +369,12 @@ export function TaskInput() {
               />
             )}
           </Flex>
+
+          {cloudRegion === "dev" && (
+            <Badge color="orange" variant="solid" size="2">
+              Development
+            </Badge>
+          )}
 
           <TaskInputEditor
             ref={editorRef}
