@@ -200,6 +200,7 @@ describe("AgentService", () => {
         notifyToolResult: vi.fn(),
         notifyToolCancelled: vi.fn(),
       } as never,
+      { service: {} } as never,
     );
   });
 

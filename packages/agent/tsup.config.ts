@@ -86,6 +86,7 @@ export default defineConfig([
       "src/memory/types.ts",
       "src/memory/repository.ts",
       "src/memory/service.ts",
+      "src/memory/seed.ts",
     ],
     format: ["esm"],
     dts: true,

@@ -53,12 +53,16 @@
       "import": "./dist/memory/types.js"
     },
     "./memory/repository": {
-      "types": "./dist/memory/store.d.ts",
-      "import": "./dist/memory/store.js"
+      "types": "./dist/memory/repository.d.ts",
+      "import": "./dist/memory/repository.js"
     },
     "./memory/service": {
       "types": "./dist/memory/service.d.ts",
       "import": "./dist/memory/service.js"
+    },
+    "./memory/seed": {
+      "types": "./dist/memory/seed.d.ts",
+      "import": "./dist/memory/seed.js"
     }
   },
   "bin": {
@@ -88,8 +92,8 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
-    "@posthog/shared": "workspace:*",
     "@posthog/git": "workspace:*",
+    "@posthog/shared": "workspace:*",
     "@types/better-sqlite3": "^7.6.13",
     "@types/bun": "latest",
     "@types/tar": "^6.1.13",
@@ -103,18 +107,20 @@
     "@agentclientprotocol/sdk": "0.16.1",
     "@anthropic-ai/claude-agent-sdk": "0.2.76",
     "@anthropic-ai/sdk": "^0.78.0",
-    "better-sqlite3": "^12.8.0",
     "@hono/node-server": "^1.19.9",
+    "@huggingface/transformers": "^3.8.1",
     "@opentelemetry/api-logs": "^0.208.0",
     "@opentelemetry/exporter-logs-otlp-http": "^0.208.0",
     "@opentelemetry/resources": "^2.0.0",
     "@opentelemetry/sdk-logs": "^0.208.0",
     "@opentelemetry/semantic-conventions": "^1.28.0",
     "@types/jsonwebtoken": "^9.0.10",
+    "better-sqlite3": "^12.8.0",
     "commander": "^14.0.2",
     "hono": "^4.11.7",
     "jsonwebtoken": "^9.0.2",
     "minimatch": "^10.0.3",
+    "sqlite-vec": "^0.1.7",
     "tar": "^7.5.0",
     "uuid": "13.0.0",
     "yoga-wasm-web": "^0.3.3",

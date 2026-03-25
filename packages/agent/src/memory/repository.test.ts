@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { MemoryRepository } from "./repository";
+import { AgentMemoryRepository } from "./repository";
 import { MemoryType, RelationType } from "./types";
 
 function createTmpDir(): string {
@@ -12,13 +12,16 @@ function createTmpDir(): string {
   return dir;
 }
 
-describe("MemoryRepository", () => {
-  let repo: MemoryRepository;
+describe("AgentMemoryRepository", () => {
+  let repo: AgentMemoryRepository;
   let tmpDir: string;
 
   beforeEach(() => {
     tmpDir = createTmpDir();
-    repo = new MemoryRepository({ dbPath: join(tmpDir, "test.db") });
+    repo = new AgentMemoryRepository({
+      dbPath: join(tmpDir, "test.db"),
+      vectorDimensions: 4,
+    });
   });
 
   afterEach(() => {
@@ -127,6 +130,18 @@ describe("MemoryRepository", () => {
 
     it("returns false for missing id", () => {
       expect(repo.delete("nonexistent")).toBe(false);
+    });
+
+    it("cleans up embedding on delete", () => {
+      const memory = repo.save({
+        content: "with vec",
+        memoryType: MemoryType.Fact,
+      });
+      repo.saveEmbedding(memory.id, new Float32Array([1, 2, 3, 4]));
+      expect(repo.hasEmbedding(memory.id)).toBe(true);
+
+      repo.delete(memory.id);
+      expect(repo.hasEmbedding(memory.id)).toBe(false);
     });
   });
 
@@ -413,6 +428,86 @@ describe("MemoryRepository", () => {
       expect(
         assocs.some((x) => x.targetId === c.id || x.sourceId === c.id),
       ).toBe(true);
+    });
+
+    it("cleans up merged memory embedding", () => {
+      const a = repo.save({ content: "A", memoryType: MemoryType.Fact });
+      const b = repo.save({ content: "B", memoryType: MemoryType.Fact });
+      repo.saveEmbedding(a.id, new Float32Array([1, 0, 0, 0]));
+      repo.saveEmbedding(b.id, new Float32Array([0, 1, 0, 0]));
+
+      repo.mergeMemories(a.id, b.id, "A\n\nB", 0.6, 0);
+
+      expect(repo.hasEmbedding(a.id)).toBe(true);
+      expect(repo.hasEmbedding(b.id)).toBe(false);
+    });
+  });
+
+  describe("vector operations", () => {
+    it("saves and searches embeddings", () => {
+      const a = repo.save({ content: "TypeScript", memoryType: MemoryType.Fact });
+      const b = repo.save({ content: "Python", memoryType: MemoryType.Fact });
+      const c = repo.save({ content: "Rust", memoryType: MemoryType.Fact });
+
+      repo.saveEmbedding(a.id, new Float32Array([1, 0, 0, 0]));
+      repo.saveEmbedding(b.id, new Float32Array([0.9, 0.1, 0, 0]));
+      repo.saveEmbedding(c.id, new Float32Array([0, 0, 0, 1]));
+
+      const results = repo.searchVector(new Float32Array([1, 0, 0, 0]), 3);
+
+      expect(results).toHaveLength(3);
+      expect(results[0].memory_id).toBe(a.id);
+      expect(results[0].distance).toBe(0);
+      expect(results[1].memory_id).toBe(b.id);
+      expect(results[1].distance).toBeGreaterThan(0);
+      expect(results[2].memory_id).toBe(c.id);
+    });
+
+    it("respects k limit", () => {
+      const a = repo.save({ content: "A", memoryType: MemoryType.Fact });
+      const b = repo.save({ content: "B", memoryType: MemoryType.Fact });
+      const c = repo.save({ content: "C", memoryType: MemoryType.Fact });
+
+      repo.saveEmbedding(a.id, new Float32Array([1, 0, 0, 0]));
+      repo.saveEmbedding(b.id, new Float32Array([0.9, 0.1, 0, 0]));
+      repo.saveEmbedding(c.id, new Float32Array([0, 0, 0, 1]));
+
+      const results = repo.searchVector(new Float32Array([1, 0, 0, 0]), 2);
+      expect(results).toHaveLength(2);
+    });
+
+    it("returns empty when no embeddings exist", () => {
+      repo.save({ content: "no vec", memoryType: MemoryType.Fact });
+      const results = repo.searchVector(new Float32Array([1, 0, 0, 0]), 5);
+      expect(results).toHaveLength(0);
+    });
+
+    it("hasEmbedding returns correct status", () => {
+      const memory = repo.save({ content: "test", memoryType: MemoryType.Fact });
+      expect(repo.hasEmbedding(memory.id)).toBe(false);
+      repo.saveEmbedding(memory.id, new Float32Array([1, 2, 3, 4]));
+      expect(repo.hasEmbedding(memory.id)).toBe(true);
+    });
+
+    it("deleteEmbedding removes the vector", () => {
+      const memory = repo.save({ content: "test", memoryType: MemoryType.Fact });
+      repo.saveEmbedding(memory.id, new Float32Array([1, 2, 3, 4]));
+      repo.deleteEmbedding(memory.id);
+      expect(repo.hasEmbedding(memory.id)).toBe(false);
+    });
+
+    it("saveEmbedding overwrites existing embedding", () => {
+      const memory = repo.save({ content: "test", memoryType: MemoryType.Fact });
+      repo.saveEmbedding(memory.id, new Float32Array([1, 0, 0, 0]));
+      repo.saveEmbedding(memory.id, new Float32Array([0, 0, 0, 1]));
+
+      const results = repo.searchVector(new Float32Array([0, 0, 0, 1]), 1);
+      expect(results[0].memory_id).toBe(memory.id);
+      expect(results[0].distance).toBe(0);
+    });
+
+    it("deleteEmbedding is safe for non-existent memory", () => {
+      expect(() => repo.deleteEmbedding("nonexistent")).not.toThrow();
     });
   });
 

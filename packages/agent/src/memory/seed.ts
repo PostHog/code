@@ -1,189 +1,201 @@
-import { MemoryService } from "./service";
+import type { Embedder } from "./embedding";
+import { AgentMemoryService } from "./service";
 import { MemoryType, RelationType } from "./types";
 
 interface SeedOptions {
   dataDir: string;
+  embedder?: Embedder;
 }
 
-export function seedMemories(options: SeedOptions): MemoryService {
-  const svc = new MemoryService({ dataDir: options.dataDir });
+export async function seedMemories(
+  options: SeedOptions,
+): Promise<AgentMemoryService> {
+  const svc = new AgentMemoryService({
+    dataDir: options.dataDir,
+    embedder: options.embedder,
+  });
 
-  const identity = svc.save({
+  const identity = await svc.save({
     content:
       "I am an AI coding assistant working on the PostHog Code desktop app",
     memoryType: MemoryType.Identity,
   });
 
-  const identityStack = svc.save({
+  const identityStack = await svc.save({
     content:
       "My primary tech stack is TypeScript, React, Electron and the Claude Agent SDK",
     memoryType: MemoryType.Identity,
   });
 
-  const identityUser = svc.save({
+  const identityUser = await svc.save({
     content:
       "The user is a senior engineer who prefers concise responses and dislikes over-engineering",
     memoryType: MemoryType.Identity,
   });
 
-  const goalMemory = svc.save({
+  const goalMemory = await svc.save({
     content:
       "Implement a knowledge graph memory system with hybrid search across the agent package",
     memoryType: MemoryType.Goal,
     importance: 0.95,
   });
 
-  const goalPhase2 = svc.save({
+  const goalPhase2 = await svc.save({
     content:
       "Build MCP tools for save and recall so the agent can interact with memory",
     memoryType: MemoryType.Goal,
     importance: 0.85,
   });
 
-  const goalPhase3 = svc.save({
+  const goalPhase3 = await svc.save({
     content:
       "Add hybrid search combining FTS5, vector similarity and graph traversal with RRF",
     memoryType: MemoryType.Goal,
     importance: 0.8,
   });
 
-  const prefBiome = svc.save({
+  const prefBiome = await svc.save({
     content: "Use Biome for linting and formatting, not ESLint or Prettier",
     memoryType: MemoryType.Preference,
   });
 
-  const prefNoBarrel = svc.save({
+  const prefNoBarrel = await svc.save({
     content: "No barrel files (index.ts). Import directly from source modules",
     memoryType: MemoryType.Preference,
   });
 
-  const _prefLogger = svc.save({
+  const _prefLogger = await svc.save({
     content: "Use a scoped logger instead of console.log for all output",
     memoryType: MemoryType.Preference,
   });
 
-  const prefSimple = svc.save({
+  const prefSimple = await svc.save({
     content: "Prefer simple over clever. Write the obvious solution first",
     memoryType: MemoryType.Preference,
   });
 
-  const prefPnpm = svc.save({
+  const prefPnpm = await svc.save({
     content: "Use pnpm for package management with turbo for the monorepo",
     memoryType: MemoryType.Preference,
   });
 
-  const factMonorepo = svc.save({
+  const factMonorepo = await svc.save({
     content:
       "The repo is a pnpm monorepo with apps/code (Electron), apps/cli, packages/agent, packages/core and packages/shared",
     memoryType: MemoryType.Fact,
   });
 
-  const factDrizzle = svc.save({
+  const factDrizzle = await svc.save({
     content:
       "The Electron app uses Drizzle ORM with better-sqlite3 for workspace data (repositories, workspaces, worktrees, archives, suspensions)",
     memoryType: MemoryType.Fact,
   });
 
-  const factMemoryDb = svc.save({
+  const factMemoryDb = await svc.save({
     content:
-      "The memory system uses raw better-sqlite3 without Drizzle, stored in a separate knowledge.db file",
+      "The memory system uses raw better-sqlite3 with sqlite-vec for vector search, stored in knowledge.db",
     memoryType: MemoryType.Fact,
   });
 
-  const factNoVec = svc.save({
+  const factVec = await svc.save({
     content:
-      "No vector extensions (sqlite-vec, sqlite-vss) are currently installed in the project",
+      "sqlite-vec provides vector similarity search via vec0 virtual tables with KNN MATCH queries",
     memoryType: MemoryType.Fact,
   });
 
-  const factDI = svc.save({
+  const factDI = await svc.save({
     content:
       "Main process uses InversifyJS for dependency injection with tokens defined in src/main/di/",
     memoryType: MemoryType.Fact,
   });
 
-  const factTRPC = svc.save({
+  const factTRPC = await svc.save({
     content:
       "IPC between main and renderer uses tRPC over Electron IPC via @posthog/electron-trpc",
     memoryType: MemoryType.Fact,
   });
 
-  const factClaudeSDK = svc.save({
+  const factClaudeSDK = await svc.save({
     content:
       "The agent package wraps @anthropic-ai/claude-agent-sdk and communicates via ACP protocol",
     memoryType: MemoryType.Fact,
   });
 
-  const decisionRawSqlite = svc.save({
+  const decisionRawSqlite = await svc.save({
     content:
       "Chose raw better-sqlite3 over Drizzle for the memory module because graph operations are simpler without ORM overhead",
     memoryType: MemoryType.Decision,
   });
 
-  const decisionDeferFTS = svc.save({
+  const decisionSqliteVec = await svc.save({
     content:
-      "Deferred FTS5 and vector search to Phase 3. Using LIKE-based text search as an interim solution",
+      "Chose sqlite-vec over LanceDB for vector search to keep everything in a single SQLite database",
     memoryType: MemoryType.Decision,
-    importance: 0.75,
   });
 
-  const decisionRepoService = svc.save({
+  const decisionRepoService = await svc.save({
     content:
       "Split memory storage into Repository (pure data access) and Service (business logic: dedup, decay, prune, merge)",
     memoryType: MemoryType.Decision,
   });
 
-  const eventPhase1 = svc.save({
+  const eventPhase1 = await svc.save({
     content:
       "Completed Phase 1 of memory implementation: types, repository, service and tests all passing",
     memoryType: MemoryType.Event,
   });
 
-  const eventFTS5Bug = svc.save({
+  const eventFTS5Bug = await svc.save({
     content:
       "FTS5 triggers caused SQL logic errors during update/delete/merge. Removed FTS5 entirely for Phase 1",
     memoryType: MemoryType.Event,
     importance: 0.6,
   });
 
-  const eventMergeBug = svc.save({
+  const eventMergeBug = await svc.save({
     content:
       "Merge hit UNIQUE constraint violations when rewiring associations via UPDATE. Fixed with collect-delete-upsert pattern",
     memoryType: MemoryType.Event,
     importance: 0.6,
   });
 
-  const obsElectronNode = svc.save({
+  const obsElectronNode = await svc.save({
     content:
       "better-sqlite3 native module version can mismatch between Electron's Node and system Node. Rebuild with node-gyp when switching",
     memoryType: MemoryType.Observation,
   });
 
-  const obsDecayTesting = svc.save({
+  const obsDecayTesting = await svc.save({
     content:
       "Testing time-dependent logic (decay, prune) requires vi.setSystemTime() since created_at is set at insert time",
     memoryType: MemoryType.Observation,
   });
 
-  const todoMCPTools = svc.save({
+  const obsVecRowid = await svc.save({
+    content:
+      "sqlite-vec requires integer rowids and rejects bound integer params. Use a vec_map table and interpolate rowids as SQL literals",
+    memoryType: MemoryType.Observation,
+  });
+
+  const todoMCPTools = await svc.save({
     content:
       "Implement save_memory and recall_memory MCP tool definitions for Phase 2",
     memoryType: MemoryType.Todo,
   });
 
-  const todoHybridSearch = svc.save({
+  const todoHybridSearch = await svc.save({
     content:
-      "Evaluate sqlite-vec vs LanceDB vs pure-JS for vector similarity in Phase 3",
+      "Build hybrid search combining text search, vector similarity and graph traversal with RRF merging",
     memoryType: MemoryType.Todo,
   });
 
-  const todoBulletin = svc.save({
+  const todoBulletin = await svc.save({
     content:
       "Build memory bulletin system that injects relevant context into agent system prompt",
     memoryType: MemoryType.Todo,
   });
 
-  const todoMaintenance = svc.save({
+  const todoMaintenance = await svc.save({
     content:
       "Schedule periodic decay and prune passes for memory maintenance in Phase 5",
     memoryType: MemoryType.Todo,
@@ -264,7 +276,7 @@ export function seedMemories(options: SeedOptions): MemoryService {
   });
 
   svc.link(factMemoryDb.id, {
-    targetId: factNoVec.id,
+    targetId: factVec.id,
     relationType: RelationType.RelatedTo,
     weight: 0.8,
   });
@@ -287,14 +299,14 @@ export function seedMemories(options: SeedOptions): MemoryService {
     weight: 0.6,
   });
 
-  svc.link(decisionDeferFTS.id, {
-    targetId: eventFTS5Bug.id,
-    relationType: RelationType.CausedBy,
+  svc.link(decisionSqliteVec.id, {
+    targetId: factVec.id,
+    relationType: RelationType.ResultOf,
     weight: 0.9,
   });
 
-  svc.link(decisionDeferFTS.id, {
-    targetId: todoHybridSearch.id,
+  svc.link(decisionSqliteVec.id, {
+    targetId: factMemoryDb.id,
     relationType: RelationType.RelatedTo,
     weight: 0.8,
   });
@@ -335,6 +347,12 @@ export function seedMemories(options: SeedOptions): MemoryService {
     weight: 0.4,
   });
 
+  svc.link(obsVecRowid.id, {
+    targetId: factVec.id,
+    relationType: RelationType.RelatedTo,
+    weight: 0.7,
+  });
+
   svc.link(prefBiome.id, {
     targetId: prefNoBarrel.id,
     relationType: RelationType.RelatedTo,
@@ -353,12 +371,6 @@ export function seedMemories(options: SeedOptions): MemoryService {
     weight: 0.5,
   });
 
-  svc.link(factNoVec.id, {
-    targetId: todoHybridSearch.id,
-    relationType: RelationType.RelatedTo,
-    weight: 0.7,
-  });
-
   svc.link(eventMergeBug.id, {
     targetId: factMemoryDb.id,
     relationType: RelationType.RelatedTo,
@@ -370,7 +382,7 @@ export function seedMemories(options: SeedOptions): MemoryService {
 
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1])) {
   const dataDir = process.argv[2] ?? "./memory-seed-data";
-  const svc = seedMemories({ dataDir });
+  const svc = await seedMemories({ dataDir });
   const count = svc.count();
   svc.close();
   process.stdout.write(

@@ -1,10 +1,12 @@
 import { join } from "node:path";
 import type { Logger } from "../utils/logger";
-import { MemoryRepository } from "./repository";
+import type { Embedder } from "./embedding";
+import { AgentMemoryRepository } from "./repository";
 import {
   type Association,
   type CreateAssociationInput,
   type CreateMemoryInput,
+  type MemorySearchResult,
   clampImportance,
   type Memory,
   type MemoryType,
@@ -14,22 +16,27 @@ import {
 
 export interface MemoryServiceOptions {
   dataDir: string;
+  embedder?: Embedder;
+  vectorDimensions?: number;
   logger?: Logger;
 }
 
-export class MemoryService {
-  private repo: MemoryRepository;
+export class AgentMemoryService {
+  private repo: AgentMemoryRepository;
+  private embedder: Embedder | null;
   private logger?: Logger;
 
   constructor(options: MemoryServiceOptions) {
     this.logger = options.logger?.child("memory");
-    this.repo = new MemoryRepository({
+    this.embedder = options.embedder ?? null;
+    this.repo = new AgentMemoryRepository({
       dbPath: join(options.dataDir, "knowledge.db"),
       logger: this.logger,
+      vectorDimensions: options.vectorDimensions,
     });
   }
 
-  save(input: CreateMemoryInput): Memory {
+  async save(input: CreateMemoryInput): Promise<Memory> {
     const existing = this.repo.searchText(input.content, 5);
 
     for (const match of existing) {
@@ -49,6 +56,18 @@ export class MemoryService {
 
     const memory = this.repo.save(input);
 
+    if (this.embedder) {
+      try {
+        const embedding = await this.embedder.embed(memory.content);
+        this.repo.saveEmbedding(memory.id, embedding);
+      } catch (err) {
+        this.logger?.debug("Failed to generate embedding", {
+          id: memory.id,
+          error: err,
+        });
+      }
+    }
+
     for (const match of existing) {
       if (match.memoryType === input.memoryType) {
         this.repo.createAssociation(memory.id, {
@@ -62,6 +81,33 @@ export class MemoryService {
     return memory;
   }
 
+  async searchSemantic(
+    query: string,
+    k = 20,
+  ): Promise<MemorySearchResult[]> {
+    if (!this.embedder) return [];
+
+    const queryVec = await this.embedder.embed(query);
+    const vecResults = this.repo.searchVector(queryVec, k);
+
+    const memories = this.repo.loadMany(
+      vecResults.map((r) => r.memory_id),
+    );
+    const memoryMap = new Map(memories.map((m) => [m.id, m]));
+
+    return vecResults
+      .map((r, i) => {
+        const memory = memoryMap.get(r.memory_id);
+        if (!memory || memory.forgotten) return null;
+        return {
+          memory,
+          score: 1 / (1 + r.distance),
+          rank: i + 1,
+        };
+      })
+      .filter((r): r is MemorySearchResult => r !== null);
+  }
+
   recall(id: string): Memory | null {
     this.repo.recordAccess(id);
     return this.repo.load(id);
@@ -73,6 +119,21 @@ export class MemoryService {
 
   update(memory: Memory): void {
     this.repo.update(memory);
+  }
+
+  async updateWithEmbedding(memory: Memory): Promise<void> {
+    this.repo.update(memory);
+    if (this.embedder) {
+      try {
+        const embedding = await this.embedder.embed(memory.content);
+        this.repo.saveEmbedding(memory.id, embedding);
+      } catch (err) {
+        this.logger?.debug("Failed to update embedding", {
+          id: memory.id,
+          error: err,
+        });
+      }
+    }
   }
 
   delete(id: string): boolean {
@@ -115,7 +176,7 @@ export class MemoryService {
     return this.repo.loadMany(ids);
   }
 
-  merge(keepId: string, mergeId: string): Memory | null {
+  async merge(keepId: string, mergeId: string): Promise<Memory | null> {
     const keep = this.repo.load(keepId);
     const merge = this.repo.load(mergeId);
     if (!keep || !merge) return null;
@@ -130,6 +191,19 @@ export class MemoryService {
       maxImportance,
       merge.accessCount,
     );
+
+    if (this.embedder) {
+      try {
+        const embedding = await this.embedder.embed(mergedContent);
+        this.repo.saveEmbedding(keepId, embedding);
+      } catch (err) {
+        this.logger?.debug("Failed to update merged embedding", {
+          keepId,
+          error: err,
+        });
+      }
+    }
+
     this.logger?.debug("Memories merged", { keepId, mergeId });
     return this.repo.load(keepId);
   }

@@ -75,6 +75,11 @@ export interface MemorySearchResult {
   rank: number;
 }
 
+export interface VectorSearchResult {
+  memory_id: string;
+  distance: number;
+}
+
 export const SortOrder = {
   Recent: "recent",
   Importance: "importance",

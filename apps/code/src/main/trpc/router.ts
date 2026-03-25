@@ -16,6 +16,7 @@ import { gitRouter } from "./routers/git";
 import { githubIntegrationRouter } from "./routers/github-integration";
 import { linearIntegrationRouter } from "./routers/linear-integration.js";
 import { llmGatewayRouter } from "./routers/llm-gateway";
+import { memoryRouter } from "./routers/memory";
 import { logsRouter } from "./routers/logs";
 import { mcpAppsRouter } from "./routers/mcp-apps";
 import { mcpCallbackRouter } from "./routers/mcp-callback";
@@ -53,6 +54,7 @@ export const trpcRouter = router({
   githubIntegration: githubIntegrationRouter,
   linearIntegration: linearIntegrationRouter,
   llmGateway: llmGatewayRouter,
+  memory: memoryRouter,
   mcpApps: mcpAppsRouter,
   mcpCallback: mcpCallbackRouter,
   notification: notificationRouter,

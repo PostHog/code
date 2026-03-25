@@ -33,6 +33,7 @@ import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 import type { AuthProxyService } from "../auth-proxy/service";
 import type { FsService } from "../fs/service";
 import type { McpAppsService } from "../mcp-apps/service";
+import type { MemoryService } from "../memory/service";
 import type { PosthogPluginService } from "../posthog-plugin/service";
 import type { ProcessTrackingService } from "../process-tracking/service";
 import type { SleepService } from "../sleep/service";
@@ -264,6 +265,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private posthogPluginService: PosthogPluginService;
   private authProxy: AuthProxyService;
   private mcpAppsService: McpAppsService;
+  public memoryService: MemoryService;
 
   constructor(
     @inject(MAIN_TOKENS.ProcessTrackingService)
@@ -278,6 +280,8 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     authProxy: AuthProxyService,
     @inject(MAIN_TOKENS.McpAppsService)
     mcpAppsService: McpAppsService,
+    @inject(MAIN_TOKENS.MemoryService)
+    memoryService: MemoryService,
   ) {
     super();
     this.processTracking = processTracking;
@@ -286,6 +290,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     this.posthogPluginService = posthogPluginService;
     this.authProxy = authProxy;
     this.mcpAppsService = mcpAppsService;
+    this.memoryService = memoryService;
 
     powerMonitor.on("resume", () => this.checkIdleDeadlines());
   }

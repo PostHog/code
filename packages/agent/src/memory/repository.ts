@@ -3,11 +3,13 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import type { Database as DatabaseType } from "better-sqlite3";
 import Database from "better-sqlite3";
+import * as sqliteVec from "sqlite-vec";
 import type { Logger } from "../utils/logger";
 import {
   type Association,
   type CreateAssociationInput,
   type CreateMemoryInput,
+  type VectorSearchResult,
   clampImportance,
   clampWeight,
   DEFAULT_IMPORTANCE,
@@ -49,6 +51,11 @@ CREATE TABLE IF NOT EXISTS associations (
 CREATE INDEX IF NOT EXISTS idx_associations_source ON associations(source_id);
 CREATE INDEX IF NOT EXISTS idx_associations_target ON associations(target_id);
 
+CREATE TABLE IF NOT EXISTS vec_map (
+  vec_rowid INTEGER PRIMARY KEY AUTOINCREMENT,
+  memory_id TEXT NOT NULL UNIQUE REFERENCES memories(id) ON DELETE CASCADE
+);
+
 `;
 
 function rowToMemory(row: Record<string, unknown>): Memory {
@@ -77,17 +84,22 @@ function rowToAssociation(row: Record<string, unknown>): Association {
   };
 }
 
+export const DEFAULT_VECTOR_DIMENSIONS = 384;
+
 export interface MemoryRepositoryOptions {
   dbPath: string;
   logger?: Logger;
+  vectorDimensions?: number;
 }
 
-export class MemoryRepository {
+export class AgentMemoryRepository {
   private db: DatabaseType;
   private logger?: Logger;
+  private vectorDimensions: number;
 
   constructor(options: MemoryRepositoryOptions) {
     this.logger = options.logger;
+    this.vectorDimensions = options.vectorDimensions ?? DEFAULT_VECTOR_DIMENSIONS;
 
     mkdirSync(dirname(options.dbPath), { recursive: true });
 
@@ -95,10 +107,16 @@ export class MemoryRepository {
     this.db.pragma("journal_mode = WAL");
     this.db.pragma("foreign_keys = ON");
 
+    sqliteVec.load(this.db);
+
     this.db.exec(SCHEMA_SQL);
+    this.db.exec(
+      `CREATE VIRTUAL TABLE IF NOT EXISTS vec_embeddings USING vec0(embedding float[${this.vectorDimensions}])`,
+    );
 
     this.logger?.debug("Memory repository initialized", {
       path: options.dbPath,
+      vectorDimensions: this.vectorDimensions,
     });
   }
 
@@ -175,6 +193,7 @@ export class MemoryRepository {
   }
 
   delete(id: string): boolean {
+    this.deleteEmbedding(id);
     return (
       this.db.prepare("DELETE FROM memories WHERE id = ?").run(id).changes > 0
     );
@@ -407,6 +426,7 @@ export class MemoryRepository {
         )
         .run(mergedContent, maxImportance, now, mergeAccessCount, keepId);
 
+      this.deleteEmbedding(mergeId);
       this.db.prepare("DELETE FROM memories WHERE id = ?").run(mergeId);
     });
 
@@ -421,6 +441,60 @@ export class MemoryRepository {
         .prepare(`SELECT COUNT(*) as count FROM memories ${clause}`)
         .get() as { count: number }
     ).count;
+  }
+
+  saveEmbedding(memoryId: string, embedding: Float32Array): void {
+    const txn = this.db.transaction(() => {
+      this.db
+        .prepare("INSERT OR IGNORE INTO vec_map (memory_id) VALUES (?)")
+        .run(memoryId);
+      const row = this.db
+        .prepare("SELECT vec_rowid FROM vec_map WHERE memory_id = ?")
+        .get(memoryId) as { vec_rowid: number };
+
+      this.db
+        .prepare(
+          `DELETE FROM vec_embeddings WHERE rowid = ${row.vec_rowid}`,
+        )
+        .run();
+      this.db
+        .prepare(
+          `INSERT INTO vec_embeddings(rowid, embedding) VALUES (${row.vec_rowid}, ?)`,
+        )
+        .run(Buffer.from(embedding.buffer));
+    });
+    txn();
+  }
+
+  deleteEmbedding(memoryId: string): void {
+    const row = this.db
+      .prepare("SELECT vec_rowid FROM vec_map WHERE memory_id = ?")
+      .get(memoryId) as { vec_rowid: number } | undefined;
+    if (!row) return;
+
+    this.db
+      .prepare(`DELETE FROM vec_embeddings WHERE rowid = ${row.vec_rowid}`)
+      .run();
+    this.db.prepare("DELETE FROM vec_map WHERE memory_id = ?").run(memoryId);
+  }
+
+  searchVector(query: Float32Array, k = 20): VectorSearchResult[] {
+    return this.db
+      .prepare(
+        `SELECT vm.memory_id, v.distance
+         FROM vec_embeddings v
+         JOIN vec_map vm ON vm.vec_rowid = v.rowid
+         WHERE v.embedding MATCH ? AND k = ?
+         ORDER BY v.distance`,
+      )
+      .all(Buffer.from(query.buffer), k) as VectorSearchResult[];
+  }
+
+  hasEmbedding(memoryId: string): boolean {
+    const row = this.db
+      .prepare("SELECT 1 FROM vec_map WHERE memory_id = ?")
+      .get(memoryId);
+    return row !== undefined;
   }
 
   close(): void {
