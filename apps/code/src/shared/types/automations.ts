@@ -16,6 +16,8 @@ export const automationTemplateSchema = z.object({
   prompt: z.string(),
   category: z.string(),
   tags: z.array(z.string()).default([]),
+  recommended: z.boolean().optional(),
+  mcps: z.array(z.string()).optional(),
 });
 
 export type AutomationTemplate = z.infer<typeof automationTemplateSchema>;
