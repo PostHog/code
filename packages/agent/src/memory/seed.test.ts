@@ -17,9 +17,9 @@ describe("seedMemories", () => {
   let svc: AgentMemoryService;
   let tmpDir: string;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     tmpDir = createTmpDir();
-    svc = await seedMemories({ dataDir: tmpDir });
+    svc = seedMemories({ dataDir: tmpDir });
   });
 
   afterEach(() => {
@@ -61,9 +61,14 @@ describe("seedMemories", () => {
     expect(svc.searchText("Biome").length).toBeGreaterThan(0);
   });
 
-  it("is idempotent when run on a fresh directory", async () => {
+  it("FTS search finds seeded content", () => {
+    const results = svc.searchFts("TypeScript");
+    expect(results.length).toBeGreaterThan(0);
+  });
+
+  it("is idempotent when run on a fresh directory", () => {
     const tmpDir2 = createTmpDir();
-    const svc2 = await seedMemories({ dataDir: tmpDir2 });
+    const svc2 = seedMemories({ dataDir: tmpDir2 });
     expect(svc2.count()).toBe(svc.count());
     svc2.close();
     rmSync(tmpDir2, { recursive: true, force: true });

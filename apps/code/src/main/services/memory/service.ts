@@ -1,7 +1,7 @@
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { AgentMemoryService } from "@posthog/agent/memory/service";
 import { seedMemories } from "@posthog/agent/memory/seed";
+import { AgentMemoryService } from "@posthog/agent/memory/service";
 import { app } from "electron";
 import { injectable, postConstruct, preDestroy } from "inversify";
 import { logger } from "../../utils/logger";
@@ -31,11 +31,11 @@ export class MemoryService {
     return this.svc;
   }
 
-  seed(): number {
+  async seed(): Promise<number> {
     log.info("Seeding memory database");
     this.close();
     const dataDir = getDataDir();
-    const seeded = seedMemories({ dataDir });
+    const seeded = await seedMemories({ dataDir });
     const count = seeded.count();
     seeded.close();
     this.svc = new AgentMemoryService({ dataDir });

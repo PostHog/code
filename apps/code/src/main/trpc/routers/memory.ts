@@ -8,16 +8,11 @@ const getService = () =>
   container.get<MemoryService>(MAIN_TOKENS.MemoryService);
 
 export const memoryRouter = router({
-  count: publicProcedure
-    .output(z.number())
-    .query(() => getService().count()),
+  count: publicProcedure.output(z.number()).query(() => getService().count()),
 
-  seed: publicProcedure
-    .output(z.number())
-    .mutation(() => getService().seed()),
+  seed: publicProcedure.output(z.number()).mutation(() => getService().seed()),
 
-  reset: publicProcedure
-    .mutation(() => {
-      getService().reset();
-    }),
+  reset: publicProcedure.mutation(() => {
+    getService().reset();
+  }),
 });
