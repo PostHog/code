@@ -67,9 +67,13 @@ export const automationsRouter = router({
 
   triggerNow: publicProcedure
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ input }) => {
+    .mutation(({ input }) => {
       return getService().triggerNow(input.id);
     }),
+
+  triggerAll: publicProcedure.mutation(() => {
+    return getService().triggerAll();
+  }),
 
   getRuns: publicProcedure
     .input(

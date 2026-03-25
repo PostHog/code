@@ -11,10 +11,12 @@ import type {
   AutomationRow,
 } from "../../db/repositories/automation-repository";
 import { MAIN_TOKENS } from "../../di/tokens";
+import { isDevBuild } from "../../utils/env";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 import type { AgentService } from "../agent/service";
 import { computeNextRunAt, getDelayMs } from "./scheduler";
+import { DEMO_OUTPUTS, seedExampleData } from "./seed-data";
 
 const log = logger.scope("automation-service");
 
@@ -65,6 +67,10 @@ export class AutomationService extends TypedEventEmitter<AutomationServiceEvents
   @postConstruct()
   init(): void {
     log.info("Initializing automation service");
+
+    if (isDevBuild()) {
+      seedExampleData(this.repo);
+    }
 
     powerMonitor.on("resume", () => {
       log.info("System resumed, rescheduling automations");
@@ -176,12 +182,72 @@ export class AutomationService extends TypedEventEmitter<AutomationServiceEvents
   }
 
   /** Manually trigger an automation right now */
-  async triggerNow(id: string): Promise<AutomationRunInfo> {
+  triggerNow(id: string): AutomationRunInfo {
     const row = this.repo.findById(id);
     if (!row) {
       throw new Error(`Automation not found: ${id}`);
     }
-    return this.executeAutomation(row);
+
+    // Use demo output for instant results (real agent execution comes later)
+    const outputs = DEMO_OUTPUTS[row.templateId ?? ""] ?? [
+      `Automation "${row.name}" completed successfully. No specific template output available.`,
+    ];
+    const output = outputs[Math.floor(Math.random() * outputs.length)];
+
+    const run = this.repo.createRun(row.id);
+
+    // Emit RunStarted so the Command Center auto-populates the cell
+    const startInfo = toRunInfo(run);
+    this.emit(AutomationServiceEvent.RunStarted, startInfo);
+
+    this.repo.completeRun(run.id, "success", output);
+    this.repo.updateLastRun(row.id, "success");
+
+    const runInfo = toRunInfo({
+      ...run,
+      status: "success",
+      output,
+      completedAt: new Date().toISOString(),
+    });
+    this.emit(AutomationServiceEvent.RunCompleted, runInfo);
+    log.info("Triggered automation", { id, runId: run.id });
+    return runInfo;
+  }
+
+  /**
+   * Trigger all enabled automations at once.
+   * Uses demo output based on templateId for instant results.
+   */
+  triggerAll(): AutomationRunInfo[] {
+    const rows = this.repo.findEnabled();
+    const results: AutomationRunInfo[] = [];
+
+    for (const row of rows) {
+      const outputs = DEMO_OUTPUTS[row.templateId ?? ""] ?? [
+        `Automation "${row.name}" completed successfully. No specific template output available.`,
+      ];
+      const output = outputs[Math.floor(Math.random() * outputs.length)];
+
+      const run = this.repo.createRun(row.id);
+
+      // Emit RunStarted so the Command Center auto-populates the cell
+      this.emit(AutomationServiceEvent.RunStarted, toRunInfo(run));
+
+      this.repo.completeRun(run.id, "success", output);
+      this.repo.updateLastRun(row.id, "success");
+
+      const runInfo = toRunInfo({
+        ...run,
+        status: "success",
+        output,
+        completedAt: new Date().toISOString(),
+      });
+      results.push(runInfo);
+      this.emit(AutomationServiceEvent.RunCompleted, runInfo);
+    }
+
+    log.info("Triggered all automations", { count: results.length });
+    return results;
   }
 
   // --- Scheduling ---

@@ -1,5 +1,6 @@
 import { getSessionService } from "@features/sessions/service/service";
 import {
+  ListBullets,
   MagnifyingGlassMinus,
   MagnifyingGlassPlus,
   Stop,
@@ -12,6 +13,7 @@ import type {
 } from "../hooks/useCommandCenterData";
 import {
   type LayoutPreset,
+  type ViewMode,
   useCommandCenterStore,
 } from "../stores/commandCenterStore";
 
@@ -55,6 +57,10 @@ export function CommandCenterToolbar({
   const zoom = useCommandCenterStore((s) => s.zoom);
   const zoomIn = useCommandCenterStore((s) => s.zoomIn);
   const zoomOut = useCommandCenterStore((s) => s.zoomOut);
+  const viewMode = useCommandCenterStore((s) => s.viewMode);
+  const setViewMode = useCommandCenterStore((s) => s.setViewMode);
+  const summarize = useCommandCenterStore((s) => s.summarize);
+  const toggleSummarize = useCommandCenterStore((s) => s.toggleSummarize);
 
   const hasActiveAgents = summary.running > 0 || summary.waiting > 0;
 
@@ -78,6 +84,42 @@ export function CommandCenterToolbar({
       py="2"
       className="shrink-0 border-gray-6 border-b"
     >
+      {/* View mode toggle */}
+      <Flex
+        align="center"
+        className="rounded-md border border-gray-6 bg-gray-2"
+      >
+        {(["tasks", "automations"] as ViewMode[]).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => setViewMode(mode)}
+            className={`px-2 py-0.5 font-mono text-[11px] transition-colors ${
+              viewMode === mode
+                ? "bg-gray-5 text-gray-12"
+                : "text-gray-10 hover:text-gray-12"
+            } ${mode === "tasks" ? "rounded-l-[5px]" : "rounded-r-[5px]"}`}
+          >
+            {mode === "tasks" ? "Tasks" : "Automations"}
+          </button>
+        ))}
+      </Flex>
+
+      {/* Summarize toggle */}
+      <button
+        type="button"
+        onClick={toggleSummarize}
+        className={`flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] transition-colors ${
+          summarize
+            ? "bg-accent-4 text-accent-11"
+            : "text-gray-10 hover:bg-gray-4 hover:text-gray-12"
+        }`}
+        title={summarize ? "Show full view" : "Show summaries"}
+      >
+        <ListBullets size={12} />
+        Summarize
+      </button>
+
       <Select.Root
         value={layout}
         onValueChange={(v) => setLayout(v as LayoutPreset)}
@@ -92,7 +134,9 @@ export function CommandCenterToolbar({
         </Select.Content>
       </Select.Root>
 
-      <StatusSummaryText summary={summary} />
+      {viewMode === "tasks" && <StatusSummaryText summary={summary} />}
+
+      <div className="flex-1" />
 
       <Flex align="center" gap="1">
         <button
@@ -121,28 +165,30 @@ export function CommandCenterToolbar({
         </button>
       </Flex>
 
-      <div className="flex-1" />
+      {viewMode === "tasks" && (
+        <>
+          <button
+            type="button"
+            onClick={stopAll}
+            disabled={!hasActiveAgents}
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] text-red-10 transition-colors hover:bg-red-3 hover:text-red-11 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-red-10"
+            title="Stop all agents"
+          >
+            <Stop size={12} weight="fill" />
+            Stop All
+          </button>
 
-      <button
-        type="button"
-        onClick={stopAll}
-        disabled={!hasActiveAgents}
-        className="flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] text-red-10 transition-colors hover:bg-red-3 hover:text-red-11 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-red-10"
-        title="Stop all agents"
-      >
-        <Stop size={12} weight="fill" />
-        Stop All
-      </button>
-
-      <button
-        type="button"
-        onClick={clearAll}
-        className="flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
-        title="Clear all cells"
-      >
-        <Trash size={12} />
-        Clear
-      </button>
+          <button
+            type="button"
+            onClick={clearAll}
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
+            title="Clear all cells"
+          >
+            <Trash size={12} />
+            Clear
+          </button>
+        </>
+      )}
     </Flex>
   );
 }

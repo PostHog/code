@@ -1,4 +1,5 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
+import { useCommandCenterStore } from "@features/command-center/stores/commandCenterStore";
 import type { TaskService } from "@features/task-detail/service/service";
 import { get } from "@renderer/di/container";
 import { RENDERER_TOKENS } from "@renderer/di/tokens";
@@ -70,6 +71,12 @@ export function useAutomationScheduler(): void {
           }
 
           void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+
+          // Auto-populate the task into the Command Center grid
+          useCommandCenterStore
+            .getState()
+            .assignTaskToFirstEmpty(result.data.task.id);
+
           useAutomationStore.getState().recordRunResult({
             automationId: automation.id,
             status: "success",
@@ -144,10 +151,15 @@ export async function runAutomationNow(automationId: string): Promise<boolean> {
     }
 
     void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+
+    // Auto-populate the task into the Command Center grid
+    const taskId = result.data.task.id;
+    useCommandCenterStore.getState().assignTaskToFirstEmpty(taskId);
+
     state.recordRunResult({
       automationId,
       status: "success",
-      taskId: result.data.task.id,
+      taskId,
       advanceSchedule: false,
     });
     toast.success("Automation started");

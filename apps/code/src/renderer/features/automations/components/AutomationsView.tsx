@@ -27,6 +27,7 @@ import { useEffect, useMemo, useState } from "react";
 import { runAutomationNow } from "../hooks/useAutomationScheduler";
 import { useAutomationStore } from "../stores/automationStore";
 import { AUTOMATION_TEMPLATES } from "../templates";
+import { TemplateLibrary } from "./TemplateLibrary";
 import { formatAutomationDateTime, getLocalTimezone } from "../utils/schedule";
 
 interface AutomationDraft {
@@ -348,46 +349,12 @@ export function AutomationsView() {
                 </Text>
               </Flex>
 
-              <Flex direction="column" gap="3">
-                <Text
-                  size="1"
-                  weight="medium"
-                  className="font-mono text-[11px]"
-                >
-                  Template library
-                </Text>
-                <Flex gap="3" wrap="wrap">
-                  {AUTOMATION_TEMPLATES.map((template) => (
-                    <Box
-                      key={template.id}
-                      className="min-w-[220px] flex-1 rounded-lg border border-gray-5 bg-gray-1 p-3"
-                    >
-                      <Flex direction="column" gap="2">
-                        <Flex align="center" justify="between" gap="2">
-                          <Text size="2" weight="medium">
-                            {template.name}
-                          </Text>
-                          <Badge size="1" variant="soft">
-                            {template.category}
-                          </Badge>
-                        </Flex>
-                        <Text size="1" className="text-gray-10">
-                          {template.description}
-                        </Text>
-                        <Button
-                          size="1"
-                          variant="soft"
-                          onClick={() => applyTemplate(template.id)}
-                        >
-                          Use template
-                        </Button>
-                      </Flex>
-                    </Box>
-                  ))}
-                </Flex>
-              </Flex>
-
-              <Separator size="4" />
+              {isCreating && (
+                <>
+                  <TemplateLibrary onApply={applyTemplate} />
+                  <Separator size="4" />
+                </>
+              )}
 
               <Flex direction="column" gap="4">
                 <Flex direction="column" gap="2">

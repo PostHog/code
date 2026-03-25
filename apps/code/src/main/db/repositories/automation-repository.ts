@@ -160,11 +160,15 @@ export class AutomationRepository {
       createdAt: timestamp,
     };
     this.db.insert(automationRuns).values(row).run();
-    return this.db
+    const created = this.db
       .select()
       .from(automationRuns)
       .where(eq(automationRuns.id, id))
-      .get()!;
+      .get();
+    if (!created) {
+      throw new Error(`Failed to create automation run with id ${id}`);
+    }
+    return created;
   }
 
   completeRun(
@@ -181,6 +185,19 @@ export class AutomationRepository {
         error: error ?? null,
         completedAt: now(),
       })
+      .where(eq(automationRuns.id, runId))
+      .run();
+  }
+
+  /** Update run timestamps for seeding purposes */
+  updateRunTimestamps(
+    runId: string,
+    startedAt: string,
+    completedAt: string,
+  ): void {
+    this.db
+      .update(automationRuns)
+      .set({ startedAt, completedAt })
       .where(eq(automationRuns.id, runId))
       .run();
   }
