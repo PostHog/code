@@ -34,7 +34,7 @@ export type ToolPermissionResult =
   | {
       behavior: "deny";
       message: string;
-      interrupt: boolean;
+      interrupt?: boolean;
     };
 
 interface ToolHandlerContext {
@@ -164,9 +164,11 @@ async function applyPlanApproval(
   if (
     response.outcome?.outcome === "selected" &&
     (response.outcome.optionId === "default" ||
-      response.outcome.optionId === "acceptEdits")
+      response.outcome.optionId === "acceptEdits" ||
+      response.outcome.optionId === "bypassPermissions")
   ) {
-    session.permissionMode = response.outcome.optionId;
+    session.permissionMode = response.outcome
+      .optionId as typeof session.permissionMode;
     await session.query.setPermissionMode(response.outcome.optionId);
     await context.client.sessionUpdate({
       sessionId: context.sessionId,
@@ -261,7 +263,6 @@ async function handleAskUserQuestionTool(
     return {
       behavior: "deny",
       message: "No questions provided",
-      interrupt: true,
     };
   }
 
@@ -303,7 +304,6 @@ async function handleAskUserQuestionTool(
         typeof customMessage === "string"
           ? customMessage
           : "User cancelled the questions",
-      interrupt: true,
     };
   }
 
@@ -312,7 +312,6 @@ async function handleAskUserQuestionTool(
     return {
       behavior: "deny",
       message: "User did not provide answers",
-      interrupt: true,
     };
   }
 
@@ -393,7 +392,6 @@ async function handleDefaultPermissionFlow(
     return {
       behavior: "deny",
       message,
-      interrupt: true,
     };
   }
 }

@@ -797,30 +797,6 @@ export async function handleUserAssistantMessage(
     context;
 
   if (shouldSkipUserAssistantMessage(message)) {
-    const content = message.message.content;
-
-    // Handle /context by sending its reply as a regular agent message
-    if (
-      typeof content === "string" &&
-      hasLocalCommandStdout(content) &&
-      content.includes("Context Usage")
-    ) {
-      const stripped = content
-        .replace("<local-command-stdout>", "")
-        .replace("</local-command-stdout>", "");
-      for (const notification of toAcpNotifications(
-        stripped,
-        "assistant",
-        sessionId,
-        toolUseCache,
-        fileContentCache,
-        client,
-        logger,
-      )) {
-        await client.sessionUpdate(notification);
-      }
-    }
-
     logSpecialMessages(message, logger);
 
     if (isLoginRequiredMessage(message)) {
