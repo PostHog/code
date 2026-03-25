@@ -1,7 +1,7 @@
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { AgentMemoryService } from "@posthog/agent/memory";
 import { seedMemories } from "@posthog/agent/memory/seed";
-import { AgentMemoryService } from "@posthog/agent/memory/service";
 import { app } from "electron";
 import { injectable, postConstruct, preDestroy } from "inversify";
 import { logger } from "../../utils/logger";
@@ -58,6 +58,27 @@ export class MemoryService {
 
   count(): number {
     return this.service.count();
+  }
+
+  list(options?: {
+    memoryType?: string;
+    limit?: number;
+    includeForgotten?: boolean;
+  }): import("@posthog/agent/memory/types").Memory[] {
+    const svc = this.service;
+    if (options?.memoryType) {
+      return svc.getByType(
+        options.memoryType as import("@posthog/agent/memory/types").MemoryType,
+        options.limit ?? 100,
+      );
+    }
+    return svc.getSorted("recent", { limit: options?.limit ?? 100 });
+  }
+
+  getAssociations(
+    memoryId: string,
+  ): import("@posthog/agent/memory/types").Association[] {
+    return this.service.getAssociations(memoryId);
   }
 
   @preDestroy()
