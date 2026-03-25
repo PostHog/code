@@ -344,12 +344,14 @@ function handleNotification(
     const params = msg.params as {
       trigger: "manual" | "auto";
       preTokens: number;
+      contextSize?: number;
     };
     markCompactingStatusComplete(b);
     pushItem(b, {
       sessionUpdate: "compact_boundary",
       trigger: params.trigger,
       preTokens: params.preTokens,
+      contextSize: params.contextSize,
     });
     return;
   }
@@ -549,6 +551,7 @@ function processSessionUpdate(b: ItemBuilder, update: SessionUpdate) {
     case "plan":
     case "available_commands_update":
     case "config_option_update":
+    case "usage_update":
       break;
 
     default: {

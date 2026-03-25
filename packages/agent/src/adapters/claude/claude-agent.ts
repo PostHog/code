@@ -64,7 +64,6 @@ import { getAvailableSlashCommands } from "./session/commands";
 import { parseMcpServers } from "./session/mcp-config";
 import {
   DEFAULT_MODEL,
-  getDefaultContextWindow,
   getEffortOptions,
   resolveModelPreference,
   toSdkModelId,
@@ -323,6 +322,16 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     this.session.promptRunning = true;
     let handedOff = false;
     let lastAssistantTotalUsage: number | null = null;
+    if (this.session.lastContextWindowSize == null) {
+      this.session.lastContextWindowSize = this.getContextWindowForModel(
+        this.session.modelId ?? "",
+      );
+      this.logger.debug("Initial context window size from gateway", {
+        modelId: this.session.modelId,
+        contextWindowSize: this.session.lastContextWindowSize,
+      });
+    }
+    let lastContextWindowSize = this.session.lastContextWindowSize;
 
     const supportsTerminalOutput =
       (
@@ -393,16 +402,25 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
             this.session.accumulatedUsage.cachedWriteTokens +=
               message.usage.cache_creation_input_tokens;
 
-            // Calculate context window size from modelUsage (minimum across all models used)
+            // SDK can underreport context window (e.g. 200k for 1M models).
+            // Use SDK value only if it's larger than what gateway reported.
             const contextWindows = Object.values(message.modelUsage).map(
               (m) => m.contextWindow,
             );
-            const contextWindowSize =
-              contextWindows.length > 0
-                ? Math.min(...contextWindows)
-                : getDefaultContextWindow(this.session.modelId ?? "");
+            if (contextWindows.length > 0) {
+              const sdkContextWindow = Math.min(...contextWindows);
+              if (sdkContextWindow > lastContextWindowSize) {
+                lastContextWindowSize = sdkContextWindow;
+              }
+            }
+            this.session.lastContextWindowSize = lastContextWindowSize;
+            this.logger.debug("Context window size from result", {
+              sdkReported: contextWindows,
+              resolved: lastContextWindowSize,
+              modelId: this.session.modelId,
+            });
 
-            this.session.contextSize = contextWindowSize;
+            this.session.contextSize = lastContextWindowSize;
             if (lastAssistantTotalUsage !== null) {
               this.session.contextUsed = lastAssistantTotalUsage;
             }
@@ -414,7 +432,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
                 update: {
                   sessionUpdate: "usage_update",
                   used: lastAssistantTotalUsage,
-                  size: contextWindowSize,
+                  size: lastContextWindowSize,
                   cost: {
                     amount: message.total_cost_usd,
                     currency: "USD",
@@ -521,9 +539,18 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
               };
               lastAssistantTotalUsage =
                 usage.input_tokens +
-                usage.output_tokens +
                 usage.cache_read_input_tokens +
                 usage.cache_creation_input_tokens;
+
+              await this.client.sessionUpdate({
+                sessionId: params.sessionId,
+                update: {
+                  sessionUpdate: "usage_update",
+                  used: lastAssistantTotalUsage,
+                  size: lastContextWindowSize,
+                  cost: null,
+                },
+              });
             }
 
             const result = await handleUserAssistantMessage(message, context);
@@ -595,9 +622,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   async unstable_setSessionModel(
     params: SetSessionModelRequest,
   ): Promise<SetSessionModelResponse | undefined> {
-    const sdkModelId = toSdkModelId(params.modelId);
-    await this.session.query.setModel(sdkModelId);
+    await this.session.query.setModel(toSdkModelId(params.modelId));
     this.session.modelId = params.modelId;
+    this.session.lastContextWindowSize = this.getContextWindowForModel(
+      params.modelId,
+    );
     this.rebuildEffortConfigOption(params.modelId);
     await this.updateConfigOption("model", params.modelId);
     return {};
@@ -674,6 +703,8 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       const sdkModelId = toSdkModelId(resolvedValue);
       await this.session.query.setModel(sdkModelId);
       this.session.modelId = resolvedValue;
+      this.session.lastContextWindowSize =
+        this.getContextWindowForModel(resolvedValue);
       this.rebuildEffortConfigOption(resolvedValue);
     } else if (params.configId === "effort") {
       const newEffort = resolvedValue as EffortLevel;
@@ -893,12 +924,12 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const modelOptions = await this.getModelConfigOptions();
     const resolvedModelId = settingsModel || modelOptions.currentModelId;
     session.modelId = resolvedModelId;
+    session.lastContextWindowSize =
+      this.getContextWindowForModel(resolvedModelId);
 
-    if (!isResume) {
-      const resolvedSdkModel = toSdkModelId(resolvedModelId);
-      if (resolvedSdkModel !== DEFAULT_MODEL) {
-        await this.session.query.setModel(resolvedSdkModel);
-      }
+    const resolvedSdkModel = toSdkModelId(resolvedModelId);
+    if (!isResume && resolvedSdkModel !== DEFAULT_MODEL) {
+      await this.session.query.setModel(resolvedSdkModel);
     }
 
     const availableModes = getAvailableModes();
