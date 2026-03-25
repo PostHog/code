@@ -82,6 +82,8 @@ For each learning, provide:
 - content: A concise, actionable description (1-2 sentences max)
 - memoryType: One of the types above
 - importance: 0.0 to 1.0 (use the type defaults as a baseline, adjust up/down)
+- updates_id: (optional) If this learning updates/refines an existing memory below, include that memory's ID
+- contradicts_id: (optional) If this learning contradicts an existing memory below, include that memory's ID
 
 Rules:
 - Only extract genuinely useful, non-obvious information
@@ -89,19 +91,40 @@ Rules:
 - Focus on information that would save time or prevent mistakes in future tasks
 - If no useful memories exist, return an empty array
 - Do NOT extract trivial observations or restate what was explicitly asked
+- Check existing memories below — if new info updates or contradicts one, reference its ID
+- If a todo from existing memories was completed in the conversation, extract an observation noting it
 
 Respond with ONLY a JSON array. No other text.
 
 Example:
 [
   {"content": "The billing API requires X-Internal-Auth headers on all POST endpoints", "memoryType": "fact", "importance": 0.7},
-  {"content": "User prefers single PRs over stacked for refactoring work", "memoryType": "preference", "importance": 0.6}
+  {"content": "User now prefers stacked PRs over single PRs for refactoring", "memoryType": "preference", "importance": 0.6, "contradicts_id": "abc-123"}
 ]
+
+Existing memories (reference these IDs when updating or contradicting):
+{EXISTING_MEMORIES}
 
 Conversation chunk:
 ---
 {CHUNK}
 ---`;
+
+const REFLECTION_PROMPT = `Given the conversation below and the memories that were provided at session start, rate how useful each memory was for completing the task.
+
+Score each memory 0.0-1.0:
+- 1.0: Directly useful, saved significant time or prevented a mistake
+- 0.5: Somewhat relevant, provided useful context
+- 0.0: Completely irrelevant to this task
+
+Respond with ONLY a JSON array. No other text.
+Example: [{"id": "abc-123", "usefulness": 0.8}, {"id": "def-456", "usefulness": 0.1}]
+
+Memories that were recalled:
+{RECALLED_MEMORIES}
+
+Conversation:
+{CONVERSATION}`;
 
 // ── Manager ─────────────────────────────────────────────────────────────────
 
@@ -119,6 +142,9 @@ export class AgentMemoryManager {
   private distillTimer: ReturnType<typeof setInterval> | null = null;
   private distilling = false;
   private hasRunMaintenance = false;
+
+  // Feedback loop: track recalled memories for session reflection
+  private recalledMemories: ScoredMemory[] = [];
 
   constructor(config: MemoryServiceConfig) {
     this.config = config;
@@ -178,6 +204,7 @@ export class AgentMemoryManager {
 
     if (selected.length === 0) return "";
 
+    this.recalledMemories = selected;
     return this.formatMemoriesForPrompt(selected);
   }
 
@@ -294,6 +321,31 @@ export class AgentMemoryManager {
           source: "distillation",
         });
         saved.push(memory);
+
+        // Handle updates/contradictions from context-aware distillation
+        if (entry.updatesId) {
+          this.svc.link(memory.id, {
+            targetId: entry.updatesId,
+            relationType: RelationType.Updates,
+            weight: 0.8,
+          });
+          this.logger.info("Memory updates existing", {
+            newId: memory.id,
+            updatesId: entry.updatesId,
+          });
+        }
+        if (entry.contradictsId) {
+          this.svc.link(memory.id, {
+            targetId: entry.contradictsId,
+            relationType: RelationType.Contradicts,
+            weight: 0.9,
+          });
+          this.svc.forget(entry.contradictsId);
+          this.logger.info("Memory contradicts existing (forgotten)", {
+            newId: memory.id,
+            contradictsId: entry.contradictsId,
+          });
+        }
       }
 
       if (saved.length > 0) {
@@ -351,11 +403,101 @@ export class AgentMemoryManager {
 
   async flush(): Promise<Memory[]> {
     this.stopPeriodicDistillation();
+
+    // Run session reflection before final distillation
+    await this.reflect();
+
     const minChunk = this.config.distillMinChunkSize;
     this.config.distillMinChunkSize = 0;
     const result = await this.distill();
     this.config.distillMinChunkSize = minChunk;
     return result;
+  }
+
+  // ── Session Reflection (Feedback Loop) ──────────────────────────────────
+
+  private async reflect(): Promise<void> {
+    if (this.recalledMemories.length === 0 || this.bufferCharCount === 0) {
+      this.logger.debug(
+        "Skipping reflection: no recalled memories or empty buffer",
+      );
+      return;
+    }
+
+    const model = this.config.llm?.model ?? DEFAULT_EXTRACTION_MODEL;
+    const conversation = this.buffer.join("\n").slice(-15_000);
+    const memoriesBlock = this.recalledMemories
+      .map(
+        (m) => `- [${m.memoryType.toUpperCase()}] (id: ${m.id}) ${m.content}`,
+      )
+      .join("\n");
+
+    const prompt = REFLECTION_PROMPT.replace(
+      "{RECALLED_MEMORIES}",
+      memoriesBlock,
+    ).replace("{CONVERSATION}", conversation);
+
+    this.logger.info("Starting session reflection", {
+      recalledCount: this.recalledMemories.length,
+      conversationChars: conversation.length,
+    });
+
+    try {
+      const response = await this.anthropic.messages.create({
+        model,
+        max_tokens: 1024,
+        messages: [{ role: "user", content: prompt }],
+      });
+
+      const text = response.content
+        .filter((block): block is Anthropic.TextBlock => block.type === "text")
+        .map((block) => block.text)
+        .join("");
+
+      const match = text.match(/\[[\s\S]*\]/);
+      if (!match) return;
+
+      const ratings = JSON.parse(match[0]) as Array<{
+        id?: string;
+        usefulness?: number;
+      }>;
+      if (!Array.isArray(ratings)) return;
+
+      let boosted = 0;
+      let demoted = 0;
+
+      for (const rating of ratings) {
+        if (
+          typeof rating.id !== "string" ||
+          typeof rating.usefulness !== "number"
+        )
+          continue;
+
+        const memory = this.svc.load(rating.id);
+        if (!memory) continue;
+
+        const usefulness = Math.max(0, Math.min(1, rating.usefulness));
+
+        if (usefulness > 0.7) {
+          const newImportance = Math.min(1, memory.importance + 0.1);
+          this.svc.update({ ...memory, importance: newImportance });
+          this.svc.recall(rating.id); // bump access count
+          boosted++;
+        } else if (usefulness < 0.3) {
+          const newImportance = Math.max(0, memory.importance - 0.1);
+          this.svc.update({ ...memory, importance: newImportance });
+          demoted++;
+        }
+      }
+
+      this.logger.info("Session reflection complete", {
+        rated: ratings.length,
+        boosted,
+        demoted,
+      });
+    } catch (error) {
+      this.logger.error("Session reflection failed", { error });
+    }
   }
 
   // ── Scoring & Selection ─────────────────────────────────────────────────
@@ -383,6 +525,21 @@ export class AgentMemoryManager {
         ...m,
         score: computeScore(m),
       }));
+    }
+
+    // Graph-augmented recall: expand top results with 1-hop neighbors
+    const seenIds = new Set(results.map((m) => m.id));
+    const topN = results.slice(0, 5);
+    for (const mem of topN) {
+      const neighbors = this.svc.getNeighbors(mem.id, 1, 5);
+      for (const neighbor of neighbors) {
+        if (seenIds.has(neighbor.id)) continue;
+        seenIds.add(neighbor.id);
+        results.push({
+          ...neighbor,
+          score: computeScore(neighbor),
+        });
+      }
     }
 
     // Filter by options
@@ -457,11 +614,27 @@ export class AgentMemoryManager {
         ? chunk.slice(chunk.length - maxChunkChars)
         : chunk;
 
-    const prompt = EXTRACTION_PROMPT.replace("{CHUNK}", trimmedChunk);
+    // Context-aware distillation: include existing memories so LLM can detect updates/contradictions
+    const existing = this.svc.getHighImportance(0, 10);
+    const existingBlock =
+      existing.length > 0
+        ? existing
+            .map(
+              (m) =>
+                `- [${m.memoryType.toUpperCase()}] (id: ${m.id}) ${m.content}`,
+            )
+            .join("\n")
+        : "(none)";
+
+    const prompt = EXTRACTION_PROMPT.replace("{CHUNK}", trimmedChunk).replace(
+      "{EXISTING_MEMORIES}",
+      existingBlock,
+    );
 
     this.logger.debug("Extracting memories", {
       model,
       chunkLength: trimmedChunk.length,
+      existingCount: existing.length,
     });
 
     const response = await this.anthropic.messages.create({
@@ -487,6 +660,8 @@ export class AgentMemoryManager {
         content?: string;
         memoryType?: string;
         importance?: number;
+        updates_id?: string;
+        contradicts_id?: string;
       }>;
 
       if (!Array.isArray(raw)) return [];
@@ -508,6 +683,12 @@ export class AgentMemoryManager {
             typeof entry.importance === "number"
               ? Math.max(0, Math.min(1, entry.importance))
               : (DEFAULT_IMPORTANCE[entry.memoryType as MemoryType] ?? 0.5),
+          updatesId:
+            typeof entry.updates_id === "string" ? entry.updates_id : undefined,
+          contradictsId:
+            typeof entry.contradicts_id === "string"
+              ? entry.contradicts_id
+              : undefined,
         }));
     } catch (error) {
       this.logger.error("Failed to parse extraction response", {
