@@ -1,4 +1,16 @@
-export const DEFAULT_MODEL = "claude-opus-4-6";
+export const DEFAULT_MODEL = "opus";
+
+const GATEWAY_TO_SDK_MODEL: Record<string, string> = {
+  "claude-opus-4-5": "opus",
+  "claude-opus-4-6": "opus",
+  "claude-sonnet-4-5": "sonnet",
+  "claude-sonnet-4-6": "sonnet",
+  "claude-haiku-4-5": "haiku",
+};
+
+export function toSdkModelId(modelId: string): string {
+  return GATEWAY_TO_SDK_MODEL[modelId] ?? modelId;
+}
 
 const MODELS_WITH_1M_CONTEXT = new Set([
   "claude-opus-4-6",
