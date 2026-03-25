@@ -166,6 +166,8 @@ export interface AgentConfig {
       baseUrl?: string;
       model?: string;
     };
+    /** Called when a memory is created or forgotten via MCP tools */
+    onChanged?: () => void;
   };
 }
 

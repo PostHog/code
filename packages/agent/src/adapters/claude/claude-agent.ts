@@ -107,6 +107,7 @@ export interface ClaudeAcpAgentOptions {
   onProcessExited?: (pid: number) => void;
   onMcpServersReady?: (serverNames: string[]) => void;
   memoryService?: import("../../memory/agent-memory").AgentMemoryManager;
+  onMemoryChanged?: () => void;
 }
 
 export class ClaudeAcpAgent extends BaseAcpAgent {
@@ -830,6 +831,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         );
         const memoryMcpServer = createMemoryMcpServer(
           this.options.memoryService,
+          { onChanged: this.options.onMemoryChanged },
         );
         mcpServers.memory = memoryMcpServer;
         this.logger.info("Registered memory MCP tools");

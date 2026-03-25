@@ -55,6 +55,7 @@ interface ListMemoriesArgs {
  */
 export function createMemoryMcpServer(
   memoryService: AgentMemoryManager,
+  options?: { onChanged?: () => void },
 ): McpSdkServerConfigWithInstance {
   const logger = new Logger({ debug: true, prefix: "[MemoryMCP]" });
 
@@ -111,6 +112,8 @@ Default importance by type: identity=1.0, goal=0.9, decision=0.8, todo=0.8, pref
           type: memory.memoryType,
           importance: memory.importance,
         });
+
+        options?.onChanged?.();
 
         return {
           content: [
@@ -234,6 +237,8 @@ The search uses full-text search with Porter stemming, scored by relevance + imp
           id: args.memory_id,
           content: memory.content.slice(0, 60),
         });
+
+        options?.onChanged?.();
 
         return {
           content: [

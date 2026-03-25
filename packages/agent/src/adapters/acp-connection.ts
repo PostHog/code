@@ -29,6 +29,8 @@ export type AcpConnectionConfig = {
   allowedModelIds?: Set<string>;
   /** Memory service for cross-task knowledge sharing */
   memoryService?: AgentMemoryManager;
+  /** Called when a memory is created or forgotten via MCP tools */
+  onMemoryChanged?: () => void;
 };
 
 export type AcpConnection = {
@@ -203,6 +205,7 @@ function createClaudeConnection(config: AcpConnectionConfig): AcpConnection {
       onProcessExited: config.processCallbacks?.onProcessExited,
       onMcpServersReady: config.processCallbacks?.onMcpServersReady,
       memoryService: config.memoryService,
+      onMemoryChanged: config.onMemoryChanged,
     });
     logger.info(`Created ${agent.adapterName} agent`);
     return agent;

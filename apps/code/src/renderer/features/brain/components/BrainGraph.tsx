@@ -118,7 +118,7 @@ export function BrainGraph() {
   const visibleEdgesRef = useRef<Set<string> | null>(null);
 
   const trpc = useTRPC();
-  const { data: graphData, isLoading } = useQuery(
+  const { data: graphData, isLoading, refetch: refetchGraph } = useQuery(
     trpc.memory.graph.queryOptions({ limit: 200 }),
   );
 
@@ -748,21 +748,9 @@ export function BrainGraph() {
         </button>
         <button
           type="button"
-          onClick={() => {
-            const layout = layoutRef.current;
-            if (layout) {
-              if (layout.isRunning()) {
-                layout.stop();
-              } else {
-                layout.start();
-                setTimeout(() => {
-                  if (layout.isRunning()) layout.stop();
-                }, 3000);
-              }
-            }
-          }}
+          onClick={() => refetchGraph()}
           className="flex h-7 w-7 items-center justify-center rounded-md bg-[--color-panel-solid] text-[--gray-a9] transition-colors hover:text-[--gray-12]"
-          title="Re-run layout"
+          title="Refresh data"
         >
           <ArrowClockwise size={14} />
         </button>
@@ -910,16 +898,6 @@ export function BrainGraph() {
           <div className="flex items-center gap-2 text-[--gray-a9]">
             <div className="h-2 w-2 animate-pulse rounded-full bg-[--accent-9]" />
             Loading graph...
-          </div>
-        </div>
-      )}
-      {!isLoading && graphData && graphData.nodes.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center text-[--gray-a9]">
-            <p className="text-sm">No memories yet</p>
-            <p className="mt-1 text-xs">
-              Memories will appear here as agents work on tasks
-            </p>
           </div>
         </div>
       )}

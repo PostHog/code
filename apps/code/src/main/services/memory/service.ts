@@ -11,6 +11,7 @@ import type {
 import { app } from "electron";
 import { injectable, postConstruct, preDestroy } from "inversify";
 import { logger } from "../../utils/logger";
+import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 
 const log = logger.scope("memory");
 
@@ -24,8 +25,16 @@ function getDataDir(): string {
   return join(app.getPath("userData"), "memory");
 }
 
+export const MemoryServiceEvent = {
+  Changed: "changed",
+} as const;
+
+export type MemoryServiceEvents = {
+  [MemoryServiceEvent.Changed]: void;
+};
+
 @injectable()
-export class MemoryService {
+export class MemoryService extends TypedEventEmitter<MemoryServiceEvents> {
   private svc: AgentMemoryService | null = null;
   private maintenanceTimer: ReturnType<typeof setInterval> | null = null;
 

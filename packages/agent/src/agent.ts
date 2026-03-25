@@ -20,6 +20,7 @@ export class Agent {
   private taskRunId?: string;
   private sessionLogWriter?: SessionLogWriter;
   private memoryService?: AgentMemoryManager;
+  private onMemoryChanged?: () => void;
 
   constructor(config: AgentConfig) {
     this.logger = new Logger({
@@ -53,6 +54,7 @@ export class Agent {
         recallTokenBudget: config.memory.recallTokenBudget,
         llm: config.memory.llm,
       });
+      this.onMemoryChanged = config.memory.onChanged;
     }
   }
 
@@ -132,6 +134,7 @@ export class Agent {
       processCallbacks: options.processCallbacks,
       allowedModelIds,
       memoryService: this.memoryService,
+      onMemoryChanged: this.onMemoryChanged,
       codexOptions:
         options.adapter === "codex" && gatewayConfig
           ? {
