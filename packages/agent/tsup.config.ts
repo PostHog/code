@@ -86,7 +86,6 @@ export default defineConfig([
       "src/server/agent-server.ts",
       "src/memory/types.ts",
       "src/memory/repository.ts",
-      "src/memory/store.ts",
       "src/memory/service.ts",
       "src/memory/seed.ts",
       "src/memory/agent-memory.ts",

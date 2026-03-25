@@ -60,10 +60,6 @@
       "types": "./dist/memory/repository.d.ts",
       "import": "./dist/memory/repository.js"
     },
-    "./memory/store": {
-      "types": "./dist/memory/store.d.ts",
-      "import": "./dist/memory/store.js"
-    },
     "./memory/seed": {
       "types": "./dist/memory/seed.d.ts",
       "import": "./dist/memory/seed.js"

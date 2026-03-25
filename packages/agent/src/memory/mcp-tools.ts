@@ -214,8 +214,8 @@ The search uses full-text search with Porter stemming, scored by relevance + imp
           memoryId: args.memory_id,
           reason: args.reason,
         });
-        const store = memoryService.getStore();
-        const memory = store.get(args.memory_id);
+        const svc = memoryService.getService();
+        const memory = svc.load(args.memory_id);
 
         if (!memory) {
           return {
@@ -229,7 +229,7 @@ The search uses full-text search with Porter stemming, scored by relevance + imp
           };
         }
 
-        store.forget(args.memory_id);
+        svc.forget(args.memory_id);
         logger.info("Tool result: forget_memory", {
           id: args.memory_id,
           content: memory.content.slice(0, 60),
@@ -304,7 +304,7 @@ The search uses full-text search with Porter stemming, scored by relevance + imp
             content: [
               {
                 type: "text" as const,
-                text: `No memories found. Stats: ${stats.total} total, ${stats.active} active, ${stats.forgotten} forgotten.`,
+                text: `No memories found. Total memories: ${stats.total}.`,
               },
             ],
           };
@@ -319,11 +319,7 @@ The search uses full-text search with Porter stemming, scored by relevance + imp
           content: [
             {
               type: "text" as const,
-              text: `Memory store: ${stats.total} total, ${stats.active} active, ${stats.forgotten} forgotten\nType breakdown: ${Object.entries(
-                stats.byType,
-              )
-                .map(([t, c]) => `${t}=${c}`)
-                .join(", ")}\n\n${lines.join("\n\n")}`,
+              text: `Memory store: ${stats.total} total\n\n${lines.join("\n\n")}`,
             },
           ],
         };
