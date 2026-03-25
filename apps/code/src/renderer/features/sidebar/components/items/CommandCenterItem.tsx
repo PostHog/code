@@ -1,4 +1,4 @@
-import { SquaresFour } from "@phosphor-icons/react";
+import { Lightning } from "@phosphor-icons/react";
 import { SidebarItem } from "../SidebarItem";
 
 interface CommandCenterItemProps {
@@ -20,8 +20,8 @@ export function CommandCenterItem({
   return (
     <SidebarItem
       depth={0}
-      icon={<SquaresFour size={16} weight={isActive ? "fill" : "regular"} />}
-      label="Command Center"
+      icon={<Lightning size={16} weight={isActive ? "fill" : "regular"} />}
+      label="ADHD Mode"
       isActive={isActive}
       onClick={onClick}
       endContent={
