@@ -122,12 +122,5 @@ export default defineConfig([
     dts: false,
     clean: false,
     ...sharedOptions,
-    external: [
-      ...sharedOptions.external,
-      // Memory modules use dynamic imports and async patterns
-      // incompatible with CJS; the server bin doesn't need them.
-      "@huggingface/transformers",
-      "sqlite-vec",
-    ],
   },
 ]);
