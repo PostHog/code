@@ -5,6 +5,7 @@ import {
 import {
   ArrowLeft,
   ArrowsClockwise,
+  Brain,
   CaretRight,
   Code,
   Folder,
@@ -23,6 +24,7 @@ import { type ReactNode, useEffect } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { AccountSettings } from "./sections/AccountSettings";
 import { AdvancedSettings } from "./sections/AdvancedSettings";
+import { BrainSettings } from "./sections/BrainSettings";
 import { ClaudeCodeSettings } from "./sections/ClaudeCodeSettings";
 import { EnvironmentsSettings } from "./sections/environments/EnvironmentsSettings";
 import { GeneralSettings } from "./sections/GeneralSettings";
@@ -45,6 +47,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "general", label: "General", icon: <GearSix size={16} /> },
   { id: "account", label: "Account", icon: <User size={16} /> },
   { id: "workspaces", label: "Workspaces", icon: <Folder size={16} /> },
+  { id: "brain", label: "Brain", icon: <Brain size={16} /> },
   { id: "worktrees", label: "Worktrees", icon: <TreeStructure size={16} /> },
   {
     id: "environments",
@@ -81,6 +84,7 @@ const CATEGORY_TITLES: Record<SettingsCategory, string> = {
   shortcuts: "Shortcuts",
 
   signals: "Signals",
+  brain: "Brain",
   updates: "Updates",
   advanced: "Advanced",
 };
@@ -97,6 +101,7 @@ const CATEGORY_COMPONENTS: Record<SettingsCategory, React.ComponentType> = {
   shortcuts: ShortcutsSettings,
 
   signals: SignalSourcesSettings,
+  brain: BrainSettings,
   updates: UpdatesSettings,
   advanced: AdvancedSettings,
 };

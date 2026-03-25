@@ -259,6 +259,28 @@ export function BrainSettings() {
     }),
   );
 
+  const maintenanceMutation = useMutation(
+    trpc.memory.maintenance.mutationOptions({
+      onSuccess: ({ decayed, pruned, consolidated }) => {
+        toast.success(
+          `Maintenance: decayed ${decayed}, pruned ${pruned}, consolidated ${consolidated}`,
+        );
+        queryClient.invalidateQueries({
+          queryKey: trpc.memory.count.queryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: trpc.memory.list.queryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: trpc.memory.graph.queryKey(),
+        });
+      },
+      onError: () => {
+        toast.error("Failed to run memory maintenance");
+      },
+    }),
+  );
+
   return (
     <Flex direction="column">
       <SettingRow
@@ -293,8 +315,24 @@ export function BrainSettings() {
           {resetMutation.isPending ? "Resetting..." : "Reset"}
         </Button>
       </SettingRow>
+      <SettingRow
+        label="Run maintenance"
+        description="Decay old memory importance and prune low-value memories"
+      >
+        <Button
+          variant="soft"
+          size="1"
+          disabled={maintenanceMutation.isPending}
+          onClick={() => maintenanceMutation.mutate()}
+        >
+          {maintenanceMutation.isPending ? "Running..." : "Maintain"}
+        </Button>
+      </SettingRow>
 
-      <Box pt="2">
+      <Box className="border-gray-6 border-t pt-4">
+        <Text size="2" weight="medium" className="mb-3 block">
+          Memory Browser
+        </Text>
         <MemoryBrowser />
       </Box>
     </Flex>

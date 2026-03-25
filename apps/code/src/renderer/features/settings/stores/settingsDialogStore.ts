@@ -12,6 +12,7 @@ export type SettingsCategory =
   | "mcp-servers"
   | "signals"
   | "updates"
+  | "brain"
   | "advanced";
 
 interface SettingsDialogContext {
