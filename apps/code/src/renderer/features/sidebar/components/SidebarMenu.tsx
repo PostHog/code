@@ -22,6 +22,7 @@ import { useSidebarData } from "../hooks/useSidebarData";
 import { useTaskViewed } from "../hooks/useTaskViewed";
 import { CommandCenterItem } from "./items/CommandCenterItem";
 import { InboxItem, NewTaskItem } from "./items/HomeItem";
+import { BrainItem } from "./items/BrainItem";
 import { SkillsItem } from "./items/SkillsItem";
 import { SidebarItem } from "./SidebarItem";
 import { TaskListView } from "./TaskListView";
@@ -34,6 +35,7 @@ function SidebarMenuComponent() {
     navigateToInbox,
     navigateToCommandCenter,
     navigateToSkills,
+    navigateToBrain,
   } = useNavigationStore();
 
   const { data: allTasks = [] } = useTasks();
@@ -107,6 +109,10 @@ function SidebarMenuComponent() {
 
   const handleSkillsClick = () => {
     navigateToSkills();
+  };
+
+  const handleBrainClick = () => {
+    navigateToBrain();
   };
 
   const handleTaskClick = (taskId: string) => {
@@ -217,10 +223,17 @@ function SidebarMenuComponent() {
             />
           </Box>
 
-          <Box mb="2">
+          <Box mb="1">
             <SkillsItem
               isActive={sidebarData.isSkillsActive}
               onClick={handleSkillsClick}
+            />
+          </Box>
+
+          <Box mb="2">
+            <BrainItem
+              isActive={sidebarData.isBrainActive}
+              onClick={handleBrainClick}
             />
           </Box>
 

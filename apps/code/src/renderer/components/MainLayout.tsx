@@ -4,6 +4,7 @@ import { HedgehogMode } from "@components/HedgehogMode";
 import { KeyboardShortcutsSheet } from "@components/KeyboardShortcutsSheet";
 
 import { ArchivedTasksView } from "@features/archive/components/ArchivedTasksView";
+import { BrainView } from "@features/brain/components/BrainView";
 import { CommandMenu } from "@features/command/components/CommandMenu";
 import { CommandCenterView } from "@features/command-center/components/CommandCenterView";
 import { InboxView } from "@features/inbox/components/InboxView";
@@ -81,6 +82,8 @@ export function MainLayout() {
           {view.type === "command-center" && <CommandCenterView />}
 
           {view.type === "skills" && <SkillsView />}
+
+          {view.type === "brain" && <BrainView />}
         </Box>
 
         {view.type === "task-detail" && view.data && (
