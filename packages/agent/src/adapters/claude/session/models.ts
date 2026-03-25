@@ -9,10 +9,6 @@ export function supports1MContext(modelId: string): boolean {
   return MODELS_WITH_1M_CONTEXT.has(modelId);
 }
 
-export function getDefaultContextWindow(modelId: string): number {
-  return supports1MContext(modelId) ? 1_000_000 : 200_000;
-}
-
 const MODELS_WITH_EFFORT = new Set([
   "claude-opus-4-5",
   "claude-opus-4-6",
