@@ -68,6 +68,10 @@
       "types": "./dist/memory/seed.d.ts",
       "import": "./dist/memory/seed.js"
     },
+    "./memory/agent-memory": {
+      "types": "./dist/memory/agent-memory.d.ts",
+      "import": "./dist/memory/agent-memory.js"
+    },
     "./memory/mcp-tools": {
       "types": "./dist/memory/mcp-tools.d.ts",
       "import": "./dist/memory/mcp-tools.js"

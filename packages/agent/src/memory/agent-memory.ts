@@ -72,7 +72,7 @@ Conversation chunk:
 
 // ── Service ─────────────────────────────────────────────────────────────────
 
-export class MemoryService {
+export class AgentMemoryManager {
   private store: MemoryStore;
   private config: MemoryServiceConfig;
   private logger: Logger;

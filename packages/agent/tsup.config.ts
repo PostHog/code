@@ -89,6 +89,7 @@ export default defineConfig([
       "src/memory/store.ts",
       "src/memory/service.ts",
       "src/memory/seed.ts",
+      "src/memory/agent-memory.ts",
       "src/memory/mcp-tools.ts",
     ],
     format: ["esm"],
