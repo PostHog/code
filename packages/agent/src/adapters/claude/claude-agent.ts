@@ -538,7 +538,9 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
                 cache_creation_input_tokens: number;
               };
               lastAssistantTotalUsage =
-                usage.input_tokens + usage.cache_read_input_tokens;
+                usage.input_tokens +
+                usage.cache_read_input_tokens +
+                usage.cache_creation_input_tokens;
 
               await this.client.sessionUpdate({
                 sessionId: params.sessionId,
