@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 const id = () =>
   text()
@@ -76,3 +76,46 @@ export const suspensions = sqliteTable("suspensions", {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+export const AUTOMATION_SCHEDULES = [
+  "every_15_minutes",
+  "every_hour",
+  "every_4_hours",
+  "daily_9am",
+  "daily_12pm",
+  "daily_6pm",
+  "weekday_mornings",
+  "weekly_monday_9am",
+] as const;
+
+export const automations = sqliteTable("automations", {
+  id: id(),
+  name: text().notNull(),
+  prompt: text().notNull(),
+  schedule: text({
+    enum: AUTOMATION_SCHEDULES,
+  }).notNull(),
+  enabled: integer({ mode: "boolean" }).notNull().default(true),
+  lastRunAt: text(),
+  lastRunStatus: text({ enum: ["success", "error", "running"] }),
+  lastRunError: text(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+export const automationRuns = sqliteTable(
+  "automation_runs",
+  {
+    id: id(),
+    automationId: text()
+      .notNull()
+      .references(() => automations.id, { onDelete: "cascade" }),
+    status: text({ enum: ["running", "success", "error"] }).notNull(),
+    output: text(),
+    error: text(),
+    startedAt: text().notNull(),
+    completedAt: text(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("automation_runs_automation_id_idx").on(t.automationId)],
+);
