@@ -149,10 +149,12 @@ export class AgentMemoryManager {
   constructor(config: MemoryServiceConfig) {
     this.config = config;
     this.logger = new Logger({ debug: true, prefix: "[Memory]" });
-    this.svc = new AgentMemoryService({
-      dataDir: config.dbPath,
-      logger: this.logger,
-    });
+    this.svc =
+      config.service ??
+      new AgentMemoryService({
+        dataDir: config.dbPath,
+        logger: this.logger,
+      });
 
     this.anthropic = new Anthropic({
       apiKey:

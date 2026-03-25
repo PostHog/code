@@ -120,8 +120,10 @@ export interface ExtractedMemory {
 }
 
 export interface MemoryServiceConfig {
-  /** Path to the SQLite database file */
+  /** Path to the SQLite database file (ignored if `service` is provided) */
   dbPath: string;
+  /** Pre-existing AgentMemoryService to reuse (avoids dual SQLite connections) */
+  service?: import("./service").AgentMemoryService;
   /** Interval between periodic distillation runs (default: 5 min) */
   distillIntervalMs?: number;
   /** Minimum buffered chars before a distillation is triggered (default: 2000) */
@@ -154,8 +156,10 @@ export interface RecallOptions {
 export interface MemoryConfig {
   /** Enable the memory system */
   enabled: boolean;
-  /** Path to the SQLite database file */
+  /** Path to the SQLite database file (ignored if `service` is provided) */
   dbPath: string;
+  /** Pre-existing AgentMemoryService to reuse (avoids dual SQLite connections) */
+  service?: import("./service").AgentMemoryService;
   /** Interval between periodic distillation runs in ms (default: 300_000 = 5 min) */
   distillIntervalMs?: number;
   /** Max approximate tokens for recalled memories (default: 1500) */

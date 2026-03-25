@@ -154,8 +154,10 @@ export interface AgentConfig {
   memory?: {
     /** Enable the memory system */
     enabled: boolean;
-    /** Path to the SQLite database file */
+    /** Path to the SQLite database file (ignored if `service` is provided) */
     dbPath: string;
+    /** Pre-existing AgentMemoryService to reuse (avoids dual SQLite connections) */
+    service?: import("./memory/service").AgentMemoryService;
     /** Interval between periodic distillation runs in ms (default: 300_000 = 5 min) */
     distillIntervalMs?: number;
     /** Max approximate tokens for recalled memories (default: 1500) */

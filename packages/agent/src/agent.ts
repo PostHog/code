@@ -50,6 +50,7 @@ export class Agent {
     if (config.memory?.enabled) {
       this.memoryService = new AgentMemoryManager({
         dbPath: config.memory.dbPath,
+        service: config.memory.service,
         distillIntervalMs: config.memory.distillIntervalMs,
         recallTokenBudget: config.memory.recallTokenBudget,
         llm: config.memory.llm,
