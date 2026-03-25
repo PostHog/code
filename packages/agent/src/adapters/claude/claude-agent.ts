@@ -703,9 +703,8 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       const sdkModelId = toSdkModelId(resolvedValue);
       await this.session.query.setModel(sdkModelId);
       this.session.modelId = resolvedValue;
-      this.session.lastContextWindowSize = this.getContextWindowForModel(
-        resolvedValue,
-      );
+      this.session.lastContextWindowSize =
+        this.getContextWindowForModel(resolvedValue);
       this.rebuildEffortConfigOption(resolvedValue);
     } else if (params.configId === "effort") {
       const newEffort = resolvedValue as EffortLevel;
