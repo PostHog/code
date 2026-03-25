@@ -2,8 +2,8 @@ import { z } from "zod";
 import { container } from "../../di/container";
 import { MAIN_TOKENS } from "../../di/tokens";
 import {
-  MemoryServiceEvent,
   type MemoryService,
+  MemoryServiceEvent,
 } from "../../services/memory/service";
 import { publicProcedure, router } from "../trpc";
 

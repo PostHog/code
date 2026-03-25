@@ -119,9 +119,11 @@ export function BrainGraph() {
   const visibleEdgesRef = useRef<Set<string> | null>(null);
 
   const trpc = useTRPC();
-  const { data: graphData, isLoading, refetch: refetchGraph } = useQuery(
-    trpc.memory.graph.queryOptions({ limit: 200 }),
-  );
+  const {
+    data: graphData,
+    isLoading,
+    refetch: refetchGraph,
+  } = useQuery(trpc.memory.graph.queryOptions({ limit: 200 }));
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -138,6 +140,20 @@ export function BrainGraph() {
     ...trpc.memory.search.queryOptions({ query: debouncedSearch, limit: 50 }),
     enabled: debouncedSearch.length > 0,
   });
+
+  const queryClient = useQueryClient();
+  useSubscription(
+    trpc.memory.onChanged.subscriptionOptions(undefined, {
+      onData: () => {
+        void queryClient.invalidateQueries(trpc.memory.graph.pathFilter());
+        void queryClient.invalidateQueries(trpc.memory.search.pathFilter());
+        void queryClient.invalidateQueries(trpc.memory.count.pathFilter());
+        void queryClient.invalidateQueries(
+          trpc.memory.associations.pathFilter(),
+        );
+      },
+    }),
+  );
 
   const ftsMatchIds = useMemo(() => {
     if (!ftsResults || ftsResults.length === 0) return null;

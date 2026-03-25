@@ -673,7 +673,8 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       memory: {
         enabled: true,
         dbPath: memoryDbPath,
-        onChanged: () => this.memoryService.emit("changed", undefined as void),
+        onChanged: () =>
+          this.memoryService.emit("changed", undefined as undefined),
       },
     });
 
