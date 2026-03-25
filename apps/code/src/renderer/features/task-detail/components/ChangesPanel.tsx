@@ -199,7 +199,7 @@ function ChangedFileItem({
       title: "Discard changes",
       message,
       buttons: ["Cancel", action],
-      defaultId: 0,
+      defaultId: 1,
       cancelId: 0,
     });
 
