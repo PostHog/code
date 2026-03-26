@@ -1,7 +1,9 @@
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import { net } from "electron";
-import { injectable } from "inversify";
+import { inject, injectable } from "inversify";
+import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
+import type { AuthService } from "../auth/service";
 import type {
   AnthropicErrorResponse,
   AnthropicMessagesRequest,
@@ -27,6 +29,11 @@ export class LlmGatewayError extends Error {
 
 @injectable()
 export class LlmGatewayService {
+  constructor(
+    @inject(MAIN_TOKENS.AuthService)
+    private readonly authService: AuthService,
+  ) {}
+
   async prompt(
     credentials: LlmCredentials,
     messages: LlmMessage[],
@@ -65,7 +72,7 @@ export class LlmGatewayService {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${credentials.apiKey}`,
+        Authorization: `Bearer ${this.authService.requireAccessToken()}`,
       },
       body: JSON.stringify(requestBody),
     });

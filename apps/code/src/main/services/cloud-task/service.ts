@@ -1,8 +1,10 @@
 import type { StoredLogEntry } from "@shared/types/session-events";
 import { net } from "electron";
-import { injectable, preDestroy } from "inversify";
+import { inject, injectable, preDestroy } from "inversify";
+import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import type { AuthService } from "../auth/service";
 import {
   CloudTaskEvent,
   type CloudTaskEvents,
@@ -60,7 +62,14 @@ function watcherKey(taskId: string, runId: string): string {
 export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
   private watchers = new Map<string, WatcherState>();
   private pendingWatches = new Map<string, PendingWatchState>();
-  private apiKey: string | null = null;
+
+  constructor(
+    @inject(MAIN_TOKENS.AuthService)
+    private readonly authService: AuthService,
+  ) {
+    super();
+    this.authService.on("tokenUpdated", () => this.drainPendingWatches());
+  }
 
   watch(input: WatchInput): void {
     const key = watcherKey(input.taskId, input.runId);
@@ -80,7 +89,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     }
 
     // If no token yet, queue (deduplicated by key)
-    if (!this.apiKey) {
+    if (!this.authService.getAccessToken()) {
       const pending = this.pendingWatches.get(key);
       if (pending) {
         pending.subscriberCount++;
@@ -119,20 +128,17 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     }
   }
 
-  updateToken(token: string): void {
-    this.apiKey = token;
+  private drainPendingWatches(): void {
+    if (this.pendingWatches.size === 0) return;
 
-    // Drain pending watches
-    if (this.pendingWatches.size > 0) {
-      const pending = [...this.pendingWatches.values()];
-      this.pendingWatches.clear();
-      for (const queued of pending) {
-        this.startWatcher(queued.input, queued.subscriberCount);
-      }
-      log.info("Drained pending cloud task watches", {
-        count: pending.length,
-      });
+    const pending = [...this.pendingWatches.values()];
+    this.pendingWatches.clear();
+    for (const queued of pending) {
+      this.startWatcher(queued.input, queued.subscriberCount);
     }
+    log.info("Drained pending cloud task watches", {
+      count: pending.length,
+    });
   }
 
   setViewing(taskId: string, runId: string, viewing: boolean): void {
@@ -157,7 +163,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
   }
 
   async sendCommand(input: SendCommandInput): Promise<SendCommandOutput> {
-    if (!this.apiKey) {
+    if (!this.authService.getAccessToken()) {
       return { success: false, error: "No API token available" };
     }
 
@@ -173,7 +179,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       const response = await net.fetch(url, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.authService.requireAccessToken()}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
@@ -307,7 +313,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
 
   private async poll(key: string, isSnapshot: boolean): Promise<void> {
     const watcher = this.watchers.get(key);
-    if (!watcher || !this.apiKey) return;
+    if (!watcher || !this.authService.getAccessToken()) return;
 
     try {
       // Only fetch logs when the user is viewing the run
@@ -459,7 +465,9 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     try {
       const response = await net.fetch(url.toString(), {
         method: "GET",
-        headers: { Authorization: `Bearer ${this.apiKey}` },
+        headers: {
+          Authorization: `Bearer ${this.authService.requireAccessToken()}`,
+        },
       });
 
       if (!response.ok) {
@@ -551,7 +559,9 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     try {
       const response = await net.fetch(url, {
         method: "GET",
-        headers: { Authorization: `Bearer ${this.apiKey}` },
+        headers: {
+          Authorization: `Bearer ${this.authService.requireAccessToken()}`,
+        },
       });
 
       if (!response.ok) {

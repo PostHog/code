@@ -189,11 +189,6 @@ export const reconnectSessionInput = z.object({
 
 export type ReconnectSessionInput = z.infer<typeof reconnectSessionInput>;
 
-// Token update input - updates the global token for all agent operations
-export const tokenUpdateInput = z.object({
-  token: z.string(),
-});
-
 // Set config option input (for Codex reasoning level, etc.)
 export const setConfigOptionInput = z.object({
   sessionId: z.string(),

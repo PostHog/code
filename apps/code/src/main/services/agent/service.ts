@@ -30,6 +30,7 @@ import { MAIN_TOKENS } from "../../di/tokens";
 import { isDevBuild } from "../../utils/env";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import type { AuthService } from "../auth/service";
 import type { AuthProxyService } from "../auth-proxy/service";
 import type { FsService } from "../fs/service";
 import type { McpAppsService } from "../mcp-apps/service";
@@ -251,7 +252,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private static readonly IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 
   private sessions = new Map<string, ManagedSession>();
-  private currentToken: string | null = null;
   private pendingPermissions = new Map<string, PendingPermission>();
   private mockNodeReady = false;
   private idleTimeouts = new Map<
@@ -278,6 +278,8 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     authProxy: AuthProxyService,
     @inject(MAIN_TOKENS.McpAppsService)
     mcpAppsService: McpAppsService,
+    @inject(MAIN_TOKENS.AuthService)
+    private readonly authService: AuthService,
   ) {
     super();
     this.processTracking = processTracking;
@@ -288,24 +290,13 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     this.mcpAppsService = mcpAppsService;
 
     powerMonitor.on("resume", () => this.checkIdleDeadlines());
-  }
 
-  public updateToken(newToken: string): void {
-    this.currentToken = newToken;
-
-    if (this.authProxy.isRunning()) {
-      this.authProxy.updateToken(newToken);
-    }
-
-    process.env.ANTHROPIC_API_KEY = newToken;
-    process.env.ANTHROPIC_AUTH_TOKEN = newToken;
-    process.env.OPENAI_API_KEY = newToken;
-    process.env.POSTHOG_API_KEY = newToken;
-    process.env.POSTHOG_AUTH_HEADER = `Bearer ${newToken}`;
-
-    log.info("Token updated (proxy + env vars)", {
-      sessionCount: this.sessions.size,
-      proxyRunning: this.authProxy.isRunning(),
+    this.authService.on("tokenUpdated", ({ accessToken }) => {
+      process.env.ANTHROPIC_API_KEY = accessToken;
+      process.env.ANTHROPIC_AUTH_TOKEN = accessToken;
+      process.env.OPENAI_API_KEY = accessToken;
+      process.env.POSTHOG_API_KEY = accessToken;
+      process.env.POSTHOG_AUTH_HEADER = `Bearer ${accessToken}`;
     });
   }
 
@@ -436,17 +427,13 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     }
   }
 
-  private getToken(fallback: string): string {
-    return this.currentToken || fallback;
-  }
-
   private async buildMcpServers(
     credentials: Credentials,
   ): Promise<AcpMcpServer[]> {
     const servers: AcpMcpServer[] = [];
 
     const mcpUrl = this.getPostHogMcpUrl(credentials.apiHost);
-    const token = this.getToken(credentials.apiKey);
+    const token = this.authService.requireAccessToken();
 
     servers.push({
       name: "posthog",
@@ -503,7 +490,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       auth_type: string;
     }>
   > {
-    const token = this.getToken(credentials.apiKey);
+    const token = this.authService.requireAccessToken();
     const baseUrl = this.getPostHogApiBaseUrl(credentials.apiHost);
     const url = `${baseUrl}/api/environments/${credentials.projectId}/mcp_server_installations/`;
 
@@ -656,7 +643,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     const agent = new Agent({
       posthog: {
         apiUrl: credentials.apiHost,
-        getApiKey: () => this.getToken(credentials.apiKey),
+        getApiKey: () => this.authService.requireAccessToken(),
         projectId: credentials.projectId,
         userAgent: `posthog/desktop.hog.dev; version: ${app.getVersion()}`,
       },
@@ -1163,9 +1150,8 @@ For git operations while detached:
   }
 
   private async ensureAuthProxy(credentials: Credentials): Promise<string> {
-    const token = this.getToken(credentials.apiKey);
     const llmGatewayUrl = getLlmGatewayUrl(credentials.apiHost);
-    return this.authProxy.start(llmGatewayUrl, token);
+    return this.authProxy.start(llmGatewayUrl);
   }
 
   private setupEnvironment(
@@ -1173,7 +1159,7 @@ For git operations while detached:
     mockNodeDir: string,
     proxyUrl: string,
   ): void {
-    const token = this.getToken(credentials.apiKey);
+    const token = this.authService.requireAccessToken();
     const currentPath = process.env.PATH || "";
     if (!currentPath.split(delimiter).includes(mockNodeDir)) {
       process.env.PATH = `${mockNodeDir}${delimiter}${currentPath}`;

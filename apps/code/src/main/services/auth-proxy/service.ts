@@ -1,25 +1,29 @@
 import http from "node:http";
-import { injectable } from "inversify";
+import { inject, injectable } from "inversify";
+import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
+import type { AuthService } from "../auth/service";
 
 const log = logger.scope("auth-proxy");
 
 @injectable()
 export class AuthProxyService {
   private server: http.Server | null = null;
-  private currentToken: string | null = null;
   private gatewayUrl: string | null = null;
   private port: number | null = null;
 
-  async start(gatewayUrl: string, initialToken: string): Promise<string> {
+  constructor(
+    @inject(MAIN_TOKENS.AuthService)
+    private readonly authService: AuthService,
+  ) {}
+
+  async start(gatewayUrl: string): Promise<string> {
     if (this.server) {
-      this.currentToken = initialToken;
       this.gatewayUrl = gatewayUrl;
       return this.getProxyUrl();
     }
 
     this.gatewayUrl = gatewayUrl;
-    this.currentToken = initialToken;
 
     this.server = http.createServer((req, res) => {
       this.handleRequest(req, res);
@@ -42,10 +46,6 @@ export class AuthProxyService {
         reject(err);
       });
     });
-  }
-
-  updateToken(token: string): void {
-    this.currentToken = token;
   }
 
   getProxyUrl(): string {
@@ -76,7 +76,8 @@ export class AuthProxyService {
     req: http.IncomingMessage,
     res: http.ServerResponse,
   ): void {
-    if (!this.gatewayUrl || !this.currentToken) {
+    const token = this.authService.getAccessToken();
+    if (!this.gatewayUrl || !token) {
       res.writeHead(503);
       res.end("Proxy not configured");
       return;
@@ -88,7 +89,6 @@ export class AuthProxyService {
     const incoming = (req.url ?? "/").replace(/^\//, "");
     const targetUrl = new URL(incoming, base);
 
-    // Validate that the resolved URL stays within the configured gateway origin
     const gatewayBase = new URL(base);
     const normalizePort = (u: URL): string => {
       if (u.port) return u.port;
@@ -131,7 +131,7 @@ export class AuthProxyService {
         headers[key] = value;
       }
     }
-    headers.authorization = `Bearer ${this.currentToken}`;
+    headers.authorization = `Bearer ${token}`;
 
     const fetchOptions: RequestInit = {
       method: req.method ?? "GET",

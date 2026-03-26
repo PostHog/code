@@ -4,11 +4,9 @@ import {
   getCloudUrlFromRegion,
   OAUTH_SCOPE_VERSION,
   OAUTH_SCOPES,
-  TOKEN_REFRESH_BUFFER_MS,
 } from "@shared/constants/oauth";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { CloudRegion } from "@shared/types/oauth";
-import { sleepWithBackoff } from "@shared/utils/backoff";
 import { useNavigationStore } from "@stores/navigationStore";
 import {
   identifyUser,
@@ -25,7 +23,6 @@ import { persist, subscribeWithSelector } from "zustand/middleware";
 
 const log = logger.scope("auth-store");
 
-let refreshPromise: Promise<void> | null = null;
 let initializePromise: Promise<boolean> | null = null;
 
 let sessionResetCallback: (() => void) | null = null;
@@ -34,16 +31,28 @@ export function setSessionResetCallback(callback: () => void) {
   sessionResetCallback = callback;
 }
 
-const REFRESH_MAX_RETRIES = 3;
-const REFRESH_INITIAL_DELAY_MS = 1000;
+async function refreshTokenViaService(): Promise<string> {
+  const result = await trpcClient.auth.refreshAccessToken.mutate();
+  return result.accessToken;
+}
 
-function updateServiceTokens(token: string): void {
-  trpcClient.agent.updateToken
-    .mutate({ token })
-    .catch((err) => log.warn("Failed to update agent token", err));
-  trpcClient.cloudTask.updateToken
-    .mutate({ token })
-    .catch((err) => log.warn("Failed to update cloud task token", err));
+function pushTokensToService(tokens: StoredTokens): void {
+  trpcClient.auth.setTokens
+    .mutate(tokens)
+    .catch((err) => log.warn("Failed to push tokens to auth service", err));
+}
+
+function buildClient(
+  accessToken: string,
+  apiHost: string,
+  teamId?: number,
+): PostHogAPIClient {
+  return new PostHogAPIClient(
+    accessToken,
+    apiHost,
+    refreshTokenViaService,
+    teamId,
+  );
 }
 
 interface StoredTokens {
@@ -56,7 +65,6 @@ interface StoredTokens {
 }
 
 interface AuthState {
-  // OAuth state
   oauthAccessToken: string | null;
   oauthRefreshToken: string | null;
   tokenExpiry: number | null; // Unix timestamp in milliseconds
@@ -64,58 +72,43 @@ interface AuthState {
   storedTokens: StoredTokens | null;
   staleTokens: StoredTokens | null;
 
-  // PostHog client
   isAuthenticated: boolean;
   client: PostHogAPIClient | null;
   projectId: number | null; // Current team/project ID
 
-  // Multi-project state
-  availableProjectIds: number[]; // All projects from scoped_teams
-  availableOrgIds: string[]; // All orgs from scoped_organizations
-  needsProjectSelection: boolean; // True when multiple projects and no selection stored
+  availableProjectIds: number[];
+  availableOrgIds: string[];
+  needsProjectSelection: boolean;
 
   needsScopeReauth: boolean; // True when stored token scope version is stale
 
-  // Access gate state
-  hasCodeAccess: boolean | null; // null = not yet checked
+  hasCodeAccess: boolean | null;
 
-  // Onboarding state
   hasCompletedOnboarding: boolean;
   selectedPlan: "free" | "pro" | null;
   selectedOrgId: string | null;
 
-  // Access gate methods
   checkCodeAccess: () => void;
   redeemInviteCode: (code: string) => Promise<void>;
 
-  // OAuth methods
   loginWithOAuth: (region: CloudRegion) => Promise<void>;
-  refreshAccessToken: () => Promise<void>;
-  scheduleTokenRefresh: () => void;
   initializeOAuth: () => Promise<boolean>;
 
-  // Signup method
   signupWithOAuth: (region: CloudRegion) => Promise<void>;
 
-  // Project selection
   selectProject: (projectId: number) => void;
 
-  // Onboarding methods
   completeOnboarding: () => void;
   selectPlan: (plan: "free" | "pro") => void;
   selectOrg: (orgId: string) => void;
 
-  // Other methods
   logout: () => void;
 }
-
-let refreshTimeoutId: number | null = null;
 
 export const useAuthStore = create<AuthState>()(
   subscribeWithSelector(
     persist(
       (set, get) => ({
-        // OAuth state
         oauthAccessToken: null,
         oauthRefreshToken: null,
         tokenExpiry: null,
@@ -123,22 +116,17 @@ export const useAuthStore = create<AuthState>()(
         storedTokens: null,
         staleTokens: null,
 
-        // PostHog client
         isAuthenticated: false,
         client: null,
         projectId: null,
 
-        // Multi-project state
         availableProjectIds: [],
         availableOrgIds: [],
         needsProjectSelection: false,
-        // Scope re-auth state
         needsScopeReauth: false,
 
-        // Access gate state
         hasCodeAccess: null,
 
-        // Onboarding state
         hasCompletedOnboarding: false,
         selectedPlan: null,
         selectedOrgId: null,
@@ -164,7 +152,6 @@ export const useAuthStore = create<AuthState>()(
             })
             .catch((err) => {
               log.error("Failed to check code access", err);
-              // On network error, fall back to feature flag check
               set({ hasCodeAccess: isFeatureFlagEnabled("tasks") });
             });
         },
@@ -191,7 +178,6 @@ export const useAuthStore = create<AuthState>()(
             throw new Error(data.error || "Failed to redeem invite code");
           }
 
-          // Optimistically grant access — the flag will catch up on next launch
           set({ hasCodeAccess: true });
           reloadFeatureFlags();
         },
@@ -223,25 +209,15 @@ export const useAuthStore = create<AuthState>()(
           };
 
           const apiHost = getCloudUrlFromRegion(region);
-
-          const client = new PostHogAPIClient(
+          const client = buildClient(
             tokenResponse.access_token,
             apiHost,
-            async () => {
-              await get().refreshAccessToken();
-              const token = get().oauthAccessToken;
-              if (!token) {
-                throw new Error("No access token after refresh");
-              }
-              return token;
-            },
             scopedTeams[0],
           );
 
           try {
             const user = await client.getCurrentUser();
 
-            // Determine project: prefer user's current PostHog project, then previously stored, then first available
             const userCurrentTeam = user?.team?.id;
             const storedProjectId = get().projectId;
             const selectedProjectId =
@@ -252,7 +228,6 @@ export const useAuthStore = create<AuthState>()(
                   ? storedProjectId
                   : scopedTeams[0];
 
-            // Update client's teamId to match selected project
             client.setTeamId(selectedProjectId);
 
             set({
@@ -270,15 +245,11 @@ export const useAuthStore = create<AuthState>()(
               needsScopeReauth: false,
             });
 
-            updateServiceTokens(tokenResponse.access_token);
+            pushTokensToService(storedTokens);
 
-            // Clear any cached data from previous sessions AFTER setting new auth
             queryClient.clear();
             queryClient.setQueryData(["currentUser"], user);
 
-            get().scheduleTokenRefresh();
-
-            // Track user login - use distinct_id to match web sessions (same as PostHog web app)
             const distinctId = user.distinct_id || user.email;
             identifyUser(distinctId, {
               email: user.email,
@@ -308,192 +279,13 @@ export const useAuthStore = create<AuthState>()(
           }
         },
 
-        refreshAccessToken: async () => {
-          // If a refresh is already in progress, wait for it
-          if (refreshPromise) {
-            log.debug("Token refresh already in progress, waiting...");
-            return refreshPromise;
-          }
-
-          const doRefresh = async () => {
-            const state = get();
-
-            if (!state.oauthRefreshToken || !state.cloudRegion) {
-              throw new Error("No refresh token available");
-            }
-
-            // Retry with exponential backoff
-            let lastError: Error | null = null;
-            for (let attempt = 0; attempt < REFRESH_MAX_RETRIES; attempt++) {
-              try {
-                if (attempt > 0) {
-                  log.debug(
-                    `Retrying token refresh (attempt ${
-                      attempt + 1
-                    }/${REFRESH_MAX_RETRIES})`,
-                  );
-                  await sleepWithBackoff(attempt - 1, {
-                    initialDelayMs: REFRESH_INITIAL_DELAY_MS,
-                  });
-                }
-
-                const result = await trpcClient.oauth.refreshToken.mutate({
-                  refreshToken: state.oauthRefreshToken,
-                  region: state.cloudRegion,
-                });
-
-                if (!result.success || !result.data) {
-                  // Network/server errors should retry, auth errors should logout immediately
-                  if (
-                    result.errorCode === "network_error" ||
-                    result.errorCode === "server_error"
-                  ) {
-                    log.warn(
-                      `Token refresh ${result.errorCode} (attempt ${
-                        attempt + 1
-                      }/${REFRESH_MAX_RETRIES}): ${result.error}`,
-                    );
-                    lastError = new Error(
-                      result.error || "Token refresh failed",
-                    );
-                    continue; // Retry
-                  }
-
-                  // Auth error or unknown - logout
-                  log.error(
-                    `Token refresh failed with ${result.errorCode}: ${result.error}`,
-                  );
-                  get().logout();
-                  throw new Error(result.error || "Token refresh failed");
-                }
-
-                const tokenResponse = result.data;
-                const expiresAt = Date.now() + tokenResponse.expires_in * 1000;
-
-                const storedTokens: StoredTokens = {
-                  accessToken: tokenResponse.access_token,
-                  refreshToken: tokenResponse.refresh_token,
-                  expiresAt,
-                  cloudRegion: state.cloudRegion,
-                  scopedTeams: tokenResponse.scoped_teams,
-                  scopeVersion: state.storedTokens?.scopeVersion ?? 0,
-                };
-
-                const apiHost = getCloudUrlFromRegion(state.cloudRegion);
-                const scopedTeams = tokenResponse.scoped_teams ?? [];
-                const storedProjectId = state.projectId;
-                const projectId =
-                  storedProjectId && scopedTeams.includes(storedProjectId)
-                    ? storedProjectId
-                    : (scopedTeams[0] ?? storedProjectId ?? undefined);
-
-                const client = new PostHogAPIClient(
-                  tokenResponse.access_token,
-                  apiHost,
-                  async () => {
-                    await get().refreshAccessToken();
-                    const token = get().oauthAccessToken;
-                    if (!token) {
-                      throw new Error("No access token after refresh");
-                    }
-                    return token;
-                  },
-                  projectId,
-                );
-
-                set({
-                  oauthAccessToken: tokenResponse.access_token,
-                  oauthRefreshToken: tokenResponse.refresh_token,
-                  tokenExpiry: expiresAt,
-                  storedTokens,
-                  client,
-                  ...(projectId && { projectId }),
-                  availableProjectIds:
-                    scopedTeams.length > 0
-                      ? scopedTeams
-                      : state.availableProjectIds,
-                });
-
-                updateServiceTokens(tokenResponse.access_token);
-
-                get().scheduleTokenRefresh();
-                return; // Success
-              } catch (error) {
-                lastError =
-                  error instanceof Error ? error : new Error(String(error));
-
-                // Check if this is a permanent failure (logout already called)
-                if (!get().oauthRefreshToken) {
-                  throw lastError;
-                }
-
-                // tRPC exceptions are typically IPC failures - retry them
-                log.warn(
-                  `Token refresh exception (attempt ${attempt + 1}): ${
-                    lastError.message
-                  }`,
-                );
-              }
-            }
-
-            // All retries exhausted
-            log.error(
-              `Token refresh failed after all retries: ${
-                lastError?.message || "Unknown error"
-              }`,
-            );
-            get().logout();
-            throw lastError || new Error("Token refresh failed");
-          };
-
-          refreshPromise = doRefresh().finally(() => {
-            refreshPromise = null;
-          });
-
-          return refreshPromise;
-        },
-
-        scheduleTokenRefresh: () => {
-          const state = get();
-
-          if (refreshTimeoutId) {
-            window.clearTimeout(refreshTimeoutId);
-            refreshTimeoutId = null;
-          }
-
-          if (!state.tokenExpiry) {
-            return;
-          }
-
-          const timeUntilRefresh =
-            state.tokenExpiry - Date.now() - TOKEN_REFRESH_BUFFER_MS;
-
-          if (timeUntilRefresh > 0) {
-            refreshTimeoutId = window.setTimeout(() => {
-              get()
-                .refreshAccessToken()
-                .catch((error) => {
-                  log.error("Proactive token refresh failed:", error);
-                });
-            }, timeUntilRefresh);
-          } else {
-            get()
-              .refreshAccessToken()
-              .catch((error) => {
-                log.error("Immediate token refresh failed:", error);
-              });
-          }
-        },
-
         initializeOAuth: async () => {
-          // If initialization is already in progress, wait for it
           if (initializePromise) {
             log.debug("OAuth initialization already in progress, waiting...");
             return initializePromise;
           }
 
           const doInitialize = async (): Promise<boolean> => {
-            // Wait for zustand hydration from async storage
             if (!useAuthStore.persist.hasHydrated()) {
               await new Promise<void>((resolve) => {
                 useAuthStore.persist.onFinishHydration(() => resolve());
@@ -521,8 +313,8 @@ export const useAuthStore = create<AuthState>()(
                 });
                 return true;
               }
-              const now = Date.now();
-              const isExpired = tokens.expiresAt <= now;
+
+              const isExpired = tokens.expiresAt <= Date.now();
 
               set({
                 oauthAccessToken: tokens.accessToken,
@@ -531,9 +323,12 @@ export const useAuthStore = create<AuthState>()(
                 cloudRegion: tokens.cloudRegion,
               });
 
+              pushTokensToService(tokens);
+
               if (isExpired) {
                 try {
-                  await get().refreshAccessToken();
+                  const newToken = await refreshTokenViaService();
+                  set({ oauthAccessToken: newToken });
                 } catch (error) {
                   log.error("Failed to refresh expired token:", error);
                   set({
@@ -545,7 +340,6 @@ export const useAuthStore = create<AuthState>()(
                 }
               }
 
-              // Re-fetch tokens after potential refresh to get updated values
               const currentTokens = get().storedTokens;
               if (!currentTokens) {
                 return false;
@@ -569,24 +363,15 @@ export const useAuthStore = create<AuthState>()(
                 storedProjectId !== null &&
                 availableProjects.includes(storedProjectId);
 
-              const client = new PostHogAPIClient(
-                currentTokens.accessToken,
+              const client = buildClient(
+                get().oauthAccessToken ?? currentTokens.accessToken,
                 apiHost,
-                async () => {
-                  await get().refreshAccessToken();
-                  const token = get().oauthAccessToken;
-                  if (!token) {
-                    throw new Error("No access token after refresh");
-                  }
-                  return token;
-                },
                 hasValidStoredProject ? storedProjectId : scopedTeams[0],
               );
 
               try {
                 const user = await client.getCurrentUser();
 
-                // Prefer stored project, then user's current PostHog project, then first available
                 const userCurrentTeam = user?.team?.id;
                 const selectedProjectId = hasValidStoredProject
                   ? storedProjectId
@@ -595,7 +380,6 @@ export const useAuthStore = create<AuthState>()(
                     ? userCurrentTeam
                     : scopedTeams[0];
 
-                // Update client's teamId to match selected project
                 client.setTeamId(selectedProjectId);
 
                 set({
@@ -608,11 +392,6 @@ export const useAuthStore = create<AuthState>()(
 
                 queryClient.setQueryData(["currentUser"], user);
 
-                updateServiceTokens(currentTokens.accessToken);
-
-                get().scheduleTokenRefresh();
-
-                // Use distinct_id to match web sessions (same as PostHog web app)
                 const distinctId = user.distinct_id || user.email;
                 identifyUser(distinctId, {
                   email: user.email,
@@ -637,7 +416,6 @@ export const useAuthStore = create<AuthState>()(
               } catch (error) {
                 log.error("Failed to validate OAuth session:", error);
 
-                // Network errors from fetch are TypeError, wrapped by fetcher.ts as cause
                 const isNetworkError =
                   error instanceof Error && error.cause instanceof TypeError;
 
@@ -655,11 +433,9 @@ export const useAuthStore = create<AuthState>()(
                     availableProjectIds: scopedTeams,
                     needsProjectSelection: false,
                   });
-                  get().scheduleTokenRefresh();
                   return true;
                 }
 
-                // For auth errors (401/403) or unknown errors, clear the session
                 set({
                   storedTokens: null,
                   isAuthenticated: false,
@@ -710,17 +486,9 @@ export const useAuthStore = create<AuthState>()(
           const apiHost = getCloudUrlFromRegion(region);
           const selectedProjectId = scopedTeams[0];
 
-          const client = new PostHogAPIClient(
+          const client = buildClient(
             tokenResponse.access_token,
             apiHost,
-            async () => {
-              await get().refreshAccessToken();
-              const token = get().oauthAccessToken;
-              if (!token) {
-                throw new Error("No access token after refresh");
-              }
-              return token;
-            },
             selectedProjectId,
           );
 
@@ -742,12 +510,10 @@ export const useAuthStore = create<AuthState>()(
               needsScopeReauth: false,
             });
 
-            updateServiceTokens(tokenResponse.access_token);
+            pushTokensToService(storedTokens);
 
             queryClient.clear();
             queryClient.setQueryData(["currentUser"], user);
-
-            get().scheduleTokenRefresh();
 
             const distinctId = user.distinct_id || user.email;
             identifyUser(distinctId, {
@@ -781,7 +547,6 @@ export const useAuthStore = create<AuthState>()(
         selectProject: (projectId: number) => {
           const state = get();
 
-          // Validate that the project is in the available list
           if (!state.availableProjectIds.includes(projectId)) {
             log.error("Attempted to select invalid project", { projectId });
             throw new Error("Invalid project selection");
@@ -797,27 +562,11 @@ export const useAuthStore = create<AuthState>()(
             throw new Error("No access token available");
           }
 
-          // Clean up all existing sessions before switching projects
           sessionResetCallback?.();
 
           const apiHost = getCloudUrlFromRegion(cloudRegion);
+          const client = buildClient(accessToken, apiHost, projectId);
 
-          // Create a new client with the selected project
-          const client = new PostHogAPIClient(
-            accessToken,
-            apiHost,
-            async () => {
-              await get().refreshAccessToken();
-              const token = get().oauthAccessToken;
-              if (!token) {
-                throw new Error("No access token after refresh");
-              }
-              return token;
-            },
-            projectId,
-          );
-
-          // Update stored tokens with the selected project
           const updatedTokens = state.storedTokens
             ? { ...state.storedTokens, scopedTeams: state.availableProjectIds }
             : null;
@@ -829,7 +578,6 @@ export const useAuthStore = create<AuthState>()(
             storedTokens: updatedTokens,
           });
 
-          // Clear project-scoped queries, but keep project list/user for the switcher
           queryClient.removeQueries({
             predicate: (query) => {
               const key = Array.isArray(query.queryKey)
@@ -839,11 +587,7 @@ export const useAuthStore = create<AuthState>()(
             },
           });
 
-          // Navigate to task input after project selection
           useNavigationStore.getState().navigateToTaskInput();
-
-          // Update analytics with the selected project
-          updateServiceTokens(accessToken);
 
           track(ANALYTICS_EVENTS.USER_LOGGED_IN, {
             project_id: projectId.toString(),
@@ -869,15 +613,14 @@ export const useAuthStore = create<AuthState>()(
           track(ANALYTICS_EVENTS.USER_LOGGED_OUT);
           resetUser();
 
-          // Clean up session service subscriptions before clearing auth state
           sessionResetCallback?.();
 
           trpcClient.analytics.resetUser.mutate();
-
-          if (refreshTimeoutId) {
-            window.clearTimeout(refreshTimeoutId);
-            refreshTimeoutId = null;
-          }
+          trpcClient.auth.clearTokens
+            .mutate()
+            .catch((err) =>
+              log.warn("Failed to clear tokens on auth service", err),
+            );
 
           queryClient.clear();
 
@@ -906,7 +649,6 @@ export const useAuthStore = create<AuthState>()(
         },
       }),
       {
-        // TODO: Migrate to posthog-code
         name: "array-auth",
         storage: electronStorage,
         partialize: (state) => ({
@@ -925,3 +667,39 @@ export const useAuthStore = create<AuthState>()(
     ),
   ),
 );
+
+export function initializeAuthSubscriptions(): () => void {
+  const tokenSub = trpcClient.auth.onTokenUpdated.subscribe(undefined, {
+    onData: ({ accessToken }) => {
+      useAuthStore.setState({ oauthAccessToken: accessToken });
+    },
+    onError: (error) => {
+      log.error("Token update subscription error", { error });
+    },
+  });
+
+  const authErrorSub = trpcClient.auth.onAuthError.subscribe(undefined, {
+    onData: ({ reason }) => {
+      log.error("Auth service reported error", { reason });
+      useAuthStore.getState().logout();
+    },
+    onError: (error) => {
+      log.error("Auth error subscription error", { error });
+    },
+  });
+
+  const logoutSub = trpcClient.auth.onLogout.subscribe(undefined, {
+    onData: () => {
+      useAuthStore.getState().logout();
+    },
+    onError: (error) => {
+      log.error("Logout subscription error", { error });
+    },
+  });
+
+  return () => {
+    tokenSub.unsubscribe();
+    authErrorSub.unsubscribe();
+    logoutSub.unsubscribe();
+  };
+}

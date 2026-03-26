@@ -1913,11 +1913,6 @@ export class SessionService {
       return () => {};
     }
 
-    // Ensure main-process service has current token
-    trpcClient.cloudTask.updateToken
-      .mutate({ token: auth.oauthAccessToken })
-      .catch(() => {});
-
     // Start main-process watcher
     trpcClient.cloudTask.watch
       .mutate({

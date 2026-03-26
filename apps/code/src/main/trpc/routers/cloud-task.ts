@@ -7,7 +7,6 @@ import {
   sendCommandOutput,
   setViewingInput,
   unwatchInput,
-  updateTokenInput,
   watchInput,
 } from "../../services/cloud-task/schemas";
 import type { CloudTaskService } from "../../services/cloud-task/service";
@@ -24,10 +23,6 @@ export const cloudTaskRouter = router({
   unwatch: publicProcedure
     .input(unwatchInput)
     .mutation(({ input }) => getService().unwatch(input.taskId, input.runId)),
-
-  updateToken: publicProcedure
-    .input(updateTokenInput)
-    .mutation(({ input }) => getService().updateToken(input.token)),
 
   setViewing: publicProcedure
     .input(setViewingInput)

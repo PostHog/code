@@ -7,9 +7,17 @@ const { getItem, setItem } = vi.hoisted(() => ({
   setItem: vi.fn(),
 }));
 
-const mockRefreshToken = vi.hoisted(() => ({ mutate: vi.fn() }));
 const mockStartFlow = vi.hoisted(() => ({ mutate: vi.fn() }));
 const mockStartSignupFlow = vi.hoisted(() => ({ mutate: vi.fn() }));
+const mockAuthSetTokens = vi.hoisted(() => ({
+  mutate: vi.fn().mockResolvedValue(undefined),
+}));
+const mockAuthClearTokens = vi.hoisted(() => ({
+  mutate: vi.fn().mockResolvedValue(undefined),
+}));
+const mockAuthRefreshAccessToken = vi.hoisted(() => ({
+  mutate: vi.fn().mockResolvedValue({ accessToken: "refreshed-token" }),
+}));
 
 vi.mock("@renderer/trpc/client", () => ({
   trpcClient: {
@@ -19,15 +27,13 @@ vi.mock("@renderer/trpc/client", () => ({
       removeItem: { query: vi.fn() },
     },
     oauth: {
-      refreshToken: mockRefreshToken,
       startFlow: mockStartFlow,
       startSignupFlow: mockStartSignupFlow,
     },
-    agent: {
-      updateToken: { mutate: vi.fn().mockResolvedValue(undefined) },
-    },
-    cloudTask: {
-      updateToken: { mutate: vi.fn().mockResolvedValue(undefined) },
+    auth: {
+      setTokens: mockAuthSetTokens,
+      clearTokens: mockAuthClearTokens,
+      refreshAccessToken: mockAuthRefreshAccessToken,
     },
     analytics: {
       setUserId: { mutate: vi.fn().mockResolvedValue(undefined) },
@@ -195,62 +201,6 @@ describe("authStore - scope version", () => {
 
       expect(useAuthStore.getState().needsScopeReauth).toBe(false);
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
-    });
-  });
-
-  describe("refreshAccessToken", () => {
-    it("preserves existing scopeVersion on refreshed tokens", async () => {
-      const staleVersion = OAUTH_SCOPE_VERSION - 1;
-      useAuthStore.setState({
-        oauthAccessToken: "old-token",
-        oauthRefreshToken: "old-refresh-token",
-        cloudRegion: "us",
-        storedTokens: makeStoredTokens({ scopeVersion: staleVersion }),
-        isAuthenticated: true,
-      });
-
-      mockRefreshToken.mutate.mockResolvedValue({
-        success: true,
-        data: {
-          access_token: "new-access-token",
-          refresh_token: "new-refresh-token",
-          expires_in: 3600,
-          scoped_teams: [1],
-        },
-      });
-
-      await useAuthStore.getState().refreshAccessToken();
-
-      const tokens = useAuthStore.getState().storedTokens;
-      expect(tokens).not.toBeNull();
-      expect(tokens?.scopeVersion).toBe(staleVersion);
-      expect(tokens?.accessToken).toBe("new-access-token");
-    });
-
-    it("defaults scopeVersion to 0 when storedTokens is null", async () => {
-      useAuthStore.setState({
-        oauthAccessToken: "old-token",
-        oauthRefreshToken: "old-refresh-token",
-        cloudRegion: "us",
-        storedTokens: null,
-        isAuthenticated: true,
-      });
-
-      mockRefreshToken.mutate.mockResolvedValue({
-        success: true,
-        data: {
-          access_token: "new-access-token",
-          refresh_token: "new-refresh-token",
-          expires_in: 3600,
-          scoped_teams: [1],
-        },
-      });
-
-      await useAuthStore.getState().refreshAccessToken();
-
-      const tokens = useAuthStore.getState().storedTokens;
-      expect(tokens).not.toBeNull();
-      expect(tokens?.scopeVersion).toBe(0);
     });
   });
 });

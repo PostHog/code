@@ -18,6 +18,7 @@ export const MAIN_TOKENS = Object.freeze({
 
   // Services
   AgentService: Symbol.for("Main.AgentService"),
+  AuthService: Symbol.for("Main.AuthService"),
   AuthProxyService: Symbol.for("Main.AuthProxyService"),
   ArchiveService: Symbol.for("Main.ArchiveService"),
   SuspensionService: Symbol.for("Main.SuspensionService"),

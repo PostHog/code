@@ -200,6 +200,10 @@ describe("AgentService", () => {
         notifyToolResult: vi.fn(),
         notifyToolCancelled: vi.fn(),
       } as never,
+      {
+        requireAccessToken: vi.fn().mockReturnValue("test-api-key"),
+        on: vi.fn(),
+      } as never,
     );
   });
 

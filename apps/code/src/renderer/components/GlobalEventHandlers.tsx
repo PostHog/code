@@ -1,4 +1,3 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
 import { useFolders } from "@features/folders/hooks/useFolders";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { useRightSidebarStore } from "@features/right-sidebar";
@@ -144,24 +143,12 @@ export function GlobalEventHandlers({
     clearApplicationStorage();
   }, []);
 
-  const handleInvalidateToken = useCallback((data?: unknown) => {
-    if (!data) return;
+  const handleInvalidateToken = useCallback((_data?: unknown) => {
     const log = logger.scope("global-event-handlers");
-    const state = useAuthStore.getState();
-    const currentToken = state.oauthAccessToken;
-    if (!currentToken) {
-      log.warn("No access token to invalidate");
-      return;
-    }
-    const invalidToken = `${currentToken}_invalid`;
-    useAuthStore.setState({ oauthAccessToken: invalidToken });
-    trpcClient.agent.updateToken
-      .mutate({ token: invalidToken })
-      .catch((err) => log.warn("Failed to update agent token", err));
-    trpcClient.cloudTask.updateToken
-      .mutate({ token: invalidToken })
-      .catch((err) => log.warn("Failed to update cloud task token", err));
-    log.info("OAuth access token invalidated for testing");
+    trpcClient.auth.clearTokens
+      .mutate()
+      .catch((err: unknown) => log.warn("Failed to clear tokens", err));
+    log.info("OAuth tokens cleared for testing");
   }, []);
 
   const globalOptions = {

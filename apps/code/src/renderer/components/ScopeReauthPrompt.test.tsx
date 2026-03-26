@@ -10,15 +10,15 @@ vi.mock("@renderer/trpc/client", () => ({
       removeItem: { query: vi.fn() },
     },
     oauth: {
-      refreshToken: { mutate: vi.fn() },
       startFlow: { mutate: vi.fn() },
       startSignupFlow: { mutate: vi.fn() },
     },
-    agent: {
-      updateToken: { mutate: vi.fn().mockResolvedValue(undefined) },
-    },
-    cloudTask: {
-      updateToken: { mutate: vi.fn().mockResolvedValue(undefined) },
+    auth: {
+      setTokens: { mutate: vi.fn().mockResolvedValue(undefined) },
+      clearTokens: { mutate: vi.fn().mockResolvedValue(undefined) },
+      refreshAccessToken: {
+        mutate: vi.fn().mockResolvedValue({ accessToken: "refreshed-token" }),
+      },
     },
     analytics: {
       setUserId: { mutate: vi.fn().mockResolvedValue(undefined) },
@@ -112,7 +112,11 @@ describe("ScopeReauthPrompt", () => {
 
   it("calls logout when Log out button is clicked", async () => {
     const user = userEvent.setup();
-    useAuthStore.setState({ needsScopeReauth: true, cloudRegion: null });
+    useAuthStore.setState({
+      needsScopeReauth: true,
+      cloudRegion: null,
+      isAuthenticated: true,
+    });
     renderWithTheme(<ScopeReauthPrompt />);
 
     await user.click(screen.getByRole("button", { name: "Log out" }));
