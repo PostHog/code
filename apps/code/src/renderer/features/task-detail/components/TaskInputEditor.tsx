@@ -3,6 +3,7 @@ import { TourHighlight } from "@components/TourHighlight";
 import { AttachmentsBar } from "@features/message-editor/components/AttachmentsBar";
 import { EditorToolbar } from "@features/message-editor/components/EditorToolbar";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
+import { useTaskInputHistoryStore } from "@features/message-editor/stores/taskInputHistoryStore";
 import { useTiptapEditor } from "@features/message-editor/tiptap/useTiptapEditor";
 import { ReasoningLevelSelector } from "@features/sessions/components/ReasoningLevelSelector";
 import { UnifiedModelSelector } from "@features/sessions/components/UnifiedModelSelector";
@@ -11,7 +12,7 @@ import { useConnectivity } from "@hooks/useConnectivity";
 import { ArrowUp } from "@phosphor-icons/react";
 import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { EditorContent } from "@tiptap/react";
-import { forwardRef, useImperativeHandle } from "react";
+import { forwardRef, useCallback, useImperativeHandle } from "react";
 import "./TaskInput.css";
 
 interface TaskInputEditorProps {
@@ -59,6 +60,11 @@ export const TaskInputEditor = forwardRef<
     const { isOnline } = useConnectivity();
     const isSubmitDisabled = isCreatingTask || !isOnline;
 
+    const getPromptHistory = useCallback(
+      () => useTaskInputHistoryStore.getState().prompts,
+      [],
+    );
+
     const {
       editor,
       isEmpty,
@@ -74,7 +80,8 @@ export const TaskInputEditor = forwardRef<
       removeAttachment,
     } = useTiptapEditor({
       sessionId,
-      placeholder: "What do you want to work on? - @ to add context",
+      placeholder:
+        "What do you want to work on? \u2191\u2193 for history, @ to add context",
       disabled: isCreatingTask,
       submitDisabled: !isOnline,
       isLoading: isCreatingTask,
@@ -82,6 +89,7 @@ export const TaskInputEditor = forwardRef<
       context: { repoPath, taskId: previewTaskId },
       capabilities: { commands: true, bashMode: false },
       clearOnSubmit: false,
+      getPromptHistory,
       onSubmit: (text) => {
         if (text && canSubmit) {
           onSubmit();

@@ -1,5 +1,6 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
+import { useTaskInputHistoryStore } from "@features/message-editor/stores/taskInputHistoryStore";
 import {
   contentToXml,
   extractFilePaths,
@@ -126,6 +127,11 @@ export function useTaskCreation({
       const content = editor.getContent();
 
       log.info("Submitting task", { workspaceMode, selectedDirectory });
+
+      const plainText = editor.getText()?.trim();
+      if (plainText) {
+        useTaskInputHistoryStore.getState().addPrompt(plainText);
+      }
 
       const input = prepareTaskInput(content, {
         selectedDirectory,

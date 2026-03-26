@@ -2,12 +2,13 @@ import "./message-editor.css";
 import type { SessionConfigOption } from "@agentclientprotocol/sdk";
 import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
 import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
+import { getUserPromptsForTask } from "@features/sessions/stores/sessionStore";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { ArrowUp, Circle, Stop } from "@phosphor-icons/react";
 import { Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { EditorContent } from "@tiptap/react";
 import { hasOpenOverlay } from "@utils/overlay";
-import { forwardRef, useEffect, useImperativeHandle } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useDraftStore } from "../stores/draftStore";
 import { useTiptapEditor } from "../tiptap/useTiptapEditor";
@@ -167,6 +168,11 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
     const cloudDiffStats = context?.cloudDiffStats;
     const isSubmitDisabled = disabled || !isOnline;
 
+    const getPromptHistory = useCallback(
+      () => getUserPromptsForTask(taskId),
+      [taskId],
+    );
+
     const {
       editor,
       isReady,
@@ -192,6 +198,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
       isLoading,
       autoFocus,
       context: { taskId, repoPath },
+      getPromptHistory,
       onSubmit,
       onBashCommand,
       onBashModeChange,

@@ -60,6 +60,8 @@ function GridCell({
 
   const handleCellClick = useCallback(() => {
     setActiveTask(cell.taskId);
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) return;
     const actionSelector =
       cellRef.current?.querySelector<HTMLElement>("[tabindex='0']");
     actionSelector?.focus();

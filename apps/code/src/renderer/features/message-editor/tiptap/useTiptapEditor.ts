@@ -28,6 +28,7 @@ export interface UseTiptapEditorOptions {
     bashMode?: boolean;
   };
   clearOnSubmit?: boolean;
+  getPromptHistory?: () => string[];
   onSubmit?: (text: string) => void;
   onBashCommand?: (command: string) => void;
   onBashModeChange?: (isBashMode: boolean) => void;
@@ -82,6 +83,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
     context,
     capabilities = {},
     clearOnSubmit = true,
+    getPromptHistory,
     onSubmit,
     onBashCommand,
     onBashModeChange,
@@ -115,6 +117,9 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
 
   const submitDisabledRef = useRef(submitDisabled);
   submitDisabledRef.current = submitDisabled;
+
+  const getPromptHistoryRef = useRef(getPromptHistory);
+  getPromptHistoryRef.current = getPromptHistory;
 
   const prevBashModeRef = useRef(false);
   const prevIsEmptyRef = useRef(true);
@@ -192,10 +197,10 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
             }
           }
 
-          if (
-            taskId &&
-            (event.key === "ArrowUp" || event.key === "ArrowDown")
-          ) {
+          if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+            const historyGetter = getPromptHistoryRef.current;
+            if (!taskId && !historyGetter) return false;
+
             const currentText = view.state.doc.textContent;
             const isEmpty = !currentText.trim();
             const { from } = view.state.selection;
@@ -203,24 +208,27 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
             const isAtEnd = from === view.state.doc.content.size - 1;
 
             const forceNavigate = event.shiftKey;
+            const history = historyGetter?.() ?? [];
 
             if (
               event.key === "ArrowUp" &&
               (forceNavigate || isEmpty || isAtStart)
             ) {
-              const queuedContent =
-                sessionStoreSetters.dequeueMessagesAsText(taskId);
-              if (queuedContent !== null && queuedContent !== undefined) {
-                event.preventDefault();
-                view.dispatch(
-                  view.state.tr
-                    .delete(1, view.state.doc.content.size - 1)
-                    .insertText(queuedContent, 1),
-                );
-                return true;
+              if (taskId) {
+                const queuedContent =
+                  sessionStoreSetters.dequeueMessagesAsText(taskId);
+                if (queuedContent !== null && queuedContent !== undefined) {
+                  event.preventDefault();
+                  view.dispatch(
+                    view.state.tr
+                      .delete(1, view.state.doc.content.size - 1)
+                      .insertText(queuedContent, 1),
+                  );
+                  return true;
+                }
               }
 
-              const newText = historyActions.navigateUp(taskId, currentText);
+              const newText = historyActions.navigateUp(history, currentText);
               if (newText !== null) {
                 event.preventDefault();
                 view.dispatch(
@@ -236,7 +244,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
               event.key === "ArrowDown" &&
               (forceNavigate || isEmpty || isAtEnd)
             ) {
-              const newText = historyActions.navigateDown(taskId);
+              const newText = historyActions.navigateDown(history);
               if (newText !== null) {
                 event.preventDefault();
                 view.dispatch(
