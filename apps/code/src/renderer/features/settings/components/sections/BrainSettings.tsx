@@ -281,6 +281,20 @@ export function BrainSettings() {
     }),
   );
 
+  const pruneEdgesMutation = useMutation(
+    trpc.memory.pruneWeakEdges.mutationOptions({
+      onSuccess: (pruned) => {
+        toast.success(`Pruned ${pruned} weak edges`);
+        queryClient.invalidateQueries({
+          queryKey: trpc.memory.graph.queryKey(),
+        });
+      },
+      onError: () => {
+        toast.error("Failed to prune weak edges");
+      },
+    }),
+  );
+
   return (
     <Flex direction="column">
       <SettingRow
