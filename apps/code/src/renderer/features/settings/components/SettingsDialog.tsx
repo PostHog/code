@@ -47,7 +47,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "general", label: "General", icon: <GearSix size={16} /> },
   { id: "account", label: "Account", icon: <User size={16} /> },
   { id: "workspaces", label: "Workspaces", icon: <Folder size={16} /> },
-  { id: "brain", label: "Brain", icon: <Brain size={16} /> },
+  { id: "brain", label: "Lobotomy", icon: <Brain size={16} /> },
   { id: "worktrees", label: "Worktrees", icon: <TreeStructure size={16} /> },
   {
     id: "environments",
@@ -84,7 +84,7 @@ const CATEGORY_TITLES: Record<SettingsCategory, string> = {
   shortcuts: "Shortcuts",
 
   signals: "Signals",
-  brain: "Brain",
+  brain: "Lobotomy",
   updates: "Updates",
   advanced: "Advanced",
 };
