@@ -262,6 +262,14 @@ export class AgentMemoryRepository {
       .run(memoryId, memoryId).changes;
   }
 
+  pruneWeakEdges(maxWeight: number): number {
+    return this.db
+      .prepare(
+        "DELETE FROM associations WHERE relation_type = 'related_to' AND weight <= ?",
+      )
+      .run(maxWeight).changes;
+  }
+
   getAssociationsBetween(memoryIds: string[]): Association[] {
     if (memoryIds.length === 0) return [];
     const placeholders = memoryIds.map(() => "?").join(",");

@@ -97,6 +97,17 @@ export const memoryRouter = router({
     )
     .mutation(() => getService().runMaintenance()),
 
+  pruneWeakEdges: publicProcedure
+    .input(
+      z
+        .object({ maxWeight: z.number().min(0).max(1).optional() })
+        .optional(),
+    )
+    .output(z.number())
+    .mutation(({ input }) =>
+      getService().pruneWeakEdges(input?.maxWeight ?? 0.3),
+    ),
+
   seed: publicProcedure.output(z.number()).mutation(() => getService().seed()),
 
   reset: publicProcedure.mutation(() => {

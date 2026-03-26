@@ -50,13 +50,17 @@ export class AgentMemoryService {
 
     const memory = this.repo.save(input);
 
+    // Only link to the top 2 same-type matches to avoid edge sprawl
+    let linked = 0;
     for (const match of existing) {
+      if (linked >= 2) break;
       if (match.memoryType === input.memoryType) {
         this.repo.createAssociation(memory.id, {
           targetId: match.id,
           relationType: RelationType.RelatedTo,
           weight: 0.5,
         });
+        linked++;
       }
     }
 
@@ -98,6 +102,12 @@ export class AgentMemoryService {
 
   getAssociationsBetween(memoryIds: string[]): Association[] {
     return this.repo.getAssociationsBetween(memoryIds);
+  }
+
+  pruneWeakEdges(maxWeight = 0.3): number {
+    const pruned = this.repo.pruneWeakEdges(maxWeight);
+    this.logger?.debug("Pruned weak edges", { pruned, maxWeight });
+    return pruned;
   }
 
   getByType(memoryType: MemoryType, limit?: number): Memory[] {

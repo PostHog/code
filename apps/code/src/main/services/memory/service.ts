@@ -131,6 +131,12 @@ export class MemoryService extends TypedEventEmitter<MemoryServiceEvents> {
     return { nodes, edges };
   }
 
+  pruneWeakEdges(maxWeight = 0.3): number {
+    const pruned = this.service.pruneWeakEdges(maxWeight);
+    log.info("Pruned weak edges", { pruned, maxWeight });
+    return pruned;
+  }
+
   runMaintenance(): { decayed: number; pruned: number; consolidated: number } {
     try {
       const decayed = this.service.decayImportance(

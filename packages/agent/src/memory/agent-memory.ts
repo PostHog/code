@@ -135,10 +135,12 @@ For each relationship you find, specify:
 - weight: 0.3-0.9 (how strong is the relationship — 0.3 = weak thematic link, 0.9 = very strong direct connection)
 
 Rules:
-- Only include relationships that are genuinely meaningful (shared topic, causal link, contradiction)
-- Do NOT link memories just because they share common words like "the" or "user"
-- Prefer fewer high-quality relationships over many weak ones
-- Each memory can appear in multiple relationships
+- Be VERY selective — most memories should NOT be linked. Return an empty array if no strong relationships exist.
+- Only link memories that share a specific topic, have a causal relationship, or directly contradict each other.
+- Do NOT link memories just because they are about the same project, same person, or share common words.
+- "User prefers X" and "User prefers Y" are NOT related unless X and Y are about the same thing.
+- A task/goal memory and an identity memory are NOT related just because they mention the same codebase.
+- Aim for at most 2-3 relationships per batch. If you find more than 5, you are being too generous.
 
 Memories:
 {MEMORIES}
@@ -371,15 +373,13 @@ export class AgentMemoryManager {
       }
 
       if (saved.length > 0) {
-        // Auto-associate memories extracted from the same chunk
-        for (let i = 0; i < saved.length; i++) {
-          for (let j = i + 1; j < saved.length; j++) {
-            this.svc.link(saved[i].id, {
-              targetId: saved[j].id,
-              relationType: RelationType.RelatedTo,
-              weight: 0.3,
-            });
-          }
+        // Link adjacent extracted memories (not all pairs — avoids O(n²) edge explosion)
+        for (let i = 0; i < saved.length - 1; i++) {
+          this.svc.link(saved[i].id, {
+            targetId: saved[i + 1].id,
+            relationType: RelationType.RelatedTo,
+            weight: 0.3,
+          });
         }
 
         this.logger.info("Distillation complete", {
@@ -536,54 +536,30 @@ export class AgentMemoryManager {
     const ids = this.recalledMemories.map((m) => m.id);
     const existing = this.svc.getAssociationsBetween(ids);
 
-    // Build a set of existing edges for fast lookup
-    const edgeKey = (a: string, b: string) =>
-      a < b ? `${a}:${b}` : `${b}:${a}`;
-    const existingEdges = new Map<string, number>();
-    for (const assoc of existing) {
-      existingEdges.set(edgeKey(assoc.sourceId, assoc.targetId), assoc.weight);
-    }
-
-    let created = 0;
+    // Only reinforce edges that already exist — co-recall alone is too weak
+    // a signal to justify creating new edges (that's what discoverRelationships is for)
     let reinforced = 0;
 
-    for (let i = 0; i < ids.length; i++) {
-      for (let j = i + 1; j < ids.length; j++) {
-        const key = edgeKey(ids[i], ids[j]);
-        const currentWeight = existingEdges.get(key);
-
-        if (currentWeight !== undefined) {
-          // Reinforce: boost weight by 0.1, cap at 1.0
-          const newWeight = Math.min(1, currentWeight + 0.1);
-          if (newWeight > currentWeight) {
-            this.svc.link(ids[i], {
-              targetId: ids[j],
-              relationType: RelationType.RelatedTo,
-              weight: newWeight,
-            });
-            reinforced++;
-          }
-        } else {
-          // Create new weak edge from co-recall
-          this.svc.link(ids[i], {
-            targetId: ids[j],
-            relationType: RelationType.RelatedTo,
-            weight: 0.2,
-          });
-          created++;
-        }
+    for (const assoc of existing) {
+      const newWeight = Math.min(1, assoc.weight + 0.05);
+      if (newWeight > assoc.weight) {
+        this.svc.link(assoc.sourceId, {
+          targetId: assoc.targetId,
+          relationType: RelationType.RelatedTo,
+          weight: newWeight,
+        });
+        reinforced++;
       }
     }
 
-    if (created > 0 || reinforced > 0) {
+    if (reinforced > 0) {
       this.logger.info("Co-recall reinforcement complete", {
-        created,
         reinforced,
         recalledCount: ids.length,
       });
     }
 
-    return created + reinforced;
+    return reinforced;
   }
 
   // ── LLM Relationship Discovery ───────────────────────────────────────────
