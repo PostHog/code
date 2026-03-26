@@ -2,7 +2,6 @@ import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import * as watcher from "@parcel/watcher";
-import { app } from "electron";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
@@ -70,9 +69,6 @@ export class FileWatcherService extends TypedEventEmitter<FileWatcherEvents> {
   async startWatching(repoPath: string): Promise<void> {
     if (this.watchers.has(repoPath)) return;
 
-    await fs.mkdir(this.snapshotsDir, { recursive: true });
-    await this.emitChangesSinceSnapshot(repoPath);
-
     const pending: PendingChanges = {
       dirs: new Set(),
       files: new Set(),
@@ -107,51 +103,11 @@ export class FileWatcherService extends TypedEventEmitter<FileWatcherEvents> {
     if (!w) return;
 
     if (w.pending.timer) clearTimeout(w.pending.timer);
-    await this.saveSnapshot(repoPath);
     await this.watcherRegistry.unregister(w.filesId);
     for (const gitId of w.gitIds) {
       await this.watcherRegistry.unregister(gitId);
     }
     this.watchers.delete(repoPath);
-  }
-
-  private get snapshotsDir(): string {
-    return path.join(app.getPath("userData"), "snapshots");
-  }
-
-  private snapshotPath(repoPath: string): string {
-    return path.join(
-      this.snapshotsDir,
-      `${Buffer.from(repoPath).toString("base64url")}.snapshot`,
-    );
-  }
-
-  private async saveSnapshot(repoPath: string): Promise<void> {
-    try {
-      await watcher.writeSnapshot(repoPath, this.snapshotPath(repoPath), {
-        ignore: IGNORE_PATTERNS,
-      });
-    } catch (error) {
-      log.error("Failed to write snapshot:", error);
-    }
-  }
-
-  private async emitChangesSinceSnapshot(repoPath: string): Promise<void> {
-    const snapshotPath = this.snapshotPath(repoPath);
-    try {
-      await fs.access(snapshotPath);
-    } catch {
-      return;
-    }
-
-    const events = await watcher.getEventsSince(repoPath, snapshotPath, {
-      ignore: IGNORE_PATTERNS,
-    });
-
-    const affectedDirs = new Set(events.map((e) => path.dirname(e.path)));
-    for (const dirPath of affectedDirs) {
-      this.emit(FileWatcherEvent.DirectoryChanged, { repoPath, dirPath });
-    }
   }
 
   private async watchFiles(
