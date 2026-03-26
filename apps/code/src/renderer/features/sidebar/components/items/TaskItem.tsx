@@ -136,12 +136,8 @@ function CloudStatusIcon({
   if (taskRunStatus === "started" || taskRunStatus === "in_progress") {
     return (
       <Tooltip content="Cloud (running)" side="right">
-        <span className="relative flex items-center justify-center">
-          <CloudIcon size={ICON_SIZE} className="text-accent-11" />
-          <DotsCircleSpinner
-            size={8}
-            className="-right-0.5 -bottom-0.5 absolute text-accent-11"
-          />
+        <span className="flex items-center justify-center">
+          <CloudIcon size={ICON_SIZE} className="ph-pulse" />
         </span>
       </Tooltip>
     );
