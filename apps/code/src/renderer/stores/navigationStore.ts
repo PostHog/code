@@ -19,7 +19,8 @@ type ViewType =
   | "inbox"
   | "archived"
   | "command-center"
-  | "skills";
+  | "skills"
+  | "automations";
 
 interface ViewState {
   type: ViewType;
@@ -39,6 +40,7 @@ interface NavigationStore {
   navigateToArchived: () => void;
   navigateToCommandCenter: () => void;
   navigateToSkills: () => void;
+  navigateToAutomations: () => void;
   goBack: () => void;
   goForward: () => void;
   canGoBack: () => boolean;
@@ -67,6 +69,9 @@ const isSameView = (view1: ViewState, view2: ViewState): boolean => {
     return true;
   }
   if (view1.type === "skills" && view2.type === "skills") {
+    return true;
+  }
+  if (view1.type === "automations" && view2.type === "automations") {
     return true;
   }
   return false;
@@ -181,6 +186,10 @@ export const useNavigationStore = create<NavigationStore>()(
 
         navigateToSkills: () => {
           navigate({ type: "skills" });
+        },
+
+        navigateToAutomations: () => {
+          navigate({ type: "automations" });
         },
 
         goBack: () => {

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 const id = () =>
   text()
@@ -76,3 +76,42 @@ export const suspensions = sqliteTable("suspensions", {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+export const automations = sqliteTable("automations", {
+  id: id(),
+  name: text().notNull(),
+  prompt: text().notNull(),
+  repoPath: text().notNull(),
+  repository: text(),
+  githubIntegrationId: integer(),
+  scheduleTime: text().notNull(),
+  timezone: text().notNull(),
+  enabled: integer({ mode: "boolean" }).notNull().default(true),
+  templateId: text(),
+  lastRunAt: text(),
+  lastRunStatus: text({ enum: ["success", "failed", "skipped", "running"] }),
+  lastTaskId: text(),
+  lastError: text(),
+  nextRunAt: text(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+export const automationRuns = sqliteTable(
+  "automation_runs",
+  {
+    id: id(),
+    automationId: text()
+      .notNull()
+      .references(() => automations.id, { onDelete: "cascade" }),
+    status: text({
+      enum: ["running", "success", "failed", "skipped"],
+    }).notNull(),
+    output: text(),
+    error: text(),
+    startedAt: text().notNull(),
+    completedAt: text(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("automation_runs_automation_id_idx").on(t.automationId)],
+);

@@ -16,8 +16,12 @@ export const MAIN_TOKENS = Object.freeze({
   ArchiveRepository: Symbol.for("Main.ArchiveRepository"),
   SuspensionRepository: Symbol.for("Main.SuspensionRepository"),
 
+  // Repositories
+  AutomationRepository: Symbol.for("Main.AutomationRepository"),
+
   // Services
   AgentService: Symbol.for("Main.AgentService"),
+  AutomationService: Symbol.for("Main.AutomationService"),
   AuthProxyService: Symbol.for("Main.AuthProxyService"),
   ArchiveService: Symbol.for("Main.ArchiveService"),
   SuspensionService: Symbol.for("Main.SuspensionService"),

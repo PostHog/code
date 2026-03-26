@@ -1,4 +1,5 @@
 import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
+import { useAutomationStore } from "@features/automations/stores/automationStore";
 import { useCommandCenterStore } from "@features/command-center/stores/commandCenterStore";
 import { useInboxReports } from "@features/inbox/hooks/useInboxReports";
 import {
@@ -20,6 +21,7 @@ import { memo, useCallback, useEffect, useRef } from "react";
 import { usePinnedTasks } from "../hooks/usePinnedTasks";
 import { useSidebarData } from "../hooks/useSidebarData";
 import { useTaskViewed } from "../hooks/useTaskViewed";
+import { AutomationsItem } from "./items/AutomationsItem";
 import { CommandCenterItem } from "./items/CommandCenterItem";
 import { InboxItem, NewTaskItem } from "./items/HomeItem";
 import { SkillsItem } from "./items/SkillsItem";
@@ -34,6 +36,7 @@ function SidebarMenuComponent() {
     navigateToInbox,
     navigateToCommandCenter,
     navigateToSkills,
+    navigateToAutomations,
   } = useNavigationStore();
 
   const { data: allTasks = [] } = useTasks();
@@ -67,6 +70,10 @@ function SidebarMenuComponent() {
   const commandCenterActiveCount = commandCenterCells.filter(
     (taskId) => taskId != null,
   ).length;
+  const automationEnabledCount = useAutomationStore(
+    (state) =>
+      state.automations.filter((automation) => automation.enabled).length,
+  );
 
   const previousTaskIdRef = useRef<string | null>(null);
 
@@ -107,6 +114,10 @@ function SidebarMenuComponent() {
 
   const handleSkillsClick = () => {
     navigateToSkills();
+  };
+
+  const handleAutomationsClick = () => {
+    navigateToAutomations();
   };
 
   const handleTaskClick = (taskId: string) => {
@@ -214,6 +225,14 @@ function SidebarMenuComponent() {
               isActive={sidebarData.isCommandCenterActive}
               onClick={handleCommandCenterClick}
               activeCount={commandCenterActiveCount}
+            />
+          </Box>
+
+          <Box mb="2">
+            <AutomationsItem
+              isActive={sidebarData.isAutomationsActive}
+              onClick={handleAutomationsClick}
+              activeCount={automationEnabledCount}
             />
           </Box>
 

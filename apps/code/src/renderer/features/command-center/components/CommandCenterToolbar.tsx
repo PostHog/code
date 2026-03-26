@@ -1,11 +1,16 @@
+import { runAutomationNow } from "@features/automations/hooks/useAutomationScheduler";
+import { useAutomationStore } from "@features/automations/stores/automationStore";
 import { getSessionService } from "@features/sessions/service/service";
 import {
+  Lightning,
+  ListBullets,
   MagnifyingGlassMinus,
   MagnifyingGlassPlus,
   Stop,
   Trash,
 } from "@phosphor-icons/react";
 import { Flex, Select, Text } from "@radix-ui/themes";
+import { useState } from "react";
 import type {
   CommandCenterCellData,
   StatusSummary,
@@ -55,8 +60,29 @@ export function CommandCenterToolbar({
   const zoom = useCommandCenterStore((s) => s.zoom);
   const zoomIn = useCommandCenterStore((s) => s.zoomIn);
   const zoomOut = useCommandCenterStore((s) => s.zoomOut);
+  const viewMode = useCommandCenterStore((s) => s.viewMode);
+  const summarize = useCommandCenterStore((s) => s.summarize);
+  const toggleSummarize = useCommandCenterStore((s) => s.toggleSummarize);
+
+  const enabledAutomations = useAutomationStore((s) =>
+    s.automations.filter((a) => a.enabled),
+  );
+  const runningAutomationIds = useAutomationStore(
+    (s) => s.runningAutomationIds,
+  );
+  const [runningAll, setRunningAll] = useState(false);
 
   const hasActiveAgents = summary.running > 0 || summary.waiting > 0;
+
+  const runAllAutomations = async () => {
+    if (runningAll || enabledAutomations.length === 0) return;
+    setRunningAll(true);
+    try {
+      await Promise.all(enabledAutomations.map((a) => runAutomationNow(a.id)));
+    } finally {
+      setRunningAll(false);
+    }
+  };
 
   const stopAll = () => {
     const service = getSessionService();
@@ -78,6 +104,22 @@ export function CommandCenterToolbar({
       py="2"
       className="shrink-0 border-gray-6 border-b"
     >
+
+      {/* Summarize toggle */}
+      <button
+        type="button"
+        onClick={toggleSummarize}
+        className={`flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] transition-colors ${
+          summarize
+            ? "bg-accent-4 text-accent-11"
+            : "text-gray-10 hover:bg-gray-4 hover:text-gray-12"
+        }`}
+        title={summarize ? "Show full view" : "Show summaries"}
+      >
+        <ListBullets size={12} />
+        Summarize
+      </button>
+
       <Select.Root
         value={layout}
         onValueChange={(v) => setLayout(v as LayoutPreset)}
@@ -92,7 +134,9 @@ export function CommandCenterToolbar({
         </Select.Content>
       </Select.Root>
 
-      <StatusSummaryText summary={summary} />
+      {viewMode === "tasks" && <StatusSummaryText summary={summary} />}
+
+      <div className="flex-1" />
 
       <Flex align="center" gap="1">
         <button
@@ -121,28 +165,46 @@ export function CommandCenterToolbar({
         </button>
       </Flex>
 
-      <div className="flex-1" />
+      {viewMode === "tasks" && (
+        <>
+          {enabledAutomations.length > 0 && (
+            <button
+              type="button"
+              onClick={runAllAutomations}
+              disabled={
+                runningAll ||
+                runningAutomationIds.length === enabledAutomations.length
+              }
+              className="flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] text-orange-10 transition-colors hover:bg-orange-3 hover:text-orange-11 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-orange-10"
+              title="Run all enabled automations"
+            >
+              <Lightning size={12} weight="fill" />
+              {runningAll ? "Running..." : "Run All Automations"}
+            </button>
+          )}
 
-      <button
-        type="button"
-        onClick={stopAll}
-        disabled={!hasActiveAgents}
-        className="flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] text-red-10 transition-colors hover:bg-red-3 hover:text-red-11 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-red-10"
-        title="Stop all agents"
-      >
-        <Stop size={12} weight="fill" />
-        Stop All
-      </button>
+          <button
+            type="button"
+            onClick={stopAll}
+            disabled={!hasActiveAgents}
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] text-red-10 transition-colors hover:bg-red-3 hover:text-red-11 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-red-10"
+            title="Stop all agents"
+          >
+            <Stop size={12} weight="fill" />
+            Stop All
+          </button>
 
-      <button
-        type="button"
-        onClick={clearAll}
-        className="flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
-        title="Clear all cells"
-      >
-        <Trash size={12} />
-        Clear
-      </button>
+          <button
+            type="button"
+            onClick={clearAll}
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
+            title="Clear all cells"
+          >
+            <Trash size={12} />
+            Clear
+          </button>
+        </>
+      )}
     </Flex>
   );
 }
