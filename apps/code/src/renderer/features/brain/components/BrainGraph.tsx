@@ -84,6 +84,227 @@ const FADED_NODE_COLOR = "#333333";
 const BRAIN_NODE_ID = "__brain_hub__";
 const BRAIN_LABEL = "Brain";
 const BRAIN_EDGE_COLOR = "rgba(139,92,246,0.15)";
+const INCREMENTAL_LAYOUT_MS = 800;
+const INITIAL_LAYOUT_MS = 3000;
+
+// -- Incremental diff helpers --
+
+interface GraphDelta {
+  addedNodes: MemoryNode[];
+  removedNodeIds: string[];
+  updatedNodes: MemoryNode[];
+  addedEdges: AssociationEdge[];
+  removedEdgeIds: string[];
+  updatedEdges: AssociationEdge[];
+  hasStructuralChanges: boolean;
+}
+
+function diffGraphData(
+  oldNodes: MemoryNode[],
+  oldEdges: AssociationEdge[],
+  newNodes: MemoryNode[],
+  newEdges: AssociationEdge[],
+): GraphDelta {
+  const oldNodeMap = new Map(oldNodes.map((n) => [n.id, n]));
+  const newNodeMap = new Map(newNodes.map((n) => [n.id, n]));
+  const oldEdgeMap = new Map(oldEdges.map((e) => [e.id, e]));
+  const newEdgeMap = new Map(newEdges.map((e) => [e.id, e]));
+
+  const addedNodes: MemoryNode[] = [];
+  const updatedNodes: MemoryNode[] = [];
+  for (const [id, node] of newNodeMap) {
+    const old = oldNodeMap.get(id);
+    if (!old) {
+      addedNodes.push(node);
+    } else if (old.updatedAt !== node.updatedAt) {
+      updatedNodes.push(node);
+    }
+  }
+
+  const removedNodeIds: string[] = [];
+  for (const id of oldNodeMap.keys()) {
+    if (!newNodeMap.has(id)) removedNodeIds.push(id);
+  }
+
+  const addedEdges: AssociationEdge[] = [];
+  const updatedEdges: AssociationEdge[] = [];
+  for (const [id, edge] of newEdgeMap) {
+    const old = oldEdgeMap.get(id);
+    if (!old) {
+      addedEdges.push(edge);
+    } else if (
+      old.weight !== edge.weight ||
+      old.relationType !== edge.relationType
+    ) {
+      updatedEdges.push(edge);
+    }
+  }
+
+  const removedEdgeIds: string[] = [];
+  for (const id of oldEdgeMap.keys()) {
+    if (!newEdgeMap.has(id)) removedEdgeIds.push(id);
+  }
+
+  return {
+    addedNodes,
+    removedNodeIds,
+    updatedNodes,
+    addedEdges,
+    removedEdgeIds,
+    updatedEdges,
+    hasStructuralChanges:
+      addedNodes.length > 0 ||
+      removedNodeIds.length > 0 ||
+      addedEdges.length > 0 ||
+      removedEdgeIds.length > 0,
+  };
+}
+
+function findInitialPosition(
+  graph: Graph,
+  nodeId: string,
+  newEdges: AssociationEdge[],
+): { x: number; y: number } {
+  const neighborIds: string[] = [];
+  for (const edge of newEdges) {
+    if (edge.sourceId === nodeId && graph.hasNode(edge.targetId)) {
+      neighborIds.push(edge.targetId);
+    }
+    if (edge.targetId === nodeId && graph.hasNode(edge.sourceId)) {
+      neighborIds.push(edge.sourceId);
+    }
+  }
+
+  if (neighborIds.length > 0) {
+    let sumX = 0;
+    let sumY = 0;
+    for (const id of neighborIds) {
+      sumX += graph.getNodeAttribute(id, "x") as number;
+      sumY += graph.getNodeAttribute(id, "y") as number;
+    }
+    return {
+      x: sumX / neighborIds.length + (Math.random() - 0.5) * 10,
+      y: sumY / neighborIds.length + (Math.random() - 0.5) * 10,
+    };
+  }
+
+  if (graph.hasNode(BRAIN_NODE_ID)) {
+    return {
+      x:
+        (graph.getNodeAttribute(BRAIN_NODE_ID, "x") as number) +
+        (Math.random() - 0.5) * 40,
+      y:
+        (graph.getNodeAttribute(BRAIN_NODE_ID, "y") as number) +
+        (Math.random() - 0.5) * 40,
+    };
+  }
+
+  return { x: Math.random() * 100, y: Math.random() * 100 };
+}
+
+function rebuildBrainHubEdges(graph: Graph) {
+  // Collect brain edges first to avoid iterator invalidation
+  const brainEdges: string[] = [];
+  graph.forEachEdge((edge) => {
+    if (edge.startsWith("brain-")) brainEdges.push(edge);
+  });
+  for (const edge of brainEdges) graph.dropEdge(edge);
+
+  // BFS to find connected components, link highest-importance per component
+  const visited = new Set<string>();
+  graph.forEachNode((nodeId) => {
+    if (nodeId === BRAIN_NODE_ID || visited.has(nodeId)) return;
+
+    const component: string[] = [];
+    const queue = [nodeId];
+    visited.add(nodeId);
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      component.push(current);
+      graph.forEachNeighbor(current, (neighbor) => {
+        if (neighbor !== BRAIN_NODE_ID && !visited.has(neighbor)) {
+          visited.add(neighbor);
+          queue.push(neighbor);
+        }
+      });
+    }
+
+    let bestId = component[0];
+    let bestImportance = -1;
+    for (const id of component) {
+      const nd = graph.getNodeAttribute(id, "nodeData") as MemoryNode | null;
+      if (nd && nd.importance > bestImportance) {
+        bestImportance = nd.importance;
+        bestId = id;
+      }
+    }
+
+    graph.addEdgeWithKey(`brain-${bestId}`, BRAIN_NODE_ID, bestId, {
+      color: BRAIN_EDGE_COLOR,
+      size: 0.5,
+      type: "arrow",
+      relationType: "brain_link",
+    });
+  });
+}
+
+function applyGraphDelta(graph: Graph, delta: GraphDelta) {
+  // 1. Remove edges first (before removing nodes they connect)
+  for (const edgeId of delta.removedEdgeIds) {
+    if (graph.hasEdge(edgeId)) graph.dropEdge(edgeId);
+  }
+
+  // 2. Remove nodes (and their brain-hub edges)
+  for (const nodeId of delta.removedNodeIds) {
+    const brainKey = `brain-${nodeId}`;
+    if (graph.hasEdge(brainKey)) graph.dropEdge(brainKey);
+    if (graph.hasNode(nodeId)) graph.dropNode(nodeId);
+  }
+
+  // 3. Add new nodes at smart positions
+  for (const node of delta.addedNodes) {
+    const { x, y } = findInitialPosition(graph, node.id, delta.addedEdges);
+    graph.addNode(node.id, {
+      label: truncateLabel(node.content),
+      size: 3 + node.importance * 8,
+      color: NODE_COLORS[node.memoryType as MemoryNodeType] ?? "#666666",
+      x,
+      y,
+      nodeData: node,
+    });
+  }
+
+  // 4. Add new edges
+  addEdgesToGraph(graph, delta.addedEdges);
+
+  // 5. Update existing node attributes
+  for (const node of delta.updatedNodes) {
+    if (graph.hasNode(node.id)) {
+      graph.mergeNodeAttributes(node.id, {
+        label: truncateLabel(node.content),
+        size: 3 + node.importance * 8,
+        color: NODE_COLORS[node.memoryType as MemoryNodeType] ?? "#666666",
+        nodeData: node,
+      });
+    }
+  }
+
+  // 6. Update existing edge attributes
+  for (const edge of delta.updatedEdges) {
+    if (graph.hasEdge(edge.id)) {
+      graph.mergeEdgeAttributes(edge.id, {
+        color: EDGE_COLORS[edge.relationType as RelationEdgeType] ?? "#444444",
+        size: 1 + edge.weight * 2,
+        relationType: edge.relationType,
+      });
+    }
+  }
+
+  // 7. Rebuild brain hub if structure changed
+  if (delta.hasStructuralChanges) {
+    rebuildBrainHubEdges(graph);
+  }
+}
 
 // -- Component --
 
@@ -92,6 +313,12 @@ export function BrainGraph() {
   const sigmaRef = useRef<Sigma | null>(null);
   const graphRef = useRef<Graph | null>(null);
   const layoutRef = useRef<FA2Layout | null>(null);
+  const prevGraphDataRef = useRef<{
+    nodes: MemoryNode[];
+    edges: AssociationEdge[];
+  } | null>(null);
+  const isInitializedRef = useRef(false);
+  const layoutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [nodeCount, setNodeCount] = useState(0);
   const [edgeCount, setEdgeCount] = useState(0);
   const [selectedNode, setSelectedNode] = useState<NodeDetail | null>(null);
@@ -114,7 +341,11 @@ export function BrainGraph() {
     data: graphData,
     isLoading,
     refetch: refetchGraph,
-  } = useQuery(trpc.memory.graph.queryOptions({ limit: 200 }));
+  } = useQuery({
+    ...trpc.memory.graph.queryOptions({ limit: 200 }),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -183,6 +414,10 @@ export function BrainGraph() {
   });
 
   const cleanup = useCallback(() => {
+    if (layoutTimeoutRef.current) {
+      clearTimeout(layoutTimeoutRef.current);
+      layoutTimeoutRef.current = null;
+    }
     if (layoutRef.current) {
       layoutRef.current.kill();
       layoutRef.current = null;
@@ -192,6 +427,7 @@ export function BrainGraph() {
       sigmaRef.current = null;
     }
     graphRef.current = null;
+    isInitializedRef.current = false;
   }, []);
 
   const toggleNodeType = useCallback((type: MemoryNodeType) => {
@@ -333,6 +569,82 @@ export function BrainGraph() {
   useEffect(() => {
     if (!containerRef.current || !graphData) return;
 
+    // ── Incremental update path ──────────────────────────────────────────
+    if (
+      isInitializedRef.current &&
+      graphRef.current &&
+      sigmaRef.current &&
+      prevGraphDataRef.current
+    ) {
+      const delta = diffGraphData(
+        prevGraphDataRef.current.nodes,
+        prevGraphDataRef.current.edges,
+        graphData.nodes,
+        graphData.edges,
+      );
+
+      if (
+        !delta.hasStructuralChanges &&
+        delta.updatedNodes.length === 0 &&
+        delta.updatedEdges.length === 0
+      ) {
+        return; // nothing changed
+      }
+
+      // Clear selected node if it was removed
+      if (selectedNode && delta.removedNodeIds.includes(selectedNode.node.id)) {
+        setSelectedNode(null);
+      }
+
+      const graph = graphRef.current;
+      const layout = layoutRef.current;
+
+      // Stop layout before mutations to avoid mid-mutation worker restarts
+      if (layout?.isRunning()) layout.stop();
+      if (layoutTimeoutRef.current) {
+        clearTimeout(layoutTimeoutRef.current);
+        layoutTimeoutRef.current = null;
+      }
+
+      applyGraphDelta(graph, delta);
+
+      setNodeCount(graphData.nodes.length);
+      const brainEdgeCount = graph.filterEdges((e) =>
+        e.startsWith("brain-"),
+      ).length;
+      setEdgeCount(graph.size - brainEdgeCount);
+
+      if (delta.hasStructuralChanges && layout) {
+        // Delay start to let FA2's debounced worker respawn settle
+        setTimeout(() => {
+          if (!layout.isRunning()) layout.start();
+          layoutTimeoutRef.current = setTimeout(() => {
+            if (layout.isRunning()) layout.stop();
+            layoutTimeoutRef.current = null;
+          }, INCREMENTAL_LAYOUT_MS);
+        }, 10);
+      } else {
+        // Attribute-only changes — just refresh rendering
+        sigmaRef.current?.refresh();
+      }
+
+      prevGraphDataRef.current = {
+        nodes: graphData.nodes,
+        edges: graphData.edges,
+      };
+
+      log.info("Brain graph updated incrementally", {
+        added: delta.addedNodes.length,
+        removed: delta.removedNodeIds.length,
+        updated: delta.updatedNodes.length,
+        edgesAdded: delta.addedEdges.length,
+        edgesRemoved: delta.removedEdgeIds.length,
+      });
+
+      return;
+    }
+
+    // ── Initial build path ───────────────────────────────────────────────
     cleanup();
     setSelectedNode(null);
 
@@ -364,38 +676,7 @@ export function BrainGraph() {
       nodeData: null,
     });
 
-    const visited = new Set<string>();
-    for (const node of graphData.nodes) {
-      if (visited.has(node.id)) continue;
-      const component: string[] = [];
-      const queue = [node.id];
-      visited.add(node.id);
-      while (queue.length > 0) {
-        const current = queue.shift()!;
-        component.push(current);
-        graph.forEachNeighbor(current, (neighbor) => {
-          if (neighbor !== BRAIN_NODE_ID && !visited.has(neighbor)) {
-            visited.add(neighbor);
-            queue.push(neighbor);
-          }
-        });
-      }
-      let bestId = component[0];
-      let bestImportance = -1;
-      for (const id of component) {
-        const nd = graph.getNodeAttribute(id, "nodeData") as MemoryNode;
-        if (nd.importance > bestImportance) {
-          bestImportance = nd.importance;
-          bestId = id;
-        }
-      }
-      graph.addEdgeWithKey(`brain-${bestId}`, BRAIN_NODE_ID, bestId, {
-        color: BRAIN_EDGE_COLOR,
-        size: 0.5,
-        type: "arrow",
-        relationType: "brain_link",
-      });
-    }
+    rebuildBrainHubEdges(graph);
 
     setNodeCount(graphData.nodes.length);
     setEdgeCount(realEdgeCount);
@@ -537,11 +818,16 @@ export function BrainGraph() {
     layoutRef.current = layout;
     layout.start();
 
-    setTimeout(() => {
-      if (layout.isRunning()) {
-        layout.stop();
-      }
-    }, 3000);
+    layoutTimeoutRef.current = setTimeout(() => {
+      if (layout.isRunning()) layout.stop();
+      layoutTimeoutRef.current = null;
+    }, INITIAL_LAYOUT_MS);
+
+    prevGraphDataRef.current = {
+      nodes: graphData.nodes,
+      edges: graphData.edges,
+    };
+    isInitializedRef.current = true;
 
     log.info("Brain graph loaded", {
       nodes: graphData.nodes.length,
@@ -551,7 +837,7 @@ export function BrainGraph() {
     return () => {
       cleanup();
     };
-  }, [graphData, cleanup]);
+  }, [graphData, cleanup, selectedNode]);
 
   useEffect(() => {
     const sigma = sigmaRef.current;

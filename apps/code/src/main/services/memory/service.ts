@@ -30,7 +30,7 @@ export const MemoryServiceEvent = {
 } as const;
 
 export type MemoryServiceEvents = {
-  [MemoryServiceEvent.Changed]: undefined;
+  [MemoryServiceEvent.Changed]: { timestamp: number };
 };
 
 @injectable()
