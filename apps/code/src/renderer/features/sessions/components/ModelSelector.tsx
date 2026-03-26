@@ -24,26 +24,33 @@ export function ModelSelector({
   const session = useSessionForTask(taskId);
   const modelOption = useModelConfigOptionForTask(taskId);
 
-  const options = modelOption ? flattenSelectOptions(modelOption.options) : [];
+  const selectOption = modelOption?.type === "select" ? modelOption : undefined;
+  const options = selectOption
+    ? flattenSelectOptions(selectOption.options)
+    : [];
   const groupedOptions = useMemo(() => {
-    if (!modelOption || modelOption.options.length === 0) return [];
-    if ("group" in modelOption.options[0]) {
-      return modelOption.options as SessionConfigSelectGroup[];
+    if (!selectOption || selectOption.options.length === 0) return [];
+    if ("group" in selectOption.options[0]) {
+      return selectOption.options as SessionConfigSelectGroup[];
     }
     return [];
-  }, [modelOption]);
+  }, [selectOption]);
 
-  if (!modelOption || options.length === 0) return null;
+  if (!selectOption || options.length === 0) return null;
 
   const handleChange = (value: string) => {
     onModelChange?.(value);
 
     if (taskId && session?.status === "connected") {
-      getSessionService().setSessionConfigOption(taskId, modelOption.id, value);
+      getSessionService().setSessionConfigOption(
+        taskId,
+        selectOption.id,
+        value,
+      );
     }
   };
 
-  const currentValue = modelOption.currentValue;
+  const currentValue = selectOption.currentValue;
   const currentLabel =
     options.find((opt) => opt.value === currentValue)?.name ?? currentValue;
 

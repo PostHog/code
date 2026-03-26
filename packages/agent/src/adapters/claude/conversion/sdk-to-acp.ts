@@ -544,7 +544,7 @@ export async function handleSystemMessage(
   message: Extract<SDKMessage, { type: "system" }>,
   context: MessageHandlerContext,
 ): Promise<void> {
-  const { sessionId, client, logger } = context;
+  const { session, sessionId, client, logger } = context;
 
   switch (message.subtype) {
     case "init":
@@ -554,6 +554,7 @@ export async function handleSystemMessage(
         sessionId,
         trigger: message.compact_metadata.trigger,
         preTokens: message.compact_metadata.pre_tokens,
+        contextSize: session.contextSize,
       });
       break;
     case "hook_response":
@@ -797,30 +798,6 @@ export async function handleUserAssistantMessage(
     context;
 
   if (shouldSkipUserAssistantMessage(message)) {
-    const content = message.message.content;
-
-    // Handle /context by sending its reply as a regular agent message
-    if (
-      typeof content === "string" &&
-      hasLocalCommandStdout(content) &&
-      content.includes("Context Usage")
-    ) {
-      const stripped = content
-        .replace("<local-command-stdout>", "")
-        .replace("</local-command-stdout>", "");
-      for (const notification of toAcpNotifications(
-        stripped,
-        "assistant",
-        sessionId,
-        toolUseCache,
-        fileContentCache,
-        client,
-        logger,
-      )) {
-        await client.sessionUpdate(notification);
-      }
-    }
-
     logSpecialMessages(message, logger);
 
     if (isLoginRequiredMessage(message)) {

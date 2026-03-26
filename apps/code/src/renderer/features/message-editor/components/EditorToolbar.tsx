@@ -2,7 +2,6 @@ import { ModelSelector } from "@features/sessions/components/ModelSelector";
 import { Flex } from "@radix-ui/themes";
 import type { FileAttachment, MentionChip } from "../utils/content";
 import { AttachmentMenu } from "./AttachmentMenu";
-import { ContextUsageIndicator } from "./ContextUsageIndicator";
 
 interface EditorToolbarProps {
   disabled?: boolean;
@@ -43,7 +42,6 @@ export function EditorToolbar({
       {!hideSelectors && (
         <ModelSelector taskId={taskId} adapter={adapter} disabled={disabled} />
       )}
-      <ContextUsageIndicator taskId={taskId} />
     </Flex>
   );
 }

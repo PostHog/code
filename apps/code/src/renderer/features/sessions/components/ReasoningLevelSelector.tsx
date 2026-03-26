@@ -20,7 +20,7 @@ export function ReasoningLevelSelector({
   const thoughtOption = useThoughtLevelConfigOptionForTask(taskId);
   const adapter = useAdapterForTask(taskId);
 
-  if (!thoughtOption) {
+  if (!thoughtOption || thoughtOption.type !== "select") {
     return null;
   }
 

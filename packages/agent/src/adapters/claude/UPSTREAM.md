@@ -5,8 +5,8 @@ Fork of `@anthropic-ai/claude-agent-acp`. Upstream repo: https://github.com/anth
 ## Fork Point
 
 - **Forked**: v0.10.9, commit `5411e0f4`, Dec 2 2025
-- **Last sync**: v0.21.0, commit `c13edf3b02ddaf49f8e8b9e11b02cbf17869b57d`, March 9 2026
-- **SDK**: `@anthropic-ai/claude-agent-sdk` 0.2.71, `@agentclientprotocol/sdk` 0.15.0
+- **Last sync**: v0.22.2, commit `07db59e`, March 25 2026
+- **SDK**: `@anthropic-ai/claude-agent-sdk` 0.2.76, `@agentclientprotocol/sdk` 0.16.1
 
 ## File Mapping
 
@@ -49,13 +49,12 @@ Fork of `@anthropic-ai/claude-agent-acp`. Upstream repo: https://github.com/anth
 | Model resolution | `initializationResult.models` from SDK | `fetchGatewayModels()` from gateway API | Different model backend |
 | permissionMode | Hardcoded `"default"` | Reads from `meta.permissionMode` | More flexible mode selection |
 | Session storage | `this.sessions[sessionId]` (multi) | `this.session` (single) | Architectural choice |
-| ExitPlanMode denial | `interrupt: true` | `interrupt: false` | Better UX — lets Claude refine plan |
 | bypassPermissions | `updatedPermissions` with `destination: "session"` | No `updatedPermissions` | Different permission persistence |
 | Auth methods | Always returns `claude-login` auth method | Returns empty `authMethods` | Auth handled externally |
 
 ## Next Sync
 
-1. Check upstream changelog since v0.21.0
+1. Check upstream changelog since v0.22.2
 2. Diff upstream source against PostHog Code using the file mapping above
 3. Port in phases: bug fixes first, then features
 4. After each phase: `pnpm --filter agent typecheck && pnpm --filter agent build && pnpm lint`

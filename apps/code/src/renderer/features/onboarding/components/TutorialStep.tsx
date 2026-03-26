@@ -109,7 +109,8 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
   const currentExecutionMode =
     getCurrentModeFromConfigOptions(modeOption ? [modeOption] : undefined) ??
     "plan";
-  const currentReasoningLevel = thoughtOption?.currentValue;
+  const currentReasoningLevel =
+    thoughtOption?.type === "select" ? thoughtOption.currentValue : undefined;
 
   // Task creation — use whatever model the user picked
   const { isCreatingTask, canSubmit, handleSubmit } = useTaskCreation({

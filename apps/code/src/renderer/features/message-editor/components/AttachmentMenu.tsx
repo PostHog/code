@@ -147,7 +147,10 @@ export function AttachmentMenu({
             </div>
           ) : (
             <div className="issue-picker">
-              <IssuePicker repoPath={repoPath!} onSelect={handleIssueSelect} />
+              <IssuePicker
+                repoPath={repoPath ?? ""}
+                onSelect={handleIssueSelect}
+              />
             </div>
           )}
         </Popover.Content>

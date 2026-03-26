@@ -1,4 +1,5 @@
 import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
+import { IS_ROOT } from "../../../utils/common";
 import { BASH_TOOLS, READ_TOOLS, SEARCH_TOOLS, WRITE_TOOLS } from "../tools";
 
 export interface PermissionOption {
@@ -91,8 +92,20 @@ export function buildPermissionOptions(
   return permissionOptions("Yes, always allow");
 }
 
+const ALLOW_BYPASS = !IS_ROOT || !!process.env.IS_SANDBOX;
+
 export function buildExitPlanModePermissionOptions(): PermissionOption[] {
-  return [
+  const options: PermissionOption[] = [];
+
+  if (ALLOW_BYPASS) {
+    options.push({
+      kind: "allow_always",
+      name: "Yes, bypass all permissions",
+      optionId: "bypassPermissions",
+    });
+  }
+
+  options.push(
     {
       kind: "allow_always",
       name: "Yes, and auto-accept edits",
@@ -109,5 +122,7 @@ export function buildExitPlanModePermissionOptions(): PermissionOption[] {
       optionId: "reject_with_feedback",
       _meta: { customInput: true },
     },
-  ];
+  );
+
+  return options;
 }

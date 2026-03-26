@@ -82,7 +82,7 @@ const sessionConfigSelectGroupSchema = z
   })
   .passthrough();
 
-export const sessionConfigOptionSchema = z
+const sessionConfigSelectSchema = z
   .object({
     id: z.string(),
     name: z.string(),
@@ -96,6 +96,23 @@ export const sessionConfigOptionSchema = z
     _meta: z.record(z.string(), z.unknown()).nullish(),
   })
   .passthrough();
+
+const sessionConfigBooleanSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    type: z.literal("boolean"),
+    currentValue: z.boolean(),
+    category: z.string().nullish(),
+    description: z.string().nullish(),
+    _meta: z.record(z.string(), z.unknown()).nullish(),
+  })
+  .passthrough();
+
+export const sessionConfigOptionSchema = z.union([
+  sessionConfigSelectSchema,
+  sessionConfigBooleanSchema,
+]);
 
 export type SessionConfigOption = z.infer<typeof sessionConfigOptionSchema>;
 

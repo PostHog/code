@@ -23,6 +23,7 @@ export type RenderItem =
       sessionUpdate: "compact_boundary";
       trigger: "manual" | "auto";
       preTokens: number;
+      contextSize?: number;
     }
   | {
       sessionUpdate: "status";
@@ -101,6 +102,7 @@ export const SessionUpdateView = memo(function SessionUpdateView({
         <CompactBoundaryView
           trigger={item.trigger}
           preTokens={item.preTokens}
+          contextSize={item.contextSize}
         />
       );
     case "status":

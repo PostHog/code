@@ -1022,7 +1022,10 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       const updatedModeOption = session.configOptions?.find(
         (opt) => opt.category === "mode",
       );
-      if (updatedModeOption) {
+      if (
+        updatedModeOption &&
+        typeof updatedModeOption.currentValue === "string"
+      ) {
         session.config.permissionMode = updatedModeOption.currentValue;
       }
 
