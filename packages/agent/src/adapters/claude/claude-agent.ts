@@ -66,6 +66,7 @@ import {
   DEFAULT_MODEL,
   getEffortOptions,
   resolveModelPreference,
+  supports1MContext,
   toSdkModelId,
 } from "./session/models";
 import {
@@ -930,6 +931,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const resolvedSdkModel = toSdkModelId(resolvedModelId);
     if (!isResume && resolvedSdkModel !== DEFAULT_MODEL) {
       await this.session.query.setModel(resolvedSdkModel);
+    }
+
+    if (supports1MContext(resolvedModelId)) {
+      options.betas = ["context-1m-2025-08-07"];
     }
 
     const availableModes = getAvailableModes();
