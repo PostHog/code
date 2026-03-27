@@ -88,7 +88,7 @@ import type {
   ToolUseCache,
 } from "./types";
 
-const SESSION_VALIDATION_TIMEOUT_MS = 10_000;
+const SESSION_VALIDATION_TIMEOUT_MS = 30_000;
 const MAX_TITLE_LENGTH = 256;
 const LOCAL_ONLY_COMMANDS = new Set(["/context", "/heapdump", "/extra-usage"]);
 
