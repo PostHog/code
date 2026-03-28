@@ -133,7 +133,7 @@ export function createWindow(): void {
     ...(savedState.y !== undefined && { y: savedState.y }),
     width: savedState.width,
     height: savedState.height,
-    minWidth: 1200,
+    minWidth: 480,
     minHeight: 600,
     backgroundColor: "#0a0a0a",
     ...platformWindowConfig,
