@@ -87,13 +87,13 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
               />
             ))}
           </Flex>
-        </Flex>
 
-        <Flex gap="3" align="center" flexShrink="0" mt="4">
-          <Button size="3" onClick={onNext}>
-            Get started
-            <ArrowRight size={16} />
-          </Button>
+          <Flex gap="3" align="center" flexShrink="0" mt="6">
+            <Button size="2" onClick={onNext}>
+              Get started
+              <ArrowRight size={16} />
+            </Button>
+          </Flex>
         </Flex>
       </Flex>
     </Flex>

@@ -57,7 +57,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
           src={codeLogo}
           alt="PostHog"
           style={{
-            height: "40px",
+            height: "24px",
             objectFit: "contain",
             alignSelf: "flex-start",
           }}
@@ -117,7 +117,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
               mt="6"
             >
               <Button
-                size="3"
+                size="2"
                 variant="ghost"
                 onClick={onBack}
                 disabled={isLoading}
@@ -128,7 +128,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
               </Button>
               {anyEnabled ? (
                 <Button
-                  size="3"
+                  size="2"
                   onClick={() => void handleContinue()}
                   disabled={isLoading}
                 >
@@ -137,7 +137,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
                 </Button>
               ) : (
                 <Button
-                  size="3"
+                  size="2"
                   variant="outline"
                   onClick={onNext}
                   disabled={isLoading}

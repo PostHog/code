@@ -80,7 +80,7 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
             src={codeLogo}
             alt="PostHog"
             style={{
-              height: "40px",
+              height: "24px",
               objectFit: "contain",
               alignSelf: "flex-start",
             }}
@@ -177,7 +177,7 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
 
         <Flex gap="3" align="center" justify="between" flexShrink="0">
           <Button
-            size="3"
+            size="2"
             variant="ghost"
             onClick={onBack}
             style={{ color: "var(--gray-12)" }}
@@ -186,7 +186,7 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
             Back
           </Button>
           <Button
-            size="3"
+            size="2"
             onClick={handleContinue}
             disabled={!effectiveSelectedOrgId || isLoading || isSwitching}
           >

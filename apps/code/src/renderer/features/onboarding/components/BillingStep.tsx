@@ -52,7 +52,7 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
           src={codeLogo}
           alt="PostHog"
           style={{
-            height: "40px",
+            height: "24px",
             objectFit: "contain",
             alignSelf: "flex-start",
           }}
@@ -108,7 +108,7 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
 
           <Flex gap="3" align="center" justify="between" flexShrink="0" mt="6">
             <Button
-              size="3"
+              size="2"
               variant="ghost"
               onClick={onBack}
               style={{ color: "var(--gray-12)" }}
@@ -116,7 +116,7 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
               <ArrowLeft size={16} />
               Back
             </Button>
-            <Button size="3" onClick={handleContinue}>
+            <Button size="2" onClick={handleContinue}>
               Continue
               <ArrowRight size={16} />
             </Button>

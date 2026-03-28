@@ -136,7 +136,7 @@ export function GitIntegrationStep({
           src={codeLogo}
           alt="PostHog"
           style={{
-            height: "40px",
+            height: "24px",
             objectFit: "contain",
             alignSelf: "flex-start",
           }}
@@ -431,7 +431,7 @@ export function GitIntegrationStep({
                   mt="6"
                 >
                   <Button
-                    size="3"
+                    size="2"
                     variant="ghost"
                     onClick={onBack}
                     style={{ color: "var(--gray-12)" }}
@@ -440,13 +440,13 @@ export function GitIntegrationStep({
                     Back
                   </Button>
                   {hasGitIntegration ? (
-                    <Button size="3" onClick={handleContinue}>
+                    <Button size="2" onClick={handleContinue}>
                       Continue
                       <ArrowRight size={16} />
                     </Button>
                   ) : (
                     <Button
-                      size="3"
+                      size="2"
                       variant="outline"
                       onClick={handleContinue}
                       style={{ color: "var(--gray-12)" }}
