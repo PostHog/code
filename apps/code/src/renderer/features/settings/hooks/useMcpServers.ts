@@ -29,7 +29,6 @@ async function installWithOAuth(
     description: string;
     auth_type: "none" | "api_key" | "oauth";
     api_key?: string;
-    oauth_provider_kind?: string;
   },
 ) {
   // Step 1: Get callback URL from main process
@@ -123,7 +122,6 @@ export function useMcpServers() {
         url: string;
         description: string;
         auth_type: "none" | "api_key" | "oauth";
-        oauth_provider_kind?: string;
       },
     ) => installWithOAuth(client, vars),
     {
@@ -152,9 +150,6 @@ export function useMcpServers() {
         url: server.url,
         description: server.description,
         auth_type: server.auth_type,
-        ...(server.oauth_provider_kind
-          ? { oauth_provider_kind: server.oauth_provider_kind }
-          : {}),
       });
     },
     [installRecommendedMutation],
