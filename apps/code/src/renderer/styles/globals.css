@@ -531,6 +531,16 @@ body {
   outline: none;
 }
 
+.ProseMirror a {
+  color: var(--accent-11);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ProseMirror a:hover {
+  color: var(--accent-12);
+}
+
 .CollapsibleContent {
   overflow: hidden;
 }
