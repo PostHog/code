@@ -178,8 +178,8 @@ export function ClaudeCodeSettings() {
       <PermissionsSettings />
 
       <SettingRow
-        label="Bypass Permissions mode"
-        description="Skips all permission rules. PostHog Code will run every tool without asking for approval"
+        label="Auto-accept permissions"
+        description="Auto-accept all permission requests. PostHog Code will run every tool without asking for approval"
         noBorder
       >
         <Switch
@@ -195,8 +195,8 @@ export function ClaudeCodeSettings() {
             <Warning weight="fill" />
           </Callout.Icon>
           <Callout.Text>
-            Bypass Permissions mode is enabled. All permission rules are
-            ignored.
+            Auto-accept is enabled. All permission requests are automatically
+            approved.
           </Callout.Text>
         </Callout.Root>
       )}
@@ -210,14 +210,14 @@ export function ClaudeCodeSettings() {
             <Flex align="center" gap="2">
               <Warning size={20} weight="fill" color="var(--red-9)" />
               <Text color="red" weight="bold">
-                Enable Bypass Permissions mode
+                Enable auto-accept permissions
               </Text>
             </Flex>
           </AlertDialog.Title>
           <AlertDialog.Description size="2">
             <Flex direction="column" gap="3">
               <Text color="red" weight="medium">
-                In Bypass Permissions mode, PostHog Code will not ask for your
+                With auto-accept enabled, PostHog Code will not ask for your
                 approval before running potentially dangerous commands.
               </Text>
               <Text>
@@ -227,7 +227,7 @@ export function ClaudeCodeSettings() {
               </Text>
               <Text weight="medium">
                 By proceeding, you accept all responsibility for actions taken
-                while running in Bypass Permissions mode.
+                while auto-accept is enabled.
               </Text>
             </Flex>
           </AlertDialog.Description>

@@ -100,7 +100,7 @@ export function buildExitPlanModePermissionOptions(): PermissionOption[] {
   if (ALLOW_BYPASS) {
     options.push({
       kind: "allow_always",
-      name: "Yes, bypass all permissions",
+      name: "Yes, auto-accept all permissions",
       optionId: "bypassPermissions",
     });
   }
