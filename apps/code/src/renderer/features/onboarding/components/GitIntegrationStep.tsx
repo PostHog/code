@@ -7,7 +7,7 @@ import {
   GitBranch,
 } from "@phosphor-icons/react";
 import { Box, Button, Flex, Skeleton, Text } from "@radix-ui/themes";
-import phWordmark from "@renderer/assets/images/wordmark.svg";
+import codeLogo from "@renderer/assets/images/code.svg";
 import { trpcClient } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
@@ -133,7 +133,7 @@ export function GitIntegrationStep({
         }}
       >
         <img
-          src={phWordmark}
+          src={codeLogo}
           alt="PostHog"
           style={{
             height: "40px",
@@ -156,7 +156,7 @@ export function GitIntegrationStep({
                   lineHeight: 1.3,
                 }}
               >
-                Connect your git repository
+                Connect your Git repository
               </Text>
               <Text size="2" style={{ color: "var(--gray-12)", opacity: 0.7 }}>
                 PostHog Code needs access to your GitHub repositories to enable
@@ -434,13 +434,14 @@ export function GitIntegrationStep({
                   Back
                 </Button>
                 {hasGitIntegration ? (
-                  <Button size="3" onClick={handleContinue}>
+                  <Button size="3" radius="medium" onClick={handleContinue}>
                     Continue
                     <ArrowRight size={16} />
                   </Button>
                 ) : (
                   <Button
                     size="3"
+                    radius="medium"
                     variant="outline"
                     onClick={handleContinue}
                     style={{ color: "var(--gray-12)" }}

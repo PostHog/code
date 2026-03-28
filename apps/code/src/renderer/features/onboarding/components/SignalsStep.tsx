@@ -3,7 +3,7 @@ import { SignalSourceToggles } from "@features/inbox/components/SignalSourceTogg
 import { useSignalSourceManager } from "@features/inbox/hooks/useSignalSourceManager";
 import { ArrowLeft, ArrowRight } from "@phosphor-icons/react";
 import { Button, Flex, Text } from "@radix-ui/themes";
-import phWordmark from "@renderer/assets/images/wordmark.svg";
+import codeLogo from "@renderer/assets/images/code.svg";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 
@@ -54,7 +54,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
         }}
       >
         <img
-          src={phWordmark}
+          src={codeLogo}
           alt="PostHog"
           style={{
             height: "40px",
@@ -123,6 +123,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
             {anyEnabled ? (
               <Button
                 size="3"
+                radius="medium"
                 onClick={() => void handleContinue()}
                 disabled={isLoading}
               >
@@ -132,6 +133,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
             ) : (
               <Button
                 size="3"
+                radius="medium"
                 variant="outline"
                 onClick={onNext}
                 disabled={isLoading}

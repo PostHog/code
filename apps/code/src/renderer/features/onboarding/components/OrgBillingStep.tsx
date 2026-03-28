@@ -10,7 +10,7 @@ import {
   Skeleton,
   Text,
 } from "@radix-ui/themes";
-import phWordmark from "@renderer/assets/images/wordmark.svg";
+import codeLogo from "@renderer/assets/images/code.svg";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { AnimatePresence, motion } from "framer-motion";
@@ -77,7 +77,7 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
       >
         <Flex direction="column" gap="3" mb="6">
           <img
-            src={phWordmark}
+            src={codeLogo}
             alt="PostHog"
             style={{
               height: "40px",
@@ -186,6 +186,7 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
           </Button>
           <Button
             size="3"
+            radius="medium"
             onClick={handleContinue}
             disabled={!effectiveSelectedOrgId || isLoading || isSwitching}
           >
