@@ -52,13 +52,18 @@ export async function getFileSuggestions(
   const { files, fzf } = await fetchRepoFiles(repoPath);
   const matched = searchFiles(fzf, files, query);
 
-  return matched.map((file) => ({
-    id: file.path,
-    label: file.name,
-    description: file.dir || undefined,
-    filename: file.name,
-    path: file.path,
-  }));
+  return matched.map((file) => {
+    const parentDir = file.dir ? file.dir.split("/").pop() : undefined;
+    const label = parentDir ? `${parentDir}/${file.name}` : file.name;
+
+    return {
+      id: file.path,
+      label,
+      description: file.dir || undefined,
+      filename: file.name,
+      path: file.path,
+    };
+  });
 }
 
 export function getCommandSuggestions(
