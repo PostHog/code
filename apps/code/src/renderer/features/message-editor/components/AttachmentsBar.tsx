@@ -153,7 +153,11 @@ export function AttachmentsBar({ attachments, onRemove }: AttachmentsBarProps) {
   if (attachments.length === 0) return null;
 
   return (
-    <Flex gap="1" align="center" className="mb-2 flex-wrap">
+    <Flex
+      gap="1"
+      align="center"
+      className="flex-wrap border-[var(--gray-a4)] border-b pr-2 pb-1.5"
+    >
       {attachments.map((att) =>
         isImageFile(att.label) ? (
           <ImageThumbnail
