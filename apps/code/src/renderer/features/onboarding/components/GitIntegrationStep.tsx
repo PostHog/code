@@ -151,6 +151,7 @@ export function GitIntegrationStep({
             <Flex direction="column" gap="3">
               <Text
                 size="6"
+                weight="bold"
                 style={{
                   color: "var(--gray-12)",
                   lineHeight: 1.3,
@@ -413,47 +414,52 @@ export function GitIntegrationStep({
               </Flex>
             </Box>
           </Flex>
-        </Flex>
 
-        <AnimatePresence>
-          {!isLoading && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              transition={{ duration: 0.25, delay: 0.15 }}
-            >
-              <Flex gap="3" align="center" flexShrink="0">
-                <Button
-                  size="3"
-                  variant="ghost"
-                  onClick={onBack}
-                  style={{ color: "var(--gray-12)" }}
+          <AnimatePresence>
+            {!isLoading && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.25, delay: 0.15 }}
+              >
+                <Flex
+                  gap="3"
+                  align="center"
+                  justify="between"
+                  flexShrink="0"
+                  mt="6"
                 >
-                  <ArrowLeft size={16} />
-                  Back
-                </Button>
-                {hasGitIntegration ? (
-                  <Button size="3" radius="medium" onClick={handleContinue}>
-                    Continue
-                    <ArrowRight size={16} />
-                  </Button>
-                ) : (
                   <Button
                     size="3"
-                    radius="medium"
-                    variant="outline"
-                    onClick={handleContinue}
+                    variant="ghost"
+                    onClick={onBack}
                     style={{ color: "var(--gray-12)" }}
                   >
-                    Skip for now
-                    <ArrowRight size={16} />
+                    <ArrowLeft size={16} />
+                    Back
                   </Button>
-                )}
-              </Flex>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                  {hasGitIntegration ? (
+                    <Button size="3" onClick={handleContinue}>
+                      Continue
+                      <ArrowRight size={16} />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="3"
+                      variant="outline"
+                      onClick={handleContinue}
+                      style={{ color: "var(--gray-12)" }}
+                    >
+                      Skip for now
+                      <ArrowRight size={16} />
+                    </Button>
+                  )}
+                </Flex>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Flex>
       </Flex>
     </Flex>
   );

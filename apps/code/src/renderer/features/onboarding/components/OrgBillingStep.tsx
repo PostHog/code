@@ -87,6 +87,7 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
           />
           <Text
             size="6"
+            weight="bold"
             style={{
               color: "var(--gray-12)",
               lineHeight: 1.3,
@@ -174,7 +175,7 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
           </AnimatePresence>
         </Box>
 
-        <Flex gap="3" align="center" flexShrink="0">
+        <Flex gap="3" align="center" justify="between" flexShrink="0">
           <Button
             size="3"
             variant="ghost"
@@ -186,7 +187,6 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
           </Button>
           <Button
             size="3"
-            radius="medium"
             onClick={handleContinue}
             disabled={!effectiveSelectedOrgId || isLoading || isSwitching}
           >

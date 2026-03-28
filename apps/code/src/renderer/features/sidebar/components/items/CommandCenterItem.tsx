@@ -21,13 +21,13 @@ export function CommandCenterItem({
     <SidebarItem
       depth={0}
       icon={<SquaresFour size={16} weight={isActive ? "fill" : "regular"} />}
-      label="Command Center"
+      label="Command center"
       isActive={isActive}
       onClick={onClick}
       endContent={
         activeCount && activeCount > 0 ? (
           <span
-            className="inline-flex min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] text-gray-11 leading-none"
+            className="inline-flex min-w-[16px] items-center justify-center rounded-full px-1 text-[11px] text-gray-11 leading-none"
             style={{ height: "16px" }}
             title={`${activeCount} active agents`}
           >

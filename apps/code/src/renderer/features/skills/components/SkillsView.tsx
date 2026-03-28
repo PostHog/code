@@ -64,7 +64,7 @@ export function SkillsView() {
         <Text
           size="1"
           weight="medium"
-          className="truncate whitespace-nowrap text-[12px]"
+          className="truncate whitespace-nowrap text-[13px]"
           title="Skills"
         >
           Skills
@@ -97,7 +97,7 @@ export function SkillsView() {
                   <Box className="rounded-lg border border-gray-6 border-dashed p-4">
                     <Lightning size={24} className="text-gray-8" />
                   </Box>
-                  <Text size="2" className="text-[12px] text-gray-10">
+                  <Text size="2" className="text-[13px] text-gray-10">
                     No skills found
                   </Text>
                 </Flex>

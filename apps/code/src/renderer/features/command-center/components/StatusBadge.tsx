@@ -15,7 +15,7 @@ interface StatusBadgeProps {
 export function StatusBadge({ status }: StatusBadgeProps) {
   const config = statusConfig[status];
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-gray-3 px-1.5 py-0.5 text-[10px] text-gray-11">
+    <span className="inline-flex items-center gap-1 rounded-full bg-gray-3 px-1.5 py-0.5 text-[11px] text-gray-11">
       <span
         className={`inline-block h-1.5 w-1.5 rounded-full ${config.dotClass}`}
       />

@@ -138,7 +138,7 @@ export function SettingsDialog() {
       <div className="flex h-full w-[256px] shrink-0 flex-col border-gray-6 border-r pt-8">
         <button
           type="button"
-          className="mt-2 flex cursor-pointer items-center gap-2 border-0 bg-transparent px-3 py-2 text-left text-[12px] text-gray-11 transition-colors hover:bg-gray-3"
+          className="mt-2 flex cursor-pointer items-center gap-2 border-0 bg-transparent px-3 py-2 text-left text-[13px] text-gray-11 transition-colors hover:bg-gray-3"
           onClick={close}
         >
           <ArrowLeft size={14} />
@@ -222,7 +222,7 @@ function SidebarNavItem({ item, isActive, onClick }: SidebarNavItemProps) {
   return (
     <button
       type="button"
-      className="flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent px-3 py-1.5 text-left text-[12px] text-gray-11 transition-colors hover:bg-gray-3 data-[active]:bg-accent-4 data-[active]:text-gray-12"
+      className="flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent px-3 py-1.5 text-left text-[13px] text-gray-11 transition-colors hover:bg-gray-3 data-[active]:bg-accent-4 data-[active]:text-gray-12"
       data-active={isActive || undefined}
       onClick={onClick}
     >

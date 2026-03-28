@@ -251,6 +251,7 @@ function ChangedFileItem({
         <Text
           size="1"
           style={{
+            fontSize: "12px",
             userSelect: "none",
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -442,6 +443,7 @@ function CloudChangedFileItem({
         <Text
           size="1"
           style={{
+            fontSize: "12px",
             userSelect: "none",
             overflow: "hidden",
             textOverflow: "ellipsis",

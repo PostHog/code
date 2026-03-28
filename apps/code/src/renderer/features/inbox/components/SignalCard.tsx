@@ -86,7 +86,7 @@ function CollapsibleBody({ body }: { body: string }) {
       <Text
         size="1"
         color="gray"
-        className="whitespace-pre-wrap text-pretty break-words text-[10px] leading-relaxed"
+        className="whitespace-pre-wrap text-pretty break-words text-[11px] leading-relaxed"
       >
         {isLong && !expanded ? truncateBody(body) : body}
       </Text>
@@ -94,7 +94,7 @@ function CollapsibleBody({ body }: { body: string }) {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-1.5 flex items-center gap-1 rounded px-1 py-0.5 font-medium text-[11px] text-accent-11 hover:bg-accent-3 hover:text-accent-12"
+          className="mt-1.5 flex items-center gap-1 rounded px-1 py-0.5 font-medium text-[12px] text-accent-11 hover:bg-accent-3 hover:text-accent-12"
         >
           {expanded ? (
             <CaretDownIcon size={12} />
@@ -148,7 +148,7 @@ function GitHubIssueSignalCard({ signal }: SignalCardProps) {
             href={issueUrl}
             target="_blank"
             rel="noreferrer"
-            className="min-w-0 flex-1 break-words font-medium text-[11px] text-gray-12 hover:text-accent-11"
+            className="min-w-0 flex-1 break-words font-medium text-[12px] text-gray-12 hover:text-accent-11"
           >
             {titleContent}
           </a>
@@ -156,7 +156,7 @@ function GitHubIssueSignalCard({ signal }: SignalCardProps) {
           <Text
             size="1"
             weight="medium"
-            className="min-w-0 flex-1 break-words text-[11px]"
+            className="min-w-0 flex-1 break-words text-[12px]"
           >
             {titleContent}
           </Text>
@@ -166,7 +166,7 @@ function GitHubIssueSignalCard({ signal }: SignalCardProps) {
             href={issueUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex shrink-0 items-center gap-0.5 text-[10px] text-gray-10 hover:text-gray-12"
+            className="inline-flex shrink-0 items-center gap-0.5 text-[11px] text-gray-10 hover:text-gray-12"
           >
             <ArrowSquareOutIcon size={12} />
           </a>
@@ -180,7 +180,7 @@ function GitHubIssueSignalCard({ signal }: SignalCardProps) {
             {labels.map((label) => (
               <span
                 key={label.name}
-                className="inline-flex items-center rounded-full px-1.5 py-0.5 font-medium text-[10px]"
+                className="inline-flex items-center rounded-full px-1.5 py-0.5 font-medium text-[11px]"
                 style={
                   label.color
                     ? {
@@ -204,10 +204,10 @@ function GitHubIssueSignalCard({ signal }: SignalCardProps) {
         {body && <CollapsibleBody body={body} />}
 
         <Flex align="center" justify="between" gap="2">
-          <Text size="1" color="gray" className="text-[10px]">
+          <Text size="1" color="gray" className="text-[11px]">
             w:{signal.weight.toFixed(2)}
           </Text>
-          <Text size="1" color="gray" className="text-[10px]">
+          <Text size="1" color="gray" className="text-[11px]">
             {new Date(signal.timestamp).toLocaleString()}
           </Text>
         </Flex>
@@ -228,10 +228,10 @@ function DefaultSignalCard({ signal }: SignalCardProps) {
       >
         <BugIcon size={14} className="shrink-0 text-gray-11" />
         <Flex align="center" gap="1" className="min-w-0 flex-1" wrap="wrap">
-          <Badge variant="soft" color="gray" size="1" className="text-[10px]">
+          <Badge variant="soft" color="gray" size="1" className="text-[11px]">
             {signal.source_product}
           </Badge>
-          <Badge variant="soft" color="gray" size="1" className="text-[10px]">
+          <Badge variant="soft" color="gray" size="1" className="text-[11px]">
             {signal.source_type}
           </Badge>
         </Flex>
@@ -241,10 +241,10 @@ function DefaultSignalCard({ signal }: SignalCardProps) {
         <CollapsibleBody body={signal.content} />
 
         <Flex align="center" justify="between" gap="2">
-          <Text size="1" color="gray" className="text-[10px]">
+          <Text size="1" color="gray" className="text-[11px]">
             w:{signal.weight.toFixed(2)}
           </Text>
-          <Text size="1" color="gray" className="text-[10px]">
+          <Text size="1" color="gray" className="text-[11px]">
             {new Date(signal.timestamp).toLocaleString()}
           </Text>
         </Flex>

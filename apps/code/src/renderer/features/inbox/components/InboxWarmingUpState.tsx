@@ -83,14 +83,14 @@ export function InboxWarmingUpState() {
       </motion.div>
 
       <Flex direction="column" gap="2" style={{ maxWidth: 520 }}>
-        <Text size="2" weight="medium" className="text-[12px]">
+        <Text size="4" weight="medium">
           Inbox is warming up
         </Text>
-        <Text size="1" color="gray" className="text-[11px] leading-relaxed">
+        <Text size="1" color="gray" className="text-[12px] leading-relaxed">
           Reports appear here as soon as signals are grouped. Research usually
           finishes within a minute while we watch your connected sources.
         </Text>
-        <Text size="1" color="gray" className="text-[11px]" as="div">
+        <Text size="1" color="gray" className="text-[12px]" as="div">
           <span className="text-gray-10">Processing signals</span>
           <AnimatedEllipsis className="text-gray-10" />
         </Text>
@@ -107,7 +107,7 @@ export function InboxWarmingUpState() {
           <Text
             size="1"
             color="gray"
-            className="mb-2 block text-[10px] uppercase tracking-wider"
+            className="mb-2 block text-[11px] uppercase tracking-wider"
           >
             Data connected
           </Text>

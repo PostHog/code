@@ -100,6 +100,7 @@ export function ModeIndicatorInput({
           style={{
             color: style.colorVar,
             fontFamily: "monospace",
+            fontSize: "12px",
             display: "flex",
             alignItems: "center",
             gap: "4px",
@@ -113,6 +114,7 @@ export function ModeIndicatorInput({
           style={{
             color: "var(--gray-9)",
             fontFamily: "monospace",
+            fontSize: "12px",
           }}
         >
           (shift+tab to cycle)

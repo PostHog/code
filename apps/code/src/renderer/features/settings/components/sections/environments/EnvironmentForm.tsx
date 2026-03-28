@@ -102,7 +102,7 @@ export function EnvironmentForm({
       <button
         type="button"
         onClick={onBack}
-        className="flex w-fit cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-[11px] text-gray-11 hover:text-gray-12"
+        className="flex w-fit cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-[12px] text-gray-11 hover:text-gray-12"
       >
         <ArrowLeft size={10} />
         <span>Back to projects</span>
@@ -129,7 +129,7 @@ export function EnvironmentForm({
         <Text size="1" weight="medium">
           Setup script
         </Text>
-        <Text size="1" color="gray" className="text-[11px]">
+        <Text size="1" color="gray" className="text-[12px]">
           Runs in the project root on worktree creation.
         </Text>
         <TextArea
@@ -154,13 +154,13 @@ export function EnvironmentForm({
             Add action
           </Button>
         </Flex>
-        <Text size="1" color="gray" className="text-[11px]">
+        <Text size="1" color="gray" className="text-[12px]">
           Custom commands displayed in the task header.
         </Text>
       </Flex>
       */}
 
-      <Text size="1" color="gray" className="text-[11px]">
+      <Text size="1" color="gray" className="text-[12px]">
         Environment will be stored at {filePath}
       </Text>
 

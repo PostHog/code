@@ -66,6 +66,7 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
           <Flex direction="column" gap="6">
             <Text
               size="6"
+              weight="bold"
               style={{
                 color: "var(--gray-12)",
                 lineHeight: 1.3,
@@ -104,22 +105,22 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
               your api key. If you hit this limit, please contact support.
             </Text>
           </Flex>
-        </Flex>
 
-        <Flex gap="3" align="center" flexShrink="0">
-          <Button
-            size="3"
-            variant="ghost"
-            onClick={onBack}
-            style={{ color: "var(--gray-12)" }}
-          >
-            <ArrowLeft size={16} />
-            Back
-          </Button>
-          <Button size="3" radius="medium" onClick={handleContinue}>
-            Continue
-            <ArrowRight size={16} />
-          </Button>
+          <Flex gap="3" align="center" justify="between" flexShrink="0" mt="6">
+            <Button
+              size="3"
+              variant="ghost"
+              onClick={onBack}
+              style={{ color: "var(--gray-12)" }}
+            >
+              <ArrowLeft size={16} />
+              Back
+            </Button>
+            <Button size="3" onClick={handleContinue}>
+              Continue
+              <ArrowRight size={16} />
+            </Button>
+          </Flex>
         </Flex>
       </Flex>
     </Flex>

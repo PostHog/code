@@ -72,6 +72,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
             <Flex direction="column" gap="3">
               <Text
                 size="6"
+                weight="bold"
                 style={{
                   color: "var(--gray-12)",
                   lineHeight: 1.3,
@@ -102,49 +103,53 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
               />
             )}
           </Flex>
-        </Flex>
 
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: 0.15 }}
-        >
-          <Flex gap="3" align="center" flexShrink="0">
-            <Button
-              size="3"
-              variant="ghost"
-              onClick={onBack}
-              disabled={isLoading}
-              style={{ color: "var(--gray-12)" }}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 0.15 }}
+          >
+            <Flex
+              gap="3"
+              align="center"
+              justify="between"
+              flexShrink="0"
+              mt="6"
             >
-              <ArrowLeft size={16} />
-              Back
-            </Button>
-            {anyEnabled ? (
               <Button
                 size="3"
-                radius="medium"
-                onClick={() => void handleContinue()}
-                disabled={isLoading}
-              >
-                <ArrowRight size={16} />
-                Continue
-              </Button>
-            ) : (
-              <Button
-                size="3"
-                radius="medium"
-                variant="outline"
-                onClick={onNext}
+                variant="ghost"
+                onClick={onBack}
                 disabled={isLoading}
                 style={{ color: "var(--gray-12)" }}
               >
-                Skip for now
-                <ArrowRight size={16} />
+                <ArrowLeft size={16} />
+                Back
               </Button>
-            )}
-          </Flex>
-        </motion.div>
+              {anyEnabled ? (
+                <Button
+                  size="3"
+                  onClick={() => void handleContinue()}
+                  disabled={isLoading}
+                >
+                  Continue
+                  <ArrowRight size={16} />
+                </Button>
+              ) : (
+                <Button
+                  size="3"
+                  variant="outline"
+                  onClick={onNext}
+                  disabled={isLoading}
+                  style={{ color: "var(--gray-12)" }}
+                >
+                  Skip for now
+                  <ArrowRight size={16} />
+                </Button>
+              )}
+            </Flex>
+          </motion.div>
+        </Flex>
       </Flex>
     </Flex>
   );

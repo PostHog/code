@@ -103,7 +103,7 @@ export function ReportCard({
               <Text
                 size="1"
                 weight="medium"
-                className="min-w-0 flex-1 basis-0 truncate text-[12px]"
+                className="min-w-0 flex-1 basis-0 truncate text-[13px]"
               >
                 {report.title ?? "Untitled signal"}
               </Text>
@@ -133,10 +133,10 @@ export function ReportCard({
           </div>
         </Flex>
         <Flex direction="column" align="end" gap="1" className="shrink-0">
-          <Text size="1" color="gray" className="text-[11px]">
+          <Text size="1" color="gray" className="text-[12px]">
             {updatedAtLabel}
           </Text>
-          <Text size="1" color="gray" className="text-[10px]">
+          <Text size="1" color="gray" className="text-[11px]">
             w:{report.total_weight.toFixed(2)}
           </Text>
         </Flex>

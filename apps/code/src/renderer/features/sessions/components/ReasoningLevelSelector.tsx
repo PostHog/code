@@ -50,7 +50,7 @@ export function ReasoningLevelSelector({
       <Select.Trigger
         variant="ghost"
         style={{
-          fontSize: "var(--font-size-1)",
+          fontSize: "12px",
           color: "var(--gray-11)",
           padding: "4px 8px",
           marginLeft: "4px",
@@ -58,7 +58,7 @@ export function ReasoningLevelSelector({
           minHeight: "unset",
         }}
       >
-        <Text size="1">
+        <Text style={{ fontSize: "12px" }}>
           {adapter === "codex" ? "Reasoning" : "Effort"}: {activeLabel}
         </Text>
       </Select.Trigger>

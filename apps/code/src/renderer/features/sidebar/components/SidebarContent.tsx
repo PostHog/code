@@ -21,7 +21,7 @@ export const SidebarContent: React.FC = () => {
         <Box className="shrink-0 border-gray-6 border-t">
           <button
             type="button"
-            className="flex w-full items-center gap-1 bg-transparent px-2 py-1.5 text-left text-[12px] text-gray-11 transition-colors hover:bg-gray-3"
+            className="flex w-full items-center gap-1 bg-transparent px-2 py-1.5 text-left text-[13px] text-gray-11 transition-colors hover:bg-gray-3"
             onClick={navigateToArchived}
           >
             <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center text-gray-10">

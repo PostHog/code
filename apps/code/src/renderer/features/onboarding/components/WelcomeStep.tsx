@@ -90,7 +90,7 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
         </Flex>
 
         <Flex gap="3" align="center" flexShrink="0" mt="4">
-          <Button size="3" radius="medium" onClick={onNext}>
+          <Button size="3" onClick={onNext}>
             Get started
             <ArrowRight size={16} />
           </Button>

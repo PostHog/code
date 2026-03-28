@@ -39,7 +39,7 @@ export function SidebarSection({
         <button
           ref={dragHandleRef}
           type="button"
-          className="flex w-full cursor-pointer items-center justify-between border-0 bg-transparent px-2 py-1 text-left text-[12px] text-gray-11 transition-colors hover:bg-gray-3"
+          className="flex w-full cursor-pointer items-center justify-between border-0 bg-transparent px-2 py-1 text-left text-[13px] text-gray-11 transition-colors hover:bg-gray-3"
           style={{
             marginTop: addSpacingBefore ? "12px" : undefined,
             paddingLeft: "8px",

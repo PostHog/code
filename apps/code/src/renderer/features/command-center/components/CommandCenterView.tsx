@@ -31,10 +31,10 @@ export function CommandCenterView() {
         <Text
           size="1"
           weight="medium"
-          className="truncate whitespace-nowrap text-[12px]"
-          title="Command Center"
+          className="truncate whitespace-nowrap text-[13px]"
+          title="Command center"
         >
-          Command Center
+          Command center
         </Text>
       </Flex>
     ),

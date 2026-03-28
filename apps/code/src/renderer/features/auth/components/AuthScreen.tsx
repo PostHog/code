@@ -85,7 +85,7 @@ export function AuthScreen() {
   const errorMessage = getErrorMessage(error);
 
   return (
-    <Theme appearance="light" accentColor="orange">
+    <Theme appearance="light" accentColor="orange" radius="medium">
       <Flex height="100vh" style={{ position: "relative", overflow: "hidden" }}>
         <DraggableTitleBar />
 
