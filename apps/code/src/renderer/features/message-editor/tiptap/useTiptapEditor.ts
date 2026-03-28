@@ -37,7 +37,7 @@ export interface UseTiptapEditorOptions {
 }
 
 const EDITOR_CLASS =
-  "cli-editor min-h-[1.5em] w-full break-words border-none bg-transparent font-mono text-[12px] text-[var(--gray-12)] outline-none [overflow-wrap:break-word] [white-space:pre-wrap] [word-break:break-word]";
+  "cli-editor min-h-[1.5em] w-full break-words border-none bg-transparent text-[12px] text-[var(--gray-12)] outline-none [overflow-wrap:break-word] [white-space:pre-wrap] [word-break:break-word]";
 
 async function pasteTextAsFile(
   view: EditorView,

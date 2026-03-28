@@ -22,7 +22,7 @@ export function SignalsLoadingState() {
                 size={12}
                 className="animate-spin text-gray-10"
               />
-              <Text size="1" color="gray" className="font-mono text-[11px]">
+              <Text size="1" color="gray" className="text-[11px]">
                 Loading signals
               </Text>
             </Flex>
@@ -68,10 +68,10 @@ export function SignalsErrorState({
       >
         <WarningIcon size={20} className="text-amber-10" weight="bold" />
         <Flex direction="column" gap="2" align="center">
-          <Text size="2" weight="medium" className="font-mono text-[12px]">
+          <Text size="2" weight="medium" className="text-[12px]">
             Could not load signals
           </Text>
-          <Text size="1" color="gray" className="font-mono text-[11px]">
+          <Text size="1" color="gray" className="text-[11px]">
             Check your connection or permissions, then retry.
           </Text>
         </Flex>
@@ -79,7 +79,7 @@ export function SignalsErrorState({
           size="1"
           variant="soft"
           onClick={onRetry}
-          className="font-mono text-[11px]"
+          className="text-[11px]"
           disabled={isRetrying}
         >
           {isRetrying ? (

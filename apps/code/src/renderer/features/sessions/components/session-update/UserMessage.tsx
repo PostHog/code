@@ -86,7 +86,7 @@ export function UserMessage({
         <button
           type="button"
           onClick={() => setIsExpanded((prev) => !prev)}
-          className="mt-1 inline-flex items-center gap-1 font-mono text-[11px] text-accent-11 hover:text-accent-12"
+          className="mt-1 inline-flex items-center gap-1 text-[11px] text-accent-11 hover:text-accent-12"
         >
           {isExpanded ? (
             <>
@@ -106,7 +106,7 @@ export function UserMessage({
           href={sourceUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-1.5 inline-flex items-center gap-1 font-mono text-[11px] text-gray-10 transition-colors hover:text-gray-12"
+          className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-gray-10 transition-colors hover:text-gray-12"
         >
           <SlackLogo size={12} />
           <span>View Slack thread</span>
@@ -114,7 +114,7 @@ export function UserMessage({
       )}
       <Box className="absolute top-1 right-1 flex items-center gap-2 opacity-0 transition-opacity group-hover/msg:opacity-100">
         {timestamp != null && (
-          <span aria-hidden className="font-mono text-[10px] text-gray-10">
+          <span aria-hidden className="text-[10px] text-gray-10">
             {formatTimestamp(timestamp)}
           </span>
         )}

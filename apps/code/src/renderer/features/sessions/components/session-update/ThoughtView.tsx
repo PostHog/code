@@ -45,7 +45,7 @@ export const ThoughtView = memo(function ThoughtView({
       {isExpanded && hasContent && (
         <Box className="mt-1 ml-5 max-w-4xl overflow-hidden rounded-lg border border-gray-6">
           <Box className="max-h-64 overflow-auto px-3 py-2">
-            <Text asChild size="1" className="font-mono text-gray-11">
+            <Text asChild size="1" className="text-gray-11">
               <pre className="m-0 whitespace-pre-wrap break-all">
                 {displayedContent}
               </pre>

@@ -247,7 +247,7 @@ export function AuthScreen() {
                         fontSize: "inherit",
                       }}
                     >
-                      create one
+                      Create one
                     </button>
                   </>
                 ) : (
@@ -273,7 +273,7 @@ export function AuthScreen() {
                         fontSize: "inherit",
                       }}
                     >
-                      sign in
+                      Sign in
                     </button>
                   </>
                 )}

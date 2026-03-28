@@ -304,7 +304,6 @@ export function TaskInput() {
           direction="column"
           gap="4"
           style={{
-            fontFamily: "monospace",
             width: "100%",
             maxWidth: "600px",
             position: "relative",

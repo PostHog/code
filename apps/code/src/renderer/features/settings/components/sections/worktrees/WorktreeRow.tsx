@@ -62,7 +62,7 @@ export function WorktreeRow({
       }}
     >
       <Flex direction="column" gap="1" style={{ flex: 1, minWidth: 0 }}>
-        <Text size="1" className="font-mono" style={{ wordBreak: "break-all" }}>
+        <Text size="1" style={{ wordBreak: "break-all" }}>
           {worktree.worktreePath}
           <WorktreeSize worktreePath={worktree.worktreePath} />
         </Text>

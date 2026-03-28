@@ -355,7 +355,7 @@ function InlineEditInput({
 
   return (
     <div
-      className={`flex w-full items-start px-2 py-1.5 font-mono text-[12px]${isActive ? "bg-accent-4 text-gray-12" : ""}`}
+      className={`flex w-full items-start px-2 py-1.5 text-[12px]${isActive ? "bg-accent-4 text-gray-12" : ""}`}
       style={{
         paddingLeft: `${depth * INDENT_SIZE + 8 + (depth > 0 ? 4 : 0)}px`,
         gap: "4px",
@@ -382,7 +382,7 @@ function InlineEditInput({
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={handleSubmit}
-            className="min-w-0 flex-1 rounded-sm border border-accent-8 bg-gray-2 px-1 font-mono text-[12px] text-gray-12 outline-none"
+            className="min-w-0 flex-1 rounded-sm border border-accent-8 bg-gray-2 px-1 text-[12px] text-gray-12 outline-none"
             style={{ height: "18px" }}
           />
         </span>

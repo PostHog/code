@@ -58,7 +58,7 @@ export function ReasoningLevelSelector({
           minHeight: "unset",
         }}
       >
-        <Text size="1" style={{ fontFamily: "var(--font-mono)" }}>
+        <Text size="1">
           {adapter === "codex" ? "Reasoning" : "Effort"}: {activeLabel}
         </Text>
       </Select.Trigger>

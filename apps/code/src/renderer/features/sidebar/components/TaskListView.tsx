@@ -50,7 +50,7 @@ function SectionLabel({
 }) {
   return (
     <div className="flex items-center justify-between px-2 py-1">
-      <span className="font-medium font-mono text-[10px] text-gray-10 uppercase tracking-wide">
+      <span className="font-medium text-[10px] text-gray-10 uppercase tracking-wide">
         {label}
       </span>
       {endContent}
@@ -410,7 +410,7 @@ export function TaskListView({
             <div className="px-2 py-2">
               <button
                 type="button"
-                className="w-full rounded-md px-2 py-1 text-left font-mono text-[12px] text-gray-11 transition-colors hover:bg-gray-3"
+                className="w-full rounded-md px-2 py-1 text-left text-[12px] text-gray-11 transition-colors hover:bg-gray-3"
                 onClick={loadMoreHistory}
               >
                 Show more

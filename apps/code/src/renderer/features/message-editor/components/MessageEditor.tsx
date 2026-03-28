@@ -269,7 +269,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
         <AttachmentsBar attachments={attachments} onRemove={removeAttachment} />
 
         <div
-          className="max-h-[200px] min-h-[50px] flex-1 overflow-y-auto font-mono text-sm"
+          className="max-h-[200px] min-h-[50px] flex-1 overflow-y-auto text-sm"
           style={{ position: "relative" }}
         >
           <EditorContent editor={editor} />

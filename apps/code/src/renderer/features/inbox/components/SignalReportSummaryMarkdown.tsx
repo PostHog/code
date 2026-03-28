@@ -25,7 +25,7 @@ export function SignalReportSummaryMarkdown({
         className="[&_.rt-Text]:!mb-0 [&_p]:!mb-0 [&_ul]:!mb-0 min-w-0 text-left [&_li]:mb-0"
         style={{ color: "var(--gray-11)" }}
       >
-        <div className="line-clamp-2 overflow-hidden font-mono text-[11px] leading-snug [&_a]:pointer-events-auto">
+        <div className="line-clamp-2 overflow-hidden text-[11px] leading-snug [&_a]:pointer-events-auto">
           <MarkdownRenderer content={raw} />
         </div>
       </Box>
@@ -37,7 +37,7 @@ export function SignalReportSummaryMarkdown({
       className="min-w-0 text-pretty break-words [&_.rt-Text]:mb-2 [&_li]:mb-1 [&_p:last-child]:mb-0"
       style={{ color: "var(--gray-11)" }}
     >
-      <div className="font-mono text-[11px] leading-relaxed [&_a]:pointer-events-auto">
+      <div className="text-[11px] leading-relaxed [&_a]:pointer-events-auto">
         <MarkdownRenderer content={raw} />
       </div>
     </Box>

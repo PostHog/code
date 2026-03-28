@@ -72,7 +72,9 @@ export function buildHostStyles(_isDarkMode: boolean): HostStyles {
     "--color-ring-warning": getVar("--yellow-9"),
 
     // --- Fonts ---
-    "--font-sans": getVar("--default-font-family") || "system-ui, sans-serif",
+    "--font-sans":
+      getVar("--default-font-family") ||
+      "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
     "--font-mono":
       getVar("--code-font-family") ||
       "'Berkeley Mono', 'JetBrains Mono', monospace",

@@ -173,7 +173,6 @@ export const TaskInputEditor = forwardRef<
               weight="bold"
               style={{
                 color: "var(--accent-11)",
-                fontFamily: "monospace",
                 userSelect: "none",
                 WebkitUserSelect: "none",
                 bottom: "1px",

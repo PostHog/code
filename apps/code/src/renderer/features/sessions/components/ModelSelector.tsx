@@ -72,9 +72,7 @@ export function ModelSelector({
           minHeight: "unset",
         }}
       >
-        <Text size="1" style={{ fontFamily: "var(--font-mono)" }}>
-          {currentLabel}
-        </Text>
+        <Text size="1">{currentLabel}</Text>
       </Select.Trigger>
       <Select.Content position="popper" sideOffset={4}>
         {groupedOptions.length > 0

@@ -1,7 +1,7 @@
 import type { SignalReportPriority } from "@shared/types";
 import type { ReactNode } from "react";
 
-/** Matches `ReportCard` status chip: `rounded-sm px-1 py-px font-mono text-[9px] uppercase tracking-wider` + 1px border */
+/** Matches `ReportCard` status chip: `rounded-sm px-1 py-px text-[9px] uppercase tracking-wider` + 1px border */
 const PRIORITY_CHIP_STYLE: Record<
   SignalReportPriority,
   { color: string; backgroundColor: string; borderColor: string }
@@ -48,7 +48,7 @@ export function SignalReportPriorityBadge({
 
   return (
     <span
-      className="shrink-0 rounded-sm px-1 py-px font-mono text-[9px] uppercase tracking-wider"
+      className="shrink-0 rounded-sm px-1 py-px text-[9px] uppercase tracking-wider"
       style={{
         color: s.color,
         backgroundColor: s.backgroundColor,

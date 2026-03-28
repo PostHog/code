@@ -31,7 +31,7 @@ export function CommandCenterView() {
         <Text
           size="1"
           weight="medium"
-          className="truncate whitespace-nowrap font-mono text-[12px]"
+          className="truncate whitespace-nowrap text-[12px]"
           title="Command Center"
         >
           Command Center

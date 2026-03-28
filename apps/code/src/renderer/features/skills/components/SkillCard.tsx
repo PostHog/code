@@ -51,15 +51,12 @@ export function SkillCard({ skill, isSelected, onClick }: SkillCardProps) {
         <Text
           size="2"
           weight="medium"
-          className="truncate font-mono text-[12px] text-gray-12"
+          className="truncate text-[12px] text-gray-12"
         >
           {skill.name}
         </Text>
         {skill.description && (
-          <Text
-            size="1"
-            className="truncate font-mono text-[11px] text-gray-10"
-          >
+          <Text size="1" className="truncate text-[11px] text-gray-10">
             {skill.description}
           </Text>
         )}
@@ -92,7 +89,7 @@ export function SkillSection({
       <Text
         size="1"
         weight="medium"
-        className="mb-1 font-mono text-[11px] text-gray-9 uppercase tracking-wider"
+        className="mb-1 text-[11px] text-gray-9 uppercase tracking-wider"
       >
         {title}
       </Text>
