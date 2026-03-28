@@ -57,8 +57,11 @@ export const SuggestionList = forwardRef<
         return true;
       }
       if (event.key === "Enter" || event.key === "Tab") {
-        if (items[selectedIndex]) command(items[selectedIndex]);
-        return true;
+        if (items[selectedIndex]) {
+          command(items[selectedIndex]);
+          return true;
+        }
+        return false;
       }
       return false;
     },
