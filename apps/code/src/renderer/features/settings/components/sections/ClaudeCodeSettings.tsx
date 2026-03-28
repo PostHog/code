@@ -195,8 +195,8 @@ export function ClaudeCodeSettings() {
             <Warning weight="fill" />
           </Callout.Icon>
           <Callout.Text>
-            Auto-accept is enabled. All permission requests are automatically
-            approved.
+            Auto-accept is enabled. Use shift+tab to cycle to this mode in each
+            session.
           </Callout.Text>
         </Callout.Root>
       )}
