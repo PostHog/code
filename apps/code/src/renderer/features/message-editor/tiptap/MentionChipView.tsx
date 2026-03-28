@@ -35,8 +35,9 @@ function DefaultChip({
 
   const isCommand = type === "command";
   const prefix = isCommand ? "/" : "@";
+  const isFile = type === "file";
 
-  return (
+  const chip = (
     <span
       className={`${isCommand ? "cli-slash-command" : "cli-file-mention"} ${chipClass}`}
       contentEditable={false}
@@ -45,6 +46,12 @@ function DefaultChip({
       {label}
     </span>
   );
+
+  if (isFile) {
+    return <Tooltip content={id}>{chip}</Tooltip>;
+  }
+
+  return chip;
 }
 
 function PastedTextChip({
