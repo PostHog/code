@@ -87,6 +87,7 @@ export function InlineEditableText({
         overflow: "auto",
         maxHeight: "120px",
         wordBreak: "break-word",
+        cursor: "text",
         userSelect: active ? "auto" : "none",
         pointerEvents: active ? "auto" : "none",
       }}
