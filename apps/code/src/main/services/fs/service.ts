@@ -97,6 +97,15 @@ export class FsService {
     }
   }
 
+  async fileExists(filePath: string): Promise<boolean> {
+    try {
+      const stat = await fs.promises.stat(path.resolve(filePath));
+      return stat.isFile();
+    } catch {
+      return false;
+    }
+  }
+
   async readAbsoluteFile(filePath: string): Promise<string | null> {
     try {
       return await fs.promises.readFile(path.resolve(filePath), "utf-8");

@@ -1,7 +1,13 @@
 import type { AvailableCommand } from "@agentclientprotocol/sdk";
 import { CODE_COMMANDS } from "@features/message-editor/commands";
 import { getAvailableCommandsForTask } from "@features/sessions/stores/sessionStore";
-import { fetchRepoFiles, searchFiles } from "@hooks/useRepoFiles";
+import {
+  fetchRepoFiles,
+  pathToFileItem,
+  searchFiles,
+} from "@hooks/useRepoFiles";
+import { trpcClient } from "@renderer/trpc/client";
+import { isAbsolutePath } from "@utils/path";
 import Fuse, { type IFuseOptions } from "fuse.js";
 import { useDraftStore } from "../stores/draftStore";
 import type { CommandSuggestionItem, FileSuggestionItem } from "../types";
@@ -39,20 +45,44 @@ function searchCommands(
   return results.map((result) => result.item);
 }
 
+async function getAbsolutePathSuggestion(
+  query: string,
+): Promise<FileSuggestionItem | null> {
+  if (!isAbsolutePath(query)) return null;
+
+  try {
+    const exists = await trpcClient.fs.fileExists.query({ filePath: query });
+    if (!exists) return null;
+  } catch {
+    return null;
+  }
+
+  const fileItem = pathToFileItem(query);
+  return {
+    id: query,
+    label: fileItem.name,
+    description: fileItem.dir || undefined,
+    filename: fileItem.name,
+    path: query,
+  };
+}
+
 export async function getFileSuggestions(
   sessionId: string,
   query: string,
 ): Promise<FileSuggestionItem[]> {
   const repoPath = useDraftStore.getState().contexts[sessionId]?.repoPath;
+  const absolutePathSuggestion = getAbsolutePathSuggestion(query);
 
   if (!repoPath) {
-    return [];
+    const resolved = await absolutePathSuggestion;
+    return resolved ? [resolved] : [];
   }
 
   const { files, fzf } = await fetchRepoFiles(repoPath);
   const matched = searchFiles(fzf, files, query);
 
-  return matched.map((file) => {
+  const results: FileSuggestionItem[] = matched.map((file) => {
     const parentDir = file.dir ? file.dir.split("/").pop() : undefined;
     const label = parentDir ? `${parentDir}/${file.name}` : file.name;
 
@@ -64,6 +94,13 @@ export async function getFileSuggestions(
       path: file.path,
     };
   });
+
+  const resolved = await absolutePathSuggestion;
+  if (resolved && !results.some((r) => r.id === resolved.id)) {
+    results.unshift(resolved);
+  }
+
+  return results;
 }
 
 export function getCommandSuggestions(

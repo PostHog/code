@@ -29,6 +29,7 @@ const fileEntry = z.object({
 
 export const listRepoFilesOutput = z.array(fileEntry);
 export const readRepoFileOutput = z.string().nullable();
+export const fileExistsOutput = z.boolean();
 
 export type ListRepoFilesInput = z.infer<typeof listRepoFilesInput>;
 export type ReadRepoFileInput = z.infer<typeof readRepoFileInput>;
