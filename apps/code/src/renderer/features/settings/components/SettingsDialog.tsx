@@ -204,10 +204,13 @@ export function SettingsDialog() {
           style={{
             height: "100%",
             width: "100%",
-            maxWidth: "800px",
           }}
         >
-          <Box p="6" style={{ position: "relative", zIndex: 1 }}>
+          <Box
+            p="6"
+            mx="auto"
+            style={{ position: "relative", zIndex: 1, maxWidth: "800px" }}
+          >
             <Flex direction="column" gap="4">
               <Text size="4" weight="medium">
                 {CATEGORY_TITLES[activeCategory]}
