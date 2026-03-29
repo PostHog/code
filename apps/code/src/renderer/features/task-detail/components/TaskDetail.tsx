@@ -1,5 +1,10 @@
 import { FilePicker } from "@features/command/components/FilePicker";
 import { PanelLayout } from "@features/panels";
+import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
+import {
+  getLeafPanel,
+  parseTabId,
+} from "@features/panels/store/panelStoreHelpers";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useTaskData } from "@features/task-detail/hooks/useTaskData";
 import { useTaskStore } from "@features/tasks/stores/taskStore";
@@ -29,6 +34,28 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
   const { task } = useTaskData({ taskId, initialTask });
 
   const effectiveRepoPath = useCwd(taskId);
+
+  const activeRelativePath = usePanelLayoutStore((state) => {
+    const layout = state.getLayout(taskId);
+    if (!layout) return null;
+
+    const panelId = layout.focusedPanelId;
+    if (!panelId) return null;
+
+    const panel = getLeafPanel(layout.panelTree, panelId);
+    if (!panel) return null;
+
+    const parsed = parseTabId(panel.content.activeTabId);
+    if (parsed.type === "file" || parsed.type === "diff") {
+      return parsed.value;
+    }
+    return null;
+  });
+
+  const openTargetPath =
+    activeRelativePath && effectiveRepoPath
+      ? `${effectiveRepoPath}/${activeRelativePath}`
+      : effectiveRepoPath;
 
   const [filePickerOpen, setFilePickerOpen] = useState(false);
 
@@ -60,12 +87,10 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
             {task.title}
           </Text>
         </Flex>
-        {effectiveRepoPath && (
-          <ExternalAppsOpener targetPath={effectiveRepoPath} />
-        )}
+        {openTargetPath && <ExternalAppsOpener targetPath={openTargetPath} />}
       </Flex>
     ),
-    [task.title, effectiveRepoPath],
+    [task.title, openTargetPath],
   );
 
   useSetHeaderContent(headerContent);

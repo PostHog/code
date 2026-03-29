@@ -4,7 +4,7 @@ import { ChevronDownIcon } from "@radix-ui/react-icons";
 import { Button, DropdownMenu, Flex, Text } from "@radix-ui/themes";
 import { SHORTCUTS } from "@renderer/constants/keyboard-shortcuts";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 const THUMBNAIL_ICON_SIZE = 20;
@@ -74,6 +74,8 @@ export function ExternalAppsOpener({
     [handleCopyPath],
   );
 
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
   if (!targetPath) {
     return null;
   }
@@ -81,7 +83,17 @@ export function ExternalAppsOpener({
   const isReady = !isLoading && detectedApps.length > 0;
 
   return (
-    <DropdownMenu.Root>
+    <DropdownMenu.Root open={dropdownOpen} onOpenChange={setDropdownOpen}>
+      {dropdownOpen && (
+        <div
+          className="no-drag"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1,
+          }}
+        />
+      )}
       <Flex className="no-drag">
         <Button
           size="1"
