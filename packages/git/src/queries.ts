@@ -35,17 +35,36 @@ export async function detectDefaultBranch(git: GitLike): Promise<string> {
     ]);
     return remoteBranch.trim().replace("refs/remotes/origin/", "");
   } catch {
-    try {
-      await git.revparse(["--verify", "main"]);
-      return "main";
-    } catch {
+    // Check common default branch names
+    for (const candidate of ["main", "master"]) {
       try {
-        await git.revparse(["--verify", "master"]);
-        return "master";
-      } catch {
-        throw new Error("Cannot determine default branch");
-      }
+        await git.revparse(["--verify", candidate]);
+        return candidate;
+      } catch {}
     }
+
+    // Check git config init.defaultBranch (user's configured default)
+    try {
+      const configured = await git.raw(["config", "init.defaultBranch"]);
+      const branch = configured.trim();
+      if (branch) {
+        try {
+          await git.revparse(["--verify", branch]);
+          return branch;
+        } catch {}
+      }
+    } catch {}
+
+    // Fall back to current branch (HEAD)
+    try {
+      const head = await git.raw(["rev-parse", "--abbrev-ref", "HEAD"]);
+      const branch = head.trim();
+      if (branch && branch !== "HEAD") {
+        return branch;
+      }
+    } catch {}
+
+    throw new Error("Cannot determine default branch");
   }
 }
 
@@ -53,6 +72,14 @@ async function detectDefaultBranchWithFallback(git: GitLike): Promise<string> {
   try {
     return await detectDefaultBranch(git);
   } catch {
+    // Last resort: use current branch or "main"
+    try {
+      const head = await git.raw(["rev-parse", "--abbrev-ref", "HEAD"]);
+      const branch = head.trim();
+      if (branch && branch !== "HEAD") {
+        return branch;
+      }
+    } catch {}
     return "main";
   }
 }

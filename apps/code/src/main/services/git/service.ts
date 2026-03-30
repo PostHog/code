@@ -766,10 +766,10 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
         ".default_branch",
       ]);
 
-      const defaultBranch =
-        repoResult.exitCode === 0 && repoResult.stdout.trim()
-          ? repoResult.stdout.trim()
-          : "main";
+      if (repoResult.exitCode !== 0 || !repoResult.stdout.trim()) {
+        return [];
+      }
+      const defaultBranch = repoResult.stdout.trim();
 
       const result = await execGh([
         "api",
