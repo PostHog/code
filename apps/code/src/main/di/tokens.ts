@@ -9,6 +9,7 @@ export const MAIN_TOKENS = Object.freeze({
   SettingsStore: Symbol.for("Main.SettingsStore"),
 
   // Database
+  AuthPreferenceRepository: Symbol.for("Main.AuthPreferenceRepository"),
   DatabaseService: Symbol.for("Main.DatabaseService"),
   AuthSessionRepository: Symbol.for("Main.AuthSessionRepository"),
   RepositoryRepository: Symbol.for("Main.RepositoryRepository"),

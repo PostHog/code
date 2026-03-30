@@ -2,6 +2,7 @@ import "reflect-metadata";
 
 import { Container } from "inversify";
 import { ArchiveRepository } from "../db/repositories/archive-repository";
+import { AuthPreferenceRepository } from "../db/repositories/auth-preference-repository";
 import { AuthSessionRepository } from "../db/repositories/auth-session-repository";
 import { RepositoryRepository } from "../db/repositories/repository-repository";
 import { SuspensionRepositoryImpl } from "../db/repositories/suspension-repository";
@@ -52,6 +53,9 @@ export const container = new Container({
 });
 
 container.bind(MAIN_TOKENS.DatabaseService).to(DatabaseService);
+container
+  .bind(MAIN_TOKENS.AuthPreferenceRepository)
+  .to(AuthPreferenceRepository);
 container.bind(MAIN_TOKENS.AuthSessionRepository).to(AuthSessionRepository);
 container.bind(MAIN_TOKENS.RepositoryRepository).to(RepositoryRepository);
 container.bind(MAIN_TOKENS.WorkspaceRepository).to(WorkspaceRepository);

@@ -1,5 +1,6 @@
 import { OAUTH_SCOPE_VERSION } from "@shared/constants/oauth";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockAuthPreferenceRepository } from "../../db/repositories/auth-preference-repository.mock";
 import { createMockAuthSessionRepository } from "../../db/repositories/auth-session-repository.mock";
 import { decrypt, encrypt } from "../../utils/encryption";
 import type { ConnectivityService } from "../connectivity/service";
@@ -18,6 +19,7 @@ vi.mock("../../utils/logger.js", () => ({
 }));
 
 describe("AuthService", () => {
+  const preferenceRepository = createMockAuthPreferenceRepository();
   const repository = createMockAuthSessionRepository();
   const oauthService = {
     refreshToken: vi.fn(),
@@ -31,15 +33,42 @@ describe("AuthService", () => {
   let service: AuthService;
 
   beforeEach(() => {
+    preferenceRepository._preferences = [];
     repository.clearCurrent();
     vi.clearAllMocks();
-    service = new AuthService(repository, oauthService, connectivityService);
+    service = new AuthService(
+      preferenceRepository,
+      repository,
+      oauthService,
+      connectivityService,
+    );
   });
 
   afterEach(async () => {
     vi.unstubAllGlobals();
     await service.logout();
   });
+
+  const stubAuthFetch = (accountKey = "user-1") => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | Request) => {
+        const url = typeof input === "string" ? input : input.url;
+
+        if (url.includes("/api/users/@me/")) {
+          return {
+            ok: true,
+            json: vi.fn().mockResolvedValue({ uuid: accountKey }),
+          } as unknown as Response;
+        }
+
+        return {
+          ok: true,
+          json: vi.fn().mockResolvedValue({ has_access: true }),
+        } as unknown as Response;
+      }) as typeof fetch,
+    );
+  };
 
   it("bootstraps to anonymous when there is no stored session", async () => {
     await service.initialize();
@@ -99,12 +128,7 @@ describe("AuthService", () => {
       },
     });
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        json: vi.fn().mockResolvedValue({ has_access: true }),
-      }) as unknown as typeof fetch,
-    );
+    stubAuthFetch();
 
     await service.initialize();
 
@@ -151,12 +175,7 @@ describe("AuthService", () => {
         scoped_organizations: ["org-1"],
       },
     });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        json: vi.fn().mockResolvedValue({ has_access: true }),
-      }) as unknown as typeof fetch,
-    );
+    stubAuthFetch();
 
     await service.login("us");
 
@@ -211,12 +230,7 @@ describe("AuthService", () => {
       },
     });
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        json: vi.fn().mockResolvedValue({ has_access: true }),
-      }) as unknown as typeof fetch,
-    );
+    stubAuthFetch();
 
     await service.login("us");
     await service.selectProject(84);
@@ -227,6 +241,68 @@ describe("AuthService", () => {
       cloudRegion: "us",
       projectId: 84,
     });
+
+    await service.login("us");
+
+    expect(service.getState()).toMatchObject({
+      status: "authenticated",
+      cloudRegion: "us",
+      projectId: 84,
+      availableProjectIds: [42, 84],
+    });
+  });
+
+  it("restores the selected project after app restart while logged out", async () => {
+    vi.mocked(oauthService.startFlow)
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          access_token: "initial-access-token",
+          refresh_token: "initial-refresh-token",
+          expires_in: 3600,
+          token_type: "Bearer",
+          scope: "",
+          scoped_teams: [42, 84],
+          scoped_organizations: ["org-1"],
+        },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          access_token: "second-access-token",
+          refresh_token: "second-refresh-token",
+          expires_in: 3600,
+          token_type: "Bearer",
+          scope: "",
+          scoped_teams: [42, 84],
+          scoped_organizations: ["org-1"],
+        },
+      });
+    vi.mocked(oauthService.refreshToken).mockResolvedValue({
+      success: true,
+      data: {
+        access_token: "refreshed-access-token",
+        refresh_token: "refreshed-refresh-token",
+        expires_in: 3600,
+        token_type: "Bearer",
+        scope: "",
+        scoped_teams: [42, 84],
+        scoped_organizations: ["org-1"],
+      },
+    });
+
+    stubAuthFetch();
+
+    await service.login("us");
+    await service.selectProject(84);
+    await service.logout();
+
+    service = new AuthService(
+      preferenceRepository,
+      repository,
+      oauthService,
+      connectivityService,
+    );
 
     await service.login("us");
 

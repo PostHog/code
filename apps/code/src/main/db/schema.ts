@@ -86,3 +86,20 @@ export const authSessions = sqliteTable("auth_sessions", {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+export const authPreferences = sqliteTable(
+  "auth_preferences",
+  {
+    accountKey: text().notNull(),
+    cloudRegion: text({ enum: ["us", "eu", "dev"] }).notNull(),
+    lastSelectedProjectId: integer(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("auth_preferences_account_region_idx").on(
+      t.accountKey,
+      t.cloudRegion,
+    ),
+  ],
+);

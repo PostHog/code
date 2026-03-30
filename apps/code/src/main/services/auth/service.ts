@@ -4,6 +4,7 @@ import {
 } from "@shared/constants/oauth";
 import type { CloudRegion } from "@shared/types/oauth";
 import { inject, injectable } from "inversify";
+import type { IAuthPreferenceRepository } from "../../db/repositories/auth-preference-repository";
 import type {
   IAuthSessionRepository,
   PersistAuthSessionInput,
@@ -30,6 +31,7 @@ type FetchLike = (
 ) => Promise<Response>;
 
 interface InMemorySession {
+  accountKey: string | null;
   accessToken: string;
   accessTokenExpiresAt: number;
   refreshToken: string;
@@ -67,6 +69,8 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
   private refreshPromise: Promise<InMemorySession> | null = null;
 
   constructor(
+    @inject(MAIN_TOKENS.AuthPreferenceRepository)
+    private readonly authPreferenceRepository: IAuthPreferenceRepository,
     @inject(MAIN_TOKENS.AuthSessionRepository)
     private readonly authSessionRepository: IAuthSessionRepository,
     @inject(MAIN_TOKENS.OAuthService)
@@ -208,6 +212,7 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       projectId,
     };
 
+    this.persistProjectPreference(this.session);
     this.persistSession({
       refreshToken: this.session.refreshToken,
       cloudRegion: this.session.cloudRegion,
@@ -358,22 +363,32 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       throw new Error(result.error || "Token refresh failed");
     }
 
-    return this.createSessionFromTokenResponse(result.data, input);
+    return await this.createSessionFromTokenResponse(result.data, input);
   }
 
-  private createSessionFromTokenResponse(
+  private async createSessionFromTokenResponse(
     tokenResponse: AuthTokenResponse,
     options: TokenResponseOptions,
-  ): InMemorySession {
+  ): Promise<InMemorySession> {
     const availableProjectIds = tokenResponse.scoped_teams ?? [];
     const availableOrgIds = tokenResponse.scoped_organizations ?? [];
+    const accountKey = await this.fetchAccountKey(
+      tokenResponse.access_token,
+      options.cloudRegion,
+    );
+    const preferredProjectId =
+      options.selectedProjectId ??
+      (accountKey
+        ? (this.authPreferenceRepository.get(accountKey, options.cloudRegion)
+            ?.lastSelectedProjectId ?? null)
+        : null);
     const projectId =
-      options.selectedProjectId &&
-      availableProjectIds.includes(options.selectedProjectId)
-        ? options.selectedProjectId
+      preferredProjectId && availableProjectIds.includes(preferredProjectId)
+        ? preferredProjectId
         : (availableProjectIds[0] ?? null);
 
     const session: InMemorySession = {
+      accountKey,
       accessToken: tokenResponse.access_token,
       accessTokenExpiresAt: Date.now() + tokenResponse.expires_in * 1000,
       refreshToken: tokenResponse.refresh_token,
@@ -400,7 +415,7 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       throw new Error(result.error || fallbackError);
     }
 
-    const session = this.createSessionFromTokenResponse(result.data, {
+    const session = await this.createSessionFromTokenResponse(result.data, {
       cloudRegion: region,
       selectedProjectId: this.state.projectId,
     });
@@ -417,6 +432,7 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
   private async syncAuthenticatedSession(
     session: InMemorySession,
   ): Promise<void> {
+    this.persistProjectPreference(session);
     this.persistSession({
       refreshToken: session.refreshToken,
       cloudRegion: session.cloudRegion,
@@ -451,6 +467,18 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
     this.authSessionRepository.saveCurrent(row);
   }
 
+  private persistProjectPreference(session: InMemorySession): void {
+    if (!session.accountKey) {
+      return;
+    }
+
+    this.authPreferenceRepository.save({
+      accountKey: session.accountKey,
+      cloudRegion: session.cloudRegion,
+      lastSelectedProjectId: session.projectId,
+    });
+  }
+
   private isSessionExpiring(session: InMemorySession): boolean {
     return session.accessTokenExpiresAt - Date.now() <= TOKEN_EXPIRY_SKEW_MS;
   }
@@ -468,6 +496,47 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       refreshToken,
       ...options,
     };
+  }
+
+  private async fetchAccountKey(
+    accessToken: string,
+    cloudRegion: "us" | "eu" | "dev",
+  ): Promise<string | null> {
+    try {
+      const response = await fetch(
+        `${getCloudUrlFromRegion(cloudRegion)}/api/users/@me/`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = (await response.json().catch(() => ({}))) as {
+        uuid?: unknown;
+        distinct_id?: unknown;
+        email?: unknown;
+      };
+
+      if (typeof data.uuid === "string" && data.uuid.length > 0) {
+        return data.uuid;
+      }
+      if (typeof data.distinct_id === "string" && data.distinct_id.length > 0) {
+        return data.distinct_id;
+      }
+      if (typeof data.email === "string" && data.email.length > 0) {
+        return data.email;
+      }
+
+      return null;
+    } catch (error) {
+      log.warn("Failed to resolve auth account key", { error });
+      return null;
+    }
   }
 
   private requireSession(): InMemorySession {
