@@ -1,5 +1,6 @@
 import { AgentSideConnection, ndJsonStream } from "@agentclientprotocol/sdk";
 import { POSTHOG_NOTIFICATIONS } from "../acp-extensions";
+import { formatModelId } from "../gateway-models";
 import type { SessionLogWriter } from "../session-log-writer";
 import type { ProcessSpawnedCallback } from "../types";
 import { Logger } from "../utils/logger";
@@ -36,19 +37,25 @@ export type AcpConnection = {
 
 export type InProcessAcpConnection = AcpConnection;
 
+type ModelOption = { value?: string; name?: string };
+type ModelGroup = { group?: string; name?: string; options?: ModelOption[] };
+
 type ConfigOption = {
   id?: string;
   category?: string | null;
   currentValue?: string;
-  options?: Array<
-    { value?: string } | { group?: string; options?: Array<{ value?: string }> }
-  >;
+  options?: Array<ModelOption | ModelGroup>;
 };
 
 function isGroupedOptions(
   options: NonNullable<ConfigOption["options"]>,
-): options is Array<{ group?: string; options?: Array<{ value?: string }> }> {
+): options is ModelGroup[] {
   return options.length > 0 && "group" in options[0];
+}
+
+function formatOption(o: ModelOption): ModelOption {
+  if (!o.value) return o;
+  return { ...o, name: formatModelId(o.value) };
 }
 
 function filterModelConfigOptions(
@@ -74,9 +81,9 @@ function filterModelConfigOptions(
     if (isGroupedOptions(options)) {
       const filteredOptions = options.map((group) => ({
         ...group,
-        options: (group.options ?? []).filter(
-          (o) => o?.value && allowedModelIds.has(o.value),
-        ),
+        options: (group.options ?? [])
+          .filter((o) => o?.value && allowedModelIds.has(o.value))
+          .map(formatOption),
       }));
       const flat = filteredOptions.flatMap((g) => g.options ?? []);
       const currentAllowed =
@@ -91,10 +98,10 @@ function filterModelConfigOptions(
       };
     }
 
-    const valueOptions = options as Array<{ value?: string }>;
-    const filteredOptions = valueOptions.filter(
-      (o) => o?.value && allowedModelIds.has(o.value),
-    );
+    const valueOptions = options as ModelOption[];
+    const filteredOptions = valueOptions
+      .filter((o) => o?.value && allowedModelIds.has(o.value))
+      .map(formatOption);
     const currentAllowed =
       opt.currentValue && allowedModelIds.has(opt.currentValue);
     const nextCurrent =

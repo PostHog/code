@@ -143,7 +143,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
           list: {},
           fork: {},
           resume: {},
-          close: {},
         },
         _meta: {
           posthog: {

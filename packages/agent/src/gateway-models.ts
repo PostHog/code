@@ -146,7 +146,11 @@ export function getProviderName(ownedBy: string): string {
 const PROVIDER_PREFIXES = ["anthropic/", "openai/", "google-vertex/"];
 
 export function formatGatewayModelName(model: GatewayModel): string {
-  let cleanId = model.id;
+  return formatModelId(model.id);
+}
+
+export function formatModelId(modelId: string): string {
+  let cleanId = modelId;
   for (const prefix of PROVIDER_PREFIXES) {
     if (cleanId.startsWith(prefix)) {
       cleanId = cleanId.slice(prefix.length);

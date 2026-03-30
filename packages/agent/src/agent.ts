@@ -107,7 +107,7 @@ export class Agent {
         sanitizedModel = codexModelIds[0];
       }
     }
-    if (!sanitizedModel) {
+    if (!sanitizedModel && options.adapter !== "codex") {
       sanitizedModel = DEFAULT_GATEWAY_MODEL;
     }
 
