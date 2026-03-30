@@ -468,9 +468,10 @@ export async function getChangedFilesDetailed(
           if (hasFrom) seenPaths.add(file.from as string);
         }
 
-        const MAX_UNTRACKED_LINE_COUNT = 10_000;
+        const MAX_UNTRACKED_FILES = 10_000;
         let untrackedProcessed = 0;
         for (const file of status.not_added) {
+          if (untrackedProcessed >= MAX_UNTRACKED_FILES) break;
           if (!seenPaths.has(file)) {
             if (
               excludePatterns &&
@@ -478,10 +479,7 @@ export async function getChangedFilesDetailed(
             ) {
               continue;
             }
-            const lineCount =
-              untrackedProcessed < MAX_UNTRACKED_LINE_COUNT
-                ? await countFileLines(path.join(baseDir, file))
-                : 0;
+            const lineCount = await countFileLines(path.join(baseDir, file));
             files.push({
               path: file,
               status: "untracked",
