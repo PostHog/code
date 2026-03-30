@@ -21,7 +21,7 @@ export function CommandCenterItem({
     <SidebarItem
       depth={0}
       icon={<Lightning size={16} weight={isActive ? "fill" : "regular"} />}
-      label="Command Center"
+      label="ADHD Mode"
       isActive={isActive}
       onClick={onClick}
       endContent={
