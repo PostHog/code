@@ -61,6 +61,9 @@ export function TaskInput() {
   const [selectedEnvironment, setSelectedEnvironmentRaw] = useState<
     string | null
   >(null);
+  const [selectedCloudEnvId, setSelectedCloudEnvId] = useState<string | null>(
+    null,
+  );
 
   const [selectedDirectory, setSelectedDirectory] = useState("");
   const workspaceMode = lastUsedWorkspaceMode || "local";
@@ -168,6 +171,10 @@ export function TaskInput() {
     model: currentModel,
     reasoningLevel: currentReasoningLevel,
     environmentId: selectedEnvironment,
+    sandboxEnvironmentId:
+      effectiveWorkspaceMode === "cloud" && selectedCloudEnvId
+        ? selectedCloudEnvId
+        : undefined,
   });
 
   const handleCycleMode = useCallback(() => {
@@ -336,6 +343,8 @@ export function TaskInput() {
             <WorkspaceModeSelect
               value={workspaceMode}
               onChange={setWorkspaceMode}
+              selectedCloudEnvironmentId={selectedCloudEnvId}
+              onCloudEnvironmentChange={setSelectedCloudEnvId}
               size="1"
             />
             <BranchSelector

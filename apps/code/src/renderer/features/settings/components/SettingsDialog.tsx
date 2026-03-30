@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowsClockwise,
   CaretRight,
+  Cloud,
   Code,
   Folder,
   GearSix,
@@ -24,6 +25,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { AccountSettings } from "./sections/AccountSettings";
 import { AdvancedSettings } from "./sections/AdvancedSettings";
 import { ClaudeCodeSettings } from "./sections/ClaudeCodeSettings";
+import { CloudEnvironmentsSettings } from "./sections/CloudEnvironmentsSettings";
 import { EnvironmentsSettings } from "./sections/environments/EnvironmentsSettings";
 import { GeneralSettings } from "./sections/GeneralSettings";
 import { McpServersSettings } from "./sections/McpServersSettings";
@@ -52,6 +54,11 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: <HardDrives size={16} />,
   },
   {
+    id: "cloud-environments",
+    label: "Cloud environments",
+    icon: <Cloud size={16} />,
+  },
+  {
     id: "personalization",
     label: "Personalization",
     icon: <Palette size={16} />,
@@ -75,6 +82,7 @@ const CATEGORY_TITLES: Record<SettingsCategory, string> = {
   workspaces: "Workspaces",
   worktrees: "Worktrees",
   environments: "Environments",
+  "cloud-environments": "Cloud environments",
   personalization: "Personalization",
   "claude-code": "Claude Code",
   "mcp-servers": "MCP Servers",
@@ -91,6 +99,7 @@ const CATEGORY_COMPONENTS: Record<SettingsCategory, React.ComponentType> = {
   workspaces: WorkspacesSettings,
   worktrees: WorktreesSettings,
   environments: EnvironmentsSettings,
+  "cloud-environments": CloudEnvironmentsSettings,
   personalization: PersonalizationSettings,
   "claude-code": ClaudeCodeSettings,
   "mcp-servers": McpServersSettings,

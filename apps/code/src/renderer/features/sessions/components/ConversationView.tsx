@@ -7,7 +7,6 @@ import {
   useSessionForTask,
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
-import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { ArrowDown, XCircle } from "@phosphor-icons/react";
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import type { AcpMessage } from "@shared/types/session-events";
@@ -50,9 +49,8 @@ export function ConversationView({
 }: ConversationViewProps) {
   const listRef = useRef<VirtualizedListHandle>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const agentLogsEnabled = useFeatureFlag("posthog-code-background-agent-logs");
   const debugLogsCloudRuns = useSettingsStore((s) => s.debugLogsCloudRuns);
-  const showDebugLogs = agentLogsEnabled && debugLogsCloudRuns;
+  const showDebugLogs = debugLogsCloudRuns;
   const contextUsage = useContextUsage(events);
 
   const {

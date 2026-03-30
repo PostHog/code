@@ -71,6 +71,7 @@ export interface TaskCreationInput {
   model?: string;
   reasoningLevel?: string;
   environmentId?: string;
+  sandboxEnvironmentId?: string;
 }
 
 export interface TaskCreationOutput {
@@ -254,7 +255,13 @@ export class TaskCreationSaga extends Saga<
     if (workspaceMode === "cloud" && !task.latest_run) {
       await this.step({
         name: "cloud_run",
-        execute: () => this.deps.posthogClient.runTaskInCloud(task.id, branch),
+        execute: () =>
+          this.deps.posthogClient.runTaskInCloud(
+            task.id,
+            branch,
+            undefined,
+            input.sandboxEnvironmentId,
+          ),
         rollback: async () => {
           log.info("Rolling back: cloud run (no-op)", { taskId: task.id });
         },
