@@ -1,5 +1,5 @@
 import type { SessionConfigOption } from "@agentclientprotocol/sdk";
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import {
   getSessionService,
   PREVIEW_TASK_ID,
@@ -31,7 +31,7 @@ interface PreviewSessionResult {
 export function usePreviewSession(
   adapter: "claude" | "codex",
 ): PreviewSessionResult {
-  const projectId = useAuthStore((s) => s.projectId);
+  const projectId = useAuthStateValue((state) => state.projectId);
 
   useEffect(() => {
     if (!projectId) return;

@@ -1,4 +1,4 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { getAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
@@ -48,7 +48,7 @@ export class TaskService {
       };
     }
 
-    const posthogClient = useAuthStore.getState().client;
+    const posthogClient = await getAuthenticatedClient();
     if (!posthogClient) {
       return {
         success: false,
@@ -95,7 +95,7 @@ export class TaskService {
   ): Promise<CreateTaskResult> {
     log.info("Opening existing task", { taskId, taskRunId });
 
-    const posthogClient = useAuthStore.getState().client;
+    const posthogClient = await getAuthenticatedClient();
     if (!posthogClient) {
       return {
         success: false,

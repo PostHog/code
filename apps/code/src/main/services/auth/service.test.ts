@@ -171,4 +171,70 @@ describe("AuthService", () => {
       "rotated-refresh-token",
     );
   });
+
+  it("preserves the selected project across logout and re-login for the same account", async () => {
+    vi.mocked(oauthService.startFlow)
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          access_token: "initial-access-token",
+          refresh_token: "initial-refresh-token",
+          expires_in: 3600,
+          token_type: "Bearer",
+          scope: "",
+          scoped_teams: [42, 84],
+          scoped_organizations: ["org-1"],
+        },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          access_token: "second-access-token",
+          refresh_token: "second-refresh-token",
+          expires_in: 3600,
+          token_type: "Bearer",
+          scope: "",
+          scoped_teams: [42, 84],
+          scoped_organizations: ["org-1"],
+        },
+      });
+    vi.mocked(oauthService.refreshToken).mockResolvedValue({
+      success: true,
+      data: {
+        access_token: "refreshed-access-token",
+        refresh_token: "refreshed-refresh-token",
+        expires_in: 3600,
+        token_type: "Bearer",
+        scope: "",
+        scoped_teams: [42, 84],
+        scoped_organizations: ["org-1"],
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        json: vi.fn().mockResolvedValue({ has_access: true }),
+      }) as unknown as typeof fetch,
+    );
+
+    await service.login("us");
+    await service.selectProject(84);
+    await service.logout();
+
+    expect(service.getState()).toMatchObject({
+      status: "anonymous",
+      cloudRegion: "us",
+      projectId: 84,
+    });
+
+    await service.login("us");
+
+    expect(service.getState()).toMatchObject({
+      status: "authenticated",
+      cloudRegion: "us",
+      projectId: 84,
+      availableProjectIds: [42, 84],
+    });
+  });
 });

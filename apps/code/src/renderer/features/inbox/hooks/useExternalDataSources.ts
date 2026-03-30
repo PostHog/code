@@ -1,9 +1,9 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import type { ExternalDataSource } from "@renderer/api/posthogClient";
 
 export function useExternalDataSources() {
-  const projectId = useAuthStore((s) => s.projectId);
+  const projectId = useAuthStateValue((state) => state.projectId);
   return useAuthenticatedQuery<ExternalDataSource[]>(
     ["external-data-sources", projectId],
     (client) =>

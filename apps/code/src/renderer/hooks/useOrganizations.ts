@@ -1,7 +1,8 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { useCurrentUser } from "@features/auth/hooks/authQueries";
+import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
-import { useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 export interface OrgWithBilling {
@@ -52,8 +53,9 @@ async function fetchOrgsWithBilling(
 }
 
 export function useOrganizations() {
-  const selectedOrgId = useAuthStore((s) => s.selectedOrgId);
-  const queryClient = useQueryClient();
+  const selectedOrgId = useOnboardingStore((state) => state.selectedOrgId);
+  const client = useOptionalAuthenticatedClient();
+  const { data: currentUser } = useCurrentUser({ client });
 
   const {
     data: orgsWithBilling,
@@ -70,9 +72,6 @@ export function useOrganizations() {
     if (!orgsWithBilling?.length) return null;
 
     // Default to the user's currently active org in PostHog
-    const currentUser = queryClient.getQueryData<{
-      organization?: { id: string };
-    }>(["currentUser"]);
     const userCurrentOrgId = currentUser?.organization?.id;
     if (
       userCurrentOrgId &&
@@ -85,7 +84,7 @@ export function useOrganizations() {
       (org) => org.has_active_subscription,
     );
     return (withBilling ?? orgsWithBilling[0]).id;
-  }, [selectedOrgId, orgsWithBilling, queryClient]);
+  }, [currentUser?.organization?.id, orgsWithBilling, selectedOrgId]);
 
   const sortedOrgs = useMemo(() => {
     return [...(orgsWithBilling ?? [])].sort((a, b) =>

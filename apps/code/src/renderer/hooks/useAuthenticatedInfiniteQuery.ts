@@ -1,4 +1,5 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { AUTH_SCOPED_QUERY_META } from "@features/auth/hooks/authQueries";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
 import type { QueryKey } from "@tanstack/react-query";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -33,7 +34,7 @@ export function useAuthenticatedInfiniteQuery<
   queryFn: AuthenticatedInfiniteQueryFn<TData, TPageParam>,
   options: UseAuthenticatedInfiniteQueryOptions<TData, TPageParam>,
 ) {
-  const client = useAuthStore((state) => state.client);
+  const client = useOptionalAuthenticatedClient();
 
   return useInfiniteQuery({
     queryKey,
@@ -47,5 +48,6 @@ export function useAuthenticatedInfiniteQuery<
     refetchInterval: options.refetchInterval,
     refetchIntervalInBackground: options.refetchIntervalInBackground,
     staleTime: options.staleTime,
+    meta: AUTH_SCOPED_QUERY_META,
   });
 }

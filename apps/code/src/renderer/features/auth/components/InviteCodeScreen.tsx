@@ -1,25 +1,26 @@
 import { DraggableTitleBar } from "@components/DraggableTitleBar";
-import { useAuthStore } from "@features/auth/stores/authStore";
+import {
+  useLogoutMutation,
+  useRedeemInviteCodeMutation,
+} from "@features/auth/hooks/authMutations";
+import { useAuthUiStateStore } from "@features/auth/stores/authUiStateStore";
 import { Callout, Flex, Spinner, Text, Theme } from "@radix-ui/themes";
 import phWordmark from "@renderer/assets/images/wordmark.svg";
 import zenHedgehog from "@renderer/assets/images/zen.png";
-import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
 
 export function InviteCodeScreen() {
-  const [code, setCode] = useState("");
-  const { redeemInviteCode, logout } = useAuthStore();
-
-  const redeemMutation = useMutation({
-    mutationFn: async () => {
-      await redeemInviteCode(code.trim());
-    },
-  });
+  const code = useAuthUiStateStore((state) => state.inviteCode);
+  const setInviteCode = useAuthUiStateStore((state) => state.setInviteCode);
+  const resetInviteCode = useAuthUiStateStore((state) => state.resetInviteCode);
+  const redeemMutation = useRedeemInviteCodeMutation();
+  const logoutMutation = useLogoutMutation();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!code.trim()) return;
-    redeemMutation.mutate();
+    redeemMutation.mutate(code.trim(), {
+      onSuccess: () => resetInviteCode(),
+    });
   };
 
   const errorMessage = redeemMutation.error?.message ?? null;
@@ -113,7 +114,7 @@ export function InviteCodeScreen() {
                 <input
                   type="text"
                   value={code}
-                  onChange={(e) => setCode(e.target.value)}
+                  onChange={(e) => setInviteCode(e.target.value)}
                   placeholder="Invite code"
                   disabled={redeemMutation.isPending}
                   style={{
@@ -163,7 +164,7 @@ export function InviteCodeScreen() {
             <Flex justify="center">
               <button
                 type="button"
-                onClick={logout}
+                onClick={() => logoutMutation.mutate()}
                 style={{
                   background: "none",
                   border: "none",

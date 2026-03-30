@@ -1,4 +1,4 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { ArrowLeft, ArrowRight, Check } from "@phosphor-icons/react";
 import { Badge, Button, Flex, Text } from "@radix-ui/themes";
 import codeLogo from "@renderer/assets/images/code.svg";
@@ -24,7 +24,8 @@ const PRO_FEATURES: PlanFeature[] = [
 ];
 
 export function BillingStep({ onNext, onBack }: BillingStepProps) {
-  const { selectedPlan, selectPlan } = useAuthStore();
+  const selectedPlan = useOnboardingStore((state) => state.selectedPlan);
+  const selectPlan = useOnboardingStore((state) => state.selectPlan);
 
   useEffect(() => {
     if (!selectedPlan) {

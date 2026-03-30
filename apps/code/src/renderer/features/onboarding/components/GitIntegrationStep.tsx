@@ -1,4 +1,7 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { useSelectProjectMutation } from "@features/auth/hooks/authMutations";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
+import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,7 +14,7 @@ import codeLogo from "@renderer/assets/images/code.svg";
 import { trpcClient } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useProjectsWithIntegrations } from "../hooks/useProjectsWithIntegrations";
 import { ProjectSelect } from "./ProjectSelect";
 
@@ -27,22 +30,26 @@ export function GitIntegrationStep({
   onNext,
   onBack,
 }: GitIntegrationStepProps) {
-  const cloudRegion = useAuthStore((s) => s.cloudRegion);
-  const currentProjectId = useAuthStore((s) => s.projectId);
-  const selectProject = useAuthStore((s) => s.selectProject);
-  const client = useAuthStore((s) => s.client);
+  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
+  const currentProjectId = useAuthStateValue((state) => state.projectId);
+  const client = useAuthenticatedClient();
+  const selectProjectMutation = useSelectProjectMutation();
 
   const queryClient = useQueryClient();
   const { projects, isLoading, isFetching } = useProjectsWithIntegrations();
 
-  const [isConnecting, setIsConnecting] = useState(false);
+  const isConnecting = useOnboardingStore((state) => state.isConnectingGithub);
+  const setConnectingGithub = useOnboardingStore(
+    (state) => state.setConnectingGithub,
+  );
+  const manuallySelectedProjectId = useOnboardingStore(
+    (state) => state.selectedProjectId,
+  );
+  const setSelectedProjectId = useOnboardingStore(
+    (state) => state.selectProjectId,
+  );
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // User can manually select a different project
-  const [manuallySelectedProjectId, setManuallySelectedProjectId] = useState<
-    number | null
-  >(null);
 
   // Determine which project to show:
   // 1. If user manually selected one, use that
@@ -77,16 +84,16 @@ export function GitIntegrationStep({
   useEffect(() => {
     if (hasGitIntegration && isConnecting) {
       stopPolling();
-      setIsConnecting(false);
+      setConnectingGithub(false);
     }
-  }, [hasGitIntegration, isConnecting, stopPolling]);
+  }, [hasGitIntegration, isConnecting, setConnectingGithub, stopPolling]);
 
   // Cleanup on unmount
   useEffect(() => stopPolling, [stopPolling]);
 
   const handleConnectGitHub = async () => {
     if (!cloudRegion || !selectedProjectId || !client) return;
-    setIsConnecting(true);
+    setConnectingGithub(true);
     try {
       await trpcClient.githubIntegration.startFlow.mutate({
         region: cloudRegion,
@@ -101,10 +108,10 @@ export function GitIntegrationStep({
       // Timeout after 5 minutes
       pollTimeoutRef.current = setTimeout(() => {
         stopPolling();
-        setIsConnecting(false);
+        setConnectingGithub(false);
       }, POLL_TIMEOUT_MS);
     } catch {
-      setIsConnecting(false);
+      setConnectingGithub(false);
     }
   };
 
@@ -115,7 +122,7 @@ export function GitIntegrationStep({
   const handleContinue = () => {
     // Persist the selected project if it's different from current
     if (selectedProjectId && selectedProjectId !== currentProjectId) {
-      selectProject(selectedProjectId);
+      selectProjectMutation.mutate(selectedProjectId);
     }
     onNext();
   };
@@ -179,7 +186,7 @@ export function GitIntegrationStep({
                       id: p.id,
                       name: p.name,
                     }))}
-                    onProjectChange={setManuallySelectedProjectId}
+                    onProjectChange={setSelectedProjectId}
                     disabled={isLoading}
                   />
                 </Flex>

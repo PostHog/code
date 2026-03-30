@@ -1,4 +1,4 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { SettingRow } from "@features/settings/components/SettingRow";
 import {
   type AutoConvertLongText,
@@ -479,8 +479,8 @@ export function GeneralSettings() {
 }
 
 function HedgehogDescription() {
-  const cloudRegion = useAuthStore((s) => s.cloudRegion);
-  const projectId = useAuthStore((s) => s.projectId);
+  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
+  const projectId = useAuthStateValue((state) => state.projectId);
 
   const customizeUrl =
     cloudRegion && projectId

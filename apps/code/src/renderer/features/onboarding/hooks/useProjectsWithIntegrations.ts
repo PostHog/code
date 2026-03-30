@@ -1,4 +1,5 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { AUTH_SCOPED_QUERY_META } from "@features/auth/hooks/authQueries";
 import type { Integration } from "@features/integrations/stores/integrationStore";
 import { useProjects } from "@features/projects/hooks/useProjects";
 import { useQueries } from "@tanstack/react-query";
@@ -14,7 +15,7 @@ export interface ProjectWithIntegrations {
 
 export function useProjectsWithIntegrations() {
   const { projects, isLoading: projectsLoading } = useProjects();
-  const client = useAuthStore((s) => s.client);
+  const client = useAuthenticatedClient();
 
   // Fetch integrations for each project in parallel
   const integrationQueries = useQueries({
@@ -26,6 +27,7 @@ export function useProjectsWithIntegrations() {
       },
       enabled: !!client && projects.length > 0,
       staleTime: 60 * 1000, // 1 minute
+      meta: AUTH_SCOPED_QUERY_META,
     })),
   });
 

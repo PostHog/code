@@ -1,26 +1,30 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { useLogoutMutation } from "@features/auth/hooks/authMutations";
+import {
+  useAuthStateValue,
+  useCurrentUser,
+} from "@features/auth/hooks/authQueries";
+import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { SettingRow } from "@features/settings/components/SettingRow";
 import { SignOut } from "@phosphor-icons/react";
 import { Avatar, Badge, Button, Flex, Spinner, Text } from "@radix-ui/themes";
 import { REGION_LABELS } from "@shared/constants/oauth";
-import { useQuery } from "@tanstack/react-query";
 
 export function AccountSettings() {
-  const { client, isAuthenticated, selectedPlan, logout, cloudRegion } =
-    useAuthStore();
-
-  // Fetch current user from PostHog
-  const { data: user, isLoading } = useQuery({
-    queryKey: ["currentUser"],
-    queryFn: async () => {
-      if (!client) return null;
-      return await client.getCurrentUser();
-    },
-    enabled: !!client && isAuthenticated,
+  const isAuthenticated = useAuthStateValue(
+    (state) => state.status === "authenticated",
+  );
+  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
+  const selectedPlan = useOnboardingStore((state) => state.selectedPlan);
+  const logoutMutation = useLogoutMutation();
+  const client = useOptionalAuthenticatedClient();
+  const { data: user, isLoading } = useCurrentUser({
+    client,
+    enabled: isAuthenticated,
   });
 
   const handleLogout = () => {
-    logout();
+    logoutMutation.mutate();
   };
 
   if (!isAuthenticated) {

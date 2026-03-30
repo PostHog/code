@@ -1,65 +1,40 @@
+import { Theme } from "@radix-ui/themes";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ScopeReauthPrompt } from "./ScopeReauthPrompt";
 
-vi.mock("@renderer/trpc/client", () => ({
-  trpcClient: {
-    auth: {
-      getState: { query: vi.fn() },
-      onStateChanged: { subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })) },
-      getValidAccessToken: {
-        query: vi.fn().mockResolvedValue({
-          accessToken: "token",
-          apiHost: "https://us.posthog.com",
-        }),
-      },
-      refreshAccessToken: {
-        mutate: vi.fn().mockResolvedValue({
-          accessToken: "token",
-          apiHost: "https://us.posthog.com",
-        }),
-      },
-      login: {
-        mutate: vi.fn().mockResolvedValue({
-          state: {
-            status: "authenticated",
-            bootstrapComplete: true,
-            cloudRegion: "us",
-            projectId: 1,
-            availableProjectIds: [1],
-            availableOrgIds: [],
-            hasCodeAccess: true,
-            needsScopeReauth: false,
-          },
-        }),
-      },
-      signup: { mutate: vi.fn() },
-      selectProject: { mutate: vi.fn() },
-      redeemInviteCode: { mutate: vi.fn() },
-      logout: {
-        mutate: vi.fn().mockResolvedValue({
-          status: "anonymous",
-          bootstrapComplete: true,
-          cloudRegion: null,
-          projectId: null,
-          availableProjectIds: [],
-          availableOrgIds: [],
-          hasCodeAccess: null,
-          needsScopeReauth: false,
-        }),
-      },
-    },
-    analytics: {
-      setUserId: { mutate: vi.fn().mockResolvedValue(undefined) },
-      resetUser: { mutate: vi.fn().mockResolvedValue(undefined) },
-    },
-  },
+const authState = {
+  status: "anonymous" as const,
+  bootstrapComplete: true,
+  cloudRegion: null as "us" | "eu" | "dev" | null,
+  projectId: null,
+  availableProjectIds: [],
+  availableOrgIds: [],
+  hasCodeAccess: null,
+  needsScopeReauth: false,
+};
+
+const mockLoginMutateAsync = vi.fn();
+const mockLogoutMutate = vi.fn(() => {
+  authState.needsScopeReauth = false;
+  authState.cloudRegion = null;
+});
+
+vi.mock("@features/auth/hooks/authQueries", () => ({
+  useAuthStateValue: (selector: (state: typeof authState) => unknown) =>
+    selector(authState),
 }));
 
-vi.mock("@utils/analytics", () => ({
-  identifyUser: vi.fn(),
-  resetUser: vi.fn(),
-  track: vi.fn(),
+vi.mock("@features/auth/hooks/authMutations", () => ({
+  useLoginMutation: () => ({
+    mutateAsync: mockLoginMutateAsync,
+    isPending: false,
+  }),
+  useLogoutMutation: () => ({
+    mutate: mockLogoutMutate,
+  }),
 }));
 
 vi.mock("@utils/logger", () => ({
@@ -73,40 +48,18 @@ vi.mock("@utils/logger", () => ({
   },
 }));
 
-vi.mock("@utils/queryClient", () => ({
-  queryClient: {
-    clear: vi.fn(),
-    setQueryData: vi.fn(),
-    removeQueries: vi.fn(),
-  },
-}));
-
-vi.mock("@stores/navigationStore", () => ({
-  useNavigationStore: {
-    getState: () => ({ navigateToTaskInput: vi.fn() }),
-  },
-}));
-
-import {
-  resetAuthStoreModuleStateForTest,
-  useAuthStore,
-} from "@features/auth/stores/authStore";
-import { Theme } from "@radix-ui/themes";
-import type { ReactElement } from "react";
-import { ScopeReauthPrompt } from "./ScopeReauthPrompt";
-
 function renderWithTheme(ui: ReactElement) {
   return render(<Theme>{ui}</Theme>);
 }
 
 describe("ScopeReauthPrompt", () => {
   beforeEach(() => {
-    localStorage.clear();
-    resetAuthStoreModuleStateForTest();
-    useAuthStore.setState({
-      needsScopeReauth: false,
-      cloudRegion: null,
-    });
+    vi.clearAllMocks();
+    authState.status = "anonymous";
+    authState.cloudRegion = null;
+    authState.projectId = null;
+    authState.hasCodeAccess = null;
+    authState.needsScopeReauth = false;
   });
 
   it("does not render dialog when needsScopeReauth is false", () => {
@@ -117,25 +70,34 @@ describe("ScopeReauthPrompt", () => {
   });
 
   it("renders dialog when needsScopeReauth is true", () => {
-    useAuthStore.setState({ needsScopeReauth: true, cloudRegion: "us" });
+    authState.needsScopeReauth = true;
+    authState.cloudRegion = "us";
+
     renderWithTheme(<ScopeReauthPrompt />);
+
     expect(screen.getByText("Re-authentication required")).toBeInTheDocument();
   });
 
   it("disables Sign in button when cloudRegion is null", () => {
-    useAuthStore.setState({ needsScopeReauth: true, cloudRegion: null });
+    authState.needsScopeReauth = true;
+
     renderWithTheme(<ScopeReauthPrompt />);
+
     expect(screen.getByRole("button", { name: "Sign in" })).toBeDisabled();
   });
 
   it("enables Sign in button when cloudRegion is set", () => {
-    useAuthStore.setState({ needsScopeReauth: true, cloudRegion: "us" });
+    authState.needsScopeReauth = true;
+    authState.cloudRegion = "us";
+
     renderWithTheme(<ScopeReauthPrompt />);
+
     expect(screen.getByRole("button", { name: "Sign in" })).not.toBeDisabled();
   });
 
   it("shows Log out button as an escape hatch when cloudRegion is null", () => {
-    useAuthStore.setState({ needsScopeReauth: true, cloudRegion: null });
+    authState.needsScopeReauth = true;
+
     renderWithTheme(<ScopeReauthPrompt />);
 
     const logoutButton = screen.getByRole("button", { name: "Log out" });
@@ -145,14 +107,14 @@ describe("ScopeReauthPrompt", () => {
 
   it("calls logout when Log out button is clicked", async () => {
     const user = userEvent.setup();
-    useAuthStore.setState({ needsScopeReauth: true, cloudRegion: null });
+    authState.needsScopeReauth = true;
+
     renderWithTheme(<ScopeReauthPrompt />);
 
     await user.click(screen.getByRole("button", { name: "Log out" }));
 
-    const state = useAuthStore.getState();
-    expect(state.needsScopeReauth).toBe(false);
-    expect(state.isAuthenticated).toBe(false);
-    expect(state.cloudRegion).toBeNull();
+    expect(mockLogoutMutate).toHaveBeenCalledTimes(1);
+    expect(authState.needsScopeReauth).toBe(false);
+    expect(authState.cloudRegion).toBeNull();
   });
 });

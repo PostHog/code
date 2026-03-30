@@ -1,4 +1,6 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { authKeys, useCurrentUser } from "@features/auth/hooks/authQueries";
+import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { useOrganizations } from "@hooks/useOrganizations";
 import { ArrowLeft, ArrowRight, CheckCircle } from "@phosphor-icons/react";
 import {
@@ -11,10 +13,9 @@ import {
   Text,
 } from "@radix-ui/themes";
 import codeLogo from "@renderer/assets/images/code.svg";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
 
 const log = logger.scope("org-billing-step");
 
@@ -24,18 +25,27 @@ interface OrgBillingStepProps {
 }
 
 export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
-  const selectedOrgId = useAuthStore((s) => s.selectedOrgId);
-  const selectOrg = useAuthStore((s) => s.selectOrg);
-  const client = useAuthStore((s) => s.client);
+  const selectedOrgId = useOnboardingStore((state) => state.selectedOrgId);
+  const selectOrg = useOnboardingStore((state) => state.selectOrg);
+  const client = useAuthenticatedClient();
+  const { data: currentUser } = useCurrentUser({ client });
   const queryClient = useQueryClient();
-  const [isSwitching, setIsSwitching] = useState(false);
+  const switchOrganizationMutation = useMutation({
+    mutationFn: async (orgId: string) => {
+      await client.switchOrganization(orgId);
+      await queryClient.invalidateQueries({
+        queryKey: authKeys.currentUsers(),
+      });
+    },
+    onError: (err) => {
+      log.error("Failed to switch organization", err);
+    },
+  });
 
   const { orgsWithBilling, effectiveSelectedOrgId, isLoading, error } =
     useOrganizations();
 
-  const currentUserOrgId = queryClient.getQueryData<{
-    organization?: { id: string };
-  }>(["currentUser"])?.organization?.id;
+  const currentUserOrgId = currentUser?.organization?.id;
 
   const handleContinue = async () => {
     if (!effectiveSelectedOrgId) return;
@@ -45,15 +55,9 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
     }
 
     if (client && effectiveSelectedOrgId !== currentUserOrgId) {
-      setIsSwitching(true);
       try {
-        await client.switchOrganization(effectiveSelectedOrgId);
-        await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-      } catch (err) {
-        log.error("Failed to switch organization", err);
-      } finally {
-        setIsSwitching(false);
-      }
+        await switchOrganizationMutation.mutateAsync(effectiveSelectedOrgId);
+      } catch {}
     }
 
     onNext();
@@ -188,10 +192,14 @@ export function OrgBillingStep({ onNext, onBack }: OrgBillingStepProps) {
           <Button
             size="2"
             onClick={handleContinue}
-            disabled={!effectiveSelectedOrgId || isLoading || isSwitching}
+            disabled={
+              !effectiveSelectedOrgId ||
+              isLoading ||
+              switchOrganizationMutation.isPending
+            }
           >
-            {isSwitching ? "Switching..." : "Continue"}
-            {!isSwitching && <ArrowRight size={16} />}
+            {switchOrganizationMutation.isPending ? "Switching..." : "Continue"}
+            {!switchOrganizationMutation.isPending && <ArrowRight size={16} />}
           </Button>
         </Flex>
       </Flex>

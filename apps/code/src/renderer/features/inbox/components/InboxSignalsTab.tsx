@@ -1,5 +1,5 @@
 import { ResizableSidebar } from "@components/ResizableSidebar";
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { InboxLiveRail } from "@features/inbox/components/InboxLiveRail";
 import {
   useInboxReportArtefacts,
@@ -217,8 +217,8 @@ export function InboxSignalsTab() {
 
   const canActOnReport = !!selectedReport && selectedReport.status === "ready";
 
-  const cloudRegion = useAuthStore((state) => state.cloudRegion);
-  const projectId = useAuthStore((state) => state.projectId);
+  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
+  const projectId = useAuthStateValue((state) => state.projectId);
   const replayBaseUrl =
     cloudRegion && projectId
       ? `${getCloudUrlFromRegion(cloudRegion)}/project/${projectId}/replay`

@@ -1,14 +1,16 @@
 import { DraggableTitleBar } from "@components/DraggableTitleBar";
 import { ZenHedgehog } from "@components/ZenHedgehog";
-import { useAuthStore } from "@features/auth/stores/authStore";
+import {
+  useLoginMutation,
+  useSignupMutation,
+} from "@features/auth/hooks/authMutations";
+import { useAuthUiStateStore } from "@features/auth/stores/authUiStateStore";
 import { Callout, Flex, Spinner, Text, Theme } from "@radix-ui/themes";
 import codeLogo from "@renderer/assets/images/code.svg";
 import logomark from "@renderer/assets/images/logomark.svg";
 import { trpcClient } from "@renderer/trpc/client";
 import { REGION_LABELS } from "@shared/constants/oauth";
 import type { CloudRegion } from "@shared/types/oauth";
-import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
 import { RegionSelect } from "./RegionSelect";
 
 export const getErrorMessage = (error: unknown) => {
@@ -39,36 +41,28 @@ export const getErrorMessage = (error: unknown) => {
   return message;
 };
 
-type AuthMode = "login" | "signup";
-
 export function AuthScreen() {
-  const staleRegion = useAuthStore((s) => s.staleCloudRegion);
-  const [region, setRegion] = useState<CloudRegion>(staleRegion ?? "us");
-  const [authMode, setAuthMode] = useState<AuthMode>("login");
-  const { loginWithOAuth, signupWithOAuth } = useAuthStore();
-
-  const loginMutation = useMutation({
-    mutationFn: async () => {
-      await loginWithOAuth(region);
-    },
-  });
-
-  const signupMutation = useMutation({
-    mutationFn: async () => {
-      await signupWithOAuth(region);
-    },
-  });
+  const staleRegion = useAuthUiStateStore((state) => state.staleRegion);
+  const selectedRegion = useAuthUiStateStore((state) => state.selectedRegion);
+  const setSelectedRegion = useAuthUiStateStore(
+    (state) => state.setSelectedRegion,
+  );
+  const authMode = useAuthUiStateStore((state) => state.authMode);
+  const setAuthMode = useAuthUiStateStore((state) => state.setAuthMode);
+  const loginMutation = useLoginMutation();
+  const signupMutation = useSignupMutation();
+  const region: CloudRegion = selectedRegion ?? staleRegion ?? "us";
 
   const handleAuth = () => {
     if (authMode === "login") {
-      loginMutation.mutate();
+      loginMutation.mutate(region);
     } else {
-      signupMutation.mutate();
+      signupMutation.mutate(region);
     }
   };
 
   const handleRegionChange = (value: CloudRegion) => {
-    setRegion(value);
+    setSelectedRegion(value);
     loginMutation.reset();
     signupMutation.reset();
   };

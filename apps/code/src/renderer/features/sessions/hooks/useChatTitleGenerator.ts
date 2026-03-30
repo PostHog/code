@@ -1,4 +1,4 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { getAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { getSessionService } from "@features/sessions/service/service";
 import { useSessionStore } from "@features/sessions/stores/sessionStore";
 import type { Task } from "@shared/types";
@@ -71,7 +71,7 @@ export function useChatTitleGenerator(taskId: string): void {
 
         const title = await generateTitle(content);
         if (title) {
-          const client = useAuthStore.getState().client;
+          const client = await getAuthenticatedClient();
           if (client) {
             await client.updateTask(taskId, { title });
             queryClient.setQueriesData<Task[]>(

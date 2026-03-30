@@ -1,4 +1,5 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { AUTH_SCOPED_QUERY_META } from "@features/auth/hooks/authQueries";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
 import type {
   QueryKey,
@@ -21,7 +22,8 @@ export function useAuthenticatedQuery<
     "queryKey" | "queryFn"
   >,
 ): UseQueryResult<TData, TError> {
-  const client = useAuthStore((state) => state.client);
+  const client = useOptionalAuthenticatedClient();
+  const { meta, ...restOptions } = options ?? {};
 
   return useQuery({
     queryKey,
@@ -30,7 +32,12 @@ export function useAuthenticatedQuery<
       return await queryFn(client);
     },
     enabled:
-      !!client && (options?.enabled !== undefined ? options.enabled : true),
-    ...options,
+      !!client &&
+      (restOptions.enabled !== undefined ? restOptions.enabled : true),
+    meta: {
+      ...AUTH_SCOPED_QUERY_META,
+      ...meta,
+    },
+    ...restOptions,
   });
 }

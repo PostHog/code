@@ -5,8 +5,10 @@ import { ScopeReauthPrompt } from "@components/ScopeReauthPrompt";
 import { UpdatePrompt } from "@components/UpdatePrompt";
 import { AuthScreen } from "@features/auth/components/AuthScreen";
 import { InviteCodeScreen } from "@features/auth/components/InviteCodeScreen";
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
+import { useAuthSession } from "@features/auth/hooks/useAuthSession";
 import { OnboardingFlow } from "@features/onboarding/components/OnboardingFlow";
+import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { Flex, Spinner, Text } from "@radix-ui/themes";
 import { initializeConnectivityStore } from "@renderer/stores/connectivityStore";
 import { useFocusStore } from "@renderer/stores/focusStore";
@@ -25,10 +27,14 @@ const log = logger.scope("app");
 
 function App() {
   const trpcReact = useTRPC();
-  const { isAuthenticated, hasCompletedOnboarding, hasCodeAccess } =
-    useAuthStore();
+  const { isBootstrapped } = useAuthSession();
+  const authState = useAuthStateValue((state) => state);
+  const hasCompletedOnboarding = useOnboardingStore(
+    (state) => state.hasCompletedOnboarding,
+  );
+  const isAuthenticated = authState.status === "authenticated";
+  const hasCodeAccess = authState.hasCodeAccess;
   const isDarkMode = useThemeStore((state) => state.isDarkMode);
-  const [isLoading, setIsLoading] = useState(true);
   const [showTransition, setShowTransition] = useState(false);
   const wasInMainApp = useRef(isAuthenticated && hasCompletedOnboarding);
 
@@ -114,15 +120,6 @@ function App() {
     }),
   );
 
-  // Initialize auth state from main process
-  useEffect(() => {
-    const initialize = async () => {
-      await useAuthStore.getState().initializeOAuth();
-      setIsLoading(false);
-    };
-    void initialize();
-  }, []);
-
   // Handle transition into main app — only show the dark overlay if dark mode is active
   useEffect(() => {
     const isInMainApp = isAuthenticated && hasCompletedOnboarding;
@@ -136,7 +133,7 @@ function App() {
     setShowTransition(false);
   };
 
-  if (isLoading) {
+  if (!isBootstrapped) {
     return (
       <Flex align="center" justify="center" minHeight="100vh">
         <Flex align="center" gap="3">

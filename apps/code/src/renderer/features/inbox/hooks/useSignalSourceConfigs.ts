@@ -1,9 +1,9 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import type { SignalSourceConfig } from "@renderer/api/posthogClient";
 
 export function useSignalSourceConfigs() {
-  const projectId = useAuthStore((s) => s.projectId);
+  const projectId = useAuthStateValue((state) => state.projectId);
   return useAuthenticatedQuery<SignalSourceConfig[]>(
     ["signals", "source-configs", projectId],
     (client) =>

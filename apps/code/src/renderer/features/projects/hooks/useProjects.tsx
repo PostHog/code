@@ -1,5 +1,9 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
-import { useQuery } from "@tanstack/react-query";
+import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { useSelectProjectMutation } from "@features/auth/hooks/authMutations";
+import {
+  useAuthStateValue,
+  useCurrentUser,
+} from "@features/auth/hooks/authQueries";
 import { logger } from "@utils/logger";
 import { useEffect, useMemo } from "react";
 
@@ -36,20 +40,12 @@ export function groupProjectsByOrg(projects: ProjectInfo[]): GroupedProjects[] {
 }
 
 export function useProjects() {
-  const availableProjectIds = useAuthStore((s) => s.availableProjectIds);
-  const client = useAuthStore((s) => s.client);
-  const currentProjectId = useAuthStore((s) => s.projectId);
-
-  const {
-    data: currentUser,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["currentUser"],
-    queryFn: () => client?.getCurrentUser(),
-    enabled: !!client,
-    staleTime: 5 * 60 * 1000,
-  });
+  const availableProjectIds = useAuthStateValue(
+    (state) => state.availableProjectIds,
+  );
+  const currentProjectId = useAuthStateValue((state) => state.projectId);
+  const client = useOptionalAuthenticatedClient();
+  const { data: currentUser, isLoading, error } = useCurrentUser({ client });
 
   const projects = useMemo(() => {
     if (!currentUser?.organization) return [];
@@ -84,7 +80,7 @@ export function useProjects() {
       .filter((p): p is ProjectInfo => p !== null);
   }, [currentUser, availableProjectIds]);
 
-  const selectProject = useAuthStore((s) => s.selectProject);
+  const selectProjectMutation = useSelectProjectMutation();
   const currentProject = projects.find((p) => p.id === currentProjectId);
   const groupedProjects = groupProjectsByOrg(projects);
 
@@ -97,9 +93,9 @@ export function useProjects() {
             ? "no project selected"
             : "current project not found in list",
       });
-      selectProject(projects[0].id);
+      selectProjectMutation.mutate(projects[0].id);
     }
-  }, [projects, currentProject, currentProjectId, selectProject]);
+  }, [currentProject, currentProjectId, projects, selectProjectMutation]);
 
   return {
     projects,

@@ -1,4 +1,4 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
 import { useTaskInputHistoryStore } from "@features/message-editor/stores/taskInputHistoryStore";
 import {
@@ -105,7 +105,9 @@ export function useTaskCreation({
 }: UseTaskCreationOptions): UseTaskCreationReturn {
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const { navigateToTask } = useNavigationStore();
-  const { isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStateValue(
+    (state) => state.status === "authenticated",
+  );
   const { invalidateTasks } = useCreateTask();
   const { isOnline } = useConnectivity();
 

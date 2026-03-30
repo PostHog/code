@@ -1,11 +1,11 @@
 import { TourHighlight } from "@components/TourHighlight";
-import { useAuthStore } from "@features/auth/stores/authStore";
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
 import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
 import { ModeIndicatorInput } from "@features/message-editor/components/ModeIndicatorInput";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
+import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { getSessionService } from "@features/sessions/service/service";
 import {
   cycleModeOption,
@@ -61,7 +61,9 @@ interface TutorialStepProps {
 
 export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
   const { allowBypassPermissions } = useSettingsStore();
-  const { completeOnboarding } = useAuthStore();
+  const completeOnboarding = useOnboardingStore(
+    (state) => state.completeOnboarding,
+  );
 
   // Tour state machine
   const {

@@ -1,4 +1,5 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
 import { useRepositoryIntegration } from "@hooks/useIntegrations";
 import { Box, Button, Flex, Text, TextField } from "@radix-ui/themes";
@@ -52,8 +53,8 @@ interface SetupFormProps {
 }
 
 function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
-  const projectId = useAuthStore((s) => s.projectId);
-  const client = useAuthStore((s) => s.client);
+  const projectId = useAuthStateValue((state) => state.projectId);
+  const client = useAuthenticatedClient();
   const { githubIntegration, repositories, isLoadingRepos } =
     useRepositoryIntegration();
   const [repo, setRepo] = useState<string | null>(null);
@@ -133,9 +134,9 @@ const POLL_INTERVAL_MS = 3_000;
 const POLL_TIMEOUT_MS = 300_000; // 5 minutes
 
 function LinearSetup({ onComplete }: SetupFormProps) {
-  const cloudRegion = useAuthStore((s) => s.cloudRegion);
-  const projectId = useAuthStore((s) => s.projectId);
-  const client = useAuthStore((s) => s.client);
+  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
+  const projectId = useAuthStateValue((state) => state.projectId);
+  const client = useAuthenticatedClient();
   const [loading, setLoading] = useState(false);
   const [oauthConnected, setOauthConnected] = useState(false);
   const [pollError, setPollError] = useState<string | null>(null);
@@ -256,8 +257,8 @@ function LinearSetup({ onComplete }: SetupFormProps) {
 }
 
 function ZendeskSetup({ onComplete, onCancel }: SetupFormProps) {
-  const projectId = useAuthStore((s) => s.projectId);
-  const client = useAuthStore((s) => s.client);
+  const projectId = useAuthStateValue((state) => state.projectId);
+  const client = useAuthenticatedClient();
   const [subdomain, setSubdomain] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [email, setEmail] = useState("");

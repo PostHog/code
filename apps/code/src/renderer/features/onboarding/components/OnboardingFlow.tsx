@@ -1,6 +1,7 @@
 import { DraggableTitleBar } from "@components/DraggableTitleBar";
 import { ZenHedgehog } from "@components/ZenHedgehog";
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useLogoutMutation } from "@features/auth/hooks/authMutations";
+import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { SignOut } from "@phosphor-icons/react";
 import { Button, Flex, Theme } from "@radix-ui/themes";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
@@ -16,7 +17,10 @@ import { WelcomeStep } from "./WelcomeStep";
 
 export function OnboardingFlow() {
   const { currentStep, activeSteps, next, back } = useOnboardingFlow();
-  const { completeOnboarding, logout } = useAuthStore();
+  const completeOnboarding = useOnboardingStore(
+    (state) => state.completeOnboarding,
+  );
+  const logoutMutation = useLogoutMutation();
 
   const handleComplete = () => {
     completeOnboarding();
@@ -166,7 +170,7 @@ export function OnboardingFlow() {
                     size="1"
                     variant="ghost"
                     color="gray"
-                    onClick={logout}
+                    onClick={() => logoutMutation.mutate()}
                     style={{ opacity: 0.5 }}
                   >
                     <SignOut size={14} />

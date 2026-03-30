@@ -1,17 +1,19 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import {
+  useLoginMutation,
+  useLogoutMutation,
+} from "@features/auth/hooks/authMutations";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { ShieldWarning } from "@phosphor-icons/react";
 import { Button, Dialog, Flex, Text } from "@radix-ui/themes";
 import { logger } from "@utils/logger";
-import { useState } from "react";
 
 const log = logger.scope("scope-reauth-prompt");
 
 export function ScopeReauthPrompt() {
-  const needsScopeReauth = useAuthStore((s) => s.needsScopeReauth);
-  const cloudRegion = useAuthStore((s) => s.cloudRegion);
-  const loginWithOAuth = useAuthStore((s) => s.loginWithOAuth);
-  const logout = useAuthStore((s) => s.logout);
-  const [isLoading, setIsLoading] = useState(false);
+  const needsScopeReauth = useAuthStateValue((state) => state.needsScopeReauth);
+  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
+  const loginMutation = useLoginMutation();
+  const logoutMutation = useLogoutMutation();
 
   const handleSignIn = async () => {
     if (!cloudRegion) {
@@ -19,13 +21,10 @@ export function ScopeReauthPrompt() {
       return;
     }
 
-    setIsLoading(true);
     try {
-      await loginWithOAuth(cloudRegion);
+      await loginMutation.mutateAsync(cloudRegion);
     } catch (error) {
       log.error("Re-authentication failed", error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -50,13 +49,18 @@ export function ScopeReauthPrompt() {
             </Text>
           </Dialog.Description>
           <Flex justify="between" mt="2">
-            <Button type="button" variant="soft" color="gray" onClick={logout}>
+            <Button
+              type="button"
+              variant="soft"
+              color="gray"
+              onClick={() => logoutMutation.mutate()}
+            >
               Log out
             </Button>
             <Button
               type="button"
               onClick={handleSignIn}
-              loading={isLoading}
+              loading={loginMutation.isPending}
               disabled={!cloudRegion}
             >
               Sign in

@@ -61,21 +61,49 @@ vi.mock("@features/sessions/stores/sessionStore", () => ({
   mergeConfigOptions: vi.fn((live: unknown[], _persisted: unknown[]) => live),
 }));
 
-const mockAuthStore = vi.hoisted(() => ({
-  useAuthStore: {
-    getState: vi.fn(() => ({
-      cloudRegion: "us",
-      projectId: 123,
-      client: {
-        createTaskRun: vi.fn(),
-        appendTaskRunLog: vi.fn(),
-      },
-    })),
-  },
-  setSessionResetCallback: vi.fn(),
+const mockBuildAuthenticatedClient = vi.hoisted(() =>
+  vi.fn<
+    () => {
+      createTaskRun: ReturnType<typeof vi.fn>;
+      appendTaskRunLog: ReturnType<typeof vi.fn>;
+    } | null
+  >(() => ({
+    createTaskRun: vi.fn(),
+    appendTaskRunLog: vi.fn(),
+  })),
+);
+
+const mockAuth = vi.hoisted(() => ({
+  fetchAuthState: vi.fn<() => Promise<Record<string, unknown>>>(async () => ({
+    status: "authenticated",
+    bootstrapComplete: true,
+    cloudRegion: "us",
+    projectId: 123,
+    availableProjectIds: [123],
+    availableOrgIds: [],
+    hasCodeAccess: true,
+    needsScopeReauth: false,
+  })),
+  getAuthenticatedClient: vi.fn<() => Promise<Record<string, unknown> | null>>(
+    async () => mockBuildAuthenticatedClient(),
+  ),
+  createAuthenticatedClient: vi.fn((authState: Record<string, unknown>) => {
+    return authState.status === "authenticated"
+      ? mockBuildAuthenticatedClient()
+      : null;
+  }),
 }));
 
-vi.mock("@features/auth/stores/authStore", () => mockAuthStore);
+vi.mock("@features/auth/hooks/authQueries", () => ({
+  AUTH_SCOPED_QUERY_META: { authScoped: true },
+  clearAuthScopedQueries: vi.fn(),
+  getAuthIdentity: vi.fn(),
+  fetchAuthState: mockAuth.fetchAuthState,
+}));
+vi.mock("@features/auth/hooks/authClient", () => ({
+  getAuthenticatedClient: mockAuth.getAuthenticatedClient,
+  createAuthenticatedClient: mockAuth.createAuthenticatedClient,
+}));
 
 vi.mock("@features/sessions/stores/modelsStore", () => ({
   useModelsStore: {
@@ -280,13 +308,19 @@ describe("SessionService", () => {
 
       // Track how many times createTaskRun is called
       const createTaskRunMock = vi.fn().mockResolvedValue({ id: "run-123" });
-      mockAuthStore.useAuthStore.getState.mockReturnValue({
+      mockAuth.fetchAuthState.mockResolvedValue({
+        status: "authenticated",
+        bootstrapComplete: true,
         cloudRegion: "us",
         projectId: 123,
-        client: {
-          createTaskRun: createTaskRunMock,
-          appendTaskRunLog: vi.fn(),
-        },
+        availableProjectIds: [123],
+        availableOrgIds: [],
+        hasCodeAccess: true,
+        needsScopeReauth: false,
+      });
+      mockBuildAuthenticatedClient.mockReturnValue({
+        createTaskRun: createTaskRunMock,
+        appendTaskRunLog: vi.fn(),
       });
 
       mockTrpcAgent.start.mutate.mockResolvedValue({
@@ -333,11 +367,17 @@ describe("SessionService", () => {
     it("creates error session when auth is missing", async () => {
       const service = getSessionService();
 
-      mockAuthStore.useAuthStore.getState.mockReturnValue({
+      mockAuth.fetchAuthState.mockResolvedValue({
+        status: "anonymous",
+        bootstrapComplete: true,
         cloudRegion: null,
         projectId: null,
-        client: null,
-      } as unknown as ReturnType<typeof mockAuthStore.useAuthStore.getState>);
+        availableProjectIds: [],
+        availableOrgIds: [],
+        hasCodeAccess: null,
+        needsScopeReauth: false,
+      });
+      mockBuildAuthenticatedClient.mockReturnValue(null);
 
       await service.connectToTask({
         task: createMockTask(),
@@ -414,13 +454,19 @@ describe("SessionService", () => {
 
       // Setup: create a task run to trigger subscription creation
       const createTaskRunMock = vi.fn().mockResolvedValue({ id: "run-456" });
-      mockAuthStore.useAuthStore.getState.mockReturnValue({
+      mockAuth.fetchAuthState.mockResolvedValue({
+        status: "authenticated",
+        bootstrapComplete: true,
         cloudRegion: "us",
         projectId: 123,
-        client: {
-          createTaskRun: createTaskRunMock,
-          appendTaskRunLog: vi.fn(),
-        },
+        availableProjectIds: [123],
+        availableOrgIds: [],
+        hasCodeAccess: true,
+        needsScopeReauth: false,
+      });
+      mockBuildAuthenticatedClient.mockReturnValue({
+        createTaskRun: createTaskRunMock,
+        appendTaskRunLog: vi.fn(),
       });
       mockTrpcAgent.start.mutate.mockResolvedValue({
         channel: "test-channel",

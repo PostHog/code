@@ -1,11 +1,5 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useAuthenticatedClient as useClient } from "@features/auth/hooks/authClient";
 
 export function useAuthenticatedClient() {
-  const client = useAuthStore((state) => state.client);
-
-  if (!client) {
-    throw new Error("Not authenticated");
-  }
-
-  return client;
+  return useClient();
 }

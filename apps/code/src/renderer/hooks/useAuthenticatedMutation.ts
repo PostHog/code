@@ -1,4 +1,4 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
 import type {
   UseMutationOptions,
@@ -19,7 +19,7 @@ export function useAuthenticatedMutation<
   mutationFn: AuthenticatedMutationFn<TVariables, TData>,
   options?: Omit<UseMutationOptions<TData, TError, TVariables>, "mutationFn">,
 ): UseMutationResult<TData, TError, TVariables> {
-  const client = useAuthStore((state) => state.client);
+  const client = useOptionalAuthenticatedClient();
 
   return useMutation({
     mutationFn: async (variables: TVariables) => {

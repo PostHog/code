@@ -1,8 +1,8 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useAuthenticatedQuery } from "./useAuthenticatedQuery";
 
 export function useProjectQuery() {
-  const projectId = useAuthStore((state) => state.projectId);
+  const projectId = useAuthStateValue((state) => state.projectId);
 
   return useAuthenticatedQuery(
     ["project", projectId],

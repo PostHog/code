@@ -1,4 +1,4 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { fetchAuthState } from "@features/auth/hooks/authQueries";
 import { trpcClient } from "@renderer/trpc";
 import { logger } from "@utils/logger";
 
@@ -41,8 +41,8 @@ Never wrap the title in quotes.`;
 
 export async function generateTitle(content: string): Promise<string | null> {
   try {
-    const authState = useAuthStore.getState();
-    if (!authState.isAuthenticated) return null;
+    const authState = await fetchAuthState();
+    if (authState.status !== "authenticated") return null;
 
     const result = await trpcClient.llmGateway.prompt.mutate({
       system: SYSTEM_PROMPT,

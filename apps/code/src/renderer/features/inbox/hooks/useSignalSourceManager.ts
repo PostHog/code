@@ -1,4 +1,5 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import type { SignalSourceValues } from "@features/inbox/components/SignalSourceToggles";
 import { useAuthenticatedMutation } from "@hooks/useAuthenticatedMutation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -45,8 +46,8 @@ const ALL_SOURCE_PRODUCTS: SourceProduct[] = [
 ];
 
 export function useSignalSourceManager() {
-  const projectId = useAuthStore((s) => s.projectId);
-  const client = useAuthStore((s) => s.client);
+  const projectId = useAuthStateValue((state) => state.projectId);
+  const client = useAuthenticatedClient();
   const queryClient = useQueryClient();
   const { data: configs, isLoading: configsLoading } = useSignalSourceConfigs();
   const { data: externalSources, isLoading: sourcesLoading } =

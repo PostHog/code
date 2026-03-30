@@ -219,9 +219,11 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
   }
 
   async logout(): Promise<AuthState> {
+    const { cloudRegion, projectId } = this.state;
+
     this.authSessionRepository.clearCurrent();
     this.session = null;
-    this.setAnonymousState();
+    this.setAnonymousState({ cloudRegion, projectId });
     return this.getState();
   }
 

@@ -4,9 +4,10 @@ import type {
   SessionConfigOption,
 } from "@agentclientprotocol/sdk";
 import {
-  setSessionResetCallback,
-  useAuthStore,
-} from "@features/auth/stores/authStore";
+  createAuthenticatedClient,
+  getAuthenticatedClient,
+} from "@features/auth/hooks/authClient";
+import { fetchAuthState } from "@features/auth/hooks/authQueries";
 import { useSessionAdapterStore } from "@features/sessions/stores/sessionAdapterStore";
 import {
   getPersistedConfigOptions,
@@ -65,7 +66,7 @@ export const PREVIEW_TASK_ID = "__preview__";
 interface AuthCredentials {
   apiHost: string;
   projectId: number;
-  client: ReturnType<typeof useAuthStore.getState>["client"];
+  client: Awaited<ReturnType<typeof getAuthenticatedClient>>;
 }
 
 export interface ConnectParams {
@@ -101,8 +102,6 @@ export function resetSessionService(): void {
     log.error("Failed to reset all sessions on main process", err);
   });
 }
-
-setSessionResetCallback(resetSessionService);
 
 export class SessionService {
   private connectingTasks = new Map<string, Promise<void>>();
@@ -193,7 +192,7 @@ export class SessionService {
     const taskTitle = task.title || task.description || "Task";
 
     try {
-      const auth = this.getAuthCredentials();
+      const auth = await this.getAuthCredentials();
       if (!auth) {
         log.error("Missing auth credentials");
         const taskRunId = latestRun?.id ?? `error-${taskId}`;
@@ -656,7 +655,7 @@ export class SessionService {
     await this.cleanupPreviewSession();
     if (abort.signal.aborted) return;
 
-    const auth = this.getAuthCredentials();
+    const auth = await this.getAuthCredentials();
     if (!auth) {
       log.info("Skipping preview session - not authenticated");
       return;
@@ -1253,7 +1252,7 @@ export class SessionService {
       return { stopReason: "queued" };
     }
 
-    const auth = this.getCloudCommandAuth();
+    const auth = await this.getCloudCommandAuth();
     if (!auth) {
       throw new Error("Authentication required for cloud commands");
     }
@@ -1384,7 +1383,7 @@ export class SessionService {
     session: AgentSession,
     promptText: string,
   ): Promise<{ stopReason: string }> {
-    const client = useAuthStore.getState().client;
+    const client = await getAuthenticatedClient();
     if (!client) {
       throw new Error("Authentication required for cloud commands");
     }
@@ -1461,7 +1460,7 @@ export class SessionService {
       return false;
     }
 
-    const auth = this.getCloudCommandAuth();
+    const auth = await this.getCloudCommandAuth();
     if (!auth) {
       log.error("No auth for cloud cancel");
       return false;
@@ -1501,11 +1500,11 @@ export class SessionService {
     }
   }
 
-  private getCloudCommandAuth(): {
+  private async getCloudCommandAuth(): Promise<{
     apiHost: string;
     teamId: number;
-  } | null {
-    const authState = useAuthStore.getState();
+  } | null> {
+    const authState = await fetchAuthState();
     if (!authState.cloudRegion || !authState.projectId) return null;
     return {
       apiHost: getCloudUrlFromRegion(authState.cloudRegion),
@@ -1809,7 +1808,7 @@ export class SessionService {
     if (session?.initialPrompt?.length) {
       const { taskTitle, initialPrompt } = session;
       await this.teardownSession(session.taskRunId);
-      const auth = this.getAuthCredentials();
+      const auth = await this.getAuthCredentials();
       if (!auth) {
         throw new Error(
           "Unable to reach server. Please check your connection.",
@@ -1865,7 +1864,7 @@ export class SessionService {
     }
     this.unsubscribeFromChannel(taskRunId);
 
-    const auth = this.getAuthCredentials();
+    const auth = await this.getAuthCredentials();
     if (!auth) {
       throw new Error("Unable to reach server. Please check your connection.");
     }
@@ -1942,21 +1941,20 @@ export class SessionService {
       });
     }
 
-    // Get auth for host info
-    const auth = useAuthStore.getState();
-    if (!auth.projectId || !auth.cloudRegion) {
-      log.warn("No auth for cloud task watcher", { taskId });
-      return () => {};
-    }
+    void fetchAuthState()
+      .then((authState) => {
+        if (!authState.projectId || !authState.cloudRegion) {
+          log.warn("No auth for cloud task watcher", { taskId });
+          return;
+        }
 
-    // Start main-process watcher
-    trpcClient.cloudTask.watch
-      .mutate({
-        taskId,
-        runId,
-        apiHost: getCloudUrlFromRegion(auth.cloudRegion),
-        teamId: auth.projectId,
-        viewing,
+        return trpcClient.cloudTask.watch.mutate({
+          taskId,
+          runId,
+          apiHost: getCloudUrlFromRegion(authState.cloudRegion),
+          teamId: authState.projectId,
+          viewing,
+        });
       })
       .catch((err: unknown) =>
         log.warn("Failed to start cloud task watcher", { taskId, err }),
@@ -2163,13 +2161,13 @@ export class SessionService {
 
   // --- Helper Methods ---
 
-  private getAuthCredentials(): AuthCredentials | null {
-    const authState = useAuthStore.getState();
+  private async getAuthCredentials(): Promise<AuthCredentials | null> {
+    const authState = await fetchAuthState();
     const apiHost = authState.cloudRegion
       ? getCloudUrlFromRegion(authState.cloudRegion)
       : null;
     const projectId = authState.projectId;
-    const client = authState.client;
+    const client = createAuthenticatedClient(authState);
 
     if (!apiHost || !projectId || !client) return null;
     return { apiHost, projectId, client };
@@ -2288,23 +2286,13 @@ export class SessionService {
     // Don't update processedLineCount - it tracks S3 log lines, not local events
     sessionStoreSetters.appendEvents(session.taskRunId, [event]);
 
-    const auth = useAuthStore.getState();
-    if (auth.client) {
+    const client = await getAuthenticatedClient();
+    if (client) {
       try {
-        await auth.client.appendTaskRunLog(taskId, session.taskRunId, [
-          storedEntry,
-        ]);
+        await client.appendTaskRunLog(taskId, session.taskRunId, [storedEntry]);
       } catch (error) {
         log.warn("Failed to persist event to logs", { error });
       }
     }
   }
-}
-
-// Register callback when module loads (not during tests)
-if (typeof window !== "undefined" && !import.meta.env?.VITEST) {
-  setSessionResetCallback(() => {
-    log.info("Auth triggered session reset");
-    resetSessionService();
-  });
 }

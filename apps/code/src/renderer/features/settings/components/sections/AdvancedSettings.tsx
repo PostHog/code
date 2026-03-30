@@ -1,4 +1,4 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { SettingRow } from "@features/settings/components/SettingRow";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
@@ -22,9 +22,7 @@ export function AdvancedSettings() {
         <Button
           variant="soft"
           size="1"
-          onClick={() =>
-            useAuthStore.setState({ hasCompletedOnboarding: false })
-          }
+          onClick={() => useOnboardingStore.getState().resetOnboarding()}
         >
           Reset
         </Button>

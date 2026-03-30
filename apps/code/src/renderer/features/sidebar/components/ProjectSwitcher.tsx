@@ -1,4 +1,8 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import {
+  useLogoutMutation,
+  useSelectProjectMutation,
+} from "@features/auth/hooks/authMutations";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { Command } from "@features/command/components/Command";
 import { useProjects } from "@features/projects/hooks/useProjects";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
@@ -52,9 +56,9 @@ export function ProjectSwitcher() {
       setLearnMoreOpen(false);
     }
   }, [popoverOpen]);
-  const cloudRegion = useAuthStore((s) => s.cloudRegion);
-  const selectProject = useAuthStore((s) => s.selectProject);
-  const logout = useAuthStore((s) => s.logout);
+  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
+  const selectProjectMutation = useSelectProjectMutation();
+  const logoutMutation = useLogoutMutation();
   const {
     groupedProjects,
     currentProject,
@@ -65,7 +69,7 @@ export function ProjectSwitcher() {
 
   const handleProjectSelect = (projectId: number) => {
     if (projectId !== currentProjectId) {
-      selectProject(projectId);
+      selectProjectMutation.mutate(projectId);
     }
     setPopoverOpen(false);
     setDialogOpen(false);
@@ -112,7 +116,7 @@ export function ProjectSwitcher() {
 
   const handleLogout = () => {
     setPopoverOpen(false);
-    logout();
+    logoutMutation.mutate();
   };
 
   return (
