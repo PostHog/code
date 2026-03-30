@@ -2,6 +2,29 @@ import { createGitClient, type GitClient } from "./client";
 import { removeLock, waitForUnlock } from "./lock-detector";
 import { AsyncReaderWriterLock } from "./rw-lock";
 
+/**
+ * Returns process.env with Electron/Chromium variables cleaned so that
+ * child processes spawned by git hooks (e.g. biome via lint-staged) don't
+ * crash trying to initialise GPU subsystems.
+ *
+ * The agent service symlinks `node → Electron binary` and prepends it to
+ * PATH. If ELECTRON_RUN_AS_NODE is missing, that binary starts as a full
+ * Chromium browser (GPU init → SIGTRAP crash). We strip most ELECTRON_/
+ * CHROME_ vars but explicitly keep ELECTRON_RUN_AS_NODE=1 so any such
+ * shim still behaves as plain Node.js.
+ */
+function getCleanEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value === undefined) continue;
+    if (key === "ELECTRON_RUN_AS_NODE") continue;
+    if (key.startsWith("ELECTRON_") || key.startsWith("CHROME_")) continue;
+    env[key] = value;
+  }
+  env.ELECTRON_RUN_AS_NODE = "1";
+  return env;
+}
+
 interface RepoState {
   lock: AsyncReaderWriterLock;
   client: GitClient;
@@ -62,11 +85,11 @@ class GitOperationManagerImpl {
         abortSignal: options.signal,
       });
       return operation(
-        scopedGit.env({ ...process.env, GIT_OPTIONAL_LOCKS: "0" }),
+        scopedGit.env({ ...getCleanEnv(), GIT_OPTIONAL_LOCKS: "0" }),
       );
     }
 
-    const git = state.client.env({ ...process.env, GIT_OPTIONAL_LOCKS: "0" });
+    const git = state.client.env({ ...getCleanEnv(), GIT_OPTIONAL_LOCKS: "0" });
     return operation(git);
   }
 
@@ -93,10 +116,10 @@ class GitOperationManagerImpl {
         const scopedGit = createGitClient(repoPath, {
           abortSignal: options.signal,
         });
-        return await operation(scopedGit.env(process.env));
+        return await operation(scopedGit.env(getCleanEnv()));
       }
 
-      return await operation(state.client.env(process.env));
+      return await operation(state.client.env(getCleanEnv()));
     } catch (error) {
       if (options?.signal?.aborted) {
         await removeLock(repoPath).catch(() => {});
