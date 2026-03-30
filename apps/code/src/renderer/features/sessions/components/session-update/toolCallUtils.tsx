@@ -234,7 +234,9 @@ export function ContentPre({ children }: { children: React.ReactNode }) {
   return (
     <Box className="max-h-64 overflow-auto px-3 py-2">
       <Text asChild size="1" className="text-gray-11">
-        <pre className="m-0 whitespace-pre-wrap break-all">{children}</pre>
+        <pre className="m-0 whitespace-pre-wrap break-all font-mono">
+          {children}
+        </pre>
       </Text>
     </Box>
   );

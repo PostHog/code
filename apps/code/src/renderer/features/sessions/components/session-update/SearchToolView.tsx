@@ -63,7 +63,9 @@ export function SearchToolView({
           isExpandable
           isExpanded={isExpanded}
         />
-        <ToolTitle>{title || "Search"}</ToolTitle>
+        <ToolTitle className="truncate">
+          <span className="font-mono">{title || "Search"}</span>
+        </ToolTitle>
         <ToolTitle className="shrink-0 whitespace-nowrap">
           {resultCount} {resultCount === 1 ? "result" : "results"}
         </ToolTitle>

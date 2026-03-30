@@ -87,7 +87,7 @@ export const FileMentionChip = memo(function FileMentionChip({
     >
       <Text size="1">
         <FileIcon filename={filename} size={12} />
-        {filename}
+        <span className="font-mono">{filename}</span>
       </Text>
     </Flex>
   );
