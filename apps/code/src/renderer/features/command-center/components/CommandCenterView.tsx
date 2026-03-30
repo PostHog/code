@@ -32,9 +32,9 @@ export function CommandCenterView() {
           size="1"
           weight="medium"
           className="truncate whitespace-nowrap text-[13px]"
-          title="Command Center"
+          title="ADHD Mode"
         >
-          Command Center
+          ADHD Mode
         </Text>
       </Flex>
     ),
