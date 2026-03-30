@@ -817,7 +817,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       cwd,
       mcpServers,
       permissionMode,
-      canUseTool: this.createCanUseTool(sessionId),
+      canUseTool: this.createCanUseTool(sessionId, meta?.allowedDomains),
       logger: this.logger,
       systemPrompt,
       userProvidedOptions: meta?.claudeCode?.options,
@@ -978,7 +978,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     return { sessionId, modes, models, configOptions };
   }
 
-  private createCanUseTool(sessionId: string): CanUseTool {
+  private createCanUseTool(
+    sessionId: string,
+    allowedDomains?: string[],
+  ): CanUseTool {
     return async (toolName, toolInput, { suggestions, toolUseID, signal }) =>
       canUseTool({
         session: this.session,
@@ -993,6 +996,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         logger: this.logger,
         updateConfigOption: (configId: string, value: string) =>
           this.updateConfigOption(configId, value),
+        allowedDomains,
       });
   }
 

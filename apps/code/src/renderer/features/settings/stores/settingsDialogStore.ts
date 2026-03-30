@@ -5,6 +5,7 @@ export type SettingsCategory =
   | "account"
   | "workspaces"
   | "worktrees"
+  | "environments"
   | "cloud-environments"
   | "personalization"
   | "claude-code"

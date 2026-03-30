@@ -79,6 +79,10 @@ program
     "--claudeCodeConfig <json>",
     "Claude Code config as JSON (systemPrompt, systemPromptAppend, plugins)",
   )
+  .option(
+    "--allowedDomains <domains>",
+    "Comma-separated list of domains allowed for web tools (WebFetch, WebSearch)",
+  )
   .action(async (options) => {
     const envResult = envSchema.safeParse(process.env);
 
@@ -105,6 +109,13 @@ program
       "--claudeCodeConfig",
     );
 
+    const allowedDomains = options.allowedDomains
+      ? options.allowedDomains
+          .split(",")
+          .map((d: string) => d.trim())
+          .filter(Boolean)
+      : undefined;
+
     const server = new AgentServer({
       port: parseInt(options.port, 10),
       jwtPublicKey: env.JWT_PUBLIC_KEY,
@@ -118,6 +129,7 @@ program
       mcpServers,
       baseBranch: options.baseBranch,
       claudeCode,
+      allowedDomains,
     });
 
     process.on("SIGINT", async () => {

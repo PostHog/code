@@ -107,6 +107,7 @@ export type NewSessionMeta = {
   permissionMode?: string;
   persistence?: { taskId?: string; runId?: string; logUrl?: string };
   additionalRoots?: string[];
+  allowedDomains?: string[];
   claudeCode?: {
     options?: Options;
   };

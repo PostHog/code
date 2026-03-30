@@ -707,6 +707,7 @@ export class AgentServer {
         sessionId: payload.run_id,
         taskRunId: payload.run_id,
         systemPrompt: this.buildSessionSystemPrompt(prUrl),
+        allowedDomains: this.config.allowedDomains,
         ...(this.config.claudeCode?.plugins?.length && {
           claudeCode: {
             options: {
