@@ -10,6 +10,7 @@ export const MAIN_TOKENS = Object.freeze({
 
   // Database
   DatabaseService: Symbol.for("Main.DatabaseService"),
+  AuthSessionRepository: Symbol.for("Main.AuthSessionRepository"),
   RepositoryRepository: Symbol.for("Main.RepositoryRepository"),
   WorkspaceRepository: Symbol.for("Main.WorkspaceRepository"),
   WorktreeRepository: Symbol.for("Main.WorktreeRepository"),
@@ -18,6 +19,7 @@ export const MAIN_TOKENS = Object.freeze({
 
   // Services
   AgentService: Symbol.for("Main.AgentService"),
+  AuthService: Symbol.for("Main.AuthService"),
   AuthProxyService: Symbol.for("Main.AuthProxyService"),
   ArchiveService: Symbol.for("Main.ArchiveService"),
   SuspensionService: Symbol.for("Main.SuspensionService"),

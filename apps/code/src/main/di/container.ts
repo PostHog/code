@@ -2,6 +2,7 @@ import "reflect-metadata";
 
 import { Container } from "inversify";
 import { ArchiveRepository } from "../db/repositories/archive-repository";
+import { AuthSessionRepository } from "../db/repositories/auth-session-repository";
 import { RepositoryRepository } from "../db/repositories/repository-repository";
 import { SuspensionRepositoryImpl } from "../db/repositories/suspension-repository";
 import { WorkspaceRepository } from "../db/repositories/workspace-repository";
@@ -10,6 +11,7 @@ import { DatabaseService } from "../db/service";
 import { AgentService } from "../services/agent/service";
 import { AppLifecycleService } from "../services/app-lifecycle/service";
 import { ArchiveService } from "../services/archive/service";
+import { AuthService } from "../services/auth/service";
 import { AuthProxyService } from "../services/auth-proxy/service";
 import { CloudTaskService } from "../services/cloud-task/service";
 import { ConnectivityService } from "../services/connectivity/service";
@@ -49,12 +51,14 @@ export const container = new Container({
 });
 
 container.bind(MAIN_TOKENS.DatabaseService).to(DatabaseService);
+container.bind(MAIN_TOKENS.AuthSessionRepository).to(AuthSessionRepository);
 container.bind(MAIN_TOKENS.RepositoryRepository).to(RepositoryRepository);
 container.bind(MAIN_TOKENS.WorkspaceRepository).to(WorkspaceRepository);
 container.bind(MAIN_TOKENS.WorktreeRepository).to(WorktreeRepository);
 container.bind(MAIN_TOKENS.ArchiveRepository).to(ArchiveRepository);
 container.bind(MAIN_TOKENS.SuspensionRepository).to(SuspensionRepositoryImpl);
 container.bind(MAIN_TOKENS.AgentService).to(AgentService);
+container.bind(MAIN_TOKENS.AuthService).to(AuthService);
 container.bind(MAIN_TOKENS.AuthProxyService).to(AuthProxyService);
 container.bind(MAIN_TOKENS.ArchiveService).to(ArchiveService);
 container.bind(MAIN_TOKENS.SuspensionService).to(SuspensionService);

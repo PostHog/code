@@ -1,27 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const mockGetState = vi.hoisted(() => ({ query: vi.fn() }));
+const mockOnStateChangedSubscribe = vi.hoisted(() => vi.fn());
+const mockGetValidAccessToken = vi.hoisted(() => ({ query: vi.fn() }));
+const mockRefreshAccessToken = vi.hoisted(() => ({ mutate: vi.fn() }));
+const mockLogin = vi.hoisted(() => ({ mutate: vi.fn() }));
+const mockSignup = vi.hoisted(() => ({ mutate: vi.fn() }));
+const mockSelectProject = vi.hoisted(() => ({ mutate: vi.fn() }));
+const mockRedeemInviteCode = vi.hoisted(() => ({ mutate: vi.fn() }));
+const mockLogout = vi.hoisted(() => ({ mutate: vi.fn() }));
 const mockGetCurrentUser = vi.fn();
-
-const { getItem, setItem } = vi.hoisted(() => ({
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-}));
-
-const mockRefreshToken = vi.hoisted(() => ({ mutate: vi.fn() }));
-const mockStartFlow = vi.hoisted(() => ({ mutate: vi.fn() }));
-const mockStartSignupFlow = vi.hoisted(() => ({ mutate: vi.fn() }));
 
 vi.mock("@renderer/trpc/client", () => ({
   trpcClient: {
-    secureStore: {
-      getItem: { query: getItem },
-      setItem: { query: setItem },
-      removeItem: { query: vi.fn() },
-    },
-    oauth: {
-      refreshToken: mockRefreshToken,
-      startFlow: mockStartFlow,
-      startSignupFlow: mockStartSignupFlow,
+    auth: {
+      getState: mockGetState,
+      onStateChanged: { subscribe: mockOnStateChangedSubscribe },
+      getValidAccessToken: mockGetValidAccessToken,
+      refreshAccessToken: mockRefreshAccessToken,
+      login: mockLogin,
+      signup: mockSignup,
+      selectProject: mockSelectProject,
+      redeemInviteCode: mockRedeemInviteCode,
+      logout: mockLogout,
     },
     agent: {
       updateToken: { mutate: vi.fn().mockResolvedValue(undefined) },
@@ -36,13 +37,19 @@ vi.mock("@renderer/trpc/client", () => ({
   },
 }));
 
+vi.mock("@renderer/api/posthogClient", () => ({
+  PostHogAPIClient: vi.fn().mockImplementation(function (
+    this: Record<string, unknown>,
+  ) {
+    this.getCurrentUser = mockGetCurrentUser;
+    this.setTeamId = vi.fn();
+  }),
+}));
+
 vi.mock("@utils/analytics", () => ({
   identifyUser: vi.fn(),
   resetUser: vi.fn(),
   track: vi.fn(),
-  isFeatureFlagEnabled: vi.fn().mockReturnValue(false),
-  onFeatureFlagsLoaded: vi.fn(),
-  reloadFeatureFlags: vi.fn(),
 }));
 
 vi.mock("@utils/logger", () => ({
@@ -64,49 +71,53 @@ vi.mock("@utils/queryClient", () => ({
   },
 }));
 
-vi.mock("@renderer/api/posthogClient", () => ({
-  PostHogAPIClient: vi.fn().mockImplementation(function (
-    this: Record<string, unknown>,
-  ) {
-    this.getCurrentUser = mockGetCurrentUser;
-    this.setTeamId = vi.fn();
-  }),
-}));
-
 vi.mock("@stores/navigationStore", () => ({
   useNavigationStore: {
     getState: () => ({ navigateToTaskInput: vi.fn() }),
   },
 }));
 
-import { OAUTH_SCOPE_VERSION } from "@shared/constants/oauth";
-import { useAuthStore } from "./authStore";
+import { resetAuthStoreModuleStateForTest, useAuthStore } from "./authStore";
 
-function makeStoredTokens(overrides: Record<string, unknown> = {}) {
-  return {
-    accessToken: "test-access-token",
-    refreshToken: "test-refresh-token",
-    expiresAt: Date.now() + 3600 * 1000,
-    cloudRegion: "us" as const,
-    scopedTeams: [1],
-    scopeVersion: OAUTH_SCOPE_VERSION,
-    ...overrides,
-  };
-}
-
-const mockUser = {
-  distinct_id: "user-123",
-  email: "test@example.com",
-  uuid: "uuid-123",
-  team: { id: 1 },
+const authenticatedState = {
+  status: "authenticated" as const,
+  bootstrapComplete: true,
+  cloudRegion: "us" as const,
+  projectId: 1,
+  availableProjectIds: [1, 2],
+  availableOrgIds: ["org-1"],
+  hasCodeAccess: true,
+  needsScopeReauth: false,
 };
 
-describe("authStore - scope version", () => {
+describe("authStore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getItem.mockResolvedValue(null);
-    setItem.mockResolvedValue(undefined);
-    mockGetCurrentUser.mockResolvedValue(mockUser);
+    resetAuthStoreModuleStateForTest();
+    mockGetCurrentUser.mockResolvedValue({
+      distinct_id: "user-123",
+      email: "test@example.com",
+      uuid: "uuid-123",
+    });
+    mockGetValidAccessToken.query.mockResolvedValue({
+      accessToken: "test-access-token",
+      apiHost: "https://us.posthog.com",
+    });
+    mockRefreshAccessToken.mutate.mockResolvedValue({
+      accessToken: "fresh-access-token",
+      apiHost: "https://us.posthog.com",
+    });
+    mockGetState.query.mockResolvedValue({
+      status: "anonymous",
+      bootstrapComplete: true,
+      cloudRegion: null,
+      projectId: null,
+      availableProjectIds: [],
+      availableOrgIds: [],
+      hasCodeAccess: null,
+      needsScopeReauth: false,
+    });
+    mockOnStateChangedSubscribe.mockReturnValue({ unsubscribe: vi.fn() });
 
     useAuthStore.setState({
       oauthAccessToken: null,
@@ -122,135 +133,42 @@ describe("authStore - scope version", () => {
       availableOrgIds: [],
       needsProjectSelection: false,
       needsScopeReauth: false,
+      hasCodeAccess: null,
+      hasCompletedOnboarding: false,
+      selectedPlan: null,
+      selectedOrgId: null,
     });
   });
 
-  describe("initializeOAuth", () => {
-    async function initializeWithTokens(
-      tokenOverrides: Record<string, unknown>,
-    ) {
-      const tokens = makeStoredTokens(tokenOverrides);
-      useAuthStore.setState({ storedTokens: tokens });
-      // Ensure hasHydrated returns true
-      await useAuthStore.persist.rehydrate();
-      return useAuthStore.getState().initializeOAuth();
-    }
+  it("initializes from main auth state", async () => {
+    mockGetState.query.mockResolvedValue(authenticatedState);
 
-    it("sets needsScopeReauth when scopeVersion is missing (treated as 0)", async () => {
-      const result = await initializeWithTokens({ scopeVersion: undefined });
+    const result = await useAuthStore.getState().initializeOAuth();
 
-      expect(result).toBe(true);
-      expect(useAuthStore.getState().needsScopeReauth).toBe(true);
-      expect(useAuthStore.getState().isAuthenticated).toBe(true);
-      expect(useAuthStore.getState().cloudRegion).toBe("us");
-      expect(useAuthStore.getState().storedTokens).not.toBeNull();
-      // Should NOT create a client or call getCurrentUser — early return avoids
-      // racing with loginWithOAuth when the user clicks Sign In.
-      expect(mockGetCurrentUser).not.toHaveBeenCalled();
-      expect(useAuthStore.getState().client).toBeNull();
-    });
-
-    it("sets needsScopeReauth when scopeVersion is less than OAUTH_SCOPE_VERSION", async () => {
-      const result = await initializeWithTokens({
-        scopeVersion: OAUTH_SCOPE_VERSION - 1,
-      });
-
-      expect(result).toBe(true);
-      expect(useAuthStore.getState().needsScopeReauth).toBe(true);
-      expect(useAuthStore.getState().isAuthenticated).toBe(true);
-      expect(useAuthStore.getState().cloudRegion).toBe("us");
-      expect(useAuthStore.getState().storedTokens).not.toBeNull();
-      expect(mockGetCurrentUser).not.toHaveBeenCalled();
-      expect(useAuthStore.getState().client).toBeNull();
-    });
-
-    it("does not set needsScopeReauth when scopeVersion matches", async () => {
-      const result = await initializeWithTokens({
-        scopeVersion: OAUTH_SCOPE_VERSION,
-      });
-
-      expect(result).toBe(true);
-      expect(useAuthStore.getState().needsScopeReauth).toBe(false);
-      expect(useAuthStore.getState().isAuthenticated).toBe(true);
-      expect(useAuthStore.getState().storedTokens).not.toBeNull();
-    });
+    expect(result).toBe(true);
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(useAuthStore.getState().projectId).toBe(1);
+    expect(useAuthStore.getState().oauthAccessToken).toBe("test-access-token");
   });
 
-  describe("loginWithOAuth", () => {
-    it("clears needsScopeReauth after successful login", async () => {
-      useAuthStore.setState({ needsScopeReauth: true });
+  it("logs in through the main auth service", async () => {
+    mockLogin.mutate.mockResolvedValue({ state: authenticatedState });
+    mockGetState.query.mockResolvedValue(authenticatedState);
 
-      mockStartFlow.mutate.mockResolvedValue({
-        success: true,
-        data: {
-          access_token: "new-access-token",
-          refresh_token: "new-refresh-token",
-          expires_in: 3600,
-          scoped_teams: [1],
-          scoped_organizations: ["org-1"],
-        },
-      });
+    await useAuthStore.getState().loginWithOAuth("us");
 
-      await useAuthStore.getState().loginWithOAuth("us");
-
-      expect(useAuthStore.getState().needsScopeReauth).toBe(false);
-      expect(useAuthStore.getState().isAuthenticated).toBe(true);
-    });
+    expect(mockLogin.mutate).toHaveBeenCalledWith({ region: "us" });
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(useAuthStore.getState().needsScopeReauth).toBe(false);
   });
 
-  describe("refreshAccessToken", () => {
-    it("preserves existing scopeVersion on refreshed tokens", async () => {
-      const staleVersion = OAUTH_SCOPE_VERSION - 1;
-      useAuthStore.setState({
-        oauthAccessToken: "old-token",
-        oauthRefreshToken: "old-refresh-token",
-        cloudRegion: "us",
-        storedTokens: makeStoredTokens({ scopeVersion: staleVersion }),
-        isAuthenticated: true,
-      });
+  it("deduplicates expensive renderer auth sync for repeated auth-state events", async () => {
+    mockGetState.query.mockResolvedValue(authenticatedState);
 
-      mockRefreshToken.mutate.mockResolvedValue({
-        success: true,
-        data: {
-          access_token: "new-access-token",
-          refresh_token: "new-refresh-token",
-          expires_in: 3600,
-          scoped_teams: [1],
-        },
-      });
+    await useAuthStore.getState().initializeOAuth();
+    await useAuthStore.getState().checkCodeAccess();
 
-      await useAuthStore.getState().refreshAccessToken();
-
-      const tokens = useAuthStore.getState().storedTokens;
-      expect(tokens).not.toBeNull();
-      expect(tokens?.scopeVersion).toBe(staleVersion);
-      expect(tokens?.accessToken).toBe("new-access-token");
-    });
-
-    it("defaults scopeVersion to 0 when storedTokens is null", async () => {
-      useAuthStore.setState({
-        oauthAccessToken: "old-token",
-        oauthRefreshToken: "old-refresh-token",
-        cloudRegion: "us",
-        storedTokens: null,
-        isAuthenticated: true,
-      });
-
-      mockRefreshToken.mutate.mockResolvedValue({
-        success: true,
-        data: {
-          access_token: "new-access-token",
-          refresh_token: "new-refresh-token",
-          expires_in: 3600,
-          scoped_teams: [1],
-        },
-      });
-
-      await useAuthStore.getState().refreshAccessToken();
-
-      const tokens = useAuthStore.getState().storedTokens;
-      expect(tokens).not.toBeNull();
-      expect(tokens?.scopeVersion).toBe(0);
-    });
+    expect(mockGetCurrentUser).toHaveBeenCalledTimes(1);
+    expect(mockGetValidAccessToken.query).toHaveBeenCalledTimes(1);
   });
 });

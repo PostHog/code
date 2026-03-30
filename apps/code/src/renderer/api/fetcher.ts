@@ -3,11 +3,9 @@ import type { createApiClient } from "./generated";
 const USER_AGENT = `posthog/desktop.hog.dev; version: ${typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "unknown"}`;
 
 export const buildApiFetcher: (config: {
-  apiToken: string;
-  onTokenRefresh?: () => Promise<string>;
+  getAccessToken: () => Promise<string>;
+  refreshAccessToken: () => Promise<string>;
 }) => Parameters<typeof createApiClient>[0] = (config) => {
-  let currentToken = config.apiToken;
-
   const makeRequest = async (
     input: Parameters<Parameters<typeof createApiClient>[0]["fetch"]>[0],
     token: string,
@@ -56,16 +54,16 @@ export const buildApiFetcher: (config: {
 
   return {
     fetch: async (input) => {
-      let response = await makeRequest(input, currentToken);
+      let response = await makeRequest(input, await config.getAccessToken());
 
-      // Handle 401 with automatic token refresh
-      if (!response.ok && response.status === 401 && config.onTokenRefresh) {
+      // Retry once on 401 after asking main for a fresh valid token again.
+      if (!response.ok && response.status === 401) {
         try {
-          const newToken = await config.onTokenRefresh();
-          currentToken = newToken;
-          response = await makeRequest(input, currentToken);
+          response = await makeRequest(
+            input,
+            await config.refreshAccessToken(),
+          );
         } catch {
-          // Token refresh failed - throw the original 401 error
           const errorResponse = await response.json();
           throw new Error(
             `Failed request: [${response.status}] ${JSON.stringify(errorResponse)}`,
