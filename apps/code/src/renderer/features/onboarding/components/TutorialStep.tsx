@@ -440,7 +440,7 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
           <ArrowLeft size={14} />
           Back
         </Button>
-        <Button size="2" variant="ghost" color="gray" onClick={onComplete}>
+        <Button size="2" onClick={onComplete}>
           Skip tutorial
         </Button>
       </Flex>

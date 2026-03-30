@@ -28,13 +28,13 @@ function EmptyCell({ cellIndex }: { cellIndex: number }) {
           <button
             type="button"
             onClick={() => setSelectorOpen(true)}
-            className="flex items-center gap-1.5 rounded-md border border-gray-7 border-dashed px-3 py-1.5 font-mono text-[11px] text-gray-10 transition-colors hover:border-gray-9 hover:text-gray-12"
+            className="flex items-center gap-1.5 rounded-md border border-gray-7 border-dashed px-3 py-1.5 text-[12px] text-gray-10 transition-colors hover:border-gray-9 hover:text-gray-12"
           >
             <Plus size={12} />
             Add task
           </button>
         </TaskSelector>
-        <Text size="1" className="font-mono text-[10px] text-gray-9">
+        <Text size="1" className="text-[11px] text-gray-9">
           or drag a task from the sidebar
         </Text>
       </Flex>
@@ -72,7 +72,7 @@ function PopulatedCell({
         <Text
           size="1"
           weight="medium"
-          className="min-w-0 flex-1 truncate font-mono text-[11px]"
+          className="min-w-0 flex-1 truncate text-[12px]"
           title={cell.task.title}
         >
           {cell.task.title}
@@ -80,7 +80,7 @@ function PopulatedCell({
         <Flex align="center" gap="1" className="shrink-0">
           <StatusBadge status={cell.status} />
           {cell.repoName && (
-            <span className="rounded bg-gray-3 px-1 py-0.5 font-mono text-[9px] text-gray-10">
+            <span className="rounded bg-gray-3 px-1 py-0.5 text-[9px] text-gray-10">
               {cell.repoName}
             </span>
           )}

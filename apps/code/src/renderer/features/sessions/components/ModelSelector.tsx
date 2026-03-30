@@ -64,7 +64,7 @@ export function ModelSelector({
       <Select.Trigger
         variant="ghost"
         style={{
-          fontSize: "var(--font-size-1)",
+          fontSize: "12px",
           color: "var(--gray-11)",
           padding: "4px 8px",
           marginLeft: "4px",
@@ -72,9 +72,7 @@ export function ModelSelector({
           minHeight: "unset",
         }}
       >
-        <Text size="1" style={{ fontFamily: "var(--font-mono)" }}>
-          {currentLabel}
-        </Text>
+        <Text style={{ fontSize: "12px" }}>{currentLabel}</Text>
       </Select.Trigger>
       <Select.Content position="popper" sideOffset={4}>
         {groupedOptions.length > 0

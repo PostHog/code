@@ -25,7 +25,7 @@ export function InviteCodeScreen() {
   const errorMessage = redeemMutation.error?.message ?? null;
 
   return (
-    <Theme appearance="light" accentColor="orange">
+    <Theme appearance="light" accentColor="orange" radius="medium">
       <Flex height="100vh" style={{ position: "relative", overflow: "hidden" }}>
         <DraggableTitleBar />
 

@@ -1,6 +1,6 @@
 import { useTaskViewed } from "@features/sidebar/hooks/useTaskViewed";
 import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
-import { SquaresFour } from "@phosphor-icons/react";
+import { Lightning } from "@phosphor-icons/react";
 import { Box, Flex, Text } from "@radix-ui/themes";
 import { useEffect, useMemo } from "react";
 import { useCommandCenterData } from "../hooks/useCommandCenterData";
@@ -27,11 +27,11 @@ export function CommandCenterView() {
   const headerContent = useMemo(
     () => (
       <Flex align="center" gap="2" className="w-full min-w-0">
-        <SquaresFour size={12} className="shrink-0 text-gray-10" />
+        <Lightning size={12} className="shrink-0 text-gray-10" />
         <Text
           size="1"
           weight="medium"
-          className="truncate whitespace-nowrap font-mono text-[12px]"
+          className="truncate whitespace-nowrap text-[13px]"
           title="Command Center"
         >
           Command Center

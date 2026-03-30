@@ -1,4 +1,6 @@
 import type {
+  SandboxEnvironment,
+  SandboxEnvironmentInput,
   SignalReportArtefact,
   SignalReportArtefactsResponse,
   SignalReportSignalsResponse,
@@ -504,6 +506,7 @@ export class PostHogAPIClient {
     taskId: string,
     branch?: string | null,
     resumeOptions?: { resumeFromRunId: string; pendingUserMessage: string },
+    sandboxEnvironmentId?: string,
   ): Promise<Task> {
     const teamId = await this.getTeamId();
     const body: Record<string, unknown> = { mode: "interactive" };
@@ -513,6 +516,9 @@ export class PostHogAPIClient {
     if (resumeOptions) {
       body.resume_from_run_id = resumeOptions.resumeFromRunId;
       body.pending_user_message = resumeOptions.pendingUserMessage;
+    }
+    if (sandboxEnvironmentId) {
+      body.sandbox_environment_id = sandboxEnvironmentId;
     }
 
     const data = await this.api.post(
@@ -1162,6 +1168,91 @@ export class PostHogAPIClient {
     } catch (error) {
       log.warn(`Error checking feature flag "${flagKey}":`, error);
       return false;
+    }
+  }
+
+  // Sandbox Environments
+
+  async listSandboxEnvironments(): Promise<SandboxEnvironment[]> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/sandbox_environments/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: `/api/projects/${teamId}/sandbox_environments/`,
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch sandbox environments: ${response.statusText}`,
+      );
+    }
+    const data = await response.json();
+    return (data.results ?? data) as SandboxEnvironment[];
+  }
+
+  async createSandboxEnvironment(
+    input: SandboxEnvironmentInput,
+  ): Promise<SandboxEnvironment> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/sandbox_environments/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/sandbox_environments/`,
+      overrides: {
+        body: JSON.stringify(input),
+      },
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Failed to create sandbox environment: ${response.statusText}`,
+      );
+    }
+    return (await response.json()) as SandboxEnvironment;
+  }
+
+  async updateSandboxEnvironment(
+    id: string,
+    input: Partial<SandboxEnvironmentInput>,
+  ): Promise<SandboxEnvironment> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/sandbox_environments/${id}/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "patch",
+      url,
+      path: `/api/projects/${teamId}/sandbox_environments/${id}/`,
+      overrides: {
+        body: JSON.stringify(input),
+      },
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Failed to update sandbox environment: ${response.statusText}`,
+      );
+    }
+    return (await response.json()) as SandboxEnvironment;
+  }
+
+  async deleteSandboxEnvironment(id: string): Promise<void> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/sandbox_environments/${id}/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "delete",
+      url,
+      path: `/api/projects/${teamId}/sandbox_environments/${id}/`,
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Failed to delete sandbox environment: ${response.statusText}`,
+      );
     }
   }
 }

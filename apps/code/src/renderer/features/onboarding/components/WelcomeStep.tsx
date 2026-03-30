@@ -7,7 +7,7 @@ import {
   Stack,
 } from "@phosphor-icons/react";
 import { Button, Flex } from "@radix-ui/themes";
-import phWordmark from "@renderer/assets/images/wordmark.svg";
+import codeLogo from "@renderer/assets/images/code.svg";
 import { FeatureListItem } from "./FeatureListItem";
 
 interface WelcomeStepProps {
@@ -62,10 +62,10 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
       >
         <Flex direction="column" gap="3" mb="4">
           <img
-            src={phWordmark}
-            alt="PostHog"
+            src={codeLogo}
+            alt="PostHog Code"
             style={{
-              height: "40px",
+              height: "24px",
               objectFit: "contain",
               alignSelf: "flex-start",
             }}
@@ -87,13 +87,13 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
               />
             ))}
           </Flex>
-        </Flex>
 
-        <Flex gap="3" align="center" flexShrink="0" mt="4">
-          <Button size="3" onClick={onNext}>
-            Get Started
-            <ArrowRight size={16} />
-          </Button>
+          <Flex gap="3" align="center" flexShrink="0" mt="6">
+            <Button size="2" onClick={onNext}>
+              Get started
+              <ArrowRight size={16} />
+            </Button>
+          </Flex>
         </Flex>
       </Flex>
     </Flex>

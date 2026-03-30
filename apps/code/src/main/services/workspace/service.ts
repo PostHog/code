@@ -446,8 +446,8 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     let worktree: WorktreeInfo;
 
     try {
-      const defaultBranch = await getDefaultBranch(mainRepoPath).catch(
-        () => "main",
+      const defaultBranch = await getDefaultBranch(mainRepoPath).catch(() =>
+        getCurrentBranch(mainRepoPath).then((b) => b ?? "main"),
       );
       const selectedBranch = branch ?? defaultBranch;
       const isTrunkSelected = selectedBranch === defaultBranch;

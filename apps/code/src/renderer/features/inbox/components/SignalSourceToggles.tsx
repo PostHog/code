@@ -117,7 +117,7 @@ export function SignalSourceToggles({
       <SignalSourceToggleCard
         icon={<VideoIcon size={20} />}
         label="Session replay"
-        description="Let PostHog watch session recordings for you, and spot UX issues."
+        description="Allow PostHog to watch session recordings for you, and spot UX issues."
         checked={value.session_replay}
         onCheckedChange={(checked) =>
           onChange({ ...value, session_replay: checked })
@@ -127,7 +127,7 @@ export function SignalSourceToggles({
       <SignalSourceToggleCard
         icon={<BrainIcon size={20} />}
         label="LLM analytics"
-        description="Let PostHog evaluate live LLM traces for you, and flag anomalies."
+        description="Allow PostHog to evaluate live LLM traces for you, and flag anomalies."
         checked={value.llm_analytics}
         onCheckedChange={(checked) =>
           onChange({ ...value, llm_analytics: checked })
@@ -137,7 +137,7 @@ export function SignalSourceToggles({
       <SignalSourceToggleCard
         icon={<GithubLogoIcon size={20} />}
         label="GitHub"
-        description="Let PostHog read GitHub issues for you, and highlight what needs attention."
+        description="Allow PostHog to read GitHub issues for you, and highlight what needs attention."
         checked={value.github}
         onCheckedChange={(checked) => onChange({ ...value, github: checked })}
         disabled={disabled}
@@ -148,7 +148,7 @@ export function SignalSourceToggles({
       <SignalSourceToggleCard
         icon={<KanbanIcon size={20} />}
         label="Linear"
-        description="Let PostHog read Linear issues for you, and pick out priorities."
+        description="Allow PostHog to read Linear issues for you, and pick out priorities."
         checked={value.linear}
         onCheckedChange={(checked) => onChange({ ...value, linear: checked })}
         disabled={disabled}
@@ -159,7 +159,7 @@ export function SignalSourceToggles({
       <SignalSourceToggleCard
         icon={<TicketIcon size={20} />}
         label="Zendesk"
-        description="Let PostHog investigate support tickets for you, and find follow-ups."
+        description="Allow PostHog to investigate support tickets for you, and find follow-ups."
         checked={value.zendesk}
         onCheckedChange={(checked) => onChange({ ...value, zendesk: checked })}
         disabled={disabled}

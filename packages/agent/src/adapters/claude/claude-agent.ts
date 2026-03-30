@@ -66,6 +66,7 @@ import {
   DEFAULT_MODEL,
   getEffortOptions,
   resolveModelPreference,
+  supports1MContext,
   toSdkModelId,
 } from "./session/models";
 import {
@@ -87,7 +88,7 @@ import type {
   ToolUseCache,
 } from "./types";
 
-const SESSION_VALIDATION_TIMEOUT_MS = 10_000;
+const SESSION_VALIDATION_TIMEOUT_MS = 30_000;
 const MAX_TITLE_LENGTH = 256;
 const LOCAL_ONLY_COMMANDS = new Set(["/context", "/heapdump", "/extra-usage"]);
 
@@ -817,7 +818,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       cwd,
       mcpServers,
       permissionMode,
-      canUseTool: this.createCanUseTool(sessionId),
+      canUseTool: this.createCanUseTool(sessionId, meta?.allowedDomains),
       logger: this.logger,
       systemPrompt,
       userProvidedOptions: meta?.claudeCode?.options,
@@ -932,6 +933,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       await this.session.query.setModel(resolvedSdkModel);
     }
 
+    if (supports1MContext(resolvedModelId)) {
+      options.betas = ["context-1m-2025-08-07"];
+    }
+
     const availableModes = getAvailableModes();
     const modes: SessionModeState = {
       currentModeId: permissionMode,
@@ -978,7 +983,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     return { sessionId, modes, models, configOptions };
   }
 
-  private createCanUseTool(sessionId: string): CanUseTool {
+  private createCanUseTool(
+    sessionId: string,
+    allowedDomains?: string[],
+  ): CanUseTool {
     return async (toolName, toolInput, { suggestions, toolUseID, signal }) =>
       canUseTool({
         session: this.session,
@@ -993,6 +1001,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         logger: this.logger,
         updateConfigOption: (configId: string, value: string) =>
           this.updateConfigOption(configId, value),
+        allowedDomains,
       });
   }
 

@@ -55,11 +55,18 @@ function fixFilenameCircularRef(): Plugin {
   };
 }
 
+let claudeCliCopied = false;
+
 function copyClaudeExecutable(): Plugin {
   return {
     name: "copy-claude-executable",
     writeBundle() {
       const destDir = join(__dirname, ".vite/build/claude-cli");
+
+      // Skip re-copying on subsequent HMR rebuilds
+      if (claudeCliCopied && existsSync(join(destDir, "cli.js"))) {
+        return;
+      }
 
       if (!existsSync(destDir)) {
         mkdirSync(destDir, { recursive: true });
@@ -96,6 +103,7 @@ function copyClaudeExecutable(): Plugin {
           if (existsSync(vendorDir)) {
             cpSync(vendorDir, join(destDir, "vendor"), { recursive: true });
           }
+          claudeCliCopied = true;
           return;
         }
       }
@@ -121,6 +129,7 @@ function copyClaudeExecutable(): Plugin {
         console.log(
           "Assembled Claude CLI from workspace sources in claude-cli/ subdirectory",
         );
+        claudeCliCopied = true;
         return;
       }
 
@@ -326,6 +335,8 @@ const PLUGIN_ALLOW_LIST = [
   "hooks",
 ];
 
+let remoteSkillsFetched = false;
+
 function copyPosthogPlugin(isDev: boolean): Plugin {
   const sourceDir = join(__dirname, "../../plugins/posthog");
   const localSkillsDir = join(sourceDir, "local-skills");
@@ -366,10 +377,14 @@ function copyPosthogPlugin(isDev: boolean): Plugin {
       }
 
       // 2. Download and overlay remote skills (overrides same-named shipped skills)
-      await downloadAndExtractSkills(destSkillsDir);
+      // Skip re-downloading on subsequent HMR rebuilds
+      if (!remoteSkillsFetched) {
+        await downloadAndExtractSkills(destSkillsDir);
 
-      // 2b. Download and overlay context-mill omnibus skills (overrides same-named skills)
-      await downloadAndExtractContextMillSkills(destSkillsDir);
+        // 2b. Download and overlay context-mill omnibus skills (overrides same-named skills)
+        await downloadAndExtractContextMillSkills(destSkillsDir);
+        remoteSkillsFetched = true;
+      }
 
       // 3. In dev mode: overlay local-skills (overrides both shipped and remote)
       if (isDev && existsSync(localSkillsDir)) {
@@ -409,11 +424,18 @@ function copyDrizzleMigrations(): Plugin {
   };
 }
 
+let codexAcpCopied = false;
+
 function copyCodexAcpBinaries(): Plugin {
   return {
     name: "copy-codex-acp-binaries",
     writeBundle() {
       const destDir = join(__dirname, ".vite/build/codex-acp");
+
+      // Skip re-copying on subsequent HMR rebuilds
+      if (codexAcpCopied && existsSync(destDir)) {
+        return;
+      }
 
       if (!existsSync(destDir)) {
         mkdirSync(destDir, { recursive: true });
@@ -452,6 +474,7 @@ function copyCodexAcpBinaries(): Plugin {
           );
         }
       }
+      codexAcpCopied = true;
     },
   };
 }

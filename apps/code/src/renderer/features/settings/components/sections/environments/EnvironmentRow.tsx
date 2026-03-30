@@ -31,7 +31,7 @@ export function EnvironmentRow({
         <Text size="1" truncate>
           {environment.name}
         </Text>
-        <Text size="1" color="gray" truncate className="text-[11px]">
+        <Text size="1" color="gray" truncate className="text-[12px]">
           {filename}
         </Text>
       </Flex>

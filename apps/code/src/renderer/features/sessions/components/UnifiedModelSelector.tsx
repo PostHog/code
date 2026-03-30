@@ -95,9 +95,7 @@ export function UnifiedModelSelector({
         style={triggerStyle}
       >
         <Spinner size={12} className="animate-spin" />
-        <Text size="1" style={{ fontFamily: "var(--font-mono)" }}>
-          Loading...
-        </Text>
+        <Text size="1">Loading...</Text>
       </Button>
     );
   }
@@ -132,9 +130,7 @@ export function UnifiedModelSelector({
           >
             {ADAPTER_ICONS[adapter]}
           </Flex>
-          <Text size="1" style={{ fontFamily: "var(--font-mono)" }}>
-            {currentLabel ?? "Model"}
-          </Text>
+          <Text size="1">{currentLabel ?? "Model"}</Text>
         </Button>
       </DropdownMenu.Trigger>
 

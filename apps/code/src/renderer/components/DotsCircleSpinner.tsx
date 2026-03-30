@@ -1,7 +1,37 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const INTERVAL = 80;
+
+let globalFrameIndex = 0;
+let subscriberCount = 0;
+let globalTimer: ReturnType<typeof setInterval> | null = null;
+const listeners = new Set<() => void>();
+
+function subscribe(callback: () => void) {
+  listeners.add(callback);
+  subscriberCount++;
+  if (subscriberCount === 1) {
+    globalTimer = setInterval(() => {
+      globalFrameIndex = (globalFrameIndex + 1) % FRAMES.length;
+      for (const listener of listeners) {
+        listener();
+      }
+    }, INTERVAL);
+  }
+  return () => {
+    listeners.delete(callback);
+    subscriberCount--;
+    if (subscriberCount === 0 && globalTimer) {
+      clearInterval(globalTimer);
+      globalTimer = null;
+    }
+  };
+}
+
+function getSnapshot() {
+  return globalFrameIndex;
+}
 
 interface DotsCircleSpinnerProps {
   size?: number;
@@ -12,15 +42,7 @@ export function DotsCircleSpinner({
   size = 12,
   className,
 }: DotsCircleSpinnerProps) {
-  const [frameIndex, setFrameIndex] = useState(0);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setFrameIndex((prev) => (prev + 1) % FRAMES.length);
-    }, INTERVAL);
-
-    return () => clearInterval(timer);
-  }, []);
+  const frameIndex = useSyncExternalStore(subscribe, getSnapshot);
 
   return (
     <span

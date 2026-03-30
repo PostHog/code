@@ -161,29 +161,33 @@
 .radix-themes {
   /* Font families */
   --default-font-family:
-    "Berkeley Mono", "JetBrains Mono", "Monaco", "Menlo", "Ubuntu Mono",
-    "Courier New", monospace;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   --heading-font-family:
-    "Berkeley Mono", "JetBrains Mono", "Monaco", "Menlo", "Ubuntu Mono",
-    "Courier New", monospace;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   --code-font-family:
     "Berkeley Mono", "JetBrains Mono", "Monaco", "Menlo", "Ubuntu Mono",
     "Courier New", monospace;
   --strong-font-family:
-    "Berkeley Mono", "JetBrains Mono", "Monaco", "Menlo", "Ubuntu Mono",
-    "Courier New", monospace;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   --em-font-family:
-    "Berkeley Mono", "JetBrains Mono", "Monaco", "Menlo", "Ubuntu Mono",
-    "Courier New", monospace;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   --quote-font-family:
-    "Berkeley Mono", "JetBrains Mono", "Monaco", "Menlo", "Ubuntu Mono",
-    "Courier New", monospace;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 
   /* Font weights — Berkeley Mono provides 400/700, JetBrains Mono fills 300/500/600 */
   --font-weight-light: 300;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-bold: 600;
+
+  /* Bump the smallest Radix text size so size="1" is more legible */
+  --font-size-1: calc(13px * var(--scaling));
+  --line-height-1: calc(20px * var(--scaling));
 
   /* Custom font sizes (extending Radix scale) */
   --font-size-1-5: calc(13px * var(--scaling));
@@ -192,14 +196,14 @@
 
 body {
   font-family:
-    "Berkeley Mono", "JetBrains Mono", "Monaco", "Menlo", "Ubuntu Mono",
-    "Courier New", monospace;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 .plan-markdown {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
@@ -250,7 +254,7 @@ body {
   font-family:
     "Berkeley Mono", "JetBrains Mono", "Monaco", "Menlo", "Ubuntu Mono",
     "Courier New", monospace;
-  font-size: 11px;
+  font-size: 12px;
   background: rgba(0, 0, 0, 0.2);
   padding: 0 4px;
   border-radius: 4px;
@@ -268,14 +272,14 @@ body {
   background: none;
   padding: 0;
   border-radius: 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .plan-markdown table {
   border-collapse: collapse;
   margin: 8px 0 12px;
   width: 100%;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .plan-markdown th,
@@ -584,8 +588,10 @@ body {
 }
 
 .sidebar-tree {
-  font-family: "Berkeley Mono", "JetBrains Mono", monospace;
-  font-size: 12px;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--gray-11);
   user-select: none;

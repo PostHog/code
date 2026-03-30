@@ -71,7 +71,7 @@ export function McpToolView({
           </ToolTitle>
           {inputPreview && (
             <ToolTitle>
-              <span className="font-mono text-accent-11">{inputPreview}</span>
+              <span className="text-accent-11">{inputPreview}</span>
             </ToolTitle>
           )}
           <StatusIndicators isFailed={isFailed} wasCancelled={wasCancelled} />

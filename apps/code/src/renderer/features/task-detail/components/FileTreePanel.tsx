@@ -169,7 +169,7 @@ function LazyTreeItem({
           <FileIcon filename={entry.name} size={14} />
         )}
         <span
-          className="select-none overflow-hidden text-ellipsis whitespace-nowrap text-[12px]"
+          className="select-none overflow-hidden text-ellipsis whitespace-nowrap text-[13px]"
           style={{ marginLeft: "4px" }}
         >
           {entry.name}

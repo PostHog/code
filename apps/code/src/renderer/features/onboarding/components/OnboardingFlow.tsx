@@ -25,7 +25,7 @@ export function OnboardingFlow() {
   const isTutorial = currentStep === "tutorial";
 
   return (
-    <Theme appearance="light" accentColor="orange">
+    <Theme appearance="light" accentColor="orange" radius="medium">
       <LayoutGroup>
         <Flex
           direction="column"

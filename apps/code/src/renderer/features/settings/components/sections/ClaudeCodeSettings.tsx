@@ -32,7 +32,7 @@ function CopyableCommand({ command }: { command: string }) {
       gap="2"
       className="rounded border border-gray-6 bg-gray-2 px-2 py-1"
     >
-      <Text size="1" className="font-mono text-gray-11">
+      <Text size="1" className="text-gray-11">
         {command}
       </Text>
       <Tooltip content={copied ? "Copied!" : "Copy"}>

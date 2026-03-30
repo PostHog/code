@@ -1,6 +1,6 @@
 import { ResizableSidebar } from "@components/ResizableSidebar";
 import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
-import { Lightning } from "@phosphor-icons/react";
+import { Lightbulb } from "@phosphor-icons/react";
 import { Box, Flex, ScrollArea, Text } from "@radix-ui/themes";
 import { useTRPC } from "@renderer/trpc";
 import type { SkillInfo, SkillSource } from "@shared/types/skills";
@@ -60,11 +60,11 @@ export function SkillsView() {
   const headerContent = useMemo(
     () => (
       <Flex align="center" gap="2" className="w-full min-w-0">
-        <Lightning size={12} className="shrink-0 text-gray-10" />
+        <Lightbulb size={12} className="shrink-0 text-gray-10" />
         <Text
           size="1"
           weight="medium"
-          className="truncate whitespace-nowrap font-mono text-[12px]"
+          className="truncate whitespace-nowrap text-[13px]"
           title="Skills"
         >
           Skills
@@ -95,9 +95,9 @@ export function SkillsView() {
                   className="py-12"
                 >
                   <Box className="rounded-lg border border-gray-6 border-dashed p-4">
-                    <Lightning size={24} className="text-gray-8" />
+                    <Lightbulb size={24} className="text-gray-8" />
                   </Box>
-                  <Text size="2" className="font-mono text-[12px] text-gray-10">
+                  <Text size="2" className="text-[13px] text-gray-10">
                     No skills found
                   </Text>
                 </Flex>
@@ -113,7 +113,7 @@ export function SkillsView() {
                         key={source}
                         title={config.sectionTitle}
                         skills={items}
-                        selectedPath={selectedPath}
+                        selectedPath={selectedSkill?.path ?? null}
                         onSelect={handleSelect}
                       />
                     );

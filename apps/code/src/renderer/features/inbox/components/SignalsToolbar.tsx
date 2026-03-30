@@ -93,19 +93,11 @@ export function SignalsToolbar({
             />
           ) : null}
           <Flex direction="column" gap="0" className="min-w-0">
-            <Text
-              size="1"
-              color="gray"
-              className="shrink-0 font-mono text-[11px]"
-            >
+            <Text size="1" color="gray" className="shrink-0 text-[12px]">
               Signals ({countLabel})
             </Text>
             {pipelineHint && !isSearchActive ? (
-              <Text
-                size="1"
-                color="gray"
-                className="font-mono text-[10px] opacity-80"
-              >
+              <Text size="1" color="gray" className="text-[11px] opacity-80">
                 {pipelineHint}
               </Text>
             ) : null}
@@ -122,7 +114,7 @@ export function SignalsToolbar({
         placeholder="Search signals..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="font-mono text-[11px]"
+        className="text-[12px]"
       >
         <TextField.Slot>
           <MagnifyingGlass size={12} />
@@ -145,7 +137,7 @@ function SortMenu({
   ) => void;
 }) {
   const itemClassName =
-    "flex w-full items-center justify-between rounded-sm px-1 py-1 text-left text-[12px] text-gray-12 transition-colors hover:bg-gray-3";
+    "flex w-full items-center justify-between rounded-sm px-1 py-1 text-left text-[13px] text-gray-12 transition-colors hover:bg-gray-3";
 
   return (
     <Popover.Root>

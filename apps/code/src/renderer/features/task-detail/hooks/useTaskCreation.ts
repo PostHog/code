@@ -1,5 +1,6 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
+import { useTaskInputHistoryStore } from "@features/message-editor/stores/taskInputHistoryStore";
 import {
   contentToXml,
   extractFilePaths,
@@ -32,6 +33,7 @@ interface UseTaskCreationOptions {
   model?: string;
   reasoningLevel?: string;
   environmentId?: string | null;
+  sandboxEnvironmentId?: string;
 }
 
 interface UseTaskCreationReturn {
@@ -53,6 +55,7 @@ function prepareTaskInput(
     model?: string;
     reasoningLevel?: string;
     environmentId?: string | null;
+    sandboxEnvironmentId?: string;
   },
 ): TaskCreationInput {
   return {
@@ -68,6 +71,7 @@ function prepareTaskInput(
     model: options.model,
     reasoningLevel: options.reasoningLevel,
     environmentId: options.environmentId ?? undefined,
+    sandboxEnvironmentId: options.sandboxEnvironmentId,
   };
 }
 
@@ -95,6 +99,7 @@ export function useTaskCreation({
   model,
   reasoningLevel,
   environmentId,
+  sandboxEnvironmentId,
 }: UseTaskCreationOptions): UseTaskCreationReturn {
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const { navigateToTask } = useNavigationStore();
@@ -123,6 +128,11 @@ export function useTaskCreation({
 
       log.info("Submitting task", { workspaceMode, selectedDirectory });
 
+      const plainText = editor.getText()?.trim();
+      if (plainText) {
+        useTaskInputHistoryStore.getState().addPrompt(plainText);
+      }
+
       const input = prepareTaskInput(content, {
         selectedDirectory,
         selectedRepository,
@@ -134,6 +144,7 @@ export function useTaskCreation({
         model,
         reasoningLevel,
         environmentId,
+        sandboxEnvironmentId,
       });
 
       if (executionMode) {
@@ -177,6 +188,7 @@ export function useTaskCreation({
     model,
     reasoningLevel,
     environmentId,
+    sandboxEnvironmentId,
     invalidateTasks,
     navigateToTask,
   ]);
