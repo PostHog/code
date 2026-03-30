@@ -24,6 +24,10 @@ import {
 
 const log = logger.scope("auth-service");
 const TOKEN_EXPIRY_SKEW_MS = 60_000;
+type FetchLike = (
+  input: string | Request,
+  init?: RequestInit,
+) => Promise<Response>;
 
 interface InMemorySession {
   accessToken: string;
@@ -124,6 +128,48 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
     };
   }
 
+  async invalidateAccessTokenForTest(): Promise<void> {
+    await this.initialize();
+
+    if (!this.session) {
+      return;
+    }
+
+    this.session = {
+      ...this.session,
+      accessToken: `${this.session.accessToken}_invalid`,
+      // Keep the token apparently fresh so the next authenticated request
+      // exercises the 401 -> refresh retry path instead of preemptive refresh.
+      accessTokenExpiresAt: Date.now() + 5 * 60 * 1000,
+    };
+  }
+
+  async authenticatedFetch(
+    fetchImpl: FetchLike,
+    input: string | Request,
+    init: RequestInit = {},
+  ): Promise<Response> {
+    const initialAuth = await this.getValidAccessToken();
+    let response = await this.executeAuthenticatedFetch(
+      fetchImpl,
+      input,
+      init,
+      initialAuth.accessToken,
+    );
+
+    if (response.status === 401 || response.status === 403) {
+      const refreshedAuth = await this.refreshAccessToken();
+      response = await this.executeAuthenticatedFetch(
+        fetchImpl,
+        input,
+        init,
+        refreshedAuth.accessToken,
+      );
+    }
+
+    return response;
+  }
+
   async redeemInviteCode(code: string): Promise<AuthState> {
     const { accessToken, apiHost } = await this.getValidAccessToken();
     const response = await fetch(`${apiHost}/api/code/invites/redeem/`, {
@@ -177,6 +223,21 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
     this.session = null;
     this.setAnonymousState();
     return this.getState();
+  }
+
+  private executeAuthenticatedFetch(
+    fetchImpl: FetchLike,
+    input: string | Request,
+    init: RequestInit,
+    accessToken: string,
+  ): Promise<Response> {
+    const headers = new Headers(init.headers);
+    headers.set("authorization", `Bearer ${accessToken}`);
+
+    return fetchImpl(input, {
+      ...init,
+      headers,
+    });
   }
 
   private async doInitialize(): Promise<void> {

@@ -1,4 +1,3 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
 import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import { computeGitInteractionState } from "@features/git-interaction/state/gitInteractionLogic";
 import {
@@ -132,21 +131,10 @@ export function useGitInteraction(
     modal.openPr("", "");
     if (!repoPath) return;
 
-    const authState = useAuthStore.getState();
-    const apiKey = authState.oauthAccessToken;
-    const cloudRegion = authState.cloudRegion;
-    if (!apiKey || !cloudRegion) return;
-
-    const apiHost =
-      cloudRegion === "eu"
-        ? "https://eu.posthog.com"
-        : "https://us.posthog.com";
-
     modal.setIsGeneratingPr(true);
     try {
       const result = await trpcClient.git.generatePrTitleAndBody.mutate({
         directoryPath: repoPath,
-        credentials: { apiKey, apiHost },
       });
       if (result.title || result.body) {
         modal.setPrTitle(result.title);
@@ -202,27 +190,9 @@ export function useGitInteraction(
     let message = store.commitMessage.trim();
 
     if (!message) {
-      const authState = useAuthStore.getState();
-      const apiKey = authState.oauthAccessToken;
-      const cloudRegion = authState.cloudRegion;
-
-      if (!apiKey || !cloudRegion) {
-        modal.setCommitError(
-          "Authentication required to generate commit message.",
-        );
-        modal.setIsSubmitting(false);
-        return;
-      }
-
-      const apiHost =
-        cloudRegion === "eu"
-          ? "https://eu.posthog.com"
-          : "https://us.posthog.com";
-
       try {
         const generated = await trpcClient.git.generateCommitMessage.mutate({
           directoryPath: repoPath,
-          credentials: { apiKey, apiHost },
         });
 
         if (!generated.message) {
@@ -390,29 +360,12 @@ export function useGitInteraction(
   const generateCommitMessage = async () => {
     if (!repoPath) return;
 
-    const authState = useAuthStore.getState();
-    const apiKey = authState.oauthAccessToken;
-    const cloudRegion = authState.cloudRegion;
-
-    if (!apiKey || !cloudRegion) {
-      modal.setCommitError(
-        "Authentication required to generate commit message.",
-      );
-      return;
-    }
-
-    const apiHost =
-      cloudRegion === "eu"
-        ? "https://eu.posthog.com"
-        : "https://us.posthog.com";
-
     modal.setIsGeneratingCommitMessage(true);
     modal.setCommitError(null);
 
     try {
       const result = await trpcClient.git.generateCommitMessage.mutate({
         directoryPath: repoPath,
-        credentials: { apiKey, apiHost },
       });
 
       if (result.message) {
@@ -437,27 +390,12 @@ export function useGitInteraction(
   const generatePrTitleAndBody = async () => {
     if (!repoPath) return;
 
-    const authState = useAuthStore.getState();
-    const apiKey = authState.oauthAccessToken;
-    const cloudRegion = authState.cloudRegion;
-
-    if (!apiKey || !cloudRegion) {
-      modal.setPrError("Authentication required to generate PR description.");
-      return;
-    }
-
-    const apiHost =
-      cloudRegion === "eu"
-        ? "https://eu.posthog.com"
-        : "https://us.posthog.com";
-
     modal.setIsGeneratingPr(true);
     modal.setPrError(null);
 
     try {
       const result = await trpcClient.git.generatePrTitleAndBody.mutate({
         directoryPath: repoPath,
-        credentials: { apiKey, apiHost },
       });
 
       if (result.title || result.body) {

@@ -30,7 +30,6 @@ import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
-import type { LlmCredentials } from "../llm-gateway/schemas";
 import type { LlmGatewayService } from "../llm-gateway/service";
 import type {
   ChangedFile,
@@ -833,7 +832,6 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
 
   public async generateCommitMessage(
     directoryPath: string,
-    credentials: LlmCredentials,
   ): Promise<{ message: string }> {
     const [stagedDiff, unstagedDiff, conventions, changedFiles] =
       await Promise.all([
@@ -892,7 +890,6 @@ ${truncatedDiff}`;
     });
 
     const response = await this.llmGateway.prompt(
-      credentials,
       [{ role: "user", content: userMessage }],
       { system },
     );
@@ -902,7 +899,6 @@ ${truncatedDiff}`;
 
   public async generatePrTitleAndBody(
     directoryPath: string,
-    credentials: LlmCredentials,
   ): Promise<{ title: string; body: string }> {
     await this.fetchIfStale(directoryPath);
 
@@ -982,7 +978,6 @@ ${truncatedDiff || "(no diff available)"}`;
     });
 
     const response = await this.llmGateway.prompt(
-      credentials,
       [{ role: "user", content: userMessage }],
       { system, maxTokens: 2000 },
     );

@@ -47,27 +47,63 @@ export class PostHogAPIClient {
     return host;
   }
 
-  private get headers(): Record<string, string> {
-    return {
-      Authorization: `Bearer ${this.config.getApiKey()}`,
-      "Content-Type": "application/json",
-      "User-Agent": this.config.userAgent ?? DEFAULT_USER_AGENT,
-    };
+  private isAuthFailure(status: number): boolean {
+    return status === 401 || status === 403;
+  }
+
+  private async resolveApiKey(forceRefresh = false): Promise<string> {
+    if (forceRefresh && this.config.refreshApiKey) {
+      return this.config.refreshApiKey();
+    }
+
+    return this.config.getApiKey();
+  }
+
+  private async buildHeaders(
+    options: RequestInit,
+    forceRefresh = false,
+  ): Promise<Headers> {
+    const headers = new Headers(options.headers);
+    headers.set(
+      "Authorization",
+      `Bearer ${await this.resolveApiKey(forceRefresh)}`,
+    );
+    headers.set("Content-Type", "application/json");
+    headers.set("User-Agent", this.config.userAgent ?? DEFAULT_USER_AGENT);
+    return headers;
+  }
+
+  private async performRequest(
+    endpoint: string,
+    options: RequestInit,
+    forceRefresh = false,
+  ): Promise<Response> {
+    const url = `${this.baseUrl}${endpoint}`;
+
+    return fetch(url, {
+      ...options,
+      headers: await this.buildHeaders(options, forceRefresh),
+    });
+  }
+
+  private async performRequestWithRetry(
+    endpoint: string,
+    options: RequestInit = {},
+  ): Promise<Response> {
+    let response = await this.performRequest(endpoint, options);
+
+    if (!response.ok && this.isAuthFailure(response.status)) {
+      response = await this.performRequest(endpoint, options, true);
+    }
+
+    return response;
   }
 
   private async apiRequest<T>(
     endpoint: string,
     options: RequestInit = {},
   ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
-
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...this.headers,
-        ...options.headers,
-      },
-    });
+    const response = await this.performRequestWithRetry(endpoint, options);
 
     if (!response.ok) {
       let errorMessage: string;
@@ -87,8 +123,8 @@ export class PostHogAPIClient {
     return this.config.projectId;
   }
 
-  getApiKey(): string {
-    return this.config.getApiKey();
+  async getApiKey(forceRefresh = false): Promise<string> {
+    return this.resolveApiKey(forceRefresh);
   }
 
   getLlmGatewayUrl(): string {
@@ -228,12 +264,10 @@ export class PostHogAPIClient {
    */
   async fetchTaskRunLogs(taskRun: TaskRun): Promise<StoredEntry[]> {
     const teamId = this.getTeamId();
+    const endpoint = `/api/projects/${teamId}/tasks/${taskRun.task}/runs/${taskRun.id}/logs`;
 
     try {
-      const response = await fetch(
-        `${this.baseUrl}/api/projects/${teamId}/tasks/${taskRun.task}/runs/${taskRun.id}/logs`,
-        { headers: this.headers },
-      );
+      const response = await this.performRequestWithRetry(endpoint);
 
       if (!response.ok) {
         if (response.status === 404) {

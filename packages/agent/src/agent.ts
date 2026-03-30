@@ -45,17 +45,17 @@ export class Agent {
     }
   }
 
-  private _configureLlmGateway(overrideUrl?: string): {
+  private async _configureLlmGateway(overrideUrl?: string): Promise<{
     gatewayUrl: string;
     apiKey: string;
-  } | null {
+  } | null> {
     if (!this.posthogAPI) {
       return null;
     }
 
     try {
       const gatewayUrl = overrideUrl ?? this.posthogAPI.getLlmGatewayUrl();
-      const apiKey = this.posthogAPI.getApiKey();
+      const apiKey = await this.posthogAPI.getApiKey();
 
       process.env.OPENAI_BASE_URL = `${gatewayUrl}/v1`;
       process.env.OPENAI_API_KEY = apiKey;
@@ -74,7 +74,7 @@ export class Agent {
     taskRunId: string,
     options: TaskExecutionOptions = {},
   ): Promise<InProcessAcpConnection> {
-    const gatewayConfig = this._configureLlmGateway(options.gatewayUrl);
+    const gatewayConfig = await this._configureLlmGateway(options.gatewayUrl);
     this.logger.info("Configured LLM gateway", {
       adapter: options.adapter,
     });

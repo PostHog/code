@@ -24,12 +24,6 @@ vi.mock("@renderer/trpc/client", () => ({
       redeemInviteCode: mockRedeemInviteCode,
       logout: mockLogout,
     },
-    agent: {
-      updateToken: { mutate: vi.fn().mockResolvedValue(undefined) },
-    },
-    cloudTask: {
-      updateToken: { mutate: vi.fn().mockResolvedValue(undefined) },
-    },
     analytics: {
       setUserId: { mutate: vi.fn().mockResolvedValue(undefined) },
       resetUser: { mutate: vi.fn().mockResolvedValue(undefined) },
@@ -77,6 +71,8 @@ vi.mock("@stores/navigationStore", () => ({
   },
 }));
 
+import { resetUser } from "@utils/analytics";
+import { queryClient } from "@utils/queryClient";
 import { resetAuthStoreModuleStateForTest, useAuthStore } from "./authStore";
 
 const authenticatedState = {
@@ -120,7 +116,6 @@ describe("authStore", () => {
     mockOnStateChangedSubscribe.mockReturnValue({ unsubscribe: vi.fn() });
 
     useAuthStore.setState({
-      oauthAccessToken: null,
       cloudRegion: null,
       staleCloudRegion: null,
       isAuthenticated: false,
@@ -145,7 +140,6 @@ describe("authStore", () => {
     expect(result).toBe(true);
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
     expect(useAuthStore.getState().projectId).toBe(1);
-    expect(useAuthStore.getState().oauthAccessToken).toBe("test-access-token");
   });
 
   it("logs in through the main auth service", async () => {
@@ -166,6 +160,29 @@ describe("authStore", () => {
     await useAuthStore.getState().checkCodeAccess();
 
     expect(mockGetCurrentUser).toHaveBeenCalledTimes(1);
-    expect(mockGetValidAccessToken.query).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears user identity and cached current user on implicit auth loss", async () => {
+    mockGetState.query
+      .mockResolvedValueOnce(authenticatedState)
+      .mockResolvedValueOnce({
+        status: "anonymous",
+        bootstrapComplete: true,
+        cloudRegion: null,
+        projectId: null,
+        availableProjectIds: [],
+        availableOrgIds: [],
+        hasCodeAccess: null,
+        needsScopeReauth: false,
+      });
+
+    await useAuthStore.getState().initializeOAuth();
+    await useAuthStore.getState().checkCodeAccess();
+
+    expect(resetUser).toHaveBeenCalledTimes(1);
+    expect(queryClient.removeQueries).toHaveBeenCalledWith({
+      queryKey: ["currentUser"],
+      exact: true,
+    });
   });
 });

@@ -1,6 +1,6 @@
 import fs, { mkdirSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
   type Client,
   ClientSideConnection,
@@ -30,12 +30,12 @@ import { MAIN_TOKENS } from "../../di/tokens";
 import { isDevBuild } from "../../utils/env";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
-import type { AuthProxyService } from "../auth-proxy/service";
 import type { FsService } from "../fs/service";
 import type { McpAppsService } from "../mcp-apps/service";
 import type { PosthogPluginService } from "../posthog-plugin/service";
 import type { ProcessTrackingService } from "../process-tracking/service";
 import type { SleepService } from "../sleep/service";
+import type { AgentAuthAdapter } from "./auth-adapter";
 import { discoverExternalPlugins } from "./discover-plugins";
 import {
   AgentServiceEvent,
@@ -172,13 +172,6 @@ const onAgentLog: OnLogCallback = (level, scope, message, data) => {
   }
 };
 
-interface AcpMcpServer {
-  name: string;
-  type: "http";
-  url: string;
-  headers: Array<{ name: string; value: string }>;
-}
-
 interface SessionConfig {
   taskId: string;
   taskRunId: string;
@@ -251,7 +244,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private static readonly IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 
   private sessions = new Map<string, ManagedSession>();
-  private currentToken: string | null = null;
   private pendingPermissions = new Map<string, PendingPermission>();
   private mockNodeReady = false;
   private idleTimeouts = new Map<
@@ -262,7 +254,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private sleepService: SleepService;
   private fsService: FsService;
   private posthogPluginService: PosthogPluginService;
-  private authProxy: AuthProxyService;
+  private agentAuthAdapter: AgentAuthAdapter;
   private mcpAppsService: McpAppsService;
 
   constructor(
@@ -274,8 +266,8 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     fsService: FsService,
     @inject(MAIN_TOKENS.PosthogPluginService)
     posthogPluginService: PosthogPluginService,
-    @inject(MAIN_TOKENS.AuthProxyService)
-    authProxy: AuthProxyService,
+    @inject(MAIN_TOKENS.AgentAuthAdapter)
+    agentAuthAdapter: AgentAuthAdapter,
     @inject(MAIN_TOKENS.McpAppsService)
     mcpAppsService: McpAppsService,
   ) {
@@ -284,29 +276,10 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     this.sleepService = sleepService;
     this.fsService = fsService;
     this.posthogPluginService = posthogPluginService;
-    this.authProxy = authProxy;
+    this.agentAuthAdapter = agentAuthAdapter;
     this.mcpAppsService = mcpAppsService;
 
     powerMonitor.on("resume", () => this.checkIdleDeadlines());
-  }
-
-  public updateToken(newToken: string): void {
-    this.currentToken = newToken;
-
-    if (this.authProxy.isRunning()) {
-      this.authProxy.updateToken(newToken);
-    }
-
-    process.env.ANTHROPIC_API_KEY = newToken;
-    process.env.ANTHROPIC_AUTH_TOKEN = newToken;
-    process.env.OPENAI_API_KEY = newToken;
-    process.env.POSTHOG_API_KEY = newToken;
-    process.env.POSTHOG_AUTH_HEADER = `Bearer ${newToken}`;
-
-    log.info("Token updated (proxy + env vars)", {
-      sessionCount: this.sessions.size,
-      proxyRunning: this.authProxy.isRunning(),
-    });
   }
 
   /**
@@ -436,123 +409,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     }
   }
 
-  private getToken(fallback: string): string {
-    return this.currentToken || fallback;
-  }
-
-  private async buildMcpServers(
-    credentials: Credentials,
-  ): Promise<AcpMcpServer[]> {
-    const servers: AcpMcpServer[] = [];
-
-    const mcpUrl = this.getPostHogMcpUrl(credentials.apiHost);
-    const token = this.getToken(credentials.apiKey);
-
-    servers.push({
-      name: "posthog",
-      type: "http",
-      url: mcpUrl,
-      headers: [
-        { name: "Authorization", value: `Bearer ${token}` },
-        {
-          name: "x-posthog-project-id",
-          value: String(credentials.projectId),
-        },
-        { name: "x-posthog-mcp-version", value: "2" },
-      ],
-    });
-
-    // Fetch user-installed MCP servers from the PostHog backend
-    const installations = await this.fetchMcpInstallations(credentials);
-
-    for (const installation of installations) {
-      // Skip the PostHog MCP server since it's already included above
-      if (installation.url === mcpUrl) continue;
-
-      if (installation.auth_type === "none") {
-        servers.push({
-          name:
-            installation.name || installation.display_name || installation.url,
-          type: "http",
-          url: installation.url,
-          headers: [],
-        });
-      } else {
-        // Authenticated servers go through the PostHog proxy so credentials
-        // never leave the backend
-        servers.push({
-          name:
-            installation.name || installation.display_name || installation.url,
-          type: "http",
-          url: installation.proxy_url,
-          headers: [{ name: "Authorization", value: `Bearer ${token}` }],
-        });
-      }
-    }
-
-    return servers;
-  }
-
-  private async fetchMcpInstallations(credentials: Credentials): Promise<
-    Array<{
-      id: string;
-      url: string;
-      proxy_url: string;
-      name: string;
-      display_name: string;
-      auth_type: string;
-    }>
-  > {
-    const token = this.getToken(credentials.apiKey);
-    const baseUrl = this.getPostHogApiBaseUrl(credentials.apiHost);
-    const url = `${baseUrl}/api/environments/${credentials.projectId}/mcp_server_installations/`;
-
-    try {
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        log.warn("Failed to fetch MCP installations", {
-          status: response.status,
-        });
-        return [];
-      }
-
-      const data = (await response.json()) as {
-        results?: Array<{
-          id: string;
-          url: string;
-          proxy_url?: string;
-          name: string;
-          display_name: string;
-          auth_type: string;
-          is_enabled?: boolean;
-          pending_oauth: boolean;
-          needs_reauth: boolean;
-        }>;
-      };
-      const installations = data.results ?? [];
-
-      return installations
-        .filter(
-          (i) => !i.pending_oauth && !i.needs_reauth && i.is_enabled !== false,
-        )
-        .map((i) => ({
-          ...i,
-          proxy_url:
-            i.proxy_url ??
-            `${baseUrl}/api/environments/${credentials.projectId}/mcp_server_installations/${i.id}/proxy/`,
-        }));
-    } catch (err) {
-      log.warn("Error fetching MCP installations", { error: err });
-      return [];
-    }
-  }
-
   private buildSystemPrompt(
     credentials: Credentials,
     customInstructions?: string,
@@ -566,22 +422,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     }
 
     return { append: prompt };
-  }
-
-  private getPostHogMcpUrl(apiHost: string): string {
-    const overrideUrl = process.env.POSTHOG_MCP_URL;
-    if (overrideUrl) {
-      return overrideUrl;
-    }
-    if (apiHost.includes("localhost") || apiHost.includes("127.0.0.1")) {
-      return "http://localhost:8787/mcp";
-    }
-    return "https://mcp.posthog.com/mcp";
-  }
-
-  private getPostHogApiBaseUrl(apiHost: string): string {
-    const host = process.env.POSTHOG_PROXY_BASE_URL || apiHost;
-    return host.endsWith("/") ? host.slice(0, -1) : host;
   }
 
   async startSession(params: StartSessionInput): Promise<SessionResponse> {
@@ -648,16 +488,21 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
 
     const channel = `agent-event:${taskRunId}`;
     const mockNodeDir = this.setupMockNodeEnvironment();
-    const proxyUrl = await this.ensureAuthProxy(credentials);
-    this.setupEnvironment(credentials, mockNodeDir, proxyUrl);
+    const proxyUrl = await this.agentAuthAdapter.ensureGatewayProxy(
+      credentials.apiHost,
+    );
+    await this.agentAuthAdapter.configureProcessEnv({
+      credentials,
+      mockNodeDir,
+      proxyUrl,
+      claudeCliPath: getClaudeCliPath(),
+    });
 
     const isPreview = taskId === "__preview__";
 
     const agent = new Agent({
       posthog: {
-        apiUrl: credentials.apiHost,
-        getApiKey: () => this.getToken(credentials.apiKey),
-        projectId: credentials.projectId,
+        ...this.agentAuthAdapter.createPosthogConfig(credentials),
         userAgent: `posthog/desktop.hog.dev; version: ${app.getVersion()}`,
       },
       skipLogPersistence: isPreview,
@@ -716,7 +561,8 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         },
       });
 
-      const mcpServers = await this.buildMcpServers(credentials);
+      const mcpServers =
+        await this.agentAuthAdapter.buildMcpServers(credentials);
 
       // Store server configs for lazy MCP connections — actual connections
       // are created on-demand when UI resources are first requested.
@@ -1162,42 +1008,6 @@ For git operations while detached:
     log.info("All agent sessions cleaned up");
   }
 
-  private async ensureAuthProxy(credentials: Credentials): Promise<string> {
-    const token = this.getToken(credentials.apiKey);
-    const llmGatewayUrl = getLlmGatewayUrl(credentials.apiHost);
-    return this.authProxy.start(llmGatewayUrl, token);
-  }
-
-  private setupEnvironment(
-    credentials: Credentials,
-    mockNodeDir: string,
-    proxyUrl: string,
-  ): void {
-    const token = this.getToken(credentials.apiKey);
-    const currentPath = process.env.PATH || "";
-    if (!currentPath.split(delimiter).includes(mockNodeDir)) {
-      process.env.PATH = `${mockNodeDir}${delimiter}${currentPath}`;
-    }
-    process.env.POSTHOG_AUTH_HEADER = `Bearer ${token}`;
-    process.env.ANTHROPIC_API_KEY = token;
-    process.env.ANTHROPIC_AUTH_TOKEN = token;
-
-    process.env.ANTHROPIC_BASE_URL = proxyUrl;
-
-    const openaiBaseUrl = proxyUrl.endsWith("/v1")
-      ? proxyUrl
-      : `${proxyUrl}/v1`;
-    process.env.OPENAI_BASE_URL = openaiBaseUrl;
-    process.env.OPENAI_API_KEY = token;
-    process.env.LLM_GATEWAY_URL = proxyUrl;
-
-    process.env.CLAUDE_CODE_EXECUTABLE = getClaudeCliPath();
-
-    process.env.POSTHOG_API_KEY = token;
-    process.env.POSTHOG_API_URL = credentials.apiHost;
-    process.env.POSTHOG_PROJECT_ID = String(credentials.projectId);
-  }
-
   private setupMockNodeEnvironment(): string {
     const mockNodeDir = getMockNodeDir();
     if (!this.mockNodeReady) {
@@ -1494,8 +1304,8 @@ For git operations while detached:
     if (!params.taskId || !params.repoPath) {
       throw new Error("taskId and repoPath are required");
     }
-    if (!params.apiKey || !params.apiHost) {
-      throw new Error("PostHog API credentials are required");
+    if (!params.apiHost) {
+      throw new Error("PostHog API host is required");
     }
   }
 
@@ -1537,7 +1347,6 @@ For git operations while detached:
       taskRunId: params.taskRunId,
       repoPath: params.repoPath,
       credentials: {
-        apiKey: params.apiKey,
         apiHost: params.apiHost,
         projectId: params.projectId,
       },
@@ -1672,7 +1481,7 @@ For git operations while detached:
     }
   }
 
-  async getGatewayModels(apiHost: string, _apiKey: string) {
+  async getGatewayModels(apiHost: string) {
     const gatewayUrl = getLlmGatewayUrl(apiHost);
     const models = await fetchGatewayModels({ gatewayUrl });
 

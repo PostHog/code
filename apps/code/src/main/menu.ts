@@ -127,7 +127,9 @@ function buildFileMenu(): MenuItemConstructorOptions {
           {
             label: "Invalidate OAuth token",
             click: () => {
-              container.get<UIService>(MAIN_TOKENS.UIService).invalidateToken();
+              void container
+                .get<UIService>(MAIN_TOKENS.UIService)
+                .invalidateToken();
             },
           },
           {

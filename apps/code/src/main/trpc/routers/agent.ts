@@ -20,7 +20,6 @@ import {
   setConfigOptionInput,
   startSessionInput,
   subscribeSessionInput,
-  tokenUpdateInput,
 } from "../../services/agent/schemas";
 import type { AgentService } from "../../services/agent/service";
 import type { ProcessTrackingService } from "../../services/process-tracking/service";
@@ -60,10 +59,6 @@ export const agentRouter = router({
     .input(reconnectSessionInput)
     .output(sessionResponseSchema.nullable())
     .mutation(({ input }) => getService().reconnectSession(input)),
-
-  updateToken: publicProcedure.input(tokenUpdateInput).mutation(({ input }) => {
-    getService().updateToken(input.token);
-  }),
 
   setConfigOption: publicProcedure
     .input(setConfigOptionInput)
@@ -197,7 +192,5 @@ export const agentRouter = router({
   getGatewayModels: publicProcedure
     .input(getGatewayModelsInput)
     .output(getGatewayModelsOutput)
-    .query(({ input }) =>
-      getService().getGatewayModels(input.apiHost, input.apiKey),
-    ),
+    .query(({ input }) => getService().getGatewayModels(input.apiHost)),
 });

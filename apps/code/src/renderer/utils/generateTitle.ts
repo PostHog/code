@@ -1,6 +1,5 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { trpcClient } from "@renderer/trpc";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { logger } from "@utils/logger";
 
 const log = logger.scope("title-generator");
@@ -43,14 +42,9 @@ Never wrap the title in quotes.`;
 export async function generateTitle(content: string): Promise<string | null> {
   try {
     const authState = useAuthStore.getState();
-    const apiKey = authState.oauthAccessToken;
-    const cloudRegion = authState.cloudRegion;
-    if (!apiKey || !cloudRegion) return null;
-
-    const apiHost = getCloudUrlFromRegion(cloudRegion);
+    if (!authState.isAuthenticated) return null;
 
     const result = await trpcClient.llmGateway.prompt.mutate({
-      credentials: { apiKey, apiHost },
       system: SYSTEM_PROMPT,
       messages: [
         {

@@ -63,7 +63,6 @@ const log = logger.scope("session-service");
 export const PREVIEW_TASK_ID = "__preview__";
 
 interface AuthCredentials {
-  apiKey: string;
   apiHost: string;
   projectId: number;
   client: ReturnType<typeof useAuthStore.getState>["client"];
@@ -390,7 +389,6 @@ export class SessionService {
         taskId,
         taskRunId,
         repoPath,
-        apiKey: auth.apiKey,
         apiHost: auth.apiHost,
         projectId: auth.projectId,
         logUrl,
@@ -543,7 +541,6 @@ export class SessionService {
       taskId,
       taskRunId: taskRun.id,
       repoPath,
-      apiKey: auth.apiKey,
       apiHost: auth.apiHost,
       projectId: auth.projectId,
       permissionMode: executionMode,
@@ -688,7 +685,6 @@ export class SessionService {
         taskId: PREVIEW_TASK_ID,
         taskRunId,
         repoPath: "__preview__",
-        apiKey: auth.apiKey,
         apiHost: auth.apiHost,
         projectId: auth.projectId,
         adapter: params.adapter,
@@ -1946,17 +1942,12 @@ export class SessionService {
       });
     }
 
-    // Get auth for initial token + host info
+    // Get auth for host info
     const auth = useAuthStore.getState();
-    if (!auth.oauthAccessToken || !auth.projectId || !auth.cloudRegion) {
+    if (!auth.projectId || !auth.cloudRegion) {
       log.warn("No auth for cloud task watcher", { taskId });
       return () => {};
     }
-
-    // Ensure main-process service has current token
-    trpcClient.cloudTask.updateToken
-      .mutate({ token: auth.oauthAccessToken })
-      .catch(() => {});
 
     // Start main-process watcher
     trpcClient.cloudTask.watch
@@ -2174,15 +2165,14 @@ export class SessionService {
 
   private getAuthCredentials(): AuthCredentials | null {
     const authState = useAuthStore.getState();
-    const apiKey = authState.oauthAccessToken;
     const apiHost = authState.cloudRegion
       ? getCloudUrlFromRegion(authState.cloudRegion)
       : null;
     const projectId = authState.projectId;
     const client = authState.client;
 
-    if (!apiKey || !apiHost || !projectId) return null;
-    return { apiKey, apiHost, projectId, client };
+    if (!apiHost || !projectId || !client) return null;
+    return { apiHost, projectId, client };
   }
 
   private parseLogContent(content: string): {

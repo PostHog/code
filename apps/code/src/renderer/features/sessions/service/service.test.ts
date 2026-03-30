@@ -64,7 +64,6 @@ vi.mock("@features/sessions/stores/sessionStore", () => ({
 const mockAuthStore = vi.hoisted(() => ({
   useAuthStore: {
     getState: vi.fn(() => ({
-      oauthAccessToken: "test-token",
       cloudRegion: "us",
       projectId: 123,
       client: {
@@ -282,7 +281,6 @@ describe("SessionService", () => {
       // Track how many times createTaskRun is called
       const createTaskRunMock = vi.fn().mockResolvedValue({ id: "run-123" });
       mockAuthStore.useAuthStore.getState.mockReturnValue({
-        oauthAccessToken: "test-token",
         cloudRegion: "us",
         projectId: 123,
         client: {
@@ -336,7 +334,6 @@ describe("SessionService", () => {
       const service = getSessionService();
 
       mockAuthStore.useAuthStore.getState.mockReturnValue({
-        oauthAccessToken: null,
         cloudRegion: null,
         projectId: null,
         client: null,
@@ -418,7 +415,6 @@ describe("SessionService", () => {
       // Setup: create a task run to trigger subscription creation
       const createTaskRunMock = vi.fn().mockResolvedValue({ id: "run-456" });
       mockAuthStore.useAuthStore.getState.mockReturnValue({
-        oauthAccessToken: "test-token",
         cloudRegion: "us",
         projectId: 123,
         client: {

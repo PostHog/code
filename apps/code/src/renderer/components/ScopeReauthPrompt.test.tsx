@@ -49,12 +49,6 @@ vi.mock("@renderer/trpc/client", () => ({
         }),
       },
     },
-    agent: {
-      updateToken: { mutate: vi.fn().mockResolvedValue(undefined) },
-    },
-    cloudTask: {
-      updateToken: { mutate: vi.fn().mockResolvedValue(undefined) },
-    },
     analytics: {
       setUserId: { mutate: vi.fn().mockResolvedValue(undefined) },
       resetUser: { mutate: vi.fn().mockResolvedValue(undefined) },

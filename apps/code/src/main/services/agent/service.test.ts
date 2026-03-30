@@ -47,8 +47,6 @@ const mockAgentConstructor = vi.hoisted(() =>
   }),
 );
 
-const mockFetch = vi.hoisted(() => vi.fn());
-
 // --- Module mocks ---
 
 const mockPowerMonitor = vi.hoisted(() => ({
@@ -127,8 +125,6 @@ vi.mock("node:fs", async (importOriginal) => {
   };
 });
 
-vi.stubGlobal("fetch", mockFetch);
-
 // --- Import after mocks ---
 import { AgentService } from "./service";
 
@@ -154,12 +150,31 @@ function createMockDependencies() {
     posthogPluginService: {
       getPluginPath: vi.fn(() => "/mock/plugin"),
     },
-    authProxy: {
-      start: vi.fn().mockResolvedValue("http://127.0.0.1:9999"),
-      stop: vi.fn().mockResolvedValue(undefined),
-      updateToken: vi.fn(),
-      getProxyUrl: vi.fn(() => "http://127.0.0.1:9999"),
-      isRunning: vi.fn(() => false),
+    agentAuthAdapter: {
+      ensureGatewayProxy: vi.fn().mockResolvedValue("http://127.0.0.1:9999"),
+      configureProcessEnv: vi.fn().mockResolvedValue(undefined),
+      createPosthogConfig: vi.fn((credentials) => ({
+        apiUrl: credentials.apiHost,
+        getApiKey: vi.fn().mockResolvedValue("test-access-token"),
+        refreshApiKey: vi.fn().mockResolvedValue("fresh-access-token"),
+        projectId: credentials.projectId,
+      })),
+      buildMcpServers: vi.fn().mockResolvedValue([
+        {
+          name: "posthog",
+          type: "http",
+          url: "https://mcp.posthog.com/mcp",
+          headers: [],
+        },
+      ]),
+    },
+    mcpAppsService: {
+      setServerConfigs: vi.fn(),
+      handleDiscovery: vi.fn().mockResolvedValue(undefined),
+      cleanup: vi.fn().mockResolvedValue(undefined),
+      notifyToolInput: vi.fn(),
+      notifyToolResult: vi.fn(),
+      notifyToolCancelled: vi.fn(),
     },
   };
 }
@@ -168,7 +183,6 @@ const baseSessionParams = {
   taskId: "task-1",
   taskRunId: "run-1",
   repoPath: "/mock/repo",
-  apiKey: "test-api-key",
   apiHost: "https://app.posthog.com",
   projectId: 1,
 };
@@ -179,27 +193,14 @@ describe("AgentService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // MCP installations endpoint returns empty
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ results: [] }),
-    });
-
     const deps = createMockDependencies();
     service = new AgentService(
       deps.processTracking as never,
       deps.sleepService as never,
       deps.fsService as never,
       deps.posthogPluginService as never,
-      deps.authProxy as never,
-      {
-        setServerConfigs: vi.fn(),
-        handleDiscovery: vi.fn().mockResolvedValue(undefined),
-        cleanup: vi.fn().mockResolvedValue(undefined),
-        notifyToolInput: vi.fn(),
-        notifyToolResult: vi.fn(),
-        notifyToolCancelled: vi.fn(),
-      } as never,
+      deps.agentAuthAdapter as never,
+      deps.mcpAppsService as never,
     );
   });
 
@@ -262,45 +263,6 @@ describe("AgentService", () => {
       const claudeMcp = mockNewSession.mock.calls[0][0].mcpServers;
       const codexMcp = mockNewSession.mock.calls[1][0].mcpServers;
       expect(codexMcp).toEqual(claudeMcp);
-    });
-
-    it("includes user-installed MCP servers from backend", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            results: [
-              {
-                id: "inst-1",
-                url: "https://custom-mcp.example.com",
-                proxy_url: "https://proxy.posthog.com/inst-1/",
-                name: "custom-server",
-                display_name: "Custom Server",
-                auth_type: "none",
-                is_enabled: true,
-                pending_oauth: false,
-                needs_reauth: false,
-              },
-            ],
-          }),
-      });
-
-      await service.startSession({
-        ...baseSessionParams,
-        adapter: "codex",
-      });
-
-      const mcpServers = mockNewSession.mock.calls[0][0].mcpServers;
-      expect(mcpServers).toHaveLength(2);
-      expect(mcpServers).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ name: "posthog" }),
-          expect.objectContaining({
-            name: "custom-server",
-            url: "https://custom-mcp.example.com",
-          }),
-        ]),
-      );
     });
   });
 

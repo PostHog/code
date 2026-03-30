@@ -8,6 +8,7 @@ import { SuspensionRepositoryImpl } from "../db/repositories/suspension-reposito
 import { WorkspaceRepository } from "../db/repositories/workspace-repository";
 import { WorktreeRepository } from "../db/repositories/worktree-repository";
 import { DatabaseService } from "../db/service";
+import { AgentAuthAdapter } from "../services/agent/auth-adapter";
 import { AgentService } from "../services/agent/service";
 import { AppLifecycleService } from "../services/app-lifecycle/service";
 import { ArchiveService } from "../services/archive/service";
@@ -57,6 +58,7 @@ container.bind(MAIN_TOKENS.WorkspaceRepository).to(WorkspaceRepository);
 container.bind(MAIN_TOKENS.WorktreeRepository).to(WorktreeRepository);
 container.bind(MAIN_TOKENS.ArchiveRepository).to(ArchiveRepository);
 container.bind(MAIN_TOKENS.SuspensionRepository).to(SuspensionRepositoryImpl);
+container.bind(MAIN_TOKENS.AgentAuthAdapter).to(AgentAuthAdapter);
 container.bind(MAIN_TOKENS.AgentService).to(AgentService);
 container.bind(MAIN_TOKENS.AuthService).to(AuthService);
 container.bind(MAIN_TOKENS.AuthProxyService).to(AuthProxyService);

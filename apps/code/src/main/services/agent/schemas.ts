@@ -10,7 +10,6 @@ export type { EffortLevel } from "@shared/types";
 
 // Session credentials schema
 export const credentialsSchema = z.object({
-  apiKey: z.string(),
   apiHost: z.string(),
   projectId: z.number(),
 });
@@ -41,7 +40,6 @@ export const startSessionInput = z.object({
   taskId: z.string(),
   taskRunId: z.string(),
   repoPath: z.string(),
-  apiKey: z.string(),
   apiHost: z.string(),
   projectId: z.number(),
   permissionMode: z.string().optional(),
@@ -174,7 +172,6 @@ export const reconnectSessionInput = z.object({
   taskId: z.string(),
   taskRunId: z.string(),
   repoPath: z.string(),
-  apiKey: z.string(),
   apiHost: z.string(),
   projectId: z.number(),
   logUrl: z.string().optional(),
@@ -188,11 +185,6 @@ export const reconnectSessionInput = z.object({
 });
 
 export type ReconnectSessionInput = z.infer<typeof reconnectSessionInput>;
-
-// Token update input - updates the global token for all agent operations
-export const tokenUpdateInput = z.object({
-  token: z.string(),
-});
 
 // Set config option input (for Codex reasoning level, etc.)
 export const setConfigOptionInput = z.object({
@@ -297,7 +289,6 @@ export const listSessionsOutput = z.array(sessionInfoSchema);
 
 export const getGatewayModelsInput = z.object({
   apiHost: z.string(),
-  apiKey: z.string(),
 });
 
 export const getGatewayModelsOutput = z.array(modelOptionSchema);

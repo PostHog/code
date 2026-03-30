@@ -1,12 +1,5 @@
 import { z } from "zod";
 
-export const llmCredentialsSchema = z.object({
-  apiKey: z.string(),
-  apiHost: z.string(),
-});
-
-export type LlmCredentials = z.infer<typeof llmCredentialsSchema>;
-
 export const llmMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
   content: z.string(),
@@ -15,7 +8,6 @@ export const llmMessageSchema = z.object({
 export type LlmMessage = z.infer<typeof llmMessageSchema>;
 
 export const promptInput = z.object({
-  credentials: llmCredentialsSchema,
   system: z.string().optional(),
   messages: z.array(llmMessageSchema),
   maxTokens: z.number().optional(),

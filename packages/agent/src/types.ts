@@ -126,7 +126,8 @@ export type OnLogCallback = (
 
 export interface PostHogAPIConfig {
   apiUrl: string;
-  getApiKey: () => string;
+  getApiKey: () => string | Promise<string>;
+  refreshApiKey?: () => string | Promise<string>;
   projectId: number;
   userAgent?: string;
 }

@@ -1,9 +1,18 @@
-import { injectable } from "inversify";
+import { inject, injectable } from "inversify";
+import { MAIN_TOKENS } from "../../di/tokens";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import type { AuthService } from "../auth/service";
 import { UIServiceEvent, type UIServiceEvents } from "./schemas";
 
 @injectable()
 export class UIService extends TypedEventEmitter<UIServiceEvents> {
+  constructor(
+    @inject(MAIN_TOKENS.AuthService)
+    private readonly authService: AuthService,
+  ) {
+    super();
+  }
+
   openSettings(): void {
     this.emit(UIServiceEvent.OpenSettings, true);
   }
@@ -20,7 +29,8 @@ export class UIService extends TypedEventEmitter<UIServiceEvents> {
     this.emit(UIServiceEvent.ClearStorage, true);
   }
 
-  invalidateToken(): void {
+  async invalidateToken(): Promise<void> {
+    await this.authService.invalidateAccessTokenForTest();
     this.emit(UIServiceEvent.InvalidateToken, true);
   }
 }

@@ -74,7 +74,7 @@ export function ProjectSwitcher() {
   const handleCreateProject = async () => {
     if (cloudRegion) {
       const cloudUrl = getCloudUrlFromRegion(cloudRegion);
-      await trpcClient.oauth.openExternalUrl.mutate({
+      await trpcClient.os.openExternal.mutate({
         url: `${cloudUrl}/organization/create-project`,
       });
     }
@@ -99,12 +99,12 @@ export function ProjectSwitcher() {
   };
 
   const handleOpenExternal = async (url: string) => {
-    await trpcClient.oauth.openExternalUrl.mutate({ url });
+    await trpcClient.os.openExternal.mutate({ url });
     setPopoverOpen(false);
   };
 
   const handleDiscord = async () => {
-    await trpcClient.oauth.openExternalUrl.mutate({
+    await trpcClient.os.openExternal.mutate({
       url: "https://discord.gg/c3qYyJXSWp",
     });
     setPopoverOpen(false);

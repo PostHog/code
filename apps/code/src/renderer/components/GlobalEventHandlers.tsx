@@ -1,4 +1,3 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
 import { useFolders } from "@features/folders/hooks/useFolders";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { useRightSidebarStore } from "@features/right-sidebar";
@@ -11,7 +10,6 @@ import { useFocusWorkspace } from "@features/workspace/hooks/useFocusWorkspace";
 import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
 import { SHORTCUTS } from "@renderer/constants/keyboard-shortcuts";
 import { useTRPC } from "@renderer/trpc";
-import { trpcClient } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { useCommandMenuStore } from "@stores/commandMenuStore";
 import { useNavigationStore } from "@stores/navigationStore";
@@ -147,21 +145,7 @@ export function GlobalEventHandlers({
   const handleInvalidateToken = useCallback((data?: unknown) => {
     if (!data) return;
     const log = logger.scope("global-event-handlers");
-    const state = useAuthStore.getState();
-    const currentToken = state.oauthAccessToken;
-    if (!currentToken) {
-      log.warn("No access token to invalidate");
-      return;
-    }
-    const invalidToken = `${currentToken}_invalid`;
-    useAuthStore.setState({ oauthAccessToken: invalidToken });
-    trpcClient.agent.updateToken
-      .mutate({ token: invalidToken })
-      .catch((err) => log.warn("Failed to update agent token", err));
-    trpcClient.cloudTask.updateToken
-      .mutate({ token: invalidToken })
-      .catch((err) => log.warn("Failed to update cloud task token", err));
-    log.info("OAuth access token invalidated for testing");
+    log.info("Main access token invalidated for testing");
   }, []);
 
   const globalOptions = {

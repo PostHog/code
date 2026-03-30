@@ -1,12 +1,13 @@
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import { net } from "electron";
-import { injectable } from "inversify";
+import { inject, injectable } from "inversify";
+import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
+import type { AuthService } from "../auth/service";
 import type {
   AnthropicErrorResponse,
   AnthropicMessagesRequest,
   AnthropicMessagesResponse,
-  LlmCredentials,
   LlmMessage,
   PromptOutput,
 } from "./schemas";
@@ -27,8 +28,12 @@ export class LlmGatewayError extends Error {
 
 @injectable()
 export class LlmGatewayService {
+  constructor(
+    @inject(MAIN_TOKENS.AuthService)
+    private readonly authService: AuthService,
+  ) {}
+
   async prompt(
-    credentials: LlmCredentials,
     messages: LlmMessage[],
     options: {
       system?: string;
@@ -38,7 +43,8 @@ export class LlmGatewayService {
   ): Promise<PromptOutput> {
     const { system, maxTokens, model = "claude-haiku-4-5" } = options;
 
-    const gatewayUrl = getLlmGatewayUrl(credentials.apiHost);
+    const auth = await this.authService.getValidAccessToken();
+    const gatewayUrl = getLlmGatewayUrl(auth.apiHost);
     const messagesUrl = `${gatewayUrl}/v1/messages`;
 
     const requestBody: AnthropicMessagesRequest = {
@@ -61,14 +67,17 @@ export class LlmGatewayService {
       messageCount: messages.length,
     });
 
-    const response = await net.fetch(messagesUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${credentials.apiKey}`,
+    const response = await this.authService.authenticatedFetch(
+      net.fetch,
+      messagesUrl,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
       },
-      body: JSON.stringify(requestBody),
-    });
+    );
 
     if (!response.ok) {
       const errorBody = await response.text();

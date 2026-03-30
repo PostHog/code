@@ -36,10 +36,6 @@ export const unwatchInput = z.object({
   runId: z.string(),
 });
 
-export const updateTokenInput = z.object({
-  token: z.string(),
-});
-
 export const onUpdateInput = z.object({
   taskId: z.string(),
   runId: z.string(),

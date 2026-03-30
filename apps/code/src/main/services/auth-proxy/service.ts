@@ -1,25 +1,29 @@
 import http from "node:http";
-import { injectable } from "inversify";
+import { inject, injectable } from "inversify";
+import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
+import type { AuthService } from "../auth/service";
 
 const log = logger.scope("auth-proxy");
 
 @injectable()
 export class AuthProxyService {
   private server: http.Server | null = null;
-  private currentToken: string | null = null;
   private gatewayUrl: string | null = null;
   private port: number | null = null;
 
-  async start(gatewayUrl: string, initialToken: string): Promise<string> {
+  constructor(
+    @inject(MAIN_TOKENS.AuthService)
+    private readonly authService: AuthService,
+  ) {}
+
+  async start(gatewayUrl: string): Promise<string> {
     if (this.server) {
-      this.currentToken = initialToken;
       this.gatewayUrl = gatewayUrl;
       return this.getProxyUrl();
     }
 
     this.gatewayUrl = gatewayUrl;
-    this.currentToken = initialToken;
 
     this.server = http.createServer((req, res) => {
       this.handleRequest(req, res);
@@ -42,10 +46,6 @@ export class AuthProxyService {
         reject(err);
       });
     });
-  }
-
-  updateToken(token: string): void {
-    this.currentToken = token;
   }
 
   getProxyUrl(): string {
@@ -76,7 +76,7 @@ export class AuthProxyService {
     req: http.IncomingMessage,
     res: http.ServerResponse,
   ): void {
-    if (!this.gatewayUrl || !this.currentToken) {
+    if (!this.gatewayUrl) {
       res.writeHead(503);
       res.end("Proxy not configured");
       return;
@@ -124,15 +124,26 @@ export class AuthProxyService {
       target: targetUrl.toString(),
     });
 
+    const strippedAuthHeaders = new Set([
+      "authorization",
+      "x-api-key",
+      "api-key",
+      "anthropic-auth-token",
+      "proxy-authorization",
+    ]);
     const headers: Record<string, string> = {};
     for (const [key, value] of Object.entries(req.headers)) {
-      if (key === "host" || key === "connection") continue;
+      if (
+        key === "host" ||
+        key === "connection" ||
+        strippedAuthHeaders.has(key)
+      ) {
+        continue;
+      }
       if (typeof value === "string") {
         headers[key] = value;
       }
     }
-    headers.authorization = `Bearer ${this.currentToken}`;
-
     const fetchOptions: RequestInit = {
       method: req.method ?? "GET",
       headers,
@@ -156,7 +167,11 @@ export class AuthProxyService {
     res: http.ServerResponse,
   ): Promise<void> {
     try {
-      const response = await fetch(url, options);
+      const response = await this.authService.authenticatedFetch(
+        fetch,
+        url,
+        options,
+      );
 
       log.debug("Proxy response", {
         url,
@@ -169,7 +184,7 @@ export class AuthProxyService {
         "content-encoding",
         "content-length",
       ]);
-      response.headers.forEach((value, key) => {
+      response.headers.forEach((value: string, key: string) => {
         if (stripHeaders.has(key)) return;
         responseHeaders[key] = value;
       });

@@ -32,10 +32,8 @@ export function resetAuthStoreModuleStateForTest(): void {
 }
 
 interface AuthStoreState {
-  oauthAccessToken: string | null;
   cloudRegion: CloudRegion | null;
   staleCloudRegion: CloudRegion | null;
-
   isAuthenticated: boolean;
   client: PostHogAPIClient | null;
   projectId: number | null;
@@ -44,16 +42,13 @@ interface AuthStoreState {
   needsProjectSelection: boolean;
   needsScopeReauth: boolean;
   hasCodeAccess: boolean | null;
-
   hasCompletedOnboarding: boolean;
   selectedPlan: "free" | "pro" | null;
   selectedOrgId: string | null;
-
   checkCodeAccess: () => Promise<void>;
   redeemInviteCode: (code: string) => Promise<void>;
   loginWithOAuth: (region: CloudRegion) => Promise<void>;
   signupWithOAuth: (region: CloudRegion) => Promise<void>;
-  refreshAccessToken: () => Promise<void>;
   initializeOAuth: () => Promise<boolean>;
   selectProject: (projectId: number) => Promise<void>;
   completeOnboarding: () => void;
@@ -64,23 +59,12 @@ interface AuthStoreState {
 
 async function getValidAccessToken(): Promise<string> {
   const { accessToken } = await trpcClient.auth.getValidAccessToken.query();
-  useAuthStore.setState({ oauthAccessToken: accessToken });
   return accessToken;
 }
 
 async function refreshAccessToken(): Promise<string> {
   const { accessToken } = await trpcClient.auth.refreshAccessToken.mutate();
-  useAuthStore.setState({ oauthAccessToken: accessToken });
   return accessToken;
-}
-
-function updateServiceTokens(token: string): void {
-  trpcClient.agent.updateToken
-    .mutate({ token })
-    .catch((err) => log.warn("Failed to update agent token", err));
-  trpcClient.cloudTask.updateToken
-    .mutate({ token })
-    .catch((err) => log.warn("Failed to update cloud task token", err));
 }
 
 function createClient(
@@ -99,7 +83,22 @@ function createClient(
   return client;
 }
 
+function clearAuthenticatedRendererState(options?: {
+  clearAllQueries?: boolean;
+}): void {
+  resetUser();
+  trpcClient.analytics.resetUser.mutate();
+
+  if (options?.clearAllQueries) {
+    queryClient.clear();
+    return;
+  }
+
+  queryClient.removeQueries({ queryKey: ["currentUser"], exact: true });
+}
+
 async function syncAuthState(): Promise<void> {
+  const previousState = useAuthStore.getState();
   const authState = await trpcClient.auth.getState.query();
   const isAuthenticated = authState.status === "authenticated";
 
@@ -136,6 +135,9 @@ async function syncAuthState(): Promise<void> {
   const client = useAuthStore.getState().client;
 
   if (!isAuthenticated || !authState.cloudRegion || !client) {
+    if (previousState.isAuthenticated || lastCompletedAuthSyncKey !== null) {
+      clearAuthenticatedRendererState();
+    }
     inFlightAuthSync = null;
     inFlightAuthSyncKey = null;
     lastCompletedAuthSyncKey = null;
@@ -162,9 +164,6 @@ async function syncAuthState(): Promise<void> {
     try {
       const user = await client.getCurrentUser();
       queryClient.setQueryData(["currentUser"], user);
-
-      const token = await getValidAccessToken();
-      updateServiceTokens(token);
 
       const distinctId = user.distinct_id || user.email;
       identifyUser(distinctId, {
@@ -214,7 +213,6 @@ function ensureAuthSubscription(): void {
 }
 
 export const useAuthStore = create<AuthStoreState>((set, get) => ({
-  oauthAccessToken: null,
   cloudRegion: null,
   staleCloudRegion: null,
 
@@ -258,11 +256,6 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     });
   },
 
-  refreshAccessToken: async () => {
-    const token = await refreshAccessToken();
-    updateServiceTokens(token);
-  },
-
   initializeOAuth: async () => {
     if (initializePromise) {
       return initializePromise;
@@ -300,16 +293,13 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
 
   logout: async () => {
     track(ANALYTICS_EVENTS.USER_LOGGED_OUT);
-    resetUser();
     sessionResetCallback?.();
-    queryClient.clear();
+    clearAuthenticatedRendererState({ clearAllQueries: true });
     await trpcClient.auth.logout.mutate();
-    trpcClient.analytics.resetUser.mutate();
     useNavigationStore.getState().navigateToTaskInput();
 
     set((state) => ({
       ...state,
-      oauthAccessToken: null,
       cloudRegion: null,
       staleCloudRegion: state.cloudRegion ?? null,
       isAuthenticated: false,

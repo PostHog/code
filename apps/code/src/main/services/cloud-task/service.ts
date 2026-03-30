@@ -1,8 +1,10 @@
 import type { StoredLogEntry } from "@shared/types/session-events";
 import { net } from "electron";
-import { injectable, preDestroy } from "inversify";
+import { inject, injectable, preDestroy } from "inversify";
+import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import type { AuthService } from "../auth/service";
 import {
   CloudTaskEvent,
   type CloudTaskEvents,
@@ -47,11 +49,6 @@ interface WatcherState {
   viewing: boolean;
 }
 
-interface PendingWatchState {
-  input: WatchInput;
-  subscriberCount: number;
-}
-
 function watcherKey(taskId: string, runId: string): string {
   return `${taskId}:${runId}`;
 }
@@ -59,8 +56,13 @@ function watcherKey(taskId: string, runId: string): string {
 @injectable()
 export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
   private watchers = new Map<string, WatcherState>();
-  private pendingWatches = new Map<string, PendingWatchState>();
-  private apiKey: string | null = null;
+
+  constructor(
+    @inject(MAIN_TOKENS.AuthService)
+    private readonly authService: AuthService,
+  ) {
+    super();
+  }
 
   watch(input: WatchInput): void {
     const key = watcherKey(input.taskId, input.runId);
@@ -79,18 +81,6 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       return;
     }
 
-    // If no token yet, queue (deduplicated by key)
-    if (!this.apiKey) {
-      const pending = this.pendingWatches.get(key);
-      if (pending) {
-        pending.subscriberCount++;
-      } else {
-        this.pendingWatches.set(key, { input, subscriberCount: 1 });
-      }
-      log.info("Cloud task watch queued (no token yet)", { key });
-      return;
-    }
-
     this.startWatcher(input, 1);
   }
 
@@ -98,13 +88,6 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     const key = watcherKey(taskId, runId);
     const watcher = this.watchers.get(key);
     if (!watcher) {
-      const pending = this.pendingWatches.get(key);
-      if (!pending) return;
-
-      pending.subscriberCount--;
-      if (pending.subscriberCount <= 0) {
-        this.pendingWatches.delete(key);
-      }
       return;
     }
 
@@ -115,22 +98,6 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       log.info("Cloud task watcher subscriber removed", {
         key,
         subscribers: watcher.subscriberCount,
-      });
-    }
-  }
-
-  updateToken(token: string): void {
-    this.apiKey = token;
-
-    // Drain pending watches
-    if (this.pendingWatches.size > 0) {
-      const pending = [...this.pendingWatches.values()];
-      this.pendingWatches.clear();
-      for (const queued of pending) {
-        this.startWatcher(queued.input, queued.subscriberCount);
-      }
-      log.info("Drained pending cloud task watches", {
-        count: pending.length,
       });
     }
   }
@@ -157,10 +124,6 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
   }
 
   async sendCommand(input: SendCommandInput): Promise<SendCommandOutput> {
-    if (!this.apiKey) {
-      return { success: false, error: "No API token available" };
-    }
-
     const url = `${input.apiHost}/api/projects/${input.teamId}/tasks/${input.taskId}/runs/${input.runId}/command/`;
     const body = {
       jsonrpc: "2.0",
@@ -170,14 +133,17 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     };
 
     try {
-      const response = await net.fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
+      const response = await this.authService.authenticatedFetch(
+        net.fetch,
+        url,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
         },
-        body: JSON.stringify(body),
-      });
+      );
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => "");
@@ -244,7 +210,6 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     for (const key of [...this.watchers.keys()]) {
       this.stopWatcher(key);
     }
-    this.pendingWatches.clear();
   }
 
   // --- Private ---
@@ -307,7 +272,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
 
   private async poll(key: string, isSnapshot: boolean): Promise<void> {
     const watcher = this.watchers.get(key);
-    if (!watcher || !this.apiKey) return;
+    if (!watcher) return;
 
     try {
       // Only fetch logs when the user is viewing the run
@@ -457,20 +422,23 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     }
 
     try {
-      const response = await net.fetch(url.toString(), {
-        method: "GET",
-        headers: { Authorization: `Bearer ${this.apiKey}` },
-      });
+      const authedResponse = await this.authService.authenticatedFetch(
+        net.fetch,
+        url.toString(),
+        {
+          method: "GET",
+        },
+      );
 
-      if (!response.ok) {
+      if (!authedResponse.ok) {
         log.warn("Cloud task log fetch failed", {
-          status: response.status,
+          status: authedResponse.status,
           taskId: watcher.taskId,
         });
         return { newEntries: [] };
       }
 
-      const raw = await response.text();
+      const raw = await authedResponse.text();
       const entries = JSON.parse(raw) as StoredLogEntry[];
 
       if (entries.length === 0) {
@@ -549,20 +517,23 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     const url = `${watcher.apiHost}/api/projects/${watcher.teamId}/tasks/${watcher.taskId}/runs/${watcher.runId}/`;
 
     try {
-      const response = await net.fetch(url, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${this.apiKey}` },
-      });
+      const authedResponse = await this.authService.authenticatedFetch(
+        net.fetch,
+        url,
+        {
+          method: "GET",
+        },
+      );
 
-      if (!response.ok) {
+      if (!authedResponse.ok) {
         log.warn("Cloud task status fetch failed", {
-          status: response.status,
+          status: authedResponse.status,
           taskId: watcher.taskId,
         });
         return null;
       }
 
-      return (await response.json()) as TaskRunResponse;
+      return (await authedResponse.json()) as TaskRunResponse;
     } catch (error) {
       log.warn("Cloud task status fetch error", {
         taskId: watcher.taskId,

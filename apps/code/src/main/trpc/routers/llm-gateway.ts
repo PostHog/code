@@ -12,7 +12,7 @@ export const llmGatewayRouter = router({
     .input(promptInput)
     .output(promptOutput)
     .mutation(({ input }) =>
-      getService().prompt(input.credentials, input.messages, {
+      getService().prompt(input.messages, {
         system: input.system,
         maxTokens: input.maxTokens,
         model: input.model,
