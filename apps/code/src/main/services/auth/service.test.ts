@@ -1,11 +1,26 @@
+import { EventEmitter } from "node:events";
 import { OAUTH_SCOPE_VERSION } from "@shared/constants/oauth";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockAuthPreferenceRepository } from "../../db/repositories/auth-preference-repository.mock";
 import { createMockAuthSessionRepository } from "../../db/repositories/auth-session-repository.mock";
 import { decrypt, encrypt } from "../../utils/encryption";
+import { ConnectivityEvent } from "../connectivity/schemas";
 import type { ConnectivityService } from "../connectivity/service";
 import type { OAuthService } from "../oauth/service";
 import { AuthService } from "./service";
+
+const mockPowerMonitor = vi.hoisted(() => ({
+  on: vi.fn(),
+  off: vi.fn(),
+}));
+
+vi.mock("electron", () => ({
+  powerMonitor: mockPowerMonitor,
+}));
+
+vi.mock("@shared/utils/backoff", () => ({
+  sleepWithBackoff: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock("../../utils/logger.js", () => ({
   logger: {
@@ -18,36 +33,75 @@ vi.mock("../../utils/logger.js", () => ({
   },
 }));
 
+function mockTokenResponse(
+  overrides: {
+    accessToken?: string;
+    refreshToken?: string;
+    scopedTeams?: number[];
+    scopedOrgs?: string[];
+  } = {},
+) {
+  return {
+    success: true as const,
+    data: {
+      access_token: overrides.accessToken ?? "access-token",
+      refresh_token: overrides.refreshToken ?? "refresh-token",
+      expires_in: 3600,
+      token_type: "Bearer",
+      scope: "",
+      scoped_teams: overrides.scopedTeams ?? [42],
+      scoped_organizations: overrides.scopedOrgs ?? ["org-1"],
+    },
+  };
+}
+
 describe("AuthService", () => {
   const preferenceRepository = createMockAuthPreferenceRepository();
   const repository = createMockAuthSessionRepository();
+
   const oauthService = {
     refreshToken: vi.fn(),
     startFlow: vi.fn(),
     startSignupFlow: vi.fn(),
   } as unknown as OAuthService;
-  const connectivityService = {
+
+  const connectivityEmitter = new EventEmitter();
+  const connectivityService = Object.assign(connectivityEmitter, {
     getStatus: vi.fn(() => ({ isOnline: true })),
-  } as unknown as ConnectivityService;
+    checkNow: vi.fn(),
+  }) as unknown as ConnectivityService;
 
   let service: AuthService;
 
-  beforeEach(() => {
-    preferenceRepository._preferences = [];
-    repository.clearCurrent();
-    vi.clearAllMocks();
-    service = new AuthService(
-      preferenceRepository,
-      repository,
-      oauthService,
-      connectivityService,
-    );
-  });
+  function seedStoredSession(
+    overrides: {
+      refreshToken?: string;
+      selectedProjectId?: number | null;
+      scopeVersion?: number;
+    } = {},
+  ) {
+    repository.saveCurrent({
+      refreshTokenEncrypted: encrypt(
+        overrides.refreshToken ?? "stored-refresh-token",
+      ),
+      cloudRegion: "us",
+      selectedProjectId: overrides.selectedProjectId ?? null,
+      scopeVersion: overrides.scopeVersion ?? OAUTH_SCOPE_VERSION,
+    });
+  }
 
-  afterEach(async () => {
-    vi.unstubAllGlobals();
-    await service.logout();
-  });
+  function emitOnline() {
+    connectivityEmitter.emit(ConnectivityEvent.StatusChange, {
+      isOnline: true,
+    });
+  }
+
+  function getResumeHandler(): () => void {
+    const call = mockPowerMonitor.on.mock.calls.find(
+      (c: unknown[]) => c[0] === "resume",
+    );
+    return call?.[1] as () => void;
+  }
 
   const stubAuthFetch = (accountKey = "user-1") => {
     vi.stubGlobal(
@@ -70,6 +124,26 @@ describe("AuthService", () => {
     );
   };
 
+  beforeEach(() => {
+    preferenceRepository._preferences = [];
+    repository.clearCurrent();
+    vi.clearAllMocks();
+    connectivityEmitter.removeAllListeners();
+    service = new AuthService(
+      preferenceRepository,
+      repository,
+      oauthService,
+      connectivityService,
+    );
+    service.init();
+  });
+
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    service.shutdown();
+    await service.logout();
+  });
+
   it("bootstraps to anonymous when there is no stored session", async () => {
     await service.initialize();
 
@@ -86,9 +160,8 @@ describe("AuthService", () => {
   });
 
   it("requires scope reauthentication when the stored scope version is stale", async () => {
-    repository.saveCurrent({
-      refreshTokenEncrypted: encrypt("refresh-token"),
-      cloudRegion: "us",
+    seedStoredSession({
+      refreshToken: "refresh-token",
       selectedProjectId: 123,
       scopeVersion: OAUTH_SCOPE_VERSION - 1,
     });
@@ -108,26 +181,14 @@ describe("AuthService", () => {
   });
 
   it("restores an authenticated session by refreshing the stored refresh token", async () => {
-    repository.saveCurrent({
-      refreshTokenEncrypted: encrypt("stored-refresh-token"),
-      cloudRegion: "us",
-      selectedProjectId: 42,
-      scopeVersion: OAUTH_SCOPE_VERSION,
-    });
-
-    vi.mocked(oauthService.refreshToken).mockResolvedValue({
-      success: true,
-      data: {
-        access_token: "new-access-token",
-        refresh_token: "rotated-refresh-token",
-        expires_in: 3600,
-        token_type: "Bearer",
-        scope: "",
-        scoped_teams: [42, 84],
-        scoped_organizations: ["org-1"],
-      },
-    });
-
+    seedStoredSession({ selectedProjectId: 42 });
+    vi.mocked(oauthService.refreshToken).mockResolvedValue(
+      mockTokenResponse({
+        accessToken: "new-access-token",
+        refreshToken: "rotated-refresh-token",
+        scopedTeams: [42, 84],
+      }),
+    );
     stubAuthFetch();
 
     await service.initialize();
@@ -143,42 +204,27 @@ describe("AuthService", () => {
       needsScopeReauth: false,
     });
 
-    const persisted = repository.getCurrent();
-    expect(persisted).not.toBeNull();
-    expect(decrypt(persisted?.refreshTokenEncrypted ?? "")).toBe(
+    expect(decrypt(repository.getCurrent()?.refreshTokenEncrypted ?? "")).toBe(
       "rotated-refresh-token",
     );
   });
 
   it("forces a token refresh when explicitly requested", async () => {
-    vi.mocked(oauthService.startFlow).mockResolvedValue({
-      success: true,
-      data: {
-        access_token: "initial-access-token",
-        refresh_token: "initial-refresh-token",
-        expires_in: 3600,
-        token_type: "Bearer",
-        scope: "",
-        scoped_teams: [42],
-        scoped_organizations: ["org-1"],
-      },
-    });
-    vi.mocked(oauthService.refreshToken).mockResolvedValue({
-      success: true,
-      data: {
-        access_token: "refreshed-access-token",
-        refresh_token: "rotated-refresh-token",
-        expires_in: 3600,
-        token_type: "Bearer",
-        scope: "",
-        scoped_teams: [42],
-        scoped_organizations: ["org-1"],
-      },
-    });
+    vi.mocked(oauthService.startFlow).mockResolvedValue(
+      mockTokenResponse({
+        accessToken: "initial-access-token",
+        refreshToken: "initial-refresh-token",
+      }),
+    );
+    vi.mocked(oauthService.refreshToken).mockResolvedValue(
+      mockTokenResponse({
+        accessToken: "refreshed-access-token",
+        refreshToken: "rotated-refresh-token",
+      }),
+    );
     stubAuthFetch();
 
     await service.login("us");
-
     const token = await service.refreshAccessToken();
 
     expect(token.accessToken).toBe("refreshed-access-token");
@@ -193,43 +239,27 @@ describe("AuthService", () => {
 
   it("preserves the selected project across logout and re-login for the same account", async () => {
     vi.mocked(oauthService.startFlow)
-      .mockResolvedValueOnce({
-        success: true,
-        data: {
-          access_token: "initial-access-token",
-          refresh_token: "initial-refresh-token",
-          expires_in: 3600,
-          token_type: "Bearer",
-          scope: "",
-          scoped_teams: [42, 84],
-          scoped_organizations: ["org-1"],
-        },
-      })
-      .mockResolvedValueOnce({
-        success: true,
-        data: {
-          access_token: "second-access-token",
-          refresh_token: "second-refresh-token",
-          expires_in: 3600,
-          token_type: "Bearer",
-          scope: "",
-          scoped_teams: [42, 84],
-          scoped_organizations: ["org-1"],
-        },
-      });
-    vi.mocked(oauthService.refreshToken).mockResolvedValue({
-      success: true,
-      data: {
-        access_token: "refreshed-access-token",
-        refresh_token: "refreshed-refresh-token",
-        expires_in: 3600,
-        token_type: "Bearer",
-        scope: "",
-        scoped_teams: [42, 84],
-        scoped_organizations: ["org-1"],
-      },
-    });
-
+      .mockResolvedValueOnce(
+        mockTokenResponse({
+          accessToken: "initial-access-token",
+          refreshToken: "initial-refresh-token",
+          scopedTeams: [42, 84],
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockTokenResponse({
+          accessToken: "second-access-token",
+          refreshToken: "second-refresh-token",
+          scopedTeams: [42, 84],
+        }),
+      );
+    vi.mocked(oauthService.refreshToken).mockResolvedValue(
+      mockTokenResponse({
+        accessToken: "refreshed-access-token",
+        refreshToken: "refreshed-refresh-token",
+        scopedTeams: [42, 84],
+      }),
+    );
     stubAuthFetch();
 
     await service.login("us");
@@ -254,43 +284,27 @@ describe("AuthService", () => {
 
   it("restores the selected project after app restart while logged out", async () => {
     vi.mocked(oauthService.startFlow)
-      .mockResolvedValueOnce({
-        success: true,
-        data: {
-          access_token: "initial-access-token",
-          refresh_token: "initial-refresh-token",
-          expires_in: 3600,
-          token_type: "Bearer",
-          scope: "",
-          scoped_teams: [42, 84],
-          scoped_organizations: ["org-1"],
-        },
-      })
-      .mockResolvedValueOnce({
-        success: true,
-        data: {
-          access_token: "second-access-token",
-          refresh_token: "second-refresh-token",
-          expires_in: 3600,
-          token_type: "Bearer",
-          scope: "",
-          scoped_teams: [42, 84],
-          scoped_organizations: ["org-1"],
-        },
-      });
-    vi.mocked(oauthService.refreshToken).mockResolvedValue({
-      success: true,
-      data: {
-        access_token: "refreshed-access-token",
-        refresh_token: "refreshed-refresh-token",
-        expires_in: 3600,
-        token_type: "Bearer",
-        scope: "",
-        scoped_teams: [42, 84],
-        scoped_organizations: ["org-1"],
-      },
-    });
-
+      .mockResolvedValueOnce(
+        mockTokenResponse({
+          accessToken: "initial-access-token",
+          refreshToken: "initial-refresh-token",
+          scopedTeams: [42, 84],
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockTokenResponse({
+          accessToken: "second-access-token",
+          refreshToken: "second-refresh-token",
+          scopedTeams: [42, 84],
+        }),
+      );
+    vi.mocked(oauthService.refreshToken).mockResolvedValue(
+      mockTokenResponse({
+        accessToken: "refreshed-access-token",
+        refreshToken: "refreshed-refresh-token",
+        scopedTeams: [42, 84],
+      }),
+    );
     stubAuthFetch();
 
     await service.login("us");
@@ -311,6 +325,238 @@ describe("AuthService", () => {
       cloudRegion: "us",
       projectId: 84,
       availableProjectIds: [42, 84],
+    });
+  });
+
+  describe("lifecycle: connectivity recovery", () => {
+    it("recovers session when connectivity changes to online", async () => {
+      seedStoredSession({ selectedProjectId: 42 });
+      vi.mocked(connectivityService.getStatus).mockReturnValue({
+        isOnline: false,
+      });
+      await service.initialize();
+      expect(service.getState().status).toBe("anonymous");
+
+      vi.mocked(connectivityService.getStatus).mockReturnValue({
+        isOnline: true,
+      });
+      vi.mocked(oauthService.refreshToken).mockResolvedValue(
+        mockTokenResponse(),
+      );
+      stubAuthFetch();
+
+      emitOnline();
+
+      await vi.waitFor(() => {
+        expect(service.getState().status).toBe("authenticated");
+      });
+    });
+
+    it("does nothing when session already exists", async () => {
+      vi.mocked(oauthService.startFlow).mockResolvedValue(mockTokenResponse());
+      stubAuthFetch();
+      await service.login("us");
+      vi.mocked(oauthService.refreshToken).mockClear();
+
+      emitOnline();
+
+      await new Promise((r) => setTimeout(r, 10));
+      expect(oauthService.refreshToken).not.toHaveBeenCalled();
+    });
+
+    it("ignores offline events", async () => {
+      seedStoredSession();
+
+      connectivityEmitter.emit(ConnectivityEvent.StatusChange, {
+        isOnline: false,
+      });
+
+      await new Promise((r) => setTimeout(r, 10));
+      expect(oauthService.refreshToken).not.toHaveBeenCalled();
+    });
+
+    it("deduplicates concurrent recovery attempts", async () => {
+      seedStoredSession();
+
+      let resolveRefresh!: () => void;
+      vi.mocked(oauthService.refreshToken).mockReturnValue(
+        new Promise((resolve) => {
+          resolveRefresh = () => resolve(mockTokenResponse());
+        }),
+      );
+      stubAuthFetch();
+
+      emitOnline();
+      emitOnline();
+
+      await new Promise((r) => setTimeout(r, 10));
+      expect(oauthService.refreshToken).toHaveBeenCalledTimes(1);
+
+      resolveRefresh();
+
+      await vi.waitFor(() => {
+        expect(service.getState().status).toBe("authenticated");
+      });
+    });
+  });
+
+  describe("lifecycle: power monitor resume", () => {
+    it("registers and unregisters the resume handler", () => {
+      expect(mockPowerMonitor.on).toHaveBeenCalledWith(
+        "resume",
+        expect.any(Function),
+      );
+
+      service.shutdown();
+      expect(mockPowerMonitor.off).toHaveBeenCalledWith(
+        "resume",
+        expect.any(Function),
+      );
+    });
+
+    it("attempts session recovery on resume", async () => {
+      seedStoredSession();
+      vi.mocked(oauthService.refreshToken).mockResolvedValue(
+        mockTokenResponse(),
+      );
+      stubAuthFetch();
+
+      getResumeHandler()();
+
+      await vi.waitFor(() => {
+        expect(service.getState().status).toBe("authenticated");
+      });
+    });
+  });
+
+  describe("refresh retry with error codes", () => {
+    it.each([
+      { errorCode: "network_error" as const, label: "network_error" },
+      { errorCode: "server_error" as const, label: "server_error" },
+    ])(
+      "retries on $label and succeeds on second attempt",
+      async ({ errorCode }) => {
+        seedStoredSession();
+        vi.mocked(oauthService.refreshToken)
+          .mockResolvedValueOnce({
+            success: false,
+            error: "Transient failure",
+            errorCode,
+          })
+          .mockResolvedValueOnce(mockTokenResponse());
+        stubAuthFetch();
+
+        await service.initialize();
+
+        expect(service.getState().status).toBe("authenticated");
+        expect(oauthService.refreshToken).toHaveBeenCalledTimes(2);
+      },
+    );
+
+    it("does not retry on auth_error and forces logout", async () => {
+      seedStoredSession({ selectedProjectId: 42 });
+      vi.mocked(oauthService.refreshToken).mockResolvedValue({
+        success: false,
+        error: "Token revoked",
+        errorCode: "auth_error",
+      });
+
+      await service.initialize();
+
+      expect(service.getState()).toMatchObject({
+        status: "anonymous",
+        cloudRegion: "us",
+        projectId: 42,
+      });
+      expect(oauthService.refreshToken).toHaveBeenCalledTimes(1);
+      expect(repository.getCurrent()).toBeNull();
+    });
+
+    it("does not retry on unknown_error", async () => {
+      seedStoredSession();
+      vi.mocked(oauthService.refreshToken).mockResolvedValue({
+        success: false,
+        error: "Something weird",
+        errorCode: "unknown_error",
+      });
+
+      await service.initialize();
+
+      expect(service.getState().status).toBe("anonymous");
+      expect(oauthService.refreshToken).toHaveBeenCalledTimes(1);
+    });
+
+    it("gives up after all retry attempts are exhausted", async () => {
+      seedStoredSession();
+      vi.mocked(oauthService.refreshToken).mockResolvedValue({
+        success: false,
+        error: "Network error",
+        errorCode: "network_error",
+      });
+
+      await service.initialize();
+
+      expect(service.getState().status).toBe("anonymous");
+      expect(oauthService.refreshToken).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe("redeemInviteCode uses authenticatedFetch", () => {
+    it("retries on 401 via authenticatedFetch", async () => {
+      vi.mocked(oauthService.startFlow).mockResolvedValue(
+        mockTokenResponse({
+          accessToken: "initial-token",
+          refreshToken: "refresh-token",
+        }),
+      );
+      vi.mocked(oauthService.refreshToken).mockResolvedValue(
+        mockTokenResponse({
+          accessToken: "refreshed-token",
+          refreshToken: "new-refresh-token",
+        }),
+      );
+
+      let redeemCallCount = 0;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: string | Request) => {
+          const url = typeof input === "string" ? input : input.url;
+
+          if (url.includes("/api/users/@me/")) {
+            return {
+              ok: true,
+              json: vi.fn().mockResolvedValue({ uuid: "user-1" }),
+            } as unknown as Response;
+          }
+
+          if (url.includes("/invites/redeem/")) {
+            redeemCallCount++;
+            if (redeemCallCount === 1) {
+              return {
+                ok: false,
+                status: 401,
+                json: () => Promise.resolve({}),
+              } as unknown as Response;
+            }
+            return {
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve({ success: true }),
+            } as unknown as Response;
+          }
+
+          return {
+            ok: true,
+            json: vi.fn().mockResolvedValue({ has_access: true }),
+          } as unknown as Response;
+        }) as typeof fetch,
+      );
+
+      await service.login("us");
+      const state = await service.redeemInviteCode("test-code");
+
+      expect(state.hasCodeAccess).toBe(true);
+      expect(redeemCallCount).toBe(2);
     });
   });
 });

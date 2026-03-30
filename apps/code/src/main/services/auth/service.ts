@@ -3,7 +3,9 @@ import {
   OAUTH_SCOPE_VERSION,
 } from "@shared/constants/oauth";
 import type { CloudRegion } from "@shared/types/oauth";
-import { inject, injectable } from "inversify";
+import { type BackoffOptions, sleepWithBackoff } from "@shared/utils/backoff";
+import { powerMonitor } from "electron";
+import { inject, injectable, postConstruct, preDestroy } from "inversify";
 import type { IAuthPreferenceRepository } from "../../db/repositories/auth-preference-repository";
 import type {
   IAuthSessionRepository,
@@ -13,6 +15,10 @@ import { MAIN_TOKENS } from "../../di/tokens";
 import { decrypt, encrypt } from "../../utils/encryption";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import {
+  ConnectivityEvent,
+  type ConnectivityStatusOutput,
+} from "../connectivity/schemas";
 import type { ConnectivityService } from "../connectivity/service";
 import type { OAuthService } from "../oauth/service";
 import {
@@ -67,7 +73,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
   private session: InMemorySession | null = null;
   private initializePromise: Promise<void> | null = null;
   private refreshPromise: Promise<InMemorySession> | null = null;
-
   constructor(
     @inject(MAIN_TOKENS.AuthPreferenceRepository)
     private readonly authPreferenceRepository: IAuthPreferenceRepository,
@@ -80,7 +85,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
   ) {
     super();
   }
-
   async initialize(): Promise<void> {
     if (this.initializePromise) {
       return this.initializePromise;
@@ -89,11 +93,9 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
     this.initializePromise = this.doInitialize();
     return this.initializePromise;
   }
-
   getState(): AuthState {
     return { ...this.state };
   }
-
   async login(region: CloudRegion): Promise<AuthState> {
     await this.authenticateWithFlow(
       () => this.oauthService.startFlow(region),
@@ -102,7 +104,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
     );
     return this.getState();
   }
-
   async signup(region: CloudRegion): Promise<AuthState> {
     await this.authenticateWithFlow(
       () => this.oauthService.startSignupFlow(region),
@@ -111,7 +112,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
     );
     return this.getState();
   }
-
   async getValidAccessToken(): Promise<ValidAccessTokenOutput> {
     await this.initialize();
 
@@ -121,7 +121,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       apiHost: getCloudUrlFromRegion(session.cloudRegion),
     };
   }
-
   async refreshAccessToken(): Promise<ValidAccessTokenOutput> {
     await this.initialize();
 
@@ -131,7 +130,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       apiHost: getCloudUrlFromRegion(session.cloudRegion),
     };
   }
-
   async invalidateAccessTokenForTest(): Promise<void> {
     await this.initialize();
 
@@ -147,7 +145,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       accessTokenExpiresAt: Date.now() + 5 * 60 * 1000,
     };
   }
-
   async authenticatedFetch(
     fetchImpl: FetchLike,
     input: string | Request,
@@ -173,17 +170,17 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
 
     return response;
   }
-
   async redeemInviteCode(code: string): Promise<AuthState> {
-    const { accessToken, apiHost } = await this.getValidAccessToken();
-    const response = await fetch(`${apiHost}/api/code/invites/redeem/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
+    const { apiHost } = await this.getValidAccessToken();
+    const response = await this.authenticatedFetch(
+      fetch,
+      `${apiHost}/api/code/invites/redeem/`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
       },
-      body: JSON.stringify({ code }),
-    });
+    );
 
     const data = (await response.json().catch(() => ({}))) as {
       success?: boolean;
@@ -197,7 +194,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
     this.updateState({ hasCodeAccess: true });
     return this.getState();
   }
-
   async selectProject(projectId: number): Promise<AuthState> {
     await this.initialize();
 
@@ -222,7 +218,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
     this.updateState({ projectId });
     return this.getState();
   }
-
   async logout(): Promise<AuthState> {
     const { cloudRegion, projectId } = this.state;
 
@@ -231,7 +226,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
     this.setAnonymousState({ cloudRegion, projectId });
     return this.getState();
   }
-
   private executeAuthenticatedFetch(
     fetchImpl: FetchLike,
     input: string | Request,
@@ -246,7 +240,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       headers,
     });
   }
-
   private async doInitialize(): Promise<void> {
     const stored = this.authSessionRepository.getCurrent();
 
@@ -266,13 +259,7 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       return;
     }
 
-    const storedSession = this.getStoredSessionInput(
-      stored.refreshTokenEncrypted,
-      {
-        cloudRegion: stored.cloudRegion,
-        selectedProjectId: stored.selectedProjectId,
-      },
-    );
+    const storedSession = this.resolveStoredSession();
     if (!storedSession) {
       log.warn("Stored auth session could not be decrypted");
       this.authSessionRepository.clearCurrent();
@@ -292,7 +279,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       });
     }
   }
-
   private async ensureValidSession(
     forceRefresh = false,
   ): Promise<InMemorySession> {
@@ -328,25 +314,13 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       };
     }
 
-    const stored = this.authSessionRepository.getCurrent();
-    if (!stored) {
-      throw new Error("Not authenticated");
-    }
-
-    const storedSession = this.getStoredSessionInput(
-      stored.refreshTokenEncrypted,
-      {
-        cloudRegion: stored.cloudRegion,
-        selectedProjectId: stored.selectedProjectId,
-      },
-    );
+    const storedSession = this.resolveStoredSession();
     if (!storedSession) {
-      throw new Error("Stored session is invalid");
+      throw new Error("Not authenticated");
     }
 
     return storedSession;
   }
-
   private async refreshSession(
     input: StoredSessionInput,
   ): Promise<InMemorySession> {
@@ -354,18 +328,55 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       throw new Error("Offline");
     }
 
-    const result = await this.oauthService.refreshToken(
-      input.refreshToken,
-      input.cloudRegion,
-    );
+    let lastError = "Token refresh failed";
 
-    if (!result.success || !result.data) {
-      throw new Error(result.error || "Token refresh failed");
+    for (
+      let attempt = 0;
+      attempt < AuthService.REFRESH_MAX_ATTEMPTS;
+      attempt++
+    ) {
+      const result = await this.oauthService.refreshToken(
+        input.refreshToken,
+        input.cloudRegion,
+      );
+
+      if (result.success && result.data) {
+        return await this.createSessionFromTokenResponse(result.data, input);
+      }
+
+      lastError = result.error || "Token refresh failed";
+
+      if (result.errorCode === "auth_error") {
+        log.warn("Refresh token rejected by server, forcing logout");
+        this.authSessionRepository.clearCurrent();
+        this.session = null;
+        this.setAnonymousState({
+          cloudRegion: input.cloudRegion,
+          projectId: input.selectedProjectId,
+        });
+        throw new Error(lastError);
+      }
+
+      const isRetryable =
+        result.errorCode === "network_error" ||
+        result.errorCode === "server_error";
+
+      if (!isRetryable) {
+        throw new Error(lastError);
+      }
+
+      const isLastAttempt = attempt === AuthService.REFRESH_MAX_ATTEMPTS - 1;
+      if (isLastAttempt) break;
+
+      log.warn("Transient refresh failure, retrying", {
+        attempt,
+        errorCode: result.errorCode,
+      });
+      await sleepWithBackoff(attempt, AuthService.REFRESH_BACKOFF);
     }
 
-    return await this.createSessionFromTokenResponse(result.data, input);
+    throw new Error(lastError);
   }
-
   private async createSessionFromTokenResponse(
     tokenResponse: AuthTokenResponse,
     options: TokenResponseOptions,
@@ -400,7 +411,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
 
     return session;
   }
-
   private async authenticateWithFlow(
     runFlow: () => Promise<{
       success: boolean;
@@ -421,14 +431,12 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
     });
     await this.syncAuthenticatedSession(session);
   }
-
   private async refreshAndSyncSession(
     input: StoredSessionInput,
   ): Promise<void> {
     const session = await this.refreshSession(input);
     await this.syncAuthenticatedSession(session);
   }
-
   private async syncAuthenticatedSession(
     session: InMemorySession,
   ): Promise<void> {
@@ -451,7 +459,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
     });
     await this.updateCodeAccessFromSession();
   }
-
   private persistSession(input: {
     refreshToken: string;
     cloudRegion: CloudRegion;
@@ -466,7 +473,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
 
     this.authSessionRepository.saveCurrent(row);
   }
-
   private persistProjectPreference(session: InMemorySession): void {
     if (!session.accountKey) {
       return;
@@ -478,26 +484,9 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       lastSelectedProjectId: session.projectId,
     });
   }
-
   private isSessionExpiring(session: InMemorySession): boolean {
     return session.accessTokenExpiresAt - Date.now() <= TOKEN_EXPIRY_SKEW_MS;
   }
-
-  private getStoredSessionInput(
-    refreshTokenEncrypted: string,
-    options: Omit<StoredSessionInput, "refreshToken">,
-  ): StoredSessionInput | null {
-    const refreshToken = decrypt(refreshTokenEncrypted);
-    if (!refreshToken) {
-      return null;
-    }
-
-    return {
-      refreshToken,
-      ...options,
-    };
-  }
-
   private async fetchAccountKey(
     accessToken: string,
     cloudRegion: "us" | "eu" | "dev",
@@ -538,14 +527,12 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       return null;
     }
   }
-
   private requireSession(): InMemorySession {
     if (!this.session) {
       throw new Error("Not authenticated");
     }
     return this.session;
   }
-
   private setAnonymousState(
     partial: Pick<
       Partial<AuthState>,
@@ -563,7 +550,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       needsScopeReauth: partial.needsScopeReauth ?? false,
     });
   }
-
   private async updateCodeAccessFromSession(): Promise<void> {
     if (!this.session) {
       this.updateState({ hasCodeAccess: null });
@@ -571,13 +557,12 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
     }
 
     try {
-      const response = await fetch(
-        `${getCloudUrlFromRegion(this.session.cloudRegion)}/api/code/invites/check-access/`,
-        {
-          headers: {
-            Authorization: `Bearer ${this.session.accessToken}`,
-          },
-        },
+      const apiHost = getCloudUrlFromRegion(this.session.cloudRegion);
+      const response = await this.executeAuthenticatedFetch(
+        fetch,
+        `${apiHost}/api/code/invites/check-access/`,
+        {},
+        this.session.accessToken,
       );
       const data = (await response.json().catch(() => ({}))) as {
         has_access?: boolean;
@@ -588,6 +573,69 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       log.warn("Failed to update code access state", { error });
       this.updateState({ hasCodeAccess: false });
     }
+  }
+  private static readonly REFRESH_MAX_ATTEMPTS = 3;
+  private static readonly REFRESH_BACKOFF: BackoffOptions = {
+    initialDelayMs: 1_000,
+    maxDelayMs: 5_000,
+    multiplier: 2,
+  };
+  private recoveryPromise: Promise<void> | null = null;
+  private connectivityUnsubscribe: (() => void) | null = null;
+  @postConstruct()
+  init(): void {
+    const handler = (status: ConnectivityStatusOutput) => {
+      if (status.isOnline) {
+        this.attemptSessionRecovery();
+      }
+    };
+    this.connectivityService.on(ConnectivityEvent.StatusChange, handler);
+    this.connectivityUnsubscribe = () => {
+      this.connectivityService.off(ConnectivityEvent.StatusChange, handler);
+    };
+
+    powerMonitor.on("resume", this.handleResume);
+  }
+  @preDestroy()
+  shutdown(): void {
+    this.connectivityUnsubscribe?.();
+    this.connectivityUnsubscribe = null;
+    powerMonitor.off("resume", this.handleResume);
+  }
+  private handleResume = (): void => {
+    this.attemptSessionRecovery();
+  };
+  private resolveStoredSession(): StoredSessionInput | null {
+    const stored = this.authSessionRepository.getCurrent();
+    if (!stored) return null;
+
+    const refreshToken = decrypt(stored.refreshTokenEncrypted);
+    if (!refreshToken) return null;
+
+    return {
+      refreshToken,
+      cloudRegion: stored.cloudRegion,
+      selectedProjectId: stored.selectedProjectId,
+    };
+  }
+  private attemptSessionRecovery(): void {
+    if (this.session) return;
+    if (this.recoveryPromise) return;
+
+    const stored = this.authSessionRepository.getCurrent();
+    if (!stored) return;
+    if (stored.scopeVersion < OAUTH_SCOPE_VERSION) return;
+
+    const storedSession = this.resolveStoredSession();
+    if (!storedSession) return;
+
+    this.recoveryPromise = this.refreshAndSyncSession(storedSession)
+      .catch((error) => {
+        log.warn("Session recovery failed", { error });
+      })
+      .finally(() => {
+        this.recoveryPromise = null;
+      });
   }
 
   private updateState(partial: Partial<AuthState>): void {
