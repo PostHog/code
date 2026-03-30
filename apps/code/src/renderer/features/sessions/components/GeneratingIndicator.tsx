@@ -95,16 +95,23 @@ function getRandomThinkingMessage(): string {
   ];
 }
 
-export function formatDuration(ms: number): string {
+export function formatDuration(ms: number, fractionDigits = 2): string {
   const totalSeconds = Math.floor(ms / 1000);
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
-  const centiseconds = Math.floor((ms % 1000) / 10);
 
   if (mins > 0) {
     return `${mins}m ${secs.toString().padStart(2, "0")}s`;
   }
-  return `${secs}.${centiseconds.toString().padStart(2, "0")}s`;
+
+  if (fractionDigits <= 0) {
+    return `${secs}s`;
+  }
+
+  const fractionalUnit = 10 ** (3 - fractionDigits);
+  const fractionalValue = Math.floor((ms % 1000) / fractionalUnit);
+
+  return `${secs}.${fractionalValue.toString().padStart(fractionDigits, "0")}s`;
 }
 
 interface GeneratingIndicatorProps {
@@ -164,7 +171,7 @@ export function GeneratingIndicator({
         color="gray"
         style={{ fontVariantNumeric: "tabular-nums" }}
       >
-        {formatDuration(elapsed)})
+        {formatDuration(elapsed, 1)})
       </Text>
     </Flex>
   );
