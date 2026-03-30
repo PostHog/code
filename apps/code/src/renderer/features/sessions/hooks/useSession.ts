@@ -6,6 +6,7 @@ import {
   extractAvailableCommandsFromEvents,
   extractUserPromptsFromEvents,
 } from "@utils/session";
+import { shallow } from "zustand/shallow";
 import {
   type Adapter,
   type AgentSession,
@@ -39,7 +40,7 @@ export const useAvailableCommandsForTask = (
     const session = s.sessions[taskRunId];
     if (!session?.events) return [];
     return extractAvailableCommandsFromEvents(session.events);
-  });
+  }, shallow);
 };
 
 export function getAvailableCommandsForTask(
@@ -73,7 +74,7 @@ export const usePendingPermissionsForTask = (
     if (!taskRunId) return new Map();
     const session = s.sessions[taskRunId];
     return session?.pendingPermissions ?? new Map();
-  });
+  }, shallow);
 };
 
 export function getPendingPermissionsForTask(
@@ -96,7 +97,7 @@ export const useQueuedMessagesForTask = (
     if (!taskRunId) return [];
     const session = s.sessions[taskRunId];
     return session?.messageQueue ?? [];
-  });
+  }, shallow);
 };
 
 export const useOptimisticItemsForTask = (
@@ -107,7 +108,7 @@ export const useOptimisticItemsForTask = (
     const taskRunId = s.taskIdIndex[taskId];
     if (!taskRunId) return [];
     return s.sessions[taskRunId]?.optimisticItems ?? [];
-  });
+  }, shallow);
 };
 
 // --- Config Option Hooks ---
