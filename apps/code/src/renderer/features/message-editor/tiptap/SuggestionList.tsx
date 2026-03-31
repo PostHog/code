@@ -18,13 +18,13 @@ export interface SuggestionListProps {
 }
 
 const Kbd = ({ children }: { children: string }) => (
-  <kbd className="mx-0.5 rounded border border-[var(--gray-a6)] bg-[var(--gray-a3)] px-1 font-mono text-[10px]">
+  <kbd className="mx-0.5 rounded border border-[var(--gray-a6)] bg-[var(--gray-a3)] px-1 font-mono text-[11px]">
     {children}
   </kbd>
 );
 
 const CONTAINER_CLASS =
-  "flex w-max min-w-[300px] max-w-[600px] flex-col rounded border border-[var(--gray-a6)] bg-[var(--color-panel-solid)] font-mono text-[12px] shadow-lg";
+  "flex w-max min-w-[300px] max-w-[600px] flex-col rounded border border-[var(--gray-a6)] bg-[var(--color-panel-solid)] text-[13px] shadow-lg";
 
 export const SuggestionList = forwardRef<
   SuggestionListRef,
@@ -107,7 +107,7 @@ export const SuggestionList = forwardRef<
                 </span>
                 {item.description && (
                   <span
-                    className={`truncate text-[11px] ${isSelected ? "text-[var(--accent-10)]" : "text-[var(--gray-10)]"}`}
+                    className={`truncate text-[12px] ${isSelected ? "text-[var(--accent-10)]" : "text-[var(--gray-10)]"}`}
                   >
                     {item.description}
                   </span>
@@ -117,7 +117,7 @@ export const SuggestionList = forwardRef<
           );
         })}
       </div>
-      <div className="border-[var(--gray-a4)] border-t bg-[var(--gray-a2)] px-2 py-1 text-[10px] text-[var(--gray-10)]">
+      <div className="border-[var(--gray-a4)] border-t bg-[var(--gray-a2)] px-2 py-1 text-[11px] text-[var(--gray-10)]">
         <Kbd>↑</Kbd>
         <Kbd>↓</Kbd> navigate · <Kbd>↵</Kbd> select · <Kbd>esc</Kbd> dismiss
       </div>

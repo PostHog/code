@@ -45,10 +45,12 @@ If the app crashes with something like:
 libc++abi: terminating due to uncaught exception of type Napi::Error
 ```
 
-Native modules (like node-pty) need to be rebuilt for your Electron version:
+Native modules (like node-pty) need to be rebuilt for your Electron version.
+
+### Fix
 
 ```bash
-pnpm --filter code exec electron-rebuild
+cd apps/code && npx electron-rebuild -f
 ```
 
 ## Codex agent crashes with GPU process errors
@@ -70,23 +72,55 @@ node apps/code/scripts/download-binaries.mjs
 
 Then restart the app. This downloads the codex-acp binary to `apps/code/resources/codex-acp/`, which gets copied to `.vite/build/codex-acp/` during build.
 
-## Database initialization failed (better-sqlite3 bindings not found)
+## Database initialization failed (better-sqlite3)
 
-If you see this error on startup:
+If you see either of these errors on startup:
 
 ```
 Database initialization failed Error: Could not locate the bindings file.
 ```
 
-The `better-sqlite3` native binary wasn't compiled for your Electron version. This commonly happens after a merge, branch switch or fresh install because the postinstall rebuild can fail silently (`|| true`).
+```
+Database initialization failed Error: The module '.../better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 145. This version of Node.js requires
+NODE_MODULE_VERSION 123.
+```
+
+The `better-sqlite3` native binary wasn't compiled for your Electron version. This commonly happens after a merge, branch switch or Electron upgrade because the postinstall rebuild can fail silently (`|| true`).
 
 ### Fix
 
 ```bash
-npx @electron/rebuild -f -m node_modules/better-sqlite3
+cd apps/code && npx electron-rebuild -f
 ```
 
 Then restart the app.
+
+## node-gyp failed to rebuild @parcel/watcher
+
+If you see this error after pulling or switching branches:
+
+```
+Error: node-gyp failed to rebuild '/path/to/node_modules/@parcel/watcher'
+```
+
+`@parcel/watcher` ships prebuilt N-API binaries per platform (e.g. `@parcel/watcher-darwin-arm64`) and should not need recompilation. This error usually means a stale or partial install state is triggering a source rebuild that fails.
+
+### Fix
+
+```bash
+rm -rf node_modules/@parcel/watcher
+pnpm install
+```
+
+If that doesn't work, nuke and reinstall:
+
+```bash
+rm -rf node_modules && pnpm install
+```
+
+Do **not** run `npx @electron/rebuild` against `@parcel/watcher` — it doesn't need it and the rebuild will fail.
 
 ## `pnpm i` shows "Packages: -198"
 

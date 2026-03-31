@@ -17,7 +17,7 @@ function PermissionBadge({
 
   return (
     <span
-      className={`rounded border px-1.5 py-0.5 font-mono text-[11px] leading-tight ${bgClass} ${textClass} ${borderClass}`}
+      className={`rounded border px-1.5 py-0.5 text-[12px] leading-tight ${bgClass} ${textClass} ${borderClass}`}
     >
       {permission}
     </span>

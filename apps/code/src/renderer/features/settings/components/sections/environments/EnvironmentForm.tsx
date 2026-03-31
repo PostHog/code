@@ -1,0 +1,188 @@
+import {
+  type Environment,
+  slugifyEnvironmentName,
+} from "@main/services/environment/schemas";
+import type { RegisteredFolder } from "@main/services/folders/schemas";
+import { ArrowLeft, Trash } from "@phosphor-icons/react";
+import { Button, Flex, Text, TextArea, TextField } from "@radix-ui/themes";
+import { trpcClient } from "@renderer/trpc";
+import { useTRPC } from "@renderer/trpc/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "@utils/toast";
+import { useState } from "react";
+
+interface EnvironmentFormProps {
+  folder: RegisteredFolder;
+  environment?: Environment;
+  onBack: () => void;
+}
+
+export function EnvironmentForm({
+  folder,
+  environment,
+  onBack,
+}: EnvironmentFormProps) {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const isNew = !environment;
+
+  const [name, setName] = useState(environment?.name ?? folder.name);
+  const [setupScript, setSetupScript] = useState(
+    environment?.setup?.script ?? "",
+  );
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const slug = slugifyEnvironmentName(name.trim());
+  const filename = slug ? `${slug}.toml` : "<name>.toml";
+  const filePath = `${folder.path}/.posthog-code/environments/${filename}`;
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      toast.error("Name is required");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const setup = setupScript.trim()
+        ? { script: setupScript.trim() }
+        : undefined;
+
+      if (isNew) {
+        await trpcClient.environment.create.mutate({
+          repoPath: folder.path,
+          name: name.trim(),
+          setup,
+        });
+        toast.success("Environment created");
+      } else {
+        await trpcClient.environment.update.mutate({
+          repoPath: folder.path,
+          id: environment.id,
+          name: name.trim(),
+          setup,
+        });
+        toast.success("Environment updated");
+      }
+
+      await queryClient.invalidateQueries(trpc.environment.list.pathFilter());
+      onBack();
+    } catch {
+      toast.error(`Failed to ${isNew ? "create" : "update"} environment`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (isNew || !environment) return;
+    const confirmed = window.confirm(
+      `Delete environment "${environment.name}"? This will remove the TOML file from disk.`,
+    );
+    if (!confirmed) return;
+    setIsDeleting(true);
+    try {
+      await trpcClient.environment.delete.mutate({
+        repoPath: folder.path,
+        id: environment.id,
+      });
+      toast.success("Environment deleted");
+      await queryClient.invalidateQueries(trpc.environment.list.pathFilter());
+      onBack();
+    } catch {
+      toast.error("Failed to delete environment");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <Flex direction="column" gap="4">
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex w-fit cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-[12px] text-gray-11 hover:text-gray-12"
+      >
+        <ArrowLeft size={10} />
+        <span>Back to projects</span>
+      </button>
+
+      <Text size="1" weight="medium">
+        {isNew ? "Creating" : "Editing"} environment for {folder.name}
+      </Text>
+
+      <Flex direction="column" gap="1">
+        <Text size="1" weight="medium">
+          Name
+        </Text>
+        <TextField.Root
+          size="1"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Environment name"
+          spellCheck={false}
+        />
+      </Flex>
+
+      <Flex direction="column" gap="1">
+        <Text size="1" weight="medium">
+          Setup script
+        </Text>
+        <Text size="1" color="gray" className="text-[12px]">
+          Runs in the project root on worktree creation.
+        </Text>
+        <TextArea
+          size="1"
+          value={setupScript}
+          onChange={(e) => setSetupScript(e.target.value)}
+          placeholder={"# e.g.\npnpm install\npnpm run build"}
+          rows={4}
+          spellCheck={false}
+          style={{ fontFamily: "monospace", fontSize: 11 }}
+        />
+      </Flex>
+
+      {/* TODO: Actions UI disabled for now
+      <Flex direction="column" gap="2">
+        <Flex align="center" justify="between">
+          <Text size="1" weight="medium">
+            Actions
+          </Text>
+          <Button variant="outline" color="gray" size="1" onClick={handleAddAction}>
+            <Plus size={10} />
+            Add action
+          </Button>
+        </Flex>
+        <Text size="1" color="gray" className="text-[12px]">
+          Custom commands displayed in the task header.
+        </Text>
+      </Flex>
+      */}
+
+      <Text size="1" color="gray" className="text-[12px]">
+        Environment will be stored at {filePath}
+      </Text>
+
+      <Flex justify="between">
+        {!isNew ? (
+          <Button
+            size="1"
+            variant="outline"
+            color="red"
+            onClick={handleDelete}
+            disabled={isDeleting || isSaving}
+          >
+            <Trash size={12} />
+            {isDeleting ? "Deleting..." : "Delete"}
+          </Button>
+        ) : (
+          <div />
+        )}
+        <Button size="1" onClick={handleSave} disabled={isSaving || isDeleting}>
+          {isSaving ? "Saving..." : "Save"}
+        </Button>
+      </Flex>
+    </Flex>
+  );
+}

@@ -28,22 +28,22 @@ export type TabData =
       cwd: string;
     }
   | {
-      type: "workspace-terminal";
-      sessionId: string;
-      command: string;
-      scriptType: "init" | "start";
-    }
-  | {
       type: "cloud-diff";
       relativePath: string;
       status: GitFileStatus;
+    }
+  | {
+      type: "action";
+      actionId: string;
+      command: string;
+      cwd: string;
+      label: string;
     }
   | {
       type: "logs";
     }
   | {
       type: "other";
-      // Generic tab without specific data
     };
 
 export type Tab = {

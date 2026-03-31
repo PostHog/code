@@ -14,6 +14,10 @@ import type {
 } from "../../db/repositories/archive-repository";
 import type { RepositoryRepository } from "../../db/repositories/repository-repository";
 import type {
+  SuspensionReason,
+  SuspensionRepository,
+} from "../../db/repositories/suspension-repository.js";
+import type {
   Workspace,
   WorkspaceRepository,
 } from "../../db/repositories/workspace-repository";
@@ -47,6 +51,8 @@ export class ArchiveService {
     private readonly worktreeRepo: WorktreeRepository,
     @inject(MAIN_TOKENS.ArchiveRepository)
     private readonly archiveRepo: ArchiveRepository,
+    @inject(MAIN_TOKENS.SuspensionRepository)
+    private readonly suspensionRepo: SuspensionRepository,
   ) {}
 
   async archiveTask(input: ArchiveTaskInput): Promise<ArchivedTask> {
@@ -101,7 +107,49 @@ export class ArchiveService {
       throw new Error(`Task ${taskId} is already archived`);
     }
 
+    const suspension = this.suspensionRepo.findByWorkspaceId(workspace.id);
     const worktree = this.worktreeRepo.findByWorkspaceId(workspace.id);
+
+    if (suspension) {
+      const archivedTask: ArchivedTask = {
+        taskId,
+        archivedAt: new Date().toISOString(),
+        folderId: workspace.repositoryId ?? "",
+        mode: workspace.mode,
+        worktreeName: worktree?.name ?? null,
+        branchName: suspension.branchName,
+        checkpointId: suspension.checkpointId,
+      };
+
+      await step(
+        async () => {
+          this.archiveRepo.create({
+            workspaceId: workspace.id,
+            branchName: archivedTask.branchName,
+            checkpointId: archivedTask.checkpointId,
+          });
+        },
+        async () => {
+          this.archiveRepo.deleteByWorkspaceId(workspace.id);
+        },
+      );
+
+      await step(
+        async () => {
+          this.suspensionRepo.deleteByWorkspaceId(workspace.id);
+        },
+        async () => {
+          this.suspensionRepo.create({
+            workspaceId: workspace.id,
+            branchName: suspension.branchName,
+            checkpointId: suspension.checkpointId,
+            reason: suspension.reason as SuspensionReason,
+          });
+        },
+      );
+
+      return archivedTask;
+    }
 
     const archivedTask: ArchivedTask = {
       taskId,

@@ -1,3 +1,4 @@
+import { EnvironmentSelector } from "@features/environments/components/EnvironmentSelector";
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
 import { useFolders } from "@features/folders/hooks/useFolders";
@@ -18,7 +19,8 @@ import {
   useGithubBranches,
   useRepositoryIntegration,
 } from "@hooks/useIntegrations";
-import { Flex } from "@radix-ui/themes";
+import { Flex, Text } from "@radix-ui/themes";
+import { useAuthStore } from "@renderer/features/auth/stores/authStore";
 import { useTRPC } from "@renderer/trpc/client";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +34,7 @@ import { type WorkspaceMode, WorkspaceModeSelect } from "./WorkspaceModeSelect";
 const DOT_FILL = "var(--gray-6)";
 
 export function TaskInput() {
+  const { cloudRegion } = useAuthStore();
   const trpcReact = useTRPC();
   const { view } = useNavigationStore();
   const { data: mostRecentRepo } = useQuery(
@@ -44,6 +47,10 @@ export function TaskInput() {
     lastUsedAdapter,
     setLastUsedAdapter,
     allowBypassPermissions,
+    setLastUsedEnvironment,
+    getLastUsedEnvironment,
+    defaultInitialTaskMode,
+    lastUsedInitialTaskMode,
   } = useSettingsStore();
 
   const editorRef = useRef<MessageEditorHandle>(null);
@@ -53,6 +60,12 @@ export function TaskInput() {
   const [editorIsEmpty, setEditorIsEmpty] = useState(true);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
+  const [selectedEnvironment, setSelectedEnvironmentRaw] = useState<
+    string | null
+  >(null);
+  const [selectedCloudEnvId, setSelectedCloudEnvId] = useState<string | null>(
+    null,
+  );
 
   const [selectedDirectory, setSelectedDirectory] = useState("");
   const workspaceMode = lastUsedWorkspaceMode || "local";
@@ -81,8 +94,10 @@ export function TaskInput() {
   const { currentBranch, branchLoading, defaultBranch } =
     useGitQueries(selectedDirectory);
 
-  const { data: cloudBranches, isPending: cloudBranchesLoading } =
+  const { data: cloudBranchData, isPending: cloudBranchesLoading } =
     useGithubBranches(githubIntegration?.id, selectedRepository);
+  const cloudBranches = cloudBranchData?.branches;
+  const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
   // Preview session provides adapter-specific config options
   const {
@@ -104,15 +119,41 @@ export function TaskInput() {
     }
   }, [view.folderId, folders]);
 
+  const effectiveRepoPath =
+    workspaceMode === "cloud" ? selectedRepository : selectedDirectory;
+
+  const setSelectedEnvironment = useCallback(
+    (envId: string | null) => {
+      setSelectedEnvironmentRaw(envId);
+      if (effectiveRepoPath) {
+        setLastUsedEnvironment(effectiveRepoPath, envId);
+      }
+    },
+    [effectiveRepoPath, setLastUsedEnvironment],
+  );
+
+  useEffect(() => {
+    setSelectedBranch(null);
+    if (effectiveRepoPath) {
+      setSelectedEnvironmentRaw(getLastUsedEnvironment(effectiveRepoPath));
+    } else {
+      setSelectedEnvironmentRaw(null);
+    }
+  }, [effectiveRepoPath, getLastUsedEnvironment]);
+
   const effectiveWorkspaceMode = workspaceMode;
 
   // Get current values from preview session config options for task creation.
   // Defaults ensure values are always passed even before the preview session loads.
-  const currentModel = modelOption?.currentValue;
+  const currentModel =
+    modelOption?.type === "select" ? modelOption.currentValue : undefined;
+  const modeFallback =
+    defaultInitialTaskMode === "last_used" ? lastUsedInitialTaskMode : "plan";
   const currentExecutionMode =
     getCurrentModeFromConfigOptions(modeOption ? [modeOption] : undefined) ??
-    "plan";
-  const currentReasoningLevel = thoughtOption?.currentValue;
+    modeFallback;
+  const currentReasoningLevel =
+    thoughtOption?.type === "select" ? thoughtOption.currentValue : undefined;
 
   const branchForTaskCreation =
     effectiveWorkspaceMode === "worktree" || effectiveWorkspaceMode === "cloud"
@@ -131,6 +172,11 @@ export function TaskInput() {
     executionMode: currentExecutionMode,
     model: currentModel,
     reasoningLevel: currentReasoningLevel,
+    environmentId: selectedEnvironment,
+    sandboxEnvironmentId:
+      effectiveWorkspaceMode === "cloud" && selectedCloudEnvId
+        ? selectedCloudEnvId
+        : undefined,
   });
 
   const handleCycleMode = useCallback(() => {
@@ -267,7 +313,6 @@ export function TaskInput() {
           direction="column"
           gap="4"
           style={{
-            fontFamily: "monospace",
             width: "100%",
             maxWidth: "600px",
             position: "relative",
@@ -300,6 +345,8 @@ export function TaskInput() {
             <WorkspaceModeSelect
               value={workspaceMode}
               onChange={setWorkspaceMode}
+              selectedCloudEnvironmentId={selectedCloudEnvId}
+              onCloudEnvironmentChange={setSelectedCloudEnvId}
               size="1"
             />
             <BranchSelector
@@ -309,7 +356,9 @@ export function TaskInput() {
                   : selectedDirectory
               }
               currentBranch={currentBranch}
-              defaultBranch={defaultBranch}
+              defaultBranch={
+                workspaceMode === "cloud" ? cloudDefaultBranch : defaultBranch
+              }
               disabled={
                 isCreatingTask ||
                 (workspaceMode === "cloud" && !selectedRepository)
@@ -321,6 +370,25 @@ export function TaskInput() {
               cloudBranches={cloudBranches}
               cloudBranchesLoading={cloudBranchesLoading}
             />
+            {workspaceMode === "worktree" && (
+              <EnvironmentSelector
+                repoPath={effectiveRepoPath ?? null}
+                value={selectedEnvironment}
+                onChange={setSelectedEnvironment}
+                disabled={isCreatingTask}
+              />
+            )}
+            {cloudRegion === "dev" && (
+              <Flex align="center" gap="1" className="shrink-0">
+                <span
+                  className="inline-block h-2 w-2 rounded-full bg-orange-9"
+                  aria-hidden
+                />
+                <Text size="1" color="orange" weight="medium">
+                  Dev
+                </Text>
+              </Flex>
+            )}
           </Flex>
 
           <TaskInputEditor

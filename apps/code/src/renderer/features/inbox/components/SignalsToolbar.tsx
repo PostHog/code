@@ -14,6 +14,9 @@ interface SignalsToolbarProps {
   totalCount: number;
   filteredCount: number;
   isSearchActive: boolean;
+  livePolling?: boolean;
+  readyCount?: number;
+  processingCount?: number;
 }
 
 type SortOption = {
@@ -48,6 +51,9 @@ export function SignalsToolbar({
   totalCount,
   filteredCount,
   isSearchActive,
+  livePolling = false,
+  readyCount,
+  processingCount = 0,
 }: SignalsToolbarProps) {
   const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
   const setSearchQuery = useInboxSignalsFilterStore((s) => s.setSearchQuery);
@@ -59,6 +65,11 @@ export function SignalsToolbar({
     ? `${filteredCount} of ${totalCount}`
     : `${totalCount}`;
 
+  const pipelineHint =
+    readyCount != null && processingCount > 0
+      ? `${readyCount} ready · ${processingCount} in pipeline`
+      : null;
+
   return (
     <Flex
       direction="column"
@@ -68,9 +79,30 @@ export function SignalsToolbar({
       style={{ borderBottom: "1px solid var(--gray-5)" }}
     >
       <Flex align="center" justify="between" gap="2">
-        <Text size="1" color="gray" className="shrink-0 font-mono text-[11px]">
-          Signals ({countLabel})
-        </Text>
+        <Flex align="center" gap="2" className="min-w-0">
+          {livePolling ? (
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{
+                backgroundColor: "var(--amber-9)",
+                boxShadow: "0 0 10px var(--amber-9)",
+                animation: "inboxToolbarPulse 1.4s ease-in-out infinite",
+              }}
+              title="Watching for new and updated reports"
+              aria-hidden
+            />
+          ) : null}
+          <Flex direction="column" gap="0" className="min-w-0">
+            <Text size="1" color="gray" className="shrink-0 text-[12px]">
+              Signals ({countLabel})
+            </Text>
+            {pipelineHint && !isSearchActive ? (
+              <Text size="1" color="gray" className="text-[11px] opacity-80">
+                {pipelineHint}
+              </Text>
+            ) : null}
+          </Flex>
+        </Flex>
         <SortMenu
           sortField={sortField}
           sortDirection={sortDirection}
@@ -82,7 +114,7 @@ export function SignalsToolbar({
         placeholder="Search signals..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="font-mono text-[11px]"
+        className="text-[12px]"
       >
         <TextField.Slot>
           <MagnifyingGlass size={12} />
@@ -105,7 +137,7 @@ function SortMenu({
   ) => void;
 }) {
   const itemClassName =
-    "flex w-full items-center justify-between rounded-sm px-1 py-1 text-left text-[12px] text-gray-12 transition-colors hover:bg-gray-3";
+    "flex w-full items-center justify-between rounded-sm px-1 py-1 text-left text-[13px] text-gray-12 transition-colors hover:bg-gray-3";
 
   return (
     <Popover.Root>

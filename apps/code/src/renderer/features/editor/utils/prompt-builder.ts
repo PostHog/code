@@ -1,8 +1,5 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk";
-
-function isAbsolutePath(filePath: string): boolean {
-  return filePath.startsWith("/") || /^[a-zA-Z]:\\/.test(filePath);
-}
+import { isAbsolutePath } from "@utils/path";
 
 function pathToFileUri(filePath: string): string {
   const encoded = filePath

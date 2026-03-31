@@ -1,5 +1,6 @@
 import { useArchivedTaskIds } from "@features/archive/hooks/useArchivedTaskIds";
 import { useSessions } from "@features/sessions/stores/sessionStore";
+import { useSuspendedTaskIds } from "@features/suspension/hooks/useSuspendedTaskIds";
 import { useTasks } from "@features/tasks/hooks/useTasks";
 import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
 import { getTaskRepository, parseRepository } from "@renderer/utils/repository";
@@ -25,6 +26,7 @@ export interface TaskData {
   isPinned: boolean;
   needsPermission: boolean;
   repository: TaskRepositoryInfo | null;
+  isSuspended: boolean;
   folderId?: string;
   taskRunStatus?:
     | "started"
@@ -45,6 +47,7 @@ export interface SidebarData {
   isHomeActive: boolean;
   isInboxActive: boolean;
   isCommandCenterActive: boolean;
+  isSkillsActive: boolean;
   isLoading: boolean;
   activeTaskId: string | null;
   pinnedTasks: TaskData[];
@@ -62,7 +65,8 @@ interface ViewState {
     | "folder-settings"
     | "inbox"
     | "archived"
-    | "command-center";
+    | "command-center"
+    | "skills";
   data?: Task;
 }
 
@@ -144,11 +148,12 @@ export function useSidebarData({
   const { data: rawTasks = [], isLoading: isLoadingTasks } = useTasks();
   const { data: workspaces, isFetched: isWorkspacesFetched } = useWorkspaces();
   const archivedTaskIds = useArchivedTaskIds();
+  const suspendedTaskIds = useSuspendedTaskIds();
   const isLoading = isLoadingTasks || !isWorkspacesFetched;
   const allTasks = useMemo(
     () =>
       rawTasks.filter(
-        (task) => !archivedTaskIds.has(task.id) && workspaces?.[task.id],
+        (task) => !archivedTaskIds.has(task.id) && !!workspaces?.[task.id],
       ),
     [rawTasks, archivedTaskIds, workspaces],
   );
@@ -165,6 +170,7 @@ export function useSidebarData({
   const isHomeActive = activeView.type === "task-input";
   const isInboxActive = activeView.type === "inbox";
   const isCommandCenterActive = activeView.type === "command-center";
+  const isSkillsActive = activeView.type === "skills";
 
   const activeTaskId =
     activeView.type === "task-detail" && activeView.data
@@ -205,6 +211,7 @@ export function useSidebarData({
         isGenerating: session?.isPromptPending ?? false,
         isUnread,
         isPinned: pinnedTaskIds.has(task.id),
+        isSuspended: suspendedTaskIds.has(task.id),
         needsPermission: (session?.pendingPermissions?.size ?? 0) > 0,
         repository: getRepositoryInfo(task, workspace?.folderPath),
         folderId: workspace?.folderId || undefined,
@@ -212,7 +219,14 @@ export function useSidebarData({
         taskRunEnvironment: task.latest_run?.environment,
       };
     });
-  }, [allTasks, timestamps, pinnedTaskIds, sessionByTaskId, workspaces]);
+  }, [
+    allTasks,
+    timestamps,
+    pinnedTaskIds,
+    suspendedTaskIds,
+    sessionByTaskId,
+    workspaces,
+  ]);
 
   const pinnedTasks = useMemo(() => {
     const pinned = taskData.filter((task) => task.isPinned);
@@ -265,6 +279,7 @@ export function useSidebarData({
     isHomeActive,
     isInboxActive,
     isCommandCenterActive,
+    isSkillsActive,
     isLoading,
     activeTaskId,
     pinnedTasks,

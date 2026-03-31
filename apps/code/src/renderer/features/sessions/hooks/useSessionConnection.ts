@@ -19,6 +19,7 @@ interface UseSessionConnectionOptions {
   session: AgentSession | undefined;
   repoPath: string | null;
   isCloud: boolean;
+  isSuspended?: boolean;
 }
 
 export function useSessionConnection({
@@ -27,6 +28,7 @@ export function useSessionConnection({
   session,
   repoPath,
   isCloud,
+  isSuspended,
 }: UseSessionConnectionOptions) {
   const queryClient = useQueryClient();
   const { markActivity } = useTaskViewed();
@@ -74,6 +76,7 @@ export function useSessionConnection({
     if (connectingTasks.has(taskId)) return;
     if (!isOnline) return;
     if (isCloud) return;
+    if (isSuspended) return;
 
     if (
       session?.status === "connected" ||
@@ -113,5 +116,36 @@ export function useSessionConnection({
     return () => {
       connectingTasks.delete(taskId);
     };
-  }, [task, taskId, repoPath, session, markActivity, isOnline, isCloud]);
+  }, [
+    task,
+    taskId,
+    repoPath,
+    session,
+    markActivity,
+    isOnline,
+    isCloud,
+    isSuspended,
+  ]);
+
+  const cannotConnect = !repoPath && !isCloud;
+  useEffect(() => {
+    if (!cannotConnect) return;
+    if (session && session.events.length > 0) return;
+    if (!task.latest_run?.id || !task.latest_run?.log_url) return;
+
+    getSessionService().loadLogsOnly({
+      taskId: task.id,
+      taskRunId: task.latest_run.id,
+      taskTitle: task.title || task.description || "Task",
+      logUrl: task.latest_run.log_url,
+    });
+  }, [
+    cannotConnect,
+    task.id,
+    task.latest_run?.id,
+    task.latest_run?.log_url,
+    task.title,
+    task.description,
+    session,
+  ]);
 }

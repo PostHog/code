@@ -10,7 +10,7 @@ import {
 } from "electron";
 import { container } from "./di/container";
 import { MAIN_TOKENS } from "./di/tokens";
-import type { AgentService } from "./services/agent/service";
+import type { McpAppsService } from "./services/mcp-apps/service";
 import type { UIService } from "./services/ui/service";
 import type { UpdatesService } from "./services/updates/service";
 import { isDevBuild } from "./utils/env";
@@ -131,16 +131,26 @@ function buildFileMenu(): MenuItemConstructorOptions {
             },
           },
           {
-            label: "Mark all agent sessions for recreation",
+            label: "Refresh MCP Apps discovery",
             click: () => {
-              const count = container
-                .get<AgentService>(MAIN_TOKENS.AgentService)
-                .markAllSessionsForRecreation();
-              dialog.showMessageBox({
-                type: "info",
-                title: "Sessions Marked",
-                message: `Marked ${count} session(s) for recreation.\n\nThey will be recreated on the next prompt.`,
-              });
+              container
+                .get<McpAppsService>(MAIN_TOKENS.McpAppsService)
+                .refreshDiscovery()
+                .then(() => {
+                  dialog.showMessageBox({
+                    type: "info",
+                    title: "MCP Apps Refreshed",
+                    message:
+                      "Cleared all cached resources and re-ran discovery.\nCheck logs for details.",
+                  });
+                })
+                .catch((err: Error) => {
+                  dialog.showMessageBox({
+                    type: "error",
+                    title: "MCP Apps Refresh Failed",
+                    message: err.message,
+                  });
+                });
             },
           },
           { type: "separator" },

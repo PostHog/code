@@ -1,8 +1,10 @@
 import { FileIcon } from "@components/ui/FileIcon";
+import { ActionTabIcon } from "@features/actions/components/ActionTabIcon";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { TabContentRenderer } from "@features/task-detail/components/TabContentRenderer";
 import { ChatCenteredText, Terminal } from "@phosphor-icons/react";
 import type { Task } from "@shared/types";
+import { isAbsolutePath } from "@utils/path";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import type { SplitDirection } from "../store/panelLayoutStore";
@@ -85,7 +87,7 @@ export function useTabInjection(
         let updatedData = tab.data;
         if (tab.data.type === "file" || tab.data.type === "diff") {
           const rp = tab.data.relativePath;
-          const absolutePath = rp.startsWith("/") ? rp : `${repoPath}/${rp}`;
+          const absolutePath = isAbsolutePath(rp) ? rp : `${repoPath}/${rp}`;
           updatedData = {
             ...tab.data,
             absolutePath,
@@ -98,13 +100,12 @@ export function useTabInjection(
           if (tab.data.type === "file" || tab.data.type === "diff") {
             const filename = tab.data.relativePath.split("/").pop() || "";
             icon = <FileIcon filename={filename} size={14} />;
-          } else if (
-            tab.data.type === "terminal" ||
-            tab.data.type === "workspace-terminal"
-          ) {
+          } else if (tab.data.type === "terminal") {
             icon = <Terminal size={14} />;
           } else if (tab.data.type === "logs") {
             icon = <ChatCenteredText size={14} />;
+          } else if (tab.data.type === "action") {
+            icon = <ActionTabIcon actionId={tab.data.actionId} />;
           }
         }
 

@@ -73,6 +73,10 @@ export interface AgentSession {
   /** Number of session/prompt events to skip from polled logs (set during resume) */
   skipPolledPromptCount?: number;
   optimisticItems: OptimisticItem[];
+  /** Context window tokens used (from usage_update) */
+  contextUsed?: number;
+  /** Context window total size in tokens (from usage_update) */
+  contextSize?: number;
 }
 
 // --- Config Option Helpers ---
@@ -116,8 +120,10 @@ export function mergeConfigOptions(
   return live.map((liveOpt) => {
     const persistedOpt = persistedMap.get(liveOpt.id);
     if (persistedOpt) {
-      // Use persisted currentValue if available
-      return { ...liveOpt, currentValue: persistedOpt.currentValue };
+      return {
+        ...liveOpt,
+        currentValue: persistedOpt.currentValue,
+      } as SessionConfigOption;
     }
     return liveOpt;
   });
@@ -141,7 +147,7 @@ export function cycleModeOption(
   modeOption: SessionConfigOption | undefined,
   allowBypassPermissions: boolean,
 ): string | undefined {
-  if (!modeOption) return undefined;
+  if (!modeOption || modeOption.type !== "select") return undefined;
 
   const allOptions = flattenSelectOptions(modeOption.options);
   const filteredOptions = allowBypassPermissions

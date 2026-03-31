@@ -3,6 +3,7 @@ import { SettingRow } from "@features/settings/components/SettingRow";
 import {
   type AutoConvertLongText,
   type CompletionSound,
+  type DefaultInitialTaskMode,
   type DiffOpenMode,
   type SendMessagesWith,
   useSettingsStore,
@@ -15,55 +16,23 @@ import {
   Slider,
   Switch,
   Text,
-  TextField,
 } from "@radix-ui/themes";
 import { useTRPC } from "@renderer/trpc";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
-import { useSettingsStore as useTerminalSettingsStore } from "@stores/settingsStore";
 import type { ThemePreference } from "@stores/themeStore";
 import { useThemeStore } from "@stores/themeStore";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { track } from "@utils/analytics";
 import { playCompletionSound } from "@utils/sounds";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
-
-const CUSTOM_TERMINAL_FONT_VALUE = "custom";
-const CUSTOM_TERMINAL_FONT_COMMIT_DELAY_MS = 400;
-const TERMINAL_FONT_PRESETS = [
-  {
-    label: "System monospace",
-    value: "monospace",
-  },
-  {
-    label: "MesloLGL Nerd Font Mono",
-    value: '"MesloLGL Nerd Font Mono", monospace',
-  },
-  {
-    label: "JetBrains Mono",
-    value: '"JetBrains Mono", monospace',
-  },
-];
 
 export function GeneralSettings() {
   const trpcReact = useTRPC();
   // Appearance state
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
-  const terminalFontFamily = useTerminalSettingsStore(
-    (state) => state.terminalFontFamily,
-  );
-  const terminalFontFamilyLoaded = useTerminalSettingsStore(
-    (state) => state.terminalFontFamilyLoaded,
-  );
-  const loadTerminalFontFamily = useTerminalSettingsStore(
-    (state) => state.loadTerminalFontFamily,
-  );
-  const setTerminalFontFamily = useTerminalSettingsStore(
-    (state) => state.setTerminalFontFamily,
-  );
-
   // Power state
   const { preventSleepWhileRunning, setPreventSleepWhileRunning } =
     useSettingsStore();
@@ -101,6 +70,7 @@ export function GeneralSettings() {
     completionSound,
     completionVolume,
     autoConvertLongText,
+    defaultInitialTaskMode,
     diffOpenMode,
     sendMessagesWith,
     hedgehogMode,
@@ -110,6 +80,7 @@ export function GeneralSettings() {
     setCompletionSound,
     setCompletionVolume,
     setAutoConvertLongText,
+    setDefaultInitialTaskMode,
     setDiffOpenMode,
     setSendMessagesWith,
     setHedgehogMode,
@@ -147,35 +118,6 @@ export function GeneralSettings() {
     [desktopNotifications, setDesktopNotifications],
   );
 
-  const [customTerminalFont, setCustomTerminalFont] = useState<string>("");
-  const customFontSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-
-  useEffect(() => {
-    if (!terminalFontFamilyLoaded) {
-      loadTerminalFontFamily();
-    }
-  }, [terminalFontFamilyLoaded, loadTerminalFontFamily]);
-
-  useEffect(() => {
-    return () => {
-      if (customFontSaveTimeoutRef.current) {
-        clearTimeout(customFontSaveTimeoutRef.current);
-        customFontSaveTimeoutRef.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    const matchesPreset = TERMINAL_FONT_PRESETS.some(
-      (preset) => preset.value === terminalFontFamily,
-    );
-    if (!matchesPreset) {
-      setCustomTerminalFont(terminalFontFamily);
-    }
-  }, [terminalFontFamily]);
-
   // Appearance handlers
   const handleThemeChange = useCallback(
     (value: ThemePreference) => {
@@ -188,91 +130,6 @@ export function GeneralSettings() {
     },
     [theme, setTheme],
   );
-
-  const clearCustomFontSaveTimeout = useCallback(() => {
-    if (customFontSaveTimeoutRef.current) {
-      clearTimeout(customFontSaveTimeoutRef.current);
-      customFontSaveTimeoutRef.current = null;
-    }
-  }, []);
-
-  const commitCustomTerminalFont = useCallback(
-    (value: string) => {
-      const normalizedValue = value.trim();
-      if (!normalizedValue) {
-        return;
-      }
-
-      const previousValue = terminalFontFamily.trim() || "monospace";
-      if (normalizedValue === previousValue) {
-        return;
-      }
-
-      track(ANALYTICS_EVENTS.SETTING_CHANGED, {
-        setting_name: "terminal_font_family",
-        new_value: normalizedValue,
-        old_value: previousValue,
-      });
-
-      setTerminalFontFamily(normalizedValue);
-    },
-    [setTerminalFontFamily, terminalFontFamily],
-  );
-
-  const handleTerminalFontChange = useCallback(
-    (value: string) => {
-      clearCustomFontSaveTimeout();
-
-      if (value === CUSTOM_TERMINAL_FONT_VALUE) {
-        if (!customTerminalFont.trim()) {
-          setTerminalFontFamily("");
-          return;
-        }
-
-        commitCustomTerminalFont(customTerminalFont);
-        return;
-      }
-
-      if (value === terminalFontFamily) {
-        return;
-      }
-
-      track(ANALYTICS_EVENTS.SETTING_CHANGED, {
-        setting_name: "terminal_font_family",
-        new_value: value,
-        old_value: terminalFontFamily,
-      });
-
-      setTerminalFontFamily(value);
-    },
-    [
-      clearCustomFontSaveTimeout,
-      commitCustomTerminalFont,
-      customTerminalFont,
-      setTerminalFontFamily,
-      terminalFontFamily,
-    ],
-  );
-
-  const handleCustomTerminalFontChange = useCallback(
-    (value: string) => {
-      setCustomTerminalFont(value);
-      clearCustomFontSaveTimeout();
-      customFontSaveTimeoutRef.current = setTimeout(() => {
-        commitCustomTerminalFont(value);
-      }, CUSTOM_TERMINAL_FONT_COMMIT_DELAY_MS);
-    },
-    [clearCustomFontSaveTimeout, commitCustomTerminalFont],
-  );
-
-  const handleCustomTerminalFontBlur = useCallback(() => {
-    clearCustomFontSaveTimeout();
-    commitCustomTerminalFont(customTerminalFont);
-  }, [
-    clearCustomFontSaveTimeout,
-    commitCustomTerminalFont,
-    customTerminalFont,
-  ]);
 
   // Chat handlers
   const handleCompletionSoundChange = useCallback(
@@ -315,6 +172,18 @@ export function GeneralSettings() {
     [diffOpenMode, setDiffOpenMode],
   );
 
+  const handleDefaultInitialTaskModeChange = useCallback(
+    (value: DefaultInitialTaskMode) => {
+      track(ANALYTICS_EVENTS.SETTING_CHANGED, {
+        setting_name: "default_initial_task_mode",
+        new_value: value,
+        old_value: defaultInitialTaskMode,
+      });
+      setDefaultInitialTaskMode(value);
+    },
+    [defaultInitialTaskMode, setDefaultInitialTaskMode],
+  );
+
   const handleSendMessagesWithChange = useCallback(
     (value: SendMessagesWith) => {
       track(ANALYTICS_EVENTS.SETTING_CHANGED, {
@@ -338,12 +207,6 @@ export function GeneralSettings() {
     },
     [hedgehogMode, setHedgehogMode],
   );
-
-  const terminalFontSelection = TERMINAL_FONT_PRESETS.some(
-    (preset) => preset.value === terminalFontFamily,
-  )
-    ? terminalFontFamily
-    : CUSTOM_TERMINAL_FONT_VALUE;
 
   return (
     <Flex direction="column">
@@ -369,49 +232,6 @@ export function GeneralSettings() {
           </Select.Content>
         </Select.Root>
       </SettingRow>
-
-      <SettingRow
-        label="Terminal font"
-        description="Uses locally installed fonts. Nerd fonts are recommended for prompt glyphs"
-        noBorder={terminalFontSelection !== CUSTOM_TERMINAL_FONT_VALUE}
-      >
-        <Select.Root
-          value={terminalFontSelection}
-          onValueChange={handleTerminalFontChange}
-          size="1"
-        >
-          <Select.Trigger style={{ minWidth: "140px" }} />
-          <Select.Content>
-            {TERMINAL_FONT_PRESETS.map((preset) => (
-              <Select.Item key={preset.value} value={preset.value}>
-                {preset.label}
-              </Select.Item>
-            ))}
-            <Select.Item value={CUSTOM_TERMINAL_FONT_VALUE}>
-              Custom font family
-            </Select.Item>
-          </Select.Content>
-        </Select.Root>
-      </SettingRow>
-
-      {terminalFontSelection === CUSTOM_TERMINAL_FONT_VALUE && (
-        <SettingRow label="Custom font family" noBorder>
-          <Flex direction="column" gap="1" style={{ minWidth: "200px" }}>
-            <TextField.Root
-              size="1"
-              placeholder="Enter font family"
-              value={customTerminalFont}
-              onChange={(event) =>
-                handleCustomTerminalFontChange(event.target.value)
-              }
-              onBlur={handleCustomTerminalFontBlur}
-            />
-            <Text size="1" color="gray">
-              Example: MesloLGL Nerd Font Mono
-            </Text>
-          </Flex>
-        </SettingRow>
-      )}
 
       {/* Notifications */}
       <Text
@@ -523,6 +343,25 @@ export function GeneralSettings() {
       </Text>
 
       <SettingRow
+        label="Initial task mode"
+        description="Choose whether new tasks always start in Plan mode or remember your last-used mode"
+      >
+        <Select.Root
+          value={defaultInitialTaskMode}
+          onValueChange={(value) =>
+            handleDefaultInitialTaskModeChange(value as DefaultInitialTaskMode)
+          }
+          size="1"
+        >
+          <Select.Trigger style={{ minWidth: "100px" }} />
+          <Select.Content>
+            <Select.Item value="plan">Plan</Select.Item>
+            <Select.Item value="last_used">Last used</Select.Item>
+          </Select.Content>
+        </Select.Root>
+      </SettingRow>
+
+      <SettingRow
         label="Send messages with"
         description="Choose which key combination sends messages. Use Shift+Enter for new lines"
       >
@@ -555,9 +394,10 @@ export function GeneralSettings() {
           <Select.Trigger style={{ minWidth: "120px" }} />
           <Select.Content>
             <Select.Item value="off">Off</Select.Item>
-            <Select.Item value="500">500 chars</Select.Item>
             <Select.Item value="1000">1,000 chars</Select.Item>
             <Select.Item value="2500">2,500 chars</Select.Item>
+            <Select.Item value="5000">5,000 chars</Select.Item>
+            <Select.Item value="10000">10,000 chars</Select.Item>
           </Select.Content>
         </Select.Root>
       </SettingRow>

@@ -1,4 +1,6 @@
 import type {
+  SandboxEnvironment,
+  SandboxEnvironmentInput,
   SignalReportArtefact,
   SignalReportArtefactsResponse,
   SignalReportSignalsResponse,
@@ -20,12 +22,34 @@ export type McpServerInstallation = Schemas.MCPServerInstallation;
 
 export interface SignalSourceConfig {
   id: string;
-  source_product: "session_replay" | "llm_analytics";
-  source_type: "session_analysis_cluster" | "evaluation";
+  source_product:
+    | "session_replay"
+    | "llm_analytics"
+    | "github"
+    | "linear"
+    | "zendesk";
+  source_type: "session_analysis_cluster" | "evaluation" | "issue" | "ticket";
   enabled: boolean;
   config: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+}
+
+export interface ExternalDataSourceSchema {
+  id: string;
+  name: string;
+  should_sync: boolean;
+  /** e.g. `full_refresh` (full table replication), `incremental`, `append` */
+  sync_type?: string | null;
+}
+
+export interface ExternalDataSource {
+  id: string;
+  source_type: string;
+  status: string;
+  // The generated `ExternalDataSourceSerializers` types this as `string`,
+  // but the actual API returns an array of schema objects
+  schemas?: ExternalDataSourceSchema[] | string;
 }
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
@@ -199,8 +223,17 @@ export class PostHogAPIClient {
   async createSignalSourceConfig(
     projectId: number,
     options: {
-      source_product: "session_replay" | "llm_analytics";
-      source_type: "session_analysis_cluster" | "evaluation";
+      source_product:
+        | "session_replay"
+        | "llm_analytics"
+        | "github"
+        | "linear"
+        | "zendesk";
+      source_type:
+        | "session_analysis_cluster"
+        | "evaluation"
+        | "issue"
+        | "ticket";
       enabled: boolean;
       config?: Record<string, unknown>;
     },
@@ -252,6 +285,73 @@ export class PostHogAPIClient {
       );
     }
     return (await response.json()) as SignalSourceConfig;
+  }
+
+  async listExternalDataSources(
+    projectId: number,
+  ): Promise<ExternalDataSource[]> {
+    const data = (await this.api.get(
+      "/api/projects/{project_id}/external_data_sources/",
+      {
+        path: { project_id: projectId.toString() },
+        query: {},
+      },
+    )) as unknown as { results?: ExternalDataSource[] } | ExternalDataSource[];
+    return Array.isArray(data) ? data : (data.results ?? []);
+  }
+
+  async createExternalDataSource(
+    projectId: number,
+    payload: {
+      source_type: string;
+      payload: Record<string, unknown>;
+    },
+  ): Promise<ExternalDataSource> {
+    const response = await this.api.post(
+      "/api/projects/{project_id}/external_data_sources/",
+      {
+        path: { project_id: projectId.toString() },
+        body: payload as unknown as Schemas.ExternalDataSourceSerializers,
+        withResponse: true,
+        throwOnStatusError: false,
+      },
+    );
+    if (!response.ok) {
+      const errorData = isObjectRecord(response.data)
+        ? (response.data as { detail?: string })
+        : {};
+      throw new Error(
+        errorData.detail ??
+          `Failed to create external data source: ${response.statusText}`,
+      );
+    }
+    return response.data as unknown as ExternalDataSource;
+  }
+
+  async updateExternalDataSchema(
+    projectId: number,
+    schemaId: string,
+    updates: { should_sync: boolean; sync_type?: string },
+  ): Promise<void> {
+    const urlPath = `/api/projects/${projectId}/external_data_schemas/${schemaId}/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "patch",
+      url,
+      path: urlPath,
+      overrides: {
+        body: JSON.stringify(updates),
+      },
+    });
+    if (!response.ok) {
+      const errorData = (await response.json().catch(() => ({}))) as {
+        detail?: string;
+      };
+      throw new Error(
+        errorData.detail ??
+          `Failed to update external data schema: ${response.statusText}`,
+      );
+    }
   }
 
   async getTasks(options?: {
@@ -406,6 +506,7 @@ export class PostHogAPIClient {
     taskId: string,
     branch?: string | null,
     resumeOptions?: { resumeFromRunId: string; pendingUserMessage: string },
+    sandboxEnvironmentId?: string,
   ): Promise<Task> {
     const teamId = await this.getTeamId();
     const body: Record<string, unknown> = { mode: "interactive" };
@@ -415,6 +516,9 @@ export class PostHogAPIClient {
     if (resumeOptions) {
       body.resume_from_run_id = resumeOptions.resumeFromRunId;
       body.pending_user_message = resumeOptions.pendingUserMessage;
+    }
+    if (sandboxEnvironmentId) {
+      body.sandbox_environment_id = sandboxEnvironmentId;
     }
 
     const data = await this.api.post(
@@ -621,7 +725,7 @@ export class PostHogAPIClient {
   async getGithubBranches(
     integrationId: string | number,
     repo: string,
-  ): Promise<string[]> {
+  ): Promise<{ branches: string[]; defaultBranch: string | null }> {
     const teamId = await this.getTeamId();
     const url = new URL(
       `${this.api.baseUrl}/api/environments/${teamId}/integrations/${integrationId}/github_branches/`,
@@ -640,7 +744,10 @@ export class PostHogAPIClient {
     }
 
     const data = await response.json();
-    return data.branches ?? data.results ?? data ?? [];
+    return {
+      branches: data.branches ?? data.results ?? data ?? [],
+      defaultBranch: data.default_branch ?? null,
+    };
   }
 
   async getGithubRepositories(
@@ -953,8 +1060,8 @@ export class PostHogAPIClient {
     api_key?: string;
     description?: string;
     oauth_provider_kind?: string;
-    install_source?: "posthog" | "twig";
-    twig_callback_url?: string;
+    install_source?: "posthog" | "posthog-code";
+    posthog_code_callback_url?: string;
   }): Promise<McpServerInstallation | Schemas.OAuthRedirectResponse> {
     const teamId = await this.getTeamId();
     const apiUrl = new URL(
@@ -1061,6 +1168,91 @@ export class PostHogAPIClient {
     } catch (error) {
       log.warn(`Error checking feature flag "${flagKey}":`, error);
       return false;
+    }
+  }
+
+  // Sandbox Environments
+
+  async listSandboxEnvironments(): Promise<SandboxEnvironment[]> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/sandbox_environments/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: `/api/projects/${teamId}/sandbox_environments/`,
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch sandbox environments: ${response.statusText}`,
+      );
+    }
+    const data = await response.json();
+    return (data.results ?? data) as SandboxEnvironment[];
+  }
+
+  async createSandboxEnvironment(
+    input: SandboxEnvironmentInput,
+  ): Promise<SandboxEnvironment> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/sandbox_environments/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/sandbox_environments/`,
+      overrides: {
+        body: JSON.stringify(input),
+      },
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Failed to create sandbox environment: ${response.statusText}`,
+      );
+    }
+    return (await response.json()) as SandboxEnvironment;
+  }
+
+  async updateSandboxEnvironment(
+    id: string,
+    input: Partial<SandboxEnvironmentInput>,
+  ): Promise<SandboxEnvironment> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/sandbox_environments/${id}/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "patch",
+      url,
+      path: `/api/projects/${teamId}/sandbox_environments/${id}/`,
+      overrides: {
+        body: JSON.stringify(input),
+      },
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Failed to update sandbox environment: ${response.statusText}`,
+      );
+    }
+    return (await response.json()) as SandboxEnvironment;
+  }
+
+  async deleteSandboxEnvironment(id: string): Promise<void> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/sandbox_environments/${id}/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "delete",
+      url,
+      path: `/api/projects/${teamId}/sandbox_environments/${id}/`,
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Failed to delete sandbox environment: ${response.statusText}`,
+      );
     }
   }
 }

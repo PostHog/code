@@ -14,7 +14,7 @@ import {
 import type { Plan } from "@features/sessions/types";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
-import { Spinner, Warning } from "@phosphor-icons/react";
+import { Pause, Spinner, Warning } from "@phosphor-icons/react";
 import { Box, Button, ContextMenu, Flex, Text } from "@radix-ui/themes";
 import {
   type AcpMessage,
@@ -49,15 +49,18 @@ interface SessionViewProps {
     linesAdded: number;
     linesRemoved: number;
   } | null;
+  isSuspended?: boolean;
+  onRestoreWorktree?: () => void;
+  isRestoring?: boolean;
   hasError?: boolean;
   errorTitle?: string;
   errorMessage?: string;
   onRetry?: () => void;
   onNewSession?: () => void;
   isInitializing?: boolean;
-  readOnlyMessage?: string;
   slackThreadUrl?: string;
   compact?: boolean;
+  isActiveSession?: boolean;
 }
 
 const DEFAULT_ERROR_MESSAGE =
@@ -75,15 +78,18 @@ export function SessionView({
   repoPath,
   cloudBranch,
   cloudDiffStats,
+  isSuspended = false,
+  onRestoreWorktree,
+  isRestoring = false,
   hasError = false,
   errorTitle,
   errorMessage = DEFAULT_ERROR_MESSAGE,
   onRetry,
   onNewSession,
   isInitializing = false,
-  readOnlyMessage,
   slackThreadUrl,
   compact = false,
+  isActiveSession = true,
 }: SessionViewProps) {
   const showRawLogs = useShowRawLogs();
   const { setShowRawLogs } = useSessionViewActions();
@@ -157,9 +163,16 @@ export function SessionView({
     {
       enableOnFormTags: true,
       enableOnContentEditable: true,
-      enabled: isRunning && !!modeOption,
+      enabled: isRunning && !!modeOption && isActiveSession,
     },
-    [taskId, currentModeId, isRunning, modeOption, allowBypassPermissions],
+    [
+      taskId,
+      currentModeId,
+      isRunning,
+      modeOption,
+      allowBypassPermissions,
+      isActiveSession,
+    ],
   );
 
   const latestPlan = useMemo((): Plan | null => {
@@ -348,7 +361,7 @@ export function SessionView({
     editorRef.current?.focus();
   }, []);
 
-  useAutoFocusOnTyping(editorRef);
+  useAutoFocusOnTyping(editorRef, !isActiveSession);
 
   return (
     <ContextMenu.Root>
@@ -363,7 +376,65 @@ export function SessionView({
           onDragOver={handleDragOver}
           onDrop={handleDrop}
         >
-          {isInitializing ? (
+          {isSuspended ? (
+            <>
+              {showRawLogs ? (
+                <RawLogsView events={events} />
+              ) : (
+                <ConversationView
+                  events={events}
+                  isPromptPending={isPromptPending}
+                  promptStartedAt={promptStartedAt}
+                  repoPath={repoPath}
+                  taskId={taskId}
+                  slackThreadUrl={slackThreadUrl}
+                />
+              )}
+              <Box className="border-gray-4 border-t">
+                <Box className="mx-auto max-w-[750px] p-2">
+                  <Flex
+                    align="center"
+                    justify="between"
+                    gap="3"
+                    py="2"
+                    px="3"
+                    className="rounded-2 bg-gray-3"
+                  >
+                    <Flex align="center" gap="2">
+                      <Pause
+                        size={14}
+                        weight="duotone"
+                        color="var(--gray-11)"
+                      />
+                      <Text size="1" weight="medium">
+                        Worktree suspended
+                      </Text>
+                      <Text size="1" color="gray">
+                        Worktree was removed to save disk space
+                      </Text>
+                    </Flex>
+                    {onRestoreWorktree && (
+                      <Button
+                        variant="outline"
+                        size="1"
+                        onClick={onRestoreWorktree}
+                        disabled={isRestoring}
+                      >
+                        {isRestoring ? (
+                          <>
+                            <Spinner size={14} className="animate-spin" />
+                            Restoring...
+                          </>
+                        ) : (
+                          "Restore worktree"
+                        )}
+                      </Button>
+                    )}
+                  </Flex>
+                </Box>
+              </Box>
+            </>
+          ) : isInitializing ? (
             <Flex
               align="center"
               justify="center"
@@ -442,17 +513,6 @@ export function SessionView({
                     />
                   </Box>
                 </Box>
-              ) : readOnlyMessage ? (
-                <Flex
-                  align="center"
-                  justify="center"
-                  py="2"
-                  className="border-gray-4 border-t"
-                >
-                  <Text size="2" color="gray">
-                    {readOnlyMessage}
-                  </Text>
-                </Flex>
               ) : (
                 <Box className="relative border-gray-4 border-t">
                   <Box
@@ -487,6 +547,7 @@ export function SessionView({
                         onCancel={onCancelPrompt}
                         modeOption={modeOption}
                         onModeChange={modeOption ? handleModeChange : undefined}
+                        isActiveSession={isActiveSession}
                       />
                     </Box>
                   </Box>

@@ -2,8 +2,8 @@ import { DraggableTitleBar } from "@components/DraggableTitleBar";
 import { ZenHedgehog } from "@components/ZenHedgehog";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { Callout, Flex, Spinner, Text, Theme } from "@radix-ui/themes";
-import posthogIcon from "@renderer/assets/images/posthog-icon.svg";
-import phWordmark from "@renderer/assets/images/wordmark-alt.png";
+import codeLogo from "@renderer/assets/images/code.svg";
+import logomark from "@renderer/assets/images/logomark.svg";
 import { trpcClient } from "@renderer/trpc/client";
 import { REGION_LABELS } from "@shared/constants/oauth";
 import type { CloudRegion } from "@shared/types/oauth";
@@ -85,7 +85,7 @@ export function AuthScreen() {
   const errorMessage = getErrorMessage(error);
 
   return (
-    <Theme appearance="light" accentColor="orange">
+    <Theme appearance="light" accentColor="orange" radius="medium">
       <Flex height="100vh" style={{ position: "relative", overflow: "hidden" }}>
         <DraggableTitleBar />
 
@@ -138,10 +138,10 @@ export function AuthScreen() {
           >
             {/* Logo */}
             <img
-              src={phWordmark}
+              src={codeLogo}
               alt="PostHog"
               style={{
-                height: "48px",
+                height: "30px",
                 objectFit: "contain",
                 alignSelf: "center",
               }}
@@ -197,11 +197,7 @@ export function AuthScreen() {
                 {isPending ? (
                   <Spinner size="1" />
                 ) : (
-                  <img
-                    src={posthogIcon}
-                    alt=""
-                    style={{ width: "20px", height: "20px" }}
-                  />
+                  <img src={logomark} alt="" style={{ height: "14px" }} />
                 )}
                 {isPending
                   ? "Cancel"
@@ -251,7 +247,7 @@ export function AuthScreen() {
                         fontSize: "inherit",
                       }}
                     >
-                      create one
+                      Create one
                     </button>
                   </>
                 ) : (
@@ -277,7 +273,7 @@ export function AuthScreen() {
                         fontSize: "inherit",
                       }}
                     >
-                      sign in
+                      Sign in
                     </button>
                   </>
                 )}

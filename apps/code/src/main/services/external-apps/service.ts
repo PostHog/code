@@ -1,7 +1,8 @@
 import { exec } from "node:child_process";
 import fs from "node:fs/promises";
+import path from "node:path";
 import { promisify } from "node:util";
-import type { DetectedApplication, ExternalAppType } from "@shared/types";
+import type { DetectedApplication } from "@shared/types";
 import { app, clipboard } from "electron";
 import Store from "electron-store";
 import { injectable } from "inversify";
@@ -9,70 +10,419 @@ import type { AppDefinition, ExternalAppsSchema } from "./types";
 
 const execAsync = promisify(exec);
 
+const LOCALAPPDATA = process.env.LOCALAPPDATA ?? "";
+const PROGRAMFILES = process.env.PROGRAMFILES ?? "C:\\Program Files";
+
 @injectable()
 export class ExternalAppsService {
   private readonly APP_DEFINITIONS: Record<string, AppDefinition> = {
-    vscode: { path: "/Applications/Visual Studio Code.app", type: "editor" },
-    cursor: { path: "/Applications/Cursor.app", type: "editor" },
-    windsurf: { path: "/Applications/Windsurf.app", type: "editor" },
-    zed: { path: "/Applications/Zed.app", type: "editor" },
-    sublime: { path: "/Applications/Sublime Text.app", type: "editor" },
-    nova: { path: "/Applications/Nova.app", type: "editor" },
-    bbedit: { path: "/Applications/BBEdit.app", type: "editor" },
-    textmate: { path: "/Applications/TextMate.app", type: "editor" },
-    lapce: { path: "/Applications/Lapce.app", type: "editor" },
-    emacs: { path: "/Applications/Emacs.app", type: "editor" },
-    xcode: { path: "/Applications/Xcode.app", type: "editor" },
+    // Cross-platform editors
+    vscode: {
+      type: "editor",
+      darwin: { path: "/Applications/Visual Studio Code.app" },
+      win32: {
+        paths: [
+          path.join(LOCALAPPDATA, "Programs", "Microsoft VS Code", "Code.exe"),
+        ],
+        exeName: "code",
+      },
+    },
+    cursor: {
+      type: "editor",
+      darwin: { path: "/Applications/Cursor.app" },
+      win32: {
+        paths: [path.join(LOCALAPPDATA, "Programs", "cursor", "Cursor.exe")],
+        exeName: "cursor",
+      },
+    },
+    windsurf: {
+      type: "editor",
+      darwin: { path: "/Applications/Windsurf.app" },
+      win32: {
+        paths: [
+          path.join(LOCALAPPDATA, "Programs", "Windsurf", "Windsurf.exe"),
+        ],
+        exeName: "windsurf",
+      },
+    },
+    zed: {
+      type: "editor",
+      darwin: { path: "/Applications/Zed.app" },
+      win32: {
+        paths: [path.join(LOCALAPPDATA, "Programs", "Zed", "Zed.exe")],
+        exeName: "zed",
+      },
+    },
+    sublime: {
+      type: "editor",
+      darwin: { path: "/Applications/Sublime Text.app" },
+      win32: {
+        paths: [path.join(PROGRAMFILES, "Sublime Text", "sublime_text.exe")],
+        exeName: "subl",
+      },
+    },
+    lapce: {
+      type: "editor",
+      darwin: { path: "/Applications/Lapce.app" },
+      win32: {
+        paths: [path.join(PROGRAMFILES, "Lapce", "lapce.exe")],
+        exeName: "lapce",
+      },
+    },
+    emacs: {
+      type: "editor",
+      darwin: { path: "/Applications/Emacs.app" },
+      win32: {
+        paths: [path.join(PROGRAMFILES, "Emacs", "bin", "emacs.exe")],
+        exeName: "emacs",
+      },
+    },
     androidstudio: {
-      path: "/Applications/Android Studio.app",
       type: "editor",
+      darwin: { path: "/Applications/Android Studio.app" },
+      win32: {
+        paths: [
+          path.join(
+            PROGRAMFILES,
+            "Android",
+            "Android Studio",
+            "bin",
+            "studio64.exe",
+          ),
+        ],
+      },
     },
-    fleet: { path: "/Applications/Fleet.app", type: "editor" },
-    intellij: { path: "/Applications/IntelliJ IDEA.app", type: "editor" },
-    intellijce: { path: "/Applications/IntelliJ IDEA CE.app", type: "editor" },
+    fleet: {
+      type: "editor",
+      darwin: { path: "/Applications/Fleet.app" },
+      win32: {
+        paths: [path.join(LOCALAPPDATA, "JetBrains", "Fleet", "fleet.exe")],
+      },
+    },
+    intellij: {
+      type: "editor",
+      darwin: { path: "/Applications/IntelliJ IDEA.app" },
+      win32: {
+        paths: [
+          path.join(
+            PROGRAMFILES,
+            "JetBrains",
+            "IntelliJ IDEA",
+            "bin",
+            "idea64.exe",
+          ),
+        ],
+      },
+    },
+    intellijce: {
+      type: "editor",
+      darwin: { path: "/Applications/IntelliJ IDEA CE.app" },
+      win32: {
+        paths: [
+          path.join(
+            PROGRAMFILES,
+            "JetBrains",
+            "IntelliJ IDEA Community Edition",
+            "bin",
+            "idea64.exe",
+          ),
+        ],
+      },
+    },
     intellijultimate: {
-      path: "/Applications/IntelliJ IDEA Ultimate.app",
       type: "editor",
+      darwin: { path: "/Applications/IntelliJ IDEA Ultimate.app" },
+      win32: {
+        paths: [
+          path.join(
+            PROGRAMFILES,
+            "JetBrains",
+            "IntelliJ IDEA",
+            "bin",
+            "idea64.exe",
+          ),
+        ],
+      },
     },
-    webstorm: { path: "/Applications/WebStorm.app", type: "editor" },
-    pycharm: { path: "/Applications/PyCharm.app", type: "editor" },
-    pycharmce: { path: "/Applications/PyCharm CE.app", type: "editor" },
+    webstorm: {
+      type: "editor",
+      darwin: { path: "/Applications/WebStorm.app" },
+      win32: {
+        paths: [
+          path.join(
+            PROGRAMFILES,
+            "JetBrains",
+            "WebStorm",
+            "bin",
+            "webstorm64.exe",
+          ),
+        ],
+      },
+    },
+    pycharm: {
+      type: "editor",
+      darwin: { path: "/Applications/PyCharm.app" },
+      win32: {
+        paths: [
+          path.join(
+            PROGRAMFILES,
+            "JetBrains",
+            "PyCharm",
+            "bin",
+            "pycharm64.exe",
+          ),
+        ],
+      },
+    },
+    pycharmce: {
+      type: "editor",
+      darwin: { path: "/Applications/PyCharm CE.app" },
+      win32: {
+        paths: [
+          path.join(
+            PROGRAMFILES,
+            "JetBrains",
+            "PyCharm Community Edition",
+            "bin",
+            "pycharm64.exe",
+          ),
+        ],
+      },
+    },
     pycharmpro: {
-      path: "/Applications/PyCharm Professional Edition.app",
       type: "editor",
+      darwin: { path: "/Applications/PyCharm Professional Edition.app" },
+      win32: {
+        paths: [
+          path.join(
+            PROGRAMFILES,
+            "JetBrains",
+            "PyCharm Professional",
+            "bin",
+            "pycharm64.exe",
+          ),
+        ],
+      },
     },
-    phpstorm: { path: "/Applications/PhpStorm.app", type: "editor" },
-    rubymine: { path: "/Applications/RubyMine.app", type: "editor" },
-    goland: { path: "/Applications/GoLand.app", type: "editor" },
-    clion: { path: "/Applications/CLion.app", type: "editor" },
-    rider: { path: "/Applications/Rider.app", type: "editor" },
-    datagrip: { path: "/Applications/DataGrip.app", type: "editor" },
-    dataspell: { path: "/Applications/DataSpell.app", type: "editor" },
-    rustrover: { path: "/Applications/RustRover.app", type: "editor" },
-    aqua: { path: "/Applications/Aqua.app", type: "editor" },
-    writerside: { path: "/Applications/Writerside.app", type: "editor" },
-    appcode: { path: "/Applications/AppCode.app", type: "editor" },
-    eclipse: { path: "/Applications/Eclipse.app", type: "editor" },
-    netbeans: { path: "/Applications/NetBeans.app", type: "editor" },
+    phpstorm: {
+      type: "editor",
+      darwin: { path: "/Applications/PhpStorm.app" },
+      win32: {
+        paths: [
+          path.join(
+            PROGRAMFILES,
+            "JetBrains",
+            "PhpStorm",
+            "bin",
+            "phpstorm64.exe",
+          ),
+        ],
+      },
+    },
+    rubymine: {
+      type: "editor",
+      darwin: { path: "/Applications/RubyMine.app" },
+      win32: {
+        paths: [
+          path.join(
+            PROGRAMFILES,
+            "JetBrains",
+            "RubyMine",
+            "bin",
+            "rubymine64.exe",
+          ),
+        ],
+      },
+    },
+    goland: {
+      type: "editor",
+      darwin: { path: "/Applications/GoLand.app" },
+      win32: {
+        paths: [
+          path.join(PROGRAMFILES, "JetBrains", "GoLand", "bin", "goland64.exe"),
+        ],
+      },
+    },
+    clion: {
+      type: "editor",
+      darwin: { path: "/Applications/CLion.app" },
+      win32: {
+        paths: [
+          path.join(PROGRAMFILES, "JetBrains", "CLion", "bin", "clion64.exe"),
+        ],
+      },
+    },
+    rider: {
+      type: "editor",
+      darwin: { path: "/Applications/Rider.app" },
+      win32: {
+        paths: [
+          path.join(PROGRAMFILES, "JetBrains", "Rider", "bin", "rider64.exe"),
+        ],
+      },
+    },
+    datagrip: {
+      type: "editor",
+      darwin: { path: "/Applications/DataGrip.app" },
+      win32: {
+        paths: [
+          path.join(
+            PROGRAMFILES,
+            "JetBrains",
+            "DataGrip",
+            "bin",
+            "datagrip64.exe",
+          ),
+        ],
+      },
+    },
+    dataspell: {
+      type: "editor",
+      darwin: { path: "/Applications/DataSpell.app" },
+      win32: {
+        paths: [
+          path.join(
+            PROGRAMFILES,
+            "JetBrains",
+            "DataSpell",
+            "bin",
+            "dataspell64.exe",
+          ),
+        ],
+      },
+    },
+    rustrover: {
+      type: "editor",
+      darwin: { path: "/Applications/RustRover.app" },
+      win32: {
+        paths: [
+          path.join(
+            PROGRAMFILES,
+            "JetBrains",
+            "RustRover",
+            "bin",
+            "rustrover64.exe",
+          ),
+        ],
+      },
+    },
+    aqua: {
+      type: "editor",
+      darwin: { path: "/Applications/Aqua.app" },
+      win32: {
+        paths: [
+          path.join(PROGRAMFILES, "JetBrains", "Aqua", "bin", "aqua64.exe"),
+        ],
+      },
+    },
+    writerside: {
+      type: "editor",
+      darwin: { path: "/Applications/Writerside.app" },
+      win32: {
+        paths: [
+          path.join(
+            PROGRAMFILES,
+            "JetBrains",
+            "Writerside",
+            "bin",
+            "writerside64.exe",
+          ),
+        ],
+      },
+    },
+    eclipse: {
+      type: "editor",
+      darwin: { path: "/Applications/Eclipse.app" },
+      win32: {
+        paths: [path.join(PROGRAMFILES, "Eclipse", "eclipse.exe")],
+        exeName: "eclipse",
+      },
+    },
+    netbeans: {
+      type: "editor",
+      darwin: { path: "/Applications/NetBeans.app" },
+      win32: {
+        paths: [path.join(PROGRAMFILES, "NetBeans", "bin", "netbeans64.exe")],
+      },
+    },
     netbeansapache: {
-      path: "/Applications/Apache NetBeans.app",
       type: "editor",
+      darwin: { path: "/Applications/Apache NetBeans.app" },
+      win32: {
+        paths: [path.join(PROGRAMFILES, "NetBeans", "bin", "netbeans64.exe")],
+      },
     },
-    iterm: { path: "/Applications/iTerm.app", type: "terminal" },
-    warp: { path: "/Applications/Warp.app", type: "terminal" },
+    // macOS-only editors
+    nova: { type: "editor", darwin: { path: "/Applications/Nova.app" } },
+    bbedit: { type: "editor", darwin: { path: "/Applications/BBEdit.app" } },
+    textmate: {
+      type: "editor",
+      darwin: { path: "/Applications/TextMate.app" },
+    },
+    xcode: { type: "editor", darwin: { path: "/Applications/Xcode.app" } },
+    appcode: {
+      type: "editor",
+      darwin: { path: "/Applications/AppCode.app" },
+    },
+    // macOS-only terminals
+    iterm: { type: "terminal", darwin: { path: "/Applications/iTerm.app" } },
+    warp: { type: "terminal", darwin: { path: "/Applications/Warp.app" } },
     terminal: {
-      path: "/System/Applications/Utilities/Terminal.app",
       type: "terminal",
+      darwin: { path: "/System/Applications/Utilities/Terminal.app" },
     },
-    alacritty: { path: "/Applications/Alacritty.app", type: "terminal" },
-    kitty: { path: "/Applications/kitty.app", type: "terminal" },
-    ghostty: { path: "/Applications/Ghostty.app", type: "terminal" },
-    hyper: { path: "/Applications/Hyper.app", type: "terminal" },
-    tabby: { path: "/Applications/Tabby.app", type: "terminal" },
-    rio: { path: "/Applications/Rio.app", type: "terminal" },
+    ghostty: {
+      type: "terminal",
+      darwin: { path: "/Applications/Ghostty.app" },
+    },
+    kitty: {
+      type: "terminal",
+      darwin: { path: "/Applications/kitty.app" },
+    },
+    rio: { type: "terminal", darwin: { path: "/Applications/Rio.app" } },
+    // Cross-platform terminals
+    alacritty: {
+      type: "terminal",
+      darwin: { path: "/Applications/Alacritty.app" },
+      win32: {
+        paths: [path.join(PROGRAMFILES, "Alacritty", "alacritty.exe")],
+        exeName: "alacritty",
+      },
+    },
+    hyper: {
+      type: "terminal",
+      darwin: { path: "/Applications/Hyper.app" },
+      win32: {
+        paths: [path.join(LOCALAPPDATA, "Programs", "Hyper", "Hyper.exe")],
+      },
+    },
+    tabby: {
+      type: "terminal",
+      darwin: { path: "/Applications/Tabby.app" },
+      win32: {
+        paths: [path.join(LOCALAPPDATA, "Programs", "Tabby", "Tabby.exe")],
+      },
+    },
+    // Windows-only terminals
+    windowsterminal: {
+      type: "terminal",
+      win32: {
+        paths: [path.join(LOCALAPPDATA, "Microsoft", "WindowsApps", "wt.exe")],
+        exeName: "wt",
+      },
+    },
+    // File managers
     finder: {
-      path: "/System/Library/CoreServices/Finder.app",
       type: "file-manager",
+      darwin: { path: "/System/Library/CoreServices/Finder.app" },
+    },
+    explorer: {
+      type: "file-manager",
+      win32: {
+        paths: [
+          path.join(process.env.SYSTEMROOT ?? "C:\\Windows", "explorer.exe"),
+        ],
+      },
     },
   };
 
@@ -121,6 +471,8 @@ export class ExternalAppsService {
     tabby: "Tabby",
     rio: "Rio",
     finder: "Finder",
+    windowsterminal: "Windows Terminal",
+    explorer: "Explorer",
   };
 
   private fileIconModule: typeof import("file-icon") | null = null;
@@ -147,35 +499,82 @@ export class ExternalAppsService {
 
   private async extractIcon(appPath: string): Promise<string | undefined> {
     try {
-      const fileIconModule = await this.getFileIcon();
-      const uint8Array = await fileIconModule.fileIconToBuffer(appPath, {
-        size: 64,
-      });
-      const buffer = Buffer.from(uint8Array);
-      const base64 = buffer.toString("base64");
+      if (process.platform === "darwin") {
+        const fileIconModule = await this.getFileIcon();
+        const uint8Array = await fileIconModule.fileIconToBuffer(appPath, {
+          size: 64,
+        });
+        const buffer = Buffer.from(uint8Array);
+        const base64 = buffer.toString("base64");
+        return `data:image/png;base64,${base64}`;
+      }
+
+      const icon = await app.getFileIcon(appPath, { size: "normal" });
+      const base64 = icon.toPNG().toString("base64");
       return `data:image/png;base64,${base64}`;
     } catch {
       return undefined;
     }
   }
 
+  private async findWin32Executable(
+    definition: NonNullable<AppDefinition["win32"]>,
+  ): Promise<string | null> {
+    for (const p of definition.paths) {
+      try {
+        await fs.access(p);
+        return p;
+      } catch {
+        // path not found, try next
+      }
+    }
+
+    if (definition.exeName) {
+      try {
+        const { stdout } = await execAsync(`where.exe ${definition.exeName}`);
+        const firstLine = stdout.trim().split("\n")[0]?.trim();
+        if (firstLine) {
+          return firstLine;
+        }
+      } catch {
+        // not found in PATH
+      }
+    }
+
+    return null;
+  }
+
   private async checkApplication(
     id: string,
-    appPath: string,
-    type: ExternalAppType,
+    definition: AppDefinition,
   ): Promise<DetectedApplication | null> {
     try {
-      await fs.access(appPath);
+      let appPath: string;
+      let command: string;
+
+      if (process.platform === "darwin") {
+        const darwinDef = definition.darwin;
+        if (!darwinDef) return null;
+
+        await fs.access(darwinDef.path);
+        appPath = darwinDef.path;
+        command = `open -a "${appPath}"`;
+      } else if (process.platform === "win32") {
+        const win32Def = definition.win32;
+        if (!win32Def) return null;
+
+        const exePath = await this.findWin32Executable(win32Def);
+        if (!exePath) return null;
+
+        appPath = exePath;
+        command = `"${appPath}"`;
+      } else {
+        return null;
+      }
+
       const icon = await this.extractIcon(appPath);
       const name = this.DISPLAY_NAMES[id] || id;
-      return {
-        id,
-        name,
-        type,
-        path: appPath,
-        command: `open -a "${appPath}"`,
-        icon,
-      };
+      return { id, name, type: definition.type, path: appPath, command, icon };
     } catch {
       return null;
     }
@@ -184,11 +583,7 @@ export class ExternalAppsService {
   private async detectExternalApps(): Promise<DetectedApplication[]> {
     const apps: DetectedApplication[] = [];
     for (const [id, definition] of Object.entries(this.APP_DEFINITIONS)) {
-      const detected = await this.checkApplication(
-        id,
-        definition.path,
-        definition.type,
-      );
+      const detected = await this.checkApplication(id, definition);
       if (detected) {
         apps.push(detected);
       }
@@ -234,10 +629,21 @@ export class ExternalAppsService {
         isFile = false;
       }
 
-      const command =
-        appToOpen.id === "finder" && isFile
-          ? `open -R "${targetPath}"`
-          : `open -a "${appToOpen.path}" "${targetPath}"`;
+      let command: string;
+
+      if (process.platform === "darwin") {
+        command =
+          appToOpen.id === "finder" && isFile
+            ? `open -R "${targetPath}"`
+            : `open -a "${appToOpen.path}" "${targetPath}"`;
+      } else if (process.platform === "win32") {
+        command =
+          appToOpen.id === "explorer" && isFile
+            ? `explorer.exe /select,"${targetPath}"`
+            : `"${appToOpen.path}" "${targetPath}"`;
+      } else {
+        return { success: false, error: "Unsupported platform" };
+      }
 
       await execAsync(command);
       return { success: true };

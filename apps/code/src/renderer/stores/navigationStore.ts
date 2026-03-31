@@ -18,7 +18,8 @@ type ViewType =
   | "folder-settings"
   | "inbox"
   | "archived"
-  | "command-center";
+  | "command-center"
+  | "skills";
 
 interface ViewState {
   type: ViewType;
@@ -37,6 +38,7 @@ interface NavigationStore {
   navigateToInbox: () => void;
   navigateToArchived: () => void;
   navigateToCommandCenter: () => void;
+  navigateToSkills: () => void;
   goBack: () => void;
   goForward: () => void;
   canGoBack: () => boolean;
@@ -62,6 +64,9 @@ const isSameView = (view1: ViewState, view2: ViewState): boolean => {
     return true;
   }
   if (view1.type === "command-center" && view2.type === "command-center") {
+    return true;
+  }
+  if (view1.type === "skills" && view2.type === "skills") {
     return true;
   }
   return false;
@@ -172,6 +177,10 @@ export const useNavigationStore = create<NavigationStore>()(
         navigateToCommandCenter: () => {
           navigate({ type: "command-center" });
           track(ANALYTICS_EVENTS.COMMAND_CENTER_VIEWED);
+        },
+
+        navigateToSkills: () => {
+          navigate({ type: "skills" });
         },
 
         goBack: () => {

@@ -1,3 +1,4 @@
+import { useAuthStore } from "@features/auth/stores/authStore";
 import { SettingRow } from "@features/settings/components/SettingRow";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
@@ -5,9 +6,8 @@ import { Button, Flex, Switch } from "@radix-ui/themes";
 import { clearApplicationStorage } from "@utils/clearStorage";
 
 export function AdvancedSettings() {
-  const showDebugLogsToggle = useFeatureFlag(
-    "posthog-code-background-agent-logs",
-  );
+  const showDebugLogsToggle =
+    useFeatureFlag("posthog-code-background-agent-logs") || import.meta.env.DEV;
   const debugLogsCloudRuns = useSettingsStore((s) => s.debugLogsCloudRuns);
   const setDebugLogsCloudRuns = useSettingsStore(
     (s) => s.setDebugLogsCloudRuns,
@@ -15,6 +15,20 @@ export function AdvancedSettings() {
 
   return (
     <Flex direction="column">
+      <SettingRow
+        label="Reset onboarding"
+        description="Re-run the onboarding tutorial on next app restart"
+      >
+        <Button
+          variant="soft"
+          size="1"
+          onClick={() =>
+            useAuthStore.setState({ hasCompletedOnboarding: false })
+          }
+        >
+          Reset
+        </Button>
+      </SettingRow>
       <SettingRow
         label="Clear application storage"
         description="This will remove all locally stored application data"

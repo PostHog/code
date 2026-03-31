@@ -55,7 +55,7 @@ function ImageThumbnail({
         <Dialog.Trigger>
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded-[var(--radius-1)] bg-[var(--gray-a3)] p-1 font-medium text-[10px] text-[var(--gray-11)] leading-tight hover:bg-[var(--gray-a4)]"
+            className="inline-flex items-center gap-1 rounded-[var(--radius-1)] bg-[var(--gray-a3)] p-1 font-medium text-[11px] text-[var(--gray-11)] leading-tight hover:bg-[var(--gray-a4)]"
           >
             {dataUrl ? (
               isGif ? (
@@ -124,7 +124,7 @@ function FileChip({
 }) {
   return (
     <div className="group relative flex-shrink-0">
-      <span className="inline-flex items-center gap-1 rounded-[var(--radius-1)] bg-[var(--gray-a3)] p-1 font-medium text-[10px] text-[var(--gray-11)] leading-tight">
+      <span className="inline-flex items-center gap-1 rounded-[var(--radius-1)] bg-[var(--gray-a3)] p-1 font-medium text-[11px] text-[var(--gray-11)] leading-tight">
         <File size={14} weight="duotone" className="shrink-0" />
         <span className="max-w-[120px] truncate">{attachment.label}</span>
       </span>

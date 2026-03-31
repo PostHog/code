@@ -8,6 +8,7 @@ import {
   BellRinging,
   Cloud as CloudIcon,
   Laptop as LaptopIcon,
+  Pause,
   PushPin,
 } from "@phosphor-icons/react";
 import { selectIsFocusedOnWorktree, useFocusStore } from "@stores/focusStore";
@@ -24,6 +25,7 @@ interface TaskItemProps {
   isGenerating?: boolean;
   isUnread?: boolean;
   isPinned?: boolean;
+  isSuspended?: boolean;
   needsPermission?: boolean;
   taskRunStatus?:
     | "started"
@@ -134,12 +136,8 @@ function CloudStatusIcon({
   if (taskRunStatus === "started" || taskRunStatus === "in_progress") {
     return (
       <Tooltip content="Cloud (running)" side="right">
-        <span className="relative flex items-center justify-center">
-          <CloudIcon size={ICON_SIZE} className="text-accent-11" />
-          <DotsCircleSpinner
-            size={8}
-            className="-right-0.5 -bottom-0.5 absolute text-accent-11"
-          />
+        <span className="flex items-center justify-center">
+          <CloudIcon size={ICON_SIZE} className="ph-pulse" />
         </span>
       </Tooltip>
     );
@@ -180,6 +178,7 @@ export function TaskItem({
   isActive,
   workspaceMode,
   worktreePath,
+  isSuspended = false,
   isGenerating,
   isUnread,
   isPinned = false,
@@ -202,7 +201,13 @@ export function TaskItem({
   const isWorktreeTask = workspaceMode === "worktree";
   const isCloudTask = workspaceMode === "cloud";
 
-  const icon = needsPermission ? (
+  const icon = isSuspended ? (
+    <Tooltip content="Suspended" side="right">
+      <span className="flex items-center justify-center">
+        <Pause size={ICON_SIZE} className="text-gray-9" />
+      </span>
+    </Tooltip>
+  ) : needsPermission ? (
     <BellRinging size={ICON_SIZE} className="text-blue-11" />
   ) : isGenerating ? (
     <DotsCircleSpinner size={ICON_SIZE} className="text-accent-11" />
@@ -244,7 +249,7 @@ export function TaskItem({
   );
 
   const timestampNode = timestamp ? (
-    <span className="shrink-0 text-[10px] text-gray-11 group-hover:hidden">
+    <span className="shrink-0 text-[11px] text-gray-11 group-hover:hidden">
       {formatRelativeTime(timestamp)}
     </span>
   ) : null;
@@ -350,7 +355,7 @@ function InlineEditInput({
 
   return (
     <div
-      className={`flex w-full items-start px-2 py-1.5 font-mono text-[12px]${isActive ? "bg-accent-4 text-gray-12" : ""}`}
+      className={`flex w-full items-start px-2 py-1.5 text-[13px]${isActive ? "bg-accent-4 text-gray-12" : ""}`}
       style={{
         paddingLeft: `${depth * INDENT_SIZE + 8 + (depth > 0 ? 4 : 0)}px`,
         gap: "4px",
@@ -377,7 +382,7 @@ function InlineEditInput({
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={handleSubmit}
-            className="min-w-0 flex-1 rounded-sm border border-accent-8 bg-gray-2 px-1 font-mono text-[12px] text-gray-12 outline-none"
+            className="min-w-0 flex-1 rounded-sm border border-accent-8 bg-gray-2 px-1 text-[13px] text-gray-12 outline-none"
             style={{ height: "18px" }}
           />
         </span>

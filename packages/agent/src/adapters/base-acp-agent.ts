@@ -20,6 +20,7 @@ import {
   DEFAULT_GATEWAY_MODEL,
   fetchGatewayModels,
   formatGatewayModelName,
+  type GatewayModel,
   isAnthropicModel,
 } from "../gateway-models";
 import { Logger } from "../utils/logger";
@@ -33,6 +34,8 @@ export interface BaseSession {
   settingsManager: SettingsManager;
 }
 
+const DEFAULT_CONTEXT_WINDOW = 200_000;
+
 export abstract class BaseAcpAgent implements Agent {
   abstract readonly adapterName: string;
   protected session!: BaseSession;
@@ -40,6 +43,7 @@ export abstract class BaseAcpAgent implements Agent {
   client: AgentSideConnection;
   logger: Logger;
   fileContentCache: { [key: string]: string } = {};
+  protected gatewayModels: GatewayModel[] = [];
 
   constructor(client: AgentSideConnection) {
     this.client = client;
@@ -119,9 +123,9 @@ export abstract class BaseAcpAgent implements Agent {
     currentModelId: string;
     options: SessionConfigSelectOption[];
   }> {
-    const gatewayModels = await fetchGatewayModels();
+    this.gatewayModels = await fetchGatewayModels();
 
-    const options = gatewayModels
+    const options = this.gatewayModels
       .filter((model) => isAnthropicModel(model))
       .map((model) => ({
         value: model.id,
@@ -149,5 +153,10 @@ export abstract class BaseAcpAgent implements Agent {
     }
 
     return { currentModelId, options };
+  }
+
+  getContextWindowForModel(modelId: string): number {
+    const match = this.gatewayModels.find((m) => m.id === modelId);
+    return match?.context_window ?? DEFAULT_CONTEXT_WINDOW;
   }
 }

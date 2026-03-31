@@ -54,7 +54,7 @@ interface GitInteractionActions {
   openCommit: (nextStep: CommitNextStep) => void;
   openPush: (mode: PushMode) => void;
   openPr: (defaultTitle?: string, defaultBody?: string) => void;
-  openBranch: () => void;
+  openBranch: (suggestedName?: string) => void;
   closeCommit: () => void;
   closePush: () => void;
   closePr: () => void;
@@ -127,8 +127,12 @@ export const useGitInteractionStore = create<GitInteractionStore>((set) => ({
         prError: null,
         prOpen: true,
       }),
-    openBranch: () =>
-      set({ branchName: "", branchError: null, branchOpen: true }),
+    openBranch: (suggestedName) =>
+      set({
+        branchName: suggestedName ?? "",
+        branchError: null,
+        branchOpen: true,
+      }),
     closeCommit: () => set({ commitOpen: false, commitError: null }),
     closePush: () =>
       set({

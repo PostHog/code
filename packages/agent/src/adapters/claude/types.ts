@@ -53,6 +53,12 @@ export type Session = BaseSession & {
   effort?: EffortLevel;
   configOptions: SessionConfigOption[];
   accumulatedUsage: AccumulatedUsage;
+  /** Latest context window usage (total tokens from last assistant message) */
+  contextUsed?: number;
+  /** Context window size in tokens */
+  contextSize?: number;
+  /** Persists across prompt() calls so SDK-reported values survive turn boundaries */
+  lastContextWindowSize?: number;
   promptRunning: boolean;
   pendingMessages: Map<string, PendingMessage>;
   nextPendingOrder: number;
@@ -100,6 +106,8 @@ export type NewSessionMeta = {
   sessionId?: string;
   permissionMode?: string;
   persistence?: { taskId?: string; runId?: string; logUrl?: string };
+  additionalRoots?: string[];
+  allowedDomains?: string[];
   claudeCode?: {
     options?: Options;
   };

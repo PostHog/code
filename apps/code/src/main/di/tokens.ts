@@ -14,10 +14,13 @@ export const MAIN_TOKENS = Object.freeze({
   WorkspaceRepository: Symbol.for("Main.WorkspaceRepository"),
   WorktreeRepository: Symbol.for("Main.WorktreeRepository"),
   ArchiveRepository: Symbol.for("Main.ArchiveRepository"),
+  SuspensionRepository: Symbol.for("Main.SuspensionRepository"),
 
   // Services
   AgentService: Symbol.for("Main.AgentService"),
+  AuthProxyService: Symbol.for("Main.AuthProxyService"),
   ArchiveService: Symbol.for("Main.ArchiveService"),
+  SuspensionService: Symbol.for("Main.SuspensionService"),
   AppLifecycleService: Symbol.for("Main.AppLifecycleService"),
   CloudTaskService: Symbol.for("Main.CloudTaskService"),
   ConnectivityService: Symbol.for("Main.ConnectivityService"),
@@ -25,6 +28,7 @@ export const MAIN_TOKENS = Object.freeze({
 
   ExternalAppsService: Symbol.for("Main.ExternalAppsService"),
   LlmGatewayService: Symbol.for("Main.LlmGatewayService"),
+  McpAppsService: Symbol.for("Main.McpAppsService"),
   FileWatcherService: Symbol.for("Main.FileWatcherService"),
   FocusService: Symbol.for("Main.FocusService"),
   FocusSyncService: Symbol.for("Main.FocusSyncService"),
@@ -32,6 +36,7 @@ export const MAIN_TOKENS = Object.freeze({
   FsService: Symbol.for("Main.FsService"),
   GitService: Symbol.for("Main.GitService"),
   GitHubIntegrationService: Symbol.for("Main.GitHubIntegrationService"),
+  LinearIntegrationService: Symbol.for("Main.LinearIntegrationService"),
   DeepLinkService: Symbol.for("Main.DeepLinkService"),
   NotificationService: Symbol.for("Main.NotificationService"),
   McpCallbackService: Symbol.for("Main.McpCallbackService"),
@@ -44,5 +49,7 @@ export const MAIN_TOKENS = Object.freeze({
   UpdatesService: Symbol.for("Main.UpdatesService"),
   TaskLinkService: Symbol.for("Main.TaskLinkService"),
   WatcherRegistryService: Symbol.for("Main.WatcherRegistryService"),
+  EnvironmentService: Symbol.for("Main.EnvironmentService"),
+  ProvisioningService: Symbol.for("Main.ProvisioningService"),
   WorkspaceService: Symbol.for("Main.WorkspaceService"),
 });

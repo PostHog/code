@@ -1,10 +1,13 @@
 import { useFolders } from "@features/folders/hooks/useFolders";
+import { SettingRow } from "@features/settings/components/SettingRow";
+import { useSuspensionSettings } from "@features/suspension/hooks/useSuspensionSettings";
 import { useDeleteTask, useTasks } from "@features/tasks/hooks/useTasks";
-import { Flex, Text } from "@radix-ui/themes";
+import { Flex, Switch, Text, TextField } from "@radix-ui/themes";
 import { trpcClient, useTRPC } from "@renderer/trpc";
 import type { Task } from "@shared/types";
 import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
+import { toast } from "@utils/toast";
 import { useCallback, useMemo, useState } from "react";
 import type { WorktreeGroup } from "./WorktreeGroupSection";
 import { WorktreeGroupSection } from "./WorktreeGroupSection";
@@ -14,6 +17,7 @@ const log = logger.scope("worktrees-settings");
 export function WorktreesSettings() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const { settings, updateSettings } = useSuspensionSettings();
   const deleteWorkspaceMutation = useMutation(
     trpc.workspace.delete.mutationOptions(),
   );
@@ -125,35 +129,107 @@ export function WorktreesSettings() {
     [deleteWorkspaceMutation, deleteTask, queryClient, trpc],
   );
 
+  const commitNumericField = useCallback(
+    (
+      e:
+        | React.FocusEvent<HTMLInputElement>
+        | React.KeyboardEvent<HTMLInputElement>,
+      field: "maxActiveWorktrees" | "autoSuspendAfterDays",
+      fallback: number,
+    ) => {
+      const input = e.currentTarget;
+      const val = Number.parseInt(input.value, 10);
+      const labels: Record<string, string> = {
+        maxActiveWorktrees: "Max active worktrees",
+        autoSuspendAfterDays: "Auto-suspend days",
+      };
+      if (val >= 1) {
+        updateSettings({ [field]: val });
+        toast.success(`${labels[field]} updated to ${val}`);
+      } else {
+        input.value = String(settings?.[field] ?? fallback);
+      }
+    },
+    [settings, updateSettings],
+  );
+
   const isLoading = worktreeQueries.some((q) => q.isLoading);
-
-  if (isLoading) {
-    return (
-      <Text size="2" color="gray">
-        Loading worktrees...
-      </Text>
-    );
-  }
-
-  if (worktreeGroups.length === 0) {
-    return (
-      <Text size="1" color="gray">
-        Tasks that are run in a worktree will show up here.
-      </Text>
-    );
-  }
 
   return (
     <Flex direction="column" gap="5">
-      {worktreeGroups.map((group) => (
-        <WorktreeGroupSection
-          key={group.folderPath}
-          group={group}
-          taskMap={taskMap}
-          deletingWorktrees={deletingWorktrees}
-          onDelete={handleDeleteWorktree}
-        />
-      ))}
+      <Flex direction="column">
+        <SettingRow
+          label="Automatically suspend stale worktrees"
+          description="Suspend stale worktrees to save disk space. Suspended worktrees can be restored at any time. Only disable if you prefer to manage worktrees manually."
+        >
+          <Switch
+            checked={settings.autoSuspendEnabled}
+            onCheckedChange={(checked) =>
+              updateSettings({ autoSuspendEnabled: checked })
+            }
+            size="1"
+          />
+        </SettingRow>
+        <SettingRow
+          label="Max active worktrees"
+          description="When this limit is reached, the least recently active worktree will be automatically suspended"
+        >
+          <TextField.Root
+            key={`max-${settings.maxActiveWorktrees}`}
+            type="number"
+            size="1"
+            style={{ width: 64 }}
+            min={1}
+            disabled={!settings.autoSuspendEnabled}
+            defaultValue={settings.maxActiveWorktrees}
+            onBlur={(e) => commitNumericField(e, "maxActiveWorktrees", 5)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter")
+                commitNumericField(e, "maxActiveWorktrees", 5);
+            }}
+          />
+        </SettingRow>
+        <SettingRow
+          label="Auto-suspend after inactivity"
+          description="Suspend worktrees with no activity for this many days"
+          noBorder
+        >
+          <TextField.Root
+            key={`days-${settings.autoSuspendAfterDays}`}
+            type="number"
+            size="1"
+            style={{ width: 64 }}
+            min={1}
+            disabled={!settings.autoSuspendEnabled}
+            defaultValue={settings.autoSuspendAfterDays}
+            onBlur={(e) => commitNumericField(e, "autoSuspendAfterDays", 7)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter")
+                commitNumericField(e, "autoSuspendAfterDays", 7);
+            }}
+          />
+        </SettingRow>
+      </Flex>
+
+      {isLoading ? (
+        <Text size="2" color="gray">
+          Loading worktrees...
+        </Text>
+      ) : worktreeGroups.length === 0 ? (
+        <Text size="1" color="gray">
+          Tasks that are run in a worktree will show up here.
+        </Text>
+      ) : (
+        worktreeGroups.map((group) => (
+          <WorktreeGroupSection
+            key={group.folderPath}
+            group={group}
+            taskMap={taskMap}
+            deletingWorktrees={deletingWorktrees}
+            onDelete={handleDeleteWorktree}
+          />
+        ))
+      )}
     </Flex>
   );
 }

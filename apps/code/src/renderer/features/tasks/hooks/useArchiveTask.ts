@@ -1,3 +1,4 @@
+import { useCommandCenterStore } from "@features/command-center/stores/commandCenterStore";
 import { getSessionService } from "@features/sessions/service/service";
 import { pinnedTasksApi } from "@features/sidebar/hooks/usePinnedTasks";
 import { useTerminalStore } from "@features/terminal/stores/terminalStore";
@@ -33,6 +34,7 @@ export function useArchiveTask() {
 
     pinnedTasksApi.unpin(taskId);
     useTerminalStore.getState().clearTerminalStatesForTask(taskId);
+    useCommandCenterStore.getState().removeTaskById(taskId);
 
     queryClient.setQueryData<string[]>(
       trpc.archive.archivedTaskIds.queryKey(),

@@ -52,7 +52,7 @@
 }
 
 .project-picker-dialog [cmdk-group-heading] {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--gray-11);
   padding: 8px 12px 4px;

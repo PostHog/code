@@ -3,7 +3,6 @@ import { PanelLayout } from "@features/panels";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useTaskData } from "@features/task-detail/hooks/useTaskData";
 import { useTaskStore } from "@features/tasks/stores/taskStore";
-import { StartWorkspaceButton } from "@features/workspace/components/StartWorkspaceButton";
 import { useWorkspaceEvents } from "@features/workspace/hooks";
 import { useBlurOnEscape } from "@hooks/useBlurOnEscape";
 import { useFileWatcher } from "@hooks/useFileWatcher";
@@ -60,14 +59,13 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
           <Text size="1" weight="medium" truncate>
             {task.title}
           </Text>
-          <StartWorkspaceButton taskId={taskId} />
         </Flex>
         {effectiveRepoPath && (
           <ExternalAppsOpener targetPath={effectiveRepoPath} />
         )}
       </Flex>
     ),
-    [task.title, taskId, effectiveRepoPath],
+    [task.title, effectiveRepoPath],
   );
 
   useSetHeaderContent(headerContent);

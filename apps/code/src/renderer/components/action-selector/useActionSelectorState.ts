@@ -173,8 +173,12 @@ export function useActionSelectorState({
             next.add(optionId);
           }
         } else {
-          next.clear();
-          next.add(optionId);
+          if (next.has(optionId)) {
+            next.clear();
+          } else {
+            next.clear();
+            next.add(optionId);
+          }
         }
         return next;
       });
@@ -227,6 +231,9 @@ export function useActionSelectorState({
 
     if (showSubmitButton) {
       if (needsCustomInput(selected) && !isEditing) {
+        if (!multiSelect) {
+          setCheckedOptions(new Set());
+        }
         setIsEditing(true);
       } else {
         toggleCheck(selected.id);
@@ -330,6 +337,9 @@ export function useActionSelectorState({
 
       if (showSubmitButton) {
         if (needsCustomInput(selected)) {
+          if (!multiSelect) {
+            setCheckedOptions(new Set());
+          }
           setIsEditing(true);
         } else {
           toggleCheck(selected.id);
@@ -382,6 +392,9 @@ export function useActionSelectorState({
           const next = new Set(prev);
           if (value.trim()) {
             if (!prev.has(selectedOption.id)) {
+              if (!multiSelect) {
+                next.clear();
+              }
               next.add(selectedOption.id);
             }
           } else {
@@ -391,7 +404,7 @@ export function useActionSelectorState({
         });
       }
     },
-    [showSubmitButton, selectedOption],
+    [showSubmitButton, selectedOption, multiSelect],
   );
 
   const ensureChecked = useCallback((optionId: string) => {
