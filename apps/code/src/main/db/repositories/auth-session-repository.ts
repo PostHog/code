@@ -1,3 +1,4 @@
+import type { CloudRegion } from "@shared/types/oauth";
 import { eq } from "drizzle-orm";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
@@ -9,7 +10,7 @@ export type NewAuthSession = typeof authSessions.$inferInsert;
 
 export interface PersistAuthSessionInput {
   refreshTokenEncrypted: string;
-  cloudRegion: "us" | "eu" | "dev";
+  cloudRegion: CloudRegion;
   selectedProjectId: number | null;
   scopeVersion: number;
 }

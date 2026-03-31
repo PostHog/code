@@ -114,7 +114,7 @@ function App() {
     }),
   );
 
-  // Wait for authStore to hydrate, then restore session from stored tokens
+  // Initialize auth state from main process
   useEffect(() => {
     const initialize = async () => {
       await useAuthStore.getState().initializeOAuth();

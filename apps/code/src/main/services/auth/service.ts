@@ -2,6 +2,7 @@ import {
   getCloudUrlFromRegion,
   OAUTH_SCOPE_VERSION,
 } from "@shared/constants/oauth";
+import type { CloudRegion } from "@shared/types/oauth";
 import { inject, injectable } from "inversify";
 import type {
   IAuthSessionRepository,
@@ -28,7 +29,7 @@ interface InMemorySession {
   accessToken: string;
   accessTokenExpiresAt: number;
   refreshToken: string;
-  cloudRegion: "us" | "eu" | "dev";
+  cloudRegion: CloudRegion;
   projectId: number | null;
   availableProjectIds: number[];
   availableOrgIds: string[];
@@ -36,12 +37,12 @@ interface InMemorySession {
 
 interface StoredSessionInput {
   refreshToken: string;
-  cloudRegion: "us" | "eu" | "dev";
+  cloudRegion: CloudRegion;
   selectedProjectId: number | null;
 }
 
 interface TokenResponseOptions {
-  cloudRegion: "us" | "eu" | "dev";
+  cloudRegion: CloudRegion;
   selectedProjectId: number | null;
 }
 
@@ -88,7 +89,7 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
     return { ...this.state };
   }
 
-  async login(region: "us" | "eu" | "dev"): Promise<AuthState> {
+  async login(region: CloudRegion): Promise<AuthState> {
     await this.authenticateWithFlow(
       () => this.oauthService.startFlow(region),
       region,
@@ -97,7 +98,7 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
     return this.getState();
   }
 
-  async signup(region: "us" | "eu" | "dev"): Promise<AuthState> {
+  async signup(region: CloudRegion): Promise<AuthState> {
     await this.authenticateWithFlow(
       () => this.oauthService.startSignupFlow(region),
       region,
@@ -331,7 +332,7 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       data?: AuthTokenResponse;
       error?: string;
     }>,
-    region: "us" | "eu" | "dev",
+    region: CloudRegion,
     fallbackError: string,
   ): Promise<void> {
     const result = await runFlow();
@@ -377,7 +378,7 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
 
   private persistSession(input: {
     refreshToken: string;
-    cloudRegion: "us" | "eu" | "dev";
+    cloudRegion: CloudRegion;
     selectedProjectId: number | null;
   }): void {
     const row: PersistAuthSessionInput = {
