@@ -5,18 +5,12 @@ export type SendMessagesWith = "enter" | "cmd+enter";
 
 interface SettingsState {
   sendMessagesWith: SendMessagesWith;
-  terminalFontFamily: string;
-  terminalFontFamilyLoaded: boolean;
   loadSendMessagesWith: () => Promise<void>;
   setSendMessagesWith: (mode: SendMessagesWith) => Promise<void>;
-  loadTerminalFontFamily: () => Promise<void>;
-  setTerminalFontFamily: (fontFamily: string) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>()((set) => ({
   sendMessagesWith: "enter",
-  terminalFontFamily: "monospace",
-  terminalFontFamilyLoaded: false,
 
   loadSendMessagesWith: async () => {
     try {
@@ -36,36 +30,6 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
         value: mode,
       });
       set({ sendMessagesWith: mode });
-    } catch (_error) {}
-  },
-
-  loadTerminalFontFamily: async () => {
-    try {
-      const fontFamily = await trpcClient.secureStore.getItem.query({
-        key: "terminalFontFamily",
-      });
-      if (typeof fontFamily === "string" && fontFamily.trim()) {
-        set({ terminalFontFamily: fontFamily, terminalFontFamilyLoaded: true });
-        return;
-      }
-      set({ terminalFontFamilyLoaded: true });
-    } catch (_error) {
-      set({ terminalFontFamilyLoaded: true });
-    }
-  },
-
-  setTerminalFontFamily: async (fontFamily: string) => {
-    const trimmedFontFamily = fontFamily.trim();
-    const normalizedFontFamily = trimmedFontFamily || "monospace";
-    try {
-      await trpcClient.secureStore.setItem.query({
-        key: "terminalFontFamily",
-        value: normalizedFontFamily,
-      });
-      set({
-        terminalFontFamily: trimmedFontFamily,
-        terminalFontFamilyLoaded: true,
-      });
     } catch (_error) {}
   },
 }));

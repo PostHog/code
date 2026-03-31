@@ -14,6 +14,7 @@ import {
   sanitizeBranchName,
   validateBranchName,
 } from "@features/git-interaction/utils/branchNameValidation";
+import { getSuggestedBranchName } from "@features/git-interaction/utils/deriveBranchName";
 import { invalidateGitBranchQueries } from "@features/git-interaction/utils/gitCacheKeys";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
 import { trpc, trpcClient } from "@renderer/trpc";
@@ -167,7 +168,7 @@ export function useGitInteraction(
       publish: () => modal.openPush("publish"),
       "view-pr": () => viewPr(),
       "create-pr": () => openCreatePr(),
-      "branch-here": () => modal.openBranch(),
+      "branch-here": () => modal.openBranch(getSuggestedBranchName(taskId)),
     };
     actionMap[id]();
   };

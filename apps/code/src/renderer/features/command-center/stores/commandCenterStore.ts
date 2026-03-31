@@ -22,11 +22,13 @@ function getCellCount(preset: LayoutPreset): number {
 interface CommandCenterStoreState {
   layout: LayoutPreset;
   cells: (string | null)[];
+  activeTaskId: string | null;
   zoom: number;
 }
 
 interface CommandCenterStoreActions {
   setLayout: (preset: LayoutPreset) => void;
+  setActiveTask: (taskId: string | null) => void;
   assignTask: (cellIndex: number, taskId: string) => void;
   removeTask: (cellIndex: number) => void;
   removeTaskById: (taskId: string) => void;
@@ -60,13 +62,21 @@ export const useCommandCenterStore = create<CommandCenterStore>()(
     (set) => ({
       layout: "2x2",
       cells: [null, null, null, null],
+      activeTaskId: null,
       zoom: 1,
 
       setLayout: (preset) =>
         set((state) => ({
+          activeTaskId: resizeCells(state.cells, getCellCount(preset)).includes(
+            state.activeTaskId,
+          )
+            ? state.activeTaskId
+            : null,
           layout: preset,
           cells: resizeCells(state.cells, getCellCount(preset)),
         })),
+
+      setActiveTask: (taskId) => set({ activeTaskId: taskId }),
 
       assignTask: (cellIndex, taskId) =>
         set((state) => {
@@ -77,14 +87,21 @@ export const useCommandCenterStore = create<CommandCenterStore>()(
             cells[existingIndex] = null;
           }
           cells[cellIndex] = taskId;
-          return { cells };
+          return { cells, activeTaskId: taskId };
         }),
 
       removeTask: (cellIndex) =>
         set((state) => {
           const cells = [...state.cells];
+          const removedTaskId = cells[cellIndex];
           cells[cellIndex] = null;
-          return { cells };
+          return {
+            cells,
+            activeTaskId:
+              removedTaskId && state.activeTaskId === removedTaskId
+                ? null
+                : state.activeTaskId,
+          };
         }),
 
       removeTaskById: (taskId) =>
@@ -93,11 +110,16 @@ export const useCommandCenterStore = create<CommandCenterStore>()(
           if (index === -1) return state;
           const cells = [...state.cells];
           cells[index] = null;
-          return { cells };
+          return {
+            cells,
+            activeTaskId:
+              state.activeTaskId === taskId ? null : state.activeTaskId,
+          };
         }),
 
       clearAll: () =>
         set((state) => ({
+          activeTaskId: null,
           cells: state.cells.map(() => null),
         })),
 
@@ -113,6 +135,7 @@ export const useCommandCenterStore = create<CommandCenterStore>()(
       partialize: (state) => ({
         layout: state.layout,
         cells: state.cells,
+        activeTaskId: state.activeTaskId,
         zoom: state.zoom,
       }),
     },

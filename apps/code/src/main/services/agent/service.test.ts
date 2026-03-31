@@ -140,6 +140,8 @@ function createMockDependencies() {
       register: vi.fn(),
       unregister: vi.fn(),
       killByTaskId: vi.fn(),
+      getByTaskId: vi.fn(() => []),
+      kill: vi.fn(),
     },
     sleepService: {
       acquire: vi.fn(),
@@ -151,6 +153,13 @@ function createMockDependencies() {
     },
     posthogPluginService: {
       getPluginPath: vi.fn(() => "/mock/plugin"),
+    },
+    authProxy: {
+      start: vi.fn().mockResolvedValue("http://127.0.0.1:9999"),
+      stop: vi.fn().mockResolvedValue(undefined),
+      updateToken: vi.fn(),
+      getProxyUrl: vi.fn(() => "http://127.0.0.1:9999"),
+      isRunning: vi.fn(() => false),
     },
   };
 }
@@ -182,6 +191,15 @@ describe("AgentService", () => {
       deps.sleepService as never,
       deps.fsService as never,
       deps.posthogPluginService as never,
+      deps.authProxy as never,
+      {
+        setServerConfigs: vi.fn(),
+        handleDiscovery: vi.fn().mockResolvedValue(undefined),
+        cleanup: vi.fn().mockResolvedValue(undefined),
+        notifyToolInput: vi.fn(),
+        notifyToolResult: vi.fn(),
+        notifyToolCancelled: vi.fn(),
+      } as never,
     );
   });
 
@@ -304,7 +322,6 @@ describe("AgentService", () => {
         createdAt: Date.now(),
         lastActivityAt: Date.now(),
         config: {},
-        needsRecreation: false,
         promptPending: false,
         ...overrides,
       });
@@ -344,12 +361,17 @@ describe("AgentService", () => {
       injectSession(service, "run-1");
       service.recordActivity("run-1");
       const firstDeadline = getIdleTimeouts(service).get("run-1")?.deadline;
+      if (firstDeadline === undefined)
+        throw new Error("Expected firstDeadline to be defined");
 
       vi.advanceTimersByTime(5 * 60 * 1000);
       service.recordActivity("run-1");
-      const secondDeadline = getIdleTimeouts(service).get("run-1")?.deadline;
+      const secondDeadline = getIdleTimeouts(service).get("run-1")
+        ?.deadline as number;
+      if (secondDeadline === undefined)
+        throw new Error("Expected secondDeadline to be defined");
 
-      expect(secondDeadline).toBeGreaterThan(firstDeadline!);
+      expect(secondDeadline).toBeGreaterThan(firstDeadline);
     });
 
     it("kills idle session after timeout expires", () => {

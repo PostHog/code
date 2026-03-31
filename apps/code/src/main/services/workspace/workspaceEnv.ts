@@ -69,15 +69,5 @@ export async function buildWorkspaceEnv(
     POSTHOG_CODE_WORKSPACE_PORTS_RANGE: String(PORTS_PER_WORKSPACE),
     POSTHOG_CODE_WORKSPACE_PORTS_START: String(portAllocation.start),
     POSTHOG_CODE_WORKSPACE_PORTS_END: String(portAllocation.end),
-    // Legacy env vars for backwards compatibility
-    TWIG_WORKSPACE_NAME: workspaceName,
-    TWIG_WORKSPACE_PATH: workspacePath,
-    TWIG_ROOT_PATH: rootPath,
-    TWIG_DEFAULT_BRANCH: defaultBranch,
-    TWIG_WORKSPACE_BRANCH: workspaceBranch,
-    TWIG_WORKSPACE_PORTS: portAllocation.ports.join(","),
-    TWIG_WORKSPACE_PORTS_RANGE: String(PORTS_PER_WORKSPACE),
-    TWIG_WORKSPACE_PORTS_START: String(portAllocation.start),
-    TWIG_WORKSPACE_PORTS_END: String(portAllocation.end),
   };
 }

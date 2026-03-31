@@ -2,6 +2,10 @@ packages:
   - apps/*
   - packages/*
 
+ignoredBuiltDependencies:
+  - msw
+  - protobufjs
+
 minimumReleaseAge: 1440
 
 minimumReleaseAgeExclude:
@@ -9,6 +13,8 @@ minimumReleaseAgeExclude:
 
 onlyBuiltDependencies:
   - '@parcel/watcher'
+  - '@posthog/cli'
+  - better-sqlite3
   - core-js
   - electron
   - esbuild
@@ -16,3 +22,5 @@ onlyBuiltDependencies:
   - macos-alias
   - node-pty
 
+patchedDependencies:
+  node-pty: patches/node-pty.patch

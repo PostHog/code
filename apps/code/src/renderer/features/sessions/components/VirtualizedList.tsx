@@ -17,6 +17,7 @@ interface VirtualizedListProps<T> {
   itemClassName?: string;
   footer?: ReactNode;
   onScrollStateChange?: (isAtBottom: boolean) => void;
+  keepMounted?: readonly number[];
 }
 
 export interface VirtualizedListHandle {
@@ -34,6 +35,7 @@ function VirtualizedListInner<T>(
     itemClassName,
     footer,
     onScrollStateChange,
+    keepMounted,
   }: VirtualizedListProps<T>,
   ref: React.ForwardedRef<VirtualizedListHandle>,
 ) {
@@ -111,6 +113,7 @@ function VirtualizedListInner<T>(
         shift={false}
         style={{ flex: 1 }}
         onScroll={handleScroll}
+        keepMounted={keepMounted}
       >
         {items.map((item, index) => (
           <div

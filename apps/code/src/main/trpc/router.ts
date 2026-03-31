@@ -5,8 +5,8 @@ import { cloudTaskRouter } from "./routers/cloud-task";
 import { connectivityRouter } from "./routers/connectivity";
 import { contextMenuRouter } from "./routers/context-menu";
 import { deepLinkRouter } from "./routers/deep-link";
-
 import { encryptionRouter } from "./routers/encryption";
+import { environmentRouter } from "./routers/environment";
 import { externalAppsRouter } from "./routers/external-apps";
 import { fileWatcherRouter } from "./routers/file-watcher";
 import { focusRouter } from "./routers/focus";
@@ -14,15 +14,19 @@ import { foldersRouter } from "./routers/folders";
 import { fsRouter } from "./routers/fs";
 import { gitRouter } from "./routers/git";
 import { githubIntegrationRouter } from "./routers/github-integration";
+import { linearIntegrationRouter } from "./routers/linear-integration.js";
 import { llmGatewayRouter } from "./routers/llm-gateway";
 import { logsRouter } from "./routers/logs";
+import { mcpAppsRouter } from "./routers/mcp-apps";
 import { mcpCallbackRouter } from "./routers/mcp-callback";
 import { notificationRouter } from "./routers/notification";
 import { oauthRouter } from "./routers/oauth";
 import { osRouter } from "./routers/os";
 import { processTrackingRouter } from "./routers/process-tracking";
+import { provisioningRouter } from "./routers/provisioning";
 import { secureStoreRouter } from "./routers/secure-store";
 import { shellRouter } from "./routers/shell";
+import { skillsRouter } from "./routers/skills";
 import { sleepRouter } from "./routers/sleep";
 import { suspensionRouter } from "./routers/suspension.js";
 import { uiRouter } from "./routers/ui";
@@ -38,6 +42,7 @@ export const trpcRouter = router({
   connectivity: connectivityRouter,
   contextMenu: contextMenuRouter,
 
+  environment: environmentRouter,
   encryption: encryptionRouter,
   externalApps: externalAppsRouter,
   fileWatcher: fileWatcherRouter,
@@ -46,17 +51,21 @@ export const trpcRouter = router({
   fs: fsRouter,
   git: gitRouter,
   githubIntegration: githubIntegrationRouter,
+  linearIntegration: linearIntegrationRouter,
   llmGateway: llmGatewayRouter,
+  mcpApps: mcpAppsRouter,
   mcpCallback: mcpCallbackRouter,
   notification: notificationRouter,
   oauth: oauthRouter,
   logs: logsRouter,
   os: osRouter,
   processTracking: processTrackingRouter,
+  provisioning: provisioningRouter,
   sleep: sleepRouter,
   suspension: suspensionRouter,
   secureStore: secureStoreRouter,
   shell: shellRouter,
+  skills: skillsRouter,
   ui: uiRouter,
   updates: updatesRouter,
   deepLink: deepLinkRouter,

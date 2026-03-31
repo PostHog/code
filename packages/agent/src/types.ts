@@ -103,12 +103,14 @@ export interface ProcessSpawnedCallback {
     sessionId?: string;
   }) => void;
   onProcessExited?: (pid: number) => void;
+  onMcpServersReady?: (serverNames: string[]) => void;
 }
 
 export interface TaskExecutionOptions {
   repositoryPath?: string;
   adapter?: "claude" | "codex";
   model?: string;
+  gatewayUrl?: string;
   codexBinaryPath?: string;
   processCallbacks?: ProcessSpawnedCallback;
 }

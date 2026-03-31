@@ -1,8 +1,4 @@
-import type {
-  SignalReport,
-  SignalReportOrderingField,
-  SignalReportsQueryParams,
-} from "@shared/types";
+import type { SignalReport, SignalReportOrderingField } from "@shared/types";
 
 export function filterReportsBySearch(
   reports: SignalReport[],
@@ -19,11 +15,14 @@ export function filterReportsBySearch(
   );
 }
 
-export function buildOrdering(
+/**
+ * Comma-separated `ordering` for the signal report list API: semantic `status` rank
+ * then the toolbar field (matches default inbox UX).
+ */
+export function buildSignalReportListOrdering(
   field: SignalReportOrderingField,
   direction: "asc" | "desc",
-): SignalReportsQueryParams["ordering"] {
-  return (
-    direction === "desc" ? `-${field}` : field
-  ) as SignalReportsQueryParams["ordering"];
+): string {
+  const secondary = direction === "desc" ? `-${field}` : field;
+  return `status,${secondary}`;
 }

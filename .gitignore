@@ -8,6 +8,7 @@ out/
 .vite/
 .turbo/
 storybook-static
+bin/
 
 # Environment
 .env

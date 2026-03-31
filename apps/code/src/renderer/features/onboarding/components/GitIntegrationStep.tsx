@@ -7,7 +7,7 @@ import {
   GitBranch,
 } from "@phosphor-icons/react";
 import { Box, Button, Flex, Skeleton, Text } from "@radix-ui/themes";
-import phWordmark from "@renderer/assets/images/wordmark-alt.png";
+import codeLogo from "@renderer/assets/images/code.svg";
 import { trpcClient } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
@@ -133,10 +133,10 @@ export function GitIntegrationStep({
         }}
       >
         <img
-          src={phWordmark}
+          src={codeLogo}
           alt="PostHog"
           style={{
-            height: "40px",
+            height: "24px",
             objectFit: "contain",
             alignSelf: "flex-start",
           }}
@@ -151,12 +151,13 @@ export function GitIntegrationStep({
             <Flex direction="column" gap="3">
               <Text
                 size="6"
+                weight="bold"
                 style={{
                   color: "var(--gray-12)",
                   lineHeight: 1.3,
                 }}
               >
-                Connect your git repository
+                Connect your Git repository
               </Text>
               <Text size="2" style={{ color: "var(--gray-12)", opacity: 0.7 }}>
                 PostHog Code needs access to your GitHub repositories to enable
@@ -413,46 +414,52 @@ export function GitIntegrationStep({
               </Flex>
             </Box>
           </Flex>
-        </Flex>
 
-        <AnimatePresence>
-          {!isLoading && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              transition={{ duration: 0.25, delay: 0.15 }}
-            >
-              <Flex gap="3" align="center" flexShrink="0">
-                <Button
-                  size="3"
-                  variant="ghost"
-                  onClick={onBack}
-                  style={{ color: "var(--gray-12)" }}
+          <AnimatePresence>
+            {!isLoading && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.25, delay: 0.15 }}
+              >
+                <Flex
+                  gap="3"
+                  align="center"
+                  justify="between"
+                  flexShrink="0"
+                  mt="6"
                 >
-                  <ArrowLeft size={16} />
-                  Back
-                </Button>
-                {hasGitIntegration ? (
-                  <Button size="3" onClick={handleContinue}>
-                    Continue
-                    <ArrowRight size={16} />
-                  </Button>
-                ) : (
                   <Button
-                    size="3"
-                    variant="outline"
-                    onClick={handleContinue}
+                    size="2"
+                    variant="ghost"
+                    onClick={onBack}
                     style={{ color: "var(--gray-12)" }}
                   >
-                    Skip for now
-                    <ArrowRight size={16} />
+                    <ArrowLeft size={16} />
+                    Back
                   </Button>
-                )}
-              </Flex>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                  {hasGitIntegration ? (
+                    <Button size="2" onClick={handleContinue}>
+                      Continue
+                      <ArrowRight size={16} />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="2"
+                      variant="outline"
+                      onClick={handleContinue}
+                      style={{ color: "var(--gray-12)" }}
+                    >
+                      Skip for now
+                      <ArrowRight size={16} />
+                    </Button>
+                  )}
+                </Flex>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Flex>
       </Flex>
     </Flex>
   );

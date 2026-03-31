@@ -248,7 +248,7 @@ describe("Question relay", () => {
         payload: TEST_PAYLOAD,
         logWriter: {
           flush: vi.fn().mockResolvedValue(undefined),
-          getLastAgentMessage: vi.fn().mockReturnValue("agent response"),
+          getFullAgentResponse: vi.fn().mockReturnValue("agent response"),
           isRegistered: vi.fn().mockReturnValue(true),
         },
       };
@@ -269,7 +269,7 @@ describe("Question relay", () => {
         payload: TEST_PAYLOAD,
         logWriter: {
           flush: vi.fn().mockResolvedValue(undefined),
-          getLastAgentMessage: vi.fn().mockReturnValue("agent response"),
+          getFullAgentResponse: vi.fn().mockReturnValue("agent response"),
           isRegistered: vi.fn().mockReturnValue(true),
         },
       };
@@ -293,7 +293,7 @@ describe("Question relay", () => {
         payload: TEST_PAYLOAD,
         logWriter: {
           flush: vi.fn().mockResolvedValue(undefined),
-          getLastAgentMessage: vi.fn().mockReturnValue(null),
+          getFullAgentResponse: vi.fn().mockReturnValue(null),
           isRegistered: vi.fn().mockReturnValue(true),
         },
       };
@@ -323,6 +323,13 @@ describe("Question relay", () => {
         payload: TEST_PAYLOAD,
         acpSessionId: "acp-session",
         clientConnection: { prompt: promptSpy },
+        logWriter: {
+          flushAll: vi.fn().mockResolvedValue(undefined),
+          getFullAgentResponse: vi.fn().mockReturnValue(null),
+          resetTurnMessages: vi.fn(),
+          flush: vi.fn().mockResolvedValue(undefined),
+          isRegistered: vi.fn().mockReturnValue(true),
+        },
       };
 
       await server.sendInitialTaskMessage(TEST_PAYLOAD);
@@ -350,6 +357,13 @@ describe("Question relay", () => {
         payload: TEST_PAYLOAD,
         acpSessionId: "acp-session",
         clientConnection: { prompt: promptSpy },
+        logWriter: {
+          flushAll: vi.fn().mockResolvedValue(undefined),
+          getFullAgentResponse: vi.fn().mockReturnValue(null),
+          resetTurnMessages: vi.fn(),
+          flush: vi.fn().mockResolvedValue(undefined),
+          isRegistered: vi.fn().mockReturnValue(true),
+        },
       };
 
       await server.sendInitialTaskMessage(TEST_PAYLOAD);

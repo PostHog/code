@@ -1,19 +1,21 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
+import { useTaskInputHistoryStore } from "@features/message-editor/stores/taskInputHistoryStore";
 import {
   contentToXml,
   extractFilePaths,
 } from "@features/message-editor/utils/content";
+import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
 import { useConnectivity } from "@hooks/useConnectivity";
 import type { WorkspaceMode } from "@main/services/workspace/schemas";
 import { get } from "@renderer/di/container";
 import { RENDERER_TOKENS } from "@renderer/di/tokens";
+import { toast } from "@renderer/utils/toast";
 import type { ExecutionMode, Task } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { logger } from "@utils/logger";
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
 import type { TaskCreationInput, TaskService } from "../service/service";
 
 const log = logger.scope("task-creation");
@@ -30,6 +32,8 @@ interface UseTaskCreationOptions {
   adapter?: "claude" | "codex";
   model?: string;
   reasoningLevel?: string;
+  environmentId?: string | null;
+  sandboxEnvironmentId?: string;
   onTaskCreated?: (task: Task) => void;
 }
 
@@ -51,6 +55,8 @@ function prepareTaskInput(
     adapter?: "claude" | "codex";
     model?: string;
     reasoningLevel?: string;
+    environmentId?: string | null;
+    sandboxEnvironmentId?: string;
   },
 ): TaskCreationInput {
   return {
@@ -65,19 +71,20 @@ function prepareTaskInput(
     adapter: options.adapter,
     model: options.model,
     reasoningLevel: options.reasoningLevel,
+    environmentId: options.environmentId ?? undefined,
+    sandboxEnvironmentId: options.sandboxEnvironmentId,
   };
 }
 
-function getErrorMessage(failedStep: string, error: string): string {
-  const messages: Record<string, string> = {
-    validation: error,
+function getErrorTitle(failedStep: string): string {
+  const titles: Record<string, string> = {
     repo_detection: "Failed to detect repository",
     task_creation: "Failed to create task",
     workspace_creation: "Failed to create workspace",
     cloud_run: "Failed to start cloud execution",
     agent_session: "Failed to start agent session",
   };
-  return messages[failedStep] ?? error;
+  return titles[failedStep] ?? "Task creation failed";
 }
 
 export function useTaskCreation({
@@ -92,6 +99,8 @@ export function useTaskCreation({
   adapter,
   model,
   reasoningLevel,
+  environmentId,
+  sandboxEnvironmentId,
   onTaskCreated,
 }: UseTaskCreationOptions): UseTaskCreationReturn {
   const [isCreatingTask, setIsCreatingTask] = useState(false);
@@ -121,6 +130,11 @@ export function useTaskCreation({
 
       log.info("Submitting task", { workspaceMode, selectedDirectory });
 
+      const plainText = editor.getText()?.trim();
+      if (plainText) {
+        useTaskInputHistoryStore.getState().addPrompt(plainText);
+      }
+
       const input = prepareTaskInput(content, {
         selectedDirectory,
         selectedRepository,
@@ -131,39 +145,38 @@ export function useTaskCreation({
         adapter,
         model,
         reasoningLevel,
+        environmentId,
+        sandboxEnvironmentId,
       });
 
+      if (executionMode) {
+        useSettingsStore.getState().setLastUsedInitialTaskMode(executionMode);
+      }
+
       const taskService = get<TaskService>(RENDERER_TOKENS.TaskService);
-      const result = await taskService.createTask(input);
-
-      if (result.success) {
-        const { task } = result.data;
-
-        // Invalidate tasks query
-        invalidateTasks(task);
-
-        // Navigate to the new task or notify caller
+      const result = await taskService.createTask(input, (output) => {
+        invalidateTasks(output.task);
         if (onTaskCreated) {
-          onTaskCreated(task);
+          onTaskCreated(output.task);
         } else {
-          navigateToTask(task);
+          navigateToTask(output.task);
         }
-
-        // Clear editor
         editor.clear();
+        log.info("Task ready, navigated early", { taskId: output.task.id });
+      });
 
-        log.info("Task created successfully", { taskId: task.id });
-      } else {
-        const message = getErrorMessage(result.failedStep, result.error);
-        toast.error(message);
+      if (!result.success) {
+        const title = getErrorTitle(result.failedStep);
+        toast.error(title, { description: result.error });
         log.error("Task creation failed", {
           failedStep: result.failedStep,
           error: result.error,
         });
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error(`Failed to create task: ${message}`);
+      const description =
+        error instanceof Error ? error.message : "Unknown error";
+      toast.error("Failed to create task", { description });
       log.error("Unexpected error during task creation", { error });
     } finally {
       setIsCreatingTask(false);
@@ -180,6 +193,8 @@ export function useTaskCreation({
     adapter,
     model,
     reasoningLevel,
+    environmentId,
+    sandboxEnvironmentId,
     invalidateTasks,
     navigateToTask,
     onTaskCreated,

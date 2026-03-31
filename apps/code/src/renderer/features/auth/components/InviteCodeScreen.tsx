@@ -1,7 +1,7 @@
 import { DraggableTitleBar } from "@components/DraggableTitleBar";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { Callout, Flex, Spinner, Text, Theme } from "@radix-ui/themes";
-import phWordmark from "@renderer/assets/images/wordmark-alt.png";
+import phWordmark from "@renderer/assets/images/wordmark.svg";
 import zenHedgehog from "@renderer/assets/images/zen.png";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
@@ -25,7 +25,7 @@ export function InviteCodeScreen() {
   const errorMessage = redeemMutation.error?.message ?? null;
 
   return (
-    <Theme appearance="light" accentColor="orange">
+    <Theme appearance="light" accentColor="orange" radius="medium">
       <Flex height="100vh" style={{ position: "relative", overflow: "hidden" }}>
         <DraggableTitleBar />
 

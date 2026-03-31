@@ -35,17 +35,36 @@ export async function detectDefaultBranch(git: GitLike): Promise<string> {
     ]);
     return remoteBranch.trim().replace("refs/remotes/origin/", "");
   } catch {
-    try {
-      await git.revparse(["--verify", "main"]);
-      return "main";
-    } catch {
+    // Check common default branch names
+    for (const candidate of ["main", "master"]) {
       try {
-        await git.revparse(["--verify", "master"]);
-        return "master";
-      } catch {
-        throw new Error("Cannot determine default branch");
-      }
+        await git.revparse(["--verify", candidate]);
+        return candidate;
+      } catch {}
     }
+
+    // Check git config init.defaultBranch (user's configured default)
+    try {
+      const configured = await git.raw(["config", "init.defaultBranch"]);
+      const branch = configured.trim();
+      if (branch) {
+        try {
+          await git.revparse(["--verify", branch]);
+          return branch;
+        } catch {}
+      }
+    } catch {}
+
+    // Fall back to current branch (HEAD)
+    try {
+      const head = await git.raw(["rev-parse", "--abbrev-ref", "HEAD"]);
+      const branch = head.trim();
+      if (branch && branch !== "HEAD") {
+        return branch;
+      }
+    } catch {}
+
+    throw new Error("Cannot determine default branch");
   }
 }
 
@@ -53,6 +72,14 @@ async function detectDefaultBranchWithFallback(git: GitLike): Promise<string> {
   try {
     return await detectDefaultBranch(git);
   } catch {
+    // Last resort: use current branch or "main"
+    try {
+      const head = await git.raw(["rev-parse", "--abbrev-ref", "HEAD"]);
+      const branch = head.trim();
+      if (branch && branch !== "HEAD") {
+        return branch;
+      }
+    } catch {}
     return "main";
   }
 }
@@ -944,8 +971,17 @@ export async function addToLocalExclude(
   pattern: string,
   options?: CreateGitClientOptions,
 ): Promise<void> {
-  const gitDir = await resolveGitDir(baseDir, options);
-  const excludePath = path.join(gitDir, "info", "exclude");
+  const manager = getGitOperationManager();
+  const excludePath = await manager.executeRead(
+    baseDir,
+    async (git) => {
+      // --git-path resolves to the correct location for both regular repos
+      // and worktrees (where info/exclude is shared via the common dir)
+      const rel = await git.revparse(["--git-path", "info/exclude"]);
+      return path.resolve(baseDir, rel);
+    },
+    { signal: options?.abortSignal },
+  );
 
   let content = "";
   try {
@@ -961,7 +997,7 @@ export async function addToLocalExclude(
     return;
   }
 
-  const infoDir = path.join(gitDir, "info");
+  const infoDir = path.dirname(excludePath);
   await fs.mkdir(infoDir, { recursive: true });
 
   const newContent = content.trimEnd()

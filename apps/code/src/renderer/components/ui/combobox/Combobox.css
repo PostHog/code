@@ -60,7 +60,7 @@
 }
 
 .combobox-content.size-1 [cmdk-input] {
-  font-size: 12px;
+  font-size: 13px;
   line-height: var(--line-height-1);
 }
 
@@ -135,7 +135,7 @@
 }
 
 .combobox-content.size-1 [cmdk-group-heading] {
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: var(--letter-spacing-1);
   line-height: var(--line-height-1);
 }
@@ -192,7 +192,7 @@
 }
 
 .combobox-content.size-1 [cmdk-item] {
-  font-size: 12px;
+  font-size: 13px;
   line-height: var(--line-height-1);
   letter-spacing: var(--letter-spacing-1);
   border-radius: var(--radius-1);
@@ -310,7 +310,7 @@
   overflow: hidden;
   min-width: 0;
   font-weight: 400;
-  font-size: 12px;
+  font-size: 13px;
   line-height: var(--line-height-1);
   letter-spacing: var(--letter-spacing-1);
   border-radius: var(--radius-1);
@@ -364,7 +364,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--font-mono);
+  font-family: var(--default-font-family);
 }
 
 .combobox-trigger-icon {

@@ -24,7 +24,12 @@ const reportKeys = {
 
 export function useInboxReports(
   params?: SignalReportsQueryParams,
-  options?: { enabled?: boolean },
+  options?: {
+    enabled?: boolean;
+    refetchInterval?: number | false | (() => number | false | undefined);
+    refetchIntervalInBackground?: boolean;
+    staleTime?: number;
+  },
 ) {
   return useAuthenticatedQuery<SignalReportsResponse>(
     reportKeys.list(params),
@@ -35,7 +40,16 @@ export function useInboxReports(
 
 export function useInboxReportsInfinite(
   params?: SignalReportsQueryParams,
-  options?: { enabled?: boolean },
+  options?: {
+    enabled?: boolean;
+    refetchInterval?:
+      | number
+      | false
+      | (() => number | false | undefined)
+      | ((query: unknown) => number | false | undefined);
+    refetchIntervalInBackground?: boolean;
+    staleTime?: number;
+  },
 ) {
   const query = useAuthenticatedInfiniteQuery<SignalReportsResponse, number>(
     reportKeys.infiniteList(params),
@@ -52,6 +66,9 @@ export function useInboxReportsInfinite(
         const loaded = allPages.reduce((n, p) => n + p.results.length, 0);
         return loaded < lastPage.count ? loaded : undefined;
       },
+      refetchInterval: options?.refetchInterval,
+      refetchIntervalInBackground: options?.refetchIntervalInBackground,
+      staleTime: options?.staleTime,
     },
   );
 

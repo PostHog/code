@@ -1,5 +1,6 @@
 import { ResizableSidebar } from "@components/ResizableSidebar";
 import { useAuthStore } from "@features/auth/stores/authStore";
+import { InboxLiveRail } from "@features/inbox/components/InboxLiveRail";
 import {
   useInboxReportArtefacts,
   useInboxReportSignals,
@@ -10,9 +11,13 @@ import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsF
 import { useInboxSignalsSidebarStore } from "@features/inbox/stores/inboxSignalsSidebarStore";
 import { buildSignalTaskPrompt } from "@features/inbox/utils/buildSignalTaskPrompt";
 import {
-  buildOrdering,
+  buildSignalReportListOrdering,
   filterReportsBySearch,
 } from "@features/inbox/utils/filterReports";
+import {
+  INBOX_PIPELINE_STATUS_FILTER,
+  INBOX_REFETCH_INTERVAL_MS,
+} from "@features/inbox/utils/inboxConstants";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
@@ -21,7 +26,6 @@ import {
   ArrowSquareOutIcon,
   ClockIcon,
   Cloud as CloudIcon,
-  SparkleIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import {
@@ -40,11 +44,15 @@ import type {
   SignalReportsQueryParams,
 } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
+import { useRendererWindowFocusStore } from "@stores/rendererWindowFocusStore";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { SignalsErrorState, SignalsLoadingState } from "./InboxEmptyStates";
+import { InboxWarmingUpState } from "./InboxWarmingUpState";
 import { ReportCard } from "./ReportCard";
 import { SignalCard } from "./SignalCard";
+import { SignalReportPriorityBadge } from "./SignalReportPriorityBadge";
+import { SignalReportSummaryMarkdown } from "./SignalReportSummaryMarkdown";
 import { SignalsToolbar } from "./SignalsToolbar";
 
 function getArtefactsUnavailableMessage(
@@ -96,7 +104,7 @@ function LoadMoreTrigger({
   return (
     <Flex ref={ref} align="center" justify="center" py="3">
       {isFetchingNextPage ? (
-        <Text size="1" color="gray" className="font-mono text-[11px]">
+        <Text size="1" color="gray" className="text-[12px]">
           Loading more...
         </Text>
       ) : null}
@@ -109,10 +117,14 @@ export function InboxSignalsTab() {
   const sortDirection = useInboxSignalsFilterStore((s) => s.sortDirection);
   const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
 
-  const queryParams = useMemo<SignalReportsQueryParams>(
-    () => ({
-      status: "ready",
-      ordering: buildOrdering(sortField, sortDirection),
+  const windowFocused = useRendererWindowFocusStore((s) => s.focused);
+  const isInboxView = useNavigationStore((s) => s.view.type === "inbox");
+  const inboxPollingActive = windowFocused && isInboxView;
+
+  const inboxQueryParams = useMemo(
+    (): SignalReportsQueryParams => ({
+      status: INBOX_PIPELINE_STATUS_FILTER,
+      ordering: buildSignalReportListOrdering(sortField, sortDirection),
     }),
     [sortField, sortDirection],
   );
@@ -127,10 +139,23 @@ export function InboxSignalsTab() {
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
-  } = useInboxReportsInfinite(queryParams);
+  } = useInboxReportsInfinite(inboxQueryParams, {
+    refetchInterval: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : false,
+    refetchIntervalInBackground: false,
+    staleTime: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : 12_000,
+  });
   const reports = useMemo(
     () => filterReportsBySearch(allReports, searchQuery),
     [allReports, searchQuery],
+  );
+
+  const readyCount = useMemo(
+    () => allReports.filter((r) => r.status === "ready").length,
+    [allReports],
+  );
+  const processingCount = useMemo(
+    () => allReports.filter((r) => r.status !== "ready").length,
+    [allReports],
   );
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const sidebarOpen = useInboxSignalsSidebarStore((state) => state.open);
@@ -185,6 +210,8 @@ export function InboxSignalsTab() {
   });
   const signals = signalsQuery.data?.signals ?? [];
 
+  const canActOnReport = !!selectedReport && selectedReport.status === "ready";
+
   const cloudRegion = useAuthStore((state) => state.cloudRegion);
   const projectId = useAuthStore((state) => state.projectId);
   const replayBaseUrl =
@@ -217,6 +244,9 @@ export function InboxSignalsTab() {
   }, [selectedReport, visibleArtefacts, signals, replayBaseUrl]);
 
   const handleCreateTask = () => {
+    if (!selectedReport || selectedReport.status !== "ready") {
+      return;
+    }
     const prompt = buildPrompt();
     if (!prompt) return;
 
@@ -230,14 +260,21 @@ export function InboxSignalsTab() {
     openCloudConfirm(repositories[0] ?? null);
   }, [repositories, openCloudConfirm]);
 
+  const selectedReportRef = useRef(selectedReport);
+  selectedReportRef.current = selectedReport;
+
   const handleRunCloudTask = useCallback(async () => {
+    const report = selectedReportRef.current;
+    if (!report || report.status !== "ready") {
+      return;
+    }
     const prompt = buildPrompt();
     if (!prompt) return;
 
     const result = await runCloudTask({
       prompt,
       githubIntegrationId: githubIntegration?.id,
-      reportId: selectedReport?.id,
+      reportId: report.id,
     });
 
     if (result.success && result.task) {
@@ -251,7 +288,6 @@ export function InboxSignalsTab() {
     runCloudTask,
     invalidateTasks,
     navigateToTask,
-    selectedReport?.id,
     githubIntegration?.id,
   ]);
 
@@ -271,29 +307,7 @@ export function InboxSignalsTab() {
   }
 
   if (allReports.length === 0) {
-    return (
-      <Flex
-        direction="column"
-        align="center"
-        justify="center"
-        gap="3"
-        height="100%"
-        className="text-center"
-      >
-        <SparkleIcon size={24} className="text-gray-8" />
-        <Text size="2" weight="medium" className="font-mono text-[12px]">
-          No signals yet
-        </Text>
-        <Text
-          size="1"
-          color="gray"
-          className="font-mono text-[11px]"
-          style={{ maxWidth: 520 }}
-        >
-          Signals are processing. Check back soon as fresh events arrive.
-        </Text>
-      </Flex>
-    );
+    return <InboxWarmingUpState />;
   }
 
   return (
@@ -305,10 +319,14 @@ export function InboxSignalsTab() {
           style={{ height: "100%" }}
         >
           <Flex direction="column">
+            <InboxLiveRail active={inboxPollingActive} />
             <SignalsToolbar
               totalCount={totalCount}
               filteredCount={reports.length}
               isSearchActive={!!searchQuery.trim()}
+              livePolling={inboxPollingActive}
+              readyCount={readyCount}
+              processingCount={processingCount}
             />
             {reports.length === 0 && searchQuery.trim() ? (
               <Flex
@@ -318,14 +336,15 @@ export function InboxSignalsTab() {
                 gap="2"
                 py="6"
               >
-                <Text size="1" color="gray" className="font-mono text-[11px]">
+                <Text size="1" color="gray" className="text-[12px]">
                   No matching signals
                 </Text>
               </Flex>
             ) : null}
-            {reports.map((report) => (
+            {reports.map((report, index) => (
               <ReportCard
                 key={report.id}
+                index={index}
                 report={report}
                 isSelected={selectedReport?.id === report.id}
                 onClick={() => {
@@ -364,7 +383,7 @@ export function InboxSignalsTab() {
                 <Text
                   size="1"
                   weight="medium"
-                  className="block min-w-0 break-words font-mono text-[12px]"
+                  className="block min-w-0 break-words text-[13px]"
                 >
                   {selectedReport.title ?? "Untitled signal"}
                 </Text>
@@ -379,12 +398,13 @@ export function InboxSignalsTab() {
                   <XIcon size={14} />
                 </button>
               </Flex>
-              <Flex align="center" gap="1">
+              <Flex align="center" gap="1" wrap="wrap">
                 <Button
                   size="1"
                   variant="soft"
                   onClick={handleCreateTask}
-                  className="font-mono text-[11px]"
+                  disabled={!canActOnReport}
+                  className="text-[12px]"
                 >
                   Create task
                 </Button>
@@ -393,14 +413,29 @@ export function InboxSignalsTab() {
                     size="1"
                     variant="solid"
                     onClick={handleOpenCloudConfirm}
-                    disabled={isRunningCloudTask || repositories.length === 0}
-                    className="font-mono text-[11px]"
+                    disabled={
+                      !canActOnReport ||
+                      isRunningCloudTask ||
+                      repositories.length === 0
+                    }
+                    className="text-[12px]"
                   >
                     <CloudIcon size={12} />
                     {isRunningCloudTask ? "Running..." : "Run cloud"}
                   </Button>
                 )}
               </Flex>
+              {!canActOnReport && selectedReport ? (
+                <Text
+                  size="1"
+                  color="gray"
+                  className="text-[11px] leading-snug"
+                >
+                  {selectedReport.status === "pending_input"
+                    ? "This report needs input in PostHog before an agent can act on it."
+                    : "Research is still running — you can read context below, then create a task when status is Ready."}
+                </Text>
+              ) : null}
             </Flex>
             <ScrollArea
               type="auto"
@@ -409,14 +444,15 @@ export function InboxSignalsTab() {
               style={{ height: "calc(100% - 41px)" }}
             >
               <Flex direction="column" gap="2" p="2" className="min-w-0">
-                <Text
-                  size="1"
-                  color="gray"
-                  className="whitespace-pre-wrap text-pretty break-words font-mono text-[11px]"
-                >
-                  {selectedReport.summary ?? "No summary available."}
-                </Text>
+                <SignalReportSummaryMarkdown
+                  content={selectedReport.summary}
+                  fallback="No summary available."
+                  variant="detail"
+                />
                 <Flex align="center" gap="2" wrap="wrap">
+                  <SignalReportPriorityBadge
+                    priority={selectedReport.priority}
+                  />
                   <Badge variant="soft" color="gray" size="1">
                     {selectedReport.signal_count} occurrences
                   </Badge>
@@ -430,7 +466,7 @@ export function InboxSignalsTab() {
                     <Text
                       size="1"
                       weight="medium"
-                      className="block font-mono text-[12px]"
+                      className="block text-[13px]"
                       mb="2"
                     >
                       Signals ({signals.length})
@@ -443,11 +479,7 @@ export function InboxSignalsTab() {
                   </Box>
                 )}
                 {signalsQuery.isLoading && (
-                  <Text
-                    size="1"
-                    color="gray"
-                    className="block font-mono text-[11px]"
-                  >
+                  <Text size="1" color="gray" className="block text-[12px]">
                     Loading signals...
                   </Text>
                 )}
@@ -456,37 +488,25 @@ export function InboxSignalsTab() {
                   <Text
                     size="1"
                     weight="medium"
-                    className="block font-mono text-[12px]"
+                    className="block text-[13px]"
                     mb="2"
                   >
                     Evidence
                   </Text>
                   {artefactsQuery.isLoading && (
-                    <Text
-                      size="1"
-                      color="gray"
-                      className="block font-mono text-[11px]"
-                    >
+                    <Text size="1" color="gray" className="block text-[12px]">
                       Loading evidence...
                     </Text>
                   )}
                   {showArtefactsUnavailable && (
-                    <Text
-                      size="1"
-                      color="gray"
-                      className="block font-mono text-[11px]"
-                    >
+                    <Text size="1" color="gray" className="block text-[12px]">
                       {artefactsUnavailableMessage}
                     </Text>
                   )}
                   {!artefactsQuery.isLoading &&
                     !showArtefactsUnavailable &&
                     visibleArtefacts.length === 0 && (
-                      <Text
-                        size="1"
-                        color="gray"
-                        className="block font-mono text-[11px]"
-                      >
+                      <Text size="1" color="gray" className="block text-[12px]">
                         No artefacts were returned for this signal.
                       </Text>
                     )}
@@ -499,18 +519,14 @@ export function InboxSignalsTab() {
                       >
                         <Text
                           size="1"
-                          className="whitespace-pre-wrap text-pretty break-words font-mono text-[11px]"
+                          className="whitespace-pre-wrap text-pretty break-words text-[12px]"
                         >
                           {artefact.content.content}
                         </Text>
                         <Flex align="center" justify="between" mt="1" gap="2">
                           <Flex align="center" gap="1">
                             <ClockIcon size={12} className="text-gray-9" />
-                            <Text
-                              size="1"
-                              color="gray"
-                              className="font-mono text-[11px]"
-                            >
+                            <Text size="1" color="gray" className="text-[12px]">
                               {artefact.content.start_time
                                 ? new Date(
                                     artefact.content.start_time,
@@ -523,7 +539,7 @@ export function InboxSignalsTab() {
                               href={`${replayBaseUrl}/${artefact.content.session_id}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1 font-mono text-[11px] text-gray-11 hover:text-gray-12"
+                              className="inline-flex items-center gap-1 text-[12px] text-gray-11 hover:text-gray-12"
                             >
                               View replay
                               <ArrowSquareOutIcon size={12} />
@@ -550,36 +566,30 @@ export function InboxSignalsTab() {
           <AlertDialog.Title>
             <Flex align="center" gap="2">
               <CloudIcon size={18} />
-              <Text weight="bold" className="font-mono">
-                Run cloud task
-              </Text>
+              <Text weight="bold">Run cloud task</Text>
             </Flex>
           </AlertDialog.Title>
           <AlertDialog.Description size="2">
             <Flex direction="column" gap="3">
-              <Text className="font-mono text-[12px]">
+              <Text className="text-[13px]">
                 This will create and run a cloud task from this signal report.
               </Text>
               {repositories.length > 1 ? (
                 <Flex direction="column" gap="1">
-                  <Text
-                    size="1"
-                    weight="medium"
-                    className="font-mono text-[11px]"
-                  >
+                  <Text size="1" weight="medium" className="text-[12px]">
                     Target repository
                   </Text>
                   <Select.Root
                     value={selectedRepo ?? undefined}
                     onValueChange={setSelectedRepo}
                   >
-                    <Select.Trigger className="font-mono text-[12px]" />
+                    <Select.Trigger className="text-[13px]" />
                     <Select.Content>
                       {repositories.map((repo) => (
                         <Select.Item
                           key={repo}
                           value={repo}
-                          className="font-mono text-[12px]"
+                          className="text-[13px]"
                         >
                           {repo}
                         </Select.Item>
@@ -589,14 +599,10 @@ export function InboxSignalsTab() {
                 </Flex>
               ) : selectedRepo ? (
                 <Flex direction="column" gap="1">
-                  <Text
-                    size="1"
-                    weight="medium"
-                    className="font-mono text-[11px]"
-                  >
+                  <Text size="1" weight="medium" className="text-[12px]">
                     Target repository
                   </Text>
-                  <Text size="2" className="font-mono text-[12px]">
+                  <Text size="2" className="text-[13px]">
                     {selectedRepo}
                   </Text>
                 </Flex>
@@ -605,16 +611,12 @@ export function InboxSignalsTab() {
           </AlertDialog.Description>
           <Flex gap="3" mt="4" justify="end">
             <AlertDialog.Cancel>
-              <Button variant="soft" color="gray" className="font-mono">
+              <Button variant="soft" color="gray">
                 Cancel
               </Button>
             </AlertDialog.Cancel>
             <AlertDialog.Action>
-              <Button
-                variant="solid"
-                onClick={() => void handleRunCloudTask()}
-                className="font-mono"
-              >
+              <Button variant="solid" onClick={() => void handleRunCloudTask()}>
                 <CloudIcon size={14} />
                 Run
               </Button>

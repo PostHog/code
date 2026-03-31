@@ -6,6 +6,7 @@ import { container } from "../../di/container";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { withTimeout } from "../../utils/async";
 import { logger } from "../../utils/logger";
+import { shutdownOtelTransport } from "../../utils/otel-log-transport";
 import { shutdownPostHog, trackAppEvent } from "../posthog-analytics";
 import type { ProcessTrackingService } from "../process-tracking/service";
 import type { SuspensionService } from "../suspension/service.js";
@@ -118,6 +119,12 @@ export class AppLifecycleService {
     }
 
     trackAppEvent(ANALYTICS_EVENTS.APP_QUIT);
+
+    try {
+      await shutdownOtelTransport();
+    } catch (error) {
+      log.warn("Failed to shutdown OTEL log transport", error);
+    }
 
     try {
       await shutdownPostHog();

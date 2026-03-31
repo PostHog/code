@@ -53,7 +53,7 @@ export function TaskSelector({
         <button
           type="button"
           onClick={handleNewTask}
-          className="flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left font-mono text-[11px] text-gray-12 transition-colors hover:bg-gray-3"
+          className="flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left text-[12px] text-gray-12 transition-colors hover:bg-gray-3"
         >
           <Plus size={12} />
           New task
@@ -70,7 +70,7 @@ export function TaskSelector({
                 key={task.id}
                 type="button"
                 onClick={() => handleSelect(task.id)}
-                className="flex w-full items-center rounded-sm px-2 py-1.5 text-left font-mono text-[11px] text-gray-12 transition-colors hover:bg-gray-3"
+                className="flex w-full items-center rounded-sm px-2 py-1.5 text-left text-[12px] text-gray-12 transition-colors hover:bg-gray-3"
               >
                 <span className="min-w-0 flex-1 truncate">{task.title}</span>
               </button>

@@ -1,3 +1,4 @@
+import { execFile, spawn } from "node:child_process";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
@@ -6,9 +7,10 @@ import {
   addToLocalExclude,
   branchExists,
   getDefaultBranch,
+  getHeadSha,
   listWorktrees as listWorktreesRaw,
 } from "./queries";
-import { safeSymlink } from "./utils";
+import { clonePath, safeSymlink } from "./utils";
 
 export interface WorktreeInfo {
   worktreePath: string;
@@ -16,6 +18,7 @@ export interface WorktreeInfo {
   branchName: string;
   baseBranch: string;
   createdAt: string;
+  output?: string;
 }
 
 export interface WorktreeConfig {
@@ -121,6 +124,7 @@ export class WorktreeManager {
 
   async createWorktree(options?: {
     baseBranch?: string;
+    onOutput?: (data: string) => void;
   }): Promise<WorktreeInfo> {
     const manager = getGitOperationManager();
 
@@ -147,30 +151,27 @@ export class WorktreeManager {
     const parentDir = path.dirname(worktreePath);
     await fs.mkdir(parentDir, { recursive: true });
 
-    await manager.executeWrite(this.mainRepoPath, async (git) => {
-      if (this.usesExternalPath()) {
-        await git.raw([
-          "worktree",
-          "add",
-          "--quiet",
-          "--detach",
-          worktreePath,
-          baseBranch,
-        ]);
-      } else {
-        const relativePath = `./${WORKTREE_FOLDER_NAME}/${worktreeName}/${this.repoName}`;
-        await git.raw([
-          "worktree",
-          "add",
-          "--quiet",
-          "--detach",
-          relativePath,
-          baseBranch,
-        ]);
-      }
+    const targetPath = this.usesExternalPath()
+      ? worktreePath
+      : `./${WORKTREE_FOLDER_NAME}/${worktreeName}/${this.repoName}`;
+
+    options?.onOutput?.(`Creating worktree from ${baseBranch}...\n`);
+    const output = await manager.executeWrite(this.mainRepoPath, async () => {
+      return this.spawnWorktreeAdd(["--detach", targetPath, baseBranch], {
+        onOutput: options?.onOutput,
+      });
     });
 
     await this.symlinkClaudeConfig(worktreePath);
+    await processWorktreeLink(this.mainRepoPath, worktreePath, {
+      onOutput: options?.onOutput,
+    });
+    await processWorktreeInclude(this.mainRepoPath, worktreePath, {
+      onOutput: options?.onOutput,
+    });
+    await runPostCheckoutHook(this.mainRepoPath, worktreePath, {
+      onOutput: options?.onOutput,
+    });
 
     return {
       worktreePath,
@@ -178,12 +179,14 @@ export class WorktreeManager {
       branchName: "",
       baseBranch,
       createdAt: new Date().toISOString(),
+      output: output.trim() || undefined,
     };
   }
 
   async createWorktreeForExistingBranch(
     branch: string,
     preferredName?: string,
+    options?: { onOutput?: (data: string) => void },
   ): Promise<WorktreeInfo> {
     const manager = getGitOperationManager();
 
@@ -218,16 +221,26 @@ export class WorktreeManager {
     const parentDir = path.dirname(worktreePath);
     await fs.mkdir(parentDir, { recursive: true });
 
-    await manager.executeWrite(this.mainRepoPath, async (git) => {
-      if (this.usesExternalPath()) {
-        await git.raw(["worktree", "add", "--quiet", worktreePath, branch]);
-      } else {
-        const relativePath = `./${WORKTREE_FOLDER_NAME}/${worktreeName}/${this.repoName}`;
-        await git.raw(["worktree", "add", "--quiet", relativePath, branch]);
-      }
+    const targetPath = this.usesExternalPath()
+      ? worktreePath
+      : `./${WORKTREE_FOLDER_NAME}/${worktreeName}/${this.repoName}`;
+
+    const output = await manager.executeWrite(this.mainRepoPath, async () => {
+      return this.spawnWorktreeAdd([targetPath, branch], {
+        onOutput: options?.onOutput,
+      });
     });
 
     await this.symlinkClaudeConfig(worktreePath);
+    await processWorktreeLink(this.mainRepoPath, worktreePath, {
+      onOutput: options?.onOutput,
+    });
+    await processWorktreeInclude(this.mainRepoPath, worktreePath, {
+      onOutput: options?.onOutput,
+    });
+    await runPostCheckoutHook(this.mainRepoPath, worktreePath, {
+      onOutput: options?.onOutput,
+    });
 
     return {
       worktreePath,
@@ -235,12 +248,14 @@ export class WorktreeManager {
       branchName: branch,
       baseBranch: branch,
       createdAt: new Date().toISOString(),
+      output: output.trim() || undefined,
     };
   }
 
   async createDetachedWorktreeAtCommit(
     commit: string,
     preferredName?: string,
+    options?: { onOutput?: (data: string) => void },
   ): Promise<WorktreeInfo> {
     const manager = getGitOperationManager();
 
@@ -269,30 +284,26 @@ export class WorktreeManager {
     const parentDir = path.dirname(worktreePath);
     await fs.mkdir(parentDir, { recursive: true });
 
-    await manager.executeWrite(this.mainRepoPath, async (git) => {
-      if (this.usesExternalPath()) {
-        await git.raw([
-          "worktree",
-          "add",
-          "--quiet",
-          "--detach",
-          worktreePath,
-          commit,
-        ]);
-      } else {
-        const relativePath = `./${WORKTREE_FOLDER_NAME}/${worktreeName}/${this.repoName}`;
-        await git.raw([
-          "worktree",
-          "add",
-          "--quiet",
-          "--detach",
-          relativePath,
-          commit,
-        ]);
-      }
+    const targetPath = this.usesExternalPath()
+      ? worktreePath
+      : `./${WORKTREE_FOLDER_NAME}/${worktreeName}/${this.repoName}`;
+
+    const output = await manager.executeWrite(this.mainRepoPath, async () => {
+      return this.spawnWorktreeAdd(["--detach", targetPath, commit], {
+        onOutput: options?.onOutput,
+      });
     });
 
     await this.symlinkClaudeConfig(worktreePath);
+    await processWorktreeLink(this.mainRepoPath, worktreePath, {
+      onOutput: options?.onOutput,
+    });
+    await processWorktreeInclude(this.mainRepoPath, worktreePath, {
+      onOutput: options?.onOutput,
+    });
+    await runPostCheckoutHook(this.mainRepoPath, worktreePath, {
+      onOutput: options?.onOutput,
+    });
 
     return {
       worktreePath,
@@ -300,7 +311,47 @@ export class WorktreeManager {
       branchName: "",
       baseBranch: commit,
       createdAt: new Date().toISOString(),
+      output: output.trim() || undefined,
     };
+  }
+
+  private spawnWorktreeAdd(
+    args: string[],
+    options?: { onOutput?: (data: string) => void },
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const chunks: string[] = [];
+      const proc = spawn(
+        "git",
+        ["-c", "core.hooksPath=/dev/null", "worktree", "add", ...args],
+        {
+          cwd: this.mainRepoPath,
+          stdio: ["ignore", "pipe", "pipe"],
+        },
+      );
+
+      const handleData = (data: Buffer) => {
+        const text = data.toString("utf-8");
+        chunks.push(text);
+        options?.onOutput?.(text);
+      };
+
+      proc.stdout.on("data", handleData);
+      proc.stderr.on("data", handleData);
+
+      proc.on("error", (err) => reject(err));
+      proc.on("close", (code) => {
+        if (code !== 0) {
+          reject(
+            new Error(
+              `git worktree add exited with code ${code}: ${chunks.join("")}`,
+            ),
+          );
+          return;
+        }
+        resolve(chunks.join(""));
+      });
+    });
   }
 
   async deleteWorktree(worktreePath: string): Promise<void> {
@@ -439,4 +490,206 @@ export class WorktreeManager {
 
     return { deleted, errors };
   }
+}
+
+/**
+ * get all gitignored paths matching patterns from an exclude file
+ */
+function getIgnoredPathsFromExcludeFile(
+  mainRepoPath: string,
+  excludeFile: string,
+): Promise<string[]> {
+  return new Promise((resolve) => {
+    execFile(
+      "git",
+      [
+        "ls-files",
+        "--ignored",
+        "--others",
+        "--directory",
+        `--exclude-from=${excludeFile}`,
+      ],
+      { cwd: mainRepoPath },
+      (error, stdout) => {
+        if (error || !stdout) {
+          resolve([]);
+          return;
+        }
+        resolve(
+          stdout
+            .trim()
+            .split("\n")
+            .filter((line) => line.length > 0)
+            .map((line) => line.replace(/\/$/, "")),
+        );
+      },
+    );
+  });
+}
+
+export interface WorktreeSetupWarning {
+  path: string;
+  error: string;
+}
+
+/**
+ * copy gitignored files to workspace, per .worktreeinclude
+ */
+export async function processWorktreeInclude(
+  mainRepoPath: string,
+  worktreePath: string,
+  options?: { onOutput?: (data: string) => void },
+): Promise<WorktreeSetupWarning[]> {
+  const paths = await getIgnoredPathsFromExcludeFile(
+    mainRepoPath,
+    ".worktreeinclude",
+  );
+  if (paths.length === 0) return [];
+
+  const warnings: WorktreeSetupWarning[] = [];
+
+  for (const relativePath of paths) {
+    const source = path.join(mainRepoPath, relativePath);
+    const destination = path.join(worktreePath, relativePath);
+
+    try {
+      options?.onOutput?.(`Copying ${relativePath}...\n`);
+      const copied = await clonePath(source, destination);
+      if (copied) {
+        await addToLocalExclude(worktreePath, relativePath);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      options?.onOutput?.(
+        `Warning: failed to copy ${relativePath}: ${message}\n`,
+      );
+      warnings.push({
+        path: relativePath,
+        error: message,
+      });
+    }
+  }
+
+  return warnings;
+}
+
+/**
+ * symlink gitignored paths into workspace, per .worktreelink
+ */
+export async function processWorktreeLink(
+  mainRepoPath: string,
+  worktreePath: string,
+  options?: { onOutput?: (data: string) => void },
+): Promise<WorktreeSetupWarning[]> {
+  const paths = await getIgnoredPathsFromExcludeFile(
+    mainRepoPath,
+    ".worktreelink",
+  );
+  if (paths.length === 0) return [];
+
+  const warnings: WorktreeSetupWarning[] = [];
+
+  for (const relativePath of paths) {
+    const source = path.join(mainRepoPath, relativePath);
+    const destination = path.join(worktreePath, relativePath);
+
+    try {
+      const stat = await fs.stat(source);
+      const type = stat.isDirectory() ? "dir" : "file";
+
+      options?.onOutput?.(`Linking ${relativePath}...\n`);
+      const linked = await safeSymlink(source, destination, type);
+      if (linked) {
+        await addToLocalExclude(worktreePath, relativePath);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      options?.onOutput?.(
+        `Warning: failed to link ${relativePath}: ${message}\n`,
+      );
+      warnings.push({
+        path: relativePath,
+        error: message,
+      });
+    }
+  }
+
+  return warnings;
+}
+
+function findPostCheckoutHook(mainRepoPath: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    execFile(
+      "git",
+      ["rev-parse", "--git-path", "hooks/post-checkout"],
+      { cwd: mainRepoPath },
+      async (error, stdout) => {
+        if (error || !stdout.trim()) {
+          resolve(null);
+          return;
+        }
+        const resolved = stdout.trim();
+        const hookPath = path.isAbsolute(resolved)
+          ? resolved
+          : path.join(mainRepoPath, resolved);
+
+        try {
+          await fs.access(hookPath, fs.constants.X_OK);
+          resolve(hookPath);
+        } catch {
+          resolve(null);
+        }
+      },
+    );
+  });
+}
+
+/**
+ * run post-checkout hook in the worktree
+ *
+ * hooks are intentionally skipped during worktree creation to avoid
+ * potentially wonky behavior
+ */
+export async function runPostCheckoutHook(
+  mainRepoPath: string,
+  worktreePath: string,
+  options?: { onOutput?: (data: string) => void },
+): Promise<WorktreeSetupWarning | null> {
+  const hookPath = await findPostCheckoutHook(mainRepoPath);
+  if (!hookPath) return null;
+
+  options?.onOutput?.(`Running post-checkout hook...\n`);
+
+  const head = await getHeadSha(worktreePath);
+  const nullSha = "0000000000000000000000000000000000000000";
+
+  return new Promise((resolve) => {
+    const chunks: string[] = [];
+    const shell = process.env.SHELL || "/bin/sh";
+    const proc = spawn(shell, ["-lc", `${hookPath} ${nullSha} ${head} 1`], {
+      cwd: worktreePath,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    const handleData = (data: Buffer) => {
+      const text = data.toString();
+      chunks.push(text);
+      options?.onOutput?.(text);
+    };
+
+    proc.stdout.on("data", handleData);
+    proc.stderr.on("data", handleData);
+    proc.on("error", (err) => resolve({ path: hookPath, error: err.message }));
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        resolve({
+          path: hookPath,
+          error:
+            `post-checkout hook exited with code ${code}: ${chunks.join("")}`.trim(),
+        });
+        return;
+      }
+      resolve(null);
+    });
+  });
 }

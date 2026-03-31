@@ -1,31 +1,24 @@
 import { PanelMessage } from "@components/ui/PanelMessage";
+import { Tooltip } from "@components/ui/Tooltip";
 import { CodeMirrorEditor } from "@features/code-editor/components/CodeMirrorEditor";
+import { useMarkdownViewerStore } from "@features/code-editor/stores/markdownViewerStore";
+import { getImageMimeType } from "@features/code-editor/utils/imageUtils";
+import { isMarkdownFile } from "@features/code-editor/utils/markdownUtils";
 import { getRelativePath } from "@features/code-editor/utils/pathUtils";
 import { isImageFile } from "@features/message-editor/utils/imageUtils";
+import { usePanelLayoutStore } from "@features/panels";
+import { useFileTreeStore } from "@features/right-sidebar/stores/fileTreeStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
-import { Box, Flex } from "@radix-ui/themes";
-import { useTRPC } from "@renderer/trpc/client";
+import { Code, Eye } from "@phosphor-icons/react";
+import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
+import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 
 import { useQuery } from "@tanstack/react-query";
-
-const IMAGE_MIME_TYPES: Record<string, string> = {
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  gif: "image/gif",
-  webp: "image/webp",
-  bmp: "image/bmp",
-  ico: "image/x-icon",
-  svg: "image/svg+xml",
-  tiff: "image/tiff",
-  tif: "image/tiff",
-};
-
-function getImageMimeType(filePath: string): string {
-  const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
-  return IMAGE_MIME_TYPES[ext] ?? "image/png";
-}
+import { useCallback, useMemo } from "react";
+import type { Components } from "react-markdown";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface CodeEditorPanelProps {
   taskId: string;
@@ -43,6 +36,51 @@ export function CodeEditorPanel({
   const isInsideRepo = !!repoPath && absolutePath.startsWith(repoPath);
   const filePath = getRelativePath(absolutePath, repoPath);
   const isImage = isImageFile(absolutePath);
+  const isMarkdown = isMarkdownFile(absolutePath);
+  const preferRendered = useMarkdownViewerStore((s) => s.preferRendered);
+  const togglePreferRendered = useMarkdownViewerStore(
+    (s) => s.togglePreferRendered,
+  );
+  const openFileInSplit = usePanelLayoutStore((s) => s.openFileInSplit);
+  const expandToFile = useFileTreeStore((s) => s.expandToFile);
+
+  const handleMarkdownLinkClick = useCallback(
+    (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+      e.preventDefault();
+      if (href.startsWith("http://") || href.startsWith("https://")) {
+        trpcClient.os.openExternal.mutate({ url: href });
+        return;
+      }
+      const cleanHref = href.replace(/^\.\//, "");
+      const dir = filePath.includes("/")
+        ? filePath.slice(0, filePath.lastIndexOf("/"))
+        : "";
+      const resolved = dir ? `${dir}/${cleanHref}` : cleanHref;
+      if (repoPath) {
+        expandToFile(taskId, `${repoPath}/${resolved}`);
+      }
+      openFileInSplit(taskId, resolved);
+    },
+    [filePath, taskId, repoPath, openFileInSplit, expandToFile],
+  );
+
+  const markdownComponents: Components = useMemo(
+    () => ({
+      a: ({ href, children }) => (
+        <Tooltip content={href ?? ""}>
+          <a
+            href={href ?? "#"}
+            onClick={(e) => handleMarkdownLinkClick(e, href ?? "")}
+            className="cursor-pointer"
+            style={{ color: "var(--accent-11)", textDecoration: "underline" }}
+          >
+            {children}
+          </a>
+        </Tooltip>
+      ),
+    }),
+    [handleMarkdownLinkClick],
+  );
 
   const repoQuery = useQuery(
     trpcReact.fs.readRepoFile.queryOptions(
@@ -110,6 +148,57 @@ export function CodeEditorPanel({
 
   if (fileContent.length === 0) {
     return <PanelMessage>File is empty</PanelMessage>;
+  }
+
+  if (isMarkdown) {
+    return (
+      <Flex direction="column" height="100%" style={{ overflow: "hidden" }}>
+        <Flex
+          px="3"
+          py="2"
+          align="center"
+          justify="between"
+          style={{ borderBottom: "1px solid var(--gray-6)", flexShrink: 0 }}
+        >
+          <Text
+            size="1"
+            color="gray"
+            style={{ fontFamily: "var(--code-font-family)" }}
+          >
+            {filePath}
+          </Text>
+          <Tooltip content={preferRendered ? "View source" : "View rendered"}>
+            <IconButton
+              size="1"
+              variant="ghost"
+              color="gray"
+              className="cursor-pointer"
+              onClick={togglePreferRendered}
+            >
+              {preferRendered ? <Code size={14} /> : <Eye size={14} />}
+            </IconButton>
+          </Tooltip>
+        </Flex>
+        <Box style={{ flex: 1, overflow: "auto" }}>
+          {preferRendered ? (
+            <Box className="plan-markdown" p="5" style={{ maxWidth: 750 }}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={markdownComponents}
+              >
+                {fileContent}
+              </ReactMarkdown>
+            </Box>
+          ) : (
+            <CodeMirrorEditor
+              content={fileContent}
+              filePath={absolutePath}
+              readOnly
+            />
+          )}
+        </Box>
+      </Flex>
+    );
   }
 
   return (

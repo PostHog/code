@@ -15,6 +15,13 @@ interface UseAuthenticatedInfiniteQueryOptions<TData, TPageParam> {
     allPages: TData[],
   ) => TPageParam | undefined;
   initialPageParam: TPageParam;
+  refetchInterval?:
+    | number
+    | false
+    | (() => number | false | undefined)
+    | ((query: unknown) => number | false | undefined);
+  refetchIntervalInBackground?: boolean;
+  staleTime?: number;
 }
 
 export function useAuthenticatedInfiniteQuery<
@@ -37,5 +44,8 @@ export function useAuthenticatedInfiniteQuery<
     enabled: !!client && (options.enabled ?? true),
     getNextPageParam: options.getNextPageParam,
     initialPageParam: options.initialPageParam,
+    refetchInterval: options.refetchInterval,
+    refetchIntervalInBackground: options.refetchIntervalInBackground,
+    staleTime: options.staleTime,
   });
 }

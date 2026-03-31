@@ -26,11 +26,11 @@ function SignalsNotConfiguredState() {
           align="center"
           style={{ color: "var(--gray-12)" }}
         >
-          Enable "the inbox"
+          Enable Inbox
         </Text>
         <Text size="1" align="center" style={{ color: "var(--gray-11)" }}>
-          Automatically analyze your product data and surface actionable
-          insights. Choose which sources to enable for this project.
+          Inbox automatically analyzes your product data and prioritizes
+          actionable tasks. Choose which sources to enable for this project.
         </Text>
       </Flex>
 
@@ -53,7 +53,7 @@ export function InboxView() {
         <Text
           size="1"
           weight="medium"
-          className="truncate whitespace-nowrap font-mono text-[12px]"
+          className="truncate whitespace-nowrap text-[13px]"
           title="Inbox"
         >
           Inbox
@@ -61,7 +61,7 @@ export function InboxView() {
         <button
           type="button"
           onClick={() => openSettings("signals")}
-          className="no-drag ml-auto flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 font-mono text-[11px] text-gray-10 transition-colors hover:text-gray-12"
+          className="no-drag ml-auto flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-[12px] text-gray-10 transition-colors hover:text-gray-12"
         >
           <GearSixIcon size={12} />
           <span>Configure signals</span>

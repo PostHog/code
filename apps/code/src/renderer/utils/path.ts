@@ -1,3 +1,24 @@
+/**
+ * Cross-platform check for absolute file paths.
+ * Handles both Unix (/path) and Windows (C:\path) formats.
+ */
+export function isAbsolutePath(filePath: string): boolean {
+  return filePath.startsWith("/") || /^[a-zA-Z]:/.test(filePath);
+}
+
+/**
+ * Convert an absolute file path to a path relative to the repo root.
+ * Normalizes separators to forward slashes before comparison so this
+ * works on both Unix and Windows.
+ */
+export function toRelativePath(filePath: string, repoPath: string): string {
+  const normalized = filePath.replaceAll("\\", "/");
+  const normalizedRepo = repoPath.replaceAll("\\", "/");
+  return normalized.startsWith(`${normalizedRepo}/`)
+    ? normalized.slice(normalizedRepo.length + 1)
+    : normalized;
+}
+
 export function expandTildePath(path: string): string {
   if (typeof path !== "string") return String(path);
   if (!path.startsWith("~")) return path;

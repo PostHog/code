@@ -34,7 +34,7 @@ export type ToolPermissionResult =
   | {
       behavior: "deny";
       message: string;
-      interrupt: boolean;
+      interrupt?: boolean;
     };
 
 interface ToolHandlerContext {
@@ -49,6 +49,7 @@ interface ToolHandlerContext {
   fileContentCache: { [key: string]: string };
   logger: Logger;
   updateConfigOption: (configId: string, value: string) => Promise<void>;
+  allowedDomains?: string[];
 }
 
 async function emitToolDenial(
@@ -164,9 +165,11 @@ async function applyPlanApproval(
   if (
     response.outcome?.outcome === "selected" &&
     (response.outcome.optionId === "default" ||
-      response.outcome.optionId === "acceptEdits")
+      response.outcome.optionId === "acceptEdits" ||
+      response.outcome.optionId === "bypassPermissions")
   ) {
-    session.permissionMode = response.outcome.optionId;
+    session.permissionMode = response.outcome
+      .optionId as typeof session.permissionMode;
     await session.query.setPermissionMode(response.outcome.optionId);
     await context.client.sessionUpdate({
       sessionId: context.sessionId,
@@ -261,7 +264,6 @@ async function handleAskUserQuestionTool(
     return {
       behavior: "deny",
       message: "No questions provided",
-      interrupt: true,
     };
   }
 
@@ -303,7 +305,6 @@ async function handleAskUserQuestionTool(
         typeof customMessage === "string"
           ? customMessage
           : "User cancelled the questions",
-      interrupt: true,
     };
   }
 
@@ -312,7 +313,6 @@ async function handleAskUserQuestionTool(
     return {
       behavior: "deny",
       message: "User did not provide answers",
-      interrupt: true,
     };
   }
 
@@ -393,7 +393,6 @@ async function handleDefaultPermissionFlow(
     return {
       behavior: "deny",
       message,
-      interrupt: true,
     };
   }
 }
@@ -424,10 +423,43 @@ function handlePlanFileException(
   };
 }
 
+function extractDomainFromUrl(url: string): string | null {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function isDomainAllowed(hostname: string, allowedDomains: string[]): boolean {
+  return allowedDomains.some((pattern) => {
+    if (pattern.startsWith("*.")) {
+      const suffix = pattern.slice(1); // ".example.com"
+      return hostname === pattern.slice(2) || hostname.endsWith(suffix);
+    }
+    return hostname === pattern;
+  });
+}
+
 export async function canUseTool(
   context: ToolHandlerContext,
 ): Promise<ToolPermissionResult> {
-  const { toolName, toolInput, session } = context;
+  const { toolName, toolInput, session, allowedDomains } = context;
+
+  // Enforce domain allowlist for web tools
+  if (allowedDomains && allowedDomains.length > 0) {
+    if (toolName === "WebFetch" || toolName === "WebSearch") {
+      const url = toolInput.url as string | undefined;
+      if (url) {
+        const hostname = extractDomainFromUrl(url);
+        if (hostname && !isDomainAllowed(hostname, allowedDomains)) {
+          const message = `Domain "${hostname}" is not in the allowed list: ${allowedDomains.join(", ")}`;
+          await emitToolDenial(context, message);
+          return { behavior: "deny", message, interrupt: false };
+        }
+      }
+    }
+  }
 
   if (isToolAllowedForMode(toolName, session.permissionMode)) {
     return {

@@ -15,20 +15,14 @@ import {
   getTaskTimestampsOutput,
   getWorkspaceInfoInput,
   getWorkspaceInfoOutput,
-  getWorkspaceTerminalsInput,
-  getWorkspaceTerminalsOutput,
   getWorktreeSizeInput,
   getWorktreeSizeOutput,
   getWorktreeTasksInput,
   getWorktreeTasksOutput,
-  isWorkspaceRunningInput,
-  isWorkspaceRunningOutput,
   listGitWorktreesInput,
   listGitWorktreesOutput,
   markActivityInput,
   markViewedInput,
-  runStartScriptsInput,
-  runStartScriptsOutput,
   togglePinInput,
   togglePinOutput,
   verifyWorkspaceInput,
@@ -82,27 +76,6 @@ export const workspaceRouter = router({
   getAll: publicProcedure
     .output(getAllWorkspacesOutput)
     .query(() => getService().getAllWorkspaces()),
-
-  runStart: publicProcedure
-    .input(runStartScriptsInput)
-    .output(runStartScriptsOutput)
-    .mutation(({ input }) =>
-      getService().runStartScripts(
-        input.taskId,
-        input.worktreePath,
-        input.worktreeName,
-      ),
-    ),
-
-  isRunning: publicProcedure
-    .input(isWorkspaceRunningInput)
-    .output(isWorkspaceRunningOutput)
-    .query(({ input }) => getService().isWorkspaceRunning(input.taskId)),
-
-  getTerminals: publicProcedure
-    .input(getWorkspaceTerminalsInput)
-    .output(getWorkspaceTerminalsOutput)
-    .query(({ input }) => getService().getWorkspaceTerminals(input.taskId)),
 
   getLocalTasks: publicProcedure
     .input(getLocalTasksInput)
@@ -208,7 +181,6 @@ export const workspaceRouter = router({
       return result;
     }),
 
-  onTerminalCreated: subscribe(WorkspaceServiceEvent.TerminalCreated),
   onError: subscribe(WorkspaceServiceEvent.Error),
   onWarning: subscribe(WorkspaceServiceEvent.Warning),
   onPromoted: subscribe(WorkspaceServiceEvent.Promoted),

@@ -1,24 +1,23 @@
 {
   "fill": {
-    "automatic-gradient": "display-p3:0.00000,0.00000,0.00000,1.00000"
+    "solid": "display-p3:0.97647,0.93333,0.88235,1.00000"
   },
   "groups": [
     {
+      "blur-material": null,
       "layers": [
         {
-          "fill": "none",
-          "image-name": "icon.png",
-          "name": "icon",
-          "position": {
-            "scale": 0.4,
-            "translation-in-points": [3, 3]
-          }
+          "glass": false,
+          "image-name": "logo.png",
+          "name": "logo"
         }
       ],
+      "lighting": "individual",
       "shadow": {
         "kind": "neutral",
         "opacity": 0.5
       },
+      "specular": true,
       "translucency": {
         "enabled": true,
         "value": 0.5

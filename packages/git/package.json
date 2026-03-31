@@ -13,7 +13,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist .turbo",
+    "clean": "node ../../scripts/rimraf.mjs dist .turbo",
     "test": "vitest run"
   },
   "devDependencies": {

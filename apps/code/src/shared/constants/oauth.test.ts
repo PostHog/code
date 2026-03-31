@@ -8,7 +8,7 @@ describe("OAUTH_SCOPES guard", () => {
       scopes: OAUTH_SCOPES,
     }).toMatchInlineSnapshot(`
       {
-        "scopeVersion": 2,
+        "scopeVersion": 3,
         "scopes": [
           "user:read",
           "user:write",
@@ -39,6 +39,8 @@ describe("OAUTH_SCOPES guard", () => {
           "survey:write",
           "warehouse_table:read",
           "warehouse_view:read",
+          "external_data_source:read",
+          "external_data_source:write",
         ],
       }
     `);

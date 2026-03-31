@@ -133,11 +133,15 @@ export interface PanelLayoutStore {
   updateTabLabel: (taskId: string, tabId: string, label: string) => void;
   setFocusedPanel: (taskId: string, panelId: string) => void;
   addTerminalTab: (taskId: string, panelId: string) => void;
-  addWorkspaceTerminalTab: (
+  addActionTab: (
     taskId: string,
-    sessionId: string,
-    command: string,
-    scriptType: "init" | "start",
+    panelId: string,
+    action: {
+      actionId: string;
+      command: string;
+      cwd: string;
+      label: string;
+    },
   ) => void;
   clearAllLayouts: () => void;
 }
@@ -957,41 +961,44 @@ export const usePanelLayoutStore = createWithEqualityFn<PanelLayoutStore>()(
         );
       },
 
-      addWorkspaceTerminalTab: (taskId, sessionId, command, scriptType) => {
-        const tabId = `workspace-terminal-${sessionId}`;
-        const label =
-          scriptType === "init" ? `Init: ${command}` : `Start: ${command}`;
-
+      addActionTab: (taskId, panelId, action) => {
+        const tabId = `action-${action.actionId}`;
         set((state) =>
           updateTaskLayout(state, taskId, (layout) => {
             const existingTab = findTabInTree(layout.panelTree, tabId);
-            if (existingTab) {
-              const updatedTree = updateTreeNode(
-                layout.panelTree,
-                existingTab.panelId,
-                (panel) => setActiveTabInPanel(panel, tabId),
-              );
-              return { panelTree: updatedTree };
-            }
+            if (existingTab) return {};
+
+            const targetPanel = getLeafPanel(layout.panelTree, panelId);
+            if (!targetPanel) return {};
 
             const updatedTree = updateTreeNode(
               layout.panelTree,
-              DEFAULT_PANEL_IDS.MAIN_PANEL,
+              panelId,
               (panel) => {
                 if (panel.type !== "leaf") return panel;
-                return addTabToPanel(panel, {
+
+                const newTab: Tab = {
                   id: tabId,
-                  label,
+                  label: action.label,
                   data: {
-                    type: "workspace-terminal",
-                    sessionId,
-                    command,
-                    scriptType,
+                    type: "action",
+                    actionId: action.actionId,
+                    command: action.command,
+                    cwd: action.cwd,
+                    label: action.label,
                   },
                   component: null,
                   draggable: true,
-                  closeable: false,
-                });
+                  closeable: true,
+                };
+
+                return {
+                  ...panel,
+                  content: {
+                    ...panel.content,
+                    tabs: [...panel.content.tabs, newTab],
+                  },
+                };
               },
             );
 

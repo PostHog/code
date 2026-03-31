@@ -49,7 +49,9 @@ export const useSessionConfigStore = create<SessionConfigStore>()(
           if (!existing) return state;
 
           const updated = existing.map((opt) =>
-            opt.id === configId ? { ...opt, currentValue: value } : opt,
+            opt.id === configId
+              ? ({ ...opt, currentValue: value } as SessionConfigOption)
+              : opt,
           );
 
           return {

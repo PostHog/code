@@ -1,3 +1,4 @@
+import { useContextUsage } from "@features/sessions/hooks/useContextUsage";
 import {
   sessionStoreSetters,
   useOptimisticItemsForTask,
@@ -6,7 +7,6 @@ import {
   useSessionForTask,
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
-import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { ArrowDown, XCircle } from "@phosphor-icons/react";
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import type { AcpMessage } from "@shared/types/session-events";
@@ -49,9 +49,9 @@ export function ConversationView({
 }: ConversationViewProps) {
   const listRef = useRef<VirtualizedListHandle>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const agentLogsEnabled = useFeatureFlag("posthog-code-background-agent-logs");
   const debugLogsCloudRuns = useSettingsStore((s) => s.debugLogsCloudRuns);
-  const showDebugLogs = agentLogsEnabled && debugLogsCloudRuns;
+  const showDebugLogs = debugLogsCloudRuns;
+  const contextUsage = useContextUsage(events);
 
   const {
     items: conversationItems,
@@ -97,6 +97,25 @@ export function ConversationView({
     ];
     return queuedItems.length > 0 ? [...result, ...queuedItems] : result;
   }, [conversationItems, optimisticItems, queuedItems]);
+
+  // Keep MCP App tool call items mounted so their iframes and bridges
+  // survive scrolling out of the virtualized viewport.
+  const mcpAppIndices = useMemo(() => {
+    const indices: number[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type !== "session_update") continue;
+      const update = item.update;
+      if (!("_meta" in update)) continue;
+      const meta = update._meta as
+        | { claudeCode?: { toolName?: string } }
+        | undefined;
+      if (meta?.claudeCode?.toolName?.startsWith("mcp__")) {
+        indices.push(i);
+      }
+    }
+    return indices;
+  }, [items]);
 
   const handleScrollStateChange = useCallback((isAtBottom: boolean) => {
     setShowScrollButton(!isAtBottom);
@@ -181,12 +200,18 @@ export function ConversationView({
 
   return (
     <div className="relative flex-1">
+      <div
+        id="mcp-fullscreen-portal"
+        className="pointer-events-none absolute inset-0 z-20"
+      />
+
       <VirtualizedList
         ref={listRef}
         items={items}
         getItemKey={getItemKey}
         renderItem={renderItem}
         onScrollStateChange={handleScrollStateChange}
+        keepMounted={mcpAppIndices}
         className="absolute inset-0 bg-gray-1"
         itemClassName="mx-auto max-w-[750px] px-2 py-1.5"
         footer={
@@ -204,6 +229,7 @@ export function ConversationView({
               hasPendingPermission={pendingPermissionsCount > 0}
               pausedDurationMs={pausedDurationMs}
               isCompacting={isCompacting}
+              usage={contextUsage}
             />
           </div>
         }

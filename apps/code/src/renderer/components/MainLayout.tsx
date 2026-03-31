@@ -11,6 +11,7 @@ import { RightSidebar, RightSidebarContent } from "@features/right-sidebar";
 import { FolderSettingsView } from "@features/settings/components/FolderSettingsView";
 import { SettingsDialog } from "@features/settings/components/SettingsDialog";
 import { MainSidebar } from "@features/sidebar/components/MainSidebar";
+import { SkillsView } from "@features/skills/components/SkillsView";
 import { TaskDetail } from "@features/task-detail/components/TaskDetail";
 import { TaskInput } from "@features/task-detail/components/TaskInput";
 import { useTasks } from "@features/tasks/hooks/useTasks";
@@ -78,6 +79,8 @@ export function MainLayout() {
           {view.type === "archived" && <ArchivedTasksView />}
 
           {view.type === "command-center" && <CommandCenterView />}
+
+          {view.type === "skills" && <SkillsView />}
         </Box>
 
         {view.type === "task-detail" && view.data && (

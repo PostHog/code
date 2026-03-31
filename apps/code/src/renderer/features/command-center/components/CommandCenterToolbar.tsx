@@ -39,7 +39,7 @@ function StatusSummaryText({ summary }: { summary: StatusSummary }) {
   if (summary.waiting > 0) parts.push(`${summary.waiting} waiting`);
 
   return (
-    <Text size="1" className="font-mono text-[11px] text-gray-10">
+    <Text size="1" className="text-[12px] text-gray-10">
       {parts.join(" \u00b7 ")}
     </Text>
   );
@@ -82,7 +82,7 @@ export function CommandCenterToolbar({
         value={layout}
         onValueChange={(v) => setLayout(v as LayoutPreset)}
       >
-        <Select.Trigger variant="ghost" className="font-mono text-[11px]" />
+        <Select.Trigger variant="ghost" className="text-[12px]" />
         <Select.Content>
           {LAYOUT_OPTIONS.map((opt) => (
             <Select.Item key={opt.value} value={opt.value}>
@@ -104,10 +104,7 @@ export function CommandCenterToolbar({
         >
           <MagnifyingGlassMinus size={14} />
         </button>
-        <Text
-          size="1"
-          className="w-8 text-center font-mono text-[11px] text-gray-10"
-        >
+        <Text size="1" className="w-8 text-center text-[12px] text-gray-10">
           {Math.round(zoom * 100)}%
         </Text>
         <button
@@ -127,7 +124,7 @@ export function CommandCenterToolbar({
         type="button"
         onClick={stopAll}
         disabled={!hasActiveAgents}
-        className="flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] text-red-10 transition-colors hover:bg-red-3 hover:text-red-11 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-red-10"
+        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[12px] text-red-10 transition-colors hover:bg-red-3 hover:text-red-11 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-red-10"
         title="Stop all agents"
       >
         <Stop size={12} weight="fill" />
@@ -137,7 +134,7 @@ export function CommandCenterToolbar({
       <button
         type="button"
         onClick={clearAll}
-        className="flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[11px] text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
+        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[12px] text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
         title="Clear all cells"
       >
         <Trash size={12} />

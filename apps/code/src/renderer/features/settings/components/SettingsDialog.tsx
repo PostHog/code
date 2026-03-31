@@ -6,9 +6,11 @@ import {
   ArrowLeft,
   ArrowsClockwise,
   CaretRight,
+  Cloud,
   Code,
   Folder,
   GearSix,
+  HardDrives,
   Keyboard,
   Palette,
   Plugs,
@@ -23,8 +25,9 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { AccountSettings } from "./sections/AccountSettings";
 import { AdvancedSettings } from "./sections/AdvancedSettings";
 import { ClaudeCodeSettings } from "./sections/ClaudeCodeSettings";
+import { CloudEnvironmentsSettings } from "./sections/CloudEnvironmentsSettings";
+import { EnvironmentsSettings } from "./sections/environments/EnvironmentsSettings";
 import { GeneralSettings } from "./sections/GeneralSettings";
-
 import { McpServersSettings } from "./sections/McpServersSettings";
 import { PersonalizationSettings } from "./sections/PersonalizationSettings";
 import { ShortcutsSettings } from "./sections/ShortcutsSettings";
@@ -45,6 +48,16 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "account", label: "Account", icon: <User size={16} /> },
   { id: "workspaces", label: "Workspaces", icon: <Folder size={16} /> },
   { id: "worktrees", label: "Worktrees", icon: <TreeStructure size={16} /> },
+  {
+    id: "environments",
+    label: "Environments",
+    icon: <HardDrives size={16} />,
+  },
+  {
+    id: "cloud-environments",
+    label: "Cloud environments",
+    icon: <Cloud size={16} />,
+  },
   {
     id: "personalization",
     label: "Personalization",
@@ -68,6 +81,8 @@ const CATEGORY_TITLES: Record<SettingsCategory, string> = {
   account: "Account",
   workspaces: "Workspaces",
   worktrees: "Worktrees",
+  environments: "Environments",
+  "cloud-environments": "Cloud environments",
   personalization: "Personalization",
   "claude-code": "Claude Code",
   "mcp-servers": "MCP Servers",
@@ -83,6 +98,8 @@ const CATEGORY_COMPONENTS: Record<SettingsCategory, React.ComponentType> = {
   account: AccountSettings,
   workspaces: WorkspacesSettings,
   worktrees: WorktreesSettings,
+  environments: EnvironmentsSettings,
+  "cloud-environments": CloudEnvironmentsSettings,
   personalization: PersonalizationSettings,
   "claude-code": ClaudeCodeSettings,
   "mcp-servers": McpServersSettings,
@@ -130,7 +147,7 @@ export function SettingsDialog() {
       <div className="flex h-full w-[256px] shrink-0 flex-col border-gray-6 border-r pt-8">
         <button
           type="button"
-          className="mt-2 flex cursor-pointer items-center gap-2 border-0 bg-transparent px-3 py-2 text-left font-mono text-[12px] text-gray-11 transition-colors hover:bg-gray-3"
+          className="mt-2 flex cursor-pointer items-center gap-2 border-0 bg-transparent px-3 py-2 text-left text-[13px] text-gray-11 transition-colors hover:bg-gray-3"
           onClick={close}
         >
           <ArrowLeft size={14} />
@@ -214,7 +231,7 @@ function SidebarNavItem({ item, isActive, onClick }: SidebarNavItemProps) {
   return (
     <button
       type="button"
-      className="flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent px-3 py-1.5 text-left font-mono text-[12px] text-gray-11 transition-colors hover:bg-gray-3 data-[active]:bg-accent-4 data-[active]:text-gray-12"
+      className="flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent px-3 py-1.5 text-left text-[13px] text-gray-11 transition-colors hover:bg-gray-3 data-[active]:bg-accent-4 data-[active]:text-gray-12"
       data-active={isActive || undefined}
       onClick={onClick}
     >

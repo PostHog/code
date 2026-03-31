@@ -37,9 +37,11 @@ export const OAUTH_SCOPES = [
   "survey:write",
   "warehouse_table:read",
   "warehouse_view:read",
+  "external_data_source:read",
+  "external_data_source:write",
 ];
 
-export const OAUTH_SCOPE_VERSION = 2;
+export const OAUTH_SCOPE_VERSION = 3;
 
 export const REGION_LABELS: Record<CloudRegion, string> = {
   us: "🇺🇸 US Cloud",

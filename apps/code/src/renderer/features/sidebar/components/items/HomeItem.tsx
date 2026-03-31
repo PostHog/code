@@ -40,9 +40,9 @@ export function InboxItem({ isActive, onClick, signalCount }: InboxItemProps) {
       endContent={
         signalCount && signalCount > 0 ? (
           <span
-            className="inline-flex min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] text-gray-11 leading-none"
+            className="inline-flex min-w-[16px] items-center justify-center rounded-full px-1 text-[11px] text-gray-11 leading-none"
             style={{ height: "16px" }}
-            title={`${signalCount} signals`}
+            title={`${signalCount} ready reports`}
           >
             {formatSignalCount(signalCount)}
           </span>

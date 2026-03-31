@@ -2,20 +2,17 @@ import {
   baseComponents,
   defaultRemarkPlugins,
 } from "@features/editor/components/MarkdownRenderer";
-import { File } from "@phosphor-icons/react";
+import { File, GithubLogo } from "@phosphor-icons/react";
 import { Code, Text } from "@radix-ui/themes";
 import type { ReactNode } from "react";
 import { memo } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 
-const FILE_TAG_REGEX = /<file\s+path="([^"]+)"\s*\/>/g;
-const FILE_TAG_TEST = /<file\s+path="[^"]+"\s*\/>/;
+const MENTION_TAG_REGEX =
+  /<file\s+path="([^"]+)"\s*\/>|<github_issue\s+number="([^"]+)"(?:\s+title="([^"]*)")?(?:\s+url="([^"]*)")?\s*\/>/g;
+const MENTION_TAG_TEST = /<(?:file\s+path|github_issue\s+number)="[^"]+"/;
 
-/**
- * Markdown components that render paragraphs as inline spans so that
- * text chunks between file mentions stay on the same line.
- */
 const inlineComponents: Components = {
   ...baseComponents,
   p: ({ children }) => (
@@ -40,43 +37,85 @@ export const InlineMarkdown = memo(function InlineMarkdown({
   );
 });
 
-export function hasFileMentions(content: string): boolean {
-  return FILE_TAG_TEST.test(content);
+export function hasMentionTags(content: string): boolean {
+  return MENTION_TAG_TEST.test(content);
 }
 
-export function parseFileMentions(content: string): ReactNode[] {
+export const hasFileMentions = hasMentionTags;
+
+function MentionChip({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  onClick?: () => void;
+}) {
+  return (
+    <Code
+      size="1"
+      variant="soft"
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "4px",
+        verticalAlign: "middle",
+        margin: "0 2px",
+        cursor: onClick ? "pointer" : undefined,
+      }}
+    >
+      {icon}
+      {label}
+    </Code>
+  );
+}
+
+export function parseMentionTags(content: string): ReactNode[] {
   const parts: ReactNode[] = [];
   let lastIndex = 0;
 
-  for (const match of content.matchAll(FILE_TAG_REGEX)) {
-    if (match.index !== undefined && match.index > lastIndex) {
-      const textBefore = content.slice(lastIndex, match.index);
+  for (const match of content.matchAll(MENTION_TAG_REGEX)) {
+    const matchIndex = match.index ?? 0;
+
+    if (matchIndex > lastIndex) {
       parts.push(
-        <InlineMarkdown key={`text-${lastIndex}`} content={textBefore} />,
+        <InlineMarkdown
+          key={`text-${lastIndex}`}
+          content={content.slice(lastIndex, matchIndex)}
+        />,
       );
     }
 
-    const filePath = match[1];
-    const fileName = filePath.split("/").pop() ?? filePath;
-    parts.push(
-      <Code
-        key={`file-${match.index}`}
-        size="1"
-        variant="soft"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "4px",
-          verticalAlign: "middle",
-          margin: "0 6px",
-        }}
-      >
-        <File size={12} />
-        {fileName}
-      </Code>,
-    );
+    if (match[1]) {
+      const filePath = match[1];
+      const fileName = filePath.split("/").pop() ?? filePath;
+      parts.push(
+        <MentionChip
+          key={`file-${matchIndex}`}
+          icon={<File size={12} />}
+          label={fileName}
+        />,
+      );
+    } else if (match[2]) {
+      const issueNumber = match[2];
+      const issueTitle = match[3];
+      const issueUrl = match[4];
+      const label = issueTitle
+        ? `#${issueNumber} - ${issueTitle}`
+        : `#${issueNumber}`;
+      parts.push(
+        <MentionChip
+          key={`issue-${matchIndex}`}
+          icon={<GithubLogo size={12} />}
+          label={label}
+          onClick={issueUrl ? () => window.open(issueUrl, "_blank") : undefined}
+        />,
+      );
+    }
 
-    lastIndex = (match.index ?? 0) + match[0].length;
+    lastIndex = matchIndex + match[0].length;
   }
 
   if (lastIndex < content.length) {
@@ -90,3 +129,5 @@ export function parseFileMentions(content: string): ReactNode[] {
 
   return parts;
 }
+
+export const parseFileMentions = parseMentionTags;
