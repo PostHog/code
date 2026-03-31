@@ -29,7 +29,6 @@ interface GitComputed {
   actions: GitMenuAction[];
   primaryAction: GitMenuAction;
   pushDisabledReason: string | null;
-  prDisabledReason: string | null;
   prBaseBranch: string | null;
   prHeadBranch: string | null;
   prUrl: string | null;
@@ -95,10 +94,9 @@ function getPushDisabledReason(
   return null;
 }
 
-function getPrDisabledReason(
+function getCreatePrDisabledReason(
   s: GitState,
   repoReason: string | null,
-  opts?: { assumeWillHaveCommits?: boolean },
 ): string | null {
   if (repoReason) return repoReason;
 
@@ -108,17 +106,14 @@ function getPrDisabledReason(
     return "Authenticate GitHub CLI with `gh auth login`";
   if (!s.repoInfo) return "No GitHub remote detected.";
 
-  const isOnDefaultBranch =
-    s.defaultBranch && s.currentBranch === s.defaultBranch;
-  if (isOnDefaultBranch) return "Checkout a feature branch to create PRs.";
-
-  if (s.behind > 0) return "Sync branch with remote first.";
-
-  if (s.prStatus?.prExists) return "PR already exists. Use commit and push.";
-
-  if (!opts?.assumeWillHaveCommits && s.aheadOfDefault === 0) {
-    return "No commits to create PR.";
+  if (s.prStatus?.prExists) {
+    if (!s.hasChanges) return "PR already exists.";
   }
+
+  // Something must be shippable: uncommitted changes or unpushed commits
+  const hasShippableWork =
+    s.hasChanges || s.aheadOfRemote > 0 || s.aheadOfDefault > 0 || !s.hasRemote;
+  if (!hasShippableWork) return "No changes to ship.";
 
   return null;
 }
@@ -144,26 +139,31 @@ function getPushAction(
   return makeAction("push", "Push", pushDisabledReason);
 }
 
-function getPrAction(
-  s: GitState,
-  prDisabledReason: string | null,
-): GitMenuAction {
+function getViewPrAction(s: GitState): GitMenuAction | null {
   if (s.prStatus?.prExists) return makeAction("view-pr", "View PR", null);
-  return makeAction("create-pr", "Create PR", prDisabledReason);
+  return null;
+}
+
+function getCreatePrAction(
+  createPrDisabledReason: string | null,
+): GitMenuAction {
+  return makeAction("create-pr", "Create PR", createPrDisabledReason);
 }
 
 function getPrimaryAction(
-  s: GitState,
+  createPrAction: GitMenuAction,
   commitAction: GitMenuAction,
   pushAction: GitMenuAction,
-  prAction: GitMenuAction,
+  viewPrAction: GitMenuAction | null,
 ): GitMenuAction {
-  const allDisabled =
-    !commitAction.enabled && !pushAction.enabled && !prAction.enabled;
-  if (allDisabled) return commitAction;
-  if (s.hasChanges) return commitAction;
-  if (s.aheadOfRemote > 0 || !s.hasRemote || s.behind > 0) return pushAction;
-  return prAction;
+  // createPr handles most cases for getting to a PR (branch creation,
+  // commit, push, etc), so it's always primary when available
+  if (createPrAction.enabled) return createPrAction;
+
+  if (commitAction.enabled) return commitAction;
+  if (pushAction.enabled) return pushAction;
+  if (viewPrAction) return viewPrAction;
+  return commitAction;
 }
 
 export function computeGitInteractionState(input: GitState): GitComputed {
@@ -176,7 +176,6 @@ export function computeGitInteractionState(input: GitState): GitComputed {
       actions: [branchAction],
       primaryAction: branchAction,
       pushDisabledReason: "Create a branch first.",
-      prDisabledReason: "Create a branch first.",
       prBaseBranch: input.defaultBranch,
       prHeadBranch: null,
       prUrl: null,
@@ -186,15 +185,25 @@ export function computeGitInteractionState(input: GitState): GitComputed {
   }
 
   const onDefaultBranch = isOnDefaultBranch(input);
+  const createPrDisabledReason = getCreatePrDisabledReason(input, repoReason);
+  const createPrAction = getCreatePrAction(createPrDisabledReason);
 
-  if (onDefaultBranch && input.hasChanges) {
+  if (onDefaultBranch) {
     const branchAction = makeAction("branch-here", "New branch", repoReason);
     const commitAction = getCommitAction(input, repoReason);
+
+    const actions = input.hasChanges
+      ? [createPrAction, branchAction, commitAction]
+      : [branchAction];
+    const primaryAction =
+      input.hasChanges && createPrAction.enabled
+        ? createPrAction
+        : branchAction;
+
     return {
-      actions: [branchAction, commitAction],
-      primaryAction: branchAction,
+      actions,
+      primaryAction,
       pushDisabledReason: "Create a feature branch first.",
-      prDisabledReason: "Create a feature branch first.",
       prBaseBranch: input.defaultBranch,
       prHeadBranch: input.currentBranch,
       prUrl: input.prStatus?.prUrl ?? null,
@@ -204,25 +213,26 @@ export function computeGitInteractionState(input: GitState): GitComputed {
   }
 
   const pushDisabledReason = getPushDisabledReason(input, repoReason);
-  const prDisabledReason = getPrDisabledReason(input, repoReason);
 
   const commitAction = getCommitAction(input, repoReason);
   const pushAction = getPushAction(input, pushDisabledReason);
-  const prAction = getPrAction(input, prDisabledReason);
+  const viewPrAction = getViewPrAction(input);
   const primaryAction = getPrimaryAction(
-    input,
+    createPrAction,
     commitAction,
     pushAction,
-    prAction,
+    viewPrAction,
   );
 
+  const actions: GitMenuAction[] = [];
+  if (createPrAction.enabled) actions.push(createPrAction);
+  actions.push(commitAction, pushAction);
+  if (viewPrAction) actions.push(viewPrAction);
+
   return {
-    actions: [commitAction, pushAction, prAction],
+    actions,
     primaryAction,
     pushDisabledReason: getPushDisabledReason(input, repoReason, {
-      assumeWillHaveCommits: true,
-    }),
-    prDisabledReason: getPrDisabledReason(input, repoReason, {
       assumeWillHaveCommits: true,
     }),
     prBaseBranch: input.prStatus?.baseBranch ?? input.defaultBranch,

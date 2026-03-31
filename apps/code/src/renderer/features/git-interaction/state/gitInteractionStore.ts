@@ -1,5 +1,6 @@
 import type {
   CommitNextStep,
+  CreatePrStep,
   GitMenuActionId,
   PushMode,
   PushState,
@@ -11,7 +12,7 @@ export type { CommitNextStep, PushMode, PushState };
 interface GitInteractionState {
   commitOpen: boolean;
   pushOpen: boolean;
-  prOpen: boolean;
+  createPrOpen: boolean;
   branchOpen: boolean;
   commitMessage: string;
   commitNextStep: CommitNextStep;
@@ -20,12 +21,17 @@ interface GitInteractionState {
   pushError: string | null;
   prTitle: string;
   prBody: string;
-  prError: string | null;
+  createPrStep: CreatePrStep;
+  createPrError: string | null;
+  createPrNeedsBranch: boolean;
+  createPrNeedsCommit: boolean;
+  createPrBaseBranch: string | null;
+  createPrDraft: boolean;
+  createPrFailedStep: CreatePrStep | null;
   commitError: string | null;
   branchName: string;
   branchError: string | null;
   isSubmitting: boolean;
-  openPrAfterPush: boolean;
   isGeneratingCommitMessage: boolean;
   isGeneratingPr: boolean;
 }
@@ -33,7 +39,6 @@ interface GitInteractionState {
 interface GitInteractionActions {
   setCommitOpen: (open: boolean) => void;
   setPushOpen: (open: boolean) => void;
-  setPrOpen: (open: boolean) => void;
   setBranchOpen: (open: boolean) => void;
   setCommitMessage: (value: string) => void;
   setCommitNextStep: (value: CommitNextStep) => void;
@@ -42,22 +47,29 @@ interface GitInteractionActions {
   setPushError: (value: string | null) => void;
   setPrTitle: (value: string) => void;
   setPrBody: (value: string) => void;
-  setPrError: (value: string | null) => void;
   setCommitError: (value: string | null) => void;
   setBranchName: (value: string) => void;
   setBranchError: (value: string | null) => void;
   setIsSubmitting: (value: boolean) => void;
-  setOpenPrAfterPush: (value: boolean) => void;
   setIsGeneratingCommitMessage: (value: boolean) => void;
   setIsGeneratingPr: (value: boolean) => void;
 
   openCommit: (nextStep: CommitNextStep) => void;
   openPush: (mode: PushMode) => void;
-  openPr: (defaultTitle?: string, defaultBody?: string) => void;
+  openCreatePr: (opts: {
+    needsBranch: boolean;
+    needsCommit: boolean;
+    baseBranch: string | null;
+    suggestedBranchName?: string;
+  }) => void;
+  closeCreatePr: () => void;
+  setCreatePrStep: (step: CreatePrStep) => void;
+  setCreatePrError: (error: string | null) => void;
+  setCreatePrDraft: (value: boolean) => void;
+  setCreatePrFailedStep: (step: CreatePrStep | null) => void;
   openBranch: (suggestedName?: string) => void;
   closeCommit: () => void;
   closePush: () => void;
-  closePr: () => void;
   closeBranch: () => void;
 }
 
@@ -68,7 +80,7 @@ export interface GitInteractionStore extends GitInteractionState {
 const initialState: GitInteractionState = {
   commitOpen: false,
   pushOpen: false,
-  prOpen: false,
+  createPrOpen: false,
   branchOpen: false,
   commitMessage: "",
   commitNextStep: "commit",
@@ -77,12 +89,17 @@ const initialState: GitInteractionState = {
   pushError: null,
   prTitle: "",
   prBody: "",
-  prError: null,
+  createPrStep: "idle",
+  createPrError: null,
+  createPrNeedsBranch: false,
+  createPrNeedsCommit: false,
+  createPrBaseBranch: null,
+  createPrDraft: false,
+  createPrFailedStep: null,
   commitError: null,
   branchName: "",
   branchError: null,
   isSubmitting: false,
-  openPrAfterPush: false,
   isGeneratingCommitMessage: false,
   isGeneratingPr: false,
 };
@@ -92,7 +109,6 @@ export const useGitInteractionStore = create<GitInteractionStore>((set) => ({
   actions: {
     setCommitOpen: (open) => set({ commitOpen: open }),
     setPushOpen: (open) => set({ pushOpen: open }),
-    setPrOpen: (open) => set({ prOpen: open }),
     setBranchOpen: (open) => set({ branchOpen: open }),
     setCommitMessage: (value) => set({ commitMessage: value }),
     setCommitNextStep: (value) => set({ commitNextStep: value }),
@@ -101,12 +117,10 @@ export const useGitInteractionStore = create<GitInteractionStore>((set) => ({
     setPushError: (value) => set({ pushError: value }),
     setPrTitle: (value) => set({ prTitle: value }),
     setPrBody: (value) => set({ prBody: value }),
-    setPrError: (value) => set({ prError: value }),
     setCommitError: (value) => set({ commitError: value }),
     setBranchName: (value) => set({ branchName: value }),
     setBranchError: (value) => set({ branchError: value }),
     setIsSubmitting: (value) => set({ isSubmitting: value }),
-    setOpenPrAfterPush: (value) => set({ openPrAfterPush: value }),
     setIsGeneratingCommitMessage: (value) =>
       set({ isGeneratingCommitMessage: value }),
     setIsGeneratingPr: (value) => set({ isGeneratingPr: value }),
@@ -120,13 +134,36 @@ export const useGitInteractionStore = create<GitInteractionStore>((set) => ({
         pushError: null,
         pushOpen: true,
       }),
-    openPr: (defaultTitle, defaultBody) =>
+    openCreatePr: ({
+      needsBranch,
+      needsCommit,
+      baseBranch,
+      suggestedBranchName,
+    }) =>
       set({
-        prTitle: defaultTitle ?? "",
-        prBody: defaultBody ?? "",
-        prError: null,
-        prOpen: true,
+        createPrOpen: true,
+        createPrStep: "idle",
+        createPrError: null,
+        createPrNeedsBranch: needsBranch,
+        createPrNeedsCommit: needsCommit,
+        createPrBaseBranch: baseBranch,
+        createPrDraft: false,
+        createPrFailedStep: null,
+        branchName: suggestedBranchName ?? "",
+        commitMessage: "",
+        prTitle: "",
+        prBody: "",
+        isGeneratingCommitMessage: false,
+        isGeneratingPr: false,
       }),
+    closeCreatePr: () =>
+      set({
+        createPrOpen: false,
+      }),
+    setCreatePrStep: (step) => set({ createPrStep: step }),
+    setCreatePrError: (error) => set({ createPrError: error }),
+    setCreatePrDraft: (value) => set({ createPrDraft: value }),
+    setCreatePrFailedStep: (step) => set({ createPrFailedStep: step }),
     openBranch: (suggestedName) =>
       set({
         branchName: suggestedName ?? "",
@@ -139,10 +176,7 @@ export const useGitInteractionStore = create<GitInteractionStore>((set) => ({
         pushOpen: false,
         pushState: "idle",
         pushError: null,
-        openPrAfterPush: false,
       }),
-    closePr: () =>
-      set({ prOpen: false, prError: null, prTitle: "", prBody: "" }),
     closeBranch: () =>
       set({ branchOpen: false, branchError: null, branchName: "" }),
   },

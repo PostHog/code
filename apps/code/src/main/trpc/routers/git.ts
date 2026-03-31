@@ -233,14 +233,7 @@ export const gitRouter = router({
   createPr: publicProcedure
     .input(createPrInput)
     .output(createPrOutput)
-    .mutation(({ input }) =>
-      getService().createPr(
-        input.directoryPath,
-        input.title,
-        input.body,
-        input.draft,
-      ),
-    ),
+    .mutation(({ input }) => getService().createPr(input)),
 
   openPr: publicProcedure
     .input(openPrInput)
@@ -295,4 +288,14 @@ export const gitRouter = router({
         input.limit,
       ),
     ),
+
+  onCreatePrProgress: publicProcedure.subscription(async function* (opts) {
+    const service = getService();
+    const iterable = service.toIterable(GitServiceEvent.CreatePrProgress, {
+      signal: opts.signal,
+    });
+    for await (const data of iterable) {
+      yield data;
+    }
+  }),
 });

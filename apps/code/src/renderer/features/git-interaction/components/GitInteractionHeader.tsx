@@ -1,7 +1,7 @@
+import { CreatePrDialog } from "@features/git-interaction/components/CreatePrDialog";
 import {
   GitBranchDialog,
   GitCommitDialog,
-  GitPrDialog,
   GitPushDialog,
 } from "@features/git-interaction/components/GitInteractionDialogs";
 import { GitInteractionMenu } from "@features/git-interaction/components/GitInteractionMenu";
@@ -46,7 +46,6 @@ export function GitInteractionHeader({ taskId }: GitInteractionHeaderProps) {
         onCommitMessageChange={actions.setCommitMessage}
         nextStep={modals.commitNextStep}
         onNextStepChange={actions.setCommitNextStep}
-        prDisabledReason={state.prDisabledReason}
         pushDisabledReason={state.pushDisabledReason}
         onContinue={actions.runCommit}
         isSubmitting={modals.isSubmitting}
@@ -69,22 +68,17 @@ export function GitInteractionHeader({ taskId }: GitInteractionHeaderProps) {
         isSubmitting={modals.isSubmitting}
       />
 
-      <GitPrDialog
-        open={modals.prOpen}
+      <CreatePrDialog
+        open={modals.createPrOpen}
         onOpenChange={(open) => {
-          if (!open) actions.closePr();
+          if (!open) actions.closeCreatePr();
         }}
-        baseBranch={state.prBaseBranch}
-        headBranch={state.prHeadBranch}
-        title={modals.prTitle}
-        onTitleChange={actions.setPrTitle}
-        body={modals.prBody}
-        onBodyChange={actions.setPrBody}
-        onConfirm={actions.runPr}
+        currentBranch={modals.createPrBaseBranch}
+        diffStats={state.diffStats}
         isSubmitting={modals.isSubmitting}
-        error={modals.prError}
-        onGenerate={actions.generatePrTitleAndBody}
-        isGenerating={modals.isGeneratingPr}
+        onSubmit={actions.runCreatePr}
+        onGenerateCommitMessage={actions.generateCommitMessage}
+        onGeneratePr={actions.generatePrTitleAndBody}
       />
 
       <GitBranchDialog

@@ -1,10 +1,6 @@
 import { Flex } from "@radix-ui/themes";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import {
-  GitCommitDialog,
-  GitPrDialog,
-  GitPushDialog,
-} from "./GitInteractionDialogs";
+import { GitCommitDialog, GitPushDialog } from "./GitInteractionDialogs";
 
 function DialogShowcase() {
   return <Flex direction="column" gap="4" />;
@@ -29,7 +25,6 @@ export const CommitDefault: StoryObj<typeof GitCommitDialog> = {
       onCommitMessageChange={() => {}}
       nextStep="commit"
       onNextStepChange={() => {}}
-      prDisabledReason={null}
       pushDisabledReason={null}
       onContinue={() => {}}
       isSubmitting={false}
@@ -51,29 +46,6 @@ export const CommitWithMessage: StoryObj<typeof GitCommitDialog> = {
       onCommitMessageChange={() => {}}
       nextStep="commit-push"
       onNextStepChange={() => {}}
-      prDisabledReason={null}
-      pushDisabledReason={null}
-      onContinue={() => {}}
-      isSubmitting={false}
-      error={null}
-      onGenerateMessage={() => {}}
-      isGeneratingMessage={false}
-    />
-  ),
-};
-
-export const CommitPrDisabled: StoryObj<typeof GitCommitDialog> = {
-  render: () => (
-    <GitCommitDialog
-      open={true}
-      onOpenChange={() => {}}
-      branchName="main"
-      diffStats={{ filesChanged: 1, linesAdded: 10, linesRemoved: 2 }}
-      commitMessage="Fix typo"
-      onCommitMessageChange={() => {}}
-      nextStep="commit"
-      onNextStepChange={() => {}}
-      prDisabledReason="Checkout a feature branch to create PRs."
       pushDisabledReason={null}
       onContinue={() => {}}
       isSubmitting={false}
@@ -95,7 +67,6 @@ export const CommitSubmitting: StoryObj<typeof GitCommitDialog> = {
       onCommitMessageChange={() => {}}
       nextStep="commit"
       onNextStepChange={() => {}}
-      prDisabledReason={null}
       pushDisabledReason={null}
       onContinue={() => {}}
       isSubmitting={true}
@@ -117,7 +88,6 @@ export const CommitWithError: StoryObj<typeof GitCommitDialog> = {
       onCommitMessageChange={() => {}}
       nextStep="commit"
       onNextStepChange={() => {}}
-      prDisabledReason={null}
       pushDisabledReason={null}
       onContinue={() => {}}
       isSubmitting={false}
@@ -139,7 +109,6 @@ export const CommitWithLongPreCommitError: StoryObj<typeof GitCommitDialog> = {
       onCommitMessageChange={() => {}}
       nextStep="commit"
       onNextStepChange={() => {}}
-      prDisabledReason={null}
       pushDisabledReason={null}
       onContinue={() => {}}
       isSubmitting={false}
@@ -172,7 +141,6 @@ export const CommitGenerating: StoryObj<typeof GitCommitDialog> = {
       onCommitMessageChange={() => {}}
       nextStep="commit"
       onNextStepChange={() => {}}
-      prDisabledReason={null}
       pushDisabledReason={null}
       onContinue={() => {}}
       isSubmitting={false}
@@ -307,106 +275,6 @@ export const PublishSuccess: StoryObj<typeof GitPushDialog> = {
       onConfirm={() => {}}
       onClose={() => {}}
       isSubmitting={false}
-    />
-  ),
-};
-
-export const PrCreate: StoryObj<typeof GitPrDialog> = {
-  render: () => (
-    <GitPrDialog
-      open={true}
-      onOpenChange={() => {}}
-      baseBranch="main"
-      headBranch="feature/add-auth"
-      title="Add user authentication"
-      onTitleChange={() => {}}
-      body="Closes #123\n\nAdded login and signup flows."
-      onBodyChange={() => {}}
-      onConfirm={() => {}}
-      isSubmitting={false}
-      error={null}
-      onGenerate={() => {}}
-      isGenerating={false}
-    />
-  ),
-};
-
-export const PrCreateEmpty: StoryObj<typeof GitPrDialog> = {
-  render: () => (
-    <GitPrDialog
-      open={true}
-      onOpenChange={() => {}}
-      baseBranch="main"
-      headBranch="feature/add-auth"
-      title=""
-      onTitleChange={() => {}}
-      body=""
-      onBodyChange={() => {}}
-      onConfirm={() => {}}
-      isSubmitting={false}
-      error={null}
-      onGenerate={() => {}}
-      isGenerating={false}
-    />
-  ),
-};
-
-export const PrGenerating: StoryObj<typeof GitPrDialog> = {
-  render: () => (
-    <GitPrDialog
-      open={true}
-      onOpenChange={() => {}}
-      baseBranch="main"
-      headBranch="feature/add-auth"
-      title=""
-      onTitleChange={() => {}}
-      body=""
-      onBodyChange={() => {}}
-      onConfirm={() => {}}
-      isSubmitting={false}
-      error={null}
-      onGenerate={() => {}}
-      isGenerating={true}
-    />
-  ),
-};
-
-export const PrSubmitting: StoryObj<typeof GitPrDialog> = {
-  render: () => (
-    <GitPrDialog
-      open={true}
-      onOpenChange={() => {}}
-      baseBranch="main"
-      headBranch="feature/add-auth"
-      title="Add user authentication"
-      onTitleChange={() => {}}
-      body="Added login flow"
-      onBodyChange={() => {}}
-      onConfirm={() => {}}
-      isSubmitting={true}
-      error={null}
-      onGenerate={() => {}}
-      isGenerating={false}
-    />
-  ),
-};
-
-export const PrWithError: StoryObj<typeof GitPrDialog> = {
-  render: () => (
-    <GitPrDialog
-      open={true}
-      onOpenChange={() => {}}
-      baseBranch="main"
-      headBranch="feature/add-auth"
-      title="Add user authentication"
-      onTitleChange={() => {}}
-      body="Added login flow"
-      onBodyChange={() => {}}
-      onConfirm={() => {}}
-      isSubmitting={false}
-      error="Failed to create PR: no commits between main and feature/add-auth"
-      onGenerate={() => {}}
-      isGenerating={false}
     />
   ),
 };

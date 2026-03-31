@@ -228,8 +228,11 @@ export type PrStatusOutput = z.infer<typeof prStatusOutput>;
 // Create PR operation
 export const createPrInput = z.object({
   directoryPath: z.string(),
-  title: z.string().optional(),
-  body: z.string().optional(),
+  flowId: z.string(),
+  branchName: z.string().optional(),
+  commitMessage: z.string().optional(),
+  prTitle: z.string().optional(),
+  prBody: z.string().optional(),
   draft: z.boolean().optional(),
 });
 
@@ -372,10 +375,22 @@ export const syncOutput = z.object({
 
 export type SyncOutput = z.infer<typeof syncOutput>;
 
+export const createPrStep = z.enum([
+  "creating-branch",
+  "committing",
+  "pushing",
+  "creating-pr",
+  "complete",
+  "error",
+]);
+
+export type CreatePrStep = z.infer<typeof createPrStep>;
+
 export const createPrOutput = z.object({
   success: z.boolean(),
   message: z.string(),
   prUrl: z.string().nullable(),
+  failedStep: createPrStep.nullable(),
   state: gitStateSnapshotSchema.optional(),
 });
 
@@ -406,3 +421,12 @@ export const searchGithubIssuesInput = z.object({
 });
 
 export const searchGithubIssuesOutput = z.array(githubIssueSchema);
+
+export const createPrProgressPayload = z.object({
+  flowId: z.string(),
+  step: createPrStep,
+  message: z.string(),
+  prUrl: z.string().optional(),
+});
+
+export type CreatePrProgressPayload = z.infer<typeof createPrProgressPayload>;

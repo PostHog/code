@@ -29,7 +29,7 @@ function actionIds(result: ReturnType<typeof computeGitInteractionState>) {
 
 describe("computeGitInteractionState", () => {
   describe("on default branch with changes", () => {
-    it("returns branch-here as primary action", () => {
+    it("returns create-pr as primary action", () => {
       const result = computeGitInteractionState(
         makeState({
           currentBranch: "main",
@@ -37,10 +37,10 @@ describe("computeGitInteractionState", () => {
           hasChanges: true,
         }),
       );
-      expect(result.primaryAction.id).toBe("branch-here");
+      expect(result.primaryAction.id).toBe("create-pr");
     });
 
-    it("works without a GitHub remote (defaultBranch null)", () => {
+    it("falls back to branch-here without GitHub remote", () => {
       const result = computeGitInteractionState(
         makeState({
           currentBranch: "main",
@@ -53,7 +53,7 @@ describe("computeGitInteractionState", () => {
       expect(result.primaryAction.id).toBe("branch-here");
     });
 
-    it("includes commit in actions as escape hatch", () => {
+    it("includes create-pr, branch, and commit in actions", () => {
       const result = computeGitInteractionState(
         makeState({
           currentBranch: "main",
@@ -61,7 +61,7 @@ describe("computeGitInteractionState", () => {
           hasChanges: true,
         }),
       );
-      expect(actionIds(result)).toEqual(["branch-here", "commit"]);
+      expect(actionIds(result)).toEqual(["create-pr", "branch-here", "commit"]);
     });
 
     it("disables push and pr with feature branch message", () => {
@@ -73,7 +73,6 @@ describe("computeGitInteractionState", () => {
         }),
       );
       expect(result.pushDisabledReason).toBe("Create a feature branch first.");
-      expect(result.prDisabledReason).toBe("Create a feature branch first.");
     });
 
     it("is not detected as detached head", () => {
@@ -89,7 +88,7 @@ describe("computeGitInteractionState", () => {
   });
 
   describe("on default branch without changes", () => {
-    it("uses normal flow with commit as primary", () => {
+    it("returns branch-here as primary when nothing to ship", () => {
       const result = computeGitInteractionState(
         makeState({
           currentBranch: "main",
@@ -97,11 +96,10 @@ describe("computeGitInteractionState", () => {
           hasChanges: false,
         }),
       );
-      expect(result.primaryAction.id).toBe("commit");
-      expect(result.primaryAction.enabled).toBe(false);
+      expect(result.primaryAction.id).toBe("branch-here");
     });
 
-    it("returns standard three actions", () => {
+    it("returns only branch-here action", () => {
       const result = computeGitInteractionState(
         makeState({
           currentBranch: "main",
@@ -109,12 +107,12 @@ describe("computeGitInteractionState", () => {
           hasChanges: false,
         }),
       );
-      expect(actionIds(result)).toEqual(["commit", "push", "create-pr"]);
+      expect(actionIds(result)).toEqual(["branch-here"]);
     });
   });
 
   describe("on default branch with ahead commits but no changes", () => {
-    it("returns push as primary action", () => {
+    it("returns branch-here as primary", () => {
       const result = computeGitInteractionState(
         makeState({
           currentBranch: "main",
@@ -123,23 +121,43 @@ describe("computeGitInteractionState", () => {
           aheadOfRemote: 2,
         }),
       );
-      expect(result.primaryAction.id).toBe("push");
+      // On default branch without changes, only branch-here is shown
+      expect(result.primaryAction.id).toBe("branch-here");
     });
   });
 
   describe("on feature branch with changes", () => {
-    it("returns commit as primary action", () => {
+    it("returns create-pr as primary action", () => {
       const result = computeGitInteractionState(
         makeState({ currentBranch: "feature/test", hasChanges: true }),
       );
-      expect(result.primaryAction.id).toBe("commit");
+      expect(result.primaryAction.id).toBe("create-pr");
     });
 
-    it("returns standard three actions", () => {
+    it("returns create-pr plus granular actions", () => {
       const result = computeGitInteractionState(
         makeState({ currentBranch: "feature/test", hasChanges: true }),
       );
-      expect(actionIds(result)).toEqual(["commit", "push", "create-pr"]);
+      expect(actionIds(result)).toEqual(["create-pr", "commit", "push"]);
+    });
+  });
+
+  describe("on feature branch with existing PR", () => {
+    it("still offers create-pr for stacking", () => {
+      const result = computeGitInteractionState(
+        makeState({
+          currentBranch: "feature/test",
+          hasChanges: true,
+          prStatus: {
+            prExists: true,
+            baseBranch: "main",
+            headBranch: "feature/test",
+            prUrl: "https://github.com/test/test/pull/1",
+          },
+        }),
+      );
+      // create-pr still enabled — creates a new stacked branch
+      expect(result.primaryAction.id).toBe("create-pr");
     });
   });
 
@@ -161,7 +179,7 @@ describe("computeGitInteractionState", () => {
   });
 
   describe("isFeatureBranch true even on main", () => {
-    it("falls through to normal commit flow", () => {
+    it("returns create-pr as primary", () => {
       const result = computeGitInteractionState(
         makeState({
           currentBranch: "main",
@@ -169,7 +187,7 @@ describe("computeGitInteractionState", () => {
           hasChanges: true,
         }),
       );
-      expect(result.primaryAction.id).toBe("commit");
+      expect(result.primaryAction.id).toBe("create-pr");
     });
   });
 

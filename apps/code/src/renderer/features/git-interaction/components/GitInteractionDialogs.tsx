@@ -6,7 +6,6 @@ import {
   GitBranch,
   GitCommit,
   GitFork,
-  GitPullRequest,
   Sparkle,
 } from "@phosphor-icons/react";
 import { CheckIcon } from "@radix-ui/react-icons";
@@ -26,7 +25,7 @@ import { useState } from "react";
 
 const ICON_SIZE = 14;
 
-function ErrorContainer({ error }: { error: string }) {
+export function ErrorContainer({ error }: { error: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -72,6 +71,32 @@ function ErrorContainer({ error }: { error: string }) {
         </Flex>
       </Flex>
     </Box>
+  );
+}
+
+export function GenerateButton({
+  onClick,
+  isGenerating,
+  disabled = false,
+  tooltip = "Generate with AI",
+}: {
+  onClick: () => void;
+  isGenerating: boolean;
+  disabled?: boolean;
+  tooltip?: string;
+}) {
+  return (
+    <Tooltip content={tooltip}>
+      <IconButton
+        size="1"
+        variant="ghost"
+        color="gray"
+        onClick={onClick}
+        disabled={isGenerating || disabled}
+      >
+        {isGenerating ? <Spinner size="1" /> : <Sparkle size={14} />}
+      </IconButton>
+    </Tooltip>
   );
 }
 
@@ -221,9 +246,8 @@ interface GitCommitDialogProps {
   diffStats: { filesChanged: number; linesAdded: number; linesRemoved: number };
   commitMessage: string;
   onCommitMessageChange: (value: string) => void;
-  nextStep: "commit" | "commit-push" | "commit-pr";
-  onNextStepChange: (value: "commit" | "commit-push" | "commit-pr") => void;
-  prDisabledReason: string | null;
+  nextStep: "commit" | "commit-push";
+  onNextStepChange: (value: "commit" | "commit-push") => void;
   pushDisabledReason: string | null;
   onContinue: () => void;
   isSubmitting: boolean;
@@ -241,7 +265,6 @@ export function GitCommitDialog({
   onCommitMessageChange,
   nextStep,
   onNextStepChange,
-  prDisabledReason,
   pushDisabledReason,
   onContinue,
   isSubmitting,
@@ -260,12 +283,6 @@ export function GitCommitDialog({
       label: "Commit and push",
       icon: <CloudArrowUp size={ICON_SIZE} />,
       disabledReason: pushDisabledReason,
-    },
-    {
-      id: "commit-pr" as const,
-      label: "Commit and create PR",
-      icon: <GitPullRequest size={ICON_SIZE} />,
-      disabledReason: prDisabledReason,
     },
   ];
 
@@ -306,21 +323,12 @@ export function GitCommitDialog({
           <Text size="1" color="gray">
             Message
           </Text>
-          <Tooltip content="Generate commit message with AI">
-            <IconButton
-              size="1"
-              variant="ghost"
-              color="gray"
-              onClick={onGenerateMessage}
-              disabled={isGeneratingMessage || isSubmitting}
-            >
-              {isGeneratingMessage ? (
-                <Spinner size="1" />
-              ) : (
-                <Sparkle size={14} />
-              )}
-            </IconButton>
-          </Tooltip>
+          <GenerateButton
+            onClick={onGenerateMessage}
+            isGenerating={isGeneratingMessage}
+            disabled={isSubmitting}
+            tooltip="Generate commit message with AI"
+          />
         </Flex>
         <TextArea
           value={commitMessage}
@@ -429,103 +437,6 @@ export function GitPushDialog({
           {config.desc}
         </Text>
       )}
-    </GitDialog>
-  );
-}
-
-interface GitPrDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  baseBranch: string | null;
-  headBranch: string | null;
-  title: string;
-  onTitleChange: (value: string) => void;
-  body: string;
-  onBodyChange: (value: string) => void;
-  onConfirm: () => void;
-  isSubmitting: boolean;
-  error: string | null;
-  onGenerate: () => void;
-  isGenerating: boolean;
-}
-
-export function GitPrDialog({
-  open,
-  onOpenChange,
-  baseBranch,
-  headBranch,
-  title,
-  onTitleChange,
-  body,
-  onBodyChange,
-  onConfirm,
-  isSubmitting,
-  error,
-  onGenerate,
-  isGenerating,
-}: GitPrDialogProps) {
-  return (
-    <GitDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      icon={<GitPullRequest size={ICON_SIZE} />}
-      title="Create PR"
-      error={error}
-      buttonLabel="Create PR"
-      buttonDisabled={!title.trim() || isGenerating}
-      isSubmitting={isSubmitting}
-      onSubmit={onConfirm}
-      maxWidth="500px"
-    >
-      <Flex direction="column" gap="1">
-        <InfoRow label="Base">
-          <BranchBadge branch={baseBranch} />
-        </InfoRow>
-        <InfoRow label="Head">
-          <BranchBadge branch={headBranch} />
-        </InfoRow>
-      </Flex>
-
-      <Flex direction="column" gap="1">
-        <Flex align="center" justify="between">
-          <Text size="1" color="gray">
-            Title
-          </Text>
-          <Tooltip content="Generate title and description with AI">
-            <IconButton
-              size="1"
-              variant="ghost"
-              color="gray"
-              onClick={onGenerate}
-              disabled={isGenerating || isSubmitting}
-            >
-              {isGenerating ? <Spinner size="1" /> : <Sparkle size={14} />}
-            </IconButton>
-          </Tooltip>
-        </Flex>
-        <TextField.Root
-          value={title}
-          onChange={(e) => onTitleChange(e.target.value)}
-          placeholder={isGenerating ? "Generating..." : "PR title"}
-          size="1"
-          autoFocus
-          disabled={isGenerating}
-        />
-      </Flex>
-
-      <Flex direction="column" gap="1">
-        <Text size="1" color="gray">
-          Description
-        </Text>
-        <TextArea
-          value={body}
-          onChange={(e) => onBodyChange(e.target.value)}
-          placeholder={isGenerating ? "Generating..." : "Describe your changes"}
-          size="1"
-          rows={6}
-          disabled={isGenerating}
-        />
-      </Flex>
     </GitDialog>
   );
 }
