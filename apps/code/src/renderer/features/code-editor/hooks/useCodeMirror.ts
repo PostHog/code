@@ -86,9 +86,10 @@ const getBaseDiffConfig = (
   highlightChanges: false,
   gutter: true,
   mergeControls: createMergeControls(onReject),
-  diffConfig: hideWhitespaceChanges
-    ? { override: whitespaceIgnoringDiff }
-    : undefined,
+  diffConfig: {
+    scanLimit: 50000,
+    ...(hideWhitespaceChanges && { override: whitespaceIgnoringDiff }),
+  },
 });
 
 export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
