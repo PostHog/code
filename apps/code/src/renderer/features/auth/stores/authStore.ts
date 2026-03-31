@@ -102,29 +102,38 @@ function createClient(
 async function syncAuthState(): Promise<void> {
   const authState = await trpcClient.auth.getState.query();
   const isAuthenticated = authState.status === "authenticated";
-  const client =
-    isAuthenticated && authState.cloudRegion
-      ? createClient(authState.cloudRegion, authState.projectId)
-      : null;
 
-  useAuthStore.setState((state) => ({
-    ...state,
-    isAuthenticated,
-    cloudRegion: authState.cloudRegion,
-    staleCloudRegion: isAuthenticated
-      ? null
-      : (authState.cloudRegion ?? state.staleCloudRegion),
-    client,
-    projectId: authState.projectId,
-    availableProjectIds: authState.availableProjectIds,
-    availableOrgIds: authState.availableOrgIds,
-    needsProjectSelection:
-      isAuthenticated &&
-      authState.availableProjectIds.length > 1 &&
-      authState.projectId === null,
-    needsScopeReauth: authState.needsScopeReauth,
-    hasCodeAccess: authState.hasCodeAccess,
-  }));
+  useAuthStore.setState((state) => {
+    const regionChanged = authState.cloudRegion !== state.cloudRegion;
+    const projectChanged = authState.projectId !== state.projectId;
+    const client =
+      isAuthenticated && authState.cloudRegion
+        ? regionChanged || projectChanged || !state.client
+          ? createClient(authState.cloudRegion, authState.projectId)
+          : state.client
+        : null;
+
+    return {
+      ...state,
+      isAuthenticated,
+      cloudRegion: authState.cloudRegion,
+      staleCloudRegion: isAuthenticated
+        ? null
+        : (authState.cloudRegion ?? state.staleCloudRegion),
+      client,
+      projectId: authState.projectId,
+      availableProjectIds: authState.availableProjectIds,
+      availableOrgIds: authState.availableOrgIds,
+      needsProjectSelection:
+        isAuthenticated &&
+        authState.availableProjectIds.length > 1 &&
+        authState.projectId === null,
+      needsScopeReauth: authState.needsScopeReauth,
+      hasCodeAccess: authState.hasCodeAccess,
+    };
+  });
+
+  const client = useAuthStore.getState().client;
 
   if (!isAuthenticated || !authState.cloudRegion || !client) {
     inFlightAuthSync = null;

@@ -78,10 +78,7 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       return this.initializePromise;
     }
 
-    this.initializePromise = this.doInitialize().finally(() => {
-      this.initializePromise = null;
-    });
-
+    this.initializePromise = this.doInitialize();
     return this.initializePromise;
   }
 
