@@ -106,6 +106,17 @@ export function useGitQueries(repoPath?: string) {
     ),
   );
 
+  useQuery(
+    trpc.git.getAllBranches.queryOptions(
+      { directoryPath: repoPath as string },
+      {
+        enabled: repoEnabled,
+        ...GIT_QUERY_DEFAULTS,
+        staleTime: 60_000,
+      },
+    ),
+  );
+
   const hasChanges = changedFiles.length > 0;
   const aheadOfRemote = syncStatus?.aheadOfRemote ?? 0;
   const behind = syncStatus?.behind ?? 0;

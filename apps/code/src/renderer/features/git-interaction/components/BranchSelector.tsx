@@ -1,6 +1,6 @@
 import { Combobox } from "@components/ui/combobox/Combobox";
 import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
-import { getSuggestedBranchName } from "@features/git-interaction/utils/deriveBranchName";
+import { getSuggestedBranchName } from "@features/git-interaction/utils/getSuggestedBranchName";
 import { invalidateGitBranchQueries } from "@features/git-interaction/utils/gitCacheKeys";
 import { GitBranch, Plus } from "@phosphor-icons/react";
 import { Flex, Spinner, Tooltip } from "@radix-ui/themes";
@@ -144,7 +144,9 @@ export function BranchSelector({
                 onClick={() => {
                   setOpen(false);
                   actions.openBranch(
-                    taskId ? getSuggestedBranchName(taskId) : undefined,
+                    taskId
+                      ? getSuggestedBranchName(taskId, repoPath ?? undefined)
+                      : undefined,
                   );
                 }}
               >
