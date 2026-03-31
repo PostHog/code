@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Clean Twig app data from macOS
+# Clean PostHog Code app data from macOS
 #
 # Usage:
-#   ./scripts/clean-twig-macos.sh           # Clean data only
-#   ./scripts/clean-twig-macos.sh --app     # Clean data and delete app
+#   ./scripts/clean-posthog-code-macos.sh           # Clean data only
+#   ./scripts/clean-posthog-code-macos.sh --app     # Clean data and delete app
 
 set -e
 
@@ -20,25 +20,39 @@ for arg in "$@"; do
       echo "Usage: $0 [--app]"
       echo ""
       echo "Options:"
-      echo "  --app    Also delete Twig.app from /Applications"
+      echo "  --app    Also delete PostHog Code.app from /Applications"
       echo ""
       echo "This script removes:"
-      echo "  - ~/Library/Application Support/@posthog/Array"
-      echo "  - ~/Library/Application Support/@posthog/Twig"
-      echo "  - ~/Library/Application Support/@posthog/twig-dev"
+      echo "  - ~/Library/Application Support/@posthog/posthog-code"
+      echo "  - ~/Library/Application Support/@posthog/posthog-code-dev"
+      echo "  - ~/Library/Application Support/@posthog/Array (legacy)"
+      echo "  - ~/Library/Application Support/@posthog/Twig (legacy)"
+      echo "  - ~/Library/Application Support/@posthog/twig-dev (legacy)"
       echo "  - ~/Library/Preferences/com.posthog.array.plist"
       echo "  - ~/Library/Caches/com.posthog.array"
-      echo "  - ~/Library/Logs/Twig"
+      echo "  - ~/.posthog-code (logs and cache)"
+      echo "  - ~/Library/Logs/PostHog Code"
       echo "  - ~/Library/Saved Application State/com.posthog.array.savedState"
       exit 0
       ;;
   esac
 done
 
-echo "Cleaning Twig data from macOS..."
+echo "Cleaning PostHog Code data from macOS..."
 echo ""
 
-# Application Support - actual electron data locations
+# Application Support - current electron data locations
+if [ -d "$HOME/Library/Application Support/@posthog/posthog-code" ]; then
+  echo "Removing ~/Library/Application Support/@posthog/posthog-code"
+  rm -rf "$HOME/Library/Application Support/@posthog/posthog-code"
+fi
+
+if [ -d "$HOME/Library/Application Support/@posthog/posthog-code-dev" ]; then
+  echo "Removing ~/Library/Application Support/@posthog/posthog-code-dev"
+  rm -rf "$HOME/Library/Application Support/@posthog/posthog-code-dev"
+fi
+
+# Application Support - legacy locations
 if [ -d "$HOME/Library/Application Support/@posthog/Array" ]; then
   echo "Removing ~/Library/Application Support/@posthog/Array"
   rm -rf "$HOME/Library/Application Support/@posthog/Array"
@@ -102,7 +116,18 @@ if [ -d "$HOME/Library/Caches/Twig" ]; then
   rm -rf "$HOME/Library/Caches/Twig"
 fi
 
+# Home directory data (logs and cache)
+if [ -d "$HOME/.posthog-code" ]; then
+  echo "Removing ~/.posthog-code"
+  rm -rf "$HOME/.posthog-code"
+fi
+
 # Logs
+if [ -d "$HOME/Library/Logs/PostHog Code" ]; then
+  echo "Removing ~/Library/Logs/PostHog Code"
+  rm -rf "$HOME/Library/Logs/PostHog Code"
+fi
+
 if [ -d "$HOME/Library/Logs/twig" ]; then
   echo "Removing ~/Library/Logs/twig"
   rm -rf "$HOME/Library/Logs/twig"
@@ -126,6 +151,10 @@ fi
 
 # App (optional)
 if [ "$DELETE_APP" = true ]; then
+  if [ -d "/Applications/PostHog Code.app" ]; then
+    echo "Removing /Applications/PostHog Code.app"
+    rm -rf "/Applications/PostHog Code.app"
+  fi
   if [ -d "/Applications/Twig.app" ]; then
     echo "Removing /Applications/Twig.app"
     rm -rf "/Applications/Twig.app"
@@ -141,5 +170,5 @@ echo "Done!"
 
 if [ "$DELETE_APP" = false ]; then
   echo ""
-  echo "Note: Twig.app was not deleted. Use --app flag to also remove the app."
+  echo "Note: PostHog Code.app was not deleted. Use --app flag to also remove the app."
 fi
