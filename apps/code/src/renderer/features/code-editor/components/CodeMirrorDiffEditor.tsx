@@ -137,9 +137,7 @@ export function CodeMirrorDiffEditor({
             </DropdownMenu.Item>
             <DropdownMenu.Item onSelect={toggleHideWhitespaceChanges}>
               <Text size="1">
-                {hideWhitespaceChanges
-                  ? "Show whitespace changes"
-                  : "Hide whitespace changes"}
+                {hideWhitespaceChanges ? "Show whitespace" : "Hide whitespace"}
               </Text>
             </DropdownMenu.Item>
 
