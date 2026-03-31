@@ -31,17 +31,10 @@ export function resetAuthStoreModuleStateForTest(): void {
   lastCompletedAuthSyncKey = null;
 }
 
-interface StoredTokens {
-  cloudRegion: CloudRegion;
-}
-
 interface AuthStoreState {
   oauthAccessToken: string | null;
-  oauthRefreshToken: string | null;
-  tokenExpiry: number | null;
   cloudRegion: CloudRegion | null;
-  storedTokens: null;
-  staleTokens: StoredTokens | null;
+  staleCloudRegion: CloudRegion | null;
 
   isAuthenticated: boolean;
   client: PostHogAPIClient | null;
@@ -61,7 +54,6 @@ interface AuthStoreState {
   loginWithOAuth: (region: CloudRegion) => Promise<void>;
   signupWithOAuth: (region: CloudRegion) => Promise<void>;
   refreshAccessToken: () => Promise<void>;
-  scheduleTokenRefresh: () => void;
   initializeOAuth: () => Promise<boolean>;
   selectProject: (projectId: number) => Promise<void>;
   completeOnboarding: () => void;
@@ -119,10 +111,9 @@ async function syncAuthState(): Promise<void> {
     ...state,
     isAuthenticated,
     cloudRegion: authState.cloudRegion,
-    staleTokens:
-      !isAuthenticated && authState.cloudRegion
-        ? { cloudRegion: authState.cloudRegion }
-        : state.staleTokens,
+    staleCloudRegion: isAuthenticated
+      ? null
+      : (authState.cloudRegion ?? state.staleCloudRegion),
     client,
     projectId: authState.projectId,
     availableProjectIds: authState.availableProjectIds,
@@ -133,10 +124,6 @@ async function syncAuthState(): Promise<void> {
       authState.projectId === null,
     needsScopeReauth: authState.needsScopeReauth,
     hasCodeAccess: authState.hasCodeAccess,
-    oauthRefreshToken: null,
-    tokenExpiry: null,
-    storedTokens: null,
-    ...(isAuthenticated ? { staleTokens: null } : {}),
   }));
 
   if (!isAuthenticated || !authState.cloudRegion || !client) {
@@ -219,11 +206,8 @@ function ensureAuthSubscription(): void {
 
 export const useAuthStore = create<AuthStoreState>((set, get) => ({
   oauthAccessToken: null,
-  oauthRefreshToken: null,
-  tokenExpiry: null,
   cloudRegion: null,
-  storedTokens: null,
-  staleTokens: null,
+  staleCloudRegion: null,
 
   isAuthenticated: false,
   client: null,
@@ -268,10 +252,6 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
   refreshAccessToken: async () => {
     const token = await refreshAccessToken();
     updateServiceTokens(token);
-  },
-
-  scheduleTokenRefresh: () => {
-    // Main process owns refresh timing now.
   },
 
   initializeOAuth: async () => {
@@ -321,13 +301,8 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     set((state) => ({
       ...state,
       oauthAccessToken: null,
-      oauthRefreshToken: null,
-      tokenExpiry: null,
       cloudRegion: null,
-      storedTokens: null,
-      staleTokens: state.cloudRegion
-        ? { cloudRegion: state.cloudRegion }
-        : null,
+      staleCloudRegion: state.cloudRegion ?? null,
       isAuthenticated: false,
       client: null,
       projectId: null,

@@ -121,11 +121,8 @@ describe("authStore", () => {
 
     useAuthStore.setState({
       oauthAccessToken: null,
-      oauthRefreshToken: null,
-      tokenExpiry: null,
       cloudRegion: null,
-      storedTokens: null,
-      staleTokens: null,
+      staleCloudRegion: null,
       isAuthenticated: false,
       client: null,
       projectId: null,
