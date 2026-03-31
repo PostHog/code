@@ -202,6 +202,9 @@ export class SessionService {
         session.status = "error";
         session.errorMessage =
           "Authentication required. Please sign in to continue.";
+        if (initialPrompt?.length) {
+          session.initialPrompt = initialPrompt;
+        }
         sessionStoreSetters.setSession(session);
         return;
       }
@@ -296,6 +299,9 @@ export class SessionService {
       session.status = "error";
       session.errorTitle = "Failed to connect";
       session.errorMessage = message;
+      if (initialPrompt?.length) {
+        session.initialPrompt = initialPrompt;
+      }
 
       if (latestRun?.log_url) {
         try {
@@ -504,6 +510,9 @@ export class SessionService {
     if (existing?.logUrl) {
       session.logUrl = existing.logUrl;
     }
+    if (existing?.initialPrompt?.length) {
+      session.initialPrompt = existing.initialPrompt;
+    }
     sessionStoreSetters.setSession(session);
   }
 
@@ -562,6 +571,13 @@ export class SessionService {
     // Persist the adapter
     if (adapter) {
       useSessionAdapterStore.getState().setAdapter(taskRun.id, adapter);
+    }
+
+    // Store the initial prompt on the session so retry/reset flows can
+    // re-send it if the session errors after this point (e.g. subscription
+    // error, agent crash, or prompt failure).
+    if (initialPrompt?.length) {
+      session.initialPrompt = initialPrompt;
     }
 
     sessionStoreSetters.setSession(session);
@@ -1786,8 +1802,32 @@ export class SessionService {
    * Retry connecting to the existing session (resume attempt using
    * the sessionId from logs). Does NOT tear down — avoids the connect
    * effect loop.
+   *
+   * If the session failed before any conversation started (has an
+   * initialPrompt saved from the original creation attempt), creates
+   * a fresh session and re-sends the prompt instead of reconnecting
+   * to an empty session.
    */
   async clearSessionError(taskId: string, repoPath: string): Promise<void> {
+    const session = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (session?.initialPrompt?.length) {
+      const { taskTitle, initialPrompt } = session;
+      await this.teardownSession(session.taskRunId);
+      const auth = this.getAuthCredentials();
+      if (!auth) {
+        throw new Error(
+          "Unable to reach server. Please check your connection.",
+        );
+      }
+      await this.createNewLocalSession(
+        taskId,
+        taskTitle,
+        repoPath,
+        auth,
+        initialPrompt,
+      );
+      return;
+    }
     await this.reconnectInPlace(taskId, repoPath);
   }
 

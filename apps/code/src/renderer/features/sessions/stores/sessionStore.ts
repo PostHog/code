@@ -1,4 +1,5 @@
 import type {
+  ContentBlock,
   SessionConfigOption,
   SessionConfigSelectGroup,
   SessionConfigSelectOption,
@@ -68,6 +69,8 @@ export interface AgentSession {
   cloudOutput?: Record<string, unknown> | null;
   /** Cloud task error message */
   cloudErrorMessage?: string | null;
+  /** Initial prompt to re-send on retry if the first connection attempt failed */
+  initialPrompt?: ContentBlock[];
   /** Cloud task branch */
   cloudBranch?: string | null;
   /** Number of session/prompt events to skip from polled logs (set during resume) */
