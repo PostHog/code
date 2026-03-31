@@ -40,6 +40,7 @@ export class SessionLogWriter {
   private lastFlushAttemptTime: Map<string, number> = new Map();
   private retryCounts: Map<string, number> = new Map();
   private sessions: Map<string, SessionState> = new Map();
+  private flushQueues: Map<string, Promise<void>> = new Map();
 
   private logger: Logger;
   private localCachePath?: string;
@@ -155,6 +156,19 @@ export class SessionLogWriter {
   }
 
   async flush(sessionId: string): Promise<void> {
+    // Serialize flushes per session
+    const prev = this.flushQueues.get(sessionId) ?? Promise.resolve();
+    const next = prev.catch(() => {}).then(() => this._doFlush(sessionId));
+    this.flushQueues.set(sessionId, next);
+    next.finally(() => {
+      if (this.flushQueues.get(sessionId) === next) {
+        this.flushQueues.delete(sessionId);
+      }
+    });
+    return next;
+  }
+
+  private async _doFlush(sessionId: string): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) {
       this.logger.warn("flush: no session found", { sessionId });
