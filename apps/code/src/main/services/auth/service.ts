@@ -242,6 +242,26 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       return this.refreshPromise;
     }
 
+    const sessionInput = this.getSessionInputForRefresh();
+
+    this.refreshPromise = this.refreshSession(sessionInput).finally(() => {
+      this.refreshPromise = null;
+    });
+
+    const session = await this.refreshPromise;
+    await this.syncAuthenticatedSession(session);
+    return session;
+  }
+
+  private getSessionInputForRefresh(): StoredSessionInput {
+    if (this.session) {
+      return {
+        refreshToken: this.session.refreshToken,
+        cloudRegion: this.session.cloudRegion,
+        selectedProjectId: this.session.projectId,
+      };
+    }
+
     const stored = this.authSessionRepository.getCurrent();
     if (!stored) {
       throw new Error("Not authenticated");
@@ -258,13 +278,7 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       throw new Error("Stored session is invalid");
     }
 
-    this.refreshPromise = this.refreshSession(storedSession).finally(() => {
-      this.refreshPromise = null;
-    });
-
-    const session = await this.refreshPromise;
-    await this.syncAuthenticatedSession(session);
-    return session;
+    return storedSession;
   }
 
   private async refreshSession(
