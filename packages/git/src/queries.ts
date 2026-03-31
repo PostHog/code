@@ -143,7 +143,7 @@ export async function getStatus(
   return manager.executeRead(
     baseDir,
     async (git) => {
-      const status = await git.status();
+      const status = await git.status(["--untracked-files=normal"]);
       return {
         isClean: status.isClean(),
         staged: status.staged,
@@ -164,7 +164,7 @@ export async function hasChanges(
   return manager.executeRead(
     baseDir,
     async (git) => {
-      const status = await git.status();
+      const status = await git.status(["--untracked-files=normal"]);
       return !status.isClean();
     },
     { signal: options?.abortSignal },
@@ -189,7 +189,7 @@ export async function getAheadBehind(
         return null;
       }
 
-      const status = await git.status();
+      const status = await git.status(["--untracked-files=no"]);
       return {
         aheadOfRemote: status.ahead,
         behind: status.behind,
@@ -339,7 +339,7 @@ export async function getChangedFiles(
           } catch {}
         }
 
-        const status = await git.status();
+        const status = await git.status(["--untracked-files=normal"]);
         for (const file of [
           ...status.modified,
           ...status.created,
@@ -430,7 +430,7 @@ export async function getChangedFilesDetailed(
       try {
         const [diffSummary, status] = await Promise.all([
           git.diffSummary(["-M", "HEAD"]),
-          git.status(),
+          git.status(["--untracked-files=normal"]),
         ]);
 
         const seenPaths = new Set<string>();
@@ -468,7 +468,10 @@ export async function getChangedFilesDetailed(
           if (hasFrom) seenPaths.add(file.from as string);
         }
 
+        const MAX_UNTRACKED_FILES = 10_000;
+        let untrackedProcessed = 0;
         for (const file of status.not_added) {
+          if (untrackedProcessed >= MAX_UNTRACKED_FILES) break;
           if (!seenPaths.has(file)) {
             if (
               excludePatterns &&
@@ -483,6 +486,7 @@ export async function getChangedFilesDetailed(
               linesAdded: lineCount,
               linesRemoved: 0,
             });
+            untrackedProcessed++;
           }
         }
 
@@ -664,7 +668,7 @@ export async function getSyncStatus(
     baseDir,
     async (git) => {
       try {
-        const status = await git.status();
+        const status = await git.status(["--untracked-files=no"]);
         const isDetached = status.detached || status.current === "HEAD";
         const currentBranch = isDetached ? null : status.current || null;
 
