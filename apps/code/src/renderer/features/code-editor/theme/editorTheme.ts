@@ -339,29 +339,61 @@ export const mergeViewTheme = EditorView.baseTheme({
       },
     },
   },
-  ".cm-collapsedLines": {
-    padding: "5px 5px 5px 10px",
-    cursor: "pointer",
-    "&:before": {
-      content: '"⦚"',
-      marginInlineEnd: "7px",
-    },
-    "&:after": {
-      content: '"⦚"',
-      marginInlineStart: "7px",
-    },
+  ".cm-collapsed-context": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    gap: "4px",
+    padding: "0 8px",
+    borderTop: "1px solid var(--gray-6)",
+    borderBottom: "1px solid var(--gray-6)",
+    fontSize: "12px",
+    lineHeight: "1",
+    userSelect: "none",
+    minHeight: "26px",
   },
-  "&light .cm-collapsedLines": {
+  "&light .cm-collapsed-context": {
+    background: "#e8e9e3",
     color: "#3a4036",
-    background:
-      "linear-gradient(to bottom, transparent 0, #e4e5de 30%, #e4e5de 70%, transparent 100%)",
   },
-  "&dark .cm-collapsedLines": {
-    color: "#e6e6e6",
-    background:
-      "linear-gradient(to bottom, transparent 0, #1e1e28 30%, #1e1e28 70%, transparent 100%)",
+  "&dark .cm-collapsed-context": {
+    background: "#1a1a24",
+    color: "#9898b6",
   },
-  ".cm-changeGutter": { width: "3px", paddingLeft: "1px" },
+  ".cm-collapsed-gutter-el": {
+    borderTop: "1px solid var(--gray-6)",
+    borderBottom: "1px solid var(--gray-6)",
+  },
+  "&light .cm-collapsed-gutter-el": {
+    background: "#e8e9e3",
+  },
+  "&dark .cm-collapsed-gutter-el": {
+    background: "#1a1a24",
+  },
+  ".cm-collapsed-expand-btn": {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "4px",
+    border: "none",
+    borderRadius: "3px",
+    cursor: "pointer",
+    padding: "3px 6px",
+    lineHeight: "0",
+    background: "transparent",
+    color: "inherit",
+    fontFamily: "inherit",
+    fontSize: "11px",
+    opacity: "0.6",
+    transition: "opacity 0.15s ease, background 0.15s ease",
+    "& span": {
+      lineHeight: "1",
+    },
+    "&:hover": {
+      opacity: "1",
+      background: "var(--gray-a4)",
+    },
+  },
+  ".cm-changeGutter": { width: "3px", paddingLeft: "0px" },
   "&light.cm-merge-a .cm-changedLineGutter, &light .cm-deletedLineGutter": {
     background: "#e43",
   },

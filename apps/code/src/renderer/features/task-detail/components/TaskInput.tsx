@@ -3,7 +3,13 @@ import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
 import { useFolders } from "@features/folders/hooks/useFolders";
 import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
+import { GitBranchDialog } from "@features/git-interaction/components/GitInteractionDialogs";
 import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
+import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
+import {
+  createBranch,
+  getBranchNameInputState,
+} from "@features/git-interaction/utils/branchCreation";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
 import { ModeIndicatorInput } from "@features/message-editor/components/ModeIndicatorInput";
 import { DropZoneOverlay } from "@features/sessions/components/DropZoneOverlay";
@@ -63,6 +69,7 @@ export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
 
   const [editorIsEmpty, setEditorIsEmpty] = useState(true);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const [selectedEnvironment, setSelectedEnvironmentRaw] = useState<
     string | null
@@ -102,6 +109,42 @@ export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
     useGithubBranches(githubIntegration?.id, selectedRepository);
   const cloudBranches = cloudBranchData?.branches;
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
+
+  const {
+    branchOpen,
+    branchName: newBranchName,
+    branchError,
+    actions: gitActions,
+  } = useGitInteractionStore();
+
+  const handleNewBranchNameChange = useCallback(
+    (value: string) => {
+      const { sanitized, error } = getBranchNameInputState(value);
+      gitActions.setBranchName(sanitized);
+      gitActions.setBranchError(error);
+    },
+    [gitActions],
+  );
+
+  const handleCreateBranch = useCallback(async () => {
+    setIsCreatingBranch(true);
+
+    try {
+      const result = await createBranch({
+        repoPath: selectedDirectory || undefined,
+        rawBranchName: newBranchName,
+      });
+      if (!result.success) {
+        gitActions.setBranchError(result.error);
+        return;
+      }
+
+      setSelectedBranch(result.branchName);
+      gitActions.closeBranch();
+    } finally {
+      setIsCreatingBranch(false);
+    }
+  }, [selectedDirectory, newBranchName, gitActions]);
 
   // Preview session provides adapter-specific config options
   const {
@@ -426,6 +469,18 @@ export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
           />
         </Flex>
       </Flex>
+
+      <GitBranchDialog
+        open={branchOpen}
+        onOpenChange={(open) => {
+          if (!open) gitActions.closeBranch();
+        }}
+        branchName={newBranchName}
+        onBranchNameChange={handleNewBranchNameChange}
+        onConfirm={handleCreateBranch}
+        isSubmitting={isCreatingBranch}
+        error={branchError}
+      />
     </div>
   );
 }

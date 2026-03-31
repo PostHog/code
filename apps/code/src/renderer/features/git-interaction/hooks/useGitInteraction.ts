@@ -11,11 +11,10 @@ import type {
   GitMenuActionId,
 } from "@features/git-interaction/types";
 import {
-  sanitizeBranchName,
-  validateBranchName,
-} from "@features/git-interaction/utils/branchNameValidation";
+  createBranch,
+  getBranchNameInputState,
+} from "@features/git-interaction/utils/branchCreation";
 import { getSuggestedBranchName } from "@features/git-interaction/utils/deriveBranchName";
-import { invalidateGitBranchQueries } from "@features/git-interaction/utils/gitCacheKeys";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
 import { trpc, trpcClient } from "@renderer/trpc";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
@@ -481,30 +480,25 @@ export function useGitInteraction(
   const runBranch = async () => {
     if (!repoPath) return;
 
-    const branchName = store.branchName.trim();
-    if (!branchName) {
-      modal.setBranchError("Branch name is required.");
-      return;
-    }
-
-    const validationError = validateBranchName(branchName);
-    if (validationError) {
-      modal.setBranchError(validationError);
-      return;
-    }
-
     modal.setIsSubmitting(true);
     modal.setBranchError(null);
 
     try {
-      await trpcClient.git.createBranch.mutate({
-        directoryPath: repoPath,
-        branchName,
+      const result = await createBranch({
+        repoPath,
+        rawBranchName: store.branchName,
       });
+      if (!result.success) {
+        if (result.reason === "request") {
+          log.error("Failed to create branch", result.rawError ?? result.error);
+          trackGitAction(taskId, "branch-here", false);
+        }
+
+        modal.setBranchError(result.error);
+        return;
+      }
 
       trackGitAction(taskId, "branch-here", true);
-
-      invalidateGitBranchQueries(repoPath);
       await queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter());
 
       modal.closeBranch();
@@ -548,9 +542,9 @@ export function useGitInteraction(
       setPrTitle: modal.setPrTitle,
       setPrBody: modal.setPrBody,
       setBranchName: (value: string) => {
-        const sanitized = sanitizeBranchName(value);
+        const { sanitized, error } = getBranchNameInputState(value);
         modal.setBranchName(sanitized);
-        modal.setBranchError(validateBranchName(sanitized));
+        modal.setBranchError(error);
       },
       runCommit,
       runPush,

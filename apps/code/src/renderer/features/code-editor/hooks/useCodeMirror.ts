@@ -9,6 +9,7 @@ import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
 import { trpcClient } from "@renderer/trpc/client";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
 import { useEffect, useRef } from "react";
+import { gradualCollapseUnchanged } from "./collapseUnchangedExtension";
 
 type EditorInstance = EditorView | MergeView;
 
@@ -75,21 +76,17 @@ const whitespaceIgnoringDiff = (a: string, b: string) => {
   });
 };
 
+const collapseExtension = (loadFullFiles?: boolean): Extension =>
+  loadFullFiles ? [] : gradualCollapseUnchanged({ margin: 3, minSize: 4 });
+
 const getBaseDiffConfig = (
-  options?: {
-    loadFullFiles?: boolean;
-    wordDiffs?: boolean;
-    hideWhitespaceChanges?: boolean;
-  },
+  hideWhitespaceChanges?: boolean,
   onReject?: () => void,
 ): Partial<Parameters<typeof unifiedMergeView>[0]> => ({
-  collapseUnchanged: options?.loadFullFiles
-    ? undefined
-    : { margin: 3, minSize: 4 },
   highlightChanges: false,
   gutter: true,
   mergeControls: createMergeControls(onReject),
-  diffConfig: options?.hideWhitespaceChanges
+  diffConfig: hideWhitespaceChanges
     ? { override: whitespaceIgnoringDiff }
     : undefined,
 });
@@ -114,11 +111,7 @@ export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
       });
     } else if (options.mode === "split") {
       const diffConfig = getBaseDiffConfig(
-        {
-          loadFullFiles: options.loadFullFiles,
-          wordDiffs: options.wordDiffs,
-          hideWhitespaceChanges: options.hideWhitespaceChanges,
-        },
+        options.hideWhitespaceChanges,
         options.onContentChange
           ? () => {
               if (instanceRef.current instanceof MergeView) {
@@ -141,6 +134,8 @@ export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
           })
         : [];
 
+      const collapse = collapseExtension(options.loadFullFiles);
+
       instanceRef.current = new MergeView({
         a: {
           doc: options.original,
@@ -148,6 +143,7 @@ export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
             ...options.extensions,
             EditorView.editable.of(false),
             EditorState.readOnly.of(true),
+            collapse,
           ],
         },
         b: {
@@ -157,6 +153,7 @@ export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
             ...(Array.isArray(updateListener)
               ? updateListener
               : [updateListener]),
+            collapse,
           ],
         },
         ...diffConfig,
@@ -165,11 +162,7 @@ export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
       });
     } else {
       const diffConfig = getBaseDiffConfig(
-        {
-          loadFullFiles: options.loadFullFiles,
-          wordDiffs: options.wordDiffs,
-          hideWhitespaceChanges: options.hideWhitespaceChanges,
-        },
+        options.hideWhitespaceChanges,
         options.onContentChange
           ? () => {
               if (instanceRef.current instanceof EditorView) {
@@ -188,6 +181,7 @@ export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
             original: options.original,
             ...diffConfig,
           }),
+          collapseExtension(options.loadFullFiles),
         ],
         parent: containerRef.current,
       });
