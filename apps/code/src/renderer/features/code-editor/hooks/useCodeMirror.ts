@@ -1,4 +1,8 @@
-import { MergeView, unifiedMergeView } from "@codemirror/merge";
+import {
+  diff as defaultDiff,
+  MergeView,
+  unifiedMergeView,
+} from "@codemirror/merge";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
@@ -23,6 +27,7 @@ interface DiffOptions extends UseCodeMirrorOptions {
   mode: "split" | "unified";
   loadFullFiles?: boolean;
   wordDiffs?: boolean;
+  hideWhitespaceChanges?: boolean;
   onContentChange?: (content: string) => void;
 }
 
@@ -61,8 +66,21 @@ const createMergeControls = (onReject?: () => void) => {
   };
 };
 
+const whitespaceIgnoringDiff = (a: string, b: string) => {
+  const changes = defaultDiff(a, b);
+  return changes.filter((change) => {
+    const textA = a.slice(change.fromA, change.toA);
+    const textB = b.slice(change.fromB, change.toB);
+    return textA.replace(/\s/g, "") !== textB.replace(/\s/g, "");
+  });
+};
+
 const getBaseDiffConfig = (
-  options?: { loadFullFiles?: boolean; wordDiffs?: boolean },
+  options?: {
+    loadFullFiles?: boolean;
+    wordDiffs?: boolean;
+    hideWhitespaceChanges?: boolean;
+  },
   onReject?: () => void,
 ): Partial<Parameters<typeof unifiedMergeView>[0]> => ({
   collapseUnchanged: options?.loadFullFiles
@@ -71,6 +89,9 @@ const getBaseDiffConfig = (
   highlightChanges: false,
   gutter: true,
   mergeControls: createMergeControls(onReject),
+  diffConfig: options?.hideWhitespaceChanges
+    ? { override: whitespaceIgnoringDiff }
+    : undefined,
 });
 
 export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
@@ -93,7 +114,11 @@ export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
       });
     } else if (options.mode === "split") {
       const diffConfig = getBaseDiffConfig(
-        { loadFullFiles: options.loadFullFiles, wordDiffs: options.wordDiffs },
+        {
+          loadFullFiles: options.loadFullFiles,
+          wordDiffs: options.wordDiffs,
+          hideWhitespaceChanges: options.hideWhitespaceChanges,
+        },
         options.onContentChange
           ? () => {
               if (instanceRef.current instanceof MergeView) {
@@ -140,7 +165,11 @@ export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
       });
     } else {
       const diffConfig = getBaseDiffConfig(
-        { loadFullFiles: options.loadFullFiles, wordDiffs: options.wordDiffs },
+        {
+          loadFullFiles: options.loadFullFiles,
+          wordDiffs: options.wordDiffs,
+          hideWhitespaceChanges: options.hideWhitespaceChanges,
+        },
         options.onContentChange
           ? () => {
               if (instanceRef.current instanceof EditorView) {

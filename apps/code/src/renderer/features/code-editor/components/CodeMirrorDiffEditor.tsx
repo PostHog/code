@@ -32,6 +32,12 @@ export function CodeMirrorDiffEditor({
   const toggleLoadFullFiles = useDiffViewerStore((s) => s.toggleLoadFullFiles);
   const wordDiffs = useDiffViewerStore((s) => s.wordDiffs);
   const toggleWordDiffs = useDiffViewerStore((s) => s.toggleWordDiffs);
+  const hideWhitespaceChanges = useDiffViewerStore(
+    (s) => s.hideWhitespaceChanges,
+  );
+  const toggleHideWhitespaceChanges = useDiffViewerStore(
+    (s) => s.toggleHideWhitespaceChanges,
+  );
   const extensions = useEditorExtensions(filePath, !onContentChange, true);
   const options = useMemo(
     () => ({
@@ -41,6 +47,7 @@ export function CodeMirrorDiffEditor({
       mode: viewMode,
       loadFullFiles,
       wordDiffs,
+      hideWhitespaceChanges,
       filePath,
       onContentChange,
     }),
@@ -51,6 +58,7 @@ export function CodeMirrorDiffEditor({
       viewMode,
       loadFullFiles,
       wordDiffs,
+      hideWhitespaceChanges,
       filePath,
       onContentChange,
     ],
@@ -125,6 +133,13 @@ export function CodeMirrorDiffEditor({
             <DropdownMenu.Item onSelect={toggleWordDiffs}>
               <Text size="1">
                 {wordDiffs ? "Disable word diffs" : "Enable word diffs"}
+              </Text>
+            </DropdownMenu.Item>
+            <DropdownMenu.Item onSelect={toggleHideWhitespaceChanges}>
+              <Text size="1">
+                {hideWhitespaceChanges
+                  ? "Show whitespace changes"
+                  : "Hide whitespace changes"}
               </Text>
             </DropdownMenu.Item>
 
