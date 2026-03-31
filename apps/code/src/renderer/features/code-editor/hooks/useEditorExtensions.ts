@@ -39,7 +39,7 @@ export function useEditorExtensions(
       theme,
       mergeViewTheme,
       EditorView.editable.of(!readOnly),
-      ...(readOnly ? [EditorState.readOnly.of(true)] : []),
+      ...(readOnly && !isDiff ? [EditorState.readOnly.of(true)] : []),
       ...(languageExtension ? [languageExtension] : []),
     ];
   }, [filePath, isDarkMode, readOnly, isDiff, wordWrap]);

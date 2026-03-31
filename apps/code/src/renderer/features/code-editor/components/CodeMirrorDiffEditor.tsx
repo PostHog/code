@@ -38,7 +38,7 @@ export function CodeMirrorDiffEditor({
   const toggleHideWhitespaceChanges = useDiffViewerStore(
     (s) => s.toggleHideWhitespaceChanges,
   );
-  const extensions = useEditorExtensions(filePath, !onContentChange, true);
+  const extensions = useEditorExtensions(filePath, true, true);
   const options = useMemo(
     () => ({
       original: originalContent,
