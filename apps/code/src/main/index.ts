@@ -93,6 +93,7 @@ app.whenReady().then(async () => {
   createWindow();
   await initializeServices();
   initializeDeepLinks();
+  await initializeServices();
   powerMonitor.on("suspend", () => {
     log.info("System entering sleep");
   });
