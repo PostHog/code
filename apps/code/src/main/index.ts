@@ -90,8 +90,8 @@ app.whenReady().then(async () => {
   );
   ensureClaudeConfigDir();
   registerMcpSandboxProtocol();
-  await initializeServices();
   createWindow();
+  await initializeServices();
   initializeDeepLinks();
   powerMonitor.on("suspend", () => {
     log.info("System entering sleep");
