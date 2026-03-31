@@ -58,6 +58,33 @@ export interface TaskRun {
   completed_at: string | null;
 }
 
+export type NetworkAccessLevel = "trusted" | "full" | "custom";
+
+export interface SandboxEnvironment {
+  id: string;
+  name: string;
+  network_access_level: NetworkAccessLevel;
+  allowed_domains: string[];
+  include_default_domains: boolean;
+  repositories: string[];
+  has_environment_variables: boolean;
+  private: boolean;
+  effective_domains: string[];
+  created_by?: UserBasic | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SandboxEnvironmentInput {
+  name: string;
+  network_access_level: NetworkAccessLevel;
+  allowed_domains?: string[];
+  include_default_domains?: boolean;
+  repositories?: string[];
+  environment_variables?: Record<string, string>;
+  private?: boolean;
+}
+
 export type CloudTaskUpdateKind = "logs" | "status" | "snapshot";
 
 export interface CloudTaskUpdatePayload {

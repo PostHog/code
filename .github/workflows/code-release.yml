@@ -124,12 +124,6 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: pnpm --filter code run publish
 
-      - name: Publish GitHub release
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          APP_VERSION: ${{ steps.version.outputs.version }}
-        run: gh release edit "v$APP_VERSION" --repo PostHog/code --draft=false
-
   publish-windows:
     runs-on: windows-latest
     permissions:
@@ -202,3 +196,28 @@ jobs:
           APP_VERSION: ${{ steps.version.outputs.version }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: pnpm --filter code run publish
+
+  finalize-release:
+    needs: [publish-macos, publish-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Get app token
+        id: app-token
+        uses: getsentry/action-github-app-token@d4b5da6c5e37703f8c3b3e43abb5705b46e159cc # v3
+        with:
+          app_id: ${{ secrets.GH_APP_ARRAY_RELEASER_APP_ID }}
+          private_key: ${{ secrets.GH_APP_ARRAY_RELEASER_PRIVATE_KEY }}
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_VERSION: ${{ steps.version.outputs.version }}
+        run: gh release edit "v$APP_VERSION" --repo PostHog/code --draft=false

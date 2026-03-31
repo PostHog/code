@@ -1,11 +1,10 @@
-import { getUserPromptsForTask } from "@features/sessions/stores/sessionStore";
 import { create } from "zustand";
 
 interface PromptHistoryStore {
   index: number;
   savedInput: string;
-  navigateUp: (taskId: string, currentInput: string) => string | null;
-  navigateDown: (taskId: string) => string | null;
+  navigateUp: (history: string[], currentInput: string) => string | null;
+  navigateDown: (history: string[]) => string | null;
   reset: () => void;
 }
 
@@ -13,8 +12,7 @@ export const usePromptHistoryStore = create<PromptHistoryStore>((set, get) => ({
   index: -1,
   savedInput: "",
 
-  navigateUp: (taskId, currentInput) => {
-    const history = getUserPromptsForTask(taskId);
+  navigateUp: (history, currentInput) => {
     if (history.length === 0) return null;
 
     const { index } = get();
@@ -31,11 +29,9 @@ export const usePromptHistoryStore = create<PromptHistoryStore>((set, get) => ({
     return history[history.length - 1 - newIndex] ?? null;
   },
 
-  navigateDown: (taskId) => {
+  navigateDown: (history) => {
     const { index, savedInput } = get();
     if (index === -1) return null;
-
-    const history = getUserPromptsForTask(taskId);
 
     if (index > 0) {
       const newIndex = index - 1;

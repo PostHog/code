@@ -16,49 +16,41 @@ vi.mock("../trpc", () => ({
 
 import { useSettingsStore } from "./settingsStore";
 
-describe("settingsStore terminal font", () => {
+describe("settingsStore sendMessagesWith", () => {
   beforeEach(() => {
     getItem.mockReset();
     setItem.mockReset();
     useSettingsStore.setState({
-      terminalFontFamily: "monospace",
-      terminalFontFamilyLoaded: false,
+      sendMessagesWith: "enter",
     });
   });
 
-  it("loads terminal font family from secure store", async () => {
-    getItem.mockResolvedValue("MesloLGL Nerd Font Mono");
+  it("loads sendMessagesWith from secure store", async () => {
+    getItem.mockResolvedValue("cmd+enter");
 
-    await useSettingsStore.getState().loadTerminalFontFamily();
+    await useSettingsStore.getState().loadSendMessagesWith();
 
-    expect(getItem).toHaveBeenCalledWith({ key: "terminalFontFamily" });
-    expect(useSettingsStore.getState().terminalFontFamily).toBe(
-      "MesloLGL Nerd Font Mono",
-    );
-    expect(useSettingsStore.getState().terminalFontFamilyLoaded).toBe(true);
+    expect(getItem).toHaveBeenCalledWith({ key: "sendMessagesWith" });
+    expect(useSettingsStore.getState().sendMessagesWith).toBe("cmd+enter");
   });
 
-  it("keeps default when no terminal font is stored", async () => {
+  it("keeps default when no value is stored", async () => {
     getItem.mockResolvedValue(null);
 
-    await useSettingsStore.getState().loadTerminalFontFamily();
+    await useSettingsStore.getState().loadSendMessagesWith();
 
-    expect(useSettingsStore.getState().terminalFontFamily).toBe("monospace");
-    expect(useSettingsStore.getState().terminalFontFamilyLoaded).toBe(true);
+    expect(useSettingsStore.getState().sendMessagesWith).toBe("enter");
   });
 
-  it("persists terminal font family updates", async () => {
+  it("persists sendMessagesWith updates", async () => {
     setItem.mockResolvedValue(undefined);
 
-    await useSettingsStore.getState().setTerminalFontFamily("JetBrains Mono");
+    await useSettingsStore.getState().setSendMessagesWith("cmd+enter");
 
     expect(setItem).toHaveBeenCalledWith({
-      key: "terminalFontFamily",
-      value: "JetBrains Mono",
+      key: "sendMessagesWith",
+      value: "cmd+enter",
     });
-    expect(useSettingsStore.getState().terminalFontFamily).toBe(
-      "JetBrains Mono",
-    );
-    expect(useSettingsStore.getState().terminalFontFamilyLoaded).toBe(true);
+    expect(useSettingsStore.getState().sendMessagesWith).toBe("cmd+enter");
   });
 });

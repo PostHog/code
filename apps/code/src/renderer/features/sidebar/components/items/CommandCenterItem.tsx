@@ -1,4 +1,4 @@
-import { SquaresFour } from "@phosphor-icons/react";
+import { Lightning } from "@phosphor-icons/react";
 import { SidebarItem } from "../SidebarItem";
 
 interface CommandCenterItemProps {
@@ -20,8 +20,8 @@ export function CommandCenterItem({
   return (
     <SidebarItem
       depth={0}
-      icon={<SquaresFour size={16} weight={isActive ? "fill" : "regular"} />}
-      label="Command center"
+      icon={<Lightning size={16} weight={isActive ? "fill" : "regular"} />}
+      label="Command Center"
       isActive={isActive}
       onClick={onClick}
       endContent={
@@ -29,7 +29,7 @@ export function CommandCenterItem({
           <span
             className="inline-flex min-w-[16px] items-center justify-center rounded-full px-1 text-[11px] text-gray-11 leading-none"
             style={{ height: "16px" }}
-            title={`${activeCount} active agents`}
+            title={`${activeCount} active`}
           >
             {formatActiveCount(activeCount)}
           </span>

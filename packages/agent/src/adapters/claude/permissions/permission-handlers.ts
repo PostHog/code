@@ -49,6 +49,7 @@ interface ToolHandlerContext {
   fileContentCache: { [key: string]: string };
   logger: Logger;
   updateConfigOption: (configId: string, value: string) => Promise<void>;
+  allowedDomains?: string[];
 }
 
 async function emitToolDenial(
@@ -422,10 +423,43 @@ function handlePlanFileException(
   };
 }
 
+function extractDomainFromUrl(url: string): string | null {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function isDomainAllowed(hostname: string, allowedDomains: string[]): boolean {
+  return allowedDomains.some((pattern) => {
+    if (pattern.startsWith("*.")) {
+      const suffix = pattern.slice(1); // ".example.com"
+      return hostname === pattern.slice(2) || hostname.endsWith(suffix);
+    }
+    return hostname === pattern;
+  });
+}
+
 export async function canUseTool(
   context: ToolHandlerContext,
 ): Promise<ToolPermissionResult> {
-  const { toolName, toolInput, session } = context;
+  const { toolName, toolInput, session, allowedDomains } = context;
+
+  // Enforce domain allowlist for web tools
+  if (allowedDomains && allowedDomains.length > 0) {
+    if (toolName === "WebFetch" || toolName === "WebSearch") {
+      const url = toolInput.url as string | undefined;
+      if (url) {
+        const hostname = extractDomainFromUrl(url);
+        if (hostname && !isDomainAllowed(hostname, allowedDomains)) {
+          const message = `Domain "${hostname}" is not in the allowed list: ${allowedDomains.join(", ")}`;
+          await emitToolDenial(context, message);
+          return { behavior: "deny", message, interrupt: false };
+        }
+      }
+    }
+  }
 
   if (isToolAllowedForMode(toolName, session.permissionMode)) {
     return {

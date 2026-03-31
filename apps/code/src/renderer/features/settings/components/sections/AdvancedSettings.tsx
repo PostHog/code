@@ -6,9 +6,8 @@ import { Button, Flex, Switch } from "@radix-ui/themes";
 import { clearApplicationStorage } from "@utils/clearStorage";
 
 export function AdvancedSettings() {
-  const showDebugLogsToggle = useFeatureFlag(
-    "posthog-code-background-agent-logs",
-  );
+  const showDebugLogsToggle =
+    useFeatureFlag("posthog-code-background-agent-logs") || import.meta.env.DEV;
   const debugLogsCloudRuns = useSettingsStore((s) => s.debugLogsCloudRuns);
   const setDebugLogsCloudRuns = useSettingsStore(
     (s) => s.setDebugLogsCloudRuns,

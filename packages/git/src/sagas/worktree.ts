@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { GitSaga, type GitSagaInput } from "../git-saga";
 import { addToLocalExclude, branchExists, getDefaultBranch } from "../queries";
 import { safeSymlink } from "../utils";
+import { processWorktreeInclude, runPostCheckoutHook } from "../worktree";
 
 export interface CreateWorktreeInput extends GitSagaInput {
   worktreePath: string;
@@ -35,7 +36,16 @@ export class CreateWorktreeSaga extends GitSaga<
     await this.step({
       name: "create-worktree",
       execute: () =>
-        this.git.raw(["worktree", "add", "-b", branchName, worktreePath, base]),
+        this.git.raw([
+          "-c",
+          "core.hooksPath=/dev/null",
+          "worktree",
+          "add",
+          "-b",
+          branchName,
+          worktreePath,
+          base,
+        ]),
       rollback: async () => {
         try {
           await this.git.raw(["worktree", "remove", worktreePath, "--force"]);
@@ -86,6 +96,18 @@ export class CreateWorktreeSaga extends GitSaga<
       },
     });
 
+    await this.step({
+      name: "process-worktree-include",
+      execute: () => processWorktreeInclude(baseDir, worktreePath),
+      rollback: async () => {},
+    });
+
+    await this.step({
+      name: "run-post-checkout-hook",
+      execute: () => runPostCheckoutHook(baseDir, worktreePath),
+      rollback: async () => {},
+    });
+
     return { worktreePath, branchName, baseBranch: base };
   }
 }
@@ -123,7 +145,14 @@ export class CreateWorktreeForBranchSaga extends GitSaga<
     await this.step({
       name: "create-worktree",
       execute: () =>
-        this.git.raw(["worktree", "add", worktreePath, branchName]),
+        this.git.raw([
+          "-c",
+          "core.hooksPath=/dev/null",
+          "worktree",
+          "add",
+          worktreePath,
+          branchName,
+        ]),
       rollback: async () => {
         try {
           await this.git.raw(["worktree", "remove", worktreePath, "--force"]);
@@ -169,6 +198,18 @@ export class CreateWorktreeForBranchSaga extends GitSaga<
         await fs.rm(targetClaudeDir, { force: true }).catch(() => {});
         await fs.rm(targetClaudeLocalMd, { force: true }).catch(() => {});
       },
+    });
+
+    await this.step({
+      name: "process-worktree-include",
+      execute: () => processWorktreeInclude(baseDir, worktreePath),
+      rollback: async () => {},
+    });
+
+    await this.step({
+      name: "run-post-checkout-hook",
+      execute: () => runPostCheckoutHook(baseDir, worktreePath),
+      rollback: async () => {},
     });
 
     return { worktreePath, branchName };

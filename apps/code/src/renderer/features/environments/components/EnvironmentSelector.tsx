@@ -4,7 +4,7 @@ import { HardDrives, Plus } from "@phosphor-icons/react";
 import { Flex, Tooltip } from "@radix-ui/themes";
 import { useTRPC } from "@renderer/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface EnvironmentSelectorProps {
   repoPath: string | null;
@@ -28,6 +28,12 @@ export function EnvironmentSelector({
     ...trpc.environment.list.queryOptions({ repoPath: repoPath ?? "" }),
     enabled: !!repoPath,
   });
+
+  useEffect(() => {
+    if (value === null && environments.length > 0) {
+      onChange(environments[0].id);
+    }
+  }, [value, environments, onChange]);
 
   const selectedEnvironment = environments.find((env) => env.id === value);
   const displayText = selectedEnvironment?.name ?? "No environment";

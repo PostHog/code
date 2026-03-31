@@ -210,17 +210,17 @@ function SidebarMenuComponent() {
           </Box>
 
           <Box mb="1">
-            <CommandCenterItem
-              isActive={sidebarData.isCommandCenterActive}
-              onClick={handleCommandCenterClick}
-              activeCount={commandCenterActiveCount}
+            <SkillsItem
+              isActive={sidebarData.isSkillsActive}
+              onClick={handleSkillsClick}
             />
           </Box>
 
           <Box mb="2">
-            <SkillsItem
-              isActive={sidebarData.isSkillsActive}
-              onClick={handleSkillsClick}
+            <CommandCenterItem
+              isActive={sidebarData.isCommandCenterActive}
+              onClick={handleCommandCenterClick}
+              activeCount={commandCenterActiveCount}
             />
           </Box>
 

@@ -60,6 +60,8 @@ function GridCell({
 
   const handleCellClick = useCallback(() => {
     setActiveTask(cell.taskId);
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) return;
     const actionSelector =
       cellRef.current?.querySelector<HTMLElement>("[tabindex='0']");
     actionSelector?.focus();
@@ -101,9 +103,7 @@ function GridCell({
     // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: click delegates focus to ActionSelector within
     <div
       ref={cellRef}
-      className={`relative overflow-hidden bg-gray-1 focus-within:ring-2 focus-within:ring-accent-9 focus-within:ring-inset ${
-        isActive ? "ring-2 ring-accent-9 ring-inset" : ""
-      }`}
+      className="relative overflow-hidden bg-gray-1"
       onClick={handleCellClick}
       onPointerDownCapture={handleCellPointerDownCapture}
       onFocusCapture={handleCellFocusCapture}
@@ -116,6 +116,9 @@ function GridCell({
       >
         <CommandCenterPanel cell={cell} isActiveSession={isActive} />
       </div>
+      {isActive && (
+        <div className="pointer-events-none absolute inset-0 border-2 border-accent-9" />
+      )}
       {isDragActive && (
         // biome-ignore lint/a11y/noStaticElementInteractions: transparent overlay to capture drag events over session content
         <div
