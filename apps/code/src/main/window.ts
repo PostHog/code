@@ -6,7 +6,10 @@ import { buildApplicationMenu } from "./menu";
 import { setMainWindowGetter } from "./trpc/context";
 import { trpcRouter } from "./trpc/router";
 import { isDevBuild } from "./utils/env";
+import { logger } from "./utils/logger";
 import { type WindowStateSchema, windowStateStore } from "./utils/store";
+
+const log = logger.scope("window");
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -63,8 +66,15 @@ export function getMainWindow(): BrowserWindow | null {
   return mainWindow;
 }
 
-export function focusMainWindow(): void {
+export function focusMainWindow(reason: string): void {
   if (mainWindow) {
+    log.info("focusMainWindow called", {
+      reason,
+      isMinimized: mainWindow.isMinimized(),
+      isFocused: mainWindow.isFocused(),
+      isVisible: mainWindow.isVisible(),
+      stack: new Error().stack,
+    });
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
   }

@@ -31,6 +31,7 @@ export class NotificationService {
     const notification = new Notification({ title, body, silent });
 
     notification.on("click", () => {
+      log.info("Notification clicked, focusing window", { title, taskId });
       const mainWindow = getMainWindow();
       if (mainWindow) {
         if (mainWindow.isMinimized()) {

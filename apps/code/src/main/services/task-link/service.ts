@@ -70,6 +70,7 @@ export class TaskLinkService extends TypedEventEmitter<TaskLinkEvents> {
     }
 
     // Focus the window
+    log.info("Deep link focusing window", { taskId, taskRunId });
     const mainWindow = getMainWindow();
     if (mainWindow) {
       if (mainWindow.isMinimized()) {
