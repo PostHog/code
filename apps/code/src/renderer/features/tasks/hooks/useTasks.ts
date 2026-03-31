@@ -29,15 +29,19 @@ const taskKeys = {
   detail: (id: string) => [...taskKeys.details(), id] as const,
 };
 
-export function useTasks(filters?: { repository?: string }) {
+export function useTasks(filters?: {
+  repository?: string;
+  showAllUsers?: boolean;
+}) {
   const { data: currentUser } = useMeQuery();
+  const createdBy = filters?.showAllUsers ? undefined : currentUser?.id;
 
   return useAuthenticatedQuery(
-    taskKeys.list({ ...filters, createdBy: currentUser?.id }),
+    taskKeys.list({ ...filters, createdBy }),
     (client) =>
       client.getTasks({
         repository: filters?.repository,
-        createdBy: currentUser?.id,
+        createdBy,
       }) as unknown as Promise<Task[]>,
     { enabled: !!currentUser?.id, refetchInterval: TASK_LIST_POLL_INTERVAL_MS },
   );

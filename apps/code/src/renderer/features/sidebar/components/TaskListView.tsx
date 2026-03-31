@@ -10,6 +10,8 @@ import {
   FolderOpenIcon,
   FolderSimple,
   FunnelSimple as FunnelSimpleIcon,
+  User,
+  Users,
 } from "@phosphor-icons/react";
 import { Box, Flex, Popover, Text } from "@radix-ui/themes";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
@@ -120,8 +122,10 @@ function TaskRow({
 function TaskFilterMenu() {
   const organizeMode = useSidebarStore((state) => state.organizeMode);
   const sortMode = useSidebarStore((state) => state.sortMode);
+  const showAllUsers = useSidebarStore((state) => state.showAllUsers);
   const setOrganizeMode = useSidebarStore((state) => state.setOrganizeMode);
   const setSortMode = useSidebarStore((state) => state.setSortMode);
+  const setShowAllUsers = useSidebarStore((state) => state.setShowAllUsers);
 
   const itemClassName =
     "flex w-full items-center justify-between rounded-sm px-1 py-1 text-left text-[13px] text-gray-12 transition-colors hover:bg-gray-3";
@@ -223,6 +227,51 @@ function TaskFilterMenu() {
               </button>
             </Box>
           </Box>
+
+          {import.meta.env.DEV && (
+            <>
+              <div className="my-0.25 border-gray-6 border-t" />
+
+              <Box>
+                <Text
+                  size="1"
+                  className="text-gray-10"
+                  weight="medium"
+                  style={{ paddingLeft: "1px" }}
+                >
+                  Show
+                </Text>
+                <Box mt="1">
+                  <button
+                    type="button"
+                    className={itemClassName}
+                    onClick={() => setShowAllUsers(false)}
+                  >
+                    <span className="flex items-center gap-1 text-gray-12">
+                      <User size={14} className="text-gray-12" />
+                      <span>My tasks</span>
+                    </span>
+                    {!showAllUsers && (
+                      <Check size={12} className="text-gray-12" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className={itemClassName}
+                    onClick={() => setShowAllUsers(true)}
+                  >
+                    <span className="flex items-center gap-1 text-gray-12">
+                      <Users size={14} className="text-gray-12" />
+                      <span>All tasks</span>
+                    </span>
+                    {showAllUsers && (
+                      <Check size={12} className="text-gray-12" />
+                    )}
+                  </button>
+                </Box>
+              </Box>
+            </>
+          )}
         </Flex>
       </Popover.Content>
     </Popover.Root>

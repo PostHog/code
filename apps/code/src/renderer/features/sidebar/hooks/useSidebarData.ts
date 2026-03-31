@@ -145,7 +145,10 @@ function groupByRepository(
 export function useSidebarData({
   activeView,
 }: UseSidebarDataProps): SidebarData {
-  const { data: rawTasks = [], isLoading: isLoadingTasks } = useTasks();
+  const showAllUsers = useSidebarStore((state) => state.showAllUsers);
+  const { data: rawTasks = [], isLoading: isLoadingTasks } = useTasks({
+    showAllUsers,
+  });
   const { data: workspaces, isFetched: isWorkspacesFetched } = useWorkspaces();
   const archivedTaskIds = useArchivedTaskIds();
   const suspendedTaskIds = useSuspendedTaskIds();
@@ -153,9 +156,11 @@ export function useSidebarData({
   const allTasks = useMemo(
     () =>
       rawTasks.filter(
-        (task) => !archivedTaskIds.has(task.id) && !!workspaces?.[task.id],
+        (task) =>
+          !archivedTaskIds.has(task.id) &&
+          (showAllUsers || !!workspaces?.[task.id]),
       ),
-    [rawTasks, archivedTaskIds, workspaces],
+    [rawTasks, archivedTaskIds, workspaces, showAllUsers],
   );
   const sessions = useSessions();
   const { timestamps } = useTaskViewed();

@@ -11,6 +11,7 @@ interface SidebarStoreState {
   historyVisibleCount: number;
   organizeMode: "by-project" | "chronological";
   sortMode: "updated" | "created";
+  showAllUsers: boolean;
 }
 
 interface SidebarStoreActions {
@@ -27,6 +28,7 @@ interface SidebarStoreActions {
   resetHistoryVisibleCount: () => void;
   setOrganizeMode: (mode: SidebarStoreState["organizeMode"]) => void;
   setSortMode: (mode: SidebarStoreState["sortMode"]) => void;
+  setShowAllUsers: (showAllUsers: boolean) => void;
 }
 
 type SidebarStore = SidebarStoreState & SidebarStoreActions;
@@ -43,6 +45,7 @@ export const useSidebarStore = create<SidebarStore>()(
       historyVisibleCount: 25,
       organizeMode: "by-project",
       sortMode: "updated",
+      showAllUsers: false,
       setOpen: (open) => set({ open, hasUserSetOpen: true }),
       setOpenAuto: (open) =>
         set((state) => (state.hasUserSetOpen ? state : { open })),
@@ -91,6 +94,7 @@ export const useSidebarStore = create<SidebarStore>()(
       resetHistoryVisibleCount: () => set({ historyVisibleCount: 25 }),
       setOrganizeMode: (organizeMode) => set({ organizeMode }),
       setSortMode: (sortMode) => set({ sortMode }),
+      setShowAllUsers: (showAllUsers) => set({ showAllUsers }),
     }),
     {
       name: "sidebar-storage",
@@ -103,6 +107,7 @@ export const useSidebarStore = create<SidebarStore>()(
         historyVisibleCount: state.historyVisibleCount,
         organizeMode: state.organizeMode,
         sortMode: state.sortMode,
+        showAllUsers: state.showAllUsers,
       }),
       merge: (persisted, current) => {
         const persistedState = persisted as {
@@ -114,6 +119,7 @@ export const useSidebarStore = create<SidebarStore>()(
           historyVisibleCount?: number;
           organizeMode?: SidebarStoreState["organizeMode"];
           sortMode?: SidebarStoreState["sortMode"];
+          showAllUsers?: boolean;
         };
         return {
           ...current,
@@ -127,6 +133,7 @@ export const useSidebarStore = create<SidebarStore>()(
             persistedState.historyVisibleCount ?? current.historyVisibleCount,
           organizeMode: persistedState.organizeMode ?? current.organizeMode,
           sortMode: persistedState.sortMode ?? current.sortMode,
+          showAllUsers: persistedState.showAllUsers ?? current.showAllUsers,
         };
       },
     },
