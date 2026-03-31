@@ -780,6 +780,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const meta = params._meta as NewSessionMeta | undefined;
     const taskId = meta?.persistence?.taskId;
     const effort = meta?.claudeCode?.options?.effort as EffortLevel | undefined;
+    const metaModel = meta?.claudeCode?.options?.model as string | undefined;
 
     // We want to create a new session id unless it is resume,
     // but not resume + forkSession.
@@ -919,10 +920,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       });
     }
 
-    // Resolve model: settings model takes priority, then gateway
+    // Resolve model: explicit UI selection takes priority, then settings, then gateway default
     const settingsModel = settingsManager.getSettings().model;
-    const modelOptions = await this.getModelConfigOptions();
-    const resolvedModelId = settingsModel || modelOptions.currentModelId;
+    const modelOptions = await this.getModelConfigOptions(metaModel);
+    const resolvedModelId =
+      metaModel || settingsModel || modelOptions.currentModelId;
     session.modelId = resolvedModelId;
     session.lastContextWindowSize =
       this.getContextWindowForModel(resolvedModelId);

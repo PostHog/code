@@ -548,6 +548,7 @@ export class SessionService {
       effort: effortLevelSchema.safeParse(reasoningLevel).success
         ? (reasoningLevel as EffortLevel)
         : undefined,
+      model,
     });
 
     const session = this.createBaseSession(taskRun.id, taskId, taskTitle);

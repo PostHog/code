@@ -78,6 +78,11 @@ export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
     null,
   );
 
+  // Track the user's explicit model selection independently of the preview
+  // session. The preview session's config can be reset (e.g. adapter change),
+  // which would lose the user's choice if we only read from the store.
+  const [selectedModel, setSelectedModel] = useState<string | null>(null);
+
   const [selectedDirectory, setSelectedDirectory] = useState("");
   const workspaceMode = lastUsedWorkspaceMode || "local";
   const adapter = lastUsedAdapter;
@@ -94,8 +99,10 @@ export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
       setLastUsedLocalWorkspaceMode(mode);
     }
   };
-  const setAdapter = (newAdapter: AgentAdapter) =>
+  const setAdapter = (newAdapter: AgentAdapter) => {
     setLastUsedAdapter(newAdapter);
+    setSelectedModel(null);
+  };
 
   const { githubIntegration, repositories, isLoadingRepos } =
     useRepositoryIntegration();
@@ -192,8 +199,11 @@ export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
 
   // Get current values from preview session config options for task creation.
   // Defaults ensure values are always passed even before the preview session loads.
-  const currentModel =
+  // Prefer the user's explicit selection (local state) over the preview session value,
+  // since the preview session's config can be transiently reset.
+  const previewModel =
     modelOption?.type === "select" ? modelOption.currentValue : undefined;
+  const currentModel = selectedModel ?? previewModel;
   const modeFallback =
     defaultInitialTaskMode === "last_used" ? lastUsedInitialTaskMode : "plan";
   const currentExecutionMode =
@@ -461,6 +471,7 @@ export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
             previewTaskId={previewTaskId}
             onAdapterChange={setAdapter}
             isPreviewConnecting={isConnecting}
+            onModelChange={setSelectedModel}
           />
 
           <ModeIndicatorInput

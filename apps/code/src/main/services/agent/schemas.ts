@@ -30,6 +30,8 @@ export const sessionConfigSchema = z.object({
   additionalDirectories: z.array(z.string()).optional(),
   /** Permission mode to use for the session (e.g. "default", "acceptEdits", "plan", "bypassPermissions") */
   permissionMode: z.string().optional(),
+  /** Preferred model ID for the session (e.g. "claude-sonnet-4-6") */
+  model: z.string().optional(),
 });
 
 export type SessionConfig = z.infer<typeof sessionConfigSchema>;
@@ -49,6 +51,7 @@ export const startSessionInput = z.object({
   additionalDirectories: z.array(z.string()).optional(),
   customInstructions: z.string().max(2000).optional(),
   effort: effortLevelSchema.optional(),
+  model: z.string().optional(),
 });
 
 export type StartSessionInput = z.infer<typeof startSessionInput>;

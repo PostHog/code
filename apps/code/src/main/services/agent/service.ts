@@ -189,6 +189,8 @@ interface SessionConfig {
   customInstructions?: string;
   /** Effort level for Claude sessions */
   effort?: EffortLevel;
+  /** Preferred model ID for the session (e.g. "claude-sonnet-4-6") */
+  model?: string;
 }
 
 interface ManagedSession {
@@ -465,6 +467,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       permissionMode,
       customInstructions,
       effort,
+      model,
     } = config;
 
     // Preview sessions don't need a real repo — use a temp directory
@@ -673,6 +676,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
               options: {
                 ...(additionalDirectories?.length && { additionalDirectories }),
                 ...(effort && { effort }),
+                ...(model && { model }),
                 plugins,
               },
             },
@@ -1362,6 +1366,7 @@ For git operations while detached:
       customInstructions:
         "customInstructions" in params ? params.customInstructions : undefined,
       effort: "effort" in params ? params.effort : undefined,
+      model: "model" in params ? params.model : undefined,
     };
   }
 
