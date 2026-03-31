@@ -14,7 +14,6 @@ import {
   createBranch,
   getBranchNameInputState,
 } from "@features/git-interaction/utils/branchCreation";
-import { getSuggestedBranchName } from "@features/git-interaction/utils/deriveBranchName";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
 import { trpc, trpcClient } from "@renderer/trpc";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
@@ -22,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { track } from "@utils/analytics";
 import { logger } from "@utils/logger";
 import { useMemo } from "react";
+import { getSuggestedBranchName } from "../utils/getSuggestedBranchName";
 
 const log = logger.scope("git-interaction");
 
@@ -167,7 +167,8 @@ export function useGitInteraction(
       publish: () => modal.openPush("publish"),
       "view-pr": () => viewPr(),
       "create-pr": () => openCreatePr(),
-      "branch-here": () => modal.openBranch(getSuggestedBranchName(taskId)),
+      "branch-here": () =>
+        modal.openBranch(getSuggestedBranchName(taskId, repoPath)),
     };
     actionMap[id]();
   };

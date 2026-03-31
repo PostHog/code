@@ -26,7 +26,6 @@ import { DiscardFileChangesSaga } from "@posthog/git/sagas/discard";
 import { PullSaga } from "@posthog/git/sagas/pull";
 import { PushSaga } from "@posthog/git/sagas/push";
 import { parseGitHubUrl } from "@posthog/git/utils";
-import { isCodeBranch } from "@shared/constants";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
@@ -229,8 +228,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
   }
 
   public async getAllBranches(directoryPath: string): Promise<string[]> {
-    const branches = await getAllBranches(directoryPath);
-    return branches.filter((branch) => !isCodeBranch(branch));
+    return getAllBranches(directoryPath);
   }
 
   public async createBranch(

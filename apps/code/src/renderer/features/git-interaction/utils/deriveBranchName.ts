@@ -1,5 +1,4 @@
-import type { Task } from "@shared/types";
-import { queryClient } from "@utils/queryClient";
+import { BRANCH_PREFIX } from "@shared/constants";
 
 export function deriveBranchName(title: string, fallbackId: string): string {
   const slug = title
@@ -11,21 +10,6 @@ export function deriveBranchName(title: string, fallbackId: string): string {
     .slice(0, 60)
     .replace(/-$/, "");
 
-  if (!slug) return `posthog/task-${fallbackId}`;
-  return `posthog/${slug}`;
-}
-
-export function getSuggestedBranchName(taskId: string): string {
-  const queries = queryClient.getQueriesData<Task[]>({
-    queryKey: ["tasks", "list"],
-  });
-  let task: Task | undefined;
-  for (const [, tasks] of queries) {
-    task = tasks?.find((t) => t.id === taskId);
-    if (task) break;
-  }
-  const fallbackId = task?.task_number
-    ? String(task.task_number)
-    : (task?.slug ?? taskId);
-  return deriveBranchName(task?.title ?? "", fallbackId);
+  if (!slug) return `${BRANCH_PREFIX}task-${fallbackId}`;
+  return `${BRANCH_PREFIX}${slug}`;
 }
