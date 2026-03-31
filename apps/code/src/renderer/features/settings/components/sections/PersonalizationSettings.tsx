@@ -85,7 +85,7 @@ export function PersonalizationSettings() {
         placeholder="e.g. Always write tests for new code. Prefer functional patterns."
         rows={6}
         size="1"
-        style={{ width: "100%", fontFamily: "var(--font-mono)" }}
+        style={{ width: "100%" }}
       />
       <Text size="1" color="gray" align="right">
         {localInstructions.length}/{MAX_INSTRUCTIONS_LENGTH}

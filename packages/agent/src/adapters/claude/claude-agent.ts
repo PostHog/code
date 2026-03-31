@@ -55,11 +55,20 @@ import {
   handleSystemMessage,
   handleUserAssistantMessage,
 } from "./conversion/sdk-to-acp";
-import { fetchMcpToolMetadata } from "./mcp/tool-metadata";
+import {
+  fetchMcpToolMetadata,
+  getConnectedMcpServerNames,
+} from "./mcp/tool-metadata";
 import { canUseTool } from "./permissions/permission-handlers";
 import { getAvailableSlashCommands } from "./session/commands";
 import { parseMcpServers } from "./session/mcp-config";
-import { DEFAULT_MODEL, toSdkModelId } from "./session/models";
+import {
+  DEFAULT_MODEL,
+  getEffortOptions,
+  resolveModelPreference,
+  supports1MContext,
+  toSdkModelId,
+} from "./session/models";
 import {
   buildSessionOptions,
   buildSystemPrompt,
@@ -79,8 +88,9 @@ import type {
   ToolUseCache,
 } from "./types";
 
-const SESSION_VALIDATION_TIMEOUT_MS = 10_000;
+const SESSION_VALIDATION_TIMEOUT_MS = 30_000;
 const MAX_TITLE_LENGTH = 256;
+const LOCAL_ONLY_COMMANDS = new Set(["/context", "/heapdump", "/extra-usage"]);
 
 function sanitizeTitle(text: string): string {
   const sanitized = text
@@ -96,6 +106,7 @@ function sanitizeTitle(text: string): string {
 export interface ClaudeAcpAgentOptions {
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
   onProcessExited?: (pid: number) => void;
+  onMcpServersReady?: (serverNames: string[]) => void;
 }
 
 export class ClaudeAcpAgent extends BaseAcpAgent {
@@ -186,6 +197,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   async unstable_resumeSession(
     params: ResumeSessionRequest,
   ): Promise<ResumeSessionResponse> {
+    // Reuse existing session if it matches
+    const existing = this.getExistingSessionState(params.sessionId);
+    if (existing) return existing;
+
     const response = await this.createSession(
       {
         cwd: params.cwd,
@@ -201,6 +216,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   }
 
   async loadSession(params: LoadSessionRequest): Promise<LoadSessionResponse> {
+    // Reuse existing session if it matches
+    const existing = this.getExistingSessionState(params.sessionId);
+    if (existing) return existing;
+
     const response = await this.createSession(
       {
         cwd: params.cwd,
@@ -222,7 +241,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     };
   }
 
-  async unstable_listSessions(
+  async listSessions(
     params: ListSessionsRequest,
   ): Promise<ListSessionsResponse> {
     const sdkSessions = await listSessions({ dir: params.cwd ?? undefined });
@@ -242,6 +261,12 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     };
   }
 
+  async unstable_listSessions(
+    params: ListSessionsRequest,
+  ): Promise<ListSessionsResponse> {
+    return this.listSessions(params);
+  }
+
   async prompt(params: PromptRequest): Promise<PromptResponse> {
     this.session.cancelled = false;
     this.session.interruptReason = undefined;
@@ -253,18 +278,40 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     };
 
     const userMessage = promptToClaude(params);
+    const promptUuid = randomUUID();
+    userMessage.uuid = promptUuid;
+    let promptReplayed = false;
+    let isLocalOnlyCommand = false;
+
+    // Detect local-only slash commands that return results without model invocation
+    const msgContent = userMessage.message.content;
+    let firstTextPart = "";
+    if (typeof msgContent === "string") {
+      firstTextPart = msgContent;
+    } else if (Array.isArray(msgContent)) {
+      for (const block of msgContent) {
+        if ("type" in block && block.type === "text" && "text" in block) {
+          firstTextPart = block.text as string;
+          break;
+        }
+      }
+    }
+    const commandMatch = firstTextPart.match(/^(\/\S+)/);
+    if (commandMatch && LOCAL_ONLY_COMMANDS.has(commandMatch[1])) {
+      isLocalOnlyCommand = true;
+      promptReplayed = true;
+    }
 
     if (this.session.promptRunning) {
-      const uuid = randomUUID();
-      userMessage.uuid = uuid;
       this.session.input.push(userMessage);
       const order = this.session.nextPendingOrder++;
       const cancelled = await new Promise<boolean>((resolve) => {
-        this.session.pendingMessages.set(uuid, { resolve, order });
+        this.session.pendingMessages.set(promptUuid, { resolve, order });
       });
       if (cancelled) {
         return { stopReason: "cancelled" };
       }
+      promptReplayed = true;
     } else {
       this.session.input.push(userMessage);
     }
@@ -275,6 +322,16 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     this.session.promptRunning = true;
     let handedOff = false;
     let lastAssistantTotalUsage: number | null = null;
+    if (this.session.lastContextWindowSize == null) {
+      this.session.lastContextWindowSize = this.getContextWindowForModel(
+        this.session.modelId ?? "",
+      );
+      this.logger.debug("Initial context window size from gateway", {
+        modelId: this.session.modelId,
+        contextWindowSize: this.session.lastContextWindowSize,
+      });
+    }
+    let lastContextWindowSize = this.session.lastContextWindowSize;
 
     const supportsTerminalOutput =
       (
@@ -313,11 +370,24 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
           case "system":
             if (message.subtype === "compact_boundary") {
               lastAssistantTotalUsage = 0;
+              promptReplayed = true;
+            }
+            if (message.subtype === "local_command_output") {
+              promptReplayed = true;
             }
             await handleSystemMessage(message, context);
             break;
 
           case "result": {
+            // Skip results from background tasks that finished after our prompt started
+            if (!promptReplayed) {
+              this.logger.debug(
+                "Skipping background task result before prompt replay",
+                { sessionId: params.sessionId },
+              );
+              break;
+            }
+
             if (this.session.cancelled) {
               return { stopReason: "cancelled" };
             }
@@ -332,12 +402,28 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
             this.session.accumulatedUsage.cachedWriteTokens +=
               message.usage.cache_creation_input_tokens;
 
-            // Calculate context window size from modelUsage (minimum across all models used)
+            // SDK can underreport context window (e.g. 200k for 1M models).
+            // Use SDK value only if it's larger than what gateway reported.
             const contextWindows = Object.values(message.modelUsage).map(
               (m) => m.contextWindow,
             );
-            const contextWindowSize =
-              contextWindows.length > 0 ? Math.min(...contextWindows) : 200000;
+            if (contextWindows.length > 0) {
+              const sdkContextWindow = Math.min(...contextWindows);
+              if (sdkContextWindow > lastContextWindowSize) {
+                lastContextWindowSize = sdkContextWindow;
+              }
+            }
+            this.session.lastContextWindowSize = lastContextWindowSize;
+            this.logger.debug("Context window size from result", {
+              sdkReported: contextWindows,
+              resolved: lastContextWindowSize,
+              modelId: this.session.modelId,
+            });
+
+            this.session.contextSize = lastContextWindowSize;
+            if (lastAssistantTotalUsage !== null) {
+              this.session.contextUsed = lastAssistantTotalUsage;
+            }
 
             // Send usage_update notification
             if (lastAssistantTotalUsage !== null) {
@@ -346,7 +432,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
                 update: {
                   sessionUpdate: "usage_update",
                   used: lastAssistantTotalUsage,
-                  size: contextWindowSize,
+                  size: lastContextWindowSize,
                   cost: {
                     amount: message.total_cost_usd,
                     currency: "USD",
@@ -382,6 +468,21 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
             const result = handleResultMessage(message);
             if (result.error) throw result.error;
 
+            // For local-only commands, forward the result text to the client
+            if (
+              isLocalOnlyCommand &&
+              message.subtype === "success" &&
+              message.result
+            ) {
+              await this.client.sessionUpdate({
+                sessionId: params.sessionId,
+                update: {
+                  sessionUpdate: "agent_message_chunk",
+                  content: { type: "text", text: message.result },
+                },
+              });
+            }
+
             return { stopReason: result.stopReason ?? "end_turn", usage };
           }
 
@@ -395,8 +496,13 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
               break;
             }
 
-            // Check for queued prompt replay
+            // Check for prompt replay (our own message echoed back)
             if (message.type === "user" && "uuid" in message && message.uuid) {
+              if (message.uuid === promptUuid) {
+                promptReplayed = true;
+                break;
+              }
+
               const pending = this.session.pendingMessages.get(
                 message.uuid as string,
               );
@@ -433,9 +539,18 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
               };
               lastAssistantTotalUsage =
                 usage.input_tokens +
-                usage.output_tokens +
                 usage.cache_read_input_tokens +
                 usage.cache_creation_input_tokens;
+
+              await this.client.sessionUpdate({
+                sessionId: params.sessionId,
+                update: {
+                  sessionUpdate: "usage_update",
+                  used: lastAssistantTotalUsage,
+                  size: lastContextWindowSize,
+                  cost: null,
+                },
+              });
             }
 
             const result = await handleUserAssistantMessage(message, context);
@@ -474,6 +589,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         this.logger.error(`Process died: ${msg}`, {
           sessionId: this.sessionId,
         });
+        this.session.settingsManager.dispose();
         this.session.input.end();
         throw RequestError.internalError(
           undefined,
@@ -506,9 +622,12 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   async unstable_setSessionModel(
     params: SetSessionModelRequest,
   ): Promise<SetSessionModelResponse | undefined> {
-    const sdkModelId = toSdkModelId(params.modelId);
-    await this.session.query.setModel(sdkModelId);
+    await this.session.query.setModel(toSdkModelId(params.modelId));
     this.session.modelId = params.modelId;
+    this.session.lastContextWindowSize = this.getContextWindowForModel(
+      params.modelId,
+    );
+    this.rebuildEffortConfigOption(params.modelId);
     await this.updateConfigOption("model", params.modelId);
     return {};
   }
@@ -531,42 +650,72 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       throw new Error(`Unknown config option: ${params.configId}`);
     }
 
-    const allValues: { value: string }[] =
+    if (typeof params.value !== "string") {
+      throw new Error(
+        `Invalid value type for config option ${params.configId}`,
+      );
+    }
+
+    const allValues: { value: string; name?: string; description?: string }[] =
       "options" in option && Array.isArray(option.options)
         ? (option.options as Array<Record<string, unknown>>).flatMap((o) =>
             "options" in o && Array.isArray(o.options)
-              ? (o.options as { value: string }[])
-              : [o as { value: string }],
+              ? (o.options as {
+                  value: string;
+                  name?: string;
+                  description?: string;
+                }[])
+              : [o as { value: string; name?: string; description?: string }],
           )
         : [];
-    const validValue = allValues.find((o) => o.value === params.value);
+    let validValue = allValues.find((o) => o.value === params.value);
+
+    // For model options, fall back to alias resolution when exact match fails.
+    // This lets callers use human-friendly aliases like "opus" or "sonnet"
+    // instead of full model IDs like "claude-opus-4-6".
+    if (!validValue && params.configId === "model") {
+      const resolved = resolveModelPreference(params.value, allValues);
+      if (resolved) {
+        validValue = allValues.find((o) => o.value === resolved);
+      }
+    }
+
     if (!validValue) {
       throw new Error(
         `Invalid value for config option ${params.configId}: ${params.value}`,
       );
     }
 
+    // Use the canonical option value so downstream code always receives the
+    // model ID rather than the caller-supplied alias.
+    const resolvedValue = validValue.value;
+
     if (params.configId === "mode") {
-      await this.applySessionMode(params.value);
+      await this.applySessionMode(resolvedValue);
       await this.client.sessionUpdate({
         sessionId: this.sessionId,
         update: {
           sessionUpdate: "current_mode_update",
-          currentModeId: params.value,
+          currentModeId: resolvedValue,
         },
       });
     } else if (params.configId === "model") {
-      const sdkModelId = toSdkModelId(params.value);
+      const sdkModelId = toSdkModelId(resolvedValue);
       await this.session.query.setModel(sdkModelId);
-      this.session.modelId = params.value;
+      this.session.modelId = resolvedValue;
+      this.session.lastContextWindowSize =
+        this.getContextWindowForModel(resolvedValue);
+      this.rebuildEffortConfigOption(resolvedValue);
     } else if (params.configId === "effort") {
-      const newEffort = params.value as EffortLevel;
+      const newEffort = resolvedValue as EffortLevel;
       this.session.effort = newEffort;
       this.session.queryOptions.effort = newEffort;
     }
 
     this.session.configOptions = this.session.configOptions.map((o) =>
-      o.id === params.configId ? { ...o, currentValue: params.value } : o,
+      o.id === params.configId && typeof o.currentValue === "string"
+        ? { ...o, currentValue: resolvedValue }
+        : o,
     );
 
     return { configOptions: this.session.configOptions };
@@ -577,7 +726,9 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     value: string,
   ): Promise<void> {
     this.session.configOptions = this.session.configOptions.map((o) =>
-      o.id === configId ? { ...o, currentValue: value } : o,
+      o.id === configId && typeof o.currentValue === "string"
+        ? { ...o, currentValue: value }
+        : o,
     );
 
     await this.client.sessionUpdate({
@@ -666,14 +817,17 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       cwd,
       mcpServers,
       permissionMode,
-      canUseTool: this.createCanUseTool(sessionId),
+      canUseTool: this.createCanUseTool(sessionId, meta?.allowedDomains),
       logger: this.logger,
       systemPrompt,
       userProvidedOptions: meta?.claudeCode?.options,
       sessionId,
       isResume,
       forkSession,
-      additionalDirectories: meta?.claudeCode?.options?.additionalDirectories,
+      additionalDirectories: [
+        ...(meta?.claudeCode?.options?.additionalDirectories ?? []),
+        ...(meta?.additionalRoots ?? []),
+      ],
       disableBuiltInTools: meta?.disableBuiltInTools,
       settingsManager,
       onModeChange: this.createOnModeChange(),
@@ -770,12 +924,16 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const modelOptions = await this.getModelConfigOptions();
     const resolvedModelId = settingsModel || modelOptions.currentModelId;
     session.modelId = resolvedModelId;
+    session.lastContextWindowSize =
+      this.getContextWindowForModel(resolvedModelId);
 
-    if (!isResume) {
-      const resolvedSdkModel = toSdkModelId(resolvedModelId);
-      if (resolvedSdkModel !== DEFAULT_MODEL) {
-        await this.session.query.setModel(resolvedSdkModel);
-      }
+    const resolvedSdkModel = toSdkModelId(resolvedModelId);
+    if (!isResume && resolvedSdkModel !== DEFAULT_MODEL) {
+      await this.session.query.setModel(resolvedSdkModel);
+    }
+
+    if (supports1MContext(resolvedModelId)) {
+      options.betas = ["context-1m-2025-08-07"];
     }
 
     const availableModes = getAvailableModes();
@@ -824,7 +982,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     return { sessionId, modes, models, configOptions };
   }
 
-  private createCanUseTool(sessionId: string): CanUseTool {
+  private createCanUseTool(
+    sessionId: string,
+    allowedDomains?: string[],
+  ): CanUseTool {
     return async (toolName, toolInput, { suggestions, toolUseID, signal }) =>
       canUseTool({
         session: this.session,
@@ -839,6 +1000,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         logger: this.logger,
         updateConfigOption: (configId: string, value: string) =>
           this.updateConfigOption(configId, value),
+        allowedDomains,
       });
   }
 
@@ -848,6 +1010,50 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         this.session.permissionMode = newMode;
       }
       await this.updateConfigOption("mode", newMode);
+    };
+  }
+
+  private getExistingSessionState(
+    sessionId: string,
+  ): NewSessionResponse | null {
+    if (this.sessionId !== sessionId || !this.session) return null;
+
+    const availableModes = getAvailableModes();
+    const modes: SessionModeState = {
+      currentModeId: this.session.permissionMode,
+      availableModes: availableModes.map((mode) => ({
+        id: mode.id,
+        name: mode.name,
+        description: mode.description ?? undefined,
+      })),
+    };
+
+    const modelOptions = this.session.configOptions.find(
+      (o) => o.id === "model",
+    );
+    const models: SessionModelState = {
+      currentModelId: this.session.modelId ?? DEFAULT_MODEL,
+      availableModels:
+        modelOptions && "options" in modelOptions
+          ? (
+              modelOptions.options as Array<{
+                value: string;
+                name: string;
+                description?: string;
+              }>
+            ).map((opt) => ({
+              modelId: opt.value,
+              name: opt.name,
+              description: opt.description,
+            }))
+          : [],
+    };
+
+    return {
+      sessionId,
+      modes,
+      models,
+      configOptions: this.session.configOptions,
     };
   }
 
@@ -865,7 +1071,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       description: mode.description ?? undefined,
     }));
 
-    return [
+    const configOptions: SessionConfigOption[] = [
       {
         id: "mode",
         name: "Approval Preset",
@@ -885,21 +1091,69 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         category: "model" as SessionConfigOptionCategory,
         description: "Choose which model Claude should use",
       },
-      {
+    ];
+
+    const effortOptions = getEffortOptions(modelOptions.currentModelId);
+    if (effortOptions) {
+      configOptions.push({
         id: "effort",
         name: "Effort",
         type: "select",
         currentValue: currentEffort,
-        options: [
-          { value: "low", name: "Low" },
-          { value: "medium", name: "Medium" },
-          { value: "high", name: "High" },
-          { value: "max", name: "Max" },
-        ],
+        options: effortOptions,
         category: "thought_level" as SessionConfigOptionCategory,
         description: "Controls how much effort Claude puts into its response",
-      },
-    ];
+      });
+    }
+
+    return configOptions;
+  }
+
+  private rebuildEffortConfigOption(modelId: string): void {
+    const effortOptions = getEffortOptions(modelId);
+    const existingEffort = this.session.configOptions.find(
+      (o) => o.id === "effort",
+    );
+
+    if (!effortOptions) {
+      this.session.configOptions = this.session.configOptions.filter(
+        (o) => o.id !== "effort",
+      );
+      if (this.session.effort) {
+        this.session.effort = undefined;
+        this.session.queryOptions.effort = undefined;
+      }
+      return;
+    }
+
+    const rawCurrentValue = existingEffort?.currentValue;
+    const currentValue =
+      typeof rawCurrentValue === "string" ? rawCurrentValue : "high";
+    const isValidValue = effortOptions.some((o) => o.value === currentValue);
+    const resolvedValue = isValidValue ? currentValue : "high";
+
+    if (resolvedValue !== currentValue && this.session.effort) {
+      this.session.effort = resolvedValue as EffortLevel;
+      this.session.queryOptions.effort = resolvedValue as EffortLevel;
+    }
+
+    const effortConfig: SessionConfigOption = {
+      id: "effort",
+      name: "Effort",
+      type: "select",
+      currentValue: resolvedValue,
+      options: effortOptions,
+      category: "thought_level" as SessionConfigOptionCategory,
+      description: "Controls how much effort Claude puts into its response",
+    };
+
+    if (existingEffort) {
+      this.session.configOptions = this.session.configOptions.map((o) =>
+        o.id === "effort" ? effortConfig : o,
+      );
+    } else {
+      this.session.configOptions.push(effortConfig);
+    }
   }
 
   private async sendAvailableCommandsUpdate(): Promise<void> {
@@ -960,11 +1214,17 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
    * Both populate caches used later — neither is needed to return configOptions.
    */
   private deferBackgroundFetches(q: Query): void {
+    this.logger.info("Starting background fetches (commands + MCP metadata)");
     Promise.all([
       new Promise<void>((resolve) => setTimeout(resolve, 10)).then(() =>
         this.sendAvailableCommandsUpdate(),
       ),
-      fetchMcpToolMetadata(q, this.logger),
+      fetchMcpToolMetadata(q, this.logger).then(() => {
+        const serverNames = getConnectedMcpServerNames();
+        if (serverNames.length > 0) {
+          this.options?.onMcpServersReady?.(serverNames);
+        }
+      }),
     ]).catch((err) =>
       this.logger.error("Background fetch failed", { error: err }),
     );

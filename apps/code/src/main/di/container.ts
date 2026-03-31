@@ -1,17 +1,21 @@
 import "reflect-metadata";
+
 import { Container } from "inversify";
 import { ArchiveRepository } from "../db/repositories/archive-repository";
 import { RepositoryRepository } from "../db/repositories/repository-repository";
+import { SuspensionRepositoryImpl } from "../db/repositories/suspension-repository";
 import { WorkspaceRepository } from "../db/repositories/workspace-repository";
 import { WorktreeRepository } from "../db/repositories/worktree-repository";
 import { DatabaseService } from "../db/service";
 import { AgentService } from "../services/agent/service";
 import { AppLifecycleService } from "../services/app-lifecycle/service";
 import { ArchiveService } from "../services/archive/service";
+import { AuthProxyService } from "../services/auth-proxy/service";
 import { CloudTaskService } from "../services/cloud-task/service";
 import { ConnectivityService } from "../services/connectivity/service";
 import { ContextMenuService } from "../services/context-menu/service";
 import { DeepLinkService } from "../services/deep-link/service";
+import { EnvironmentService } from "../services/environment/service";
 import { ExternalAppsService } from "../services/external-apps/service";
 import { FileWatcherService } from "../services/file-watcher/service";
 import { FocusService } from "../services/focus/service";
@@ -20,15 +24,19 @@ import { FoldersService } from "../services/folders/service";
 import { FsService } from "../services/fs/service";
 import { GitService } from "../services/git/service";
 import { GitHubIntegrationService } from "../services/github-integration/service";
+import { LinearIntegrationService } from "../services/linear-integration/service";
 import { LlmGatewayService } from "../services/llm-gateway/service";
+import { McpAppsService } from "../services/mcp-apps/service";
 import { McpCallbackService } from "../services/mcp-callback/service";
 import { NotificationService } from "../services/notification/service";
 import { OAuthService } from "../services/oauth/service";
 import { PosthogPluginService } from "../services/posthog-plugin/service";
 import { ProcessTrackingService } from "../services/process-tracking/service";
+import { ProvisioningService } from "../services/provisioning/service";
 import { settingsStore } from "../services/settingsStore";
 import { ShellService } from "../services/shell/service";
 import { SleepService } from "../services/sleep/service";
+import { SuspensionService } from "../services/suspension/service";
 import { TaskLinkService } from "../services/task-link/service";
 import { UIService } from "../services/ui/service";
 import { UpdatesService } from "../services/updates/service";
@@ -45,16 +53,22 @@ container.bind(MAIN_TOKENS.RepositoryRepository).to(RepositoryRepository);
 container.bind(MAIN_TOKENS.WorkspaceRepository).to(WorkspaceRepository);
 container.bind(MAIN_TOKENS.WorktreeRepository).to(WorktreeRepository);
 container.bind(MAIN_TOKENS.ArchiveRepository).to(ArchiveRepository);
+container.bind(MAIN_TOKENS.SuspensionRepository).to(SuspensionRepositoryImpl);
 container.bind(MAIN_TOKENS.AgentService).to(AgentService);
+container.bind(MAIN_TOKENS.AuthProxyService).to(AuthProxyService);
 container.bind(MAIN_TOKENS.ArchiveService).to(ArchiveService);
+container.bind(MAIN_TOKENS.SuspensionService).to(SuspensionService);
 container.bind(MAIN_TOKENS.AppLifecycleService).to(AppLifecycleService);
 container.bind(MAIN_TOKENS.CloudTaskService).to(CloudTaskService);
 container.bind(MAIN_TOKENS.ConnectivityService).to(ConnectivityService);
 container.bind(MAIN_TOKENS.ContextMenuService).to(ContextMenuService);
 container.bind(MAIN_TOKENS.DeepLinkService).to(DeepLinkService);
+container.bind(MAIN_TOKENS.EnvironmentService).to(EnvironmentService);
+container.bind(MAIN_TOKENS.ProvisioningService).to(ProvisioningService);
 
 container.bind(MAIN_TOKENS.ExternalAppsService).to(ExternalAppsService);
 container.bind(MAIN_TOKENS.LlmGatewayService).to(LlmGatewayService);
+container.bind(MAIN_TOKENS.McpAppsService).to(McpAppsService);
 container.bind(MAIN_TOKENS.FileWatcherService).to(FileWatcherService);
 container.bind(MAIN_TOKENS.FocusService).to(FocusService);
 container.bind(MAIN_TOKENS.FocusSyncService).to(FocusSyncService);
@@ -64,6 +78,9 @@ container
   .bind(MAIN_TOKENS.GitHubIntegrationService)
   .to(GitHubIntegrationService);
 container.bind(MAIN_TOKENS.GitService).to(GitService);
+container
+  .bind(MAIN_TOKENS.LinearIntegrationService)
+  .to(LinearIntegrationService);
 container.bind(MAIN_TOKENS.McpCallbackService).to(McpCallbackService);
 container.bind(MAIN_TOKENS.NotificationService).to(NotificationService);
 container.bind(MAIN_TOKENS.OAuthService).to(OAuthService);

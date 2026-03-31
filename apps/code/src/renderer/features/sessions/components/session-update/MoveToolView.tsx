@@ -29,9 +29,14 @@ export function MoveToolView({
       wasCancelled={wasCancelled}
     >
       {title ||
-        (sourcePath && destPath
-          ? `Move ${getFilename(sourcePath)} → ${getFilename(destPath)}`
-          : "Move file")}
+        (sourcePath && destPath ? (
+          <>
+            Move <span className="font-mono">{getFilename(sourcePath)}</span> →{" "}
+            <span className="font-mono">{getFilename(destPath)}</span>
+          </>
+        ) : (
+          "Move file"
+        ))}
     </ToolRow>
   );
 }

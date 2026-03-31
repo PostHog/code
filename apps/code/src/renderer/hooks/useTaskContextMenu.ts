@@ -1,3 +1,4 @@
+import { useSuspendTask } from "@features/suspension/hooks/useSuspendTask";
 import { useArchiveTask } from "@features/tasks/hooks/useArchiveTask";
 import { useDeleteTask } from "@features/tasks/hooks/useTasks";
 import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
@@ -13,6 +14,7 @@ export function useTaskContextMenu() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const { deleteWithConfirm } = useDeleteTask();
   const { archiveTask } = useArchiveTask();
+  const { suspendTask } = useSuspendTask();
 
   const showContextMenu = useCallback(
     async (
@@ -45,6 +47,9 @@ export function useTaskContextMenu() {
           case "pin":
             onTogglePin?.();
             break;
+          case "suspend":
+            await suspendTask({ taskId: task.id, reason: "manual" });
+            break;
           case "archive":
             await archiveTask({ taskId: task.id });
             break;
@@ -74,7 +79,7 @@ export function useTaskContextMenu() {
         log.error("Failed to show context menu", error);
       }
     },
-    [deleteWithConfirm, archiveTask],
+    [deleteWithConfirm, archiveTask, suspendTask],
   );
 
   return {

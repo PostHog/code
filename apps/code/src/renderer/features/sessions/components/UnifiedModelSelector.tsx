@@ -50,16 +50,19 @@ export function UnifiedModelSelector({
   const session = useSessionForTask(taskId);
   const modelOption = useModelConfigOptionForTask(taskId);
 
-  const options = modelOption ? flattenSelectOptions(modelOption.options) : [];
+  const selectOption = modelOption?.type === "select" ? modelOption : undefined;
+  const options = selectOption
+    ? flattenSelectOptions(selectOption.options)
+    : [];
   const groupedOptions = useMemo(() => {
-    if (!modelOption || modelOption.options.length === 0) return [];
-    if ("group" in modelOption.options[0]) {
-      return modelOption.options as SessionConfigSelectGroup[];
+    if (!selectOption || selectOption.options.length === 0) return [];
+    if ("group" in selectOption.options[0]) {
+      return selectOption.options as SessionConfigSelectGroup[];
     }
     return [];
-  }, [modelOption]);
+  }, [selectOption]);
 
-  const currentValue = modelOption?.currentValue;
+  const currentValue = selectOption?.currentValue;
   const currentLabel =
     options.find((opt) => opt.value === currentValue)?.name ?? currentValue;
 
@@ -92,9 +95,7 @@ export function UnifiedModelSelector({
         style={triggerStyle}
       >
         <Spinner size={12} className="animate-spin" />
-        <Text size="1" style={{ fontFamily: "var(--font-mono)" }}>
-          Loading...
-        </Text>
+        <Text size="1">Loading...</Text>
       </Button>
     );
   }
@@ -129,9 +130,7 @@ export function UnifiedModelSelector({
           >
             {ADAPTER_ICONS[adapter]}
           </Flex>
-          <Text size="1" style={{ fontFamily: "var(--font-mono)" }}>
-            {currentLabel ?? "Model"}
-          </Text>
+          <Text size="1">{currentLabel ?? "Model"}</Text>
         </Button>
       </DropdownMenu.Trigger>
 

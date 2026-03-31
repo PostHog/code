@@ -55,6 +55,8 @@ export class NotificationService {
     this.hasBadge = true;
     if (process.platform === "darwin" || process.platform === "linux") {
       app.dock?.setBadge("•");
+    } else if (process.platform === "win32") {
+      getMainWindow()?.flashFrame(true);
     }
     log.info("Dock badge shown");
   }
@@ -62,8 +64,10 @@ export class NotificationService {
   bounceDock(): void {
     if (process.platform === "darwin") {
       app.dock?.bounce("informational");
-      log.info("Dock bounce triggered");
+    } else if (process.platform === "win32") {
+      getMainWindow()?.flashFrame(true);
     }
+    log.info("Dock bounce triggered");
   }
 
   private clearDockBadge(): void {
@@ -72,6 +76,8 @@ export class NotificationService {
     this.hasBadge = false;
     if (process.platform === "darwin" || process.platform === "linux") {
       app.dock?.setBadge("");
+    } else if (process.platform === "win32") {
+      getMainWindow()?.flashFrame(false);
     }
     log.info("Dock badge cleared");
   }

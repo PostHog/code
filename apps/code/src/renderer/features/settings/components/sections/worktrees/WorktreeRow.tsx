@@ -62,7 +62,7 @@ export function WorktreeRow({
       }}
     >
       <Flex direction="column" gap="1" style={{ flex: 1, minWidth: 0 }}>
-        <Text size="1" className="font-mono" style={{ wordBreak: "break-all" }}>
+        <Text size="1" style={{ wordBreak: "break-all" }}>
           {worktree.worktreePath}
           <WorktreeSize worktreePath={worktree.worktreePath} />
         </Text>
@@ -73,14 +73,14 @@ export function WorktreeRow({
                 key={task.id}
                 type="button"
                 onClick={() => handleTaskClick(task)}
-                className="cursor-pointer truncate border-0 bg-transparent p-0 text-left text-[11px] text-gray-10 hover:text-accent-11 hover:underline"
+                className="cursor-pointer truncate border-0 bg-transparent p-0 text-left text-[12px] text-gray-10 hover:text-accent-11 hover:underline"
               >
                 {getTaskTitle(task)}
               </button>
             ))}
           </Flex>
         ) : (
-          <span className="text-[11px] text-gray-10">No linked tasks</span>
+          <span className="text-[12px] text-gray-10">No linked tasks</span>
         )}
       </Flex>
       <Button

@@ -17,6 +17,7 @@ export const SHORTCUTS = {
   OPEN_IN_EDITOR: "mod+o",
   COPY_PATH: "mod+shift+c",
   TOGGLE_FOCUS: "mod+r",
+  PASTE_AS_FILE: "mod+shift+v",
   BLUR: "escape",
   SUBMIT_BLUR: "mod+enter",
 } as const;
@@ -136,6 +137,13 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
     description: "Copy file path",
     category: "panels",
     context: "Task detail",
+  },
+  {
+    id: "paste-as-file",
+    keys: SHORTCUTS.PASTE_AS_FILE,
+    description: "Paste as file attachment",
+    category: "editor",
+    context: "Message editor",
   },
   {
     id: "prompt-history-prev",

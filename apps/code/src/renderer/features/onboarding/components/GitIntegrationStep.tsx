@@ -7,13 +7,16 @@ import {
   GitBranch,
 } from "@phosphor-icons/react";
 import { Box, Button, Flex, Skeleton, Text } from "@radix-ui/themes";
-import phWordmark from "@renderer/assets/images/wordmark-alt.png";
+import codeLogo from "@renderer/assets/images/code.svg";
 import { trpcClient } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useProjectsWithIntegrations } from "../hooks/useProjectsWithIntegrations";
 import { ProjectSelect } from "./ProjectSelect";
+
+const POLL_INTERVAL_MS = 3_000;
+const POLL_TIMEOUT_MS = 300_000; // 5 minutes
 
 interface GitIntegrationStepProps {
   onNext: () => void;
@@ -27,11 +30,14 @@ export function GitIntegrationStep({
   const cloudRegion = useAuthStore((s) => s.cloudRegion);
   const currentProjectId = useAuthStore((s) => s.projectId);
   const selectProject = useAuthStore((s) => s.selectProject);
+  const client = useAuthStore((s) => s.client);
 
   const queryClient = useQueryClient();
   const { projects, isLoading, isFetching } = useProjectsWithIntegrations();
 
   const [isConnecting, setIsConnecting] = useState(false);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // User can manually select a different project
   const [manuallySelectedProjectId, setManuallySelectedProjectId] = useState<
@@ -56,20 +62,48 @@ export function GitIntegrationStep({
 
   const hasGitIntegration = selectedProject?.hasGithubIntegration ?? false;
 
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Stop polling when integration is detected
+  useEffect(() => {
+    if (hasGitIntegration && isConnecting) {
+      stopPolling();
+      setIsConnecting(false);
+    }
+  }, [hasGitIntegration, isConnecting, stopPolling]);
+
+  // Cleanup on unmount
+  useEffect(() => stopPolling, [stopPolling]);
+
   const handleConnectGitHub = async () => {
-    if (!cloudRegion || !selectedProjectId) return;
+    if (!cloudRegion || !selectedProjectId || !client) return;
     setIsConnecting(true);
     try {
-      const result = await trpcClient.githubIntegration.startFlow.mutate({
+      await trpcClient.githubIntegration.startFlow.mutate({
         region: cloudRegion,
         projectId: selectedProjectId,
       });
-      if (result.success) {
+
+      // Start polling for the new integration
+      pollTimerRef.current = setInterval(async () => {
         queryClient.invalidateQueries({ queryKey: ["integrations"] });
-      }
+      }, POLL_INTERVAL_MS);
+
+      // Timeout after 5 minutes
+      pollTimeoutRef.current = setTimeout(() => {
+        stopPolling();
+        setIsConnecting(false);
+      }, POLL_TIMEOUT_MS);
     } catch {
-      // Flow was cancelled or timed out — user can retry
-    } finally {
       setIsConnecting(false);
     }
   };
@@ -99,10 +133,10 @@ export function GitIntegrationStep({
         }}
       >
         <img
-          src={phWordmark}
+          src={codeLogo}
           alt="PostHog"
           style={{
-            height: "40px",
+            height: "24px",
             objectFit: "contain",
             alignSelf: "flex-start",
           }}
@@ -117,12 +151,13 @@ export function GitIntegrationStep({
             <Flex direction="column" gap="3">
               <Text
                 size="6"
+                weight="bold"
                 style={{
                   color: "var(--gray-12)",
                   lineHeight: 1.3,
                 }}
               >
-                Connect your git repository
+                Connect your Git repository
               </Text>
               <Text size="2" style={{ color: "var(--gray-12)", opacity: 0.7 }}>
                 PostHog Code needs access to your GitHub repositories to enable
@@ -379,46 +414,52 @@ export function GitIntegrationStep({
               </Flex>
             </Box>
           </Flex>
-        </Flex>
 
-        <AnimatePresence>
-          {!isLoading && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              transition={{ duration: 0.25, delay: 0.15 }}
-            >
-              <Flex gap="3" align="center" flexShrink="0">
-                <Button
-                  size="3"
-                  variant="ghost"
-                  onClick={onBack}
-                  style={{ color: "var(--gray-12)" }}
+          <AnimatePresence>
+            {!isLoading && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.25, delay: 0.15 }}
+              >
+                <Flex
+                  gap="3"
+                  align="center"
+                  justify="between"
+                  flexShrink="0"
+                  mt="6"
                 >
-                  <ArrowLeft size={16} />
-                  Back
-                </Button>
-                {hasGitIntegration ? (
-                  <Button size="3" onClick={handleContinue}>
-                    Continue
-                    <ArrowRight size={16} />
-                  </Button>
-                ) : (
                   <Button
-                    size="3"
-                    variant="outline"
-                    onClick={handleContinue}
+                    size="2"
+                    variant="ghost"
+                    onClick={onBack}
                     style={{ color: "var(--gray-12)" }}
                   >
-                    Skip for now
-                    <ArrowRight size={16} />
+                    <ArrowLeft size={16} />
+                    Back
                   </Button>
-                )}
-              </Flex>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                  {hasGitIntegration ? (
+                    <Button size="2" onClick={handleContinue}>
+                      Continue
+                      <ArrowRight size={16} />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="2"
+                      variant="outline"
+                      onClick={handleContinue}
+                      style={{ color: "var(--gray-12)" }}
+                    >
+                      Skip for now
+                      <ArrowRight size={16} />
+                    </Button>
+                  )}
+                </Flex>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Flex>
       </Flex>
     </Flex>
   );

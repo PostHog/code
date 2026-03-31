@@ -9,7 +9,7 @@
 
 import dns from "node:dns";
 import path from "node:path";
-import { app } from "electron";
+import { app, protocol } from "electron";
 import { fixPath } from "./utils/fixPath";
 
 const isDev = !app.isPackaged;
@@ -29,6 +29,21 @@ dns.setDefaultResultOrder("ipv4first");
 
 // Call fixPath early to ensure PATH is correct for any child processes
 fixPath();
+
+// Register mcp-sandbox: protocol scheme for MCP Apps iframe isolation.
+// Must be called before app.ready — gives the sandbox proxy its own origin
+// so MCP Apps can't access the renderer's DOM, storage, or cookies.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "mcp-sandbox",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: false,
+    },
+  },
+]);
 
 // Now dynamically import the rest of the application
 // Dynamic import ensures the path is set BEFORE index.js is evaluated

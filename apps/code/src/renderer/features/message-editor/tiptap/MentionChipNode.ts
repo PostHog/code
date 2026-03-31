@@ -8,12 +8,14 @@ export type ChipType =
   | "error"
   | "experiment"
   | "insight"
-  | "feature_flag";
+  | "feature_flag"
+  | "github_issue";
 
 export interface MentionChipAttrs {
   type: ChipType;
   id: string;
   label: string;
+  pastedText: boolean;
 }
 
 declare module "@tiptap/core" {
@@ -36,6 +38,7 @@ export const MentionChipNode = Node.create({
       type: { default: "file" as ChipType },
       id: { default: "" },
       label: { default: "" },
+      pastedText: { default: false },
     };
   },
 

@@ -21,7 +21,7 @@ import {
   useRepositoryIntegration,
 } from "@hooks/useIntegrations";
 import { ArrowLeft } from "@phosphor-icons/react";
-import { Button, Flex, Text } from "@radix-ui/themes";
+import { Button, Flex } from "@radix-ui/themes";
 import { motion } from "framer-motion";
 import {
   useCallback,
@@ -97,8 +97,10 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
   >("local");
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
 
-  const { data: cloudBranches, isPending: cloudBranchesLoading } =
+  const { data: cloudBranchData, isPending: cloudBranchesLoading } =
     useGithubBranches(githubIntegration?.id, selectedRepository);
+  const cloudBranches = cloudBranchData?.branches;
+  const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
   // Preview session for config options — always claude
   const { modeOption, thoughtOption, previewTaskId, isConnecting } =
@@ -107,7 +109,8 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
   const currentExecutionMode =
     getCurrentModeFromConfigOptions(modeOption ? [modeOption] : undefined) ??
     "plan";
-  const currentReasoningLevel = thoughtOption?.currentValue;
+  const currentReasoningLevel =
+    thoughtOption?.type === "select" ? thoughtOption.currentValue : undefined;
 
   // Task creation — use whatever model the user picked
   const { isCreatingTask, canSubmit, handleSubmit } = useTaskCreation({
@@ -342,6 +345,7 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
                       : selectedDirectory
                   }
                   currentBranch={null}
+                  defaultBranch={cloudDefaultBranch}
                   disabled={!isEnabled("branch-selector") || isCreatingTask}
                   loading={cloudBranchesLoading}
                   workspaceMode={workspaceMode}
@@ -436,14 +440,8 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
           <ArrowLeft size={14} />
           Back
         </Button>
-        <Button
-          size="2"
-          variant="ghost"
-          color="gray"
-          onClick={onComplete}
-          style={{ opacity: 0.7 }}
-        >
-          <Text size="1">Skip tutorial</Text>
+        <Button size="2" onClick={onComplete}>
+          Skip tutorial
         </Button>
       </Flex>
     </Flex>

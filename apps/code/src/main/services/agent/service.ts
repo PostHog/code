@@ -10,6 +10,7 @@ import {
   type RequestPermissionRequest,
   type RequestPermissionResponse,
   type SessionConfigOption,
+  type SessionNotification,
 } from "@agentclientprotocol/sdk";
 import { isMcpToolReadOnly } from "@posthog/agent";
 import { hydrateSessionJsonl } from "@posthog/agent/adapters/claude/session/jsonl-hydration";
@@ -29,7 +30,9 @@ import { MAIN_TOKENS } from "../../di/tokens";
 import { isDevBuild } from "../../utils/env";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import type { AuthProxyService } from "../auth-proxy/service";
 import type { FsService } from "../fs/service";
+import type { McpAppsService } from "../mcp-apps/service";
 import type { PosthogPluginService } from "../posthog-plugin/service";
 import type { ProcessTrackingService } from "../process-tracking/service";
 import type { SleepService } from "../sleep/service";
@@ -58,22 +61,12 @@ function getMockNodeDir(): string {
 }
 
 /** Mark all content blocks as hidden so the renderer doesn't show a duplicate user message on retry */
-function hidePromptBlocks(prompt: ContentBlock[]): ContentBlock[] {
-  return prompt.map((block) => {
-    const existing = (
-      block as ContentBlock & { _meta?: { ui?: Record<string, unknown> } }
-    )._meta;
-    return {
-      ...block,
-      _meta: {
-        ...existing,
-        ui: { ...existing?.ui, hidden: true },
-      },
-    };
-  });
-}
-
 type MessageCallback = (message: unknown) => void;
+
+/** Shape of the `_meta.claudeCode` extension field on tool call updates. */
+interface ClaudeCodeToolMeta {
+  claudeCode?: { toolName?: string };
+}
 
 class NdJsonTap {
   private decoder = new TextDecoder();
@@ -216,11 +209,11 @@ interface ManagedSession {
   lastActivityAt: number;
   config: SessionConfig;
   interruptReason?: InterruptReason;
-  needsRecreation: boolean;
-  recreationPromise?: Promise<ManagedSession>;
   promptPending: boolean;
   pendingContext?: string;
   configOptions?: SessionConfigOption[];
+  /** Tracks in-flight MCP tool calls (toolCallId → toolKey) for cancellation */
+  inFlightMcpToolCalls: Map<string, string>;
 }
 
 /** Get the agent session ID from a managed session, throwing if not set. */
@@ -269,6 +262,8 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private sleepService: SleepService;
   private fsService: FsService;
   private posthogPluginService: PosthogPluginService;
+  private authProxy: AuthProxyService;
+  private mcpAppsService: McpAppsService;
 
   constructor(
     @inject(MAIN_TOKENS.ProcessTrackingService)
@@ -279,12 +274,18 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     fsService: FsService,
     @inject(MAIN_TOKENS.PosthogPluginService)
     posthogPluginService: PosthogPluginService,
+    @inject(MAIN_TOKENS.AuthProxyService)
+    authProxy: AuthProxyService,
+    @inject(MAIN_TOKENS.McpAppsService)
+    mcpAppsService: McpAppsService,
   ) {
     super();
     this.processTracking = processTracking;
     this.sleepService = sleepService;
     this.fsService = fsService;
     this.posthogPluginService = posthogPluginService;
+    this.authProxy = authProxy;
+    this.mcpAppsService = mcpAppsService;
 
     powerMonitor.on("resume", () => this.checkIdleDeadlines());
   }
@@ -292,32 +293,20 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   public updateToken(newToken: string): void {
     this.currentToken = newToken;
 
-    // Mark all sessions for recreation - they'll be recreated before the next prompt.
-    // We don't recreate immediately because the subprocess may be mid-response or
-    // waiting on a permission prompt. Recreation happens at a safe point.
-    for (const session of this.sessions.values()) {
-      session.needsRecreation = true;
+    if (this.authProxy.isRunning()) {
+      this.authProxy.updateToken(newToken);
     }
 
-    log.info("Token updated, marked sessions for recreation", {
+    process.env.ANTHROPIC_API_KEY = newToken;
+    process.env.ANTHROPIC_AUTH_TOKEN = newToken;
+    process.env.OPENAI_API_KEY = newToken;
+    process.env.POSTHOG_API_KEY = newToken;
+    process.env.POSTHOG_AUTH_HEADER = `Bearer ${newToken}`;
+
+    log.info("Token updated (proxy + env vars)", {
       sessionCount: this.sessions.size,
+      proxyRunning: this.authProxy.isRunning(),
     });
-  }
-
-  /**
-   * Mark all sessions for recreation (developer tool for testing token refresh).
-   * Sessions will be recreated before their next prompt.
-   */
-  public markAllSessionsForRecreation(): number {
-    let count = 0;
-    for (const session of this.sessions.values()) {
-      session.needsRecreation = true;
-      count++;
-    }
-    log.info("Marked all sessions for recreation (dev tool)", {
-      sessionCount: count,
-    });
-    return count;
   }
 
   /**
@@ -647,8 +636,11 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         return existing;
       }
 
-      // Kill any lingering processes from previous runs of this task
-      this.processTracking.killByTaskId(taskId);
+      for (const proc of this.processTracking.getByTaskId(taskId)) {
+        if (proc.category === "agent" || proc.category === "child") {
+          this.processTracking.kill(proc.pid);
+        }
+      }
 
       // Clean up any prior session for this taskRunId before creating a new one
       await this.cleanupSession(taskRunId);
@@ -656,9 +648,9 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
 
     const channel = `agent-event:${taskRunId}`;
     const mockNodeDir = this.setupMockNodeEnvironment();
-    this.setupEnvironment(credentials, mockNodeDir);
+    const proxyUrl = await this.ensureAuthProxy(credentials);
+    this.setupEnvironment(credentials, mockNodeDir, proxyUrl);
 
-    // Preview sessions don't persist logs — no real task exists
     const isPreview = taskId === "__preview__";
 
     const agent = new Agent({
@@ -677,6 +669,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     try {
       const acpConnection = await agent.run(taskId, taskRunId, {
         adapter,
+        gatewayUrl: proxyUrl,
         codexBinaryPath: adapter === "codex" ? getCodexBinaryPath() : undefined,
         processCallbacks: {
           onProcessSpawned: (info) => {
@@ -694,6 +687,13 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
           },
           onProcessExited: (pid) => {
             this.processTracking.unregister(pid, "agent-exited");
+          },
+          onMcpServersReady: (serverNames) => {
+            this.mcpAppsService.handleDiscovery(serverNames).catch((err) => {
+              log.warn("MCP Apps discovery failed", {
+                error: err instanceof Error ? err.message : String(err),
+              });
+            });
           },
         },
       });
@@ -717,6 +717,16 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       });
 
       const mcpServers = await this.buildMcpServers(credentials);
+
+      // Store server configs for lazy MCP connections — actual connections
+      // are created on-demand when UI resources are first requested.
+      this.mcpAppsService.setServerConfigs(
+        mcpServers.map((s) => ({
+          name: s.name,
+          url: s.url,
+          headers: Object.fromEntries(s.headers.map((h) => [h.name, h.value])),
+        })),
+      );
 
       let externalPlugins: Awaited<ReturnType<typeof discoverExternalPlugins>> =
         [];
@@ -838,13 +848,14 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         createdAt: Date.now(),
         lastActivityAt: Date.now(),
         config,
-        needsRecreation: false,
         promptPending: false,
         configOptions,
+        inFlightMcpToolCalls: new Map(),
       };
 
       this.sessions.set(taskRunId, session);
       this.recordActivity(taskRunId);
+
       if (isRetry) {
         log.info("Session created after auth retry", { taskRunId });
       }
@@ -884,74 +895,13 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     }
   }
 
-  private async recreateSession(taskRunId: string): Promise<ManagedSession> {
-    const existing = this.sessions.get(taskRunId);
-    if (!existing) {
-      throw new Error(`Session not found for recreation: ${taskRunId}`);
-    }
-
-    log.info("Recreating session", { taskRunId });
-
-    // Preserve state that should survive recreation
-    const config = existing.config;
-    const pendingContext = existing.pendingContext;
-    const configOptions = existing.configOptions;
-
-    await this.cleanupSession(taskRunId);
-
-    const newSession = await this.getOrCreateSession(config, true);
-    if (!newSession) {
-      throw new Error(`Failed to recreate session: ${taskRunId}`);
-    }
-
-    if (pendingContext) {
-      newSession.pendingContext = pendingContext;
-    }
-
-    if (configOptions) {
-      await Promise.all(
-        configOptions.map((opt) =>
-          this.setSessionConfigOption(
-            taskRunId,
-            opt.id,
-            opt.currentValue,
-          ).catch((err) => {
-            log.warn("Failed to restore config option during recreation", {
-              taskRunId,
-              configId: opt.id,
-              err,
-            });
-          }),
-        ),
-      );
-    }
-
-    return newSession;
-  }
-
   async prompt(
     sessionId: string,
     prompt: ContentBlock[],
   ): Promise<PromptOutput> {
-    let session = this.sessions.get(sessionId);
+    const session = this.sessions.get(sessionId);
     if (!session) {
       throw new Error(`Session not found: ${sessionId}`);
-    }
-
-    // Recreate session if marked (token was refreshed while session was active)
-    if (session.needsRecreation) {
-      if (!session.recreationPromise) {
-        log.info("Recreating session before prompt (token refreshed)", {
-          sessionId,
-        });
-        session.recreationPromise = this.recreateSession(sessionId).finally(
-          () => {
-            const s = this.sessions.get(sessionId);
-            if (s) s.recreationPromise = undefined;
-          },
-        );
-      }
-      session = await session.recreationPromise;
     }
 
     // Prepend pending context if present
@@ -991,20 +941,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         stopReason: result.stopReason,
         _meta: result._meta as PromptOutput["_meta"],
       };
-    } catch (err) {
-      if (isAuthError(err)) {
-        log.warn("Auth error during prompt, recreating session", { sessionId });
-        session = await this.recreateSession(sessionId);
-        const result = await session.clientSideConnection.prompt({
-          sessionId: getAgentSessionId(session),
-          prompt: hidePromptBlocks(finalPrompt),
-        });
-        return {
-          stopReason: result.stopReason,
-          _meta: result._meta as PromptOutput["_meta"],
-        };
-      }
-      throw err;
     } finally {
       session.promptPending = false;
       session.lastActivityAt = Date.now();
@@ -1045,6 +981,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     if (!session) return false;
 
     try {
+      this.cancelInFlightMcpToolCalls(session);
       await session.clientSideConnection.cancel({
         sessionId: getAgentSessionId(session),
         _meta: reason ? { interruptReason: reason } : undefined,
@@ -1085,7 +1022,10 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       const updatedModeOption = session.configOptions?.find(
         (opt) => opt.category === "mode",
       );
-      if (updatedModeOption) {
+      if (
+        updatedModeOption &&
+        typeof updatedModeOption.currentValue === "string"
+      ) {
         session.config.permissionMode = updatedModeOption.currentValue;
       }
 
@@ -1222,9 +1162,16 @@ For git operations while detached:
     log.info("All agent sessions cleaned up");
   }
 
+  private async ensureAuthProxy(credentials: Credentials): Promise<string> {
+    const token = this.getToken(credentials.apiKey);
+    const llmGatewayUrl = getLlmGatewayUrl(credentials.apiHost);
+    return this.authProxy.start(llmGatewayUrl, token);
+  }
+
   private setupEnvironment(
     credentials: Credentials,
     mockNodeDir: string,
+    proxyUrl: string,
   ): void {
     const token = this.getToken(credentials.apiKey);
     const currentPath = process.env.PATH || "";
@@ -1235,15 +1182,14 @@ For git operations while detached:
     process.env.ANTHROPIC_API_KEY = token;
     process.env.ANTHROPIC_AUTH_TOKEN = token;
 
-    const llmGatewayUrl = getLlmGatewayUrl(credentials.apiHost);
-    process.env.ANTHROPIC_BASE_URL = llmGatewayUrl;
+    process.env.ANTHROPIC_BASE_URL = proxyUrl;
 
-    const openaiBaseUrl = llmGatewayUrl.endsWith("/v1")
-      ? llmGatewayUrl
-      : `${llmGatewayUrl}/v1`;
+    const openaiBaseUrl = proxyUrl.endsWith("/v1")
+      ? proxyUrl
+      : `${proxyUrl}/v1`;
     process.env.OPENAI_BASE_URL = openaiBaseUrl;
     process.env.OPENAI_API_KEY = token;
-    process.env.LLM_GATEWAY_URL = llmGatewayUrl;
+    process.env.LLM_GATEWAY_URL = proxyUrl;
 
     process.env.CLAUDE_CODE_EXECUTABLE = getClaudeCliPath();
 
@@ -1277,9 +1223,18 @@ For git operations while detached:
     return mockNodeDir;
   }
 
+  private cancelInFlightMcpToolCalls(session: ManagedSession): void {
+    for (const [toolCallId, toolKey] of session.inFlightMcpToolCalls) {
+      this.mcpAppsService.notifyToolCancelled(toolKey, toolCallId);
+    }
+
+    session.inFlightMcpToolCalls.clear();
+  }
+
   private async cleanupSession(taskRunId: string): Promise<void> {
     const session = this.sessions.get(taskRunId);
     if (session) {
+      this.cancelInFlightMcpToolCalls(session);
       this.sleepService.release(taskRunId);
       try {
         await session.agent.cleanup();
@@ -1293,6 +1248,13 @@ For git operations while detached:
       if (timeout) {
         clearTimeout(timeout.handle);
         this.idleTimeouts.delete(taskRunId);
+      }
+
+      // When no sessions remain, tear down MCP Apps connections and cached resources
+      if (this.sessions.size === 0) {
+        this.mcpAppsService.cleanup().catch(() => {
+          log.debug("MCP Apps cleanup failed");
+        });
       }
     }
   }
@@ -1322,7 +1284,7 @@ For git operations while detached:
       emitToRenderer(acpMessage);
 
       // Detect PR URLs in bash tool results and attach to task
-      this.detectAndAttachPrUrl(taskRunId, message);
+      this.detectAndAttachPrUrl(taskRunId, message as AcpMessage["message"]);
     };
 
     const tappedReadable = createTappedReadableStream(
@@ -1451,8 +1413,41 @@ For git operations while detached:
         return {};
       },
 
-      async sessionUpdate() {
-        // session/update notifications flow through the tapped stream
+      async sessionUpdate(params: SessionNotification) {
+        // Forward MCP tool events to McpAppsService using the SDK's
+        // typed discriminated union instead of parsing raw JSON.
+        const { update } = params;
+        if (
+          update.sessionUpdate !== "tool_call" &&
+          update.sessionUpdate !== "tool_call_update"
+        ) {
+          return;
+        }
+
+        const toolName = (update._meta as ClaudeCodeToolMeta | undefined)
+          ?.claudeCode?.toolName;
+        if (!toolName?.startsWith("mcp__")) return;
+
+        const session = service.sessions.get(taskRunId);
+        if (update.sessionUpdate === "tool_call") {
+          session?.inFlightMcpToolCalls.set(update.toolCallId, toolName);
+          service.mcpAppsService.notifyToolInput(
+            toolName,
+            update.toolCallId,
+            update.rawInput,
+          );
+        } else if (
+          update.status === "completed" ||
+          update.status === "failed"
+        ) {
+          session?.inFlightMcpToolCalls.delete(update.toolCallId);
+          service.mcpAppsService.notifyToolResult(
+            toolName,
+            update.toolCallId,
+            update.rawOutput,
+            update.status === "failed",
+          );
+        }
       },
 
       extNotification: async (

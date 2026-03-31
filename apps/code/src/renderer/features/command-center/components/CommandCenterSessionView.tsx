@@ -10,11 +10,13 @@ import { useEffect } from "react";
 interface CommandCenterSessionViewProps {
   taskId: string;
   task: Task;
+  isActiveSession: boolean;
 }
 
 export function CommandCenterSessionView({
   taskId,
   task,
+  isActiveSession,
 }: CommandCenterSessionViewProps) {
   const { requestFocus } = useDraftStore((s) => s.actions);
 
@@ -29,7 +31,6 @@ export function CommandCenterSessionView({
     promptStartedAt,
     isInitializing,
     cloudBranch,
-    readOnlyMessage,
     errorTitle,
     errorMessage,
   } = useSessionViewState(taskId, task);
@@ -67,8 +68,8 @@ export function CommandCenterSessionView({
         onRetry={isCloud ? undefined : handleRetry}
         onNewSession={isCloud ? undefined : handleNewSession}
         isInitializing={isInitializing}
-        readOnlyMessage={readOnlyMessage}
         compact
+        isActiveSession={isActiveSession}
       />
     </Flex>
   );

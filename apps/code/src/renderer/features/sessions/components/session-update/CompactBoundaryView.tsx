@@ -4,13 +4,19 @@ import { Badge, Box, Flex, Text } from "@radix-ui/themes";
 interface CompactBoundaryViewProps {
   trigger: "manual" | "auto";
   preTokens: number;
+  contextSize?: number;
 }
 
 export function CompactBoundaryView({
   trigger,
   preTokens,
+  contextSize,
 }: CompactBoundaryViewProps) {
   const tokensK = Math.round(preTokens / 1000);
+  const percent =
+    contextSize && contextSize > 0
+      ? Math.round((preTokens / contextSize) * 100)
+      : null;
 
   return (
     <Box className="my-1 border-blue-6 border-l-2 py-1 pl-3 dark:border-blue-8">
@@ -27,7 +33,9 @@ export function CompactBoundaryView({
           {trigger}
         </Badge>
         <Text size="1" className="text-gray-9">
-          (~{tokensK}K tokens summarized)
+          {percent !== null
+            ? `(${percent}% of context · ~${tokensK}K tokens summarized)`
+            : `(~${tokensK}K tokens summarized)`}
         </Text>
       </Flex>
     </Box>

@@ -2,12 +2,13 @@ import "./message-editor.css";
 import type { SessionConfigOption } from "@agentclientprotocol/sdk";
 import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
 import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
+import { getUserPromptsForTask } from "@features/sessions/stores/sessionStore";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { ArrowUp, Circle, Stop } from "@phosphor-icons/react";
 import { Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { EditorContent } from "@tiptap/react";
 import { hasOpenOverlay } from "@utils/overlay";
-import { forwardRef, useEffect, useImperativeHandle } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useDraftStore } from "../stores/draftStore";
 import { useTiptapEditor } from "../tiptap/useTiptapEditor";
@@ -31,6 +32,7 @@ interface ModeAndBranchRowProps {
   } | null;
   disabled?: boolean;
   isBashMode?: boolean;
+  taskId?: string;
 }
 
 function ModeAndBranchRow({
@@ -41,6 +43,7 @@ function ModeAndBranchRow({
   cloudDiffStats,
   disabled,
   isBashMode,
+  taskId,
 }: ModeAndBranchRowProps) {
   const { currentBranch: gitBranch, diffStats } = useGitQueries(
     repoPath ?? undefined,
@@ -112,6 +115,7 @@ function ModeAndBranchRow({
               currentBranch={currentBranch}
               disabled={disabled}
               variant="ghost"
+              taskId={taskId}
             />
           </Flex>
         )}
@@ -133,6 +137,7 @@ interface MessageEditorProps {
   onModeChange?: () => void;
   onFocus?: () => void;
   onBlur?: () => void;
+  isActiveSession?: boolean;
 }
 
 export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
@@ -150,6 +155,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
       onModeChange,
       onFocus,
       onBlur,
+      isActiveSession = true,
     },
     ref,
   ) => {
@@ -164,6 +170,11 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
     const cloudBranch = context?.cloudBranch;
     const cloudDiffStats = context?.cloudDiffStats;
     const isSubmitDisabled = disabled || !isOnline;
+
+    const getPromptHistory = useCallback(
+      () => getUserPromptsForTask(taskId),
+      [taskId],
+    );
 
     const {
       editor,
@@ -190,6 +201,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
       isLoading,
       autoFocus,
       context: { taskId, repoPath },
+      getPromptHistory,
       onSubmit,
       onBashCommand,
       onBashModeChange,
@@ -235,6 +247,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
       "escape",
       (e) => {
         if (hasOpenOverlay()) return;
+        if (!isActiveSession) return;
         if (isLoading && onCancel) {
           e.preventDefault();
           onCancel();
@@ -245,7 +258,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
         enableOnContentEditable: true,
         enabled: isLoading && !!onCancel,
       },
-      [isLoading, onCancel],
+      [isActiveSession, isLoading, onCancel],
     );
 
     const handleContainerClick = (e: React.MouseEvent) => {
@@ -266,7 +279,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
         <AttachmentsBar attachments={attachments} onRemove={removeAttachment} />
 
         <div
-          className="max-h-[200px] min-h-[50px] flex-1 overflow-y-auto font-mono text-sm"
+          className="max-h-[200px] min-h-[50px] flex-1 overflow-y-auto text-[15px]"
           style={{ position: "relative" }}
         >
           <EditorContent editor={editor} />
@@ -277,8 +290,10 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
             <EditorToolbar
               disabled={disabled}
               taskId={taskId}
+              repoPath={repoPath}
               onAddAttachment={addAttachment}
               onAttachFiles={onAttachFiles}
+              onInsertChip={insertChip}
             />
           </Flex>
           <Flex gap="2" align="center">
@@ -338,6 +353,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
           cloudDiffStats={cloudDiffStats}
           disabled={disabled}
           isBashMode={isBashMode}
+          taskId={taskId}
         />
       </Flex>
     );

@@ -4,6 +4,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { SdkPluginConfig } from "@anthropic-ai/claude-agent-sdk";
 import { logger } from "../../utils/logger";
+import { parseSkillFrontmatter } from "./parse-skill-frontmatter";
+import type { SkillInfo, SkillSource } from "./skill-schemas";
 
 const log = logger.scope("discover-plugins");
 
@@ -49,6 +51,11 @@ async function discoverUserSkills(
 }
 
 async function discoverMarketplacePlugins(): Promise<SdkPluginConfig[]> {
+  const paths = await getMarketplaceInstallPaths();
+  return paths.map((p) => ({ type: "local" as const, path: p }));
+}
+
+export async function getMarketplaceInstallPaths(): Promise<string[]> {
   const installedPath = path.join(
     os.homedir(),
     ".claude",
@@ -64,16 +71,16 @@ async function discoverMarketplacePlugins(): Promise<SdkPluginConfig[]> {
       return [];
     }
 
-    const configs: SdkPluginConfig[] = [];
+    const paths: string[] = [];
     for (const entries of Object.values(data.plugins)) {
       if (!Array.isArray(entries)) continue;
       for (const entry of entries) {
         if (entry.installPath && fs.existsSync(entry.installPath)) {
-          configs.push({ type: "local", path: entry.installPath });
+          paths.push(entry.installPath);
         }
       }
     }
-    return configs;
+    return paths;
   } catch {
     return [];
   }
@@ -98,6 +105,24 @@ async function discoverRepoSkills(
   );
 }
 
+async function findSkillDirs(sourceSkillsDir: string): Promise<string[]> {
+  if (!fs.existsSync(sourceSkillsDir)) {
+    return [];
+  }
+
+  const entries = await fs.promises.readdir(sourceSkillsDir, {
+    withFileTypes: true,
+  });
+
+  return entries
+    .filter(
+      (e) =>
+        (e.isDirectory() || e.isSymbolicLink()) &&
+        fs.existsSync(path.join(sourceSkillsDir, e.name, "SKILL.md")),
+    )
+    .map((e) => e.name);
+}
+
 async function buildSyntheticPlugin(
   sourceSkillsDir: string,
   pluginDir: string,
@@ -105,22 +130,7 @@ async function buildSyntheticPlugin(
   description: string,
 ): Promise<SdkPluginConfig[]> {
   try {
-    if (!fs.existsSync(sourceSkillsDir)) {
-      return [];
-    }
-
-    const entries = await fs.promises.readdir(sourceSkillsDir, {
-      withFileTypes: true,
-    });
-
-    const skillDirs = entries
-      .filter(
-        (e) =>
-          (e.isDirectory() || e.isSymbolicLink()) &&
-          fs.existsSync(path.join(sourceSkillsDir, e.name, "SKILL.md")),
-      )
-      .map((e) => e.name);
-
+    const skillDirs = await findSkillDirs(sourceSkillsDir);
     if (skillDirs.length === 0) {
       return [];
     }
@@ -171,4 +181,36 @@ async function buildSyntheticPlugin(
     });
     return [];
   }
+}
+
+export async function readSkillMetadataFromDir(
+  skillsDir: string,
+  source: SkillSource,
+  repoName?: string,
+): Promise<SkillInfo[]> {
+  const skillNames = await findSkillDirs(skillsDir);
+  if (skillNames.length === 0) return [];
+
+  const results = await Promise.all(
+    skillNames.map(async (skillName) => {
+      const skillPath = path.join(skillsDir, skillName);
+      try {
+        const content = await fs.promises.readFile(
+          path.join(skillPath, "SKILL.md"),
+          "utf-8",
+        );
+        const frontmatter = parseSkillFrontmatter(content);
+        return {
+          name: frontmatter?.name ?? skillName,
+          description: frontmatter?.description ?? "",
+          source,
+          path: skillPath,
+          ...(repoName ? { repoName } : {}),
+        } satisfies SkillInfo;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return results.filter((r): r is SkillInfo => r !== null);
 }

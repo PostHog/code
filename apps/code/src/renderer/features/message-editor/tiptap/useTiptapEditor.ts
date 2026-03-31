@@ -3,7 +3,9 @@ import { useSettingsStore as useFeatureSettingsStore } from "@features/settings/
 import { trpcClient } from "@renderer/trpc/client";
 import { toast } from "@renderer/utils/toast";
 import { useSettingsStore } from "@stores/settingsStore";
+import type { EditorView } from "@tiptap/pm/view";
 import { useEditor } from "@tiptap/react";
+import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePromptHistoryStore } from "../stores/promptHistoryStore";
 import type { FileAttachment, MentionChip } from "../utils/content";
@@ -26,6 +28,7 @@ export interface UseTiptapEditorOptions {
     bashMode?: boolean;
   };
   clearOnSubmit?: boolean;
+  getPromptHistory?: () => string[];
   onSubmit?: (text: string) => void;
   onBashCommand?: (command: string) => void;
   onBashModeChange?: (isBashMode: boolean) => void;
@@ -35,7 +38,38 @@ export interface UseTiptapEditorOptions {
 }
 
 const EDITOR_CLASS =
-  "cli-editor min-h-[1.5em] w-full break-words border-none bg-transparent font-mono text-[12px] text-[var(--gray-12)] outline-none [overflow-wrap:break-word] [white-space:pre-wrap] [word-break:break-word]";
+  "cli-editor min-h-[1.5em] w-full break-words border-none bg-transparent text-[13px] text-[var(--gray-12)] outline-none [overflow-wrap:break-word] [white-space:pre-wrap] [word-break:break-word]";
+
+async function pasteTextAsFile(
+  view: EditorView,
+  text: string,
+  pasteCountRef: React.MutableRefObject<number>,
+): Promise<void> {
+  const result = await trpcClient.os.saveClipboardText.mutate({ text });
+  pasteCountRef.current += 1;
+  const lineCount = text.split("\n").length;
+  const label = `Pasted text #${pasteCountRef.current} (${lineCount} lines)`;
+  const chipNode = view.state.schema.nodes.mentionChip.create({
+    type: "file",
+    id: result.path,
+    label,
+    pastedText: true,
+  });
+  const space = view.state.schema.text(" ");
+  const { tr } = view.state;
+  tr.replaceSelectionWith(chipNode).insert(tr.selection.from, space);
+  view.dispatch(tr);
+  view.focus();
+}
+
+function showPasteHint(message: string, description: string): void {
+  const store = useFeatureSettingsStore.getState();
+  const key =
+    message === "Pasted as file attachment" ? "paste-as-file" : "paste-inline";
+  if (!store.shouldShowHint(key)) return;
+  store.recordHintShown(key);
+  toast.info(message, description);
+}
 
 export function useTiptapEditor(options: UseTiptapEditorOptions) {
   const {
@@ -49,6 +83,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
     context,
     capabilities = {},
     clearOnSubmit = true,
+    getPromptHistory,
     onSubmit,
     onBashCommand,
     onBashModeChange,
@@ -82,6 +117,9 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
 
   const submitDisabledRef = useRef(submitDisabled);
   submitDisabledRef.current = submitDisabled;
+
+  const getPromptHistoryRef = useRef(getPromptHistory);
+  getPromptHistoryRef.current = getPromptHistory;
 
   const prevBashModeRef = useRef(false);
   const prevIsEmptyRef = useRef(true);
@@ -118,6 +156,27 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
           },
         },
         handleKeyDown: (view, event) => {
+          if (
+            event.key === "v" &&
+            (event.metaKey || event.ctrlKey) &&
+            event.shiftKey
+          ) {
+            event.preventDefault();
+            (async () => {
+              try {
+                const text = await navigator.clipboard.readText();
+                if (!text?.trim()) return;
+                useFeatureSettingsStore
+                  .getState()
+                  .markHintLearned("paste-inline");
+                await pasteTextAsFile(view, text, pasteCountRef);
+              } catch (_error) {
+                toast.error("Failed to paste as file attachment");
+              }
+            })();
+            return true;
+          }
+
           if (event.key === "Enter") {
             const sendMessagesWith =
               useSettingsStore.getState().sendMessagesWith;
@@ -138,10 +197,10 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
             }
           }
 
-          if (
-            taskId &&
-            (event.key === "ArrowUp" || event.key === "ArrowDown")
-          ) {
+          if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+            const historyGetter = getPromptHistoryRef.current;
+            if (!taskId && !historyGetter) return false;
+
             const currentText = view.state.doc.textContent;
             const isEmpty = !currentText.trim();
             const { from } = view.state.selection;
@@ -149,24 +208,27 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
             const isAtEnd = from === view.state.doc.content.size - 1;
 
             const forceNavigate = event.shiftKey;
+            const history = historyGetter?.() ?? [];
 
             if (
               event.key === "ArrowUp" &&
               (forceNavigate || isEmpty || isAtStart)
             ) {
-              const queuedContent =
-                sessionStoreSetters.dequeueMessagesAsText(taskId);
-              if (queuedContent !== null && queuedContent !== undefined) {
-                event.preventDefault();
-                view.dispatch(
-                  view.state.tr
-                    .delete(1, view.state.doc.content.size - 1)
-                    .insertText(queuedContent, 1),
-                );
-                return true;
+              if (taskId) {
+                const queuedContent =
+                  sessionStoreSetters.dequeueMessagesAsText(taskId);
+                if (queuedContent !== null && queuedContent !== undefined) {
+                  event.preventDefault();
+                  view.dispatch(
+                    view.state.tr
+                      .delete(1, view.state.doc.content.size - 1)
+                      .insertText(queuedContent, 1),
+                  );
+                  return true;
+                }
               }
 
-              const newText = historyActions.navigateUp(taskId, currentText);
+              const newText = historyActions.navigateUp(history, currentText);
               if (newText !== null) {
                 event.preventDefault();
                 view.dispatch(
@@ -182,7 +244,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
               event.key === "ArrowDown" &&
               (forceNavigate || isEmpty || isAtEnd)
             ) {
-              const newText = historyActions.navigateDown(taskId);
+              const newText = historyActions.navigateDown(history);
               if (newText !== null) {
                 event.preventDefault();
                 view.dispatch(
@@ -307,32 +369,24 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
 
             (async () => {
               try {
-                const result = await trpcClient.os.saveClipboardText.mutate({
-                  text: pastedText,
-                });
-
-                pasteCountRef.current += 1;
-                const lineCount = pastedText.split("\n").length;
-                const label = `Pasted text #${pasteCountRef.current} (${lineCount} lines)`;
-                const chipNode = view.state.schema.nodes.mentionChip.create({
-                  type: "file",
-                  id: result.path,
-                  label,
-                });
-                const space = view.state.schema.text(" ");
-                const { tr } = view.state;
-                tr.replaceSelectionWith(chipNode).insert(
-                  tr.selection.from,
-                  space,
+                await pasteTextAsFile(view, pastedText, pasteCountRef);
+                showPasteHint(
+                  "Pasted as file attachment",
+                  "Click the chip to convert back to text.",
                 );
-                view.dispatch(tr);
-                view.focus();
               } catch (_error) {
                 toast.error("Failed to convert pasted text to attachment");
               }
             })();
 
             return true;
+          }
+
+          if (pastedText && pastedText.length > 200) {
+            showPasteHint(
+              "Pasted as text",
+              "Use ⌘⇧V to paste as a file attachment instead.",
+            );
           }
 
           return false;
@@ -469,6 +523,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
         type: chip.type,
         id: chip.id,
         label: chip.label,
+        pastedText: false,
       });
       draft.saveDraft(editor, attachments);
     },

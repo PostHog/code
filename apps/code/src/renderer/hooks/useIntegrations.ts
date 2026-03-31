@@ -64,9 +64,10 @@ export function useGithubBranches(
   return useAuthenticatedQuery(
     integrationKeys.branches(integrationId, repo),
     async (client) => {
-      if (!integrationId || !repo) return [];
+      if (!integrationId || !repo) return { branches: [], defaultBranch: null };
       return await client.getGithubBranches(integrationId, repo);
     },
+    { staleTime: 0, refetchOnMount: "always" },
   );
 }
 

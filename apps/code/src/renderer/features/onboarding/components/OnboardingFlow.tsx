@@ -25,7 +25,7 @@ export function OnboardingFlow() {
   const isTutorial = currentStep === "tutorial";
 
   return (
-    <Theme appearance="light" accentColor="orange">
+    <Theme appearance="light" accentColor="orange" radius="medium">
       <LayoutGroup>
         <Flex
           direction="column"
@@ -152,22 +152,36 @@ export function OnboardingFlow() {
                   currentStep={currentStep}
                   activeSteps={activeSteps}
                 />
-                <Button
-                  size="1"
-                  variant="ghost"
-                  color="gray"
-                  onClick={logout}
+                <Flex
+                  justify="between"
                   style={{
                     position: "absolute",
                     bottom: 20,
                     left: 32,
-                    opacity: 0.5,
+                    right: 32,
                     zIndex: 2,
                   }}
                 >
-                  <SignOut size={14} />
-                  Log out
-                </Button>
+                  <Button
+                    size="1"
+                    variant="ghost"
+                    color="gray"
+                    onClick={logout}
+                    style={{ opacity: 0.5 }}
+                  >
+                    <SignOut size={14} />
+                    Log out
+                  </Button>
+                  <Button
+                    size="1"
+                    variant="ghost"
+                    color="gray"
+                    onClick={handleComplete}
+                    style={{ opacity: 0.5 }}
+                  >
+                    Skip setup
+                  </Button>
+                </Flex>
               </Flex>
             </>
           )}

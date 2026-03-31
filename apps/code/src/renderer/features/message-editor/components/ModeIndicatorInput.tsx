@@ -2,6 +2,7 @@ import type {
   SessionConfigOption,
   SessionConfigSelectGroup,
   SessionConfigSelectOption,
+  SessionConfigSelectOptions,
 } from "@agentclientprotocol/sdk";
 import {
   Circle,
@@ -60,7 +61,7 @@ interface ModeIndicatorInputProps {
 }
 
 function flattenOptions(
-  options: SessionConfigOption["options"],
+  options: SessionConfigSelectOptions,
 ): SessionConfigSelectOption[] {
   if (options.length === 0) return [];
   if ("group" in options[0]) {
@@ -75,7 +76,7 @@ export function ModeIndicatorInput({
   modeOption,
   onCycleMode,
 }: ModeIndicatorInputProps) {
-  if (!modeOption) return null;
+  if (!modeOption || modeOption.type !== "select") return null;
 
   const id = modeOption.currentValue;
 
@@ -99,6 +100,7 @@ export function ModeIndicatorInput({
           style={{
             color: style.colorVar,
             fontFamily: "monospace",
+            fontSize: "12px",
             display: "flex",
             alignItems: "center",
             gap: "4px",
@@ -112,6 +114,7 @@ export function ModeIndicatorInput({
           style={{
             color: "var(--gray-9)",
             fontFamily: "monospace",
+            fontSize: "12px",
           }}
         >
           (shift+tab to cycle)

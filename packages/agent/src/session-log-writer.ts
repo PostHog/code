@@ -24,6 +24,7 @@ interface SessionState {
   context: SessionContext;
   chunkBuffer?: ChunkBuffer;
   lastAgentMessage?: string;
+  currentTurnMessages: string[];
 }
 
 export class SessionLogWriter {
@@ -69,7 +70,7 @@ export class SessionLogWriter {
       taskId: context.taskId,
       runId: context.runId,
     });
-    this.sessions.set(sessionId, { context });
+    this.sessions.set(sessionId, { context, currentTurnMessages: [] });
 
     this.lastFlushAttemptTime.set(sessionId, Date.now());
 
@@ -127,6 +128,7 @@ export class SessionLogWriter {
       const nonChunkAgentText = this.extractAgentMessageText(message);
       if (nonChunkAgentText) {
         session.lastAgentMessage = nonChunkAgentText;
+        session.currentTurnMessages.push(nonChunkAgentText);
       }
 
       const entry: StoredNotification = {
@@ -240,6 +242,7 @@ export class SessionLogWriter {
     const { text, firstTimestamp } = session.chunkBuffer;
     session.chunkBuffer = undefined;
     session.lastAgentMessage = text;
+    session.currentTurnMessages.push(text);
 
     const entry: StoredNotification = {
       type: "notification",
@@ -268,6 +271,19 @@ export class SessionLogWriter {
 
   getLastAgentMessage(sessionId: string): string | undefined {
     return this.sessions.get(sessionId)?.lastAgentMessage;
+  }
+
+  getFullAgentResponse(sessionId: string): string | undefined {
+    const session = this.sessions.get(sessionId);
+    if (!session || session.currentTurnMessages.length === 0) return undefined;
+    return session.currentTurnMessages.join("\n\n");
+  }
+
+  resetTurnMessages(sessionId: string): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.currentTurnMessages = [];
+    }
   }
 
   private extractAgentMessageText(

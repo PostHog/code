@@ -120,15 +120,13 @@ export function ArchivedTasksViewPresentation({
         {isLoading ? (
           <Flex align="center" justify="center" gap="2" py="8">
             <DotsCircleSpinner size={16} className="text-gray-10" />
-            <Text className="font-mono text-[12px] text-gray-10">
+            <Text className="text-[13px] text-gray-10">
               Loading archived tasks...
             </Text>
           </Flex>
         ) : items.length === 0 ? (
           <Flex align="center" justify="center" py="8">
-            <Text className="font-mono text-[12px] text-gray-10">
-              No archived tasks
-            </Text>
+            <Text className="text-[13px] text-gray-10">No archived tasks</Text>
           </Flex>
         ) : (
           <Table.Root
@@ -137,13 +135,13 @@ export function ArchivedTasksViewPresentation({
           >
             <Table.Header>
               <Table.Row>
-                <Table.ColumnHeaderCell className="font-mono font-normal text-[12px] text-gray-11">
+                <Table.ColumnHeaderCell className="font-normal text-[13px] text-gray-11">
                   Title
                 </Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell className="font-mono font-normal text-[12px] text-gray-11">
+                <Table.ColumnHeaderCell className="font-normal text-[13px] text-gray-11">
                   Created
                 </Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell className="font-mono font-normal text-[12px] text-gray-11">
+                <Table.ColumnHeaderCell className="font-normal text-[13px] text-gray-11">
                   Repository
                 </Table.ColumnHeaderCell>
                 <Table.ColumnHeaderCell />
@@ -159,18 +157,18 @@ export function ArchivedTasksViewPresentation({
                   <Table.Cell>
                     <Flex align="center" gap="2">
                       <ModeIcon mode={item.archived.mode} />
-                      <Text className="block max-w-[600px] truncate font-mono text-[12px]">
+                      <Text className="block max-w-[600px] truncate text-[13px]">
                         {item.task?.title ?? "Unknown task"}
                       </Text>
                     </Flex>
                   </Table.Cell>
                   <Table.Cell>
-                    <Text className="block whitespace-nowrap font-mono text-[12px] text-gray-11">
+                    <Text className="block whitespace-nowrap text-[13px] text-gray-11">
                       {formatRelativeDate(item.task?.created_at)}
                     </Text>
                   </Table.Cell>
                   <Table.Cell>
-                    <Text className="block max-w-[300px] truncate font-mono text-[12px] text-gray-11">
+                    <Text className="block max-w-[300px] truncate text-[13px] text-gray-11">
                       {getRepoName(item.task?.repository)}
                     </Text>
                   </Table.Cell>
@@ -248,7 +246,7 @@ export function ArchivedTasksView() {
   const queryClient = useQueryClient();
 
   useSetHeaderContent(
-    <Text size="1" weight="medium" className="font-mono text-[12px]">
+    <Text size="1" weight="medium" className="text-[13px]">
       Archived tasks
     </Text>,
   );

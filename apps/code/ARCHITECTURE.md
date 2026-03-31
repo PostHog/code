@@ -27,6 +27,7 @@ Main Process (Node.js)                      Renderer Process (React)
 ```
 
 **Key points:**
+
 - Both processes use InversifyJS for DI
 - Renderer DI holds services + tRPC client; services can coordinate stores
 - Zustand stores own all application state (not in DI)
@@ -36,16 +37,16 @@ Main Process (Node.js)                      Renderer Process (React)
 
 Both processes use [InversifyJS](https://inversify.io/) for dependency injection with singleton scope.
 
-| Process  | Container          | Holds                                |
-|----------|--------------------|------------------------------------- |
-| Main     | `src/main/di/`     | Stateless services (GitService, etc.)|
-| Renderer | `src/renderer/di/` | Services + TRPCClient                |
+| Process  | Container          | Holds                                 |
+| -------- | ------------------ | ------------------------------------- |
+| Main     | `src/main/di/`     | Stateless services (GitService, etc.) |
+| Renderer | `src/renderer/di/` | Services + TRPCClient                 |
 
 ### Defining a Service
 
 ```typescript
 // src/main/services/my-service/service.ts (or src/renderer/services/)
-import { injectable } from "inversify";
+import { injectable } from "inversify"
 
 @injectable()
 export class MyService {
@@ -59,14 +60,14 @@ export class MyService {
 
 ```typescript
 // src/main/di/container.ts (or src/renderer/di/container.ts)
-container.bind<MyService>(TOKENS.MyService).to(MyService);
+container.bind<MyService>(TOKENS.MyService).to(MyService)
 ```
 
 ```typescript
 // src/main/di/tokens.ts (or src/renderer/di/tokens.ts)
 export const MAIN_TOKENS = Object.freeze({
   MyService: Symbol.for("Main.MyService"),
-});
+})
 ```
 
 ### Injecting Dependencies
@@ -74,8 +75,8 @@ export const MAIN_TOKENS = Object.freeze({
 Services should declare dependencies via constructor injection:
 
 ```typescript
-import { inject, injectable } from "inversify";
-import { MAIN_TOKENS } from "../di/tokens";
+import { inject, injectable } from "inversify"
+import { MAIN_TOKENS } from "../di/tokens"
 
 @injectable()
 export class MyService {
@@ -85,7 +86,7 @@ export class MyService {
   ) {}
 
   doSomething() {
-    return this.otherService.getData();
+    return this.otherService.getData()
   }
 }
 ```
@@ -95,14 +96,14 @@ export class MyService {
 tRPC routers resolve services from the container:
 
 ```typescript
-import { container } from "../../di/container";
-import { MAIN_TOKENS } from "../../di/tokens";
+import { container } from "../../di/container"
+import { MAIN_TOKENS } from "../../di/tokens"
 
-const getService = () => container.get<MyService>(MAIN_TOKENS.MyService);
+const getService = () => container.get<MyService>(MAIN_TOKENS.MyService)
 
 export const myRouter = router({
   getData: publicProcedure.query(() => getService().getData()),
-});
+})
 ```
 
 ### Testing with Mocks
@@ -111,14 +112,14 @@ Constructor injection makes testing straightforward:
 
 ```typescript
 // Direct instantiation with mock
-const mockOtherService = { getData: vi.fn().mockReturnValue("test") };
-const service = new MyService(mockOtherService as OtherService);
+const mockOtherService = { getData: vi.fn().mockReturnValue("test") }
+const service = new MyService(mockOtherService as OtherService)
 
 // Or rebind in container for integration tests
-container.snapshot();
-container.rebind(MAIN_TOKENS.OtherService).toConstantValue(mockOtherService);
+container.snapshot()
+container.rebind(MAIN_TOKENS.OtherService).toConstantValue(mockOtherService)
 // ... run tests ...
-container.restore();
+container.restore()
 ```
 
 ## IPC via tRPC
@@ -129,16 +130,16 @@ We use [tRPC](https://trpc.io/) with [trpc-electron](https://github.com/jsonnull
 
 ```typescript
 // src/main/trpc/routers/my-router.ts
-import { container } from "../../di/container";
-import { MAIN_TOKENS } from "../../di/tokens";
+import { container } from "../../di/container"
+import { MAIN_TOKENS } from "../../di/tokens"
 import {
   getDataInput,
   getDataOutput,
   updateDataInput,
-} from "../../services/my-service/schemas";
-import { router, publicProcedure } from "../trpc";
+} from "../../services/my-service/schemas"
+import { router, publicProcedure } from "../trpc"
 
-const getService = () => container.get<MyService>(MAIN_TOKENS.MyService);
+const getService = () => container.get<MyService>(MAIN_TOKENS.MyService)
 
 export const myRouter = router({
   getData: publicProcedure
@@ -149,111 +150,113 @@ export const myRouter = router({
   updateData: publicProcedure
     .input(updateDataInput)
     .mutation(({ input }) => getService().updateData(input.id, input.value)),
-});
+})
 ```
 
 ### Registering the Router
 
 ```typescript
 // src/main/trpc/router.ts
-import { myRouter } from "./routers/my-router";
+import { myRouter } from "./routers/my-router"
 
 export const trpcRouter = router({
   my: myRouter,
   // ...
-});
+})
 ```
 
 ### Using tRPC in Renderer
 
 There are three tRPC exports, each for a different context:
 
-| Export | Where to use | Purpose |
-|--------|-------------|---------|
-| `useTRPC()` | React components/hooks | Options proxy via React context |
-| `trpc` | Outside React (module scope, services, stores) | Options proxy bound to the singleton `queryClient` |
-| `trpcClient` | Anywhere (imperative calls) | Vanilla tRPC client for direct `.query()` / `.mutate()` / `.subscribe()` |
+| Export       | Where to use                                   | Purpose                                                                  |
+| ------------ | ---------------------------------------------- | ------------------------------------------------------------------------ |
+| `useTRPC()`  | React components/hooks                         | Options proxy via React context                                          |
+| `trpc`       | Outside React (module scope, services, stores) | Options proxy bound to the singleton `queryClient`                       |
+| `trpcClient` | Anywhere (imperative calls)                    | Vanilla tRPC client for direct `.query()` / `.mutate()` / `.subscribe()` |
 
 **React components** use `useTRPC()` + TanStack Query hooks:
 
 ```typescript
-import { useTRPC } from "@renderer/trpc/client";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useTRPC } from "@renderer/trpc/client"
+import { useMutation, useQuery } from "@tanstack/react-query"
 
 function MyComponent() {
-  const trpc = useTRPC();
+  const trpc = useTRPC()
 
   // Queries — pass queryOptions() to useQuery
-  const { data } = useQuery(
-    trpc.my.getData.queryOptions({ id: "123" }),
-  );
+  const { data } = useQuery(trpc.my.getData.queryOptions({ id: "123" }))
 
   // Mutations — pass mutationOptions() to useMutation
   const mutation = useMutation(
     trpc.my.updateData.mutationOptions({
-      onSuccess: () => { /* ... */ },
+      onSuccess: () => {
+        /* ... */
+      },
     }),
-  );
-  const handleUpdate = () => mutation.mutate({ id: "123", value: "new" });
+  )
+  const handleUpdate = () => mutation.mutate({ id: "123", value: "new" })
 }
 ```
 
 **Subscriptions** use `useSubscription` from `@trpc/tanstack-react-query`:
 
 ```typescript
-import { useSubscription } from "@trpc/tanstack-react-query";
+import { useSubscription } from "@trpc/tanstack-react-query"
 
 useSubscription(
   trpc.my.onItemCreated.subscriptionOptions(undefined, {
-    onData: (item) => { /* ... */ },
+    onData: (item) => {
+      /* ... */
+    },
   }),
-);
+)
 ```
 
 **Cache invalidation** uses `pathFilter()` or `queryFilter()` with the query client:
 
 ```typescript
-const queryClient = useQueryClient();
+const queryClient = useQueryClient()
 
 // Invalidate all queries under a router path
-queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter());
+queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter())
 
 // Invalidate a specific query by input
 queryClient.invalidateQueries(
   trpc.git.getCurrentBranch.queryFilter({ directoryPath: repoPath }),
-);
+)
 
 // Set cache data directly
 queryClient.setQueryData(
   trpc.git.getLatestCommit.queryKey({ directoryPath: repoPath }),
   commitData,
-);
+)
 ```
 
 **Outside React** (stores, sagas, services, module-scope utilities):
 
 ```typescript
 // Imperative calls — use trpcClient
-import { trpcClient } from "@renderer/trpc/client";
+import { trpcClient } from "@renderer/trpc/client"
 
-const data = await trpcClient.my.getData.query({ id: "123" });
-await trpcClient.my.updateData.mutate({ id: "123", value: "new" });
+const data = await trpcClient.my.getData.query({ id: "123" })
+await trpcClient.my.updateData.mutate({ id: "123", value: "new" })
 
 // Cache operations outside React — use trpc (the module-level options proxy)
-import { trpc } from "@renderer/trpc";
-import { queryClient } from "@utils/queryClient";
+import { trpc } from "@renderer/trpc"
+import { queryClient } from "@utils/queryClient"
 
-queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter());
+queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter())
 ```
 
 ## State Management
 
 **All application state lives in the renderer.** Main process services should be stateless/pure.
 
-| Layer | State | Role |
-|-------|-------|------|
-| **Renderer** | Zustand stores | Owns all application state |
-| **Main** | Stateless | Pure operations (file I/O, git, shell, etc.) |
+| Layer        | State          | Role                                         |
+| ------------ | -------------- | -------------------------------------------- |
+| **Renderer** | Zustand stores | Owns all application state                   |
+| **Main**     | Stateless      | Pure operations (file I/O, git, shell, etc.) |
 
 This keeps state predictable, easy to debug, and naturally supports patterns like undo/rollback.
 
@@ -263,14 +266,18 @@ This keeps state predictable, easy to debug, and naturally supports patterns lik
 // ❌ Bad - main service with state
 @injectable()
 class TaskService {
-  private currentTask: Task | null = null;  // Don't do this
+  private currentTask: Task | null = null // Don't do this
 }
 
 // ✅ Good - main service is pure
 @injectable()
 class TaskService {
-  async readTask(id: string): Promise<Task> { /* ... */ }
-  async writeTask(task: Task): Promise<void> { /* ... */ }
+  async readTask(id: string): Promise<Task> {
+    /* ... */
+  }
+  async writeTask(task: Task): Promise<void> {
+    /* ... */
+  }
 }
 
 // ✅ Good - state lives in renderer
@@ -278,8 +285,28 @@ class TaskService {
 const useTaskStore = create<TaskState>((set) => ({
   currentTask: null,
   setCurrentTask: (task) => set({ currentTask: task }),
-}));
+}))
 ```
+
+### Learned Hints
+
+The settings store (`src/renderer/features/settings/stores/settingsStore.ts`) provides a reusable "learned hints" system for progressive feature discovery. Hints are shown a limited number of times until the user demonstrates they've learned the behavior.
+
+```typescript
+// In the store: hints is Record<string, { count: number; learned: boolean }>
+const store = useFeatureSettingsStore.getState()
+
+// Check if a hint should still be shown (max N times, not yet learned)
+if (store.shouldShowHint("my-hint-key", 3)) {
+  store.recordHintShown("my-hint-key")
+  toast.info("Did you know?", "You can do X with Y.")
+}
+
+// When the user demonstrates the behavior, mark it learned (stops showing)
+store.markHintLearned("my-hint-key")
+```
+
+Hint state is persisted via `electronStorage`. Use this pattern instead of ad-hoc boolean flags when introducing new discoverable features.
 
 ## Services
 
@@ -313,37 +340,37 @@ All tRPC inputs and outputs use Zod schemas as the single source of truth. Types
 
 ```typescript
 // src/main/services/my-service/schemas.ts
-import { z } from "zod";
+import { z } from "zod"
 
 export const getDataInput = z.object({
   id: z.string(),
-});
+})
 
 export const getDataOutput = z.object({
   id: z.string(),
   name: z.string(),
   createdAt: z.string(),
-});
+})
 
-export type GetDataInput = z.infer<typeof getDataInput>;
-export type GetDataOutput = z.infer<typeof getDataOutput>;
+export type GetDataInput = z.infer<typeof getDataInput>
+export type GetDataOutput = z.infer<typeof getDataOutput>
 ```
 
 ```typescript
 // src/main/trpc/routers/my-router.ts
-import { getDataInput, getDataOutput } from "../../services/my-service/schemas";
+import { getDataInput, getDataOutput } from "../../services/my-service/schemas"
 
 export const myRouter = router({
   getData: publicProcedure
     .input(getDataInput)
     .output(getDataOutput)
     .query(({ input }) => getService().getData(input.id)),
-});
+})
 ```
 
 ```typescript
 // src/main/services/my-service/service.ts
-import type { GetDataInput, GetDataOutput } from "./schemas";
+import type { GetDataInput, GetDataOutput } from "./schemas"
 
 @injectable()
 export class MyService {
@@ -354,6 +381,7 @@ export class MyService {
 ```
 
 This pattern provides:
+
 - Runtime validation of inputs and outputs
 - Single source of truth for types
 - Explicit API contracts between main and renderer
@@ -380,11 +408,11 @@ Use a const object for event names and an interface for payloads:
 export const MyServiceEvent = {
   ItemCreated: "item-created",
   ItemDeleted: "item-deleted",
-} as const;
+} as const
 
 export interface MyServiceEvents {
-  [MyServiceEvent.ItemCreated]: { id: string; name: string };
-  [MyServiceEvent.ItemDeleted]: { id: string };
+  [MyServiceEvent.ItemCreated]: { id: string; name: string }
+  [MyServiceEvent.ItemDeleted]: { id: string }
 }
 ```
 
@@ -392,16 +420,16 @@ export interface MyServiceEvents {
 
 ```typescript
 // src/main/services/my-service/service.ts
-import { TypedEventEmitter } from "../../lib/typed-event-emitter";
-import { MyServiceEvent, type MyServiceEvents } from "./schemas";
+import { TypedEventEmitter } from "../../lib/typed-event-emitter"
+import { MyServiceEvent, type MyServiceEvents } from "./schemas"
 
 @injectable()
 export class MyService extends TypedEventEmitter<MyServiceEvents> {
   async createItem(name: string) {
-    const item = { id: "123", name };
+    const item = { id: "123", name }
     // TypeScript enforces correct event name and payload shape
-    this.emit(MyServiceEvent.ItemCreated, item);
-    return item;
+    this.emit(MyServiceEvent.ItemCreated, item)
+    return item
   }
 }
 ```
@@ -412,23 +440,26 @@ Use `toIterable()` on the service to convert events to an async iterable. For gl
 
 ```typescript
 // src/main/trpc/routers/my-router.ts
-import { MyServiceEvent, type MyServiceEvents } from "../../services/my-service/schemas";
+import {
+  MyServiceEvent,
+  type MyServiceEvents,
+} from "../../services/my-service/schemas"
 
 function subscribe<K extends keyof MyServiceEvents>(event: K) {
   return publicProcedure.subscription(async function* (opts) {
-    const service = getService();
-    const iterable = service.toIterable(event, { signal: opts.signal });
+    const service = getService()
+    const iterable = service.toIterable(event, { signal: opts.signal })
     for await (const data of iterable) {
-      yield data;
+      yield data
     }
-  });
+  })
 }
 
 export const myRouter = router({
   // ... queries and mutations
   onItemCreated: subscribe(MyServiceEvent.ItemCreated),
   onItemDeleted: subscribe(MyServiceEvent.ItemDeleted),
-});
+})
 ```
 
 For per-instance events (e.g., shell sessions), filter by an identifier:
@@ -436,8 +467,8 @@ For per-instance events (e.g., shell sessions), filter by an identifier:
 ```typescript
 // Events include an identifier to filter on
 export interface ShellEvents {
-  [ShellEvent.Data]: { sessionId: string; data: string };
-  [ShellEvent.Exit]: { sessionId: string; exitCode: number };
+  [ShellEvent.Data]: { sessionId: string; data: string }
+  [ShellEvent.Exit]: { sessionId: string; exitCode: number }
 }
 
 // Router filters events to the specific session
@@ -445,30 +476,30 @@ function subscribeFiltered<K extends keyof ShellEvents>(event: K) {
   return publicProcedure
     .input(sessionIdInput)
     .subscription(async function* (opts) {
-      const service = getService();
-      const targetSessionId = opts.input.sessionId;
-      const iterable = service.toIterable(event, { signal: opts.signal });
+      const service = getService()
+      const targetSessionId = opts.input.sessionId
+      const iterable = service.toIterable(event, { signal: opts.signal })
 
       for await (const data of iterable) {
         if (data.sessionId === targetSessionId) {
-          yield data;
+          yield data
         }
       }
-    });
+    })
 }
 
 export const shellRouter = router({
   onData: subscribeFiltered(ShellEvent.Data),
   onExit: subscribeFiltered(ShellEvent.Exit),
-});
+})
 ```
 
 ### 4. Subscribe in Renderer
 
 ```typescript
-import { useSubscription } from "@trpc/tanstack-react-query";
+import { useSubscription } from "@trpc/tanstack-react-query"
 
-const trpc = useTRPC();
+const trpc = useTRPC()
 
 // React component - global events
 useSubscription(
@@ -478,7 +509,7 @@ useSubscription(
       // item is typed as { id: string; name: string }
     },
   }),
-);
+)
 
 // React component - per-session events
 useSubscription(
@@ -488,18 +519,95 @@ useSubscription(
       enabled: !!sessionId,
       onData: (event) => {
         // event is typed as { sessionId: string; data: string }
-        terminal.write(event.data);
+        terminal.write(event.data)
       },
     },
   ),
-);
+)
 ```
+
+## MCP Apps
+
+MCP Apps let MCP servers ship interactive HTML UIs alongside their tools. When a tool has an associated `ui://` resource, we render the app's HTML inside a sandboxed iframe instead of showing the raw tool input/output.
+
+### How It Works
+
+```
+Agent Session                      Main Process                    Renderer
+┌──────────────┐                  ┌─────────────────────┐          ┌───────────────────────────┐
+│ Tool call    │─-session/update─►│ AgentService        │          │ McpToolBlock              │
+│ (mcp__X__Y)  │                  │  ├─notifyToolInput  │──event──►│  ├─ hasUiForTool?         │
+│              │                  │  └─notifyToolResult │──event──►│  ├─ McpAppHost            │
+└──────────────┘                  ├─────────────────────┤          │  │  ├─ iframe (sandbox).  │
+                                  │ McpAppsService      │          │  │  └─ useAppBridge       │
+                                  │  ├─ connections     │◄─proxy───│  └─ McpToolView (fallback)│
+                                  │  ├─ resourceCache   │          └───────────────────────────┘
+                                  │  └─ toolAssociations│
+                                  └─────────────────────┘
+```
+
+On session start, `AgentService` passes the active MCP server configs to `McpAppsService`, which connects to each server over Streamable HTTP and discovers UI resources. It lists the server's resources looking for `ui://` URIs with mime type `text/html;profile=mcp-app`, then maps each resource to its associated tool via the tool's `_meta.ui.resourceUri` field. The HTML content is fetched and cached in memory (capped at 5MB per resource).
+
+### Shared Types
+
+Schemas and event types for MCP Apps live in `src/shared/types/mcp-apps.ts` rather than in the service directory, since both processes need them. This file defines the Zod schemas for tRPC input/output, the `McpUiResource` interface, tool-to-UI association types, and the `McpAppsServiceEvent` constants.
+
+### Main Process
+
+`McpAppsService` (`src/main/services/mcp-apps/service.ts`) manages MCP server connections and acts as a proxy between the renderer and remote MCP servers. It extends `TypedEventEmitter` to push tool input/result/cancellation events to the renderer via tRPC subscriptions.
+
+`AgentService` hooks into the ACP `sessionUpdate` callback to intercept tool call updates for MCP tools (those prefixed with `mcp__`). It forwards tool inputs and results to `McpAppsService`, which re-emits them as typed events.
+
+The tRPC router (`src/main/trpc/routers/mcp-apps.ts`) exposes:
+
+- `getUiResource` / `hasUiForTool` — queries for UI resource lookup
+- `proxyToolCall` / `proxyResourceRead` — mutations that forward calls to the remote MCP server, with visibility checks (tools marked as model-only are rejected)
+- `openLink` — opens URLs via `shell.openExternal`, restricted to http/https
+- `onToolInput` / `onToolResult` / `onToolCancelled` — per-tool filtered subscriptions
+
+### Renderer
+
+The renderer feature lives in `src/renderer/features/mcp-apps/`:
+
+```
+mcp-apps/
+├── components/
+│   ├── McpToolBlock.tsx         # McpToolView + optional McpAppHost below
+│   ├── McpAppHost.tsx           # Iframe host with inline/fullscreen display modes
+│   └── McpToolView.tsx          # Standard MCP tool call rendering (moved from sessions/)
+├── hooks/
+│   └── useAppBridge.ts          # AppBridge lifecycle, message routing, context sync
+└── utils/
+    ├── mcp-app-csp.ts           # CSP generation from server-declared domains
+    ├── mcp-app-sandbox-proxy.ts # Generates the outer sandbox iframe HTML
+    ├── mcp-app-host-utils.ts    # Tool key parsing, container dimension helpers
+    └── mcp-app-theme.ts         # Maps Radix theme tokens to MCP App CSS variables
+```
+
+`McpToolBlock` is the entry point, rendered from `ToolCallBlock` for any `mcp__` tool. It always renders `McpToolView` (the pre-existing MCP tool call display, moved here from `sessions/`). When the tool has a UI resource and the server isn't disabled in settings, it additionally renders `McpAppHost` below the tool view. This keeps the standard tool call display (input preview, status, expandable output) visible regardless of whether an app is present.
+
+### Sandbox Model
+
+Apps run inside a double-iframe sandbox. The outer iframe loads a generated proxy page (`mcp-app-sandbox-proxy.ts`) with `sandbox="allow-scripts allow-same-origin ..."`. The proxy receives the app's HTML from the host via postMessage and injects it into an inner iframe with a server-declared CSP meta tag. This isolates the app's DOM from the host while still allowing structured communication over the bridge.
+
+### App Bridge
+
+`useAppBridge` manages the host side of the `@modelcontextprotocol/ext-apps` `AppBridge`. It handles the full lifecycle: waiting for the sandbox proxy to signal readiness, creating the bridge with a `PostMessageTransport`, sending the HTML resource into the inner iframe, and tearing down on unmount.
+
+The bridge routes app requests to tRPC mutations in the main process — tool calls, resource reads, and link opens all proxy through `McpAppsService`. It also forwards host context changes (theme, display mode, container dimensions) to the app when those values change, and handles app-initiated actions like display mode requests and messages that get routed to the draft store.
+
+`sendWhenReady` buffers bridge calls until the app has finished its initialization handshake, then flushes them. This lets the component forward tool results from tRPC subscriptions without worrying about race conditions with app startup.
+
+### Disabling MCP Apps
+
+Users can disable MCP Apps per server via `settingsStore.mcpAppsDisabledServers`. When a server is disabled, `McpAppsService` skips connecting to it and the renderer falls back to `McpToolView`.
 
 ## Code Style
 
 See [CLAUDE.md](./CLAUDE.md) for linting, formatting, and import conventions.
 
 Key points:
+
 - Use path aliases (`@main/*`, `@renderer/*`, etc.)
 - No barrel files - import directly from source
 - Use `logger` instead of `console.*`

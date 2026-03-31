@@ -28,24 +28,19 @@ import type { FileWatcherService } from "../file-watcher/service";
 import type { FocusService } from "../focus/service";
 import { FocusServiceEvent } from "../focus/service";
 import type { ProcessTrackingService } from "../process-tracking/service";
+import type { ProvisioningService } from "../provisioning/service";
 import { getWorktreeLocation } from "../settingsStore";
-import type { ShellService } from "../shell/service";
-import { loadConfig, normalizeScripts } from "./configLoader";
+import type { SuspensionService } from "../suspension/service.js";
 import type {
   BranchChangedPayload,
   CreateWorkspaceInput,
-  ScriptExecutionResult,
   Workspace,
   WorkspaceErrorPayload,
   WorkspaceInfo,
   WorkspacePromotedPayload,
-  WorkspaceTerminalCreatedPayload,
-  WorkspaceTerminalInfo,
   WorkspaceWarningPayload,
   WorktreeInfo,
 } from "./schemas";
-import { ScriptRunner } from "./scriptRunner";
-import { buildWorkspaceEnv } from "./workspaceEnv";
 
 const execFileAsync = promisify(execFile);
 
@@ -87,7 +82,7 @@ async function getBranchFromPath(repoPath: string): Promise<string | null> {
       const gitContent = await fsPromises.readFile(gitPath, "utf-8");
       const gitdirMatch = gitContent.match(/gitdir:\s*(.+)/);
       if (!gitdirMatch) return null;
-      headPath = path.join(gitdirMatch[1].trim(), "HEAD");
+      headPath = path.join(path.resolve(gitdirMatch[1].trim()), "HEAD");
     }
 
     const headContent = await fsPromises.readFile(headPath, "utf-8");
@@ -101,7 +96,6 @@ async function getBranchFromPath(repoPath: string): Promise<string | null> {
 const log = logger.scope("workspace");
 
 export const WorkspaceServiceEvent = {
-  TerminalCreated: "terminalCreated",
   Error: "error",
   Warning: "warning",
   Promoted: "promoted",
@@ -109,7 +103,6 @@ export const WorkspaceServiceEvent = {
 } as const;
 
 export interface WorkspaceServiceEvents {
-  [WorkspaceServiceEvent.TerminalCreated]: WorkspaceTerminalCreatedPayload;
   [WorkspaceServiceEvent.Error]: WorkspaceErrorPayload;
   [WorkspaceServiceEvent.Warning]: WorkspaceWarningPayload;
   [WorkspaceServiceEvent.Promoted]: WorkspacePromotedPayload;
@@ -118,9 +111,6 @@ export interface WorkspaceServiceEvents {
 
 @injectable()
 export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> {
-  @inject(MAIN_TOKENS.ShellService)
-  private shellService!: ShellService;
-
   @inject(MAIN_TOKENS.AgentService)
   private agentService!: AgentService;
 
@@ -136,21 +126,14 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
   @inject(MAIN_TOKENS.WorktreeRepository)
   private worktreeRepo!: WorktreeRepository;
 
-  private scriptRunner!: ScriptRunner;
+  @inject(MAIN_TOKENS.SuspensionService)
+  private suspensionService!: SuspensionService;
+
+  @inject(MAIN_TOKENS.ProvisioningService)
+  private provisioningService!: ProvisioningService;
+
   private creatingWorkspaces = new Map<string, Promise<WorkspaceInfo>>();
   private branchWatcherInitialized = false;
-
-  private ensureScriptRunner(): ScriptRunner {
-    if (!this.scriptRunner) {
-      this.scriptRunner = new ScriptRunner({
-        shellService: this.shellService,
-        onTerminalCreated: (info) => {
-          this.emit(WorkspaceServiceEvent.TerminalCreated, info);
-        },
-      });
-    }
-    return this.scriptRunner;
-  }
 
   private findTaskAssociation(taskId: string): TaskAssociation | null {
     const workspace = this.workspaceRepo.findByTaskId(taskId);
@@ -409,8 +392,6 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         mode,
         worktree: null,
         branchName: null,
-        terminalSessionIds: [],
-        hasStartScripts: false,
       };
     }
 
@@ -446,84 +427,17 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         mode: "local",
       });
 
-      const [{ config }, workspaceEnv] = await Promise.all([
-        loadConfig(folderPath, path.basename(folderPath)),
-        buildWorkspaceEnv({
-          taskId,
-          folderPath,
-          worktreePath: null,
-          worktreeName: null,
-          mode,
-        }),
-      ]);
-      let terminalSessionIds: string[] = [];
-
-      // Run init scripts
-      const initScripts = normalizeScripts(config?.scripts?.init);
-      if (initScripts.length > 0) {
-        log.info(
-          `Running ${initScripts.length} init script(s) for task ${taskId} (local mode)`,
-        );
-        const initResult =
-          await this.ensureScriptRunner().executeScriptsWithTerminal(
-            taskId,
-            initScripts,
-            "init",
-            folderPath,
-            { failFast: true, workspaceEnv },
-          );
-        terminalSessionIds = initResult.terminalSessionIds;
-
-        if (!initResult.success) {
-          log.error(`Init scripts failed for task ${taskId}`);
-          throw new Error(
-            `Workspace init failed: ${initResult.errors?.join(", ") || "Unknown error"}`,
-          );
-        }
-      }
-
-      // Run start scripts
-      const startScripts = normalizeScripts(config?.scripts?.start);
-      if (startScripts.length > 0) {
-        log.info(
-          `Running ${startScripts.length} start script(s) for task ${taskId} (local mode)`,
-        );
-        const startResult =
-          await this.ensureScriptRunner().executeScriptsWithTerminal(
-            taskId,
-            startScripts,
-            "start",
-            folderPath,
-            { failFast: false, workspaceEnv },
-          );
-        terminalSessionIds = [
-          ...terminalSessionIds,
-          ...startResult.terminalSessionIds,
-        ];
-
-        if (!startResult.success) {
-          log.warn(
-            `Some start scripts failed for task ${taskId}: ${startResult.errors?.join(", ")}`,
-          );
-          this.emitWorkspaceError(
-            taskId,
-            `Start scripts failed: ${startResult.errors?.join(", ")}`,
-          );
-        }
-      }
-
       const localBranch = await getBranchFromPath(folderPath);
       return {
         taskId,
         mode,
         worktree: null,
         branchName: localBranch,
-        terminalSessionIds,
-        hasStartScripts: startScripts.length > 0,
       };
     }
 
-    // Worktree mode: create isolated worktree
+    await this.suspensionService.suspendLeastRecentIfOverLimit();
+
     const worktreeBasePath = getWorktreeLocation();
     const worktreeManager = new WorktreeManager({
       mainRepoPath,
@@ -532,11 +446,15 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     let worktree: WorktreeInfo;
 
     try {
-      const defaultBranch = await getDefaultBranch(mainRepoPath).catch(
-        () => "main",
+      const defaultBranch = await getDefaultBranch(mainRepoPath).catch(() =>
+        getCurrentBranch(mainRepoPath).then((b) => b ?? "main"),
       );
       const selectedBranch = branch ?? defaultBranch;
       const isTrunkSelected = selectedBranch === defaultBranch;
+
+      const onOutput = (data: string) => {
+        this.provisioningService.emitOutput(taskId, data);
+      };
 
       if (isTrunkSelected) {
         log.info(
@@ -544,6 +462,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         );
         worktree = await worktreeManager.createWorktree({
           baseBranch: defaultBranch,
+          onOutput,
         });
         log.info(
           `Created detached worktree from trunk: ${worktree.worktreeName} at ${worktree.worktreePath}`,
@@ -553,10 +472,11 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
           `Non-trunk branch selected (${selectedBranch}), attempting checkout`,
         );
         try {
-          worktree =
-            await worktreeManager.createWorktreeForExistingBranch(
-              selectedBranch,
-            );
+          worktree = await worktreeManager.createWorktreeForExistingBranch(
+            selectedBranch,
+            undefined,
+            { onOutput },
+          );
           log.info(
             `Created worktree with branch checkout: ${worktree.worktreeName} at ${worktree.worktreePath} (branch: ${selectedBranch})`,
           );
@@ -571,6 +491,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
             );
             worktree = await worktreeManager.createWorktree({
               baseBranch: selectedBranch,
+              onOutput,
             });
             log.info(
               `Created detached worktree from occupied branch: ${worktree.worktreeName} at ${worktree.worktreePath}`,
@@ -613,91 +534,11 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       path: worktree.worktreePath,
     });
 
-    const [{ config }, workspaceEnv] = await Promise.all([
-      loadConfig(worktree.worktreePath, worktree.worktreeName),
-      buildWorkspaceEnv({
-        taskId,
-        folderPath,
-        worktreePath: worktree.worktreePath,
-        worktreeName: worktree.worktreeName,
-        mode,
-      }),
-    ]);
-
-    const initScripts = normalizeScripts(config?.scripts?.init);
-    let terminalSessionIds: string[] = [];
-
-    if (initScripts.length > 0) {
-      log.info(
-        `Running ${initScripts.length} init script(s) for task ${taskId}`,
-      );
-      const initResult =
-        await this.ensureScriptRunner().executeScriptsWithTerminal(
-          taskId,
-          initScripts,
-          "init",
-          worktree.worktreePath,
-          { failFast: true, workspaceEnv },
-        );
-
-      terminalSessionIds = initResult.terminalSessionIds;
-
-      if (!initResult.success) {
-        // Cleanup on init failure
-        log.error(
-          `Init scripts failed for task ${taskId}, cleaning up worktree`,
-        );
-        await this.cleanupWorktree(
-          taskId,
-          mainRepoPath,
-          worktree.worktreePath,
-          worktree.branchName ?? null,
-        );
-        throw new Error(
-          `Workspace init failed: ${initResult.errors?.join(", ") || "Unknown error"}`,
-        );
-      }
-    }
-
-    // Run start scripts (don't fail on error, just notify)
-    const startScripts = normalizeScripts(config?.scripts?.start);
-    if (startScripts.length > 0) {
-      log.info(
-        `Running ${startScripts.length} start script(s) for task ${taskId}`,
-      );
-      const startResult =
-        await this.ensureScriptRunner().executeScriptsWithTerminal(
-          taskId,
-          startScripts,
-          "start",
-          worktree.worktreePath,
-          { failFast: false, workspaceEnv },
-        );
-
-      terminalSessionIds = [
-        ...terminalSessionIds,
-        ...startResult.terminalSessionIds,
-      ];
-
-      if (!startResult.success) {
-        log.warn(
-          `Some start scripts failed for task ${taskId}: ${startResult.errors?.join(", ")}`,
-        );
-        // Emit error to renderer for toast notification
-        this.emitWorkspaceError(
-          taskId,
-          `Start scripts failed: ${startResult.errors?.join(", ")}`,
-        );
-      }
-    }
-
     return {
       taskId,
       mode,
       worktree,
       branchName: worktree.branchName,
-      terminalSessionIds,
-      hasStartScripts: startScripts.length > 0,
     };
   }
 
@@ -724,58 +565,14 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       return;
     }
 
-    let scriptPath: string;
-    let scriptName: string;
     let worktreePath: string | null = null;
-    let worktreeName: string | null = null;
 
     if (association.mode === "worktree") {
-      worktreeName = association.worktree;
-      worktreePath = deriveWorktreePath(folderPath, worktreeName);
-      scriptPath = worktreePath;
-      scriptName = worktreeName;
-    } else {
-      scriptPath = folderPath;
-      scriptName = path.basename(folderPath);
-    }
-
-    const { config } = await loadConfig(scriptPath, scriptName);
-    const destroyScripts = normalizeScripts(config?.scripts?.destroy);
-
-    if (destroyScripts.length > 0) {
-      log.info(
-        `Running ${destroyScripts.length} destroy script(s) for task ${taskId}`,
-      );
-
-      const workspaceEnv = await buildWorkspaceEnv({
-        taskId,
-        folderPath,
-        worktreePath,
-        worktreeName,
-        mode: association.mode,
-      });
-
-      const destroyResult =
-        await this.ensureScriptRunner().executeScriptsSilent(
-          destroyScripts,
-          scriptPath,
-          workspaceEnv,
-        );
-
-      if (!destroyResult.success) {
-        log.warn(
-          `Some destroy scripts failed for task ${taskId}: ${destroyResult.errors.join(", ")}`,
-        );
-        this.emitWorkspaceError(
-          taskId,
-          `Destroy scripts failed: ${destroyResult.errors.join(", ")}`,
-        );
-      }
+      worktreePath = deriveWorktreePath(folderPath, association.worktree);
     }
 
     await this.agentService.cancelSessionsByTaskId(taskId);
     this.processTracking.killByTaskId(taskId);
-    this.ensureScriptRunner().cleanupTaskSessions(taskId);
 
     if (association.mode === "worktree" && worktreePath) {
       await this.cleanupWorktree(
@@ -907,50 +704,6 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     return { exists: false };
   }
 
-  async runStartScripts(
-    taskId: string,
-    worktreePath: string,
-    worktreeName: string,
-  ): Promise<ScriptExecutionResult> {
-    log.info(`Running start scripts for task ${taskId}`);
-
-    const { config } = await loadConfig(worktreePath, worktreeName);
-    const startScripts = normalizeScripts(config?.scripts?.start);
-
-    if (startScripts.length === 0) {
-      return { success: true, terminalSessionIds: [] };
-    }
-
-    const association = this.findTaskAssociation(taskId);
-    const folderPath = association?.folderId
-      ? this.getFolderPath(association.folderId)
-      : null;
-    const workspaceEnv = await buildWorkspaceEnv({
-      taskId,
-      folderPath: folderPath ?? worktreePath,
-      worktreePath,
-      worktreeName,
-      mode: association?.mode ?? "worktree",
-    });
-
-    const result = await this.ensureScriptRunner().executeScriptsWithTerminal(
-      taskId,
-      startScripts,
-      "start",
-      worktreePath,
-      { failFast: false, workspaceEnv },
-    );
-
-    if (!result.success) {
-      this.emitWorkspaceError(
-        taskId,
-        `Start scripts failed: ${result.errors?.join(", ")}`,
-      );
-    }
-
-    return result;
-  }
-
   async getWorkspaceInfo(taskId: string): Promise<WorkspaceInfo | null> {
     const association = this.findTaskAssociation(taskId);
     if (!association) {
@@ -963,7 +716,6 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         mode: "cloud",
         worktree: null,
         branchName: null,
-        terminalSessionIds: [],
       };
     }
 
@@ -998,27 +750,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       mode: association.mode,
       worktree: worktreeInfo,
       branchName,
-      terminalSessionIds: this.ensureScriptRunner().getTaskSessions(taskId),
     };
-  }
-
-  isWorkspaceRunning(taskId: string): boolean {
-    const sessions = this.ensureScriptRunner().getTaskSessions(taskId);
-    return sessions.length > 0;
-  }
-
-  getWorkspaceTerminals(taskId: string): WorkspaceTerminalInfo[] {
-    const sessionIds = this.ensureScriptRunner().getTaskSessions(taskId);
-    const terminals: WorkspaceTerminalInfo[] = [];
-
-    for (const sessionId of sessionIds) {
-      const info = this.ensureScriptRunner().getSessionInfo(sessionId);
-      if (info) {
-        terminals.push(info);
-      }
-    }
-
-    return terminals;
   }
 
   async getAllWorkspaces(): Promise<Record<string, Workspace>> {
@@ -1037,8 +769,6 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
           branchName: null,
           baseBranch: null,
           createdAt: new Date().toISOString(),
-          terminalSessionIds: [],
-          hasStartScripts: false,
         };
         continue;
       }
@@ -1046,27 +776,12 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       const folderPath = this.getFolderPath(assoc.folderId);
       if (!folderPath) continue;
 
-      let configPath: string;
-      let configName: string;
       let worktreePath: string | null = null;
       let worktreeName: string | null = null;
 
       if (assoc.mode === "worktree") {
         worktreeName = assoc.worktree;
         worktreePath = deriveWorktreePath(folderPath, worktreeName);
-        configPath = worktreePath;
-        configName = worktreeName;
-      } else {
-        configPath = folderPath;
-        configName = path.basename(folderPath);
-      }
-
-      let startScripts: string[] = [];
-      try {
-        const { config } = await loadConfig(configPath, configName);
-        startScripts = normalizeScripts(config?.scripts?.start);
-      } catch {
-        /* config load failed, no start scripts */
       }
 
       let branchName: string | null = null;
@@ -1090,10 +805,6 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         branchName,
         baseBranch: null,
         createdAt: new Date().toISOString(),
-        terminalSessionIds: this.ensureScriptRunner().getTaskSessions(
-          assoc.taskId,
-        ),
-        hasStartScripts: startScripts.length > 0,
       };
     }
 

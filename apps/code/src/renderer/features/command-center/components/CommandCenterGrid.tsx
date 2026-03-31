@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CommandCenterCellData } from "../hooks/useCommandCenterData";
 import {
   getGridDimensions,
@@ -46,12 +46,34 @@ function GridCell({
   cell,
   zoom,
   isDragActive,
+  activeTaskId,
 }: {
   cell: CommandCenterCellData;
   zoom: number;
   isDragActive: boolean;
+  activeTaskId: string | null;
 }) {
+  const cellRef = useRef<HTMLDivElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const setActiveTask = useCommandCenterStore((s) => s.setActiveTask);
+  const isActive = !!cell.taskId && activeTaskId === cell.taskId;
+
+  const handleCellClick = useCallback(() => {
+    setActiveTask(cell.taskId);
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) return;
+    const actionSelector =
+      cellRef.current?.querySelector<HTMLElement>("[tabindex='0']");
+    actionSelector?.focus();
+  }, [cell.taskId, setActiveTask]);
+
+  const handleCellPointerDownCapture = useCallback(() => {
+    setActiveTask(cell.taskId);
+  }, [cell.taskId, setActiveTask]);
+
+  const handleCellFocusCapture = useCallback(() => {
+    setActiveTask(cell.taskId);
+  }, [cell.taskId, setActiveTask]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (e.dataTransfer.types.includes("text/x-task-id")) {
@@ -78,15 +100,25 @@ function GridCell({
   );
 
   return (
-    <div className="relative overflow-hidden bg-gray-1">
+    // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: click delegates focus to ActionSelector within
+    <div
+      ref={cellRef}
+      className="relative overflow-hidden bg-gray-1"
+      onClick={handleCellClick}
+      onPointerDownCapture={handleCellPointerDownCapture}
+      onFocusCapture={handleCellFocusCapture}
+    >
       <div
         className="h-full w-full origin-top-left"
         style={{
           zoom: zoom !== 1 ? zoom : undefined,
         }}
       >
-        <CommandCenterPanel cell={cell} />
+        <CommandCenterPanel cell={cell} isActiveSession={isActive} />
       </div>
+      {isActive && (
+        <div className="pointer-events-none absolute inset-0 border-2 border-accent-9" />
+      )}
       {isDragActive && (
         // biome-ignore lint/a11y/noStaticElementInteractions: transparent overlay to capture drag events over session content
         <div
@@ -107,6 +139,7 @@ function GridCell({
 export function CommandCenterGrid({ layout, cells }: CommandCenterGridProps) {
   const { cols, rows } = getGridDimensions(layout);
   const zoom = useCommandCenterStore((s) => s.zoom);
+  const activeTaskId = useCommandCenterStore((s) => s.activeTaskId);
   const isDragActive = useTaskDragActive();
 
   return (
@@ -125,6 +158,7 @@ export function CommandCenterGrid({ layout, cells }: CommandCenterGridProps) {
           cell={cell}
           zoom={zoom}
           isDragActive={isDragActive}
+          activeTaskId={activeTaskId}
         />
       ))}
     </div>

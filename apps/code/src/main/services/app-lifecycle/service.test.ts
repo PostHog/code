@@ -7,6 +7,7 @@ const {
   mockDatabaseService,
   mockTrackAppEvent,
   mockShutdownPostHog,
+  mockShutdownOtelTransport,
   mockProcessExit,
 } = vi.hoisted(() => {
   const mockDatabaseService = {
@@ -23,6 +24,7 @@ const {
     mockDatabaseService,
     mockTrackAppEvent: vi.fn(),
     mockShutdownPostHog: vi.fn(() => Promise.resolve()),
+    mockShutdownOtelTransport: vi.fn(() => Promise.resolve()),
     mockProcessExit: vi.fn() as unknown as (code?: number) => never,
   };
 });
@@ -40,6 +42,10 @@ vi.mock("../../utils/logger.js", () => ({
       debug: vi.fn(),
     }),
   },
+}));
+
+vi.mock("../../utils/otel-log-transport.js", () => ({
+  shutdownOtelTransport: mockShutdownOtelTransport,
 }));
 
 vi.mock("../posthog-analytics.js", () => ({
@@ -131,6 +137,9 @@ describe("AppLifecycleService", () => {
       mockTrackAppEvent.mockImplementation(() => {
         callOrder.push("trackAppEvent");
       });
+      mockShutdownOtelTransport.mockImplementation(async () => {
+        callOrder.push("shutdownOtelTransport");
+      });
       mockShutdownPostHog.mockImplementation(async () => {
         callOrder.push("shutdownPostHog");
       });
@@ -143,6 +152,7 @@ describe("AppLifecycleService", () => {
         "dbClose",
         "unbindAll",
         "trackAppEvent",
+        "shutdownOtelTransport",
         "shutdownPostHog",
       ]);
     });

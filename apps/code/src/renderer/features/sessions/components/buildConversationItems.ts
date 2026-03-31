@@ -51,6 +51,7 @@ export interface LastTurnInfo {
 export interface BuildResult {
   items: ConversationItem[];
   lastTurnInfo: LastTurnInfo | null;
+  isCompacting: boolean;
 }
 
 interface TurnState {
@@ -71,6 +72,7 @@ interface ItemBuilder {
   currentTurn: TurnState | null;
   pendingPrompts: Map<number, TurnState>;
   shellExecutes: Map<string, { item: UserShellExecute; index: number }>;
+  isCompacting: boolean;
   nextId: () => number;
 }
 
@@ -81,6 +83,7 @@ function createItemBuilder(): ItemBuilder {
     currentTurn: null,
     pendingPrompts: new Map(),
     shellExecutes: new Map(),
+    isCompacting: false,
     nextId: () => idCounter++,
   };
 }
@@ -179,7 +182,7 @@ export function buildConversationItems(
       }
     : null;
 
-  return { items: b.items, lastTurnInfo };
+  return { items: b.items, lastTurnInfo, isCompacting: b.isCompacting };
 }
 
 function handlePromptRequest(
@@ -341,12 +344,14 @@ function handleNotification(
     const params = msg.params as {
       trigger: "manual" | "auto";
       preTokens: number;
+      contextSize?: number;
     };
     markCompactingStatusComplete(b);
     pushItem(b, {
       sessionUpdate: "compact_boundary",
       trigger: params.trigger,
       preTokens: params.preTokens,
+      contextSize: params.contextSize,
     });
     return;
   }
@@ -354,6 +359,9 @@ function handleNotification(
   if (isPosthogMethod(msg.method, "status")) {
     if (!b.currentTurn) ensureImplicitTurn(b, ts);
     const params = msg.params as { status: string; isComplete?: boolean };
+    if (params.status === "compacting" && !params.isComplete) {
+      b.isCompacting = true;
+    }
     pushItem(b, {
       sessionUpdate: "status",
       status: params.status,
@@ -361,27 +369,10 @@ function handleNotification(
     });
     return;
   }
-
-  if (isPosthogMethod(msg.method, "task_notification")) {
-    if (!b.currentTurn) ensureImplicitTurn(b, ts);
-    const params = msg.params as {
-      taskId: string;
-      status: "completed" | "failed" | "stopped";
-      summary: string;
-      outputFile: string;
-    };
-    pushItem(b, {
-      sessionUpdate: "task_notification",
-      taskId: params.taskId,
-      status: params.status,
-      summary: params.summary,
-      outputFile: params.outputFile,
-    });
-    return;
-  }
 }
 
 function markCompactingStatusComplete(b: ItemBuilder) {
+  b.isCompacting = false;
   for (let i = b.items.length - 1; i >= 0; i--) {
     const item = b.items[i];
     if (
@@ -560,6 +551,7 @@ function processSessionUpdate(b: ItemBuilder, update: SessionUpdate) {
     case "plan":
     case "available_commands_update":
     case "config_option_update":
+    case "usage_update":
       break;
 
     default: {

@@ -1,5 +1,6 @@
 import { Combobox } from "@components/ui/combobox/Combobox";
 import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
+import { getSuggestedBranchName } from "@features/git-interaction/utils/deriveBranchName";
 import { invalidateGitBranchQueries } from "@features/git-interaction/utils/gitCacheKeys";
 import { GitBranch, Plus } from "@phosphor-icons/react";
 import { Flex, Spinner, Tooltip } from "@radix-ui/themes";
@@ -20,6 +21,7 @@ interface BranchSelectorProps {
   onBranchSelect?: (branch: string | null) => void;
   cloudBranches?: string[];
   cloudBranchesLoading?: boolean;
+  taskId?: string;
 }
 
 export function BranchSelector({
@@ -34,6 +36,7 @@ export function BranchSelector({
   onBranchSelect,
   cloudBranches,
   cloudBranchesLoading,
+  taskId,
 }: BranchSelectorProps) {
   const [open, setOpen] = useState(false);
   const trpc = useTRPC();
@@ -140,7 +143,9 @@ export function BranchSelector({
                 className="combobox-footer-button"
                 onClick={() => {
                   setOpen(false);
-                  actions.openBranch();
+                  actions.openBranch(
+                    taskId ? getSuggestedBranchName(taskId) : undefined,
+                  );
                 }}
               >
                 <Flex

@@ -58,6 +58,33 @@ export interface TaskRun {
   completed_at: string | null;
 }
 
+export type NetworkAccessLevel = "trusted" | "full" | "custom";
+
+export interface SandboxEnvironment {
+  id: string;
+  name: string;
+  network_access_level: NetworkAccessLevel;
+  allowed_domains: string[];
+  include_default_domains: boolean;
+  repositories: string[];
+  has_environment_variables: boolean;
+  private: boolean;
+  effective_domains: string[];
+  created_by?: UserBasic | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SandboxEnvironmentInput {
+  name: string;
+  network_access_level: NetworkAccessLevel;
+  allowed_domains?: string[];
+  include_default_domains?: boolean;
+  repositories?: string[];
+  environment_variables?: Record<string, string>;
+  private?: boolean;
+}
+
 export type CloudTaskUpdateKind = "logs" | "status" | "snapshot";
 
 export interface CloudTaskUpdatePayload {
@@ -129,7 +156,24 @@ export type SignalReportStatus =
   | "candidate"
   | "in_progress"
   | "ready"
-  | "failed";
+  | "failed"
+  | "pending_input"
+  | "suppressed"
+  | "deleted";
+
+/** Actionability priority from the researched report (actionability judgment artefact). */
+export type SignalReportPriority = "P0" | "P1" | "P2" | "P3" | "P4";
+
+/**
+ * One or more `SignalReportStatus` values joined by commas, e.g. `potential` or `potential,candidate,ready`.
+ * This looks horrendous but it's superb, trust me bro.
+ */
+export type CommaSeparatedSignalReportStatuses =
+  | SignalReportStatus
+  | `${SignalReportStatus},${SignalReportStatus}`
+  | `${SignalReportStatus},${SignalReportStatus},${SignalReportStatus}`
+  | `${SignalReportStatus},${SignalReportStatus},${SignalReportStatus},${SignalReportStatus}`
+  | `${SignalReportStatus},${SignalReportStatus},${SignalReportStatus},${SignalReportStatus},${SignalReportStatus}`;
 
 export interface SignalReport {
   id: string;
@@ -138,10 +182,13 @@ export interface SignalReport {
   status: SignalReportStatus;
   total_weight: number;
   signal_count: number;
+  signals_at_run?: number;
   relevant_user_count: number | null;
   created_at: string;
   updated_at: string;
   artefact_count: number;
+  /** P0–P4 from actionability judgment when the report is researched */
+  priority?: SignalReportPriority | null;
 }
 
 export interface SignalReportArtefactContent {
@@ -214,6 +261,11 @@ export type SignalReportOrderingField =
 export interface SignalReportsQueryParams {
   limit?: number;
   offset?: number;
-  status?: SignalReportStatus;
-  ordering?: `-${SignalReportOrderingField}` | SignalReportOrderingField;
+  status?: CommaSeparatedSignalReportStatuses;
+  /**
+   * Comma-separated sort keys (prefix `-` for descending). `status` is semantic stage
+   * rank (not lexicographic `status` column order). Also: `signal_count`, `total_weight`,
+   * `created_at`, `updated_at`, `id`. Example: `status,-total_weight`.
+   */
+  ordering?: string;
 }

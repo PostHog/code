@@ -5,6 +5,7 @@ import * as path from "node:path";
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type { PostHogAPIClient } from "../../../posthog-api";
 import type { StoredEntry } from "../../../types";
+import { supports1MContext } from "./models";
 
 interface ConversationTurn {
   role: "user" | "assistant";
@@ -188,6 +189,7 @@ export function rebuildConversation(
 
 const CHARS_PER_TOKEN = 4;
 const DEFAULT_MAX_TOKENS = 150_000;
+const LARGE_CONTEXT_MAX_TOKENS = 800_000;
 
 function estimateTurnTokens(turn: ConversationTurn): number {
   let chars = 0;
@@ -546,7 +548,10 @@ export async function hydrateSessionJsonl(params: {
       return;
     }
 
-    const conversation = selectRecentTurns(allTurns);
+    const maxTokens = supports1MContext(params.model ?? "")
+      ? LARGE_CONTEXT_MAX_TOKENS
+      : DEFAULT_MAX_TOKENS;
+    const conversation = selectRecentTurns(allTurns, maxTokens);
     log.info("Selected recent turns for hydration", {
       totalTurns: allTurns.length,
       selectedTurns: conversation.length,

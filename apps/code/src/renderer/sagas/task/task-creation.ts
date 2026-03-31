@@ -1,4 +1,7 @@
 import { buildPromptBlocks } from "@features/editor/utils/prompt-builder";
+import { DEFAULT_PANEL_IDS } from "@features/panels/constants/panelConstants";
+import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
+import { useProvisioningStore } from "@features/provisioning/stores/provisioningStore";
 import {
   type ConnectParams,
   getSessionService,
@@ -67,6 +70,8 @@ export interface TaskCreationInput {
   adapter?: "claude" | "codex";
   model?: string;
   reasoningLevel?: string;
+  environmentId?: string;
+  sandboxEnvironmentId?: string;
 }
 
 export interface TaskCreationOutput {
@@ -76,6 +81,7 @@ export interface TaskCreationOutput {
 
 export interface TaskCreationDeps {
   posthogClient: PostHogAPIClient;
+  onTaskReady?: (output: TaskCreationOutput) => void;
 }
 
 export class TaskCreationSaga extends Saga<
@@ -136,9 +142,17 @@ export class TaskCreationSaga extends Saga<
     // Step 4: Create workspace if we have a directory
     let workspace: Workspace | null = null;
     const branch = input.branch ?? task.latest_run?.branch ?? null;
+    const hasProvisioning =
+      workspaceMode === "worktree" && !!repoPath && !input.taskId;
+
+    if (hasProvisioning) {
+      useProvisioningStore.getState().setActive(task.id);
+      if (this.deps.onTaskReady) {
+        this.deps.onTaskReady({ task, workspace });
+      }
+    }
 
     if (repoPath) {
-      // Use the pre-fetched folder if we started it in parallel, otherwise fetch now
       const folder = folderPromise
         ? await this.readOnlyStep("folder_registration", () => folderPromise)
         : await this.readOnlyStep("folder_registration", () =>
@@ -177,8 +191,6 @@ export class TaskCreationSaga extends Saga<
         baseBranch: workspaceInfo.worktree?.baseBranch ?? null,
         createdAt:
           workspaceInfo.worktree?.createdAt ?? new Date().toISOString(),
-        terminalSessionIds: workspaceInfo.terminalSessionIds,
-        hasStartScripts: workspaceInfo.hasStartScripts,
       };
     } else if (workspaceMode === "cloud") {
       await this.step({
@@ -214,23 +226,49 @@ export class TaskCreationSaga extends Saga<
         branchName: null,
         baseBranch: branch,
         createdAt: new Date().toISOString(),
-        terminalSessionIds: [],
-        hasStartScripts: false,
       };
+    }
+
+    if (!hasProvisioning && this.deps.onTaskReady) {
+      this.deps.onTaskReady({ task, workspace });
+    }
+
+    if (hasProvisioning) {
+      useProvisioningStore.getState().clear(task.id);
+    }
+
+    if (
+      input.environmentId &&
+      workspace?.worktreePath &&
+      repoPath &&
+      !input.taskId
+    ) {
+      this.dispatchEnvironmentSetup(
+        task.id,
+        input.environmentId,
+        repoPath,
+        workspace.worktreePath,
+      );
     }
 
     // Step 5: Start cloud run (only for new cloud tasks)
     if (workspaceMode === "cloud" && !task.latest_run) {
       await this.step({
         name: "cloud_run",
-        execute: () => this.deps.posthogClient.runTaskInCloud(task.id, branch),
+        execute: () =>
+          this.deps.posthogClient.runTaskInCloud(
+            task.id,
+            branch,
+            undefined,
+            input.sandboxEnvironmentId,
+          ),
         rollback: async () => {
           log.info("Rolling back: cloud run (no-op)", { taskId: task.id });
         },
       });
     }
 
-    // Step 6: Connect to session
+    // Step 7: Connect to session
     // Cloud create: skip local session — the sandbox handles execution
     const agentCwd =
       workspace?.worktreePath ?? workspace?.folderPath ?? repoPath;
@@ -293,6 +331,36 @@ export class TaskCreationSaga extends Saga<
       });
     }
     return existingFolder;
+  }
+
+  private dispatchEnvironmentSetup(
+    taskId: string,
+    environmentId: string,
+    repoPath: string,
+    worktreePath: string,
+  ): void {
+    trpcClient.environment.get
+      .query({ repoPath, id: environmentId })
+      .then((env) => {
+        if (!env?.setup?.script) return;
+
+        const actionId = `setup-${environmentId}-${Date.now()}`;
+        usePanelLayoutStore
+          .getState()
+          .addActionTab(taskId, DEFAULT_PANEL_IDS.MAIN_PANEL, {
+            actionId,
+            command: env.setup.script,
+            cwd: worktreePath,
+            label: `Setup: ${env.name}`,
+          });
+      })
+      .catch((error) => {
+        log.error("Failed to dispatch environment setup script", {
+          taskId,
+          environmentId,
+          error,
+        });
+      });
   }
 
   private async createTask(input: TaskCreationInput): Promise<Task> {

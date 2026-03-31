@@ -53,6 +53,8 @@ import {
   pullOutput,
   pushInput,
   pushOutput,
+  searchGithubIssuesInput,
+  searchGithubIssuesOutput,
   syncInput,
   syncOutput,
   validateRepoInput,
@@ -286,6 +288,17 @@ export const gitRouter = router({
       getService().generatePrTitleAndBody(
         input.directoryPath,
         input.credentials,
+      ),
+    ),
+
+  searchGithubIssues: publicProcedure
+    .input(searchGithubIssuesInput)
+    .output(searchGithubIssuesOutput)
+    .query(({ input }) =>
+      getService().searchGithubIssues(
+        input.directoryPath,
+        input.query,
+        input.limit,
       ),
     ),
 });

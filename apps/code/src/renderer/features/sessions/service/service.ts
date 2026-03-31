@@ -355,10 +355,9 @@ export class SessionService {
     this.subscribeToChannel(taskRunId);
 
     try {
-      const persistedMode = getConfigOptionByCategory(
-        persistedConfigOptions,
-        "mode",
-      )?.currentValue;
+      const modeOpt = getConfigOptionByCategory(persistedConfigOptions, "mode");
+      const persistedMode =
+        modeOpt?.type === "select" ? modeOpt.currentValue : undefined;
 
       trpcClient.workspace.verify
         .query({ taskId })
@@ -429,7 +428,7 @@ export class SessionService {
                 .mutate({
                   sessionId: taskRunId,
                   configId: opt.id,
-                  value: opt.currentValue,
+                  value: String(opt.currentValue),
                 })
                 .catch((error) => {
                   log.warn(
@@ -606,6 +605,25 @@ export class SessionService {
     }
   }
 
+  async loadLogsOnly(params: {
+    taskId: string;
+    taskRunId: string;
+    taskTitle: string;
+    logUrl: string;
+  }): Promise<void> {
+    const { taskId, taskRunId, taskTitle, logUrl } = params;
+    const existing = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (existing && existing.events.length > 0) return;
+
+    const { rawEntries } = await this.fetchSessionLogs(logUrl, taskRunId);
+    const events = convertStoredEntriesToEvents(rawEntries);
+    const session = this.createBaseSession(taskRunId, taskId, taskTitle);
+    session.events = events;
+    session.logUrl = logUrl;
+    session.status = "disconnected";
+    sessionStoreSetters.setSession(session);
+  }
+
   async disconnectFromTask(taskId: string): Promise<void> {
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) return;
@@ -641,8 +659,15 @@ export class SessionService {
     sessionStoreSetters.setSession(session);
 
     try {
-      const { customInstructions: previewCustomInstructions } =
-        useSettingsStore.getState();
+      const {
+        customInstructions: previewCustomInstructions,
+        defaultInitialTaskMode,
+        lastUsedInitialTaskMode,
+      } = useSettingsStore.getState();
+      const initialMode =
+        defaultInitialTaskMode === "last_used"
+          ? lastUsedInitialTaskMode
+          : "plan";
       const result = await trpcClient.agent.start.mutate({
         taskId: PREVIEW_TASK_ID,
         taskRunId,
@@ -651,7 +676,7 @@ export class SessionService {
         apiHost: auth.apiHost,
         projectId: auth.projectId,
         adapter: params.adapter,
-        permissionMode: "plan",
+        permissionMode: initialMode,
         customInstructions: previewCustomInstructions || undefined,
       });
 
@@ -891,6 +916,23 @@ export class SessionService {
         // Persist the updated config options
         setPersistedConfigOptions(taskRunId, configOptions);
         log.info("Session config options updated", { taskRunId });
+      }
+
+      // Handle context usage updates
+      if (params?.update?.sessionUpdate === "usage_update") {
+        const update = params.update as {
+          used?: number;
+          size?: number;
+        };
+        if (
+          typeof update.used === "number" &&
+          typeof update.size === "number"
+        ) {
+          sessionStoreSetters.updateSession(taskRunId, {
+            contextUsed: update.used,
+            contextSize: update.size,
+          });
+        }
       }
     }
 
@@ -1593,7 +1635,9 @@ export class SessionService {
 
     // Optimistic update
     const updatedOptions = configOptions.map((opt) =>
-      opt.id === configId ? { ...opt, currentValue: value } : opt,
+      opt.id === configId
+        ? ({ ...opt, currentValue: value } as SessionConfigOption)
+        : opt,
     );
     sessionStoreSetters.updateSession(session.taskRunId, {
       configOptions: updatedOptions,
@@ -1609,7 +1653,9 @@ export class SessionService {
     } catch (error) {
       // Rollback on error
       const rolledBackOptions = configOptions.map((opt) =>
-        opt.id === configId ? { ...opt, currentValue: previousValue } : opt,
+        opt.id === configId
+          ? ({ ...opt, currentValue: previousValue } as SessionConfigOption)
+          : opt,
       );
       sessionStoreSetters.updateSession(session.taskRunId, {
         configOptions: rolledBackOptions,
@@ -1617,7 +1663,7 @@ export class SessionService {
       updatePersistedConfigOptionValue(
         session.taskRunId,
         configId,
-        previousValue,
+        String(previousValue),
       );
       log.error("Failed to set session config option", {
         taskId,
@@ -1654,7 +1700,7 @@ export class SessionService {
       track(ANALYTICS_EVENTS.SESSION_CONFIG_CHANGED, {
         task_id: taskId,
         category,
-        from_value: configOption.currentValue,
+        from_value: String(configOption.currentValue),
         to_value: value,
       });
     }

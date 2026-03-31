@@ -7,9 +7,12 @@ import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { Box, Flex } from "@radix-ui/themes";
 import { useHeaderStore } from "@stores/headerStore";
 import { useNavigationStore } from "@stores/navigationStore";
+import { isWindows } from "@utils/platform";
 
 export const HEADER_HEIGHT = 36;
 const COLLAPSED_WIDTH = 110;
+/** Width reserved for Windows title bar buttons (Close/Minimize/Maximize) */
+const WINDOWS_TITLEBAR_INSET = 140;
 
 export function HeaderRow() {
   const content = useHeaderStore((state) => state.content);
@@ -56,6 +59,7 @@ export function HeaderRow() {
         height: `${HEADER_HEIGHT}px`,
         minHeight: `${HEADER_HEIGHT}px`,
         borderBottom: "1px solid var(--gray-6)",
+        paddingRight: isWindows ? `${WINDOWS_TITLEBAR_INSET}px` : undefined,
       }}
     >
       <Flex

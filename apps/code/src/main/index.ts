@@ -9,6 +9,7 @@ import type { DatabaseService } from "./db/service";
 import { initializeDeepLinks, registerDeepLinkHandlers } from "./deep-links";
 import { container } from "./di/container";
 import { MAIN_TOKENS } from "./di/tokens";
+import { registerMcpSandboxProtocol } from "./protocols/mcp-sandbox";
 import type { AppLifecycleService } from "./services/app-lifecycle/service";
 import type { ExternalAppsService } from "./services/external-apps/service";
 import type { NotificationService } from "./services/notification/service";
@@ -19,6 +20,7 @@ import {
   trackAppEvent,
 } from "./services/posthog-analytics";
 import type { PosthogPluginService } from "./services/posthog-plugin/service";
+import type { SuspensionService } from "./services/suspension/service";
 import type { TaskLinkService } from "./services/task-link/service";
 import type { UpdatesService } from "./services/updates/service";
 import type { WorkspaceService } from "./services/workspace/service";
@@ -47,6 +49,11 @@ function initializeServices(): void {
     MAIN_TOKENS.WorkspaceService,
   );
   workspaceService.initBranchWatcher();
+
+  const suspensionService = container.get<SuspensionService>(
+    MAIN_TOKENS.SuspensionService,
+  );
+  suspensionService.startInactivityChecker();
 
   // Track app started event
   trackAppEvent(ANALYTICS_EVENTS.APP_STARTED);
@@ -78,6 +85,7 @@ app.whenReady().then(() => {
     ].join(" | "),
   );
   ensureClaudeConfigDir();
+  registerMcpSandboxProtocol();
   createWindow();
   initializeServices();
   initializeDeepLinks();
@@ -118,21 +126,6 @@ app.on("before-quit", async (event) => {
 
   event.preventDefault();
 
-  // If an update is downloaded, install it instead of doing a normal shutdown.
-  // installUpdate() handles its own lightweight cleanup and quitAndInstall.
-  try {
-    const updatesService = container.get<UpdatesService>(
-      MAIN_TOKENS.UpdatesService,
-    );
-    if (updatesService.hasUpdateReady) {
-      log.info("Update ready, installing on quit");
-      const { installed } = await updatesService.installUpdate();
-      if (installed) return;
-    }
-  } catch {
-    // Updates service not available, fall through to normal shutdown
-  }
-
   await lifecycleService.gracefulExit();
 });
 
@@ -159,7 +152,9 @@ const handleShutdownSignal = async (signal: string) => {
 
 process.on("SIGTERM", () => handleShutdownSignal("SIGTERM"));
 process.on("SIGINT", () => handleShutdownSignal("SIGINT"));
-process.on("SIGHUP", () => handleShutdownSignal("SIGHUP"));
+if (process.platform !== "win32") {
+  process.on("SIGHUP", () => handleShutdownSignal("SIGHUP"));
+}
 
 process.on("uncaughtException", (error) => {
   if (error.message === "write EIO") {
