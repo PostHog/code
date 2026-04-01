@@ -1,10 +1,17 @@
 import { GitSaga, type GitSagaInput } from "../git-saga";
 
+function buildPostHogTrailers(taskId?: string): string[] {
+  const trailers = ["Generated-By: PostHog Code"];
+  if (taskId) trailers.push(`Task-Id: ${taskId}`);
+  return trailers;
+}
+
 export interface CommitInput extends GitSagaInput {
   message: string;
   paths?: string[];
   allowEmpty?: boolean;
   stagedOnly?: boolean;
+  taskId?: string;
 }
 
 export interface CommitOutput {
@@ -19,7 +26,7 @@ export class CommitSaga extends GitSaga<CommitInput, CommitOutput> {
   protected async executeGitOperations(
     input: CommitInput,
   ): Promise<CommitOutput> {
-    const { message, paths, allowEmpty, stagedOnly } = input;
+    const { message, paths, allowEmpty, stagedOnly, taskId } = input;
 
     const originalHead = await this.readOnlyStep("get-original-head", () =>
       this.git.revparse(["HEAD"]),
@@ -62,11 +69,19 @@ export class CommitSaga extends GitSaga<CommitInput, CommitOutput> {
       });
     }
 
+    const trailers = buildPostHogTrailers(taskId);
+
+    const commitOptions: Record<string, null | string[]> = {};
+    if (allowEmpty) commitOptions["--allow-empty"] = null;
+    if (trailers.length > 0) commitOptions["--trailer"] = trailers;
+
+    const hasOptions = Object.keys(commitOptions).length > 0;
+
     const commitResult = await this.step({
       name: "commit",
       execute: () =>
-        allowEmpty
-          ? this.git.commit(message, undefined, { "--allow-empty": null })
+        hasOptions
+          ? this.git.commit(message, undefined, commitOptions)
           : this.git.commit(message),
       rollback: async () => {
         await this.git.reset(["--soft", originalHead]);

@@ -230,6 +230,7 @@ export function useGitInteraction(
         prBody: store.prBody.trim() || undefined,
         draft: store.createPrDraft || undefined,
         stagedOnly: stagedOnly || undefined,
+        taskId,
       });
 
       if (!result.success) {
@@ -349,6 +350,7 @@ export function useGitInteraction(
         directoryPath: repoPath,
         message,
         stagedOnly: stagedOnly || undefined,
+        taskId,
       });
 
       if (!result.success) {

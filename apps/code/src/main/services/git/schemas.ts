@@ -206,6 +206,7 @@ export const commitInput = z.object({
   paths: z.array(z.string()).optional(),
   allowEmpty: z.boolean().optional(),
   stagedOnly: z.boolean().optional(),
+  taskId: z.string().optional(),
 });
 
 export type CommitInput = z.infer<typeof commitInput>;
@@ -250,6 +251,7 @@ export const createPrInput = z.object({
   prBody: z.string().optional(),
   draft: z.boolean().optional(),
   stagedOnly: z.boolean().optional(),
+  taskId: z.string().optional(),
 });
 
 export type CreatePrInput = z.infer<typeof createPrInput>;

@@ -223,6 +223,7 @@ export const gitRouter = router({
         paths: input.paths,
         allowEmpty: input.allowEmpty,
         stagedOnly: input.stagedOnly,
+        taskId: input.taskId,
       }),
     ),
 

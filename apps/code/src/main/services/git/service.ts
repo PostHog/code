@@ -513,6 +513,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     prBody?: string;
     draft?: boolean;
     stagedOnly?: boolean;
+    taskId?: string;
   }): Promise<CreatePrOutput> {
     const { directoryPath, flowId } = input;
 
@@ -536,7 +537,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
         checkoutBranch: (dir, name) => this.checkoutBranch(dir, name),
         getChangedFilesHead: (dir) => this.getChangedFilesHead(dir),
         generateCommitMessage: (dir) => this.generateCommitMessage(dir),
-        commit: (dir, msg, stagedOnly) => this.commit(dir, msg, { stagedOnly }),
+        commit: (dir, msg, opts) => this.commit(dir, msg, opts),
         getSyncStatus: (dir) => this.getGitSyncStatus(dir),
         push: (dir) => this.push(dir),
         publish: (dir) => this.publish(dir),
@@ -556,6 +557,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       prBody: input.prBody,
       draft: input.draft,
       stagedOnly: input.stagedOnly,
+      taskId: input.taskId,
     });
 
     if (!result.success) {
@@ -619,7 +621,12 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
   public async commit(
     directoryPath: string,
     message: string,
-    options?: { paths?: string[]; allowEmpty?: boolean; stagedOnly?: boolean },
+    options?: {
+      paths?: string[];
+      allowEmpty?: boolean;
+      stagedOnly?: boolean;
+      taskId?: string;
+    },
   ): Promise<CommitOutput> {
     const fail = (msg: string): CommitOutput => ({
       success: false,
