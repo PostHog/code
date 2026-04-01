@@ -1,10 +1,15 @@
 import {
   ArrowSquareOutIcon,
+  BrainIcon,
   BugIcon,
   CaretDownIcon,
   CaretRightIcon,
   GithubLogoIcon,
+  KanbanIcon,
   TagIcon,
+  TicketIcon,
+  VideoIcon,
+  WarningIcon,
 } from "@phosphor-icons/react";
 import { Badge, Box, Flex, Text } from "@radix-ui/themes";
 import type { Signal } from "@shared/types";
@@ -12,9 +17,70 @@ import { useState } from "react";
 
 const COLLAPSE_THRESHOLD = 300;
 
-interface SignalCardProps {
-  signal: Signal;
+// ── Source line labels (matching PostHog Cloud's signalCardSourceLine) ────────
+
+const ERROR_TRACKING_TYPE_LABELS: Record<string, string> = {
+  issue_created: "New issue",
+  issue_reopened: "Issue reopened",
+  issue_spiking: "Volume spike",
+};
+
+function signalCardSourceLine(signal: {
+  source_product: string;
+  source_type: string;
+}): string {
+  const { source_product, source_type } = signal;
+
+  if (source_product === "error_tracking") {
+    const typeLabel =
+      ERROR_TRACKING_TYPE_LABELS[source_type] ?? source_type.replace(/_/g, " ");
+    return `Error tracking · ${typeLabel}`;
+  }
+  if (
+    source_product === "session_replay" &&
+    source_type === "session_segment_cluster"
+  ) {
+    return "Session replay · Session segment cluster";
+  }
+  if (
+    source_product === "session_replay" &&
+    source_type === "session_analysis_cluster"
+  ) {
+    return "Session replay · Session analysis cluster";
+  }
+  if (source_product === "llm_analytics" && source_type === "evaluation") {
+    return "LLM analytics · Evaluation";
+  }
+  if (source_product === "zendesk" && source_type === "ticket") {
+    return "Zendesk · Ticket";
+  }
+  if (source_product === "github" && source_type === "issue") {
+    return "GitHub · Issue";
+  }
+  if (source_product === "linear" && source_type === "issue") {
+    return "Linear · Issue";
+  }
+
+  const productLabel = source_product.replace(/_/g, " ");
+  const typeLabel = source_type.replace(/_/g, " ");
+  return `${productLabel} · ${typeLabel}`;
 }
+
+// ── Source product color (matching Cloud's known product colors) ──────────────
+
+const SOURCE_PRODUCT_ICONS: Record<
+  string,
+  { icon: React.ReactNode; color: string }
+> = {
+  session_replay: { icon: <VideoIcon size={14} />, color: "var(--amber-9)" },
+  error_tracking: { icon: <BugIcon size={14} />, color: "var(--red-9)" },
+  llm_analytics: { icon: <BrainIcon size={14} />, color: "var(--purple-9)" },
+  github: { icon: <GithubLogoIcon size={14} />, color: "var(--gray-11)" },
+  linear: { icon: <KanbanIcon size={14} />, color: "var(--blue-9)" },
+  zendesk: { icon: <TicketIcon size={14} />, color: "var(--green-9)" },
+};
+
+// ── Shared utilities ─────────────────────────────────────────────────────────
 
 interface GitHubLabelObject {
   name: string;
@@ -24,11 +90,26 @@ interface GitHubLabelObject {
 interface GitHubIssueExtra {
   html_url?: string;
   number?: number;
-  state?: string;
   labels?: string | GitHubLabelObject[];
   created_at?: string;
-  updated_at?: string;
-  locked?: boolean;
+}
+
+interface ZendeskTicketExtra {
+  url?: string;
+  priority?: string;
+  status?: string;
+  tags?: string[];
+}
+
+interface LlmEvalExtra {
+  evaluation_id?: string;
+  trace_id?: string;
+  model?: string;
+  provider?: string;
+}
+
+interface ErrorTrackingExtra {
+  fingerprint?: string;
 }
 
 function resolveLabels(
@@ -57,24 +138,88 @@ function resolveLabels(
   return [];
 }
 
-function splitTitleBody(content: string): { title: string; body: string } {
-  const firstNewline = content.indexOf("\n");
-  if (firstNewline === -1) return { title: content, body: "" };
-  return {
-    title: content.slice(0, firstNewline).trim(),
-    body: content
-      .slice(firstNewline + 1)
-      .replace(/^[\n]+/, "")
-      .trim(),
-  };
-}
-
 function truncateBody(body: string, maxLength = COLLAPSE_THRESHOLD): string {
   if (body.length <= maxLength) return body;
   const truncated = body.slice(0, maxLength);
   const lastNewline = truncated.lastIndexOf("\n");
   const cutPoint = lastNewline > maxLength * 0.5 ? lastNewline : maxLength;
   return `${truncated.slice(0, cutPoint)}…`;
+}
+
+function parseExtra(raw: Record<string, unknown>): Record<string, unknown> {
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  }
+  return raw;
+}
+
+// ── Type guards ──────────────────────────────────────────────────────────────
+
+function isGithubIssueExtra(
+  extra: Record<string, unknown>,
+): extra is Record<string, unknown> & GitHubIssueExtra {
+  return "html_url" in extra && "number" in extra;
+}
+
+function isZendeskTicketExtra(
+  extra: Record<string, unknown>,
+): extra is Record<string, unknown> & ZendeskTicketExtra {
+  return "url" in extra && "priority" in extra;
+}
+
+function isLlmEvalExtra(
+  extra: Record<string, unknown>,
+): extra is Record<string, unknown> & LlmEvalExtra {
+  return "evaluation_id" in extra && "trace_id" in extra;
+}
+
+function isErrorTrackingExtra(
+  extra: Record<string, unknown>,
+): extra is Record<string, unknown> & ErrorTrackingExtra {
+  return typeof extra.fingerprint === "string";
+}
+
+// ── Shared components ────────────────────────────────────────────────────────
+
+function SignalCardHeader({ signal }: { signal: Signal }) {
+  const productInfo = SOURCE_PRODUCT_ICONS[signal.source_product];
+
+  return (
+    <Flex align="center" gap="2" className="mb-2">
+      <span
+        className="shrink-0"
+        style={{ color: productInfo?.color ?? "var(--gray-9)" }}
+      >
+        {productInfo?.icon ?? (
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: "var(--gray-9)" }}
+          />
+        )}
+      </span>
+      <Text
+        size="1"
+        weight="medium"
+        className="text-[11px]"
+        style={{ color: "var(--gray-10)" }}
+      >
+        {signalCardSourceLine(signal)}
+      </Text>
+      <span className="flex-1" />
+      <Badge
+        variant="soft"
+        color="gray"
+        size="1"
+        className="shrink-0 text-[11px]"
+      >
+        Weight: {signal.weight.toFixed(1)}
+      </Badge>
+    </Flex>
+  );
 }
 
 function CollapsibleBody({ body }: { body: string }) {
@@ -108,154 +253,257 @@ function CollapsibleBody({ body }: { body: string }) {
   );
 }
 
-function parseExtra(raw: Record<string, unknown>): GitHubIssueExtra {
-  if (typeof raw === "string") {
-    try {
-      return JSON.parse(raw) as GitHubIssueExtra;
-    } catch {
-      return {};
-    }
-  }
-  return raw as GitHubIssueExtra;
-}
+// ── Source-specific cards ────────────────────────────────────────────────────
 
-function GitHubIssueSignalCard({ signal }: SignalCardProps) {
-  const extra = parseExtra(signal.extra);
+function GitHubIssueSignalCard({
+  signal,
+  extra,
+}: {
+  signal: Signal;
+  extra: GitHubIssueExtra;
+}) {
   const labels = resolveLabels(extra.labels);
   const issueUrl = extra.html_url ?? null;
-  const issueNumber = extra.number ?? null;
-  const { title, body } = splitTitleBody(signal.content);
-
-  const titleContent = (
-    <>
-      {issueNumber ? `#${issueNumber} ` : ""}
-      {title}
-    </>
-  );
 
   return (
-    <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1">
+    <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
+      <SignalCardHeader signal={signal} />
+      <CollapsibleBody body={signal.content} />
       <Flex
-        align="start"
+        align="center"
         gap="2"
-        px="3"
-        py="2"
-        className="min-w-0 border-gray-5 border-b bg-gray-2"
+        wrap="wrap"
+        mt="2"
+        className="text-[11px]"
+        style={{ color: "var(--gray-10)" }}
       >
-        <GithubLogoIcon size={14} className="mt-0.5 shrink-0 text-gray-11" />
-        {issueUrl ? (
-          <a
-            href={issueUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="min-w-0 flex-1 break-words font-medium text-[12px] text-gray-12 hover:text-accent-11"
+        <Text weight="medium" className="text-[11px]">
+          #{extra.number}
+        </Text>
+        {labels.map((label) => (
+          <span
+            key={label.name}
+            className="inline-flex items-center rounded-full px-1.5 py-0.5 font-medium text-[11px]"
+            style={
+              label.color
+                ? {
+                    backgroundColor: `#${label.color}20`,
+                    color: `#${label.color}`,
+                    border: `1px solid #${label.color}40`,
+                  }
+                : {
+                    backgroundColor: "var(--gray-3)",
+                    color: "var(--gray-11)",
+                    border: "1px solid var(--gray-6)",
+                  }
+            }
           >
-            {titleContent}
-          </a>
-        ) : (
-          <Text
-            size="1"
-            weight="medium"
-            className="min-w-0 flex-1 break-words text-[12px]"
-          >
-            {titleContent}
-          </Text>
-        )}
+            <TagIcon size={10} className="mr-0.5" />
+            {label.name}
+          </span>
+        ))}
+        <span className="flex-1" />
         {issueUrl && (
           <a
             href={issueUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex shrink-0 items-center gap-0.5 text-[11px] text-gray-10 hover:text-gray-12"
+            className="inline-flex items-center gap-1 text-[11px] text-gray-10 hover:text-gray-12"
           >
+            View on GitHub
             <ArrowSquareOutIcon size={12} />
           </a>
         )}
       </Flex>
-
-      <Flex direction="column" gap="2" px="3" py="2" className="min-w-0">
-        {labels.length > 0 && (
-          <Flex align="center" gap="1" wrap="wrap">
-            <TagIcon size={11} className="shrink-0 text-gray-9" />
-            {labels.map((label) => (
-              <span
-                key={label.name}
-                className="inline-flex items-center rounded-full px-1.5 py-0.5 font-medium text-[11px]"
-                style={
-                  label.color
-                    ? {
-                        backgroundColor: `#${label.color}20`,
-                        color: `#${label.color}`,
-                        border: `1px solid #${label.color}40`,
-                      }
-                    : {
-                        backgroundColor: "var(--gray-3)",
-                        color: "var(--gray-11)",
-                        border: "1px solid var(--gray-6)",
-                      }
-                }
-              >
-                {label.name}
-              </span>
-            ))}
-          </Flex>
-        )}
-
-        {body && <CollapsibleBody body={body} />}
-
-        <Flex align="center" justify="between" gap="2">
-          <Text size="1" color="gray" className="text-[11px]">
-            w:{signal.weight.toFixed(2)}
-          </Text>
-          <Text size="1" color="gray" className="text-[11px]">
-            {new Date(signal.timestamp).toLocaleString()}
-          </Text>
-        </Flex>
-      </Flex>
+      {extra.created_at && (
+        <Text
+          size="1"
+          className="mt-1 block text-[11px]"
+          style={{ color: "var(--gray-10)" }}
+        >
+          Opened: {new Date(extra.created_at).toLocaleString()}
+        </Text>
+      )}
     </Box>
   );
 }
 
-function DefaultSignalCard({ signal }: SignalCardProps) {
+function ZendeskTicketSignalCard({
+  signal,
+  extra,
+}: {
+  signal: Signal;
+  extra: ZendeskTicketExtra;
+}) {
   return (
-    <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1">
+    <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
+      <SignalCardHeader signal={signal} />
+      <CollapsibleBody body={signal.content} />
       <Flex
         align="center"
         gap="2"
-        px="3"
-        py="2"
-        className="min-w-0 border-gray-5 border-b bg-gray-2"
+        wrap="wrap"
+        mt="2"
+        className="text-[11px]"
+        style={{ color: "var(--gray-10)" }}
       >
-        <BugIcon size={14} className="shrink-0 text-gray-11" />
-        <Flex align="center" gap="1" className="min-w-0 flex-1" wrap="wrap">
+        {extra.priority && (
           <Badge variant="soft" color="gray" size="1" className="text-[11px]">
-            {signal.source_product}
+            Priority: {extra.priority}
           </Badge>
+        )}
+        {extra.status && (
           <Badge variant="soft" color="gray" size="1" className="text-[11px]">
-            {signal.source_type}
+            Status: {extra.status}
           </Badge>
-        </Flex>
-      </Flex>
-
-      <Flex direction="column" gap="2" px="3" py="2" className="min-w-0">
-        <CollapsibleBody body={signal.content} />
-
-        <Flex align="center" justify="between" gap="2">
-          <Text size="1" color="gray" className="text-[11px]">
-            w:{signal.weight.toFixed(2)}
-          </Text>
-          <Text size="1" color="gray" className="text-[11px]">
-            {new Date(signal.timestamp).toLocaleString()}
-          </Text>
-        </Flex>
+        )}
+        {extra.tags?.map((tag) => (
+          <Badge
+            key={tag}
+            variant="soft"
+            color="gray"
+            size="1"
+            className="text-[11px]"
+          >
+            {tag}
+          </Badge>
+        ))}
+        <span className="flex-1" />
+        {extra.url && (
+          <a
+            href={extra.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-[11px] text-gray-10 hover:text-gray-12"
+          >
+            Open
+            <ArrowSquareOutIcon size={12} />
+          </a>
+        )}
       </Flex>
     </Box>
   );
 }
 
-export function SignalCard({ signal }: SignalCardProps) {
-  if (signal.source_product === "github") {
-    return <GitHubIssueSignalCard signal={signal} />;
+function LlmEvalSignalCard({
+  signal,
+  extra,
+}: {
+  signal: Signal;
+  extra: LlmEvalExtra;
+}) {
+  return (
+    <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
+      <SignalCardHeader signal={signal} />
+      <CollapsibleBody body={signal.content} />
+      <Flex
+        align="center"
+        gap="2"
+        mt="2"
+        className="text-[11px]"
+        style={{ color: "var(--gray-10)" }}
+      >
+        {extra.model && <span>Model: {extra.model}</span>}
+        {extra.model && extra.provider && <span>·</span>}
+        {extra.provider && <span>Provider: {extra.provider}</span>}
+      </Flex>
+      {extra.trace_id && (
+        <Text
+          size="1"
+          className="mt-1 block text-[11px]"
+          style={{ color: "var(--gray-10)" }}
+        >
+          Trace:{" "}
+          <span className="font-mono">{extra.trace_id.slice(0, 12)}...</span>
+        </Text>
+      )}
+    </Box>
+  );
+}
+
+function ErrorTrackingSignalCard({
+  signal,
+  extra,
+}: {
+  signal: Signal;
+  extra: ErrorTrackingExtra;
+}) {
+  const fingerprint = extra.fingerprint ?? "";
+  const fingerprintShort =
+    fingerprint.length > 14 ? `${fingerprint.slice(0, 14)}…` : fingerprint;
+
+  return (
+    <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
+      <SignalCardHeader signal={signal} />
+      <CollapsibleBody body={signal.content} />
+      <Flex
+        align="center"
+        gap="2"
+        wrap="wrap"
+        mt="2"
+        className="text-[11px]"
+        style={{ color: "var(--gray-10)" }}
+      >
+        <Flex align="center" gap="1">
+          <WarningIcon
+            size={14}
+            weight="bold"
+            className="shrink-0"
+            style={{ color: "var(--amber-9)" }}
+          />
+          <span>
+            Fingerprint{" "}
+            <span
+              className="font-mono"
+              style={{ color: "var(--gray-12)" }}
+              title={fingerprint}
+            >
+              {fingerprintShort}
+            </span>
+          </span>
+        </Flex>
+        <span className="flex-1" />
+        {/* No "View issue" link in Code — error tracking lives in Cloud */}
+      </Flex>
+    </Box>
+  );
+}
+
+function GenericSignalCard({ signal }: { signal: Signal }) {
+  return (
+    <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
+      <SignalCardHeader signal={signal} />
+      <CollapsibleBody body={signal.content} />
+      <Text
+        size="1"
+        className="mt-2 block text-[11px]"
+        style={{ color: "var(--gray-10)" }}
+      >
+        {new Date(signal.timestamp).toLocaleString()}
+      </Text>
+    </Box>
+  );
+}
+
+// ── Main export ──────────────────────────────────────────────────────────────
+
+export function SignalCard({ signal }: { signal: Signal }) {
+  const extra = parseExtra(signal.extra);
+
+  if (
+    signal.source_product === "error_tracking" &&
+    isErrorTrackingExtra(extra)
+  ) {
+    return <ErrorTrackingSignalCard signal={signal} extra={extra} />;
   }
-  return <DefaultSignalCard signal={signal} />;
+  if (signal.source_product === "github" && isGithubIssueExtra(extra)) {
+    return <GitHubIssueSignalCard signal={signal} extra={extra} />;
+  }
+  if (signal.source_product === "zendesk" && isZendeskTicketExtra(extra)) {
+    return <ZendeskTicketSignalCard signal={signal} extra={extra} />;
+  }
+  if (signal.source_product === "llm_analytics" && isLlmEvalExtra(extra)) {
+    return <LlmEvalSignalCard signal={signal} extra={extra} />;
+  }
+  return <GenericSignalCard signal={signal} />;
 }
