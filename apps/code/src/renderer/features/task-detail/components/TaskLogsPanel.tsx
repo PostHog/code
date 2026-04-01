@@ -28,9 +28,18 @@ import { useCallback, useEffect, useMemo } from "react";
 interface TaskLogsPanelProps {
   taskId: string;
   task: Task;
+  /** Hide the message input — log-only view. */
+  hideInput?: boolean;
+  /** Hide the cloud status footer bar. */
+  hideCloudStatus?: boolean;
 }
 
-export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
+export function TaskLogsPanel({
+  taskId,
+  task,
+  hideInput,
+  hideCloudStatus,
+}: TaskLogsPanelProps) {
   const isWorkspaceLoaded = useWorkspaceLoaded();
   const { isPending: isCreatingWorkspace } = useCreateWorkspace();
   const repoKey = getTaskRepository(task);
@@ -158,6 +167,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
               hasError={hasError}
               errorTitle={errorTitle}
               errorMessage={errorMessage}
+              hideInput={hideInput}
               onRetry={isCloud ? undefined : handleRetry}
               onNewSession={isCloud ? undefined : handleNewSession}
               isInitializing={isInitializing}
@@ -165,7 +175,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
             />
           </ErrorBoundary>
         </Box>
-        {isCloud && (
+        {isCloud && !hideCloudStatus && (
           <Flex
             align="center"
             justify="center"

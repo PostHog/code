@@ -440,7 +440,14 @@ export class PostHogAPIClient {
   async createTask(
     options: Pick<Task, "description"> &
       Partial<
-        Pick<Task, "title" | "repository" | "json_schema" | "origin_product">
+        Pick<
+          Task,
+          | "title"
+          | "repository"
+          | "json_schema"
+          | "origin_product"
+          | "signal_report"
+        >
       > & {
         github_integration?: number | null;
       },

@@ -59,6 +59,7 @@ import { useRendererWindowFocusStore } from "@stores/rendererWindowFocusStore";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ReportCard } from "./ReportCard";
+import { ReportTaskLogs } from "./ReportTaskLogs";
 import { SignalCard } from "./SignalCard";
 import { SignalReportPriorityBadge } from "./SignalReportPriorityBadge";
 import { SignalReportSummaryMarkdown } from "./SignalReportSummaryMarkdown";
@@ -601,6 +602,7 @@ export function InboxSignalsTab() {
           style={{ flex: 1 }}
         >
           <Flex direction="column" gap="2" p="2" className="min-w-0">
+            {/* ── Description ─────────────────────────────────────── */}
             <SignalReportSummaryMarkdown
               content={selectedReport.summary}
               fallback="No summary available."
@@ -652,6 +654,7 @@ export function InboxSignalsTab() {
               </Box>
             )}
 
+            {/* ── Signals ─────────────────────────────────────────── */}
             {signals.length > 0 && (
               <Box>
                 <Text
@@ -675,6 +678,7 @@ export function InboxSignalsTab() {
               </Text>
             )}
 
+            {/* ── Evidence ────────────────────────────────────────── */}
             <Box>
               <Text
                 size="1"
@@ -743,6 +747,12 @@ export function InboxSignalsTab() {
             </Box>
           </Flex>
         </ScrollArea>
+        {/* ── Research task logs (bottom preview + overlay) ─────── */}
+        <ReportTaskLogs
+          key={selectedReport.id}
+          reportId={selectedReport.id}
+          reportStatus={selectedReport.status}
+        />
       </>
     );
   } else {
@@ -910,6 +920,7 @@ export function InboxSignalsTab() {
               flex: 1,
               minWidth: 0,
               height: "100%",
+              position: "relative",
             }}
           >
             {rightPaneContent}

@@ -61,6 +61,8 @@ interface SessionViewProps {
   slackThreadUrl?: string;
   compact?: boolean;
   isActiveSession?: boolean;
+  /** Hide the message input and permission UI — log-only view. */
+  hideInput?: boolean;
 }
 
 const DEFAULT_ERROR_MESSAGE =
@@ -90,6 +92,7 @@ export function SessionView({
   slackThreadUrl,
   compact = false,
   isActiveSession = true,
+  hideInput = false,
 }: SessionViewProps) {
   const showRawLogs = useShowRawLogs();
   const { setShowRawLogs } = useSessionViewActions();
@@ -505,7 +508,7 @@ export function SessionView({
                     )}
                   </Flex>
                 </Flex>
-              ) : firstPendingPermission ? (
+              ) : hideInput ? null : firstPendingPermission ? (
                 <Box className="border-gray-4 border-t">
                   <Box className="mx-auto max-w-[750px] p-2">
                     <PermissionSelector
