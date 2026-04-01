@@ -276,11 +276,13 @@ function GitHubIssueSignalCard({
   extra,
   verified,
   codePaths,
+  dataQueried,
 }: {
   signal: Signal;
   extra: GitHubIssueExtra;
   verified?: boolean;
   codePaths?: string[];
+  dataQueried?: string;
 }) {
   const labels = resolveLabels(extra.labels);
   const issueUrl = extra.html_url ?? null;
@@ -345,6 +347,7 @@ function GitHubIssueSignalCard({
         </Text>
       )}
       <CodePathsCollapsible paths={codePaths ?? []} />
+      <DataQueriedCollapsible text={dataQueried ?? ""} />
     </Box>
   );
 }
@@ -354,11 +357,13 @@ function ZendeskTicketSignalCard({
   extra,
   verified,
   codePaths,
+  dataQueried,
 }: {
   signal: Signal;
   extra: ZendeskTicketExtra;
   verified?: boolean;
   codePaths?: string[];
+  dataQueried?: string;
 }) {
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
@@ -407,6 +412,7 @@ function ZendeskTicketSignalCard({
         )}
       </Flex>
       <CodePathsCollapsible paths={codePaths ?? []} />
+      <DataQueriedCollapsible text={dataQueried ?? ""} />
     </Box>
   );
 }
@@ -416,11 +422,13 @@ function LlmEvalSignalCard({
   extra,
   verified,
   codePaths,
+  dataQueried,
 }: {
   signal: Signal;
   extra: LlmEvalExtra;
   verified?: boolean;
   codePaths?: string[];
+  dataQueried?: string;
 }) {
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
@@ -448,6 +456,7 @@ function LlmEvalSignalCard({
         </Text>
       )}
       <CodePathsCollapsible paths={codePaths ?? []} />
+      <DataQueriedCollapsible text={dataQueried ?? ""} />
     </Box>
   );
 }
@@ -457,11 +466,13 @@ function ErrorTrackingSignalCard({
   extra,
   verified,
   codePaths,
+  dataQueried,
 }: {
   signal: Signal;
   extra: ErrorTrackingExtra;
   verified?: boolean;
   codePaths?: string[];
+  dataQueried?: string;
 }) {
   const fingerprint = extra.fingerprint ?? "";
   const fingerprintShort =
@@ -501,6 +512,7 @@ function ErrorTrackingSignalCard({
         {/* No "View issue" link in Code — error tracking lives in Cloud */}
       </Flex>
       <CodePathsCollapsible paths={codePaths ?? []} />
+      <DataQueriedCollapsible text={dataQueried ?? ""} />
     </Box>
   );
 }
@@ -509,10 +521,12 @@ function GenericSignalCard({
   signal,
   verified,
   codePaths,
+  dataQueried,
 }: {
   signal: Signal;
   verified?: boolean;
   codePaths?: string[];
+  dataQueried?: string;
 }) {
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
@@ -526,6 +540,7 @@ function GenericSignalCard({
         {new Date(signal.timestamp).toLocaleString()}
       </Text>
       <CodePathsCollapsible paths={codePaths ?? []} />
+      <DataQueriedCollapsible text={dataQueried ?? ""} />
     </Box>
   );
 }
@@ -572,6 +587,34 @@ function CodePathsCollapsible({ paths }: { paths: string[] }) {
   );
 }
 
+function DataQueriedCollapsible({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!text) return null;
+
+  return (
+    <Box mt="2" style={{ borderTop: "1px solid var(--gray-5)" }} pt="2">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-1 rounded px-1 py-0.5 font-medium text-[11px] text-gray-10 hover:bg-gray-3 hover:text-gray-12"
+      >
+        {expanded ? <CaretDownIcon size={10} /> : <CaretRightIcon size={10} />}
+        Data queried
+      </button>
+      {expanded && (
+        <Text
+          size="1"
+          color="gray"
+          className="mt-1 block whitespace-pre-wrap text-pretty pl-[18px] text-[11px] leading-relaxed"
+        >
+          {text}
+        </Text>
+      )}
+    </Box>
+  );
+}
+
 // ── Main export ──────────────────────────────────────────────────────────────
 
 export function SignalCard({
@@ -584,6 +627,7 @@ export function SignalCard({
   const extra = parseExtra(signal.extra);
   const verified = finding?.verified;
   const codePaths = finding?.relevant_code_paths ?? [];
+  const dataQueried = finding?.data_queried ?? "";
 
   if (
     signal.source_product === "error_tracking" &&
@@ -595,6 +639,7 @@ export function SignalCard({
         extra={extra}
         verified={verified}
         codePaths={codePaths}
+        dataQueried={dataQueried}
       />
     );
   }
@@ -605,6 +650,7 @@ export function SignalCard({
         extra={extra}
         verified={verified}
         codePaths={codePaths}
+        dataQueried={dataQueried}
       />
     );
   }
@@ -615,6 +661,7 @@ export function SignalCard({
         extra={extra}
         verified={verified}
         codePaths={codePaths}
+        dataQueried={dataQueried}
       />
     );
   }
@@ -625,6 +672,7 @@ export function SignalCard({
         extra={extra}
         verified={verified}
         codePaths={codePaths}
+        dataQueried={dataQueried}
       />
     );
   }
