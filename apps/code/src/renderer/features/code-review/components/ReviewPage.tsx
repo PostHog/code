@@ -2,14 +2,15 @@ import { useDiffViewerStore } from "@features/code-editor/stores/diffViewerStore
 import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
-import { type FileDiffOptions, parsePatchFiles } from "@pierre/diffs";
-import { MultiFileDiff } from "@pierre/diffs/react";
+import { parsePatchFiles } from "@pierre/diffs";
 import { Flex, Text } from "@radix-ui/themes";
 import { useTRPC } from "@renderer/trpc/client";
 import type { ChangedFile } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { RevertableFileDiff } from "./RevertableFileDiff";
+import { useReviewComment } from "../hooks/useReviewComment";
+import type { DiffOptions, OnCommentCallback } from "../types";
+import { InteractiveFileDiff } from "./InteractiveFileDiff";
 import {
   DeferredDiffPlaceholder,
   DiffFileHeader,
@@ -28,6 +29,7 @@ export function ReviewPage({ taskId }: ReviewPageProps) {
   const { changedFiles, changesLoading } = useGitQueries(repoPath);
   const hideWhitespace = useDiffViewerStore((s) => s.hideWhitespaceChanges);
   const openFile = usePanelLayoutStore((s) => s.openFile);
+  const onComment = useReviewComment(taskId);
 
   const { data: rawDiff, isLoading: diffLoading } = useQuery(
     trpc.git.getDiffHead.queryOptions(
@@ -117,10 +119,11 @@ export function ReviewPage({ taskId }: ReviewPageProps) {
 
         return (
           <div key={key} data-file-path={key}>
-            <RevertableFileDiff
+            <InteractiveFileDiff
               fileDiff={fileDiff}
               repoPath={repoPath}
               options={{ ...diffOptions, collapsed: isCollapsed }}
+              onComment={onComment}
               renderCustomHeader={(fd) => (
                 <DiffFileHeader
                   fileDiff={fd}
@@ -145,6 +148,7 @@ export function ReviewPage({ taskId }: ReviewPageProps) {
               options={diffOptions}
               collapsed={isCollapsed}
               onToggle={() => toggleFile(file.path)}
+              onComment={onComment}
             />
           </div>
         );
@@ -159,12 +163,14 @@ function UntrackedFileDiff({
   options,
   collapsed,
   onToggle,
+  onComment,
 }: {
   file: ChangedFile;
   repoPath: string;
-  options: FileDiffOptions<unknown>;
+  options: DiffOptions;
   collapsed: boolean;
   onToggle: () => void;
+  onComment: OnCommentCallback;
 }) {
   const trpc = useTRPC();
   const { data: content } = useQuery(
@@ -182,10 +188,11 @@ function UntrackedFileDiff({
   );
 
   return (
-    <MultiFileDiff
+    <InteractiveFileDiff
       oldFile={oldFile}
       newFile={newFile}
       options={{ ...options, collapsed }}
+      onComment={onComment}
       renderCustomHeader={(fd) => (
         <DiffFileHeader
           fileDiff={fd}

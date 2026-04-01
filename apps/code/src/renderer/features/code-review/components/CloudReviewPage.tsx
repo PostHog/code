@@ -4,12 +4,13 @@ import {
   extractCloudFileDiff,
   type ParsedToolCall,
 } from "@features/task-detail/utils/cloudToolChanges";
-import type { FileDiffOptions } from "@pierre/diffs";
-import { MultiFileDiff } from "@pierre/diffs/react";
 import { Flex, Spinner, Text } from "@radix-ui/themes";
 import type { ChangedFile, Task } from "@shared/types";
 import type { AcpMessage } from "@shared/types/session-events";
 import { useMemo } from "react";
+import { useReviewComment } from "../hooks/useReviewComment";
+import type { DiffOptions, OnCommentCallback } from "../types";
+import { InteractiveFileDiff } from "./InteractiveFileDiff";
 import {
   DeferredDiffPlaceholder,
   DiffFileHeader,
@@ -33,6 +34,7 @@ export function CloudReviewPage({ taskId, task }: CloudReviewPageProps) {
     changedFiles,
     isLoading,
   } = useCloudChangedFiles(taskId, task);
+  const onComment = useReviewComment(taskId);
   const events = session?.events ?? EMPTY_EVENTS;
   const summary = useMemo(() => buildCloudEventSummary(events), [events]);
 
@@ -117,6 +119,7 @@ export function CloudReviewPage({ taskId, task }: CloudReviewPageProps) {
               options={diffOptions}
               collapsed={isCollapsed}
               onToggle={() => toggleFile(file.path)}
+              onComment={onComment}
             />
           </div>
         );
@@ -131,12 +134,14 @@ function CloudFileDiff({
   options,
   collapsed,
   onToggle,
+  onComment,
 }: {
   file: ChangedFile;
   toolCalls: Map<string, ParsedToolCall>;
-  options: FileDiffOptions<unknown>;
+  options: DiffOptions;
   collapsed: boolean;
   onToggle: () => void;
+  onComment: OnCommentCallback;
 }) {
   const diff = useMemo(
     () => extractCloudFileDiff(toolCalls, file.path),
@@ -154,10 +159,11 @@ function CloudFileDiff({
   );
 
   return (
-    <MultiFileDiff
+    <InteractiveFileDiff
       oldFile={oldFile}
       newFile={newFile}
       options={{ ...options, collapsed }}
+      onComment={onComment}
       renderCustomHeader={(fd) => (
         <DiffFileHeader
           fileDiff={fd}
