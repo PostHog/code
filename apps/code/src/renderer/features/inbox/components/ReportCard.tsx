@@ -4,7 +4,8 @@ import {
   inboxStatusAccentCss,
   inboxStatusLabel,
 } from "@features/inbox/utils/inboxSort";
-import { Flex, Text } from "@radix-ui/themes";
+import { UserIcon } from "@phosphor-icons/react";
+import { Flex, Text, Tooltip } from "@radix-ui/themes";
 import type { SignalReport } from "@shared/types";
 import { motion } from "framer-motion";
 import type { KeyboardEvent, MouseEvent } from "react";
@@ -118,6 +119,20 @@ export function ReportCard({
                 {statusLabel}
               </span>
               <SignalReportPriorityBadge priority={report.priority} />
+              {report.is_suggested_reviewer && (
+                <Tooltip content="You are a suggested reviewer">
+                  <span
+                    className="inline-flex shrink-0 items-center rounded-sm px-1 py-px"
+                    style={{
+                      color: "var(--blue-11)",
+                      backgroundColor: "var(--blue-3)",
+                      border: "1px solid var(--blue-6)",
+                    }}
+                  >
+                    <UserIcon size={10} weight="bold" />
+                  </span>
+                </Tooltip>
+              )}
             </Flex>
           </Flex>
           {/* Summary is outside the title row so wrapped lines align with title text (bullet + gap), not the card edge */}

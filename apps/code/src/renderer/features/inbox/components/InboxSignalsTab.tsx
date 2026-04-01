@@ -1,4 +1,3 @@
-import { ResizableSidebar } from "@components/ResizableSidebar";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { InboxLiveRail } from "@features/inbox/components/InboxLiveRail";
 import {
@@ -13,21 +12,24 @@ import { useInboxSignalsSidebarStore } from "@features/inbox/stores/inboxSignals
 import { buildSignalTaskPrompt } from "@features/inbox/utils/buildSignalTaskPrompt";
 import {
   buildSignalReportListOrdering,
+  buildStatusFilterParam,
   filterReportsBySearch,
 } from "@features/inbox/utils/filterReports";
-import {
-  INBOX_PIPELINE_STATUS_FILTER,
-  INBOX_REFETCH_INTERVAL_MS,
-} from "@features/inbox/utils/inboxConstants";
+import { INBOX_REFETCH_INTERVAL_MS } from "@features/inbox/utils/inboxConstants";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
-import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
+import { SignalSourcesSettings } from "@features/settings/components/sections/SignalSourcesSettings";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useRepositoryIntegration } from "@hooks/useIntegrations";
 import {
+  ArrowDownIcon,
   ArrowSquareOutIcon,
+  ArrowsClockwiseIcon,
+  CircleNotchIcon,
   ClockIcon,
   Cloud as CloudIcon,
+  GithubLogoIcon,
+  WarningIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import {
@@ -35,22 +37,27 @@ import {
   Badge,
   Box,
   Button,
+  Dialog,
   Flex,
   ScrollArea,
   Select,
   Text,
+  Tooltip,
 } from "@radix-ui/themes";
+import explorerHog from "@renderer/assets/images/explorer-hog.png";
+import graphsHog from "@renderer/assets/images/graphs-hog.png";
+import mailHog from "@renderer/assets/images/mail-hog.png";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type {
+  SignalReportArtefact,
   SignalReportArtefactsResponse,
   SignalReportsQueryParams,
+  SuggestedReviewersArtefact,
 } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useRendererWindowFocusStore } from "@stores/rendererWindowFocusStore";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { SignalsErrorState, SignalsLoadingState } from "./InboxEmptyStates";
-import { InboxWarmingUpState } from "./InboxWarmingUpState";
 import { ReportCard } from "./ReportCard";
 import { SignalCard } from "./SignalCard";
 import { SignalReportPriorityBadge } from "./SignalReportPriorityBadge";
@@ -114,13 +121,187 @@ function LoadMoreTrigger({
   );
 }
 
+// ── Animated ellipsis for warming-up inline text ─────────────────────────────
+
+function AnimatedEllipsis() {
+  return (
+    <span aria-hidden>
+      <span className="inline-flex items-end gap-px leading-none">
+        <span className="inbox-ellipsis-dot">.</span>
+        <span className="inbox-ellipsis-dot">.</span>
+        <span className="inbox-ellipsis-dot">.</span>
+      </span>
+    </span>
+  );
+}
+
+// ── Right pane empty states ─────────────────────────────────────────────────
+
+function WelcomePane({ onEnableInbox }: { onEnableInbox: () => void }) {
+  return (
+    <Flex
+      direction="column"
+      align="center"
+      justify="center"
+      height="100%"
+      px="5"
+    >
+      <Flex direction="column" align="center" style={{ maxWidth: 420 }}>
+        <img src={graphsHog} alt="" style={{ width: 120, marginBottom: 16 }} />
+
+        <Text
+          size="4"
+          weight="bold"
+          align="center"
+          style={{ color: "var(--gray-12)" }}
+        >
+          Welcome to your Inbox
+        </Text>
+
+        <Flex
+          direction="column"
+          align="center"
+          gap="3"
+          mt="3"
+          style={{ maxWidth: 340 }}
+        >
+          <Text
+            size="1"
+            align="center"
+            style={{ color: "var(--gray-11)", lineHeight: 1.35 }}
+          >
+            <Text weight="medium" style={{ color: "var(--gray-12)" }}>
+              Background analysis of your data — while you sleep.
+            </Text>
+            <br />
+            Session recordings watched automatically. Issues, tickets, and evals
+            analyzed around the clock.
+          </Text>
+
+          <ArrowDownIcon size={14} style={{ color: "var(--gray-8)" }} />
+
+          <Text
+            size="1"
+            align="center"
+            style={{ color: "var(--gray-11)", lineHeight: 1.35 }}
+          >
+            <Text weight="medium" style={{ color: "var(--gray-12)" }}>
+              Ready-to-run fixes for real user problems.
+            </Text>
+            <br />
+            Each report includes evidence and impact numbers — just execute the
+            prompt in your agent.
+          </Text>
+        </Flex>
+
+        <Button size="2" style={{ marginTop: 20 }} onClick={onEnableInbox}>
+          Enable Inbox
+        </Button>
+      </Flex>
+    </Flex>
+  );
+}
+
+function WarmingUpPane({
+  onConfigureSources,
+}: {
+  onConfigureSources: () => void;
+}) {
+  return (
+    <Flex
+      direction="column"
+      align="center"
+      justify="center"
+      height="100%"
+      px="5"
+    >
+      <Flex direction="column" align="center" style={{ maxWidth: 420 }}>
+        <img
+          src={explorerHog}
+          alt=""
+          style={{ width: 120, marginBottom: 16 }}
+        />
+
+        <Text
+          size="4"
+          weight="bold"
+          align="center"
+          as="div"
+          style={{ color: "var(--gray-12)" }}
+        >
+          Inbox is warming up
+          <AnimatedEllipsis />
+        </Text>
+
+        <Text
+          size="1"
+          align="center"
+          mt="3"
+          style={{ color: "var(--gray-11)", lineHeight: 1.35 }}
+        >
+          Reports will appear here as soon as signals come in.
+        </Text>
+
+        <Button
+          size="2"
+          variant="soft"
+          color="gray"
+          style={{ marginTop: 16 }}
+          onClick={onConfigureSources}
+        >
+          Configure sources
+        </Button>
+      </Flex>
+    </Flex>
+  );
+}
+
+function SelectReportPane() {
+  return (
+    <Flex
+      direction="column"
+      align="center"
+      justify="center"
+      height="100%"
+      px="5"
+    >
+      <Flex direction="column" align="center" style={{ maxWidth: 300 }}>
+        <img
+          src={mailHog}
+          alt=""
+          style={{ width: 100, marginBottom: 12, opacity: 0.8 }}
+        />
+        <Text
+          size="2"
+          weight="medium"
+          align="center"
+          style={{ color: "var(--gray-10)" }}
+        >
+          Select a report
+        </Text>
+        <Text
+          size="1"
+          align="center"
+          mt="1"
+          style={{ color: "var(--gray-9)", lineHeight: 1.35 }}
+        >
+          Pick a report from the list to see details, signals, and evidence.
+        </Text>
+      </Flex>
+    </Flex>
+  );
+}
+
+// ── Main component ──────────────────────────────────────────────────────────
+
 export function InboxSignalsTab() {
   const sortField = useInboxSignalsFilterStore((s) => s.sortField);
   const sortDirection = useInboxSignalsFilterStore((s) => s.sortDirection);
   const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
+  const statusFilter = useInboxSignalsFilterStore((s) => s.statusFilter);
   const { data: signalSourceConfigs } = useSignalSourceConfigs();
   const hasSignalSources = signalSourceConfigs?.some((c) => c.enabled) ?? false;
-  const openSettings = useSettingsDialogStore((s) => s.open);
+  const [sourcesDialogOpen, setSourcesDialogOpen] = useState(false);
 
   const windowFocused = useRendererWindowFocusStore((s) => s.focused);
   const isInboxView = useNavigationStore((s) => s.view.type === "inbox");
@@ -128,10 +309,10 @@ export function InboxSignalsTab() {
 
   const inboxQueryParams = useMemo(
     (): SignalReportsQueryParams => ({
-      status: INBOX_PIPELINE_STATUS_FILTER,
+      status: buildStatusFilterParam(statusFilter),
       ordering: buildSignalReportListOrdering(sortField, sortDirection),
     }),
-    [sortField, sortDirection],
+    [statusFilter, sortField, sortDirection],
   );
 
   const {
@@ -163,12 +344,10 @@ export function InboxSignalsTab() {
     [allReports],
   );
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
-  const sidebarOpen = useInboxSignalsSidebarStore((state) => state.open);
   const sidebarWidth = useInboxSignalsSidebarStore((state) => state.width);
   const sidebarIsResizing = useInboxSignalsSidebarStore(
     (state) => state.isResizing,
   );
-  const setSidebarOpen = useInboxSignalsSidebarStore((state) => state.setOpen);
   const setSidebarWidth = useInboxSignalsSidebarStore(
     (state) => state.setWidth,
   );
@@ -189,9 +368,8 @@ export function InboxSignalsTab() {
     );
     if (!selectedExists) {
       setSelectedReportId(null);
-      setSidebarOpen(false);
     }
-  }, [reports, selectedReportId, setSidebarOpen]);
+  }, [reports, selectedReportId]);
 
   const selectedReport = useMemo(
     () => reports.find((report) => report.id === selectedReportId) ?? null,
@@ -201,7 +379,16 @@ export function InboxSignalsTab() {
   const artefactsQuery = useInboxReportArtefacts(selectedReport?.id ?? "", {
     enabled: !!selectedReport,
   });
-  const visibleArtefacts = artefactsQuery.data?.results ?? [];
+  const allArtefacts = artefactsQuery.data?.results ?? [];
+  const visibleArtefacts = allArtefacts.filter(
+    (a): a is SignalReportArtefact => a.type !== "suggested_reviewers",
+  );
+  const suggestedReviewers = useMemo(() => {
+    const reviewerArtefact = allArtefacts.find(
+      (a): a is SuggestedReviewersArtefact => a.type === "suggested_reviewers",
+    );
+    return reviewerArtefact?.content ?? [];
+  }, [allArtefacts]);
   const artefactsUnavailableReason = artefactsQuery.data?.unavailableReason;
   const showArtefactsUnavailable =
     !artefactsQuery.isLoading &&
@@ -296,302 +483,507 @@ export function InboxSignalsTab() {
     githubIntegration?.id,
   ]);
 
-  if (isLoading) {
-    return <SignalsLoadingState />;
-  }
+  // Resize handle for left pane
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  if (error) {
-    return (
-      <SignalsErrorState
-        onRetry={() => {
-          void refetch();
-        }}
-        isRetrying={isFetching}
-      />
-    );
-  }
+  const handleResizeMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      setSidebarIsResizing(true);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    },
+    [setSidebarIsResizing],
+  );
 
-  if (allReports.length === 0) {
-    if (!hasSignalSources) {
-      return (
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!sidebarIsResizing || !containerRef.current) return;
+      const containerLeft = containerRef.current.getBoundingClientRect().left;
+      const containerWidth = containerRef.current.offsetWidth;
+      const maxWidth = containerWidth * 0.6;
+      const newWidth = Math.max(
+        220,
+        Math.min(maxWidth, e.clientX - containerLeft),
+      );
+      setSidebarWidth(newWidth);
+    };
+    const handleMouseUp = () => {
+      if (sidebarIsResizing) {
+        setSidebarIsResizing(false);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+    };
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [sidebarIsResizing, setSidebarWidth, setSidebarIsResizing]);
+
+  // ── Layout mode: full-width empty state vs two-pane ─────────────────────
+
+  const hasReports = allReports.length > 0;
+  const showTwoPaneLayout = hasReports || !!searchQuery.trim();
+
+  // ── Determine right pane content (only used in two-pane mode) ──────────
+
+  let rightPaneContent: React.ReactNode;
+
+  if (selectedReport) {
+    rightPaneContent = (
+      <>
         <Flex
           direction="column"
-          align="center"
-          justify="center"
-          gap="5"
-          height="100%"
-          px="5"
-          style={{ maxWidth: 480, margin: "0 auto" }}
+          gap="2"
+          px="3"
+          py="2"
+          className="shrink-0"
+          style={{ borderBottom: "1px solid var(--gray-5)" }}
         >
-          <Flex direction="column" gap="2" style={{ width: "100%" }}>
+          <Flex align="start" justify="between" gap="2">
             <Text
-              size="2"
+              size="1"
               weight="medium"
-              align="center"
-              style={{ color: "var(--gray-12)" }}
+              className="block min-w-0 break-words text-[13px]"
             >
-              Enable Inbox
+              {selectedReport.title ?? "Untitled signal"}
             </Text>
-            <Text size="1" align="center" style={{ color: "var(--gray-11)" }}>
-              Inbox automatically analyzes your product data and prioritizes
-              actionable tasks. Choose which sources to enable for this project.
-            </Text>
+            <button
+              type="button"
+              onClick={() => setSelectedReportId(null)}
+              className="shrink-0 rounded p-0.5 text-gray-11 hover:bg-gray-3 hover:text-gray-12"
+            >
+              <XIcon size={14} />
+            </button>
           </Flex>
-          <Button size="2" onClick={() => openSettings("signals")}>
-            Configure signal sources
-          </Button>
+          <Flex align="center" gap="1" wrap="wrap">
+            <Button
+              size="1"
+              variant="soft"
+              onClick={handleCreateTask}
+              disabled={!canActOnReport}
+              className="text-[12px]"
+            >
+              Create task
+            </Button>
+            {cloudModeEnabled && (
+              <Button
+                size="1"
+                variant="solid"
+                onClick={handleOpenCloudConfirm}
+                disabled={
+                  !canActOnReport ||
+                  isRunningCloudTask ||
+                  repositories.length === 0
+                }
+                className="text-[12px]"
+              >
+                <CloudIcon size={12} />
+                {isRunningCloudTask ? "Running..." : "Run cloud"}
+              </Button>
+            )}
+          </Flex>
+          {!canActOnReport && selectedReport ? (
+            <Text size="1" color="gray" className="text-[11px] leading-snug">
+              {selectedReport.status === "pending_input"
+                ? "This report needs input in PostHog before an agent can act on it."
+                : "Research is still running — you can read context below, then create a task when status is Ready."}
+            </Text>
+          ) : null}
         </Flex>
-      );
-    }
-    return <InboxWarmingUpState />;
-  }
-
-  return (
-    <Flex height="100%" style={{ minHeight: 0 }}>
-      <Box flexGrow="1" style={{ minWidth: 0 }}>
         <ScrollArea
           type="auto"
+          scrollbars="vertical"
           className="scroll-area-constrain-width"
-          style={{ height: "100%" }}
+          style={{ flex: 1 }}
         >
-          <Flex direction="column">
-            <InboxLiveRail active={inboxPollingActive} />
-            <SignalsToolbar
-              totalCount={totalCount}
-              filteredCount={reports.length}
-              isSearchActive={!!searchQuery.trim()}
-              livePolling={inboxPollingActive}
-              readyCount={readyCount}
-              processingCount={processingCount}
+          <Flex direction="column" gap="2" p="2" className="min-w-0">
+            <SignalReportSummaryMarkdown
+              content={selectedReport.summary}
+              fallback="No summary available."
+              variant="detail"
             />
-            {reports.length === 0 && searchQuery.trim() ? (
-              <Flex
-                direction="column"
-                align="center"
-                justify="center"
-                gap="2"
-                py="6"
-              >
-                <Text size="1" color="gray" className="text-[12px]">
-                  No matching signals
-                </Text>
-              </Flex>
-            ) : null}
-            {reports.map((report, index) => (
-              <ReportCard
-                key={report.id}
-                index={index}
-                report={report}
-                isSelected={selectedReport?.id === report.id}
-                onClick={() => {
-                  setSelectedReportId(report.id);
-                  setSidebarOpen(true);
-                }}
-              />
-            ))}
-            <LoadMoreTrigger
-              hasNextPage={hasNextPage}
-              isFetchingNextPage={isFetchingNextPage}
-              fetchNextPage={fetchNextPage}
-            />
-          </Flex>
-        </ScrollArea>
-      </Box>
+            <Flex align="center" gap="2" wrap="wrap">
+              <SignalReportPriorityBadge priority={selectedReport.priority} />
+              <Badge variant="soft" color="gray" size="1">
+                {selectedReport.signal_count} occurrences
+              </Badge>
+              <Badge variant="soft" color="gray" size="1">
+                {selectedReport.relevant_user_count ?? 0} affected users
+              </Badge>
+            </Flex>
 
-      <ResizableSidebar
-        open={sidebarOpen && !!selectedReport}
-        width={sidebarWidth}
-        setWidth={setSidebarWidth}
-        isResizing={sidebarIsResizing}
-        setIsResizing={setSidebarIsResizing}
-        side="right"
-      >
-        {selectedReport ? (
-          <>
-            <Flex
-              direction="column"
-              gap="2"
-              px="3"
-              py="2"
-              style={{ borderBottom: "1px solid var(--gray-5)" }}
-            >
-              <Flex align="start" justify="between" gap="2">
+            {suggestedReviewers.length > 0 && (
+              <Box>
                 <Text
                   size="1"
                   weight="medium"
-                  className="block min-w-0 break-words text-[13px]"
+                  className="block text-[13px]"
+                  mb="2"
                 >
-                  {selectedReport.title ?? "Untitled signal"}
+                  Suggested reviewers
                 </Text>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSidebarOpen(false);
-                    setSelectedReportId(null);
-                  }}
-                  className="shrink-0 rounded p-0.5 text-gray-11 hover:bg-gray-3 hover:text-gray-12"
-                >
-                  <XIcon size={14} />
-                </button>
-              </Flex>
-              <Flex align="center" gap="1" wrap="wrap">
-                <Button
-                  size="1"
-                  variant="soft"
-                  onClick={handleCreateTask}
-                  disabled={!canActOnReport}
-                  className="text-[12px]"
-                >
-                  Create task
-                </Button>
-                {cloudModeEnabled && (
-                  <Button
-                    size="1"
-                    variant="solid"
-                    onClick={handleOpenCloudConfirm}
-                    disabled={
-                      !canActOnReport ||
-                      isRunningCloudTask ||
-                      repositories.length === 0
-                    }
-                    className="text-[12px]"
-                  >
-                    <CloudIcon size={12} />
-                    {isRunningCloudTask ? "Running..." : "Run cloud"}
-                  </Button>
-                )}
-              </Flex>
-              {!canActOnReport && selectedReport ? (
+                <Flex direction="column" gap="1">
+                  {suggestedReviewers.map((reviewer) => (
+                    <Flex key={reviewer.github_login} align="center" gap="2">
+                      <GithubLogoIcon
+                        size={14}
+                        className="shrink-0 text-gray-10"
+                      />
+                      <Text size="1" className="text-[12px]">
+                        {reviewer.user?.first_name ??
+                          reviewer.github_name ??
+                          reviewer.github_login}
+                      </Text>
+                      <a
+                        href={`https://github.com/${reviewer.github_login}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-gray-9 hover:text-gray-11"
+                      >
+                        @{reviewer.github_login}
+                      </a>
+                    </Flex>
+                  ))}
+                </Flex>
+              </Box>
+            )}
+
+            {signals.length > 0 && (
+              <Box>
                 <Text
                   size="1"
-                  color="gray"
-                  className="text-[11px] leading-snug"
+                  weight="medium"
+                  className="block text-[13px]"
+                  mb="2"
                 >
-                  {selectedReport.status === "pending_input"
-                    ? "This report needs input in PostHog before an agent can act on it."
-                    : "Research is still running — you can read context below, then create a task when status is Ready."}
+                  Signals ({signals.length})
                 </Text>
-              ) : null}
-            </Flex>
-            <ScrollArea
-              type="auto"
-              scrollbars="vertical"
-              className="scroll-area-constrain-width"
-              style={{ height: "calc(100% - 41px)" }}
-            >
-              <Flex direction="column" gap="2" p="2" className="min-w-0">
-                <SignalReportSummaryMarkdown
-                  content={selectedReport.summary}
-                  fallback="No summary available."
-                  variant="detail"
-                />
-                <Flex align="center" gap="2" wrap="wrap">
-                  <SignalReportPriorityBadge
-                    priority={selectedReport.priority}
-                  />
-                  <Badge variant="soft" color="gray" size="1">
-                    {selectedReport.signal_count} occurrences
-                  </Badge>
-                  <Badge variant="soft" color="gray" size="1">
-                    {selectedReport.relevant_user_count ?? 0} affected users
-                  </Badge>
+                <Flex direction="column" gap="2">
+                  {signals.map((signal) => (
+                    <SignalCard key={signal.signal_id} signal={signal} />
+                  ))}
                 </Flex>
+              </Box>
+            )}
+            {signalsQuery.isLoading && (
+              <Text size="1" color="gray" className="block text-[12px]">
+                Loading signals...
+              </Text>
+            )}
 
-                {signals.length > 0 && (
-                  <Box>
+            <Box>
+              <Text
+                size="1"
+                weight="medium"
+                className="block text-[13px]"
+                mb="2"
+              >
+                Evidence
+              </Text>
+              {artefactsQuery.isLoading && (
+                <Text size="1" color="gray" className="block text-[12px]">
+                  Loading evidence...
+                </Text>
+              )}
+              {showArtefactsUnavailable && (
+                <Text size="1" color="gray" className="block text-[12px]">
+                  {artefactsUnavailableMessage}
+                </Text>
+              )}
+              {!artefactsQuery.isLoading &&
+                !showArtefactsUnavailable &&
+                visibleArtefacts.length === 0 && (
+                  <Text size="1" color="gray" className="block text-[12px]">
+                    No artefacts were returned for this signal.
+                  </Text>
+                )}
+
+              <Flex direction="column" gap="1">
+                {visibleArtefacts.map((artefact) => (
+                  <Box
+                    key={artefact.id}
+                    className="rounded border border-gray-6 bg-gray-1 p-2"
+                  >
                     <Text
                       size="1"
-                      weight="medium"
-                      className="block text-[13px]"
-                      mb="2"
+                      className="whitespace-pre-wrap text-pretty break-words text-[12px]"
                     >
-                      Signals ({signals.length})
+                      {artefact.content.content}
                     </Text>
-                    <Flex direction="column" gap="2">
-                      {signals.map((signal) => (
-                        <SignalCard key={signal.signal_id} signal={signal} />
-                      ))}
+                    <Flex align="center" justify="between" mt="1" gap="2">
+                      <Flex align="center" gap="1">
+                        <ClockIcon size={12} className="text-gray-9" />
+                        <Text size="1" color="gray" className="text-[12px]">
+                          {artefact.content.start_time
+                            ? new Date(
+                                artefact.content.start_time,
+                              ).toLocaleString()
+                            : "Unknown time"}
+                        </Text>
+                      </Flex>
+                      {replayBaseUrl && artefact.content.session_id && (
+                        <a
+                          href={`${replayBaseUrl}/${artefact.content.session_id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[12px] text-gray-11 hover:text-gray-12"
+                        >
+                          View replay
+                          <ArrowSquareOutIcon size={12} />
+                        </a>
+                      )}
                     </Flex>
                   </Box>
-                )}
-                {signalsQuery.isLoading && (
-                  <Text size="1" color="gray" className="block text-[12px]">
-                    Loading signals...
-                  </Text>
-                )}
+                ))}
+              </Flex>
+            </Box>
+          </Flex>
+        </ScrollArea>
+      </>
+    );
+  } else {
+    rightPaneContent = <SelectReportPane />;
+  }
 
-                <Box>
-                  <Text
-                    size="1"
-                    weight="medium"
-                    className="block text-[13px]"
-                    mb="2"
-                  >
-                    Evidence
-                  </Text>
-                  {artefactsQuery.isLoading && (
-                    <Text size="1" color="gray" className="block text-[12px]">
-                      Loading evidence...
-                    </Text>
-                  )}
-                  {showArtefactsUnavailable && (
-                    <Text size="1" color="gray" className="block text-[12px]">
-                      {artefactsUnavailableMessage}
-                    </Text>
-                  )}
-                  {!artefactsQuery.isLoading &&
-                    !showArtefactsUnavailable &&
-                    visibleArtefacts.length === 0 && (
-                      <Text size="1" color="gray" className="block text-[12px]">
-                        No artefacts were returned for this signal.
-                      </Text>
-                    )}
+  // ── Left pane content ───────────────────────────────────────────────────
 
-                  <Flex direction="column" gap="1">
-                    {visibleArtefacts.map((artefact) => (
-                      <Box
-                        key={artefact.id}
-                        className="rounded border border-gray-6 bg-gray-1 p-2"
-                      >
-                        <Text
-                          size="1"
-                          className="whitespace-pre-wrap text-pretty break-words text-[12px]"
-                        >
-                          {artefact.content.content}
-                        </Text>
-                        <Flex align="center" justify="between" mt="1" gap="2">
-                          <Flex align="center" gap="1">
-                            <ClockIcon size={12} className="text-gray-9" />
-                            <Text size="1" color="gray" className="text-[12px]">
-                              {artefact.content.start_time
-                                ? new Date(
-                                    artefact.content.start_time,
-                                  ).toLocaleString()
-                                : "Unknown time"}
-                            </Text>
-                          </Flex>
-                          {replayBaseUrl && artefact.content.session_id && (
-                            <a
-                              href={`${replayBaseUrl}/${artefact.content.session_id}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-[12px] text-gray-11 hover:text-gray-12"
-                            >
-                              View replay
-                              <ArrowSquareOutIcon size={12} />
-                            </a>
-                          )}
-                        </Flex>
-                      </Box>
-                    ))}
-                  </Flex>
-                </Box>
+  let leftPaneList: React.ReactNode;
+
+  if (isLoading && allReports.length === 0 && hasSignalSources) {
+    leftPaneList = (
+      <Flex direction="column">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <Flex
+            // biome-ignore lint/suspicious/noArrayIndexKey: static loading placeholders
+            key={index}
+            direction="column"
+            gap="2"
+            px="3"
+            py="3"
+            className="border-gray-5 border-b"
+          >
+            <Box className="h-[12px] w-[44%] animate-pulse rounded bg-gray-4" />
+            <Box className="h-[11px] w-[82%] animate-pulse rounded bg-gray-3" />
+          </Flex>
+        ))}
+      </Flex>
+    );
+  } else if (error) {
+    leftPaneList = (
+      <Flex align="center" justify="center" py="8" px="4">
+        <Flex direction="column" align="center" gap="3" className="text-center">
+          <WarningIcon size={20} className="text-amber-10" weight="bold" />
+          <Text size="1" color="gray" className="text-[12px]">
+            Could not load signals
+          </Text>
+          <Button
+            size="1"
+            variant="soft"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+          >
+            {isFetching ? (
+              <CircleNotchIcon size={12} className="animate-spin" />
+            ) : (
+              <ArrowsClockwiseIcon size={12} />
+            )}
+            Retry
+          </Button>
+        </Flex>
+      </Flex>
+    );
+  } else if (reports.length === 0 && searchQuery.trim()) {
+    leftPaneList = (
+      <Flex direction="column" align="center" justify="center" gap="2" py="6">
+        <Text size="1" color="gray" className="text-[12px]">
+          No matching signals
+        </Text>
+      </Flex>
+    );
+  } else {
+    leftPaneList = (
+      <>
+        {reports.map((report, index) => (
+          <ReportCard
+            key={report.id}
+            index={index}
+            report={report}
+            isSelected={selectedReport?.id === report.id}
+            onClick={() => setSelectedReportId(report.id)}
+          />
+        ))}
+        <LoadMoreTrigger
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          fetchNextPage={fetchNextPage}
+        />
+      </>
+    );
+  }
+
+  // ── Skeleton rows for backdrop behind empty states ──────────────────────
+
+  const skeletonBackdrop = (
+    <Flex direction="column" style={{ opacity: 0.4 }}>
+      {Array.from({ length: 8 }).map((_, index) => (
+        <Flex
+          // biome-ignore lint/suspicious/noArrayIndexKey: static decorative placeholders
+          key={index}
+          direction="column"
+          gap="2"
+          px="3"
+          py="3"
+          className="border-gray-5 border-b"
+        >
+          <Box className="h-[12px] w-[44%] rounded bg-gray-4" />
+          <Box className="h-[11px] w-[82%] rounded bg-gray-3" />
+        </Flex>
+      ))}
+    </Flex>
+  );
+
+  const searchDisabledReason =
+    !hasReports && !searchQuery.trim()
+      ? "No reports in the project\u2026 yet"
+      : null;
+
+  return (
+    <>
+      {showTwoPaneLayout ? (
+        <Flex ref={containerRef} height="100%" style={{ minHeight: 0 }}>
+          {/* ── Left pane: report list ───────────────────────────────── */}
+          <Box
+            style={{
+              width: `${sidebarWidth}px`,
+              minWidth: `${sidebarWidth}px`,
+              maxWidth: `${sidebarWidth}px`,
+              height: "100%",
+              flexShrink: 0,
+              borderRight: "1px solid var(--gray-5)",
+              position: "relative",
+            }}
+          >
+            <ScrollArea
+              type="auto"
+              className="scroll-area-constrain-width"
+              style={{ height: "100%" }}
+            >
+              <Flex direction="column">
+                <InboxLiveRail active={inboxPollingActive} />
+                <SignalsToolbar
+                  totalCount={totalCount}
+                  filteredCount={reports.length}
+                  isSearchActive={!!searchQuery.trim()}
+                  livePolling={inboxPollingActive}
+                  readyCount={readyCount}
+                  processingCount={processingCount}
+                />
+                {leftPaneList}
               </Flex>
             </ScrollArea>
-          </>
-        ) : null}
-      </ResizableSidebar>
 
+            {/* Resize handle */}
+            <Box
+              onMouseDown={handleResizeMouseDown}
+              className="no-drag"
+              style={{
+                position: "absolute",
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: "4px",
+                cursor: "col-resize",
+                backgroundColor: "transparent",
+                zIndex: 100,
+              }}
+            />
+          </Box>
+
+          {/* ── Right pane: detail ───────────────────────────────────── */}
+          <Flex
+            direction="column"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              height: "100%",
+            }}
+          >
+            {rightPaneContent}
+          </Flex>
+        </Flex>
+      ) : (
+        /* ── Full-width empty state with skeleton backdrop ──────────── */
+        <Box style={{ height: "100%", position: "relative" }}>
+          <Flex direction="column">
+            <SignalsToolbar
+              totalCount={0}
+              filteredCount={0}
+              isSearchActive={false}
+              searchDisabledReason={searchDisabledReason}
+            />
+            {skeletonBackdrop}
+          </Flex>
+          <Box
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background:
+                "linear-gradient(to bottom, transparent 0%, var(--color-background) 30%)",
+            }}
+          >
+            {!hasSignalSources ? (
+              <WelcomePane onEnableInbox={() => setSourcesDialogOpen(true)} />
+            ) : (
+              <WarmingUpPane
+                onConfigureSources={() => setSourcesDialogOpen(true)}
+              />
+            )}
+          </Box>
+        </Box>
+      )}
+
+      {/* ── Sources config dialog ──────────────────────────────────── */}
+      <Dialog.Root open={sourcesDialogOpen} onOpenChange={setSourcesDialogOpen}>
+        <Dialog.Content maxWidth="520px">
+          <Flex align="center" justify="between" mb="3">
+            <Dialog.Title size="3" mb="0">
+              Signal sources
+            </Dialog.Title>
+            <Dialog.Close>
+              <button
+                type="button"
+                className="rounded p-1 text-gray-11 hover:bg-gray-3 hover:text-gray-12"
+                aria-label="Close"
+              >
+                <XIcon size={16} />
+              </button>
+            </Dialog.Close>
+          </Flex>
+          <SignalSourcesSettings />
+          <Flex justify="end" mt="4">
+            {hasSignalSources ? (
+              <Dialog.Close>
+                <Button size="2">Back to Inbox</Button>
+              </Dialog.Close>
+            ) : (
+              <Tooltip content="You haven't enabled any signal source yet!">
+                <Button size="2" disabled>
+                  Back to Inbox
+                </Button>
+              </Tooltip>
+            )}
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
+
+      {/* ── Cloud task confirmation dialog ────────────────────────── */}
       <AlertDialog.Root
         open={showCloudConfirm}
         onOpenChange={(open) => {
@@ -660,6 +1052,6 @@ export function InboxSignalsTab() {
           </Flex>
         </AlertDialog.Content>
       </AlertDialog.Root>
-    </Flex>
+    </>
   );
 }

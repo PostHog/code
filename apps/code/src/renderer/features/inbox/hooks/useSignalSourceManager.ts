@@ -1,30 +1,42 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
 import type { SignalSourceValues } from "@features/inbox/components/SignalSourceToggles";
-import { useAuthenticatedMutation } from "@hooks/useAuthenticatedMutation";
+import type {
+  Evaluation,
+  SignalSourceConfig,
+} from "@renderer/api/posthogClient";
+import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useEvaluations } from "./useEvaluations";
 import { useExternalDataSources } from "./useExternalDataSources";
 import { useSignalSourceConfigs } from "./useSignalSourceConfigs";
 
-type SourceProduct =
-  | "session_replay"
-  | "llm_analytics"
-  | "github"
-  | "linear"
-  | "zendesk";
-type SourceType =
-  | "session_analysis_cluster"
-  | "evaluation"
-  | "issue"
-  | "ticket";
+type SourceProduct = SignalSourceConfig["source_product"];
+type SourceType = SignalSourceConfig["source_type"];
 
-const SOURCE_TYPE_MAP: Record<SourceProduct, SourceType> = {
+const SOURCE_TYPE_MAP: Record<
+  Exclude<SourceProduct, "error_tracking" | "llm_analytics">,
+  SourceType
+> = {
   session_replay: "session_analysis_cluster",
-  llm_analytics: "evaluation",
   github: "issue",
   linear: "issue",
   zendesk: "ticket",
+};
+
+const ERROR_TRACKING_SOURCE_TYPES: SourceType[] = [
+  "issue_created",
+  "issue_reopened",
+  "issue_spiking",
+];
+
+const SOURCE_LABELS: Record<keyof SignalSourceValues, string> = {
+  session_replay: "Session replay",
+  error_tracking: "Error tracking",
+  github: "GitHub Issues",
+  linear: "Linear Issues",
+  zendesk: "Zendesk Tickets",
 };
 
 const DATA_WAREHOUSE_SOURCES: Record<
@@ -36,23 +48,61 @@ const DATA_WAREHOUSE_SOURCES: Record<
   zendesk: { dwSourceType: "Zendesk", requiredTable: "tickets" },
 };
 
-const ALL_SOURCE_PRODUCTS: SourceProduct[] = [
+const ALL_SOURCE_PRODUCTS: (keyof SignalSourceValues)[] = [
   "session_replay",
-  "llm_analytics",
+  "error_tracking",
   "github",
   "linear",
   "zendesk",
 ];
 
+function computeValues(
+  configs: SignalSourceConfig[] | undefined,
+): SignalSourceValues {
+  const result: SignalSourceValues = {
+    session_replay: false,
+    error_tracking: false,
+    github: false,
+    linear: false,
+    zendesk: false,
+  };
+  if (!configs?.length) return result;
+  for (const product of ALL_SOURCE_PRODUCTS) {
+    if (product === "error_tracking") {
+      result.error_tracking = ERROR_TRACKING_SOURCE_TYPES.every((st) =>
+        configs.some(
+          (c) =>
+            c.source_product === "error_tracking" &&
+            c.source_type === st &&
+            c.enabled,
+        ),
+      );
+    } else {
+      result[product] = configs.some(
+        (c) => c.source_product === product && c.enabled,
+      );
+    }
+  }
+  return result;
+}
+
 export function useSignalSourceManager() {
   const projectId = useAuthStore((s) => s.projectId);
   const client = useAuthStore((s) => s.client);
+  const cloudRegion = useAuthStore((s) => s.cloudRegion);
   const queryClient = useQueryClient();
   const { data: configs, isLoading: configsLoading } = useSignalSourceConfigs();
   const { data: externalSources, isLoading: sourcesLoading } =
     useExternalDataSources();
-  const savingRef = useRef(false);
-  const [optimistic, setOptimistic] = useState<SignalSourceValues | null>(null);
+  const { data: evaluations } = useEvaluations();
+
+  // Optimistic overrides keyed by source product — only sources actively being
+  // toggled get an entry, so unrelated sources never see a prop change.
+  const [optimistic, setOptimistic] = useState<
+    Partial<Record<keyof SignalSourceValues, boolean>>
+  >({});
+  const pendingRef = useRef(new Set<keyof SignalSourceValues>());
+
   const [setupSource, setSetupSource] = useState<
     "github" | "linear" | "zendesk" | null
   >(null);
@@ -74,23 +124,16 @@ export function useSignalSourceManager() {
     [externalSources],
   );
 
-  const serverValues = useMemo<SignalSourceValues>(() => {
-    const result: SignalSourceValues = {
-      session_replay: false,
-      llm_analytics: false,
-      github: false,
-      linear: false,
-      zendesk: false,
-    };
-    for (const product of ALL_SOURCE_PRODUCTS) {
-      result[product] = !!configs?.some(
-        (c) => c.source_product === product && c.enabled,
-      );
-    }
-    return result;
-  }, [configs]);
+  const serverValues = useMemo<SignalSourceValues>(
+    () => computeValues(configs),
+    [configs],
+  );
 
-  const displayValues = optimistic ?? serverValues;
+  // Merge: optimistic overrides take precedence over server values.
+  const displayValues = useMemo<SignalSourceValues>(() => {
+    if (Object.keys(optimistic).length === 0) return serverValues;
+    return { ...serverValues, ...optimistic };
+  }, [serverValues, optimistic]);
 
   const sourceStates = useMemo(() => {
     const states: Partial<
@@ -110,29 +153,48 @@ export function useSignalSourceManager() {
     return states;
   }, [findExternalSource, serverValues, loadingSources]);
 
-  const createConfig = useAuthenticatedMutation(
-    (
-      apiClient,
-      options: {
-        source_product: SourceProduct;
-        source_type: SourceType;
-      },
-    ) =>
-      projectId
-        ? apiClient.createSignalSourceConfig(projectId, {
-            ...options,
-            enabled: true,
-          })
-        : Promise.reject(new Error("No project selected")),
-  );
+  const evaluationsUrl = useMemo(() => {
+    if (!cloudRegion) return "";
+    return `${getCloudUrlFromRegion(cloudRegion)}/llm-analytics/evaluations`;
+  }, [cloudRegion]);
 
-  const updateConfig = useAuthenticatedMutation(
-    (apiClient, options: { configId: string; enabled: boolean }) =>
-      projectId
-        ? apiClient.updateSignalSourceConfig(projectId, options.configId, {
-            enabled: options.enabled,
-          })
-        : Promise.reject(new Error("No project selected")),
+  // Optimistic evaluation state: map of evaluation ID to overridden enabled value
+  const [optimisticEvals, setOptimisticEvals] = useState<
+    Record<string, boolean>
+  >({});
+
+  const displayEvaluations = useMemo<Evaluation[]>(() => {
+    if (!evaluations) return [];
+    if (Object.keys(optimisticEvals).length === 0) return evaluations;
+    return evaluations.map((e) =>
+      e.id in optimisticEvals ? { ...e, enabled: optimisticEvals[e.id] } : e,
+    );
+  }, [evaluations, optimisticEvals]);
+
+  const handleToggleEvaluation = useCallback(
+    async (evaluationId: string, enabled: boolean) => {
+      if (!client || !projectId) return;
+
+      setOptimisticEvals((prev) => ({ ...prev, [evaluationId]: enabled }));
+
+      try {
+        await client.updateEvaluation(projectId, evaluationId, { enabled });
+        await queryClient.invalidateQueries({ queryKey: ["evaluations"] });
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to toggle evaluation";
+        toast.error(message);
+      } finally {
+        setOptimisticEvals((prev) => {
+          const next = { ...prev };
+          delete next[evaluationId];
+          return next;
+        });
+      }
+    },
+    [client, projectId, queryClient],
   );
 
   const ensureRequiredTableSyncing = useCallback(
@@ -182,148 +244,165 @@ export function useSignalSourceManager() {
     }
   }, []);
 
+  const invalidateAfterToggle = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["signals", "source-configs"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["inbox", "signal-reports"],
+      }),
+    ]);
+  }, [queryClient]);
+
+  // Toggle a single source product. Calls the API directly (no react-query
+  // mutation tracking) so intermediate loading/success states don't cause
+  // cascading re-renders.
+  const handleToggle = useCallback(
+    async (product: keyof SignalSourceValues, enabled: boolean) => {
+      if (!client || !projectId) return;
+      if (pendingRef.current.has(product)) return;
+
+      // Warehouse sources without a connected external data source need setup first
+      if (enabled && product in DATA_WAREHOUSE_SOURCES) {
+        const hasExternalSource = !!findExternalSource(product);
+        if (!hasExternalSource) {
+          setSetupSource(product as "github" | "linear" | "zendesk");
+          return;
+        }
+
+        setLoadingSources((prev) => ({ ...prev, [product]: true }));
+        try {
+          await ensureRequiredTableSyncing(product);
+        } finally {
+          setLoadingSources((prev) => ({ ...prev, [product]: false }));
+        }
+      }
+
+      // Optimistic update — only touches this one key
+      pendingRef.current.add(product);
+      setOptimistic((prev) => ({ ...prev, [product]: enabled }));
+
+      const label = SOURCE_LABELS[product];
+
+      try {
+        if (product === "error_tracking") {
+          for (const sourceType of ERROR_TRACKING_SOURCE_TYPES) {
+            const existing = configs?.find(
+              (c) =>
+                c.source_product === "error_tracking" &&
+                c.source_type === sourceType,
+            );
+            if (existing) {
+              await client.updateSignalSourceConfig(projectId, existing.id, {
+                enabled,
+              });
+            } else if (enabled) {
+              await client.createSignalSourceConfig(projectId, {
+                source_product: "error_tracking",
+                source_type: sourceType,
+                enabled: true,
+              });
+            }
+          }
+        } else {
+          const existing = configs?.find((c) => c.source_product === product);
+          if (existing) {
+            await client.updateSignalSourceConfig(projectId, existing.id, {
+              enabled,
+            });
+          } else if (enabled) {
+            await client.createSignalSourceConfig(projectId, {
+              source_product: product,
+              source_type:
+                SOURCE_TYPE_MAP[
+                  product as Exclude<
+                    SourceProduct,
+                    "error_tracking" | "llm_analytics"
+                  >
+                ],
+              enabled: true,
+            });
+          }
+        }
+
+        await invalidateAfterToggle();
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error ? error.message : `Failed to toggle ${label}`;
+        toast.error(message);
+      } finally {
+        pendingRef.current.delete(product);
+        setOptimistic((prev) => {
+          const next = { ...prev };
+          delete next[product];
+          return next;
+        });
+      }
+    },
+    [
+      client,
+      projectId,
+      configs,
+      findExternalSource,
+      ensureRequiredTableSyncing,
+      invalidateAfterToggle,
+    ],
+  );
+
   const handleSetupComplete = useCallback(async () => {
     const completedSource = setupSource;
     setSetupSource(null);
 
-    // Create the signal source config for the source that was just connected
-    if (completedSource) {
+    if (completedSource && client && projectId) {
       const existing = configs?.find(
         (c) => c.source_product === completedSource,
       );
-      if (!existing) {
-        try {
-          await createConfig.mutateAsync({
+      try {
+        if (!existing) {
+          await client.createSignalSourceConfig(projectId, {
             source_product: completedSource,
             source_type: SOURCE_TYPE_MAP[completedSource],
-          });
-        } catch {
-          toast.error(
-            "Data source connected, but failed to enable signal source. Try toggling it on.",
-          );
-        }
-      } else if (!existing.enabled) {
-        try {
-          await updateConfig.mutateAsync({
-            configId: existing.id,
             enabled: true,
           });
-        } catch {
-          toast.error(
-            "Data source connected, but failed to enable signal source. Try toggling it on.",
-          );
+        } else if (!existing.enabled) {
+          await client.updateSignalSourceConfig(projectId, existing.id, {
+            enabled: true,
+          });
         }
+      } catch {
+        toast.error(
+          "Data source connected, but failed to enable signal source. Try toggling it on.",
+        );
       }
     }
 
-    await queryClient.invalidateQueries({
-      queryKey: ["external-data-sources"],
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ["signals", "source-configs"],
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ["inbox", "signal-reports"],
-    });
-  }, [queryClient, setupSource, configs, createConfig, updateConfig]);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["external-data-sources"] }),
+      queryClient.invalidateQueries({
+        queryKey: ["signals", "source-configs"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["inbox", "signal-reports"],
+      }),
+    ]);
+  }, [queryClient, setupSource, configs, client, projectId]);
 
   const handleSetupCancel = useCallback(() => {
     setSetupSource(null);
   }, []);
-
-  const handleChange = useCallback(
-    async (values: SignalSourceValues) => {
-      if (savingRef.current) return;
-
-      setOptimistic(values);
-      try {
-        const operations: Array<() => Promise<unknown>> = [];
-
-        for (const product of ALL_SOURCE_PRODUCTS) {
-          const wanted = values[product];
-          const current = serverValues[product];
-          if (wanted === current) continue;
-
-          // If enabling a warehouse source without an external data source, open setup
-          if (wanted && product in DATA_WAREHOUSE_SOURCES) {
-            const hasExternalSource = !!findExternalSource(product);
-            if (!hasExternalSource) {
-              setSetupSource(product as "github" | "linear" | "zendesk");
-              return;
-            }
-
-            // Ensure required table is syncing
-            setLoadingSources((prev) => ({ ...prev, [product]: true }));
-            try {
-              await ensureRequiredTableSyncing(product);
-            } finally {
-              setLoadingSources((prev) => ({ ...prev, [product]: false }));
-            }
-          }
-
-          const existing = configs?.find((c) => c.source_product === product);
-
-          if (wanted && !existing) {
-            operations.push(() =>
-              createConfig.mutateAsync({
-                source_product: product,
-                source_type: SOURCE_TYPE_MAP[product],
-              }),
-            );
-          } else if (existing) {
-            operations.push(() =>
-              updateConfig.mutateAsync({
-                configId: existing.id,
-                enabled: wanted,
-              }),
-            );
-          }
-        }
-
-        if (operations.length === 0) {
-          return;
-        }
-
-        savingRef.current = true;
-        const results = await Promise.allSettled(operations.map((op) => op()));
-        const failed = results.filter((r) => r.status === "rejected");
-        if (failed.length > 0) {
-          toast.error("Failed to update signal sources. Please try again.");
-          return;
-        }
-
-        await queryClient.invalidateQueries({
-          queryKey: ["signals", "source-configs"],
-        });
-        await queryClient.invalidateQueries({
-          queryKey: ["inbox", "signal-reports"],
-        });
-      } catch {
-        toast.error("Failed to update signal sources. Please try again.");
-      } finally {
-        savingRef.current = false;
-        setOptimistic(null);
-      }
-    },
-    [
-      serverValues,
-      configs,
-      createConfig,
-      updateConfig,
-      queryClient,
-      findExternalSource,
-      ensureRequiredTableSyncing,
-    ],
-  );
 
   return {
     displayValues,
     sourceStates,
     setupSource,
     isLoading,
-    handleChange,
+    handleToggle,
     handleSetup,
     handleSetupComplete,
     handleSetupCancel,
+    evaluations: displayEvaluations,
+    evaluationsUrl,
+    handleToggleEvaluation,
   };
 }

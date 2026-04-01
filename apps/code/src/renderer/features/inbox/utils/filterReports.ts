@@ -1,4 +1,8 @@
-import type { SignalReport, SignalReportOrderingField } from "@shared/types";
+import type {
+  SignalReport,
+  SignalReportOrderingField,
+  SignalReportStatus,
+} from "@shared/types";
 
 export function filterReportsBySearch(
   reports: SignalReport[],
@@ -16,13 +20,22 @@ export function filterReportsBySearch(
 }
 
 /**
- * Comma-separated `ordering` for the signal report list API: semantic `status` rank
- * then the toolbar field (matches default inbox UX).
+ * Build a comma-separated status filter string for the API from an array of statuses.
+ */
+export function buildStatusFilterParam(statuses: SignalReportStatus[]): string {
+  return statuses.join(",");
+}
+
+/**
+ * Comma-separated `ordering` for the signal report list API:
+ * 1. Status rank (ready first — semantic server-side rank, always applied)
+ * 2. Suggested reviewer (current user's reports first)
+ * 3. Toolbar-selected field (priority, total_weight, created_at, etc.)
  */
 export function buildSignalReportListOrdering(
   field: SignalReportOrderingField,
   direction: "asc" | "desc",
 ): string {
-  const secondary = direction === "desc" ? `-${field}` : field;
-  return `status,${secondary}`;
+  const fieldKey = direction === "desc" ? `-${field}` : field;
+  return `status,-is_suggested_reviewer,${fieldKey}`;
 }

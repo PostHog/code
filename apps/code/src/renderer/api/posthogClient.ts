@@ -20,6 +20,8 @@ export type McpRecommendedServer = Schemas.RecommendedServer;
 
 export type McpServerInstallation = Schemas.MCPServerInstallation;
 
+export type Evaluation = Schemas.Evaluation;
+
 export interface SignalSourceConfig {
   id: string;
   source_product:
@@ -27,8 +29,16 @@ export interface SignalSourceConfig {
     | "llm_analytics"
     | "github"
     | "linear"
-    | "zendesk";
-  source_type: "session_analysis_cluster" | "evaluation" | "issue" | "ticket";
+    | "zendesk"
+    | "error_tracking";
+  source_type:
+    | "session_analysis_cluster"
+    | "evaluation"
+    | "issue"
+    | "ticket"
+    | "issue_created"
+    | "issue_reopened"
+    | "issue_spiking";
   enabled: boolean;
   config: Record<string, unknown>;
   created_at: string;
@@ -223,17 +233,8 @@ export class PostHogAPIClient {
   async createSignalSourceConfig(
     projectId: number,
     options: {
-      source_product:
-        | "session_replay"
-        | "llm_analytics"
-        | "github"
-        | "linear"
-        | "zendesk";
-      source_type:
-        | "session_analysis_cluster"
-        | "evaluation"
-        | "issue"
-        | "ticket";
+      source_product: SignalSourceConfig["source_product"];
+      source_type: SignalSourceConfig["source_type"];
       enabled: boolean;
       config?: Record<string, unknown>;
     },
@@ -285,6 +286,34 @@ export class PostHogAPIClient {
       );
     }
     return (await response.json()) as SignalSourceConfig;
+  }
+
+  async listEvaluations(projectId: number): Promise<Evaluation[]> {
+    const data = await this.api.get(
+      "/api/environments/{project_id}/evaluations/",
+      {
+        path: { project_id: projectId.toString() },
+        query: { limit: 200 },
+      },
+    );
+    return data.results ?? [];
+  }
+
+  async updateEvaluation(
+    projectId: number,
+    evaluationId: string,
+    updates: { enabled: boolean },
+  ): Promise<Evaluation> {
+    return await this.api.patch(
+      "/api/environments/{project_id}/evaluations/{id}/",
+      {
+        path: {
+          project_id: projectId.toString(),
+          id: evaluationId,
+        },
+        body: updates,
+      },
+    );
   }
 
   async listExternalDataSources(

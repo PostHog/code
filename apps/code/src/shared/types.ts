@@ -189,6 +189,8 @@ export interface SignalReport {
   artefact_count: number;
   /** P0–P4 from actionability judgment when the report is researched */
   priority?: SignalReportPriority | null;
+  /** Whether the current user is a suggested reviewer for this report (server-annotated). */
+  is_suggested_reviewer?: boolean;
 }
 
 export interface SignalReportArtefactContent {
@@ -205,6 +207,34 @@ export interface SignalReportArtefact {
   type: string;
   content: SignalReportArtefactContent;
   created_at: string;
+}
+
+/** Artefact with `type: "suggested_reviewers"` — content is an enriched reviewer list. */
+export interface SuggestedReviewersArtefact {
+  id: string;
+  type: "suggested_reviewers";
+  content: SuggestedReviewer[];
+  created_at: string;
+}
+
+export interface SuggestedReviewerCommit {
+  sha: string;
+  url: string;
+  reason: string;
+}
+
+export interface SuggestedReviewerUser {
+  id: number;
+  uuid: string;
+  email: string;
+  first_name: string;
+}
+
+export interface SuggestedReviewer {
+  github_login: string;
+  github_name: string | null;
+  relevant_commits: SuggestedReviewerCommit[];
+  user: SuggestedReviewerUser | null;
 }
 
 interface MatchedSignalMetadata {
@@ -243,7 +273,7 @@ export interface SignalReportSignalsResponse {
 }
 
 export interface SignalReportArtefactsResponse {
-  results: SignalReportArtefact[];
+  results: (SignalReportArtefact | SuggestedReviewersArtefact)[];
   count: number;
   unavailableReason?:
     | "forbidden"
@@ -253,6 +283,7 @@ export interface SignalReportArtefactsResponse {
 }
 
 export type SignalReportOrderingField =
+  | "priority"
   | "signal_count"
   | "total_weight"
   | "created_at"
@@ -261,7 +292,7 @@ export type SignalReportOrderingField =
 export interface SignalReportsQueryParams {
   limit?: number;
   offset?: number;
-  status?: CommaSeparatedSignalReportStatuses;
+  status?: CommaSeparatedSignalReportStatuses | string;
   /**
    * Comma-separated sort keys (prefix `-` for descending). `status` is semantic stage
    * rank (not lexicographic `status` column order). Also: `signal_count`, `total_weight`,
