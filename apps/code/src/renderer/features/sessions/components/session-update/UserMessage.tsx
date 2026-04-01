@@ -112,7 +112,7 @@ export function UserMessage({
           <span>View Slack thread</span>
         </a>
       )}
-      <Box className="absolute top-1 right-1 flex items-center gap-2 opacity-0 transition-opacity group-hover/msg:opacity-100">
+      <Box className="flex h-0 items-center justify-end gap-2 overflow-hidden opacity-0 transition-all group-hover/msg:mt-1 group-hover/msg:h-5 group-hover/msg:opacity-100">
         {timestamp != null && (
           <span aria-hidden className="text-[11px] text-gray-10">
             {formatTimestamp(timestamp)}
