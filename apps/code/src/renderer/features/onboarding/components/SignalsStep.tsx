@@ -19,15 +19,18 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
     sourceStates,
     setupSource,
     isLoading,
-    handleChange,
+    handleToggle,
     handleSetup,
     handleSetupComplete,
     handleSetupCancel,
+    evaluations,
+    evaluationsUrl,
+    handleToggleEvaluation,
   } = useSignalSourceManager();
 
   const anyEnabled =
     displayValues.session_replay ||
-    displayValues.llm_analytics ||
+    displayValues.error_tracking ||
     displayValues.github ||
     displayValues.linear ||
     displayValues.zendesk;
@@ -96,10 +99,17 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
             ) : (
               <SignalSourceToggles
                 value={displayValues}
-                onChange={(v) => void handleChange(v)}
+                onToggle={(source, enabled) =>
+                  void handleToggle(source, enabled)
+                }
                 disabled={isLoading}
                 sourceStates={sourceStates}
                 onSetup={handleSetup}
+                evaluations={evaluations}
+                evaluationsUrl={evaluationsUrl}
+                onToggleEvaluation={(id, enabled) =>
+                  void handleToggleEvaluation(id, enabled)
+                }
               />
             )}
           </Flex>

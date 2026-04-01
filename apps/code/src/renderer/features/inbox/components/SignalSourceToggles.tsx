@@ -1,15 +1,27 @@
 import {
+  ArrowSquareOutIcon,
   BrainIcon,
+  BugIcon,
   GithubLogoIcon,
   KanbanIcon,
   TicketIcon,
   VideoIcon,
 } from "@phosphor-icons/react";
-import { Box, Button, Flex, Spinner, Switch, Text } from "@radix-ui/themes";
+import {
+  Box,
+  Button,
+  Flex,
+  Link,
+  Spinner,
+  Switch,
+  Text,
+} from "@radix-ui/themes";
+import type { Evaluation } from "@renderer/api/posthogClient";
+import { memo, useCallback } from "react";
 
 export interface SignalSourceValues {
   session_replay: boolean;
-  llm_analytics: boolean;
+  error_tracking: boolean;
   github: boolean;
   linear: boolean;
   zendesk: boolean;
@@ -27,7 +39,7 @@ interface SignalSourceToggleCardProps {
   loading?: boolean;
 }
 
-function SignalSourceToggleCard({
+const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
   icon,
   label,
   description,
@@ -44,6 +56,7 @@ function SignalSourceToggleCard({
       style={{
         backgroundColor: "var(--color-panel-solid)",
         border: "1px solid var(--gray-4)",
+        borderRadius: "var(--radius-3)",
         cursor: disabled || loading ? "default" : "pointer",
       }}
       onClick={
@@ -90,11 +103,116 @@ function SignalSourceToggleCard({
       </Flex>
     </Box>
   );
+});
+
+interface EvaluationRowProps {
+  evaluation: Evaluation;
+  onToggle: (id: string, enabled: boolean) => void;
 }
+
+const EvaluationRow = memo(function EvaluationRow({
+  evaluation,
+  onToggle,
+}: EvaluationRowProps) {
+  const handleChange = useCallback(
+    (checked: boolean) => onToggle(evaluation.id, checked),
+    [onToggle, evaluation.id],
+  );
+
+  return (
+    <Flex align="center" justify="between" gap="3" py="1" px="2">
+      <Text
+        size="1"
+        style={{
+          color: "var(--gray-12)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {evaluation.name}
+      </Text>
+      <Switch
+        size="1"
+        checked={evaluation.enabled ?? false}
+        onCheckedChange={handleChange}
+      />
+    </Flex>
+  );
+});
+
+interface EvaluationsSectionProps {
+  evaluations: Evaluation[];
+  evaluationsUrl: string;
+  onToggleEvaluation: (id: string, enabled: boolean) => void;
+}
+
+export const EvaluationsSection = memo(function EvaluationsSection({
+  evaluations,
+  evaluationsUrl,
+  onToggleEvaluation,
+}: EvaluationsSectionProps) {
+  return (
+    <Box
+      p="4"
+      style={{
+        backgroundColor: "var(--color-panel-solid)",
+        border: "1px solid var(--gray-4)",
+        borderRadius: "var(--radius-3)",
+      }}
+    >
+      <Flex direction="column" gap="2">
+        <Flex align="center" gap="3">
+          <Box style={{ color: "var(--gray-11)", flexShrink: 0 }}>
+            <BrainIcon size={20} />
+          </Box>
+          <Flex direction="column" gap="1" style={{ flex: 1, minWidth: 0 }}>
+            <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
+              LLM evaluations
+            </Text>
+            <Text size="1" style={{ color: "var(--gray-11)" }}>
+              Ongoing evaluation of how your AI features are performing based on
+              defined criteria
+            </Text>
+          </Flex>
+        </Flex>
+
+        <Flex direction="column" gap="2" style={{ marginLeft: 32 }}>
+          {evaluations.length > 0 ? (
+            <Flex direction="column" gap="1">
+              {evaluations.map((evaluation) => (
+                <EvaluationRow
+                  key={evaluation.id}
+                  evaluation={evaluation}
+                  onToggle={onToggleEvaluation}
+                />
+              ))}
+            </Flex>
+          ) : (
+            <Text size="1" style={{ color: "var(--gray-9)" }}>
+              No evaluations configured yet.
+            </Text>
+          )}
+
+          <Link
+            href={evaluationsUrl}
+            target="_blank"
+            rel="noopener"
+            size="1"
+            style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+          >
+            Manage evaluations in PostHog Cloud
+            <ArrowSquareOutIcon size={12} />
+          </Link>
+        </Flex>
+      </Flex>
+    </Box>
+  );
+});
 
 interface SignalSourceTogglesProps {
   value: SignalSourceValues;
-  onChange: (value: SignalSourceValues) => void;
+  onToggle: (source: keyof SignalSourceValues, enabled: boolean) => void;
   disabled?: boolean;
   sourceStates?: Partial<
     Record<
@@ -103,68 +221,101 @@ interface SignalSourceTogglesProps {
     >
   >;
   onSetup?: (source: keyof SignalSourceValues) => void;
+  evaluations?: Evaluation[];
+  evaluationsUrl?: string;
+  onToggleEvaluation?: (id: string, enabled: boolean) => void;
 }
 
 export function SignalSourceToggles({
   value,
-  onChange,
+  onToggle,
   disabled,
   sourceStates,
   onSetup,
+  evaluations,
+  evaluationsUrl,
+  onToggleEvaluation,
 }: SignalSourceTogglesProps) {
+  const toggleSessionReplay = useCallback(
+    (checked: boolean) => onToggle("session_replay", checked),
+    [onToggle],
+  );
+  const toggleErrorTracking = useCallback(
+    (checked: boolean) => onToggle("error_tracking", checked),
+    [onToggle],
+  );
+  const toggleGithub = useCallback(
+    (checked: boolean) => onToggle("github", checked),
+    [onToggle],
+  );
+  const toggleLinear = useCallback(
+    (checked: boolean) => onToggle("linear", checked),
+    [onToggle],
+  );
+  const toggleZendesk = useCallback(
+    (checked: boolean) => onToggle("zendesk", checked),
+    [onToggle],
+  );
+  const setupGithub = useCallback(() => onSetup?.("github"), [onSetup]);
+  const setupLinear = useCallback(() => onSetup?.("linear"), [onSetup]);
+  const setupZendesk = useCallback(() => onSetup?.("zendesk"), [onSetup]);
+
   return (
     <Flex direction="column" gap="2">
       <SignalSourceToggleCard
         icon={<VideoIcon size={20} />}
-        label="Session replay"
-        description="Allow PostHog to watch session recordings for you, and spot UX issues."
+        label="PostHog Session Replay"
+        description="Analyze session recordings and event data for UX issues"
         checked={value.session_replay}
-        onCheckedChange={(checked) =>
-          onChange({ ...value, session_replay: checked })
-        }
+        onCheckedChange={toggleSessionReplay}
         disabled={disabled}
       />
       <SignalSourceToggleCard
-        icon={<BrainIcon size={20} />}
-        label="LLM analytics"
-        description="Allow PostHog to evaluate live LLM traces for you, and flag anomalies."
-        checked={value.llm_analytics}
-        onCheckedChange={(checked) =>
-          onChange({ ...value, llm_analytics: checked })
-        }
+        icon={<BugIcon size={20} />}
+        label="PostHog Error Tracking"
+        description="Surface new issues, reopenings, and volume spikes"
+        checked={value.error_tracking}
+        onCheckedChange={toggleErrorTracking}
         disabled={disabled}
       />
+      {evaluations && evaluationsUrl && onToggleEvaluation && (
+        <EvaluationsSection
+          evaluations={evaluations}
+          evaluationsUrl={evaluationsUrl}
+          onToggleEvaluation={onToggleEvaluation}
+        />
+      )}
       <SignalSourceToggleCard
         icon={<GithubLogoIcon size={20} />}
-        label="GitHub"
-        description="Allow PostHog to read GitHub issues for you, and highlight what needs attention."
+        label="GitHub Issues"
+        description="Monitor new issues and updates"
         checked={value.github}
-        onCheckedChange={(checked) => onChange({ ...value, github: checked })}
+        onCheckedChange={toggleGithub}
         disabled={disabled}
         requiresSetup={sourceStates?.github?.requiresSetup}
-        onSetup={() => onSetup?.("github")}
+        onSetup={setupGithub}
         loading={sourceStates?.github?.loading}
       />
       <SignalSourceToggleCard
         icon={<KanbanIcon size={20} />}
         label="Linear"
-        description="Allow PostHog to read Linear issues for you, and pick out priorities."
+        description="Monitor new issues and updates"
         checked={value.linear}
-        onCheckedChange={(checked) => onChange({ ...value, linear: checked })}
+        onCheckedChange={toggleLinear}
         disabled={disabled}
         requiresSetup={sourceStates?.linear?.requiresSetup}
-        onSetup={() => onSetup?.("linear")}
+        onSetup={setupLinear}
         loading={sourceStates?.linear?.loading}
       />
       <SignalSourceToggleCard
         icon={<TicketIcon size={20} />}
         label="Zendesk"
-        description="Allow PostHog to investigate support tickets for you, and find follow-ups."
+        description="Monitor incoming support tickets"
         checked={value.zendesk}
-        onCheckedChange={(checked) => onChange({ ...value, zendesk: checked })}
+        onCheckedChange={toggleZendesk}
         disabled={disabled}
         requiresSetup={sourceStates?.zendesk?.requiresSetup}
-        onSetup={() => onSetup?.("zendesk")}
+        onSetup={setupZendesk}
         loading={sourceStates?.zendesk?.loading}
       />
     </Flex>

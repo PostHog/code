@@ -52,13 +52,41 @@ interface SetupFormProps {
   onCancel: () => void;
 }
 
+const POLL_INTERVAL_GITHUB_MS = 3_000;
+const POLL_TIMEOUT_GITHUB_MS = 300_000;
+
 function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
   const projectId = useAuthStateValue((state) => state.projectId);
+  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
   const client = useAuthenticatedClient();
   const { githubIntegration, repositories, isLoadingRepos } =
     useRepositoryIntegration();
   const [repo, setRepo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => stopPolling, [stopPolling]);
+
+  // Stop polling once integration appears
+  useEffect(() => {
+    if (githubIntegration && connecting) {
+      stopPolling();
+      setConnecting(false);
+    }
+  }, [githubIntegration, connecting, stopPolling]);
 
   // Auto-select the first repo once loaded
   useEffect(() => {
@@ -66,6 +94,47 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
       setRepo(repositories[0]);
     }
   }, [repo, repositories]);
+
+  const handleConnectGitHub = useCallback(async () => {
+    if (!cloudRegion || !projectId) return;
+    setConnecting(true);
+    try {
+      await trpcClient.githubIntegration.startFlow.mutate({
+        region: cloudRegion,
+        projectId,
+      });
+
+      pollTimerRef.current = setInterval(async () => {
+        try {
+          if (!client) return;
+          // Trigger a refetch of integrations
+          const integrations =
+            await client.getIntegrationsForProject(projectId);
+          const hasGithub = integrations.some(
+            (i: { kind: string }) => i.kind === "github",
+          );
+          if (hasGithub) {
+            stopPolling();
+            setConnecting(false);
+            toast.success("GitHub connected");
+          }
+        } catch {
+          // Ignore individual poll failures
+        }
+      }, POLL_INTERVAL_GITHUB_MS);
+
+      pollTimeoutRef.current = setTimeout(() => {
+        stopPolling();
+        setConnecting(false);
+        toast.error("Connection timed out. Please try again.");
+      }, POLL_TIMEOUT_GITHUB_MS);
+    } catch (error) {
+      setConnecting(false);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to start GitHub flow",
+      );
+    }
+  }, [cloudRegion, projectId, client, stopPolling]);
 
   const handleSubmit = useCallback(async () => {
     if (!projectId || !client || !repo || !githubIntegration) return;
@@ -97,10 +166,28 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
   if (!githubIntegration) {
     return (
       <SetupFormContainer title="Connect GitHub">
-        <Text size="2" style={{ color: "var(--gray-11)" }}>
-          No GitHub integration found. Please connect GitHub during onboarding
-          first.
-        </Text>
+        <Flex direction="column" gap="3">
+          <Text size="2" style={{ color: "var(--gray-11)" }}>
+            Connect your GitHub account to import issues as signals.
+          </Text>
+          <Flex gap="2" justify="end">
+            <Button
+              size="2"
+              variant="soft"
+              onClick={onCancel}
+              disabled={connecting}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="2"
+              onClick={() => void handleConnectGitHub()}
+              disabled={connecting}
+            >
+              {connecting ? "Waiting for authorization..." : "Connect GitHub"}
+            </Button>
+          </Flex>
+        </Flex>
       </SetupFormContainer>
     );
   }
