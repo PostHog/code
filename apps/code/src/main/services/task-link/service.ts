@@ -1,8 +1,8 @@
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
-import { getMainWindow } from "../../trpc/context";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import { focusMainWindow } from "../../window";
 import type { DeepLinkService } from "../deep-link/service";
 
 const log = logger.scope("task-link-service");
@@ -69,15 +69,7 @@ export class TaskLinkService extends TypedEventEmitter<TaskLinkEvents> {
       this.pendingDeepLink = { taskId, taskRunId };
     }
 
-    // Focus the window
-    log.info("Deep link focusing window", { taskId, taskRunId });
-    const mainWindow = getMainWindow();
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) {
-        mainWindow.restore();
-      }
-      mainWindow.focus();
-    }
+    focusMainWindow("task deep link");
 
     return true;
   }

@@ -3,6 +3,7 @@ import { inject, injectable, postConstruct } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { getMainWindow } from "../../trpc/context";
 import { logger } from "../../utils/logger";
+import { focusMainWindow } from "../../window";
 import { TaskLinkEvent, type TaskLinkService } from "../task-link/service";
 
 const log = logger.scope("notification");
@@ -31,14 +32,7 @@ export class NotificationService {
     const notification = new Notification({ title, body, silent });
 
     notification.on("click", () => {
-      log.info("Notification clicked, focusing window", { title, taskId });
-      const mainWindow = getMainWindow();
-      if (mainWindow) {
-        if (mainWindow.isMinimized()) {
-          mainWindow.restore();
-        }
-        mainWindow.focus();
-      }
+      focusMainWindow("notification click");
 
       if (taskId) {
         this.taskLinkService.emit(TaskLinkEvent.OpenTask, { taskId });
