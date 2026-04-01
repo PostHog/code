@@ -56,6 +56,7 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
       style={{
         backgroundColor: "var(--color-panel-solid)",
         border: "1px solid var(--gray-4)",
+        borderRadius: "var(--radius-3)",
         cursor: disabled || loading ? "default" : "pointer",
       }}
       onClick={
@@ -157,6 +158,7 @@ export const EvaluationsSection = memo(function EvaluationsSection({
       style={{
         backgroundColor: "var(--color-panel-solid)",
         border: "1px solid var(--gray-4)",
+        borderRadius: "var(--radius-3)",
       }}
     >
       <Flex direction="column" gap="2">

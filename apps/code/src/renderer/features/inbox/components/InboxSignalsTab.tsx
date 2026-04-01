@@ -18,7 +18,7 @@ import {
 } from "@features/inbox/utils/filterReports";
 import { INBOX_REFETCH_INTERVAL_MS } from "@features/inbox/utils/inboxConstants";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
-import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
+import { SignalSourcesSettings } from "@features/settings/components/sections/SignalSourcesSettings";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useRepositoryIntegration } from "@hooks/useIntegrations";
@@ -35,10 +35,12 @@ import {
   Badge,
   Box,
   Button,
+  Dialog,
   Flex,
   ScrollArea,
   Select,
   Text,
+  Tooltip,
 } from "@radix-ui/themes";
 import graphsHog from "@renderer/assets/images/graphs-hog.png";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
@@ -124,7 +126,7 @@ export function InboxSignalsTab() {
   const statusFilter = useInboxSignalsFilterStore((s) => s.statusFilter);
   const { data: signalSourceConfigs } = useSignalSourceConfigs();
   const hasSignalSources = signalSourceConfigs?.some((c) => c.enabled) ?? false;
-  const openSettings = useSettingsDialogStore((s) => s.open);
+  const [sourcesDialogOpen, setSourcesDialogOpen] = useState(false);
 
   const windowFocused = useRendererWindowFocusStore((s) => s.focused);
   const isInboxView = useNavigationStore((s) => s.view.type === "inbox");
@@ -324,81 +326,126 @@ export function InboxSignalsTab() {
     );
   }
 
+  const sourcesDialog = (
+    <Dialog.Root open={sourcesDialogOpen} onOpenChange={setSourcesDialogOpen}>
+      <Dialog.Content maxWidth="520px">
+        <Flex align="center" justify="between" mb="3">
+          <Dialog.Title size="3" mb="0">
+            Signal sources
+          </Dialog.Title>
+          <Dialog.Close>
+            <button
+              type="button"
+              className="rounded p-1 text-gray-11 hover:bg-gray-3 hover:text-gray-12"
+              aria-label="Close"
+            >
+              <XIcon size={16} />
+            </button>
+          </Dialog.Close>
+        </Flex>
+        <SignalSourcesSettings />
+        <Flex justify="end" mt="4">
+          {hasSignalSources ? (
+            <Dialog.Close>
+              <Button size="2">Back to Inbox</Button>
+            </Dialog.Close>
+          ) : (
+            <Tooltip content="You haven't enabled any signal source yet!">
+              <Button size="2" disabled>
+                Back to Inbox
+              </Button>
+            </Tooltip>
+          )}
+        </Flex>
+      </Dialog.Content>
+    </Dialog.Root>
+  );
+
   if (allReports.length === 0) {
     if (!hasSignalSources) {
       return (
-        <Flex
-          direction="column"
-          align="center"
-          justify="center"
-          height="100%"
-          px="5"
-          style={{ margin: "0 auto" }}
-        >
-          <Flex direction="column" align="center" style={{ maxWidth: 420 }}>
-            <img
-              src={graphsHog}
-              alt=""
-              style={{ width: 128, marginBottom: 20 }}
-            />
-
-            <Text
-              size="4"
-              weight="bold"
-              align="center"
-              style={{ color: "var(--gray-12)" }}
-            >
-              Welcome to your Inbox
-            </Text>
-
-            <Flex
-              direction="column"
-              align="center"
-              gap="3"
-              mt="3"
-              style={{ maxWidth: 360 }}
-            >
-              <Text
-                size="1"
-                align="center"
-                style={{ color: "var(--gray-11)", lineHeight: 1.35 }}
-              >
-                <Text weight="medium" style={{ color: "var(--gray-12)" }}>
-                  Background analysis of your data — while you sleep.
-                </Text>
-                <br />
-                Session recordings watched automatically. Issues, tickets, and
-                evals analyzed around the clock.
-              </Text>
-
-              <ArrowDownIcon size={14} style={{ color: "var(--gray-8)" }} />
+        <>
+          <Flex
+            direction="column"
+            align="center"
+            justify="center"
+            height="100%"
+            px="5"
+            style={{ margin: "0 auto" }}
+          >
+            <Flex direction="column" align="center" style={{ maxWidth: 420 }}>
+              <img
+                src={graphsHog}
+                alt=""
+                style={{ width: 128, marginBottom: 20 }}
+              />
 
               <Text
-                size="1"
+                size="4"
+                weight="bold"
                 align="center"
-                style={{ color: "var(--gray-11)", lineHeight: 1.35 }}
+                style={{ color: "var(--gray-12)" }}
               >
-                <Text weight="medium" style={{ color: "var(--gray-12)" }}>
-                  Ready-to-run fixes for real user problems.
-                </Text>
-                <br />
-                Each report includes evidence and impact numbers — just execute
-                the prompt in your agent.
+                Welcome to your Inbox
               </Text>
+
+              <Flex
+                direction="column"
+                align="center"
+                gap="3"
+                mt="3"
+                style={{ maxWidth: 360 }}
+              >
+                <Text
+                  size="1"
+                  align="center"
+                  style={{ color: "var(--gray-11)", lineHeight: 1.35 }}
+                >
+                  <Text weight="medium" style={{ color: "var(--gray-12)" }}>
+                    Background analysis of your data — while you sleep.
+                  </Text>
+                  <br />
+                  Session recordings watched automatically. Issues, tickets, and
+                  evals analyzed around the clock.
+                </Text>
+
+                <ArrowDownIcon size={14} style={{ color: "var(--gray-8)" }} />
+
+                <Text
+                  size="1"
+                  align="center"
+                  style={{ color: "var(--gray-11)", lineHeight: 1.35 }}
+                >
+                  <Text weight="medium" style={{ color: "var(--gray-12)" }}>
+                    Ready-to-run fixes for real user problems.
+                  </Text>
+                  <br />
+                  Each report includes evidence and impact numbers — just
+                  execute the prompt in your agent.
+                </Text>
+              </Flex>
+
+              <Button
+                size="2"
+                style={{ marginTop: 20 }}
+                onClick={() => setSourcesDialogOpen(true)}
+              >
+                Enable Inbox
+              </Button>
             </Flex>
-
-            <Button
-              size="2"
-              style={{ marginTop: 20 }}
-              onClick={() => openSettings("signals")}
-            >
-              Enable Inbox
-            </Button>
           </Flex>
-        </Flex>
+          {sourcesDialog}
+        </>
       );
     }
-    return <InboxWarmingUpState />;
+    return (
+      <>
+        <InboxWarmingUpState
+          onConfigureSources={() => setSourcesDialogOpen(true)}
+        />
+        {sourcesDialog}
+      </>
+    );
   }
 
   return (
