@@ -418,11 +418,40 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
 
   private buildSystemPrompt(
     credentials: Credentials,
+    taskId: string,
     customInstructions?: string,
   ): {
     append: string;
   } {
     let prompt = `PostHog context: use project ${credentials.projectId} on ${credentials.apiHost}. When using PostHog MCP tools, operate only on this project.`;
+
+    prompt += `
+
+## Attribution
+Do NOT use Claude Code's default attribution (no "Co-Authored-By" trailers, no "Generated with [Claude Code]" lines).
+
+Instead, add the following trailers to EVERY commit message (after a blank line at the end):
+  Generated-By: PostHog Code
+  Task-Id: ${taskId}
+
+Example:
+\`\`\`
+git commit -m "$(cat <<'EOF'
+fix: resolve login redirect loop
+
+Generated-By: PostHog Code
+Task-Id: ${taskId}
+EOF
+)"
+\`\`\`
+
+When creating new branches, prefix them with \`posthog-code/\` (e.g. \`posthog-code/fix-login-redirect\`).
+
+When creating pull requests, add the following footer at the end of the PR description:
+\`\`\`
+---
+*Created with [PostHog Code](https://posthog.com/code?ref=pr)*
+\`\`\``;
 
     if (customInstructions) {
       prompt += `\n\nUser custom instructions:\n${customInstructions}`;
@@ -632,6 +661,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
 
         const systemPrompt = this.buildSystemPrompt(
           credentials,
+          taskId,
           customInstructions,
         );
         const resumeResponse = await connection.unstable_resumeSession({
@@ -669,6 +699,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         }
         const systemPrompt = this.buildSystemPrompt(
           credentials,
+          taskId,
           customInstructions,
         );
         const newSessionResponse = await connection.newSession({

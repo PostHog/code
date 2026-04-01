@@ -365,14 +365,19 @@ describe("AgentServer HTTP Mode", () => {
       expect(prompt).toContain("https://github.com/org/repo/pull/1");
       expect(prompt).toContain("gh pr checkout");
       expect(prompt).not.toContain("Create a draft pull request");
+      expect(prompt).toContain("Generated-By: PostHog Code");
+      expect(prompt).toContain("Task-Id: test-task-id");
     });
 
     it("returns default prompt when no prUrl", () => {
       const s = createServer();
       const prompt = (s as unknown as TestableServer).buildCloudSystemPrompt();
-      expect(prompt).toContain("Create a new branch");
+      expect(prompt).toContain("posthog-code/");
       expect(prompt).toContain("Create a draft pull request");
       expect(prompt).toContain("gh pr create --draft");
+      expect(prompt).toContain("Generated-By: PostHog Code");
+      expect(prompt).toContain("Task-Id: test-task-id");
+      expect(prompt).toContain("Created with [PostHog Code]");
     });
 
     it("returns default prompt when prUrl is null", () => {
@@ -380,7 +385,7 @@ describe("AgentServer HTTP Mode", () => {
       const prompt = (s as unknown as TestableServer).buildCloudSystemPrompt(
         null,
       );
-      expect(prompt).toContain("Create a new branch");
+      expect(prompt).toContain("posthog-code/");
       expect(prompt).toContain("Create a draft pull request");
       expect(prompt).toContain("gh pr create --draft");
     });

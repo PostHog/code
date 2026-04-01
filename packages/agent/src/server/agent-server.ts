@@ -1062,6 +1062,26 @@ export class AgentServer {
   }
 
   private buildCloudSystemPrompt(prUrl?: string | null): string {
+    const taskId = this.config.taskId;
+    const attributionInstructions = `
+## Attribution
+Do NOT use Claude Code's default attribution (no "Co-Authored-By" trailers, no "Generated with [Claude Code]" lines).
+
+Instead, add the following trailers to EVERY commit message (after a blank line at the end):
+  Generated-By: PostHog Code
+  Task-Id: ${taskId}
+
+Example:
+\`\`\`
+git commit -m "$(cat <<'EOF'
+fix: resolve login redirect loop
+
+Generated-By: PostHog Code
+Task-Id: ${taskId}
+EOF
+)"
+\`\`\``;
+
     if (prUrl) {
       return `
 # Cloud Task Execution
@@ -1075,8 +1095,7 @@ After completing the requested changes:
 
 Important:
 - Do NOT create a new branch or a new pull request.
-- Do NOT add "Co-Authored-By" trailers to commit messages.
-- Do NOT add "Generated with [Claude Code]" or similar attribution lines to PR descriptions.
+${attributionInstructions}
 `;
     }
 
@@ -1105,15 +1124,18 @@ Important:
 # Cloud Task Execution
 
 After completing the requested changes:
-1. Create a new branch with a descriptive name based on the work done
+1. Create a new branch prefixed with \`posthog-code/\` (e.g. \`posthog-code/fix-login-redirect\`) based on the work done
 2. Stage and commit all changes with a clear commit message
 3. Push the branch to origin
-4. Create a draft pull request using \`gh pr create --draft${this.config.baseBranch ? ` --base ${this.config.baseBranch}` : ""}\` with a descriptive title and body
+4. Create a draft pull request using \`gh pr create --draft${this.config.baseBranch ? ` --base ${this.config.baseBranch}` : ""}\` with a descriptive title and body. Add the following footer at the end of the PR description:
+\`\`\`
+---
+*Created with [PostHog Code](https://posthog.com/code?ref=pr)*
+\`\`\`
 
 Important:
 - Always create the PR as a draft. Do not ask for confirmation.
-- Do NOT add "Co-Authored-By" trailers to commit messages.
-- Do NOT add "Generated with [Claude Code]" or similar attribution lines to PR descriptions.
+${attributionInstructions}
 `;
   }
 
