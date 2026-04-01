@@ -19,6 +19,8 @@ import {
   getUnstagedDiff,
   fetch as gitFetch,
   isGitRepository,
+  stageFiles,
+  unstageFiles,
 } from "@posthog/git/queries";
 import { CreateBranchSaga, SwitchBranchSaga } from "@posthog/git/sagas/branch";
 import { CloneSaga } from "@posthog/git/sagas/clone";
@@ -266,6 +268,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       originalPath: f.originalPath,
       linesAdded: f.linesAdded,
       linesRemoved: f.linesRemoved,
+      staged: f.staged,
     }));
   }
 
@@ -281,6 +284,36 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     ignoreWhitespace?: boolean,
   ): Promise<string> {
     return getDiffHead(directoryPath, { ignoreWhitespace });
+  }
+
+  public async getDiffCached(
+    directoryPath: string,
+    ignoreWhitespace?: boolean,
+  ): Promise<string> {
+    return getStagedDiff(directoryPath, { ignoreWhitespace });
+  }
+
+  public async getDiffUnstaged(
+    directoryPath: string,
+    ignoreWhitespace?: boolean,
+  ): Promise<string> {
+    return getUnstagedDiff(directoryPath, { ignoreWhitespace });
+  }
+
+  public async stageFiles(
+    directoryPath: string,
+    paths: string[],
+  ): Promise<GitStateSnapshot> {
+    await stageFiles(directoryPath, paths);
+    return this.getStateSnapshot(directoryPath);
+  }
+
+  public async unstageFiles(
+    directoryPath: string,
+    paths: string[],
+  ): Promise<GitStateSnapshot> {
+    await unstageFiles(directoryPath, paths);
+    return this.getStateSnapshot(directoryPath);
   }
 
   public async getDiffStats(directoryPath: string): Promise<DiffStats> {
@@ -479,6 +512,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     prTitle?: string;
     prBody?: string;
     draft?: boolean;
+    stagedOnly?: boolean;
   }): Promise<CreatePrOutput> {
     const { directoryPath, flowId } = input;
 
@@ -502,7 +536,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
         checkoutBranch: (dir, name) => this.checkoutBranch(dir, name),
         getChangedFilesHead: (dir) => this.getChangedFilesHead(dir),
         generateCommitMessage: (dir) => this.generateCommitMessage(dir),
-        commit: (dir, msg) => this.commit(dir, msg),
+        commit: (dir, msg, stagedOnly) => this.commit(dir, msg, { stagedOnly }),
         getSyncStatus: (dir) => this.getGitSyncStatus(dir),
         push: (dir) => this.push(dir),
         publish: (dir) => this.publish(dir),
@@ -521,6 +555,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       prTitle: input.prTitle,
       prBody: input.prBody,
       draft: input.draft,
+      stagedOnly: input.stagedOnly,
     });
 
     if (!result.success) {
@@ -584,8 +619,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
   public async commit(
     directoryPath: string,
     message: string,
-    paths?: string[],
-    allowEmpty?: boolean,
+    options?: { paths?: string[]; allowEmpty?: boolean; stagedOnly?: boolean },
   ): Promise<CommitOutput> {
     const fail = (msg: string): CommitOutput => ({
       success: false,
@@ -600,8 +634,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     const result = await saga.run({
       baseDir: directoryPath,
       message: message.trim(),
-      paths,
-      allowEmpty,
+      ...options,
     });
 
     if (!result.success) return fail(result.error);

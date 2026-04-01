@@ -138,6 +138,7 @@ export interface ChangedFile {
   originalPath?: string; // For renames: the old path
   linesAdded?: number;
   linesRemoved?: number;
+  staged?: boolean;
 }
 
 // External apps detection types

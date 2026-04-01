@@ -21,6 +21,7 @@ export const changedFileSchema = z.object({
   originalPath: z.string().optional(),
   linesAdded: z.number().optional(),
   linesRemoved: z.number().optional(),
+  staged: z.boolean().optional(),
 });
 
 export type ChangedFile = z.infer<typeof changedFileSchema>;
@@ -120,16 +121,22 @@ export const getFileAtHeadInput = z.object({
 });
 export const getFileAtHeadOutput = z.string().nullable();
 
-// getDiffHead schemas
-export const getDiffHeadInput = z.object({
+// Shared diff schemas (getDiffHead, getDiffCached, getDiffUnstaged)
+export const diffInput = z.object({
   directoryPath: z.string(),
   ignoreWhitespace: z.boolean().optional(),
 });
-export const getDiffHeadOutput = z.string();
+export const diffOutput = z.string();
 
 // getDiffStats schemas
 export const getDiffStatsInput = directoryPathInput;
 export const getDiffStatsOutput = diffStatsSchema;
+
+// stageFiles / unstageFiles shared schema
+export const stageFilesInput = z.object({
+  directoryPath: z.string(),
+  paths: z.array(z.string()),
+});
 
 // getCurrentBranch schemas
 export const getCurrentBranchInput = directoryPathInput;
@@ -198,6 +205,7 @@ export const commitInput = z.object({
   message: z.string(),
   paths: z.array(z.string()).optional(),
   allowEmpty: z.boolean().optional(),
+  stagedOnly: z.boolean().optional(),
 });
 
 export type CommitInput = z.infer<typeof commitInput>;
@@ -241,6 +249,7 @@ export const createPrInput = z.object({
   prTitle: z.string().optional(),
   prBody: z.string().optional(),
   draft: z.boolean().optional(),
+  stagedOnly: z.boolean().optional(),
 });
 
 export type CreatePrInput = z.infer<typeof createPrInput>;

@@ -389,6 +389,7 @@ export interface ChangedFileInfo {
   originalPath?: string;
   linesAdded?: number;
   linesRemoved?: number;
+  staged?: boolean;
 }
 
 export interface GetChangedFilesDetailedOptions extends CreateGitClientOptions {
@@ -428,23 +429,27 @@ export async function getChangedFilesDetailed(
     baseDir,
     async (git) => {
       try {
-        const [diffSummary, status] = await Promise.all([
-          git.diffSummary(["-M", "HEAD"]),
+        const [stagedSummary, unstagedSummary, status] = await Promise.all([
+          git.diffSummary(["--cached", "-M", "HEAD"]),
+          git.diffSummary(["-M"]),
           git.status(["--untracked-files=all"]),
         ]);
 
-        const seenPaths = new Set<string>();
+        const diffSeenPaths = new Set<string>();
+        const excludedPaths = new Set<string>();
         const files: ChangedFileInfo[] = [];
 
-        for (const file of diffSummary.files) {
+        const pushDiffFile = (
+          file: (typeof stagedSummary.files)[number],
+          staged: boolean,
+        ) => {
           if (
             excludePatterns &&
             matchesExcludePattern(file.file, excludePatterns)
           ) {
-            seenPaths.add(file.file);
-            continue;
+            excludedPaths.add(file.file);
+            return;
           }
-
           const hasFrom = "from" in file && file.from;
           const isBinary = file.binary;
           files.push({
@@ -463,80 +468,35 @@ export async function getChangedFilesDetailed(
             linesRemoved: isBinary
               ? undefined
               : (file as { deletions: number }).deletions,
+            staged,
           });
-          seenPaths.add(file.file);
-          if (hasFrom) seenPaths.add(file.from as string);
+          diffSeenPaths.add(file.file);
+          if (hasFrom) diffSeenPaths.add(file.from as string);
+        };
+
+        for (const file of stagedSummary.files) {
+          pushDiffFile(file, true);
+        }
+        for (const file of unstagedSummary.files) {
+          pushDiffFile(file, false);
         }
 
         const MAX_UNTRACKED_FILES = 10_000;
         let untrackedProcessed = 0;
         for (const file of status.not_added) {
           if (untrackedProcessed >= MAX_UNTRACKED_FILES) break;
-          if (!seenPaths.has(file)) {
-            if (
-              excludePatterns &&
-              matchesExcludePattern(file, excludePatterns)
-            ) {
-              continue;
-            }
-            const lineCount = await countFileLines(path.join(baseDir, file));
-            files.push({
-              path: file,
-              status: "untracked",
-              linesAdded: lineCount,
-              linesRemoved: 0,
-            });
-            untrackedProcessed++;
+          if (diffSeenPaths.has(file) || excludedPaths.has(file)) continue;
+          if (excludePatterns && matchesExcludePattern(file, excludePatterns)) {
+            continue;
           }
-        }
-
-        for (const file of status.modified) {
-          if (!seenPaths.has(file)) {
-            if (
-              excludePatterns &&
-              matchesExcludePattern(file, excludePatterns)
-            ) {
-              continue;
-            }
-            try {
-              const headDiff = await git.diff(["HEAD", "--", file]);
-              if (!headDiff.trim()) continue;
-              const lines = headDiff.split("\n");
-              const linesAdded = lines.filter(
-                (l) => l.startsWith("+") && !l.startsWith("+++"),
-              ).length;
-              const linesRemoved = lines.filter(
-                (l) => l.startsWith("-") && !l.startsWith("---"),
-              ).length;
-              files.push({
-                path: file,
-                status: "modified",
-                linesAdded,
-                linesRemoved,
-              });
-            } catch {}
-          }
-        }
-
-        for (const file of status.deleted) {
-          if (!seenPaths.has(file)) {
-            if (
-              excludePatterns &&
-              matchesExcludePattern(file, excludePatterns)
-            ) {
-              continue;
-            }
-            try {
-              const headDiff = await git.diff(["HEAD", "--", file]);
-              if (!headDiff.trim()) continue;
-            } catch {}
-            files.push({
-              path: file,
-              status: "deleted",
-              linesAdded: 0,
-              linesRemoved: 0,
-            });
-          }
+          const lineCount = await countFileLines(path.join(baseDir, file));
+          files.push({
+            path: file,
+            status: "untracked",
+            linesAdded: lineCount,
+            linesRemoved: 0,
+          });
+          untrackedProcessed++;
         }
 
         return files;
@@ -634,14 +594,16 @@ export interface GetDiffStatsOptions extends CreateGitClientOptions {
 export function computeDiffStatsFromFiles(files: ChangedFileInfo[]): DiffStats {
   let linesAdded = 0;
   let linesRemoved = 0;
+  const uniquePaths = new Set<string>();
 
   for (const file of files) {
     linesAdded += file.linesAdded ?? 0;
     linesRemoved += file.linesRemoved ?? 0;
+    uniquePaths.add(file.path);
   }
 
   return {
-    filesChanged: files.length,
+    filesChanged: uniquePaths.size,
     linesAdded,
     linesRemoved,
   };
@@ -922,20 +884,24 @@ export async function hasTrackedFiles(
 
 export async function getStagedDiff(
   baseDir: string,
-  options?: CreateGitClientOptions,
+  options?: CreateGitClientOptions & { ignoreWhitespace?: boolean },
 ): Promise<string> {
   const manager = getGitOperationManager();
-  return manager.executeRead(baseDir, (git) => git.diff(["--cached", "HEAD"]), {
+  const args = ["--cached", "HEAD"];
+  if (options?.ignoreWhitespace) args.push("-w");
+  return manager.executeRead(baseDir, (git) => git.diff(args), {
     signal: options?.abortSignal,
   });
 }
 
 export async function getUnstagedDiff(
   baseDir: string,
-  options?: CreateGitClientOptions,
+  options?: CreateGitClientOptions & { ignoreWhitespace?: boolean },
 ): Promise<string> {
   const manager = getGitOperationManager();
-  return manager.executeRead(baseDir, (git) => git.diff(), {
+  const args: string[] = [];
+  if (options?.ignoreWhitespace) args.push("-w");
+  return manager.executeRead(baseDir, (git) => git.diff(args), {
     signal: options?.abortSignal,
   });
 }
@@ -950,6 +916,30 @@ export async function getDiffHead(
   return manager.executeRead(baseDir, (git) => git.diff(args), {
     signal: options?.abortSignal,
   });
+}
+
+export async function stageFiles(
+  baseDir: string,
+  paths: string[],
+  options?: CreateGitClientOptions,
+): Promise<void> {
+  const manager = getGitOperationManager();
+  await manager.executeWrite(baseDir, (git) => git.add(paths), {
+    signal: options?.abortSignal,
+  });
+}
+
+export async function unstageFiles(
+  baseDir: string,
+  paths: string[],
+  options?: CreateGitClientOptions,
+): Promise<void> {
+  const manager = getGitOperationManager();
+  await manager.executeWrite(
+    baseDir,
+    (git) => git.reset(["HEAD", "--", ...paths]),
+    { signal: options?.abortSignal },
+  );
 }
 
 export async function getDiffAgainstRemote(

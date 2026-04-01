@@ -7,6 +7,8 @@ export function invalidateGitWorkingTreeQueries(repoPath: string) {
     trpc.git.getChangedFilesHead.queryFilter(input),
   );
   queryClient.invalidateQueries(trpc.git.getDiffStats.queryFilter(input));
+  queryClient.invalidateQueries(trpc.git.getDiffCached.pathFilter());
+  queryClient.invalidateQueries(trpc.git.getDiffUnstaged.pathFilter());
 }
 
 export function invalidateGitBranchQueries(repoPath: string) {

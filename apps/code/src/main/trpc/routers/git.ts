@@ -13,6 +13,8 @@ import {
   createPrOutput,
   detectRepoInput,
   detectRepoOutput,
+  diffInput,
+  diffOutput,
   discardFileChangesInput,
   discardFileChangesOutput,
   generateCommitMessageInput,
@@ -29,8 +31,6 @@ import {
   getCommitConventionsOutput,
   getCurrentBranchInput,
   getCurrentBranchOutput,
-  getDiffHeadInput,
-  getDiffHeadOutput,
   getDiffStatsInput,
   getDiffStatsOutput,
   getFileAtHeadInput,
@@ -45,6 +45,7 @@ import {
   getPrTemplateInput,
   getPrTemplateOutput,
   ghStatusOutput,
+  gitStateSnapshotSchema,
   openPrInput,
   openPrOutput,
   prStatusInput,
@@ -57,6 +58,7 @@ import {
   pushOutput,
   searchGithubIssuesInput,
   searchGithubIssuesOutput,
+  stageFilesInput,
   syncInput,
   syncOutput,
   validateRepoInput,
@@ -139,16 +141,44 @@ export const gitRouter = router({
     ),
 
   getDiffHead: publicProcedure
-    .input(getDiffHeadInput)
-    .output(getDiffHeadOutput)
+    .input(diffInput)
+    .output(diffOutput)
     .query(({ input }) =>
       getService().getDiffHead(input.directoryPath, input.ignoreWhitespace),
+    ),
+
+  getDiffCached: publicProcedure
+    .input(diffInput)
+    .output(diffOutput)
+    .query(({ input }) =>
+      getService().getDiffCached(input.directoryPath, input.ignoreWhitespace),
+    ),
+
+  getDiffUnstaged: publicProcedure
+    .input(diffInput)
+    .output(diffOutput)
+    .query(({ input }) =>
+      getService().getDiffUnstaged(input.directoryPath, input.ignoreWhitespace),
     ),
 
   getDiffStats: publicProcedure
     .input(getDiffStatsInput)
     .output(getDiffStatsOutput)
     .query(({ input }) => getService().getDiffStats(input.directoryPath)),
+
+  stageFiles: publicProcedure
+    .input(stageFilesInput)
+    .output(gitStateSnapshotSchema)
+    .mutation(({ input }) =>
+      getService().stageFiles(input.directoryPath, input.paths),
+    ),
+
+  unstageFiles: publicProcedure
+    .input(stageFilesInput)
+    .output(gitStateSnapshotSchema)
+    .mutation(({ input }) =>
+      getService().unstageFiles(input.directoryPath, input.paths),
+    ),
 
   discardFileChanges: publicProcedure
     .input(discardFileChangesInput)
@@ -189,12 +219,11 @@ export const gitRouter = router({
     .input(commitInput)
     .output(commitOutput)
     .mutation(({ input }) =>
-      getService().commit(
-        input.directoryPath,
-        input.message,
-        input.paths,
-        input.allowEmpty,
-      ),
+      getService().commit(input.directoryPath, input.message, {
+        paths: input.paths,
+        allowEmpty: input.allowEmpty,
+        stagedOnly: input.stagedOnly,
+      }),
     ),
 
   push: publicProcedure

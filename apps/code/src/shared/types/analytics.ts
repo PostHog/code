@@ -96,6 +96,14 @@ export interface GitActionExecutedProperties {
   action_type: GitActionType;
   success: boolean;
   task_id?: string;
+  /** Number of staged files at time of action */
+  staged_file_count?: number;
+  /** Number of unstaged files at time of action */
+  unstaged_file_count?: number;
+  /** Whether user chose to commit all changes (vs staged only) */
+  commit_all?: boolean;
+  /** Whether stagedOnly mode was used for the commit */
+  staged_only?: boolean;
 }
 
 export interface PrCreatedProperties {

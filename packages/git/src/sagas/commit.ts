@@ -4,6 +4,7 @@ export interface CommitInput extends GitSagaInput {
   message: string;
   paths?: string[];
   allowEmpty?: boolean;
+  stagedOnly?: boolean;
 }
 
 export interface CommitOutput {
@@ -18,7 +19,7 @@ export class CommitSaga extends GitSaga<CommitInput, CommitOutput> {
   protected async executeGitOperations(
     input: CommitInput,
   ): Promise<CommitOutput> {
-    const { message, paths, allowEmpty } = input;
+    const { message, paths, allowEmpty, stagedOnly } = input;
 
     const originalHead = await this.readOnlyStep("get-original-head", () =>
       this.git.revparse(["HEAD"]),
@@ -28,25 +29,38 @@ export class CommitSaga extends GitSaga<CommitInput, CommitOutput> {
       this.git.revparse(["--abbrev-ref", "HEAD"]),
     );
 
-    this.previouslyStagedFiles = await this.readOnlyStep(
-      "get-staged-files",
-      async () => {
-        const status = await this.git.status();
-        return status.staged;
-      },
-    );
+    if (stagedOnly) {
+      const stagedCheck = await this.readOnlyStep(
+        "verify-staged-files",
+        async () => {
+          const status = await this.git.status();
+          return status.staged;
+        },
+      );
+      if (stagedCheck.length === 0) {
+        throw new Error("No staged changes to commit.");
+      }
+    } else {
+      this.previouslyStagedFiles = await this.readOnlyStep(
+        "get-staged-files",
+        async () => {
+          const status = await this.git.status();
+          return status.staged;
+        },
+      );
 
-    await this.step({
-      name: "stage-files",
-      execute: () =>
-        paths && paths.length > 0 ? this.git.add(paths) : this.git.add("-A"),
-      rollback: async () => {
-        await this.git.reset();
-        if (this.previouslyStagedFiles.length > 0) {
-          await this.git.add(this.previouslyStagedFiles);
-        }
-      },
-    });
+      await this.step({
+        name: "stage-files",
+        execute: () =>
+          paths && paths.length > 0 ? this.git.add(paths) : this.git.add("-A"),
+        rollback: async () => {
+          await this.git.reset();
+          if (this.previouslyStagedFiles.length > 0) {
+            await this.git.add(this.previouslyStagedFiles);
+          }
+        },
+      });
+    }
 
     const commitResult = await this.step({
       name: "commit",

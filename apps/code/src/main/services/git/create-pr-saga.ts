@@ -17,6 +17,7 @@ export interface CreatePrSagaInput {
   prTitle?: string;
   prBody?: string;
   draft?: boolean;
+  stagedOnly?: boolean;
 }
 
 export interface CreatePrSagaOutput {
@@ -32,7 +33,11 @@ export interface CreatePrDeps {
   ): Promise<{ previousBranch: string; currentBranch: string }>;
   getChangedFilesHead(dir: string): Promise<ChangedFile[]>;
   generateCommitMessage(dir: string): Promise<{ message: string }>;
-  commit(dir: string, message: string): Promise<CommitOutput>;
+  commit(
+    dir: string,
+    message: string,
+    stagedOnly?: boolean,
+  ): Promise<CommitOutput>;
   getSyncStatus(dir: string): Promise<GitSyncStatus>;
   push(dir: string): Promise<PushOutput>;
   publish(dir: string): Promise<PublishOutput>;
@@ -123,7 +128,11 @@ export class CreatePrSaga extends Saga<CreatePrSagaInput, CreatePrSagaOutput> {
       await this.step({
         name: "committing",
         execute: async () => {
-          const result = await this.deps.commit(directoryPath, commitMessage!);
+          const result = await this.deps.commit(
+            directoryPath,
+            commitMessage!,
+            input.stagedOnly,
+          );
           if (!result.success) throw new Error(result.message);
           return result;
         },
