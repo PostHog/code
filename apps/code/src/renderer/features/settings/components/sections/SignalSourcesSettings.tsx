@@ -9,10 +9,13 @@ export function SignalSourcesSettings() {
     sourceStates,
     setupSource,
     isLoading,
-    handleChange,
+    handleToggle,
     handleSetup,
     handleSetupComplete,
     handleSetupCancel,
+    evaluations,
+    evaluationsUrl,
+    handleToggleEvaluation,
   } = useSignalSourceManager();
 
   if (isLoading) {
@@ -39,9 +42,14 @@ export function SignalSourcesSettings() {
       ) : (
         <SignalSourceToggles
           value={displayValues}
-          onChange={(v) => void handleChange(v)}
+          onToggle={(source, enabled) => void handleToggle(source, enabled)}
           sourceStates={sourceStates}
           onSetup={handleSetup}
+          evaluations={evaluations}
+          evaluationsUrl={evaluationsUrl}
+          onToggleEvaluation={(id, enabled) =>
+            void handleToggleEvaluation(id, enabled)
+          }
         />
       )}
     </Flex>
