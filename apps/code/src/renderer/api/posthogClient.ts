@@ -1,6 +1,7 @@
 import type {
   SandboxEnvironment,
   SandboxEnvironmentInput,
+  SignalFindingArtefact,
   SignalReportArtefact,
   SignalReportArtefactsResponse,
   SignalReportSignalsResponse,
@@ -70,11 +71,56 @@ function optionalString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
+function normalizeSignalFindingArtefact(
+  value: Record<string, unknown>,
+): SignalFindingArtefact | null {
+  const id = optionalString(value.id);
+  if (!id) return null;
+
+  const contentValue = isObjectRecord(value.content) ? value.content : null;
+  if (!contentValue) return null;
+
+  const signalId = optionalString(contentValue.signal_id);
+  if (!signalId) return null;
+
+  return {
+    id,
+    type: "signal_finding",
+    created_at: optionalString(value.created_at) ?? new Date(0).toISOString(),
+    content: {
+      signal_id: signalId,
+      relevant_code_paths: Array.isArray(contentValue.relevant_code_paths)
+        ? contentValue.relevant_code_paths.filter(
+            (p: unknown): p is string => typeof p === "string",
+          )
+        : [],
+      relevant_commit_hashes: isObjectRecord(
+        contentValue.relevant_commit_hashes,
+      )
+        ? Object.fromEntries(
+            Object.entries(contentValue.relevant_commit_hashes).filter(
+              (e): e is [string, string] => typeof e[1] === "string",
+            ),
+          )
+        : {},
+      data_queried: optionalString(contentValue.data_queried) ?? "",
+      verified:
+        typeof contentValue.verified === "boolean"
+          ? contentValue.verified
+          : false,
+    },
+  };
+}
+
 function normalizeSignalReportArtefact(
   value: unknown,
-): SignalReportArtefact | null {
+): SignalReportArtefact | SignalFindingArtefact | null {
   if (!isObjectRecord(value)) {
     return null;
+  }
+
+  if (optionalString(value.type) === "signal_finding") {
+    return normalizeSignalFindingArtefact(value);
   }
 
   const id = optionalString(value.id);
@@ -125,7 +171,10 @@ function parseSignalReportArtefactsPayload(
 
   const results = rawResults
     .map(normalizeSignalReportArtefact)
-    .filter((artefact): artefact is SignalReportArtefact => artefact !== null);
+    .filter(
+      (artefact): artefact is SignalReportArtefact | SignalFindingArtefact =>
+        artefact !== null,
+    );
   const count =
     typeof payload?.count === "number" ? payload.count : results.length;
 

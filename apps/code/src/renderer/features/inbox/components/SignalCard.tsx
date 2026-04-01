@@ -2,11 +2,13 @@ import {
   ArrowSquareOutIcon,
   CaretDownIcon,
   CaretRightIcon,
+  CheckCircleIcon,
+  QuestionIcon,
   TagIcon,
   WarningIcon,
 } from "@phosphor-icons/react";
 import { Badge, Box, Flex, Text } from "@radix-ui/themes";
-import type { Signal } from "@shared/types";
+import type { Signal, SignalFindingContent } from "@shared/types";
 import { useState } from "react";
 
 const COLLAPSE_THRESHOLD = 300;
@@ -180,7 +182,34 @@ function isErrorTrackingExtra(
 
 // ── Shared components ────────────────────────────────────────────────────────
 
-function SignalCardHeader({ signal }: { signal: Signal }) {
+function VerificationBadge({ verified }: { verified: boolean }) {
+  return (
+    <Flex
+      align="center"
+      gap="1"
+      className="shrink-0 text-[11px]"
+      title={
+        verified ? "Verified by code or data evidence" : "Could not be verified"
+      }
+      style={{ color: verified ? "var(--green-9)" : "var(--gray-9)" }}
+    >
+      {verified ? (
+        <CheckCircleIcon size={12} weight="fill" />
+      ) : (
+        <QuestionIcon size={12} weight="bold" />
+      )}
+      <span>{verified ? "Verified" : "Unverified"}</span>
+    </Flex>
+  );
+}
+
+function SignalCardHeader({
+  signal,
+  verified,
+}: {
+  signal: Signal;
+  verified?: boolean;
+}) {
   return (
     <Flex align="center" gap="2" className="mb-2">
       <span
@@ -196,6 +225,7 @@ function SignalCardHeader({ signal }: { signal: Signal }) {
         {signalCardSourceLine(signal)}
       </Text>
       <span className="flex-1" />
+      {verified !== undefined && <VerificationBadge verified={verified} />}
       <Badge
         variant="soft"
         color="gray"
@@ -244,16 +274,18 @@ function CollapsibleBody({ body }: { body: string }) {
 function GitHubIssueSignalCard({
   signal,
   extra,
+  verified,
 }: {
   signal: Signal;
   extra: GitHubIssueExtra;
+  verified?: boolean;
 }) {
   const labels = resolveLabels(extra.labels);
   const issueUrl = extra.html_url ?? null;
 
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
-      <SignalCardHeader signal={signal} />
+      <SignalCardHeader signal={signal} verified={verified} />
       <CollapsibleBody body={signal.content} />
       <Flex
         align="center"
@@ -317,13 +349,15 @@ function GitHubIssueSignalCard({
 function ZendeskTicketSignalCard({
   signal,
   extra,
+  verified,
 }: {
   signal: Signal;
   extra: ZendeskTicketExtra;
+  verified?: boolean;
 }) {
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
-      <SignalCardHeader signal={signal} />
+      <SignalCardHeader signal={signal} verified={verified} />
       <CollapsibleBody body={signal.content} />
       <Flex
         align="center"
@@ -374,13 +408,15 @@ function ZendeskTicketSignalCard({
 function LlmEvalSignalCard({
   signal,
   extra,
+  verified,
 }: {
   signal: Signal;
   extra: LlmEvalExtra;
+  verified?: boolean;
 }) {
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
-      <SignalCardHeader signal={signal} />
+      <SignalCardHeader signal={signal} verified={verified} />
       <CollapsibleBody body={signal.content} />
       <Flex
         align="center"
@@ -410,9 +446,11 @@ function LlmEvalSignalCard({
 function ErrorTrackingSignalCard({
   signal,
   extra,
+  verified,
 }: {
   signal: Signal;
   extra: ErrorTrackingExtra;
+  verified?: boolean;
 }) {
   const fingerprint = extra.fingerprint ?? "";
   const fingerprintShort =
@@ -420,7 +458,7 @@ function ErrorTrackingSignalCard({
 
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
-      <SignalCardHeader signal={signal} />
+      <SignalCardHeader signal={signal} verified={verified} />
       <CollapsibleBody body={signal.content} />
       <Flex
         align="center"
@@ -455,10 +493,16 @@ function ErrorTrackingSignalCard({
   );
 }
 
-function GenericSignalCard({ signal }: { signal: Signal }) {
+function GenericSignalCard({
+  signal,
+  verified,
+}: {
+  signal: Signal;
+  verified?: boolean;
+}) {
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
-      <SignalCardHeader signal={signal} />
+      <SignalCardHeader signal={signal} verified={verified} />
       <CollapsibleBody body={signal.content} />
       <Text
         size="1"
@@ -473,23 +517,50 @@ function GenericSignalCard({ signal }: { signal: Signal }) {
 
 // ── Main export ──────────────────────────────────────────────────────────────
 
-export function SignalCard({ signal }: { signal: Signal }) {
+export function SignalCard({
+  signal,
+  finding,
+}: {
+  signal: Signal;
+  finding?: SignalFindingContent;
+}) {
   const extra = parseExtra(signal.extra);
+  const verified = finding?.verified;
 
   if (
     signal.source_product === "error_tracking" &&
     isErrorTrackingExtra(extra)
   ) {
-    return <ErrorTrackingSignalCard signal={signal} extra={extra} />;
+    return (
+      <ErrorTrackingSignalCard
+        signal={signal}
+        extra={extra}
+        verified={verified}
+      />
+    );
   }
   if (signal.source_product === "github" && isGithubIssueExtra(extra)) {
-    return <GitHubIssueSignalCard signal={signal} extra={extra} />;
+    return (
+      <GitHubIssueSignalCard
+        signal={signal}
+        extra={extra}
+        verified={verified}
+      />
+    );
   }
   if (signal.source_product === "zendesk" && isZendeskTicketExtra(extra)) {
-    return <ZendeskTicketSignalCard signal={signal} extra={extra} />;
+    return (
+      <ZendeskTicketSignalCard
+        signal={signal}
+        extra={extra}
+        verified={verified}
+      />
+    );
   }
   if (signal.source_product === "llm_analytics" && isLlmEvalExtra(extra)) {
-    return <LlmEvalSignalCard signal={signal} extra={extra} />;
+    return (
+      <LlmEvalSignalCard signal={signal} extra={extra} verified={verified} />
+    );
   }
-  return <GenericSignalCard signal={signal} />;
+  return <GenericSignalCard signal={signal} verified={verified} />;
 }

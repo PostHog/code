@@ -209,6 +209,22 @@ export interface SignalReportArtefact {
   created_at: string;
 }
 
+/** Artefact with `type: "signal_finding"` — per-signal research finding from the agentic report. */
+export interface SignalFindingArtefact {
+  id: string;
+  type: "signal_finding";
+  content: SignalFindingContent;
+  created_at: string;
+}
+
+export interface SignalFindingContent {
+  signal_id: string;
+  relevant_code_paths: string[];
+  relevant_commit_hashes: Record<string, string>;
+  data_queried: string;
+  verified: boolean;
+}
+
 /** Artefact with `type: "suggested_reviewers"` — content is an enriched reviewer list. */
 export interface SuggestedReviewersArtefact {
   id: string;
@@ -273,7 +289,11 @@ export interface SignalReportSignalsResponse {
 }
 
 export interface SignalReportArtefactsResponse {
-  results: (SignalReportArtefact | SuggestedReviewersArtefact)[];
+  results: (
+    | SignalReportArtefact
+    | SignalFindingArtefact
+    | SuggestedReviewersArtefact
+  )[];
   count: number;
   unavailableReason?:
     | "forbidden"

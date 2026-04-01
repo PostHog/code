@@ -42,6 +42,7 @@ import {
 } from "@radix-ui/themes";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type {
+  SignalFindingArtefact,
   SignalReportArtefact,
   SignalReportArtefactsResponse,
   SignalReportsQueryParams,
@@ -202,9 +203,20 @@ export function InboxSignalsTab() {
   const artefactsQuery = useInboxReportArtefacts(selectedReport?.id ?? "", {
     enabled: !!selectedReport,
   });
-  const visibleArtefacts = (artefactsQuery.data?.results ?? []).filter(
+  const allArtefacts = artefactsQuery.data?.results ?? [];
+  const visibleArtefacts = allArtefacts.filter(
     (a): a is SignalReportArtefact => a.type === "video_segment",
   );
+  const signalFindings = useMemo(() => {
+    const map = new Map<string, SignalFindingArtefact["content"]>();
+    for (const a of allArtefacts) {
+      if (a.type === "signal_finding") {
+        const finding = a as SignalFindingArtefact;
+        map.set(finding.content.signal_id, finding.content);
+      }
+    }
+    return map;
+  }, [allArtefacts]);
   const artefactsUnavailableReason = artefactsQuery.data?.unavailableReason;
   const showArtefactsUnavailable =
     !artefactsQuery.isLoading &&
@@ -512,7 +524,11 @@ export function InboxSignalsTab() {
                     </Text>
                     <Flex direction="column" gap="2">
                       {signals.map((signal) => (
-                        <SignalCard key={signal.signal_id} signal={signal} />
+                        <SignalCard
+                          key={signal.signal_id}
+                          signal={signal}
+                          finding={signalFindings.get(signal.signal_id)}
+                        />
                       ))}
                     </Flex>
                   </Box>
