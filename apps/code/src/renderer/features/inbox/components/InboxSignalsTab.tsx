@@ -42,6 +42,7 @@ import {
 } from "@radix-ui/themes";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type {
+  SignalReportArtefact,
   SignalReportArtefactsResponse,
   SignalReportsQueryParams,
 } from "@shared/types";
@@ -201,7 +202,9 @@ export function InboxSignalsTab() {
   const artefactsQuery = useInboxReportArtefacts(selectedReport?.id ?? "", {
     enabled: !!selectedReport,
   });
-  const visibleArtefacts = artefactsQuery.data?.results ?? [];
+  const visibleArtefacts = (artefactsQuery.data?.results ?? []).filter(
+    (a): a is SignalReportArtefact => a.type === "video_segment",
+  );
   const artefactsUnavailableReason = artefactsQuery.data?.unavailableReason;
   const showArtefactsUnavailable =
     !artefactsQuery.isLoading &&
@@ -543,7 +546,7 @@ export function InboxSignalsTab() {
                     !showArtefactsUnavailable &&
                     visibleArtefacts.length === 0 && (
                       <Text size="1" color="gray" className="block text-[12px]">
-                        No artefacts were returned for this signal.
+                        No session segments available for this report.
                       </Text>
                     )}
 

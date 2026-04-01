@@ -6,6 +6,7 @@ import type {
   SignalReportSignalsResponse,
   SignalReportsQueryParams,
   SignalReportsResponse,
+  SuggestedReviewersArtefact,
   Task,
   TaskRun,
 } from "@shared/types";
@@ -20,6 +21,8 @@ export type McpRecommendedServer = Schemas.RecommendedServer;
 
 export type McpServerInstallation = Schemas.MCPServerInstallation;
 
+export type Evaluation = Schemas.Evaluation;
+
 export interface SignalSourceConfig {
   id: string;
   source_product:
@@ -27,8 +30,16 @@ export interface SignalSourceConfig {
     | "llm_analytics"
     | "github"
     | "linear"
-    | "zendesk";
-  source_type: "session_analysis_cluster" | "evaluation" | "issue" | "ticket";
+    | "zendesk"
+    | "error_tracking";
+  source_type:
+    | "session_analysis_cluster"
+    | "evaluation"
+    | "issue"
+    | "ticket"
+    | "issue_created"
+    | "issue_reopened"
+    | "issue_spiking";
   enabled: boolean;
   config: Record<string, unknown>;
   created_at: string;
@@ -60,9 +71,9 @@ function optionalString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
-function normalizeSignalReportArtefact(
-  value: unknown,
-): SignalReportArtefact | null {
+type AnyArtefact = SignalReportArtefact | SuggestedReviewersArtefact;
+
+function normalizeSignalReportArtefact(value: unknown): AnyArtefact | null {
   if (!isObjectRecord(value)) {
     return null;
   }
@@ -72,6 +83,21 @@ function normalizeSignalReportArtefact(
     return null;
   }
 
+  const type = optionalString(value.type) ?? "unknown";
+  const created_at =
+    optionalString(value.created_at) ?? new Date(0).toISOString();
+
+  // suggested_reviewers: content is an array of reviewer objects
+  if (type === "suggested_reviewers" && Array.isArray(value.content)) {
+    return {
+      id,
+      type: "suggested_reviewers" as const,
+      created_at,
+      content: value.content as SuggestedReviewersArtefact["content"],
+    };
+  }
+
+  // video_segment and other artefacts with object content
   const contentValue = isObjectRecord(value.content) ? value.content : null;
   if (!contentValue) {
     return null;
@@ -87,8 +113,8 @@ function normalizeSignalReportArtefact(
 
   return {
     id,
-    type: optionalString(value.type) ?? "unknown",
-    created_at: optionalString(value.created_at) ?? new Date(0).toISOString(),
+    type,
+    created_at,
     content: {
       session_id: sessionId ?? "",
       start_time: optionalString(contentValue.start_time) ?? "",
@@ -115,7 +141,7 @@ function parseSignalReportArtefactsPayload(
 
   const results = rawResults
     .map(normalizeSignalReportArtefact)
-    .filter((artefact): artefact is SignalReportArtefact => artefact !== null);
+    .filter((artefact): artefact is AnyArtefact => artefact !== null);
   const count =
     typeof payload?.count === "number" ? payload.count : results.length;
 
@@ -223,17 +249,8 @@ export class PostHogAPIClient {
   async createSignalSourceConfig(
     projectId: number,
     options: {
-      source_product:
-        | "session_replay"
-        | "llm_analytics"
-        | "github"
-        | "linear"
-        | "zendesk";
-      source_type:
-        | "session_analysis_cluster"
-        | "evaluation"
-        | "issue"
-        | "ticket";
+      source_product: SignalSourceConfig["source_product"];
+      source_type: SignalSourceConfig["source_type"];
       enabled: boolean;
       config?: Record<string, unknown>;
     },
@@ -285,6 +302,34 @@ export class PostHogAPIClient {
       );
     }
     return (await response.json()) as SignalSourceConfig;
+  }
+
+  async listEvaluations(projectId: number): Promise<Evaluation[]> {
+    const data = await this.api.get(
+      "/api/environments/{project_id}/evaluations/",
+      {
+        path: { project_id: projectId.toString() },
+        query: { limit: 200 },
+      },
+    );
+    return data.results ?? [];
+  }
+
+  async updateEvaluation(
+    projectId: number,
+    evaluationId: string,
+    updates: { enabled: boolean },
+  ): Promise<Evaluation> {
+    return await this.api.patch(
+      "/api/environments/{project_id}/evaluations/{id}/",
+      {
+        path: {
+          project_id: projectId.toString(),
+          id: evaluationId,
+        },
+        body: updates,
+      },
+    );
   }
 
   async listExternalDataSources(

@@ -66,10 +66,6 @@ export function useTutorialTour() {
         configs?.some(
           (c) => c.source_product === "session_replay" && c.enabled,
         ) ?? true,
-      llm_analytics:
-        configs?.some(
-          (c) => c.source_product === "llm_analytics" && c.enabled,
-        ) ?? false,
       github:
         configs?.some((c) => c.source_product === "github" && c.enabled) ??
         false,
@@ -79,6 +75,10 @@ export function useTutorialTour() {
       zendesk:
         configs?.some((c) => c.source_product === "zendesk" && c.enabled) ??
         false,
+      error_tracking:
+        configs?.some(
+          (c) => c.source_product === "error_tracking" && c.enabled,
+        ) ?? false,
     }),
     [configs],
   );
