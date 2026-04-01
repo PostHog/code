@@ -143,7 +143,7 @@ export async function getStatus(
   return manager.executeRead(
     baseDir,
     async (git) => {
-      const status = await git.status(["--untracked-files=normal"]);
+      const status = await git.status(["--untracked-files=all"]);
       return {
         isClean: status.isClean(),
         staged: status.staged,
@@ -339,7 +339,7 @@ export async function getChangedFiles(
           } catch {}
         }
 
-        const status = await git.status(["--untracked-files=normal"]);
+        const status = await git.status(["--untracked-files=all"]);
         for (const file of [
           ...status.modified,
           ...status.created,
@@ -430,7 +430,7 @@ export async function getChangedFilesDetailed(
       try {
         const [diffSummary, status] = await Promise.all([
           git.diffSummary(["-M", "HEAD"]),
-          git.status(["--untracked-files=normal"]),
+          git.status(["--untracked-files=all"]),
         ]);
 
         const seenPaths = new Set<string>();
