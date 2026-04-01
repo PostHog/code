@@ -1,17 +1,12 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView, lineNumbers } from "@codemirror/view";
-import {
-  mergeViewTheme,
-  oneDark,
-  oneLight,
-} from "@features/code-editor/theme/editorTheme";
+import { oneDark, oneLight } from "@features/code-editor/theme/editorTheme";
 import { getLanguageExtension } from "@features/code-editor/utils/languages";
 import { useThemeStore } from "@stores/themeStore";
 import { useMemo } from "react";
 
 export function useCodePreviewExtensions(
   filePath: string | undefined,
-  includeMergeTheme = false,
   firstLineNumber = 1,
 ) {
   const isDarkMode = useThemeStore((state) => state.isDarkMode);
@@ -25,7 +20,6 @@ export function useCodePreviewExtensions(
 
     return [
       theme,
-      ...(includeMergeTheme ? [mergeViewTheme] : []),
       lineNumbers({ formatNumber: (n) => String(n + firstLineNumber - 1) }),
       EditorView.editable.of(false),
       EditorState.readOnly.of(true),
@@ -33,7 +27,7 @@ export function useCodePreviewExtensions(
       ...(languageExtension ? [languageExtension] : []),
       compactPadding,
     ];
-  }, [filePath, isDarkMode, includeMergeTheme, firstLineNumber]);
+  }, [filePath, isDarkMode, firstLineNumber]);
 }
 
 export const CODE_PREVIEW_CONTAINER_STYLE: React.CSSProperties = {

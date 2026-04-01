@@ -12,22 +12,15 @@ import {
 } from "@codemirror/view";
 import { useThemeStore } from "@stores/themeStore";
 import { useMemo } from "react";
-import { useDiffViewerStore } from "../stores/diffViewerStore";
-import { mergeViewTheme, oneDark, oneLight } from "../theme/editorTheme";
+import { oneDark, oneLight } from "../theme/editorTheme";
 import { getLanguageExtension } from "../utils/languages";
 
-export function useEditorExtensions(
-  filePath?: string,
-  readOnly = false,
-  isDiff = false,
-) {
+export function useEditorExtensions(filePath?: string, readOnly = false) {
   const isDarkMode = useThemeStore((state) => state.isDarkMode);
-  const wordWrap = useDiffViewerStore((state) => state.wordWrap);
 
   return useMemo(() => {
     const languageExtension = filePath ? getLanguageExtension(filePath) : null;
     const theme = isDarkMode ? oneDark : oneLight;
-    const shouldWrap = isDiff ? wordWrap : true;
 
     return [
       lineNumbers(),
@@ -35,12 +28,11 @@ export function useEditorExtensions(
       search(),
       highlightSelectionMatches(),
       keymap.of(searchKeymap),
-      ...(shouldWrap ? [EditorView.lineWrapping] : []),
+      EditorView.lineWrapping,
       theme,
-      mergeViewTheme,
       EditorView.editable.of(!readOnly),
-      ...(readOnly && !isDiff ? [EditorState.readOnly.of(true)] : []),
+      ...(readOnly ? [EditorState.readOnly.of(true)] : []),
       ...(languageExtension ? [languageExtension] : []),
     ];
-  }, [filePath, isDarkMode, readOnly, isDiff, wordWrap]);
+  }, [filePath, isDarkMode, readOnly]);
 }
