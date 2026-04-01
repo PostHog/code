@@ -191,6 +191,16 @@ export const agentRouter = router({
     }
   }),
 
+  onAgentFileActivity: publicProcedure.subscription(async function* (opts) {
+    const service = getService();
+    for await (const event of service.toIterable(
+      AgentServiceEvent.AgentFileActivity,
+      { signal: opts.signal },
+    )) {
+      yield event;
+    }
+  }),
+
   getGatewayModels: publicProcedure
     .input(getGatewayModelsInput)
     .output(getGatewayModelsOutput)

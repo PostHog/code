@@ -27,6 +27,7 @@ import {
 } from "@posthog/agent/gateway-models";
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import type { OnLogCallback } from "@posthog/agent/types";
+import { getCurrentBranch } from "@posthog/git/queries";
 import { isAuthError } from "@shared/errors";
 import type { AcpMessage } from "@shared/types/session-events";
 import { app, powerMonitor } from "electron";
@@ -1134,8 +1135,8 @@ For git operations while detached:
       };
       emitToRenderer(acpMessage);
 
-      // Detect PR URLs in bash tool results and attach to task
-      this.detectAndAttachPrUrl(taskRunId, message as AcpMessage["message"]);
+      // Inspect tool call updates for PR URLs and file activity
+      this.handleToolCallUpdate(taskRunId, message as AcpMessage["message"]);
     };
 
     const tappedReadable = createTappedReadableStream(
@@ -1415,11 +1416,7 @@ For git operations while detached:
     };
   }
 
-  /**
-   * Detect GitHub PR URLs in bash tool results and attach to task.
-   * This enables webhook tracking by populating the pr_url in TaskRun output.
-   */
-  private detectAndAttachPrUrl(taskRunId: string, message: unknown): void {
+  private handleToolCallUpdate(taskRunId: string, message: unknown): void {
     try {
       const msg = message as {
         method?: string;
@@ -1441,86 +1438,136 @@ For git operations while detached:
       if (msg.method !== "session/update") return;
       if (msg.params?.update?.sessionUpdate !== "tool_call_update") return;
 
-      const toolMeta = msg.params.update._meta?.claudeCode;
+      const update = msg.params.update;
+      const toolMeta = update._meta?.claudeCode;
       const toolName = toolMeta?.toolName;
+      if (!toolName) return;
 
-      // Only process Bash tool results
-      if (
-        !toolName ||
-        (!toolName.includes("Bash") && !toolName.includes("bash"))
-      ) {
-        return;
-      }
-
-      // Extract text content from tool response or update content
-      let textToSearch = "";
-
-      // Check toolResponse (hook response with raw output)
-      const toolResponse = toolMeta?.toolResponse;
-      if (toolResponse) {
-        if (typeof toolResponse === "string") {
-          textToSearch = toolResponse;
-        } else if (typeof toolResponse === "object" && toolResponse !== null) {
-          // May be { stdout?: string, stderr?: string } or similar
-          const respObj = toolResponse as Record<string, unknown>;
-          textToSearch =
-            String(respObj.stdout || "") + String(respObj.stderr || "");
-          if (!textToSearch && respObj.output) {
-            textToSearch = String(respObj.output);
-          }
-        }
-      }
-
-      // Also check content array
-      const content = msg.params.update.content;
-      if (Array.isArray(content)) {
-        for (const item of content) {
-          if (item.type === "text" && item.text) {
-            textToSearch += ` ${item.text}`;
-          }
-        }
-      }
-
-      if (!textToSearch) return;
-
-      // Match GitHub PR URLs
-      const prUrlMatch = textToSearch.match(
-        /https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/,
-      );
-      if (!prUrlMatch) return;
-
-      const prUrl = prUrlMatch[0];
-      log.info("Detected PR URL in bash output", { taskRunId, prUrl });
-
-      // Find session and attach PR URL
       const session = this.sessions.get(taskRunId);
-      if (!session) {
-        log.warn("Session not found for PR attachment", { taskRunId });
-        return;
+
+      // PR URLs only appear in Bash tool output
+      if (toolName.includes("Bash") || toolName.includes("bash")) {
+        this.detectAndAttachPrUrl(taskRunId, session, toolMeta, update.content);
       }
 
-      // Attach asynchronously without blocking message flow
-      session.agent
-        .attachPullRequestToTask(session.taskId, prUrl)
-        .then(() => {
-          log.info("PR URL attached to task", {
-            taskRunId,
-            taskId: session.taskId,
-            prUrl,
-          });
-        })
-        .catch((err) => {
-          log.error("Failed to attach PR URL to task", {
-            taskRunId,
-            taskId: session.taskId,
-            prUrl,
-            error: err,
-          });
-        });
+      this.trackAgentFileActivity(taskRunId, session, toolName);
     } catch (err) {
-      // Don't let detection errors break message flow
-      log.debug("Error in PR URL detection", { taskRunId, error: err });
+      log.debug("Error in tool call update handling", {
+        taskRunId,
+        error: err,
+      });
     }
+  }
+
+  /**
+   * Detect GitHub PR URLs in bash tool results and attach to task.
+   * This enables webhook tracking by populating the pr_url in TaskRun output.
+   */
+  private detectAndAttachPrUrl(
+    taskRunId: string,
+    session: ManagedSession | undefined,
+    toolMeta: { toolName?: string; toolResponse?: unknown },
+    content?: Array<{ type?: string; text?: string }>,
+  ): void {
+    let textToSearch = "";
+
+    // Check toolResponse (hook response with raw output)
+    const toolResponse = toolMeta?.toolResponse;
+    if (toolResponse) {
+      if (typeof toolResponse === "string") {
+        textToSearch = toolResponse;
+      } else if (typeof toolResponse === "object" && toolResponse !== null) {
+        // May be { stdout?: string, stderr?: string } or similar
+        const respObj = toolResponse as Record<string, unknown>;
+        textToSearch =
+          String(respObj.stdout || "") + String(respObj.stderr || "");
+        if (!textToSearch && respObj.output) {
+          textToSearch = String(respObj.output);
+        }
+      }
+    }
+
+    // Also check content array
+    if (Array.isArray(content)) {
+      for (const item of content) {
+        if (item.type === "text" && item.text) {
+          textToSearch += ` ${item.text}`;
+        }
+      }
+    }
+
+    if (!textToSearch) return;
+
+    // Match GitHub PR URLs
+    const prUrlMatch = textToSearch.match(
+      /https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/,
+    );
+    if (!prUrlMatch) return;
+
+    const prUrl = prUrlMatch[0];
+    log.info("Detected PR URL in bash output", { taskRunId, prUrl });
+
+    // Attach PR URL
+    if (!session) {
+      log.warn("Session not found for PR attachment", { taskRunId });
+      return;
+    }
+
+    // Attach asynchronously without blocking message flow
+    session.agent
+      .attachPullRequestToTask(session.taskId, prUrl)
+      .then(() => {
+        log.info("PR URL attached to task", {
+          taskRunId,
+          taskId: session.taskId,
+          prUrl,
+        });
+      })
+      .catch((err) => {
+        log.error("Failed to attach PR URL to task", {
+          taskRunId,
+          taskId: session.taskId,
+          prUrl,
+          error: err,
+        });
+      });
+  }
+
+  /**
+   * Track agent file activity for branch association observability.
+   */
+  private static readonly FILE_MODIFYING_TOOLS = new Set([
+    "Edit",
+    "Write",
+    "FileEditTool",
+    "FileWriteTool",
+    "MultiEdit",
+    "NotebookEdit",
+  ]);
+
+  private trackAgentFileActivity(
+    taskRunId: string,
+    session: ManagedSession | undefined,
+    toolName: string,
+  ): void {
+    if (!session) return;
+    if (!AgentService.FILE_MODIFYING_TOOLS.has(toolName)) return;
+
+    getCurrentBranch(session.repoPath)
+      .then((branchName) => {
+        this.emit(AgentServiceEvent.AgentFileActivity, {
+          taskId: session.taskId,
+          branchName,
+        });
+      })
+      .catch((err) => {
+        log.error("Failed to emit agent file activity event", {
+          taskRunId,
+          taskId: session.taskId,
+          toolName,
+          error: err,
+        });
+      });
   }
 
   async getGatewayModels(apiHost: string) {
