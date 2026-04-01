@@ -47,6 +47,7 @@ import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type {
   ActionabilityJudgmentArtefact,
   ActionabilityJudgmentContent,
+  PriorityJudgmentArtefact,
   SignalFindingArtefact,
   SignalReportArtefact,
   SignalReportArtefactsResponse,
@@ -82,7 +83,13 @@ function getArtefactsUnavailableMessage(
   }
 }
 
-function ActionabilityExplanation({ explanation }: { explanation: string }) {
+function CollapsibleExplanation({
+  label,
+  explanation,
+}: {
+  label: string;
+  explanation: string;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -93,7 +100,7 @@ function ActionabilityExplanation({ explanation }: { explanation: string }) {
         className="flex items-center gap-1 rounded px-1 py-0.5 font-medium text-[12px] text-gray-11 hover:bg-gray-3 hover:text-gray-12"
       >
         {expanded ? <CaretDownIcon size={12} /> : <CaretRightIcon size={12} />}
-        Actionability reasoning
+        {label}
       </button>
       {expanded && (
         <Text
@@ -259,6 +266,14 @@ export function InboxSignalsTab() {
       }
       return null;
     }, [allArtefacts]);
+  const priorityExplanation = useMemo((): string | null => {
+    for (const a of allArtefacts) {
+      if (a.type === "priority_judgment") {
+        return (a as PriorityJudgmentArtefact).content.explanation || null;
+      }
+    }
+    return null;
+  }, [allArtefacts]);
   const artefactsUnavailableReason = artefactsQuery.data?.unavailableReason;
   const showArtefactsUnavailable =
     !artefactsQuery.isLoading &&
@@ -584,8 +599,16 @@ export function InboxSignalsTab() {
                 )}
 
                 {actionabilityJudgment?.explanation && (
-                  <ActionabilityExplanation
+                  <CollapsibleExplanation
+                    label="Actionability reasoning"
                     explanation={actionabilityJudgment.explanation}
+                  />
+                )}
+
+                {priorityExplanation && (
+                  <CollapsibleExplanation
+                    label="Priority reasoning"
+                    explanation={priorityExplanation}
                   />
                 )}
 

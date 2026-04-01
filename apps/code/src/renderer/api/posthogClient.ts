@@ -1,5 +1,6 @@
 import type {
   ActionabilityJudgmentArtefact,
+  PriorityJudgmentArtefact,
   SandboxEnvironment,
   SandboxEnvironmentInput,
   SignalFindingArtefact,
@@ -70,6 +71,31 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
 
 function optionalString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
+}
+
+const PRIORITY_VALUES = new Set(["P0", "P1", "P2", "P3", "P4"]);
+
+function normalizePriorityJudgmentArtefact(
+  value: Record<string, unknown>,
+): PriorityJudgmentArtefact | null {
+  const id = optionalString(value.id);
+  if (!id) return null;
+
+  const contentValue = isObjectRecord(value.content) ? value.content : null;
+  if (!contentValue) return null;
+
+  const priority = optionalString(contentValue.priority);
+  if (!priority || !PRIORITY_VALUES.has(priority)) return null;
+
+  return {
+    id,
+    type: "priority_judgment",
+    created_at: optionalString(value.created_at) ?? new Date(0).toISOString(),
+    content: {
+      explanation: optionalString(contentValue.explanation) ?? "",
+      priority: priority as PriorityJudgmentArtefact["content"]["priority"],
+    },
+  };
 }
 
 const ACTIONABILITY_VALUES = new Set([
@@ -154,6 +180,7 @@ function normalizeSignalReportArtefact(
   value: unknown,
 ):
   | SignalReportArtefact
+  | PriorityJudgmentArtefact
   | ActionabilityJudgmentArtefact
   | SignalFindingArtefact
   | null {
@@ -167,6 +194,9 @@ function normalizeSignalReportArtefact(
   }
   if (type === "actionability_judgment") {
     return normalizeActionabilityJudgmentArtefact(value);
+  }
+  if (type === "priority_judgment") {
+    return normalizePriorityJudgmentArtefact(value);
   }
 
   const id = optionalString(value.id);
@@ -222,6 +252,7 @@ function parseSignalReportArtefactsPayload(
         artefact,
       ): artefact is
         | SignalReportArtefact
+        | PriorityJudgmentArtefact
         | ActionabilityJudgmentArtefact
         | SignalFindingArtefact => artefact !== null,
     );

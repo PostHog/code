@@ -219,6 +219,19 @@ export interface SignalReportArtefact {
   created_at: string;
 }
 
+/** Artefact with `type: "priority_judgment"` — priority assessment from the agentic report. */
+export interface PriorityJudgmentArtefact {
+  id: string;
+  type: "priority_judgment";
+  content: PriorityJudgmentContent;
+  created_at: string;
+}
+
+export interface PriorityJudgmentContent {
+  explanation: string;
+  priority: SignalReportPriority;
+}
+
 /** Artefact with `type: "actionability_judgment"` — actionability assessment from the agentic report. */
 export interface ActionabilityJudgmentArtefact {
   id: string;
@@ -315,6 +328,7 @@ export interface SignalReportSignalsResponse {
 export interface SignalReportArtefactsResponse {
   results: (
     | SignalReportArtefact
+    | PriorityJudgmentArtefact
     | ActionabilityJudgmentArtefact
     | SignalFindingArtefact
     | SuggestedReviewersArtefact
