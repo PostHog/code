@@ -189,7 +189,7 @@ interface SessionConfig {
   customInstructions?: string;
   /** Effort level for Claude sessions */
   effort?: EffortLevel;
-  /** Preferred model ID for the session (e.g. "claude-sonnet-4-6") */
+  /** Model to use for the session (e.g. "claude-sonnet-4-6") */
   model?: string;
 }
 
@@ -647,6 +647,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
                   additionalDirectories,
                 }),
                 ...(effort && { effort }),
+                ...(model && { model }),
                 plugins,
               },
             },
