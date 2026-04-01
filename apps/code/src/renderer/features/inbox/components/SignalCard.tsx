@@ -275,10 +275,12 @@ function GitHubIssueSignalCard({
   signal,
   extra,
   verified,
+  codePaths,
 }: {
   signal: Signal;
   extra: GitHubIssueExtra;
   verified?: boolean;
+  codePaths?: string[];
 }) {
   const labels = resolveLabels(extra.labels);
   const issueUrl = extra.html_url ?? null;
@@ -342,6 +344,7 @@ function GitHubIssueSignalCard({
           Opened: {new Date(extra.created_at).toLocaleString()}
         </Text>
       )}
+      <CodePathsCollapsible paths={codePaths ?? []} />
     </Box>
   );
 }
@@ -350,10 +353,12 @@ function ZendeskTicketSignalCard({
   signal,
   extra,
   verified,
+  codePaths,
 }: {
   signal: Signal;
   extra: ZendeskTicketExtra;
   verified?: boolean;
+  codePaths?: string[];
 }) {
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
@@ -401,6 +406,7 @@ function ZendeskTicketSignalCard({
           </a>
         )}
       </Flex>
+      <CodePathsCollapsible paths={codePaths ?? []} />
     </Box>
   );
 }
@@ -409,10 +415,12 @@ function LlmEvalSignalCard({
   signal,
   extra,
   verified,
+  codePaths,
 }: {
   signal: Signal;
   extra: LlmEvalExtra;
   verified?: boolean;
+  codePaths?: string[];
 }) {
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
@@ -439,6 +447,7 @@ function LlmEvalSignalCard({
           <span className="font-mono">{extra.trace_id.slice(0, 12)}...</span>
         </Text>
       )}
+      <CodePathsCollapsible paths={codePaths ?? []} />
     </Box>
   );
 }
@@ -447,10 +456,12 @@ function ErrorTrackingSignalCard({
   signal,
   extra,
   verified,
+  codePaths,
 }: {
   signal: Signal;
   extra: ErrorTrackingExtra;
   verified?: boolean;
+  codePaths?: string[];
 }) {
   const fingerprint = extra.fingerprint ?? "";
   const fingerprintShort =
@@ -489,6 +500,7 @@ function ErrorTrackingSignalCard({
         <span className="flex-1" />
         {/* No "View issue" link in Code — error tracking lives in Cloud */}
       </Flex>
+      <CodePathsCollapsible paths={codePaths ?? []} />
     </Box>
   );
 }
@@ -496,9 +508,11 @@ function ErrorTrackingSignalCard({
 function GenericSignalCard({
   signal,
   verified,
+  codePaths,
 }: {
   signal: Signal;
   verified?: boolean;
+  codePaths?: string[];
 }) {
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
@@ -511,6 +525,49 @@ function GenericSignalCard({
       >
         {new Date(signal.timestamp).toLocaleString()}
       </Text>
+      <CodePathsCollapsible paths={codePaths ?? []} />
+    </Box>
+  );
+}
+
+function CodePathsCollapsible({ paths }: { paths: string[] }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (paths.length === 0) return null;
+
+  return (
+    <Box mt="2" style={{ borderTop: "1px solid var(--gray-5)" }} pt="2">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-1 rounded px-1 py-0.5 font-medium text-[11px] text-gray-10 hover:bg-gray-3 hover:text-gray-12"
+      >
+        {expanded ? <CaretDownIcon size={10} /> : <CaretRightIcon size={10} />}
+        Relevant code ({paths.length})
+      </button>
+      {expanded && (
+        <Flex direction="column" gap="1" mt="1" className="pl-[18px]">
+          {paths.map((raw) => {
+            const trimmed = raw.trim();
+            const parenIdx = trimmed.indexOf(" (");
+            const filePath =
+              parenIdx >= 0 ? trimmed.slice(0, parenIdx) : trimmed;
+            const comment = parenIdx >= 0 ? trimmed.slice(parenIdx + 1) : null;
+            return (
+              <Text key={raw} size="1" className="text-[11px]">
+                <span className="font-mono" style={{ color: "var(--gray-12)" }}>
+                  {filePath}
+                </span>
+                {comment && (
+                  <span className="ml-1" style={{ color: "var(--gray-9)" }}>
+                    {comment}
+                  </span>
+                )}
+              </Text>
+            );
+          })}
+        </Flex>
+      )}
     </Box>
   );
 }
@@ -526,6 +583,7 @@ export function SignalCard({
 }) {
   const extra = parseExtra(signal.extra);
   const verified = finding?.verified;
+  const codePaths = finding?.relevant_code_paths ?? [];
 
   if (
     signal.source_product === "error_tracking" &&
@@ -536,6 +594,7 @@ export function SignalCard({
         signal={signal}
         extra={extra}
         verified={verified}
+        codePaths={codePaths}
       />
     );
   }
@@ -545,6 +604,7 @@ export function SignalCard({
         signal={signal}
         extra={extra}
         verified={verified}
+        codePaths={codePaths}
       />
     );
   }
@@ -554,13 +614,25 @@ export function SignalCard({
         signal={signal}
         extra={extra}
         verified={verified}
+        codePaths={codePaths}
       />
     );
   }
   if (signal.source_product === "llm_analytics" && isLlmEvalExtra(extra)) {
     return (
-      <LlmEvalSignalCard signal={signal} extra={extra} verified={verified} />
+      <LlmEvalSignalCard
+        signal={signal}
+        extra={extra}
+        verified={verified}
+        codePaths={codePaths}
+      />
     );
   }
-  return <GenericSignalCard signal={signal} verified={verified} />;
+  return (
+    <GenericSignalCard
+      signal={signal}
+      verified={verified}
+      codePaths={codePaths}
+    />
+  );
 }
