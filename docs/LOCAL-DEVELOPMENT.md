@@ -101,6 +101,10 @@ Ensure your local PostHog instance is running at `http://localhost:8010` and tha
 
 After connecting, PostHog Code will show projects from your local PostHog instance. If you need test data, run `python manage.py generate_demo_data` in your PostHog repo.
 
+### 431 error
+
+Clean up `localhost` cookies in your browser, as you probably accumulated too many/large cookies for the server to accept as the request headers.
+
 ## Further reading
 
 - [PostHog OAuth Development Guide](https://github.com/PostHog/posthog/blob/master/docs/published/handbook/engineering/oauth-development-guide.md) — full OAuth spec, scopes, token introspection, and more
