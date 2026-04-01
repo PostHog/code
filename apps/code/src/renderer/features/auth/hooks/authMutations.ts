@@ -8,7 +8,7 @@ import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore"
 import { resetSessionService } from "@features/sessions/service/service";
 import { trpcClient } from "@renderer/trpc/client";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
-import type { CloudRegion } from "@shared/types/oauth";
+import type { CloudRegion } from "@shared/types/regions";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useMutation } from "@tanstack/react-query";
 import { track } from "@utils/analytics";

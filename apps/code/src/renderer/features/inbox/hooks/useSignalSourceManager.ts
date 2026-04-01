@@ -5,7 +5,7 @@ import type {
   Evaluation,
   SignalSourceConfig,
 } from "@renderer/api/posthogClient";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";

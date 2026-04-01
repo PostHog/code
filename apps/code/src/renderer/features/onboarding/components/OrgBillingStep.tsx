@@ -3,15 +3,7 @@ import { authKeys, useCurrentUser } from "@features/auth/hooks/authQueries";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { useOrganizations } from "@hooks/useOrganizations";
 import { ArrowLeft, ArrowRight, CheckCircle } from "@phosphor-icons/react";
-import {
-  Badge,
-  Box,
-  Button,
-  Callout,
-  Flex,
-  Skeleton,
-  Text,
-} from "@radix-ui/themes";
+import { Box, Button, Callout, Flex, Skeleton, Text } from "@radix-ui/themes";
 import codeLogo from "@renderer/assets/images/code.svg";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";

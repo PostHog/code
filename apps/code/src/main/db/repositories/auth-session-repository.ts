@@ -1,4 +1,4 @@
-import type { CloudRegion } from "@shared/types/oauth";
+import type { CloudRegion } from "@shared/types/regions";
 import { eq } from "drizzle-orm";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";

@@ -10,6 +10,7 @@ import codeLogo from "@renderer/assets/images/code.svg";
 import logomark from "@renderer/assets/images/logomark.svg";
 import { trpcClient } from "@renderer/trpc/client";
 import type { CloudRegion } from "@shared/types/regions";
+import { REGION_LABELS } from "@shared/types/regions";
 import { RegionSelect } from "./RegionSelect";
 
 export const getErrorMessage = (error: unknown) => {
