@@ -11,6 +11,7 @@ import { container } from "./di/container";
 import { MAIN_TOKENS } from "./di/tokens";
 import { registerMcpSandboxProtocol } from "./protocols/mcp-sandbox";
 import type { AppLifecycleService } from "./services/app-lifecycle/service";
+import type { AuthService } from "./services/auth/service";
 import type { ExternalAppsService } from "./services/external-apps/service";
 import type { NotificationService } from "./services/notification/service";
 import type { OAuthService } from "./services/oauth/service";
@@ -35,14 +36,17 @@ if (!gotTheLock) {
   process.exit(0);
 }
 
-function initializeServices(): void {
+async function initializeServices(): Promise<void> {
   container.get<DatabaseService>(MAIN_TOKENS.DatabaseService);
   container.get<OAuthService>(MAIN_TOKENS.OAuthService);
+  const authService = container.get<AuthService>(MAIN_TOKENS.AuthService);
   container.get<NotificationService>(MAIN_TOKENS.NotificationService);
   container.get<UpdatesService>(MAIN_TOKENS.UpdatesService);
   container.get<TaskLinkService>(MAIN_TOKENS.TaskLinkService);
   container.get<ExternalAppsService>(MAIN_TOKENS.ExternalAppsService);
   container.get<PosthogPluginService>(MAIN_TOKENS.PosthogPluginService);
+
+  await authService.initialize();
 
   // Initialize workspace branch watcher for live branch rename detection
   const workspaceService = container.get<WorkspaceService>(
@@ -69,7 +73,7 @@ registerDeepLinkHandlers();
 // Initialize PostHog analytics
 initializePostHog();
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   const commit = __BUILD_COMMIT__ ?? "dev";
   const buildDate = __BUILD_DATE__ ?? "dev";
   log.info(
@@ -87,8 +91,9 @@ app.whenReady().then(() => {
   ensureClaudeConfigDir();
   registerMcpSandboxProtocol();
   createWindow();
-  initializeServices();
+  await initializeServices();
   initializeDeepLinks();
+  await initializeServices();
   powerMonitor.on("suspend", () => {
     log.info("System entering sleep");
   });

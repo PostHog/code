@@ -114,18 +114,13 @@ function App() {
     }),
   );
 
-  // Wait for authStore to hydrate, then restore session from stored tokens
+  // Initialize auth state from main process
   useEffect(() => {
     const initialize = async () => {
-      if (!useAuthStore.persist.hasHydrated()) {
-        await new Promise<void>((resolve) => {
-          useAuthStore.persist.onFinishHydration(() => resolve());
-        });
-      }
       await useAuthStore.getState().initializeOAuth();
       setIsLoading(false);
     };
-    initialize();
+    void initialize();
   }, []);
 
   // Handle transition into main app — only show the dark overlay if dark mode is active

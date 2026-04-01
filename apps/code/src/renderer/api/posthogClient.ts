@@ -138,16 +138,16 @@ export class PostHogAPIClient {
   private _teamId: number | null = null;
 
   constructor(
-    accessToken: string,
     apiHost: string,
-    onTokenRefresh?: () => Promise<string>,
+    getAccessToken: () => Promise<string>,
+    refreshAccessToken: () => Promise<string>,
     teamId?: number,
   ) {
     const baseUrl = apiHost.endsWith("/") ? apiHost.slice(0, -1) : apiHost;
     this.api = createApiClient(
       buildApiFetcher({
-        apiToken: accessToken,
-        onTokenRefresh,
+        getAccessToken,
+        refreshAccessToken,
       }),
       baseUrl,
     );

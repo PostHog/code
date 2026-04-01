@@ -4,15 +4,50 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@renderer/trpc/client", () => ({
   trpcClient: {
-    secureStore: {
-      getItem: { query: vi.fn() },
-      setItem: { query: vi.fn() },
-      removeItem: { query: vi.fn() },
-    },
-    oauth: {
-      refreshToken: { mutate: vi.fn() },
-      startFlow: { mutate: vi.fn() },
-      startSignupFlow: { mutate: vi.fn() },
+    auth: {
+      getState: { query: vi.fn() },
+      onStateChanged: { subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })) },
+      getValidAccessToken: {
+        query: vi.fn().mockResolvedValue({
+          accessToken: "token",
+          apiHost: "https://us.posthog.com",
+        }),
+      },
+      refreshAccessToken: {
+        mutate: vi.fn().mockResolvedValue({
+          accessToken: "token",
+          apiHost: "https://us.posthog.com",
+        }),
+      },
+      login: {
+        mutate: vi.fn().mockResolvedValue({
+          state: {
+            status: "authenticated",
+            bootstrapComplete: true,
+            cloudRegion: "us",
+            projectId: 1,
+            availableProjectIds: [1],
+            availableOrgIds: [],
+            hasCodeAccess: true,
+            needsScopeReauth: false,
+          },
+        }),
+      },
+      signup: { mutate: vi.fn() },
+      selectProject: { mutate: vi.fn() },
+      redeemInviteCode: { mutate: vi.fn() },
+      logout: {
+        mutate: vi.fn().mockResolvedValue({
+          status: "anonymous",
+          bootstrapComplete: true,
+          cloudRegion: null,
+          projectId: null,
+          availableProjectIds: [],
+          availableOrgIds: [],
+          hasCodeAccess: null,
+          needsScopeReauth: false,
+        }),
+      },
     },
     agent: {
       updateToken: { mutate: vi.fn().mockResolvedValue(undefined) },
@@ -58,7 +93,10 @@ vi.mock("@stores/navigationStore", () => ({
   },
 }));
 
-import { useAuthStore } from "@features/auth/stores/authStore";
+import {
+  resetAuthStoreModuleStateForTest,
+  useAuthStore,
+} from "@features/auth/stores/authStore";
 import { Theme } from "@radix-ui/themes";
 import type { ReactElement } from "react";
 import { ScopeReauthPrompt } from "./ScopeReauthPrompt";
@@ -70,6 +108,7 @@ function renderWithTheme(ui: ReactElement) {
 describe("ScopeReauthPrompt", () => {
   beforeEach(() => {
     localStorage.clear();
+    resetAuthStoreModuleStateForTest();
     useAuthStore.setState({
       needsScopeReauth: false,
       cloudRegion: null,
