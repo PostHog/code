@@ -120,6 +120,13 @@ export const getFileAtHeadInput = z.object({
 });
 export const getFileAtHeadOutput = z.string().nullable();
 
+// getDiffHead schemas
+export const getDiffHeadInput = z.object({
+  directoryPath: z.string(),
+  ignoreWhitespace: z.boolean().optional(),
+});
+export const getDiffHeadOutput = z.string();
+
 // getDiffStats schemas
 export const getDiffStatsInput = directoryPathInput;
 export const getDiffStatsOutput = diffStatsSchema;

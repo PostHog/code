@@ -9,6 +9,7 @@ import {
   getCurrentBranch,
   getDefaultBranch,
   getDiffAgainstRemote,
+  getDiffHead,
   getDiffStats,
   getFileAtHead,
   getLatestCommit,
@@ -273,6 +274,13 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     filePath: string,
   ): Promise<string | null> {
     return getFileAtHead(directoryPath, filePath);
+  }
+
+  public async getDiffHead(
+    directoryPath: string,
+    ignoreWhitespace?: boolean,
+  ): Promise<string> {
+    return getDiffHead(directoryPath, { ignoreWhitespace });
   }
 
   public async getDiffStats(directoryPath: string): Promise<DiffStats> {

@@ -935,6 +935,18 @@ export async function getUnstagedDiff(
   });
 }
 
+export async function getDiffHead(
+  baseDir: string,
+  options?: CreateGitClientOptions & { ignoreWhitespace?: boolean },
+): Promise<string> {
+  const manager = getGitOperationManager();
+  const args = ["HEAD"];
+  if (options?.ignoreWhitespace) args.push("--ignore-all-space");
+  return manager.executeRead(baseDir, (git) => git.diff(args), {
+    signal: options?.abortSignal,
+  });
+}
+
 export async function getDiffAgainstRemote(
   baseDir: string,
   baseBranch: string,
