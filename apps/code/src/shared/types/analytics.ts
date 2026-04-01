@@ -17,7 +17,7 @@ type GitActionType =
   | "branch-here";
 export type FeedbackType = "good" | "bad" | "general";
 type FileOpenSource = "sidebar" | "agent-suggestion" | "search" | "diff";
-type FileChangeType = "added" | "modified" | "deleted";
+export type FileChangeType = "added" | "modified" | "deleted";
 type StopReason = "user_cancelled" | "completed" | "error" | "timeout";
 export type CommandMenuAction =
   | "home"
@@ -114,6 +114,10 @@ export interface FileDiffViewedProperties {
   file_extension: string;
   change_type: FileChangeType;
   task_id?: string;
+}
+
+export interface ReviewPanelViewedProperties {
+  task_id: string;
 }
 
 // Workspace events
@@ -216,6 +220,7 @@ export const ANALYTICS_EVENTS = {
   // File interactions
   FILE_OPENED: "File opened",
   FILE_DIFF_VIEWED: "File diff viewed",
+  REVIEW_PANEL_VIEWED: "Review panel viewed",
 
   // Workspace events
   WORKSPACE_CREATED: "Workspace created",
@@ -269,6 +274,7 @@ export type EventPropertyMap = {
   // File interactions
   [ANALYTICS_EVENTS.FILE_OPENED]: FileOpenedProperties;
   [ANALYTICS_EVENTS.FILE_DIFF_VIEWED]: FileDiffViewedProperties;
+  [ANALYTICS_EVENTS.REVIEW_PANEL_VIEWED]: ReviewPanelViewedProperties;
 
   // Workspace events
   [ANALYTICS_EVENTS.WORKSPACE_CREATED]: WorkspaceCreatedProperties;

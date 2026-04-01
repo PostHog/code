@@ -7,10 +7,7 @@ export {
 export { useDragDropHandlers } from "./hooks/useDragDropHandlers";
 export { usePanelLayoutStore } from "./store/panelLayoutStore";
 export { usePanelStore } from "./store/panelStore";
-export {
-  isDiffTabActiveInTree,
-  isFileTabActiveInTree,
-} from "./store/panelStoreHelpers";
+export { isFileTabActiveInTree } from "./store/panelStoreHelpers";
 
 export type {
   GroupId,

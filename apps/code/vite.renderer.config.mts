@@ -24,6 +24,9 @@ export default defineConfig(({ mode }) => {
       tsconfigPaths(),
       createPosthogPlugin(env, "posthog-code-renderer"),
     ].filter(Boolean),
+    worker: {
+      format: "es",
+    },
     build: {
       sourcemap: true,
     },

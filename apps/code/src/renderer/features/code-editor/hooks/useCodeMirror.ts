@@ -1,100 +1,19 @@
-import {
-  diff as defaultDiff,
-  MergeView,
-  unifiedMergeView,
-} from "@codemirror/merge";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
 import { trpcClient } from "@renderer/trpc/client";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
 import { useEffect, useRef } from "react";
-import { gradualCollapseUnchanged } from "./collapseUnchangedExtension";
-
-type EditorInstance = EditorView | MergeView;
 
 interface UseCodeMirrorOptions {
+  doc: string;
   extensions: Extension[];
   filePath?: string;
 }
 
-interface SingleDocOptions extends UseCodeMirrorOptions {
-  doc: string;
-}
-
-interface DiffOptions extends UseCodeMirrorOptions {
-  original: string;
-  modified: string;
-  mode: "split" | "unified";
-  loadFullFiles?: boolean;
-  wordDiffs?: boolean;
-  hideWhitespaceChanges?: boolean;
-  onContentChange?: (content: string) => void;
-}
-
-const createMergeControls = (onReject?: () => void) => {
-  return (type: "accept" | "reject", action: (e: MouseEvent) => void) => {
-    if (type === "accept") {
-      return document.createElement("span");
-    }
-
-    const button = document.createElement("button");
-    button.textContent = "\u21a9 Revert";
-    button.name = "reject";
-    button.style.background = "var(--red-9)";
-    button.style.color = "white";
-    button.style.border = "none";
-    button.style.padding = "4px 10px";
-    button.style.borderRadius = "4px";
-    button.style.cursor = "pointer";
-    button.style.fontSize = "11px";
-    button.style.fontWeight = "500";
-    button.style.lineHeight = "1";
-
-    button.onmouseenter = () => {
-      button.style.background = "var(--red-10)";
-    };
-    button.onmouseleave = () => {
-      button.style.background = "var(--red-9)";
-    };
-
-    button.onmousedown = (e) => {
-      action(e);
-      onReject?.();
-    };
-
-    return button;
-  };
-};
-
-const whitespaceIgnoringDiff = (a: string, b: string) => {
-  const changes = defaultDiff(a, b);
-  return changes.filter((change) => {
-    const textA = a.slice(change.fromA, change.toA);
-    const textB = b.slice(change.fromB, change.toB);
-    return textA.replace(/\s/g, "") !== textB.replace(/\s/g, "");
-  });
-};
-
-const collapseExtension = (loadFullFiles?: boolean): Extension =>
-  loadFullFiles ? [] : gradualCollapseUnchanged({ margin: 3, minSize: 4 });
-
-const getBaseDiffConfig = (
-  hideWhitespaceChanges?: boolean,
-  onReject?: () => void,
-): Partial<Parameters<typeof unifiedMergeView>[0]> => ({
-  highlightChanges: false,
-  gutter: true,
-  mergeControls: createMergeControls(onReject),
-  diffConfig: {
-    scanLimit: 50000,
-    ...(hideWhitespaceChanges && { override: whitespaceIgnoringDiff }),
-  },
-});
-
-export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
+export function useCodeMirror(options: UseCodeMirrorOptions) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const instanceRef = useRef<EditorInstance | null>(null);
+  const instanceRef = useRef<EditorView | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -102,91 +21,13 @@ export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
     instanceRef.current?.destroy();
     instanceRef.current = null;
 
-    if ("doc" in options) {
-      instanceRef.current = new EditorView({
-        state: EditorState.create({
-          doc: options.doc,
-          extensions: options.extensions,
-        }),
-        parent: containerRef.current,
-      });
-    } else if (options.mode === "split") {
-      const diffConfig = getBaseDiffConfig(
-        options.hideWhitespaceChanges,
-        options.onContentChange
-          ? () => {
-              if (instanceRef.current instanceof MergeView) {
-                const content = instanceRef.current.b.state.doc.toString();
-                options.onContentChange?.(content);
-              }
-            }
-          : undefined,
-      );
-
-      const updateListener = options.onContentChange
-        ? EditorView.updateListener.of((update) => {
-            if (
-              update.docChanged &&
-              update.transactions.some((tr) => tr.isUserEvent("revert"))
-            ) {
-              const content = update.state.doc.toString();
-              options.onContentChange?.(content);
-            }
-          })
-        : [];
-
-      const collapse = collapseExtension(options.loadFullFiles);
-
-      instanceRef.current = new MergeView({
-        a: {
-          doc: options.original,
-          extensions: [
-            ...options.extensions,
-            EditorView.editable.of(false),
-            EditorState.readOnly.of(true),
-            collapse,
-          ],
-        },
-        b: {
-          doc: options.modified,
-          extensions: [
-            ...options.extensions,
-            ...(Array.isArray(updateListener)
-              ? updateListener
-              : [updateListener]),
-            collapse,
-          ],
-        },
-        ...diffConfig,
-        parent: containerRef.current,
-        revertControls: "a-to-b",
-      });
-    } else {
-      const diffConfig = getBaseDiffConfig(
-        options.hideWhitespaceChanges,
-        options.onContentChange
-          ? () => {
-              if (instanceRef.current instanceof EditorView) {
-                const content = instanceRef.current.state.doc.toString();
-                options.onContentChange?.(content);
-              }
-            }
-          : undefined,
-      );
-
-      instanceRef.current = new EditorView({
-        doc: options.modified,
-        extensions: [
-          ...options.extensions,
-          unifiedMergeView({
-            original: options.original,
-            ...diffConfig,
-          }),
-          collapseExtension(options.loadFullFiles),
-        ],
-        parent: containerRef.current,
-      });
-    }
+    instanceRef.current = new EditorView({
+      state: EditorState.create({
+        doc: options.doc,
+        extensions: options.extensions,
+      }),
+      parent: containerRef.current,
+    });
 
     return () => {
       instanceRef.current?.destroy();
@@ -198,10 +39,7 @@ export function useCodeMirror(options: SingleDocOptions | DiffOptions) {
     if (!instanceRef.current || !options.filePath) return;
 
     const filePath = options.filePath;
-    const domElement =
-      instanceRef.current instanceof EditorView
-        ? instanceRef.current.dom
-        : instanceRef.current.a.dom;
+    const domElement = instanceRef.current.dom;
 
     const handleContextMenu = async (e: MouseEvent) => {
       e.preventDefault();

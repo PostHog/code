@@ -19,7 +19,6 @@ vi.mock("@utils/electronStorage", () => ({
   },
 }));
 
-import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { usePanelLayoutStore } from "./panelLayoutStore";
 
 describe("panelLayoutStore", () => {
@@ -50,7 +49,7 @@ describe("panelLayoutStore", () => {
       assertPanelLayout(tree, [
         {
           panelId: "main-panel",
-          expectedTabs: ["logs", "shell"],
+          expectedTabs: ["logs", "review", "shell"],
           activeTab: "logs",
         },
       ]);
@@ -65,11 +64,11 @@ describe("panelLayoutStore", () => {
     it("adds file tab to main panel by default", () => {
       usePanelLayoutStore.getState().openFile("task-1", "src/App.tsx");
 
-      assertTabCount(getPanelTree("task-1"), "main-panel", 3);
+      assertTabCount(getPanelTree("task-1"), "main-panel", 4);
       assertPanelLayout(getPanelTree("task-1"), [
         {
           panelId: "main-panel",
-          expectedTabs: ["logs", "shell", "file-src/App.tsx"],
+          expectedTabs: ["logs", "review", "shell", "file-src/App.tsx"],
         },
       ]);
     });
@@ -94,7 +93,7 @@ describe("panelLayoutStore", () => {
           activeTab: "file-src/App.tsx",
         },
       ]);
-      assertTabCount(getPanelTree("task-1"), "main-panel", 1);
+      assertTabCount(getPanelTree("task-1"), "main-panel", 2);
     });
 
     it("falls back to main panel if focused panel does not exist", () => {
@@ -106,11 +105,11 @@ describe("panelLayoutStore", () => {
       usePanelLayoutStore.getState().openFile("task-1", "src/App.tsx");
 
       // File should fall back to main-panel
-      assertTabCount(getPanelTree("task-1"), "main-panel", 3);
+      assertTabCount(getPanelTree("task-1"), "main-panel", 4);
       assertPanelLayout(getPanelTree("task-1"), [
         {
           panelId: "main-panel",
-          expectedTabs: ["logs", "shell", "file-src/App.tsx"],
+          expectedTabs: ["logs", "review", "shell", "file-src/App.tsx"],
         },
       ]);
     });
@@ -371,21 +370,21 @@ describe("panelLayoutStore", () => {
     });
 
     it("reorders tabs within a panel", () => {
-      // tabs: [logs, shell, file-src/App.tsx, file-src/Other.tsx, file-src/Third.tsx]
-      // move index 2 to index 4
-      usePanelLayoutStore.getState().reorderTabs("task-1", "main-panel", 2, 4);
+      // tabs: [logs, review, shell, file-src/App.tsx, file-src/Other.tsx, file-src/Third.tsx]
+      // move index 3 to index 5
+      usePanelLayoutStore.getState().reorderTabs("task-1", "main-panel", 3, 5);
 
       const panel = findPanelById(getPanelTree("task-1"), "main-panel");
       const tabIds = panel?.content.tabs.map((t: { id: string }) => t.id);
-      expect(tabIds?.[2]).toBe("file-src/Other.tsx");
-      expect(tabIds?.[4]).toBe("file-src/App.tsx");
+      expect(tabIds?.[3]).toBe("file-src/Other.tsx");
+      expect(tabIds?.[5]).toBe("file-src/App.tsx");
     });
 
     it("preserves active tab after reorder", () => {
       usePanelLayoutStore
         .getState()
         .setActiveTab("task-1", "main-panel", "file-src/App.tsx");
-      usePanelLayoutStore.getState().reorderTabs("task-1", "main-panel", 1, 3);
+      usePanelLayoutStore.getState().reorderTabs("task-1", "main-panel", 2, 4);
 
       assertActiveTab(getPanelTree("task-1"), "main-panel", "file-src/App.tsx");
     });
@@ -644,126 +643,6 @@ describe("panelLayoutStore", () => {
       expect(
         fileTabs?.find((t) => t.id === "file-src/Other.tsx")?.isPreview,
       ).toBe(true);
-    });
-
-    it("openDiffByMode creates preview tab by default", () => {
-      usePanelLayoutStore
-        .getState()
-        .openDiffByMode("task-1", "src/App.tsx", "modified");
-
-      const panel = findPanelById(getPanelTree("task-1"), "main-panel");
-      const diffTab = panel?.content.tabs.find((t: { id: string }) =>
-        t.id.startsWith("diff-"),
-      );
-      expect(diffTab?.isPreview).toBe(true);
-    });
-
-    it("openDiffByMode creates permanent tab when asPreview is false", () => {
-      usePanelLayoutStore
-        .getState()
-        .openDiffByMode("task-1", "src/App.tsx", "modified", false);
-
-      const panel = findPanelById(getPanelTree("task-1"), "main-panel");
-      const diffTab = panel?.content.tabs.find((t: { id: string }) =>
-        t.id.startsWith("diff-"),
-      );
-      expect(diffTab?.isPreview).toBe(false);
-    });
-  });
-
-  describe("openDiffByMode", () => {
-    beforeEach(() => {
-      usePanelLayoutStore.getState().initializeTask("task-1");
-    });
-
-    it("opens diff in split pane when mode is split", () => {
-      useSettingsStore.setState({ diffOpenMode: "split" });
-
-      usePanelLayoutStore
-        .getState()
-        .openDiffByMode("task-1", "src/App.tsx", "modified");
-
-      const tree = getPanelTree("task-1");
-      expect(tree.type).toBe("group");
-    });
-
-    it("opens diff in main panel when mode is same-pane", () => {
-      useSettingsStore.setState({ diffOpenMode: "same-pane" });
-
-      usePanelLayoutStore
-        .getState()
-        .openDiffByMode("task-1", "src/App.tsx", "modified");
-
-      const tree = getPanelTree("task-1");
-      expect(tree.type).toBe("leaf");
-      const panel = findPanelById(tree, "main-panel");
-      const diffTab = panel?.content.tabs.find((t: { id: string }) =>
-        t.id.startsWith("diff-"),
-      );
-      expect(diffTab).toBeDefined();
-    });
-
-    it("opens diff in focused panel when mode is last-active-pane", () => {
-      useSettingsStore.setState({ diffOpenMode: "last-active-pane" });
-
-      usePanelLayoutStore
-        .getState()
-        .splitPanel("task-1", "shell", "main-panel", "main-panel", "right");
-
-      const tree = getPanelTree("task-1");
-      if (tree.type !== "group") throw new Error("Expected group");
-      const newPanelId = tree.children[1].id;
-      usePanelLayoutStore.getState().setFocusedPanel("task-1", newPanelId);
-
-      usePanelLayoutStore
-        .getState()
-        .openDiffByMode("task-1", "src/App.tsx", "modified");
-
-      const updatedTree = getPanelTree("task-1");
-      if (updatedTree.type !== "group") throw new Error("Expected group");
-      const secondPanel = findPanelById(updatedTree, newPanelId);
-      const diffTab = secondPanel?.content.tabs.find((t: { id: string }) =>
-        t.id.startsWith("diff-"),
-      );
-      expect(diffTab).toBeDefined();
-      expect(secondPanel?.content.activeTabId).toBe(diffTab?.id);
-    });
-
-    it("opens diff in split on wide window when mode is auto", () => {
-      useSettingsStore.setState({ diffOpenMode: "auto" });
-
-      Object.defineProperty(window, "outerWidth", {
-        value: 1440,
-        writable: true,
-      });
-
-      usePanelLayoutStore
-        .getState()
-        .openDiffByMode("task-1", "src/App.tsx", "modified");
-
-      const tree = getPanelTree("task-1");
-      expect(tree.type).toBe("group");
-    });
-
-    it("opens diff in same pane on narrow window when mode is auto", () => {
-      useSettingsStore.setState({ diffOpenMode: "auto" });
-
-      Object.defineProperty(window, "outerWidth", {
-        value: 1200,
-        writable: true,
-      });
-
-      usePanelLayoutStore
-        .getState()
-        .openDiffByMode("task-1", "src/App.tsx", "modified");
-
-      const tree = getPanelTree("task-1");
-      expect(tree.type).toBe("leaf");
-      const panel = findPanelById(tree, "main-panel");
-      const diffTab = panel?.content.tabs.find((t: { id: string }) =>
-        t.id.startsWith("diff-"),
-      );
-      expect(diffTab).toBeDefined();
     });
   });
 });

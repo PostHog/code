@@ -1,5 +1,3 @@
-import type { GitFileStatus } from "@shared/types";
-
 export type PanelId = string;
 export type TabId = string;
 export type GroupId = string;
@@ -16,21 +14,12 @@ export type TabData =
       repoPath: string;
     }
   | {
-      type: "diff";
-      relativePath: string;
-      absolutePath: string;
-      repoPath: string;
-      status: GitFileStatus;
+      type: "review";
     }
   | {
       type: "terminal";
       terminalId: string;
       cwd: string;
-    }
-  | {
-      type: "cloud-diff";
-      relativePath: string;
-      status: GitFileStatus;
     }
   | {
       type: "action";

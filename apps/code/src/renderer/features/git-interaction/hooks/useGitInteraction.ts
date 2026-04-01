@@ -13,7 +13,9 @@ import {
   createBranch,
   getBranchNameInputState,
 } from "@features/git-interaction/utils/branchCreation";
+import { sanitizeBranchName } from "@features/git-interaction/utils/branchNameValidation";
 import type { DiffStats } from "@features/git-interaction/utils/diffStats";
+import { getSuggestedBranchName } from "@features/git-interaction/utils/getSuggestedBranchName";
 import { invalidateGitBranchQueries } from "@features/git-interaction/utils/gitCacheKeys";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
 import { trpc, trpcClient } from "@renderer/trpc";
@@ -22,8 +24,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { track } from "@utils/analytics";
 import { logger } from "@utils/logger";
 import { useMemo } from "react";
-import { sanitizeBranchName } from "../utils/branchNameValidation";
-import { getSuggestedBranchName } from "../utils/getSuggestedBranchName";
 
 const log = logger.scope("git-interaction");
 

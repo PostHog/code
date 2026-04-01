@@ -70,7 +70,7 @@ export const DraggableTab: React.FC<DraggableTabProps> = ({
       e.preventDefault();
 
       let filePath: string | undefined;
-      if (tabData.type === "file" || tabData.type === "diff") {
+      if (tabData.type === "file") {
         filePath = tabData.absolutePath;
       }
 
@@ -94,9 +94,7 @@ export const DraggableTab: React.FC<DraggableTabProps> = ({
         case "external-app":
           if (filePath) {
             const repoPath =
-              tabData.type === "file" || tabData.type === "diff"
-                ? tabData.repoPath
-                : undefined;
+              tabData.type === "file" ? tabData.repoPath : undefined;
             const workspaces = await workspaceApi.getAll();
             const workspace = repoPath
               ? (Object.values(workspaces).find(

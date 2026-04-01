@@ -8,7 +8,7 @@ import {
   isJsonRpcNotification,
 } from "@shared/types/session-events";
 
-interface ParsedToolCall {
+export interface ParsedToolCall {
   toolCallId: string;
   kind?: string | null;
   title?: string;

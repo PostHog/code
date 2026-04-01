@@ -1,4 +1,3 @@
-import type { GitFileStatus } from "@shared/types";
 import { DEFAULT_TAB_IDS } from "../constants/panelConstants";
 import type { SplitDirection, TaskLayout } from "./panelLayoutStore";
 import type { GroupPanel, LeafPanel, PanelNode, Tab } from "./panelTypes";
@@ -7,15 +6,7 @@ import type { GroupPanel, LeafPanel, PanelNode, Tab } from "./panelTypes";
 export const DEFAULT_FALLBACK_TAB = DEFAULT_TAB_IDS.LOGS;
 
 // Tab ID utilities
-export type TabType = "file" | "diff" | "cloud-diff" | "system";
-
-const DIFF_STATUSES = [
-  "modified",
-  "deleted",
-  "added",
-  "untracked",
-  "renamed",
-] as const;
+export type TabType = "file" | "system";
 
 export interface ParsedTabId {
   type: TabType;
@@ -26,76 +17,18 @@ export function createFileTabId(filePath: string): string {
   return `file-${filePath}`;
 }
 
-export function createDiffTabId(filePath: string, status?: string): string {
-  if (status) {
-    return `diff-${status}:${filePath}`;
-  }
-  return `diff-${filePath}`;
-}
-
-export function getDiffTabIdsForFile(filePath: string): string[] {
-  return DIFF_STATUSES.map((s) => createDiffTabId(filePath, s));
-}
-
-export function getCloudDiffTabIdsForFile(filePath: string): string[] {
-  return DIFF_STATUSES.map((s) => createCloudDiffTabId(filePath, s));
-}
-
-export function createCloudDiffTabId(
-  filePath: string,
-  status?: string,
-): string {
-  return `cloud-diff-${status ?? "modified"}:${filePath}`;
-}
-
 export function parseTabId(tabId: string): ParsedTabId & { status?: string } {
   if (tabId.startsWith("file-")) {
     return { type: "file", value: tabId.slice(5) };
   }
-  if (tabId.startsWith("cloud-diff-")) {
-    const rest = tabId.slice(11);
-    const colonIndex = rest.indexOf(":");
-    const status = colonIndex !== -1 ? rest.slice(0, colonIndex) : "modified";
-    const value = colonIndex !== -1 ? rest.slice(colonIndex + 1) : rest;
-    return { type: "cloud-diff", value, status };
-  }
-  if (tabId.startsWith("diff-")) {
-    const rest = tabId.slice(5);
-    // Check for status:path format
-    const colonIndex = rest.indexOf(":");
-    if (colonIndex !== -1) {
-      const status = rest.slice(0, colonIndex);
-      const value = rest.slice(colonIndex + 1);
-      return { type: "diff", value, status };
-    }
-    return { type: "diff", value: rest };
-  }
   return { type: "system", value: tabId };
 }
 
-function getStatusLabel(status?: string): string {
-  switch (status) {
-    case "deleted":
-      return "Deleted";
-    case "untracked":
-    case "added":
-      return "New";
-    case "renamed":
-      return "Renamed";
-    default:
-      return "diff";
-  }
-}
-
 export function createTabLabel(tabId: string): string {
+  if (tabId === "review") return "Review";
   const parsed = parseTabId(tabId);
   if (parsed.type === "file") {
     return parsed.value.split("/").pop() || parsed.value;
-  }
-  if (parsed.type === "diff" || parsed.type === "cloud-diff") {
-    const fileName = parsed.value.split("/").pop() || parsed.value;
-    const label = getStatusLabel(parsed.status);
-    return `${fileName} (${label})`;
   }
   return parsed.value;
 }
@@ -187,24 +120,10 @@ export function createNewTab(
         repoPath: "", // Will be populated by tab injection
       };
       break;
-    case "diff":
-      data = {
-        type: "diff",
-        relativePath: parsed.value,
-        absolutePath: "", // Will be populated by tab injection
-        repoPath: "", // Will be populated by tab injection
-        status: (parsed.status || "modified") as GitFileStatus,
-      };
-      break;
-    case "cloud-diff":
-      data = {
-        type: "cloud-diff",
-        relativePath: parsed.value,
-        status: (parsed.status || "modified") as GitFileStatus,
-      };
-      break;
     case "system":
-      if (tabId === "logs") {
+      if (tabId === "review") {
+        data = { type: "review" };
+      } else if (tabId === "logs") {
         data = { type: "logs" };
       } else if (tabId.startsWith("shell")) {
         data = {
@@ -323,24 +242,6 @@ function isTabActiveInTree(tree: PanelNode, tabId: string): boolean {
     return tree.content.activeTabId === tabId;
   }
   return tree.children.some((child) => isTabActiveInTree(child, tabId));
-}
-
-export function isDiffTabActiveInTree(
-  tree: PanelNode,
-  filePath: string,
-  status?: string,
-): boolean {
-  const tabId = createDiffTabId(filePath, status);
-  return isTabActiveInTree(tree, tabId);
-}
-
-export function isCloudDiffTabActiveInTree(
-  tree: PanelNode,
-  filePath: string,
-  status?: string,
-): boolean {
-  const tabId = createCloudDiffTabId(filePath, status);
-  return isTabActiveInTree(tree, tabId);
 }
 
 export function isFileTabActiveInTree(

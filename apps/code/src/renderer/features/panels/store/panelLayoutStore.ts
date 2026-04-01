@@ -1,4 +1,4 @@
-import { useSettingsStore } from "@features/settings/stores/settingsStore";
+import { getFileExtension } from "@renderer/utils/path";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { track } from "@utils/analytics";
 import { persist } from "zustand/middleware";
@@ -10,12 +10,8 @@ import {
 import {
   addNewTabToPanel,
   applyCleanupWithFallback,
-  createCloudDiffTabId,
-  createDiffTabId,
   createFileTabId,
   generatePanelId,
-  getCloudDiffTabIdsForFile,
-  getDiffTabIdsForFile,
   getLeafPanel,
   getSplitConfig,
   selectNextTabAfterClose,
@@ -32,29 +28,6 @@ import {
   updateTreeNode,
 } from "./panelTree";
 import type { PanelNode, Tab } from "./panelTypes";
-
-function getFileExtension(filePath: string): string {
-  const parts = filePath.split(".");
-  return parts.length > 1 ? parts[parts.length - 1] : "";
-}
-
-function trackDiffViewed(
-  taskId: string,
-  filePath: string,
-  status?: string,
-): void {
-  const changeType =
-    status === "added"
-      ? "added"
-      : status === "deleted"
-        ? "deleted"
-        : "modified";
-  track(ANALYTICS_EVENTS.FILE_DIFF_VIEWED, {
-    file_extension: getFileExtension(filePath),
-    change_type: changeType,
-    task_id: taskId,
-  });
-}
 
 const MAX_RECENT_FILES = 10;
 
@@ -80,24 +53,13 @@ export interface PanelLayoutStore {
     filePath: string,
     asPreview?: boolean,
   ) => void;
-  openDiffByMode: (
-    taskId: string,
-    filePath: string,
-    status?: string,
-    asPreview?: boolean,
-  ) => void;
-  openCloudDiffByMode: (
-    taskId: string,
-    filePath: string,
-    status?: string,
-    asPreview?: boolean,
-  ) => void;
+  openReview: (taskId: string) => void;
   keepTab: (taskId: string, panelId: string, tabId: string) => void;
   closeTab: (taskId: string, panelId: string, tabId: string) => void;
   closeOtherTabs: (taskId: string, panelId: string, tabId: string) => void;
   closeTabsToRight: (taskId: string, panelId: string, tabId: string) => void;
   closeTabsForFile: (taskId: string, filePath: string) => void;
-  closeDiffTabsForFile: (taskId: string, filePath: string) => void;
+
   setActiveTab: (taskId: string, panelId: string, tabId: string) => void;
   setDraggingTab: (
     taskId: string,
@@ -157,6 +119,14 @@ function createDefaultPanelTree(): PanelNode {
           id: DEFAULT_TAB_IDS.LOGS,
           label: "Chat",
           data: { type: "logs" },
+          component: null,
+          closeable: false,
+          draggable: true,
+        },
+        {
+          id: DEFAULT_TAB_IDS.REVIEW,
+          label: "Review",
+          data: { type: "review" as const },
           component: null,
           closeable: false,
           draggable: true,
@@ -256,39 +226,6 @@ function findNonMainLeafPanel(node: PanelNode): PanelNode | null {
     }
   }
   return null;
-}
-
-function openTabByDiffMode(
-  state: { taskLayouts: Record<string, TaskLayout> },
-  taskId: string,
-  tabId: string,
-  asPreview: boolean,
-): { taskLayouts: Record<string, TaskLayout> } {
-  const mode = useSettingsStore.getState().diffOpenMode;
-  switch (mode) {
-    case "split":
-      return openTabInSplit(state, taskId, tabId, asPreview);
-    case "same-pane":
-      return openTab(
-        state,
-        taskId,
-        tabId,
-        asPreview,
-        DEFAULT_PANEL_IDS.MAIN_PANEL,
-      );
-    case "last-active-pane":
-      return openTab(state, taskId, tabId, asPreview);
-    default:
-      return window.outerWidth >= 1440
-        ? openTabInSplit(state, taskId, tabId, asPreview)
-        : openTab(
-            state,
-            taskId,
-            tabId,
-            asPreview,
-            DEFAULT_PANEL_IDS.MAIN_PANEL,
-          );
-  }
 }
 
 function openTabInSplit(
@@ -459,16 +396,11 @@ export const usePanelLayoutStore = createWithEqualityFn<PanelLayoutStore>()(
         });
       },
 
-      openDiffByMode: (taskId, filePath, status, asPreview = true) => {
-        const tabId = createDiffTabId(filePath, status);
-        set((state) => openTabByDiffMode(state, taskId, tabId, asPreview));
-        trackDiffViewed(taskId, filePath, status);
-      },
-
-      openCloudDiffByMode: (taskId, filePath, status, asPreview = true) => {
-        const tabId = createCloudDiffTabId(filePath, status);
-        set((state) => openTabByDiffMode(state, taskId, tabId, asPreview));
-        trackDiffViewed(taskId, filePath, status);
+      openReview: (taskId) => {
+        set((state) => openTab(state, taskId, "review", false));
+        track(ANALYTICS_EVENTS.REVIEW_PANEL_VIEWED, {
+          task_id: taskId,
+        });
       },
 
       keepTab: (taskId, panelId, tabId) => {
@@ -610,34 +542,10 @@ export const usePanelLayoutStore = createWithEqualityFn<PanelLayoutStore>()(
         const layout = get().taskLayouts[taskId];
         if (!layout) return;
 
-        const tabIds = [
-          createFileTabId(filePath),
-          ...getDiffTabIdsForFile(filePath),
-          ...getCloudDiffTabIdsForFile(filePath),
-        ];
-
-        for (const tabId of tabIds) {
-          const tabLocation = findTabInTree(layout.panelTree, tabId);
-          if (tabLocation) {
-            get().closeTab(taskId, tabLocation.panelId, tabId);
-          }
-        }
-      },
-
-      closeDiffTabsForFile: (taskId, filePath) => {
-        const layout = get().taskLayouts[taskId];
-        if (!layout) return;
-
-        const tabIds = [
-          ...getDiffTabIdsForFile(filePath),
-          ...getCloudDiffTabIdsForFile(filePath),
-        ];
-
-        for (const tabId of tabIds) {
-          const tabLocation = findTabInTree(layout.panelTree, tabId);
-          if (tabLocation) {
-            get().closeTab(taskId, tabLocation.panelId, tabId);
-          }
+        const tabId = createFileTabId(filePath);
+        const tabLocation = findTabInTree(layout.panelTree, tabId);
+        if (tabLocation) {
+          get().closeTab(taskId, tabLocation.panelId, tabId);
         }
       },
 

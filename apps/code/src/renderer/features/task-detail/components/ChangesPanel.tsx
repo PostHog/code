@@ -2,24 +2,13 @@ import { FileIcon } from "@components/ui/FileIcon";
 import { PanelMessage } from "@components/ui/PanelMessage";
 import { Tooltip } from "@components/ui/Tooltip";
 import { useExternalApps } from "@features/external-apps/hooks/useExternalApps";
-import {
-  useCloudBranchChangedFiles,
-  useCloudPrChangedFiles,
-  useGitQueries,
-} from "@features/git-interaction/hooks/useGitQueries";
+import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
-import {
-  isCloudDiffTabActiveInTree,
-  isDiffTabActiveInTree,
-} from "@features/panels/store/panelStoreHelpers";
-import { usePendingPermissionsForTask } from "@features/sessions/stores/sessionStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
-import { useCloudRunState } from "@features/task-detail/hooks/useCloudRunState";
+import { useCloudChangedFiles } from "@features/task-detail/hooks/useCloudChangedFiles";
 import {
   ArrowCounterClockwiseIcon,
-  CaretDownIcon,
-  CaretUpIcon,
   CodeIcon,
   CopyIcon,
   FilePlus,
@@ -34,14 +23,18 @@ import {
   Spinner,
   Text,
 } from "@radix-ui/themes";
+import { useReviewNavigationStore } from "@renderer/features/code-review/stores/reviewNavigationStore";
+import { getStatusIndicator } from "@renderer/features/git-interaction/utils/gitStatusUtils";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 import { trpcClient } from "@renderer/trpc/client";
-import type { ChangedFile, GitFileStatus, Task } from "@shared/types";
+import { track } from "@renderer/utils/analytics";
+import { getFileExtension } from "@renderer/utils/path";
+import type { ChangedFile, Task } from "@shared/types";
+import { ANALYTICS_EVENTS, type FileChangeType } from "@shared/types/analytics";
 import { useQueryClient } from "@tanstack/react-query";
 import { showMessageBox } from "@utils/dialog";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
-import { useCallback, useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
+import { useState } from "react";
 
 interface ChangesPanelProps {
   taskId: string;
@@ -51,29 +44,10 @@ interface ChangesPanelProps {
 interface ChangedFileItemProps {
   file: ChangedFile;
   taskId: string;
-  repoPath: string;
   isActive: boolean;
+  /** When provided, enables the hover toolbar (discard, open-with, context menu) */
+  repoPath?: string;
   mainRepoPath?: string;
-}
-
-function getStatusIndicator(status: GitFileStatus): {
-  label: string;
-  fullLabel: string;
-  color: "green" | "orange" | "red" | "blue" | "gray";
-} {
-  switch (status) {
-    case "added":
-    case "untracked":
-      return { label: "A", fullLabel: "Added", color: "green" };
-    case "deleted":
-      return { label: "D", fullLabel: "Deleted", color: "red" };
-    case "modified":
-      return { label: "M", fullLabel: "Modified", color: "orange" };
-    case "renamed":
-      return { label: "R", fullLabel: "Renamed", color: "blue" };
-    default:
-      return { label: "?", fullLabel: "Unknown", color: "gray" };
-  }
 }
 
 function getDiscardInfo(
@@ -117,13 +91,13 @@ function getDiscardInfo(
 function ChangedFileItem({
   file,
   taskId,
-  repoPath,
   isActive,
+  repoPath,
   mainRepoPath,
 }: ChangedFileItemProps) {
-  const openDiffByMode = usePanelLayoutStore((state) => state.openDiffByMode);
-  const closeDiffTabsForFile = usePanelLayoutStore(
-    (state) => state.closeDiffTabsForFile,
+  const openReview = usePanelLayoutStore((state) => state.openReview);
+  const requestScrollToFile = useReviewNavigationStore(
+    (state) => state.requestScrollToFile,
   );
   const queryClient = useQueryClient();
   const { detectedApps } = useExternalApps();
@@ -132,19 +106,21 @@ function ChangedFileItem({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  // show toolbar when hovered OR when dropdown is open
-  const isToolbarVisible = isHovered || isDropdownOpen;
+  const isLocal = !!repoPath;
+  const isToolbarVisible = isLocal && (isHovered || isDropdownOpen);
 
   const fileName = file.path.split("/").pop() || file.path;
-  const fullPath = `${repoPath}/${file.path}`;
+  const fullPath = repoPath ? `${repoPath}/${file.path}` : file.path;
   const indicator = getStatusIndicator(file.status);
 
   const handleClick = () => {
-    openDiffByMode(taskId, file.path, file.status);
-  };
-
-  const handleDoubleClick = () => {
-    openDiffByMode(taskId, file.path, file.status, false);
+    track(ANALYTICS_EVENTS.FILE_DIFF_VIEWED, {
+      change_type: file.status as FileChangeType,
+      file_extension: getFileExtension(file.path),
+      task_id: taskId,
+    });
+    requestScrollToFile(taskId, file.path);
+    openReview(taskId);
   };
 
   const workspaceContext = {
@@ -152,23 +128,25 @@ function ChangedFileItem({
     mainRepoPath,
   };
 
-  const handleContextMenu = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    const result = await trpcClient.contextMenu.showFileContextMenu.mutate({
-      filePath: fullPath,
-    });
+  const handleContextMenu = repoPath
+    ? async (e: React.MouseEvent) => {
+        e.preventDefault();
+        const result = await trpcClient.contextMenu.showFileContextMenu.mutate({
+          filePath: fullPath,
+        });
 
-    if (!result.action) return;
+        if (!result.action) return;
 
-    if (result.action.type === "external-app") {
-      await handleExternalAppAction(
-        result.action.action,
-        fullPath,
-        fileName,
-        workspaceContext,
-      );
-    }
-  };
+        if (result.action.type === "external-app") {
+          await handleExternalAppAction(
+            result.action.action,
+            fullPath,
+            fileName,
+            workspaceContext,
+          );
+        }
+      }
+    : undefined;
 
   const handleOpenWith = async (appId: string) => {
     await handleExternalAppAction(
@@ -178,7 +156,6 @@ function ChangedFileItem({
       workspaceContext,
     );
 
-    // blur active element to dismiss any open tooltip
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
@@ -188,35 +165,39 @@ function ChangedFileItem({
     await handleExternalAppAction({ type: "copy-path" }, fullPath, fileName);
   };
 
-  const handleDiscard = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleDiscard = repoPath
+    ? async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
 
-    const { message, action } = getDiscardInfo(file, fileName);
+        const { message, action } = getDiscardInfo(file, fileName);
 
-    const dialogResult = await showMessageBox({
-      type: "warning",
-      title: "Discard changes",
-      message,
-      buttons: ["Cancel", action],
-      defaultId: 1,
-      cancelId: 0,
-    });
+        const dialogResult = await showMessageBox({
+          type: "warning",
+          title: "Discard changes",
+          message,
+          buttons: ["Cancel", action],
+          defaultId: 1,
+          cancelId: 0,
+        });
 
-    if (dialogResult.response !== 1) return;
+        if (dialogResult.response !== 1) return;
 
-    const discardResult = await trpcClient.git.discardFileChanges.mutate({
-      directoryPath: repoPath,
-      filePath: file.originalPath ?? file.path,
-      fileStatus: file.status,
-    });
+        const discardResult = await trpcClient.git.discardFileChanges.mutate({
+          directoryPath: repoPath,
+          filePath: file.originalPath ?? file.path,
+          fileStatus: file.status,
+        });
 
-    closeDiffTabsForFile(taskId, file.path);
-
-    if (discardResult.state) {
-      updateGitCacheFromSnapshot(queryClient, repoPath, discardResult.state);
-    }
-  };
+        if (discardResult.state) {
+          updateGitCacheFromSnapshot(
+            queryClient,
+            repoPath,
+            discardResult.state,
+          );
+        }
+      }
+    : undefined;
 
   const hasLineStats =
     file.linesAdded !== undefined || file.linesRemoved !== undefined;
@@ -229,7 +210,7 @@ function ChangedFileItem({
         align="center"
         gap="1"
         onClick={handleClick}
-        onDoubleClick={handleDoubleClick}
+        onDoubleClick={handleClick}
         onContextMenu={handleContextMenu}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -298,7 +279,7 @@ function ChangedFileItem({
           </Flex>
         )}
 
-        {isToolbarVisible && (
+        {isToolbarVisible && handleDiscard && (
           <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
             <Tooltip content="Discard changes">
               <IconButton
@@ -389,152 +370,21 @@ function ChangedFileItem({
   );
 }
 
-function CloudChangedFileItem({
-  file,
-  taskId,
-  isActive,
-}: {
-  file: ChangedFile;
-  taskId: string;
-  isActive: boolean;
-}) {
-  const openCloudDiffByMode = usePanelLayoutStore(
-    (state) => state.openCloudDiffByMode,
-  );
-  const fileName = file.path.split("/").pop() || file.path;
-  const indicator = getStatusIndicator(file.status);
-  const hasLineStats =
-    file.linesAdded !== undefined || file.linesRemoved !== undefined;
-
-  const handleClick = () => {
-    openCloudDiffByMode(taskId, file.path, file.status);
-  };
-
-  const handleDoubleClick = () => {
-    openCloudDiffByMode(taskId, file.path, file.status, false);
-  };
-
-  return (
-    <Tooltip
-      content={`${file.path} - ${indicator.fullLabel}`}
-      side="top"
-      delayDuration={500}
-    >
-      <Flex
-        align="center"
-        gap="1"
-        onClick={handleClick}
-        onDoubleClick={handleDoubleClick}
-        className={
-          isActive
-            ? "border-accent-8 border-y bg-accent-4"
-            : "border-transparent border-y hover:bg-gray-3"
-        }
-        style={{
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          height: "26px",
-          paddingLeft: "8px",
-          paddingRight: "8px",
-        }}
-      >
-        <FileIcon filename={fileName} size={14} />
-        <Text
-          size="1"
-          style={{
-            fontSize: "12px",
-            userSelect: "none",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            marginLeft: "2px",
-            flexShrink: 1,
-            minWidth: 0,
-          }}
-        >
-          {fileName}
-        </Text>
-        <Text
-          size="1"
-          color="gray"
-          style={{
-            userSelect: "none",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            flex: 1,
-            marginLeft: "4px",
-            minWidth: 0,
-          }}
-        >
-          {file.originalPath
-            ? `${file.originalPath} → ${file.path}`
-            : file.path}
-        </Text>
-
-        {hasLineStats && (
-          <Flex
-            align="center"
-            gap="1"
-            style={{ flexShrink: 0, fontSize: "10px", fontFamily: "monospace" }}
-          >
-            {(file.linesAdded ?? 0) > 0 && (
-              <Text style={{ color: "var(--green-9)" }}>
-                +{file.linesAdded}
-              </Text>
-            )}
-            {(file.linesRemoved ?? 0) > 0 && (
-              <Text style={{ color: "var(--red-9)" }}>
-                -{file.linesRemoved}
-              </Text>
-            )}
-          </Flex>
-        )}
-
-        <Badge
-          size="1"
-          color={indicator.color}
-          style={{ flexShrink: 0, fontSize: "10px", padding: "0 4px" }}
-        >
-          {indicator.label}
-        </Badge>
-      </Flex>
-    </Tooltip>
-  );
-}
-
 function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
-  const { prUrl, effectiveBranch, repo, isRunActive, fallbackFiles } =
-    useCloudRunState(taskId, task);
-
-  const layout = usePanelLayoutStore((state) => state.getLayout(taskId));
-
-  const isFileActive = (file: ChangedFile): boolean => {
-    if (!layout) return false;
-    return isCloudDiffTabActiveInTree(layout.panelTree, file.path, file.status);
-  };
-
-  // PR-based files (preferred when PR exists, to avoid possible state weirdness)
   const {
-    data: prFiles,
-    isPending: prPending,
-    isError: prError,
-  } = useCloudPrChangedFiles(prUrl);
+    prUrl,
+    effectiveBranch,
+    isRunActive,
+    changedFiles,
+    isLoading,
+    hasError,
+  } = useCloudChangedFiles(taskId, task);
 
-  // Branch-based files — use effectiveBranch (includes live cloudBranch)
-  const {
-    data: branchFiles,
-    isPending: branchPending,
-    isError: branchError,
-  } = useCloudBranchChangedFiles(
-    !prUrl ? repo : null,
-    !prUrl ? effectiveBranch : null,
+  const activeFilePath = useReviewNavigationStore(
+    (s) => s.activeFilePaths[taskId] ?? null,
   );
 
-  const changedFiles = prUrl ? (prFiles ?? []) : (branchFiles ?? []);
-  const isLoading = prUrl ? prPending : effectiveBranch ? branchPending : false;
-  const hasError = prUrl ? prError : effectiveBranch ? branchError : false;
-
-  const effectiveFiles = changedFiles.length > 0 ? changedFiles : fallbackFiles;
+  const effectiveFiles = changedFiles;
 
   // No branch/PR yet and run is active — show waiting state
   if (!prUrl && !effectiveBranch && effectiveFiles.length === 0) {
@@ -590,11 +440,11 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
     <Box height="100%" overflowY="auto" py="2">
       <Flex direction="column">
         {effectiveFiles.map((file) => (
-          <CloudChangedFileItem
+          <ChangedFileItem
             key={file.path}
             file={file}
             taskId={taskId}
-            isActive={isFileActive(file)}
+            isActive={activeFilePath === file.path}
           />
         ))}
         {isRunActive && (
@@ -625,61 +475,10 @@ export function ChangesPanel({ taskId, task }: ChangesPanelProps) {
 function LocalChangesPanel({ taskId, task: _task }: ChangesPanelProps) {
   const workspace = useWorkspace(taskId);
   const repoPath = useCwd(taskId);
-  const layout = usePanelLayoutStore((state) => state.getLayout(taskId));
-  const openDiffByMode = usePanelLayoutStore((state) => state.openDiffByMode);
-  const pendingPermissions = usePendingPermissionsForTask(taskId);
-  const hasPendingPermissions = pendingPermissions.size > 0;
-
+  const activeFilePath = useReviewNavigationStore(
+    (s) => s.activeFilePaths[taskId] ?? null,
+  );
   const { changedFiles, changesLoading: isLoading } = useGitQueries(repoPath);
-
-  const getActiveIndex = useCallback((): number => {
-    if (!layout) return -1;
-    return changedFiles.findIndex((file) =>
-      isDiffTabActiveInTree(layout.panelTree, file.path, file.status),
-    );
-  }, [layout, changedFiles]);
-
-  const handleKeyNavigation = useCallback(
-    (direction: "up" | "down") => {
-      if (changedFiles.length === 0) return;
-
-      const currentIndex = getActiveIndex();
-      const startIndex =
-        currentIndex === -1
-          ? direction === "down"
-            ? -1
-            : changedFiles.length
-          : currentIndex;
-      const newIndex =
-        direction === "up"
-          ? Math.max(0, startIndex - 1)
-          : Math.min(changedFiles.length - 1, startIndex + 1);
-
-      const file = changedFiles[newIndex];
-      if (file) {
-        openDiffByMode(taskId, file.path, file.status);
-      }
-    },
-    [changedFiles, getActiveIndex, openDiffByMode, taskId],
-  );
-
-  useHotkeys(
-    "up",
-    () => handleKeyNavigation("up"),
-    { enabled: !hasPendingPermissions },
-    [handleKeyNavigation, hasPendingPermissions],
-  );
-  useHotkeys(
-    "down",
-    () => handleKeyNavigation("down"),
-    { enabled: !hasPendingPermissions },
-    [handleKeyNavigation, hasPendingPermissions],
-  );
-
-  const isFileActive = (file: ChangedFile): boolean => {
-    if (!layout) return false;
-    return isDiffTabActiveInTree(layout.panelTree, file.path, file.status);
-  };
 
   if (!repoPath) {
     return <PanelMessage>No repository path available</PanelMessage>;
@@ -710,20 +509,10 @@ function LocalChangesPanel({ taskId, task: _task }: ChangesPanelProps) {
             file={file}
             taskId={taskId}
             repoPath={repoPath}
-            isActive={isFileActive(file)}
+            isActive={activeFilePath === file.path}
             mainRepoPath={workspace?.folderPath}
           />
         ))}
-        <Flex align="center" justify="center" gap="1" py="2">
-          <CaretUpIcon size={12} color="var(--gray-10)" />
-          <Text size="1" className="text-gray-10">
-            /
-          </Text>
-          <CaretDownIcon size={12} color="var(--gray-10)" />
-          <Text size="1" className="text-gray-10" ml="1">
-            to switch files
-          </Text>
-        </Flex>
       </Flex>
     </Box>
   );
