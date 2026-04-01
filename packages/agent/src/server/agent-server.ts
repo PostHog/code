@@ -523,7 +523,9 @@ export class AgentServer {
         // against async log persistence to object storage.
         let assistantMessage: string | undefined;
         try {
-          await this.session.logWriter.flush(this.session.payload.run_id);
+          await this.session.logWriter.flush(this.session.payload.run_id, {
+            coalesce: true,
+          });
           assistantMessage = this.session.logWriter.getFullAgentResponse(
             this.session.payload.run_id,
           );
@@ -747,6 +749,9 @@ export class AgentServer {
     });
 
     this.logger.info("Session initialized successfully");
+    this.logger.info(
+      `Agent version: ${this.config.version ?? packageJson.version}`,
+    );
 
     // Signal in_progress so the UI can start polling for updates
     this.posthogAPI
@@ -1111,7 +1116,9 @@ Important:
   ): Promise<void> {
     if (this.session?.payload.run_id === payload.run_id) {
       try {
-        await this.session.logWriter.flush(payload.run_id);
+        await this.session.logWriter.flush(payload.run_id, {
+          coalesce: true,
+        });
       } catch (error) {
         this.logger.warn("Failed to flush session logs before completion", {
           taskId: payload.task_id,
@@ -1270,7 +1277,7 @@ Important:
     }
 
     try {
-      await this.session.logWriter.flush(payload.run_id);
+      await this.session.logWriter.flush(payload.run_id, { coalesce: true });
     } catch (error) {
       this.logger.warn("Failed to flush logs before Slack relay", {
         taskId: payload.task_id,
@@ -1473,7 +1480,9 @@ Important:
     }
 
     try {
-      await this.session.logWriter.flush(this.session.payload.run_id);
+      await this.session.logWriter.flush(this.session.payload.run_id, {
+        coalesce: true,
+      });
     } catch (error) {
       this.logger.error("Failed to flush session logs", error);
     }

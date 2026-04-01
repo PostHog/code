@@ -159,6 +159,222 @@ describe("SessionLogWriter", () => {
     });
   });
 
+  describe("_doFlush does not prematurely coalesce", () => {
+    it("does not coalesce buffered chunks during a timed flush", async () => {
+      const sessionId = "s1";
+      logWriter.register(sessionId, { taskId: "t1", runId: sessionId });
+
+      // Buffer some chunks (no non-chunk event to trigger coalescing)
+      logWriter.appendRawLine(
+        sessionId,
+        makeSessionUpdate("agent_message_chunk", {
+          content: { type: "text", text: "Hello " },
+        }),
+      );
+      logWriter.appendRawLine(
+        sessionId,
+        makeSessionUpdate("agent_message_chunk", {
+          content: { type: "text", text: "world" },
+        }),
+      );
+
+      // Flush without any non-chunk event arriving — simulates
+      // the 500ms debounce timer firing mid-stream
+      await logWriter.flush(sessionId);
+
+      // No entries should have been sent — chunks are still buffered
+      expect(mockAppendLog).not.toHaveBeenCalled();
+
+      // Now a non-chunk event arrives, triggering natural coalescing
+      logWriter.appendRawLine(
+        sessionId,
+        makeSessionUpdate("usage_update", { used: 100 }),
+      );
+
+      await logWriter.flush(sessionId);
+
+      expect(mockAppendLog).toHaveBeenCalledTimes(1);
+      const entries: StoredNotification[] = mockAppendLog.mock.calls[0][2];
+      expect(entries).toHaveLength(2); // coalesced agent_message + usage_update
+      const coalesced = entries[0].notification;
+      expect(coalesced.params?.update).toEqual({
+        sessionUpdate: "agent_message",
+        content: { type: "text", text: "Hello world" },
+      });
+    });
+  });
+
+  describe("flushAll coalesces on shutdown", () => {
+    it("coalesces remaining chunks before flushing", async () => {
+      const sessionId = "s1";
+      logWriter.register(sessionId, { taskId: "t1", runId: sessionId });
+
+      logWriter.appendRawLine(
+        sessionId,
+        makeSessionUpdate("agent_message_chunk", {
+          content: { type: "text", text: "partial response" },
+        }),
+      );
+
+      await logWriter.flushAll();
+
+      expect(mockAppendLog).toHaveBeenCalledTimes(1);
+      const entries: StoredNotification[] = mockAppendLog.mock.calls[0][2];
+      expect(entries).toHaveLength(1);
+      const coalesced = entries[0].notification;
+      expect(coalesced.params?.update).toEqual({
+        sessionUpdate: "agent_message",
+        content: { type: "text", text: "partial response" },
+      });
+    });
+  });
+
+  describe("flush with coalesce option", () => {
+    it("drains chunk buffer when coalesce is true", async () => {
+      const sessionId = "s1";
+      logWriter.register(sessionId, { taskId: "t1", runId: sessionId });
+
+      logWriter.appendRawLine(
+        sessionId,
+        makeSessionUpdate("agent_message_chunk", {
+          content: { type: "text", text: "complete text" },
+        }),
+      );
+
+      await logWriter.flush(sessionId, { coalesce: true });
+
+      expect(mockAppendLog).toHaveBeenCalledTimes(1);
+      const entries: StoredNotification[] = mockAppendLog.mock.calls[0][2];
+      const coalesced = entries[0].notification;
+      expect(coalesced.params?.update).toEqual({
+        sessionUpdate: "agent_message",
+        content: { type: "text", text: "complete text" },
+      });
+    });
+
+    it("does not coalesce when coalesce is false", async () => {
+      const sessionId = "s1";
+      logWriter.register(sessionId, { taskId: "t1", runId: sessionId });
+
+      logWriter.appendRawLine(
+        sessionId,
+        makeSessionUpdate("agent_message_chunk", {
+          content: { type: "text", text: "buffered" },
+        }),
+      );
+
+      await logWriter.flush(sessionId, { coalesce: false });
+
+      expect(mockAppendLog).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("direct agent_message supersedes chunks", () => {
+    it("discards buffered chunks when a direct agent_message arrives", async () => {
+      const sessionId = "s1";
+      logWriter.register(sessionId, { taskId: "t1", runId: sessionId });
+
+      // Buffer partial chunks
+      logWriter.appendRawLine(
+        sessionId,
+        makeSessionUpdate("agent_message_chunk", {
+          content: { type: "text", text: "partial " },
+        }),
+      );
+      logWriter.appendRawLine(
+        sessionId,
+        makeSessionUpdate("agent_message_chunk", {
+          content: { type: "text", text: "text" },
+        }),
+      );
+
+      // Direct agent_message arrives — authoritative full text
+      logWriter.appendRawLine(
+        sessionId,
+        makeSessionUpdate("agent_message", {
+          content: { type: "text", text: "complete full response" },
+        }),
+      );
+
+      await logWriter.flush(sessionId);
+
+      expect(mockAppendLog).toHaveBeenCalledTimes(1);
+      const entries: StoredNotification[] = mockAppendLog.mock.calls[0][2];
+      // Only the direct agent_message — no coalesced partial entry
+      expect(entries).toHaveLength(1);
+      const coalesced = entries[0].notification;
+      expect(coalesced.params?.update).toEqual({
+        sessionUpdate: "agent_message",
+        content: { type: "text", text: "complete full response" },
+      });
+      expect(logWriter.getLastAgentMessage(sessionId)).toBe(
+        "complete full response",
+      );
+    });
+
+    it("is additive with earlier coalesced text in multi-message turns", async () => {
+      const sessionId = "s1";
+      logWriter.register(sessionId, { taskId: "t1", runId: sessionId });
+
+      // First assistant message: chunks coalesced by a tool_call event
+      logWriter.appendRawLine(
+        sessionId,
+        makeSessionUpdate("agent_message_chunk", {
+          content: { type: "text", text: "first message" },
+        }),
+      );
+      logWriter.appendRawLine(
+        sessionId,
+        makeSessionUpdate("tool_call", { toolCallId: "tc1" }),
+      );
+      // "first message" is now coalesced into currentTurnMessages
+
+      // Second assistant message arrives as direct agent_message
+      // (e.g., after tool result, no active chunk buffer)
+      logWriter.appendRawLine(
+        sessionId,
+        makeSessionUpdate("agent_message", {
+          content: { type: "text", text: "second message" },
+        }),
+      );
+
+      const response = logWriter.getFullAgentResponse(sessionId);
+      // Both messages are preserved — direct message is additive
+      expect(response).toBe("first message\n\nsecond message");
+    });
+
+    it("persisted log does not contain stale entries when chunks are superseded", async () => {
+      const sessionId = "s1";
+      logWriter.register(sessionId, { taskId: "t1", runId: sessionId });
+
+      // Chunks buffered, then direct agent_message supersedes before coalescing
+      logWriter.appendRawLine(
+        sessionId,
+        makeSessionUpdate("agent_message_chunk", {
+          content: { type: "text", text: "partial" },
+        }),
+      );
+      logWriter.appendRawLine(
+        sessionId,
+        makeSessionUpdate("agent_message", {
+          content: { type: "text", text: "complete" },
+        }),
+      );
+
+      await logWriter.flush(sessionId);
+
+      expect(mockAppendLog).toHaveBeenCalledTimes(1);
+      const entries: StoredNotification[] = mockAppendLog.mock.calls[0][2];
+      // Only the direct agent_message — no coalesced partial entry
+      expect(entries).toHaveLength(1);
+      const persisted = entries[0].notification;
+      expect(persisted.params?.update).toEqual({
+        sessionUpdate: "agent_message",
+        content: { type: "text", text: "complete" },
+      });
+    });
+  });
+
   describe("register", () => {
     it("does not re-register existing sessions", () => {
       const sessionId = "s1";

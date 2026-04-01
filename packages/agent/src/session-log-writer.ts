@@ -54,9 +54,12 @@ export class SessionLogWriter {
   }
 
   async flushAll(): Promise<void> {
-    const sessionIds = [...this.sessions.keys()];
+    // Coalesce any in-progress chunk buffers before the final flush
+    // During normal operation, chunks are coalesced when the next non-chunk
+    // event arrives, but on shutdown there may be no subsequent event
     const flushPromises: Promise<void>[] = [];
-    for (const sessionId of sessionIds) {
+    for (const [sessionId, session] of this.sessions) {
+      this.emitCoalescedMessage(sessionId, session);
       flushPromises.push(this.flush(sessionId));
     }
     await Promise.all(flushPromises);
@@ -123,8 +126,14 @@ export class SessionLogWriter {
         return;
       }
 
-      // Non-chunk event: flush any buffered chunks first
-      this.emitCoalescedMessage(sessionId, session);
+      // Non-chunk event: flush any buffered chunks first.
+      // If this is a direct agent_message AND there are buffered chunks,
+      // the direct message supersedes the partial chunks
+      if (this.isDirectAgentMessage(message) && session.chunkBuffer) {
+        session.chunkBuffer = undefined;
+      } else {
+        this.emitCoalescedMessage(sessionId, session);
+      }
 
       const nonChunkAgentText = this.extractAgentMessageText(message);
       if (nonChunkAgentText) {
@@ -155,7 +164,17 @@ export class SessionLogWriter {
     }
   }
 
-  async flush(sessionId: string): Promise<void> {
+  async flush(
+    sessionId: string,
+    { coalesce = false }: { coalesce?: boolean } = {},
+  ): Promise<void> {
+    if (coalesce) {
+      const session = this.sessions.get(sessionId);
+      if (session) {
+        this.emitCoalescedMessage(sessionId, session);
+      }
+    }
+
     // Serialize flushes per session
     const prev = this.flushQueues.get(sessionId) ?? Promise.resolve();
     const next = prev.catch(() => {}).then(() => this._doFlush(sessionId));
@@ -174,9 +193,6 @@ export class SessionLogWriter {
       this.logger.warn("flush: no session found", { sessionId });
       return;
     }
-
-    // Emit any buffered chunks before flushing
-    this.emitCoalescedMessage(sessionId, session);
 
     const pending = this.pendingEntries.get(sessionId);
     if (!this.posthogAPI || !pending?.length) {
@@ -231,11 +247,21 @@ export class SessionLogWriter {
     }
   }
 
-  private isAgentMessageChunk(message: Record<string, unknown>): boolean {
-    if (message.method !== "session/update") return false;
+  private getSessionUpdateType(
+    message: Record<string, unknown>,
+  ): string | undefined {
+    if (message.method !== "session/update") return undefined;
     const params = message.params as Record<string, unknown> | undefined;
     const update = params?.update as Record<string, unknown> | undefined;
-    return update?.sessionUpdate === "agent_message_chunk";
+    return update?.sessionUpdate as string | undefined;
+  }
+
+  private isDirectAgentMessage(message: Record<string, unknown>): boolean {
+    return this.getSessionUpdateType(message) === "agent_message";
+  }
+
+  private isAgentMessageChunk(message: Record<string, unknown>): boolean {
+    return this.getSessionUpdateType(message) === "agent_message_chunk";
   }
 
   private extractChunkText(message: Record<string, unknown>): string {
@@ -290,6 +316,17 @@ export class SessionLogWriter {
   getFullAgentResponse(sessionId: string): string | undefined {
     const session = this.sessions.get(sessionId);
     if (!session || session.currentTurnMessages.length === 0) return undefined;
+
+    if (session.chunkBuffer) {
+      this.logger.warn(
+        "getFullAgentResponse called with non-empty chunk buffer",
+        {
+          sessionId,
+          bufferedLength: session.chunkBuffer.text.length,
+        },
+      );
+    }
+
     return session.currentTurnMessages.join("\n\n");
   }
 

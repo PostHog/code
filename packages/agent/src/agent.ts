@@ -175,7 +175,7 @@ export class Agent {
 
   async cleanup(): Promise<void> {
     if (this.sessionLogWriter && this.taskRunId) {
-      await this.sessionLogWriter.flush(this.taskRunId);
+      await this.sessionLogWriter.flush(this.taskRunId, { coalesce: true });
     }
     await this.acpConnection?.cleanup();
   }
