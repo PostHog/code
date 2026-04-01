@@ -35,7 +35,6 @@ import {
 } from "@phosphor-icons/react";
 import {
   AlertDialog,
-  Badge,
   Box,
   Button,
   Flex,
@@ -55,7 +54,14 @@ import type {
 } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useRendererWindowFocusStore } from "@stores/rendererWindowFocusStore";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { SignalsErrorState, SignalsLoadingState } from "./InboxEmptyStates";
 import { InboxWarmingUpState } from "./InboxWarmingUpState";
@@ -83,31 +89,50 @@ function getArtefactsUnavailableMessage(
   }
 }
 
-function CollapsibleExplanation({
+function DetailRow({
   label,
+  value,
   explanation,
 }: {
   label: string;
-  explanation: string;
+  value: ReactNode;
+  explanation?: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const hasExplanation = !!explanation;
 
   return (
     <Box>
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-1 rounded px-1 py-0.5 font-medium text-[12px] text-gray-11 hover:bg-gray-3 hover:text-gray-12"
-      >
-        {expanded ? <CaretDownIcon size={12} /> : <CaretRightIcon size={12} />}
-        {label}
-      </button>
-      {expanded && (
+      <Flex align="center" gap="2">
+        <Text
+          size="2"
+          className="w-[90px] shrink-0 text-[13px]"
+          style={{ color: "var(--gray-10)" }}
+        >
+          {label}
+        </Text>
+        {value}
+        {hasExplanation && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[13px] text-gray-9 hover:bg-gray-3 hover:text-gray-11"
+          >
+            {expanded ? (
+              <CaretDownIcon size={12} />
+            ) : (
+              <CaretRightIcon size={12} />
+            )}
+            Why?
+          </button>
+        )}
+      </Flex>
+      {expanded && explanation && (
         <Text
           size="1"
           color="gray"
-          className="mt-1 block text-pretty text-[12px] leading-relaxed"
-          style={{ paddingLeft: "calc(12px + var(--space-1))" }}
+          className="mt-1 block text-pretty text-[13px] leading-relaxed"
+          style={{ paddingLeft: 90 }}
         >
           {explanation}
         </Text>
@@ -557,20 +582,37 @@ export function InboxSignalsTab() {
                   fallback="No summary available."
                   variant="detail"
                 />
-                <Flex align="center" gap="2" wrap="wrap">
-                  <SignalReportPriorityBadge
-                    priority={selectedReport.priority}
-                  />
-                  <SignalReportActionabilityBadge
-                    actionability={selectedReport.actionability}
-                  />
-                  <Badge variant="soft" color="gray" size="1">
-                    {selectedReport.signal_count} occurrences
-                  </Badge>
-                  <Badge variant="soft" color="gray" size="1">
-                    {selectedReport.relevant_user_count ?? 0} affected users
-                  </Badge>
-                </Flex>
+                {(selectedReport.actionability || selectedReport.priority) && (
+                  <Flex
+                    direction="column"
+                    gap="1"
+                    py="2"
+                    style={{ borderTop: "1px solid var(--gray-5)" }}
+                  >
+                    {selectedReport.priority && (
+                      <DetailRow
+                        label="Priority"
+                        value={
+                          <SignalReportPriorityBadge
+                            priority={selectedReport.priority}
+                          />
+                        }
+                        explanation={priorityExplanation}
+                      />
+                    )}
+                    {selectedReport.actionability && (
+                      <DetailRow
+                        label="Actionability"
+                        value={
+                          <SignalReportActionabilityBadge
+                            actionability={selectedReport.actionability}
+                          />
+                        }
+                        explanation={actionabilityJudgment?.explanation}
+                      />
+                    )}
+                  </Flex>
+                )}
 
                 {(selectedReport.already_addressed ??
                   actionabilityJudgment?.already_addressed) && (
@@ -596,20 +638,6 @@ export function InboxSignalsTab() {
                       changes.
                     </Text>
                   </Flex>
-                )}
-
-                {actionabilityJudgment?.explanation && (
-                  <CollapsibleExplanation
-                    label="Actionability reasoning"
-                    explanation={actionabilityJudgment.explanation}
-                  />
-                )}
-
-                {priorityExplanation && (
-                  <CollapsibleExplanation
-                    label="Priority reasoning"
-                    explanation={priorityExplanation}
-                  />
                 )}
 
                 {signals.length > 0 && (
