@@ -13,21 +13,21 @@ import { useInboxSignalsSidebarStore } from "@features/inbox/stores/inboxSignals
 import { buildSignalTaskPrompt } from "@features/inbox/utils/buildSignalTaskPrompt";
 import {
   buildSignalReportListOrdering,
+  buildStatusFilterParam,
   filterReportsBySearch,
 } from "@features/inbox/utils/filterReports";
-import {
-  INBOX_PIPELINE_STATUS_FILTER,
-  INBOX_REFETCH_INTERVAL_MS,
-} from "@features/inbox/utils/inboxConstants";
+import { INBOX_REFETCH_INTERVAL_MS } from "@features/inbox/utils/inboxConstants";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useRepositoryIntegration } from "@hooks/useIntegrations";
 import {
+  ArrowDownIcon,
   ArrowSquareOutIcon,
   ClockIcon,
   Cloud as CloudIcon,
+  GithubLogoIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import {
@@ -40,10 +40,13 @@ import {
   Select,
   Text,
 } from "@radix-ui/themes";
+import graphsHog from "@renderer/assets/images/graphs-hog.png";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type {
+  SignalReportArtefact,
   SignalReportArtefactsResponse,
   SignalReportsQueryParams,
+  SuggestedReviewersArtefact,
 } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useRendererWindowFocusStore } from "@stores/rendererWindowFocusStore";
@@ -118,6 +121,7 @@ export function InboxSignalsTab() {
   const sortField = useInboxSignalsFilterStore((s) => s.sortField);
   const sortDirection = useInboxSignalsFilterStore((s) => s.sortDirection);
   const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
+  const statusFilter = useInboxSignalsFilterStore((s) => s.statusFilter);
   const { data: signalSourceConfigs } = useSignalSourceConfigs();
   const hasSignalSources = signalSourceConfigs?.some((c) => c.enabled) ?? false;
   const openSettings = useSettingsDialogStore((s) => s.open);
@@ -128,10 +132,10 @@ export function InboxSignalsTab() {
 
   const inboxQueryParams = useMemo(
     (): SignalReportsQueryParams => ({
-      status: INBOX_PIPELINE_STATUS_FILTER,
+      status: buildStatusFilterParam(statusFilter),
       ordering: buildSignalReportListOrdering(sortField, sortDirection),
     }),
-    [sortField, sortDirection],
+    [statusFilter, sortField, sortDirection],
   );
 
   const {
@@ -201,7 +205,16 @@ export function InboxSignalsTab() {
   const artefactsQuery = useInboxReportArtefacts(selectedReport?.id ?? "", {
     enabled: !!selectedReport,
   });
-  const visibleArtefacts = artefactsQuery.data?.results ?? [];
+  const allArtefacts = artefactsQuery.data?.results ?? [];
+  const visibleArtefacts = allArtefacts.filter(
+    (a): a is SignalReportArtefact => a.type !== "suggested_reviewers",
+  );
+  const suggestedReviewers = useMemo(() => {
+    const reviewerArtefact = allArtefacts.find(
+      (a): a is SuggestedReviewersArtefact => a.type === "suggested_reviewers",
+    );
+    return reviewerArtefact?.content ?? [];
+  }, [allArtefacts]);
   const artefactsUnavailableReason = artefactsQuery.data?.unavailableReason;
   const showArtefactsUnavailable =
     !artefactsQuery.isLoading &&
@@ -318,28 +331,70 @@ export function InboxSignalsTab() {
           direction="column"
           align="center"
           justify="center"
-          gap="5"
           height="100%"
           px="5"
-          style={{ maxWidth: 480, margin: "0 auto" }}
+          style={{ margin: "0 auto" }}
         >
-          <Flex direction="column" gap="2" style={{ width: "100%" }}>
+          <Flex direction="column" align="center" style={{ maxWidth: 420 }}>
+            <img
+              src={graphsHog}
+              alt=""
+              style={{ width: 128, marginBottom: 20 }}
+            />
+
             <Text
-              size="2"
-              weight="medium"
+              size="4"
+              weight="bold"
               align="center"
               style={{ color: "var(--gray-12)" }}
             >
+              Welcome to your Inbox
+            </Text>
+
+            <Flex
+              direction="column"
+              align="center"
+              gap="3"
+              mt="3"
+              style={{ maxWidth: 360 }}
+            >
+              <Text
+                size="1"
+                align="center"
+                style={{ color: "var(--gray-11)", lineHeight: 1.35 }}
+              >
+                <Text weight="medium" style={{ color: "var(--gray-12)" }}>
+                  Background analysis of your data — while you sleep.
+                </Text>
+                <br />
+                Session recordings watched automatically. Issues, tickets, and
+                evals analyzed around the clock.
+              </Text>
+
+              <ArrowDownIcon size={14} style={{ color: "var(--gray-8)" }} />
+
+              <Text
+                size="1"
+                align="center"
+                style={{ color: "var(--gray-11)", lineHeight: 1.35 }}
+              >
+                <Text weight="medium" style={{ color: "var(--gray-12)" }}>
+                  Ready-to-run fixes for real user problems.
+                </Text>
+                <br />
+                Each report includes evidence and impact numbers — just execute
+                the prompt in your agent.
+              </Text>
+            </Flex>
+
+            <Button
+              size="2"
+              style={{ marginTop: 20 }}
+              onClick={() => openSettings("signals")}
+            >
               Enable Inbox
-            </Text>
-            <Text size="1" align="center" style={{ color: "var(--gray-11)" }}>
-              Inbox automatically analyzes your product data and prioritizes
-              actionable tasks. Choose which sources to enable for this project.
-            </Text>
+            </Button>
           </Flex>
-          <Button size="2" onClick={() => openSettings("signals")}>
-            Configure signal sources
-          </Button>
         </Flex>
       );
     }
@@ -496,6 +551,46 @@ export function InboxSignalsTab() {
                     {selectedReport.relevant_user_count ?? 0} affected users
                   </Badge>
                 </Flex>
+
+                {suggestedReviewers.length > 0 && (
+                  <Box>
+                    <Text
+                      size="1"
+                      weight="medium"
+                      className="block text-[13px]"
+                      mb="2"
+                    >
+                      Suggested reviewers
+                    </Text>
+                    <Flex direction="column" gap="1">
+                      {suggestedReviewers.map((reviewer) => (
+                        <Flex
+                          key={reviewer.github_login}
+                          align="center"
+                          gap="2"
+                        >
+                          <GithubLogoIcon
+                            size={14}
+                            className="shrink-0 text-gray-10"
+                          />
+                          <Text size="1" className="text-[12px]">
+                            {reviewer.user?.first_name ??
+                              reviewer.github_name ??
+                              reviewer.github_login}
+                          </Text>
+                          <a
+                            href={`https://github.com/${reviewer.github_login}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[11px] text-gray-9 hover:text-gray-11"
+                          >
+                            @{reviewer.github_login}
+                          </a>
+                        </Flex>
+                      ))}
+                    </Flex>
+                  </Box>
+                )}
 
                 {signals.length > 0 && (
                   <Box>
