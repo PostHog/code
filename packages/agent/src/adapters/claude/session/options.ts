@@ -93,7 +93,6 @@ function buildMcpServers(
 function buildEnvironment(): Record<string, string> {
   return {
     ...process.env,
-    ELECTRON_RUN_AS_NODE: "1",
     CLAUDE_CODE_ENABLE_ASK_USER_QUESTION_TOOL: "true",
     // Offload all MCP tools by default
     ENABLE_TOOL_SEARCH: "auto:0",

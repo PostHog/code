@@ -1,6 +1,6 @@
 import type { ChildProcess } from "node:child_process";
 import { execSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { MakerDMG } from "@electron-forge/maker-dmg";
 import { MakerSquirrel } from "@electron-forge/maker-squirrel";
@@ -139,11 +139,33 @@ function copySync(dependency: string, destinationRoot: string, source: string) {
   );
 }
 
+function copyBundledNodeRuntime(destinationRoot: string): void {
+  const source = process.execPath;
+  const extension = process.platform === "win32" ? ".exe" : "";
+  const binDir = path.join(destinationRoot, "bin");
+  const destination = path.join(binDir, `node${extension}`);
+
+  mkdirSync(binDir, { recursive: true });
+  rmSync(destination, { force: true });
+  cpSync(source, destination, { dereference: true });
+
+  if (process.platform !== "win32") {
+    chmodSync(destination, 0o755);
+  }
+
+  console.log(
+    `[forge] Copied bundled Node runtime into ${path.relative(
+      process.cwd(),
+      destination,
+    )}`,
+  );
+}
+
 const config: ForgeConfig = {
   packagerConfig: {
     asar: {
       unpack:
-        "{**/*.node,**/spawn-helper,**/.vite/build/claude-cli/**,**/.vite/build/plugins/posthog/**,**/.vite/build/codex-acp/**,**/node_modules/node-pty/**,**/node_modules/@parcel/**,**/node_modules/file-icon/**,**/node_modules/better-sqlite3/**,**/node_modules/bindings/**,**/node_modules/file-uri-to-path/**}",
+        "{**/*.node,**/spawn-helper,**/bin/node,**/bin/node.exe,**/.vite/build/claude-cli/**,**/.vite/build/plugins/posthog/**,**/.vite/build/codex-acp/**,**/node_modules/node-pty/**,**/node_modules/@parcel/**,**/node_modules/file-icon/**,**/node_modules/better-sqlite3/**,**/node_modules/bindings/**,**/node_modules/file-uri-to-path/**}",
     },
     prune: false,
     name: "PostHog Code",
@@ -226,6 +248,7 @@ const config: ForgeConfig = {
       electronChild = child;
     },
     packageAfterCopy: async (_forgeConfig, buildPath) => {
+      copyBundledNodeRuntime(buildPath);
       copyNativeDependency("node-pty", buildPath);
       copyNativeDependency("node-addon-api", buildPath);
       copyNativeDependency("@parcel/watcher", buildPath);

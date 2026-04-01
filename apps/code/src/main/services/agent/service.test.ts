@@ -48,6 +48,8 @@ const mockAgentConstructor = vi.hoisted(() =>
 );
 
 const mockFetch = vi.hoisted(() => vi.fn());
+const mockExecFileSync = vi.hoisted(() => vi.fn(() => "/usr/local/bin/node\n"));
+const mockExistsSync = vi.hoisted(() => vi.fn((..._args: unknown[]) => false));
 
 // --- Module mocks ---
 
@@ -111,16 +113,28 @@ vi.mock("@shared/errors.js", () => ({
   isAuthError: vi.fn(() => false),
 }));
 
+vi.mock("node:child_process", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:child_process")>();
+  return {
+    ...original,
+    default: {
+      ...original,
+      execFileSync: mockExecFileSync,
+    },
+    execFileSync: mockExecFileSync,
+  };
+});
+
 vi.mock("node:fs", async (importOriginal) => {
   const original = await importOriginal<typeof import("node:fs")>();
   return {
     ...original,
     default: {
       ...original,
-      existsSync: vi.fn(() => false),
+      existsSync: mockExistsSync,
       realpathSync: vi.fn((p: string) => p),
     },
-    existsSync: vi.fn(() => false),
+    existsSync: mockExistsSync,
     mkdirSync: vi.fn(),
     symlinkSync: vi.fn(),
     realpathSync: vi.fn((p: string) => p),
@@ -175,9 +189,19 @@ const baseSessionParams = {
 
 describe("AgentService", () => {
   let service: AgentService;
+  let originalPath: string | undefined;
+  let originalOverride: string | undefined;
+  let originalNodeBinary: string | undefined;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    originalPath = process.env.PATH;
+    originalOverride = process.env.POSTHOG_AGENT_NODE_PATH;
+    originalNodeBinary = process.env.NODE_BINARY;
+    delete process.env.POSTHOG_AGENT_NODE_PATH;
+    delete process.env.NODE_BINARY;
+    process.env.PATH = "/usr/bin:/bin";
+    mockApp.isPackaged = false;
 
     // MCP installations endpoint returns empty
     mockFetch.mockResolvedValue({
@@ -204,6 +228,17 @@ describe("AgentService", () => {
   });
 
   afterEach(() => {
+    process.env.PATH = originalPath;
+    if (originalOverride === undefined) {
+      delete process.env.POSTHOG_AGENT_NODE_PATH;
+    } else {
+      process.env.POSTHOG_AGENT_NODE_PATH = originalOverride;
+    }
+    if (originalNodeBinary === undefined) {
+      delete process.env.NODE_BINARY;
+    } else {
+      process.env.NODE_BINARY = originalNodeBinary;
+    }
     vi.restoreAllMocks();
   });
 
@@ -300,6 +335,37 @@ describe("AgentService", () => {
             url: "https://custom-mcp.example.com",
           }),
         ]),
+      );
+    });
+  });
+
+  describe("node runtime resolution", () => {
+    it("uses env override for node and prepends its bin dir to PATH", async () => {
+      process.env.POSTHOG_AGENT_NODE_PATH = "/custom/node/bin/node";
+
+      await service.startSession({
+        ...baseSessionParams,
+        adapter: "claude",
+      });
+
+      expect(mockExecFileSync).not.toHaveBeenCalled();
+      expect(process.env.PATH?.startsWith("/custom/node/bin:")).toBe(true);
+    });
+
+    it("prefers bundled node runtime when packaged", async () => {
+      mockApp.isPackaged = true;
+      mockExistsSync.mockImplementation(
+        (...args: unknown[]) => args[0] === "/mock/appPath.unpacked/bin/node",
+      );
+
+      await service.startSession({
+        ...baseSessionParams,
+        adapter: "claude",
+      });
+
+      expect(mockExecFileSync).not.toHaveBeenCalled();
+      expect(process.env.PATH?.startsWith("/mock/appPath.unpacked/bin:")).toBe(
+        true,
       );
     });
   });

@@ -1,6 +1,15 @@
-import fs, { chmodSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, isAbsolute, join, relative, resolve, sep } from "node:path";
+import {
+  delimiter,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+  sep,
+} from "node:path";
 import {
   type Client,
   ClientSideConnection,
@@ -52,13 +61,6 @@ import {
 export type { InterruptReason };
 
 const log = logger.scope("agent-service");
-
-const MOCK_NODE_DIR_PREFIX = "agent-node";
-
-function getMockNodeDir(): string {
-  const suffix = isDevBuild() ? "dev" : "prod";
-  return join(tmpdir(), `${MOCK_NODE_DIR_PREFIX}-${suffix}`);
-}
 
 /** Mark all content blocks as hidden so the renderer doesn't show a duplicate user message on retry */
 type MessageCallback = (message: unknown) => void;
@@ -239,6 +241,43 @@ function getCodexBinaryPath(): string {
     : join(appPath, ".vite/build/codex-acp/codex-acp");
 }
 
+function resolveNodeExecutablePath(): string {
+  const envOverride =
+    process.env.POSTHOG_AGENT_NODE_PATH || process.env.NODE_BINARY;
+  if (envOverride) {
+    return envOverride;
+  }
+
+  if (app.isPackaged) {
+    const extension = process.platform === "win32" ? ".exe" : "";
+    const bundledNodePath = join(
+      `${app.getAppPath()}.unpacked`,
+      "bin",
+      `node${extension}`,
+    );
+    if (fs.existsSync(bundledNodePath)) {
+      return bundledNodePath;
+    }
+
+    log.warn("Bundled node runtime not found in packaged app", {
+      bundledNodePath,
+    });
+  }
+
+  try {
+    const locator = process.platform === "win32" ? "where" : "which";
+    return execFileSync(locator, ["node"], {
+      encoding: "utf8",
+      env: process.env,
+    }).trim();
+  } catch (err) {
+    log.warn("Failed to resolve node executable from PATH", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return "node";
+  }
+}
+
 interface PendingPermission {
   resolve: (response: RequestPermissionResponse) => void;
   reject: (error: Error) => void;
@@ -253,7 +292,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private sessions = new Map<string, ManagedSession>();
   private currentToken: string | null = null;
   private pendingPermissions = new Map<string, PendingPermission>();
-  private mockNodeReady = false;
   private idleTimeouts = new Map<
     string,
     { handle: ReturnType<typeof setTimeout>; deadline: number }
@@ -647,9 +685,9 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     }
 
     const channel = `agent-event:${taskRunId}`;
-    const mockNodeDir = this.setupMockNodeEnvironment();
+    const nodeExecutablePath = resolveNodeExecutablePath();
     const proxyUrl = await this.ensureAuthProxy(credentials);
-    this.setupEnvironment(credentials, mockNodeDir, proxyUrl);
+    this.setupEnvironment(credentials, proxyUrl, nodeExecutablePath);
 
     const isPreview = taskId === "__preview__";
 
@@ -1170,13 +1208,14 @@ For git operations while detached:
 
   private setupEnvironment(
     credentials: Credentials,
-    mockNodeDir: string,
     proxyUrl: string,
+    nodeExecutablePath: string,
   ): void {
     const token = this.getToken(credentials.apiKey);
     const currentPath = process.env.PATH || "";
-    if (!currentPath.split(delimiter).includes(mockNodeDir)) {
-      process.env.PATH = `${mockNodeDir}${delimiter}${currentPath}`;
+    const nodeBinDir = dirname(nodeExecutablePath);
+    if (!currentPath.split(delimiter).includes(nodeBinDir)) {
+      process.env.PATH = `${nodeBinDir}${delimiter}${currentPath}`;
     }
     process.env.POSTHOG_AUTH_HEADER = `Bearer ${token}`;
     process.env.ANTHROPIC_API_KEY = token;
@@ -1196,38 +1235,6 @@ For git operations while detached:
     process.env.POSTHOG_API_KEY = token;
     process.env.POSTHOG_API_URL = credentials.apiHost;
     process.env.POSTHOG_PROJECT_ID = String(credentials.projectId);
-  }
-
-  private setupMockNodeEnvironment(): string {
-    const mockNodeDir = getMockNodeDir();
-    if (!this.mockNodeReady) {
-      try {
-        mkdirSync(mockNodeDir, { recursive: true });
-        const nodeSymlinkPath = join(mockNodeDir, "node");
-        const nodeWrapper = `#!/bin/sh
-export ELECTRON_RUN_AS_NODE=1
-exec "${process.execPath}" "$@"
-`;
-
-        try {
-          const existingNode = fs.existsSync(nodeSymlinkPath)
-            ? fs.lstatSync(nodeSymlinkPath)
-            : null;
-          if (existingNode?.isSymbolicLink()) {
-            rmSync(nodeSymlinkPath);
-          }
-        } catch (err) {
-          log.warn("Failed to inspect existing mock node entry", err);
-        }
-
-        writeFileSync(nodeSymlinkPath, nodeWrapper);
-        chmodSync(nodeSymlinkPath, 0o755);
-        this.mockNodeReady = true;
-      } catch (err) {
-        log.warn("Failed to setup mock node environment", err);
-      }
-    }
-    return mockNodeDir;
   }
 
   private cancelInFlightMcpToolCalls(session: ManagedSession): void {
