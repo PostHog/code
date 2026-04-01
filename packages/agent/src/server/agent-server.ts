@@ -508,6 +508,10 @@ export class AgentServer {
           }),
         });
 
+        this.logger.info("User message completed", {
+          stopReason: result.stopReason,
+        });
+
         this.broadcastTurnComplete(result.stopReason);
 
         if (result.stopReason === "end_turn") {
