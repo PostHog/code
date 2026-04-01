@@ -1,14 +1,22 @@
 import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsFilterStore";
 import {
+  inboxStatusAccentCss,
+  inboxStatusLabel,
+} from "@features/inbox/utils/inboxSort";
+import {
   CalendarPlus,
   Check,
   Clock,
   FunnelSimple as FunnelSimpleIcon,
+  ListNumbers,
   MagnifyingGlass,
   TrendUp,
 } from "@phosphor-icons/react";
-import { Box, Flex, Popover, Text, TextField } from "@radix-ui/themes";
-import type { SignalReportOrderingField } from "@shared/types";
+import { Box, Flex, Popover, Text, TextField, Tooltip } from "@radix-ui/themes";
+import type {
+  SignalReportOrderingField,
+  SignalReportStatus,
+} from "@shared/types";
 
 interface SignalsToolbarProps {
   totalCount: number;
@@ -17,16 +25,26 @@ interface SignalsToolbarProps {
   livePolling?: boolean;
   readyCount?: number;
   processingCount?: number;
+  searchDisabledReason?: string | null;
 }
 
 type SortOption = {
   label: string;
-  field: Extract<SignalReportOrderingField, "created_at" | "total_weight">;
+  field: Extract<
+    SignalReportOrderingField,
+    "priority" | "created_at" | "total_weight"
+  >;
   direction: "asc" | "desc";
   icon: React.ReactNode;
 };
 
 const sortOptions: SortOption[] = [
+  {
+    label: "Priority",
+    field: "priority",
+    direction: "asc",
+    icon: <ListNumbers size={14} />,
+  },
   {
     label: "Strongest signal",
     field: "total_weight",
@@ -47,6 +65,14 @@ const sortOptions: SortOption[] = [
   },
 ];
 
+const FILTERABLE_STATUSES: SignalReportStatus[] = [
+  "ready",
+  "pending_input",
+  "in_progress",
+  "candidate",
+  "potential",
+];
+
 export function SignalsToolbar({
   totalCount,
   filteredCount,
@@ -54,12 +80,15 @@ export function SignalsToolbar({
   livePolling = false,
   readyCount,
   processingCount = 0,
+  searchDisabledReason,
 }: SignalsToolbarProps) {
   const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
   const setSearchQuery = useInboxSignalsFilterStore((s) => s.setSearchQuery);
   const sortField = useInboxSignalsFilterStore((s) => s.sortField);
   const sortDirection = useInboxSignalsFilterStore((s) => s.sortDirection);
   const setSort = useInboxSignalsFilterStore((s) => s.setSort);
+  const statusFilter = useInboxSignalsFilterStore((s) => s.statusFilter);
+  const toggleStatus = useInboxSignalsFilterStore((s) => s.toggleStatus);
 
   const countLabel = isSearchActive
     ? `${filteredCount} of ${totalCount}`
@@ -103,31 +132,38 @@ export function SignalsToolbar({
             ) : null}
           </Flex>
         </Flex>
-        <SortMenu
+        <FilterSortMenu
           sortField={sortField}
           sortDirection={sortDirection}
           onSort={setSort}
+          statusFilter={statusFilter}
+          onToggleStatus={toggleStatus}
         />
       </Flex>
-      <TextField.Root
-        size="1"
-        placeholder="Search signals..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="text-[12px]"
-      >
-        <TextField.Slot>
-          <MagnifyingGlass size={12} />
-        </TextField.Slot>
-      </TextField.Root>
+      <Tooltip content={searchDisabledReason} hidden={!searchDisabledReason}>
+        <TextField.Root
+          size="1"
+          placeholder="Search reports..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="text-[12px]"
+          disabled={!!searchDisabledReason}
+        >
+          <TextField.Slot>
+            <MagnifyingGlass size={12} />
+          </TextField.Slot>
+        </TextField.Root>
+      </Tooltip>
     </Flex>
   );
 }
 
-function SortMenu({
+function FilterSortMenu({
   sortField,
   sortDirection,
   onSort,
+  statusFilter,
+  onToggleStatus,
 }: {
   sortField: string;
   sortDirection: string;
@@ -135,6 +171,8 @@ function SortMenu({
     field: SortOption["field"],
     direction: SortOption["direction"],
   ) => void;
+  statusFilter: SignalReportStatus[];
+  onToggleStatus: (status: SignalReportStatus) => void;
 }) {
   const itemClassName =
     "flex w-full items-center justify-between rounded-sm px-1 py-1 text-left text-[13px] text-gray-12 transition-colors hover:bg-gray-3";
@@ -144,7 +182,7 @@ function SortMenu({
       <Popover.Trigger>
         <button
           type="button"
-          aria-label="Sort signals"
+          aria-label="Filter and sort signals"
           className="flex h-6 w-6 items-center justify-center rounded-sm text-gray-10 transition-colors hover:bg-gray-3 hover:text-gray-12"
         >
           <FunnelSimpleIcon size={14} />
@@ -156,7 +194,7 @@ function SortMenu({
         sideOffset={6}
         style={{ padding: 8, minWidth: 220 }}
       >
-        <Flex direction="column" gap="1">
+        <Flex direction="column" gap="3">
           <Box>
             <Text
               size="1"
@@ -181,6 +219,42 @@ function SortMenu({
                     <span className="flex items-center gap-1 text-gray-12">
                       {option.icon}
                       <span>{option.label}</span>
+                    </span>
+                    {isActive && <Check size={12} className="text-gray-12" />}
+                  </button>
+                );
+              })}
+            </Box>
+          </Box>
+
+          <Box>
+            <Text
+              size="1"
+              className="text-gray-10"
+              weight="medium"
+              style={{ paddingLeft: "1px" }}
+            >
+              Status
+            </Text>
+            <Box mt="1">
+              {FILTERABLE_STATUSES.map((status) => {
+                const isActive = statusFilter.includes(status);
+                const accent = inboxStatusAccentCss(status);
+                return (
+                  <button
+                    key={status}
+                    type="button"
+                    className={itemClassName}
+                    onClick={() => onToggleStatus(status)}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span
+                        className="inline-block h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: accent }}
+                      />
+                      <span className="text-gray-12">
+                        {inboxStatusLabel(status)}
+                      </span>
                     </span>
                     {isActive && <Check size={12} className="text-gray-12" />}
                   </button>
