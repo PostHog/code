@@ -1,3 +1,4 @@
+import { SignalReportActionabilityBadge } from "@features/inbox/components/SignalReportActionabilityBadge";
 import { SignalReportPriorityBadge } from "@features/inbox/components/SignalReportPriorityBadge";
 import { SignalReportSummaryMarkdown } from "@features/inbox/components/SignalReportSummaryMarkdown";
 import {
@@ -118,6 +119,9 @@ export function ReportCard({
                 {statusLabel}
               </span>
               <SignalReportPriorityBadge priority={report.priority} />
+              <SignalReportActionabilityBadge
+                actionability={report.actionability}
+              />
             </Flex>
           </Flex>
           {/* Summary is outside the title row so wrapped lines align with title text (bullet + gap), not the card edge */}

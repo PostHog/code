@@ -164,6 +164,12 @@ export type SignalReportStatus =
 /** Actionability priority from the researched report (actionability judgment artefact). */
 export type SignalReportPriority = "P0" | "P1" | "P2" | "P3" | "P4";
 
+/** Actionability choice from the researched report. */
+export type SignalReportActionability =
+  | "immediately_actionable"
+  | "requires_human_input"
+  | "not_actionable";
+
 /**
  * One or more `SignalReportStatus` values joined by commas, e.g. `potential` or `potential,candidate,ready`.
  * This looks horrendous but it's superb, trust me bro.
@@ -187,8 +193,12 @@ export interface SignalReport {
   created_at: string;
   updated_at: string;
   artefact_count: number;
-  /** P0–P4 from actionability judgment when the report is researched */
+  /** P0–P4 from priority judgment when the report is researched */
   priority?: SignalReportPriority | null;
+  /** Actionability choice from the actionability judgment artefact. */
+  actionability?: SignalReportActionability | null;
+  /** Whether the issue appears already fixed, from the actionability judgment artefact. */
+  already_addressed?: boolean | null;
   /** Whether the current user is a suggested reviewer for this report (server-annotated). */
   is_suggested_reviewer?: boolean;
 }
@@ -207,6 +217,20 @@ export interface SignalReportArtefact {
   type: string;
   content: SignalReportArtefactContent;
   created_at: string;
+}
+
+/** Artefact with `type: "actionability_judgment"` — actionability assessment from the agentic report. */
+export interface ActionabilityJudgmentArtefact {
+  id: string;
+  type: "actionability_judgment";
+  content: ActionabilityJudgmentContent;
+  created_at: string;
+}
+
+export interface ActionabilityJudgmentContent {
+  explanation: string;
+  actionability: SignalReportActionability;
+  already_addressed: boolean;
 }
 
 /** Artefact with `type: "signal_finding"` — per-signal research finding from the agentic report. */
@@ -291,6 +315,7 @@ export interface SignalReportSignalsResponse {
 export interface SignalReportArtefactsResponse {
   results: (
     | SignalReportArtefact
+    | ActionabilityJudgmentArtefact
     | SignalFindingArtefact
     | SuggestedReviewersArtefact
   )[];

@@ -26,8 +26,11 @@ import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useRepositoryIntegration } from "@hooks/useIntegrations";
 import {
   ArrowSquareOutIcon,
+  CaretDownIcon,
+  CaretRightIcon,
   ClockIcon,
   Cloud as CloudIcon,
+  WarningIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import {
@@ -42,6 +45,8 @@ import {
 } from "@radix-ui/themes";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type {
+  ActionabilityJudgmentArtefact,
+  ActionabilityJudgmentContent,
   SignalFindingArtefact,
   SignalReportArtefact,
   SignalReportArtefactsResponse,
@@ -55,6 +60,7 @@ import { SignalsErrorState, SignalsLoadingState } from "./InboxEmptyStates";
 import { InboxWarmingUpState } from "./InboxWarmingUpState";
 import { ReportCard } from "./ReportCard";
 import { SignalCard } from "./SignalCard";
+import { SignalReportActionabilityBadge } from "./SignalReportActionabilityBadge";
 import { SignalReportPriorityBadge } from "./SignalReportPriorityBadge";
 import { SignalReportSummaryMarkdown } from "./SignalReportSummaryMarkdown";
 import { SignalsToolbar } from "./SignalsToolbar";
@@ -74,6 +80,33 @@ function getArtefactsUnavailableMessage(
     default:
       return "Evidence is currently unavailable for this signal.";
   }
+}
+
+function ActionabilityExplanation({ explanation }: { explanation: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <Box>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-1 rounded px-1 py-0.5 font-medium text-[12px] text-gray-11 hover:bg-gray-3 hover:text-gray-12"
+      >
+        {expanded ? <CaretDownIcon size={12} /> : <CaretRightIcon size={12} />}
+        Actionability reasoning
+      </button>
+      {expanded && (
+        <Text
+          size="1"
+          color="gray"
+          className="mt-1 block text-pretty text-[12px] leading-relaxed"
+          style={{ paddingLeft: "calc(12px + var(--space-1))" }}
+        >
+          {explanation}
+        </Text>
+      )}
+    </Box>
+  );
 }
 
 function LoadMoreTrigger({
@@ -217,6 +250,15 @@ export function InboxSignalsTab() {
     }
     return map;
   }, [allArtefacts]);
+  const actionabilityJudgment =
+    useMemo((): ActionabilityJudgmentContent | null => {
+      for (const a of allArtefacts) {
+        if (a.type === "actionability_judgment") {
+          return (a as ActionabilityJudgmentArtefact).content;
+        }
+      }
+      return null;
+    }, [allArtefacts]);
   const artefactsUnavailableReason = artefactsQuery.data?.unavailableReason;
   const showArtefactsUnavailable =
     !artefactsQuery.isLoading &&
@@ -504,6 +546,9 @@ export function InboxSignalsTab() {
                   <SignalReportPriorityBadge
                     priority={selectedReport.priority}
                   />
+                  <SignalReportActionabilityBadge
+                    actionability={selectedReport.actionability}
+                  />
                   <Badge variant="soft" color="gray" size="1">
                     {selectedReport.signal_count} occurrences
                   </Badge>
@@ -511,6 +556,38 @@ export function InboxSignalsTab() {
                     {selectedReport.relevant_user_count ?? 0} affected users
                   </Badge>
                 </Flex>
+
+                {(selectedReport.already_addressed ??
+                  actionabilityJudgment?.already_addressed) && (
+                  <Flex
+                    align="center"
+                    gap="2"
+                    px="2"
+                    py="1"
+                    className="rounded border border-amber-6 bg-amber-2"
+                  >
+                    <WarningIcon
+                      size={14}
+                      weight="fill"
+                      style={{ color: "var(--amber-9)" }}
+                      className="shrink-0"
+                    />
+                    <Text
+                      size="1"
+                      className="text-[12px]"
+                      style={{ color: "var(--amber-11)" }}
+                    >
+                      This issue may already be addressed in recent code
+                      changes.
+                    </Text>
+                  </Flex>
+                )}
+
+                {actionabilityJudgment?.explanation && (
+                  <ActionabilityExplanation
+                    explanation={actionabilityJudgment.explanation}
+                  />
+                )}
 
                 {signals.length > 0 && (
                   <Box>

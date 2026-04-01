@@ -1,4 +1,5 @@
 import type {
+  ActionabilityJudgmentArtefact,
   SandboxEnvironment,
   SandboxEnvironmentInput,
   SignalFindingArtefact,
@@ -71,6 +72,43 @@ function optionalString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
+const ACTIONABILITY_VALUES = new Set([
+  "immediately_actionable",
+  "requires_human_input",
+  "not_actionable",
+]);
+
+function normalizeActionabilityJudgmentArtefact(
+  value: Record<string, unknown>,
+): ActionabilityJudgmentArtefact | null {
+  const id = optionalString(value.id);
+  if (!id) return null;
+
+  const contentValue = isObjectRecord(value.content) ? value.content : null;
+  if (!contentValue) return null;
+
+  // Support both agentic ("actionability") and legacy ("choice") field names
+  const actionability =
+    optionalString(contentValue.actionability) ??
+    optionalString(contentValue.choice);
+  if (!actionability || !ACTIONABILITY_VALUES.has(actionability)) return null;
+
+  return {
+    id,
+    type: "actionability_judgment",
+    created_at: optionalString(value.created_at) ?? new Date(0).toISOString(),
+    content: {
+      explanation: optionalString(contentValue.explanation) ?? "",
+      actionability:
+        actionability as ActionabilityJudgmentArtefact["content"]["actionability"],
+      already_addressed:
+        typeof contentValue.already_addressed === "boolean"
+          ? contentValue.already_addressed
+          : false,
+    },
+  };
+}
+
 function normalizeSignalFindingArtefact(
   value: Record<string, unknown>,
 ): SignalFindingArtefact | null {
@@ -114,13 +152,21 @@ function normalizeSignalFindingArtefact(
 
 function normalizeSignalReportArtefact(
   value: unknown,
-): SignalReportArtefact | SignalFindingArtefact | null {
+):
+  | SignalReportArtefact
+  | ActionabilityJudgmentArtefact
+  | SignalFindingArtefact
+  | null {
   if (!isObjectRecord(value)) {
     return null;
   }
 
-  if (optionalString(value.type) === "signal_finding") {
+  const type = optionalString(value.type);
+  if (type === "signal_finding") {
     return normalizeSignalFindingArtefact(value);
+  }
+  if (type === "actionability_judgment") {
+    return normalizeActionabilityJudgmentArtefact(value);
   }
 
   const id = optionalString(value.id);
@@ -172,8 +218,12 @@ function parseSignalReportArtefactsPayload(
   const results = rawResults
     .map(normalizeSignalReportArtefact)
     .filter(
-      (artefact): artefact is SignalReportArtefact | SignalFindingArtefact =>
-        artefact !== null,
+      (
+        artefact,
+      ): artefact is
+        | SignalReportArtefact
+        | ActionabilityJudgmentArtefact
+        | SignalFindingArtefact => artefact !== null,
     );
   const count =
     typeof payload?.count === "number" ? payload.count : results.length;
