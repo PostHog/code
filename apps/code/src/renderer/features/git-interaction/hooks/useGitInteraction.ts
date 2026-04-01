@@ -13,6 +13,7 @@ import {
   createBranch,
   getBranchNameInputState,
 } from "@features/git-interaction/utils/branchCreation";
+import type { DiffStats } from "@features/git-interaction/utils/diffStats";
 import { invalidateGitBranchQueries } from "@features/git-interaction/utils/gitCacheKeys";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
 import { trpc, trpcClient } from "@renderer/trpc";
@@ -38,7 +39,7 @@ interface GitInteractionState {
   defaultBranch: string | null;
   prBaseBranch: string | null;
   prHeadBranch: string | null;
-  diffStats: { filesChanged: number; linesAdded: number; linesRemoved: number };
+  diffStats: DiffStats;
   prUrl: string | null;
   pushDisabledReason: string | null;
   isLoading: boolean;

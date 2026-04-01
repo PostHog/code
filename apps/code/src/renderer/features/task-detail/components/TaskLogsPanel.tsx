@@ -5,6 +5,7 @@ import {
   useCloudBranchChangedFiles,
   useCloudPrChangedFiles,
 } from "@features/git-interaction/hooks/useGitQueries";
+import { computeDiffStats } from "@features/git-interaction/utils/diffStats";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { ProvisioningView } from "@features/provisioning/components/ProvisioningView";
 import { useProvisioningStore } from "@features/provisioning/stores/provisioningStore";
@@ -100,11 +101,7 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
     if (!isCloud) return null;
     const files = prUrl ? prFiles : branchFiles;
     if (!files || files.length === 0) return null;
-    return {
-      filesChanged: files.length,
-      linesAdded: files.reduce((sum, f) => sum + (f.linesAdded ?? 0), 0),
-      linesRemoved: files.reduce((sum, f) => sum + (f.linesRemoved ?? 0), 0),
-    };
+    return computeDiffStats(files);
   }, [isCloud, prUrl, prFiles, branchFiles]);
 
   useEffect(() => {

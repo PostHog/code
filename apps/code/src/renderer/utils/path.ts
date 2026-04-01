@@ -35,3 +35,8 @@ export function compactHomePath(text: string): string {
     .replace(/\/Users\/[^/\s]+/g, "~")
     .replace(/\/home\/[^/\s]+/g, "~");
 }
+
+export function getFileExtension(filePath: string): string {
+  const parts = filePath.split(".");
+  return parts.length > 1 ? parts[parts.length - 1] : "";
+}

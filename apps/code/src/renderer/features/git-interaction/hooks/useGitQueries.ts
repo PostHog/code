@@ -2,6 +2,7 @@ import { useTRPC } from "@renderer/trpc";
 import { useQuery } from "@tanstack/react-query";
 
 const EMPTY_DIFF_STATS = { filesChanged: 0, linesAdded: 0, linesRemoved: 0 };
+const EMPTY_CHANGED_FILES: never[] = [];
 
 const GIT_QUERY_DEFAULTS = {
   staleTime: 30_000,
@@ -20,7 +21,10 @@ export function useGitQueries(repoPath?: string) {
 
   const repoEnabled = enabled && isRepo;
 
-  const { data: changedFiles = [], isLoading: changesLoading } = useQuery(
+  const {
+    data: changedFiles = EMPTY_CHANGED_FILES,
+    isLoading: changesLoading,
+  } = useQuery(
     trpc.git.getChangedFilesHead.queryOptions(
       { directoryPath: repoPath as string },
       {

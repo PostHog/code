@@ -4,6 +4,7 @@ import {
 } from "@features/git-interaction/components/GitInteractionDialogs";
 import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
 import type { CreatePrStep } from "@features/git-interaction/types";
+import type { DiffStats } from "@features/git-interaction/utils/diffStats";
 import {
   CheckCircle,
   Circle,
@@ -113,7 +114,7 @@ export interface CreatePrDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentBranch: string | null;
-  diffStats: { filesChanged: number; linesAdded: number; linesRemoved: number };
+  diffStats: DiffStats;
   isSubmitting: boolean;
   onSubmit: () => void;
   onGenerateCommitMessage: () => void;

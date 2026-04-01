@@ -1,14 +1,11 @@
+import type { DiffStats } from "@features/git-interaction/utils/diffStats";
 import { Flex, Text } from "@radix-ui/themes";
 import { useTRPC } from "@renderer/trpc";
 import { useQuery } from "@tanstack/react-query";
 
 interface DiffStatsIndicatorProps {
   repoPath: string | null | undefined;
-  overrideStats?: {
-    filesChanged: number;
-    linesAdded: number;
-    linesRemoved: number;
-  } | null;
+  overrideStats?: DiffStats | null;
 }
 
 export function DiffStatsIndicator({

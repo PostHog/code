@@ -1,4 +1,5 @@
 import { Tooltip } from "@components/ui/Tooltip";
+import type { DiffStats } from "@features/git-interaction/utils/diffStats";
 import {
   CheckCircle,
   CloudArrowUp,
@@ -243,7 +244,7 @@ interface GitCommitDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   branchName: string | null;
-  diffStats: { filesChanged: number; linesAdded: number; linesRemoved: number };
+  diffStats: DiffStats;
   commitMessage: string;
   onCommitMessageChange: (value: string) => void;
   nextStep: "commit" | "commit-push";
