@@ -139,7 +139,9 @@ export const TaskInputEditor = forwardRef<
     };
 
     const handleModelChange = (value: string) => {
-      onConfigOptionChange?.(modelOption?.id ?? "model", value);
+      if (modelOption) {
+        onConfigOptionChange?.(modelOption.id, value);
+      }
     };
 
     const handleThoughtChange = (value: string) => {
