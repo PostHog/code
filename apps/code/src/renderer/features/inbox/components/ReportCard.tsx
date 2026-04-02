@@ -59,6 +59,7 @@ export function ReportCard({
     <motion.div
       role="button"
       tabIndex={0}
+      data-report-id={report.id}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{

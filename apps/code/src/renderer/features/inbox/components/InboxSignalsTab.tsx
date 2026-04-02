@@ -28,7 +28,12 @@ import {
   CircleNotchIcon,
   ClockIcon,
   Cloud as CloudIcon,
+  CommandIcon,
   GithubLogoIcon,
+  KanbanIcon,
+  KeyReturnIcon,
+  TicketIcon,
+  VideoIcon,
   WarningIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -377,6 +382,58 @@ export function InboxSignalsTab() {
     [reports, selectedReportId],
   );
 
+  // ── Arrow-key navigation between reports ──────────────────────────────
+  const reportsRef = useRef(reports);
+  reportsRef.current = reports;
+  const selectedReportIdRef = useRef(selectedReportId);
+  selectedReportIdRef.current = selectedReportId;
+
+  const leftPaneRef = useRef<HTMLDivElement>(null);
+
+  // Auto-focus the list pane when the inbox mounts so arrow keys work immediately
+  useEffect(() => {
+    leftPaneRef.current?.focus();
+  }, []);
+
+  const navigateReport = useCallback((direction: 1 | -1) => {
+    const list = reportsRef.current;
+    if (list.length === 0) return;
+    const currentId = selectedReportIdRef.current;
+    const currentIndex = currentId
+      ? list.findIndex((r) => r.id === currentId)
+      : -1;
+    const nextIndex =
+      currentIndex === -1
+        ? 0
+        : Math.max(0, Math.min(list.length - 1, currentIndex + direction));
+    const nextId = list[nextIndex].id;
+    setSelectedReportId(nextId);
+    // Move focus back to the list container so the previously clicked card
+    // loses its focus outline
+    leftPaneRef.current?.focus();
+    leftPaneRef.current
+      ?.querySelector(`[data-report-id="${nextId}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, []);
+
+  const handleCreateTaskRef = useRef<() => void>(() => {});
+
+  const handleListKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        navigateReport(1);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        navigateReport(-1);
+      } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        handleCreateTaskRef.current();
+      }
+    },
+    [navigateReport],
+  );
+
   const artefactsQuery = useInboxReportArtefacts(selectedReport?.id ?? "", {
     enabled: !!selectedReport,
   });
@@ -448,6 +505,7 @@ export function InboxSignalsTab() {
     });
     navigateToTaskInput();
   };
+  handleCreateTaskRef.current = handleCreateTask;
 
   const handleOpenCloudConfirm = useCallback(() => {
     openCloudConfirm(repositories[0] ?? null);
@@ -582,8 +640,11 @@ export function InboxSignalsTab() {
                 }
                 className="text-[12px]"
               >
-                <CloudIcon size={12} />
-                {isRunningCloudTask ? "Running..." : "Run cloud"}
+                Pick up task
+                <span className="ml-1 inline-flex items-center gap-px text-gray-9">
+                  <CommandIcon size={11} />
+                  <KeyReturnIcon size={11} />
+                </span>
               </Button>
             )}
           </Flex>
@@ -882,7 +943,13 @@ export function InboxSignalsTab() {
               className="scroll-area-constrain-width"
               style={{ height: "100%" }}
             >
-              <Flex direction="column">
+              <Flex
+                ref={leftPaneRef}
+                direction="column"
+                tabIndex={-1}
+                onKeyDown={handleListKeyDown}
+                className="outline-none"
+              >
                 <InboxLiveRail active={inboxPollingActive} />
                 <SignalsToolbar
                   totalCount={totalCount}
