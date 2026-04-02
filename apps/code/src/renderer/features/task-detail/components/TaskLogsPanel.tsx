@@ -147,8 +147,8 @@ export function TaskLogsPanel({ taskId, task }: TaskLogsPanelProps) {
                 isSuspended ? handleRestoreWorktree : undefined
               }
               isRestoring={isRestoring}
-              isPromptPending={isCloud ? null : isPromptPending}
-              promptStartedAt={isCloud ? undefined : promptStartedAt}
+              isPromptPending={isPromptPending}
+              promptStartedAt={promptStartedAt}
               onSendPrompt={handleSendPrompt}
               onBashCommand={isCloud ? undefined : handleBashCommand}
               onCancelPrompt={handleCancelPrompt}
