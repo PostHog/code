@@ -51,7 +51,7 @@ export function useToolCallStatus(
   const isIncomplete = status === "pending" || status === "in_progress";
   const isLoading = isIncomplete && !turnCancelled && !turnComplete;
   const isFailed = status === "failed";
-  const wasCancelled = isIncomplete && (turnCancelled || turnComplete);
+  const wasCancelled = isIncomplete && turnCancelled;
   const isComplete = status === "completed";
 
   return { isIncomplete, isLoading, isFailed, wasCancelled, isComplete };
