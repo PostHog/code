@@ -97,6 +97,7 @@ function buildEnvironment(): Record<string, string> {
     CLAUDE_CODE_ENABLE_ASK_USER_QUESTION_TOOL: "true",
     // Offload all MCP tools by default
     ENABLE_TOOL_SEARCH: "auto:0",
+    CLAUDE_CODE_SUBAGENT_MODEL: "sonnet",
   };
 }
 
