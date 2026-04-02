@@ -179,7 +179,7 @@ export function ClaudeCodeSettings() {
 
       <SettingRow
         label="Auto-accept permissions"
-        description="Auto-accept all permission requests. PostHog Code will run every tool without asking for approval"
+        description="Skip all permission prompts. Claude will run bash commands, edit files, browse the web and use any tool without asking first"
         noBorder
       >
         <Switch
@@ -195,8 +195,9 @@ export function ClaudeCodeSettings() {
             <Warning weight="fill" />
           </Callout.Icon>
           <Callout.Text>
-            Auto-accept is enabled. Use shift+tab to cycle to this mode in each
-            session.
+            Auto-accept is enabled. All actions (shell commands, file edits, web
+            requests) run without approval. Use shift+tab to cycle to this mode
+            per session.
           </Callout.Text>
         </Callout.Root>
       )}
@@ -217,13 +218,13 @@ export function ClaudeCodeSettings() {
           <AlertDialog.Description size="2">
             <Flex direction="column" gap="3">
               <Text color="red" weight="medium">
-                With auto-accept enabled, PostHog Code will not ask for your
-                approval before running potentially dangerous commands.
+                With auto-accept enabled, Claude will execute every action
+                without asking — including shell commands, file edits, web
+                requests and any installed MCP tools.
               </Text>
               <Text>
-                This mode should only be used in a sandboxed container/VM that
-                has restricted internet access and can easily be restored if
-                damaged.
+                This mode is intended for sandboxed environments (containers or
+                VMs) with restricted network access that can be easily restored.
               </Text>
               <Text weight="medium">
                 By proceeding, you accept all responsibility for actions taken
