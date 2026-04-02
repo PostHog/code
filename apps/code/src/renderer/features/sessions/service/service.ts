@@ -26,6 +26,7 @@ import {
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { taskViewedApi } from "@features/sidebar/hooks/useTaskViewed";
+import { getEffortOptions } from "@posthog/agent/adapters/claude/session/models";
 import { DEFAULT_GATEWAY_MODEL } from "@posthog/agent/gateway-models";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpcClient } from "@renderer/trpc/client";
@@ -628,10 +629,10 @@ export class SessionService {
     const abort = new AbortController();
     this.previewAbort = abort;
 
-    await this.cleanupPreviewSession();
-    if (abort.signal.aborted) return;
+    this.cleanupPreviewSession();
 
     const auth = await this.getAuthCredentials();
+    if (abort.signal.aborted) return;
     if (!auth) {
       log.info("Skipping preview session - not authenticated");
       return;
@@ -647,55 +648,39 @@ export class SessionService {
     sessionStoreSetters.setSession(session);
 
     try {
-      const {
-        customInstructions: previewCustomInstructions,
-        defaultInitialTaskMode,
-        lastUsedInitialTaskMode,
-      } = useSettingsStore.getState();
+      const { defaultInitialTaskMode, lastUsedInitialTaskMode } =
+        useSettingsStore.getState();
       const initialMode =
         defaultInitialTaskMode === "last_used"
           ? lastUsedInitialTaskMode
           : "plan";
-      const result = await trpcClient.agent.start.mutate({
-        taskId: PREVIEW_TASK_ID,
-        taskRunId,
-        repoPath: "__preview__",
-        apiHost: auth.apiHost,
-        projectId: auth.projectId,
-        adapter: params.adapter,
-        permissionMode: initialMode,
-        customInstructions: previewCustomInstructions || undefined,
-      });
+
+      const configOptions =
+        await trpcClient.agent.getPreviewConfigOptions.query({
+          apiHost: auth.apiHost,
+        });
 
       if (abort.signal.aborted) {
-        trpcClient.agent.cancel
-          .mutate({ sessionId: taskRunId })
-          .catch((err) => {
-            log.warn("Failed to cancel stale preview session", {
-              taskRunId,
-              error: err,
-            });
-          });
         sessionStoreSetters.removeSession(taskRunId);
         return;
       }
 
-      const configOptions = result.configOptions as
-        | SessionConfigOption[]
-        | undefined;
+      // Apply the user's preferred initial mode
+      const updatedOptions = configOptions.map((opt) =>
+        opt.id === "mode"
+          ? ({ ...opt, currentValue: initialMode } as SessionConfigOption)
+          : opt,
+      );
 
       sessionStoreSetters.updateSession(taskRunId, {
         status: "connected",
-        channel: result.channel,
-        configOptions,
+        configOptions: updatedOptions,
       });
 
-      this.subscribeToChannel(taskRunId);
-
-      log.info("Preview session started", {
+      log.info("Preview session started (fast path)", {
         taskRunId,
         adapter: params.adapter,
-        configOptionsCount: configOptions?.length ?? 0,
+        configOptionsCount: updatedOptions.length,
       });
     } catch (error) {
       if (abort.signal.aborted) return;
@@ -707,23 +692,13 @@ export class SessionService {
   async cancelPreviewSession(): Promise<void> {
     this.previewAbort?.abort();
     this.previewAbort = null;
-    await this.cleanupPreviewSession();
+    this.cleanupPreviewSession();
   }
 
-  private async cleanupPreviewSession(): Promise<void> {
+  private cleanupPreviewSession(): void {
     const session = sessionStoreSetters.getSessionByTaskId(PREVIEW_TASK_ID);
     if (!session) return;
-
-    const { taskRunId } = session;
-
-    this.unsubscribeFromChannel(taskRunId);
-    sessionStoreSetters.removeSession(taskRunId);
-
-    try {
-      await trpcClient.agent.cancel.mutate({ sessionId: taskRunId });
-    } catch (error) {
-      log.warn("Failed to cancel preview session", { taskRunId, error });
-    }
+    sessionStoreSetters.removeSession(session.taskRunId);
   }
 
   // --- Subscription Management ---
@@ -1617,6 +1592,54 @@ export class SessionService {
 
     // Skip if value is already set — avoids expensive IPC round-trip (e.g. setModel ~2s)
     if (previousValue === value) {
+      return;
+    }
+
+    // Preview sessions have no backing agent process — update store directly
+    if (taskId === PREVIEW_TASK_ID) {
+      let updatedOptions = configOptions.map((opt) =>
+        opt.id === configId
+          ? ({ ...opt, currentValue: value } as SessionConfigOption)
+          : opt,
+      );
+
+      // Recompute effort options when model changes
+      if (configId === "model") {
+        const effortOpts = getEffortOptions(value);
+        const existingIdx = updatedOptions.findIndex((o) => o.id === "effort");
+
+        if (effortOpts && existingIdx >= 0) {
+          const currentEffort = updatedOptions[existingIdx].currentValue;
+          const validEffort = effortOpts.some((e) => e.value === currentEffort)
+            ? currentEffort
+            : "high";
+          updatedOptions[existingIdx] = {
+            ...updatedOptions[existingIdx],
+            currentValue: validEffort,
+            options: effortOpts,
+          } as SessionConfigOption;
+        } else if (effortOpts && existingIdx === -1) {
+          updatedOptions = [
+            ...updatedOptions,
+            {
+              id: "effort",
+              name: "Effort",
+              type: "select" as const,
+              currentValue: "high",
+              options: effortOpts,
+              category: "thought_level",
+              description:
+                "Controls how much effort Claude puts into its response",
+            } as SessionConfigOption,
+          ];
+        } else if (!effortOpts && existingIdx >= 0) {
+          updatedOptions = updatedOptions.filter((o) => o.id !== "effort");
+        }
+      }
+
+      sessionStoreSetters.updateSession(session.taskRunId, {
+        configOptions: updatedOptions,
+      });
       return;
     }
 

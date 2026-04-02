@@ -14,11 +14,15 @@ import {
 } from "@agentclientprotocol/sdk";
 import { isMcpToolReadOnly } from "@posthog/agent";
 import { hydrateSessionJsonl } from "@posthog/agent/adapters/claude/session/jsonl-hydration";
+import { getEffortOptions } from "@posthog/agent/adapters/claude/session/models";
 import { Agent } from "@posthog/agent/agent";
+import { getAvailableModes } from "@posthog/agent/execution-mode";
 import {
+  DEFAULT_GATEWAY_MODEL,
   fetchGatewayModels,
   formatGatewayModelName,
   getProviderName,
+  isAnthropicModel,
 } from "@posthog/agent/gateway-models";
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import type { OnLogCallback } from "@posthog/agent/types";
@@ -1518,5 +1522,77 @@ For git operations while detached:
       }
       return getModelTier(a.modelId) - getModelTier(b.modelId);
     });
+  }
+
+  async getPreviewConfigOptions(
+    apiHost: string,
+  ): Promise<SessionConfigOption[]> {
+    const gatewayUrl = getLlmGatewayUrl(apiHost);
+    const gatewayModels = await fetchGatewayModels({ gatewayUrl });
+
+    const modelOptions = gatewayModels
+      .filter((model) => isAnthropicModel(model))
+      .map((model) => ({
+        value: model.id,
+        name: formatGatewayModelName(model),
+        description: `Context: ${model.context_window.toLocaleString()} tokens`,
+      }));
+
+    const resolvedModelId = modelOptions.some(
+      (o) => o.value === DEFAULT_GATEWAY_MODEL,
+    )
+      ? DEFAULT_GATEWAY_MODEL
+      : (modelOptions[0]?.value ?? DEFAULT_GATEWAY_MODEL);
+
+    if (!modelOptions.some((o) => o.value === resolvedModelId)) {
+      modelOptions.unshift({
+        value: resolvedModelId,
+        name: resolvedModelId,
+        description: "Custom model",
+      });
+    }
+
+    const modeOptions = getAvailableModes().map((mode) => ({
+      value: mode.id,
+      name: mode.name,
+      description: mode.description ?? undefined,
+    }));
+
+    const configOptions: SessionConfigOption[] = [
+      {
+        id: "mode",
+        name: "Approval Preset",
+        type: "select" as const,
+        currentValue: "plan",
+        options: modeOptions,
+        category: "mode",
+        description:
+          "Choose an approval and sandboxing preset for your session",
+      },
+      {
+        id: "model",
+        name: "Model",
+        type: "select" as const,
+        currentValue: resolvedModelId,
+        options: modelOptions,
+        category: "model",
+        description: "Choose which model Claude should use",
+      },
+    ];
+
+    const effortOpts = getEffortOptions(resolvedModelId);
+    if (effortOpts) {
+      configOptions.push({
+        id: "effort",
+        name: "Effort",
+        type: "select" as const,
+        currentValue: "high",
+        options: effortOpts,
+        category: "thought_level",
+        description: "Controls how much effort Claude puts into its response",
+      });
+    }
+
+    return configOptions;
   }
 }

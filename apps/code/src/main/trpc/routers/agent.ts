@@ -8,6 +8,8 @@ import {
   cancelSessionInput,
   getGatewayModelsInput,
   getGatewayModelsOutput,
+  getPreviewConfigOptionsInput,
+  getPreviewConfigOptionsOutput,
   listSessionsInput,
   listSessionsOutput,
   notifySessionContextInput,
@@ -193,4 +195,9 @@ export const agentRouter = router({
     .input(getGatewayModelsInput)
     .output(getGatewayModelsOutput)
     .query(({ input }) => getService().getGatewayModels(input.apiHost)),
+
+  getPreviewConfigOptions: publicProcedure
+    .input(getPreviewConfigOptionsInput)
+    .output(getPreviewConfigOptionsOutput)
+    .query(({ input }) => getService().getPreviewConfigOptions(input.apiHost)),
 });
