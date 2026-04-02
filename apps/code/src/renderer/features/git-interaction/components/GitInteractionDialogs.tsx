@@ -26,7 +26,13 @@ import { useState } from "react";
 
 const ICON_SIZE = 14;
 
-export function ErrorContainer({ error }: { error: string }) {
+export function ErrorContainer({
+  error,
+  onFixWithAgent,
+}: {
+  error: string;
+  onFixWithAgent?: () => void;
+}) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -59,16 +65,30 @@ export function ErrorContainer({ error }: { error: string }) {
           >
             {error}
           </Text>
-          <Tooltip content={copied ? "Copied!" : "Copy error"}>
-            <IconButton
-              size="1"
-              variant="ghost"
-              color="gray"
-              onClick={handleCopy}
-            >
-              <Copy size={12} weight={copied ? "fill" : "regular"} />
-            </IconButton>
-          </Tooltip>
+          <Flex gap="1" style={{ flexShrink: 0 }}>
+            {onFixWithAgent && (
+              <Tooltip content="Fix with Agent">
+                <IconButton
+                  size="1"
+                  variant="ghost"
+                  color="gray"
+                  onClick={onFixWithAgent}
+                >
+                  <Sparkle size={12} />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Tooltip content={copied ? "Copied!" : "Copy error"}>
+              <IconButton
+                size="1"
+                variant="ghost"
+                color="gray"
+                onClick={handleCopy}
+              >
+                <Copy size={12} weight={copied ? "fill" : "regular"} />
+              </IconButton>
+            </Tooltip>
+          </Flex>
         </Flex>
       </Flex>
     </Box>

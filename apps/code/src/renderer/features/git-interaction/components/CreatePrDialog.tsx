@@ -2,9 +2,11 @@ import {
   ErrorContainer,
   GenerateButton,
 } from "@features/git-interaction/components/GitInteractionDialogs";
+import { useFixWithAgent } from "@features/git-interaction/hooks/useFixWithAgent";
 import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
 import type { CreatePrStep } from "@features/git-interaction/types";
 import type { DiffStats } from "@features/git-interaction/utils/diffStats";
+import { buildCreatePrFlowErrorPrompt } from "@features/git-interaction/utils/errorPrompts";
 import {
   CheckCircle,
   Circle,
@@ -133,6 +135,9 @@ export function CreatePrDialog({
 }: CreatePrDialogProps) {
   const store = useGitInteractionStore();
   const { actions } = store;
+  const { canFixWithAgent, fixWithAgent } = useFixWithAgent(() =>
+    buildCreatePrFlowErrorPrompt(store.createPrFailedStep),
+  );
 
   const { createPrStep: step } = store;
   const isExecuting = step !== "idle" && step !== "complete";
@@ -299,7 +304,17 @@ export function CreatePrDialog({
               />
 
               {step === "error" && store.createPrError && (
-                <ErrorContainer error={store.createPrError} />
+                <ErrorContainer
+                  error={store.createPrError}
+                  onFixWithAgent={
+                    canFixWithAgent
+                      ? () => {
+                          fixWithAgent(store.createPrError ?? "");
+                          actions.closeCreatePr();
+                        }
+                      : undefined
+                  }
+                />
               )}
 
               <Flex gap="2" justify="end">
