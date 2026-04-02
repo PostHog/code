@@ -196,6 +196,8 @@ interface SessionConfig {
   effort?: EffortLevel;
   /** Model to use for the session (e.g. "claude-sonnet-4-6") */
   model?: string;
+  /** JSON Schema for structured task output — when set, the agent gets a create_output tool */
+  jsonSchema?: Record<string, unknown> | null;
 }
 
 interface ManagedSession {
@@ -473,6 +475,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       customInstructions,
       effort,
       model,
+      jsonSchema,
     } = config;
 
     // Preview config doesn't need a real repo — use a temp directory
@@ -524,6 +527,14 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
         adapter,
         gatewayUrl: proxyUrl,
         codexBinaryPath: adapter === "codex" ? getCodexBinaryPath() : undefined,
+        onStructuredOutput: jsonSchema
+          ? async (output) => {
+              const posthogAPI = agent.getPosthogAPI();
+              if (posthogAPI) {
+                await posthogAPI.updateTaskRun(taskId, taskRunId, { output });
+              }
+            }
+          : undefined,
         processCallbacks: {
           onProcessSpawned: (info) => {
             this.processTracking.register(
@@ -647,6 +658,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
             systemPrompt,
             ...(permissionMode && { permissionMode }),
             ...(model != null && { model }),
+            ...(jsonSchema && { jsonSchema }),
             claudeCode: {
               options: {
                 ...(additionalDirectories?.length && {
@@ -679,6 +691,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
             systemPrompt,
             ...(permissionMode && { permissionMode }),
             ...(model != null && { model }),
+            ...(jsonSchema && { jsonSchema }),
             claudeCode: {
               options: {
                 ...(additionalDirectories?.length && { additionalDirectories }),
@@ -1373,6 +1386,7 @@ For git operations while detached:
         "customInstructions" in params ? params.customInstructions : undefined,
       effort: "effort" in params ? params.effort : undefined,
       model: "model" in params ? params.model : undefined,
+      jsonSchema: "jsonSchema" in params ? params.jsonSchema : undefined,
     };
   }
 

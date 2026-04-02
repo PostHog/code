@@ -107,6 +107,7 @@ export interface ClaudeAcpAgentOptions {
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
   onProcessExited?: (pid: number) => void;
   onMcpServersReady?: (serverNames: string[]) => void;
+  onStructuredOutput?: (output: Record<string, unknown>) => Promise<void>;
 }
 
 export class ClaudeAcpAgent extends BaseAcpAgent {
@@ -798,7 +799,44 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     await settingsManager.initialize();
 
     const mcpServers = parseMcpServers(params);
-    const systemPrompt = buildSystemPrompt(meta?.systemPrompt);
+    let systemPrompt = buildSystemPrompt(meta?.systemPrompt);
+
+    // Inject structured output tool if the task defines a JSON schema
+    if (meta?.jsonSchema && this.options?.onStructuredOutput) {
+      const { createOutputMcpServer, OUTPUT_SERVER_NAME } = await import(
+        "./structured-output/create-output-server"
+      );
+      mcpServers[OUTPUT_SERVER_NAME] = createOutputMcpServer({
+        jsonSchema: meta.jsonSchema,
+        onOutput: this.options.onStructuredOutput,
+        logger: this.logger,
+      });
+
+      const schemaStr = JSON.stringify(meta.jsonSchema, null, 2);
+      const outputInstruction =
+        "\n\n# Structured Output\n\n" +
+        "This task requires structured output. You MUST use the `create_output` tool " +
+        "(available as `mcp__posthog_output__create_output`) to deliver your final result " +
+        "before ending the task. The output must conform to the following JSON Schema:\n\n" +
+        `\`\`\`json\n${schemaStr}\n\`\`\`\n\n` +
+        "Call the create_output tool with the required fields as arguments once you have " +
+        "gathered all necessary information. Do not end the task without calling create_output.";
+
+      if (typeof systemPrompt === "string") {
+        systemPrompt = systemPrompt + outputInstruction;
+      } else if (
+        systemPrompt &&
+        typeof systemPrompt === "object" &&
+        "append" in systemPrompt
+      ) {
+        systemPrompt = {
+          ...systemPrompt,
+          append:
+            ((systemPrompt as { append?: string }).append ?? "") +
+            outputInstruction,
+        };
+      }
+    }
 
     this.logger.info(isResume ? "Resuming session" : "Creating new session", {
       sessionId,

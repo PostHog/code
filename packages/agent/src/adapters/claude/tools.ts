@@ -7,6 +7,7 @@ export {
 
 import type { CodeExecutionMode } from "../../execution-mode";
 import { isMcpToolReadOnly } from "./mcp/tool-metadata";
+import { OUTPUT_TOOL_FULL_NAME } from "./structured-output/constants";
 
 export const READ_TOOLS: Set<string> = new Set(["Read", "NotebookRead"]);
 
@@ -38,6 +39,7 @@ const BASE_ALLOWED_TOOLS = [
   ...SEARCH_TOOLS,
   ...WEB_TOOLS,
   ...AGENT_TOOLS,
+  OUTPUT_TOOL_FULL_NAME,
 ];
 
 const AUTO_ALLOWED_TOOLS: Record<string, Set<string>> = {
