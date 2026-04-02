@@ -641,7 +641,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
             sessionId: existingSessionId,
             systemPrompt,
             ...(permissionMode && { permissionMode }),
-            ...(model && { model }),
+            ...(model != null && { model }),
             claudeCode: {
               options: {
                 ...(additionalDirectories?.length && {
@@ -673,7 +673,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
             taskRunId,
             systemPrompt,
             ...(permissionMode && { permissionMode }),
-            ...(model && { model }),
+            ...(model != null && { model }),
             claudeCode: {
               options: {
                 ...(additionalDirectories?.length && { additionalDirectories }),

@@ -910,38 +910,16 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       }
     }
 
-    // Fetch model config in parallel with SDK initialization for new sessions.
-    // The gateway REST call doesn't depend on the SDK being ready.
+    // Kick off SDK initialization for new sessions so it runs concurrently
+    // with the model config fetch below (the gateway REST call is independent).
+    const initPromise = !isResume
+      ? withTimeout(q.initializationResult(), SESSION_VALIDATION_TIMEOUT_MS)
+      : undefined;
+
     const [modelOptions] = await Promise.all([
       this.getModelConfigOptions(
         settingsManager.getSettings().model || meta?.model || undefined,
       ),
-      // For new sessions, await initialization concurrently with model fetch.
-      // SDK starts in the background via query() — we just need it ready
-      // before the first prompt, not before returning configOptions.
-      ...(!isResume
-        ? [
-            withTimeout(q.initializationResult(), SESSION_VALIDATION_TIMEOUT_MS)
-              .then((result) => {
-                if (result.result === "timeout") {
-                  this.logger.error("Session initialization timed out", {
-                    sessionId,
-                    taskId,
-                    taskRunId: meta?.taskRunId,
-                  });
-                }
-              })
-              .catch((err) => {
-                this.logger.error("Session initialization failed", {
-                  sessionId,
-                  taskId,
-                  taskRunId: meta?.taskRunId,
-                  error: err instanceof Error ? err.message : String(err),
-                });
-              }),
-          ]
-        : []),
-      // Fire notification in parallel too
       ...(meta?.taskRunId
         ? [
             this.client.extNotification("_posthog/sdk_session", {
@@ -952,6 +930,27 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
           ]
         : []),
     ]);
+
+    if (initPromise) {
+      try {
+        const initResult = await initPromise;
+        if (initResult.result === "timeout") {
+          settingsManager.dispose();
+          throw new Error(
+            `Session initialization timed out for sessionId=${sessionId}`,
+          );
+        }
+      } catch (err) {
+        settingsManager.dispose();
+        this.logger.error("Session initialization failed", {
+          sessionId,
+          taskId,
+          taskRunId: meta?.taskRunId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        throw err;
+      }
+    }
 
     const settingsModel = settingsManager.getSettings().model;
     const metaModel = meta?.model;
