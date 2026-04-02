@@ -45,10 +45,16 @@ function searchCommands(
   return results.map((result) => result.item);
 }
 
+function parentDirLabel(dir: string, name: string): string {
+  const parent = dir.split("/").filter(Boolean).pop();
+  return parent ? `${parent}/${name}` : name;
+}
+
 async function getAbsolutePathSuggestion(
   query: string,
 ): Promise<FileSuggestionItem | null> {
   if (!isAbsolutePath(query)) return null;
+  if (!/\.\w+$/.test(query)) return null;
 
   try {
     const exists = await trpcClient.fs.fileExists.query({ filePath: query });
@@ -60,7 +66,7 @@ async function getAbsolutePathSuggestion(
   const fileItem = pathToFileItem(query);
   return {
     id: query,
-    label: fileItem.name,
+    label: parentDirLabel(fileItem.dir, fileItem.name),
     description: fileItem.dir || undefined,
     filename: fileItem.name,
     path: query,
@@ -82,21 +88,16 @@ export async function getFileSuggestions(
   const { files, fzf } = await fetchRepoFiles(repoPath);
   const matched = searchFiles(fzf, files, query);
 
-  const results: FileSuggestionItem[] = matched.map((file) => {
-    const parentDir = file.dir ? file.dir.split("/").pop() : undefined;
-    const label = parentDir ? `${parentDir}/${file.name}` : file.name;
-
-    return {
-      id: file.path,
-      label,
-      description: file.dir || undefined,
-      filename: file.name,
-      path: file.path,
-    };
-  });
+  const results: FileSuggestionItem[] = matched.map((file) => ({
+    id: file.path,
+    label: parentDirLabel(file.dir, file.name),
+    description: file.dir || undefined,
+    filename: file.name,
+    path: file.path,
+  }));
 
   const resolved = await absolutePathSuggestion;
-  if (resolved && !results.some((r) => r.id === resolved.id)) {
+  if (resolved && !results.some((r) => `${repoPath}/${r.id}` === resolved.id)) {
     results.unshift(resolved);
   }
 
