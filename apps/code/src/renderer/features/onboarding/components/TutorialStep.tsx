@@ -6,7 +6,6 @@ import type { MessageEditorHandle } from "@features/message-editor/components/Me
 import { ModeIndicatorInput } from "@features/message-editor/components/ModeIndicatorInput";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
-import { getSessionService } from "@features/sessions/service/service";
 import {
   cycleModeOption,
   getCurrentModeFromConfigOptions,
@@ -14,7 +13,7 @@ import {
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { TaskInputEditor } from "@features/task-detail/components/TaskInputEditor";
 import { WorkspaceModeSelect } from "@features/task-detail/components/WorkspaceModeSelect";
-import { usePreviewSession } from "@features/task-detail/hooks/usePreviewSession";
+import { usePreviewConfig } from "@features/task-detail/hooks/usePreviewConfig";
 import { useTaskCreation } from "@features/task-detail/hooks/useTaskCreation";
 import {
   useGithubBranches,
@@ -104,9 +103,14 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
   const cloudBranches = cloudBranchData?.branches;
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
-  // Preview session for config options — always claude
-  const { modeOption, thoughtOption, previewTaskId, isConnecting } =
-    usePreviewSession("claude");
+  // Preview config options — always claude
+  const {
+    modeOption,
+    modelOption,
+    thoughtOption,
+    isLoading: isPreviewLoading,
+    setConfigOption,
+  } = usePreviewConfig("claude");
 
   const currentExecutionMode =
     getCurrentModeFromConfigOptions(modeOption ? [modeOption] : undefined) ??
@@ -193,13 +197,9 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
   const handleCycleMode = useCallback(() => {
     const nextValue = cycleModeOption(modeOption, allowBypassPermissions);
     if (nextValue && modeOption) {
-      getSessionService().setSessionConfigOption(
-        previewTaskId,
-        modeOption.id,
-        nextValue,
-      );
+      setConfigOption(modeOption.id, nextValue);
     }
-  }, [modeOption, allowBypassPermissions, previewTaskId]);
+  }, [modeOption, allowBypassPermissions, setConfigOption]);
 
   useHotkeys(
     "shift+tab",
@@ -388,9 +388,16 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
                   directoryTooltip="Select a repository first"
                   onEmptyChange={setEditorIsEmpty}
                   adapter="claude"
-                  previewTaskId={previewTaskId}
+                  modelOption={modelOption}
+                  thoughtOption={thoughtOption}
+                  onConfigOptionChange={(configId, value) => {
+                    setConfigOption(configId, value);
+                    if (configId === modelOption?.id) {
+                      handleModelChange(value);
+                    }
+                  }}
                   onAdapterChange={() => {}}
-                  isPreviewConnecting={isConnecting}
+                  isLoading={isPreviewLoading}
                   autoFocus={false}
                   tourHighlight={
                     isHighlighted("model-selector")
@@ -399,7 +406,6 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
                         ? "submit-button"
                         : null
                   }
-                  onModelChange={handleModelChange}
                 />
               </div>
             </TourHighlight>

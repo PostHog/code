@@ -499,8 +499,9 @@ export async function getChangedFilesDetailed(
               continue;
             }
             try {
-              const unstaged = await git.diff([file]);
-              const lines = unstaged.split("\n");
+              const headDiff = await git.diff(["HEAD", "--", file]);
+              if (!headDiff.trim()) continue;
+              const lines = headDiff.split("\n");
               const linesAdded = lines.filter(
                 (l) => l.startsWith("+") && !l.startsWith("+++"),
               ).length;
@@ -525,6 +526,10 @@ export async function getChangedFilesDetailed(
             ) {
               continue;
             }
+            try {
+              const headDiff = await git.diff(["HEAD", "--", file]);
+              if (!headDiff.trim()) continue;
+            } catch {}
             files.push({
               path: file,
               status: "deleted",

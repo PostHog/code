@@ -1,33 +1,32 @@
 import { useSignalSourceConfigs } from "@features/inbox/hooks/useSignalSourceConfigs";
-import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import {
-  BrainIcon,
+  BugIcon,
   GithubLogoIcon,
   KanbanIcon,
   SparkleIcon,
   TicketIcon,
   VideoIcon,
 } from "@phosphor-icons/react";
-import { Flex, Text, Tooltip } from "@radix-ui/themes";
+import { Button, Flex, Text, Tooltip } from "@radix-ui/themes";
 import type { SignalSourceConfig } from "@renderer/api/posthogClient";
-import { motion } from "framer-motion";
+import explorerHog from "@renderer/assets/images/explorer-hog.png";
 import { type ReactNode, useMemo } from "react";
 
 const SOURCE_DISPLAY_ORDER: SignalSourceConfig["source_product"][] = [
   "session_replay",
-  "llm_analytics",
+  "error_tracking",
   "github",
   "linear",
   "zendesk",
 ];
 
 function sourceIcon(product: SignalSourceConfig["source_product"]): ReactNode {
-  const common = { size: 22 as const };
+  const common = { size: 20 as const };
   switch (product) {
     case "session_replay":
       return <VideoIcon {...common} />;
-    case "llm_analytics":
-      return <BrainIcon {...common} />;
+    case "error_tracking":
+      return <BugIcon {...common} />;
     case "github":
       return <GithubLogoIcon {...common} />;
     case "linear":
@@ -36,6 +35,25 @@ function sourceIcon(product: SignalSourceConfig["source_product"]): ReactNode {
       return <TicketIcon {...common} />;
     default:
       return <SparkleIcon {...common} />;
+  }
+}
+
+function sourceProductTooltipLabel(
+  product: SignalSourceConfig["source_product"],
+): string {
+  switch (product) {
+    case "session_replay":
+      return "PostHog Session Replay";
+    case "error_tracking":
+      return "PostHog Error Tracking";
+    case "github":
+      return "GitHub Issues";
+    case "linear":
+      return "Linear";
+    case "zendesk":
+      return "Zendesk";
+    default:
+      return "Signal source";
   }
 }
 
@@ -51,17 +69,29 @@ function AnimatedEllipsis({ className }: { className?: string }) {
   );
 }
 
-export function InboxWarmingUpState() {
-  const { data: configs } = useSignalSourceConfigs();
-  const openSignalSettings = useSettingsDialogStore((s) => s.open);
+interface InboxWarmingUpStateProps {
+  onConfigureSources: () => void;
+}
 
-  const enabledSources = useMemo(() => {
-    const enabled = (configs ?? []).filter((c) => c.enabled);
-    return [...enabled].sort(
-      (a, b) =>
-        SOURCE_DISPLAY_ORDER.indexOf(a.source_product) -
-        SOURCE_DISPLAY_ORDER.indexOf(b.source_product),
-    );
+export function InboxWarmingUpState({
+  onConfigureSources,
+}: InboxWarmingUpStateProps) {
+  const { data: configs } = useSignalSourceConfigs();
+
+  const enabledProducts = useMemo(() => {
+    const seen = new Set<string>();
+    return (configs ?? [])
+      .filter((c) => c.enabled)
+      .sort(
+        (a, b) =>
+          SOURCE_DISPLAY_ORDER.indexOf(a.source_product) -
+          SOURCE_DISPLAY_ORDER.indexOf(b.source_product),
+      )
+      .filter((c) => {
+        if (seen.has(c.source_product)) return false;
+        seen.add(c.source_product);
+        return true;
+      });
   }, [configs]);
 
   return (
@@ -69,88 +99,59 @@ export function InboxWarmingUpState() {
       direction="column"
       align="center"
       justify="center"
-      gap="4"
       height="100%"
-      px="4"
-      className="text-center"
+      px="5"
+      style={{ margin: "0 auto" }}
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.92 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      >
-        <SparkleIcon size={28} className="text-amber-9" />
-      </motion.div>
+      <Flex direction="column" align="center" style={{ maxWidth: 420 }}>
+        <img
+          src={explorerHog}
+          alt=""
+          style={{ width: 128, marginBottom: 20 }}
+        />
 
-      <Flex direction="column" gap="2" style={{ maxWidth: 520 }}>
-        <Text size="4" weight="medium">
-          Inbox is warming up
-        </Text>
-        <Text size="1" color="gray" className="text-[12px] leading-relaxed">
-          Reports appear here as soon as signals are grouped. Research usually
-          finishes within a minute while we watch your connected sources.
-        </Text>
-        <Text size="1" color="gray" className="text-[12px]" as="div">
-          <span className="text-gray-10">Processing signals</span>
-          <AnimatedEllipsis className="text-gray-10" />
-        </Text>
-      </Flex>
-
-      {enabledSources.length > 0 ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.15, duration: 0.4 }}
-          className="w-full"
-          style={{ maxWidth: 420 }}
+        <Text
+          size="4"
+          weight="bold"
+          align="center"
+          as="div"
+          style={{ color: "var(--gray-12)" }}
         >
-          <Text
-            size="1"
-            color="gray"
-            className="mb-2 block text-[11px] uppercase tracking-wider"
-          >
-            Data connected
-          </Text>
-          <Tooltip content="Go to signal source settings">
-            <button
-              type="button"
-              onClick={() => openSignalSettings("signals")}
-              aria-label="Go to signal source settings"
-              className="group inline-flex max-w-full cursor-pointer flex-col items-center border-0 bg-transparent p-0 text-inherit focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-8 focus-visible:outline-offset-2"
+          Inbox is warming up
+          <AnimatedEllipsis />
+        </Text>
+
+        <Text
+          size="1"
+          align="center"
+          mt="3"
+          style={{ color: "var(--gray-11)", lineHeight: 1.35 }}
+        >
+          Reports will appear here as soon as signals come in.
+        </Text>
+
+        <Flex align="center" gap="3" mt="4">
+          {enabledProducts.map((cfg) => (
+            <Tooltip
+              key={cfg.id}
+              content={sourceProductTooltipLabel(cfg.source_product)}
+              delayDuration={300}
             >
-              <Flex
-                align="center"
-                justify="center"
-                gap="3"
-                wrap="wrap"
-                className="justify-center"
-              >
-                {enabledSources.map((cfg, i) => (
-                  <motion.div
-                    key={cfg.id}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      delay: 0.08 + i * 0.06,
-                      duration: 0.35,
-                      ease: [0.22, 1, 0.36, 1],
-                    }}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors group-hover:bg-gray-3"
-                    style={{
-                      borderColor: "var(--gray-6)",
-                      backgroundColor: "var(--gray-2)",
-                      color: "var(--gray-11)",
-                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
-                    }}
-                  >
-                    {sourceIcon(cfg.source_product)}
-                  </motion.div>
-                ))}
-              </Flex>
-            </button>
-          </Tooltip>
-        </motion.div>
-      ) : null}
+              <span style={{ color: "var(--gray-9)", display: "inline-flex" }}>
+                {sourceIcon(cfg.source_product)}
+              </span>
+            </Tooltip>
+          ))}
+          <Button
+            size="2"
+            variant="soft"
+            color="gray"
+            onClick={onConfigureSources}
+          >
+            Configure sources
+          </Button>
+        </Flex>
+      </Flex>
     </Flex>
   );
 }

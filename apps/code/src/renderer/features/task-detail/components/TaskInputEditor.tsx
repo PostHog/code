@@ -1,4 +1,5 @@
 import "@features/message-editor/components/message-editor.css";
+import type { SessionConfigOption } from "@agentclientprotocol/sdk";
 import { TourHighlight } from "@components/TourHighlight";
 import { AttachmentsBar } from "@features/message-editor/components/AttachmentsBar";
 import { EditorToolbar } from "@features/message-editor/components/EditorToolbar";
@@ -25,12 +26,13 @@ interface TaskInputEditorProps {
   directoryTooltip?: string;
   onEmptyChange?: (isEmpty: boolean) => void;
   adapter?: "claude" | "codex";
-  previewTaskId?: string;
+  modelOption?: SessionConfigOption;
+  thoughtOption?: SessionConfigOption;
+  onConfigOptionChange?: (configId: string, value: string) => void;
   onAdapterChange?: (adapter: AgentAdapter) => void;
-  isPreviewConnecting?: boolean;
+  isLoading?: boolean;
   autoFocus?: boolean;
   tourHighlight?: "model-selector" | "submit-button" | null;
-  onModelChange?: (model: string) => void;
 }
 
 export const TaskInputEditor = forwardRef<
@@ -48,12 +50,13 @@ export const TaskInputEditor = forwardRef<
       directoryTooltip = "Select a folder first",
       onEmptyChange,
       adapter,
-      previewTaskId,
+      modelOption,
+      thoughtOption,
+      onConfigOptionChange,
       onAdapterChange,
-      isPreviewConnecting,
+      isLoading,
       autoFocus = true,
       tourHighlight,
-      onModelChange,
     },
     ref,
   ) => {
@@ -86,7 +89,7 @@ export const TaskInputEditor = forwardRef<
       submitDisabled: !isOnline,
       isLoading: isCreatingTask,
       autoFocus,
-      context: { repoPath, taskId: previewTaskId },
+      context: { repoPath },
       capabilities: { commands: true, bashMode: false },
       clearOnSubmit: false,
       getPromptHistory,
@@ -133,6 +136,18 @@ export const TaskInputEditor = forwardRef<
       if (!hasDirectory) return directoryTooltip;
       if (!canSubmit) return "Missing required fields";
       return "Create task";
+    };
+
+    const handleModelChange = (value: string) => {
+      if (modelOption) {
+        onConfigOptionChange?.(modelOption.id, value);
+      }
+    };
+
+    const handleThoughtChange = (value: string) => {
+      if (thoughtOption) {
+        onConfigOptionChange?.(thoughtOption.id, value);
+      }
     };
 
     return (
@@ -218,17 +233,19 @@ export const TaskInputEditor = forwardRef<
             />
             <TourHighlight active={tourHighlight === "model-selector"}>
               <UnifiedModelSelector
-                taskId={previewTaskId}
+                modelOption={modelOption}
                 adapter={adapter ?? "claude"}
                 onAdapterChange={onAdapterChange ?? (() => {})}
                 disabled={isCreatingTask}
-                isConnecting={isPreviewConnecting}
-                onModelChange={onModelChange}
+                isConnecting={isLoading}
+                onModelChange={handleModelChange}
               />
             </TourHighlight>
-            {!isPreviewConnecting && (
+            {!isLoading && (
               <ReasoningLevelSelector
-                taskId={previewTaskId}
+                thoughtOption={thoughtOption}
+                adapter={adapter}
+                onChange={handleThoughtChange}
                 disabled={isCreatingTask}
               />
             )}

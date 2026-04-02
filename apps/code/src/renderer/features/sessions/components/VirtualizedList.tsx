@@ -111,7 +111,7 @@ function VirtualizedListInner<T>(
       <VList
         ref={listRef}
         shift={false}
-        style={{ flex: 1 }}
+        style={{ flex: 1, scrollbarGutter: "stable" }}
         onScroll={handleScroll}
         keepMounted={keepMounted}
       >

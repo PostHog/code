@@ -14,11 +14,16 @@ import {
 } from "@agentclientprotocol/sdk";
 import { isMcpToolReadOnly } from "@posthog/agent";
 import { hydrateSessionJsonl } from "@posthog/agent/adapters/claude/session/jsonl-hydration";
+import { getEffortOptions } from "@posthog/agent/adapters/claude/session/models";
 import { Agent } from "@posthog/agent/agent";
+import { getAvailableModes } from "@posthog/agent/execution-mode";
 import {
+  DEFAULT_GATEWAY_MODEL,
   fetchGatewayModels,
   formatGatewayModelName,
   getProviderName,
+  isAnthropicModel,
+  isOpenAIModel,
 } from "@posthog/agent/gateway-models";
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import type { OnLogCallback } from "@posthog/agent/types";
@@ -189,6 +194,8 @@ interface SessionConfig {
   customInstructions?: string;
   /** Effort level for Claude sessions */
   effort?: EffortLevel;
+  /** Model to use for the session (e.g. "claude-sonnet-4-6") */
+  model?: string;
 }
 
 interface ManagedSession {
@@ -465,9 +472,10 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       permissionMode,
       customInstructions,
       effort,
+      model,
     } = config;
 
-    // Preview sessions don't need a real repo — use a temp directory
+    // Preview config doesn't need a real repo — use a temp directory
     const repoPath = taskId === "__preview__" ? tmpdir() : rawRepoPath;
 
     if (!isRetry) {
@@ -638,6 +646,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
             sessionId: existingSessionId,
             systemPrompt,
             ...(permissionMode && { permissionMode }),
+            ...(model != null && { model }),
             claudeCode: {
               options: {
                 ...(additionalDirectories?.length && {
@@ -669,6 +678,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
             taskRunId,
             systemPrompt,
             ...(permissionMode && { permissionMode }),
+            ...(model != null && { model }),
             claudeCode: {
               options: {
                 ...(additionalDirectories?.length && { additionalDirectories }),
@@ -1362,6 +1372,7 @@ For git operations while detached:
       customInstructions:
         "customInstructions" in params ? params.customInstructions : undefined,
       effort: "effort" in params ? params.effort : undefined,
+      model: "model" in params ? params.model : undefined,
     };
   }
 
@@ -1512,5 +1523,99 @@ For git operations while detached:
       }
       return getModelTier(a.modelId) - getModelTier(b.modelId);
     });
+  }
+
+  async getPreviewConfigOptions(
+    apiHost: string,
+    adapter: "claude" | "codex" = "claude",
+  ): Promise<SessionConfigOption[]> {
+    const gatewayUrl = getLlmGatewayUrl(apiHost);
+    const gatewayModels = await fetchGatewayModels({ gatewayUrl });
+
+    const modelFilter = adapter === "codex" ? isOpenAIModel : isAnthropicModel;
+
+    const modelOptions = gatewayModels
+      .filter((model) => modelFilter(model))
+      .map((model) => ({
+        value: model.id,
+        name: formatGatewayModelName(model),
+        description: `Context: ${model.context_window.toLocaleString()} tokens`,
+      }));
+
+    const defaultModel =
+      adapter === "codex"
+        ? (modelOptions[0]?.value ?? "")
+        : DEFAULT_GATEWAY_MODEL;
+
+    const resolvedModelId = modelOptions.some((o) => o.value === defaultModel)
+      ? defaultModel
+      : (modelOptions[0]?.value ?? defaultModel);
+
+    if (!modelOptions.some((o) => o.value === resolvedModelId)) {
+      modelOptions.unshift({
+        value: resolvedModelId,
+        name: resolvedModelId,
+        description: "Custom model",
+      });
+    }
+
+    const modeOptions = getAvailableModes().map((mode) => ({
+      value: mode.id,
+      name: mode.name,
+      description: mode.description ?? undefined,
+    }));
+
+    const configOptions: SessionConfigOption[] = [
+      {
+        id: "mode",
+        name: "Approval Preset",
+        type: "select",
+        currentValue: "plan",
+        options: modeOptions,
+        category: "mode",
+        description:
+          "Choose an approval and sandboxing preset for your session",
+      },
+      {
+        id: "model",
+        name: "Model",
+        type: "select",
+        currentValue: resolvedModelId,
+        options: modelOptions,
+        category: "model",
+        description: "Choose which model Claude should use",
+      },
+    ];
+
+    if (adapter === "codex") {
+      configOptions.push({
+        id: "reasoning_effort",
+        name: "Reasoning Level",
+        type: "select",
+        currentValue: "high",
+        options: [
+          { value: "low", name: "Low" },
+          { value: "medium", name: "Medium" },
+          { value: "high", name: "High" },
+        ],
+        category: "thought_level",
+        description: "Controls how much reasoning effort the model uses",
+      });
+    } else {
+      const effortOpts = getEffortOptions(resolvedModelId);
+      if (effortOpts) {
+        configOptions.push({
+          id: "effort",
+          name: "Effort",
+          type: "select",
+          currentValue: "high",
+          options: effortOpts,
+          category: "thought_level",
+          description: "Controls how much effort Claude puts into its response",
+        });
+      }
+    }
+
+    return configOptions;
   }
 }
