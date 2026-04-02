@@ -53,6 +53,7 @@ function createSuggestion(
         },
 
         onUpdate: (props) => {
+          if (props.items.length > 0) dismissed = false;
           component?.updateProps({
             items: props.items,
             command: props.command,

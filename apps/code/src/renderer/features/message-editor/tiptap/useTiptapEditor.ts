@@ -187,6 +187,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
 
             if (isSubmitKey) {
               if (!view.editable || submitDisabledRef.current) return false;
+              // tippy.js sets data-state="hidden" when hiding via .hide()
               const visibleSuggestion = document.querySelector(
                 "[data-tippy-root] .tippy-box:not([data-state='hidden'])",
               );

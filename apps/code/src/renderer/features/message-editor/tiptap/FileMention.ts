@@ -58,6 +58,7 @@ function createSuggestion(
         },
 
         onUpdate: (props) => {
+          if (props.items.length > 0) dismissed = false;
           const items = props.items.length > 0 ? props.items : lastItems;
           component?.updateProps({
             items,
