@@ -120,6 +120,11 @@ export interface ReviewPanelViewedProperties {
   task_id: string;
 }
 
+export interface DiffViewModeChangedProperties {
+  from_mode: "split" | "unified";
+  to_mode: "split" | "unified";
+}
+
 // Workspace events
 export interface WorkspaceCreatedProperties {
   task_id: string;
@@ -221,6 +226,7 @@ export const ANALYTICS_EVENTS = {
   FILE_OPENED: "File opened",
   FILE_DIFF_VIEWED: "File diff viewed",
   REVIEW_PANEL_VIEWED: "Review panel viewed",
+  DIFF_VIEW_MODE_CHANGED: "Diff view mode changed",
 
   // Workspace events
   WORKSPACE_CREATED: "Workspace created",
@@ -275,6 +281,7 @@ export type EventPropertyMap = {
   [ANALYTICS_EVENTS.FILE_OPENED]: FileOpenedProperties;
   [ANALYTICS_EVENTS.FILE_DIFF_VIEWED]: FileDiffViewedProperties;
   [ANALYTICS_EVENTS.REVIEW_PANEL_VIEWED]: ReviewPanelViewedProperties;
+  [ANALYTICS_EVENTS.DIFF_VIEW_MODE_CHANGED]: DiffViewModeChangedProperties;
 
   // Workspace events
   [ANALYTICS_EVENTS.WORKSPACE_CREATED]: WorkspaceCreatedProperties;
