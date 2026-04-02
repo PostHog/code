@@ -4,7 +4,10 @@ import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { getEffortOptions } from "@posthog/agent/adapters/claude/session/models";
 import { trpcClient } from "@renderer/trpc/client";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import { logger } from "@utils/logger";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+const log = logger.scope("preview-config");
 
 interface PreviewConfigResult {
   configOptions: SessionConfigOption[];
@@ -74,8 +77,8 @@ export function usePreviewConfig(
       })
       .catch((error) => {
         if (abort.signal.aborted) return;
+        log.error("Failed to fetch preview config options", { error });
         setIsLoading(false);
-        throw error;
       });
 
     return () => {
@@ -111,7 +114,7 @@ export function usePreviewConfig(
             {
               id: "effort",
               name: "Effort",
-              type: "select" as const,
+              type: "select",
               currentValue: "high",
               options: effortOpts,
               category: "thought_level",

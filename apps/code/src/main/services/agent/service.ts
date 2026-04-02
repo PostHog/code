@@ -1569,7 +1569,7 @@ For git operations while detached:
       {
         id: "mode",
         name: "Approval Preset",
-        type: "select" as const,
+        type: "select",
         currentValue: "plan",
         options: modeOptions,
         category: "mode",
@@ -1579,7 +1579,7 @@ For git operations while detached:
       {
         id: "model",
         name: "Model",
-        type: "select" as const,
+        type: "select",
         currentValue: resolvedModelId,
         options: modelOptions,
         category: "model",
@@ -1591,7 +1591,7 @@ For git operations while detached:
       configOptions.push({
         id: "reasoning_effort",
         name: "Reasoning Level",
-        type: "select" as const,
+        type: "select",
         currentValue: "high",
         options: [
           { value: "low", name: "Low" },
@@ -1607,7 +1607,7 @@ For git operations while detached:
         configOptions.push({
           id: "effort",
           name: "Effort",
-          type: "select" as const,
+          type: "select",
           currentValue: "high",
           options: effortOpts,
           category: "thought_level",

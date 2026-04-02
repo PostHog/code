@@ -143,7 +143,9 @@ export const TaskInputEditor = forwardRef<
     };
 
     const handleThoughtChange = (value: string) => {
-      onConfigOptionChange?.(thoughtOption?.id ?? "effort", value);
+      if (thoughtOption) {
+        onConfigOptionChange?.(thoughtOption.id, value);
+      }
     };
 
     return (
