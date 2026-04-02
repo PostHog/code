@@ -86,28 +86,24 @@ export function useSessionConnection({
       return;
     }
 
+    // New sessions (no latest_run) are handled by the task creation saga,
+    // which passes model/adapter/executionMode. Only reconnect existing ones here.
+    if (!task.latest_run?.id) return;
+
     connectingTasks.add(taskId);
 
-    const isNewSession = !task.latest_run?.id;
-    const hasInitialPrompt = isNewSession && task.description;
-
-    if (hasInitialPrompt) {
-      markActivity(task.id);
-    }
-
-    log.info("Connecting to task session", {
+    log.info("Reconnecting to existing task session", {
       taskId: task.id,
       hasLatestRun: !!task.latest_run,
       sessionStatus: session?.status ?? "none",
     });
 
+    markActivity(task.id);
+
     getSessionService()
       .connectToTask({
         task,
         repoPath,
-        initialPrompt: hasInitialPrompt
-          ? [{ type: "text", text: task.description }]
-          : undefined,
       })
       .finally(() => {
         connectingTasks.delete(taskId);

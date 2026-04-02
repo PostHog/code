@@ -49,6 +49,7 @@ export const startSessionInput = z.object({
   additionalDirectories: z.array(z.string()).optional(),
   customInstructions: z.string().max(2000).optional(),
   effort: effortLevelSchema.optional(),
+  model: z.string().optional(),
 });
 
 export type StartSessionInput = z.infer<typeof startSessionInput>;

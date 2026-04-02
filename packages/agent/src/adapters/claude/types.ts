@@ -108,6 +108,8 @@ export type NewSessionMeta = {
   persistence?: { taskId?: string; runId?: string; logUrl?: string };
   additionalRoots?: string[];
   allowedDomains?: string[];
+  /** Model ID to use for this session (e.g. "claude-sonnet-4-6") */
+  model?: string;
   claudeCode?: {
     options?: Options;
   };

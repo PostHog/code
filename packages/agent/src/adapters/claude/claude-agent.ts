@@ -919,15 +919,20 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       });
     }
 
-    // Resolve model: settings model takes priority, then gateway
+    // Resolve model: settings model takes priority, then meta model, then gateway default
     const settingsModel = settingsManager.getSettings().model;
-    const modelOptions = await this.getModelConfigOptions();
-    const resolvedModelId = settingsModel || modelOptions.currentModelId;
+    const metaModel = meta?.model;
+    const modelOptions = await this.getModelConfigOptions(
+      settingsModel || metaModel || undefined,
+    );
+    const resolvedModelId =
+      settingsModel || metaModel || modelOptions.currentModelId;
     session.modelId = resolvedModelId;
     session.lastContextWindowSize =
       this.getContextWindowForModel(resolvedModelId);
 
     const resolvedSdkModel = toSdkModelId(resolvedModelId);
+
     if (!isResume && resolvedSdkModel !== DEFAULT_MODEL) {
       await this.session.query.setModel(resolvedSdkModel);
     }
