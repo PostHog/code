@@ -285,6 +285,7 @@ describe("AgentService", () => {
         lastActivityAt: Date.now(),
         config: {},
         promptPending: false,
+        inFlightMcpToolCalls: new Map(),
         ...overrides,
       });
     }
@@ -373,6 +374,34 @@ describe("AgentService", () => {
         expect.anything(),
       );
       expect(getIdleTimeouts(service).has("run-1")).toBe(true);
+    });
+
+    it("reschedules when inFlightMcpToolCalls is non-empty at timeout", () => {
+      const toolCalls = new Map([["tool-1", "some-mcp-tool"]]);
+      injectSession(service, "run-1", { inFlightMcpToolCalls: toolCalls });
+      service.recordActivity("run-1");
+
+      vi.advanceTimersByTime(15 * 60 * 1000);
+
+      expect(service.emit).not.toHaveBeenCalledWith(
+        "session-idle-killed",
+        expect.anything(),
+      );
+      expect(getIdleTimeouts(service).has("run-1")).toBe(true);
+    });
+
+    it("kills session when inFlightMcpToolCalls is empty", () => {
+      injectSession(service, "run-1", {
+        inFlightMcpToolCalls: new Map(),
+      });
+      service.recordActivity("run-1");
+
+      vi.advanceTimersByTime(15 * 60 * 1000);
+
+      expect(service.emit).toHaveBeenCalledWith(
+        "session-idle-killed",
+        expect.objectContaining({ taskRunId: "run-1" }),
+      );
     });
 
     it("checkIdleDeadlines kills expired sessions on resume", () => {

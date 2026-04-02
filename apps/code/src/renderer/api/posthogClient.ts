@@ -1114,7 +1114,6 @@ export class PostHogAPIClient {
     auth_type: "none" | "api_key" | "oauth";
     api_key?: string;
     description?: string;
-    oauth_provider_kind?: string;
     install_source?: "posthog" | "posthog-code";
     posthog_code_callback_url?: string;
   }): Promise<McpServerInstallation | Schemas.OAuthRedirectResponse> {

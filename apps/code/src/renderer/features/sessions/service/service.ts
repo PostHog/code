@@ -127,7 +127,7 @@ export class SessionService {
         onData: (event: { taskRunId: string }) => {
           const { taskRunId } = event;
           log.info("Session idle-killed by main process", { taskRunId });
-          this.teardownSession(taskRunId);
+          this.handleIdleKill(taskRunId);
         },
         onError: (err: unknown) => {
           log.debug("Idle-killed subscription error", { error: err });
@@ -479,6 +479,24 @@ export class SessionService {
     sessionStoreSetters.removeSession(taskRunId);
     useSessionAdapterStore.getState().removeAdapter(taskRunId);
     removePersistedConfigOptions(taskRunId);
+  }
+
+  /**
+   * Handle an idle-kill from the main process without destroying session state.
+   * The main process already cleaned up the agent, so we only need to
+   * unsubscribe from the channel and mark the session as errored.
+   * Preserves events, logUrl, configOptions and adapter so that Retry
+   * can reconnect with full context via unstable_resumeSession.
+   */
+  private handleIdleKill(taskRunId: string): void {
+    this.unsubscribeFromChannel(taskRunId);
+    sessionStoreSetters.updateSession(taskRunId, {
+      status: "error",
+      errorMessage:
+        "Session disconnected due to inactivity. Click Retry to reconnect.",
+      isPromptPending: false,
+      promptStartedAt: null,
+    });
   }
 
   private setErrorSession(
