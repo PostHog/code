@@ -46,7 +46,7 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
     if (!panel) return null;
 
     const parsed = parseTabId(panel.content.activeTabId);
-    if (parsed.type === "file" || parsed.type === "diff") {
+    if (parsed.type === "file") {
       return parsed.value;
     }
     return null;
@@ -54,7 +54,7 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
 
   const openTargetPath =
     activeRelativePath && effectiveRepoPath
-      ? `${effectiveRepoPath}/${activeRelativePath}`
+      ? [effectiveRepoPath, activeRelativePath].join("/").replace(/\/+/g, "/")
       : effectiveRepoPath;
 
   const [filePickerOpen, setFilePickerOpen] = useState(false);

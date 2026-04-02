@@ -20,6 +20,7 @@ export function ExternalAppsOpener({
   label = "Open",
 }: ExternalAppsOpenerProps) {
   const { detectedApps, defaultApp, isLoading } = useExternalApps();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const handleOpenDefault = useCallback(async () => {
     if (!defaultApp || !targetPath) return;
@@ -73,8 +74,6 @@ export function ExternalAppsOpener({
     { enableOnFormTags: ["INPUT", "TEXTAREA", "SELECT"] },
     [handleCopyPath],
   );
-
-  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   if (!targetPath) {
     return null;
