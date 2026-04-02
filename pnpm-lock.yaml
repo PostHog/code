@@ -593,13 +593,13 @@ importers:
     dependencies:
       '@agentclientprotocol/sdk':
         specifier: 0.16.1
-        version: 0.16.1(zod@3.25.76)
+        version: 0.16.1(zod@4.3.6)
       '@anthropic-ai/claude-agent-sdk':
         specifier: 0.2.76
-        version: 0.2.76(zod@3.25.76)
+        version: 0.2.76(zod@4.3.6)
       '@anthropic-ai/sdk':
         specifier: ^0.78.0
-        version: 0.78.0(zod@3.25.76)
+        version: 0.78.0(zod@4.3.6)
       '@hono/node-server':
         specifier: ^1.19.9
         version: 1.19.9(hono@4.11.7)
@@ -643,8 +643,8 @@ importers:
         specifier: ^0.3.3
         version: 0.3.3
       zod:
-        specifier: ^3.24.1
-        version: 3.25.76
+        specifier: ^4.2.0
+        version: 4.3.6
     devDependencies:
       '@posthog/git':
         specifier: workspace:*
@@ -704,8 +704,8 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@24.12.0)(jsdom@26.1.0)(lightningcss@1.31.1)(msw@2.12.8(@types/node@24.12.0)(typescript@5.9.3))(terser@5.46.0)
       zod:
-        specifier: ^3.24.1
-        version: 3.25.76
+        specifier: ^4.2.0
+        version: 4.3.6
 
   packages/git:
     dependencies:
@@ -5189,6 +5189,7 @@ packages:
   '@xmldom/xmldom@0.8.11':
     resolution: {integrity: sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version has critical issues, please update to the latest version
 
   '@xterm/addon-fit@0.10.0':
     resolution: {integrity: sha512-UFYkDm4HUahf2lnEyHvio51TNGiLK66mqP2JoATy7hRZeXaGMRDr00JiSF7m63vR5WKATF605yEggJKsw0JpMQ==}
@@ -11090,9 +11091,9 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@agentclientprotocol/sdk@0.16.1(zod@3.25.76)':
+  '@agentclientprotocol/sdk@0.16.1(zod@4.3.6)':
     dependencies:
-      zod: 3.25.76
+      zod: 4.3.6
 
   '@alloc/quick-lru@5.2.0': {}
 
@@ -11101,9 +11102,9 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/trace-mapping': 0.3.31
 
-  '@anthropic-ai/claude-agent-sdk@0.2.76(zod@3.25.76)':
+  '@anthropic-ai/claude-agent-sdk@0.2.76(zod@4.3.6)':
     dependencies:
-      zod: 3.25.76
+      zod: 4.3.6
     optionalDependencies:
       '@img/sharp-darwin-arm64': 0.34.5
       '@img/sharp-darwin-x64': 0.34.5
@@ -11115,11 +11116,11 @@ snapshots:
       '@img/sharp-win32-arm64': 0.34.5
       '@img/sharp-win32-x64': 0.34.5
 
-  '@anthropic-ai/sdk@0.78.0(zod@3.25.76)':
+  '@anthropic-ai/sdk@0.78.0(zod@4.3.6)':
     dependencies:
       json-schema-to-ts: 3.1.1
     optionalDependencies:
-      zod: 3.25.76
+      zod: 4.3.6
 
   '@apidevtools/json-schema-ref-parser@11.7.2':
     dependencies:
