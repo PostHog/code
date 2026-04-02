@@ -199,5 +199,7 @@ export const agentRouter = router({
   getPreviewConfigOptions: publicProcedure
     .input(getPreviewConfigOptionsInput)
     .output(getPreviewConfigOptionsOutput)
-    .query(({ input }) => getService().getPreviewConfigOptions(input.apiHost)),
+    .query(({ input }) =>
+      getService().getPreviewConfigOptions(input.apiHost, input.adapter),
+    ),
 });

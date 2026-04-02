@@ -13,7 +13,6 @@ import {
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
 import { ModeIndicatorInput } from "@features/message-editor/components/ModeIndicatorInput";
 import { DropZoneOverlay } from "@features/sessions/components/DropZoneOverlay";
-import { getSessionService } from "@features/sessions/service/service";
 import {
   cycleModeOption,
   getCurrentModeFromConfigOptions,
@@ -154,8 +153,8 @@ export function TaskInput({
     modeOption,
     modelOption,
     thoughtOption,
-    previewConfigId,
-    isConnecting,
+    isLoading: isPreviewLoading,
+    setConfigOption,
   } = usePreviewConfig(adapter);
 
   const { folders } = useFolders();
@@ -233,13 +232,9 @@ export function TaskInput({
   const handleCycleMode = useCallback(() => {
     const nextValue = cycleModeOption(modeOption, allowBypassPermissions);
     if (nextValue && modeOption) {
-      getSessionService().setSessionConfigOption(
-        previewConfigId,
-        modeOption.id,
-        nextValue,
-      );
+      setConfigOption(modeOption.id, nextValue);
     }
-  }, [modeOption, allowBypassPermissions, previewConfigId]);
+  }, [modeOption, allowBypassPermissions, setConfigOption]);
 
   // Global shift+tab to cycle mode regardless of focus
   useHotkeys(
@@ -461,9 +456,11 @@ export function TaskInput({
             }
             onEmptyChange={setEditorIsEmpty}
             adapter={adapter}
-            previewConfigId={previewConfigId}
+            modelOption={modelOption}
+            thoughtOption={thoughtOption}
+            onConfigOptionChange={setConfigOption}
             onAdapterChange={setAdapter}
-            isPreviewConnecting={isConnecting}
+            isLoading={isPreviewLoading}
           />
 
           <ModeIndicatorInput

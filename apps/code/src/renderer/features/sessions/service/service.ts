@@ -26,7 +26,6 @@ import {
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { taskViewedApi } from "@features/sidebar/hooks/useTaskViewed";
-import { getEffortOptions } from "@posthog/agent/adapters/claude/session/models";
 import { DEFAULT_GATEWAY_MODEL } from "@posthog/agent/gateway-models";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpcClient } from "@renderer/trpc/client";
@@ -61,8 +60,6 @@ import {
 } from "@utils/session";
 
 const log = logger.scope("session-service");
-
-export const PREVIEW_CONFIG_ID = "__preview__";
 
 interface AuthCredentials {
   apiHost: string;
@@ -113,8 +110,6 @@ export class SessionService {
       permission?: { unsubscribe: () => void };
     }
   >();
-  /** AbortController for the current in-flight preview config fetch */
-  private previewConfigAbort: AbortController | null = null;
   /** Active cloud task watchers, keyed by taskId */
   private cloudTaskWatchers = new Map<
     string,
@@ -620,87 +615,6 @@ export class SessionService {
     await this.teardownSession(session.taskRunId);
   }
 
-  // --- Preview Config Management ---
-
-  async fetchPreviewConfig(params: {
-    adapter: "claude" | "codex";
-  }): Promise<void> {
-    this.previewConfigAbort?.abort();
-    const abort = new AbortController();
-    this.previewConfigAbort = abort;
-
-    this.clearPreviewConfig();
-
-    const auth = await this.getAuthCredentials();
-    if (abort.signal.aborted) return;
-    if (!auth) {
-      log.info("Skipping preview config - not authenticated");
-      return;
-    }
-
-    const taskRunId = `preview-${crypto.randomUUID()}`;
-    const session = this.createBaseSession(
-      taskRunId,
-      PREVIEW_CONFIG_ID,
-      "Preview",
-    );
-    session.adapter = params.adapter;
-    sessionStoreSetters.setSession(session);
-
-    try {
-      const { defaultInitialTaskMode, lastUsedInitialTaskMode } =
-        useSettingsStore.getState();
-      const initialMode =
-        defaultInitialTaskMode === "last_used"
-          ? lastUsedInitialTaskMode
-          : "plan";
-
-      const configOptions =
-        await trpcClient.agent.getPreviewConfigOptions.query({
-          apiHost: auth.apiHost,
-        });
-
-      if (abort.signal.aborted) {
-        sessionStoreSetters.removeSession(taskRunId);
-        return;
-      }
-
-      // Apply the user's preferred initial mode
-      const updatedOptions = configOptions.map((opt) =>
-        opt.id === "mode"
-          ? ({ ...opt, currentValue: initialMode } as SessionConfigOption)
-          : opt,
-      );
-
-      sessionStoreSetters.updateSession(taskRunId, {
-        status: "connected",
-        configOptions: updatedOptions,
-      });
-
-      log.info("Preview config loaded", {
-        taskRunId,
-        adapter: params.adapter,
-        configOptionsCount: updatedOptions.length,
-      });
-    } catch (error) {
-      if (abort.signal.aborted) return;
-      log.error("Failed to fetch preview config", { error });
-      sessionStoreSetters.removeSession(taskRunId);
-    }
-  }
-
-  async cancelPreviewConfig(): Promise<void> {
-    this.previewConfigAbort?.abort();
-    this.previewConfigAbort = null;
-    this.clearPreviewConfig();
-  }
-
-  private clearPreviewConfig(): void {
-    const session = sessionStoreSetters.getSessionByTaskId(PREVIEW_CONFIG_ID);
-    if (!session) return;
-    sessionStoreSetters.removeSession(session.taskRunId);
-  }
-
   // --- Subscription Management ---
 
   private subscribeToChannel(taskRunId: string): void {
@@ -776,8 +690,6 @@ export class SessionService {
     }
 
     this.connectingTasks.clear();
-    this.previewConfigAbort?.abort();
-    this.previewConfigAbort = null;
     this.idleKilledSubscription?.unsubscribe();
     this.idleKilledSubscription = null;
   }
@@ -1592,54 +1504,6 @@ export class SessionService {
 
     // Skip if value is already set — avoids expensive IPC round-trip (e.g. setModel ~2s)
     if (previousValue === value) {
-      return;
-    }
-
-    // Preview config has no backing agent process — update store directly
-    if (taskId === PREVIEW_CONFIG_ID) {
-      let updatedOptions = configOptions.map((opt) =>
-        opt.id === configId
-          ? ({ ...opt, currentValue: value } as SessionConfigOption)
-          : opt,
-      );
-
-      // Recompute effort options when model changes
-      if (configId === "model") {
-        const effortOpts = getEffortOptions(value);
-        const existingIdx = updatedOptions.findIndex((o) => o.id === "effort");
-
-        if (effortOpts && existingIdx >= 0) {
-          const currentEffort = updatedOptions[existingIdx].currentValue;
-          const validEffort = effortOpts.some((e) => e.value === currentEffort)
-            ? currentEffort
-            : "high";
-          updatedOptions[existingIdx] = {
-            ...updatedOptions[existingIdx],
-            currentValue: validEffort,
-            options: effortOpts,
-          } as SessionConfigOption;
-        } else if (effortOpts && existingIdx === -1) {
-          updatedOptions = [
-            ...updatedOptions,
-            {
-              id: "effort",
-              name: "Effort",
-              type: "select" as const,
-              currentValue: "high",
-              options: effortOpts,
-              category: "thought_level",
-              description:
-                "Controls how much effort Claude puts into its response",
-            } as SessionConfigOption,
-          ];
-        } else if (!effortOpts && existingIdx >= 0) {
-          updatedOptions = updatedOptions.filter((o) => o.id !== "effort");
-        }
-      }
-
-      sessionStoreSetters.updateSession(session.taskRunId, {
-        configOptions: updatedOptions,
-      });
       return;
     }
 

@@ -1,4 +1,7 @@
-import type { SessionConfigSelectGroup } from "@agentclientprotocol/sdk";
+import type {
+  SessionConfigOption,
+  SessionConfigSelectGroup,
+} from "@agentclientprotocol/sdk";
 import type { AgentAdapter } from "@features/settings/stores/settingsStore";
 import {
   ArrowsClockwise,
@@ -9,12 +12,7 @@ import {
 } from "@phosphor-icons/react";
 import { Button, DropdownMenu, Flex, Text } from "@radix-ui/themes";
 import { Fragment, useMemo } from "react";
-import { getSessionService } from "../service/service";
-import {
-  flattenSelectOptions,
-  useModelConfigOptionForTask,
-  useSessionForTask,
-} from "../stores/sessionStore";
+import { flattenSelectOptions } from "../stores/sessionStore";
 
 const ADAPTER_ICONS: Record<AgentAdapter, React.ReactNode> = {
   claude: <Robot size={14} weight="regular" />,
@@ -31,25 +29,22 @@ function getOtherAdapter(adapter: AgentAdapter): AgentAdapter {
 }
 
 interface UnifiedModelSelectorProps {
-  taskId?: string;
+  modelOption?: SessionConfigOption;
   adapter: AgentAdapter;
   onAdapterChange: (adapter: AgentAdapter) => void;
+  onModelChange?: (model: string) => void;
   disabled?: boolean;
   isConnecting?: boolean;
-  onModelChange?: (model: string) => void;
 }
 
 export function UnifiedModelSelector({
-  taskId,
+  modelOption,
   adapter,
   onAdapterChange,
+  onModelChange,
   disabled,
   isConnecting,
-  onModelChange,
 }: UnifiedModelSelectorProps) {
-  const session = useSessionForTask(taskId);
-  const modelOption = useModelConfigOptionForTask(taskId);
-
   const selectOption = modelOption?.type === "select" ? modelOption : undefined;
   const options = selectOption
     ? flattenSelectOptions(selectOption.options)
@@ -69,10 +64,7 @@ export function UnifiedModelSelector({
   const otherAdapter = getOtherAdapter(adapter);
 
   const handleModelSelect = (value: string) => {
-    if (taskId && session?.status === "connected" && modelOption) {
-      getSessionService().setSessionConfigOption(taskId, modelOption.id, value);
-      onModelChange?.(value);
-    }
+    onModelChange?.(value);
   };
 
   const triggerStyle = {

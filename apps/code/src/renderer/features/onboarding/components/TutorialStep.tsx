@@ -6,7 +6,6 @@ import type { MessageEditorHandle } from "@features/message-editor/components/Me
 import { ModeIndicatorInput } from "@features/message-editor/components/ModeIndicatorInput";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
-import { getSessionService } from "@features/sessions/service/service";
 import {
   cycleModeOption,
   getCurrentModeFromConfigOptions,
@@ -105,8 +104,13 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
   // Preview config options — always claude
-  const { modeOption, thoughtOption, previewConfigId, isConnecting } =
-    usePreviewConfig("claude");
+  const {
+    modeOption,
+    modelOption,
+    thoughtOption,
+    isLoading: isPreviewLoading,
+    setConfigOption,
+  } = usePreviewConfig("claude");
 
   const currentExecutionMode =
     getCurrentModeFromConfigOptions(modeOption ? [modeOption] : undefined) ??
@@ -193,13 +197,9 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
   const handleCycleMode = useCallback(() => {
     const nextValue = cycleModeOption(modeOption, allowBypassPermissions);
     if (nextValue && modeOption) {
-      getSessionService().setSessionConfigOption(
-        previewConfigId,
-        modeOption.id,
-        nextValue,
-      );
+      setConfigOption(modeOption.id, nextValue);
     }
-  }, [modeOption, allowBypassPermissions, previewConfigId]);
+  }, [modeOption, allowBypassPermissions, setConfigOption]);
 
   useHotkeys(
     "shift+tab",
@@ -388,9 +388,16 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
                   directoryTooltip="Select a repository first"
                   onEmptyChange={setEditorIsEmpty}
                   adapter="claude"
-                  previewConfigId={previewConfigId}
+                  modelOption={modelOption}
+                  thoughtOption={thoughtOption}
+                  onConfigOptionChange={(configId, value) => {
+                    setConfigOption(configId, value);
+                    if (configId === modelOption?.id) {
+                      handleModelChange(value);
+                    }
+                  }}
                   onAdapterChange={() => {}}
-                  isPreviewConnecting={isConnecting}
+                  isLoading={isPreviewLoading}
                   autoFocus={false}
                   tourHighlight={
                     isHighlighted("model-selector")
@@ -399,7 +406,6 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
                         ? "submit-button"
                         : null
                   }
-                  onModelChange={handleModelChange}
                 />
               </div>
             </TourHighlight>

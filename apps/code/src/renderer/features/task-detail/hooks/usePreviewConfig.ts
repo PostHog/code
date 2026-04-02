@@ -1,62 +1,143 @@
 import type { SessionConfigOption } from "@agentclientprotocol/sdk";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
-import {
-  getSessionService,
-  PREVIEW_CONFIG_ID,
-} from "@features/sessions/service/service";
-import {
-  useModeConfigOptionForTask,
-  useModelConfigOptionForTask,
-  useSessionForTask,
-  useThoughtLevelConfigOptionForTask,
-} from "@features/sessions/stores/sessionStore";
-import { useEffect } from "react";
+import { useSettingsStore } from "@features/settings/stores/settingsStore";
+import { getEffortOptions } from "@posthog/agent/adapters/claude/session/models";
+import { trpcClient } from "@renderer/trpc/client";
+import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface PreviewConfigResult {
+  configOptions: SessionConfigOption[];
   modeOption: SessionConfigOption | undefined;
   modelOption: SessionConfigOption | undefined;
   thoughtOption: SessionConfigOption | undefined;
-  previewConfigId: string;
-  /** True while the preview config is loading (no config options yet) */
-  isConnecting: boolean;
+  isLoading: boolean;
+  setConfigOption: (configId: string, value: string) => void;
+}
+
+function getOptionByCategory(
+  options: SessionConfigOption[],
+  category: string,
+): SessionConfigOption | undefined {
+  return options.find(
+    (opt) => opt.category === category || opt.id === category,
+  );
 }
 
 /**
- * Fetches adapter-specific config options (models, modes, reasoning levels)
- * for the task input page without spawning a full agent session.
+ * Fetches config options (models, modes, effort levels) for the task input
+ * page via a lightweight tRPC query. No agent session is created.
  *
- * Refetches when the adapter changes and cleans up on unmount.
+ * Returns config options as local state with a setter for local updates.
  */
 export function usePreviewConfig(
   adapter: "claude" | "codex",
 ): PreviewConfigResult {
-  const projectId = useAuthStateValue((state) => state.projectId);
+  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
+  const apiHost = useMemo(
+    () => (cloudRegion ? getCloudUrlFromRegion(cloudRegion) : null),
+    [cloudRegion],
+  );
+  const [configOptions, setConfigOptions] = useState<SessionConfigOption[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (!apiHost) return;
 
-    const service = getSessionService();
-    service.fetchPreviewConfig({ adapter });
+    abortRef.current?.abort();
+    const abort = new AbortController();
+    abortRef.current = abort;
+
+    setIsLoading(true);
+
+    trpcClient.agent.getPreviewConfigOptions
+      .query({ apiHost, adapter })
+      .then((options) => {
+        if (abort.signal.aborted) return;
+
+        const { defaultInitialTaskMode, lastUsedInitialTaskMode } =
+          useSettingsStore.getState();
+        const initialMode =
+          defaultInitialTaskMode === "last_used"
+            ? lastUsedInitialTaskMode
+            : "plan";
+
+        const withMode = options.map((opt) =>
+          opt.id === "mode"
+            ? ({ ...opt, currentValue: initialMode } as SessionConfigOption)
+            : opt,
+        );
+
+        setConfigOptions(withMode);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        if (abort.signal.aborted) return;
+        setIsLoading(false);
+        throw error;
+      });
 
     return () => {
-      service.cancelPreviewConfig();
+      abort.abort();
     };
-  }, [adapter, projectId]);
+  }, [adapter, apiHost]);
 
-  const session = useSessionForTask(PREVIEW_CONFIG_ID);
-  const modeOption = useModeConfigOptionForTask(PREVIEW_CONFIG_ID);
-  const modelOption = useModelConfigOptionForTask(PREVIEW_CONFIG_ID);
-  const thoughtOption = useThoughtLevelConfigOptionForTask(PREVIEW_CONFIG_ID);
+  const setConfigOption = useCallback((configId: string, value: string) => {
+    setConfigOptions((prev) => {
+      let updated = prev.map((opt) =>
+        opt.id === configId
+          ? ({ ...opt, currentValue: value } as SessionConfigOption)
+          : opt,
+      );
 
-  // Connecting if we have a session but it's not connected yet,
-  // or if we don't have a session at all (start hasn't created one yet)
-  const isConnecting = !session || session.status === "connecting";
+      if (configId === "model") {
+        const effortOpts = getEffortOptions(value);
+        const existingIdx = updated.findIndex((o) => o.id === "effort");
+
+        if (effortOpts && existingIdx >= 0) {
+          const currentEffort = updated[existingIdx].currentValue;
+          const validEffort = effortOpts.some((e) => e.value === currentEffort)
+            ? currentEffort
+            : "high";
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            currentValue: validEffort,
+            options: effortOpts,
+          } as SessionConfigOption;
+        } else if (effortOpts && existingIdx === -1) {
+          updated = [
+            ...updated,
+            {
+              id: "effort",
+              name: "Effort",
+              type: "select" as const,
+              currentValue: "high",
+              options: effortOpts,
+              category: "thought_level",
+              description:
+                "Controls how much effort Claude puts into its response",
+            } as SessionConfigOption,
+          ];
+        } else if (!effortOpts && existingIdx >= 0) {
+          updated = updated.filter((o) => o.id !== "effort");
+        }
+      }
+
+      return updated;
+    });
+  }, []);
+
+  const modeOption = getOptionByCategory(configOptions, "mode");
+  const modelOption = getOptionByCategory(configOptions, "model");
+  const thoughtOption = getOptionByCategory(configOptions, "thought_level");
 
   return {
+    configOptions,
     modeOption,
     modelOption,
     thoughtOption,
-    previewConfigId: PREVIEW_CONFIG_ID,
-    isConnecting,
+    isLoading,
+    setConfigOption,
   };
 }

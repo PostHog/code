@@ -79,6 +79,15 @@ export function isAnthropicModel(model: GatewayModel): boolean {
   return model.id.startsWith("claude-") || model.id.startsWith("anthropic/");
 }
 
+export function isOpenAIModel(
+  model: GatewayModel | { id: string; owned_by?: string },
+): boolean {
+  if (model.owned_by) {
+    return model.owned_by === "openai";
+  }
+  return model.id.startsWith("gpt-") || model.id.startsWith("openai/");
+}
+
 export interface ModelInfo {
   id: string;
   owned_by?: string;

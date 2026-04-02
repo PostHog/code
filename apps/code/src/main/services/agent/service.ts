@@ -23,6 +23,7 @@ import {
   formatGatewayModelName,
   getProviderName,
   isAnthropicModel,
+  isOpenAIModel,
 } from "@posthog/agent/gateway-models";
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import type { OnLogCallback } from "@posthog/agent/types";
@@ -1526,23 +1527,29 @@ For git operations while detached:
 
   async getPreviewConfigOptions(
     apiHost: string,
+    adapter: "claude" | "codex" = "claude",
   ): Promise<SessionConfigOption[]> {
     const gatewayUrl = getLlmGatewayUrl(apiHost);
     const gatewayModels = await fetchGatewayModels({ gatewayUrl });
 
+    const modelFilter = adapter === "codex" ? isOpenAIModel : isAnthropicModel;
+
     const modelOptions = gatewayModels
-      .filter((model) => isAnthropicModel(model))
+      .filter((model) => modelFilter(model))
       .map((model) => ({
         value: model.id,
         name: formatGatewayModelName(model),
         description: `Context: ${model.context_window.toLocaleString()} tokens`,
       }));
 
-    const resolvedModelId = modelOptions.some(
-      (o) => o.value === DEFAULT_GATEWAY_MODEL,
-    )
-      ? DEFAULT_GATEWAY_MODEL
-      : (modelOptions[0]?.value ?? DEFAULT_GATEWAY_MODEL);
+    const defaultModel =
+      adapter === "codex"
+        ? (modelOptions[0]?.value ?? "")
+        : DEFAULT_GATEWAY_MODEL;
+
+    const resolvedModelId = modelOptions.some((o) => o.value === defaultModel)
+      ? defaultModel
+      : (modelOptions[0]?.value ?? defaultModel);
 
     if (!modelOptions.some((o) => o.value === resolvedModelId)) {
       modelOptions.unshift({
@@ -1580,17 +1587,33 @@ For git operations while detached:
       },
     ];
 
-    const effortOpts = getEffortOptions(resolvedModelId);
-    if (effortOpts) {
+    if (adapter === "codex") {
       configOptions.push({
-        id: "effort",
-        name: "Effort",
+        id: "reasoning_effort",
+        name: "Reasoning Level",
         type: "select" as const,
         currentValue: "high",
-        options: effortOpts,
+        options: [
+          { value: "low", name: "Low" },
+          { value: "medium", name: "Medium" },
+          { value: "high", name: "High" },
+        ],
         category: "thought_level",
-        description: "Controls how much effort Claude puts into its response",
+        description: "Controls how much reasoning effort the model uses",
       });
+    } else {
+      const effortOpts = getEffortOptions(resolvedModelId);
+      if (effortOpts) {
+        configOptions.push({
+          id: "effort",
+          name: "Effort",
+          type: "select" as const,
+          currentValue: "high",
+          options: effortOpts,
+          category: "thought_level",
+          description: "Controls how much effort Claude puts into its response",
+        });
+      }
     }
 
     return configOptions;
