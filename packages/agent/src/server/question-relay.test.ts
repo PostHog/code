@@ -235,6 +235,71 @@ describe("Question relay", () => {
 
         expect(result.outcome.outcome).toBe("selected");
       });
+
+      it("keeps auto-approving permissions after SSE send failures", async () => {
+        const appendRawLine = vi.fn();
+        const brokenSseController = {
+          send: vi.fn(() => {
+            throw new Error("stream closed");
+          }),
+          close: vi.fn(),
+        };
+
+        const cloudPermissionServer = server as TestableAgentServer & {
+          emitConsoleLog: (
+            level: "debug" | "info" | "warn" | "error",
+            scope: string,
+            message: string,
+            data?: unknown,
+          ) => void;
+          logger: { debug: (message: string, data?: unknown) => void };
+          session: {
+            payload: typeof TEST_PAYLOAD;
+            sseController: typeof brokenSseController | null;
+            logWriter: {
+              appendRawLine: (runId: string, line: string) => void;
+            };
+          };
+        };
+
+        cloudPermissionServer.session = {
+          payload: TEST_PAYLOAD,
+          sseController: brokenSseController,
+          logWriter: {
+            appendRawLine,
+          },
+        };
+        cloudPermissionServer.logger = {
+          debug: (message: string, data?: unknown) => {
+            cloudPermissionServer.emitConsoleLog(
+              "debug",
+              "agent",
+              message,
+              data,
+            );
+          },
+        };
+
+        const client = cloudPermissionServer.createCloudClient(TEST_PAYLOAD);
+
+        const firstResult = await client.requestPermission({
+          options: ALLOW_OPTIONS,
+          toolCall: { _meta: { codeToolKind: "bash" } },
+        });
+
+        expect(firstResult.outcome.outcome).toBe("selected");
+        expect(brokenSseController.send).toHaveBeenCalledTimes(1);
+        expect(cloudPermissionServer.session.sseController).toBeNull();
+
+        const secondResult = await client.requestPermission({
+          options: ALLOW_OPTIONS,
+          toolCall: { _meta: { codeToolKind: "bash" } },
+        });
+
+        expect(secondResult.outcome.outcome).toBe("selected");
+        expect(brokenSseController.send).toHaveBeenCalledTimes(1);
+        expect(appendRawLine).toHaveBeenCalledTimes(2);
+      });
     });
   });
 
