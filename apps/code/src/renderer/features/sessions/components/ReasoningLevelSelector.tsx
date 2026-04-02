@@ -1,25 +1,21 @@
-import { Select, Text } from "@radix-ui/themes";
-import { getSessionService } from "../service/service";
-import {
-  flattenSelectOptions,
-  useAdapterForTask,
-  useSessionForTask,
-  useThoughtLevelConfigOptionForTask,
-} from "../stores/sessionStore";
+import type { SessionConfigOption } from "@agentclientprotocol/sdk";
+import { Brain } from "@phosphor-icons/react";
+import { Flex, Select, Text } from "@radix-ui/themes";
+import { flattenSelectOptions } from "../stores/sessionStore";
 
 interface ReasoningLevelSelectorProps {
-  taskId?: string;
+  thoughtOption?: SessionConfigOption;
+  adapter?: "claude" | "codex";
+  onChange?: (value: string) => void;
   disabled?: boolean;
 }
 
 export function ReasoningLevelSelector({
-  taskId,
+  thoughtOption,
+  adapter,
+  onChange,
   disabled,
 }: ReasoningLevelSelectorProps) {
-  const session = useSessionForTask(taskId);
-  const thoughtOption = useThoughtLevelConfigOptionForTask(taskId);
-  const adapter = useAdapterForTask(taskId);
-
   if (!thoughtOption || thoughtOption.type !== "select") {
     return null;
   }
@@ -30,37 +26,35 @@ export function ReasoningLevelSelector({
   const activeLabel =
     options.find((opt) => opt.value === activeLevel)?.name ?? activeLevel;
 
-  const handleChange = (value: string) => {
-    if (taskId && session?.status === "connected") {
-      getSessionService().setSessionConfigOption(
-        taskId,
-        thoughtOption.id,
-        value,
-      );
-    }
-  };
-
   return (
     <Select.Root
       value={activeLevel}
-      onValueChange={handleChange}
+      onValueChange={(value) => onChange?.(value)}
       disabled={disabled}
       size="1"
     >
       <Select.Trigger
         variant="ghost"
         style={{
-          fontSize: "12px",
+          fontSize: "var(--font-size-1)",
           color: "var(--gray-11)",
           padding: "4px 8px",
           marginLeft: "4px",
           height: "auto",
           minHeight: "unset",
+          gap: "6px",
         }}
       >
-        <Text style={{ fontSize: "12px" }}>
-          {adapter === "codex" ? "Reasoning" : "Effort"}: {activeLabel}
-        </Text>
+        <Flex align="center" gap="1">
+          <Brain
+            size={14}
+            weight="regular"
+            style={{ color: "var(--gray-9)", flexShrink: 0 }}
+          />
+          <Text size="1">
+            {adapter === "codex" ? "Reasoning" : "Effort"}: {activeLabel}
+          </Text>
+        </Flex>
       </Select.Trigger>
       <Select.Content position="popper" sideOffset={4}>
         {options.map((level) => (

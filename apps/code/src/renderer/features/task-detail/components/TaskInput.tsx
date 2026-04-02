@@ -13,7 +13,6 @@ import {
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
 import { ModeIndicatorInput } from "@features/message-editor/components/ModeIndicatorInput";
 import { DropZoneOverlay } from "@features/sessions/components/DropZoneOverlay";
-import { getSessionService } from "@features/sessions/service/service";
 import {
   cycleModeOption,
   getCurrentModeFromConfigOptions,
@@ -32,7 +31,7 @@ import { useNavigationStore } from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { usePreviewSession } from "../hooks/usePreviewSession";
+import { usePreviewConfig } from "../hooks/usePreviewConfig";
 import { useTaskCreation } from "../hooks/useTaskCreation";
 import { TaskInputEditor } from "./TaskInputEditor";
 import { type WorkspaceMode, WorkspaceModeSelect } from "./WorkspaceModeSelect";
@@ -40,10 +39,14 @@ import { type WorkspaceMode, WorkspaceModeSelect } from "./WorkspaceModeSelect";
 const DOT_FILL = "var(--gray-6)";
 
 interface TaskInputProps {
+  sessionId?: string;
   onTaskCreated?: (task: import("@shared/types").Task) => void;
 }
 
-export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
+export function TaskInput({
+  sessionId = "task-input",
+  onTaskCreated,
+}: TaskInputProps = {}) {
   const { cloudRegion } = useAuthStore();
   const trpcReact = useTRPC();
   const { view } = useNavigationStore();
@@ -146,14 +149,13 @@ export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
     }
   }, [selectedDirectory, newBranchName, gitActions]);
 
-  // Preview session provides adapter-specific config options
   const {
     modeOption,
     modelOption,
     thoughtOption,
-    previewTaskId,
-    isConnecting,
-  } = usePreviewSession(adapter);
+    isLoading: isPreviewLoading,
+    setConfigOption,
+  } = usePreviewConfig(adapter);
 
   const { folders } = useFolders();
 
@@ -190,8 +192,8 @@ export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
 
   const effectiveWorkspaceMode = workspaceMode;
 
-  // Get current values from preview session config options for task creation.
-  // Defaults ensure values are always passed even before the preview session loads.
+  // Get current values from preview config options for task creation.
+  // Defaults ensure values are always passed even before the preview config loads.
   const currentModel =
     modelOption?.type === "select" ? modelOption.currentValue : undefined;
   const modeFallback =
@@ -230,13 +232,9 @@ export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
   const handleCycleMode = useCallback(() => {
     const nextValue = cycleModeOption(modeOption, allowBypassPermissions);
     if (nextValue && modeOption) {
-      getSessionService().setSessionConfigOption(
-        previewTaskId,
-        modeOption.id,
-        nextValue,
-      );
+      setConfigOption(modeOption.id, nextValue);
     }
-  }, [modeOption, allowBypassPermissions, previewTaskId]);
+  }, [modeOption, allowBypassPermissions, setConfigOption]);
 
   // Global shift+tab to cycle mode regardless of focus
   useHotkeys(
@@ -441,7 +439,7 @@ export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
 
           <TaskInputEditor
             ref={editorRef}
-            sessionId="task-input"
+            sessionId={sessionId}
             repoPath={selectedDirectory}
             isCreatingTask={isCreatingTask}
             canSubmit={canSubmit}
@@ -458,9 +456,11 @@ export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
             }
             onEmptyChange={setEditorIsEmpty}
             adapter={adapter}
-            previewTaskId={previewTaskId}
+            modelOption={modelOption}
+            thoughtOption={thoughtOption}
+            onConfigOptionChange={setConfigOption}
             onAdapterChange={setAdapter}
-            isPreviewConnecting={isConnecting}
+            isLoading={isPreviewLoading}
           />
 
           <ModeIndicatorInput

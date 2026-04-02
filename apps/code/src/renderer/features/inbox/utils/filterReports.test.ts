@@ -97,21 +97,21 @@ describe("filterReportsBySearch", () => {
 });
 
 describe("buildSignalReportListOrdering", () => {
-  it("puts status rank first then descending field", () => {
+  it("puts status then suggested reviewer then descending field", () => {
     expect(buildSignalReportListOrdering("total_weight", "desc")).toBe(
-      "status,-total_weight",
+      "status,-is_suggested_reviewer,-total_weight",
     );
   });
 
-  it("puts status rank first then ascending field", () => {
+  it("puts status then suggested reviewer then ascending field", () => {
     expect(buildSignalReportListOrdering("created_at", "asc")).toBe(
-      "status,created_at",
+      "status,-is_suggested_reviewer,created_at",
     );
   });
 
   it("works for signal_count", () => {
     expect(buildSignalReportListOrdering("signal_count", "desc")).toBe(
-      "status,-signal_count",
+      "status,-is_suggested_reviewer,-signal_count",
     );
   });
 });

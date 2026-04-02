@@ -1,11 +1,15 @@
+import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { TaskInput } from "@features/task-detail/components/TaskInput";
 import { ArrowsOut, Plus, X } from "@phosphor-icons/react";
 import { Flex, Text } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CommandCenterCellData } from "../hooks/useCommandCenterData";
-import { useCommandCenterStore } from "../stores/commandCenterStore";
+import {
+  getCellSessionId,
+  useCommandCenterStore,
+} from "../stores/commandCenterStore";
 import { CommandCenterSessionView } from "./CommandCenterSessionView";
 import { StatusBadge } from "./StatusBadge";
 import { TaskSelector } from "./TaskSelector";
@@ -17,15 +21,36 @@ interface CommandCenterPanelProps {
 
 function EmptyCell({ cellIndex }: { cellIndex: number }) {
   const [selectorOpen, setSelectorOpen] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const isCreating = useCommandCenterStore((s) =>
+    s.creatingCells.includes(cellIndex),
+  );
   const assignTask = useCommandCenterStore((s) => s.assignTask);
+  const startCreating = useCommandCenterStore((s) => s.startCreating);
+  const stopCreating = useCommandCenterStore((s) => s.stopCreating);
+  const clearDraft = useDraftStore((s) => s.actions.setDraft);
+
+  const sessionId = getCellSessionId(cellIndex);
 
   const handleTaskCreated = useCallback(
     (task: Task) => {
       assignTask(cellIndex, task.id);
+      clearDraft(sessionId, null);
     },
-    [assignTask, cellIndex],
+    [assignTask, cellIndex, clearDraft, sessionId],
   );
+
+  const handleCancel = useCallback(() => {
+    stopCreating(cellIndex);
+    clearDraft(sessionId, null);
+  }, [stopCreating, cellIndex, clearDraft, sessionId]);
+
+  const wasCreatingRef = useRef(false);
+  useEffect(() => {
+    if (wasCreatingRef.current && !isCreating) {
+      clearDraft(sessionId, null);
+    }
+    wasCreatingRef.current = isCreating;
+  }, [isCreating, clearDraft, sessionId]);
 
   if (isCreating) {
     return (
@@ -46,7 +71,7 @@ function EmptyCell({ cellIndex }: { cellIndex: number }) {
           </Text>
           <button
             type="button"
-            onClick={() => setIsCreating(false)}
+            onClick={handleCancel}
             className="flex h-5 w-5 items-center justify-center rounded text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
             title="Cancel"
           >
@@ -54,7 +79,7 @@ function EmptyCell({ cellIndex }: { cellIndex: number }) {
           </button>
         </Flex>
         <Flex direction="column" className="min-h-0 flex-1">
-          <TaskInput onTaskCreated={handleTaskCreated} />
+          <TaskInput sessionId={sessionId} onTaskCreated={handleTaskCreated} />
         </Flex>
       </Flex>
     );
@@ -67,7 +92,7 @@ function EmptyCell({ cellIndex }: { cellIndex: number }) {
           cellIndex={cellIndex}
           open={selectorOpen}
           onOpenChange={setSelectorOpen}
-          onNewTask={() => setIsCreating(true)}
+          onNewTask={() => startCreating(cellIndex)}
         >
           <button
             type="button"

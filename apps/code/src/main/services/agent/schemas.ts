@@ -49,6 +49,7 @@ export const startSessionInput = z.object({
   additionalDirectories: z.array(z.string()).optional(),
   customInstructions: z.string().max(2000).optional(),
   effort: effortLevelSchema.optional(),
+  model: z.string().optional(),
 });
 
 export type StartSessionInput = z.infer<typeof startSessionInput>;
@@ -292,3 +293,10 @@ export const getGatewayModelsInput = z.object({
 });
 
 export const getGatewayModelsOutput = z.array(modelOptionSchema);
+
+export const getPreviewConfigOptionsInput = z.object({
+  apiHost: z.string(),
+  adapter: z.enum(["claude", "codex"]),
+});
+
+export const getPreviewConfigOptionsOutput = z.array(sessionConfigOptionSchema);

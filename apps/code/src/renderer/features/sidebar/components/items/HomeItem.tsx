@@ -1,4 +1,9 @@
+import { Tooltip } from "@components/ui/Tooltip";
 import { EnvelopeSimple, Plus } from "@phosphor-icons/react";
+import {
+  formatHotkey,
+  SHORTCUTS,
+} from "@renderer/constants/keyboard-shortcuts";
 import { SidebarItem } from "../SidebarItem";
 
 interface NewTaskItemProps {
@@ -31,23 +36,33 @@ function formatSignalCount(count: number): string {
 
 export function InboxItem({ isActive, onClick, signalCount }: InboxItemProps) {
   return (
-    <SidebarItem
-      depth={0}
-      icon={<EnvelopeSimple size={16} weight={isActive ? "fill" : "regular"} />}
-      label="Inbox"
-      isActive={isActive}
-      onClick={onClick}
-      endContent={
-        signalCount && signalCount > 0 ? (
-          <span
-            className="inline-flex min-w-[16px] items-center justify-center rounded-full px-1 text-[11px] text-gray-11 leading-none"
-            style={{ height: "16px" }}
-            title={`${signalCount} ready reports`}
-          >
-            {formatSignalCount(signalCount)}
-          </span>
-        ) : undefined
-      }
-    />
+    <Tooltip
+      content="Open inbox"
+      shortcut={formatHotkey(SHORTCUTS.INBOX)}
+      side="right"
+    >
+      <div>
+        <SidebarItem
+          depth={0}
+          icon={
+            <EnvelopeSimple size={16} weight={isActive ? "fill" : "regular"} />
+          }
+          label="Inbox"
+          isActive={isActive}
+          onClick={onClick}
+          endContent={
+            signalCount && signalCount > 0 ? (
+              <span
+                className="inline-flex min-w-[16px] items-center justify-center rounded-full px-1 text-[11px] text-gray-11 leading-none"
+                style={{ height: "16px" }}
+                title={`${signalCount} ready reports`}
+              >
+                {formatSignalCount(signalCount)}
+              </span>
+            ) : undefined
+          }
+        />
+      </div>
+    </Tooltip>
   );
 }

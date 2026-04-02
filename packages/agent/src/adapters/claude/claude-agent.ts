@@ -876,58 +876,92 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       { sessionId, taskId, taskRunId: meta?.taskRunId },
     );
 
-    try {
-      const result = await withTimeout(
-        q.initializationResult(),
-        SESSION_VALIDATION_TIMEOUT_MS,
-      );
-      if (result.result === "timeout") {
-        throw new Error(
-          `Session ${isResume ? (forkSession ? "fork" : "resumption") : "initialization"} timed out for sessionId=${sessionId}`,
+    if (isResume) {
+      // Resume must block on initialization to validate the session is still alive.
+      // For stale sessions this throws (e.g. "No conversation found").
+      try {
+        const result = await withTimeout(
+          q.initializationResult(),
+          SESSION_VALIDATION_TIMEOUT_MS,
         );
+        if (result.result === "timeout") {
+          throw new Error(
+            `Session ${forkSession ? "fork" : "resumption"} timed out for sessionId=${sessionId}`,
+          );
+        }
+      } catch (err) {
+        settingsManager.dispose();
+        if (
+          err instanceof Error &&
+          err.message === "Query closed before response received"
+        ) {
+          throw RequestError.resourceNotFound(sessionId);
+        }
+        this.logger.error(
+          forkSession ? "Session fork failed" : "Session resumption failed",
+          {
+            sessionId,
+            taskId,
+            taskRunId: meta?.taskRunId,
+            error: err instanceof Error ? err.message : String(err),
+          },
+        );
+        throw err;
       }
-    } catch (err) {
-      settingsManager.dispose();
-      if (
-        isResume &&
-        err instanceof Error &&
-        err.message === "Query closed before response received"
-      ) {
-        throw RequestError.resourceNotFound(sessionId);
-      }
-      this.logger.error(
-        isResume
-          ? forkSession
-            ? "Session fork failed"
-            : "Session resumption failed"
-          : "Session initialization failed",
-        {
+    }
+
+    // Kick off SDK initialization for new sessions so it runs concurrently
+    // with the model config fetch below (the gateway REST call is independent).
+    const initPromise = !isResume
+      ? withTimeout(q.initializationResult(), SESSION_VALIDATION_TIMEOUT_MS)
+      : undefined;
+
+    const [modelOptions] = await Promise.all([
+      this.getModelConfigOptions(
+        settingsManager.getSettings().model || meta?.model || undefined,
+      ),
+      ...(meta?.taskRunId
+        ? [
+            this.client.extNotification("_posthog/sdk_session", {
+              taskRunId: meta.taskRunId,
+              sessionId,
+              adapter: "claude",
+            }),
+          ]
+        : []),
+    ]);
+
+    if (initPromise) {
+      try {
+        const initResult = await initPromise;
+        if (initResult.result === "timeout") {
+          settingsManager.dispose();
+          throw new Error(
+            `Session initialization timed out for sessionId=${sessionId}`,
+          );
+        }
+      } catch (err) {
+        settingsManager.dispose();
+        this.logger.error("Session initialization failed", {
           sessionId,
           taskId,
           taskRunId: meta?.taskRunId,
           error: err instanceof Error ? err.message : String(err),
-        },
-      );
-      throw err;
+        });
+        throw err;
+      }
     }
 
-    if (meta?.taskRunId) {
-      await this.client.extNotification("_posthog/sdk_session", {
-        taskRunId: meta.taskRunId,
-        sessionId,
-        adapter: "claude",
-      });
-    }
-
-    // Resolve model: settings model takes priority, then gateway
     const settingsModel = settingsManager.getSettings().model;
-    const modelOptions = await this.getModelConfigOptions();
-    const resolvedModelId = settingsModel || modelOptions.currentModelId;
+    const metaModel = meta?.model;
+    const resolvedModelId =
+      settingsModel || metaModel || modelOptions.currentModelId;
     session.modelId = resolvedModelId;
     session.lastContextWindowSize =
       this.getContextWindowForModel(resolvedModelId);
 
     const resolvedSdkModel = toSdkModelId(resolvedModelId);
+
     if (!isResume && resolvedSdkModel !== DEFAULT_MODEL) {
       await this.session.query.setModel(resolvedSdkModel);
     }

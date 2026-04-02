@@ -18,6 +18,7 @@ export const SHORTCUTS = {
   COPY_PATH: "mod+shift+c",
   TOGGLE_FOCUS: "mod+r",
   PASTE_AS_FILE: "mod+shift+v",
+  INBOX: "mod+i",
   BLUR: "escape",
   SUBMIT_BLUR: "mod+enter",
 } as const;
@@ -65,6 +66,12 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
     keys: SHORTCUTS.SHORTCUTS_SHEET,
     description: "Show keyboard shortcuts",
     category: "general",
+  },
+  {
+    id: "inbox",
+    keys: SHORTCUTS.INBOX,
+    description: "Open inbox",
+    category: "navigation",
   },
   {
     id: "switch-task",

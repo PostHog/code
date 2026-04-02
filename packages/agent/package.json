@@ -44,6 +44,14 @@
       "types": "./dist/adapters/claude/session/jsonl-hydration.d.ts",
       "import": "./dist/adapters/claude/session/jsonl-hydration.js"
     },
+    "./adapters/claude/session/models": {
+      "types": "./dist/adapters/claude/session/models.d.ts",
+      "import": "./dist/adapters/claude/session/models.js"
+    },
+    "./execution-mode": {
+      "types": "./dist/execution-mode.d.ts",
+      "import": "./dist/execution-mode.js"
+    },
     "./server": {
       "types": "./dist/server/agent-server.d.ts",
       "import": "./dist/server/agent-server.js"

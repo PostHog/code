@@ -66,25 +66,28 @@ export class CreatePrSaga extends Saga<CreatePrSagaInput, CreatePrSagaOutput> {
     let { commitMessage, prTitle, prBody } = input;
 
     if (input.branchName) {
-      this.deps.onProgress(
-        "creating-branch",
-        `Creating branch ${input.branchName}...`,
+      const currentBranch = await this.readOnlyStep("get-original-branch", () =>
+        this.deps.getCurrentBranch(directoryPath),
       );
 
-      const originalBranch = await this.readOnlyStep(
-        "get-original-branch",
-        () => this.deps.getCurrentBranch(directoryPath),
-      );
+      // on retry, do not attempt to re-create the branch
+      if (currentBranch !== input.branchName) {
+        this.deps.onProgress(
+          "creating-branch",
+          `Creating branch ${input.branchName}...`,
+        );
 
-      await this.step({
-        name: "creating-branch",
-        execute: () => this.deps.createBranch(directoryPath, input.branchName!),
-        rollback: async () => {
-          if (originalBranch) {
-            await this.deps.checkoutBranch(directoryPath, originalBranch);
-          }
-        },
-      });
+        await this.step({
+          name: "creating-branch",
+          execute: () =>
+            this.deps.createBranch(directoryPath, input.branchName!),
+          rollback: async () => {
+            if (currentBranch) {
+              await this.deps.checkoutBranch(directoryPath, currentBranch);
+            }
+          },
+        });
+      }
     }
 
     const changedFiles = await this.readOnlyStep("check-changes", () =>
