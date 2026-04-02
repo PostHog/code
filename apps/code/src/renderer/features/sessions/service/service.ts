@@ -62,7 +62,7 @@ import {
 
 const log = logger.scope("session-service");
 
-export const PREVIEW_TASK_ID = "__preview__";
+export const PREVIEW_CONFIG_ID = "__preview__";
 
 interface AuthCredentials {
   apiHost: string;
@@ -113,8 +113,8 @@ export class SessionService {
       permission?: { unsubscribe: () => void };
     }
   >();
-  /** AbortController for the current in-flight preview session start */
-  private previewAbort: AbortController | null = null;
+  /** AbortController for the current in-flight preview config fetch */
+  private previewConfigAbort: AbortController | null = null;
   /** Active cloud task watchers, keyed by taskId */
   private cloudTaskWatchers = new Map<
     string,
@@ -620,28 +620,28 @@ export class SessionService {
     await this.teardownSession(session.taskRunId);
   }
 
-  // --- Preview Session Management ---
+  // --- Preview Config Management ---
 
-  async startPreviewSession(params: {
+  async fetchPreviewConfig(params: {
     adapter: "claude" | "codex";
   }): Promise<void> {
-    this.previewAbort?.abort();
+    this.previewConfigAbort?.abort();
     const abort = new AbortController();
-    this.previewAbort = abort;
+    this.previewConfigAbort = abort;
 
-    this.cleanupPreviewSession();
+    this.clearPreviewConfig();
 
     const auth = await this.getAuthCredentials();
     if (abort.signal.aborted) return;
     if (!auth) {
-      log.info("Skipping preview session - not authenticated");
+      log.info("Skipping preview config - not authenticated");
       return;
     }
 
     const taskRunId = `preview-${crypto.randomUUID()}`;
     const session = this.createBaseSession(
       taskRunId,
-      PREVIEW_TASK_ID,
+      PREVIEW_CONFIG_ID,
       "Preview",
     );
     session.adapter = params.adapter;
@@ -677,26 +677,26 @@ export class SessionService {
         configOptions: updatedOptions,
       });
 
-      log.info("Preview session started (fast path)", {
+      log.info("Preview config loaded", {
         taskRunId,
         adapter: params.adapter,
         configOptionsCount: updatedOptions.length,
       });
     } catch (error) {
       if (abort.signal.aborted) return;
-      log.error("Failed to start preview session", { error });
+      log.error("Failed to fetch preview config", { error });
       sessionStoreSetters.removeSession(taskRunId);
     }
   }
 
-  async cancelPreviewSession(): Promise<void> {
-    this.previewAbort?.abort();
-    this.previewAbort = null;
-    this.cleanupPreviewSession();
+  async cancelPreviewConfig(): Promise<void> {
+    this.previewConfigAbort?.abort();
+    this.previewConfigAbort = null;
+    this.clearPreviewConfig();
   }
 
-  private cleanupPreviewSession(): void {
-    const session = sessionStoreSetters.getSessionByTaskId(PREVIEW_TASK_ID);
+  private clearPreviewConfig(): void {
+    const session = sessionStoreSetters.getSessionByTaskId(PREVIEW_CONFIG_ID);
     if (!session) return;
     sessionStoreSetters.removeSession(session.taskRunId);
   }
@@ -776,8 +776,8 @@ export class SessionService {
     }
 
     this.connectingTasks.clear();
-    this.previewAbort?.abort();
-    this.previewAbort = null;
+    this.previewConfigAbort?.abort();
+    this.previewConfigAbort = null;
     this.idleKilledSubscription?.unsubscribe();
     this.idleKilledSubscription = null;
   }
@@ -1595,8 +1595,8 @@ export class SessionService {
       return;
     }
 
-    // Preview sessions have no backing agent process — update store directly
-    if (taskId === PREVIEW_TASK_ID) {
+    // Preview config has no backing agent process — update store directly
+    if (taskId === PREVIEW_CONFIG_ID) {
       let updatedOptions = configOptions.map((opt) =>
         opt.id === configId
           ? ({ ...opt, currentValue: value } as SessionConfigOption)

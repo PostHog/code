@@ -2,7 +2,7 @@ import type { SessionConfigOption } from "@agentclientprotocol/sdk";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import {
   getSessionService,
-  PREVIEW_TASK_ID,
+  PREVIEW_CONFIG_ID,
 } from "@features/sessions/service/service";
 import {
   useModeConfigOptionForTask,
@@ -12,42 +12,41 @@ import {
 } from "@features/sessions/stores/sessionStore";
 import { useEffect } from "react";
 
-interface PreviewSessionResult {
+interface PreviewConfigResult {
   modeOption: SessionConfigOption | undefined;
   modelOption: SessionConfigOption | undefined;
   thoughtOption: SessionConfigOption | undefined;
-  previewTaskId: string;
-  /** True while the preview session is connecting (no config options yet) */
+  previewConfigId: string;
+  /** True while the preview config is loading (no config options yet) */
   isConnecting: boolean;
 }
 
 /**
- * Manages a lightweight preview session that provides adapter-specific
- * config options (models, modes, reasoning levels) for the task input page.
+ * Fetches adapter-specific config options (models, modes, reasoning levels)
+ * for the task input page without spawning a full agent session.
  *
- * Starts a new preview session when adapter changes,
- * and cleans up on unmount or when inputs change.
+ * Refetches when the adapter changes and cleans up on unmount.
  */
-export function usePreviewSession(
+export function usePreviewConfig(
   adapter: "claude" | "codex",
-): PreviewSessionResult {
+): PreviewConfigResult {
   const projectId = useAuthStateValue((state) => state.projectId);
 
   useEffect(() => {
     if (!projectId) return;
 
     const service = getSessionService();
-    service.startPreviewSession({ adapter });
+    service.fetchPreviewConfig({ adapter });
 
     return () => {
-      service.cancelPreviewSession();
+      service.cancelPreviewConfig();
     };
   }, [adapter, projectId]);
 
-  const session = useSessionForTask(PREVIEW_TASK_ID);
-  const modeOption = useModeConfigOptionForTask(PREVIEW_TASK_ID);
-  const modelOption = useModelConfigOptionForTask(PREVIEW_TASK_ID);
-  const thoughtOption = useThoughtLevelConfigOptionForTask(PREVIEW_TASK_ID);
+  const session = useSessionForTask(PREVIEW_CONFIG_ID);
+  const modeOption = useModeConfigOptionForTask(PREVIEW_CONFIG_ID);
+  const modelOption = useModelConfigOptionForTask(PREVIEW_CONFIG_ID);
+  const thoughtOption = useThoughtLevelConfigOptionForTask(PREVIEW_CONFIG_ID);
 
   // Connecting if we have a session but it's not connected yet,
   // or if we don't have a session at all (start hasn't created one yet)
@@ -57,7 +56,7 @@ export function usePreviewSession(
     modeOption,
     modelOption,
     thoughtOption,
-    previewTaskId: PREVIEW_TASK_ID,
+    previewConfigId: PREVIEW_CONFIG_ID,
     isConnecting,
   };
 }

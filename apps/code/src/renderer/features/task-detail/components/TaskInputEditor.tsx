@@ -25,7 +25,7 @@ interface TaskInputEditorProps {
   directoryTooltip?: string;
   onEmptyChange?: (isEmpty: boolean) => void;
   adapter?: "claude" | "codex";
-  previewTaskId?: string;
+  previewConfigId?: string;
   onAdapterChange?: (adapter: AgentAdapter) => void;
   isPreviewConnecting?: boolean;
   autoFocus?: boolean;
@@ -48,7 +48,7 @@ export const TaskInputEditor = forwardRef<
       directoryTooltip = "Select a folder first",
       onEmptyChange,
       adapter,
-      previewTaskId,
+      previewConfigId,
       onAdapterChange,
       isPreviewConnecting,
       autoFocus = true,
@@ -86,7 +86,7 @@ export const TaskInputEditor = forwardRef<
       submitDisabled: !isOnline,
       isLoading: isCreatingTask,
       autoFocus,
-      context: { repoPath, taskId: previewTaskId },
+      context: { repoPath, taskId: previewConfigId },
       capabilities: { commands: true, bashMode: false },
       clearOnSubmit: false,
       getPromptHistory,
@@ -218,7 +218,7 @@ export const TaskInputEditor = forwardRef<
             />
             <TourHighlight active={tourHighlight === "model-selector"}>
               <UnifiedModelSelector
-                taskId={previewTaskId}
+                taskId={previewConfigId}
                 adapter={adapter ?? "claude"}
                 onAdapterChange={onAdapterChange ?? (() => {})}
                 disabled={isCreatingTask}
@@ -228,7 +228,7 @@ export const TaskInputEditor = forwardRef<
             </TourHighlight>
             {!isPreviewConnecting && (
               <ReasoningLevelSelector
-                taskId={previewTaskId}
+                taskId={previewConfigId}
                 disabled={isCreatingTask}
               />
             )}

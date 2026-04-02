@@ -14,7 +14,7 @@ import {
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { TaskInputEditor } from "@features/task-detail/components/TaskInputEditor";
 import { WorkspaceModeSelect } from "@features/task-detail/components/WorkspaceModeSelect";
-import { usePreviewSession } from "@features/task-detail/hooks/usePreviewSession";
+import { usePreviewConfig } from "@features/task-detail/hooks/usePreviewConfig";
 import { useTaskCreation } from "@features/task-detail/hooks/useTaskCreation";
 import {
   useGithubBranches,
@@ -104,9 +104,9 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
   const cloudBranches = cloudBranchData?.branches;
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
-  // Preview session for config options — always claude
-  const { modeOption, thoughtOption, previewTaskId, isConnecting } =
-    usePreviewSession("claude");
+  // Preview config options — always claude
+  const { modeOption, thoughtOption, previewConfigId, isConnecting } =
+    usePreviewConfig("claude");
 
   const currentExecutionMode =
     getCurrentModeFromConfigOptions(modeOption ? [modeOption] : undefined) ??
@@ -194,12 +194,12 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
     const nextValue = cycleModeOption(modeOption, allowBypassPermissions);
     if (nextValue && modeOption) {
       getSessionService().setSessionConfigOption(
-        previewTaskId,
+        previewConfigId,
         modeOption.id,
         nextValue,
       );
     }
-  }, [modeOption, allowBypassPermissions, previewTaskId]);
+  }, [modeOption, allowBypassPermissions, previewConfigId]);
 
   useHotkeys(
     "shift+tab",
@@ -388,7 +388,7 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
                   directoryTooltip="Select a repository first"
                   onEmptyChange={setEditorIsEmpty}
                   adapter="claude"
-                  previewTaskId={previewTaskId}
+                  previewConfigId={previewConfigId}
                   onAdapterChange={() => {}}
                   isPreviewConnecting={isConnecting}
                   autoFocus={false}

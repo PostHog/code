@@ -474,7 +474,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
       model,
     } = config;
 
-    // Preview sessions don't need a real repo — use a temp directory
+    // Preview config doesn't need a real repo — use a temp directory
     const repoPath = taskId === "__preview__" ? tmpdir() : rawRepoPath;
 
     if (!isRetry) {
