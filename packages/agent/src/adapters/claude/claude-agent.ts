@@ -876,55 +876,85 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       { sessionId, taskId, taskRunId: meta?.taskRunId },
     );
 
-    try {
-      const result = await withTimeout(
-        q.initializationResult(),
-        SESSION_VALIDATION_TIMEOUT_MS,
-      );
-      if (result.result === "timeout") {
-        throw new Error(
-          `Session ${isResume ? (forkSession ? "fork" : "resumption") : "initialization"} timed out for sessionId=${sessionId}`,
+    if (isResume) {
+      // Resume must block on initialization to validate the session is still alive.
+      // For stale sessions this throws (e.g. "No conversation found").
+      try {
+        const result = await withTimeout(
+          q.initializationResult(),
+          SESSION_VALIDATION_TIMEOUT_MS,
         );
+        if (result.result === "timeout") {
+          throw new Error(
+            `Session ${forkSession ? "fork" : "resumption"} timed out for sessionId=${sessionId}`,
+          );
+        }
+      } catch (err) {
+        settingsManager.dispose();
+        if (
+          err instanceof Error &&
+          err.message === "Query closed before response received"
+        ) {
+          throw RequestError.resourceNotFound(sessionId);
+        }
+        this.logger.error(
+          forkSession ? "Session fork failed" : "Session resumption failed",
+          {
+            sessionId,
+            taskId,
+            taskRunId: meta?.taskRunId,
+            error: err instanceof Error ? err.message : String(err),
+          },
+        );
+        throw err;
       }
-    } catch (err) {
-      settingsManager.dispose();
-      if (
-        isResume &&
-        err instanceof Error &&
-        err.message === "Query closed before response received"
-      ) {
-        throw RequestError.resourceNotFound(sessionId);
-      }
-      this.logger.error(
-        isResume
-          ? forkSession
-            ? "Session fork failed"
-            : "Session resumption failed"
-          : "Session initialization failed",
-        {
-          sessionId,
-          taskId,
-          taskRunId: meta?.taskRunId,
-          error: err instanceof Error ? err.message : String(err),
-        },
-      );
-      throw err;
     }
 
-    if (meta?.taskRunId) {
-      await this.client.extNotification("_posthog/sdk_session", {
-        taskRunId: meta.taskRunId,
-        sessionId,
-        adapter: "claude",
-      });
-    }
+    // Fetch model config in parallel with SDK initialization for new sessions.
+    // The gateway REST call doesn't depend on the SDK being ready.
+    const [modelOptions] = await Promise.all([
+      this.getModelConfigOptions(
+        settingsManager.getSettings().model || meta?.model || undefined,
+      ),
+      // For new sessions, await initialization concurrently with model fetch.
+      // SDK starts in the background via query() — we just need it ready
+      // before the first prompt, not before returning configOptions.
+      ...(!isResume
+        ? [
+            withTimeout(q.initializationResult(), SESSION_VALIDATION_TIMEOUT_MS)
+              .then((result) => {
+                if (result.result === "timeout") {
+                  this.logger.error("Session initialization timed out", {
+                    sessionId,
+                    taskId,
+                    taskRunId: meta?.taskRunId,
+                  });
+                }
+              })
+              .catch((err) => {
+                this.logger.error("Session initialization failed", {
+                  sessionId,
+                  taskId,
+                  taskRunId: meta?.taskRunId,
+                  error: err instanceof Error ? err.message : String(err),
+                });
+              }),
+          ]
+        : []),
+      // Fire notification in parallel too
+      ...(meta?.taskRunId
+        ? [
+            this.client.extNotification("_posthog/sdk_session", {
+              taskRunId: meta.taskRunId,
+              sessionId,
+              adapter: "claude",
+            }),
+          ]
+        : []),
+    ]);
 
-    // Resolve model: settings model takes priority, then meta model, then gateway default
     const settingsModel = settingsManager.getSettings().model;
     const metaModel = meta?.model;
-    const modelOptions = await this.getModelConfigOptions(
-      settingsModel || metaModel || undefined,
-    );
     const resolvedModelId =
       settingsModel || metaModel || modelOptions.currentModelId;
     session.modelId = resolvedModelId;
