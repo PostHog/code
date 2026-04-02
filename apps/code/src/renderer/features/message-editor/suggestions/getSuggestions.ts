@@ -65,8 +65,12 @@ export function getCommandSuggestions(
   sessionId: string,
   query: string,
 ): CommandSuggestionItem[] {
-  const taskId = useDraftStore.getState().contexts[sessionId]?.taskId;
-  const merged = [...CODE_COMMANDS, ...getAvailableCommandsForTask(taskId)];
+  const store = useDraftStore.getState();
+  const taskId = store.contexts[sessionId]?.taskId;
+  const agentCommands = taskId
+    ? getAvailableCommandsForTask(taskId)
+    : (store.commands[sessionId] ?? []);
+  const merged = [...CODE_COMMANDS, ...agentCommands];
   const commands = [...new Map(merged.map((cmd) => [cmd.name, cmd])).values()];
   const filtered = searchCommands(commands, query);
 
