@@ -169,6 +169,12 @@ export class AgentServer {
   private initializationPromise: Promise<void> | null = null;
   private pendingEvents: Record<string, unknown>[] = [];
 
+  private detachSseController(controller: SseController): void {
+    if (this.session?.sseController === controller) {
+      this.session.sseController = null;
+    }
+  }
+
   private emitConsoleLog = (
     level: LogLevel,
     _scope: string,
@@ -250,18 +256,15 @@ export class AgentServer {
                 controller.enqueue(
                   new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`),
                 );
-              } catch (error) {
-                this.logger.debug(
-                  "SSE send failed (stream may be closed)",
-                  error,
-                );
+              } catch {
+                this.detachSseController(sseController);
               }
             },
             close: () => {
               try {
                 controller.close();
-              } catch (error) {
-                this.logger.debug("SSE close failed (already closed)", error);
+              } catch {
+                this.detachSseController(sseController);
               }
             },
           };
@@ -1577,6 +1580,10 @@ Important:
   }
 
   private sendSseEvent(controller: SseController, data: unknown): void {
-    controller.send(data);
+    try {
+      controller.send(data);
+    } catch {
+      this.detachSseController(controller);
+    }
   }
 }

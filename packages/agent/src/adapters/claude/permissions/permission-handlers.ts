@@ -388,12 +388,14 @@ async function handleDefaultPermissionFlow(
       updatedInput: toolInput as Record<string, unknown>,
     };
   } else {
-    const message = "User refused permission to run tool";
+    const feedback = (
+      response._meta?.customInput as string | undefined
+    )?.trim();
+    const message = feedback
+      ? `User refused permission to run tool with feedback: ${feedback}`
+      : "User refused permission to run tool";
     await emitToolDenial(context, message);
-    return {
-      behavior: "deny",
-      message,
-    };
+    return { behavior: "deny", message, interrupt: !feedback };
   }
 }
 

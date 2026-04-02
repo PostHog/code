@@ -55,8 +55,8 @@ export function CommandCenterSessionView({
         events={events}
         taskId={taskId}
         isRunning={isRunning}
-        isPromptPending={isCloud ? null : isPromptPending}
-        promptStartedAt={isCloud ? undefined : promptStartedAt}
+        isPromptPending={isPromptPending}
+        promptStartedAt={promptStartedAt}
         onSendPrompt={handleSendPrompt}
         onBashCommand={isCloud ? undefined : handleBashCommand}
         onCancelPrompt={handleCancelPrompt}

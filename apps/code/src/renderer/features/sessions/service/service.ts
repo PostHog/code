@@ -536,6 +536,7 @@ export class SessionService {
 
     const { customInstructions: startCustomInstructions } =
       useSettingsStore.getState();
+    const preferredModel = model ?? DEFAULT_GATEWAY_MODEL;
     const result = await trpcClient.agent.start.mutate({
       taskId,
       taskRunId: taskRun.id,
@@ -548,6 +549,7 @@ export class SessionService {
       effort: effortLevelSchema.safeParse(reasoningLevel).success
         ? (reasoningLevel as EffortLevel)
         : undefined,
+      model: preferredModel,
     });
 
     const session = this.createBaseSession(taskRun.id, taskId, taskTitle);
@@ -585,32 +587,6 @@ export class SessionService {
       initial_mode: executionMode,
       adapter,
     });
-
-    const preferredModel = model ?? DEFAULT_GATEWAY_MODEL;
-    const configPromises: Promise<void>[] = [];
-    if (preferredModel) {
-      configPromises.push(
-        this.setSessionConfigOptionByCategory(
-          taskId,
-          "model",
-          preferredModel,
-        ).catch((err) => log.warn("Failed to set model", { taskId, err })),
-      );
-    }
-    if (reasoningLevel) {
-      configPromises.push(
-        this.setSessionConfigOptionByCategory(
-          taskId,
-          "thought_level",
-          reasoningLevel,
-        ).catch((err) =>
-          log.warn("Failed to set reasoning level", { taskId, err }),
-        ),
-      );
-    }
-    if (configPromises.length > 0) {
-      await Promise.all(configPromises);
-    }
 
     if (initialPrompt?.length) {
       await this.sendPrompt(taskId, initialPrompt);

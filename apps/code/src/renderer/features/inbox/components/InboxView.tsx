@@ -1,4 +1,4 @@
-import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
+import { useInboxSourcesDialogStore } from "@features/inbox/stores/inboxSourcesDialogStore";
 import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
 import { EnvelopeSimpleIcon, GearSixIcon } from "@phosphor-icons/react";
 import { Box, Flex, Text } from "@radix-ui/themes";
@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { InboxSignalsTab } from "./InboxSignalsTab";
 
 export function InboxView() {
-  const openSettings = useSettingsDialogStore((s) => s.open);
+  const openSourcesDialog = useInboxSourcesDialogStore((s) => s.setOpen);
 
   const headerContent = useMemo(
     () => (
@@ -22,15 +22,15 @@ export function InboxView() {
         </Text>
         <button
           type="button"
-          onClick={() => openSettings("signals")}
+          onClick={() => openSourcesDialog(true)}
           className="no-drag ml-auto flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-[12px] text-gray-10 transition-colors hover:text-gray-12"
         >
           <GearSixIcon size={12} />
-          <span>Configure signals</span>
+          <span>Configure sources</span>
         </button>
       </Flex>
     ),
-    [openSettings],
+    [openSourcesDialog],
   );
 
   useSetHeaderContent(headerContent);

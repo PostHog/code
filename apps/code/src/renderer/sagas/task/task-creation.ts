@@ -72,6 +72,7 @@ export interface TaskCreationInput {
   reasoningLevel?: string;
   environmentId?: string;
   sandboxEnvironmentId?: string;
+  signalReportId?: string;
 }
 
 export interface TaskCreationOutput {
@@ -388,6 +389,8 @@ export class TaskCreationSaga extends Saga<
             input.workspaceMode === "cloud"
               ? input.githubIntegrationId
               : undefined,
+          origin_product: input.signalReportId ? "signal_report" : undefined,
+          signal_report: input.signalReportId ?? undefined,
         });
         return result as unknown as Task;
       },
