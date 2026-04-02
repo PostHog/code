@@ -192,6 +192,8 @@ export interface SignalReport {
   priority?: SignalReportPriority | null;
   /** Whether the current user is a suggested reviewer for this report (server-annotated). */
   is_suggested_reviewer?: boolean;
+  /** Distinct source products contributing signals to this report (e.g. "session_replay", "error_tracking"). */
+  source_products?: string[];
 }
 
 export interface SignalReportArtefactContent {
@@ -300,4 +302,6 @@ export interface SignalReportsQueryParams {
    * `created_at`, `updated_at`, `id`. Example: `status,-total_weight`.
    */
   ordering?: string;
+  /** Comma-separated source products — only returns reports with signals from these sources. */
+  source_product?: string;
 }

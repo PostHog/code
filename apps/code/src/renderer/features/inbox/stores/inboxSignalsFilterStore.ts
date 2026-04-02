@@ -12,6 +12,14 @@ type SignalSortField = Extract<
 
 type SignalSortDirection = "asc" | "desc";
 
+export type SourceProduct =
+  | "session_replay"
+  | "error_tracking"
+  | "llm_analytics"
+  | "github"
+  | "linear"
+  | "zendesk";
+
 const DEFAULT_STATUS_FILTER: SignalReportStatus[] = [
   "ready",
   "pending_input",
@@ -25,6 +33,8 @@ interface InboxSignalsFilterState {
   sortDirection: SignalSortDirection;
   searchQuery: string;
   statusFilter: SignalReportStatus[];
+  /** Empty array means "all sources" (no filter). */
+  sourceProductFilter: SourceProduct[];
 }
 
 interface InboxSignalsFilterActions {
@@ -32,6 +42,7 @@ interface InboxSignalsFilterActions {
   setSearchQuery: (query: string) => void;
   setStatusFilter: (statuses: SignalReportStatus[]) => void;
   toggleStatus: (status: SignalReportStatus) => void;
+  toggleSourceProduct: (source: SourceProduct) => void;
 }
 
 type InboxSignalsFilterStore = InboxSignalsFilterState &
@@ -44,6 +55,7 @@ export const useInboxSignalsFilterStore = create<InboxSignalsFilterStore>()(
       sortDirection: "asc",
       searchQuery: "",
       statusFilter: DEFAULT_STATUS_FILTER,
+      sourceProductFilter: [],
       setSort: (sortField, sortDirection) => set({ sortField, sortDirection }),
       setSearchQuery: (searchQuery) => set({ searchQuery }),
       setStatusFilter: (statusFilter) => set({ statusFilter }),
@@ -55,6 +67,14 @@ export const useInboxSignalsFilterStore = create<InboxSignalsFilterStore>()(
             : [...current, status];
           return { statusFilter: next.length > 0 ? next : current };
         }),
+      toggleSourceProduct: (source) =>
+        set((state) => {
+          const current = state.sourceProductFilter;
+          const next = current.includes(source)
+            ? current.filter((s) => s !== source)
+            : [...current, source];
+          return { sourceProductFilter: next };
+        }),
     }),
     {
       name: "inbox-signals-filter-storage",
@@ -62,6 +82,7 @@ export const useInboxSignalsFilterStore = create<InboxSignalsFilterStore>()(
         sortField: state.sortField,
         sortDirection: state.sortDirection,
         statusFilter: state.statusFilter,
+        sourceProductFilter: state.sourceProductFilter,
       }),
     },
   ),

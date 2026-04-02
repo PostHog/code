@@ -18,7 +18,7 @@ export const SHORTCUTS = {
   COPY_PATH: "mod+shift+c",
   TOGGLE_FOCUS: "mod+r",
   PASTE_AS_FILE: "mod+shift+v",
-  INBOX: "mod+shift+i",
+  INBOX: "mod+i",
   BLUR: "escape",
   SUBMIT_BLUR: "mod+enter",
 } as const;

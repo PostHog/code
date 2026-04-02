@@ -1,16 +1,25 @@
-import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsFilterStore";
+import {
+  type SourceProduct,
+  useInboxSignalsFilterStore,
+} from "@features/inbox/stores/inboxSignalsFilterStore";
 import {
   inboxStatusAccentCss,
   inboxStatusLabel,
 } from "@features/inbox/utils/inboxSort";
 import {
+  BrainIcon,
+  BugIcon,
   CalendarPlus,
   Check,
   Clock,
   FunnelSimple as FunnelSimpleIcon,
+  GithubLogoIcon,
+  KanbanIcon,
   ListNumbers,
   MagnifyingGlass,
+  TicketIcon,
   TrendUp,
+  VideoIcon,
 } from "@phosphor-icons/react";
 import { Box, Flex, Popover, Text, TextField, Tooltip } from "@radix-ui/themes";
 import type {
@@ -26,6 +35,7 @@ interface SignalsToolbarProps {
   readyCount?: number;
   processingCount?: number;
   searchDisabledReason?: string | null;
+  hideFilters?: boolean;
 }
 
 type SortOption = {
@@ -81,6 +91,7 @@ export function SignalsToolbar({
   readyCount,
   processingCount = 0,
   searchDisabledReason,
+  hideFilters,
 }: SignalsToolbarProps) {
   const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
   const setSearchQuery = useInboxSignalsFilterStore((s) => s.setSearchQuery);
@@ -89,6 +100,12 @@ export function SignalsToolbar({
   const setSort = useInboxSignalsFilterStore((s) => s.setSort);
   const statusFilter = useInboxSignalsFilterStore((s) => s.statusFilter);
   const toggleStatus = useInboxSignalsFilterStore((s) => s.toggleStatus);
+  const sourceProductFilter = useInboxSignalsFilterStore(
+    (s) => s.sourceProductFilter,
+  );
+  const toggleSourceProduct = useInboxSignalsFilterStore(
+    (s) => s.toggleSourceProduct,
+  );
 
   const countLabel = isSearchActive
     ? `${filteredCount} of ${totalCount}`
@@ -108,37 +125,41 @@ export function SignalsToolbar({
       style={{ borderBottom: "1px solid var(--gray-5)" }}
     >
       <Flex align="center" justify="between" gap="2">
-        <Flex align="center" gap="2" className="min-w-0">
-          {livePolling ? (
-            <span
-              className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{
-                backgroundColor: "var(--amber-9)",
-                boxShadow: "0 0 10px var(--amber-9)",
-                animation: "inboxToolbarPulse 1.4s ease-in-out infinite",
-              }}
-              title="Watching for new and updated reports"
-              aria-hidden
-            />
-          ) : null}
-          <Flex direction="column" gap="0" className="min-w-0">
+        <Flex direction="column" gap="0" className="min-w-0">
+          <Flex align="center" gap="2">
             <Text size="1" color="gray" className="shrink-0 text-[12px]">
-              Signals ({countLabel})
+              Reports ({countLabel})
             </Text>
-            {pipelineHint && !isSearchActive ? (
-              <Text size="1" color="gray" className="text-[11px] opacity-80">
-                {pipelineHint}
-              </Text>
+            {livePolling ? (
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{
+                  backgroundColor: "var(--red-9)",
+                  boxShadow: "0 0 8px var(--red-9)",
+                  animation: "inboxToolbarPulse 1.4s ease-in-out infinite",
+                }}
+                title="Watching for new and updated reports"
+                aria-hidden
+              />
             ) : null}
           </Flex>
+          {pipelineHint && !isSearchActive ? (
+            <Text size="1" color="gray" className="text-[11px] opacity-80">
+              {pipelineHint}
+            </Text>
+          ) : null}
         </Flex>
-        <FilterSortMenu
-          sortField={sortField}
-          sortDirection={sortDirection}
-          onSort={setSort}
-          statusFilter={statusFilter}
-          onToggleStatus={toggleStatus}
-        />
+        {!hideFilters && (
+          <FilterSortMenu
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onSort={setSort}
+            statusFilter={statusFilter}
+            onToggleStatus={toggleStatus}
+            sourceProductFilter={sourceProductFilter}
+            onToggleSourceProduct={toggleSourceProduct}
+          />
+        )}
       </Flex>
       <Tooltip content={searchDisabledReason} hidden={!searchDisabledReason}>
         <TextField.Root
@@ -158,12 +179,39 @@ export function SignalsToolbar({
   );
 }
 
+const SOURCE_PRODUCT_OPTIONS: {
+  value: SourceProduct;
+  label: string;
+  icon: React.ReactNode;
+}[] = [
+  {
+    value: "session_replay",
+    label: "Session replay",
+    icon: <VideoIcon size={14} />,
+  },
+  {
+    value: "error_tracking",
+    label: "Error tracking",
+    icon: <BugIcon size={14} />,
+  },
+  {
+    value: "llm_analytics",
+    label: "LLM analytics",
+    icon: <BrainIcon size={14} />,
+  },
+  { value: "github", label: "GitHub", icon: <GithubLogoIcon size={14} /> },
+  { value: "linear", label: "Linear", icon: <KanbanIcon size={14} /> },
+  { value: "zendesk", label: "Zendesk", icon: <TicketIcon size={14} /> },
+];
+
 function FilterSortMenu({
   sortField,
   sortDirection,
   onSort,
   statusFilter,
   onToggleStatus,
+  sourceProductFilter,
+  onToggleSourceProduct,
 }: {
   sortField: string;
   sortDirection: string;
@@ -173,6 +221,8 @@ function FilterSortMenu({
   ) => void;
   statusFilter: SignalReportStatus[];
   onToggleStatus: (status: SignalReportStatus) => void;
+  sourceProductFilter: SourceProduct[];
+  onToggleSourceProduct: (source: SourceProduct) => void;
 }) {
   const itemClassName =
     "flex w-full items-center justify-between rounded-sm px-1 py-1 text-left text-[13px] text-gray-12 transition-colors hover:bg-gray-3";
@@ -255,6 +305,36 @@ function FilterSortMenu({
                       <span className="text-gray-12">
                         {inboxStatusLabel(status)}
                       </span>
+                    </span>
+                    {isActive && <Check size={12} className="text-gray-12" />}
+                  </button>
+                );
+              })}
+            </Box>
+          </Box>
+
+          <Box>
+            <Text
+              size="1"
+              className="text-gray-10"
+              weight="medium"
+              style={{ paddingLeft: "1px" }}
+            >
+              Source
+            </Text>
+            <Box mt="1">
+              {SOURCE_PRODUCT_OPTIONS.map((option) => {
+                const isActive = sourceProductFilter.includes(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={itemClassName}
+                    onClick={() => onToggleSourceProduct(option.value)}
+                  >
+                    <span className="flex items-center gap-1 text-gray-12">
+                      {option.icon}
+                      <span>{option.label}</span>
                     </span>
                     {isActive && <Check size={12} className="text-gray-12" />}
                   </button>

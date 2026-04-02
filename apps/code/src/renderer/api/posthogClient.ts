@@ -953,6 +953,9 @@ export class PostHogAPIClient {
     if (params?.ordering) {
       url.searchParams.set("ordering", params.ordering);
     }
+    if (params?.source_product) {
+      url.searchParams.set("source_product", params.source_product);
+    }
 
     const response = await this.api.fetcher.fetch({
       method: "get",

@@ -9,6 +9,7 @@ import { useSignalSourceConfigs } from "@features/inbox/hooks/useSignalSourceCon
 import { useInboxCloudTaskStore } from "@features/inbox/stores/inboxCloudTaskStore";
 import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsFilterStore";
 import { useInboxSignalsSidebarStore } from "@features/inbox/stores/inboxSignalsSidebarStore";
+import { useInboxSourcesDialogStore } from "@features/inbox/stores/inboxSourcesDialogStore";
 import { buildSignalTaskPrompt } from "@features/inbox/utils/buildSignalTaskPrompt";
 import {
   buildSignalReportListOrdering,
@@ -25,6 +26,10 @@ import {
   ArrowDownIcon,
   ArrowSquareOutIcon,
   ArrowsClockwiseIcon,
+  BrainIcon,
+  BugIcon,
+  CaretRightIcon,
+  CheckIcon,
   CircleNotchIcon,
   ClockIcon,
   Cloud as CloudIcon,
@@ -55,7 +60,6 @@ import mailHog from "@renderer/assets/images/mail-hog.png";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type {
   SignalReportArtefact,
-  SignalReportArtefactsResponse,
   SignalReportsQueryParams,
   SuggestedReviewersArtefact,
 } from "@shared/types";
@@ -67,24 +71,132 @@ import { ReportCard } from "./ReportCard";
 import { ReportTaskLogs } from "./ReportTaskLogs";
 import { SignalCard } from "./SignalCard";
 import { SignalReportPriorityBadge } from "./SignalReportPriorityBadge";
+import { SignalReportStatusBadge } from "./SignalReportStatusBadge";
 import { SignalReportSummaryMarkdown } from "./SignalReportSummaryMarkdown";
 import { SignalsToolbar } from "./SignalsToolbar";
 
-function getArtefactsUnavailableMessage(
-  reason: SignalReportArtefactsResponse["unavailableReason"],
-): string {
-  switch (reason) {
-    case "forbidden":
-      return "Evidence could not be loaded with the current API permissions.";
-    case "not_found":
-      return "Evidence endpoint is unavailable for this signal in this environment.";
-    case "invalid_payload":
-      return "Evidence format was unexpected, so no artefacts could be shown.";
-    case "request_failed":
-      return "Evidence is temporarily unavailable. You can still create a task from this report.";
-    default:
-      return "Evidence is currently unavailable for this signal.";
-  }
+function JudgmentBadges({
+  safetyContent,
+  actionabilityContent,
+}: {
+  safetyContent: Record<string, unknown> | null;
+  actionabilityContent: Record<string, unknown> | null;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const isSafe =
+    safetyContent?.safe === true || safetyContent?.judgment === "safe";
+  const actionabilityJudgment =
+    (actionabilityContent?.judgment as string) ?? "";
+
+  const actionabilityLabel =
+    actionabilityJudgment === "immediately_actionable"
+      ? "Immediately actionable"
+      : actionabilityJudgment === "requires_human_input"
+        ? "Requires human input"
+        : "Not actionable";
+
+  const actionabilityColor =
+    actionabilityJudgment === "immediately_actionable"
+      ? "green"
+      : actionabilityJudgment === "requires_human_input"
+        ? "amber"
+        : "gray";
+
+  return (
+    <Box className="rounded border border-gray-6 bg-gray-1">
+      <button
+        type="button"
+        className="flex w-full cursor-pointer items-center gap-2 rounded border-0 bg-transparent px-3 py-2 text-left hover:bg-gray-2"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <Text
+          size="1"
+          weight="medium"
+          className="shrink-0 text-[11px]"
+          style={{ color: "var(--gray-10)" }}
+        >
+          LLM judgment:
+        </Text>
+        <Flex align="center" gap="1" wrap="wrap" className="flex-1">
+          {safetyContent && (
+            <Badge
+              variant="soft"
+              color={isSafe ? "green" : "red"}
+              size="1"
+              className="text-[11px]"
+            >
+              {isSafe ? <CheckIcon size={10} /> : <WarningIcon size={10} />}
+              <span className="ml-0.5">{isSafe ? "Safe" : "Unsafe"}</span>
+            </Badge>
+          )}
+          {actionabilityContent && (
+            <Badge
+              variant="soft"
+              color={actionabilityColor as "green" | "amber" | "gray"}
+              size="1"
+              className="text-[11px]"
+            >
+              {actionabilityJudgment === "immediately_actionable" ? (
+                <CheckIcon size={10} />
+              ) : actionabilityJudgment === "requires_human_input" ? (
+                <WarningIcon size={10} />
+              ) : (
+                <XIcon size={10} />
+              )}
+              <span className="ml-0.5">{actionabilityLabel}</span>
+            </Badge>
+          )}
+        </Flex>
+        <CaretRightIcon
+          size={14}
+          className="shrink-0 text-gray-9 transition-transform"
+          style={{ transform: expanded ? "rotate(90deg)" : undefined }}
+        />
+      </button>
+      {expanded && (
+        <Flex
+          direction="column"
+          gap="2"
+          px="3"
+          pb="3"
+          className="text-[12px]"
+          style={{ color: "var(--gray-11)" }}
+        >
+          {safetyContent?.explanation ? (
+            <Box>
+              <Text
+                size="1"
+                weight="medium"
+                className="text-[11px]"
+                style={{ color: "var(--gray-10)" }}
+              >
+                Safety
+              </Text>
+              <Text size="1" className="mt-0.5 block text-[12px]">
+                {String(safetyContent.explanation)}
+              </Text>
+            </Box>
+          ) : null}
+          {actionabilityContent?.explanation ? (
+            <Box>
+              <Text
+                size="1"
+                weight="medium"
+                className="text-[11px]"
+                style={{ color: "var(--gray-10)" }}
+              >
+                Actionability
+              </Text>
+              <Text size="1" className="mt-0.5 block text-[12px]">
+                {String(actionabilityContent.explanation)}
+              </Text>
+            </Box>
+          ) : null}
+        </Flex>
+      )}
+    </Box>
+  );
 }
 
 function LoadMoreTrigger({
@@ -208,10 +320,48 @@ function WelcomePane({ onEnableInbox }: { onEnableInbox: () => void }) {
   );
 }
 
+const SOURCE_ICON_MAP: Record<
+  string,
+  { icon: React.ReactNode; color: string; label: string }
+> = {
+  session_replay: {
+    icon: <VideoIcon size={16} />,
+    color: "var(--amber-9)",
+    label: "Session replay",
+  },
+  error_tracking: {
+    icon: <BugIcon size={16} />,
+    color: "var(--red-9)",
+    label: "Error tracking",
+  },
+  llm_analytics: {
+    icon: <BrainIcon size={16} />,
+    color: "var(--purple-9)",
+    label: "LLM analytics",
+  },
+  github: {
+    icon: <GithubLogoIcon size={16} />,
+    color: "var(--gray-11)",
+    label: "GitHub",
+  },
+  linear: {
+    icon: <KanbanIcon size={16} />,
+    color: "var(--blue-9)",
+    label: "Linear",
+  },
+  zendesk: {
+    icon: <TicketIcon size={16} />,
+    color: "var(--green-9)",
+    label: "Zendesk",
+  },
+};
+
 function WarmingUpPane({
   onConfigureSources,
+  enabledProducts,
 }: {
   onConfigureSources: () => void;
+  enabledProducts: string[];
 }) {
   return (
     <Flex
@@ -232,7 +382,6 @@ function WarmingUpPane({
           size="4"
           weight="bold"
           align="center"
-          as="div"
           style={{ color: "var(--gray-12)" }}
         >
           Inbox is warming up
@@ -248,15 +397,24 @@ function WarmingUpPane({
           Reports will appear here as soon as signals come in.
         </Text>
 
-        <Button
-          size="2"
-          variant="soft"
-          color="gray"
-          style={{ marginTop: 16 }}
-          onClick={onConfigureSources}
-        >
-          Configure sources
-        </Button>
+        <Flex align="center" gap="3" style={{ marginTop: 16 }}>
+          {enabledProducts.map((sp) => {
+            const info = SOURCE_ICON_MAP[sp];
+            return info ? (
+              <Tooltip key={sp} content={info.label}>
+                <span style={{ color: info.color }}>{info.icon}</span>
+              </Tooltip>
+            ) : null;
+          })}
+          <Button
+            size="2"
+            variant="soft"
+            color="gray"
+            onClick={onConfigureSources}
+          >
+            Configure sources
+          </Button>
+        </Flex>
       </Flex>
     </Flex>
   );
@@ -305,9 +463,24 @@ export function InboxSignalsTab() {
   const sortDirection = useInboxSignalsFilterStore((s) => s.sortDirection);
   const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
   const statusFilter = useInboxSignalsFilterStore((s) => s.statusFilter);
+  const sourceProductFilter = useInboxSignalsFilterStore(
+    (s) => s.sourceProductFilter,
+  );
   const { data: signalSourceConfigs } = useSignalSourceConfigs();
   const hasSignalSources = signalSourceConfigs?.some((c) => c.enabled) ?? false;
-  const [sourcesDialogOpen, setSourcesDialogOpen] = useState(false);
+  const enabledProducts = useMemo(() => {
+    const seen = new Set<string>();
+    return (signalSourceConfigs ?? [])
+      .filter(
+        (c) =>
+          c.enabled &&
+          !seen.has(c.source_product) &&
+          seen.add(c.source_product),
+      )
+      .map((c) => c.source_product);
+  }, [signalSourceConfigs]);
+  const sourcesDialogOpen = useInboxSourcesDialogStore((s) => s.open);
+  const setSourcesDialogOpen = useInboxSourcesDialogStore((s) => s.setOpen);
 
   const windowFocused = useRendererWindowFocusStore((s) => s.focused);
   const isInboxView = useNavigationStore((s) => s.view.type === "inbox");
@@ -317,8 +490,12 @@ export function InboxSignalsTab() {
     (): SignalReportsQueryParams => ({
       status: buildStatusFilterParam(statusFilter),
       ordering: buildSignalReportListOrdering(sortField, sortDirection),
+      source_product:
+        sourceProductFilter.length > 0
+          ? sourceProductFilter.join(",")
+          : undefined,
     }),
-    [statusFilter, sortField, sortDirection],
+    [statusFilter, sortField, sortDirection, sourceProductFilter],
   );
 
   const {
@@ -420,6 +597,16 @@ export function InboxSignalsTab() {
 
   const handleListKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      // Don't capture arrow keys when focus is inside interactive child UI
+      // like filter popovers, dropdowns, or search inputs
+      const target = e.target as HTMLElement;
+      if (
+        target.closest(
+          "[role='menu'], [role='listbox'], [role='dialog'], [data-radix-popper-content-wrapper], input, select, textarea",
+        )
+      )
+        return;
+
       if (e.key === "ArrowDown") {
         e.preventDefault();
         navigateReport(1);
@@ -438,8 +625,8 @@ export function InboxSignalsTab() {
     enabled: !!selectedReport,
   });
   const allArtefacts = artefactsQuery.data?.results ?? [];
-  const visibleArtefacts = allArtefacts.filter(
-    (a): a is SignalReportArtefact => a.type !== "suggested_reviewers",
+  const videoSegments = allArtefacts.filter(
+    (a): a is SignalReportArtefact => a.type === "video_segment",
   );
   const suggestedReviewers = useMemo(() => {
     const reviewerArtefact = allArtefacts.find(
@@ -447,13 +634,21 @@ export function InboxSignalsTab() {
     );
     return reviewerArtefact?.content ?? [];
   }, [allArtefacts]);
-  const artefactsUnavailableReason = artefactsQuery.data?.unavailableReason;
-  const showArtefactsUnavailable =
-    !artefactsQuery.isLoading &&
-    (!!artefactsQuery.error || !!artefactsUnavailableReason);
-  const artefactsUnavailableMessage = artefactsQuery.error
-    ? "Evidence could not be loaded right now. You can still create a task from this report."
-    : getArtefactsUnavailableMessage(artefactsUnavailableReason);
+  const judgments = useMemo(() => {
+    const safety = allArtefacts.find((a) => a.type === "safety_judgment");
+    const actionability = allArtefacts.find(
+      (a) => a.type === "actionability_judgment",
+    );
+    const safetyContent =
+      safety && !Array.isArray(safety.content)
+        ? (safety.content as unknown as Record<string, unknown>)
+        : null;
+    const actionabilityContent =
+      actionability && !Array.isArray(actionability.content)
+        ? (actionability.content as unknown as Record<string, unknown>)
+        : null;
+    return { safetyContent, actionabilityContent };
+  }, [allArtefacts]);
 
   const signalsQuery = useInboxReportSignals(selectedReport?.id ?? "", {
     enabled: !!selectedReport,
@@ -487,11 +682,11 @@ export function InboxSignalsTab() {
     if (!selectedReport) return null;
     return buildSignalTaskPrompt({
       report: selectedReport,
-      artefacts: visibleArtefacts,
+      artefacts: videoSegments,
       signals,
       replayBaseUrl,
     });
-  }, [selectedReport, visibleArtefacts, signals, replayBaseUrl]);
+  }, [selectedReport, videoSegments, signals, replayBaseUrl]);
 
   const handleCreateTask = () => {
     if (!selectedReport || selectedReport.status !== "ready") {
@@ -585,7 +780,10 @@ export function InboxSignalsTab() {
   // ── Layout mode: full-width empty state vs two-pane ─────────────────────
 
   const hasReports = allReports.length > 0;
-  const showTwoPaneLayout = hasReports || !!searchQuery.trim();
+  const hasActiveFilters =
+    sourceProductFilter.length > 0 || statusFilter.length < 5;
+  const showTwoPaneLayout =
+    hasReports || !!searchQuery.trim() || hasActiveFilters;
 
   // ── Determine right pane content (only used in two-pane mode) ──────────
 
@@ -618,43 +816,43 @@ export function InboxSignalsTab() {
               <XIcon size={14} />
             </button>
           </Flex>
-          <Flex align="center" gap="1" wrap="wrap">
-            <Button
-              size="1"
-              variant="soft"
-              onClick={handleCreateTask}
-              disabled={!canActOnReport}
-              className="text-[12px]"
-            >
-              Create task
-            </Button>
-            {cloudModeEnabled && (
+          <Flex align="center" justify="between" gap="2">
+            <Flex align="center" gap="1">
               <Button
                 size="1"
-                variant="solid"
-                onClick={handleOpenCloudConfirm}
-                disabled={
-                  !canActOnReport ||
-                  isRunningCloudTask ||
-                  repositories.length === 0
-                }
+                variant="soft"
+                onClick={handleCreateTask}
+                disabled={!canActOnReport}
                 className="text-[12px]"
               >
-                Pick up task
+                <CloudIcon size={12} />
+                {isRunningCloudTask ? "Running..." : "Run task"}
                 <span className="ml-1 inline-flex items-center gap-px text-gray-9">
                   <CommandIcon size={11} />
                   <KeyReturnIcon size={11} />
                 </span>
               </Button>
+              {cloudModeEnabled && (
+                <Button
+                  size="1"
+                  variant="solid"
+                  onClick={handleOpenCloudConfirm}
+                  disabled={
+                    !canActOnReport ||
+                    isRunningCloudTask ||
+                    repositories.length === 0
+                  }
+                  className="text-[12px]"
+                >
+                  <CloudIcon size={12} />
+                  {isRunningCloudTask ? "Running..." : "Run cloud"}
+                </Button>
+              )}
+            </Flex>
+            {selectedReport && (
+              <SignalReportStatusBadge status={selectedReport.status} />
             )}
           </Flex>
-          {!canActOnReport && selectedReport ? (
-            <Text size="1" color="gray" className="text-[11px] leading-snug">
-              {selectedReport.status === "pending_input"
-                ? "This report needs input in PostHog before an agent can act on it."
-                : "Research is still running — you can read context below, then create a task when status is Ready."}
-            </Text>
-          ) : null}
         </Flex>
         <ScrollArea
           type="auto"
@@ -664,20 +862,25 @@ export function InboxSignalsTab() {
         >
           <Flex direction="column" gap="2" p="2" className="min-w-0">
             {/* ── Description ─────────────────────────────────────── */}
-            <SignalReportSummaryMarkdown
-              content={selectedReport.summary}
-              fallback="No summary available."
-              variant="detail"
-            />
-            <Flex align="center" gap="2" wrap="wrap">
-              <SignalReportPriorityBadge priority={selectedReport.priority} />
-              <Badge variant="soft" color="gray" size="1">
-                {selectedReport.signal_count} occurrences
-              </Badge>
-              <Badge variant="soft" color="gray" size="1">
-                {selectedReport.relevant_user_count ?? 0} affected users
-              </Badge>
-            </Flex>
+            {selectedReport.status !== "ready" ? (
+              <Tooltip content="This is a preliminary description. A full researched summary will replace it when the research agent completes its work.">
+                <div className="cursor-help">
+                  <SignalReportSummaryMarkdown
+                    content={selectedReport.summary}
+                    fallback="No summary available."
+                    variant="detail"
+                    pending
+                  />
+                </div>
+              </Tooltip>
+            ) : (
+              <SignalReportSummaryMarkdown
+                content={selectedReport.summary}
+                fallback="No summary available."
+                variant="detail"
+              />
+            )}
+            <SignalReportPriorityBadge priority={selectedReport.priority} />
 
             {suggestedReviewers.length > 0 && (
               <Box>
@@ -691,7 +894,12 @@ export function InboxSignalsTab() {
                 </Text>
                 <Flex direction="column" gap="1">
                   {suggestedReviewers.map((reviewer) => (
-                    <Flex key={reviewer.github_login} align="center" gap="2">
+                    <Flex
+                      key={reviewer.github_login}
+                      align="center"
+                      gap="2"
+                      wrap="wrap"
+                    >
                       <GithubLogoIcon
                         size={14}
                         className="shrink-0 text-gray-10"
@@ -705,10 +913,30 @@ export function InboxSignalsTab() {
                         href={`https://github.com/${reviewer.github_login}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[11px] text-gray-9 hover:text-gray-11"
+                        className="inline-flex items-center gap-0.5 text-[11px] text-gray-9 hover:text-gray-11"
                       >
                         @{reviewer.github_login}
+                        <ArrowSquareOutIcon size={10} />
                       </a>
+                      {reviewer.relevant_commits.length > 0 && (
+                        <span className="text-[11px] text-gray-9">
+                          {reviewer.relevant_commits.map((commit, i) => (
+                            <span key={commit.sha}>
+                              {i > 0 && ", "}
+                              <Tooltip content={commit.reason || undefined}>
+                                <a
+                                  href={commit.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="font-mono text-gray-9 hover:text-gray-11"
+                                >
+                                  {commit.sha.slice(0, 7)}
+                                </a>
+                              </Tooltip>
+                            </span>
+                          ))}
+                        </span>
+                      )}
                     </Flex>
                   ))}
                 </Flex>
@@ -739,73 +967,65 @@ export function InboxSignalsTab() {
               </Text>
             )}
 
-            {/* ── Evidence ────────────────────────────────────────── */}
-            <Box>
-              <Text
-                size="1"
-                weight="medium"
-                className="block text-[13px]"
-                mb="2"
-              >
-                Evidence
-              </Text>
-              {artefactsQuery.isLoading && (
-                <Text size="1" color="gray" className="block text-[12px]">
-                  Loading evidence...
-                </Text>
-              )}
-              {showArtefactsUnavailable && (
-                <Text size="1" color="gray" className="block text-[12px]">
-                  {artefactsUnavailableMessage}
-                </Text>
-              )}
-              {!artefactsQuery.isLoading &&
-                !showArtefactsUnavailable &&
-                visibleArtefacts.length === 0 && (
-                  <Text size="1" color="gray" className="block text-[12px]">
-                    No artefacts were returned for this signal.
-                  </Text>
-                )}
+            {/* ── LLM judgments ──────────────────────────────────── */}
+            {(judgments.safetyContent || judgments.actionabilityContent) && (
+              <JudgmentBadges
+                safetyContent={judgments.safetyContent}
+                actionabilityContent={judgments.actionabilityContent}
+              />
+            )}
 
-              <Flex direction="column" gap="1">
-                {visibleArtefacts.map((artefact) => (
-                  <Box
-                    key={artefact.id}
-                    className="rounded border border-gray-6 bg-gray-1 p-2"
-                  >
-                    <Text
-                      size="1"
-                      className="whitespace-pre-wrap text-pretty break-words text-[12px]"
+            {/* ── Session segments (video artefacts) ──────────────── */}
+            {videoSegments.length > 0 && (
+              <Box>
+                <Text
+                  size="1"
+                  weight="medium"
+                  className="block text-[13px]"
+                  mb="2"
+                >
+                  Session segments
+                </Text>
+                <Flex direction="column" gap="1">
+                  {videoSegments.map((artefact) => (
+                    <Box
+                      key={artefact.id}
+                      className="rounded border border-gray-6 bg-gray-1 p-2"
                     >
-                      {artefact.content.content}
-                    </Text>
-                    <Flex align="center" justify="between" mt="1" gap="2">
-                      <Flex align="center" gap="1">
-                        <ClockIcon size={12} className="text-gray-9" />
-                        <Text size="1" color="gray" className="text-[12px]">
-                          {artefact.content.start_time
-                            ? new Date(
-                                artefact.content.start_time,
-                              ).toLocaleString()
-                            : "Unknown time"}
-                        </Text>
+                      <Text
+                        size="1"
+                        className="whitespace-pre-wrap text-pretty break-words text-[12px]"
+                      >
+                        {artefact.content.content}
+                      </Text>
+                      <Flex align="center" justify="between" mt="1" gap="2">
+                        <Flex align="center" gap="1">
+                          <ClockIcon size={12} className="text-gray-9" />
+                          <Text size="1" color="gray" className="text-[12px]">
+                            {artefact.content.start_time
+                              ? new Date(
+                                  artefact.content.start_time,
+                                ).toLocaleString()
+                              : "Unknown time"}
+                          </Text>
+                        </Flex>
+                        {replayBaseUrl && artefact.content.session_id && (
+                          <a
+                            href={`${replayBaseUrl}/${artefact.content.session_id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[12px] text-gray-11 hover:text-gray-12"
+                          >
+                            View replay
+                            <ArrowSquareOutIcon size={12} />
+                          </a>
+                        )}
                       </Flex>
-                      {replayBaseUrl && artefact.content.session_id && (
-                        <a
-                          href={`${replayBaseUrl}/${artefact.content.session_id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-[12px] text-gray-11 hover:text-gray-12"
-                        >
-                          View replay
-                          <ArrowSquareOutIcon size={12} />
-                        </a>
-                      )}
-                    </Flex>
-                  </Box>
-                ))}
-              </Flex>
-            </Box>
+                    </Box>
+                  ))}
+                </Flex>
+              </Box>
+            )}
           </Flex>
         </ScrollArea>
         {/* ── Research task logs (bottom preview + overlay) ─────── */}
@@ -871,7 +1091,15 @@ export function InboxSignalsTab() {
     leftPaneList = (
       <Flex direction="column" align="center" justify="center" gap="2" py="6">
         <Text size="1" color="gray" className="text-[12px]">
-          No matching signals
+          No matching reports
+        </Text>
+      </Flex>
+    );
+  } else if (reports.length === 0 && hasActiveFilters) {
+    leftPaneList = (
+      <Flex direction="column" align="center" justify="center" gap="2" py="6">
+        <Text size="1" color="gray" className="text-[12px]">
+          No reports match current filters
         </Text>
       </Flex>
     );
@@ -1002,6 +1230,7 @@ export function InboxSignalsTab() {
               filteredCount={0}
               isSearchActive={false}
               searchDisabledReason={searchDisabledReason}
+              hideFilters
             />
             {skeletonBackdrop}
           </Flex>
@@ -1021,6 +1250,7 @@ export function InboxSignalsTab() {
             ) : (
               <WarmingUpPane
                 onConfigureSources={() => setSourcesDialogOpen(true)}
+                enabledProducts={enabledProducts}
               />
             )}
           </Box>

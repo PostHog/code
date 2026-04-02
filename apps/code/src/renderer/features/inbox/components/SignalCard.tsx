@@ -1,3 +1,4 @@
+import { MarkdownRenderer } from "@features/editor/components/MarkdownRenderer";
 import {
   ArrowSquareOutIcon,
   BrainIcon,
@@ -143,7 +144,20 @@ function truncateBody(body: string, maxLength = COLLAPSE_THRESHOLD): string {
   const truncated = body.slice(0, maxLength);
   const lastNewline = truncated.lastIndexOf("\n");
   const cutPoint = lastNewline > maxLength * 0.5 ? lastNewline : maxLength;
-  return `${truncated.slice(0, cutPoint)}…`;
+  let result = truncated.slice(0, cutPoint);
+  // Close any open code fences so markdown renders cleanly
+  const fenceCount = (result.match(/^```/gm) || []).length;
+  if (fenceCount % 2 !== 0) {
+    // Trim trailing partial fence line (e.g. just "```" with no content after)
+    const lastFence = result.lastIndexOf("```");
+    const afterFence = result.slice(lastFence + 3).trim();
+    if (!afterFence) {
+      result = result.slice(0, lastFence).trimEnd();
+    } else {
+      result += "\n```";
+    }
+  }
+  return `${result}\n\n…`;
 }
 
 function parseExtra(raw: Record<string, unknown>): Record<string, unknown> {
@@ -225,16 +239,16 @@ function SignalCardHeader({ signal }: { signal: Signal }) {
 function CollapsibleBody({ body }: { body: string }) {
   const [expanded, setExpanded] = useState(false);
   const isLong = body.length > COLLAPSE_THRESHOLD;
+  const displayBody = isLong && !expanded ? truncateBody(body) : body;
 
   return (
     <Box>
-      <Text
-        size="1"
-        color="gray"
-        className="whitespace-pre-wrap text-pretty break-words text-[11px] leading-relaxed"
+      <Box
+        className="text-pretty break-words text-[11px] leading-relaxed [&_code]:text-[10px] [&_p:last-child]:mb-0 [&_p]:mb-1 [&_pre]:text-[10px]"
+        style={{ color: "var(--gray-11)" }}
       >
-        {isLong && !expanded ? truncateBody(body) : body}
-      </Text>
+        <MarkdownRenderer content={displayBody} />
+      </Box>
       {isLong && (
         <button
           type="button"
@@ -429,8 +443,6 @@ function ErrorTrackingSignalCard({
   extra: ErrorTrackingExtra;
 }) {
   const fingerprint = extra.fingerprint ?? "";
-  const fingerprintShort =
-    fingerprint.length > 14 ? `${fingerprint.slice(0, 14)}…` : fingerprint;
 
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
@@ -454,11 +466,10 @@ function ErrorTrackingSignalCard({
           <span>
             Fingerprint{" "}
             <span
-              className="font-mono"
+              className="break-all font-mono"
               style={{ color: "var(--gray-12)" }}
-              title={fingerprint}
             >
-              {fingerprintShort}
+              {fingerprint}
             </span>
           </span>
         </Flex>

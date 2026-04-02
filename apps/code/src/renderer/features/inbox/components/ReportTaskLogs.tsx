@@ -6,7 +6,7 @@ import {
   CircleNotchIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
-import { Flex, Spinner, Text } from "@radix-ui/themes";
+import { Flex, Spinner, Text, Tooltip } from "@radix-ui/themes";
 import type { SignalReportStatus, Task } from "@shared/types";
 import { useState } from "react";
 
@@ -86,6 +86,7 @@ export function ReportTaskLogs({
   const showBar =
     isLoading ||
     !!task ||
+    reportStatus === "candidate" ||
     reportStatus === "in_progress" ||
     reportStatus === "ready";
 
@@ -95,8 +96,27 @@ export function ReportTaskLogs({
 
   const hasTask = !isLoading && !!task;
 
-  // No task — simple in-flow status bar
+  // No task yet — show pipeline status with tooltip explaining what's happening
   if (!hasTask) {
+    let statusText: string;
+    let tooltipText: string;
+    if (isLoading) {
+      statusText = "Loading task…";
+      tooltipText = "Checking if a research task exists for this report.";
+    } else if (reportStatus === "candidate") {
+      statusText = "Queued for research";
+      tooltipText =
+        "This report has been queued. A repository will be selected and then an AI agent will research it.";
+    } else if (reportStatus === "in_progress") {
+      statusText = "Research is starting…";
+      tooltipText =
+        "An AI research agent is being set up. Logs will appear here once the agent starts running.";
+    } else {
+      statusText = "Waiting for research task";
+      tooltipText =
+        "No research task has been created yet. One will appear when the report is picked up for investigation.";
+    }
+
     return (
       <Flex
         align="center"
@@ -106,14 +126,14 @@ export function ReportTaskLogs({
         className="shrink-0 border-gray-5 border-t"
         style={{ height: BAR_HEIGHT }}
       >
-        <Spinner size="1" />
-        <Text size="1" color="gray" className="text-[12px]">
-          {isLoading
-            ? "Loading task…"
-            : reportStatus === "in_progress"
-              ? "Research is running…"
-              : "No research task yet."}
-        </Text>
+        <Tooltip content={tooltipText}>
+          <Flex align="center" gap="2" className="cursor-help">
+            <Spinner size="1" />
+            <Text size="1" color="gray" className="text-[12px]">
+              {statusText}
+            </Text>
+          </Flex>
+        </Tooltip>
       </Flex>
     );
   }
