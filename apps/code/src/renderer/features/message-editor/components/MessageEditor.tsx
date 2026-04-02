@@ -285,11 +285,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
           <EditorContent editor={editor} />
         </div>
 
-        <Flex
-          justify="between"
-          align="center"
-          className="border-[var(--gray-a4)] border-t pt-1.5 pr-2"
-        >
+        <Flex justify="between" align="center" className="pt-1.5 pr-2">
           <Flex gap="2" align="center">
             <EditorToolbar
               disabled={disabled}
