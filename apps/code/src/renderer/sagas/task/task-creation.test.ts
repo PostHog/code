@@ -153,6 +153,10 @@ describe("TaskCreationSaga", () => {
       {
         pendingUserMessage: "Ship the fix",
         sandboxEnvironmentId: undefined,
+        prAuthorshipMode: "bot",
+        runSource: "manual",
+        signalReportId: undefined,
+        githubUserToken: undefined,
       },
     );
     expect(sendRunCommandMock).not.toHaveBeenCalled();
@@ -212,12 +216,14 @@ describe("TaskCreationSaga", () => {
     expect(runTaskInCloudMock).toHaveBeenCalledWith(
       "task-123",
       "release/remembered-branch",
-      {
+      expect.objectContaining({
         pendingUserMessage: expect.stringContaining(
           "__twig_cloud_prompt_v1__:",
         ),
         sandboxEnvironmentId: undefined,
-      },
+        prAuthorshipMode: "bot",
+        runSource: "manual",
+      }),
     );
     expect(sendRunCommandMock).not.toHaveBeenCalled();
     expect(runTaskInCloudMock.mock.invocationCallOrder[0]).toBeLessThan(

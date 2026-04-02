@@ -223,6 +223,14 @@ export const ghStatusOutput = z.object({
 
 export type GhStatusOutput = z.infer<typeof ghStatusOutput>;
 
+export const ghAuthTokenOutput = z.object({
+  success: z.boolean(),
+  token: z.string().nullable(),
+  error: z.string().nullable(),
+});
+
+export type GhAuthTokenOutput = z.infer<typeof ghAuthTokenOutput>;
+
 // Pull request status
 export const prStatusInput = directoryPathInput;
 export const prStatusOutput = z.object({
