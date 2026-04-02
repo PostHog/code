@@ -64,12 +64,7 @@ function ModeAndBranchRow({
   }
 
   return (
-    <Flex
-      align="center"
-      justify="between"
-      className="pr-2"
-      style={{ overflow: "hidden" }}
-    >
+    <Flex align="center" justify="between" style={{ overflow: "hidden" }}>
       <Flex align="center" gap="2" flexShrink="0">
         {isBashMode ? (
           <Text
@@ -273,19 +268,19 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
         direction="column"
         gap="2"
         onClick={handleContainerClick}
-        className={`rounded-md py-2 pr-0 pl-1.5 ${isBashMode ? "ring-1 ring-blue-9" : ""}`}
+        className={`rounded-md py-2 pr-2 pl-1.5 ${isBashMode ? "ring-1 ring-blue-9" : ""}`}
         style={{ cursor: "text" }}
       >
         <AttachmentsBar attachments={attachments} onRemove={removeAttachment} />
 
         <div
-          className="cli-editor-scroll max-h-[200px] min-h-[50px] flex-1 overflow-y-auto text-[15px]"
+          className="-mr-2 cli-editor-scroll max-h-[200px] min-h-[50px] flex-1 overflow-y-auto text-[15px]"
           style={{ position: "relative" }}
         >
           <EditorContent editor={editor} />
         </div>
 
-        <Flex justify="between" align="center" className="pt-1.5 pr-2">
+        <Flex justify="between" align="center" className="pt-1.5">
           <Flex gap="2" align="center">
             <EditorToolbar
               disabled={disabled}
