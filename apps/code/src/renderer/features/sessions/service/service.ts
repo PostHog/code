@@ -61,8 +61,6 @@ import {
 
 const log = logger.scope("session-service");
 
-export const PREVIEW_TASK_ID = "__preview__";
-
 interface AuthCredentials {
   apiHost: string;
   projectId: number;
@@ -112,8 +110,6 @@ export class SessionService {
       permission?: { unsubscribe: () => void };
     }
   >();
-  /** AbortController for the current in-flight preview session start */
-  private previewAbort: AbortController | null = null;
   /** Active cloud task watchers, keyed by taskId */
   private cloudTaskWatchers = new Map<
     string,
@@ -619,113 +615,6 @@ export class SessionService {
     await this.teardownSession(session.taskRunId);
   }
 
-  // --- Preview Session Management ---
-
-  async startPreviewSession(params: {
-    adapter: "claude" | "codex";
-  }): Promise<void> {
-    this.previewAbort?.abort();
-    const abort = new AbortController();
-    this.previewAbort = abort;
-
-    await this.cleanupPreviewSession();
-    if (abort.signal.aborted) return;
-
-    const auth = await this.getAuthCredentials();
-    if (!auth) {
-      log.info("Skipping preview session - not authenticated");
-      return;
-    }
-
-    const taskRunId = `preview-${crypto.randomUUID()}`;
-    const session = this.createBaseSession(
-      taskRunId,
-      PREVIEW_TASK_ID,
-      "Preview",
-    );
-    session.adapter = params.adapter;
-    sessionStoreSetters.setSession(session);
-
-    try {
-      const {
-        customInstructions: previewCustomInstructions,
-        defaultInitialTaskMode,
-        lastUsedInitialTaskMode,
-      } = useSettingsStore.getState();
-      const initialMode =
-        defaultInitialTaskMode === "last_used"
-          ? lastUsedInitialTaskMode
-          : "plan";
-      const result = await trpcClient.agent.start.mutate({
-        taskId: PREVIEW_TASK_ID,
-        taskRunId,
-        repoPath: "__preview__",
-        apiHost: auth.apiHost,
-        projectId: auth.projectId,
-        adapter: params.adapter,
-        permissionMode: initialMode,
-        customInstructions: previewCustomInstructions || undefined,
-      });
-
-      if (abort.signal.aborted) {
-        trpcClient.agent.cancel
-          .mutate({ sessionId: taskRunId })
-          .catch((err) => {
-            log.warn("Failed to cancel stale preview session", {
-              taskRunId,
-              error: err,
-            });
-          });
-        sessionStoreSetters.removeSession(taskRunId);
-        return;
-      }
-
-      const configOptions = result.configOptions as
-        | SessionConfigOption[]
-        | undefined;
-
-      sessionStoreSetters.updateSession(taskRunId, {
-        status: "connected",
-        channel: result.channel,
-        configOptions,
-      });
-
-      this.subscribeToChannel(taskRunId);
-
-      log.info("Preview session started", {
-        taskRunId,
-        adapter: params.adapter,
-        configOptionsCount: configOptions?.length ?? 0,
-      });
-    } catch (error) {
-      if (abort.signal.aborted) return;
-      log.error("Failed to start preview session", { error });
-      sessionStoreSetters.removeSession(taskRunId);
-    }
-  }
-
-  async cancelPreviewSession(): Promise<void> {
-    this.previewAbort?.abort();
-    this.previewAbort = null;
-    await this.cleanupPreviewSession();
-  }
-
-  private async cleanupPreviewSession(): Promise<void> {
-    const session = sessionStoreSetters.getSessionByTaskId(PREVIEW_TASK_ID);
-    if (!session) return;
-
-    const { taskRunId } = session;
-
-    this.unsubscribeFromChannel(taskRunId);
-    sessionStoreSetters.removeSession(taskRunId);
-
-    try {
-      await trpcClient.agent.cancel.mutate({ sessionId: taskRunId });
-    } catch (error) {
-      log.warn("Failed to cancel preview session", { taskRunId, error });
-    }
-  }
-
   // --- Subscription Management ---
 
   private subscribeToChannel(taskRunId: string): void {
@@ -801,8 +690,6 @@ export class SessionService {
     }
 
     this.connectingTasks.clear();
-    this.previewAbort?.abort();
-    this.previewAbort = null;
     this.idleKilledSubscription?.unsubscribe();
     this.idleKilledSubscription = null;
   }

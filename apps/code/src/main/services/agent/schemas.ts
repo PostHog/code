@@ -293,3 +293,10 @@ export const getGatewayModelsInput = z.object({
 });
 
 export const getGatewayModelsOutput = z.array(modelOptionSchema);
+
+export const getPreviewConfigOptionsInput = z.object({
+  apiHost: z.string(),
+  adapter: z.enum(["claude", "codex"]),
+});
+
+export const getPreviewConfigOptionsOutput = z.array(sessionConfigOptionSchema);
