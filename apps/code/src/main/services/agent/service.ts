@@ -365,7 +365,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
    */
   public hasActiveSessions(): boolean {
     for (const session of this.sessions.values()) {
-      if (session.promptPending) {
+      if (session.promptPending || session.inFlightMcpToolCalls.size > 0) {
         log.info("Active session found", { sessionId: session.taskRunId });
         return true;
       }
@@ -391,7 +391,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private killIdleSession(taskRunId: string): void {
     const session = this.sessions.get(taskRunId);
     if (!session) return;
-    if (session.promptPending) {
+    if (session.promptPending || session.inFlightMcpToolCalls.size > 0) {
       this.recordActivity(taskRunId);
       return;
     }
