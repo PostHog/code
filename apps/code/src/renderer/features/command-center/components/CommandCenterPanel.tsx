@@ -4,9 +4,12 @@ import { ArrowsOut, Plus, X } from "@phosphor-icons/react";
 import { Flex, Text } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CommandCenterCellData } from "../hooks/useCommandCenterData";
-import { useCommandCenterStore } from "../stores/commandCenterStore";
+import {
+  getCellSessionId,
+  useCommandCenterStore,
+} from "../stores/commandCenterStore";
 import { CommandCenterSessionView } from "./CommandCenterSessionView";
 import { StatusBadge } from "./StatusBadge";
 import { TaskSelector } from "./TaskSelector";
@@ -14,10 +17,6 @@ import { TaskSelector } from "./TaskSelector";
 interface CommandCenterPanelProps {
   cell: CommandCenterCellData;
   isActiveSession: boolean;
-}
-
-function getCellSessionId(cellIndex: number): string {
-  return `cc-cell-${cellIndex}`;
 }
 
 function EmptyCell({ cellIndex }: { cellIndex: number }) {
@@ -44,6 +43,14 @@ function EmptyCell({ cellIndex }: { cellIndex: number }) {
     stopCreating(cellIndex);
     clearDraft(sessionId, null);
   }, [stopCreating, cellIndex, clearDraft, sessionId]);
+
+  const wasCreatingRef = useRef(false);
+  useEffect(() => {
+    if (wasCreatingRef.current && !isCreating) {
+      clearDraft(sessionId, null);
+    }
+    wasCreatingRef.current = isCreating;
+  }, [isCreating, clearDraft, sessionId]);
 
   if (isCreating) {
     return (

@@ -60,6 +60,10 @@ function clampZoom(value: number): number {
   return Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value)) * 10) / 10;
 }
 
+export function getCellSessionId(cellIndex: number): string {
+  return `cc-cell-${cellIndex}`;
+}
+
 export const useCommandCenterStore = create<CommandCenterStore>()(
   persist(
     (set) => ({
