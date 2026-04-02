@@ -35,6 +35,7 @@ export function GlobalEventHandlers({
     (state) => state.navigateToTaskInput,
   );
   const navigateToTask = useNavigationStore((state) => state.navigateToTask);
+  const navigateToInbox = useNavigationStore((state) => state.navigateToInbox);
   const navigateToFolderSettings = useNavigationStore(
     (state) => state.navigateToFolderSettings,
   );
@@ -165,6 +166,7 @@ export function GlobalEventHandlers({
   useHotkeys(SHORTCUTS.TOGGLE_LEFT_SIDEBAR, toggleLeftSidebar, globalOptions);
   useHotkeys(SHORTCUTS.TOGGLE_RIGHT_SIDEBAR, toggleRightSidebar, globalOptions);
   useHotkeys(SHORTCUTS.SHORTCUTS_SHEET, onToggleShortcutsSheet, globalOptions);
+  useHotkeys(SHORTCUTS.INBOX, navigateToInbox, globalOptions);
   useHotkeys(SHORTCUTS.PREV_TASK, handlePrevTask, globalOptions, [
     handlePrevTask,
   ]);
