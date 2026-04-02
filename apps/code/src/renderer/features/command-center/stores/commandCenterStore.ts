@@ -24,6 +24,7 @@ interface CommandCenterStoreState {
   cells: (string | null)[];
   activeTaskId: string | null;
   zoom: number;
+  creatingCells: number[];
 }
 
 interface CommandCenterStoreActions {
@@ -36,6 +37,8 @@ interface CommandCenterStoreActions {
   setZoom: (zoom: number) => void;
   zoomIn: () => void;
   zoomOut: () => void;
+  startCreating: (cellIndex: number) => void;
+  stopCreating: (cellIndex: number) => void;
 }
 
 type CommandCenterStore = CommandCenterStoreState & CommandCenterStoreActions;
@@ -64,17 +67,22 @@ export const useCommandCenterStore = create<CommandCenterStore>()(
       cells: [null, null, null, null],
       activeTaskId: null,
       zoom: 1,
+      creatingCells: [],
 
       setLayout: (preset) =>
-        set((state) => ({
-          activeTaskId: resizeCells(state.cells, getCellCount(preset)).includes(
-            state.activeTaskId,
-          )
-            ? state.activeTaskId
-            : null,
-          layout: preset,
-          cells: resizeCells(state.cells, getCellCount(preset)),
-        })),
+        set((state) => {
+          const newCount = getCellCount(preset);
+          return {
+            activeTaskId: resizeCells(state.cells, newCount).includes(
+              state.activeTaskId,
+            )
+              ? state.activeTaskId
+              : null,
+            layout: preset,
+            cells: resizeCells(state.cells, newCount),
+            creatingCells: state.creatingCells.filter((i) => i < newCount),
+          };
+        }),
 
       setActiveTask: (taskId) => set({ activeTaskId: taskId }),
 
@@ -87,7 +95,11 @@ export const useCommandCenterStore = create<CommandCenterStore>()(
             cells[existingIndex] = null;
           }
           cells[cellIndex] = taskId;
-          return { cells, activeTaskId: taskId };
+          return {
+            cells,
+            activeTaskId: taskId,
+            creatingCells: state.creatingCells.filter((i) => i !== cellIndex),
+          };
         }),
 
       removeTask: (cellIndex) =>
@@ -121,6 +133,7 @@ export const useCommandCenterStore = create<CommandCenterStore>()(
         set((state) => ({
           activeTaskId: null,
           cells: state.cells.map(() => null),
+          creatingCells: [],
         })),
 
       setZoom: (zoom) => set({ zoom: clampZoom(zoom) }),
@@ -128,6 +141,18 @@ export const useCommandCenterStore = create<CommandCenterStore>()(
         set((state) => ({ zoom: clampZoom(state.zoom + ZOOM_STEP) })),
       zoomOut: () =>
         set((state) => ({ zoom: clampZoom(state.zoom - ZOOM_STEP) })),
+
+      startCreating: (cellIndex) =>
+        set((state) => ({
+          creatingCells: state.creatingCells.includes(cellIndex)
+            ? state.creatingCells
+            : [...state.creatingCells, cellIndex],
+        })),
+
+      stopCreating: (cellIndex) =>
+        set((state) => ({
+          creatingCells: state.creatingCells.filter((i) => i !== cellIndex),
+        })),
     }),
     {
       name: "command-center-storage",
@@ -137,6 +162,7 @@ export const useCommandCenterStore = create<CommandCenterStore>()(
         cells: state.cells,
         activeTaskId: state.activeTaskId,
         zoom: state.zoom,
+        creatingCells: state.creatingCells,
       }),
     },
   ),

@@ -40,10 +40,14 @@ import { type WorkspaceMode, WorkspaceModeSelect } from "./WorkspaceModeSelect";
 const DOT_FILL = "var(--gray-6)";
 
 interface TaskInputProps {
+  sessionId?: string;
   onTaskCreated?: (task: import("@shared/types").Task) => void;
 }
 
-export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
+export function TaskInput({
+  sessionId = "task-input",
+  onTaskCreated,
+}: TaskInputProps = {}) {
   const { cloudRegion } = useAuthStore();
   const trpcReact = useTRPC();
   const { view } = useNavigationStore();
@@ -441,7 +445,7 @@ export function TaskInput({ onTaskCreated }: TaskInputProps = {}) {
 
           <TaskInputEditor
             ref={editorRef}
-            sessionId="task-input"
+            sessionId={sessionId}
             repoPath={selectedDirectory}
             isCreatingTask={isCreatingTask}
             canSubmit={canSubmit}
