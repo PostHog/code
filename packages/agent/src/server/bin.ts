@@ -7,25 +7,23 @@ import { claudeCodeConfigSchema, mcpServersSchema } from "./schemas";
 const envSchema = z.object({
   JWT_PUBLIC_KEY: z
     .string({
-      required_error:
-        "JWT_PUBLIC_KEY is required for authenticating client connections",
+      error: "JWT_PUBLIC_KEY is required for authenticating client connections",
     })
     .min(1, "JWT_PUBLIC_KEY cannot be empty"),
   POSTHOG_API_URL: z
     .string({
-      required_error:
-        "POSTHOG_API_URL is required for LLM gateway communication",
+      error: "POSTHOG_API_URL is required for LLM gateway communication",
     })
     .url("POSTHOG_API_URL must be a valid URL"),
   POSTHOG_PERSONAL_API_KEY: z
     .string({
-      required_error:
+      error:
         "POSTHOG_PERSONAL_API_KEY is required for authenticating with PostHog services",
     })
     .min(1, "POSTHOG_PERSONAL_API_KEY cannot be empty"),
   POSTHOG_PROJECT_ID: z
     .string({
-      required_error:
+      error:
         "POSTHOG_PROJECT_ID is required for routing requests to the correct project",
     })
     .regex(/^\d+$/, "POSTHOG_PROJECT_ID must be a numeric string")
