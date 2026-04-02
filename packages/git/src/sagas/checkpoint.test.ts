@@ -18,6 +18,7 @@ async function setupRepo(): Promise<string> {
   await git.init();
   await git.addConfig("user.name", "PostHog Code Test");
   await git.addConfig("user.email", "posthog-code-test@example.com");
+  await git.addConfig("commit.gpgsign", "false");
 
   await writeFile(path.join(dir, "a.txt"), "one\n");
   await writeFile(path.join(dir, "b.txt"), "base\n");
@@ -258,6 +259,7 @@ describe("checkpoint sagas", () => {
       await subGit.init();
       await subGit.addConfig("user.name", "PostHog Code Test");
       await subGit.addConfig("user.email", "posthog-code-test@example.com");
+      await subGit.addConfig("commit.gpgsign", "false");
       await writeFile(path.join(subRepo, "sub.txt"), "sub\n");
       await subGit.add(["sub.txt"]);
       await subGit.commit("sub-init");

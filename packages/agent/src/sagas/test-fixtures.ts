@@ -38,6 +38,7 @@ export async function createTestRepo(prefix = "test-repo"): Promise<TestRepo> {
   await git(["init"]);
   await git(["config", "user.email", "test@test.com"]);
   await git(["config", "user.name", "Test"]);
+  await git(["config", "commit.gpgsign", "false"]);
 
   await writeFile(join(repoPath, ".gitignore"), ".posthog/\n");
   await writeFile(join(repoPath, "README.md"), "# Test Repo");

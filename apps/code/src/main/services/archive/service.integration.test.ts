@@ -46,6 +46,7 @@ async function createTempGitRepo(): Promise<string> {
     stdio: "pipe",
   });
   execSync("git config user.name 'Test'", { cwd: dir, stdio: "pipe" });
+  execSync("git config commit.gpgsign false", { cwd: dir, stdio: "pipe" });
   await fs.writeFile(path.join(dir, "README.md"), "# Test Repo");
   execSync("git add . && git commit -m 'Initial commit'", {
     cwd: dir,

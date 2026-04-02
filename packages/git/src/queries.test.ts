@@ -11,6 +11,7 @@ async function setupRepo(defaultBranch = "main"): Promise<string> {
   await git.init(["--initial-branch", defaultBranch]);
   await git.addConfig("user.name", "Test");
   await git.addConfig("user.email", "test@example.com");
+  await git.addConfig("commit.gpgsign", "false");
   await writeFile(path.join(dir, "file.txt"), "content\n");
   await git.add(["file.txt"]);
   await git.commit("initial");
