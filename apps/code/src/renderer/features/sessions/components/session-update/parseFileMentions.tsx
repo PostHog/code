@@ -91,12 +91,15 @@ export function parseMentionTags(content: string): ReactNode[] {
 
     if (match[1]) {
       const filePath = match[1];
-      const fileName = filePath.split("/").pop() ?? filePath;
+      const segments = filePath.split("/").filter(Boolean);
+      const fileName = segments.pop() ?? filePath;
+      const parentDir = segments.pop();
+      const label = parentDir ? `${parentDir}/${fileName}` : fileName;
       parts.push(
         <MentionChip
           key={`file-${matchIndex}`}
           icon={<File size={12} />}
-          label={fileName}
+          label={label}
         />,
       );
     } else if (match[2]) {
