@@ -1,3 +1,4 @@
+import { getAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import { computeGitInteractionState } from "@features/git-interaction/state/gitInteractionLogic";
 import {
@@ -19,6 +20,7 @@ import { getSuggestedBranchName } from "@features/git-interaction/utils/getSugge
 import { invalidateGitBranchQueries } from "@features/git-interaction/utils/gitCacheKeys";
 import { partitionByStaged } from "@features/git-interaction/utils/partitionByStaged";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
+import { useSessionStore } from "@features/sessions/stores/sessionStore";
 import { trpc, trpcClient } from "@renderer/trpc";
 import type { ChangedFile } from "@shared/types";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
@@ -113,6 +115,21 @@ function trackGitAction(
     task_id: taskId,
     ...stagingContext,
   });
+}
+
+function attachPrUrlToTask(taskId: string, prUrl: string) {
+  const taskRunId = useSessionStore.getState().taskIdIndex[taskId];
+  if (!taskRunId) return;
+
+  getAuthenticatedClient()
+    .then((client) =>
+      client?.updateTaskRun(taskId, taskRunId, {
+        output: { pr_url: prUrl },
+      }),
+    )
+    .catch((err) =>
+      log.warn("Failed to attach PR URL to task", { taskId, prUrl, err }),
+    );
 }
 
 export function useGitInteraction(
@@ -255,6 +272,7 @@ export function useGitInteraction(
 
       if (result.prUrl) {
         await trpcClient.os.openExternal.mutate({ url: result.prUrl });
+        attachPrUrlToTask(taskId, result.prUrl);
       }
 
       modal.closeCreatePr();

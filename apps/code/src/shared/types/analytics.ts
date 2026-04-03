@@ -111,6 +111,11 @@ export interface PrCreatedProperties {
   success: boolean;
 }
 
+export interface AgentFileActivityProperties {
+  task_id: string;
+  branch_name: string | null;
+}
+
 // File interactions
 export interface FileOpenedProperties {
   file_extension: string;
@@ -224,6 +229,7 @@ export const ANALYTICS_EVENTS = {
   // Git operations
   GIT_ACTION_EXECUTED: "Git action executed",
   PR_CREATED: "PR created",
+  AGENT_FILE_ACTIVITY: "Agent file activity",
 
   // File interactions
   FILE_OPENED: "File opened",
@@ -278,6 +284,7 @@ export type EventPropertyMap = {
   // Git operations
   [ANALYTICS_EVENTS.GIT_ACTION_EXECUTED]: GitActionExecutedProperties;
   [ANALYTICS_EVENTS.PR_CREATED]: PrCreatedProperties;
+  [ANALYTICS_EVENTS.AGENT_FILE_ACTIVITY]: AgentFileActivityProperties;
 
   // File interactions
   [ANALYTICS_EVENTS.FILE_OPENED]: FileOpenedProperties;
