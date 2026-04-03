@@ -107,7 +107,7 @@ export class TaskCreationSaga extends Saga<
         ? this.resolveFolder(input.repoPath)
         : undefined;
 
-    const task = taskId
+    let task = taskId
       ? await this.readOnlyStep("fetch_task", () =>
           this.deps.posthogClient.getTask(taskId),
         )
@@ -230,7 +230,9 @@ export class TaskCreationSaga extends Saga<
       };
     }
 
-    if (!hasProvisioning && this.deps.onTaskReady) {
+    const shouldStartCloudRun = workspaceMode === "cloud" && !task.latest_run;
+
+    if (!hasProvisioning && !shouldStartCloudRun && this.deps.onTaskReady) {
       this.deps.onTaskReady({ task, workspace });
     }
 
@@ -253,8 +255,8 @@ export class TaskCreationSaga extends Saga<
     }
 
     // Step 5: Start cloud run (only for new cloud tasks)
-    if (workspaceMode === "cloud" && !task.latest_run) {
-      await this.step({
+    if (shouldStartCloudRun) {
+      task = await this.step({
         name: "cloud_run",
         execute: () =>
           this.deps.posthogClient.runTaskInCloud(
@@ -267,6 +269,10 @@ export class TaskCreationSaga extends Saga<
           log.info("Rolling back: cloud run (no-op)", { taskId: task.id });
         },
       });
+
+      if (!hasProvisioning && this.deps.onTaskReady) {
+        this.deps.onTaskReady({ task, workspace });
+      }
     }
 
     // Step 7: Connect to session

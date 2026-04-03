@@ -25,6 +25,7 @@ interface SettingsStore {
   lastUsedWorkspaceMode: WorkspaceMode;
   lastUsedAdapter: AgentAdapter;
   lastUsedModel: string | null;
+  lastUsedCloudRepository: string | null;
   lastUsedEnvironments: Record<string, string>;
   desktopNotifications: boolean;
   dockBadgeNotifications: boolean;
@@ -57,6 +58,7 @@ interface SettingsStore {
   setLastUsedWorkspaceMode: (mode: WorkspaceMode) => void;
   setLastUsedAdapter: (adapter: AgentAdapter) => void;
   setLastUsedModel: (model: string) => void;
+  setLastUsedCloudRepository: (repo: string | null) => void;
   setLastUsedEnvironment: (
     repoPath: string,
     environmentId: string | null,
@@ -88,6 +90,7 @@ export const useSettingsStore = create<SettingsStore>()(
       lastUsedWorkspaceMode: "local",
       lastUsedAdapter: "claude",
       lastUsedModel: null,
+      lastUsedCloudRepository: null,
       lastUsedEnvironments: {},
       desktopNotifications: true,
       dockBadgeNotifications: true,
@@ -143,6 +146,8 @@ export const useSettingsStore = create<SettingsStore>()(
       setLastUsedWorkspaceMode: (mode) => set({ lastUsedWorkspaceMode: mode }),
       setLastUsedAdapter: (adapter) => set({ lastUsedAdapter: adapter }),
       setLastUsedModel: (model) => set({ lastUsedModel: model }),
+      setLastUsedCloudRepository: (repo) =>
+        set({ lastUsedCloudRepository: repo }),
       setLastUsedEnvironment: (repoPath, environmentId) =>
         set((state) => {
           const next = { ...state.lastUsedEnvironments };
@@ -190,6 +195,7 @@ export const useSettingsStore = create<SettingsStore>()(
         lastUsedWorkspaceMode: state.lastUsedWorkspaceMode,
         lastUsedAdapter: state.lastUsedAdapter,
         lastUsedModel: state.lastUsedModel,
+        lastUsedCloudRepository: state.lastUsedCloudRepository,
         lastUsedEnvironments: state.lastUsedEnvironments,
         desktopNotifications: state.desktopNotifications,
         dockBadgeNotifications: state.dockBadgeNotifications,
