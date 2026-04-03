@@ -767,10 +767,13 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     body?: string,
     draft?: boolean,
   ): Promise<{ success: boolean; message: string; prUrl: string | null }> {
+    const prFooter =
+      "\n\n---\n*Created with [PostHog Code](https://posthog.com/code?ref=pr)*";
+
     const args = ["pr", "create"];
     if (title) {
       args.push("--title", title);
-      args.push("--body", body || "");
+      args.push("--body", (body || "") + prFooter);
     } else {
       args.push("--fill");
     }
