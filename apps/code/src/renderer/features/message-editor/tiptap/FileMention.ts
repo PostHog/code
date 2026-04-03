@@ -27,9 +27,11 @@ function createSuggestion(
     render: () => {
       let component: ReactRenderer<SuggestionListRef> | null = null;
       let popup: TippyInstance | null = null;
+      let dismissed = false;
 
       return {
         onStart: (props) => {
+          dismissed = false;
           const items = props.items.length > 0 ? props.items : lastItems;
           component = new ReactRenderer(SuggestionList, {
             props: {
@@ -56,6 +58,7 @@ function createSuggestion(
         },
 
         onUpdate: (props) => {
+          if (props.items.length > 0) dismissed = false;
           const items = props.items.length > 0 ? props.items : lastItems;
           component?.updateProps({
             items,
@@ -73,8 +76,11 @@ function createSuggestion(
           if (props.event.key === "Escape") {
             props.event.stopPropagation();
             popup?.hide();
+            dismissed = true;
             return true;
           }
+
+          if (dismissed) return false;
 
           return component?.ref?.onKeyDown(props) ?? false;
         },
