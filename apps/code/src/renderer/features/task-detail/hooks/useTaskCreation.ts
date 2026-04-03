@@ -111,8 +111,8 @@ export function useTaskCreation({
   const { invalidateTasks } = useCreateTask();
   const { isOnline } = useConnectivity();
 
-  // Cloud mode can work with either selectedRepository (production) or selectedDirectory (dev testing)
-  const hasRequiredPath = !!selectedRepository || !!selectedDirectory;
+  const hasRequiredPath =
+    workspaceMode === "cloud" ? !!selectedRepository : !!selectedDirectory;
   const canSubmit =
     !!editorRef.current &&
     isAuthenticated &&
