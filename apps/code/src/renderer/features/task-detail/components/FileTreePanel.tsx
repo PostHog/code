@@ -1,4 +1,4 @@
-import { FileIcon } from "@components/ui/FileIcon";
+import { TreeDirectoryRow, TreeFileRow } from "@components/TreeDirectoryRow";
 import { PanelMessage } from "@components/ui/PanelMessage";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { isFileTabActiveInTree } from "@features/panels/store/panelStoreHelpers";
@@ -8,12 +8,7 @@ import {
 } from "@features/right-sidebar/stores/fileTreeStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useCloudRunState } from "@features/task-detail/hooks/useCloudRunState";
-import {
-  CaretRight,
-  Cloud,
-  FolderIcon,
-  FolderOpenIcon,
-} from "@phosphor-icons/react";
+import { Cloud } from "@phosphor-icons/react";
 import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
@@ -110,71 +105,28 @@ function LazyTreeItem({
 
   return (
     <Box>
-      <Flex
-        align="center"
-        gap="1"
-        style={{
-          paddingLeft: `${depth * 12 + 4}px`,
-          paddingRight: "8px",
-          height: "22px",
-          cursor: "pointer",
-        }}
-        className={
-          isActive
-            ? "border-accent-8 border-y bg-accent-4"
-            : "border-transparent border-y hover:bg-gray-3"
-        }
-        onClick={handleClick}
-        onDoubleClick={handleDoubleClick}
-        onContextMenu={handleContextMenu}
-      >
+      {isDirectory ? (
         <Box
-          style={{
-            width: "16px",
-            height: "16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
+          onDoubleClick={handleDoubleClick}
+          onContextMenu={handleContextMenu}
         >
-          {isDirectory && (
-            <CaretRight
-              size={10}
-              weight="bold"
-              color="var(--gray-10)"
-              style={{
-                transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
-                transition: "transform 0.1s ease",
-              }}
-            />
-          )}
+          <TreeDirectoryRow
+            name={entry.name}
+            depth={depth}
+            isExpanded={isExpanded}
+            onToggle={handleClick}
+          />
         </Box>
-        {isDirectory ? (
-          isExpanded ? (
-            <FolderOpenIcon
-              size={14}
-              weight="fill"
-              color="var(--accent-9)"
-              style={{ flexShrink: 0 }}
-            />
-          ) : (
-            <FolderIcon
-              size={14}
-              color="var(--accent-9)"
-              style={{ flexShrink: 0 }}
-            />
-          )
-        ) : (
-          <FileIcon filename={entry.name} size={14} />
-        )}
-        <span
-          className="select-none overflow-hidden text-ellipsis whitespace-nowrap text-[13px]"
-          style={{ marginLeft: "4px" }}
-        >
-          {entry.name}
-        </span>
-      </Flex>
+      ) : (
+        <TreeFileRow
+          fileName={entry.name}
+          depth={depth}
+          isActive={isActive}
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+          onContextMenu={handleContextMenu}
+        />
+      )}
       {isExpanded &&
         children?.map((child) => (
           <LazyTreeItem

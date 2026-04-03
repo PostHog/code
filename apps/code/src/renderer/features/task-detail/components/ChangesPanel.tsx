@@ -1,4 +1,4 @@
-import { FileIcon } from "@components/ui/FileIcon";
+import { TreeFileRow } from "@components/TreeDirectoryRow";
 import { PanelMessage } from "@components/ui/PanelMessage";
 import { Tooltip } from "@components/ui/Tooltip";
 import { useExternalApps } from "@features/external-apps/hooks/useExternalApps";
@@ -40,7 +40,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { showMessageBox } from "@utils/dialog";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
 import { logger } from "@utils/logger";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
+import { ChangesTreeView } from "./ChangesTreeView";
 
 const log = logger.scope("changes-panel");
 
@@ -57,6 +58,8 @@ interface ChangedFileItemProps {
   repoPath?: string;
   mainRepoPath?: string;
   onStageToggle?: (file: ChangedFile) => void;
+  /** Tree indentation depth (0 = flat list) */
+  depth?: number;
 }
 
 function getDiscardInfo(
@@ -128,6 +131,7 @@ function ChangedFileItem({
   repoPath,
   mainRepoPath,
   onStageToggle,
+  depth = 0,
 }: ChangedFileItemProps) {
   const openReview = usePanelLayoutStore((state) => state.openReview);
   const requestScrollToFile = useReviewNavigationStore(
@@ -240,170 +244,127 @@ function ChangedFileItem({
 
   const tooltipContent = `${file.path} - ${indicator.fullLabel}`;
 
+  const trailing = (
+    <>
+      {hasLineStats && !isToolbarVisible && (
+        <Flex
+          align="center"
+          gap="1"
+          style={{ flexShrink: 0, fontSize: "10px", fontFamily: "monospace" }}
+        >
+          {(file.linesAdded ?? 0) > 0 && (
+            <Text style={{ color: "var(--green-9)" }}>+{file.linesAdded}</Text>
+          )}
+          {(file.linesRemoved ?? 0) > 0 && (
+            <Text style={{ color: "var(--red-9)" }}>-{file.linesRemoved}</Text>
+          )}
+        </Flex>
+      )}
+
+      {isToolbarVisible && (handleDiscard || onStageToggle) && (
+        <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
+          {onStageToggle && (
+            <CompactIconButton
+              tooltip={file.staged ? "Unstage" : "Stage"}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onStageToggle(file);
+              }}
+            >
+              {file.staged ? <MinusIcon size={12} /> : <PlusIcon size={12} />}
+            </CompactIconButton>
+          )}
+          {handleDiscard && (
+            <CompactIconButton
+              tooltip="Discard changes"
+              onClick={handleDiscard}
+            >
+              <ArrowCounterClockwiseIcon size={12} />
+            </CompactIconButton>
+          )}
+
+          <DropdownMenu.Root
+            open={isDropdownOpen}
+            onOpenChange={setIsDropdownOpen}
+          >
+            <Tooltip content="Open file">
+              <DropdownMenu.Trigger>
+                <IconButton
+                  size="1"
+                  variant="ghost"
+                  color="gray"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    flexShrink: 0,
+                    width: "18px",
+                    height: "18px",
+                    padding: 0,
+                  }}
+                >
+                  <FilePlus size={12} weight="regular" />
+                </IconButton>
+              </DropdownMenu.Trigger>
+            </Tooltip>
+            <DropdownMenu.Content size="1" align="end">
+              {detectedApps
+                .filter((app) => app.type !== "terminal")
+                .map((app) => (
+                  <DropdownMenu.Item
+                    key={app.id}
+                    onSelect={() => handleOpenWith(app.id)}
+                  >
+                    <Flex align="center" gap="2">
+                      {app.icon ? (
+                        <img
+                          src={app.icon}
+                          width={16}
+                          height={16}
+                          alt=""
+                          style={{ borderRadius: "2px" }}
+                        />
+                      ) : (
+                        <CodeIcon size={16} weight="regular" />
+                      )}
+                      <Text size="1">{app.name}</Text>
+                    </Flex>
+                  </DropdownMenu.Item>
+                ))}
+              <DropdownMenu.Separator />
+              <DropdownMenu.Item onSelect={handleCopyPath}>
+                <Flex align="center" gap="2">
+                  <CopyIcon size={16} weight="regular" />
+                  <Text size="1">Copy Path</Text>
+                </Flex>
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
+        </Flex>
+      )}
+
+      <Badge
+        size="1"
+        color={indicator.color}
+        style={{ flexShrink: 0, fontSize: "10px", padding: "0 4px" }}
+      >
+        {indicator.label}
+      </Badge>
+    </>
+  );
+
   return (
     <Tooltip content={tooltipContent} side="top" delayDuration={500}>
-      <Flex
-        align="center"
-        gap="1"
+      <TreeFileRow
+        fileName={fileName}
+        depth={depth}
+        isActive={isActive}
         onClick={handleClick}
         onDoubleClick={handleClick}
         onContextMenu={handleContextMenu}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={
-          isActive
-            ? "border-accent-8 border-y bg-accent-4"
-            : "border-transparent border-y hover:bg-gray-3"
-        }
-        style={{
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          height: "26px",
-          paddingLeft: "8px",
-          paddingRight: "8px",
-        }}
-      >
-        <FileIcon filename={fileName} size={14} />
-        <Text
-          size="1"
-          style={{
-            fontSize: "12px",
-            userSelect: "none",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            marginLeft: "2px",
-            flexShrink: 1,
-            minWidth: 0,
-          }}
-        >
-          {fileName}
-        </Text>
-        <Text
-          size="1"
-          color="gray"
-          style={{
-            userSelect: "none",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            flex: 1,
-            marginLeft: "4px",
-            minWidth: 0,
-          }}
-        >
-          {file.originalPath
-            ? `${file.originalPath} → ${file.path}`
-            : file.path}
-        </Text>
-
-        {hasLineStats && !isToolbarVisible && (
-          <Flex
-            align="center"
-            gap="1"
-            style={{ flexShrink: 0, fontSize: "10px", fontFamily: "monospace" }}
-          >
-            {(file.linesAdded ?? 0) > 0 && (
-              <Text style={{ color: "var(--green-9)" }}>
-                +{file.linesAdded}
-              </Text>
-            )}
-            {(file.linesRemoved ?? 0) > 0 && (
-              <Text style={{ color: "var(--red-9)" }}>
-                -{file.linesRemoved}
-              </Text>
-            )}
-          </Flex>
-        )}
-
-        {isToolbarVisible && (handleDiscard || onStageToggle) && (
-          <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
-            {onStageToggle && (
-              <CompactIconButton
-                tooltip={file.staged ? "Unstage" : "Stage"}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onStageToggle(file);
-                }}
-              >
-                {file.staged ? <MinusIcon size={12} /> : <PlusIcon size={12} />}
-              </CompactIconButton>
-            )}
-            {handleDiscard && (
-              <CompactIconButton
-                tooltip="Discard changes"
-                onClick={handleDiscard}
-              >
-                <ArrowCounterClockwiseIcon size={12} />
-              </CompactIconButton>
-            )}
-
-            <DropdownMenu.Root
-              open={isDropdownOpen}
-              onOpenChange={setIsDropdownOpen}
-            >
-              <Tooltip content="Open file">
-                <DropdownMenu.Trigger>
-                  <IconButton
-                    size="1"
-                    variant="ghost"
-                    color="gray"
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      flexShrink: 0,
-                      width: "18px",
-                      height: "18px",
-                      padding: 0,
-                    }}
-                  >
-                    <FilePlus size={12} weight="regular" />
-                  </IconButton>
-                </DropdownMenu.Trigger>
-              </Tooltip>
-              <DropdownMenu.Content size="1" align="end">
-                {detectedApps
-                  .filter((app) => app.type !== "terminal")
-                  .map((app) => (
-                    <DropdownMenu.Item
-                      key={app.id}
-                      onSelect={() => handleOpenWith(app.id)}
-                    >
-                      <Flex align="center" gap="2">
-                        {app.icon ? (
-                          <img
-                            src={app.icon}
-                            width={16}
-                            height={16}
-                            alt=""
-                            style={{ borderRadius: "2px" }}
-                          />
-                        ) : (
-                          <CodeIcon size={16} weight="regular" />
-                        )}
-                        <Text size="1">{app.name}</Text>
-                      </Flex>
-                    </DropdownMenu.Item>
-                  ))}
-                <DropdownMenu.Separator />
-                <DropdownMenu.Item onSelect={handleCopyPath}>
-                  <Flex align="center" gap="2">
-                    <CopyIcon size={16} weight="regular" />
-                    <Text size="1">Copy Path</Text>
-                  </Flex>
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
-          </Flex>
-        )}
-
-        <Badge
-          size="1"
-          color={indicator.color}
-          style={{ flexShrink: 0, fontSize: "10px", padding: "0 4px" }}
-        >
-          {indicator.label}
-        </Badge>
-      </Flex>
+        trailing={trailing}
+      />
     </Tooltip>
   );
 }
@@ -423,6 +384,19 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
   );
 
   const effectiveFiles = changedFiles;
+
+  const renderFile = useCallback(
+    (file: ChangedFile, depth: number) => (
+      <ChangedFileItem
+        key={file.path}
+        file={file}
+        taskId={taskId}
+        isActive={activeFilePath === file.path}
+        depth={depth}
+      />
+    ),
+    [taskId, activeFilePath],
+  );
 
   // No branch/PR yet and run is active — show waiting state
   if (!prUrl && !effectiveBranch && effectiveFiles.length === 0) {
@@ -477,14 +451,7 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
   return (
     <Box height="100%" overflowY="auto" py="2">
       <Flex direction="column">
-        {effectiveFiles.map((file) => (
-          <ChangedFileItem
-            key={file.path}
-            file={file}
-            taskId={taskId}
-            isActive={activeFilePath === file.path}
-          />
-        ))}
+        <ChangesTreeView files={effectiveFiles} renderFile={renderFile} />
         {isRunActive && (
           <Flex align="center" gap="2" px="3" py="2">
             <Spinner size="1" />
@@ -526,20 +493,51 @@ function LocalChangesPanel({ taskId, task: _task }: ChangesPanelProps) {
 
   const hasStagedFiles = stagedFiles.length > 0;
 
-  const handleStageToggle = async (file: ChangedFile) => {
-    if (!repoPath) return;
-    const paths = [file.originalPath ?? file.path];
-    const endpoint = file.staged
-      ? trpcClient.git.unstageFiles
-      : trpcClient.git.stageFiles;
-    try {
-      const result = await endpoint.mutate({ directoryPath: repoPath, paths });
-      updateGitCacheFromSnapshot(queryClient, repoPath, result);
-      invalidateGitWorkingTreeQueries(repoPath);
-    } catch (error) {
-      log.error("Failed to toggle staging", { file: file.path, error });
-    }
-  };
+  const handleStageToggle = useCallback(
+    async (file: ChangedFile) => {
+      if (!repoPath) return;
+      const paths = [file.originalPath ?? file.path];
+      const endpoint = file.staged
+        ? trpcClient.git.unstageFiles
+        : trpcClient.git.stageFiles;
+      try {
+        const result = await endpoint.mutate({
+          directoryPath: repoPath,
+          paths,
+        });
+        updateGitCacheFromSnapshot(queryClient, repoPath, result);
+        invalidateGitWorkingTreeQueries(repoPath);
+      } catch (error) {
+        log.error("Failed to toggle staging", { file: file.path, error });
+      }
+    },
+    [repoPath, queryClient],
+  );
+
+  const renderLocalFile = useCallback(
+    (file: ChangedFile, depth: number) => {
+      const key = makeFileKey(file.staged, file.path);
+      return (
+        <ChangedFileItem
+          key={key}
+          file={file}
+          taskId={taskId}
+          repoPath={repoPath}
+          isActive={activeFilePath === key}
+          mainRepoPath={workspace?.folderPath}
+          onStageToggle={handleStageToggle}
+          depth={depth}
+        />
+      );
+    },
+    [
+      taskId,
+      repoPath,
+      activeFilePath,
+      workspace?.folderPath,
+      handleStageToggle,
+    ],
+  );
 
   if (!repoPath) {
     return <PanelMessage>No repository path available</PanelMessage>;
@@ -580,20 +578,7 @@ function LocalChangesPanel({ taskId, task: _task }: ChangesPanelProps) {
                 </Text>
               </Flex>
             )}
-            {files.map((file) => {
-              const key = makeFileKey(file.staged, file.path);
-              return (
-                <ChangedFileItem
-                  key={key}
-                  file={file}
-                  taskId={taskId}
-                  repoPath={repoPath}
-                  isActive={activeFilePath === key}
-                  mainRepoPath={workspace?.folderPath}
-                  onStageToggle={handleStageToggle}
-                />
-              );
-            })}
+            <ChangesTreeView files={files} renderFile={renderLocalFile} />
           </Fragment>
         ))}
       </Flex>
