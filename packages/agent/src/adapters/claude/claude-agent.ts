@@ -44,6 +44,7 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { v7 as uuidv7 } from "uuid";
 import packageJson from "../../../package.json" with { type: "json" };
+import { POSTHOG_NOTIFICATIONS } from "../../acp-extensions";
 import { unreachable, withTimeout } from "../../utils/common";
 import { Logger } from "../../utils/logger";
 import { Pushable } from "../../utils/streams";
@@ -442,16 +443,19 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
               });
             }
 
-            await this.client.extNotification("_posthog/usage_update", {
-              sessionId: params.sessionId,
-              used: {
-                inputTokens: message.usage.input_tokens,
-                outputTokens: message.usage.output_tokens,
-                cachedReadTokens: message.usage.cache_read_input_tokens,
-                cachedWriteTokens: message.usage.cache_creation_input_tokens,
+            await this.client.extNotification(
+              POSTHOG_NOTIFICATIONS.USAGE_UPDATE,
+              {
+                sessionId: params.sessionId,
+                used: {
+                  inputTokens: message.usage.input_tokens,
+                  outputTokens: message.usage.output_tokens,
+                  cachedReadTokens: message.usage.cache_read_input_tokens,
+                  cachedWriteTokens: message.usage.cache_creation_input_tokens,
+                },
+                cost: message.total_cost_usd,
               },
-              cost: message.total_cost_usd,
-            });
+            );
 
             const usage: Usage = {
               inputTokens: this.session.accumulatedUsage.inputTokens,

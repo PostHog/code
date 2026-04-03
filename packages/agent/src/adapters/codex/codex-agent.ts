@@ -12,7 +12,6 @@
 import {
   type AgentSideConnection,
   type AuthenticateRequest,
-  type CancelNotification,
   ClientSideConnection,
   type ForkSessionRequest,
   type ForkSessionResponse,
@@ -37,9 +36,8 @@ import {
 import packageJson from "../../../package.json" with { type: "json" };
 import { POSTHOG_NOTIFICATIONS } from "../../acp-extensions";
 import {
-  CODEX_NATIVE_MODES,
-  type CodexNativeMode,
-  type PermissionMode,
+  CODE_EXECUTION_MODES,
+  type CodeExecutionMode,
 } from "../../execution-mode";
 import type { ProcessSpawnedCallback } from "../../types";
 import { Logger } from "../../utils/logger";
@@ -85,19 +83,26 @@ type CodexSession = BaseSession & {
   settingsManager: CodexSettingsManager;
 };
 
-function toPermissionMode(mode?: string): PermissionMode {
-  if (mode && (CODEX_NATIVE_MODES as readonly string[]).includes(mode)) {
-    return mode as CodexNativeMode;
+function toCodeExecutionMode(mode?: string): CodeExecutionMode {
+  if (mode && (CODE_EXECUTION_MODES as readonly string[]).includes(mode)) {
+    return mode as CodeExecutionMode;
   }
-  return "auto";
+  return "default";
 }
+
+const CODEX_NATIVE_MODE: Record<CodeExecutionMode, string> = {
+  default: "default",
+  acceptEdits: "default",
+  plan: "plan",
+  bypassPermissions: "default",
+};
 
 export class CodexAcpAgent extends BaseAcpAgent {
   readonly adapterName = "codex";
   declare session: CodexSession;
   private codexProcess: CodexProcess;
-  private codexConnection!: ClientSideConnection;
-  private sessionState!: CodexSessionState;
+  private codexConnection: ClientSideConnection;
+  private sessionState: CodexSessionState;
 
   constructor(client: AgentSideConnection, options: CodexAcpAgentOptions) {
     super(client);
@@ -126,29 +131,14 @@ export class CodexAcpAgent extends BaseAcpAgent {
       cancelled: false,
     };
 
+    this.sessionState = createSessionState("", cwd);
+
     // Create the ClientSideConnection to codex-acp.
     // The Client handler delegates all requests from codex-acp to the upstream
     // PostHog Code client via our AgentSideConnection.
     this.codexConnection = new ClientSideConnection(
       (_agent) =>
-        createCodexClient(
-          this.client,
-          this.logger,
-          this.sessionState ?? {
-            sessionId: "",
-            cwd: "",
-            modeId: "auto",
-            configOptions: [],
-            accumulatedUsage: {
-              inputTokens: 0,
-              outputTokens: 0,
-              cachedReadTokens: 0,
-              cachedWriteTokens: 0,
-            },
-            permissionMode: "auto",
-            cancelled: false,
-          },
-        ),
+        createCodexClient(this.client, this.logger, this.sessionState),
       codexStream,
     );
   }
@@ -195,7 +185,7 @@ export class CodexAcpAgent extends BaseAcpAgent {
       taskId: meta?.taskId ?? meta?.persistence?.taskId,
       modeId: response.modes?.currentModeId ?? "default",
       modelId: response.models?.currentModelId,
-      permissionMode: toPermissionMode(meta?.permissionMode),
+      permissionMode: toCodeExecutionMode(meta?.permissionMode),
     });
     this.sessionId = response.sessionId;
     this.sessionState.configOptions = response.configOptions ?? [];
@@ -219,9 +209,11 @@ export class CodexAcpAgent extends BaseAcpAgent {
 
   async loadSession(params: LoadSessionRequest): Promise<LoadSessionResponse> {
     const response = await this.codexConnection.loadSession(params);
+    const meta = params._meta as NewSessionMeta | undefined;
 
-    // Update session state
-    this.sessionState = createSessionState(params.sessionId, params.cwd);
+    this.sessionState = createSessionState(params.sessionId, params.cwd, {
+      permissionMode: toCodeExecutionMode(meta?.permissionMode),
+    });
     this.sessionId = params.sessionId;
     this.sessionState.configOptions = response.configOptions ?? [];
 
@@ -238,11 +230,15 @@ export class CodexAcpAgent extends BaseAcpAgent {
       mcpServers: params.mcpServers ?? [],
     });
 
-    this.sessionState = createSessionState(params.sessionId, params.cwd);
+    const meta = params._meta as NewSessionMeta | undefined;
+    this.sessionState = createSessionState(params.sessionId, params.cwd, {
+      taskRunId: meta?.taskRunId,
+      taskId: meta?.taskId ?? meta?.persistence?.taskId,
+      permissionMode: toCodeExecutionMode(meta?.permissionMode),
+    });
     this.sessionId = params.sessionId;
     this.sessionState.configOptions = loadResponse.configOptions ?? [];
 
-    const meta = params._meta as NewSessionMeta | undefined;
     if (meta?.taskRunId) {
       await this.client.extNotification(POSTHOG_NOTIFICATIONS.SDK_SESSION, {
         taskRunId: meta.taskRunId,
@@ -268,7 +264,12 @@ export class CodexAcpAgent extends BaseAcpAgent {
       _meta: params._meta,
     });
 
-    this.sessionState = createSessionState(newResponse.sessionId, params.cwd);
+    const meta = params._meta as NewSessionMeta | undefined;
+    this.sessionState = createSessionState(newResponse.sessionId, params.cwd, {
+      taskRunId: meta?.taskRunId,
+      taskId: meta?.taskId ?? meta?.persistence?.taskId,
+      permissionMode: toCodeExecutionMode(meta?.permissionMode),
+    });
     this.sessionId = newResponse.sessionId;
     this.sessionState.configOptions = newResponse.configOptions ?? [];
 
@@ -284,31 +285,21 @@ export class CodexAcpAgent extends BaseAcpAgent {
   async unstable_listSessions(
     params: ListSessionsRequest,
   ): Promise<ListSessionsResponse> {
-    return this.codexConnection.listSessions(params);
+    return this.listSessions(params);
   }
 
   async prompt(params: PromptRequest): Promise<PromptResponse> {
-    if (this.sessionState) {
-      this.sessionState.cancelled = false;
-      this.sessionState.interruptReason = undefined;
-      resetUsage(this.sessionState);
-    }
+    this.session.cancelled = false;
+    this.session.interruptReason = undefined;
+    resetUsage(this.sessionState);
 
     const response = await this.codexConnection.prompt(params);
 
-    if (this.sessionState && response.usage) {
-      // Accumulate token usage from the prompt response
-      this.sessionState.accumulatedUsage.inputTokens +=
-        response.usage.inputTokens ?? 0;
-      this.sessionState.accumulatedUsage.outputTokens +=
-        response.usage.outputTokens ?? 0;
-      this.sessionState.accumulatedUsage.cachedReadTokens +=
-        response.usage.cachedReadTokens ?? 0;
-      this.sessionState.accumulatedUsage.cachedWriteTokens +=
-        response.usage.cachedWriteTokens ?? 0;
-    }
+    // Usage is already accumulated via sessionUpdate notifications in
+    // codex-client.ts. Do NOT also add response.usage here or tokens
+    // get double-counted.
 
-    if (this.sessionState?.taskRunId) {
+    if (this.sessionState.taskRunId) {
       const { accumulatedUsage } = this.sessionState;
 
       await this.client.extNotification(POSTHOG_NOTIFICATIONS.TURN_COMPLETE, {
@@ -328,7 +319,7 @@ export class CodexAcpAgent extends BaseAcpAgent {
       });
 
       if (response.usage) {
-        await this.client.extNotification("_posthog/usage_update", {
+        await this.client.extNotification(POSTHOG_NOTIFICATIONS.USAGE_UPDATE, {
           sessionId: params.sessionId,
           used: {
             inputTokens: response.usage.inputTokens ?? 0,
@@ -345,39 +336,24 @@ export class CodexAcpAgent extends BaseAcpAgent {
   }
 
   protected async interrupt(): Promise<void> {
-    if (this.sessionState) {
-      this.sessionState.cancelled = true;
-    }
     await this.codexConnection.cancel({
       sessionId: this.sessionId,
     });
   }
 
-  async cancel(params: CancelNotification): Promise<void> {
-    if (this.sessionState) {
-      this.sessionState.cancelled = true;
-      const meta = params._meta as { interruptReason?: string } | undefined;
-      if (meta?.interruptReason) {
-        this.sessionState.interruptReason = meta.interruptReason;
-      }
-    }
-    await this.codexConnection.cancel(params);
-  }
-
   async setSessionMode(
     params: SetSessionModeRequest,
   ): Promise<SetSessionModeResponse> {
-    const permissionMode = toPermissionMode(params.modeId);
+    const requestedMode = toCodeExecutionMode(params.modeId);
+    const nativeMode = CODEX_NATIVE_MODE[requestedMode];
 
     const response = await this.codexConnection.setSessionMode({
       ...params,
-      modeId: permissionMode,
+      modeId: nativeMode,
     });
 
-    if (this.sessionState) {
-      this.sessionState.modeId = permissionMode;
-      this.sessionState.permissionMode = permissionMode;
-    }
+    this.sessionState.modeId = nativeMode;
+    this.sessionState.permissionMode = requestedMode;
     return response ?? {};
   }
 
@@ -385,7 +361,7 @@ export class CodexAcpAgent extends BaseAcpAgent {
     params: SetSessionConfigOptionRequest,
   ): Promise<SetSessionConfigOptionResponse> {
     const response = await this.codexConnection.setSessionConfigOption(params);
-    if (this.sessionState && response.configOptions) {
+    if (response.configOptions) {
       this.sessionState.configOptions = response.configOptions;
     }
     return response;
@@ -397,6 +373,7 @@ export class CodexAcpAgent extends BaseAcpAgent {
 
   async closeSession(): Promise<void> {
     this.logger.info("Closing Codex session", { sessionId: this.sessionId });
+    this.session.abortController.abort();
     this.session.settingsManager.dispose();
     try {
       this.codexProcess.kill();

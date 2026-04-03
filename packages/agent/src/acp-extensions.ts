@@ -64,4 +64,7 @@ export const POSTHOG_NOTIFICATIONS = {
 
   /** Marks a boundary for log compaction */
   COMPACT_BOUNDARY: "_posthog/compact_boundary",
+
+  /** Token usage update for a session turn */
+  USAGE_UPDATE: "_posthog/usage_update",
 } as const;

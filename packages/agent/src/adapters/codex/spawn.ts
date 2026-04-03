@@ -46,6 +46,8 @@ function buildConfigArgs(options: CodexProcessOptions): string[] {
   if (options.instructions) {
     const escaped = options.instructions
       .replace(/\\/g, "\\\\")
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
       .replace(/"/g, '\\"');
     args.push("-c", `instructions="${escaped}"`);
   }

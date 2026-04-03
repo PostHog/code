@@ -29,7 +29,7 @@ import type {
   WriteTextFileRequest,
   WriteTextFileResponse,
 } from "@agentclientprotocol/sdk";
-import type { PermissionMode } from "../../execution-mode";
+import type { CodeExecutionMode } from "../../execution-mode";
 import type { Logger } from "../../utils/logger";
 import type { CodexSessionState } from "./session-state";
 
@@ -38,10 +38,11 @@ export interface CodexClientCallbacks {
   onUsageUpdate?: (update: Record<string, unknown>) => void;
 }
 
-const AUTO_APPROVED_KINDS: Partial<Record<PermissionMode, Set<ToolKind>>> = {
-  auto: new Set(["read", "search", "fetch", "think"]),
-  "read-only": new Set(["read", "search", "fetch", "think"]),
-  "full-access": new Set([
+const AUTO_APPROVED_KINDS: Record<CodeExecutionMode, Set<ToolKind>> = {
+  default: new Set(["read", "search", "fetch", "think"]),
+  acceptEdits: new Set(["read", "edit", "search", "fetch", "think"]),
+  plan: new Set(["read", "search", "fetch", "think"]),
+  bypassPermissions: new Set([
     "read",
     "edit",
     "delete",
@@ -56,10 +57,10 @@ const AUTO_APPROVED_KINDS: Partial<Record<PermissionMode, Set<ToolKind>>> = {
 };
 
 function shouldAutoApprove(
-  mode: PermissionMode,
+  mode: CodeExecutionMode,
   kind: ToolKind | null | undefined,
 ): boolean {
-  if (mode === "full-access") return true;
+  if (mode === "bypassPermissions") return true;
   if (!kind) return false;
   return AUTO_APPROVED_KINDS[mode]?.has(kind) ?? false;
 }
