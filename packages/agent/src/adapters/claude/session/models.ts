@@ -37,6 +37,12 @@ export function supportsMaxEffort(modelId: string): boolean {
   return MODELS_WITH_MAX_EFFORT.has(modelId);
 }
 
+const MODELS_TO_EXCLUDE_MCP_TOOLS = new Set(["claude-haiku-4-5"]);
+
+export function supportsMcpInjection(modelId: string): boolean {
+  return !MODELS_TO_EXCLUDE_MCP_TOOLS.has(modelId);
+}
+
 interface EffortOption {
   value: string;
   name: string;

@@ -67,6 +67,7 @@ import {
   getEffortOptions,
   resolveModelPreference,
   supports1MContext,
+  supportsMcpInjection,
   toSdkModelId,
 } from "./session/models";
 import {
@@ -797,7 +798,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const settingsManager = new SettingsManager(cwd);
     await settingsManager.initialize();
 
-    const mcpServers = parseMcpServers(params);
+    const earlyModelId =
+      settingsManager.getSettings().model || meta?.model || "";
+    const mcpServers = supportsMcpInjection(earlyModelId)
+      ? parseMcpServers(params)
+      : {};
     const systemPrompt = buildSystemPrompt(meta?.systemPrompt);
 
     this.logger.info(isResume ? "Resuming session" : "Creating new session", {
