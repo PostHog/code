@@ -1,5 +1,6 @@
 import { makeFileKey } from "@features/git-interaction/utils/fileKey";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
+import { isTabActiveInTree } from "@features/panels/store/panelStoreHelpers";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import type { parsePatchFiles } from "@pierre/diffs";
 import { Flex, Text } from "@radix-ui/themes";
@@ -27,6 +28,11 @@ interface ReviewPageProps {
 export function ReviewPage({ taskId }: ReviewPageProps) {
   const repoPath = useCwd(taskId);
   const openFile = usePanelLayoutStore((s) => s.openFile);
+  const isReviewTabActive = usePanelLayoutStore((s) => {
+    const layout = s.getLayout(taskId);
+    if (!layout) return false;
+    return isTabActiveInTree(layout.panelTree, "review");
+  });
   const onComment = useReviewComment(taskId);
 
   const {
@@ -40,7 +46,7 @@ export function ReviewPage({ taskId }: ReviewPageProps) {
     allPaths,
     diffLoading,
     refetch,
-  } = useReviewDiffs(repoPath);
+  } = useReviewDiffs(repoPath, isReviewTabActive);
 
   const {
     diffOptions,
