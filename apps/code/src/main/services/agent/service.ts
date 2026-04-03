@@ -16,7 +16,10 @@ import { isMcpToolReadOnly } from "@posthog/agent";
 import { hydrateSessionJsonl } from "@posthog/agent/adapters/claude/session/jsonl-hydration";
 import { getEffortOptions } from "@posthog/agent/adapters/claude/session/models";
 import { Agent } from "@posthog/agent/agent";
-import { getAvailableModes } from "@posthog/agent/execution-mode";
+import {
+  getAvailableCodexModes,
+  getAvailableModes,
+} from "@posthog/agent/execution-mode";
 import {
   DEFAULT_CODEX_MODEL,
   DEFAULT_GATEWAY_MODEL,
@@ -1680,18 +1683,21 @@ For git operations while detached:
       });
     }
 
-    const modeOptions = getAvailableModes().map((mode) => ({
+    const modes =
+      adapter === "codex" ? getAvailableCodexModes() : getAvailableModes();
+    const modeOptions = modes.map((mode) => ({
       value: mode.id,
       name: mode.name,
       description: mode.description ?? undefined,
     }));
+    const defaultMode = adapter === "codex" ? "auto" : "plan";
 
     const configOptions: SessionConfigOption[] = [
       {
         id: "mode",
         name: "Approval Preset",
         type: "select",
-        currentValue: "plan",
+        currentValue: defaultMode,
         options: modeOptions,
         category: "mode",
         description:

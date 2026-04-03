@@ -23,17 +23,45 @@ import type {
   TerminalHandle,
   TerminalOutputRequest,
   TerminalOutputResponse,
+  ToolKind,
   WaitForTerminalExitRequest,
   WaitForTerminalExitResponse,
   WriteTextFileRequest,
   WriteTextFileResponse,
 } from "@agentclientprotocol/sdk";
+import type { PermissionMode } from "../../execution-mode";
 import type { Logger } from "../../utils/logger";
 import type { CodexSessionState } from "./session-state";
 
 export interface CodexClientCallbacks {
   /** Called when a usage_update session notification is received */
   onUsageUpdate?: (update: Record<string, unknown>) => void;
+}
+
+const AUTO_APPROVED_KINDS: Partial<Record<PermissionMode, Set<ToolKind>>> = {
+  auto: new Set(["read", "search", "fetch", "think"]),
+  "read-only": new Set(["read", "search", "fetch", "think"]),
+  "full-access": new Set([
+    "read",
+    "edit",
+    "delete",
+    "move",
+    "search",
+    "execute",
+    "think",
+    "fetch",
+    "switch_mode",
+    "other",
+  ]),
+};
+
+function shouldAutoApprove(
+  mode: PermissionMode,
+  kind: ToolKind | null | undefined,
+): boolean {
+  if (mode === "full-access") return true;
+  if (!kind) return false;
+  return AUTO_APPROVED_KINDS[mode]?.has(kind) ?? false;
 }
 
 /**
@@ -46,16 +74,31 @@ export function createCodexClient(
   sessionState: CodexSessionState,
   callbacks?: CodexClientCallbacks,
 ): Client {
-  // Track terminal handles for delegation
   const terminalHandles = new Map<string, TerminalHandle>();
 
   return {
     async requestPermission(
       params: RequestPermissionRequest,
     ): Promise<RequestPermissionResponse> {
-      logger.debug("Relaying permission request to upstream", {
-        sessionId: params.sessionId,
-      });
+      const kind = params.toolCall?.kind as ToolKind | null | undefined;
+
+      if (shouldAutoApprove(sessionState.permissionMode, kind)) {
+        logger.debug("Auto-approving permission", {
+          mode: sessionState.permissionMode,
+          kind,
+          toolCallId: params.toolCall?.toolCallId,
+        });
+        const allowOption = params.options?.find(
+          (o) => o.kind === "allow_once" || o.kind === "allow_always",
+        );
+        return {
+          outcome: {
+            outcome: "selected",
+            optionId: allowOption?.optionId ?? "allow",
+          },
+        };
+      }
+
       return upstreamClient.requestPermission(params);
     },
 

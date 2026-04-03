@@ -36,6 +36,11 @@ import {
 } from "@agentclientprotocol/sdk";
 import packageJson from "../../../package.json" with { type: "json" };
 import { POSTHOG_NOTIFICATIONS } from "../../acp-extensions";
+import {
+  CODEX_NATIVE_MODES,
+  type CodexNativeMode,
+  type PermissionMode,
+} from "../../execution-mode";
 import type { ProcessSpawnedCallback } from "../../types";
 import { Logger } from "../../utils/logger";
 import {
@@ -79,6 +84,13 @@ export interface CodexAcpAgentOptions {
 type CodexSession = BaseSession & {
   settingsManager: CodexSettingsManager;
 };
+
+function toPermissionMode(mode?: string): PermissionMode {
+  if (mode && (CODEX_NATIVE_MODES as readonly string[]).includes(mode)) {
+    return mode as CodexNativeMode;
+  }
+  return "auto";
+}
 
 export class CodexAcpAgent extends BaseAcpAgent {
   readonly adapterName = "codex";
@@ -125,7 +137,7 @@ export class CodexAcpAgent extends BaseAcpAgent {
           this.sessionState ?? {
             sessionId: "",
             cwd: "",
-            modeId: "default",
+            modeId: "auto",
             configOptions: [],
             accumulatedUsage: {
               inputTokens: 0,
@@ -133,6 +145,7 @@ export class CodexAcpAgent extends BaseAcpAgent {
               cachedReadTokens: 0,
               cachedWriteTokens: 0,
             },
+            permissionMode: "auto",
             cancelled: false,
           },
         ),
@@ -182,6 +195,7 @@ export class CodexAcpAgent extends BaseAcpAgent {
       taskId: meta?.taskId ?? meta?.persistence?.taskId,
       modeId: response.modes?.currentModeId ?? "default",
       modelId: response.models?.currentModelId,
+      permissionMode: toPermissionMode(meta?.permissionMode),
     });
     this.sessionId = response.sessionId;
     this.sessionState.configOptions = response.configOptions ?? [];
@@ -353,9 +367,16 @@ export class CodexAcpAgent extends BaseAcpAgent {
   async setSessionMode(
     params: SetSessionModeRequest,
   ): Promise<SetSessionModeResponse> {
-    const response = await this.codexConnection.setSessionMode(params);
+    const permissionMode = toPermissionMode(params.modeId);
+
+    const response = await this.codexConnection.setSessionMode({
+      ...params,
+      modeId: permissionMode,
+    });
+
     if (this.sessionState) {
-      this.sessionState.modeId = params.modeId;
+      this.sessionState.modeId = permissionMode;
+      this.sessionState.permissionMode = permissionMode;
     }
     return response ?? {};
   }
