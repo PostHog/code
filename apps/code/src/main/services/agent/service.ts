@@ -18,6 +18,7 @@ import { getEffortOptions } from "@posthog/agent/adapters/claude/session/models"
 import { Agent } from "@posthog/agent/agent";
 import { getAvailableModes } from "@posthog/agent/execution-mode";
 import {
+  DEFAULT_CODEX_MODEL,
   DEFAULT_GATEWAY_MODEL,
   fetchGatewayModels,
   formatGatewayModelName,
@@ -604,6 +605,7 @@ When creating pull requests, add the following footer at the end of the PR descr
         adapter,
         gatewayUrl: proxyUrl,
         codexBinaryPath: adapter === "codex" ? getCodexBinaryPath() : undefined,
+        model,
         processCallbacks: {
           onProcessSpawned: (info) => {
             this.processTracking.register(
@@ -1667,7 +1669,9 @@ For git operations while detached:
 
     const defaultModel =
       adapter === "codex"
-        ? (modelOptions[0]?.value ?? "")
+        ? (modelOptions.find((o) => o.value === DEFAULT_CODEX_MODEL)?.value ??
+          modelOptions[0]?.value ??
+          "")
         : DEFAULT_GATEWAY_MODEL;
 
     const resolvedModelId = modelOptions.some((o) => o.value === defaultModel)
