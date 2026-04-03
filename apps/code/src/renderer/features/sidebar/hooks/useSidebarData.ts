@@ -2,7 +2,11 @@ import { useArchivedTaskIds } from "@features/archive/hooks/useArchivedTaskIds";
 import { useSessions } from "@features/sessions/stores/sessionStore";
 import { useSuspendedTaskIds } from "@features/suspension/hooks/useSuspendedTaskIds";
 import { useTasks } from "@features/tasks/hooks/useTasks";
-import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
+import {
+  useAllWorkspaces,
+  useWorkspaces,
+} from "@features/workspace/hooks/useWorkspace";
+import type { Workspace } from "@main/services/workspace/schemas";
 import {
   getTaskRepositories,
   parseRepository,
@@ -90,6 +94,7 @@ function repoStringToInfo(repo: string): TaskRepositoryInfo {
 function getRepositoryInfos(
   task: Task,
   folderPath?: string,
+  allWorkspacesForTask?: Workspace[],
 ): { primary: TaskRepositoryInfo | null; additional: TaskRepositoryInfo[] } {
   const allRepos = getTaskRepositories(task);
 
@@ -101,10 +106,24 @@ function getRepositoryInfos(
 
   if (folderPath) {
     const name = folderPath.split("/").pop() ?? folderPath;
-    return {
-      primary: { fullPath: folderPath, name },
-      additional: [],
-    };
+    const primary: TaskRepositoryInfo = { fullPath: folderPath, name };
+
+    // Derive additional repos from local workspace data when the API
+    // doesn't have a repositories array yet
+    const additional: TaskRepositoryInfo[] = [];
+    if (allWorkspacesForTask && allWorkspacesForTask.length > 1) {
+      for (const ws of allWorkspacesForTask.slice(1)) {
+        const wsPath = ws.folderPath;
+        if (wsPath) {
+          additional.push({
+            fullPath: wsPath,
+            name: wsPath.split("/").pop() ?? wsPath,
+          });
+        }
+      }
+    }
+
+    return { primary, additional };
   }
 
   return { primary: null, additional: [] };
@@ -164,6 +183,7 @@ export function useSidebarData({
     showAllUsers,
   });
   const { data: workspaces, isFetched: isWorkspacesFetched } = useWorkspaces();
+  const { data: allWorkspacesMap } = useAllWorkspaces();
   const archivedTaskIds = useArchivedTaskIds();
   const suspendedTaskIds = useSuspendedTaskIds();
   const isLoading = isLoadingTasks || !isWorkspacesFetched;
@@ -225,6 +245,7 @@ export function useSidebarData({
       const { primary, additional } = getRepositoryInfos(
         task,
         workspace?.folderPath,
+        allWorkspacesMap?.[task.id],
       );
 
       return {
@@ -251,6 +272,7 @@ export function useSidebarData({
     suspendedTaskIds,
     sessionByTaskId,
     workspaces,
+    allWorkspacesMap,
   ]);
 
   const pinnedTasks = useMemo(() => {

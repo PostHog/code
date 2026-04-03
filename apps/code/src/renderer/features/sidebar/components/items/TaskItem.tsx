@@ -268,7 +268,7 @@ export function TaskItem({
         content={`Also includes: ${additionalRepositories.map((r) => r.name).join(", ")}`}
         side="right"
       >
-        <span className="shrink-0 rounded-sm bg-gray-4 px-1 text-[10px] text-gray-11 group-hover:hidden">
+        <span className="shrink-0 rounded-sm bg-gray-4 px-1 text-[10px] text-gray-11">
           +{additionalRepositories.length}
         </span>
       </Tooltip>

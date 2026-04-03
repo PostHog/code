@@ -421,115 +421,115 @@ export function TaskInput({
             zIndex: 1,
           }}
         >
-          <Flex
-            gap="2"
-            align="center"
-            style={{ minWidth: 0, overflow: "hidden" }}
-          >
-            {workspaceMode === "cloud" ? (
-              <GitHubRepoPicker
-                value={selectedRepository}
-                onChange={handleRepositorySelect}
-                repositories={repositories}
-                isLoading={isLoadingRepos}
-                placeholder="Select repository..."
-                size="1"
-                disabled={isCreatingTask}
-              />
-            ) : (
-              <FolderPicker
-                value={selectedDirectory}
-                onChange={setSelectedDirectory}
-                placeholder="Select repository..."
-                size="1"
-              />
-            )}
-            <WorkspaceModeSelect
-              value={workspaceMode}
-              onChange={setWorkspaceMode}
-              selectedCloudEnvironmentId={selectedCloudEnvId}
-              onCloudEnvironmentChange={setSelectedCloudEnvId}
-              size="1"
-            />
-            <BranchSelector
-              repoPath={
-                workspaceMode === "cloud"
-                  ? selectedCloudRepository
-                  : selectedDirectory
-              }
-              currentBranch={currentBranch}
-              defaultBranch={
-                workspaceMode === "cloud" ? cloudDefaultBranch : defaultBranch
-              }
-              disabled={
-                isCreatingTask ||
-                (workspaceMode === "cloud" && !selectedCloudRepository)
-              }
-              loading={branchLoading}
-              workspaceMode={workspaceMode}
-              selectedBranch={selectedBranch}
-              onBranchSelect={setSelectedBranch}
-              cloudBranches={cloudBranches}
-              cloudBranchesLoading={cloudBranchesLoading}
-            />
-            {workspaceMode === "worktree" && (
-              <EnvironmentSelector
-                repoPath={effectiveRepoPath ?? null}
-                value={selectedEnvironment}
-                onChange={setSelectedEnvironment}
-                disabled={isCreatingTask}
-              />
-            )}
-            {cloudRegion === "dev" && (
-              <Flex align="center" gap="1" className="shrink-0">
-                <span
-                  className="inline-block h-2 w-2 rounded-full bg-orange-9"
-                  aria-hidden
+          <Flex direction="column" gap="2">
+            <Flex
+              gap="2"
+              align="center"
+              style={{ minWidth: 0, overflow: "hidden" }}
+            >
+              {workspaceMode === "cloud" ? (
+                <GitHubRepoPicker
+                  value={selectedRepository}
+                  onChange={handleRepositorySelect}
+                  repositories={repositories}
+                  isLoading={isLoadingRepos}
+                  placeholder="Select repository..."
+                  size="1"
+                  disabled={isCreatingTask}
                 />
-                <Text size="1" color="orange" weight="medium">
-                  Dev
-                </Text>
-              </Flex>
+              ) : (
+                <FolderPicker
+                  value={selectedDirectory}
+                  onChange={setSelectedDirectory}
+                  placeholder="Select repository..."
+                  size="1"
+                />
+              )}
+              <WorkspaceModeSelect
+                value={workspaceMode}
+                onChange={setWorkspaceMode}
+                selectedCloudEnvironmentId={selectedCloudEnvId}
+                onCloudEnvironmentChange={setSelectedCloudEnvId}
+                size="1"
+              />
+              <BranchSelector
+                repoPath={
+                  workspaceMode === "cloud"
+                    ? selectedCloudRepository
+                    : selectedDirectory
+                }
+                currentBranch={currentBranch}
+                defaultBranch={
+                  workspaceMode === "cloud" ? cloudDefaultBranch : defaultBranch
+                }
+                disabled={
+                  isCreatingTask ||
+                  (workspaceMode === "cloud" && !selectedCloudRepository)
+                }
+                loading={branchLoading}
+                workspaceMode={workspaceMode}
+                selectedBranch={selectedBranch}
+                onBranchSelect={setSelectedBranch}
+                cloudBranches={cloudBranches}
+                cloudBranchesLoading={cloudBranchesLoading}
+              />
+              {workspaceMode === "worktree" && (
+                <EnvironmentSelector
+                  repoPath={effectiveRepoPath ?? null}
+                  value={selectedEnvironment}
+                  onChange={setSelectedEnvironment}
+                  disabled={isCreatingTask}
+                />
+              )}
+              {cloudRegion === "dev" && (
+                <Flex align="center" gap="1" className="shrink-0">
+                  <span
+                    className="inline-block h-2 w-2 rounded-full bg-orange-9"
+                    aria-hidden
+                  />
+                  <Text size="1" color="orange" weight="medium">
+                    Dev
+                  </Text>
+                </Flex>
+              )}
+            </Flex>
+            {additionalRepos.map((repo) => (
+              <AdditionalRepoRow
+                key={repo.id}
+                config={repo}
+                onChange={(updated) =>
+                  setAdditionalRepos((prev) =>
+                    prev.map((r) => (r.id === repo.id ? updated : r)),
+                  )
+                }
+                onRemove={() =>
+                  setAdditionalRepos((prev) =>
+                    prev.filter((r) => r.id !== repo.id),
+                  )
+                }
+                disabled={isCreatingTask}
+              />
+            ))}
+            {workspaceMode !== "cloud" && selectedDirectory && (
+              <button
+                type="button"
+                onClick={() =>
+                  setAdditionalRepos((prev) => [
+                    ...prev,
+                    {
+                      id: crypto.randomUUID(),
+                      directory: "",
+                      mode: workspaceMode,
+                      branch: null,
+                    },
+                  ])
+                }
+                className="self-start rounded px-2 py-0.5 text-[12px] text-gray-10 transition-colors hover:bg-gray-3 hover:text-gray-12"
+              >
+                + Add repository
+              </button>
             )}
           </Flex>
-
-          {additionalRepos.map((repo) => (
-            <AdditionalRepoRow
-              key={repo.id}
-              config={repo}
-              onChange={(updated) =>
-                setAdditionalRepos((prev) =>
-                  prev.map((r) => (r.id === repo.id ? updated : r)),
-                )
-              }
-              onRemove={() =>
-                setAdditionalRepos((prev) =>
-                  prev.filter((r) => r.id !== repo.id),
-                )
-              }
-              disabled={isCreatingTask}
-            />
-          ))}
-
-          {workspaceMode !== "cloud" && selectedDirectory && (
-            <button
-              type="button"
-              onClick={() =>
-                setAdditionalRepos((prev) => [
-                  ...prev,
-                  {
-                    id: crypto.randomUUID(),
-                    directory: "",
-                    mode: workspaceMode,
-                    branch: null,
-                  },
-                ])
-              }
-              className="self-start rounded px-2 py-0.5 text-[12px] text-gray-10 transition-colors hover:bg-gray-3 hover:text-gray-12"
-            >
-              + Add repository
-            </button>
-          )}
 
           <TaskInputEditor
             ref={editorRef}
