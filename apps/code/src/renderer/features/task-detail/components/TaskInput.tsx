@@ -29,7 +29,7 @@ import { useAuthStore } from "@renderer/features/auth/stores/authStore";
 import { useTRPC } from "@renderer/trpc/client";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { usePreviewConfig } from "../hooks/usePreviewConfig";
 import { useTaskCreation } from "../hooks/useTaskCreation";
@@ -59,6 +59,8 @@ export function TaskInput({
     setLastUsedWorkspaceMode,
     lastUsedAdapter,
     setLastUsedAdapter,
+    lastUsedCloudRepository,
+    setLastUsedCloudRepository,
     allowBypassPermissions,
     setLastUsedEnvironment,
     getLastUsedEnvironment,
@@ -103,13 +105,18 @@ export function TaskInput({
   const { githubIntegration, repositories, isLoadingRepos } =
     useRepositoryIntegration();
   const [selectedRepository, setSelectedRepository] = useState<string | null>(
-    null,
+    () => lastUsedCloudRepository?.toLowerCase() ?? null,
   );
+  const selectedCloudRepository = useMemo(() => {
+    if (!selectedRepository) return null;
+    const lower = selectedRepository.toLowerCase();
+    return repositories.includes(lower) ? lower : null;
+  }, [selectedRepository, repositories]);
   const { currentBranch, branchLoading, defaultBranch } =
     useGitQueries(selectedDirectory);
 
   const { data: cloudBranchData, isPending: cloudBranchesLoading } =
-    useGithubBranches(githubIntegration?.id, selectedRepository);
+    useGithubBranches(githubIntegration?.id, selectedCloudRepository);
   const cloudBranches = cloudBranchData?.branches;
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
@@ -149,6 +156,15 @@ export function TaskInput({
     }
   }, [selectedDirectory, newBranchName, gitActions]);
 
+  const handleRepositorySelect = useCallback(
+    (repo: string) => {
+      const normalizedRepo = repo.toLowerCase();
+      setSelectedRepository(normalizedRepo);
+      setLastUsedCloudRepository(normalizedRepo);
+    },
+    [setLastUsedCloudRepository],
+  );
+
   const {
     modeOption,
     modelOption,
@@ -160,6 +176,37 @@ export function TaskInput({
   const { folders } = useFolders();
 
   useEffect(() => {
+    if (selectedRepository || !lastUsedCloudRepository) {
+      return;
+    }
+
+    setSelectedRepository(lastUsedCloudRepository.toLowerCase());
+  }, [lastUsedCloudRepository, selectedRepository]);
+
+  useEffect(() => {
+    if (
+      isLoadingRepos ||
+      !githubIntegration ||
+      !selectedRepository ||
+      selectedCloudRepository
+    ) {
+      return;
+    }
+
+    setSelectedRepository(null);
+    if (lastUsedCloudRepository === selectedRepository) {
+      setLastUsedCloudRepository(null);
+    }
+  }, [
+    githubIntegration,
+    isLoadingRepos,
+    lastUsedCloudRepository,
+    selectedCloudRepository,
+    selectedRepository,
+    setLastUsedCloudRepository,
+  ]);
+
+  useEffect(() => {
     if (view.folderId) {
       const folder = folders.find((f) => f.id === view.folderId);
       if (folder) {
@@ -169,7 +216,7 @@ export function TaskInput({
   }, [view.folderId, folders]);
 
   const effectiveRepoPath =
-    workspaceMode === "cloud" ? selectedRepository : selectedDirectory;
+    workspaceMode === "cloud" ? selectedCloudRepository : selectedDirectory;
 
   const setSelectedEnvironment = useCallback(
     (envId: string | null) => {
@@ -183,6 +230,7 @@ export function TaskInput({
 
   useEffect(() => {
     setSelectedBranch(null);
+
     if (effectiveRepoPath) {
       setSelectedEnvironmentRaw(getLastUsedEnvironment(effectiveRepoPath));
     } else {
@@ -212,7 +260,7 @@ export function TaskInput({
   const { isCreatingTask, canSubmit, handleSubmit } = useTaskCreation({
     editorRef,
     selectedDirectory,
-    selectedRepository,
+    selectedRepository: selectedCloudRepository,
     githubIntegrationId: githubIntegration?.id,
     workspaceMode: effectiveWorkspaceMode,
     branch: branchForTaskCreation,
@@ -373,7 +421,7 @@ export function TaskInput({
             {workspaceMode === "cloud" ? (
               <GitHubRepoPicker
                 value={selectedRepository}
-                onChange={setSelectedRepository}
+                onChange={handleRepositorySelect}
                 repositories={repositories}
                 isLoading={isLoadingRepos}
                 placeholder="Select repository..."
@@ -398,7 +446,7 @@ export function TaskInput({
             <BranchSelector
               repoPath={
                 workspaceMode === "cloud"
-                  ? selectedRepository
+                  ? selectedCloudRepository
                   : selectedDirectory
               }
               currentBranch={currentBranch}
@@ -407,7 +455,7 @@ export function TaskInput({
               }
               disabled={
                 isCreatingTask ||
-                (workspaceMode === "cloud" && !selectedRepository)
+                (workspaceMode === "cloud" && !selectedCloudRepository)
               }
               loading={branchLoading}
               workspaceMode={workspaceMode}
@@ -446,7 +494,7 @@ export function TaskInput({
             onSubmit={handleSubmit}
             hasDirectory={
               workspaceMode === "cloud"
-                ? !!selectedRepository
+                ? !!selectedCloudRepository
                 : !!selectedDirectory
             }
             directoryTooltip={

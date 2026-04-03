@@ -96,11 +96,24 @@ export interface GitActionExecutedProperties {
   action_type: GitActionType;
   success: boolean;
   task_id?: string;
+  /** Number of staged files at time of action */
+  staged_file_count?: number;
+  /** Number of unstaged files at time of action */
+  unstaged_file_count?: number;
+  /** Whether user chose to commit all changes (vs staged only) */
+  commit_all?: boolean;
+  /** Whether stagedOnly mode was used for the commit */
+  staged_only?: boolean;
 }
 
 export interface PrCreatedProperties {
   task_id?: string;
   success: boolean;
+}
+
+export interface AgentFileActivityProperties {
+  task_id: string;
+  branch_name: string | null;
 }
 
 // File interactions
@@ -118,6 +131,11 @@ export interface FileDiffViewedProperties {
 
 export interface ReviewPanelViewedProperties {
   task_id: string;
+}
+
+export interface DiffViewModeChangedProperties {
+  from_mode: "split" | "unified";
+  to_mode: "split" | "unified";
 }
 
 // Workspace events
@@ -216,11 +234,13 @@ export const ANALYTICS_EVENTS = {
   // Git operations
   GIT_ACTION_EXECUTED: "Git action executed",
   PR_CREATED: "PR created",
+  AGENT_FILE_ACTIVITY: "Agent file activity",
 
   // File interactions
   FILE_OPENED: "File opened",
   FILE_DIFF_VIEWED: "File diff viewed",
   REVIEW_PANEL_VIEWED: "Review panel viewed",
+  DIFF_VIEW_MODE_CHANGED: "Diff view mode changed",
 
   // Workspace events
   WORKSPACE_CREATED: "Workspace created",
@@ -270,11 +290,13 @@ export type EventPropertyMap = {
   // Git operations
   [ANALYTICS_EVENTS.GIT_ACTION_EXECUTED]: GitActionExecutedProperties;
   [ANALYTICS_EVENTS.PR_CREATED]: PrCreatedProperties;
+  [ANALYTICS_EVENTS.AGENT_FILE_ACTIVITY]: AgentFileActivityProperties;
 
   // File interactions
   [ANALYTICS_EVENTS.FILE_OPENED]: FileOpenedProperties;
   [ANALYTICS_EVENTS.FILE_DIFF_VIEWED]: FileDiffViewedProperties;
   [ANALYTICS_EVENTS.REVIEW_PANEL_VIEWED]: ReviewPanelViewedProperties;
+  [ANALYTICS_EVENTS.DIFF_VIEW_MODE_CHANGED]: DiffViewModeChangedProperties;
 
   // Workspace events
   [ANALYTICS_EVENTS.WORKSPACE_CREATED]: WorkspaceCreatedProperties;

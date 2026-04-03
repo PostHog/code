@@ -4,6 +4,7 @@ import { TourHighlight } from "@components/TourHighlight";
 import { AttachmentsBar } from "@features/message-editor/components/AttachmentsBar";
 import { EditorToolbar } from "@features/message-editor/components/EditorToolbar";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
+import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { useTaskInputHistoryStore } from "@features/message-editor/stores/taskInputHistoryStore";
 import { useTiptapEditor } from "@features/message-editor/tiptap/useTiptapEditor";
 import { ReasoningLevelSelector } from "@features/sessions/components/ReasoningLevelSelector";
@@ -12,8 +13,9 @@ import type { AgentAdapter } from "@features/settings/stores/settingsStore";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { ArrowUp } from "@phosphor-icons/react";
 import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
+import { trpcClient } from "@renderer/trpc/client";
 import { EditorContent } from "@tiptap/react";
-import { forwardRef, useCallback, useImperativeHandle } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react";
 import "./TaskInput.css";
 
 interface TaskInputEditorProps {
@@ -100,6 +102,21 @@ export const TaskInputEditor = forwardRef<
       },
       onEmptyChange,
     });
+
+    useEffect(() => {
+      let cancelled = false;
+      trpcClient.skills.list.query().then((skills) => {
+        if (cancelled) return;
+        useDraftStore.getState().actions.setCommands(
+          sessionId,
+          skills.map((s) => ({ name: s.name, description: s.description })),
+        );
+      });
+      return () => {
+        cancelled = true;
+        useDraftStore.getState().actions.clearCommands(sessionId);
+      };
+    }, [sessionId]);
 
     useImperativeHandle(
       ref,

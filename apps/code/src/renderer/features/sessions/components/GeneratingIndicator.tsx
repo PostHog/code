@@ -158,7 +158,7 @@ export function GeneratingIndicator({
       <Brain size={12} className="ph-pulse" />
       <Text size="1">{activity}...</Text>
       <Text size="1" color="gray">
-        (Esc to interrupt
+        (Esc to stop
       </Text>
       <Circle
         size={4}

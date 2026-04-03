@@ -67,6 +67,7 @@ import {
   getEffortOptions,
   resolveModelPreference,
   supports1MContext,
+  supportsMcpInjection,
   toSdkModelId,
 } from "./session/models";
 import {
@@ -798,7 +799,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const settingsManager = new SettingsManager(cwd);
     await settingsManager.initialize();
 
-    const mcpServers = parseMcpServers(params);
+    const earlyModelId =
+      settingsManager.getSettings().model || meta?.model || "";
+    const mcpServers = supportsMcpInjection(earlyModelId)
+      ? parseMcpServers(params)
+      : {};
     let systemPrompt = buildSystemPrompt(meta?.systemPrompt);
 
     // Inject structured output tool if the task defines a JSON schema

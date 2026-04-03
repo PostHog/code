@@ -1,3 +1,4 @@
+import { getAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import { computeGitInteractionState } from "@features/git-interaction/state/gitInteractionLogic";
 import {
@@ -17,8 +18,11 @@ import { sanitizeBranchName } from "@features/git-interaction/utils/branchNameVa
 import type { DiffStats } from "@features/git-interaction/utils/diffStats";
 import { getSuggestedBranchName } from "@features/git-interaction/utils/getSuggestedBranchName";
 import { invalidateGitBranchQueries } from "@features/git-interaction/utils/gitCacheKeys";
+import { partitionByStaged } from "@features/git-interaction/utils/partitionByStaged";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
+import { useSessionStore } from "@features/sessions/stores/sessionStore";
 import { trpc, trpcClient } from "@renderer/trpc";
+import type { ChangedFile } from "@shared/types";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useQueryClient } from "@tanstack/react-query";
 import { track } from "@utils/analytics";
@@ -43,6 +47,8 @@ interface GitInteractionState {
   prUrl: string | null;
   pushDisabledReason: string | null;
   isLoading: boolean;
+  stagedFiles: ChangedFile[];
+  unstagedFiles: ChangedFile[];
 }
 
 interface GitInteractionActions {
@@ -52,6 +58,7 @@ interface GitInteractionActions {
   closeBranch: () => void;
   setCommitMessage: (value: string) => void;
   setCommitNextStep: (value: CommitNextStep) => void;
+  setCommitAll: (value: boolean) => void;
   setPrTitle: (value: string) => void;
   setPrBody: (value: string) => void;
   setBranchName: (value: string) => void;
@@ -66,7 +73,35 @@ interface GitInteractionActions {
   setCreatePrDraft: (value: boolean) => void;
 }
 
-function trackGitAction(taskId: string, actionType: string, success: boolean) {
+function buildStagingContext(
+  stagedFiles: ChangedFile[],
+  unstagedFiles: ChangedFile[],
+  commitAll: boolean,
+) {
+  const stagedOnly =
+    stagedFiles.length > 0 && unstagedFiles.length > 0 && !commitAll;
+  return {
+    stagedOnly,
+    analytics: {
+      staged_file_count: stagedFiles.length,
+      unstaged_file_count: unstagedFiles.length,
+      commit_all: commitAll,
+      staged_only: stagedOnly,
+    },
+  };
+}
+
+function trackGitAction(
+  taskId: string,
+  actionType: string,
+  success: boolean,
+  stagingContext?: {
+    staged_file_count: number;
+    unstaged_file_count: number;
+    commit_all: boolean;
+    staged_only: boolean;
+  },
+) {
   track(ANALYTICS_EVENTS.GIT_ACTION_EXECUTED, {
     action_type: actionType as
       | "commit"
@@ -78,7 +113,23 @@ function trackGitAction(taskId: string, actionType: string, success: boolean) {
       | "update-pr",
     success,
     task_id: taskId,
+    ...stagingContext,
   });
+}
+
+function attachPrUrlToTask(taskId: string, prUrl: string) {
+  const taskRunId = useSessionStore.getState().taskIdIndex[taskId];
+  if (!taskRunId) return;
+
+  getAuthenticatedClient()
+    .then((client) =>
+      client?.updateTaskRun(taskId, taskRunId, {
+        output: { pr_url: prUrl },
+      }),
+    )
+    .catch((err) =>
+      log.warn("Failed to attach PR URL to task", { taskId, prUrl, err }),
+    );
 }
 
 export function useGitInteraction(
@@ -131,10 +182,16 @@ export function useGitInteraction(
     ],
   );
 
+  const { stagedFiles, unstagedFiles } = useMemo(
+    () => partitionByStaged(git.changedFiles),
+    [git.changedFiles],
+  );
+
   const openCreatePr = () => {
     const prExists = git.prStatus?.prExists ?? false;
     const needsBranch = !git.isFeatureBranch || prExists;
     const needsCommit = git.hasChanges;
+    modal.setCommitAll(!(stagedFiles.length > 0 && unstagedFiles.length > 0));
     modal.openCreatePr({
       needsBranch,
       needsCommit,
@@ -173,6 +230,12 @@ export function useGitInteraction(
     );
 
     try {
+      const { stagedOnly, analytics: prStagingContext } = buildStagingContext(
+        stagedFiles,
+        unstagedFiles,
+        store.commitAll,
+      );
+
       const result = await trpcClient.git.createPr.mutate({
         directoryPath: repoPath,
         flowId,
@@ -183,10 +246,12 @@ export function useGitInteraction(
         prTitle: store.prTitle.trim() || undefined,
         prBody: store.prBody.trim() || undefined,
         draft: store.createPrDraft || undefined,
+        stagedOnly: stagedOnly || undefined,
+        taskId,
       });
 
       if (!result.success) {
-        trackGitAction(taskId, "create-pr", false);
+        trackGitAction(taskId, "create-pr", false, prStagingContext);
         useGitInteractionStore.setState({
           createPrError: result.message,
           createPrFailedStep: result.failedStep ?? null,
@@ -195,7 +260,7 @@ export function useGitInteraction(
         return;
       }
 
-      trackGitAction(taskId, "create-pr", true);
+      trackGitAction(taskId, "create-pr", true, prStagingContext);
       track(ANALYTICS_EVENTS.PR_CREATED, { task_id: taskId, success: true });
 
       if (result.state) {
@@ -207,6 +272,7 @@ export function useGitInteraction(
 
       if (result.prUrl) {
         await trpcClient.os.openExternal.mutate({ url: result.prUrl });
+        attachPrUrlToTask(taskId, result.prUrl);
       }
 
       modal.closeCreatePr();
@@ -226,7 +292,12 @@ export function useGitInteraction(
 
   const openAction = (id: GitMenuActionId) => {
     const actionMap: Record<GitMenuActionId, () => void> = {
-      commit: () => modal.openCommit("commit"),
+      commit: () => {
+        modal.setCommitAll(
+          !(stagedFiles.length > 0 && unstagedFiles.length > 0),
+        );
+        modal.openCommit("commit");
+      },
       push: () => modal.openPush("push"),
       sync: () => modal.openPush("sync"),
       publish: () => modal.openPush("publish"),
@@ -290,18 +361,23 @@ export function useGitInteraction(
     }
 
     try {
+      const { stagedOnly, analytics: commitStagingContext } =
+        buildStagingContext(stagedFiles, unstagedFiles, store.commitAll);
+
       const result = await trpcClient.git.commit.mutate({
         directoryPath: repoPath,
         message,
+        stagedOnly: stagedOnly || undefined,
+        taskId,
       });
 
       if (!result.success) {
-        trackGitAction(taskId, "commit", false);
+        trackGitAction(taskId, "commit", false, commitStagingContext);
         modal.setCommitError(result.message || "Commit failed.");
         return;
       }
 
-      trackGitAction(taskId, "commit", true);
+      trackGitAction(taskId, "commit", true, commitStagingContext);
 
       if (result.state) {
         updateGitCacheFromSnapshot(queryClient, repoPath, result.state);
@@ -469,6 +545,8 @@ export function useGitInteraction(
       prUrl: computed.prUrl,
       pushDisabledReason: computed.pushDisabledReason,
       isLoading: git.isLoading,
+      stagedFiles,
+      unstagedFiles,
     },
     modals: store,
     actions: {
@@ -478,6 +556,7 @@ export function useGitInteraction(
       closeBranch: modal.closeBranch,
       setCommitMessage: modal.setCommitMessage,
       setCommitNextStep: modal.setCommitNextStep,
+      setCommitAll: modal.setCommitAll,
       setPrTitle: modal.setPrTitle,
       setPrBody: modal.setPrBody,
       setBranchName: (value: string) => {

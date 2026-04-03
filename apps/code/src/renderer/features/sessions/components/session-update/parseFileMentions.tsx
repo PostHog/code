@@ -2,7 +2,7 @@ import {
   baseComponents,
   defaultRemarkPlugins,
 } from "@features/editor/components/MarkdownRenderer";
-import { File, GithubLogo } from "@phosphor-icons/react";
+import { File, GithubLogo, Warning } from "@phosphor-icons/react";
 import { Code, Text } from "@radix-ui/themes";
 import type { ReactNode } from "react";
 import { memo } from "react";
@@ -10,8 +10,9 @@ import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 
 const MENTION_TAG_REGEX =
-  /<file\s+path="([^"]+)"\s*\/>|<github_issue\s+number="([^"]+)"(?:\s+title="([^"]*)")?(?:\s+url="([^"]*)")?\s*\/>/g;
-const MENTION_TAG_TEST = /<(?:file\s+path|github_issue\s+number)="[^"]+"/;
+  /<file\s+path="([^"]+)"\s*\/>|<github_issue\s+number="([^"]+)"(?:\s+title="([^"]*)")?(?:\s+url="([^"]*)")?\s*\/>|<error_context\s+label="([^"]*)">[\s\S]*?<\/error_context>/g;
+const MENTION_TAG_TEST =
+  /<(?:file\s+path|github_issue\s+number|error_context\s+label)="[^"]+"/;
 
 const inlineComponents: Components = {
   ...baseComponents,
@@ -90,12 +91,15 @@ export function parseMentionTags(content: string): ReactNode[] {
 
     if (match[1]) {
       const filePath = match[1];
-      const fileName = filePath.split("/").pop() ?? filePath;
+      const segments = filePath.split("/").filter(Boolean);
+      const fileName = segments.pop() ?? filePath;
+      const parentDir = segments.pop();
+      const label = parentDir ? `${parentDir}/${fileName}` : fileName;
       parts.push(
         <MentionChip
           key={`file-${matchIndex}`}
           icon={<File size={12} />}
-          label={fileName}
+          label={label}
         />,
       );
     } else if (match[2]) {
@@ -111,6 +115,14 @@ export function parseMentionTags(content: string): ReactNode[] {
           icon={<GithubLogo size={12} />}
           label={label}
           onClick={issueUrl ? () => window.open(issueUrl, "_blank") : undefined}
+        />,
+      );
+    } else if (match[5]) {
+      parts.push(
+        <MentionChip
+          key={`error-ctx-${matchIndex}`}
+          icon={<Warning size={12} />}
+          label={match[5]}
         />,
       );
     }

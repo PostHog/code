@@ -1,5 +1,12 @@
+import { Tooltip } from "@components/ui/Tooltip";
 import { useDiffViewerStore } from "@features/code-editor/stores/diffViewerStore";
-import { ArrowsIn, ArrowsOut, Columns, Rows } from "@phosphor-icons/react";
+import {
+  ArrowsClockwise,
+  ArrowsIn,
+  ArrowsOut,
+  Columns,
+  Rows,
+} from "@phosphor-icons/react";
 import { Flex, IconButton, Text } from "@radix-ui/themes";
 import { DiffSettingsMenu } from "@renderer/features/code-review/components/DiffSettingsMenu";
 import { memo } from "react";
@@ -11,6 +18,7 @@ interface ReviewToolbarProps {
   allExpanded: boolean;
   onExpandAll: () => void;
   onCollapseAll: () => void;
+  onRefresh?: () => void;
 }
 
 export const ReviewToolbar = memo(function ReviewToolbar({
@@ -20,6 +28,7 @@ export const ReviewToolbar = memo(function ReviewToolbar({
   allExpanded,
   onExpandAll,
   onCollapseAll,
+  onRefresh,
 }: ReviewToolbarProps) {
   const viewMode = useDiffViewerStore((s) => s.viewMode);
   const toggleViewMode = useDiffViewerStore((s) => s.toggleViewMode);
@@ -56,6 +65,19 @@ export const ReviewToolbar = memo(function ReviewToolbar({
       </Flex>
 
       <Flex align="center" gap="2" ml="auto">
+        {onRefresh && (
+          <Tooltip content="Refresh diff">
+            <IconButton
+              size="1"
+              variant="ghost"
+              color="gray"
+              onClick={onRefresh}
+              style={{ cursor: "pointer" }}
+            >
+              <ArrowsClockwise size={14} />
+            </IconButton>
+          </Tooltip>
+        )}
         <IconButton
           size="1"
           variant="ghost"

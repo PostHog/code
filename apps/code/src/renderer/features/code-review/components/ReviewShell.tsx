@@ -220,6 +220,7 @@ export interface ReviewShellProps {
   allExpanded: boolean;
   onExpandAll: () => void;
   onCollapseAll: () => void;
+  onRefresh?: () => void;
 }
 
 export function ReviewShell({
@@ -234,6 +235,7 @@ export function ReviewShell({
   allExpanded,
   onExpandAll,
   onCollapseAll,
+  onRefresh,
 }: ReviewShellProps) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -349,6 +351,7 @@ export function ReviewShell({
           allExpanded={allExpanded}
           onExpandAll={onExpandAll}
           onCollapseAll={onCollapseAll}
+          onRefresh={onRefresh}
         />
         <div
           ref={scrollContainerRef}

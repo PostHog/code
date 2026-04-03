@@ -66,6 +66,6 @@ export const cancelFlowOutput = z.object({
 export type CancelFlowOutput = z.infer<typeof cancelFlowOutput>;
 
 export const openExternalUrlInput = z.object({
-  url: z.string().url(),
+  url: z.url(),
 });
 export type OpenExternalUrlInput = z.infer<typeof openExternalUrlInput>;

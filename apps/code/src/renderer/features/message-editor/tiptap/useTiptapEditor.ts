@@ -38,7 +38,7 @@ export interface UseTiptapEditorOptions {
 }
 
 const EDITOR_CLASS =
-  "cli-editor min-h-[1.5em] w-full break-words border-none bg-transparent text-[13px] text-[var(--gray-12)] outline-none [overflow-wrap:break-word] [white-space:pre-wrap] [word-break:break-word]";
+  "cli-editor min-h-[1.5em] w-full break-words border-none bg-transparent pr-2 text-[13px] text-[var(--gray-12)] outline-none [overflow-wrap:break-word] [white-space:pre-wrap] [word-break:break-word]";
 
 async function pasteTextAsFile(
   view: EditorView,
@@ -187,9 +187,11 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
 
             if (isSubmitKey) {
               if (!view.editable || submitDisabledRef.current) return false;
-              const suggestionPopup =
-                document.querySelector("[data-tippy-root]");
-              if (suggestionPopup) return false;
+              // tippy.js sets data-state="hidden" when hiding via .hide()
+              const visibleSuggestion = document.querySelector(
+                "[data-tippy-root] .tippy-box:not([data-state='hidden'])",
+              );
+              if (visibleSuggestion) return false;
               event.preventDefault();
               historyActions.reset();
               submitRef.current();

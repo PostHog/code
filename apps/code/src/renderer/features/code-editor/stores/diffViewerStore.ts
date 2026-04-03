@@ -1,3 +1,5 @@
+import { ANALYTICS_EVENTS } from "@shared/types/analytics";
+import { track } from "@utils/analytics";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -30,11 +32,32 @@ export const useDiffViewerStore = create<DiffViewerStore>()(
       loadFullFiles: false,
       wordDiffs: true,
       hideWhitespaceChanges: false,
-      setViewMode: (mode) => set({ viewMode: mode }),
+      setViewMode: (mode) =>
+        set((state) => {
+          if (state.viewMode === mode) {
+            return state;
+          }
+
+          track(ANALYTICS_EVENTS.DIFF_VIEW_MODE_CHANGED, {
+            from_mode: state.viewMode,
+            to_mode: mode,
+          });
+
+          return { viewMode: mode };
+        }),
       toggleViewMode: () =>
-        set((s) => ({
-          viewMode: s.viewMode === "split" ? "unified" : "split",
-        })),
+        set((state) => {
+          const nextMode = state.viewMode === "split" ? "unified" : "split";
+
+          track(ANALYTICS_EVENTS.DIFF_VIEW_MODE_CHANGED, {
+            from_mode: state.viewMode,
+            to_mode: nextMode,
+          });
+
+          return {
+            viewMode: nextMode,
+          };
+        }),
       toggleWordWrap: () => set((s) => ({ wordWrap: !s.wordWrap })),
       toggleLoadFullFiles: () =>
         set((s) => ({ loadFullFiles: !s.loadFullFiles })),

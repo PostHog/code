@@ -1,18 +1,19 @@
-import { useDiffViewerStore } from "@features/code-editor/stores/diffViewerStore";
-import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
+import { makeFileKey } from "@features/git-interaction/utils/fileKey";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
-import { parsePatchFiles } from "@pierre/diffs";
+import type { parsePatchFiles } from "@pierre/diffs";
 import { Flex, Text } from "@radix-ui/themes";
 import { useTRPC } from "@renderer/trpc/client";
 import type { ChangedFile } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useReviewComment } from "../hooks/useReviewComment";
+import { useReviewDiffs } from "../hooks/useReviewDiffs";
 import type { DiffOptions, OnCommentCallback } from "../types";
 import { InteractiveFileDiff } from "./InteractiveFileDiff";
 import {
   DeferredDiffPlaceholder,
+  type DeferredReason,
   DiffFileHeader,
   ReviewShell,
   sumHunkStats,
@@ -24,40 +25,22 @@ interface ReviewPageProps {
 }
 
 export function ReviewPage({ taskId }: ReviewPageProps) {
-  const trpc = useTRPC();
   const repoPath = useCwd(taskId);
-  const { changedFiles, changesLoading } = useGitQueries(repoPath);
-  const hideWhitespace = useDiffViewerStore((s) => s.hideWhitespaceChanges);
   const openFile = usePanelLayoutStore((s) => s.openFile);
   const onComment = useReviewComment(taskId);
 
-  const { data: rawDiff, isLoading: diffLoading } = useQuery(
-    trpc.git.getDiffHead.queryOptions(
-      { directoryPath: repoPath as string, ignoreWhitespace: hideWhitespace },
-      { enabled: !!repoPath, staleTime: 30_000, refetchOnMount: "always" },
-    ),
-  );
-
-  const parsedFiles = useMemo(() => {
-    if (!rawDiff) return [];
-    const patches = parsePatchFiles(rawDiff);
-    return patches.flatMap((p) => p.files);
-  }, [rawDiff]);
-
-  const untrackedFiles = useMemo(
-    () => changedFiles.filter((f) => f.status === "untracked"),
-    [changedFiles],
-  );
-
-  const totalFileCount = parsedFiles.length + untrackedFiles.length;
-
-  const allPaths = useMemo(
-    () => [
-      ...parsedFiles.map((f) => f.name ?? f.prevName ?? ""),
-      ...untrackedFiles.map((f) => f.path),
-    ],
-    [parsedFiles, untrackedFiles],
-  );
+  const {
+    changedFiles,
+    changesLoading,
+    hasStagedFiles,
+    stagedParsedFiles,
+    unstagedParsedFiles,
+    untrackedFiles,
+    totalFileCount,
+    allPaths,
+    diffLoading,
+    refetch,
+  } = useReviewDiffs(repoPath);
 
   const {
     diffOptions,
@@ -82,6 +65,18 @@ export function ReviewPage({ taskId }: ReviewPageProps) {
     );
   }
 
+  const sharedDiffProps = {
+    repoPath,
+    taskId,
+    diffOptions,
+    collapsedFiles,
+    toggleFile,
+    revealFile,
+    getDeferredReason,
+    openFile,
+    onComment,
+  };
+
   return (
     <ReviewShell
       taskId={taskId}
@@ -94,60 +89,30 @@ export function ReviewPage({ taskId }: ReviewPageProps) {
       onExpandAll={expandAll}
       onCollapseAll={collapseAll}
       onUncollapseFile={uncollapseFile}
+      onRefresh={refetch}
     >
-      {parsedFiles.map((fileDiff) => {
-        const key = fileDiff.name ?? fileDiff.prevName ?? "";
+      {hasStagedFiles && stagedParsedFiles.length > 0 && (
+        <>
+          <SectionLabel label="Staged Changes" />
+          <FileDiffList files={stagedParsedFiles} staged {...sharedDiffProps} />
+        </>
+      )}
+      {hasStagedFiles &&
+        (unstagedParsedFiles.length > 0 || untrackedFiles.length > 0) && (
+          <SectionLabel label="Changes" />
+        )}
+      <FileDiffList files={unstagedParsedFiles} {...sharedDiffProps} />
+      {untrackedFiles.map((file) => {
+        const key = makeFileKey(file.staged, file.path);
         const isCollapsed = collapsedFiles.has(key);
-        const deferredReason = getDeferredReason(key);
-
-        if (deferredReason) {
-          const { additions, deletions } = sumHunkStats(fileDiff.hunks);
-          return (
-            <div key={key} data-file-path={key}>
-              <DeferredDiffPlaceholder
-                filePath={key}
-                linesAdded={additions}
-                linesRemoved={deletions}
-                reason={deferredReason}
-                collapsed={isCollapsed}
-                onToggle={() => toggleFile(key)}
-                onShow={() => revealFile(key)}
-              />
-            </div>
-          );
-        }
-
         return (
           <div key={key} data-file-path={key}>
-            <InteractiveFileDiff
-              fileDiff={fileDiff}
-              repoPath={repoPath}
-              options={{ ...diffOptions, collapsed: isCollapsed }}
-              onComment={onComment}
-              renderCustomHeader={(fd) => (
-                <DiffFileHeader
-                  fileDiff={fd}
-                  collapsed={isCollapsed}
-                  onToggle={() => toggleFile(key)}
-                  onOpenFile={() =>
-                    openFile(taskId, `${repoPath}/${key}`, false)
-                  }
-                />
-              )}
-            />
-          </div>
-        );
-      })}
-      {untrackedFiles.map((file) => {
-        const isCollapsed = collapsedFiles.has(file.path);
-        return (
-          <div key={file.path} data-file-path={file.path}>
             <UntrackedFileDiff
               file={file}
               repoPath={repoPath}
               options={diffOptions}
               collapsed={isCollapsed}
-              onToggle={() => toggleFile(file.path)}
+              onToggle={() => toggleFile(key)}
               onComment={onComment}
             />
           </div>
@@ -155,6 +120,89 @@ export function ReviewPage({ taskId }: ReviewPageProps) {
       })}
     </ReviewShell>
   );
+}
+
+function SectionLabel({ label }: { label: string }) {
+  return (
+    <Flex px="3" py="2">
+      <Text size="1" color="gray" weight="medium">
+        {label}
+      </Text>
+    </Flex>
+  );
+}
+
+interface FileDiffListProps {
+  files: ReturnType<typeof parsePatchFiles>[number]["files"];
+  staged?: boolean;
+  repoPath: string;
+  taskId: string;
+  diffOptions: DiffOptions;
+  collapsedFiles: Set<string>;
+  toggleFile: (key: string) => void;
+  revealFile: (key: string) => void;
+  getDeferredReason: (key: string) => DeferredReason | null;
+  openFile: (taskId: string, path: string, preview: boolean) => void;
+  onComment: OnCommentCallback;
+}
+
+function FileDiffList({
+  files,
+  staged = false,
+  repoPath,
+  taskId,
+  diffOptions,
+  collapsedFiles,
+  toggleFile,
+  revealFile,
+  getDeferredReason,
+  openFile,
+  onComment,
+}: FileDiffListProps) {
+  return files.map((fileDiff) => {
+    const filePath = fileDiff.name ?? fileDiff.prevName ?? "";
+    const key = makeFileKey(staged, filePath);
+    const isCollapsed = collapsedFiles.has(key);
+    const deferredReason = getDeferredReason(key);
+
+    if (deferredReason) {
+      const { additions, deletions } = sumHunkStats(fileDiff.hunks);
+      return (
+        <div key={key} data-file-path={key}>
+          <DeferredDiffPlaceholder
+            filePath={filePath}
+            linesAdded={additions}
+            linesRemoved={deletions}
+            reason={deferredReason}
+            collapsed={isCollapsed}
+            onToggle={() => toggleFile(key)}
+            onShow={() => revealFile(key)}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div key={key} data-file-path={key}>
+        <InteractiveFileDiff
+          fileDiff={fileDiff}
+          repoPath={repoPath}
+          options={{ ...diffOptions, collapsed: isCollapsed }}
+          onComment={onComment}
+          renderCustomHeader={(fd) => (
+            <DiffFileHeader
+              fileDiff={fd}
+              collapsed={isCollapsed}
+              onToggle={() => toggleFile(key)}
+              onOpenFile={() =>
+                openFile(taskId, `${repoPath}/${filePath}`, false)
+              }
+            />
+          )}
+        />
+      </div>
+    );
+  });
 }
 
 function UntrackedFileDiff({

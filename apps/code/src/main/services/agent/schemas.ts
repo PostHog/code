@@ -64,50 +64,42 @@ export const modelOptionSchema = z.object({
 
 export type ModelOption = z.infer<typeof modelOptionSchema>;
 
-const sessionConfigSelectOptionSchema = z
-  .object({
-    value: z.string(),
-    name: z.string(),
-    description: z.string().nullish(),
-    _meta: z.record(z.string(), z.unknown()).nullish(),
-  })
-  .passthrough();
+const sessionConfigSelectOptionSchema = z.looseObject({
+  value: z.string(),
+  name: z.string(),
+  description: z.string().nullish(),
+  _meta: z.record(z.string(), z.unknown()).nullish(),
+});
 
-const sessionConfigSelectGroupSchema = z
-  .object({
-    group: z.string(),
-    name: z.string(),
-    options: z.array(sessionConfigSelectOptionSchema),
-    _meta: z.record(z.string(), z.unknown()).nullish(),
-  })
-  .passthrough();
+const sessionConfigSelectGroupSchema = z.looseObject({
+  group: z.string(),
+  name: z.string(),
+  options: z.array(sessionConfigSelectOptionSchema),
+  _meta: z.record(z.string(), z.unknown()).nullish(),
+});
 
-const sessionConfigSelectSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    type: z.literal("select"),
-    currentValue: z.string(),
-    options: z
-      .array(sessionConfigSelectOptionSchema)
-      .or(z.array(sessionConfigSelectGroupSchema)),
-    category: z.string().nullish(),
-    description: z.string().nullish(),
-    _meta: z.record(z.string(), z.unknown()).nullish(),
-  })
-  .passthrough();
+const sessionConfigSelectSchema = z.looseObject({
+  id: z.string(),
+  name: z.string(),
+  type: z.literal("select"),
+  currentValue: z.string(),
+  options: z
+    .array(sessionConfigSelectOptionSchema)
+    .or(z.array(sessionConfigSelectGroupSchema)),
+  category: z.string().nullish(),
+  description: z.string().nullish(),
+  _meta: z.record(z.string(), z.unknown()).nullish(),
+});
 
-const sessionConfigBooleanSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    type: z.literal("boolean"),
-    currentValue: z.boolean(),
-    category: z.string().nullish(),
-    description: z.string().nullish(),
-    _meta: z.record(z.string(), z.unknown()).nullish(),
-  })
-  .passthrough();
+const sessionConfigBooleanSchema = z.looseObject({
+  id: z.string(),
+  name: z.string(),
+  type: z.literal("boolean"),
+  currentValue: z.boolean(),
+  category: z.string().nullish(),
+  description: z.string().nullish(),
+  _meta: z.record(z.string(), z.unknown()).nullish(),
+});
 
 export const sessionConfigOptionSchema = z.union([
   sessionConfigSelectSchema,
@@ -125,13 +117,11 @@ export const sessionResponseSchema = z.object({
 export type SessionResponse = z.infer<typeof sessionResponseSchema>;
 
 // Prompt input/output
-export const contentBlockSchema = z
-  .object({
-    type: z.string(),
-    text: z.string().optional(),
-    _meta: z.record(z.string(), z.unknown()).nullish(),
-  })
-  .passthrough();
+export const contentBlockSchema = z.looseObject({
+  type: z.string(),
+  text: z.string().optional(),
+  _meta: z.record(z.string(), z.unknown()).nullish(),
+});
 
 export const promptInput = z.object({
   sessionId: z.string(),
@@ -212,6 +202,7 @@ export const AgentServiceEvent = {
   PermissionRequest: "permission-request",
   SessionsIdle: "sessions-idle",
   SessionIdleKilled: "session-idle-killed",
+  AgentFileActivity: "agent-file-activity",
 } as const;
 
 export interface AgentSessionEventPayload {
@@ -232,11 +223,17 @@ export interface SessionIdleKilledPayload {
   taskId: string;
 }
 
+export interface AgentFileActivityPayload {
+  taskId: string;
+  branchName: string | null;
+}
+
 export interface AgentServiceEvents {
   [AgentServiceEvent.SessionEvent]: AgentSessionEventPayload;
   [AgentServiceEvent.PermissionRequest]: PermissionRequestPayload;
   [AgentServiceEvent.SessionsIdle]: undefined;
   [AgentServiceEvent.SessionIdleKilled]: SessionIdleKilledPayload;
+  [AgentServiceEvent.AgentFileActivity]: AgentFileActivityPayload;
 }
 
 // Permission response input for tRPC

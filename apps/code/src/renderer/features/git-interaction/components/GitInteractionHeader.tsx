@@ -52,6 +52,12 @@ export function GitInteractionHeader({ taskId }: GitInteractionHeaderProps) {
         error={modals.commitError}
         onGenerateMessage={actions.generateCommitMessage}
         isGeneratingMessage={modals.isGeneratingCommitMessage}
+        showCommitAllToggle={
+          state.stagedFiles.length > 0 && state.unstagedFiles.length > 0
+        }
+        commitAll={modals.commitAll}
+        onCommitAllChange={actions.setCommitAll}
+        stagedFileCount={state.stagedFiles.length}
       />
 
       <GitPushDialog
@@ -79,6 +85,12 @@ export function GitInteractionHeader({ taskId }: GitInteractionHeaderProps) {
         onSubmit={actions.runCreatePr}
         onGenerateCommitMessage={actions.generateCommitMessage}
         onGeneratePr={actions.generatePrTitleAndBody}
+        showCommitAllToggle={
+          state.stagedFiles.length > 0 && state.unstagedFiles.length > 0
+        }
+        commitAll={modals.commitAll}
+        onCommitAllChange={actions.setCommitAll}
+        stagedFileCount={state.stagedFiles.length}
       />
 
       <GitBranchDialog

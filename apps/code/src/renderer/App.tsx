@@ -14,9 +14,10 @@ import { initializeConnectivityStore } from "@renderer/stores/connectivityStore"
 import { useFocusStore } from "@renderer/stores/focusStore";
 import { useThemeStore } from "@renderer/stores/themeStore";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
+import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
-import { initializePostHog } from "@utils/analytics";
+import { initializePostHog, track } from "@utils/analytics";
 import { logger } from "@utils/logger";
 import { toast } from "@utils/toast";
 import { AnimatePresence, motion } from "framer-motion";
@@ -104,6 +105,17 @@ function App() {
         void queryClient.invalidateQueries(
           trpcReact.workspace.getAll.pathFilter(),
         );
+      },
+    }),
+  );
+
+  useSubscription(
+    trpcReact.agent.onAgentFileActivity.subscriptionOptions(undefined, {
+      onData: (data) => {
+        track(ANALYTICS_EVENTS.AGENT_FILE_ACTIVITY, {
+          task_id: data.taskId,
+          branch_name: data.branchName,
+        });
       },
     }),
   );

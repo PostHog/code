@@ -1,5 +1,8 @@
 import { Tooltip } from "@components/ui/Tooltip";
-import type { DiffStats } from "@features/git-interaction/utils/diffStats";
+import {
+  type DiffStats,
+  formatFileCountLabel,
+} from "@features/git-interaction/utils/diffStats";
 import {
   CheckCircle,
   CloudArrowUp,
@@ -13,6 +16,7 @@ import { CheckIcon } from "@radix-ui/react-icons";
 import {
   Box,
   Button,
+  Checkbox,
   Dialog,
   Flex,
   IconButton,
@@ -26,7 +30,13 @@ import { useState } from "react";
 
 const ICON_SIZE = 14;
 
-export function ErrorContainer({ error }: { error: string }) {
+export function ErrorContainer({
+  error,
+  onFixWithAgent,
+}: {
+  error: string;
+  onFixWithAgent?: () => void;
+}) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -59,16 +69,30 @@ export function ErrorContainer({ error }: { error: string }) {
           >
             {error}
           </Text>
-          <Tooltip content={copied ? "Copied!" : "Copy error"}>
-            <IconButton
-              size="1"
-              variant="ghost"
-              color="gray"
-              onClick={handleCopy}
-            >
-              <Copy size={12} weight={copied ? "fill" : "regular"} />
-            </IconButton>
-          </Tooltip>
+          <Flex gap="1" style={{ flexShrink: 0 }}>
+            {onFixWithAgent && (
+              <Tooltip content="Fix with Agent">
+                <IconButton
+                  size="1"
+                  variant="ghost"
+                  color="gray"
+                  onClick={onFixWithAgent}
+                >
+                  <Sparkle size={12} />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Tooltip content={copied ? "Copied!" : "Copy error"}>
+              <IconButton
+                size="1"
+                variant="ghost"
+                color="gray"
+                onClick={handleCopy}
+              >
+                <Copy size={12} weight={copied ? "fill" : "regular"} />
+              </IconButton>
+            </Tooltip>
+          </Flex>
         </Flex>
       </Flex>
     </Box>
@@ -98,6 +122,34 @@ export function GenerateButton({
         {isGenerating ? <Spinner size="1" /> : <Sparkle size={14} />}
       </IconButton>
     </Tooltip>
+  );
+}
+
+export function CommitAllToggle({
+  checked,
+  onChange,
+}: {
+  checked?: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <Flex
+      align="center"
+      gap="2"
+      py="1"
+      style={{ cursor: "pointer" }}
+      onClick={() => onChange(!checked)}
+    >
+      <Checkbox
+        size="1"
+        checked={checked}
+        onCheckedChange={(c) => onChange(c === true)}
+        onClick={(e) => e.stopPropagation()}
+      />
+      <Text size="1" color="gray">
+        Commit all changes
+      </Text>
+    </Flex>
   );
 }
 
@@ -255,6 +307,10 @@ interface GitCommitDialogProps {
   error: string | null;
   onGenerateMessage: () => void;
   isGeneratingMessage: boolean;
+  showCommitAllToggle?: boolean;
+  commitAll?: boolean;
+  onCommitAllChange?: (value: boolean) => void;
+  stagedFileCount?: number;
 }
 
 export function GitCommitDialog({
@@ -272,6 +328,10 @@ export function GitCommitDialog({
   error,
   onGenerateMessage,
   isGeneratingMessage,
+  showCommitAllToggle,
+  commitAll,
+  onCommitAllChange,
+  stagedFileCount,
 }: GitCommitDialogProps) {
   const options = [
     {
@@ -306,8 +366,11 @@ export function GitCommitDialog({
         <InfoRow label="Changes">
           <Flex align="center" gap="2">
             <Text size="1" color="gray">
-              {diffStats.filesChanged} file
-              {diffStats.filesChanged === 1 ? "" : "s"}
+              {formatFileCountLabel(
+                !!(showCommitAllToggle && !commitAll),
+                stagedFileCount ?? 0,
+                diffStats.filesChanged,
+              )}
             </Text>
             <Text size="1" color="green">
               +{diffStats.linesAdded}
@@ -317,6 +380,9 @@ export function GitCommitDialog({
             </Text>
           </Flex>
         </InfoRow>
+        {showCommitAllToggle && onCommitAllChange && (
+          <CommitAllToggle checked={commitAll} onChange={onCommitAllChange} />
+        )}
       </Flex>
 
       <Flex direction="column" gap="1">

@@ -1,9 +1,17 @@
 import { GitSaga, type GitSagaInput } from "../git-saga";
 
+function buildPostHogTrailers(taskId?: string): string[] {
+  const trailers = ["Generated-By: PostHog Code"];
+  if (taskId) trailers.push(`Task-Id: ${taskId}`);
+  return trailers;
+}
+
 export interface CommitInput extends GitSagaInput {
   message: string;
   paths?: string[];
   allowEmpty?: boolean;
+  stagedOnly?: boolean;
+  taskId?: string;
 }
 
 export interface CommitOutput {
@@ -18,7 +26,7 @@ export class CommitSaga extends GitSaga<CommitInput, CommitOutput> {
   protected async executeGitOperations(
     input: CommitInput,
   ): Promise<CommitOutput> {
-    const { message, paths, allowEmpty } = input;
+    const { message, paths, allowEmpty, stagedOnly, taskId } = input;
 
     const originalHead = await this.readOnlyStep("get-original-head", () =>
       this.git.revparse(["HEAD"]),
@@ -28,31 +36,52 @@ export class CommitSaga extends GitSaga<CommitInput, CommitOutput> {
       this.git.revparse(["--abbrev-ref", "HEAD"]),
     );
 
-    this.previouslyStagedFiles = await this.readOnlyStep(
-      "get-staged-files",
-      async () => {
-        const status = await this.git.status();
-        return status.staged;
-      },
-    );
+    if (stagedOnly) {
+      const stagedCheck = await this.readOnlyStep(
+        "verify-staged-files",
+        async () => {
+          const status = await this.git.status();
+          return status.staged;
+        },
+      );
+      if (stagedCheck.length === 0) {
+        throw new Error("No staged changes to commit.");
+      }
+    } else {
+      this.previouslyStagedFiles = await this.readOnlyStep(
+        "get-staged-files",
+        async () => {
+          const status = await this.git.status();
+          return status.staged;
+        },
+      );
 
-    await this.step({
-      name: "stage-files",
-      execute: () =>
-        paths && paths.length > 0 ? this.git.add(paths) : this.git.add("-A"),
-      rollback: async () => {
-        await this.git.reset();
-        if (this.previouslyStagedFiles.length > 0) {
-          await this.git.add(this.previouslyStagedFiles);
-        }
-      },
-    });
+      await this.step({
+        name: "stage-files",
+        execute: () =>
+          paths && paths.length > 0 ? this.git.add(paths) : this.git.add("-A"),
+        rollback: async () => {
+          await this.git.reset();
+          if (this.previouslyStagedFiles.length > 0) {
+            await this.git.add(this.previouslyStagedFiles);
+          }
+        },
+      });
+    }
+
+    const trailers = buildPostHogTrailers(taskId);
+
+    const commitOptions: Record<string, null | string[]> = {};
+    if (allowEmpty) commitOptions["--allow-empty"] = null;
+    if (trailers.length > 0) commitOptions["--trailer"] = trailers;
+
+    const hasOptions = Object.keys(commitOptions).length > 0;
 
     const commitResult = await this.step({
       name: "commit",
       execute: () =>
-        allowEmpty
-          ? this.git.commit(message, undefined, { "--allow-empty": null })
+        hasOptions
+          ? this.git.commit(message, undefined, commitOptions)
           : this.git.commit(message),
       rollback: async () => {
         await this.git.reset(["--soft", originalHead]);

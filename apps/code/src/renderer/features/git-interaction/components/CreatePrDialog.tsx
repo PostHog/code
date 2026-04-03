@@ -1,10 +1,16 @@
 import {
+  CommitAllToggle,
   ErrorContainer,
   GenerateButton,
 } from "@features/git-interaction/components/GitInteractionDialogs";
+import { useFixWithAgent } from "@features/git-interaction/hooks/useFixWithAgent";
 import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
 import type { CreatePrStep } from "@features/git-interaction/types";
-import type { DiffStats } from "@features/git-interaction/utils/diffStats";
+import {
+  type DiffStats,
+  formatFileCountLabel,
+} from "@features/git-interaction/utils/diffStats";
+import { buildCreatePrFlowErrorPrompt } from "@features/git-interaction/utils/errorPrompts";
 import {
   CheckCircle,
   Circle,
@@ -119,6 +125,10 @@ export interface CreatePrDialogProps {
   onSubmit: () => void;
   onGenerateCommitMessage: () => void;
   onGeneratePr: () => void;
+  showCommitAllToggle?: boolean;
+  commitAll?: boolean;
+  onCommitAllChange?: (value: boolean) => void;
+  stagedFileCount?: number;
 }
 
 export function CreatePrDialog({
@@ -130,9 +140,16 @@ export function CreatePrDialog({
   onSubmit,
   onGenerateCommitMessage,
   onGeneratePr,
+  showCommitAllToggle,
+  commitAll,
+  onCommitAllChange,
+  stagedFileCount,
 }: CreatePrDialogProps) {
   const store = useGitInteractionStore();
   const { actions } = store;
+  const { canFixWithAgent, fixWithAgent } = useFixWithAgent(() =>
+    buildCreatePrFlowErrorPrompt(store.createPrFailedStep),
+  );
 
   const { createPrStep: step } = store;
   const isExecuting = step !== "idle" && step !== "complete";
@@ -192,8 +209,11 @@ export function CreatePrDialog({
                     </Text>
                     <Flex align="center" gap="2">
                       <Text size="1" color="gray">
-                        {diffStats.filesChanged} file
-                        {diffStats.filesChanged === 1 ? "" : "s"}
+                        {formatFileCountLabel(
+                          !!(showCommitAllToggle && !commitAll),
+                          stagedFileCount ?? 0,
+                          diffStats.filesChanged,
+                        )}
                       </Text>
                       <Text size="1" color="green">
                         +{diffStats.linesAdded}
@@ -216,6 +236,12 @@ export function CreatePrDialog({
                     disabled={store.isGeneratingCommitMessage}
                     autoFocus={!store.createPrNeedsBranch}
                   />
+                  {showCommitAllToggle && onCommitAllChange && (
+                    <CommitAllToggle
+                      checked={commitAll}
+                      onChange={onCommitAllChange}
+                    />
+                  )}
                 </Flex>
               )}
 
@@ -299,7 +325,17 @@ export function CreatePrDialog({
               />
 
               {step === "error" && store.createPrError && (
-                <ErrorContainer error={store.createPrError} />
+                <ErrorContainer
+                  error={store.createPrError}
+                  onFixWithAgent={
+                    canFixWithAgent
+                      ? () => {
+                          fixWithAgent(store.createPrError ?? "");
+                          actions.closeCreatePr();
+                        }
+                      : undefined
+                  }
+                />
               )}
 
               <Flex gap="2" justify="end">

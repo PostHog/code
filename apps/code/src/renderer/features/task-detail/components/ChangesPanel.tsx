@@ -3,6 +3,9 @@ import { PanelMessage } from "@components/ui/PanelMessage";
 import { Tooltip } from "@components/ui/Tooltip";
 import { useExternalApps } from "@features/external-apps/hooks/useExternalApps";
 import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
+import { makeFileKey } from "@features/git-interaction/utils/fileKey";
+import { invalidateGitWorkingTreeQueries } from "@features/git-interaction/utils/gitCacheKeys";
+import { partitionByStaged } from "@features/git-interaction/utils/partitionByStaged";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
@@ -12,6 +15,8 @@ import {
   CodeIcon,
   CopyIcon,
   FilePlus,
+  MinusIcon,
+  PlusIcon,
 } from "@phosphor-icons/react";
 import {
   Badge,
@@ -34,7 +39,10 @@ import { ANALYTICS_EVENTS, type FileChangeType } from "@shared/types/analytics";
 import { useQueryClient } from "@tanstack/react-query";
 import { showMessageBox } from "@utils/dialog";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
-import { useState } from "react";
+import { logger } from "@utils/logger";
+import { Fragment, useMemo, useState } from "react";
+
+const log = logger.scope("changes-panel");
 
 interface ChangesPanelProps {
   taskId: string;
@@ -48,6 +56,7 @@ interface ChangedFileItemProps {
   /** When provided, enables the hover toolbar (discard, open-with, context menu) */
   repoPath?: string;
   mainRepoPath?: string;
+  onStageToggle?: (file: ChangedFile) => void;
 }
 
 function getDiscardInfo(
@@ -88,12 +97,37 @@ function getDiscardInfo(
   }
 }
 
+function CompactIconButton({
+  tooltip,
+  onClick,
+  children,
+}: {
+  tooltip: string;
+  onClick: (e: React.MouseEvent) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Tooltip content={tooltip}>
+      <IconButton
+        size="1"
+        variant="ghost"
+        color="gray"
+        onClick={onClick}
+        className="mx-0.5 size-[18px] shrink-0 p-0"
+      >
+        {children}
+      </IconButton>
+    </Tooltip>
+  );
+}
+
 function ChangedFileItem({
   file,
   taskId,
   isActive,
   repoPath,
   mainRepoPath,
+  onStageToggle,
 }: ChangedFileItemProps) {
   const openReview = usePanelLayoutStore((state) => state.openReview);
   const requestScrollToFile = useReviewNavigationStore(
@@ -113,13 +147,15 @@ function ChangedFileItem({
   const fullPath = repoPath ? `${repoPath}/${file.path}` : file.path;
   const indicator = getStatusIndicator(file.status);
 
+  const fileKey = makeFileKey(file.staged, file.path);
+
   const handleClick = () => {
     track(ANALYTICS_EVENTS.FILE_DIFF_VIEWED, {
       change_type: file.status as FileChangeType,
       file_extension: getFileExtension(file.path),
       task_id: taskId,
     });
-    requestScrollToFile(taskId, file.path);
+    requestScrollToFile(taskId, fileKey);
     openReview(taskId);
   };
 
@@ -279,26 +315,28 @@ function ChangedFileItem({
           </Flex>
         )}
 
-        {isToolbarVisible && handleDiscard && (
+        {isToolbarVisible && (handleDiscard || onStageToggle) && (
           <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
-            <Tooltip content="Discard changes">
-              <IconButton
-                size="1"
-                variant="ghost"
-                color="gray"
-                onClick={handleDiscard}
-                style={{
-                  flexShrink: 0,
-                  width: "18px",
-                  height: "18px",
-                  padding: 0,
-                  marginLeft: "2px",
-                  marginRight: "2px",
+            {onStageToggle && (
+              <CompactIconButton
+                tooltip={file.staged ? "Unstage" : "Stage"}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onStageToggle(file);
                 }}
               >
+                {file.staged ? <MinusIcon size={12} /> : <PlusIcon size={12} />}
+              </CompactIconButton>
+            )}
+            {handleDiscard && (
+              <CompactIconButton
+                tooltip="Discard changes"
+                onClick={handleDiscard}
+              >
                 <ArrowCounterClockwiseIcon size={12} />
-              </IconButton>
-            </Tooltip>
+              </CompactIconButton>
+            )}
 
             <DropdownMenu.Root
               open={isDropdownOpen}
@@ -475,10 +513,33 @@ export function ChangesPanel({ taskId, task }: ChangesPanelProps) {
 function LocalChangesPanel({ taskId, task: _task }: ChangesPanelProps) {
   const workspace = useWorkspace(taskId);
   const repoPath = useCwd(taskId);
+  const queryClient = useQueryClient();
   const activeFilePath = useReviewNavigationStore(
     (s) => s.activeFilePaths[taskId] ?? null,
   );
   const { changedFiles, changesLoading: isLoading } = useGitQueries(repoPath);
+
+  const { stagedFiles, unstagedFiles } = useMemo(
+    () => partitionByStaged(changedFiles),
+    [changedFiles],
+  );
+
+  const hasStagedFiles = stagedFiles.length > 0;
+
+  const handleStageToggle = async (file: ChangedFile) => {
+    if (!repoPath) return;
+    const paths = [file.originalPath ?? file.path];
+    const endpoint = file.staged
+      ? trpcClient.git.unstageFiles
+      : trpcClient.git.stageFiles;
+    try {
+      const result = await endpoint.mutate({ directoryPath: repoPath, paths });
+      updateGitCacheFromSnapshot(queryClient, repoPath, result);
+      invalidateGitWorkingTreeQueries(repoPath);
+    } catch (error) {
+      log.error("Failed to toggle staging", { file: file.path, error });
+    }
+  };
 
   if (!repoPath) {
     return <PanelMessage>No repository path available</PanelMessage>;
@@ -500,18 +561,40 @@ function LocalChangesPanel({ taskId, task: _task }: ChangesPanelProps) {
     );
   }
 
+  const fileGroups: { files: ChangedFile[]; header?: string }[] = hasStagedFiles
+    ? [
+        { files: stagedFiles, header: "Staged Changes" },
+        { files: unstagedFiles, header: "Changes" },
+      ]
+    : [{ files: changedFiles }];
+
   return (
     <Box height="100%" overflowY="auto" py="2">
       <Flex direction="column">
-        {changedFiles.map((file) => (
-          <ChangedFileItem
-            key={file.path}
-            file={file}
-            taskId={taskId}
-            repoPath={repoPath}
-            isActive={activeFilePath === file.path}
-            mainRepoPath={workspace?.folderPath}
-          />
+        {fileGroups.map(({ files, header }) => (
+          <Fragment key={header ?? "all"}>
+            {header && (
+              <Flex px="2" py="1" className="select-none">
+                <Text size="1" color="gray" weight="medium">
+                  {header} ({files.length})
+                </Text>
+              </Flex>
+            )}
+            {files.map((file) => {
+              const key = makeFileKey(file.staged, file.path);
+              return (
+                <ChangedFileItem
+                  key={key}
+                  file={file}
+                  taskId={taskId}
+                  repoPath={repoPath}
+                  isActive={activeFilePath === key}
+                  mainRepoPath={workspace?.folderPath}
+                  onStageToggle={handleStageToggle}
+                />
+              );
+            })}
+          </Fragment>
         ))}
       </Flex>
     </Box>

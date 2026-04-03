@@ -178,8 +178,8 @@ export function ClaudeCodeSettings() {
       <PermissionsSettings />
 
       <SettingRow
-        label="Bypass Permissions mode"
-        description="Skips all permission rules. PostHog Code will run every tool without asking for approval"
+        label="Auto-accept permissions"
+        description="Skip all permission prompts. Claude will run bash commands, edit files, browse the web and use any tool without asking first"
         noBorder
       >
         <Switch
@@ -195,8 +195,9 @@ export function ClaudeCodeSettings() {
             <Warning weight="fill" />
           </Callout.Icon>
           <Callout.Text>
-            Bypass Permissions mode is enabled. All permission rules are
-            ignored.
+            Auto-accept is enabled. All actions (shell commands, file edits, web
+            requests) run without approval. Use shift+tab to cycle to this mode
+            per session.
           </Callout.Text>
         </Callout.Root>
       )}
@@ -210,24 +211,24 @@ export function ClaudeCodeSettings() {
             <Flex align="center" gap="2">
               <Warning size={20} weight="fill" color="var(--red-9)" />
               <Text color="red" weight="bold">
-                Enable Bypass Permissions mode
+                Enable auto-accept permissions
               </Text>
             </Flex>
           </AlertDialog.Title>
           <AlertDialog.Description size="2">
             <Flex direction="column" gap="3">
               <Text color="red" weight="medium">
-                In Bypass Permissions mode, PostHog Code will not ask for your
-                approval before running potentially dangerous commands.
+                With auto-accept enabled, Claude will execute every action
+                without asking — including shell commands, file edits, web
+                requests and any installed MCP tools.
               </Text>
               <Text>
-                This mode should only be used in a sandboxed container/VM that
-                has restricted internet access and can easily be restored if
-                damaged.
+                This mode is intended for sandboxed environments (containers or
+                VMs) with restricted network access that can be easily restored.
               </Text>
               <Text weight="medium">
                 By proceeding, you accept all responsibility for actions taken
-                while running in Bypass Permissions mode.
+                while auto-accept is enabled.
               </Text>
             </Flex>
           </AlertDialog.Description>
