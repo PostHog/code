@@ -237,7 +237,7 @@ export function applyCleanupWithFallback(
 }
 
 // Tab active state utilities
-function isTabActiveInTree(tree: PanelNode, tabId: string): boolean {
+export function isTabActiveInTree(tree: PanelNode, tabId: string): boolean {
   if (tree.type === "leaf") {
     return tree.content.activeTabId === tabId;
   }
