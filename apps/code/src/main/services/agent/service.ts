@@ -601,11 +601,18 @@ When creating pull requests, add the following footer at the end of the PR descr
     });
 
     try {
+      const systemPrompt = this.buildSystemPrompt(
+        credentials,
+        taskId,
+        customInstructions,
+      );
+
       const acpConnection = await agent.run(taskId, taskRunId, {
         adapter,
         gatewayUrl: proxyUrl,
         codexBinaryPath: adapter === "codex" ? getCodexBinaryPath() : undefined,
         model,
+        instructions: adapter === "codex" ? systemPrompt.append : undefined,
         processCallbacks: {
           onProcessSpawned: (info) => {
             this.processTracking.register(
@@ -711,12 +718,6 @@ When creating pull requests, add the following footer at the end of the PR descr
           }
         }
 
-        const systemPrompt = this.buildSystemPrompt(
-          credentials,
-          taskId,
-          customInstructions,
-        );
-
         // Both adapters implement unstable_resumeSession:
         // - Claude: delegates to SDK's resumeSession with JSONL hydration
         // - Codex: delegates to codex-acp's loadSession internally
@@ -747,11 +748,6 @@ When creating pull requests, add the following footer at the end of the PR descr
             taskRunId,
           });
         }
-        const systemPrompt = this.buildSystemPrompt(
-          credentials,
-          taskId,
-          customInstructions,
-        );
         const newSessionResponse = await connection.newSession({
           cwd: repoPath,
           mcpServers,

@@ -282,18 +282,49 @@ export class CodexAcpAgent extends BaseAcpAgent {
 
     const response = await this.codexConnection.prompt(params);
 
-    // Emit PostHog usage notification
-    if (this.sessionState?.taskRunId && response.usage) {
-      await this.client.extNotification("_posthog/usage_update", {
+    if (this.sessionState && response.usage) {
+      // Accumulate token usage from the prompt response
+      this.sessionState.accumulatedUsage.inputTokens +=
+        response.usage.inputTokens ?? 0;
+      this.sessionState.accumulatedUsage.outputTokens +=
+        response.usage.outputTokens ?? 0;
+      this.sessionState.accumulatedUsage.cachedReadTokens +=
+        response.usage.cachedReadTokens ?? 0;
+      this.sessionState.accumulatedUsage.cachedWriteTokens +=
+        response.usage.cachedWriteTokens ?? 0;
+    }
+
+    if (this.sessionState?.taskRunId) {
+      const { accumulatedUsage } = this.sessionState;
+
+      await this.client.extNotification(POSTHOG_NOTIFICATIONS.TURN_COMPLETE, {
         sessionId: params.sessionId,
-        used: {
-          inputTokens: response.usage.inputTokens ?? 0,
-          outputTokens: response.usage.outputTokens ?? 0,
-          cachedReadTokens: response.usage.cachedReadTokens ?? 0,
-          cachedWriteTokens: response.usage.cachedWriteTokens ?? 0,
+        stopReason: response.stopReason ?? "end_turn",
+        usage: {
+          inputTokens: accumulatedUsage.inputTokens,
+          outputTokens: accumulatedUsage.outputTokens,
+          cachedReadTokens: accumulatedUsage.cachedReadTokens,
+          cachedWriteTokens: accumulatedUsage.cachedWriteTokens,
+          totalTokens:
+            accumulatedUsage.inputTokens +
+            accumulatedUsage.outputTokens +
+            accumulatedUsage.cachedReadTokens +
+            accumulatedUsage.cachedWriteTokens,
         },
-        cost: null,
       });
+
+      if (response.usage) {
+        await this.client.extNotification("_posthog/usage_update", {
+          sessionId: params.sessionId,
+          used: {
+            inputTokens: response.usage.inputTokens ?? 0,
+            outputTokens: response.usage.outputTokens ?? 0,
+            cachedReadTokens: response.usage.cachedReadTokens ?? 0,
+            cachedWriteTokens: response.usage.cachedWriteTokens ?? 0,
+          },
+          cost: null,
+        });
+      }
     }
 
     return response;

@@ -10,6 +10,7 @@ export interface CodexProcessOptions {
   apiBaseUrl?: string;
   apiKey?: string;
   model?: string;
+  instructions?: string;
   binaryPath?: string;
   logger?: Logger;
   processCallbacks?: ProcessSpawnedCallback;
@@ -40,6 +41,13 @@ function buildConfigArgs(options: CodexProcessOptions): string[] {
 
   if (options.model) {
     args.push("-c", `model="${options.model}"`);
+  }
+
+  if (options.instructions) {
+    const escaped = options.instructions
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"');
+    args.push("-c", `instructions="${escaped}"`);
   }
 
   return args;

@@ -131,6 +131,7 @@ export class Agent {
               apiKey: gatewayConfig.apiKey,
               binaryPath: options.codexBinaryPath,
               model: sanitizedModel,
+              instructions: options.instructions,
             }
           : undefined,
     });

@@ -112,6 +112,7 @@ export interface TaskExecutionOptions {
   model?: string;
   gatewayUrl?: string;
   codexBinaryPath?: string;
+  instructions?: string;
   processCallbacks?: ProcessSpawnedCallback;
 }
 

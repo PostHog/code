@@ -60,17 +60,34 @@ export function createCodexClient(
     },
 
     async sessionUpdate(params: SessionNotification): Promise<void> {
-      // Parse usage data from session updates
       const update = params.update as Record<string, unknown> | undefined;
       if (update?.sessionUpdate === "usage_update") {
         const used = update.used as number | undefined;
         const size = update.size as number | undefined;
         if (used !== undefined) sessionState.contextUsed = used;
         if (size !== undefined) sessionState.contextSize = size;
+
+        // Accumulate per-message token usage when available
+        const inputTokens = update.inputTokens as number | undefined;
+        const outputTokens = update.outputTokens as number | undefined;
+        if (inputTokens !== undefined) {
+          sessionState.accumulatedUsage.inputTokens += inputTokens;
+        }
+        if (outputTokens !== undefined) {
+          sessionState.accumulatedUsage.outputTokens += outputTokens;
+        }
+        const cachedRead = update.cachedReadTokens as number | undefined;
+        const cachedWrite = update.cachedWriteTokens as number | undefined;
+        if (cachedRead !== undefined) {
+          sessionState.accumulatedUsage.cachedReadTokens += cachedRead;
+        }
+        if (cachedWrite !== undefined) {
+          sessionState.accumulatedUsage.cachedWriteTokens += cachedWrite;
+        }
+
         callbacks?.onUsageUpdate?.(update);
       }
 
-      // Forward to upstream client
       await upstreamClient.sessionUpdate(params);
     },
 
