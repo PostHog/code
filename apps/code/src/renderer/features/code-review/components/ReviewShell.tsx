@@ -75,7 +75,7 @@ const AUTO_COLLAPSE_PATTERNS = [
   /\.pbxproj$/,
 ];
 
-export type DeferredReason = "deleted" | "large" | "generated";
+export type DeferredReason = "deleted" | "large" | "generated" | "unavailable";
 
 export function computeAutoDeferred(
   files: {
@@ -495,6 +495,8 @@ function getDeferredMessage(
       return `Generated file not rendered — ${totalLines} lines changed.`;
     case "large":
       return `Large diff not rendered — ${totalLines} lines changed.`;
+    case "unavailable":
+      return "Unable to load diff.";
   }
 }
 
@@ -506,6 +508,7 @@ export function DeferredDiffPlaceholder({
   collapsed,
   onToggle,
   onShow,
+  externalUrl,
 }: {
   filePath: string;
   linesAdded: number;
@@ -513,7 +516,8 @@ export function DeferredDiffPlaceholder({
   reason: DeferredReason;
   collapsed: boolean;
   onToggle: () => void;
-  onShow: () => void;
+  onShow?: () => void;
+  externalUrl?: string;
 }) {
   const { dirPath, fileName } = splitFilePath(filePath);
 
@@ -528,28 +532,55 @@ export function DeferredDiffPlaceholder({
         onToggle={onToggle}
       />
       {!collapsed && (
-        <button
-          type="button"
-          onClick={onShow}
+        <div
           style={{
             padding: "16px",
             textAlign: "center",
             color: "var(--gray-9)",
             fontSize: "12px",
-            cursor: "pointer",
             background: "var(--gray-2)",
             borderBottom: "1px solid var(--gray-5)",
             width: "100%",
-            border: "none",
           }}
         >
-          {getDeferredMessage(reason, linesAdded + linesRemoved)}{" "}
-          <span
-            style={{ color: "var(--accent-9)", textDecoration: "underline" }}
-          >
-            Load diff
-          </span>
-        </button>
+          {getDeferredMessage(reason, linesAdded + linesRemoved)}
+          {onShow ? (
+            <>
+              {" "}
+              <button
+                type="button"
+                onClick={onShow}
+                style={{
+                  color: "var(--accent-9)",
+                  textDecoration: "underline",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "inherit",
+                  padding: 0,
+                }}
+              >
+                Load diff
+              </button>
+            </>
+          ) : externalUrl ? (
+            <>
+              {" "}
+              <a
+                href={externalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: "var(--accent-9)",
+                  textDecoration: "underline",
+                  fontSize: "inherit",
+                }}
+              >
+                View on GitHub
+              </a>
+            </>
+          ) : null}
+        </div>
       )}
     </div>
   );

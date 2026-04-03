@@ -26,7 +26,7 @@ export type OnCommentCallback = (
 ) => void;
 
 export type PatchDiffProps = FileDiffProps<AnnotationMetadata> & {
-  repoPath: string;
+  repoPath?: string;
   onComment?: OnCommentCallback;
 };
 

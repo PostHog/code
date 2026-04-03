@@ -78,6 +78,23 @@ const log = logger.scope("git-service");
 const FETCH_THROTTLE_MS = 5 * 60 * 1000;
 const MAX_DIFF_LENGTH = 8000;
 
+/**
+ * Wraps a GitHub API per-file patch (hunk content only) with
+ * the `diff --git` / `---` / `+++` header so that unified-diff
+ * parsers like `@pierre/diffs` can process it correctly.
+ */
+function toUnifiedDiffPatch(
+  rawPatch: string,
+  filename: string,
+  previousFilename: string | undefined,
+  status: ChangedFile["status"],
+): string {
+  const oldPath = previousFilename ?? filename;
+  const fromPath = status === "added" ? "/dev/null" : `a/${oldPath}`;
+  const toPath = status === "deleted" ? "/dev/null" : `b/${filename}`;
+  return `diff --git a/${oldPath} b/${filename}\n--- ${fromPath}\n+++ ${toPath}\n${rawPatch}`;
+}
+
 @injectable()
 export class GitService extends TypedEventEmitter<GitServiceEvents> {
   private lastFetchTime = new Map<string, number>();
@@ -846,6 +863,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
           previous_filename?: string;
           additions: number;
           deletions: number;
+          patch?: string;
         }>
       >;
       const files = pages.flat();
@@ -873,6 +891,14 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
           originalPath: f.previous_filename,
           linesAdded: f.additions,
           linesRemoved: f.deletions,
+          patch: f.patch
+            ? toUnifiedDiffPatch(
+                f.patch,
+                f.filename,
+                f.previous_filename,
+                status,
+              )
+            : undefined,
         };
       });
     } catch (error) {
@@ -906,8 +932,6 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       const result = await execGh([
         "api",
         `repos/${owner}/${repoName}/compare/${defaultBranch}...${branch}`,
-        "--jq",
-        ".files",
       ]);
 
       if (result.exitCode !== 0) {
@@ -916,13 +940,17 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
         );
       }
 
-      const files = JSON.parse(result.stdout) as Array<{
-        filename: string;
-        status: string;
-        previous_filename?: string;
-        additions: number;
-        deletions: number;
-      }> | null;
+      const response = JSON.parse(result.stdout) as {
+        files?: Array<{
+          filename: string;
+          status: string;
+          previous_filename?: string;
+          additions: number;
+          deletions: number;
+          patch?: string;
+        }>;
+      };
+      const files = response.files;
 
       if (!files) return [];
 
@@ -949,6 +977,14 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
           originalPath: f.previous_filename,
           linesAdded: f.additions,
           linesRemoved: f.deletions,
+          patch: f.patch
+            ? toUnifiedDiffPatch(
+                f.patch,
+                f.filename,
+                f.previous_filename,
+                status,
+              )
+            : undefined,
         };
       });
     } catch (error) {

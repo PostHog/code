@@ -1,12 +1,8 @@
 import { useCloudChangedFiles } from "@features/task-detail/hooks/useCloudChangedFiles";
-import {
-  buildCloudEventSummary,
-  extractCloudFileDiff,
-  type ParsedToolCall,
-} from "@features/task-detail/utils/cloudToolChanges";
+import type { FileDiffMetadata } from "@pierre/diffs";
+import { processFile } from "@pierre/diffs";
 import { Flex, Spinner, Text } from "@radix-ui/themes";
 import type { ChangedFile, Task } from "@shared/types";
-import type { AcpMessage } from "@shared/types/session-events";
 import { useMemo } from "react";
 import { useReviewComment } from "../hooks/useReviewComment";
 import type { DiffOptions, OnCommentCallback } from "../types";
@@ -18,30 +14,17 @@ import {
   useReviewState,
 } from "./ReviewShell";
 
-const EMPTY_EVENTS: AcpMessage[] = [];
-
 interface CloudReviewPageProps {
   taskId: string;
   task: Task;
 }
 
 export function CloudReviewPage({ taskId, task }: CloudReviewPageProps) {
-  const {
-    session,
-    effectiveBranch,
-    prUrl,
-    isRunActive,
-    changedFiles,
-    isLoading,
-  } = useCloudChangedFiles(taskId, task);
+  const { effectiveBranch, prUrl, isRunActive, remoteFiles, isLoading } =
+    useCloudChangedFiles(taskId, task);
   const onComment = useReviewComment(taskId);
-  const events = session?.events ?? EMPTY_EVENTS;
-  const summary = useMemo(() => buildCloudEventSummary(events), [events]);
 
-  const allPaths = useMemo(
-    () => changedFiles.map((f) => f.path),
-    [changedFiles],
-  );
+  const allPaths = useMemo(() => remoteFiles.map((f) => f.path), [remoteFiles]);
 
   const {
     diffOptions,
@@ -54,9 +37,9 @@ export function CloudReviewPage({ taskId, task }: CloudReviewPageProps) {
     uncollapseFile,
     revealFile,
     getDeferredReason,
-  } = useReviewState(changedFiles, allPaths);
+  } = useReviewState(remoteFiles, allPaths);
 
-  if (!prUrl && !effectiveBranch && changedFiles.length === 0) {
+  if (!prUrl && !effectiveBranch && remoteFiles.length === 0) {
     if (isRunActive) {
       return (
         <Flex align="center" justify="center" height="100%">
@@ -81,17 +64,17 @@ export function CloudReviewPage({ taskId, task }: CloudReviewPageProps) {
   return (
     <ReviewShell
       taskId={taskId}
-      fileCount={changedFiles.length}
+      fileCount={remoteFiles.length}
       linesAdded={linesAdded}
       linesRemoved={linesRemoved}
-      isLoading={isLoading && changedFiles.length === 0}
-      isEmpty={changedFiles.length === 0}
+      isLoading={isLoading && remoteFiles.length === 0}
+      isEmpty={remoteFiles.length === 0}
       allExpanded={collapsedFiles.size === 0}
       onExpandAll={expandAll}
       onCollapseAll={collapseAll}
       onUncollapseFile={uncollapseFile}
     >
-      {changedFiles.map((file) => {
+      {remoteFiles.map((file) => {
         const isCollapsed = collapsedFiles.has(file.path);
         const deferredReason = getDeferredReason(file.path);
 
@@ -115,7 +98,7 @@ export function CloudReviewPage({ taskId, task }: CloudReviewPageProps) {
           <div key={file.path} data-file-path={file.path}>
             <CloudFileDiff
               file={file}
-              toolCalls={summary.toolCalls}
+              prUrl={prUrl}
               options={diffOptions}
               collapsed={isCollapsed}
               onToggle={() => toggleFile(file.path)}
@@ -130,38 +113,46 @@ export function CloudReviewPage({ taskId, task }: CloudReviewPageProps) {
 
 function CloudFileDiff({
   file,
-  toolCalls,
+  prUrl,
   options,
   collapsed,
   onToggle,
   onComment,
 }: {
   file: ChangedFile;
-  toolCalls: Map<string, ParsedToolCall>;
+  prUrl: string | null;
   options: DiffOptions;
   collapsed: boolean;
   onToggle: () => void;
   onComment: OnCommentCallback;
 }) {
-  const diff = useMemo(
-    () => extractCloudFileDiff(toolCalls, file.path),
-    [toolCalls, file.path],
-  );
+  const fileDiff = useMemo((): FileDiffMetadata | undefined => {
+    if (!file.patch) return undefined;
+    return processFile(file.patch, { isGitDiff: true });
+  }, [file.patch]);
 
-  const fileName = file.path.split("/").pop() || file.path;
-  const oldFile = useMemo(
-    () => ({ name: fileName, contents: diff?.oldText ?? "" }),
-    [fileName, diff],
-  );
-  const newFile = useMemo(
-    () => ({ name: fileName, contents: diff?.newText ?? "" }),
-    [fileName, diff],
-  );
+  if (!fileDiff) {
+    const hasChanges = (file.linesAdded ?? 0) + (file.linesRemoved ?? 0) > 0;
+    const reason = hasChanges ? "large" : "unavailable";
+    const githubFileUrl = prUrl
+      ? `${prUrl}/files#diff-${file.path.replaceAll("/", "-")}`
+      : undefined;
+    return (
+      <DeferredDiffPlaceholder
+        filePath={file.path}
+        linesAdded={file.linesAdded ?? 0}
+        linesRemoved={file.linesRemoved ?? 0}
+        reason={reason}
+        collapsed={collapsed}
+        onToggle={onToggle}
+        externalUrl={githubFileUrl}
+      />
+    );
+  }
 
   return (
     <InteractiveFileDiff
-      oldFile={oldFile}
-      newFile={newFile}
+      fileDiff={fileDiff}
       options={{ ...options, collapsed }}
       onComment={onComment}
       renderCustomHeader={(fd) => (

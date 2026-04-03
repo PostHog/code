@@ -67,8 +67,8 @@ function PatchDiffView({
   filePathRef.current = currentFilePath;
 
   const hunkAnnotations = useMemo(
-    () => buildHunkAnnotations(fileDiff),
-    [fileDiff],
+    () => (repoPath ? buildHunkAnnotations(fileDiff) : []),
+    [fileDiff, repoPath],
   );
   const annotations = useMemo(
     () =>
@@ -97,7 +97,7 @@ function PatchDiffView({
   const handleRevert = useCallback(
     async (hunkIndex: number) => {
       const filePath = filePathRef.current;
-      if (!filePath) return;
+      if (!filePath || !repoPath) return;
 
       setRevertingHunks((prev) => new Set(prev).add(hunkIndex));
       setFileDiff((prev) => diffAcceptRejectHunk(prev, hunkIndex, "reject"));
