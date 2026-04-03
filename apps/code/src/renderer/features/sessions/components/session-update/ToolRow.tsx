@@ -19,7 +19,7 @@ export function ToolRow({
   children,
 }: ToolRowProps) {
   return (
-    <Flex align="center" gap="2" className="py-0.5">
+    <Flex align="center" gap="2" className="min-w-0 py-0.5">
       <LoadingIcon icon={icon} isLoading={isLoading} />
       <ToolTitle>{children}</ToolTitle>
       <StatusIndicators isFailed={isFailed} wasCancelled={wasCancelled} />
