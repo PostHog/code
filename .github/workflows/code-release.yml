@@ -220,4 +220,6 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           APP_VERSION: ${{ steps.version.outputs.version }}
-        run: gh release edit "v$APP_VERSION" --repo PostHog/code --draft=false --generate-notes
+        run: |
+          gh api repos/PostHog/code/releases/generate-notes -f tag_name="v$APP_VERSION" --jq '.body' > /tmp/release-notes.md
+          gh release edit "v$APP_VERSION" --repo PostHog/code --draft=false --notes-file /tmp/release-notes.md
