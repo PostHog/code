@@ -692,29 +692,23 @@ When creating pull requests, add the following footer at the end of the PR descr
       let configOptions: SessionConfigOption[] | undefined;
       let agentSessionId: string;
 
-      if (isReconnect && adapter === "codex" && config.sessionId) {
-        const existingSessionId = config.sessionId;
-        const loadResponse = await connection.loadSession({
-          sessionId: existingSessionId,
-          cwd: repoPath,
-          mcpServers,
-        });
-        configOptions = loadResponse.configOptions ?? undefined;
-        agentSessionId = existingSessionId;
-      } else if (isReconnect && adapter === "claude" && config.sessionId) {
+      if (isReconnect && config.sessionId) {
         const existingSessionId = config.sessionId;
 
-        const posthogAPI = agent.getPosthogAPI();
-        if (posthogAPI) {
-          await hydrateSessionJsonl({
-            sessionId: existingSessionId,
-            cwd: repoPath,
-            taskId,
-            runId: taskRunId,
-            permissionMode: config.permissionMode,
-            posthogAPI,
-            log,
-          });
+        // Claude-specific: hydrate session JSONL from PostHog before resuming
+        if (adapter !== "codex") {
+          const posthogAPI = agent.getPosthogAPI();
+          if (posthogAPI) {
+            await hydrateSessionJsonl({
+              sessionId: existingSessionId,
+              cwd: repoPath,
+              taskId,
+              runId: taskRunId,
+              permissionMode: config.permissionMode,
+              posthogAPI,
+              log,
+            });
+          }
         }
 
         const systemPrompt = this.buildSystemPrompt(
@@ -722,6 +716,10 @@ When creating pull requests, add the following footer at the end of the PR descr
           taskId,
           customInstructions,
         );
+
+        // Both adapters implement unstable_resumeSession:
+        // - Claude: delegates to SDK's resumeSession with JSONL hydration
+        // - Codex: delegates to codex-acp's loadSession internally
         const resumeResponse = await connection.unstable_resumeSession({
           sessionId: existingSessionId,
           cwd: repoPath,
