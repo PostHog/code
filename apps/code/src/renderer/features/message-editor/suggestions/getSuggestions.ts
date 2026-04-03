@@ -6,7 +6,6 @@ import {
   pathToFileItem,
   searchFiles,
 } from "@hooks/useRepoFiles";
-import { trpcClient } from "@renderer/trpc/client";
 import { isAbsolutePath } from "@utils/path";
 import Fuse, { type IFuseOptions } from "fuse.js";
 import { useDraftStore } from "../stores/draftStore";
@@ -50,18 +49,9 @@ function parentDirLabel(dir: string, name: string): string {
   return parent ? `${parent}/${name}` : name;
 }
 
-async function getAbsolutePathSuggestion(
-  query: string,
-): Promise<FileSuggestionItem | null> {
+function getAbsolutePathSuggestion(query: string): FileSuggestionItem | null {
   if (!isAbsolutePath(query)) return null;
   if (!/\.\w+$/.test(query)) return null;
-
-  try {
-    const exists = await trpcClient.fs.fileExists.query({ filePath: query });
-    if (!exists) return null;
-  } catch {
-    return null;
-  }
 
   const fileItem = pathToFileItem(query);
   return {
@@ -78,11 +68,10 @@ export async function getFileSuggestions(
   query: string,
 ): Promise<FileSuggestionItem[]> {
   const repoPath = useDraftStore.getState().contexts[sessionId]?.repoPath;
-  const absolutePathSuggestion = getAbsolutePathSuggestion(query);
+  const absoluteMatch = getAbsolutePathSuggestion(query);
 
   if (!repoPath) {
-    const resolved = await absolutePathSuggestion;
-    return resolved ? [resolved] : [];
+    return absoluteMatch ? [absoluteMatch] : [];
   }
 
   const { files, fzf } = await fetchRepoFiles(repoPath);
@@ -96,9 +85,11 @@ export async function getFileSuggestions(
     path: file.path,
   }));
 
-  const resolved = await absolutePathSuggestion;
-  if (resolved && !results.some((r) => `${repoPath}/${r.id}` === resolved.id)) {
-    results.unshift(resolved);
+  if (
+    absoluteMatch &&
+    !results.some((r) => `${repoPath}/${r.id}` === absoluteMatch.id)
+  ) {
+    results.unshift(absoluteMatch);
   }
 
   return results;

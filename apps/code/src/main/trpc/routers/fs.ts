@@ -1,7 +1,6 @@
 import { container } from "../../di/container";
 import { MAIN_TOKENS } from "../../di/tokens";
 import {
-  fileExistsOutput,
   listRepoFilesInput,
   listRepoFilesOutput,
   readAbsoluteFileInput,
@@ -33,11 +32,6 @@ export const fsRouter = router({
     .input(readAbsoluteFileInput)
     .output(readRepoFileOutput)
     .query(({ input }) => getService().readAbsoluteFile(input.filePath)),
-
-  fileExists: publicProcedure
-    .input(readAbsoluteFileInput)
-    .output(fileExistsOutput)
-    .query(({ input }) => getService().fileExists(input.filePath)),
 
   readFileAsBase64: publicProcedure
     .input(readAbsoluteFileInput)
