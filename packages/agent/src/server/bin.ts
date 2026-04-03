@@ -10,11 +10,9 @@ const envSchema = z.object({
       error: "JWT_PUBLIC_KEY is required for authenticating client connections",
     })
     .min(1, "JWT_PUBLIC_KEY cannot be empty"),
-  POSTHOG_API_URL: z
-    .string({
-      error: "POSTHOG_API_URL is required for LLM gateway communication",
-    })
-    .url("POSTHOG_API_URL must be a valid URL"),
+  POSTHOG_API_URL: z.url({
+    error: "POSTHOG_API_URL is required for LLM gateway communication",
+  }),
   POSTHOG_PERSONAL_API_KEY: z
     .string({
       error:
@@ -32,7 +30,7 @@ const envSchema = z.object({
 
 const program = new Command();
 
-function parseJsonOption<S extends z.ZodTypeAny>(
+function parseJsonOption<S extends z.ZodType>(
   raw: string | undefined,
   schema: S,
   flag: string,

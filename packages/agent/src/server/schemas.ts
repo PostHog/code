@@ -8,7 +8,7 @@ const httpHeaderSchema = z.object({
 const remoteMcpServerSchema = z.object({
   type: z.enum(["http", "sse"]),
   name: z.string().min(1, "MCP server name is required"),
-  url: z.string().url("MCP server url must be a valid URL"),
+  url: z.url({ error: "MCP server url must be a valid URL" }),
   headers: z.array(httpHeaderSchema).default([]),
 });
 
