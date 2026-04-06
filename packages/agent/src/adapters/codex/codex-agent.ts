@@ -1,0 +1,355 @@
+/**
+ * In-process ACP proxy agent for Codex.
+ *
+ * Implements the ACP Agent interface and delegates to the codex-acp binary
+ * via a ClientSideConnection. This gives us interception points for:
+ * - PostHog-specific notifications (sdk_session, usage_update, turn_complete)
+ * - Session resume/fork (not natively supported by codex-acp)
+ * - Usage accumulation
+ * - System prompt injection
+ */
+
+import {
+  type AgentSideConnection,
+  type AuthenticateRequest,
+  type CancelNotification,
+  ClientSideConnection,
+  type ForkSessionRequest,
+  type ForkSessionResponse,
+  type InitializeRequest,
+  type InitializeResponse,
+  type ListSessionsRequest,
+  type ListSessionsResponse,
+  type LoadSessionRequest,
+  type LoadSessionResponse,
+  type NewSessionRequest,
+  type NewSessionResponse,
+  ndJsonStream,
+  type PromptRequest,
+  type PromptResponse,
+  type ResumeSessionRequest,
+  type ResumeSessionResponse,
+  type SetSessionConfigOptionRequest,
+  type SetSessionConfigOptionResponse,
+  type SetSessionModeRequest,
+  type SetSessionModeResponse,
+} from "@agentclientprotocol/sdk";
+import packageJson from "../../../package.json" with { type: "json" };
+import { POSTHOG_NOTIFICATIONS } from "../../acp-extensions";
+import type { ProcessSpawnedCallback } from "../../types";
+import { Logger } from "../../utils/logger";
+import {
+  nodeReadableToWebReadable,
+  nodeWritableToWebWritable,
+} from "../../utils/streams";
+import { BaseAcpAgent, type BaseSession } from "../base-acp-agent";
+import { createCodexClient } from "./codex-client";
+import {
+  type CodexSessionState,
+  createSessionState,
+  resetUsage,
+} from "./session-state";
+import { CodexSettingsManager } from "./settings";
+import {
+  type CodexProcess,
+  type CodexProcessOptions,
+  spawnCodexProcess,
+} from "./spawn";
+
+interface NewSessionMeta {
+  taskRunId?: string;
+  taskId?: string;
+  systemPrompt?: string;
+  permissionMode?: string;
+  model?: string;
+  persistence?: { taskId?: string; runId?: string; logUrl?: string };
+  claudeCode?: {
+    options?: Record<string, unknown>;
+  };
+  additionalRoots?: string[];
+  disableBuiltInTools?: boolean;
+  allowedDomains?: string[];
+}
+
+export interface CodexAcpAgentOptions {
+  codexProcessOptions: CodexProcessOptions;
+  processCallbacks?: ProcessSpawnedCallback;
+}
+
+type CodexSession = BaseSession & {
+  settingsManager: CodexSettingsManager;
+};
+
+export class CodexAcpAgent extends BaseAcpAgent {
+  readonly adapterName = "codex";
+  declare session: CodexSession;
+  private codexProcess: CodexProcess;
+  private codexConnection!: ClientSideConnection;
+  private sessionState!: CodexSessionState;
+
+  constructor(client: AgentSideConnection, options: CodexAcpAgentOptions) {
+    super(client);
+    this.logger = new Logger({ debug: true, prefix: "[CodexAcpAgent]" });
+
+    // Spawn the codex-acp subprocess
+    this.codexProcess = spawnCodexProcess({
+      ...options.codexProcessOptions,
+      logger: this.logger,
+      processCallbacks: options.processCallbacks,
+    });
+
+    // Create ACP connection to codex-acp over stdin/stdout
+    const codexReadable = nodeReadableToWebReadable(this.codexProcess.stdout);
+    const codexWritable = nodeWritableToWebWritable(this.codexProcess.stdin);
+    const codexStream = ndJsonStream(codexWritable, codexReadable);
+
+    // Set up session with CodexSettingsManager
+    const cwd = options.codexProcessOptions.cwd ?? process.cwd();
+    const settingsManager = new CodexSettingsManager(cwd);
+    const abortController = new AbortController();
+    this.session = {
+      abortController,
+      settingsManager,
+      notificationHistory: [],
+      cancelled: false,
+    };
+
+    // Create the ClientSideConnection to codex-acp.
+    // The Client handler delegates all requests from codex-acp to the upstream
+    // PostHog Code client via our AgentSideConnection.
+    this.codexConnection = new ClientSideConnection(
+      (_agent) =>
+        createCodexClient(
+          this.client,
+          this.logger,
+          this.sessionState ?? {
+            sessionId: "",
+            cwd: "",
+            modeId: "default",
+            configOptions: [],
+            accumulatedUsage: {
+              inputTokens: 0,
+              outputTokens: 0,
+              cachedReadTokens: 0,
+              cachedWriteTokens: 0,
+            },
+            cancelled: false,
+          },
+        ),
+      codexStream,
+    );
+  }
+
+  async initialize(request: InitializeRequest): Promise<InitializeResponse> {
+    // Initialize settings
+    await this.session.settingsManager.initialize();
+
+    // Forward to codex-acp
+    const response = await this.codexConnection.initialize(request);
+
+    // Merge our enhanced capabilities
+    return {
+      ...response,
+      agentCapabilities: {
+        ...response.agentCapabilities,
+        sessionCapabilities: {
+          ...response.agentCapabilities?.sessionCapabilities,
+          resume: {},
+          fork: {},
+        },
+        _meta: {
+          posthog: {
+            resumeSession: true,
+          },
+        },
+      },
+      agentInfo: {
+        name: packageJson.name,
+        title: "Codex Agent",
+        version: packageJson.version,
+      },
+    };
+  }
+
+  async newSession(params: NewSessionRequest): Promise<NewSessionResponse> {
+    const meta = params._meta as NewSessionMeta | undefined;
+
+    const response = await this.codexConnection.newSession(params);
+
+    // Initialize session state
+    this.sessionState = createSessionState(response.sessionId, params.cwd, {
+      taskRunId: meta?.taskRunId,
+      taskId: meta?.taskId ?? meta?.persistence?.taskId,
+      modeId: response.modes?.currentModeId ?? "default",
+      modelId: response.models?.currentModelId,
+    });
+    this.sessionId = response.sessionId;
+    this.sessionState.configOptions = response.configOptions ?? [];
+
+    // Emit _posthog/sdk_session so the app can track the session
+    if (meta?.taskRunId) {
+      await this.client.extNotification(POSTHOG_NOTIFICATIONS.SDK_SESSION, {
+        taskRunId: meta.taskRunId,
+        sessionId: response.sessionId,
+        adapter: "codex",
+      });
+    }
+
+    this.logger.info("Codex session created", {
+      sessionId: response.sessionId,
+      taskRunId: meta?.taskRunId,
+    });
+
+    return response;
+  }
+
+  async loadSession(params: LoadSessionRequest): Promise<LoadSessionResponse> {
+    const response = await this.codexConnection.loadSession(params);
+
+    // Update session state
+    this.sessionState = createSessionState(params.sessionId, params.cwd);
+    this.sessionId = params.sessionId;
+    this.sessionState.configOptions = response.configOptions ?? [];
+
+    return response;
+  }
+
+  async unstable_resumeSession(
+    params: ResumeSessionRequest,
+  ): Promise<ResumeSessionResponse> {
+    // codex-acp doesn't support resume natively, use loadSession instead
+    const loadResponse = await this.codexConnection.loadSession({
+      sessionId: params.sessionId,
+      cwd: params.cwd,
+      mcpServers: params.mcpServers ?? [],
+    });
+
+    this.sessionState = createSessionState(params.sessionId, params.cwd);
+    this.sessionId = params.sessionId;
+    this.sessionState.configOptions = loadResponse.configOptions ?? [];
+
+    const meta = params._meta as NewSessionMeta | undefined;
+    if (meta?.taskRunId) {
+      await this.client.extNotification(POSTHOG_NOTIFICATIONS.SDK_SESSION, {
+        taskRunId: meta.taskRunId,
+        sessionId: params.sessionId,
+        adapter: "codex",
+      });
+    }
+
+    return {
+      modes: loadResponse.modes,
+      models: loadResponse.models,
+      configOptions: loadResponse.configOptions,
+    };
+  }
+
+  async unstable_forkSession(
+    params: ForkSessionRequest,
+  ): Promise<ForkSessionResponse> {
+    // Create a new session via codex-acp (fork isn't natively supported)
+    const newResponse = await this.codexConnection.newSession({
+      cwd: params.cwd,
+      mcpServers: params.mcpServers ?? [],
+      _meta: params._meta,
+    });
+
+    this.sessionState = createSessionState(newResponse.sessionId, params.cwd);
+    this.sessionId = newResponse.sessionId;
+    this.sessionState.configOptions = newResponse.configOptions ?? [];
+
+    return newResponse;
+  }
+
+  async listSessions(
+    params: ListSessionsRequest,
+  ): Promise<ListSessionsResponse> {
+    return this.codexConnection.listSessions(params);
+  }
+
+  async unstable_listSessions(
+    params: ListSessionsRequest,
+  ): Promise<ListSessionsResponse> {
+    return this.codexConnection.listSessions(params);
+  }
+
+  async prompt(params: PromptRequest): Promise<PromptResponse> {
+    if (this.sessionState) {
+      this.sessionState.cancelled = false;
+      this.sessionState.interruptReason = undefined;
+      resetUsage(this.sessionState);
+    }
+
+    const response = await this.codexConnection.prompt(params);
+
+    // Emit PostHog usage notification
+    if (this.sessionState?.taskRunId && response.usage) {
+      await this.client.extNotification("_posthog/usage_update", {
+        sessionId: params.sessionId,
+        used: {
+          inputTokens: response.usage.inputTokens ?? 0,
+          outputTokens: response.usage.outputTokens ?? 0,
+          cachedReadTokens: response.usage.cachedReadTokens ?? 0,
+          cachedWriteTokens: response.usage.cachedWriteTokens ?? 0,
+        },
+        cost: null,
+      });
+    }
+
+    return response;
+  }
+
+  protected async interrupt(): Promise<void> {
+    if (this.sessionState) {
+      this.sessionState.cancelled = true;
+    }
+    await this.codexConnection.cancel({
+      sessionId: this.sessionId,
+    });
+  }
+
+  async cancel(params: CancelNotification): Promise<void> {
+    if (this.sessionState) {
+      this.sessionState.cancelled = true;
+      const meta = params._meta as { interruptReason?: string } | undefined;
+      if (meta?.interruptReason) {
+        this.sessionState.interruptReason = meta.interruptReason;
+      }
+    }
+    await this.codexConnection.cancel(params);
+  }
+
+  async setSessionMode(
+    params: SetSessionModeRequest,
+  ): Promise<SetSessionModeResponse> {
+    const response = await this.codexConnection.setSessionMode(params);
+    if (this.sessionState) {
+      this.sessionState.modeId = params.modeId;
+    }
+    return response ?? {};
+  }
+
+  async setSessionConfigOption(
+    params: SetSessionConfigOptionRequest,
+  ): Promise<SetSessionConfigOptionResponse> {
+    const response = await this.codexConnection.setSessionConfigOption(params);
+    if (this.sessionState && response.configOptions) {
+      this.sessionState.configOptions = response.configOptions;
+    }
+    return response;
+  }
+
+  async authenticate(_params: AuthenticateRequest): Promise<void> {
+    // Auth handled externally
+  }
+
+  async closeSession(): Promise<void> {
+    this.logger.info("Closing Codex session", { sessionId: this.sessionId });
+    this.session.settingsManager.dispose();
+    try {
+      this.codexProcess.kill();
+    } catch (err) {
+      this.logger.warn("Failed to kill codex-acp process", { error: err });
+    }
+  }
+}

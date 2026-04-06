@@ -1,18 +1,15 @@
 import { AgentSideConnection, ndJsonStream } from "@agentclientprotocol/sdk";
-import { POSTHOG_NOTIFICATIONS } from "../acp-extensions";
-import { formatModelId } from "../gateway-models";
 import type { SessionLogWriter } from "../session-log-writer";
 import type { ProcessSpawnedCallback } from "../types";
 import { Logger } from "../utils/logger";
 import {
   createBidirectionalStreams,
   createTappedWritableStream,
-  nodeReadableToWebReadable,
-  nodeWritableToWebWritable,
   type StreamPair,
 } from "../utils/streams";
 import { ClaudeAcpAgent } from "./claude/claude-agent";
-import { type CodexProcessOptions, spawnCodexProcess } from "./codex/spawn";
+import { CodexAcpAgent } from "./codex/codex-agent";
+import type { CodexProcessOptions } from "./codex/spawn";
 
 type AgentAdapter = "claude" | "codex";
 
@@ -36,108 +33,6 @@ export type AcpConnection = {
 };
 
 export type InProcessAcpConnection = AcpConnection;
-
-type ModelOption = { value?: string; name?: string };
-type ModelGroup = { group?: string; name?: string; options?: ModelOption[] };
-
-type ConfigOption = {
-  id?: string;
-  category?: string | null;
-  currentValue?: string;
-  options?: Array<ModelOption | ModelGroup>;
-};
-
-function isGroupedOptions(
-  options: NonNullable<ConfigOption["options"]>,
-): options is ModelGroup[] {
-  return options.length > 0 && "group" in options[0];
-}
-
-function formatOption(o: ModelOption): ModelOption {
-  if (!o.value) return o;
-  return { ...o, name: formatModelId(o.value) };
-}
-
-function filterModelConfigOptions(
-  msg: Record<string, unknown>,
-  allowedModelIds: Set<string>,
-): Record<string, unknown> | null {
-  const payload = msg as {
-    method?: string;
-    result?: { configOptions?: ConfigOption[] };
-    params?: {
-      update?: { sessionUpdate?: string; configOptions?: ConfigOption[] };
-    };
-  };
-
-  const configOptions =
-    payload.result?.configOptions ?? payload.params?.update?.configOptions;
-  if (!configOptions) return null;
-
-  const filtered = configOptions.map((opt) => {
-    if (opt.category !== "model" || !opt.options) return opt;
-
-    const options = opt.options;
-    if (isGroupedOptions(options)) {
-      const filteredOptions = options.map((group) => ({
-        ...group,
-        options: (group.options ?? [])
-          .filter((o) => o?.value && allowedModelIds.has(o.value))
-          .map(formatOption),
-      }));
-      const flat = filteredOptions.flatMap((g) => g.options ?? []);
-      const currentAllowed =
-        opt.currentValue && allowedModelIds.has(opt.currentValue);
-      const nextCurrent =
-        currentAllowed || flat.length === 0 ? opt.currentValue : flat[0]?.value;
-
-      return {
-        ...opt,
-        currentValue: nextCurrent,
-        options: filteredOptions,
-      };
-    }
-
-    const valueOptions = options as ModelOption[];
-    const filteredOptions = valueOptions
-      .filter((o) => o?.value && allowedModelIds.has(o.value))
-      .map(formatOption);
-    const currentAllowed =
-      opt.currentValue && allowedModelIds.has(opt.currentValue);
-    const nextCurrent =
-      currentAllowed || filteredOptions.length === 0
-        ? opt.currentValue
-        : filteredOptions[0]?.value;
-
-    return {
-      ...opt,
-      currentValue: nextCurrent,
-      options: filteredOptions,
-    };
-  });
-
-  if (payload.result?.configOptions) {
-    return { ...msg, result: { ...payload.result, configOptions: filtered } };
-  }
-  if (payload.params?.update?.configOptions) {
-    return {
-      ...msg,
-      params: {
-        ...payload.params,
-        update: { ...payload.params.update, configOptions: filtered },
-      },
-    };
-  }
-  return null;
-}
-
-function extractReasoningEffort(
-  configOptions: ConfigOption[] | undefined,
-): string | undefined {
-  if (!configOptions) return undefined;
-  const option = configOptions.find((opt) => opt.id === "reasoning_effort");
-  return option?.currentValue ?? undefined;
-}
 
 /**
  * Creates an ACP connection with the specified agent framework.
@@ -234,247 +129,51 @@ function createClaudeConnection(config: AcpConnectionConfig): AcpConnection {
   };
 }
 
+/**
+ * Creates an ACP connection to codex-acp via an in-process proxy agent.
+ *
+ * The CodexAcpAgent implements the ACP Agent interface and delegates to
+ * the codex-acp binary over a ClientSideConnection. This replaces the
+ * previous raw stream transform approach and gives us proper interception
+ * points for PostHog-specific features.
+ */
 function createCodexConnection(config: AcpConnectionConfig): AcpConnection {
   const logger =
     config.logger?.child("CodexConnection") ??
     new Logger({ debug: true, prefix: "[CodexConnection]" });
 
   const { logWriter } = config;
-  const allowedModelIds = config.allowedModelIds;
 
-  const codexProcess = spawnCodexProcess({
-    ...config.codexOptions,
-    logger,
-    processCallbacks: config.processCallbacks,
-  });
+  // Create bidirectional streams for client ↔ agent communication
+  const streams = createBidirectionalStreams();
 
-  let clientReadable = nodeReadableToWebReadable(codexProcess.stdout);
-  let clientWritable = nodeWritableToWebWritable(codexProcess.stdin);
+  let agentWritable = streams.agent.writable;
+  let clientWritable = streams.client.writable;
 
-  let isLoadingSession = false;
-  let loadRequestId: string | number | null = null;
-  let newSessionRequestId: string | number | null = null;
-  let sdkSessionEmitted = false;
-  const reasoningEffortBySessionId = new Map<string, string>();
-  let injectedConfigId = 0;
-
-  const decoder = new TextDecoder();
-  const encoder = new TextEncoder();
-  let readBuffer = "";
-
-  const taskRunId = config.taskRunId;
-
-  const filteringReadable = clientReadable.pipeThrough(
-    new TransformStream<Uint8Array, Uint8Array>({
-      transform(chunk, controller) {
-        readBuffer += decoder.decode(chunk, { stream: true });
-        const lines = readBuffer.split("\n");
-        readBuffer = lines.pop() ?? "";
-
-        const outputLines: string[] = [];
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) {
-            outputLines.push(line);
-            continue;
-          }
-
-          let shouldFilter = false;
-
-          try {
-            const msg = JSON.parse(trimmed);
-            const sessionId =
-              msg?.params?.sessionId ?? msg?.result?.sessionId ?? null;
-            const configOptions =
-              msg?.result?.configOptions ?? msg?.params?.update?.configOptions;
-            if (sessionId && configOptions) {
-              const effort = extractReasoningEffort(configOptions);
-              if (effort) {
-                reasoningEffortBySessionId.set(sessionId, effort);
-              }
-            }
-
-            if (
-              !sdkSessionEmitted &&
-              newSessionRequestId !== null &&
-              msg.id === newSessionRequestId &&
-              "result" in msg
-            ) {
-              const sessionId = msg.result?.sessionId;
-              if (sessionId && taskRunId) {
-                const sdkSessionNotification = {
-                  jsonrpc: "2.0",
-                  method: POSTHOG_NOTIFICATIONS.SDK_SESSION,
-                  params: {
-                    taskRunId,
-                    sessionId,
-                    adapter: "codex",
-                  },
-                };
-                outputLines.push(JSON.stringify(sdkSessionNotification));
-                sdkSessionEmitted = true;
-              }
-              newSessionRequestId = null;
-            }
-
-            if (isLoadingSession) {
-              if (msg.id === loadRequestId && "result" in msg) {
-                logger.debug("session/load complete, resuming stream");
-                isLoadingSession = false;
-                loadRequestId = null;
-              } else if (msg.method === "session/update") {
-                shouldFilter = true;
-              }
-            }
-
-            if (!shouldFilter && allowedModelIds && allowedModelIds.size > 0) {
-              const updated = filterModelConfigOptions(msg, allowedModelIds);
-              if (updated) {
-                outputLines.push(JSON.stringify(updated));
-                continue;
-              }
-            }
-          } catch {
-            // Not valid JSON, pass through
-          }
-
-          if (!shouldFilter) {
-            outputLines.push(line);
-            const isChunkNoise =
-              trimmed.includes('"sessionUpdate":"agent_message_chunk"') ||
-              trimmed.includes('"sessionUpdate":"agent_thought_chunk"');
-            if (!isChunkNoise) {
-              logger.debug("codex-acp stdout:", trimmed);
-            }
-          }
-        }
-
-        if (outputLines.length > 0) {
-          const output = `${outputLines.join("\n")}\n`;
-          controller.enqueue(encoder.encode(output));
-        }
-      },
-      flush(controller) {
-        if (readBuffer.trim()) {
-          controller.enqueue(encoder.encode(readBuffer));
-        }
-      },
-    }),
-  );
-  clientReadable = filteringReadable;
-
-  const originalWritable = clientWritable;
-  clientWritable = new WritableStream({
-    write(chunk) {
-      const text = decoder.decode(chunk, { stream: true });
-      const trimmed = text.trim();
-      logger.debug("codex-acp stdin:", trimmed);
-
-      try {
-        const msg = JSON.parse(trimmed);
-        if (
-          msg.method === "session/set_config_option" &&
-          msg.params?.configId === "reasoning_effort" &&
-          msg.params?.sessionId &&
-          msg.params?.value
-        ) {
-          reasoningEffortBySessionId.set(
-            msg.params.sessionId,
-            msg.params.value,
-          );
-        }
-        if (msg.method === "session/prompt" && msg.params?.sessionId) {
-          const effort = reasoningEffortBySessionId.get(msg.params.sessionId);
-          if (effort) {
-            const injection = {
-              jsonrpc: "2.0",
-              id: `reasoning_effort_${Date.now()}_${injectedConfigId++}`,
-              method: "session/set_config_option",
-              params: {
-                sessionId: msg.params.sessionId,
-                configId: "reasoning_effort",
-                value: effort,
-              },
-            };
-            const injectionLine = `${JSON.stringify(injection)}\n`;
-            const writer = originalWritable.getWriter();
-            return writer
-              .write(encoder.encode(injectionLine))
-              .then(() => writer.releaseLock())
-              .then(() => {
-                const nextWriter = originalWritable.getWriter();
-                return nextWriter
-                  .write(chunk)
-                  .finally(() => nextWriter.releaseLock());
-              });
-          }
-        }
-        if (msg.method === "session/new" && msg.id) {
-          logger.debug("session/new detected, tracking request ID");
-          newSessionRequestId = msg.id;
-        } else if (msg.method === "session/load" && msg.id) {
-          logger.debug("session/load detected, pausing stream updates");
-          isLoadingSession = true;
-          loadRequestId = msg.id;
-        }
-      } catch {
-        // Not valid JSON
-      }
-
-      const writer = originalWritable.getWriter();
-      return writer.write(chunk).finally(() => writer.releaseLock());
-    },
-    close() {
-      const writer = originalWritable.getWriter();
-      return writer.close().finally(() => writer.releaseLock());
-    },
-  });
-
-  const shouldTapLogs = config.taskRunId && logWriter;
-
-  if (shouldTapLogs && config.taskRunId) {
-    const taskRunId = config.taskRunId;
-    if (!logWriter.isRegistered(taskRunId)) {
-      logWriter.register(taskRunId, {
-        taskId: config.taskId ?? taskRunId,
-        runId: taskRunId,
+  // Tap streams for session log writing
+  if (config.taskRunId && logWriter) {
+    if (!logWriter.isRegistered(config.taskRunId)) {
+      logWriter.register(config.taskRunId, {
+        taskId: config.taskId ?? config.taskRunId,
+        runId: config.taskRunId,
+        deviceType: config.deviceType,
       });
     }
 
-    clientWritable = createTappedWritableStream(clientWritable, {
+    const taskRunId = config.taskRunId;
+    agentWritable = createTappedWritableStream(streams.agent.writable, {
       onMessage: (line) => {
         logWriter.appendRawLine(taskRunId, line);
       },
       logger,
     });
 
-    const originalReadable = clientReadable;
-    const logDecoder = new TextDecoder();
-    let logBuffer = "";
-
-    clientReadable = originalReadable.pipeThrough(
-      new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          logBuffer += logDecoder.decode(chunk, { stream: true });
-          const lines = logBuffer.split("\n");
-          logBuffer = lines.pop() ?? "";
-
-          for (const line of lines) {
-            if (line.trim()) {
-              logWriter.appendRawLine(taskRunId, line);
-            }
-          }
-
-          controller.enqueue(chunk);
-        },
-        flush() {
-          if (logBuffer.trim()) {
-            logWriter.appendRawLine(taskRunId, logBuffer);
-          }
-        },
-      }),
-    );
+    clientWritable = createTappedWritableStream(streams.client.writable, {
+      onMessage: (line) => {
+        logWriter.appendRawLine(taskRunId, line);
+      },
+      logger,
+    });
   } else {
     logger.info("Tapped streams NOT enabled for Codex", {
       hasTaskRunId: !!config.taskRunId,
@@ -482,18 +181,38 @@ function createCodexConnection(config: AcpConnectionConfig): AcpConnection {
     });
   }
 
+  const agentStream = ndJsonStream(agentWritable, streams.agent.readable);
+
+  let agent: CodexAcpAgent | null = null;
+  const agentConnection = new AgentSideConnection((client) => {
+    agent = new CodexAcpAgent(client, {
+      codexProcessOptions: config.codexOptions ?? {},
+      processCallbacks: config.processCallbacks,
+    });
+    logger.info(`Created ${agent.adapterName} agent`);
+    return agent;
+  }, agentStream);
+
   return {
-    agentConnection: undefined,
+    agentConnection,
     clientStreams: {
-      readable: clientReadable,
+      readable: streams.client.readable,
       writable: clientWritable,
     },
     cleanup: async () => {
       logger.info("Cleaning up Codex connection");
-      codexProcess.kill();
+
+      if (agent) {
+        await agent.closeSession();
+      }
 
       try {
-        await clientWritable.close();
+        await streams.client.writable.close();
+      } catch {
+        // Stream may already be closed
+      }
+      try {
+        await streams.agent.writable.close();
       } catch {
         // Stream may already be closed
       }
