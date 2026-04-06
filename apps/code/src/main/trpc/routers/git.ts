@@ -307,14 +307,20 @@ export const gitRouter = router({
     .input(generateCommitMessageInput)
     .output(generateCommitMessageOutput)
     .mutation(({ input }) =>
-      getService().generateCommitMessage(input.directoryPath),
+      getService().generateCommitMessage(
+        input.directoryPath,
+        input.conversationContext,
+      ),
     ),
 
   generatePrTitleAndBody: publicProcedure
     .input(generatePrTitleAndBodyInput)
     .output(generatePrTitleAndBodyOutput)
     .mutation(({ input }) =>
-      getService().generatePrTitleAndBody(input.directoryPath),
+      getService().generatePrTitleAndBody(
+        input.directoryPath,
+        input.conversationContext,
+      ),
     ),
 
   searchGithubIssues: publicProcedure

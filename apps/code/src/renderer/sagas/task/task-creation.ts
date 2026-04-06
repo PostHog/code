@@ -14,7 +14,7 @@ import type {
 import { Saga, type SagaLogger } from "@posthog/shared";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { trpcClient } from "@renderer/trpc";
-import { generateTitle } from "@renderer/utils/generateTitle";
+import { generateTitleAndSummary } from "@renderer/utils/generateTitle";
 import { getTaskRepository } from "@renderer/utils/repository";
 import type { ExecutionMode, Task } from "@shared/types";
 import { logger } from "@utils/logger";
@@ -29,8 +29,9 @@ async function generateTaskTitle(
 ): Promise<void> {
   if (!description.trim()) return;
 
-  const title = await generateTitle(description);
-  if (!title) return;
+  const result = await generateTitleAndSummary(description);
+  if (!result?.title) return;
+  const { title } = result;
 
   try {
     await posthogClient.updateTask(taskId, { title });

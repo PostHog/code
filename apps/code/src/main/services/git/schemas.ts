@@ -252,6 +252,7 @@ export const createPrInput = z.object({
   draft: z.boolean().optional(),
   stagedOnly: z.boolean().optional(),
   taskId: z.string().optional(),
+  conversationContext: z.string().optional(),
 });
 
 export type CreatePrInput = z.infer<typeof createPrInput>;
@@ -323,6 +324,7 @@ export const getBranchChangedFilesOutput = z.array(changedFileSchema);
 
 export const generateCommitMessageInput = z.object({
   directoryPath: z.string(),
+  conversationContext: z.string().optional(),
 });
 
 export const generateCommitMessageOutput = z.object({
@@ -331,6 +333,7 @@ export const generateCommitMessageOutput = z.object({
 
 export const generatePrTitleAndBodyInput = z.object({
   directoryPath: z.string(),
+  conversationContext: z.string().optional(),
 });
 
 export const generatePrTitleAndBodyOutput = z.object({

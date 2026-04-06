@@ -80,6 +80,8 @@ export interface AgentSession {
   contextUsed?: number;
   /** Context window total size in tokens (from usage_update) */
   contextSize?: number;
+  /** Pre-computed conversation summary for commit/PR generation context */
+  conversationSummary?: string;
 }
 
 // --- Config Option Helpers ---

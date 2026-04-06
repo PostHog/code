@@ -42,7 +42,7 @@ vi.mock("@features/sessions/service/service", () => ({
 }));
 
 vi.mock("@renderer/utils/generateTitle", () => ({
-  generateTitle: vi.fn(async () => null),
+  generateTitleAndSummary: vi.fn(async () => null),
 }));
 
 vi.mock("@utils/queryClient", () => ({

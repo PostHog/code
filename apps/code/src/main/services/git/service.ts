@@ -514,6 +514,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     draft?: boolean;
     stagedOnly?: boolean;
     taskId?: string;
+    conversationContext?: string;
   }): Promise<CreatePrOutput> {
     const { directoryPath, flowId } = input;
 
@@ -536,12 +537,14 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
         createBranch: (dir, name) => this.createBranch(dir, name),
         checkoutBranch: (dir, name) => this.checkoutBranch(dir, name),
         getChangedFilesHead: (dir) => this.getChangedFilesHead(dir),
-        generateCommitMessage: (dir) => this.generateCommitMessage(dir),
+        generateCommitMessage: (dir) =>
+          this.generateCommitMessage(dir, input.conversationContext),
         commit: (dir, msg, opts) => this.commit(dir, msg, opts),
         getSyncStatus: (dir) => this.getGitSyncStatus(dir),
         push: (dir) => this.push(dir),
         publish: (dir) => this.publish(dir),
-        generatePrTitleAndBody: (dir) => this.generatePrTitleAndBody(dir),
+        generatePrTitleAndBody: (dir) =>
+          this.generatePrTitleAndBody(dir, input.conversationContext),
         createPr: (dir, title, body, draft) =>
           this.createPrViaGh(dir, title, body, draft),
         onProgress: emitProgress,
@@ -960,6 +963,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
 
   public async generateCommitMessage(
     directoryPath: string,
+    conversationContext?: string,
   ): Promise<{ message: string }> {
     const [stagedDiff, unstagedDiff, conventions, changedFiles] =
       await Promise.all([
@@ -1001,7 +1005,12 @@ Rules:
 - Use imperative mood ("Add feature" not "Added feature")
 - Be specific about what changed
 - If using conventional commits, include the appropriate prefix
+- If conversation context is provided, use it to understand WHY the changes were made and reflect that intent
 - Do not include any explanation, just output the commit message`;
+
+    const contextSection = conversationContext
+      ? `\n\nConversation context (why these changes were made):\n${conversationContext}`
+      : "";
 
     const userMessage = `Generate a commit message for these changes:
 
@@ -1009,12 +1018,13 @@ Changed files:
 ${filesSummary}
 
 Diff:
-${truncatedDiff}`;
+${truncatedDiff}${contextSection}`;
 
     log.debug("Generating commit message", {
       fileCount: changedFiles.length,
       diffLength: diff.length,
       conventionalCommits: conventions.conventionalCommits,
+      hasConversationContext: !!conversationContext,
     });
 
     const response = await this.llmGateway.prompt(
@@ -1027,6 +1037,7 @@ ${truncatedDiff}`;
 
   public async generatePrTitleAndBody(
     directoryPath: string,
+    conversationContext?: string,
   ): Promise<{ title: string; body: string }> {
     await this.fetchIfStale(directoryPath);
 
@@ -1082,12 +1093,17 @@ Rules for the title:
 Rules for the body:
 - Start with a TL;DR section (1-2 sentences summarizing the change)
 - Include a "What changed?" section with bullet points describing the key changes
+- If conversation context is provided, use it to explain WHY the changes were made in the TL;DR
 - Be thorough but concise
 - Use markdown formatting
 - Only describe changes that are actually in the diff — do not invent or assume changes
 ${templateHint}
 
 Do not include any explanation outside the TITLE and BODY sections.`;
+
+    const contextSection = conversationContext
+      ? `\n\nConversation context (why these changes were made):\n${conversationContext}`
+      : "";
 
     const userMessage = `Generate a PR title and description for these changes:
 
@@ -1097,12 +1113,13 @@ Commits in this PR:
 ${commitsSummary || "(no commits yet - changes are uncommitted)"}
 
 Diff:
-${truncatedDiff || "(no diff available)"}`;
+${truncatedDiff || "(no diff available)"}${contextSection}`;
 
     log.debug("Generating PR title and body", {
       commitCount: commits.length,
       diffLength: fullDiff.length,
       hasTemplate: !!prTemplate.template,
+      hasConversationContext: !!conversationContext,
     });
 
     const response = await this.llmGateway.prompt(
