@@ -74,7 +74,7 @@ const meta: Meta<typeof ArchivedTasksViewPresentation> = {
     isLoading: false,
     branchNotFound: null,
     onUnarchive: () => {},
-    onDelete: (_taskId: string, _taskTitle: string) => {},
+    onDelete: (_taskId: string) => {},
     onContextMenu: () => {},
     onBranchNotFoundClose: () => {},
     onRecreateBranch: () => {},
@@ -144,6 +144,25 @@ export const LongLabels: Story = {
         "auth-service",
       ),
       createItem("task-short", "Short", 0, "repo"),
+    ],
+  },
+};
+
+export const MixedModes: Story = {
+  args: {
+    items: [
+      {
+        archived: { ...createArchivedTask("t1", 1), mode: "cloud" },
+        task: createTask("t1", "Cloud deploy pipeline", 10, "infra"),
+      },
+      {
+        archived: { ...createArchivedTask("t2", 5), mode: "local" },
+        task: createTask("t2", "Local debugging session", 3, "frontend"),
+      },
+      {
+        archived: { ...createArchivedTask("t3", 0), mode: "worktree" },
+        task: createTask("t3", "Worktree refactor", 20, "backend"),
+      },
     ],
   },
 };

@@ -159,6 +159,14 @@
 }
 
 .radix-themes {
+  --cursor-button: pointer;
+  --cursor-checkbox: pointer;
+  --cursor-menu-item: pointer;
+  --cursor-radio: pointer;
+  --cursor-switch: pointer;
+  --cursor-slider-thumb: pointer;
+  --cursor-slider-thumb-active: grab;
+
   /* Font families */
   --default-font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
