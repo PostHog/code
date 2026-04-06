@@ -1,4 +1,3 @@
-import { useTaskViewed } from "@features/sidebar/hooks/useTaskViewed";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { trpcClient } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
@@ -31,7 +30,6 @@ export function useSessionConnection({
   isSuspended,
 }: UseSessionConnectionOptions) {
   const queryClient = useQueryClient();
-  const { markActivity } = useTaskViewed();
   const { isOnline } = useConnectivity();
 
   useChatTitleGenerator(taskId);
@@ -98,8 +96,6 @@ export function useSessionConnection({
       sessionStatus: session?.status ?? "none",
     });
 
-    markActivity(task.id);
-
     getSessionService()
       .connectToTask({
         task,
@@ -112,16 +108,7 @@ export function useSessionConnection({
     return () => {
       connectingTasks.delete(taskId);
     };
-  }, [
-    task,
-    taskId,
-    repoPath,
-    session,
-    markActivity,
-    isOnline,
-    isCloud,
-    isSuspended,
-  ]);
+  }, [task, taskId, repoPath, session, isOnline, isCloud, isSuspended]);
 
   const cannotConnect = !repoPath && !isCloud;
   useEffect(() => {

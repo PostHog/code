@@ -52,9 +52,9 @@ export function useSessionCallbacks({
 
       try {
         markAsViewed(taskId);
+        markActivity(taskId);
         const result = await getSessionService().sendPrompt(taskId, text);
         log.info("Prompt completed", { stopReason: result.stopReason });
-        markActivity(taskId);
 
         const view = useNavigationStore.getState().view;
         const isViewingTask =
