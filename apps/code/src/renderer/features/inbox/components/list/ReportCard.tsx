@@ -1,32 +1,13 @@
-import { SignalReportPriorityBadge } from "@features/inbox/components/SignalReportPriorityBadge";
-import { SignalReportStatusBadge } from "@features/inbox/components/SignalReportStatusBadge";
-import { SignalReportSummaryMarkdown } from "@features/inbox/components/SignalReportSummaryMarkdown";
+import { SignalReportPriorityBadge } from "@features/inbox/components/utils/SignalReportPriorityBadge";
+import { SignalReportStatusBadge } from "@features/inbox/components/utils/SignalReportStatusBadge";
+import { SignalReportSummaryMarkdown } from "@features/inbox/components/utils/SignalReportSummaryMarkdown";
+import { SOURCE_PRODUCT_META } from "@features/inbox/components/utils/SourceProductIcons";
 import { inboxStatusAccentCss } from "@features/inbox/utils/inboxSort";
-import {
-  BrainIcon,
-  BugIcon,
-  EyeIcon,
-  GithubLogoIcon,
-  KanbanIcon,
-  TicketIcon,
-  VideoIcon,
-} from "@phosphor-icons/react";
+import { EyeIcon } from "@phosphor-icons/react";
 import { Flex, Text, Tooltip } from "@radix-ui/themes";
 import type { SignalReport } from "@shared/types";
 import { motion } from "framer-motion";
 import type { KeyboardEvent, MouseEvent } from "react";
-
-const SOURCE_PRODUCT_ICONS: Record<
-  string,
-  { icon: React.ReactNode; color: string }
-> = {
-  session_replay: { icon: <VideoIcon size={12} />, color: "var(--amber-9)" },
-  error_tracking: { icon: <BugIcon size={12} />, color: "var(--red-9)" },
-  llm_analytics: { icon: <BrainIcon size={12} />, color: "var(--purple-9)" },
-  github: { icon: <GithubLogoIcon size={12} />, color: "var(--gray-11)" },
-  linear: { icon: <KanbanIcon size={12} />, color: "var(--blue-9)" },
-  zendesk: { icon: <TicketIcon size={12} />, color: "var(--green-9)" },
-};
 
 interface ReportCardProps {
   report: SignalReport;
@@ -85,7 +66,7 @@ export function ReportCard({
         ease: [0.22, 1, 0.36, 1],
       }}
       onClick={handleActivate}
-      onKeyDown={(e) => {
+      onKeyDown={(e: KeyboardEvent) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           handleActivate(e);
@@ -114,12 +95,14 @@ export function ReportCard({
             >
               {(report.source_products ?? []).length > 0 ? (
                 (report.source_products ?? []).map((sp) => {
-                  const info = SOURCE_PRODUCT_ICONS[sp];
-                  return info ? (
-                    <span key={sp} style={{ color: info.color }}>
-                      {info.icon}
+                  const meta = SOURCE_PRODUCT_META[sp];
+                  if (!meta) return null;
+                  const { Icon } = meta;
+                  return (
+                    <span key={sp} style={{ color: meta.color }}>
+                      <Icon size={12} />
                     </span>
-                  ) : null;
+                  );
                 })
               ) : (
                 <span
