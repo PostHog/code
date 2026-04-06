@@ -3,7 +3,7 @@ import {
   defaultRemarkPlugins,
 } from "@features/editor/components/MarkdownRenderer";
 import { File, GithubLogo, Warning } from "@phosphor-icons/react";
-import { Code, Text } from "@radix-ui/themes";
+import { Text } from "@radix-ui/themes";
 import type { ReactNode } from "react";
 import { memo } from "react";
 import type { Components } from "react-markdown";
@@ -13,6 +13,7 @@ const MENTION_TAG_REGEX =
   /<file\s+path="([^"]+)"\s*\/>|<github_issue\s+number="([^"]+)"(?:\s+title="([^"]*)")?(?:\s+url="([^"]*)")?\s*\/>|<error_context\s+label="([^"]*)">[\s\S]*?<\/error_context>/g;
 const MENTION_TAG_TEST =
   /<(?:file\s+path|github_issue\s+number|error_context\s+label)="[^"]+"/;
+const SLASH_COMMAND_START = /^\/([a-zA-Z][\w-]*)(?=\s|$)/;
 
 const inlineComponents: Components = {
   ...baseComponents,
@@ -39,10 +40,13 @@ export const InlineMarkdown = memo(function InlineMarkdown({
 });
 
 export function hasMentionTags(content: string): boolean {
-  return MENTION_TAG_TEST.test(content);
+  return MENTION_TAG_TEST.test(content) || SLASH_COMMAND_START.test(content);
 }
 
 export const hasFileMentions = hasMentionTags;
+
+const chipClass =
+  "inline-flex items-center gap-1 rounded-[var(--radius-1)] bg-[var(--accent-a3)] px-1 py-px align-middle font-medium text-[var(--accent-11)]";
 
 function MentionChip({
   icon,
@@ -53,23 +57,30 @@ function MentionChip({
   label: string;
   onClick?: () => void;
 }) {
+  const style = {
+    fontSize: "var(--font-size-1)",
+    margin: "0 2px",
+  };
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className={`${chipClass} cursor-pointer border-none`}
+        onClick={onClick}
+        style={style}
+      >
+        {icon}
+        {label}
+      </button>
+    );
+  }
+
   return (
-    <Code
-      size="1"
-      variant="soft"
-      onClick={onClick}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "4px",
-        verticalAlign: "middle",
-        margin: "0 2px",
-        cursor: onClick ? "pointer" : undefined,
-      }}
-    >
+    <span className={chipClass} style={style}>
       {icon}
       {label}
-    </Code>
+    </span>
   );
 }
 
@@ -77,8 +88,17 @@ export function parseMentionTags(content: string): ReactNode[] {
   const parts: ReactNode[] = [];
   let lastIndex = 0;
 
+  const slashMatch = content.match(SLASH_COMMAND_START);
+  if (slashMatch) {
+    parts.push(
+      <MentionChip key="slash-cmd" icon={null} label={`/${slashMatch[1]}`} />,
+    );
+    lastIndex = slashMatch[0].length;
+  }
+
   for (const match of content.matchAll(MENTION_TAG_REGEX)) {
     const matchIndex = match.index ?? 0;
+    if (matchIndex < lastIndex) continue;
 
     if (matchIndex > lastIndex) {
       parts.push(
