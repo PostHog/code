@@ -62,7 +62,7 @@ export function GitHubRepoPicker({
           </Text>
         </Flex>
       </Combobox.Trigger>
-      <Combobox.Content style={{ maxHeight: "300px" }}>
+      <Combobox.Content>
         <Combobox.Input placeholder="Search repositories..." />
         <Combobox.Empty>No repositories found.</Combobox.Empty>
         {repositories.map((repo) => (
