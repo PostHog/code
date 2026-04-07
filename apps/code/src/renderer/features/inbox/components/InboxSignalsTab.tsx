@@ -4,7 +4,6 @@ import {
   WarmingUpPane,
   WelcomePane,
 } from "@features/inbox/components/InboxEmptyStates";
-import { InboxLiveRail } from "@features/inbox/components/InboxLiveRail";
 import { InboxSourcesDialog } from "@features/inbox/components/InboxSourcesDialog";
 import { useInboxReportsInfinite } from "@features/inbox/hooks/useInboxReports";
 import { useSignalSourceConfigs } from "@features/inbox/hooks/useSignalSourceConfigs";
@@ -302,6 +301,7 @@ export function InboxSignalsTab() {
         <Flex ref={containerRef} height="100%" style={{ minHeight: 0 }}>
           {/* ── Left pane: report list ───────────────────────────────── */}
           <Box
+            className="select-none"
             style={{
               width: `${sidebarWidth}px`,
               maxWidth: "60%",
@@ -314,7 +314,7 @@ export function InboxSignalsTab() {
           >
             <ScrollArea
               type="auto"
-              className="scroll-area-constrain-width"
+              className="scroll-area-constrain-width inbox-report-list-scroll"
               style={{ height: "100%" }}
             >
               <Flex
@@ -344,7 +344,6 @@ export function InboxSignalsTab() {
                   }
                 }}
               >
-                <InboxLiveRail active={inboxPollingActive} />
                 <Box
                   data-inbox-sticky-header
                   style={{
