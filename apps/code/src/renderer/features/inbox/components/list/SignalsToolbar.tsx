@@ -26,6 +26,7 @@ import type {
   SignalReportOrderingField,
   SignalReportStatus,
 } from "@shared/types";
+import type { KeyboardEvent } from "react";
 
 interface SignalsToolbarProps {
   totalCount: number;
@@ -95,17 +96,6 @@ export function SignalsToolbar({
 }: SignalsToolbarProps) {
   const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
   const setSearchQuery = useInboxSignalsFilterStore((s) => s.setSearchQuery);
-  const sortField = useInboxSignalsFilterStore((s) => s.sortField);
-  const sortDirection = useInboxSignalsFilterStore((s) => s.sortDirection);
-  const setSort = useInboxSignalsFilterStore((s) => s.setSort);
-  const statusFilter = useInboxSignalsFilterStore((s) => s.statusFilter);
-  const toggleStatus = useInboxSignalsFilterStore((s) => s.toggleStatus);
-  const sourceProductFilter = useInboxSignalsFilterStore(
-    (s) => s.sourceProductFilter,
-  );
-  const toggleSourceProduct = useInboxSignalsFilterStore(
-    (s) => s.toggleSourceProduct,
-  );
 
   const countLabel = isSearchActive
     ? `${filteredCount} of ${totalCount}`
@@ -149,17 +139,7 @@ export function SignalsToolbar({
             </Text>
           ) : null}
         </Flex>
-        {!hideFilters && (
-          <FilterSortMenu
-            sortField={sortField}
-            sortDirection={sortDirection}
-            onSort={setSort}
-            statusFilter={statusFilter}
-            onToggleStatus={toggleStatus}
-            sourceProductFilter={sourceProductFilter}
-            onToggleSourceProduct={toggleSourceProduct}
-          />
-        )}
+        {!hideFilters && <FilterSortMenu />}
       </Flex>
       <Tooltip content={searchDisabledReason} hidden={!searchDisabledReason}>
         <TextField.Root
@@ -204,31 +184,43 @@ const SOURCE_PRODUCT_OPTIONS: {
   { value: "zendesk", label: "Zendesk", icon: <TicketIcon size={14} /> },
 ];
 
-function FilterSortMenu({
-  sortField,
-  sortDirection,
-  onSort,
-  statusFilter,
-  onToggleStatus,
-  sourceProductFilter,
-  onToggleSourceProduct,
-}: {
-  sortField: string;
-  sortDirection: string;
-  onSort: (
-    field: SortOption["field"],
-    direction: SortOption["direction"],
-  ) => void;
-  statusFilter: SignalReportStatus[];
-  onToggleStatus: (status: SignalReportStatus) => void;
-  sourceProductFilter: SourceProduct[];
-  onToggleSourceProduct: (source: SourceProduct) => void;
-}) {
+function FilterSortMenu() {
+  const sortField = useInboxSignalsFilterStore((s) => s.sortField);
+  const sortDirection = useInboxSignalsFilterStore((s) => s.sortDirection);
+  const setSort = useInboxSignalsFilterStore((s) => s.setSort);
+  const statusFilter = useInboxSignalsFilterStore((s) => s.statusFilter);
+  const toggleStatus = useInboxSignalsFilterStore((s) => s.toggleStatus);
+  const sourceProductFilter = useInboxSignalsFilterStore(
+    (s) => s.sourceProductFilter,
+  );
+  const toggleSourceProduct = useInboxSignalsFilterStore(
+    (s) => s.toggleSourceProduct,
+  );
+
   const itemClassName =
-    "flex w-full items-center justify-between rounded-sm px-1 py-1 text-left text-[13px] text-gray-12 transition-colors hover:bg-gray-3";
+    "flex w-full items-center justify-between rounded-sm px-1 py-1 text-left text-[13px] text-gray-12 transition-colors hover:bg-gray-3 focus-visible:bg-gray-3 focus-visible:outline-none";
+
+  const handleContentKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    e.stopPropagation();
+    const container = e.currentTarget;
+    const buttons = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("button"),
+    );
+    if (buttons.length === 0) return;
+    const currentIndex = buttons.indexOf(
+      document.activeElement as HTMLButtonElement,
+    );
+    const next =
+      e.key === "ArrowDown"
+        ? (currentIndex + 1) % buttons.length
+        : (currentIndex - 1 + buttons.length) % buttons.length;
+    buttons[next].focus();
+  };
 
   return (
-    <Popover.Root>
+    <Popover.Root modal>
       <Popover.Trigger>
         <button
           type="button"
@@ -243,6 +235,7 @@ function FilterSortMenu({
         side="bottom"
         sideOffset={6}
         style={{ padding: 8, minWidth: 220 }}
+        onKeyDown={handleContentKeyDown}
       >
         <Flex direction="column" gap="3">
           <Box>
@@ -264,7 +257,7 @@ function FilterSortMenu({
                     key={`${option.field}-${option.direction}`}
                     type="button"
                     className={itemClassName}
-                    onClick={() => onSort(option.field, option.direction)}
+                    onClick={() => setSort(option.field, option.direction)}
                   >
                     <span className="flex items-center gap-1 text-gray-12">
                       {option.icon}
@@ -295,7 +288,7 @@ function FilterSortMenu({
                     key={status}
                     type="button"
                     className={itemClassName}
-                    onClick={() => onToggleStatus(status)}
+                    onClick={() => toggleStatus(status)}
                   >
                     <span className="flex items-center gap-1.5">
                       <span
@@ -330,7 +323,7 @@ function FilterSortMenu({
                     key={option.value}
                     type="button"
                     className={itemClassName}
-                    onClick={() => onToggleSourceProduct(option.value)}
+                    onClick={() => toggleSourceProduct(option.value)}
                   >
                     <span className="flex items-center gap-1 text-gray-12">
                       {option.icon}

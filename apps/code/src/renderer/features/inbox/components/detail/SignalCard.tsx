@@ -1,15 +1,10 @@
 import { MarkdownRenderer } from "@features/editor/components/MarkdownRenderer";
+import { SOURCE_PRODUCT_META } from "@features/inbox/components/utils/SourceProductIcons";
 import {
   ArrowSquareOutIcon,
-  BrainIcon,
-  BugIcon,
   CaretDownIcon,
   CaretRightIcon,
-  GithubLogoIcon,
-  KanbanIcon,
   TagIcon,
-  TicketIcon,
-  VideoIcon,
   WarningIcon,
 } from "@phosphor-icons/react";
 import { Badge, Box, Flex, Text } from "@radix-ui/themes";
@@ -66,20 +61,6 @@ function signalCardSourceLine(signal: {
   const typeLabel = source_type.replace(/_/g, " ");
   return `${productLabel} · ${typeLabel}`;
 }
-
-// ── Source product color (matching Cloud's known product colors) ──────────────
-
-const SOURCE_PRODUCT_ICONS: Record<
-  string,
-  { icon: React.ReactNode; color: string }
-> = {
-  session_replay: { icon: <VideoIcon size={14} />, color: "var(--amber-9)" },
-  error_tracking: { icon: <BugIcon size={14} />, color: "var(--red-9)" },
-  llm_analytics: { icon: <BrainIcon size={14} />, color: "var(--purple-9)" },
-  github: { icon: <GithubLogoIcon size={14} />, color: "var(--gray-11)" },
-  linear: { icon: <KanbanIcon size={14} />, color: "var(--blue-9)" },
-  zendesk: { icon: <TicketIcon size={14} />, color: "var(--green-9)" },
-};
 
 // ── Shared utilities ─────────────────────────────────────────────────────────
 
@@ -200,15 +181,17 @@ function isErrorTrackingExtra(
 // ── Shared components ────────────────────────────────────────────────────────
 
 function SignalCardHeader({ signal }: { signal: Signal }) {
-  const productInfo = SOURCE_PRODUCT_ICONS[signal.source_product];
+  const meta = SOURCE_PRODUCT_META[signal.source_product];
 
   return (
     <Flex align="center" gap="2" className="mb-2">
       <span
         className="shrink-0"
-        style={{ color: productInfo?.color ?? "var(--gray-9)" }}
+        style={{ color: meta?.color ?? "var(--gray-9)" }}
       >
-        {productInfo?.icon ?? (
+        {meta ? (
+          <meta.Icon size={14} />
+        ) : (
           <span
             className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: "var(--gray-9)" }}
