@@ -6,7 +6,7 @@ import {
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import type { SignalReport } from "@shared/types";
 import { useEffect, useRef } from "react";
-import { ReportCard } from "./ReportCard";
+import { ReportListRow } from "./ReportListRow";
 
 // ── LoadMoreTrigger (intersection observer for infinite scroll) ──────────────
 
@@ -66,7 +66,9 @@ interface ReportListPaneProps {
   searchQuery: string;
   hasActiveFilters: boolean;
   selectedReportId: string | null;
+  selectedReportIds: string[];
   onSelectReport: (id: string) => void;
+  onToggleReportSelection: (id: string) => void;
 }
 
 export function ReportListPane({
@@ -83,7 +85,9 @@ export function ReportListPane({
   searchQuery,
   hasActiveFilters,
   selectedReportId,
+  selectedReportIds = [],
   onSelectReport,
+  onToggleReportSelection,
 }: ReportListPaneProps) {
   // ── Loading skeleton ────────────────────────────────────────────────────
   if (isLoading && allReports.length === 0 && hasSignalSources) {
@@ -160,12 +164,14 @@ export function ReportListPane({
   return (
     <>
       {reports.map((report, index) => (
-        <ReportCard
+        <ReportListRow
           key={report.id}
           index={index}
           report={report}
           isSelected={selectedReportId === report.id}
+          isChecked={selectedReportIds.includes(report.id)}
           onClick={() => onSelectReport(report.id)}
+          onToggleChecked={() => onToggleReportSelection(report.id)}
         />
       ))}
       <LoadMoreTrigger

@@ -1,9 +1,11 @@
 import type {
   SandboxEnvironment,
   SandboxEnvironmentInput,
+  SignalReport,
   SignalReportArtefact,
   SignalReportArtefactsResponse,
   SignalReportSignalsResponse,
+  SignalReportStatus,
   SignalReportsQueryParams,
   SignalReportsResponse,
   SuggestedReviewersArtefact,
@@ -1066,6 +1068,92 @@ export class PostHogAPIClient {
         unavailableReason: "request_failed",
       };
     }
+  }
+
+  async updateSignalReportState(
+    reportId: string,
+    input: {
+      state: Extract<SignalReportStatus, "suppressed" | "potential">;
+      snooze_for?: number;
+      reset_weight?: boolean;
+      error?: string;
+    },
+  ): Promise<SignalReport> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/state/`,
+    );
+    const path = `/api/projects/${teamId}/signal_reports/${reportId}/state/`;
+
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path,
+      overrides: {
+        body: JSON.stringify(input),
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Failed to update signal report state");
+    }
+
+    return (await response.json()) as SignalReport;
+  }
+
+  async deleteSignalReport(reportId: string): Promise<{
+    status: "deletion_started" | "already_running";
+    report_id: string;
+  }> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/`,
+    );
+    const path = `/api/projects/${teamId}/signal_reports/${reportId}/`;
+
+    const response = await this.api.fetcher.fetch({
+      method: "delete",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Failed to delete signal report");
+    }
+
+    return (await response.json()) as {
+      status: "deletion_started" | "already_running";
+      report_id: string;
+    };
+  }
+
+  async reingestSignalReport(reportId: string): Promise<{
+    status: "reingestion_started" | "already_running";
+    report_id: string;
+  }> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/reingest/`,
+    );
+    const path = `/api/projects/${teamId}/signal_reports/${reportId}/reingest/`;
+
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Failed to reingest signal report");
+    }
+
+    return (await response.json()) as {
+      status: "reingestion_started" | "already_running";
+      report_id: string;
+    };
   }
 
   async getMcpServers(): Promise<McpRecommendedServer[]> {
