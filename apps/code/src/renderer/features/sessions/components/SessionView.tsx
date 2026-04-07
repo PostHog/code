@@ -101,8 +101,12 @@ export function SessionView({
   const { allowBypassPermissions } = useSettingsStore();
   const currentModeId = modeOption?.currentValue;
 
+  const prevAllowBypass = useRef(allowBypassPermissions);
   useEffect(() => {
+    const wasEnabled = prevAllowBypass.current;
+    prevAllowBypass.current = allowBypassPermissions;
     if (
+      wasEnabled &&
       !allowBypassPermissions &&
       (currentModeId === "bypassPermissions" ||
         currentModeId === "full-access") &&
@@ -246,7 +250,9 @@ export function SessionView({
       const selectedOption = firstPendingPermission.options.find(
         (o) => o.optionId === optionId,
       );
-      if (selectedOption?.kind === "allow_always") {
+      const isModeSwitch =
+        firstPendingPermission.toolCall?.kind === "switch_mode";
+      if (selectedOption?.kind === "allow_always" && !isModeSwitch) {
         getSessionService().setSessionConfigOptionByCategory(
           taskId,
           "mode",
