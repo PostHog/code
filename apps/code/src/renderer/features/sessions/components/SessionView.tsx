@@ -20,7 +20,7 @@ import {
   isJsonRpcNotification,
   isJsonRpcResponse,
 } from "@shared/types/session-events";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { getSessionService } from "../service/service";
 import {
@@ -99,26 +99,6 @@ export function SessionView({
   const modeOption = useModeConfigOptionForTask(taskId);
   const { allowBypassPermissions } = useSettingsStore();
   const currentModeId = modeOption?.currentValue;
-
-  const prevAllowBypass = useRef(allowBypassPermissions);
-  useEffect(() => {
-    const turnedOff = prevAllowBypass.current && !allowBypassPermissions;
-    prevAllowBypass.current = allowBypassPermissions;
-
-    const isBypass =
-      currentModeId === "bypassPermissions" || currentModeId === "full-access";
-
-    if (turnedOff && isBypass && taskId) {
-      const nextMode = cycleModeOption(modeOption, false);
-      if (nextMode) {
-        getSessionService().setSessionConfigOptionByCategory(
-          taskId,
-          "mode",
-          nextMode,
-        );
-      }
-    }
-  }, [allowBypassPermissions, currentModeId, taskId, modeOption]);
 
   const handleModeChange = useCallback(() => {
     if (!taskId) return;
