@@ -42,6 +42,8 @@ import {
   getLatestCommitOutput,
   getPrChangedFilesInput,
   getPrChangedFilesOutput,
+  getPrDetailsByUrlInput,
+  getPrDetailsByUrlOutput,
   getPrTemplateInput,
   getPrTemplateOutput,
   ghAuthTokenOutput,
@@ -62,6 +64,8 @@ import {
   stageFilesInput,
   syncInput,
   syncOutput,
+  updatePrByUrlInput,
+  updatePrByUrlOutput,
   validateRepoInput,
   validateRepoOutput,
 } from "../../services/git/schemas";
@@ -300,6 +304,21 @@ export const gitRouter = router({
     .input(getPrChangedFilesInput)
     .output(getPrChangedFilesOutput)
     .query(({ input }) => getService().getPrChangedFiles(input.prUrl)),
+
+  getPrDetailsByUrl: publicProcedure
+    .input(getPrDetailsByUrlInput)
+    .output(getPrDetailsByUrlOutput)
+    .query(async ({ input }) => {
+      const result = await getService().getPrDetailsByUrl(input.prUrl);
+      return result ?? { state: "unknown", merged: false, draft: false };
+    }),
+
+  updatePrByUrl: publicProcedure
+    .input(updatePrByUrlInput)
+    .output(updatePrByUrlOutput)
+    .mutation(({ input }) =>
+      getService().updatePrByUrl(input.prUrl, input.action),
+    ),
 
   getBranchChangedFiles: publicProcedure
     .input(getBranchChangedFilesInput)

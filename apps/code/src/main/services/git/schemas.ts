@@ -325,6 +325,31 @@ export const getPrChangedFilesInput = z.object({
 });
 export const getPrChangedFilesOutput = z.array(changedFileSchema);
 
+// getPrDetailsByUrl schemas
+export const getPrDetailsByUrlInput = z.object({
+  prUrl: z.string(),
+});
+export const getPrDetailsByUrlOutput = z.object({
+  state: z.string(),
+  merged: z.boolean(),
+  draft: z.boolean(),
+});
+export type PrDetailsByUrlOutput = z.infer<typeof getPrDetailsByUrlOutput>;
+
+// updatePrByUrl schemas
+export const prActionType = z.enum(["close", "reopen", "ready", "draft"]);
+export type PrActionType = z.infer<typeof prActionType>;
+
+export const updatePrByUrlInput = z.object({
+  prUrl: z.string(),
+  action: prActionType,
+});
+export const updatePrByUrlOutput = z.object({
+  success: z.boolean(),
+  message: z.string(),
+});
+export type UpdatePrByUrlOutput = z.infer<typeof updatePrByUrlOutput>;
+
 export const getBranchChangedFilesInput = z.object({
   repo: z.string(),
   branch: z.string(),

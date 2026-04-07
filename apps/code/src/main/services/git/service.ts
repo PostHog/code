@@ -28,7 +28,7 @@ import { CommitSaga } from "@posthog/git/sagas/commit";
 import { DiscardFileChangesSaga } from "@posthog/git/sagas/discard";
 import { PullSaga } from "@posthog/git/sagas/pull";
 import { PushSaga } from "@posthog/git/sagas/push";
-import { parseGitHubUrl } from "@posthog/git/utils";
+import { parseGitHubUrl, parsePrUrl } from "@posthog/git/utils";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
@@ -55,11 +55,14 @@ import type {
   GitStateSnapshot,
   GitSyncStatus,
   OpenPrOutput,
+  PrActionType,
+  PrDetailsByUrlOutput,
   PrStatusOutput,
   PublishOutput,
   PullOutput,
   PushOutput,
   SyncOutput,
+  UpdatePrByUrlOutput,
 } from "./schemas";
 
 const fsPromises = fs.promises;
@@ -865,10 +868,10 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
   }
 
   public async getPrChangedFiles(prUrl: string): Promise<ChangedFile[]> {
-    const match = prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
-    if (!match) return [];
+    const pr = parsePrUrl(prUrl);
+    if (!pr) return [];
 
-    const [, owner, repo, number] = match;
+    const { owner, repo, number } = pr;
 
     try {
       const result = await execGh([
@@ -932,6 +935,78 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     } catch (error) {
       log.warn("Failed to fetch PR changed files", { prUrl, error });
       throw error;
+    }
+  }
+
+  public async getPrDetailsByUrl(
+    prUrl: string,
+  ): Promise<PrDetailsByUrlOutput | null> {
+    const pr = parsePrUrl(prUrl);
+    if (!pr) return null;
+
+    try {
+      const result = await execGh([
+        "api",
+        `repos/${pr.owner}/${pr.repo}/pulls/${pr.number}`,
+        "--jq",
+        "{state,merged,draft}",
+      ]);
+
+      if (result.exitCode !== 0) {
+        log.warn("Failed to fetch PR details", {
+          prUrl,
+          error: result.stderr || result.error,
+        });
+        return null;
+      }
+
+      const data = JSON.parse(result.stdout) as {
+        state: string;
+        merged: boolean;
+        draft: boolean;
+      };
+
+      return data;
+    } catch (error) {
+      log.warn("Failed to fetch PR details", { prUrl, error });
+      return null;
+    }
+  }
+
+  public async updatePrByUrl(
+    prUrl: string,
+    action: PrActionType,
+  ): Promise<UpdatePrByUrlOutput> {
+    const pr = parsePrUrl(prUrl);
+    if (!pr) {
+      return { success: false, message: "Invalid PR URL" };
+    }
+
+    try {
+      const args =
+        action === "draft"
+          ? ["pr", "ready", "--undo", String(pr.number)]
+          : ["pr", action, String(pr.number)];
+
+      const result = await execGh([
+        ...args,
+        "--repo",
+        `${pr.owner}/${pr.repo}`,
+      ]);
+
+      if (result.exitCode !== 0) {
+        const errorMsg = result.stderr || result.error || "Unknown error";
+        log.warn("Failed to update PR", { prUrl, action, error: errorMsg });
+        return { success: false, message: errorMsg };
+      }
+
+      return { success: true, message: result.stdout };
+    } catch (error) {
+      log.warn("Failed to update PR", { prUrl, action, error });
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   }
 
