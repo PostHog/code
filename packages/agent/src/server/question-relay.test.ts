@@ -371,6 +371,53 @@ describe("Question relay", () => {
   });
 
   describe("sendInitialTaskMessage prompt source", () => {
+    it("uses pending user prompt blocks when present", async () => {
+      vi.spyOn(server.posthogAPI, "getTask").mockResolvedValue({
+        id: "test-task-id",
+        title: "t",
+        description: "original task description",
+      } as unknown as Task);
+      vi.spyOn(server.posthogAPI, "getTaskRun").mockResolvedValue({
+        id: "test-run-id",
+        task: "test-task-id",
+        state: {
+          pending_user_message:
+            '__twig_cloud_prompt_v1__:{"blocks":[{"type":"text","text":"read this attachment"},{"type":"resource","resource":{"uri":"attachment://test.txt","text":"hello from file","mimeType":"text/plain"}}]}',
+        },
+      } as unknown as TaskRun);
+
+      const promptSpy = vi.fn().mockResolvedValue({ stopReason: "max_tokens" });
+      server.session = {
+        payload: TEST_PAYLOAD,
+        acpSessionId: "acp-session",
+        clientConnection: { prompt: promptSpy },
+        logWriter: {
+          flushAll: vi.fn().mockResolvedValue(undefined),
+          getFullAgentResponse: vi.fn().mockReturnValue(null),
+          resetTurnMessages: vi.fn(),
+          flush: vi.fn().mockResolvedValue(undefined),
+          isRegistered: vi.fn().mockReturnValue(true),
+        },
+      };
+
+      await server.sendInitialTaskMessage(TEST_PAYLOAD);
+
+      expect(promptSpy).toHaveBeenCalledWith({
+        sessionId: "acp-session",
+        prompt: [
+          { type: "text", text: "read this attachment" },
+          {
+            type: "resource",
+            resource: {
+              uri: "attachment://test.txt",
+              text: "hello from file",
+              mimeType: "text/plain",
+            },
+          },
+        ],
+      });
+    });
+
     it("uses run state initial_prompt_override when present", async () => {
       vi.spyOn(server.posthogAPI, "getTask").mockResolvedValue({
         id: "test-task-id",

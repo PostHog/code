@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mcpServersSchema } from "./schemas";
+import { mcpServersSchema, validateCommandParams } from "./schemas";
 
 describe("mcpServersSchema", () => {
   it("accepts a valid HTTP server", () => {
@@ -112,6 +112,24 @@ describe("mcpServersSchema", () => {
         headers: [{ name: "X-Key" }],
       },
     ]);
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("validateCommandParams", () => {
+  it("accepts structured user_message content arrays", () => {
+    const result = validateCommandParams("user_message", {
+      content: [{ type: "text", text: "hello" }],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects empty content array", () => {
+    const result = validateCommandParams("user_message", {
+      content: [],
+    });
+
     expect(result.success).toBe(false);
   });
 });

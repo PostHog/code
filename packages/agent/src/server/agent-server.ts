@@ -1,3 +1,4 @@
+import type { ContentBlock } from "@agentclientprotocol/sdk";
 import {
   ClientSideConnection,
   ndJsonStream,
@@ -30,6 +31,11 @@ import type {
 import { AsyncMutex } from "../utils/async-mutex";
 import { getLlmGatewayUrl } from "../utils/gateway";
 import { Logger } from "../utils/logger";
+import {
+  deserializeCloudPrompt,
+  normalizeCloudPromptContent,
+  promptBlocksToText,
+} from "./cloud-prompt";
 import { type JwtPayload, JwtValidationError, validateJwt } from "./jwt";
 import { jsonRpcRequestSchema, validateCommandParams } from "./schemas";
 import type { AgentServerConfig } from "./types";
@@ -487,17 +493,20 @@ export class AgentServer {
     switch (method) {
       case POSTHOG_NOTIFICATIONS.USER_MESSAGE:
       case "user_message": {
-        const content = params.content as string;
+        const prompt = normalizeCloudPromptContent(
+          params.content as string | ContentBlock[],
+        );
+        const promptPreview = promptBlocksToText(prompt);
 
         this.logger.info(
-          `Processing user message (detectedPrUrl=${this.detectedPrUrl ?? "none"}): ${content.substring(0, 100)}...`,
+          `Processing user message (detectedPrUrl=${this.detectedPrUrl ?? "none"}): ${promptPreview.substring(0, 100)}...`,
         );
 
         this.session.logWriter.resetTurnMessages(this.session.payload.run_id);
 
         const result = await this.session.clientConnection.prompt({
           sessionId: this.session.acpSessionId,
-          prompt: [{ type: "text", text: content }],
+          prompt,
           ...(this.detectedPrUrl && {
             _meta: {
               prContext:
@@ -837,24 +846,33 @@ export class AgentServer {
       const initialPromptOverride = taskRun
         ? this.getInitialPromptOverride(taskRun)
         : null;
-      const initialPrompt = initialPromptOverride ?? task.description;
+      const pendingUserPrompt = this.getPendingUserPrompt(taskRun);
+      let initialPrompt: ContentBlock[] = [];
+      if (pendingUserPrompt?.length) {
+        initialPrompt = pendingUserPrompt;
+      } else if (initialPromptOverride) {
+        initialPrompt = [{ type: "text", text: initialPromptOverride }];
+      } else if (task.description) {
+        initialPrompt = [{ type: "text", text: task.description }];
+      }
 
-      if (!initialPrompt) {
+      if (initialPrompt.length === 0) {
         this.logger.warn("Task has no description, skipping initial message");
         return;
       }
 
       this.logger.info("Sending initial task message", {
         taskId: payload.task_id,
-        descriptionLength: initialPrompt.length,
+        descriptionLength: promptBlocksToText(initialPrompt).length,
         usedInitialPromptOverride: !!initialPromptOverride,
+        usedPendingUserMessage: !!pendingUserPrompt?.length,
       });
 
       this.session.logWriter.resetTurnMessages(payload.run_id);
 
       const result = await this.session.clientConnection.prompt({
         sessionId: this.session.acpSessionId,
-        prompt: [{ type: "text", text: initialPrompt }],
+        prompt: initialPrompt,
       });
 
       this.logger.info("Initial task message completed", {
@@ -886,38 +904,49 @@ export class AgentServer {
         this.resumeState.conversation,
       );
 
-      // Read the pending user message from TaskRun state (set by the workflow
+      // Read the pending user prompt from TaskRun state (set by the workflow
       // when the user sends a follow-up message that triggers a resume).
-      const pendingUserMessage = this.getPendingUserMessage(taskRun);
+      const pendingUserPrompt = this.getPendingUserPrompt(taskRun);
 
       const sandboxContext = this.resumeState.snapshotApplied
         ? `The workspace environment (all files, packages, and code changes) has been fully restored from where you left off.`
         : `The workspace files from the previous session were not restored (the file snapshot may have expired), so you are starting with a fresh environment. Your conversation history is fully preserved below.`;
 
-      let resumePrompt: string;
-      if (pendingUserMessage) {
-        // Include the pending message as the user's new question so the agent
-        // responds to it directly instead of the generic resume context.
-        resumePrompt =
-          `You are resuming a previous conversation. ${sandboxContext}\n\n` +
-          `Here is the conversation history from the previous session:\n\n` +
-          `${conversationSummary}\n\n` +
-          `The user has sent a new message:\n\n` +
-          `${pendingUserMessage}\n\n` +
-          `Respond to the user's new message above. You have full context from the previous session.`;
+      let resumePromptBlocks: ContentBlock[];
+      if (pendingUserPrompt?.length) {
+        resumePromptBlocks = [
+          {
+            type: "text",
+            text:
+              `You are resuming a previous conversation. ${sandboxContext}\n\n` +
+              `Here is the conversation history from the previous session:\n\n` +
+              `${conversationSummary}\n\n` +
+              `The user has sent a new message:\n\n`,
+          },
+          ...pendingUserPrompt,
+          {
+            type: "text",
+            text: "\n\nRespond to the user's new message above. You have full context from the previous session.",
+          },
+        ];
       } else {
-        resumePrompt =
-          `You are resuming a previous conversation. ${sandboxContext}\n\n` +
-          `Here is the conversation history from the previous session:\n\n` +
-          `${conversationSummary}\n\n` +
-          `Continue from where you left off. The user is waiting for your response.`;
+        resumePromptBlocks = [
+          {
+            type: "text",
+            text:
+              `You are resuming a previous conversation. ${sandboxContext}\n\n` +
+              `Here is the conversation history from the previous session:\n\n` +
+              `${conversationSummary}\n\n` +
+              `Continue from where you left off. The user is waiting for your response.`,
+          },
+        ];
       }
 
       this.logger.info("Sending resume message", {
         taskId: payload.task_id,
         conversationTurns: this.resumeState.conversation.length,
-        promptLength: resumePrompt.length,
-        hasPendingUserMessage: !!pendingUserMessage,
+        promptLength: promptBlocksToText(resumePromptBlocks).length,
+        hasPendingUserMessage: !!pendingUserPrompt?.length,
         snapshotApplied: this.resumeState.snapshotApplied,
       });
 
@@ -928,7 +957,7 @@ export class AgentServer {
 
       const result = await this.session.clientConnection.prompt({
         sessionId: this.session.acpSessionId,
-        prompt: [{ type: "text", text: resumePrompt }],
+        prompt: resumePromptBlocks,
       });
 
       this.logger.info("Resume message completed", {
@@ -1013,7 +1042,7 @@ export class AgentServer {
     return trimmed.length > 0 ? trimmed : null;
   }
 
-  private getPendingUserMessage(taskRun: TaskRun | null): string | null {
+  private getPendingUserPrompt(taskRun: TaskRun | null): ContentBlock[] | null {
     if (!taskRun) return null;
     const state = taskRun.state as Record<string, unknown> | undefined;
     const message = state?.pending_user_message;
@@ -1021,8 +1050,8 @@ export class AgentServer {
       return null;
     }
 
-    const trimmed = message.trim();
-    return trimmed.length > 0 ? trimmed : null;
+    const prompt = deserializeCloudPrompt(message);
+    return prompt.length > 0 ? prompt : null;
   }
 
   private getResumeRunId(taskRun: TaskRun | null): string | null {

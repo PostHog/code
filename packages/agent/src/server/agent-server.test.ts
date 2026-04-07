@@ -252,6 +252,30 @@ describe("AgentServer HTTP Mode", () => {
       const body = await response.json();
       expect(body.error).toBe("No active session for this run");
     });
+
+    it("accepts structured user_message content", async () => {
+      await createServer().start();
+      const token = createToken({ run_id: "different-run-id" });
+
+      const response = await fetch(`http://localhost:${port}/command`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "user_message",
+          params: {
+            content: [{ type: "text", text: "test" }],
+          },
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body.error).toBe("No active session for this run");
+    });
   });
 
   describe("404 handling", () => {
