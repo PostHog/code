@@ -338,7 +338,10 @@ async function handleDefaultPermissionFlow(
     suggestions,
   } = context;
 
-  const toolInfo = toolInfoFromToolUse({ name: toolName, input: toolInput });
+  const toolInfo = toolInfoFromToolUse(
+    { name: toolName, input: toolInput },
+    { cachedFileContent: context.fileContentCache, cwd: session?.cwd },
+  );
 
   const options = buildPermissionOptions(
     toolName,
