@@ -7,6 +7,9 @@ export const executionModeSchema = z.enum([
   "acceptEdits",
   "plan",
   "bypassPermissions",
+  "auto",
+  "read-only",
+  "full-access",
 ]);
 export type ExecutionMode = z.infer<typeof executionModeSchema>;
 

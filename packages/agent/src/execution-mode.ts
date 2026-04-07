@@ -1,7 +1,7 @@
 import { IS_ROOT } from "./utils/common";
 
 export interface ModeInfo {
-  id: CodeExecutionMode;
+  id: string;
   name: string;
   description: string;
 }
@@ -56,4 +56,40 @@ export function getAvailableModes(): ModeInfo[] {
   return IS_ROOT
     ? availableModes.filter((m) => m.id !== "bypassPermissions")
     : availableModes;
+}
+
+// --- Codex-native modes ---
+
+export const CODEX_NATIVE_MODES = ["auto", "read-only", "full-access"] as const;
+
+export type CodexNativeMode = (typeof CODEX_NATIVE_MODES)[number];
+
+/** Union of all permission mode IDs across adapters */
+export type PermissionMode = CodeExecutionMode | CodexNativeMode;
+
+const codexModes: ModeInfo[] = [
+  {
+    id: "read-only",
+    name: "Read Only",
+    description: "Read-only access, no file modifications",
+  },
+  {
+    id: "auto",
+    name: "Auto",
+    description: "Standard behavior, prompts for dangerous operations",
+  },
+];
+
+if (ALLOW_BYPASS) {
+  codexModes.push({
+    id: "full-access",
+    name: "Full Access",
+    description: "Auto-accept all permission requests",
+  });
+}
+
+export function getAvailableCodexModes(): ModeInfo[] {
+  return IS_ROOT
+    ? codexModes.filter((m) => m.id !== "full-access")
+    : codexModes;
 }

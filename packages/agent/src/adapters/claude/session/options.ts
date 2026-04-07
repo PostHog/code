@@ -14,6 +14,7 @@ import type { Logger } from "../../../utils/logger";
 import {
   createPostToolUseHook,
   createPreToolUseHook,
+  createSubagentRewriteHook,
   type OnModeChange,
 } from "../hooks";
 import type { CodeExecutionMode } from "../tools";
@@ -117,7 +118,10 @@ function buildHooks(
     PreToolUse: [
       ...(userHooks?.PreToolUse || []),
       {
-        hooks: [createPreToolUseHook(settingsManager, logger)],
+        hooks: [
+          createPreToolUseHook(settingsManager, logger),
+          createSubagentRewriteHook(logger),
+        ],
       },
     ],
   };

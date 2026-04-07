@@ -16,8 +16,12 @@ import { isMcpToolReadOnly } from "@posthog/agent";
 import { hydrateSessionJsonl } from "@posthog/agent/adapters/claude/session/jsonl-hydration";
 import { getEffortOptions } from "@posthog/agent/adapters/claude/session/models";
 import { Agent } from "@posthog/agent/agent";
-import { getAvailableModes } from "@posthog/agent/execution-mode";
 import {
+  getAvailableCodexModes,
+  getAvailableModes,
+} from "@posthog/agent/execution-mode";
+import {
+  DEFAULT_CODEX_MODEL,
   DEFAULT_GATEWAY_MODEL,
   fetchGatewayModels,
   formatGatewayModelName,
@@ -177,6 +181,56 @@ const onAgentLog: OnLogCallback = (level, scope, message, data) => {
     scopedLog[level](message);
   }
 };
+
+const HAIKU_EXPLORE_AGENT_OVERRIDE = {
+  description:
+    'Fast agent for exploring and understanding codebases. Use this when you need to find files by pattern (eg. "src/components/**/*.tsx"), search for code or keywords (eg. "where is the auth middleware?"), or answer questions about how the codebase works (eg. "how does the session service handle reconnects?"). When calling this agent, specify a thoroughness level: "quick" for targeted lookups, "medium" for broader exploration, or "very thorough" for comprehensive analysis across multiple locations.',
+  model: "haiku",
+  prompt: `You are a fast, read-only codebase exploration agent.
+
+Your job is to find files, search code, read the most relevant sources, and report findings clearly.
+
+Rules:
+- Never create, modify, delete, move, or copy files.
+- Never use shell redirection or any command that changes system state.
+- Use Glob for broad file pattern matching.
+- Use Grep for searching file contents.
+- Use Read when you know the exact file path to inspect.
+- Use Bash only for safe read-only commands like ls, git status, git log, git diff, find, cat, head, and tail.
+- Adapt your search approach based on the thoroughness level specified by the caller.
+- Return file paths as absolute paths in your final response.
+- Avoid using emojis.
+- Wherever possible, spawn multiple parallel tool calls for grepping and reading files.
+- Search efficiently, then read only the most relevant files.
+- Return findings directly in your final response — do not create files.`,
+  tools: [
+    "Bash",
+    "Glob",
+    "Grep",
+    "Read",
+    "WebFetch",
+    "WebSearch",
+    "NotebookRead",
+    "TodoWrite",
+  ],
+};
+
+function buildClaudeCodeOptions(args: {
+  additionalDirectories?: string[];
+  effort?: EffortLevel;
+  plugins: { type: "local"; path: string }[];
+}) {
+  return {
+    ...(args.additionalDirectories?.length && {
+      additionalDirectories: args.additionalDirectories,
+    }),
+    ...(args.effort && { effort: args.effort }),
+    plugins: args.plugins,
+    agents: {
+      "ph-explore": HAIKU_EXPLORE_AGENT_OVERRIDE,
+    },
+  };
+}
 
 interface SessionConfig {
   taskId: string;
@@ -553,10 +607,18 @@ When creating pull requests, add the following footer at the end of the PR descr
     });
 
     try {
+      const systemPrompt = this.buildSystemPrompt(
+        credentials,
+        taskId,
+        customInstructions,
+      );
+
       const acpConnection = await agent.run(taskId, taskRunId, {
         adapter,
         gatewayUrl: proxyUrl,
         codexBinaryPath: adapter === "codex" ? getCodexBinaryPath() : undefined,
+        model,
+        instructions: adapter === "codex" ? systemPrompt.append : undefined,
         onStructuredOutput: jsonSchema
           ? async (output) => {
               const posthogAPI = agent.getPosthogAPI();
@@ -642,40 +704,37 @@ When creating pull requests, add the following footer at the end of the PR descr
         },
         ...externalPlugins,
       ];
+      const claudeCodeOptions = buildClaudeCodeOptions({
+        additionalDirectories,
+        effort,
+        plugins,
+      });
 
       let configOptions: SessionConfigOption[] | undefined;
       let agentSessionId: string;
 
-      if (isReconnect && adapter === "codex" && config.sessionId) {
-        const existingSessionId = config.sessionId;
-        const loadResponse = await connection.loadSession({
-          sessionId: existingSessionId,
-          cwd: repoPath,
-          mcpServers,
-        });
-        configOptions = loadResponse.configOptions ?? undefined;
-        agentSessionId = existingSessionId;
-      } else if (isReconnect && adapter === "claude" && config.sessionId) {
+      if (isReconnect && config.sessionId) {
         const existingSessionId = config.sessionId;
 
-        const posthogAPI = agent.getPosthogAPI();
-        if (posthogAPI) {
-          await hydrateSessionJsonl({
-            sessionId: existingSessionId,
-            cwd: repoPath,
-            taskId,
-            runId: taskRunId,
-            permissionMode: config.permissionMode,
-            posthogAPI,
-            log,
-          });
+        // Claude-specific: hydrate session JSONL from PostHog before resuming
+        if (adapter !== "codex") {
+          const posthogAPI = agent.getPosthogAPI();
+          if (posthogAPI) {
+            await hydrateSessionJsonl({
+              sessionId: existingSessionId,
+              cwd: repoPath,
+              taskId,
+              runId: taskRunId,
+              permissionMode: config.permissionMode,
+              posthogAPI,
+              log,
+            });
+          }
         }
 
-        const systemPrompt = this.buildSystemPrompt(
-          credentials,
-          taskId,
-          customInstructions,
-        );
+        // Both adapters implement unstable_resumeSession:
+        // - Claude: delegates to SDK's resumeSession with JSONL hydration
+        // - Codex: delegates to codex-acp's loadSession internally
         const resumeResponse = await connection.unstable_resumeSession({
           sessionId: existingSessionId,
           cwd: repoPath,
@@ -691,13 +750,7 @@ When creating pull requests, add the following footer at the end of the PR descr
             ...(model != null && { model }),
             ...(jsonSchema && { jsonSchema }),
             claudeCode: {
-              options: {
-                ...(additionalDirectories?.length && {
-                  additionalDirectories,
-                }),
-                ...(effort && { effort }),
-                plugins,
-              },
+              options: claudeCodeOptions,
             },
           },
         });
@@ -710,11 +763,6 @@ When creating pull requests, add the following footer at the end of the PR descr
             taskRunId,
           });
         }
-        const systemPrompt = this.buildSystemPrompt(
-          credentials,
-          taskId,
-          customInstructions,
-        );
         const newSessionResponse = await connection.newSession({
           cwd: repoPath,
           mcpServers,
@@ -725,11 +773,7 @@ When creating pull requests, add the following footer at the end of the PR descr
             ...(model != null && { model }),
             ...(jsonSchema && { jsonSchema }),
             claudeCode: {
-              options: {
-                ...(additionalDirectories?.length && { additionalDirectories }),
-                ...(effort && { effort }),
-                plugins,
-              },
+              options: claudeCodeOptions,
             },
           },
         });
@@ -1636,7 +1680,9 @@ For git operations while detached:
 
     const defaultModel =
       adapter === "codex"
-        ? (modelOptions[0]?.value ?? "")
+        ? (modelOptions.find((o) => o.value === DEFAULT_CODEX_MODEL)?.value ??
+          modelOptions[0]?.value ??
+          "")
         : DEFAULT_GATEWAY_MODEL;
 
     const resolvedModelId = modelOptions.some((o) => o.value === defaultModel)
@@ -1651,18 +1697,21 @@ For git operations while detached:
       });
     }
 
-    const modeOptions = getAvailableModes().map((mode) => ({
+    const modes =
+      adapter === "codex" ? getAvailableCodexModes() : getAvailableModes();
+    const modeOptions = modes.map((mode) => ({
       value: mode.id,
       name: mode.name,
       description: mode.description ?? undefined,
     }));
+    const defaultMode = adapter === "codex" ? "auto" : "plan";
 
     const configOptions: SessionConfigOption[] = [
       {
         id: "mode",
         name: "Approval Preset",
         type: "select",
-        currentValue: "plan",
+        currentValue: defaultMode,
         options: modeOptions,
         category: "mode",
         description:

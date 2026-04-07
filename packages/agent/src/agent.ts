@@ -4,6 +4,7 @@ import {
 } from "./adapters/acp-connection";
 import {
   BLOCKED_MODELS,
+  DEFAULT_CODEX_MODEL,
   DEFAULT_GATEWAY_MODEL,
   fetchModelsList,
 } from "./gateway-models";
@@ -104,7 +105,9 @@ export class Agent {
       }
 
       if (!sanitizedModel || !allowedModelIds?.has(sanitizedModel)) {
-        sanitizedModel = codexModelIds[0];
+        sanitizedModel = codexModelIds.includes(DEFAULT_CODEX_MODEL)
+          ? DEFAULT_CODEX_MODEL
+          : codexModelIds[0];
       }
     }
     if (!sanitizedModel && options.adapter !== "codex") {
@@ -129,6 +132,7 @@ export class Agent {
               apiKey: gatewayConfig.apiKey,
               binaryPath: options.codexBinaryPath,
               model: sanitizedModel,
+              instructions: options.instructions,
             }
           : undefined,
     });

@@ -7,7 +7,10 @@ import { useTRPC } from "@renderer/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
-export function useReviewDiffs(repoPath: string | undefined) {
+export function useReviewDiffs(
+  repoPath: string | undefined,
+  isActive: boolean,
+) {
   const trpc = useTRPC();
   const { changedFiles, changesLoading } = useGitQueries(repoPath);
   const hideWhitespace = useDiffViewerStore((s) => s.hideWhitespaceChanges);
@@ -25,7 +28,7 @@ export function useReviewDiffs(repoPath: string | undefined) {
     trpc.git.getDiffCached.queryOptions(
       { directoryPath: repoPath as string, ignoreWhitespace: hideWhitespace },
       {
-        enabled: !!repoPath && hasStagedFiles,
+        enabled: isActive && !!repoPath && hasStagedFiles,
         staleTime: 30_000,
         refetchOnMount: "always",
       },
@@ -40,7 +43,7 @@ export function useReviewDiffs(repoPath: string | undefined) {
     trpc.git.getDiffUnstaged.queryOptions(
       { directoryPath: repoPath as string, ignoreWhitespace: hideWhitespace },
       {
-        enabled: !!repoPath,
+        enabled: isActive && !!repoPath,
         staleTime: 30_000,
         refetchOnMount: "always",
       },

@@ -24,14 +24,25 @@ import {
   isAnthropicModel,
 } from "../gateway-models";
 import { Logger } from "../utils/logger";
-import type { SettingsManager } from "./claude/session/settings";
+/**
+ * Shared settings manager interface that both Claude's SettingsManager
+ * and Codex's CodexSettingsManager implement. BaseAcpAgent only calls
+ * dispose() on this; each adapter's Session type narrows it to the
+ * concrete implementation.
+ */
+export interface BaseSettingsManager {
+  dispose(): void;
+  getCwd(): string;
+  setCwd(cwd: string): Promise<void>;
+  initialize(): Promise<void>;
+}
 
 export interface BaseSession {
   notificationHistory: SessionNotification[];
   cancelled: boolean;
   interruptReason?: string;
   abortController: AbortController;
-  settingsManager: SettingsManager;
+  settingsManager: BaseSettingsManager;
 }
 
 const DEFAULT_CONTEXT_WINDOW = 200_000;

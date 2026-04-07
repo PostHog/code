@@ -61,10 +61,40 @@ export function usePreviewConfig(
 
         const { defaultInitialTaskMode, lastUsedInitialTaskMode } =
           useSettingsStore.getState();
-        const initialMode =
-          defaultInitialTaskMode === "last_used"
-            ? lastUsedInitialTaskMode
-            : "plan";
+
+        // Use the mode option's existing currentValue (set by the server
+        // based on the adapter) when the user hasn't chosen a preference,
+        // or when their last-used mode doesn't match the current adapter's
+        // available modes.
+        const modeOpt = options.find((o) => o.id === "mode");
+        const serverDefault = modeOpt?.currentValue;
+        const availableValues: string[] =
+          modeOpt?.type === "select"
+            ? (
+                modeOpt.options as Array<{
+                  value?: string;
+                  options?: Array<{ value: string }>;
+                }>
+              ).flatMap((o) =>
+                o.options
+                  ? o.options.map((go) => go.value)
+                  : o.value
+                    ? [o.value]
+                    : [],
+              )
+            : [];
+
+        let initialMode: string;
+        if (
+          defaultInitialTaskMode === "last_used" &&
+          lastUsedInitialTaskMode &&
+          availableValues.includes(lastUsedInitialTaskMode)
+        ) {
+          initialMode = lastUsedInitialTaskMode;
+        } else {
+          initialMode =
+            typeof serverDefault === "string" ? serverDefault : "plan";
+        }
 
         const withMode = options.map((opt) =>
           opt.id === "mode"
