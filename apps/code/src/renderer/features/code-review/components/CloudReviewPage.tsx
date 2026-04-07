@@ -5,8 +5,7 @@ import { Flex, Spinner, Text } from "@radix-ui/themes";
 import { useReviewNavigationStore } from "@renderer/features/code-review/stores/reviewNavigationStore";
 import type { ChangedFile, Task } from "@shared/types";
 import { useMemo } from "react";
-import { useReviewComment } from "../hooks/useReviewComment";
-import type { DiffOptions, OnCommentCallback } from "../types";
+import type { DiffOptions } from "../types";
 import { InteractiveFileDiff } from "./InteractiveFileDiff";
 import {
   DeferredDiffPlaceholder,
@@ -26,7 +25,6 @@ export function CloudReviewPage({ task }: CloudReviewPageProps) {
   );
   const { effectiveBranch, prUrl, isRunActive, remoteFiles, isLoading } =
     useCloudChangedFiles(taskId, task, isReviewOpen);
-  const onComment = useReviewComment(taskId);
 
   const allPaths = useMemo(() => remoteFiles.map((f) => f.path), [remoteFiles]);
 
@@ -102,11 +100,11 @@ export function CloudReviewPage({ task }: CloudReviewPageProps) {
           <div key={file.path} data-file-path={file.path}>
             <CloudFileDiff
               file={file}
+              taskId={taskId}
               prUrl={prUrl}
               options={diffOptions}
               collapsed={isCollapsed}
               onToggle={() => toggleFile(file.path)}
-              onComment={onComment}
             />
           </div>
         );
@@ -117,18 +115,18 @@ export function CloudReviewPage({ task }: CloudReviewPageProps) {
 
 function CloudFileDiff({
   file,
+  taskId,
   prUrl,
   options,
   collapsed,
   onToggle,
-  onComment,
 }: {
   file: ChangedFile;
+  taskId: string;
   prUrl: string | null;
   options: DiffOptions;
   collapsed: boolean;
   onToggle: () => void;
-  onComment: OnCommentCallback;
 }) {
   const fileDiff = useMemo((): FileDiffMetadata | undefined => {
     if (!file.patch) return undefined;
@@ -158,7 +156,7 @@ function CloudFileDiff({
     <InteractiveFileDiff
       fileDiff={fileDiff}
       options={{ ...options, collapsed }}
-      onComment={onComment}
+      taskId={taskId}
       renderCustomHeader={(fd) => (
         <DiffFileHeader
           fileDiff={fd}

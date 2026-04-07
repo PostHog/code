@@ -37,7 +37,7 @@ function PatchDiffView({
   repoPath,
   options,
   renderCustomHeader,
-  onComment,
+  taskId,
 }: PatchDiffProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -76,22 +76,6 @@ function PatchDiffView({
         ? [...hunkAnnotations, commentAnnotation]
         : hunkAnnotations,
     [hunkAnnotations, commentAnnotation],
-  );
-
-  const handleCommentSubmit = useCallback(
-    (text: string) => {
-      const meta = commentAnnotation?.metadata;
-      if (!currentFilePath || !meta || meta.kind !== "comment") return;
-      reset();
-      onComment?.(
-        currentFilePath,
-        meta.startLine,
-        meta.endLine,
-        meta.side,
-        text,
-      );
-    },
-    [currentFilePath, commentAnnotation, reset, onComment],
   );
 
   const handleRevert = useCallback(
@@ -150,8 +134,16 @@ function PatchDiffView({
   const renderAnnotation = useCallback(
     (annotation: DiffLineAnnotation<AnnotationMetadata>) => {
       if (annotation.metadata.kind === "comment") {
+        const { startLine, endLine, side } = annotation.metadata;
         return (
-          <CommentAnnotation onSubmit={handleCommentSubmit} onCancel={reset} />
+          <CommentAnnotation
+            taskId={taskId ?? ""}
+            filePath={currentFilePath}
+            startLine={startLine}
+            endLine={endLine}
+            side={side}
+            onDismiss={reset}
+          />
         );
       }
 
@@ -184,7 +176,7 @@ function PatchDiffView({
         </div>
       );
     },
-    [handleRevert, handleCommentSubmit, reset, revertingHunks],
+    [handleRevert, reset, revertingHunks, taskId, currentFilePath],
   );
 
   const mergedOptions = useMemo(
@@ -214,7 +206,7 @@ function FilesDiffView({
   newFile,
   options,
   renderCustomHeader,
-  onComment,
+  taskId,
 }: FilesDiffProps) {
   const {
     selectedRange,
@@ -231,24 +223,22 @@ function FilesDiffView({
     [commentAnnotation],
   );
 
-  const handleCommentSubmit = useCallback(
-    (text: string) => {
-      const meta = commentAnnotation?.metadata;
-      if (!filePath || !meta || meta.kind !== "comment") return;
-      reset();
-      onComment?.(filePath, meta.startLine, meta.endLine, meta.side, text);
-    },
-    [filePath, commentAnnotation, reset, onComment],
-  );
-
   const renderAnnotation = useCallback(
     (annotation: DiffLineAnnotation<AnnotationMetadata>) => {
       if (annotation.metadata.kind !== "comment") return null;
+      const { startLine, endLine, side } = annotation.metadata;
       return (
-        <CommentAnnotation onSubmit={handleCommentSubmit} onCancel={reset} />
+        <CommentAnnotation
+          taskId={taskId ?? ""}
+          filePath={filePath}
+          startLine={startLine}
+          endLine={endLine}
+          side={side}
+          onDismiss={reset}
+        />
       );
     },
-    [handleCommentSubmit, reset],
+    [reset, taskId, filePath],
   );
 
   const mergedOptions = useMemo(

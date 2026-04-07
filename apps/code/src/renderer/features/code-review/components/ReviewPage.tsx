@@ -8,9 +8,8 @@ import { useTRPC } from "@renderer/trpc/client";
 import type { ChangedFile, Task } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { useReviewComment } from "../hooks/useReviewComment";
 import { useReviewDiffs } from "../hooks/useReviewDiffs";
-import type { DiffOptions, OnCommentCallback } from "../types";
+import type { DiffOptions } from "../types";
 import { InteractiveFileDiff } from "./InteractiveFileDiff";
 import {
   DeferredDiffPlaceholder,
@@ -32,8 +31,6 @@ export function ReviewPage({ task }: ReviewPageProps) {
   const isReviewOpen = useReviewNavigationStore(
     (s) => (s.reviewModes[taskId] ?? "closed") !== "closed",
   );
-  const onComment = useReviewComment(taskId);
-
   const {
     changedFiles,
     changesLoading,
@@ -79,7 +76,6 @@ export function ReviewPage({ task }: ReviewPageProps) {
     revealFile,
     getDeferredReason,
     openFile,
-    onComment,
   };
 
   return (
@@ -118,7 +114,7 @@ export function ReviewPage({ task }: ReviewPageProps) {
               options={diffOptions}
               collapsed={isCollapsed}
               onToggle={() => toggleFile(key)}
-              onComment={onComment}
+              taskId={taskId}
             />
           </div>
         );
@@ -148,7 +144,6 @@ interface FileDiffListProps {
   revealFile: (key: string) => void;
   getDeferredReason: (key: string) => DeferredReason | null;
   openFile: (taskId: string, path: string, preview: boolean) => void;
-  onComment: OnCommentCallback;
 }
 
 function FileDiffList({
@@ -162,7 +157,6 @@ function FileDiffList({
   revealFile,
   getDeferredReason,
   openFile,
-  onComment,
 }: FileDiffListProps) {
   return files.map((fileDiff) => {
     const filePath = fileDiff.name ?? fileDiff.prevName ?? "";
@@ -193,7 +187,7 @@ function FileDiffList({
           fileDiff={fileDiff}
           repoPath={repoPath}
           options={{ ...diffOptions, collapsed: isCollapsed }}
-          onComment={onComment}
+          taskId={taskId}
           renderCustomHeader={(fd) => (
             <DiffFileHeader
               fileDiff={fd}
@@ -213,17 +207,17 @@ function FileDiffList({
 function UntrackedFileDiff({
   file,
   repoPath,
+  taskId,
   options,
   collapsed,
   onToggle,
-  onComment,
 }: {
   file: ChangedFile;
   repoPath: string;
+  taskId: string;
   options: DiffOptions;
   collapsed: boolean;
   onToggle: () => void;
-  onComment: OnCommentCallback;
 }) {
   const trpc = useTRPC();
   const { data: content } = useQuery(
@@ -245,7 +239,7 @@ function UntrackedFileDiff({
       oldFile={oldFile}
       newFile={newFile}
       options={{ ...options, collapsed }}
-      onComment={onComment}
+      taskId={taskId}
       renderCustomHeader={(fd) => (
         <DiffFileHeader
           fileDiff={fd}

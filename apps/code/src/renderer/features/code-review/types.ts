@@ -17,21 +17,13 @@ export type AnnotationMetadata = HunkRevertMetadata | CommentMetadata;
 
 export type DiffOptions = FileDiffOptions<AnnotationMetadata>;
 
-export type OnCommentCallback = (
-  filePath: string,
-  startLine: number,
-  endLine: number,
-  side: AnnotationSide,
-  comment: string,
-) => void;
-
 export type PatchDiffProps = FileDiffProps<AnnotationMetadata> & {
   repoPath?: string;
-  onComment?: OnCommentCallback;
+  taskId?: string;
 };
 
 export type FilesDiffProps = MultiFileDiffProps<AnnotationMetadata> & {
-  onComment?: OnCommentCallback;
+  taskId?: string;
 };
 
 export type InteractiveFileDiffProps = PatchDiffProps | FilesDiffProps;
