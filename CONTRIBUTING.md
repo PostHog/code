@@ -9,7 +9,9 @@ We love contributions big and small. PostHog Code is the IDE for understanding h
 3. Create a branch (`feat/my-change`, `fix/that-bug`)
 4. Make your changes and open a pull request
 
-We recommend creating an issue first if one doesn't already exist so we can align on the approach before you invest time.
+Issues labeled [`good first issue`](https://github.com/PostHog/code/issues?q=sort%3Aupdated-desc%20is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22) are a great place to start!
+
+If an issue does not yet exist for your change, please create one first so we can align on the approach before you invest time.
 
 ## Development setup
 
