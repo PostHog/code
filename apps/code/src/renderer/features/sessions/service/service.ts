@@ -8,6 +8,11 @@ import {
   getAuthenticatedClient,
 } from "@features/auth/hooks/authClient";
 import { fetchAuthState } from "@features/auth/hooks/authQueries";
+import {
+  buildCloudPromptBlocks,
+  buildCloudTaskDescription,
+  serializeCloudPrompt,
+} from "@features/editor/utils/cloud-prompt";
 import { useSessionAdapterStore } from "@features/sessions/stores/sessionAdapterStore";
 import {
   getPersistedConfigOptions,
@@ -60,6 +65,7 @@ import {
 } from "@utils/session";
 
 const log = logger.scope("session-service");
+const TERMINAL_CLOUD_STATUSES = new Set(["completed", "failed", "cancelled"]);
 
 interface AuthCredentials {
   apiHost: string;
@@ -1109,23 +1115,42 @@ export class SessionService {
 
   // --- Cloud Commands ---
 
+  private async prepareCloudPrompt(
+    prompt: string | ContentBlock[],
+  ): Promise<{ blocks: ContentBlock[]; promptText: string }> {
+    const blocks =
+      typeof prompt === "string"
+        ? await buildCloudPromptBlocks(prompt)
+        : prompt;
+
+    if (blocks.length === 0) {
+      throw new Error("Cloud prompt cannot be empty");
+    }
+
+    const promptText =
+      extractPromptText(blocks).trim() ||
+      (typeof prompt === "string" ? buildCloudTaskDescription(prompt) : "");
+
+    return { blocks, promptText };
+  }
+
   private async sendCloudPrompt(
     session: AgentSession,
     prompt: string | ContentBlock[],
     options?: { skipQueueGuard?: boolean },
   ): Promise<{ stopReason: string }> {
-    const promptText = extractPromptText(prompt);
-    if (!promptText.trim()) {
-      return { stopReason: "empty" };
-    }
-
-    const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
-    if (session.cloudStatus && terminalStatuses.has(session.cloudStatus)) {
-      return this.resumeCloudRun(session, promptText);
+    if (
+      session.cloudStatus &&
+      TERMINAL_CLOUD_STATUSES.has(session.cloudStatus)
+    ) {
+      return this.resumeCloudRun(session, prompt);
     }
 
     if (!options?.skipQueueGuard && session.isPromptPending) {
-      sessionStoreSetters.enqueueMessage(session.taskId, promptText);
+      sessionStoreSetters.enqueueMessage(
+        session.taskId,
+        typeof prompt === "string" ? prompt : extractPromptText(prompt),
+      );
       log.info("Cloud message queued", {
         taskId: session.taskId,
         queueLength: session.messageQueue.length + 1,
@@ -1137,6 +1162,8 @@ export class SessionService {
     if (!auth) {
       throw new Error("Authentication required for cloud commands");
     }
+
+    const { blocks, promptText } = await this.prepareCloudPrompt(prompt);
 
     sessionStoreSetters.updateSession(session.taskRunId, {
       isPromptPending: true,
@@ -1156,7 +1183,11 @@ export class SessionService {
         apiHost: auth.apiHost,
         teamId: auth.teamId,
         method: "user_message",
-        params: { content: promptText },
+        params: {
+          // The live /command API still validates user_message content as a
+          // string, so structured prompts must go through the serialized form.
+          content: serializeCloudPrompt(blocks),
+        },
       });
 
       sessionStoreSetters.updateSession(session.taskRunId, {
@@ -1262,12 +1293,14 @@ export class SessionService {
 
   private async resumeCloudRun(
     session: AgentSession,
-    promptText: string,
+    prompt: string | ContentBlock[],
   ): Promise<{ stopReason: string }> {
     const client = await getAuthenticatedClient();
     if (!client) {
       throw new Error("Authentication required for cloud commands");
     }
+
+    const { blocks, promptText } = await this.prepareCloudPrompt(prompt);
 
     log.info("Creating resume run for terminal cloud task", {
       taskId: session.taskId,
@@ -1283,7 +1316,7 @@ export class SessionService {
       session.cloudBranch,
       {
         resumeFromRunId: session.taskRunId,
-        pendingUserMessage: promptText,
+        pendingUserMessage: serializeCloudPrompt(blocks),
       },
     );
     const newRun = updatedTask.latest_run;
@@ -1332,8 +1365,10 @@ export class SessionService {
   }
 
   private async cancelCloudPrompt(session: AgentSession): Promise<boolean> {
-    const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
-    if (session.cloudStatus && terminalStatuses.has(session.cloudStatus)) {
+    if (
+      session.cloudStatus &&
+      TERMINAL_CLOUD_STATUSES.has(session.cloudStatus)
+    ) {
       log.info("Skipping cancel for terminal cloud run", {
         taskId: session.taskId,
         status: session.cloudStatus,
@@ -1989,8 +2024,7 @@ export class SessionService {
         }
       }
 
-      const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
-      if (update.status && terminalStatuses.has(update.status)) {
+      if (update.status && TERMINAL_CLOUD_STATUSES.has(update.status)) {
         // Clean up any pending resume messages that couldn't be sent
         const session = sessionStoreSetters.getSessions()[taskRunId];
         if (

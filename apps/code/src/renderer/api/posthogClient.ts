@@ -557,20 +557,25 @@ export class PostHogAPIClient {
   async runTaskInCloud(
     taskId: string,
     branch?: string | null,
-    resumeOptions?: { resumeFromRunId: string; pendingUserMessage: string },
-    sandboxEnvironmentId?: string,
+    options?: {
+      resumeFromRunId?: string;
+      pendingUserMessage?: string;
+      sandboxEnvironmentId?: string;
+    },
   ): Promise<Task> {
     const teamId = await this.getTeamId();
     const body: Record<string, unknown> = { mode: "interactive" };
     if (branch) {
       body.branch = branch;
     }
-    if (resumeOptions) {
-      body.resume_from_run_id = resumeOptions.resumeFromRunId;
-      body.pending_user_message = resumeOptions.pendingUserMessage;
+    if (options?.resumeFromRunId) {
+      body.resume_from_run_id = options.resumeFromRunId;
     }
-    if (sandboxEnvironmentId) {
-      body.sandbox_environment_id = sandboxEnvironmentId;
+    if (options?.pendingUserMessage) {
+      body.pending_user_message = options.pendingUserMessage;
+    }
+    if (options?.sandboxEnvironmentId) {
+      body.sandbox_environment_id = options.sandboxEnvironmentId;
     }
 
     const data = await this.api.post(

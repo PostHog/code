@@ -1,3 +1,4 @@
+import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type { AgentSession } from "@features/sessions/stores/sessionStore";
 import type { Task } from "@shared/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -29,11 +30,16 @@ const mockTrpcLogs = vi.hoisted(() => ({
   writeLocalLogs: { mutate: vi.fn() },
 }));
 
+const mockTrpcCloudTask = vi.hoisted(() => ({
+  sendCommand: { mutate: vi.fn() },
+}));
+
 vi.mock("@renderer/trpc/client", () => ({
   trpcClient: {
     agent: mockTrpcAgent,
     workspace: mockTrpcWorkspace,
     logs: mockTrpcLogs,
+    cloudTask: mockTrpcCloudTask,
   },
 }));
 
@@ -565,6 +571,50 @@ describe("SessionService", () => {
         sessionId: "run-123",
         prompt: [{ type: "text", text: "Hello" }],
       });
+    });
+
+    it("serializes structured prompts before sending cloud follow-ups", async () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({
+          isCloud: true,
+          cloudStatus: "in_progress",
+        }),
+      );
+      mockTrpcCloudTask.sendCommand.mutate.mockResolvedValue({
+        success: true,
+        result: { stopReason: "end_turn" },
+      });
+
+      const prompt: ContentBlock[] = [
+        { type: "text", text: "read this" },
+        {
+          type: "resource",
+          resource: {
+            uri: "attachment://test.txt",
+            text: "hello from file",
+            mimeType: "text/plain",
+          },
+        },
+      ];
+
+      const result = await service.sendPrompt("task-123", prompt);
+
+      expect(result.stopReason).toBe("end_turn");
+      expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledTimes(1);
+
+      const [args] = mockTrpcCloudTask.sendCommand.mutate.mock.calls[0] as [
+        {
+          params?: { content?: unknown };
+        },
+      ];
+
+      expect(args.params?.content).toEqual(
+        expect.stringContaining("__twig_cloud_prompt_v1__:"),
+      );
+      expect(args.params?.content).toEqual(
+        expect.stringContaining('"type":"resource"'),
+      );
     });
 
     it("sets session to error state on fatal error", async () => {
