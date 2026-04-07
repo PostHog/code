@@ -1,4 +1,5 @@
 import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReportSelectionStore";
+import { inboxStatusLabel } from "@features/inbox/utils/inboxSort";
 import { useAuthenticatedMutation } from "@hooks/useAuthenticatedMutation";
 import type { SignalReport } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
@@ -28,14 +29,31 @@ const snoozableStatuses = new Set<SignalReport["status"]>([
   "ready",
 ]);
 
+/** Clause after "Disabled because …" (see `@components/ui/Button`). */
+const DISABLED_NO_SELECTION = "you haven't selected a report";
+
+/** Matches labels in the inbox list/filter (`inboxStatusLabel`). */
+const SNOOZE_ALLOWED_STATUS_PHRASE = (
+  ["in_progress", "ready"] as const satisfies readonly SignalReport["status"][]
+)
+  .map((status) => inboxStatusLabel(status))
+  .join(" or ");
+
+/** Statuses that block suppression; labels match `inboxStatusLabel`. */
+const SUPPRESS_BLOCKED_STATUS_PHRASE = (
+  ["suppressed", "deleted"] as const satisfies readonly SignalReport["status"][]
+)
+  .map((status) => inboxStatusLabel(status))
+  .join(" or ");
+
 type SelectedReportEligibility = {
   selectedReports: SignalReport[];
   selectedIds: string[];
   selectedCount: number;
-  canSuppress: boolean;
-  canSnooze: boolean;
-  canDelete: boolean;
-  canReingest: boolean;
+  snoozeDisabledReason: string | null;
+  suppressDisabledReason: string | null;
+  deleteDisabledReason: string | null;
+  reingestDisabledReason: string | null;
 };
 
 function formatBulkActionSummary(
@@ -43,22 +61,51 @@ function formatBulkActionSummary(
   result: BulkActionResult,
 ): string {
   const { successCount, failureCount } = result;
-  const noun =
+  const pluralized = successCount === 1 ? "report" : "reports";
+  const formulated =
     action === "suppress"
-      ? "report suppressed"
+      ? `${pluralized} suppressed`
       : action === "snooze"
-        ? "report snoozed"
+        ? `${pluralized} snoozed`
         : action === "delete"
-          ? "report deleted"
-          : "report reingested";
-
-  const pluralized = successCount === 1 ? noun : `${noun}s`;
-
+          ? `${pluralized} deleted`
+          : `${pluralized} reingested`;
   if (failureCount === 0) {
-    return `${successCount} ${pluralized}`;
+    return `${successCount} ${formulated}`;
   }
+  return `${successCount} ${formulated}, ${failureCount} failed`;
+}
 
-  return `${successCount} ${pluralized}, ${failureCount} failed`;
+function getSnoozeDisabledReason(
+  selectedCount: number,
+  selectedReports: SignalReport[],
+): string | null {
+  if (selectedCount === 0) {
+    return DISABLED_NO_SELECTION;
+  }
+  const ok = selectedReports.every((report) =>
+    snoozableStatuses.has(report.status),
+  );
+  if (ok) {
+    return null;
+  }
+  return `every selected report must be ${SNOOZE_ALLOWED_STATUS_PHRASE} to snooze`;
+}
+
+function getSuppressDisabledReason(
+  selectedCount: number,
+  selectedReports: SignalReport[],
+): string | null {
+  if (selectedCount === 0) {
+    return DISABLED_NO_SELECTION;
+  }
+  const ok = selectedReports.every((report) =>
+    suppressibleStatuses.has(report.status),
+  );
+  if (ok) {
+    return null;
+  }
+  return `every selected report must not already be ${SUPPRESS_BLOCKED_STATUS_PHRASE}`;
 }
 
 function getSelectedReportEligibility(
@@ -75,16 +122,16 @@ function getSelectedReportEligibility(
     selectedReports,
     selectedIds: selectedReports.map((report) => report.id),
     selectedCount,
-    canSuppress:
-      selectedCount > 0 &&
-      selectedReports.every((report) =>
-        suppressibleStatuses.has(report.status),
-      ),
-    canSnooze:
-      selectedCount > 0 &&
-      selectedReports.every((report) => snoozableStatuses.has(report.status)),
-    canDelete: selectedCount > 0,
-    canReingest: selectedCount > 0,
+    snoozeDisabledReason: getSnoozeDisabledReason(
+      selectedCount,
+      selectedReports,
+    ),
+    suppressDisabledReason: getSuppressDisabledReason(
+      selectedCount,
+      selectedReports,
+    ),
+    deleteDisabledReason: selectedCount === 0 ? DISABLED_NO_SELECTION : null,
+    reingestDisabledReason: selectedCount === 0 ? DISABLED_NO_SELECTION : null,
   };
 }
 
@@ -249,48 +296,64 @@ export function useInboxBulkActions(reports: SignalReport[]) {
   );
 
   const suppressSelected = useCallback(async () => {
-    if (!eligibility.canSuppress) {
+    if (eligibility.suppressDisabledReason !== null) {
       return false;
     }
 
     await suppressMutation.mutateAsync(eligibility.selectedIds);
     return true;
-  }, [eligibility.canSuppress, eligibility.selectedIds, suppressMutation]);
+  }, [
+    eligibility.suppressDisabledReason,
+    eligibility.selectedIds,
+    suppressMutation,
+  ]);
 
   const snoozeSelected = useCallback(async () => {
-    if (!eligibility.canSnooze) {
+    if (eligibility.snoozeDisabledReason !== null) {
       return false;
     }
 
     await snoozeMutation.mutateAsync(eligibility.selectedIds);
     return true;
-  }, [eligibility.canSnooze, eligibility.selectedIds, snoozeMutation]);
+  }, [
+    eligibility.snoozeDisabledReason,
+    eligibility.selectedIds,
+    snoozeMutation,
+  ]);
 
   const deleteSelected = useCallback(async () => {
-    if (!eligibility.canDelete) {
+    if (eligibility.deleteDisabledReason !== null) {
       return false;
     }
 
     await deleteMutation.mutateAsync(eligibility.selectedIds);
     return true;
-  }, [deleteMutation, eligibility.canDelete, eligibility.selectedIds]);
+  }, [
+    deleteMutation,
+    eligibility.deleteDisabledReason,
+    eligibility.selectedIds,
+  ]);
 
   const reingestSelected = useCallback(async () => {
-    if (!eligibility.canReingest) {
+    if (eligibility.reingestDisabledReason !== null) {
       return false;
     }
 
     await reingestMutation.mutateAsync(eligibility.selectedIds);
     return true;
-  }, [eligibility.canReingest, eligibility.selectedIds, reingestMutation]);
+  }, [
+    eligibility.reingestDisabledReason,
+    eligibility.selectedIds,
+    reingestMutation,
+  ]);
 
   return {
     selectedReports: eligibility.selectedReports,
     selectedCount: eligibility.selectedCount,
-    canSuppress: eligibility.canSuppress,
-    canSnooze: eligibility.canSnooze,
-    canDelete: eligibility.canDelete,
-    canReingest: eligibility.canReingest,
+    snoozeDisabledReason: eligibility.snoozeDisabledReason,
+    suppressDisabledReason: eligibility.suppressDisabledReason,
+    deleteDisabledReason: eligibility.deleteDisabledReason,
+    reingestDisabledReason: eligibility.reingestDisabledReason,
     isSuppressing: suppressMutation.isPending,
     isSnoozing: snoozeMutation.isPending,
     isDeleting: deleteMutation.isPending,
