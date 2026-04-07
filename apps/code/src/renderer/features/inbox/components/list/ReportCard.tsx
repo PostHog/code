@@ -1,7 +1,7 @@
 import { SignalReportPriorityBadge } from "@features/inbox/components/utils/SignalReportPriorityBadge";
 import { SignalReportStatusBadge } from "@features/inbox/components/utils/SignalReportStatusBadge";
 import { SignalReportSummaryMarkdown } from "@features/inbox/components/utils/SignalReportSummaryMarkdown";
-import { SOURCE_PRODUCT_META } from "@features/inbox/components/utils/SourceProductIcons";
+import { SOURCE_PRODUCT_META } from "@features/inbox/components/utils/source-product-icons";
 import { inboxStatusAccentCss } from "@features/inbox/utils/inboxSort";
 import { EyeIcon } from "@phosphor-icons/react";
 import { Flex, Text, Tooltip } from "@radix-ui/themes";
