@@ -75,6 +75,8 @@ export default defineConfig([
       "src/agent.ts",
       "src/gateway-models.ts",
       "src/posthog-api.ts",
+      "src/resume.ts",
+      "src/tree-tracker.ts",
       "src/types.ts",
       "src/adapters/claude/questions/utils.ts",
       "src/adapters/claude/permissions/permission-options.ts",

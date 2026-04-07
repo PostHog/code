@@ -135,7 +135,7 @@ export function HeaderRow() {
           <DiffStatsBadge task={view.data} />
 
           {isCloudTask ? (
-            <CloudGitInteractionHeader taskId={view.data.id} />
+            <CloudGitInteractionHeader taskId={view.data.id} task={view.data} />
           ) : (
             <GitInteractionHeader taskId={view.data.id} />
           )}

@@ -77,6 +77,8 @@ export interface AgentSession {
   initialPrompt?: ContentBlock[];
   /** Cloud task branch */
   cloudBranch?: string | null;
+  /** Whether a cloud-to-local handoff is in progress */
+  handoffInProgress?: boolean;
   /** Number of session/prompt events to skip from polled logs (set during resume) */
   skipPolledPromptCount?: number;
   optimisticItems: OptimisticItem[];

@@ -16,6 +16,7 @@
  */
 
 import type { ContentBlock } from "@agentclientprotocol/sdk";
+import { selectRecentTurns } from "./adapters/claude/session/jsonl-hydration";
 import type { PostHogAPIClient } from "./posthog-api";
 import { ResumeSaga } from "./sagas/resume-saga";
 import type { DeviceInfo, TreeSnapshotEvent } from "./types";
@@ -112,4 +113,54 @@ export function conversationToPromptHistory(
     role: turn.role,
     content: turn.content,
   }));
+}
+
+const RESUME_HISTORY_TOKEN_BUDGET = 50_000;
+const TOOL_RESULT_MAX_CHARS = 2000;
+
+export function formatConversationForResume(
+  conversation: ConversationTurn[],
+): string {
+  const selected = selectRecentTurns(conversation, RESUME_HISTORY_TOKEN_BUDGET);
+  const parts: string[] = [];
+
+  if (selected.length < conversation.length) {
+    parts.push(
+      `*(${conversation.length - selected.length} earlier turns omitted)*`,
+    );
+  }
+
+  for (const turn of selected) {
+    const role = turn.role === "user" ? "User" : "Assistant";
+
+    const textParts = turn.content
+      .filter((block) => block.type === "text")
+      .map((block) => (block as { type: "text"; text: string }).text);
+
+    if (textParts.length > 0) {
+      parts.push(`**${role}**: ${textParts.join("\n")}`);
+    }
+
+    if (turn.toolCalls?.length) {
+      const toolSummary = turn.toolCalls
+        .map((tc) => {
+          let resultStr = "";
+          if (tc.result !== undefined) {
+            const raw =
+              typeof tc.result === "string"
+                ? tc.result
+                : JSON.stringify(tc.result);
+            resultStr =
+              raw.length > TOOL_RESULT_MAX_CHARS
+                ? ` → ${raw.substring(0, TOOL_RESULT_MAX_CHARS)}...(truncated)`
+                : ` → ${raw}`;
+          }
+          return `  - ${tc.toolName}${resultStr}`;
+        })
+        .join("\n");
+      parts.push(`**${role} (tools)**:\n${toolSummary}`);
+    }
+  }
+
+  return parts.join("\n\n");
 }

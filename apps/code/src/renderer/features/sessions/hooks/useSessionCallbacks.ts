@@ -17,6 +17,42 @@ import {
 
 const log = logger.scope("session-callbacks");
 
+async function resolveRepoPathFromRemote(
+  remoteUrl: string | undefined | null,
+): Promise<string | null> {
+  if (!remoteUrl) return null;
+  const repo = await trpcClient.folders.getRepositoryByRemoteUrl.query({
+    remoteUrl,
+  });
+  return repo?.path ?? null;
+}
+
+async function resolveRepoPathFromPicker(
+  taskId: string,
+): Promise<string | null> {
+  const selectedPath = await trpcClient.os.selectDirectory.query();
+  if (!selectedPath) return null;
+
+  let folder = (await trpcClient.folders.getFolders.query()).find(
+    (f) => f.path === selectedPath,
+  );
+  if (!folder) {
+    folder = await trpcClient.folders.addFolder.mutate({
+      folderPath: selectedPath,
+    });
+  }
+
+  await trpcClient.workspace.create.mutate({
+    taskId,
+    mainRepoPath: selectedPath,
+    folderId: folder.id,
+    folderPath: selectedPath,
+    mode: "local",
+  });
+
+  return selectedPath;
+}
+
 interface UseSessionCallbacksOptions {
   taskId: string;
   task: Task;
@@ -168,11 +204,28 @@ export function useSessionCallbacks({
     [taskId, repoPath],
   );
 
+  const handleContinueLocally = useCallback(async () => {
+    try {
+      const targetPath =
+        (await resolveRepoPathFromRemote(task.repository)) ??
+        (await resolveRepoPathFromPicker(taskId));
+
+      if (!targetPath) return;
+
+      await getSessionService().handoffToLocal(taskId, targetPath);
+    } catch (error) {
+      log.error("Failed to hand off to local", error);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(`Failed to continue locally: ${message}`);
+    }
+  }, [taskId, task.repository]);
+
   return {
     handleSendPrompt,
     handleCancelPrompt,
     handleRetry,
     handleNewSession,
     handleBashCommand,
+    handleContinueLocally,
   };
 }

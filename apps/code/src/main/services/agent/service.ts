@@ -1009,6 +1009,19 @@ When creating pull requests, add the following footer at the end of the PR descr
     ]);
   }
 
+  setPendingContext(taskRunId: string, context: string): void {
+    const session = this.sessions.get(taskRunId);
+    if (!session) {
+      log.warn("Session not found for setPendingContext", { taskRunId });
+      return;
+    }
+    session.pendingContext = context;
+    log.info("Set pending context on session", {
+      taskRunId,
+      contextLength: context.length,
+    });
+  }
+
   /**
    * Notify a session of a context change (CWD moved, detached HEAD, etc).
    * Used when focusing/unfocusing worktrees - the agent doesn't need to respawn

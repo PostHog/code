@@ -56,6 +56,14 @@
       "types": "./dist/execution-mode.d.ts",
       "import": "./dist/execution-mode.js"
     },
+    "./resume": {
+      "types": "./dist/resume.d.ts",
+      "import": "./dist/resume.js"
+    },
+    "./tree-tracker": {
+      "types": "./dist/tree-tracker.d.ts",
+      "import": "./dist/tree-tracker.js"
+    },
     "./server": {
       "types": "./dist/server/agent-server.d.ts",
       "import": "./dist/server/agent-server.js"

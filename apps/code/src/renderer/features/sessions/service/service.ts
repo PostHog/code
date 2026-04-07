@@ -36,6 +36,7 @@ import {
 } from "@posthog/agent/execution-mode";
 import { DEFAULT_GATEWAY_MODEL } from "@posthog/agent/gateway-models";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
+import { trpc } from "@renderer/trpc";
 import { trpcClient } from "@renderer/trpc/client";
 import { getGhUserTokenOrThrow } from "@renderer/utils/github";
 import { toast } from "@renderer/utils/toast";
@@ -2548,6 +2549,116 @@ export class SessionService {
       .catch((err: unknown) =>
         log.warn("Failed to unwatch cloud task", { taskId, err }),
       );
+  }
+
+  async handoffToLocal(taskId: string, repoPath: string): Promise<void> {
+    const session = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (!session) {
+      log.warn("No session found for handoff", { taskId });
+      return;
+    }
+
+    const runId = session.taskRunId;
+    const auth = await this.getHandoffAuth();
+    if (!auth) return;
+
+    sessionStoreSetters.updateSession(runId, { handoffInProgress: true });
+
+    try {
+      await this.runHandoffPreflight(taskId, runId, repoPath, auth);
+      this.stopCloudTaskWatch(taskId);
+      sessionStoreSetters.updateSession(runId, { status: "connecting" });
+      await this.executeHandoff(taskId, runId, repoPath, auth);
+      this.transitionToLocalSession(runId);
+      this.subscribeToChannel(runId);
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter());
+      log.info("Cloud-to-local handoff complete", { taskId, runId });
+    } catch (err) {
+      log.error("Handoff failed", { taskId, err });
+      toast.error(
+        err instanceof Error ? err.message : "Handoff to local failed",
+      );
+      this.watchCloudTask(taskId, runId, auth.apiHost, auth.projectId);
+      sessionStoreSetters.updateSession(runId, {
+        handoffInProgress: false,
+        status: "disconnected",
+      });
+    }
+  }
+
+  private async getHandoffAuth(): Promise<{
+    apiHost: string;
+    projectId: number;
+  } | null> {
+    let auth: Awaited<ReturnType<typeof fetchAuthState>>;
+    try {
+      auth = await fetchAuthState();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Authentication required for handoff: ${message}`);
+      return null;
+    }
+    if (!auth.projectId || !auth.cloudRegion) {
+      toast.error("Missing project configuration for handoff");
+      return null;
+    }
+    return {
+      apiHost: getCloudUrlFromRegion(auth.cloudRegion),
+      projectId: auth.projectId,
+    };
+  }
+
+  private async runHandoffPreflight(
+    taskId: string,
+    runId: string,
+    repoPath: string,
+    auth: { apiHost: string; projectId: number },
+  ): Promise<void> {
+    const preflight = await trpcClient.handoff.preflight.query({
+      taskId,
+      runId,
+      repoPath,
+      apiHost: auth.apiHost,
+      teamId: auth.projectId,
+    });
+    if (!preflight.canHandoff) {
+      sessionStoreSetters.updateSession(runId, {
+        handoffInProgress: false,
+      });
+      throw new Error(preflight.reason ?? "Cannot hand off to local");
+    }
+  }
+
+  private async executeHandoff(
+    taskId: string,
+    runId: string,
+    repoPath: string,
+    auth: { apiHost: string; projectId: number },
+  ): Promise<void> {
+    const result = await trpcClient.handoff.execute.mutate({
+      taskId,
+      runId,
+      repoPath,
+      apiHost: auth.apiHost,
+      teamId: auth.projectId,
+    });
+    if (!result.success) {
+      throw new Error(result.error ?? "Handoff failed");
+    }
+  }
+
+  private transitionToLocalSession(runId: string): void {
+    sessionStoreSetters.updateSession(runId, {
+      isCloud: false,
+      cloudStatus: undefined,
+      cloudStage: undefined,
+      cloudOutput: undefined,
+      cloudErrorMessage: undefined,
+      cloudBranch: undefined,
+      handoffInProgress: false,
+      status: "connected",
+    });
   }
 
   async retryCloudTaskWatch(taskId: string): Promise<void> {

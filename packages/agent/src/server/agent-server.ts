@@ -25,12 +25,11 @@ import {
   type AgentErrorClassification,
   classifyAgentError,
 } from "../adapters/claude/conversion/sdk-to-acp";
-import { selectRecentTurns } from "../adapters/claude/session/jsonl-hydration";
 import type { PermissionMode } from "../execution-mode";
 import { DEFAULT_CODEX_MODEL } from "../gateway-models";
 import { PostHogAPIClient } from "../posthog-api";
 import {
-  type ConversationTurn,
+  formatConversationForResume,
   type ResumeState,
   resumeFromLog,
 } from "../resume";
@@ -1147,7 +1146,7 @@ export class AgentServer {
     if (!this.session || !this.resumeState) return;
 
     try {
-      const conversationSummary = this.formatConversationForResume(
+      const conversationSummary = formatConversationForResume(
         this.resumeState.conversation,
       );
 
@@ -1227,59 +1226,6 @@ export class AgentServer {
       }
       await this.classifyAndSignalFailure(payload, "resume", error);
     }
-  }
-
-  private static RESUME_HISTORY_TOKEN_BUDGET = 50_000;
-  private static TOOL_RESULT_MAX_CHARS = 2000;
-
-  private formatConversationForResume(
-    conversation: ConversationTurn[],
-  ): string {
-    const selected = selectRecentTurns(
-      conversation,
-      AgentServer.RESUME_HISTORY_TOKEN_BUDGET,
-    );
-    const parts: string[] = [];
-
-    if (selected.length < conversation.length) {
-      parts.push(
-        `*(${conversation.length - selected.length} earlier turns omitted)*`,
-      );
-    }
-
-    for (const turn of selected) {
-      const role = turn.role === "user" ? "User" : "Assistant";
-
-      const textParts = turn.content
-        .filter((block) => block.type === "text")
-        .map((block) => (block as { type: "text"; text: string }).text);
-
-      if (textParts.length > 0) {
-        parts.push(`**${role}**: ${textParts.join("\n")}`);
-      }
-
-      if (turn.toolCalls?.length) {
-        const toolSummary = turn.toolCalls
-          .map((tc) => {
-            let resultStr = "";
-            if (tc.result !== undefined) {
-              const raw =
-                typeof tc.result === "string"
-                  ? tc.result
-                  : JSON.stringify(tc.result);
-              resultStr =
-                raw.length > AgentServer.TOOL_RESULT_MAX_CHARS
-                  ? ` → ${raw.substring(0, AgentServer.TOOL_RESULT_MAX_CHARS)}...(truncated)`
-                  : ` → ${raw}`;
-            }
-            return `  - ${tc.toolName}${resultStr}`;
-          })
-          .join("\n");
-        parts.push(`**${role} (tools)**:\n${toolSummary}`);
-      }
-    }
-
-    return parts.join("\n\n");
   }
 
   private getInitialPromptOverride(taskRun: TaskRun): string | null {

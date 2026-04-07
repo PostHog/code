@@ -43,6 +43,7 @@ import { FoldersService } from "../services/folders/service";
 import { FsService } from "../services/fs/service";
 import { GitService } from "../services/git/service";
 import { GitHubIntegrationService } from "../services/github-integration/service";
+import { HandoffService } from "../services/handoff/service";
 import { InboxLinkService } from "../services/inbox-link/service";
 import { LinearIntegrationService } from "../services/linear-integration/service";
 import { LlmGatewayService } from "../services/llm-gateway/service";
@@ -122,6 +123,7 @@ container
   .bind(MAIN_TOKENS.GitHubIntegrationService)
   .to(GitHubIntegrationService);
 container.bind(MAIN_TOKENS.GitService).to(GitService);
+container.bind(MAIN_TOKENS.HandoffService).to(HandoffService);
 container
   .bind(MAIN_TOKENS.LinearIntegrationService)
   .to(LinearIntegrationService);
