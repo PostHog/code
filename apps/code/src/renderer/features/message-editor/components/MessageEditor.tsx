@@ -64,7 +64,12 @@ function ModeAndBranchRow({
   }
 
   return (
-    <Flex align="center" justify="between" style={{ overflow: "hidden" }}>
+    <Flex
+      align="center"
+      justify="between"
+      gap="3"
+      style={{ overflow: "hidden" }}
+    >
       <Flex align="center" gap="2" flexShrink="0">
         {isBashMode ? (
           <Text
@@ -89,7 +94,12 @@ function ModeAndBranchRow({
           </>
         )}
       </Flex>
-      <Flex align="center" gap="2" style={{ minWidth: 0, overflow: "hidden" }}>
+      <Flex
+        align="center"
+        gap="2"
+        wrap="nowrap"
+        style={{ minWidth: 0, overflow: "hidden" }}
+      >
         <DiffStatsIndicator
           repoPath={repoPath}
           overrideStats={cloudDiffStats}

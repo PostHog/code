@@ -32,7 +32,7 @@ export function DiffStatsIndicator({
   }
 
   return (
-    <Flex align="center" gap="2">
+    <Flex align="center" gap="2" style={{ whiteSpace: "nowrap" }}>
       <Text
         size="1"
         style={{
