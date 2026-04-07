@@ -57,10 +57,12 @@ import type {
   OpenPrOutput,
   PrActionType,
   PrDetailsByUrlOutput,
+  PrReviewComment,
   PrStatusOutput,
   PublishOutput,
   PullOutput,
   PushOutput,
+  ReplyToPrCommentOutput,
   SyncOutput,
   UpdatePrByUrlOutput,
 } from "./schemas";
@@ -1007,6 +1009,71 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
         success: false,
         message: error instanceof Error ? error.message : "Unknown error",
       };
+    }
+  }
+
+  public async getPrReviewComments(prUrl: string): Promise<PrReviewComment[]> {
+    const pr = parsePrUrl(prUrl);
+    if (!pr) return [];
+
+    const { owner, repo, number } = pr;
+
+    try {
+      const result = await execGh([
+        "api",
+        `repos/${owner}/${repo}/pulls/${number}/comments`,
+        "--paginate",
+        "--slurp",
+      ]);
+
+      if (result.exitCode !== 0) {
+        throw new Error(
+          `Failed to fetch PR review comments: ${result.stderr || result.error || "Unknown error"}`,
+        );
+      }
+
+      const pages = JSON.parse(result.stdout) as PrReviewComment[][];
+      return pages.flat();
+    } catch (error) {
+      log.warn("Failed to fetch PR review comments", { prUrl, error });
+      throw error;
+    }
+  }
+
+  public async replyToPrComment(
+    prUrl: string,
+    commentId: number,
+    body: string,
+  ): Promise<ReplyToPrCommentOutput> {
+    const pr = parsePrUrl(prUrl);
+    if (!pr) {
+      return { success: false, comment: null };
+    }
+
+    try {
+      const result = await execGh([
+        "api",
+        `repos/${pr.owner}/${pr.repo}/pulls/${pr.number}/comments/${commentId}/replies`,
+        "-X",
+        "POST",
+        "-f",
+        `body=${body}`,
+      ]);
+
+      if (result.exitCode !== 0) {
+        log.warn("Failed to reply to PR comment", {
+          prUrl,
+          commentId,
+          error: result.stderr || result.error,
+        });
+        return { success: false, comment: null };
+      }
+
+      const data = JSON.parse(result.stdout) as PrReviewComment;
+      return { success: true, comment: data };
+    } catch (error) {
+      log.warn("Failed to reply to PR comment", { prUrl, commentId, error });
+      return { success: false, comment: null };
     }
   }
 

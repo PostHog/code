@@ -1,3 +1,5 @@
+import { useDiffViewerStore } from "@features/code-editor/stores/diffViewerStore";
+import { usePrDetails } from "@features/git-interaction/hooks/usePrDetails";
 import { useCloudChangedFiles } from "@features/task-detail/hooks/useCloudChangedFiles";
 import type { FileDiffMetadata } from "@pierre/diffs";
 import { processFile } from "@pierre/diffs";
@@ -6,6 +8,7 @@ import { useReviewNavigationStore } from "@renderer/features/code-review/stores/
 import type { ChangedFile, Task } from "@shared/types";
 import { useMemo } from "react";
 import type { DiffOptions } from "../types";
+import type { PrCommentThread } from "../utils/prCommentAnnotations";
 import { InteractiveFileDiff } from "./InteractiveFileDiff";
 import {
   DeferredDiffPlaceholder,
@@ -23,8 +26,12 @@ export function CloudReviewPage({ task }: CloudReviewPageProps) {
   const isReviewOpen = useReviewNavigationStore(
     (s) => (s.reviewModes[taskId] ?? "closed") !== "closed",
   );
+  const showReviewComments = useDiffViewerStore((s) => s.showReviewComments);
   const { effectiveBranch, prUrl, isRunActive, remoteFiles, isLoading } =
     useCloudChangedFiles(taskId, task, isReviewOpen);
+  const { commentThreads } = usePrDetails(prUrl, {
+    includeComments: isReviewOpen && showReviewComments,
+  });
 
   const allPaths = useMemo(() => remoteFiles.map((f) => f.path), [remoteFiles]);
 
@@ -44,23 +51,20 @@ export function CloudReviewPage({ task }: CloudReviewPageProps) {
   if (!prUrl && !effectiveBranch && remoteFiles.length === 0) {
     if (isRunActive) {
       return (
-        <Flex align="center" justify="center" height="100%">
-          <Flex align="center" gap="2">
-            <Spinner size="1" />
-            <Text size="2" color="gray">
-              Waiting for changes...
-            </Text>
+        <Flex
+          align="center"
+          justify="center"
+          height="100%"
+          className="text-gray-10"
+        >
+          <Flex direction="column" align="center" gap="2">
+            <Spinner size="2" />
+            <Text size="2">Waiting for changes...</Text>
           </Flex>
         </Flex>
       );
     }
-    return (
-      <Flex align="center" justify="center" height="100%">
-        <Text size="2" color="gray">
-          No file changes yet
-        </Text>
-      </Flex>
-    );
+    return null;
   }
 
   return (
@@ -105,6 +109,7 @@ export function CloudReviewPage({ task }: CloudReviewPageProps) {
               options={diffOptions}
               collapsed={isCollapsed}
               onToggle={() => toggleFile(file.path)}
+              commentThreads={showReviewComments ? commentThreads : undefined}
             />
           </div>
         );
@@ -120,6 +125,7 @@ function CloudFileDiff({
   options,
   collapsed,
   onToggle,
+  commentThreads,
 }: {
   file: ChangedFile;
   taskId: string;
@@ -127,6 +133,7 @@ function CloudFileDiff({
   options: DiffOptions;
   collapsed: boolean;
   onToggle: () => void;
+  commentThreads?: Map<number, PrCommentThread>;
 }) {
   const fileDiff = useMemo((): FileDiffMetadata | undefined => {
     if (!file.patch) return undefined;
@@ -157,6 +164,8 @@ function CloudFileDiff({
       fileDiff={fileDiff}
       options={{ ...options, collapsed }}
       taskId={taskId}
+      prUrl={prUrl}
+      commentThreads={commentThreads}
       renderCustomHeader={(fd) => (
         <DiffFileHeader
           fileDiff={fd}

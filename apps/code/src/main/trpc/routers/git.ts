@@ -44,6 +44,8 @@ import {
   getPrChangedFilesOutput,
   getPrDetailsByUrlInput,
   getPrDetailsByUrlOutput,
+  getPrReviewCommentsInput,
+  getPrReviewCommentsOutput,
   getPrTemplateInput,
   getPrTemplateOutput,
   ghAuthTokenOutput,
@@ -59,6 +61,8 @@ import {
   pullOutput,
   pushInput,
   pushOutput,
+  replyToPrCommentInput,
+  replyToPrCommentOutput,
   searchGithubIssuesInput,
   searchGithubIssuesOutput,
   stageFilesInput,
@@ -318,6 +322,18 @@ export const gitRouter = router({
     .output(updatePrByUrlOutput)
     .mutation(({ input }) =>
       getService().updatePrByUrl(input.prUrl, input.action),
+    ),
+
+  getPrReviewComments: publicProcedure
+    .input(getPrReviewCommentsInput)
+    .output(getPrReviewCommentsOutput)
+    .query(({ input }) => getService().getPrReviewComments(input.prUrl)),
+
+  replyToPrComment: publicProcedure
+    .input(replyToPrCommentInput)
+    .output(replyToPrCommentOutput)
+    .mutation(({ input }) =>
+      getService().replyToPrComment(input.prUrl, input.commentId, input.body),
     ),
 
   getBranchChangedFiles: publicProcedure
