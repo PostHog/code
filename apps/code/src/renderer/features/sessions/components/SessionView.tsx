@@ -7,7 +7,6 @@ import {
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import {
   cycleModeOption,
-  flattenSelectOptions,
   useModeConfigOptionForTask,
   usePendingPermissionsForTask,
 } from "@features/sessions/stores/sessionStore";
@@ -103,27 +102,19 @@ export function SessionView({
 
   const prevAllowBypass = useRef(allowBypassPermissions);
   useEffect(() => {
-    const wasEnabled = prevAllowBypass.current;
+    const turnedOff = prevAllowBypass.current && !allowBypassPermissions;
     prevAllowBypass.current = allowBypassPermissions;
-    if (
-      wasEnabled &&
-      !allowBypassPermissions &&
-      (currentModeId === "bypassPermissions" ||
-        currentModeId === "full-access") &&
-      taskId &&
-      modeOption
-    ) {
-      const options = flattenSelectOptions(modeOption.options);
-      const safeOption =
-        options.find(
-          (opt) =>
-            opt.value !== "bypassPermissions" && opt.value !== "full-access",
-        ) ?? options[0];
-      if (safeOption) {
+
+    const isBypass =
+      currentModeId === "bypassPermissions" || currentModeId === "full-access";
+
+    if (turnedOff && isBypass && taskId) {
+      const nextMode = cycleModeOption(modeOption, false);
+      if (nextMode) {
         getSessionService().setSessionConfigOptionByCategory(
           taskId,
           "mode",
-          safeOption.value,
+          nextMode,
         );
       }
     }
