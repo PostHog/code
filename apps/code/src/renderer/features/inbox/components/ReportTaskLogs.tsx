@@ -222,7 +222,6 @@ export function ReportTaskLogs({
             taskId={task.id}
             task={task}
             hideInput={reportStatus !== "ready"}
-            hideCloudStatus
           />
         </div>
       </div>

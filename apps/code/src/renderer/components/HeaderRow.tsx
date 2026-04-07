@@ -1,3 +1,4 @@
+import { CloudGitInteractionHeader } from "@features/git-interaction/components/CloudGitInteractionHeader";
 import { GitInteractionHeader } from "@features/git-interaction/components/GitInteractionHeader";
 import { RightSidebarTrigger } from "@features/right-sidebar/components/RightSidebarTrigger";
 import { useRightSidebarStore } from "@features/right-sidebar/stores/rightSidebarStore";
@@ -124,9 +125,12 @@ export function HeaderRow() {
           }}
         >
           <RightSidebarTrigger />
-          {!isCloudTask && rightSidebarOpen && (
-            <GitInteractionHeader taskId={view.data.id} />
-          )}
+          {rightSidebarOpen &&
+            (isCloudTask ? (
+              <CloudGitInteractionHeader taskId={view.data.id} />
+            ) : (
+              <GitInteractionHeader taskId={view.data.id} />
+            ))}
           {rightSidebarOpen && (
             <Box
               onMouseDown={handleRightSidebarMouseDown}
