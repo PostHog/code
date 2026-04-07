@@ -42,7 +42,10 @@ export const jsonRpcRequestSchema = z.object({
 export type JsonRpcRequest = z.infer<typeof jsonRpcRequestSchema>;
 
 export const userMessageParamsSchema = z.object({
-  content: z.string().min(1, "Content is required"),
+  content: z.union([
+    z.string().min(1, "Content is required"),
+    z.array(z.record(z.string(), z.unknown())).min(1, "Content is required"),
+  ]),
 });
 
 export const commandParamsSchemas = {
