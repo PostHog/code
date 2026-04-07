@@ -98,19 +98,19 @@ function isThoughtItem(
 }
 
 function markThoughtCompletion(items: ConversationItem[]) {
+  const seenContexts = new Set<TurnContext>();
+
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i];
-    if (!isThoughtItem(item)) continue;
 
-    const hasSubsequentItem = items
-      .slice(i + 1)
-      .some(
-        (next) =>
-          next.type === "session_update" &&
-          next.turnContext === item.turnContext,
-      );
+    if (isThoughtItem(item)) {
+      item.thoughtComplete =
+        seenContexts.has(item.turnContext) || item.turnContext.turnComplete;
+    }
 
-    item.thoughtComplete = hasSubsequentItem || item.turnContext.turnComplete;
+    if (item.type === "session_update") {
+      seenContexts.add(item.turnContext);
+    }
   }
 }
 
