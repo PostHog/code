@@ -65,9 +65,11 @@ interface ReportListPaneProps {
   hasSignalSources: boolean;
   searchQuery: string;
   hasActiveFilters: boolean;
-  selectedReportId: string | null;
   selectedReportIds: string[];
-  onSelectReport: (id: string) => void;
+  onReportClick: (
+    id: string,
+    event: { metaKey: boolean; shiftKey: boolean },
+  ) => void;
   onToggleReportSelection: (id: string) => void;
 }
 
@@ -84,9 +86,8 @@ export function ReportListPane({
   hasSignalSources,
   searchQuery,
   hasActiveFilters,
-  selectedReportId,
   selectedReportIds = [],
-  onSelectReport,
+  onReportClick,
   onToggleReportSelection,
 }: ReportListPaneProps) {
   // ── Loading skeleton ────────────────────────────────────────────────────
@@ -160,6 +161,9 @@ export function ReportListPane({
     );
   }
 
+  const selectedIdSet = new Set(selectedReportIds);
+  const showCheckboxes = selectedReportIds.length > 1;
+
   // ── Report list ─────────────────────────────────────────────────────────
   return (
     <>
@@ -168,9 +172,9 @@ export function ReportListPane({
           key={report.id}
           report={report}
           index={index}
-          isSelected={selectedReportId === report.id}
-          isChecked={selectedReportIds.includes(report.id)}
-          onClick={() => onSelectReport(report.id)}
+          isSelected={selectedIdSet.has(report.id)}
+          showCheckbox={showCheckboxes}
+          onClick={(e) => onReportClick(report.id, e)}
           onToggleChecked={() => onToggleReportSelection(report.id)}
         />
       ))}
