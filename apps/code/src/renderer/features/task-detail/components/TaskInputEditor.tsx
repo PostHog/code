@@ -12,7 +12,7 @@ import { UnifiedModelSelector } from "@features/sessions/components/UnifiedModel
 import type { AgentAdapter } from "@features/settings/stores/settingsStore";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { ArrowUp } from "@phosphor-icons/react";
-import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
 import { trpcClient } from "@renderer/trpc/client";
 import { EditorContent } from "@tiptap/react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react";
@@ -270,30 +270,29 @@ export const TaskInputEditor = forwardRef<
 
           <Flex align="center" gap="4">
             <TourHighlight active={tourHighlight === "submit-button"}>
-              <Tooltip content={getSubmitTooltip()}>
-                <IconButton
-                  size="1"
-                  variant="solid"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSubmit();
-                  }}
-                  disabled={!canSubmit || isSubmitDisabled}
-                  loading={isCreatingTask}
-                  style={{
-                    backgroundColor:
-                      !canSubmit || isSubmitDisabled
-                        ? "var(--accent-a4)"
-                        : undefined,
-                    color:
-                      !canSubmit || isSubmitDisabled
-                        ? "var(--accent-8)"
-                        : undefined,
-                  }}
-                >
-                  <ArrowUp size={16} weight="bold" />
-                </IconButton>
-              </Tooltip>
+              <IconButton
+                size="1"
+                variant="solid"
+                title={getSubmitTooltip()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSubmit();
+                }}
+                disabled={!canSubmit || isSubmitDisabled}
+                loading={isCreatingTask}
+                style={{
+                  backgroundColor:
+                    !canSubmit || isSubmitDisabled
+                      ? "var(--accent-a4)"
+                      : undefined,
+                  color:
+                    !canSubmit || isSubmitDisabled
+                      ? "var(--accent-8)"
+                      : undefined,
+                }}
+              >
+                <ArrowUp size={16} weight="bold" />
+              </IconButton>
             </TourHighlight>
           </Flex>
         </Flex>
