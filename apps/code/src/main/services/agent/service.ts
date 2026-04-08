@@ -12,7 +12,7 @@ import {
   type SessionConfigOption,
   type SessionNotification,
 } from "@agentclientprotocol/sdk";
-import { isMcpToolReadOnly } from "@posthog/agent";
+import { isMcpToolReadOnly, POSTHOG_NOTIFICATIONS } from "@posthog/agent";
 import { hydrateSessionJsonl } from "@posthog/agent/adapters/claude/session/jsonl-hydration";
 import { getEffortOptions } from "@posthog/agent/adapters/claude/session/models";
 import { Agent } from "@posthog/agent/agent";
@@ -1350,7 +1350,7 @@ For git operations while detached:
         method: string,
         params: Record<string, unknown>,
       ): Promise<void> => {
-        if (method === "_posthog/sdk_session") {
+        if (method === POSTHOG_NOTIFICATIONS.SDK_SESSION) {
           const {
             taskRunId: notifTaskRunId,
             sessionId,

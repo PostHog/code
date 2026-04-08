@@ -830,7 +830,7 @@ export class SessionService {
       }
     }
 
-    // Handle _posthog/sdk_session notifications for adapter info
+    // Handle SDK_SESSION notifications for adapter info
     if (
       "method" in msg &&
       msg.method === POSTHOG_NOTIFICATIONS.SDK_SESSION &&

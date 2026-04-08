@@ -931,7 +931,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       ),
       ...(meta?.taskRunId
         ? [
-            this.client.extNotification("_posthog/sdk_session", {
+            this.client.extNotification(POSTHOG_NOTIFICATIONS.SDK_SESSION, {
               taskRunId: meta.taskRunId,
               sessionId,
               adapter: "claude",

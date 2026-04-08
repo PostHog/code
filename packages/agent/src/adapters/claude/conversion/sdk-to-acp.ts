@@ -17,6 +17,7 @@ import type {
   BetaContentBlock,
   BetaRawContentBlockDelta,
 } from "@anthropic-ai/sdk/resources/beta.mjs";
+import { POSTHOG_NOTIFICATIONS } from "@/index";
 import { image, text } from "../../../utils/acp-content";
 import { unreachable } from "../../../utils/common";
 import type { Logger } from "../../../utils/logger";
@@ -550,7 +551,7 @@ export async function handleSystemMessage(
     case "init":
       break;
     case "compact_boundary":
-      await client.extNotification("_posthog/compact_boundary", {
+      await client.extNotification(POSTHOG_NOTIFICATIONS.COMPACT_BOUNDARY, {
         sessionId,
         trigger: message.compact_metadata.trigger,
         preTokens: message.compact_metadata.pre_tokens,
@@ -566,7 +567,7 @@ export async function handleSystemMessage(
     case "status":
       if (message.status === "compacting") {
         logger.info("Session compacting started", { sessionId });
-        await client.extNotification("_posthog/status", {
+        await client.extNotification(POSTHOG_NOTIFICATIONS.STATUS, {
           sessionId,
           status: "compacting",
         });
@@ -579,7 +580,7 @@ export async function handleSystemMessage(
         status: message.status,
         summary: message.summary,
       });
-      await client.extNotification("_posthog/task_notification", {
+      await client.extNotification(POSTHOG_NOTIFICATIONS.TASK_NOTIFICATION, {
         sessionId,
         taskId: message.task_id,
         status: message.status,

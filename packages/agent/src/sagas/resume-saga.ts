@@ -178,15 +178,9 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
   private findLatestTreeSnapshot(
     entries: StoredNotification[],
   ): TreeSnapshotEvent | null {
-    const sdkPrefixedMethod = `_${POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT}`;
-
     for (let i = entries.length - 1; i >= 0; i--) {
       const entry = entries[i];
-      const method = entry.notification?.method;
-      if (
-        method === sdkPrefixedMethod ||
-        method === POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT
-      ) {
+      if (entry.notification?.method === POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT) {
         const params = entry.notification.params as
           | TreeSnapshotEvent
           | undefined;

@@ -4,6 +4,7 @@ import type {
 } from "@agentclientprotocol/sdk";
 import type { QueuedMessage } from "@features/sessions/stores/sessionStore";
 import type { SessionUpdate, ToolCall } from "@features/sessions/types";
+import { POSTHOG_NOTIFICATIONS } from "@posthog/agent";
 import {
   type AcpMessage,
   isJsonRpcNotification,
@@ -282,12 +283,6 @@ function handlePromptResponse(
   b.pendingPrompts.delete(msg.id);
 }
 
-/** Check if a method matches a PostHog notification name, accounting for
- *  the SDK sometimes double-prefixing (`__posthog/` instead of `_posthog/`). */
-function isPosthogMethod(method: string, name: string): boolean {
-  return method === `_posthog/${name}` || method === `__posthog/${name}`;
-}
-
 function handleNotification(
   b: ItemBuilder,
   msg: { method: string; params?: unknown },
@@ -323,7 +318,7 @@ function handleNotification(
     return;
   }
 
-  if (isPosthogMethod(msg.method, "console")) {
+  if (msg.method === POSTHOG_NOTIFICATIONS.CONSOLE) {
     if (!b.currentTurn) {
       ensureImplicitTurn(b, ts);
     }
@@ -339,7 +334,7 @@ function handleNotification(
     return;
   }
 
-  if (isPosthogMethod(msg.method, "compact_boundary")) {
+  if (msg.method === POSTHOG_NOTIFICATIONS.COMPACT_BOUNDARY) {
     if (!b.currentTurn) ensureImplicitTurn(b, ts);
     const params = msg.params as {
       trigger: "manual" | "auto";
@@ -356,7 +351,7 @@ function handleNotification(
     return;
   }
 
-  if (isPosthogMethod(msg.method, "status")) {
+  if (msg.method === POSTHOG_NOTIFICATIONS.STATUS) {
     if (!b.currentTurn) ensureImplicitTurn(b, ts);
     const params = msg.params as { status: string; isComplete?: boolean };
     if (params.status === "compacting" && !params.isComplete) {
