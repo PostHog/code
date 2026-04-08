@@ -1,3 +1,4 @@
+import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   filterOtherOptions,
@@ -12,15 +13,24 @@ function needsCustomInput(option: SelectorOption): boolean {
   return option.customInput === true || isOtherOption(option.id);
 }
 
-function isUserInInteractiveElement(): boolean {
+function isInteractiveElementInDifferentCell(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+): boolean {
   const el = document.activeElement;
-  return (
-    el instanceof HTMLElement &&
-    (el.tagName === "INPUT" ||
-      el.tagName === "TEXTAREA" ||
-      el.tagName === "SELECT" ||
-      el.getAttribute("contenteditable") === "true")
-  );
+  if (!(el instanceof HTMLElement)) return false;
+
+  const isInteractive =
+    el.tagName === "INPUT" ||
+    el.tagName === "TEXTAREA" ||
+    el.tagName === "SELECT" ||
+    el.getAttribute("contenteditable") === "true";
+  if (!isInteractive) return false;
+
+  const activeCell = el.closest("[data-grid-cell]");
+  const ownCell = containerRef.current?.closest("[data-grid-cell]");
+  if (!activeCell || !ownCell) return true;
+
+  return activeCell !== ownCell;
 }
 
 interface UseActionSelectorStateProps {
@@ -87,7 +97,7 @@ export function useActionSelectorState({
     isEditing && selectedOption && needsCustomInput(selectedOption);
 
   useEffect(() => {
-    if (!isUserInInteractiveElement()) {
+    if (!isInteractiveElementInDifferentCell(containerRef)) {
       containerRef.current?.focus();
     }
   }, []);
@@ -143,7 +153,7 @@ export function useActionSelectorState({
 
   useEffect(() => {
     restoreStepAnswer(activeStep, {
-      autoFocus: !isUserInInteractiveElement(),
+      autoFocus: !isInteractiveElementInDifferentCell(containerRef),
     });
   }, [activeStep, restoreStepAnswer]);
 
