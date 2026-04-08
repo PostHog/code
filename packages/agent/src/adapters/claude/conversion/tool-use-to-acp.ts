@@ -226,11 +226,19 @@ export function toolInfoFromToolUse(
         : undefined;
       const contentStr = input?.content ? String(input.content) : undefined;
       if (writeFilePath) {
-        const oldContent =
+        let oldContent: string | null = null;
+        if (
           options?.cachedFileContent &&
           writeFilePath in options.cachedFileContent
-            ? options.cachedFileContent[writeFilePath]
-            : null;
+        ) {
+          oldContent = options.cachedFileContent[writeFilePath];
+        } else {
+          try {
+            oldContent = fs.readFileSync(writeFilePath, "utf-8");
+          } catch {
+            // File doesn't exist — genuinely a new file
+          }
+        }
         contentResult = toolContent()
           .diff(writeFilePath, oldContent, contentStr ?? "")
           .build();
