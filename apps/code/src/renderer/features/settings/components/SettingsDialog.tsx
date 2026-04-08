@@ -3,6 +3,7 @@ import {
   type SettingsCategory,
   useSettingsDialogStore,
 } from "@features/settings/stores/settingsDialogStore";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useSeat } from "@hooks/useSeat";
 import {
   ArrowLeft,
@@ -24,7 +25,7 @@ import {
 } from "@phosphor-icons/react";
 import { Avatar, Box, Flex, ScrollArea, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { AdvancedSettings } from "./sections/AdvancedSettings";
 import { ClaudeCodeSettings } from "./sections/ClaudeCodeSettings";
@@ -119,6 +120,15 @@ export function SettingsDialog() {
     useSettingsDialogStore();
   const { client, isAuthenticated } = useAuthStore();
   const { seat, planLabel } = useSeat();
+  const billingEnabled = useFeatureFlag("posthog-code-billing");
+
+  const sidebarItems = useMemo(
+    () =>
+      billingEnabled
+        ? SIDEBAR_ITEMS
+        : SIDEBAR_ITEMS.filter((item) => item.id !== "plan-usage"),
+    [billingEnabled],
+  );
 
   const { data: user } = useQuery({
     queryKey: ["currentUser"],
@@ -208,7 +218,7 @@ export function SettingsDialog() {
 
         <ScrollArea style={{ flex: 1 }}>
           <div className="flex flex-col pt-2">
-            {SIDEBAR_ITEMS.map((item) => (
+            {sidebarItems.map((item) => (
               <SidebarNavItem
                 key={item.id}
                 item={item}

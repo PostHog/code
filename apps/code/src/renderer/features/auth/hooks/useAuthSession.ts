@@ -8,6 +8,7 @@ import {
   useCurrentUser,
 } from "@features/auth/hooks/authQueries";
 import { useAuthUiStateStore } from "@features/auth/stores/authUiStateStore";
+import { useSeatStore } from "@features/billing/stores/seatStore";
 import { trpcClient } from "@renderer/trpc/client";
 import { identifyUser, resetUser } from "@utils/analytics";
 import { logger } from "@utils/logger";
@@ -80,6 +81,17 @@ function useAuthAnalyticsIdentity(
   }, [authIdentity, authState.cloudRegion, authState.projectId, currentUser]);
 }
 
+function useSeatSync(authIdentity: string | null): void {
+  useEffect(() => {
+    if (!authIdentity) {
+      useSeatStore.getState().reset();
+      return;
+    }
+
+    void useSeatStore.getState().fetchSeat();
+  }, [authIdentity]);
+}
+
 export function useAuthSession() {
   const authState = useAuthStateValue((state) => state);
   const client = useOptionalAuthenticatedClient();
@@ -89,6 +101,7 @@ export function useAuthSession() {
   useAuthSubscriptionSync();
   useAuthIdentitySync(authIdentity, authState.cloudRegion);
   useAuthAnalyticsIdentity(authIdentity, authState, currentUser);
+  useSeatSync(authIdentity);
 
   return {
     authState,

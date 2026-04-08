@@ -1,6 +1,11 @@
+import { useSeatStore } from "@features/billing/stores/seatStore";
+import { isFeatureFlagEnabled } from "@utils/analytics";
+import { logger } from "@utils/logger";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { OnboardingStep } from "../types";
+
+const log = logger.scope("onboarding-store");
 
 interface OnboardingStoreState {
   currentStep: OnboardingStep;
@@ -39,7 +44,30 @@ export const useOnboardingStore = create<OnboardingStore>()(
       ...initialState,
 
       setCurrentStep: (step) => set({ currentStep: step }),
-      completeOnboarding: () => set({ hasCompletedOnboarding: true }),
+      completeOnboarding: () => {
+        const billingEnabled = isFeatureFlagEnabled("posthog-code-billing");
+        const existingSeat = useSeatStore.getState().seat;
+        log.info("[seat] completeOnboarding", {
+          billingEnabled,
+          hasSeat: !!existingSeat,
+          seatPlan: existingSeat?.plan_key ?? null,
+        });
+        set({ hasCompletedOnboarding: true });
+
+        if (!billingEnabled) {
+          log.info("[seat] skipped — billing flag disabled");
+          return;
+        }
+        if (existingSeat) {
+          log.info("[seat] skipped — seat already exists", {
+            plan: existingSeat.plan_key,
+            status: existingSeat.status,
+          });
+          return;
+        }
+        log.info("[seat] no seat found — provisioning free seat");
+        useSeatStore.getState().provisionFreeSeat();
+      },
       resetOnboarding: () => set({ ...initialState }),
       resetSelections: () =>
         set({
