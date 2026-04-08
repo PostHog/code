@@ -3,6 +3,7 @@ import type { SessionConfigOption } from "@agentclientprotocol/sdk";
 import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
 import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import { getUserPromptsForTask } from "@features/sessions/stores/sessionStore";
+import { useIsWorkspaceCloudRun } from "@features/workspace/hooks/useWorkspace";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { ArrowUp, Circle, Stop } from "@phosphor-icons/react";
 import { Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
@@ -169,6 +170,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
     const clearFocusRequest = useDraftStore((s) => s.actions.clearFocusRequest);
     const { isOnline } = useConnectivity();
     const taskId = context?.taskId;
+    const isCloud = useIsWorkspaceCloudRun(taskId);
     const disabled = context?.disabled ?? false;
     const isLoading = context?.isLoading ?? false;
     const repoPath = context?.repoPath;
@@ -207,6 +209,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
       autoFocus,
       context: { taskId, repoPath },
       getPromptHistory,
+      capabilities: { bashMode: !isCloud },
       onSubmit,
       onBashCommand,
       onBashModeChange,
