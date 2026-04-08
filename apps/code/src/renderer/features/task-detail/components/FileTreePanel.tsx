@@ -261,7 +261,7 @@ function LocalFileTreePanel({ taskId, task: _task }: FileTreePanelProps) {
       height="100%"
       py="2"
       style={{
-        overflowY: "scroll",
+        overflowY: "auto",
       }}
     >
       <Flex direction="column">

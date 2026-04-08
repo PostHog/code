@@ -3,6 +3,7 @@ import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { findTabInTree } from "@features/panels/store/panelTree";
 import { getSessionService } from "@features/sessions/service/service";
 import { useCallback } from "react";
+import { useReviewNavigationStore } from "../stores/reviewNavigationStore";
 import type { OnCommentCallback } from "../types";
 
 function escapeXmlAttr(value: string): string {
@@ -26,6 +27,12 @@ export function useReviewComment(taskId: string): OnCommentCallback {
       const prompt = `In file <file path="${escapedPath}" />, ${lineRef} (${sideLabel}):\n\n${comment}`;
 
       getSessionService().sendPrompt(taskId, prompt);
+
+      const { getReviewMode, setReviewMode } =
+        useReviewNavigationStore.getState();
+      if (getReviewMode(taskId) === "expanded") {
+        setReviewMode(taskId, "split");
+      }
 
       const { taskLayouts, setActiveTab } = usePanelLayoutStore.getState();
       const layout = taskLayouts[taskId];

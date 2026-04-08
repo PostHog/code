@@ -1,11 +1,11 @@
 import { makeFileKey } from "@features/git-interaction/utils/fileKey";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
-import { isTabActiveInTree } from "@features/panels/store/panelStoreHelpers";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import type { parsePatchFiles } from "@pierre/diffs";
 import { Flex, Text } from "@radix-ui/themes";
+import { useReviewNavigationStore } from "@renderer/features/code-review/stores/reviewNavigationStore";
 import { useTRPC } from "@renderer/trpc/client";
-import type { ChangedFile } from "@shared/types";
+import type { ChangedFile, Task } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useReviewComment } from "../hooks/useReviewComment";
@@ -22,17 +22,16 @@ import {
 } from "./ReviewShell";
 
 interface ReviewPageProps {
-  taskId: string;
+  task: Task;
 }
 
-export function ReviewPage({ taskId }: ReviewPageProps) {
+export function ReviewPage({ task }: ReviewPageProps) {
+  const taskId = task.id;
   const repoPath = useCwd(taskId);
   const openFile = usePanelLayoutStore((s) => s.openFile);
-  const isReviewTabActive = usePanelLayoutStore((s) => {
-    const layout = s.getLayout(taskId);
-    if (!layout) return false;
-    return isTabActiveInTree(layout.panelTree, "review");
-  });
+  const isReviewOpen = useReviewNavigationStore(
+    (s) => (s.reviewModes[taskId] ?? "closed") !== "closed",
+  );
   const onComment = useReviewComment(taskId);
 
   const {
@@ -46,7 +45,7 @@ export function ReviewPage({ taskId }: ReviewPageProps) {
     allPaths,
     diffLoading,
     refetch,
-  } = useReviewDiffs(repoPath, isReviewTabActive);
+  } = useReviewDiffs(repoPath, isReviewOpen);
 
   const {
     diffOptions,
@@ -85,7 +84,7 @@ export function ReviewPage({ taskId }: ReviewPageProps) {
 
   return (
     <ReviewShell
-      taskId={taskId}
+      task={task}
       fileCount={totalFileCount}
       linesAdded={linesAdded}
       linesRemoved={linesRemoved}

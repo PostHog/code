@@ -14,9 +14,6 @@ export type TabData =
       repoPath: string;
     }
   | {
-      type: "review";
-    }
-  | {
       type: "terminal";
       terminalId: string;
       cwd: string;
