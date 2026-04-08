@@ -33,7 +33,7 @@ export function StepTabs({
             onClick={() => onStepClick(i)}
             style={{
               borderRadius: "var(--radius-2)",
-              background: isCurrent ? "var(--blue-3)" : "transparent",
+              background: isCurrent ? "var(--accent-3)" : "transparent",
               cursor: "pointer",
             }}
           >
@@ -42,7 +42,7 @@ export function StepTabs({
               weight={isCurrent ? "medium" : "regular"}
               className={
                 isCurrent
-                  ? "text-blue-11"
+                  ? "text-accent-11"
                   : isCompleted
                     ? "text-green-11"
                     : "text-gray-11"

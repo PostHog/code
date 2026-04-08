@@ -214,8 +214,8 @@ export function ActionSelector({
       }}
       style={{
         outline: "none",
-        border: "1px solid var(--blue-11)",
-        background: "var(--blue-1)",
+        border: "1px solid var(--accent-11)",
+        background: "var(--accent-1)",
         borderRadius: "var(--radius-3)",
       }}
     >
@@ -230,7 +230,7 @@ export function ActionSelector({
         )}
 
         {title && (
-          <Text size="1" weight="medium" className="text-blue-11" title={title}>
+          <Text size="1" weight="medium" className="text-accent-11" title={title}>
             {compactHomePath(title)}
           </Text>
         )}

@@ -78,10 +78,10 @@ export function OptionRow({
               ? "var(--gray-6)"
               : "var(--gray-3)"
             : isSelected
-              ? "var(--blue-8)"
+              ? "var(--accent-8)"
               : isHovered
-                ? "var(--blue-4)"
-                : "var(--blue-3)",
+                ? "var(--accent-4)"
+                : "var(--accent-3)",
           display: "inline-flex",
           height: "28px",
         }}
@@ -93,7 +93,7 @@ export function OptionRow({
             isSelected
               ? isCancel
                 ? "text-gray-12"
-                : "text-blue-12"
+                : "text-accent-12"
               : "text-gray-12"
           }
         >
@@ -124,9 +124,9 @@ export function OptionRow({
 
     const displayText = compactHomePath(option.label);
     const textClass = isSelected
-      ? "text-blue-11"
+      ? "text-accent-11"
       : isHovered
-        ? "text-blue-11"
+        ? "text-accent-11"
         : "text-gray-12";
 
     return (
@@ -154,7 +154,7 @@ export function OptionRow({
         userSelect: "none",
         borderRadius: "var(--radius-2)",
         background: isSelected
-          ? "var(--blue-3)"
+          ? "var(--accent-3)"
           : isHovered
             ? "var(--gray-a3)"
             : "transparent",
@@ -171,7 +171,7 @@ export function OptionRow({
       >
         <Text
           size="1"
-          className={isSelected ? "text-blue-11" : "text-gray-11"}
+          className={isSelected ? "text-accent-11" : "text-gray-11"}
           style={{ width: "1ch", flexShrink: 0, lineHeight: "16px" }}
         >
           {isSelected ? "›" : ""}
@@ -180,9 +180,9 @@ export function OptionRow({
           size="1"
           className={
             isSelected
-              ? "text-blue-11"
+              ? "text-accent-11"
               : isHovered
-                ? "text-blue-11"
+                ? "text-accent-11"
                 : "text-gray-11"
           }
           style={{
