@@ -15,8 +15,63 @@ import {
   Spinner,
   Text,
 } from "@radix-ui/themes";
+import { trpcClient } from "@renderer/trpc/client";
+import { logger } from "@utils/logger";
 import { getPostHogUrl } from "@utils/urls";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const log = logger.scope("plan-usage");
+
+interface UsageBucket {
+  used_usd: number;
+  limit_usd: number;
+  remaining_usd: number;
+  resets_in_seconds: number;
+  exceeded: boolean;
+}
+
+interface UsageData {
+  sustained: UsageBucket;
+  burst: UsageBucket;
+  is_rate_limited: boolean;
+}
+
+function formatUsd(amount: number): string {
+  return `$${amount.toFixed(2)}`;
+}
+
+function formatResetTime(seconds: number): string {
+  const days = Math.ceil(seconds / 86400);
+  if (days === 1) return "1 day";
+  return `${days} days`;
+}
+
+function useUsage() {
+  const [usage, setUsage] = useState<UsageData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    trpcClient.llmGateway.usage
+      .query()
+      .then((data) => {
+        if (!cancelled) setUsage(data);
+      })
+      .catch((error) => {
+        log.warn("Failed to fetch usage", error);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { usage, isLoading };
+}
 
 export function PlanUsageSettings() {
   const {
@@ -31,6 +86,7 @@ export function PlanUsageSettings() {
   const { upgradeToPro, cancelSeat, reactivateSeat, clearError } =
     useSeatStore();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const { usage, isLoading: usageLoading } = useUsage();
 
   const formattedActiveUntil = activeUntil
     ? activeUntil.toLocaleDateString(undefined, {
@@ -181,59 +237,30 @@ export function PlanUsageSettings() {
         <Text size="2" weight="medium" style={{ color: "var(--gray-9)" }}>
           Usage
         </Text>
-        {isPro ? (
+        {usageLoading ? (
           <Flex
-            direction="column"
-            gap="3"
+            align="center"
+            justify="center"
             p="4"
             style={{
-              border: "1px solid var(--accent-7)",
+              border: "1px solid var(--gray-5)",
               borderRadius: "var(--radius-3)",
             }}
           >
-            <Flex align="center" justify="between">
-              <Text size="2" weight="medium">
-                Token usage
-              </Text>
-              <Text
-                size="2"
-                weight="medium"
-                style={{ color: "var(--accent-9)" }}
-              >
-                Unlimited
-              </Text>
-            </Flex>
-            <div
-              style={{
-                position: "relative",
-                height: 8,
-                borderRadius: 4,
-                overflow: "hidden",
-                background: "var(--gray-4)",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  borderRadius: 4,
-                  background:
-                    "linear-gradient(90deg, var(--amber-9), var(--orange-9), var(--amber-8), var(--orange-10), var(--amber-9))",
-                  backgroundSize: "300% 100%",
-                  animation: "lava-flow 4s linear infinite",
-                  boxShadow: "0 0 10px var(--orange-8)",
-                }}
-              />
-              <style>{`
-                @keyframes lava-flow {
-                  0% { background-position: 300% 50%; }
-                  100% { background-position: 0% 50%; }
-                }
-              `}</style>
-            </div>
-            <Text size="1" style={{ color: "var(--gray-9)" }}>
-              Unlimited tokens included with Pro (go crazy)
-            </Text>
+            <Spinner size="2" />
+          </Flex>
+        ) : usage ? (
+          <Flex direction="column" gap="3">
+            <UsageMeter
+              label="Sustained"
+              bucket={usage.sustained}
+              color={usage.sustained.exceeded ? "red" : undefined}
+            />
+            <UsageMeter
+              label="Burst"
+              bucket={usage.burst}
+              color={usage.burst.exceeded ? "red" : undefined}
+            />
           </Flex>
         ) : (
           <Flex
@@ -245,17 +272,8 @@ export function PlanUsageSettings() {
               borderRadius: "var(--radius-3)",
             }}
           >
-            <Flex align="center" justify="between">
-              <Text size="2" weight="medium">
-                Token usage
-              </Text>
-              <Text size="2" weight="medium">
-                0%
-              </Text>
-            </Flex>
-            <Progress value={0} size="2" />
-            <Text size="1" style={{ color: "var(--gray-9)" }}>
-              0 tokens used this period
+            <Text size="2" color="gray">
+              Unable to load usage data
             </Text>
           </Flex>
         )}
@@ -345,6 +363,52 @@ export function PlanUsageSettings() {
           </Flex>
         </Dialog.Content>
       </Dialog.Root>
+    </Flex>
+  );
+}
+
+interface UsageMeterProps {
+  label: string;
+  bucket: UsageBucket;
+  color?: "red";
+}
+
+function UsageMeter({ label, bucket, color }: UsageMeterProps) {
+  const percentage =
+    bucket.limit_usd > 0
+      ? Math.min(100, (bucket.used_usd / bucket.limit_usd) * 100)
+      : 0;
+
+  const borderColor = color === "red" ? "var(--red-7)" : "var(--gray-5)";
+
+  return (
+    <Flex
+      direction="column"
+      gap="3"
+      p="4"
+      style={{
+        border: `1px solid ${borderColor}`,
+        borderRadius: "var(--radius-3)",
+      }}
+    >
+      <Flex align="center" justify="between">
+        <Text size="2" weight="medium">
+          {label}
+        </Text>
+        <Text size="2" weight="medium">
+          {formatUsd(bucket.used_usd)} / {formatUsd(bucket.limit_usd)}
+        </Text>
+      </Flex>
+      <Progress
+        value={percentage}
+        size="2"
+        color={color === "red" ? "red" : undefined}
+      />
+      <Text size="1" style={{ color: "var(--gray-9)" }}>
+        {bucket.exceeded
+          ? "Limit exceeded"
+          : `${formatUsd(bucket.remaining_usd)} remaining \u00b7 resets in ${formatResetTime(bucket.resets_in_seconds)}`}
+      </Text>
     </Flex>
   );
 }

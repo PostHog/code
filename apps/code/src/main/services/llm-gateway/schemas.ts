@@ -56,3 +56,21 @@ export interface AnthropicErrorResponse {
     code?: string;
   };
 }
+
+export const usageBucketSchema = z.object({
+  used_usd: z.number(),
+  limit_usd: z.number(),
+  remaining_usd: z.number(),
+  resets_in_seconds: z.number(),
+  exceeded: z.boolean(),
+});
+
+export const usageOutput = z.object({
+  product: z.string(),
+  user_id: z.number(),
+  sustained: usageBucketSchema,
+  burst: usageBucketSchema,
+  is_rate_limited: z.boolean(),
+});
+
+export type UsageOutput = z.infer<typeof usageOutput>;
