@@ -103,7 +103,7 @@ export function SignalsToolbar({
     snoozeSelected,
     deleteSelected,
     reingestSelected,
-  } = useInboxBulkActions(reports);
+  } = useInboxBulkActions(reports, effectiveBulkIds);
 
   const countLabel = isSearchActive
     ? `${filteredCount} of ${totalCount}`
@@ -219,23 +219,35 @@ export function SignalsToolbar({
         </Flex>
 
         <Flex gap="2" align="center" wrap="wrap">
-          {/* biome-ignore lint/a11y/noLabelWithoutControl: Radix Checkbox renders as button[role=checkbox] inside the label, which is valid */}
-          <label className="flex cursor-pointer items-center gap-2">
-            <Checkbox
-              size="1"
-              checked={
-                someVisibleSelected ? "indeterminate" : allVisibleSelected
-              }
-              disabled={!hasVisibleReports}
-              onCheckedChange={(checked) =>
-                onToggleSelectAll?.(checked === true)
-              }
-              aria-label="Select all visible reports"
-            />
-            <Text size="1" color="gray" className="text-[11px]">
-              {selectedCount} selected
-            </Text>
-          </label>
+          <Tooltip
+            content={
+              <>
+                {allVisibleSelected || someVisibleSelected
+                  ? "Click to unselect all"
+                  : "Click to select all"}
+                <br />
+                Select items in bulk with Shift and {"\u2318"}
+              </>
+            }
+          >
+            {/* biome-ignore lint/a11y/noLabelWithoutControl: Radix Checkbox renders as button[role=checkbox] inside the label, which is valid */}
+            <label className="flex cursor-pointer items-center gap-2">
+              <Checkbox
+                size="1"
+                checked={
+                  someVisibleSelected ? "indeterminate" : allVisibleSelected
+                }
+                disabled={!hasVisibleReports}
+                onCheckedChange={(checked) =>
+                  onToggleSelectAll?.(checked === true)
+                }
+                aria-label="Select all visible reports"
+              />
+              <Text size="1" color="gray" className="text-[11px]">
+                {selectedCount} selected
+              </Text>
+            </label>
+          </Tooltip>
           <Button
             size="1"
             variant="soft"

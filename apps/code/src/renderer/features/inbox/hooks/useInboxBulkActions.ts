@@ -135,18 +135,18 @@ function getSelectedReportEligibility(
   };
 }
 
-export function useInboxBulkActions(reports: SignalReport[]) {
+export function useInboxBulkActions(
+  reports: SignalReport[],
+  effectiveBulkIds: string[],
+) {
   const queryClient = useQueryClient();
-  const selectedReportIds = useInboxReportSelectionStore(
-    (state) => state.selectedReportIds ?? [],
-  );
   const clearSelection = useInboxReportSelectionStore(
     (state) => state.clearSelection,
   );
 
   const eligibility = useMemo(
-    () => getSelectedReportEligibility(reports, selectedReportIds),
-    [reports, selectedReportIds],
+    () => getSelectedReportEligibility(reports, effectiveBulkIds),
+    [reports, effectiveBulkIds],
   );
 
   const invalidateInboxQueries = useCallback(async () => {
