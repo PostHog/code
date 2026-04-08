@@ -530,6 +530,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
             }
 
             // Store latest assistant usage (excluding subagents)
+            // Sum all token types as a proxy for post-turn context occupancy:
+            // current turn's output will become next turn's input.
+            // Note: per the Anthropic API, input_tokens excludes cache tokens —
+            // cache_read and cache_creation are reported separately, so summing
+            // all four fields is not double-counting.
             if (
               "usage" in message.message &&
               message.parent_tool_use_id === null
@@ -544,6 +549,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
               };
               lastAssistantTotalUsage =
                 usage.input_tokens +
+                usage.output_tokens +
                 usage.cache_read_input_tokens +
                 usage.cache_creation_input_tokens;
 
