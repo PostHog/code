@@ -143,8 +143,7 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
             size="1"
             weight="medium"
             truncate
-            className="no-drag"
-            style={{ minWidth: 0 }}
+            className="no-drag min-w-0"
             onDoubleClick={() => setIsEditingTitle(true)}
           >
             {task.title}
