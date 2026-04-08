@@ -1,6 +1,5 @@
 import { Button } from "@components/ui/Button";
 import { useInboxBulkActions } from "@features/inbox/hooks/useInboxBulkActions";
-import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReportSelectionStore";
 import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsFilterStore";
 import { INBOX_REFETCH_INTERVAL_MS } from "@features/inbox/utils/inboxConstants";
 import {
@@ -192,7 +191,10 @@ export function SignalsToolbar({
         </Flex>
 
         <Flex align="center" gap="2">
-          <Tooltip content={searchDisabledReason} hidden={!searchDisabledReason}>
+          <Tooltip
+            content={searchDisabledReason}
+            hidden={!searchDisabledReason}
+          >
             <Box className="min-w-0 flex-1 select-text">
               <TextField.Root
                 size="1"
