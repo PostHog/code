@@ -371,8 +371,18 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         switch (message.type) {
           case "system":
             if (message.subtype === "compact_boundary") {
+              // Send used:0 immediately so the client doesn't keep showing
+              // the stale pre-compaction context size until the next turn.
               lastAssistantTotalUsage = 0;
               promptReplayed = true;
+              await this.client.sessionUpdate({
+                sessionId: params.sessionId,
+                update: {
+                  sessionUpdate: "usage_update",
+                  used: 0,
+                  size: lastContextWindowSize,
+                },
+              });
             }
             if (message.subtype === "local_command_output") {
               promptReplayed = true;
