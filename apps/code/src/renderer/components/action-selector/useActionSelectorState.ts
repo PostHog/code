@@ -28,6 +28,9 @@ function isInteractiveElementInDifferentCell(
 
   const activeCell = el.closest("[data-grid-cell]");
   const ownCell = containerRef.current?.closest("[data-grid-cell]");
+
+  // Outside a grid (single-task mode): block focus steal from any interactive element.
+  // Inside a grid: only block when the interactive element is in a different cell.
   if (!activeCell || !ownCell) return true;
 
   return activeCell !== ownCell;
@@ -72,6 +75,7 @@ export function useActionSelectorState({
     () => new Map(),
   );
   const containerRef = useRef<HTMLDivElement>(null);
+  const prevActiveStepRef = useRef(currentStep);
 
   const activeStep = internalStep;
   const hasSteps = steps !== undefined && steps.length > 1;
@@ -152,6 +156,8 @@ export function useActionSelectorState({
   );
 
   useEffect(() => {
+    if (activeStep === prevActiveStepRef.current) return;
+    prevActiveStepRef.current = activeStep;
     restoreStepAnswer(activeStep, {
       autoFocus: !isInteractiveElementInDifferentCell(containerRef),
     });
