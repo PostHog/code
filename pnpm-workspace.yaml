@@ -21,6 +21,7 @@ onlyBuiltDependencies:
   - fs-xattr
   - macos-alias
   - node-pty
+  - tree-sitter-cli
 
 patchedDependencies:
   node-pty: patches/node-pty.patch

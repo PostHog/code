@@ -13,6 +13,9 @@ procs:
   git:
     shell: 'node scripts/pnpm-run.mjs --filter @posthog/git run dev'
 
+  detect:
+    shell: 'node scripts/pnpm-run.mjs --filter @posthog/detect run dev'
+
   storybook:
     shell: 'node scripts/pnpm-run.mjs --filter code run storybook'
     autostart: false

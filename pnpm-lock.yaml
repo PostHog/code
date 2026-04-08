@@ -171,16 +171,16 @@ importers:
         version: 0.0.48(prop-types@15.8.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@posthog/quill-blocks':
         specifier: link:/Users/adamleithp/Dev/posthog/packages/quill/packages/blocks
-        version: link:../../../posthog/packages/quill/packages/blocks
+        version: link:../../../../../adamleithp/Dev/posthog/packages/quill/packages/blocks
       '@posthog/quill-components':
         specifier: link:/Users/adamleithp/Dev/posthog/packages/quill/packages/components
-        version: link:../../../posthog/packages/quill/packages/components
+        version: link:../../../../../adamleithp/Dev/posthog/packages/quill/packages/components
       '@posthog/quill-primitives':
         specifier: link:/Users/adamleithp/Dev/posthog/packages/quill/packages/primitives
-        version: link:../../../posthog/packages/quill/packages/primitives
+        version: link:../../../../../adamleithp/Dev/posthog/packages/quill/packages/primitives
       '@posthog/quill-tokens':
         specifier: link:/Users/adamleithp/Dev/posthog/packages/quill/packages/tokens
-        version: link:../../../posthog/packages/quill/packages/tokens
+        version: link:../../../../../adamleithp/Dev/posthog/packages/quill/packages/tokens
       '@posthog/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -714,6 +714,25 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^2.1.8
+        version: 2.1.9(@types/node@25.2.0)(jsdom@26.1.0)(lightningcss@1.32.0)(msw@2.12.8(@types/node@25.2.0)(typescript@5.9.3))(terser@5.46.0)
+
+  packages/detect:
+    dependencies:
+      web-tree-sitter:
+        specifier: ^0.24.7
+        version: 0.24.7
+    devDependencies:
+      tree-sitter-cli:
+        specifier: ^0.26.6
+        version: 0.26.8
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.9
         version: 2.1.9(@types/node@25.2.0)(jsdom@26.1.0)(lightningcss@1.32.0)(msw@2.12.8(@types/node@25.2.0)(typescript@5.9.3))(terser@5.46.0)
 
   packages/electron-trpc:
@@ -10588,6 +10607,11 @@ packages:
     resolution: {integrity: sha512-L0Orpi8qGpRG//Nd+H90vFB+3iHnue1zSSGmNOOCh1GLJ7rUKVwV2HvijphGQS2UmhUZewS9VgvxYIdgr+fG1A==}
     hasBin: true
 
+  tree-sitter-cli@0.26.8:
+    resolution: {integrity: sha512-teQFMF5V/g8aIdakZ0M/eZoedCM3MuBt1JuDOICLloA2hy7QfeOInb99U6wiML4qXcBHWREwf0U1TWzw7p67YA==}
+    engines: {node: '>=12.0.0'}
+    hasBin: true
+
   trim-lines@3.0.1:
     resolution: {integrity: sha512-kRj8B+YHZCc9kQYdWfJB2/oUl9rA99qbowYYBtr4ui4mZyAQ2JpvVBd/6U2YloATfqBhBTSMhTpgBHtU0Mf3Rg==}
 
@@ -11136,6 +11160,9 @@ packages:
 
   web-namespaces@2.0.1:
     resolution: {integrity: sha512-bKr1DkiNa2krS7qxNtdrtHAmzuYGFQLiQ13TsorsdT6ULTkPLKuu5+GsFpDlg6JFjUTwX2DyhMPG2be8uPrqsQ==}
+
+  web-tree-sitter@0.24.7:
+    resolution: {integrity: sha512-CdC/TqVFbXqR+C51v38hv6wOPatKEUGxa39scAeFSm98wIhZxAYonhRQPSMmfZ2w7JDI0zQDdzdmgtNk06/krQ==}
 
   web-vitals@5.1.0:
     resolution: {integrity: sha512-ArI3kx5jI0atlTtmV0fWU3fjpLmq/nD3Zr1iFFlJLaqa5wLBkUSzINwBPySCX/8jRyjlmy1Volw1kz1g9XE4Jg==}
@@ -22765,6 +22792,8 @@ snapshots:
 
   tree-kill@1.2.2: {}
 
+  tree-sitter-cli@0.26.8: {}
+
   trim-lines@3.0.1: {}
 
   trim-repeated@1.0.0:
@@ -23327,6 +23356,8 @@ snapshots:
       defaults: 1.0.4
 
   web-namespaces@2.0.1: {}
+
+  web-tree-sitter@0.24.7: {}
 
   web-vitals@5.1.0: {}
 
