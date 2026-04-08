@@ -1,7 +1,7 @@
 import { useExternalApps } from "@features/external-apps/hooks/useExternalApps";
 import { CodeIcon, CopyIcon } from "@phosphor-icons/react";
 import { ChevronDownIcon } from "@radix-ui/react-icons";
-import { Button, DropdownMenu, Flex, Text } from "@radix-ui/themes";
+import { DropdownMenu, Flex, Text } from "@radix-ui/themes";
 import { SHORTCUTS } from "@renderer/constants/keyboard-shortcuts";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
 import { useCallback, useState } from "react";
@@ -12,13 +12,9 @@ const DROPDOWN_ICON_SIZE = 16;
 
 interface ExternalAppsOpenerProps {
   targetPath: string | null;
-  label?: string;
 }
 
-export function ExternalAppsOpener({
-  targetPath,
-  label = "Open",
-}: ExternalAppsOpenerProps) {
+export function ExternalAppsOpener({ targetPath }: ExternalAppsOpenerProps) {
   const { detectedApps, defaultApp, isLoading } = useExternalApps();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -83,25 +79,26 @@ export function ExternalAppsOpener({
 
   return (
     <DropdownMenu.Root open={dropdownOpen} onOpenChange={setDropdownOpen}>
-      {dropdownOpen && (
-        <div
-          className="no-drag"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 1,
-          }}
-        />
-      )}
-      <Flex className="no-drag">
-        <Button
-          size="1"
-          color="gray"
-          variant="outline"
+      <Flex align="center" className="no-drag" gap="0">
+        <button
+          type="button"
+          aria-label={`Open in ${defaultApp?.name ?? "editor"}`}
           onClick={handleOpenDefault}
           disabled={!isReady || !defaultApp}
-          className="hover:bg-gray-5"
-          style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+          className="hover:bg-[var(--gray-a3)]"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "26px",
+            height: "24px",
+            borderRadius: "var(--radius-1) 0 0 var(--radius-1)",
+            border: "1px solid var(--gray-6)",
+            borderRight: "none",
+            background: "transparent",
+            cursor: "pointer",
+            color: "var(--gray-11)",
+          }}
         >
           {defaultApp?.icon ? (
             <img
@@ -114,28 +111,27 @@ export function ExternalAppsOpener({
           ) : (
             <CodeIcon size={DROPDOWN_ICON_SIZE} weight="regular" />
           )}
-          <Text size="1">
-            {label}{" "}
-            <Text size="1" weight="bold">
-              ⌘O
-            </Text>
-          </Text>
-        </Button>
-
+        </button>
         <DropdownMenu.Trigger>
-          <Button
-            size="1"
-            variant="outline"
-            color="gray"
-            className="hover:bg-gray-5"
+          <button
+            type="button"
+            aria-label="More editor options"
+            className="hover:bg-[var(--gray-a3)]"
             style={{
-              borderTopLeftRadius: 0,
-              borderBottomLeftRadius: 0,
-              marginLeft: "-1px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "18px",
+              height: "24px",
+              borderRadius: "0 var(--radius-1) var(--radius-1) 0",
+              border: "1px solid var(--gray-6)",
+              background: "transparent",
+              cursor: "pointer",
+              color: "var(--gray-11)",
             }}
           >
-            <ChevronDownIcon />
-          </Button>
+            <ChevronDownIcon width={10} height={10} />
+          </button>
         </DropdownMenu.Trigger>
       </Flex>
 

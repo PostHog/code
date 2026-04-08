@@ -24,5 +24,4 @@ export const DEFAULT_TAB_IDS = {
   SHELL: "shell",
   FILES: "files",
   CHANGES: "changes",
-  REVIEW: "review",
 } as const;

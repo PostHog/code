@@ -7,7 +7,6 @@ import { makeFileKey } from "@features/git-interaction/utils/fileKey";
 import { invalidateGitWorkingTreeQueries } from "@features/git-interaction/utils/gitCacheKeys";
 import { partitionByStaged } from "@features/git-interaction/utils/partitionByStaged";
 import { updateGitCacheFromSnapshot } from "@features/git-interaction/utils/updateGitCache";
-import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useCloudChangedFiles } from "@features/task-detail/hooks/useCloudChangedFiles";
 import {
@@ -133,7 +132,6 @@ function ChangedFileItem({
   onStageToggle,
   depth = 0,
 }: ChangedFileItemProps) {
-  const openReview = usePanelLayoutStore((state) => state.openReview);
   const requestScrollToFile = useReviewNavigationStore(
     (state) => state.requestScrollToFile,
   );
@@ -160,7 +158,6 @@ function ChangedFileItem({
       task_id: taskId,
     });
     requestScrollToFile(taskId, fileKey);
-    openReview(taskId);
   };
 
   const workspaceContext = {

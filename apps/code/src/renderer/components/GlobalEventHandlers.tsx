@@ -1,6 +1,6 @@
+import { useReviewNavigationStore } from "@features/code-review/stores/reviewNavigationStore";
 import { useFolders } from "@features/folders/hooks/useFolders";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
-import { useRightSidebarStore } from "@features/right-sidebar";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useSidebarData } from "@features/sidebar/hooks/useSidebarData";
 import { useVisualTaskOrder } from "@features/sidebar/hooks/useVisualTaskOrder";
@@ -46,7 +46,12 @@ export function GlobalEventHandlers({
   const { data: workspaces = {} } = useWorkspaces();
   const clearAllLayouts = usePanelLayoutStore((state) => state.clearAllLayouts);
   const toggleLeftSidebar = useSidebarStore((state) => state.toggle);
-  const toggleRightSidebar = useRightSidebarStore((state) => state.toggle);
+  const setReviewMode = useReviewNavigationStore(
+    (state) => state.setReviewMode,
+  );
+  const getReviewMode = useReviewNavigationStore(
+    (state) => state.getReviewMode,
+  );
 
   const currentTaskId = view.type === "task-detail" ? view.data?.id : undefined;
   const { workspace: currentWorkspace, handleToggleFocus } = useFocusWorkspace(
@@ -163,8 +168,14 @@ export function GlobalEventHandlers({
   useHotkeys(SHORTCUTS.SETTINGS, handleOpenSettings, globalOptions);
   useHotkeys(SHORTCUTS.GO_BACK, goBack, globalOptions);
   useHotkeys(SHORTCUTS.GO_FORWARD, goForward, globalOptions);
+  const handleToggleReview = useCallback(() => {
+    if (!currentTaskId) return;
+    const mode = getReviewMode(currentTaskId);
+    setReviewMode(currentTaskId, mode === "closed" ? "split" : "closed");
+  }, [currentTaskId, getReviewMode, setReviewMode]);
+
   useHotkeys(SHORTCUTS.TOGGLE_LEFT_SIDEBAR, toggleLeftSidebar, globalOptions);
-  useHotkeys(SHORTCUTS.TOGGLE_RIGHT_SIDEBAR, toggleRightSidebar, globalOptions);
+  useHotkeys(SHORTCUTS.TOGGLE_REVIEW_PANEL, handleToggleReview, globalOptions);
   useHotkeys(SHORTCUTS.SHORTCUTS_SHEET, onToggleShortcutsSheet, globalOptions);
   useHotkeys(SHORTCUTS.INBOX, navigateToInbox, globalOptions);
   useHotkeys(SHORTCUTS.PREV_TASK, handlePrevTask, globalOptions, [

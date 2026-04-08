@@ -2,6 +2,7 @@ import { useCloudChangedFiles } from "@features/task-detail/hooks/useCloudChange
 import type { FileDiffMetadata } from "@pierre/diffs";
 import { processFile } from "@pierre/diffs";
 import { Flex, Spinner, Text } from "@radix-ui/themes";
+import { useReviewNavigationStore } from "@renderer/features/code-review/stores/reviewNavigationStore";
 import type { ChangedFile, Task } from "@shared/types";
 import { useMemo } from "react";
 import { useReviewComment } from "../hooks/useReviewComment";
@@ -15,13 +16,16 @@ import {
 } from "./ReviewShell";
 
 interface CloudReviewPageProps {
-  taskId: string;
   task: Task;
 }
 
-export function CloudReviewPage({ taskId, task }: CloudReviewPageProps) {
+export function CloudReviewPage({ task }: CloudReviewPageProps) {
+  const taskId = task.id;
+  const isReviewOpen = useReviewNavigationStore(
+    (s) => (s.reviewModes[taskId] ?? "closed") !== "closed",
+  );
   const { effectiveBranch, prUrl, isRunActive, remoteFiles, isLoading } =
-    useCloudChangedFiles(taskId, task);
+    useCloudChangedFiles(taskId, task, isReviewOpen);
   const onComment = useReviewComment(taskId);
 
   const allPaths = useMemo(() => remoteFiles.map((f) => f.path), [remoteFiles]);
@@ -63,7 +67,7 @@ export function CloudReviewPage({ taskId, task }: CloudReviewPageProps) {
 
   return (
     <ReviewShell
-      taskId={taskId}
+      task={task}
       fileCount={remoteFiles.length}
       linesAdded={linesAdded}
       linesRemoved={linesRemoved}

@@ -7,7 +7,6 @@ import { ArchivedTasksView } from "@features/archive/components/ArchivedTasksVie
 import { CommandMenu } from "@features/command/components/CommandMenu";
 import { CommandCenterView } from "@features/command-center/components/CommandCenterView";
 import { InboxView } from "@features/inbox/components/InboxView";
-import { RightSidebar, RightSidebarContent } from "@features/right-sidebar";
 import { FolderSettingsView } from "@features/settings/components/FolderSettingsView";
 import { SettingsDialog } from "@features/settings/components/SettingsDialog";
 import { MainSidebar } from "@features/sidebar/components/MainSidebar";
@@ -82,12 +81,6 @@ export function MainLayout() {
 
           {view.type === "skills" && <SkillsView />}
         </Box>
-
-        {view.type === "task-detail" && view.data && (
-          <RightSidebar>
-            <RightSidebarContent taskId={view.data.id} task={view.data} />
-          </RightSidebar>
-        )}
       </Flex>
 
       <CommandMenu open={commandMenuOpen} onOpenChange={setCommandMenuOpen} />

@@ -8,7 +8,11 @@ import { useMemo } from "react";
 
 const EMPTY_FILES: ChangedFile[] = [];
 
-export function useCloudChangedFiles(taskId: string, task: Task) {
+export function useCloudChangedFiles(
+  taskId: string,
+  task: Task,
+  isActive = true,
+) {
   const cloudRunState = useCloudRunState(taskId, task);
   const { prUrl, effectiveBranch, repo, fallbackFiles, isRunActive } =
     cloudRunState;
@@ -17,15 +21,15 @@ export function useCloudChangedFiles(taskId: string, task: Task) {
     data: prFiles,
     isPending: prPending,
     isError: prError,
-  } = useCloudPrChangedFiles(prUrl, isRunActive);
+  } = useCloudPrChangedFiles(isActive ? prUrl : null, isRunActive);
 
   const {
     data: branchFiles,
     isPending: branchPending,
     isError: branchError,
   } = useCloudBranchChangedFiles(
-    !prUrl ? repo : null,
-    !prUrl ? effectiveBranch : null,
+    isActive && !prUrl ? repo : null,
+    isActive && !prUrl ? effectiveBranch : null,
     isRunActive,
   );
 
