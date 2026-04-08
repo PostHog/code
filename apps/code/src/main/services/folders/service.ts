@@ -26,10 +26,7 @@ import { MAIN_TOKENS } from "../../di/tokens";
 import { getMainWindow } from "../../trpc/context";
 import { logger } from "../../utils/logger";
 import { getWorktreeLocation } from "../settingsStore";
-import type {
-  CleanupOrphanedWorktreesOutput,
-  RegisteredFolder,
-} from "./schemas";
+import type { RegisteredFolder } from "./schemas";
 
 const log = logger.scope("folders-service");
 
@@ -42,7 +39,39 @@ export class FoldersService {
     private readonly workspaceRepo: IWorkspaceRepository,
     @inject(MAIN_TOKENS.WorktreeRepository)
     private readonly worktreeRepo: IWorktreeRepository,
-  ) {}
+  ) {
+    this.initialize().catch((err) => {
+      log.error("Folders initialization failed", err);
+    });
+  }
+
+  private async initialize(): Promise<void> {
+    const folders = await this.getFolders();
+
+    const deletedFolders = folders.filter((f) => !f.exists);
+    if (deletedFolders.length > 0) {
+      for (const folder of deletedFolders) {
+        try {
+          await this.removeFolder(folder.id);
+        } catch (err) {
+          log.error(`Failed to remove deleted folder ${folder.path}:`, err);
+        }
+      }
+      log.info(`Removed ${deletedFolders.length} deleted folder(s)`);
+    }
+
+    const existingFolders = folders.filter((f) => f.exists);
+    for (const folder of existingFolders) {
+      try {
+        await this.cleanupOrphanedWorktrees(folder.path);
+      } catch (err) {
+        log.error(
+          `Failed to cleanup orphaned worktrees for ${folder.path}:`,
+          err,
+        );
+      }
+    }
+  }
 
   async getFolders(): Promise<(RegisteredFolder & { exists: boolean })[]> {
     const repos = this.repositoryRepo.findAll();
@@ -190,16 +219,14 @@ export class FoldersService {
     this.repositoryRepo.updateLastAccessed(folderId);
   }
 
-  async cleanupOrphanedWorktrees(
-    mainRepoPath: string,
-  ): Promise<CleanupOrphanedWorktreesOutput> {
+  async cleanupOrphanedWorktrees(mainRepoPath: string): Promise<void> {
     const worktreeBasePath = getWorktreeLocation();
     const manager = new WorktreeManager({ mainRepoPath, worktreeBasePath });
 
     const allWorktrees = this.worktreeRepo.findAll();
     const associatedWorktreePaths = allWorktrees.map((wt) => wt.path);
 
-    return await manager.cleanupOrphanedWorktrees(associatedWorktreePaths);
+    await manager.cleanupOrphanedWorktrees(associatedWorktreePaths);
   }
 
   getRepositoryByRemoteUrl(

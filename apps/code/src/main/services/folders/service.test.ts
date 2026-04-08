@@ -318,11 +318,11 @@ describe("FoldersService", () => {
         errors: [],
       });
 
-      const result =
-        await service.cleanupOrphanedWorktrees("/home/user/project");
+      await service.cleanupOrphanedWorktrees("/home/user/project");
 
-      expect(result.deleted).toHaveLength(1);
-      expect(result.errors).toHaveLength(0);
+      expect(mockWorktreeManager.cleanupOrphanedWorktrees).toHaveBeenCalledWith(
+        [],
+      );
     });
 
     it("excludes associated worktrees from cleanup", async () => {
