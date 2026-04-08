@@ -64,3 +64,17 @@ export const POSTHOG_NOTIFICATIONS = {
   /** Token usage update for a session turn */
   USAGE_UPDATE: "_posthog/usage_update",
 } as const;
+
+type NotificationMethod =
+  (typeof POSTHOG_NOTIFICATIONS)[keyof typeof POSTHOG_NOTIFICATIONS];
+
+/**
+ * Check if an ACP method matches a PostHog notification, handling the
+ * possible `__posthog/` double-prefix from extNotification().
+ */
+export function isNotification(
+  method: string,
+  notification: NotificationMethod,
+): boolean {
+  return method === notification || method === `_${notification}`;
+}

@@ -26,7 +26,7 @@ import {
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { taskViewedApi } from "@features/sidebar/hooks/useTaskViewed";
-import { POSTHOG_NOTIFICATIONS } from "@posthog/agent";
+import { isNotification, POSTHOG_NOTIFICATIONS } from "@posthog/agent";
 import { DEFAULT_GATEWAY_MODEL } from "@posthog/agent/gateway-models";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpcClient } from "@renderer/trpc/client";
@@ -833,7 +833,7 @@ export class SessionService {
     // Handle SDK_SESSION notifications for adapter info
     if (
       "method" in msg &&
-      msg.method === POSTHOG_NOTIFICATIONS.SDK_SESSION &&
+      isNotification(msg.method as string, POSTHOG_NOTIFICATIONS.SDK_SESSION) &&
       "params" in msg
     ) {
       const params = msg.params as {
@@ -854,7 +854,7 @@ export class SessionService {
     if (
       "method" in msg &&
       "params" in msg &&
-      msg.method === POSTHOG_NOTIFICATIONS.STATUS
+      isNotification(msg.method as string, POSTHOG_NOTIFICATIONS.STATUS)
     ) {
       const params = msg.params as { status?: string; isComplete?: boolean };
       if (params?.status === "compacting" && !params.isComplete) {
@@ -866,7 +866,10 @@ export class SessionService {
 
     if (
       "method" in msg &&
-      msg.method === POSTHOG_NOTIFICATIONS.COMPACT_BOUNDARY
+      isNotification(
+        msg.method as string,
+        POSTHOG_NOTIFICATIONS.COMPACT_BOUNDARY,
+      )
     ) {
       sessionStoreSetters.updateSession(taskRunId, {
         isCompacting: false,
