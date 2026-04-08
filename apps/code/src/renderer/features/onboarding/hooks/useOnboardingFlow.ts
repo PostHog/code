@@ -6,7 +6,7 @@ import { ONBOARDING_STEPS, type OnboardingStep } from "../types";
 export function useOnboardingFlow() {
   const currentStep = useOnboardingStore((state) => state.currentStep);
   const setCurrentStep = useOnboardingStore((state) => state.setCurrentStep);
-  const billingEnabled = useFeatureFlag("twig-billing", false);
+  const billingEnabled = useFeatureFlag("posthog-code-billing", false);
 
   // Show billing onboarding steps only when billing is enabled
   const activeSteps = useMemo(() => {
