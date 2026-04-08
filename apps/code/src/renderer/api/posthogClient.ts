@@ -1,5 +1,7 @@
 import type {
   ActionabilityJudgmentArtefact,
+  AvailableSuggestedReviewer,
+  AvailableSuggestedReviewersResponse,
   PriorityJudgmentArtefact,
   SandboxEnvironment,
   SandboxEnvironmentInput,
@@ -280,6 +282,50 @@ function parseSignalReportArtefactsPayload(
   return {
     results,
     count,
+  };
+}
+
+function normalizeAvailableSuggestedReviewer(
+  uuid: string,
+  value: unknown,
+): AvailableSuggestedReviewer | null {
+  if (!isObjectRecord(value)) {
+    return null;
+  }
+
+  const normalizedUuid = optionalString(uuid);
+  if (!normalizedUuid) {
+    return null;
+  }
+
+  return {
+    uuid: normalizedUuid,
+    name: optionalString(value.name) ?? "",
+    email: optionalString(value.email) ?? "",
+  };
+}
+
+function parseAvailableSuggestedReviewersPayload(
+  value: unknown,
+): AvailableSuggestedReviewersResponse {
+  if (!isObjectRecord(value)) {
+    return {
+      results: [],
+      count: 0,
+    };
+  }
+
+  const results = Object.entries(value)
+    .map(([uuid, reviewer]) =>
+      normalizeAvailableSuggestedReviewer(uuid, reviewer),
+    )
+    .filter(
+      (reviewer): reviewer is AvailableSuggestedReviewer => reviewer !== null,
+    );
+
+  return {
+    results,
+    count: results.length,
   };
 }
 
@@ -1080,6 +1126,9 @@ export class PostHogAPIClient {
     if (params?.source_product) {
       url.searchParams.set("source_product", params.source_product);
     }
+    if (params?.suggested_reviewers) {
+      url.searchParams.set("suggested_reviewers", params.suggested_reviewers);
+    }
 
     const response = await this.api.fetcher.fetch({
       method: "get",
@@ -1096,6 +1145,34 @@ export class PostHogAPIClient {
       results: data.results ?? data ?? [],
       count: data.count ?? data.results?.length ?? data?.length ?? 0,
     };
+  }
+
+  async getAvailableSuggestedReviewers(
+    query?: string,
+  ): Promise<AvailableSuggestedReviewersResponse> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/available_reviewers/`,
+    );
+    const path = `/api/projects/${teamId}/signal_reports/available_reviewers/`;
+
+    if (query?.trim()) {
+      url.searchParams.set("query", query.trim());
+    }
+
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch available suggested reviewers: ${response.statusText}`,
+      );
+    }
+
+    return parseAvailableSuggestedReviewersPayload(await response.json());
   }
 
   async getSignalReportSignals(

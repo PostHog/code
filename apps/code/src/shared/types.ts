@@ -289,6 +289,13 @@ export interface SuggestedReviewerUser {
   uuid: string;
   email: string;
   first_name: string;
+  last_name: string;
+}
+
+export interface AvailableSuggestedReviewer {
+  uuid: string;
+  name: string;
+  email: string;
 }
 
 export interface SuggestedReviewer {
@@ -325,6 +332,11 @@ export interface Signal {
 
 export interface SignalReportsResponse {
   results: SignalReport[];
+  count: number;
+}
+
+export interface AvailableSuggestedReviewersResponse {
+  results: AvailableSuggestedReviewer[];
   count: number;
 }
 
@@ -368,4 +380,6 @@ export interface SignalReportsQueryParams {
   ordering?: string;
   /** Comma-separated source products — only returns reports with signals from these sources. */
   source_product?: string;
+  /** Comma-separated PostHog user UUIDs — only returns reports with these suggested reviewers. */
+  suggested_reviewers?: string;
 }
