@@ -282,6 +282,10 @@ export interface SignalReportsResponse {
   count: number;
 }
 
+export interface SignalProcessingStateResponse {
+  paused_until: string | null;
+}
+
 export interface AvailableSuggestedReviewersResponse {
   results: AvailableSuggestedReviewer[];
   count: number;

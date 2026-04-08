@@ -3,6 +3,7 @@ import type {
   AvailableSuggestedReviewersResponse,
   SandboxEnvironment,
   SandboxEnvironmentInput,
+  SignalProcessingStateResponse,
   SignalReport,
   SignalReportArtefact,
   SignalReportArtefactsResponse,
@@ -1022,6 +1023,32 @@ export class PostHogAPIClient {
     return {
       results: data.results ?? data ?? [],
       count: data.count ?? data.results?.length ?? data?.length ?? 0,
+    };
+  }
+
+  async getSignalProcessingState(): Promise<SignalProcessingStateResponse> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signal_processing/`,
+    );
+    const path = `/api/projects/${teamId}/signal_processing/`;
+
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch signal processing state: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return {
+      paused_until:
+        typeof data?.paused_until === "string" ? data.paused_until : null,
     };
   }
 
