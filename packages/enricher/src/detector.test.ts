@@ -447,4 +447,168 @@ describeWithGrammars("PostHogDetector", () => {
       ]);
     });
   });
+
+  // ═══════════════════════════════════════════════════
+  // Python — additional findPostHogCalls / findInitCalls
+  // ═══════════════════════════════════════════════════
+
+  describe("Python — findPostHogCalls (capture)", () => {
+    test("detects capture with positional event arg", async () => {
+      const code = `posthog.capture('user_id', 'purchase')`;
+      const calls = await detector.findPostHogCalls(code, "python");
+      const capture = calls.find(
+        (c) => c.method === "capture" && c.key === "purchase",
+      );
+      expect(capture).toBeDefined();
+    });
+
+    test("detects flag method get_feature_flag", async () => {
+      const code = `posthog.get_feature_flag('my-flag')`;
+      const calls = await detector.findPostHogCalls(code, "python");
+      expect(simpleCalls(calls)).toEqual([
+        { line: 0, method: "get_feature_flag", key: "my-flag" },
+      ]);
+    });
+  });
+
+  describe("Python — findInitCalls", () => {
+    test("detects positional constructor Posthog('phc_token')", async () => {
+      const code = `Posthog('phc_token')`;
+      const inits = await detector.findInitCalls(code, "python");
+      expect(inits).toHaveLength(1);
+      expect(inits[0].token).toBe("phc_token");
+    });
+
+    test("detects keyword constructor with api_key and host", async () => {
+      const code = `Posthog(api_key='phc_token', host='https://app.posthog.com')`;
+      const inits = await detector.findInitCalls(code, "python");
+      expect(inits).toHaveLength(1);
+      expect(inits[0].token).toBe("phc_token");
+      expect(inits[0].apiHost).toBe("https://app.posthog.com");
+    });
+  });
+
+  // ═══════════════════════════════════════════════════
+  // Go — additional findPostHogCalls / findInitCalls
+  // ═══════════════════════════════════════════════════
+
+  describe("Go — findPostHogCalls (capture & flags)", () => {
+    test("detects struct-based Enqueue capture", async () => {
+      const code = [
+        `package main`,
+        ``,
+        `func main() {`,
+        `  client.Enqueue(posthog.Capture{Event: "purchase"})`,
+        `}`,
+      ].join("\n");
+      const calls = await detector.findPostHogCalls(code, "go");
+      const capture = calls.find(
+        (c) => c.method === "capture" && c.key === "purchase",
+      );
+      expect(capture).toBeDefined();
+    });
+
+    test("detects flag method GetFeatureFlag", async () => {
+      const code = [
+        `package main`,
+        ``,
+        `func main() {`,
+        `  client.GetFeatureFlag(posthog.FeatureFlagPayload{Key: "my-flag"})`,
+        `}`,
+      ].join("\n");
+      const calls = await detector.findPostHogCalls(code, "go");
+      const flag = calls.find(
+        (c) => c.method === "GetFeatureFlag" && c.key === "my-flag",
+      );
+      expect(flag).toBeDefined();
+    });
+  });
+
+  describe("Go — findInitCalls", () => {
+    test("detects posthog.New constructor", async () => {
+      const code = [
+        `package main`,
+        ``,
+        `func main() {`,
+        `  client := posthog.New("phc_token")`,
+        `}`,
+      ].join("\n");
+      const inits = await detector.findInitCalls(code, "go");
+      expect(inits).toHaveLength(1);
+      expect(inits[0].token).toBe("phc_token");
+    });
+
+    test("detects posthog.NewWithConfig constructor", async () => {
+      const code = [
+        `package main`,
+        ``,
+        `func main() {`,
+        `  client, _ := posthog.NewWithConfig("phc_token", posthog.Config{Endpoint: "https://app.posthog.com"})`,
+        `}`,
+      ].join("\n");
+      const inits = await detector.findInitCalls(code, "go");
+      expect(inits).toHaveLength(1);
+      expect(inits[0].token).toBe("phc_token");
+      expect(inits[0].apiHost).toBe("https://app.posthog.com");
+    });
+  });
+
+  // ═══════════════════════════════════════════════════
+  // Ruby — additional findPostHogCalls / findInitCalls
+  // ═══════════════════════════════════════════════════
+
+  describe("Ruby — findPostHogCalls (capture & flags)", () => {
+    test("detects capture with keyword args", async () => {
+      const code = `client.capture(distinct_id: 'user', event: 'purchase')`;
+      const calls = await detector.findPostHogCalls(code, "ruby");
+      const capture = calls.find(
+        (c) => c.method === "capture" && c.key === "purchase",
+      );
+      expect(capture).toBeDefined();
+    });
+
+    test("detects flag method get_feature_flag", async () => {
+      const code = `client.get_feature_flag('my-flag')`;
+      const calls = await detector.findPostHogCalls(code, "ruby");
+      const flag = calls.find(
+        (c) => c.method === "get_feature_flag" && c.key === "my-flag",
+      );
+      expect(flag).toBeDefined();
+    });
+  });
+
+  describe("Ruby — findInitCalls", () => {
+    test("detects PostHog::Client.new constructor", async () => {
+      const code = `client = PostHog::Client.new(api_key: 'phc_token')`;
+      const inits = await detector.findInitCalls(code, "ruby");
+      expect(inits).toHaveLength(1);
+      expect(inits[0].token).toBe("phc_token");
+    });
+  });
+
+  // ═══════════════════════════════════════════════════
+  // Negative / edge cases
+  // ═══════════════════════════════════════════════════
+
+  describe("Negative / edge cases", () => {
+    test("unsupported language returns empty arrays", async () => {
+      const code = `posthog.capture('event')`;
+      const calls = await detector.findPostHogCalls(code, "haskell");
+      const inits = await detector.findInitCalls(code, "haskell");
+      expect(calls).toEqual([]);
+      expect(inits).toEqual([]);
+    });
+
+    test("non-PostHog client names are ignored", async () => {
+      const code = `other.capture('event')`;
+
+      const jsCalls = await detector.findPostHogCalls(code, "javascript");
+      const pyCalls = await detector.findPostHogCalls(code, "python");
+      const rbCalls = await detector.findPostHogCalls(code, "ruby");
+
+      expect(jsCalls).toEqual([]);
+      expect(pyCalls).toEqual([]);
+      expect(rbCalls).toEqual([]);
+    });
+  });
 });

@@ -7,6 +7,18 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./classification": {
+      "types": "./dist/flag-classification.d.ts",
+      "import": "./dist/flag-classification.js"
+    },
+    "./stale-flags": {
+      "types": "./dist/stale-flags.d.ts",
+      "import": "./dist/stale-flags.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
     }
   },
   "scripts": {
@@ -28,7 +40,6 @@
   },
   "files": [
     "dist/**/*",
-    "src/**/*",
     "grammars/**/*"
   ]
 }

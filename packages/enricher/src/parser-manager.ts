@@ -10,6 +10,7 @@ export class ParserManager {
   private parser: Parser | null = null;
   private languages = new Map<string, Parser.Language>();
   private queryCache = new Map<string, Parser.Query>();
+  private maxCacheSize = 256;
   private initPromise: Promise<void> | null = null;
   private wasmDir = "";
   config: DetectionConfig = DEFAULT_CONFIG;
@@ -91,11 +92,21 @@ export class ParserManager {
     const cacheKey = `${lang.toString()}:${queryStr}`;
     let query = this.queryCache.get(cacheKey);
     if (query) {
+      // LRU: move to end by deleting and re-inserting
+      this.queryCache.delete(cacheKey);
+      this.queryCache.set(cacheKey, query);
       return query;
     }
 
     try {
       query = lang.query(queryStr);
+      // Evict oldest entry if at capacity
+      if (this.queryCache.size >= this.maxCacheSize) {
+        const oldest = this.queryCache.keys().next().value;
+        if (oldest !== undefined) {
+          this.queryCache.delete(oldest);
+        }
+      }
       this.queryCache.set(cacheKey, query);
       return query;
     } catch (err) {
