@@ -39,7 +39,7 @@ const callRateMonitor = trpc.middleware(async ({ path, next, type }) => {
 
     if (timestamps.length >= CALL_RATE_THRESHOLD) {
       log.warn(
-        `[ipc-rate] ${path} called ${timestamps.length} times in ${CALL_RATE_WINDOW_MS}ms`,
+        `[ipc-rate] ${type} ${path} called ${timestamps.length} times in ${CALL_RATE_WINDOW_MS}ms`,
       );
     }
   }
