@@ -6,7 +6,12 @@ import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { CloudRegion } from "@shared/types/regions";
 import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { useNavigationStore } from "@stores/navigationStore";
-import { identifyUser, resetUser, track } from "@utils/analytics";
+import {
+  identifyUser,
+  isFeatureFlagEnabled,
+  resetUser,
+  track,
+} from "@utils/analytics";
 import { logger } from "@utils/logger";
 import { queryClient } from "@utils/queryClient";
 import { create } from "zustand";
@@ -283,7 +288,10 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
 
   completeOnboarding: () => {
     set({ hasCompletedOnboarding: true });
-    if (!useSeatStore.getState().seat) {
+    if (
+      isFeatureFlagEnabled("posthog-code-billing") &&
+      !useSeatStore.getState().seat
+    ) {
       useSeatStore.getState().provisionFreeSeat();
     }
   },
