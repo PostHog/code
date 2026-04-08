@@ -46,7 +46,7 @@ export function FetchToolView({
       <Flex
         align="center"
         gap="2"
-        className={`group py-0.5 ${isExpandable ? "cursor-pointer" : ""}`}
+        className={`group min-w-0 py-0.5 ${isExpandable ? "cursor-pointer" : ""}`}
         onClick={handleClick}
       >
         <ExpandableIcon

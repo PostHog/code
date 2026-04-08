@@ -98,7 +98,7 @@ export function ToolCallView({
       className={`group py-0.5 ${isExpandable ? "cursor-pointer" : ""}`}
       onClick={handleClick}
     >
-      <Flex gap="2">
+      <Flex gap="2" className="min-w-0">
         <Box className="shrink-0 pt-px">
           <ExpandableIcon
             icon={KindIcon}
