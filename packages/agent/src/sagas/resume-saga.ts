@@ -182,7 +182,7 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
       const entry = entries[i];
       if (
         isNotification(
-          entry.notification?.method ?? "",
+          entry.notification?.method,
           POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT,
         )
       ) {
