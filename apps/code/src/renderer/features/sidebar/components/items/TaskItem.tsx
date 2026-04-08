@@ -78,48 +78,50 @@ function TaskHoverToolbar({
   return (
     <span className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
       {onTogglePin && (
-        // biome-ignore lint/a11y/useSemanticElements: Cannot use button inside parent button (SidebarItem)
-        <span
-          role="button"
-          tabIndex={0}
-          className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
-          onClick={(e) => {
-            e.stopPropagation();
-            onTogglePin();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
+        <Tooltip content={isPinned ? "Unpin task" : "Pin task"} side="top">
+          {/* biome-ignore lint/a11y/useSemanticElements: Cannot use button inside parent button (SidebarItem) */}
+          <span
+            role="button"
+            tabIndex={0}
+            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
+            onClick={(e) => {
               e.stopPropagation();
               onTogglePin();
-            }
-          }}
-          title={isPinned ? "Unpin task" : "Pin task"}
-        >
-          <PushPin size={12} weight={isPinned ? "fill" : "regular"} />
-        </span>
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                onTogglePin();
+              }
+            }}
+          >
+            <PushPin size={12} weight={isPinned ? "fill" : "regular"} />
+          </span>
+        </Tooltip>
       )}
       {onArchive && (
-        // biome-ignore lint/a11y/useSemanticElements: Cannot use button inside parent button (SidebarItem)
-        <span
-          role="button"
-          tabIndex={0}
-          className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
-          onClick={(e) => {
-            e.stopPropagation();
-            onArchive();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
+        <Tooltip content="Archive task" side="top">
+          {/* biome-ignore lint/a11y/useSemanticElements: Cannot use button inside parent button (SidebarItem) */}
+          <span
+            role="button"
+            tabIndex={0}
+            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
+            onClick={(e) => {
               e.stopPropagation();
               onArchive();
-            }
-          }}
-          title="Archive task"
-        >
-          <Archive size={12} />
-        </span>
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                onArchive();
+              }
+            }}
+          >
+            <Archive size={12} />
+          </span>
+        </Tooltip>
       )}
     </span>
   );

@@ -26,7 +26,8 @@ import { Box, Flex, ScrollArea } from "@radix-ui/themes";
 import type { SignalReportsQueryParams } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useRendererWindowFocusStore } from "@stores/rendererWindowFocusStore";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { MultiSelectStack } from "./detail/MultiSelectStack";
 import { ReportDetailPane } from "./detail/ReportDetailPane";
 import { ReportListPane } from "./list/ReportListPane";
 import { SignalsToolbar } from "./list/SignalsToolbar";
@@ -134,39 +135,78 @@ export function InboxSignalsTab() {
     [allReports],
   );
 
-  // ── Selection state ─────────────────────────────────────────────────────
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  // ── Selection state (unified — store is single source of truth) ─────────
   const selectedReportIds = useInboxReportSelectionStore(
-    (s) => s.selectedReportIds ?? [],
+    (s) => s.selectedReportIds,
+  );
+  const setSelectedReportIds = useInboxReportSelectionStore(
+    (s) => s.setSelectedReportIds,
   );
   const toggleReportSelection = useInboxReportSelectionStore(
     (s) => s.toggleReportSelection,
   );
+  const selectRange = useInboxReportSelectionStore((s) => s.selectRange);
   const pruneSelection = useInboxReportSelectionStore((s) => s.pruneSelection);
+  const clearSelection = useInboxReportSelectionStore((s) => s.clearSelection);
 
-  useEffect(() => {
-    if (reports.length === 0) {
-      setSelectedReportId(null);
-      return;
-    }
-    if (!selectedReportId) {
-      return;
-    }
-    const selectedExists = reports.some(
-      (report) => report.id === selectedReportId,
-    );
-    if (!selectedExists) {
-      setSelectedReportId(null);
-    }
-  }, [reports, selectedReportId]);
+  // Stable refs so callbacks don't need re-registration on every render
+  const selectedReportIdsRef = useRef(selectedReportIds);
+  selectedReportIdsRef.current = selectedReportIds;
+  const reportsRef = useRef(reports);
+  reportsRef.current = reports;
 
+  // Prune selection when visible reports change (e.g. filter/search)
   useEffect(() => {
     pruneSelection(reports.map((report) => report.id));
   }, [reports, pruneSelection]);
 
-  const selectedReport = useMemo(
-    () => reports.find((report) => report.id === selectedReportId) ?? null,
-    [reports, selectedReportId],
+  // The report to show in the detail pane (only when exactly 1 is selected)
+  const selectedReport = useMemo(() => {
+    if (selectedReportIds.length !== 1) return null;
+    return reports.find((r) => r.id === selectedReportIds[0]) ?? null;
+  }, [reports, selectedReportIds]);
+
+  // Reports for the multi-select stack (when 2+ selected)
+  const selectedReports = useMemo(() => {
+    if (selectedReportIds.length < 2) return [];
+    const idSet = new Set(selectedReportIds);
+    return reports.filter((r) => idSet.has(r.id));
+  }, [reports, selectedReportIds]);
+
+  // ── Click handler: plain / cmd / shift ──────────────────────────────────
+  const handleReportClick = useCallback(
+    (reportId: string, event: { metaKey: boolean; shiftKey: boolean }) => {
+      if (event.shiftKey) {
+        selectRange(
+          reportId,
+          reportsRef.current.map((r) => r.id),
+        );
+      } else if (event.metaKey) {
+        toggleReportSelection(reportId);
+      } else if (
+        selectedReportIdsRef.current.length === 1 &&
+        selectedReportIdsRef.current[0] === reportId
+      ) {
+        // Plain click on the only selected report — deselect it
+        clearSelection();
+      } else {
+        // Plain click — select only this report
+        setSelectedReportIds([reportId]);
+      }
+    },
+    [selectRange, toggleReportSelection, setSelectedReportIds, clearSelection],
+  );
+
+  // Select-all checkbox
+  const handleToggleSelectAll = useCallback(
+    (checked: boolean) => {
+      if (checked) {
+        setSelectedReportIds(reportsRef.current.map((r) => r.id));
+      } else {
+        clearSelection();
+      }
+    },
+    [setSelectedReportIds, clearSelection],
   );
 
   // ── Sidebar resize ─────────────────────────────────────────────────────
@@ -237,10 +277,6 @@ export function InboxSignalsTab() {
   const showTwoPaneLayout = hasMountedTwoPaneRef.current;
 
   // ── Arrow-key navigation between reports ──────────────────────────────
-  const reportsRef = useRef(reports);
-  reportsRef.current = reports;
-  const selectedReportIdRef = useRef(selectedReportId);
-  selectedReportIdRef.current = selectedReportId;
   const leftPaneRef = useRef<HTMLDivElement>(null);
 
   const focusListPane = useCallback(() => {
@@ -252,41 +288,46 @@ export function InboxSignalsTab() {
   // Auto-focus the list pane when the two-pane layout appears
   useEffect(() => {
     if (showTwoPaneLayout) {
-      // Small delay to ensure the ref is mounted after conditional render
       focusListPane();
     }
   }, [focusListPane, showTwoPaneLayout]);
 
-  const navigateReport = useCallback((direction: 1 | -1) => {
-    const list = reportsRef.current;
-    if (list.length === 0) return;
+  const navigateReport = useCallback(
+    (direction: 1 | -1) => {
+      const list = reportsRef.current;
+      if (list.length === 0) return;
 
-    const currentId = selectedReportIdRef.current;
-    const currentIndex = currentId
-      ? list.findIndex((r) => r.id === currentId)
-      : -1;
-    const nextIndex =
-      currentIndex === -1
-        ? 0
-        : Math.max(0, Math.min(list.length - 1, currentIndex + direction));
-    const nextId = list[nextIndex].id;
+      // Find the current position based on the last selected report
+      const currentIds = selectedReportIdsRef.current;
+      const currentId =
+        currentIds.length > 0 ? currentIds[currentIds.length - 1] : null;
+      const currentIndex = currentId
+        ? list.findIndex((r) => r.id === currentId)
+        : -1;
+      const nextIndex =
+        currentIndex === -1
+          ? 0
+          : Math.max(0, Math.min(list.length - 1, currentIndex + direction));
+      const nextId = list[nextIndex].id;
 
-    setSelectedReportId(nextId);
+      setSelectedReportIds([nextId]);
 
-    const container = leftPaneRef.current;
-    const row = container?.querySelector<HTMLElement>(
-      `[data-report-id="${nextId}"]`,
-    );
-    const stickyHeader = container?.querySelector<HTMLElement>(
-      "[data-inbox-sticky-header]",
-    );
+      const container = leftPaneRef.current;
+      const row = container?.querySelector<HTMLElement>(
+        `[data-report-id="${nextId}"]`,
+      );
+      const stickyHeader = container?.querySelector<HTMLElement>(
+        "[data-inbox-sticky-header]",
+      );
 
-    if (!row) return;
+      if (!row) return;
 
-    const stickyHeaderHeight = stickyHeader?.offsetHeight ?? 0;
-    row.style.scrollMarginTop = `${stickyHeaderHeight}px`;
-    row.scrollIntoView({ block: "nearest" });
-  }, []);
+      const stickyHeaderHeight = stickyHeader?.offsetHeight ?? 0;
+      row.style.scrollMarginTop = `${stickyHeaderHeight}px`;
+      row.scrollIntoView({ block: "nearest" });
+    },
+    [setSelectedReportIds],
+  );
 
   // Window-level keyboard handler so arrow keys work regardless of which
   // pane has focus — only suppressed inside interactive widgets.
@@ -310,14 +351,17 @@ export function InboxSignalsTab() {
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         navigateReport(-1);
-      } else if (e.key === " " && selectedReportIdRef.current) {
+      } else if (
+        e.key === "Escape" &&
+        selectedReportIdsRef.current.length > 0
+      ) {
         e.preventDefault();
-        toggleReportSelection(selectedReportIdRef.current);
+        clearSelection();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [navigateReport, toggleReportSelection]);
+  }, [navigateReport, clearSelection]);
 
   const searchDisabledReason =
     !hasReports && !searchQuery.trim()
@@ -353,17 +397,37 @@ export function InboxSignalsTab() {
                 direction="column"
                 tabIndex={0}
                 className="outline-none"
+                // Clicking a row/button/checkbox would normally move browser focus to that
+                // element, losing the container's focus and breaking arrow-key navigation.
+                // Intercept mousedown to redirect focus back to the container instead.
+                // Text fields are exempt so the search box can still receive focus normally.
                 onMouseDownCapture={(e) => {
                   const target = e.target as HTMLElement;
-                  if (target.closest("[data-report-id]")) {
+                  if (
+                    target.closest(
+                      "input, textarea, select, [contenteditable='true']",
+                    )
+                  ) {
+                    return;
+                  }
+                  if (target.closest("[data-report-id], button")) {
                     focusListPane();
                   }
                 }}
+                // Same redirect for focus arriving via keyboard (Tab) — if focus lands
+                // inside a row element rather than on the container itself, pull it back up.
                 onFocusCapture={(e) => {
                   const target = e.target as HTMLElement;
                   if (
+                    target.closest(
+                      "input, textarea, select, [contenteditable='true']",
+                    )
+                  ) {
+                    return;
+                  }
+                  if (
                     target !== leftPaneRef.current &&
-                    target.closest("[data-report-id]")
+                    target.closest("[data-report-id], button")
                   ) {
                     focusListPane();
                   }
@@ -387,6 +451,8 @@ export function InboxSignalsTab() {
                     processingCount={processingCount}
                     pipelinePausedUntil={signalProcessingState?.paused_until}
                     reports={reports}
+                    effectiveBulkIds={selectedReportIds}
+                    onToggleSelectAll={handleToggleSelectAll}
                   />
                 </Box>
                 <ReportListPane
@@ -402,9 +468,8 @@ export function InboxSignalsTab() {
                   hasSignalSources={hasSignalSources}
                   searchQuery={searchQuery}
                   hasActiveFilters={hasActiveFilters}
-                  selectedReportId={selectedReportId}
                   selectedReportIds={selectedReportIds}
-                  onSelectReport={setSelectedReportId}
+                  onReportClick={handleReportClick}
                   onToggleReportSelection={toggleReportSelection}
                 />
               </Flex>
@@ -437,10 +502,15 @@ export function InboxSignalsTab() {
               position: "relative",
             }}
           >
-            {selectedReport ? (
+            {selectedReports.length > 1 ? (
+              <MultiSelectStack
+                reports={selectedReports}
+                onClearSelection={clearSelection}
+              />
+            ) : selectedReport ? (
               <ReportDetailPane
                 report={selectedReport}
-                onClose={() => setSelectedReportId(null)}
+                onClose={clearSelection}
               />
             ) : (
               <SelectReportPane />
@@ -468,18 +538,21 @@ export function InboxSignalsTab() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              pointerEvents: "none",
               background:
                 "linear-gradient(to bottom, transparent 0%, var(--color-background) 30%)",
             }}
           >
-            {!hasSignalSources ? (
-              <WelcomePane onEnableInbox={() => setSourcesDialogOpen(true)} />
-            ) : (
-              <WarmingUpPane
-                onConfigureSources={() => setSourcesDialogOpen(true)}
-                enabledProducts={enabledProducts}
-              />
-            )}
+            <Box style={{ pointerEvents: "auto" }}>
+              {!hasSignalSources ? (
+                <WelcomePane onEnableInbox={() => setSourcesDialogOpen(true)} />
+              ) : (
+                <WarmingUpPane
+                  onConfigureSources={() => setSourcesDialogOpen(true)}
+                  enabledProducts={enabledProducts}
+                />
+              )}
+            </Box>
           </Box>
         </Box>
       )}

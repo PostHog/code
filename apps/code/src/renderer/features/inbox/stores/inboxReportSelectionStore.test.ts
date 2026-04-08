@@ -5,6 +5,7 @@ describe("inboxReportSelectionStore", () => {
   beforeEach(() => {
     useInboxReportSelectionStore.setState({
       selectedReportIds: [],
+      lastClickedId: null,
     });
   });
 
@@ -12,6 +13,7 @@ describe("inboxReportSelectionStore", () => {
     expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual(
       [],
     );
+    expect(useInboxReportSelectionStore.getState().lastClickedId).toBeNull();
   });
 
   it("setSelectedReportIds de-duplicates ids", () => {
@@ -26,12 +28,26 @@ describe("inboxReportSelectionStore", () => {
     ]);
   });
 
+  it("setSelectedReportIds with a single id sets lastClickedId", () => {
+    useInboxReportSelectionStore.getState().setSelectedReportIds(["r1"]);
+
+    expect(useInboxReportSelectionStore.getState().lastClickedId).toBe("r1");
+  });
+
+  it("setSelectedReportIds with multiple ids preserves existing lastClickedId", () => {
+    useInboxReportSelectionStore.setState({ lastClickedId: "r1" });
+    useInboxReportSelectionStore.getState().setSelectedReportIds(["r2", "r3"]);
+
+    expect(useInboxReportSelectionStore.getState().lastClickedId).toBe("r1");
+  });
+
   it("toggleReportSelection adds an unselected report", () => {
     useInboxReportSelectionStore.getState().toggleReportSelection("r1");
 
     expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual([
       "r1",
     ]);
+    expect(useInboxReportSelectionStore.getState().lastClickedId).toBe("r1");
   });
 
   it("toggleReportSelection removes a selected report", () => {
@@ -44,6 +60,7 @@ describe("inboxReportSelectionStore", () => {
     expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual([
       "r2",
     ]);
+    expect(useInboxReportSelectionStore.getState().lastClickedId).toBe("r1");
   });
 
   it("isReportSelected reflects selection state", () => {
@@ -59,9 +76,10 @@ describe("inboxReportSelectionStore", () => {
     );
   });
 
-  it("clearSelection clears all selected reports", () => {
+  it("clearSelection clears all selected reports and lastClickedId", () => {
     useInboxReportSelectionStore.setState({
       selectedReportIds: ["r1", "r2"],
+      lastClickedId: "r2",
     });
 
     useInboxReportSelectionStore.getState().clearSelection();
@@ -69,6 +87,7 @@ describe("inboxReportSelectionStore", () => {
     expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual(
       [],
     );
+    expect(useInboxReportSelectionStore.getState().lastClickedId).toBeNull();
   });
 
   it("pruneSelection keeps only visible report ids", () => {
@@ -81,5 +100,68 @@ describe("inboxReportSelectionStore", () => {
     expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual([
       "r2",
     ]);
+  });
+
+  describe("selectRange", () => {
+    const orderedIds = ["r1", "r2", "r3", "r4", "r5"];
+
+    it("selects a forward range from anchor to target", () => {
+      useInboxReportSelectionStore.setState({ lastClickedId: "r2" });
+
+      useInboxReportSelectionStore.getState().selectRange("r4", orderedIds);
+
+      expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual(
+        ["r2", "r3", "r4"],
+      );
+    });
+
+    it("selects a backward range from anchor to target", () => {
+      useInboxReportSelectionStore.setState({ lastClickedId: "r4" });
+
+      useInboxReportSelectionStore.getState().selectRange("r2", orderedIds);
+
+      expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual(
+        ["r2", "r3", "r4"],
+      );
+    });
+
+    it("merges range with existing selection", () => {
+      useInboxReportSelectionStore.setState({
+        selectedReportIds: ["r1"],
+        lastClickedId: "r3",
+      });
+
+      useInboxReportSelectionStore.getState().selectRange("r5", orderedIds);
+
+      expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual(
+        ["r1", "r3", "r4", "r5"],
+      );
+    });
+
+    it("selects just the target when there is no anchor", () => {
+      useInboxReportSelectionStore.getState().selectRange("r3", orderedIds);
+
+      expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual(
+        ["r3"],
+      );
+    });
+
+    it("selects just the target when anchor is not in the ordered list", () => {
+      useInboxReportSelectionStore.setState({ lastClickedId: "r99" });
+
+      useInboxReportSelectionStore.getState().selectRange("r3", orderedIds);
+
+      expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual(
+        ["r3"],
+      );
+    });
+
+    it("updates lastClickedId to the target", () => {
+      useInboxReportSelectionStore.setState({ lastClickedId: "r1" });
+
+      useInboxReportSelectionStore.getState().selectRange("r3", orderedIds);
+
+      expect(useInboxReportSelectionStore.getState().lastClickedId).toBe("r3");
+    });
   });
 });
