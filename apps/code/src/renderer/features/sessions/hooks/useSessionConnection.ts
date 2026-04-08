@@ -11,6 +11,7 @@ import { useChatTitleGenerator } from "./useChatTitleGenerator";
 const log = logger.scope("session-connection");
 
 const connectingTasks = new Set<string>();
+const activityRecorded = new Set<string>();
 
 interface UseSessionConnectionOptions {
   taskId: string;
@@ -37,7 +38,10 @@ export function useSessionConnection({
   useEffect(() => {
     const taskRunId = session?.taskRunId;
     if (!taskRunId) return;
-    trpcClient.agent.recordActivity.mutate({ taskRunId }).catch(() => {});
+    if (!activityRecorded.has(taskRunId)) {
+      activityRecorded.add(taskRunId);
+      trpcClient.agent.recordActivity.mutate({ taskRunId }).catch(() => {});
+    }
     const heartbeat = setInterval(
       () => {
         trpcClient.agent.recordActivity.mutate({ taskRunId }).catch(() => {});
