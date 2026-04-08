@@ -6,20 +6,13 @@ import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { CloudRegion } from "@shared/types/regions";
 import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { useNavigationStore } from "@stores/navigationStore";
-import {
-  identifyUser,
-  isFeatureFlagEnabled,
-  resetUser,
-  track,
-} from "@utils/analytics";
+import { identifyUser, resetUser, track } from "@utils/analytics";
 import { logger } from "@utils/logger";
 import { queryClient } from "@utils/queryClient";
 import { create } from "zustand";
 
 const log = logger.scope("auth-store");
 
-let initializePromise: Promise<boolean> | null = null;
-let authStateSubscription: { unsubscribe: () => void } | null = null;
 let sessionResetCallback: (() => void) | null = null;
 let inFlightAuthSync: Promise<void> | null = null;
 let inFlightAuthSyncKey: string | null = null;
@@ -30,8 +23,6 @@ export function setSessionResetCallback(callback: () => void) {
 }
 
 export function resetAuthStoreModuleStateForTest(): void {
-  initializePromise = null;
-  authStateSubscription = null;
   sessionResetCallback = null;
   inFlightAuthSync = null;
   inFlightAuthSyncKey = null;
@@ -56,9 +47,7 @@ interface AuthStoreState {
   redeemInviteCode: (code: string) => Promise<void>;
   loginWithOAuth: (region: CloudRegion) => Promise<void>;
   signupWithOAuth: (region: CloudRegion) => Promise<void>;
-  initializeOAuth: () => Promise<boolean>;
   selectProject: (projectId: number) => Promise<void>;
-  completeOnboarding: () => void;
   selectPlan: (plan: "free" | "pro") => void;
   selectOrg: (orgId: string) => void;
   logout: () => Promise<void>;
@@ -204,22 +193,7 @@ async function syncAuthState(): Promise<void> {
   await inFlightAuthSync;
 }
 
-function ensureAuthSubscription(): void {
-  if (authStateSubscription) {
-    return;
-  }
-
-  authStateSubscription = trpcClient.auth.onStateChanged.subscribe(undefined, {
-    onData: () => {
-      void syncAuthState();
-    },
-    onError: (error) => {
-      log.error("Auth state subscription error", { error });
-    },
-  });
-}
-
-export const useAuthStore = create<AuthStoreState>((set, get) => ({
+export const useAuthStore = create<AuthStoreState>((set, _get) => ({
   cloudRegion: null,
   staleCloudRegion: null,
 
@@ -263,37 +237,11 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     });
   },
 
-  initializeOAuth: async () => {
-    if (initializePromise) {
-      return initializePromise;
-    }
-
-    initializePromise = (async () => {
-      ensureAuthSubscription();
-      await syncAuthState();
-      return get().isAuthenticated || get().needsScopeReauth;
-    })().finally(() => {
-      initializePromise = null;
-    });
-
-    return initializePromise;
-  },
-
   selectProject: async (projectId: number) => {
     sessionResetCallback?.();
     await trpcClient.auth.selectProject.mutate({ projectId });
     await syncAuthState();
     useNavigationStore.getState().navigateToTaskInput();
-  },
-
-  completeOnboarding: () => {
-    set({ hasCompletedOnboarding: true });
-    if (
-      isFeatureFlagEnabled("posthog-code-billing") &&
-      !useSeatStore.getState().seat
-    ) {
-      useSeatStore.getState().provisionFreeSeat();
-    }
   },
 
   selectPlan: (plan: "free" | "pro") => {

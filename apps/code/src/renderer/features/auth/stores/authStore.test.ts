@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockGetState = vi.hoisted(() => ({ query: vi.fn() }));
-const mockOnStateChangedSubscribe = vi.hoisted(() => vi.fn());
 const mockGetValidAccessToken = vi.hoisted(() => ({ query: vi.fn() }));
 const mockRefreshAccessToken = vi.hoisted(() => ({ mutate: vi.fn() }));
 const mockLogin = vi.hoisted(() => ({ mutate: vi.fn() }));
@@ -15,7 +14,6 @@ vi.mock("@renderer/trpc/client", () => ({
   trpcClient: {
     auth: {
       getState: mockGetState,
-      onStateChanged: { subscribe: mockOnStateChangedSubscribe },
       getValidAccessToken: mockGetValidAccessToken,
       refreshAccessToken: mockRefreshAccessToken,
       login: mockLogin,
@@ -127,8 +125,6 @@ describe("authStore", () => {
       hasCodeAccess: null,
       needsScopeReauth: false,
     });
-    mockOnStateChangedSubscribe.mockReturnValue({ unsubscribe: vi.fn() });
-
     useAuthStore.setState({
       cloudRegion: null,
       staleCloudRegion: null,
@@ -146,12 +142,11 @@ describe("authStore", () => {
     });
   });
 
-  it("initializes from main auth state", async () => {
+  it("syncs from main auth state", async () => {
     mockGetState.query.mockResolvedValue(authenticatedState);
 
-    const result = await useAuthStore.getState().initializeOAuth();
+    await useAuthStore.getState().checkCodeAccess();
 
-    expect(result).toBe(true);
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
     expect(useAuthStore.getState().projectId).toBe(1);
   });
@@ -170,7 +165,7 @@ describe("authStore", () => {
   it("deduplicates expensive renderer auth sync for repeated auth-state events", async () => {
     mockGetState.query.mockResolvedValue(authenticatedState);
 
-    await useAuthStore.getState().initializeOAuth();
+    await useAuthStore.getState().checkCodeAccess();
     await useAuthStore.getState().checkCodeAccess();
 
     expect(mockGetCurrentUser).toHaveBeenCalledTimes(1);
@@ -190,7 +185,7 @@ describe("authStore", () => {
         needsScopeReauth: false,
       });
 
-    await useAuthStore.getState().initializeOAuth();
+    await useAuthStore.getState().checkCodeAccess();
     await useAuthStore.getState().checkCodeAccess();
 
     expect(resetUser).toHaveBeenCalledTimes(1);
