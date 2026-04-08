@@ -11,8 +11,8 @@ import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useRepositoryIntegration } from "@hooks/useIntegrations";
 import {
   ArrowSquareOutIcon,
+  CaretDownIcon,
   CaretRightIcon,
-  CheckIcon,
   ClockIcon,
   Cloud as CloudIcon,
   CommandIcon,
@@ -23,7 +23,6 @@ import {
 } from "@phosphor-icons/react";
 import {
   AlertDialog,
-  Badge,
   Box,
   Button,
   Flex,
@@ -34,140 +33,97 @@ import {
 } from "@radix-ui/themes";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type {
+  ActionabilityJudgmentArtefact,
+  ActionabilityJudgmentContent,
+  PriorityJudgmentArtefact,
+  SignalFindingArtefact,
   SignalReport,
   SignalReportArtefact,
+  SignalReportArtefactsResponse,
   SuggestedReviewersArtefact,
 } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { toast } from "sonner";
+import { SignalReportActionabilityBadge } from "../utils/SignalReportActionabilityBadge";
 import { SignalReportPriorityBadge } from "../utils/SignalReportPriorityBadge";
 import { SignalReportStatusBadge } from "../utils/SignalReportStatusBadge";
 import { SignalReportSummaryMarkdown } from "../utils/SignalReportSummaryMarkdown";
 import { ReportTaskLogs } from "./ReportTaskLogs";
 import { SignalCard } from "./SignalCard";
 
-// ── JudgmentBadges (only used in detail pane) ───────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
-function JudgmentBadges({
-  safetyContent,
-  actionabilityContent,
+function getArtefactsUnavailableMessage(
+  reason: SignalReportArtefactsResponse["unavailableReason"],
+): string {
+  switch (reason) {
+    case "forbidden":
+      return "Evidence could not be loaded with the current API permissions.";
+    case "not_found":
+      return "Evidence endpoint is unavailable for this signal in this environment.";
+    case "invalid_payload":
+      return "Evidence format was unexpected, so no artefacts could be shown.";
+    case "request_failed":
+      return "Evidence is temporarily unavailable. You can still create a task from this report.";
+    default:
+      return "Evidence is currently unavailable for this signal.";
+  }
+}
+
+function DetailRow({
+  label,
+  value,
+  explanation,
 }: {
-  safetyContent: Record<string, unknown> | null;
-  actionabilityContent: Record<string, unknown> | null;
+  label: string;
+  value: ReactNode;
+  explanation?: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
-
-  const isSafe =
-    safetyContent?.safe === true || safetyContent?.judgment === "safe";
-  const actionabilityJudgment =
-    (actionabilityContent?.judgment as string) ?? "";
-
-  const actionabilityLabel =
-    actionabilityJudgment === "immediately_actionable"
-      ? "Immediately actionable"
-      : actionabilityJudgment === "requires_human_input"
-        ? "Requires human input"
-        : "Not actionable";
-
-  const actionabilityColor =
-    actionabilityJudgment === "immediately_actionable"
-      ? "green"
-      : actionabilityJudgment === "requires_human_input"
-        ? "amber"
-        : "gray";
+  const hasExplanation = !!explanation;
 
   return (
-    <Box className="rounded border border-gray-6 bg-gray-1">
-      <button
-        type="button"
-        className="flex w-full cursor-pointer items-center gap-2 rounded border-0 bg-transparent px-3 py-2 text-left hover:bg-gray-2"
-        onClick={() => setExpanded(!expanded)}
-      >
+    <Box>
+      <Flex align="center" gap="2">
         <Text
-          size="1"
-          weight="medium"
-          className="shrink-0 text-[11px]"
+          size="2"
+          className="w-[90px] shrink-0 text-[13px]"
           style={{ color: "var(--gray-10)" }}
         >
-          LLM judgment:
+          {label}
         </Text>
-        <Flex align="center" gap="1" wrap="wrap" className="flex-1">
-          {safetyContent && (
-            <Badge
-              variant="soft"
-              color={isSafe ? "green" : "red"}
-              size="1"
-              className="text-[11px]"
-            >
-              {isSafe ? <CheckIcon size={10} /> : <WarningIcon size={10} />}
-              <span className="ml-0.5">{isSafe ? "Safe" : "Unsafe"}</span>
-            </Badge>
-          )}
-          {actionabilityContent && (
-            <Badge
-              variant="soft"
-              color={actionabilityColor as "green" | "amber" | "gray"}
-              size="1"
-              className="text-[11px]"
-            >
-              {actionabilityJudgment === "immediately_actionable" ? (
-                <CheckIcon size={10} />
-              ) : actionabilityJudgment === "requires_human_input" ? (
-                <WarningIcon size={10} />
-              ) : (
-                <XIcon size={10} />
-              )}
-              <span className="ml-0.5">{actionabilityLabel}</span>
-            </Badge>
-          )}
-        </Flex>
-        <CaretRightIcon
-          size={14}
-          className="shrink-0 text-gray-9 transition-transform"
-          style={{ transform: expanded ? "rotate(90deg)" : undefined }}
-        />
-      </button>
-      {expanded && (
-        <Flex
-          direction="column"
-          gap="2"
-          px="3"
-          pb="3"
-          className="text-[12px]"
-          style={{ color: "var(--gray-11)" }}
+        {value}
+        {hasExplanation && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[13px] text-gray-9 hover:bg-gray-3 hover:text-gray-11"
+          >
+            {expanded ? (
+              <CaretDownIcon size={12} />
+            ) : (
+              <CaretRightIcon size={12} />
+            )}
+            Why?
+          </button>
+        )}
+      </Flex>
+      {expanded && explanation && (
+        <Text
+          size="1"
+          color="gray"
+          className="mt-1 block text-pretty text-[13px] leading-relaxed"
+          style={{ paddingLeft: 90 }}
         >
-          {safetyContent?.explanation ? (
-            <Box>
-              <Text
-                size="1"
-                weight="medium"
-                className="text-[11px]"
-                style={{ color: "var(--gray-10)" }}
-              >
-                Safety
-              </Text>
-              <Text size="1" className="mt-0.5 block text-[12px]">
-                {String(safetyContent.explanation)}
-              </Text>
-            </Box>
-          ) : null}
-          {actionabilityContent?.explanation ? (
-            <Box>
-              <Text
-                size="1"
-                weight="medium"
-                className="text-[11px]"
-                style={{ color: "var(--gray-10)" }}
-              >
-                Actionability
-              </Text>
-              <Text size="1" className="mt-0.5 block text-[12px]">
-                {String(actionabilityContent.explanation)}
-              </Text>
-            </Box>
-          ) : null}
-        </Flex>
+          {explanation}
+        </Text>
       )}
     </Box>
   );
@@ -206,21 +162,43 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
     return reviewerArtefact?.content ?? [];
   }, [allArtefacts]);
 
-  const judgments = useMemo(() => {
-    const safety = allArtefacts.find((a) => a.type === "safety_judgment");
-    const actionability = allArtefacts.find(
-      (a) => a.type === "actionability_judgment",
-    );
-    const safetyContent =
-      safety && !Array.isArray(safety.content)
-        ? (safety.content as unknown as Record<string, unknown>)
-        : null;
-    const actionabilityContent =
-      actionability && !Array.isArray(actionability.content)
-        ? (actionability.content as unknown as Record<string, unknown>)
-        : null;
-    return { safetyContent, actionabilityContent };
+  const signalFindings = useMemo(() => {
+    const map = new Map<string, SignalFindingArtefact["content"]>();
+    for (const a of allArtefacts) {
+      if (a.type === "signal_finding") {
+        const finding = a as SignalFindingArtefact;
+        map.set(finding.content.signal_id, finding.content);
+      }
+    }
+    return map;
   }, [allArtefacts]);
+
+  const actionabilityJudgment =
+    useMemo((): ActionabilityJudgmentContent | null => {
+      for (const a of allArtefacts) {
+        if (a.type === "actionability_judgment") {
+          return (a as ActionabilityJudgmentArtefact).content;
+        }
+      }
+      return null;
+    }, [allArtefacts]);
+
+  const priorityExplanation = useMemo((): string | null => {
+    for (const a of allArtefacts) {
+      if (a.type === "priority_judgment") {
+        return (a as PriorityJudgmentArtefact).content.explanation || null;
+      }
+    }
+    return null;
+  }, [allArtefacts]);
+
+  const artefactsUnavailableReason = artefactsQuery.data?.unavailableReason;
+  const showArtefactsUnavailable =
+    !artefactsQuery.isLoading &&
+    (!!artefactsQuery.error || !!artefactsUnavailableReason);
+  const artefactsUnavailableMessage = artefactsQuery.error
+    ? "Evidence could not be loaded right now. You can still create a task from this report."
+    : getArtefactsUnavailableMessage(artefactsUnavailableReason);
 
   const signalsQuery = useInboxReportSignals(report.id, {
     enabled: true,
@@ -398,7 +376,63 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
               variant="detail"
             />
           )}
-          <SignalReportPriorityBadge priority={report.priority} />
+
+          {/* ── Priority / Actionability ──────────────────────── */}
+          {(report.priority || report.actionability) && (
+            <Flex
+              direction="column"
+              gap="1"
+              py="2"
+              style={{ borderTop: "1px solid var(--gray-5)" }}
+            >
+              {report.priority && (
+                <DetailRow
+                  label="Priority"
+                  value={
+                    <SignalReportPriorityBadge priority={report.priority} />
+                  }
+                  explanation={priorityExplanation}
+                />
+              )}
+              {report.actionability && (
+                <DetailRow
+                  label="Actionability"
+                  value={
+                    <SignalReportActionabilityBadge
+                      actionability={report.actionability}
+                    />
+                  }
+                  explanation={actionabilityJudgment?.explanation}
+                />
+              )}
+            </Flex>
+          )}
+
+          {/* ── Already-addressed warning ─────────────────────── */}
+          {(report.already_addressed ??
+            actionabilityJudgment?.already_addressed) && (
+            <Flex
+              align="center"
+              gap="2"
+              px="2"
+              py="1"
+              className="rounded border border-amber-6 bg-amber-2"
+            >
+              <WarningIcon
+                size={14}
+                weight="fill"
+                style={{ color: "var(--amber-9)" }}
+                className="shrink-0"
+              />
+              <Text
+                size="1"
+                className="text-[12px]"
+                style={{ color: "var(--amber-11)" }}
+              >
+                This issue may already be addressed in recent code changes.
+              </Text>
+            </Flex>
+          )}
 
           {/* ── Suggested reviewers ─────────────────────────────── */}
           {suggestedReviewers.length > 0 && (
@@ -475,7 +509,11 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
               </Text>
               <Flex direction="column" gap="2">
                 {signals.map((signal) => (
-                  <SignalCard key={signal.signal_id} signal={signal} />
+                  <SignalCard
+                    key={signal.signal_id}
+                    signal={signal}
+                    finding={signalFindings.get(signal.signal_id)}
+                  />
                 ))}
               </Flex>
             </Box>
@@ -486,65 +524,67 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
             </Text>
           )}
 
-          {/* ── LLM judgments ──────────────────────────────────── */}
-          {(judgments.safetyContent || judgments.actionabilityContent) && (
-            <JudgmentBadges
-              safetyContent={judgments.safetyContent}
-              actionabilityContent={judgments.actionabilityContent}
-            />
-          )}
-
-          {/* ── Session segments (video artefacts) ──────────────── */}
-          {videoSegments.length > 0 && (
-            <Box>
-              <Text
-                size="1"
-                weight="medium"
-                className="block text-[13px]"
-                mb="2"
-              >
-                Session segments
+          {/* ── Evidence (session segments) ─────────────────────── */}
+          <Box>
+            <Text size="1" weight="medium" className="block text-[13px]" mb="2">
+              Evidence
+            </Text>
+            {artefactsQuery.isLoading && (
+              <Text size="1" color="gray" className="block text-[12px]">
+                Loading evidence...
               </Text>
-              <Flex direction="column" gap="1">
-                {videoSegments.map((artefact) => (
-                  <Box
-                    key={artefact.id}
-                    className="rounded border border-gray-6 bg-gray-1 p-2"
+            )}
+            {showArtefactsUnavailable && (
+              <Text size="1" color="gray" className="block text-[12px]">
+                {artefactsUnavailableMessage}
+              </Text>
+            )}
+            {!artefactsQuery.isLoading &&
+              !showArtefactsUnavailable &&
+              videoSegments.length === 0 && (
+                <Text size="1" color="gray" className="block text-[12px]">
+                  No session segments available for this report.
+                </Text>
+              )}
+            <Flex direction="column" gap="1">
+              {videoSegments.map((artefact) => (
+                <Box
+                  key={artefact.id}
+                  className="rounded border border-gray-6 bg-gray-1 p-2"
+                >
+                  <Text
+                    size="1"
+                    className="whitespace-pre-wrap text-pretty break-words text-[12px]"
                   >
-                    <Text
-                      size="1"
-                      className="whitespace-pre-wrap text-pretty break-words text-[12px]"
-                    >
-                      {artefact.content.content}
-                    </Text>
-                    <Flex align="center" justify="between" mt="1" gap="2">
-                      <Flex align="center" gap="1">
-                        <ClockIcon size={12} className="text-gray-9" />
-                        <Text size="1" color="gray" className="text-[12px]">
-                          {artefact.content.start_time
-                            ? new Date(
-                                artefact.content.start_time,
-                              ).toLocaleString()
-                            : "Unknown time"}
-                        </Text>
-                      </Flex>
-                      {replayBaseUrl && artefact.content.session_id && (
-                        <a
-                          href={`${replayBaseUrl}/${artefact.content.session_id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-[12px] text-gray-11 hover:text-gray-12"
-                        >
-                          View replay
-                          <ArrowSquareOutIcon size={12} />
-                        </a>
-                      )}
+                    {artefact.content.content}
+                  </Text>
+                  <Flex align="center" justify="between" mt="1" gap="2">
+                    <Flex align="center" gap="1">
+                      <ClockIcon size={12} className="text-gray-9" />
+                      <Text size="1" color="gray" className="text-[12px]">
+                        {artefact.content.start_time
+                          ? new Date(
+                              artefact.content.start_time,
+                            ).toLocaleString()
+                          : "Unknown time"}
+                      </Text>
                     </Flex>
-                  </Box>
-                ))}
-              </Flex>
-            </Box>
-          )}
+                    {replayBaseUrl && artefact.content.session_id && (
+                      <a
+                        href={`${replayBaseUrl}/${artefact.content.session_id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-[12px] text-gray-11 hover:text-gray-12"
+                      >
+                        View replay
+                        <ArrowSquareOutIcon size={12} />
+                      </a>
+                    )}
+                  </Flex>
+                </Box>
+              ))}
+            </Flex>
+          </Box>
         </Flex>
       </ScrollArea>
 

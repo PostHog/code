@@ -1,3 +1,4 @@
+import { SignalReportActionabilityBadge } from "@features/inbox/components/utils/SignalReportActionabilityBadge";
 import { SignalReportPriorityBadge } from "@features/inbox/components/utils/SignalReportPriorityBadge";
 import { SignalReportStatusBadge } from "@features/inbox/components/utils/SignalReportStatusBadge";
 import { SignalReportSummaryMarkdown } from "@features/inbox/components/utils/SignalReportSummaryMarkdown";
@@ -52,6 +53,9 @@ export function ReportCardContent({
           </Text>
           <SignalReportStatusBadge status={report.status} />
           <SignalReportPriorityBadge priority={report.priority} />
+          <SignalReportActionabilityBadge
+            actionability={report.actionability}
+          />
           {report.is_suggested_reviewer && (
             <Tooltip content="You are a suggested reviewer">
               <span

@@ -1,8 +1,11 @@
 import type {
+  ActionabilityJudgmentArtefact,
   AvailableSuggestedReviewer,
   AvailableSuggestedReviewersResponse,
+  PriorityJudgmentArtefact,
   SandboxEnvironment,
   SandboxEnvironmentInput,
+  SignalFindingArtefact,
   SignalProcessingStateResponse,
   SignalReport,
   SignalReportArtefact,
@@ -76,11 +79,130 @@ function optionalString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
-type AnyArtefact = SignalReportArtefact | SuggestedReviewersArtefact;
+type AnyArtefact =
+  | SignalReportArtefact
+  | PriorityJudgmentArtefact
+  | ActionabilityJudgmentArtefact
+  | SignalFindingArtefact
+  | SuggestedReviewersArtefact;
+
+const PRIORITY_VALUES = new Set(["P0", "P1", "P2", "P3", "P4"]);
+
+function normalizePriorityJudgmentArtefact(
+  value: Record<string, unknown>,
+): PriorityJudgmentArtefact | null {
+  const id = optionalString(value.id);
+  if (!id) return null;
+
+  const contentValue = isObjectRecord(value.content) ? value.content : null;
+  if (!contentValue) return null;
+
+  const priority = optionalString(contentValue.priority);
+  if (!priority || !PRIORITY_VALUES.has(priority)) return null;
+
+  return {
+    id,
+    type: "priority_judgment",
+    created_at: optionalString(value.created_at) ?? new Date(0).toISOString(),
+    content: {
+      explanation: optionalString(contentValue.explanation) ?? "",
+      priority: priority as PriorityJudgmentArtefact["content"]["priority"],
+    },
+  };
+}
+
+const ACTIONABILITY_VALUES = new Set([
+  "immediately_actionable",
+  "requires_human_input",
+  "not_actionable",
+]);
+
+function normalizeActionabilityJudgmentArtefact(
+  value: Record<string, unknown>,
+): ActionabilityJudgmentArtefact | null {
+  const id = optionalString(value.id);
+  if (!id) return null;
+
+  const contentValue = isObjectRecord(value.content) ? value.content : null;
+  if (!contentValue) return null;
+
+  // Support both agentic ("actionability") and legacy ("choice") field names
+  const actionability =
+    optionalString(contentValue.actionability) ??
+    optionalString(contentValue.choice);
+  if (!actionability || !ACTIONABILITY_VALUES.has(actionability)) return null;
+
+  return {
+    id,
+    type: "actionability_judgment",
+    created_at: optionalString(value.created_at) ?? new Date(0).toISOString(),
+    content: {
+      explanation: optionalString(contentValue.explanation) ?? "",
+      actionability:
+        actionability as ActionabilityJudgmentArtefact["content"]["actionability"],
+      already_addressed:
+        typeof contentValue.already_addressed === "boolean"
+          ? contentValue.already_addressed
+          : false,
+    },
+  };
+}
+
+function normalizeSignalFindingArtefact(
+  value: Record<string, unknown>,
+): SignalFindingArtefact | null {
+  const id = optionalString(value.id);
+  if (!id) return null;
+
+  const contentValue = isObjectRecord(value.content) ? value.content : null;
+  if (!contentValue) return null;
+
+  const signalId = optionalString(contentValue.signal_id);
+  if (!signalId) return null;
+
+  return {
+    id,
+    type: "signal_finding",
+    created_at: optionalString(value.created_at) ?? new Date(0).toISOString(),
+    content: {
+      signal_id: signalId,
+      relevant_code_paths: Array.isArray(contentValue.relevant_code_paths)
+        ? contentValue.relevant_code_paths.filter(
+            (p: unknown): p is string => typeof p === "string",
+          )
+        : [],
+      relevant_commit_hashes: isObjectRecord(
+        contentValue.relevant_commit_hashes,
+      )
+        ? Object.fromEntries(
+            Object.entries(contentValue.relevant_commit_hashes).filter(
+              (e): e is [string, string] => typeof e[1] === "string",
+            ),
+          )
+        : {},
+      data_queried: optionalString(contentValue.data_queried) ?? "",
+      verified:
+        typeof contentValue.verified === "boolean"
+          ? contentValue.verified
+          : false,
+    },
+  };
+}
 
 function normalizeSignalReportArtefact(value: unknown): AnyArtefact | null {
   if (!isObjectRecord(value)) {
     return null;
+  }
+
+  const dispatchType = optionalString(value.type);
+  if (dispatchType === "signal_finding") {
+    return normalizeSignalFindingArtefact(value);
+  }
+  if (dispatchType === "actionability_judgment") {
+    return normalizeActionabilityJudgmentArtefact(value);
+  }
+  if (dispatchType === "priority_judgment") {
+    return normalizePriorityJudgmentArtefact(value);
   }
 
   const id = optionalString(value.id);
@@ -88,7 +210,7 @@ function normalizeSignalReportArtefact(value: unknown): AnyArtefact | null {
     return null;
   }
 
-  const type = optionalString(value.type) ?? "unknown";
+  const type = dispatchType ?? "unknown";
   const created_at =
     optionalString(value.created_at) ?? new Date(0).toISOString();
 
