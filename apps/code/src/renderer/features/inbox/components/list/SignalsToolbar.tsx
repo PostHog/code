@@ -1,6 +1,7 @@
+import { Button } from "@components/ui/Button";
 import { useInboxBulkActions } from "@features/inbox/hooks/useInboxBulkActions";
-import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReportSelectionStore";
 import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsFilterStore";
+import { INBOX_REFETCH_INTERVAL_MS } from "@features/inbox/utils/inboxConstants";
 import {
   ArrowClockwiseIcon,
   EyeSlashIcon,
@@ -11,7 +12,6 @@ import {
 import {
   AlertDialog,
   Box,
-  Button,
   Checkbox,
   Flex,
   Spinner,
@@ -36,6 +36,10 @@ interface SignalsToolbarProps {
   searchDisabledReason?: string | null;
   hideFilters?: boolean;
   reports?: SignalReport[];
+  /** Pre-computed effective bulk selection (store ids or virtual open-report fallback). */
+  effectiveBulkIds?: string[];
+  /** Called when the select-all checkbox is toggled. Parent owns all state transitions. */
+  onToggleSelectAll?: (checked: boolean) => void;
 }
 
 function formatPauseRemaining(pausedUntil: string): string {
@@ -64,6 +68,8 @@ function formatPauseRemaining(pausedUntil: string): string {
   return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
 }
 
+const inboxLivePollingTooltip = `Inbox refetches the report list about every ${(INBOX_REFETCH_INTERVAL_MS / 1000).toFixed(1)} seconds while this window is focused and Inbox is open. Refetching pauses when you switch to another app or navigate away from Inbox.`;
+
 export function SignalsToolbar({
   totalCount,
   filteredCount,
@@ -75,24 +81,20 @@ export function SignalsToolbar({
   searchDisabledReason,
   hideFilters,
   reports = [],
+  effectiveBulkIds = [],
+  onToggleSelectAll,
 }: SignalsToolbarProps) {
   const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
   const setSearchQuery = useInboxSignalsFilterStore((s) => s.setSearchQuery);
   const [showSuppressConfirm, setShowSuppressConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const selectedReportIds = useInboxReportSelectionStore(
-    (s) => s.selectedReportIds ?? [],
-  );
-  const setSelectedReportIds = useInboxReportSelectionStore(
-    (s) => s.setSelectedReportIds,
-  );
 
   const {
     selectedCount,
-    canSuppress,
-    canSnooze,
-    canDelete,
-    canReingest,
+    snoozeDisabledReason,
+    suppressDisabledReason,
+    deleteDisabledReason,
+    reingestDisabledReason,
     isSuppressing,
     isSnoozing,
     isDeleting,
@@ -144,20 +146,12 @@ export function SignalsToolbar({
   const visibleReportIds = reports.map((report) => report.id);
   const hasVisibleReports = visibleReportIds.length > 0;
   const selectedVisibleCount = visibleReportIds.filter((reportId) =>
-    selectedReportIds.includes(reportId),
+    effectiveBulkIds.includes(reportId),
   ).length;
   const allVisibleSelected =
     hasVisibleReports && selectedVisibleCount === visibleReportIds.length;
   const someVisibleSelected =
     selectedVisibleCount > 0 && selectedVisibleCount < visibleReportIds.length;
-
-  const handleToggleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedReportIds(visibleReportIds);
-    } else {
-      setSelectedReportIds([]);
-    }
-  };
 
   return (
     <>
@@ -174,16 +168,18 @@ export function SignalsToolbar({
                 Reports ({countLabel})
               </Text>
               {livePolling ? (
-                <span
-                  className="h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{
-                    backgroundColor: "var(--red-9)",
-                    boxShadow: "0 0 8px var(--red-9)",
-                    animation: "inboxToolbarPulse 1.4s ease-in-out infinite",
-                  }}
-                  title="Watching for new and updated reports"
-                  aria-hidden
-                />
+                <Tooltip content={inboxLivePollingTooltip}>
+                  <span
+                    role="img"
+                    className="inline-flex h-1.5 w-1.5 shrink-0 cursor-default rounded-full"
+                    style={{
+                      backgroundColor: "var(--red-9)",
+                      boxShadow: "0 0 8px var(--red-9)",
+                      animation: "inboxToolbarPulse 1.4s ease-in-out infinite",
+                    }}
+                    aria-label="Live inbox refresh active"
+                  />
+                </Tooltip>
               ) : null}
             </Flex>
             {pipelineHint && !isSearchActive ? (
@@ -195,24 +191,11 @@ export function SignalsToolbar({
         </Flex>
 
         <Flex align="center" gap="2">
-          <Flex align="center" justify="center" className="shrink-0">
-            <Checkbox
-              size="1"
-              checked={
-                someVisibleSelected ? "indeterminate" : allVisibleSelected
-              }
-              disabled={!hasVisibleReports}
-              onCheckedChange={(checked) =>
-                handleToggleSelectAll(checked === true)
-              }
-              aria-label="Select all visible reports"
-            />
-          </Flex>
           <Tooltip
             content={searchDisabledReason}
             hidden={!searchDisabledReason}
           >
-            <Box style={{ flex: 1, minWidth: 0 }}>
+            <Box className="min-w-0 flex-1 select-text">
               <TextField.Root
                 size="1"
                 placeholder="Search reports..."
@@ -235,77 +218,83 @@ export function SignalsToolbar({
           )}
         </Flex>
 
-        {selectedCount > 0 && (
-          <Flex direction="column" gap="1">
-            <Flex align="center" justify="between" gap="2" wrap="wrap">
-              <Text size="1" color="gray" className="text-[11px]">
-                {selectedCount} selected
-              </Text>
-            </Flex>
-
-            <Flex gap="1" wrap="wrap">
-              <Tooltip content="Wait for this report to gather more context">
-                <Button
-                  size="1"
-                  variant="soft"
-                  color="gray"
-                  className="text-[12px]"
-                  disabled={!canSnooze || isSnoozing}
-                  onClick={() => void handleSnooze()}
-                >
-                  {isSnoozing ? <Spinner size="1" /> : <PauseIcon size={12} />}
-                  Snooze
-                </Button>
-              </Tooltip>
-
-              <Button
-                size="1"
-                variant="soft"
-                color="red"
-                className="text-[12px]"
-                disabled={!canDelete || isDeleting}
-                onClick={() => setShowDeleteConfirm(true)}
-              >
-                {isDeleting ? <Spinner size="1" /> : <TrashIcon size={12} />}
-                Delete
-              </Button>
-
-              <Button
-                size="1"
-                variant="soft"
-                color="red"
-                className="text-[12px]"
-                disabled={!canSuppress || isSuppressing}
-                onClick={() => setShowSuppressConfirm(true)}
-              >
-                {isSuppressing ? (
-                  <Spinner size="1" />
-                ) : (
-                  <EyeSlashIcon size={12} />
-                )}
-                Suppress
-              </Button>
-
-              {IS_DEV && (
-                <Button
-                  size="1"
-                  variant="soft"
-                  color="gray"
-                  className="text-[12px]"
-                  disabled={!canReingest || isReingesting}
-                  onClick={() => void handleReingest()}
-                >
-                  {isReingesting ? (
-                    <Spinner size="1" />
-                  ) : (
-                    <ArrowClockwiseIcon size={12} />
-                  )}
-                  Reingest
-                </Button>
+        <Flex gap="2" align="center" wrap="wrap">
+          {/* biome-ignore lint/a11y/noLabelWithoutControl: Radix Checkbox renders as button[role=checkbox] inside the label, which is valid */}
+          <label className="flex cursor-pointer items-center gap-2">
+            <Checkbox
+              size="1"
+              checked={
+                someVisibleSelected ? "indeterminate" : allVisibleSelected
+              }
+              disabled={!hasVisibleReports}
+              onCheckedChange={(checked) =>
+                onToggleSelectAll?.(checked === true)
+              }
+              aria-label="Select all visible reports"
+            />
+            <Text size="1" color="gray" className="text-[11px]">
+              {selectedCount} selected
+            </Text>
+          </label>
+          <Button
+            size="1"
+            variant="soft"
+            color="gray"
+            className="text-[12px]"
+            tooltipContent="Wait for this report to gather more context"
+            disabledReason={snoozeDisabledReason}
+            disabled={snoozeDisabledReason !== null || isSnoozing}
+            onClick={() => void handleSnooze()}
+          >
+            {isSnoozing ? <Spinner size="1" /> : <PauseIcon size={12} />}
+            Snooze
+          </Button>
+          <Button
+            size="1"
+            variant="soft"
+            color="red"
+            className="text-[12px]"
+            tooltipContent="Suppress this report to ignore all future signals matched to it"
+            disabledReason={suppressDisabledReason}
+            disabled={suppressDisabledReason !== null || isSuppressing}
+            onClick={() => setShowSuppressConfirm(true)}
+          >
+            {isSuppressing ? <Spinner size="1" /> : <EyeSlashIcon size={12} />}
+            Suppress
+          </Button>
+          <Button
+            size="1"
+            variant="soft"
+            color="red"
+            className="text-[12px]"
+            tooltipContent="Delete this report and its signals"
+            disabledReason={deleteDisabledReason}
+            disabled={deleteDisabledReason !== null || isDeleting}
+            onClick={() => setShowDeleteConfirm(true)}
+          >
+            {isDeleting ? <Spinner size="1" /> : <TrashIcon size={12} />}
+            Delete
+          </Button>
+          {IS_DEV && (
+            <Button
+              size="1"
+              variant="soft"
+              color="blue"
+              className="text-[12px]"
+              tooltipContent="DEV-ONLY: Reingest this report to gather more context"
+              disabledReason={reingestDisabledReason}
+              disabled={reingestDisabledReason !== null || isReingesting}
+              onClick={() => void handleReingest()}
+            >
+              {isReingesting ? (
+                <Spinner size="1" />
+              ) : (
+                <ArrowClockwiseIcon size={12} />
               )}
-            </Flex>
-          </Flex>
-        )}
+              Reingest
+            </Button>
+          )}
+        </Flex>
       </Flex>
 
       <AlertDialog.Root
@@ -334,7 +323,7 @@ export function SignalsToolbar({
             <AlertDialog.Action>
               <Button
                 variant="solid"
-                color="red"
+                color="orange"
                 onClick={() => void handleConfirmSuppress()}
                 disabled={isSuppressing}
               >

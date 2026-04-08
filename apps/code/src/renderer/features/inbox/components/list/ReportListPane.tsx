@@ -166,8 +166,8 @@ export function ReportListPane({
       {reports.map((report, index) => (
         <ReportListRow
           key={report.id}
-          index={index}
           report={report}
+          index={index}
           isSelected={selectedReportId === report.id}
           isChecked={selectedReportIds.includes(report.id)}
           onClick={() => onSelectReport(report.id)}

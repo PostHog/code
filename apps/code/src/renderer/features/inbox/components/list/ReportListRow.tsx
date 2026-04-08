@@ -33,19 +33,6 @@ export function ReportListRow({
     },
   );
 
-  const isStrongSignal = report.total_weight >= 65 || report.signal_count >= 20;
-  const isMediumSignal = report.total_weight >= 30 || report.signal_count >= 6;
-  const strengthColor = isStrongSignal
-    ? "var(--green-9)"
-    : isMediumSignal
-      ? "var(--yellow-9)"
-      : "var(--gray-8)";
-  const strengthLabel = isStrongSignal
-    ? "strong"
-    : isMediumSignal
-      ? "medium"
-      : "light";
-
   const isReady = report.status === "ready";
 
   const isInteractiveTarget = (target: EventTarget | null): boolean => {
@@ -66,6 +53,14 @@ export function ReportListRow({
     e.stopPropagation();
     onToggleChecked();
   };
+
+  const rowBgClass = isSelected
+    ? "bg-gray-3"
+    : isChecked
+      ? "bg-gray-2"
+      : report.is_suggested_reviewer
+        ? "bg-blue-2"
+        : "";
 
   return (
     <motion.div
@@ -96,23 +91,21 @@ export function ReportListRow({
           handleToggleChecked(e);
         }
       }}
-      className="w-full cursor-pointer overflow-hidden border-gray-5 border-b py-2 pr-3 pl-2 text-left transition-colors hover:bg-gray-2"
-      style={{
-        backgroundColor: isSelected
-          ? "var(--gray-3)"
-          : isChecked
-            ? "var(--gray-2)"
-            : report.is_suggested_reviewer
-              ? "var(--blue-2)"
-              : "transparent",
-      }}
+      className={[
+        "relative isolate w-full cursor-pointer overflow-hidden border-gray-5 border-b py-2 pr-3 pl-2 text-left",
+        "before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:bg-gray-12 before:opacity-0 hover:before:opacity-[0.07]",
+        rowBgClass,
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
-      <Flex align="start" justify="between" gap="3">
+      <Flex align="start" justify="between" gap="3" className="relative z-[2]">
         <Flex align="start" gap="2" style={{ minWidth: 0, flex: 1 }}>
           <Flex align="center" justify="center" className="shrink-0 pt-0.5">
             <Checkbox
               size="1"
               checked={isChecked}
+              className="mt-0.5"
               tabIndex={-1}
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -129,16 +122,16 @@ export function ReportListRow({
             />
           </Flex>
 
-          <Flex direction="column" gap="1" style={{ minWidth: 0, flex: 1 }}>
+          <Flex direction="column" gap="0.5" style={{ minWidth: 0, flex: 1 }}>
             <Flex align="start" gapX="2" className="min-w-0">
-              <Flex
-                direction="column"
-                align="center"
-                gap="0.5"
-                className="shrink-0 pt-1"
-              >
-                {(report.source_products ?? []).length > 0 ? (
-                  (report.source_products ?? []).map((sp) => {
+              {(report.source_products ?? []).length > 0 && (
+                <Flex
+                  direction="column"
+                  align="center"
+                  gap="0.5"
+                  className="shrink-0 pt-1"
+                >
+                  {(report.source_products ?? []).map((sp) => {
                     const meta = SOURCE_PRODUCT_META[sp];
                     if (!meta) return null;
                     const { Icon } = meta;
@@ -147,16 +140,9 @@ export function ReportListRow({
                         <Icon size={12} />
                       </span>
                     );
-                  })
-                ) : (
-                  <span
-                    title={`Signal strength: ${strengthLabel}`}
-                    aria-hidden
-                    className="mt-1 inline-block h-1.5 w-1.5 rounded-full"
-                    style={{ backgroundColor: strengthColor }}
-                  />
-                )}
-              </Flex>
+                  })}
+                </Flex>
+              )}
 
               <Flex
                 align="center"

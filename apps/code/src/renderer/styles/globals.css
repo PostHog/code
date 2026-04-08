@@ -940,3 +940,25 @@ button,
 .inbox-ellipsis-dot:nth-child(3) {
   animation-delay: 320ms;
 }
+
+/* Radix Checkbox ships no hover/active rules — add them globally.
+   Unchecked: darken the border on hover, gray-fill on active.
+   Checked/indeterminate: deepen the accent fill on hover/active. */
+.rt-BaseCheckboxRoot {
+  &:enabled:hover:not(:active)::before {
+    box-shadow: inset 0 0 0 1px var(--gray-10);
+  }
+  &:enabled:hover:not(:active)[data-state="checked"]::before,
+  &:enabled:hover:not(:active)[data-state="indeterminate"]::before {
+    background-color: var(--accent-10);
+  }
+
+  &:enabled:active[data-state="unchecked"]::before {
+    background-color: var(--gray-3);
+    box-shadow: inset 0 0 0 1px var(--gray-9);
+  }
+  &:enabled:active[data-state="checked"]::before,
+  &:enabled:active[data-state="indeterminate"]::before {
+    background-color: var(--accent-11);
+  }
+}

@@ -353,17 +353,43 @@ export function InboxSignalsTab() {
                 direction="column"
                 tabIndex={0}
                 className="outline-none"
+                // Clicking a row/button/checkbox would normally move browser focus to that
+                // element, losing the container's focus and breaking arrow-key navigation.
+                // Intercept mousedown to redirect focus back to the container instead.
+                // Text fields are exempt so the search box can still receive focus normally.
                 onMouseDownCapture={(e) => {
                   const target = e.target as HTMLElement;
-                  if (target.closest("[data-report-id]")) {
+                  if (
+                    target.closest(
+                      "input, textarea, select, [contenteditable='true']",
+                    )
+                  ) {
+                    return;
+                  }
+                  if (
+                    target.closest(
+                      "[data-report-id], button, [role='checkbox']",
+                    )
+                  ) {
                     focusListPane();
                   }
                 }}
+                // Same redirect for focus arriving via keyboard (Tab) — if focus lands
+                // inside a row element rather than on the container itself, pull it back up.
                 onFocusCapture={(e) => {
                   const target = e.target as HTMLElement;
                   if (
+                    target.closest(
+                      "input, textarea, select, [contenteditable='true']",
+                    )
+                  ) {
+                    return;
+                  }
+                  if (
                     target !== leftPaneRef.current &&
-                    target.closest("[data-report-id]")
+                    target.closest(
+                      "[data-report-id], button, [role='checkbox']",
+                    )
                   ) {
                     focusListPane();
                   }
@@ -468,18 +494,21 @@ export function InboxSignalsTab() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              pointerEvents: "none",
               background:
                 "linear-gradient(to bottom, transparent 0%, var(--color-background) 30%)",
             }}
           >
-            {!hasSignalSources ? (
-              <WelcomePane onEnableInbox={() => setSourcesDialogOpen(true)} />
-            ) : (
-              <WarmingUpPane
-                onConfigureSources={() => setSourcesDialogOpen(true)}
-                enabledProducts={enabledProducts}
-              />
-            )}
+            <Box style={{ pointerEvents: "auto" }}>
+              {!hasSignalSources ? (
+                <WelcomePane onEnableInbox={() => setSourcesDialogOpen(true)} />
+              ) : (
+                <WarmingUpPane
+                  onConfigureSources={() => setSourcesDialogOpen(true)}
+                  enabledProducts={enabledProducts}
+                />
+              )}
+            </Box>
           </Box>
         </Box>
       )}
