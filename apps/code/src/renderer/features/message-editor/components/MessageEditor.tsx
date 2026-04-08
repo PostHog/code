@@ -104,6 +104,7 @@ function ModeAndBranchRow({
         <DiffStatsIndicator
           repoPath={repoPath}
           overrideStats={cloudDiffStats}
+          taskId={taskId}
         />
         {showBranchSelector && showDiffStats && (
           <Flex
