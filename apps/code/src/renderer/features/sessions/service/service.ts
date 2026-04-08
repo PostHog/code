@@ -26,6 +26,7 @@ import {
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { taskViewedApi } from "@features/sidebar/hooks/useTaskViewed";
+import { POSTHOG_NOTIFICATIONS } from "@posthog/agent";
 import { DEFAULT_GATEWAY_MODEL } from "@posthog/agent/gateway-models";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpcClient } from "@renderer/trpc/client";
@@ -495,6 +496,7 @@ export class SessionService {
       errorMessage:
         "Session disconnected due to inactivity. Click Retry to reconnect.",
       isPromptPending: false,
+      isCompacting: false,
       promptStartedAt: null,
     });
   }
@@ -831,7 +833,7 @@ export class SessionService {
     // Handle _posthog/sdk_session notifications for adapter info
     if (
       "method" in msg &&
-      msg.method === "_posthog/sdk_session" &&
+      msg.method === POSTHOG_NOTIFICATIONS.SDK_SESSION &&
       "params" in msg
     ) {
       const params = msg.params as {
@@ -846,6 +848,41 @@ export class SessionService {
           taskRunId,
           adapter: params.adapter,
         });
+      }
+    }
+
+    if (
+      "method" in msg &&
+      "params" in msg &&
+      msg.method === POSTHOG_NOTIFICATIONS.STATUS
+    ) {
+      const params = msg.params as { status?: string; isComplete?: boolean };
+      if (params?.status === "compacting" && !params.isComplete) {
+        sessionStoreSetters.updateSession(taskRunId, {
+          isCompacting: true,
+        });
+      }
+    }
+
+    if (
+      "method" in msg &&
+      msg.method === POSTHOG_NOTIFICATIONS.COMPACT_BOUNDARY
+    ) {
+      sessionStoreSetters.updateSession(taskRunId, {
+        isCompacting: false,
+      });
+
+      const hasQueuedMessages =
+        session.messageQueue.length > 0 && session.status === "connected";
+      if (hasQueuedMessages) {
+        setTimeout(() => {
+          this.sendQueuedMessages(session.taskId).catch((err) => {
+            log.error("Failed to send queued messages after compaction", {
+              taskId: session.taskId,
+              error: err,
+            });
+          });
+        }, 0);
       }
     }
   }
@@ -921,12 +958,13 @@ export class SessionService {
       throw new Error(`Session is not ready (status: ${session.status})`);
     }
 
-    if (session.isPromptPending) {
+    if (session.isPromptPending || session.isCompacting) {
       const promptText = extractPromptText(prompt);
       sessionStoreSetters.enqueueMessage(taskId, promptText);
       log.info("Message queued", {
         taskId,
         queueLength: session.messageQueue.length + 1,
+        reason: session.isCompacting ? "compacting" : "prompt_pending",
       });
       return { stopReason: "queued" };
     }
@@ -1053,11 +1091,13 @@ export class SessionService {
             errorDetails ||
             "Session connection lost. Please retry or start a new session.",
           isPromptPending: false,
+          isCompacting: false,
           promptStartedAt: null,
         });
       } else {
         sessionStoreSetters.updateSession(session.taskRunId, {
           isPromptPending: false,
+          isCompacting: false,
           promptStartedAt: null,
         });
       }
@@ -2150,6 +2190,7 @@ export class SessionService {
       startedAt: Date.now(),
       status: "connecting",
       isPromptPending: false,
+      isCompacting: false,
       promptStartedAt: null,
       pendingPermissions: new Map(),
       pausedDurationMs: 0,

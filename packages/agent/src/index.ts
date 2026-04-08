@@ -1,3 +1,4 @@
+export { POSTHOG_NOTIFICATIONS } from "./acp-extensions";
 export {
   getMcpToolMetadata,
   isMcpToolReadOnly,

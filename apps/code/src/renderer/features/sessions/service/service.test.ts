@@ -235,6 +235,7 @@ const createMockSession = (
   startedAt: Date.now(),
   status: "connected",
   isPromptPending: false,
+  isCompacting: false,
   promptStartedAt: null,
   pendingPermissions: new Map(),
   pausedDurationMs: 0,
@@ -540,6 +541,21 @@ describe("SessionService", () => {
       const service = getSessionService();
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
         createMockSession({ isPromptPending: true }),
+      );
+
+      const result = await service.sendPrompt("task-123", "Hello");
+
+      expect(result.stopReason).toBe("queued");
+      expect(mockSessionStoreSetters.enqueueMessage).toHaveBeenCalledWith(
+        "task-123",
+        "Hello",
+      );
+    });
+
+    it("queues message when compaction is in progress", async () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({ isCompacting: true }),
       );
 
       const result = await service.sendPrompt("task-123", "Hello");
