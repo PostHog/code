@@ -6,7 +6,10 @@ import {
 } from "@features/inbox/components/InboxEmptyStates";
 import { InboxLiveRail } from "@features/inbox/components/InboxLiveRail";
 import { InboxSourcesDialog } from "@features/inbox/components/InboxSourcesDialog";
-import { useInboxReportsInfinite } from "@features/inbox/hooks/useInboxReports";
+import {
+  useInboxAvailableSuggestedReviewers,
+  useInboxReportsInfinite,
+} from "@features/inbox/hooks/useInboxReports";
 import { useSignalSourceConfigs } from "@features/inbox/hooks/useSignalSourceConfigs";
 import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReportSelectionStore";
 import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsFilterStore";
@@ -15,6 +18,7 @@ import { useInboxSourcesDialogStore } from "@features/inbox/stores/inboxSourcesD
 import {
   buildSignalReportListOrdering,
   buildStatusFilterParam,
+  buildSuggestedReviewerFilterParam,
   filterReportsBySearch,
 } from "@features/inbox/utils/filterReports";
 import { INBOX_REFETCH_INTERVAL_MS } from "@features/inbox/utils/inboxConstants";
@@ -37,6 +41,9 @@ export function InboxSignalsTab() {
   const statusFilter = useInboxSignalsFilterStore((s) => s.statusFilter);
   const sourceProductFilter = useInboxSignalsFilterStore(
     (s) => s.sourceProductFilter,
+  );
+  const suggestedReviewerFilter = useInboxSignalsFilterStore(
+    (s) => s.suggestedReviewerFilter,
   );
 
   // ── Signal source configs ───────────────────────────────────────────────
@@ -64,6 +71,10 @@ export function InboxSignalsTab() {
   const inboxPollingActive = windowFocused && isInboxView;
 
   // ── Data fetching ───────────────────────────────────────────────────────
+  useInboxAvailableSuggestedReviewers({
+    enabled: isInboxView,
+  });
+
   const inboxQueryParams = useMemo(
     (): SignalReportsQueryParams => ({
       status: buildStatusFilterParam(statusFilter),
@@ -72,8 +83,18 @@ export function InboxSignalsTab() {
         sourceProductFilter.length > 0
           ? sourceProductFilter.join(",")
           : undefined,
+      suggested_reviewers:
+        suggestedReviewerFilter.length > 0
+          ? buildSuggestedReviewerFilterParam(suggestedReviewerFilter)
+          : undefined,
     }),
-    [statusFilter, sortField, sortDirection, sourceProductFilter],
+    [
+      statusFilter,
+      sortField,
+      sortDirection,
+      sourceProductFilter,
+      suggestedReviewerFilter,
+    ],
   );
 
   const {
@@ -194,7 +215,9 @@ export function InboxSignalsTab() {
   // ── Layout mode (computed early — needed by focus effect below) ────────
   const hasReports = allReports.length > 0;
   const hasActiveFilters =
-    sourceProductFilter.length > 0 || statusFilter.length < 5;
+    sourceProductFilter.length > 0 ||
+    suggestedReviewerFilter.length > 0 ||
+    statusFilter.length < 5;
   const shouldShowTwoPane =
     hasReports || !!searchQuery.trim() || hasActiveFilters;
 
@@ -324,11 +347,7 @@ export function InboxSignalsTab() {
                 className="outline-none"
                 onMouseDownCapture={(e) => {
                   const target = e.target as HTMLElement;
-                  if (
-                    target.closest(
-                      "[data-report-id], button, input, select, textarea, [role='checkbox']",
-                    )
-                  ) {
+                  if (target.closest("[data-report-id]")) {
                     focusListPane();
                   }
                 }}
@@ -336,9 +355,7 @@ export function InboxSignalsTab() {
                   const target = e.target as HTMLElement;
                   if (
                     target !== leftPaneRef.current &&
-                    target.closest(
-                      "[data-report-id], button, input, select, textarea, [role='checkbox']",
-                    )
+                    target.closest("[data-report-id]")
                   ) {
                     focusListPane();
                   }
