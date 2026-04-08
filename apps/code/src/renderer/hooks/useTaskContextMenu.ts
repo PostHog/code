@@ -7,6 +7,7 @@ import type { Task } from "@shared/types";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
 import { logger } from "@utils/logger";
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 
 const log = logger.scope("context-menu");
 
@@ -46,6 +47,10 @@ export function useTaskContextMenu() {
             break;
           case "pin":
             onTogglePin?.();
+            break;
+          case "copy-task-id":
+            navigator.clipboard.writeText(task.id);
+            toast.success("Task ID copied");
             break;
           case "suspend":
             await suspendTask({ taskId: task.id, reason: "manual" });

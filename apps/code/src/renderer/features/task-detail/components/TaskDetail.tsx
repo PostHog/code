@@ -16,11 +16,10 @@ import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { useBlurOnEscape } from "@hooks/useBlurOnEscape";
 import { useFileWatcher } from "@hooks/useFileWatcher";
 import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
-import { Box, Flex, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Flex, Text } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys, useHotkeysContext } from "react-hotkeys-hook";
-import { toast } from "sonner";
 import { ExternalAppsOpener } from "./ExternalAppsOpener";
 
 const MIN_REVIEW_WIDTH = 300;
@@ -86,33 +85,20 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
   useBlurOnEscape();
   useWorkspaceEvents(taskId);
 
-  const copyTaskId = useCallback(() => {
-    navigator.clipboard.writeText(taskId);
-    toast.success("Task ID copied");
-  }, [taskId]);
-
   const headerContent = useMemo(
     () => (
       <Flex align="center" justify="between" gap="2" width="100%">
         <Text size="1" weight="medium" truncate style={{ minWidth: 0 }}>
           {task.title}
         </Text>
-        <Flex align="center" gap="2" className="shrink-0">
-          <Tooltip content="Copy task ID">
-            <button
-              type="button"
-              onClick={copyTaskId}
-              className="no-drag cursor-pointer border-0 bg-transparent p-0 font-mono text-[10px] text-gray-9 hover:text-gray-11"
-              style={{ lineHeight: "20px" }}
-            >
-              {taskId}
-            </button>
-          </Tooltip>
-          {openTargetPath && <ExternalAppsOpener targetPath={openTargetPath} />}
-        </Flex>
+        {openTargetPath && (
+          <Flex align="center" gap="2" className="shrink-0">
+            <ExternalAppsOpener targetPath={openTargetPath} />
+          </Flex>
+        )}
       </Flex>
     ),
-    [task.title, taskId, openTargetPath, copyTaskId],
+    [task.title, openTargetPath],
   );
 
   useSetHeaderContent(headerContent);
