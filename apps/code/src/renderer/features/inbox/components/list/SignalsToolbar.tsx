@@ -129,6 +129,7 @@ export function SignalsToolbar({
       <Flex
         direction="column"
         gap="2"
+        className="select-none"
         style={{ padding: "8px", borderBottom: "1px solid var(--gray-5)" }}
       >
         <Flex align="center" justify="between" gap="2">

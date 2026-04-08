@@ -167,7 +167,7 @@ export function ReportListRow({
                 <Text
                   size="1"
                   weight="medium"
-                  className="min-w-0 flex-1 basis-0 truncate text-[13px]"
+                  className="min-w-0 flex-1 basis-0 select-text truncate text-[13px]"
                 >
                   {report.title ?? "Untitled signal"}
                 </Text>
@@ -191,7 +191,7 @@ export function ReportListRow({
             </Flex>
 
             <div
-              className="min-w-0 pl-4"
+              className="min-w-0 select-text"
               style={{ opacity: isReady ? 1 : 0.82 }}
             >
               <SignalReportSummaryMarkdown

@@ -892,14 +892,9 @@ button,
   width: 100% !important;
 }
 
-/* Inbox live-rail scan line */
-@keyframes inboxLiveRailSweep {
-  0% {
-    transform: translateX(-120%);
-  }
-  100% {
-    transform: translateX(420%);
-  }
+/* Inbox report list: Radix ScrollArea thumb defaults to 100ms background-color transition */
+.scroll-area-constrain-width.inbox-report-list-scroll .rt-ScrollAreaThumb {
+  transition: none;
 }
 
 /* Inbox toolbar polling indicator pulse */
