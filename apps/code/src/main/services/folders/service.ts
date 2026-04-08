@@ -80,6 +80,25 @@ export class FoldersService {
     }
   }
 
+  private getDisplayName(
+    repoPath: string,
+    remoteUrl: string | null | undefined,
+  ): string {
+    const localName = path.basename(repoPath);
+    if (remoteUrl) {
+      const repoName = remoteUrl
+        .trim()
+        .split("/")
+        .pop()
+        ?.replace(/\.git$/, "")
+        ?.trim();
+      if (repoName && repoName.toLowerCase() !== localName.toLowerCase()) {
+        return `${localName} (${repoName})`;
+      }
+    }
+    return localName;
+  }
+
   async getFolders(): Promise<(RegisteredFolder & { exists: boolean })[]> {
     const repos = this.repositoryRepo.findAll();
     return repos
@@ -87,7 +106,7 @@ export class FoldersService {
       .map((r) => ({
         id: r.id,
         path: r.path,
-        name: path.basename(r.path),
+        name: this.getDisplayName(r.path, r.remoteUrl),
         remoteUrl: r.remoteUrl ?? null,
         lastAccessed: r.lastAccessedAt ?? r.createdAt,
         createdAt: r.createdAt,
@@ -177,7 +196,7 @@ export class FoldersService {
     return {
       id: repo.id,
       path: repo.path,
-      name: path.basename(repo.path),
+      name: this.getDisplayName(repo.path, repo.remoteUrl),
       remoteUrl: repo.remoteUrl ?? null,
       lastAccessed: repo.lastAccessedAt ?? repo.createdAt,
       createdAt: repo.createdAt,

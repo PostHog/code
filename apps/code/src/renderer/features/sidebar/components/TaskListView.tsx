@@ -378,7 +378,10 @@ export function TaskListView({
               const isExpanded = !collapsedSections.has(group.id);
               const folder = folders.find(
                 (f) =>
-                  f.remoteUrl?.toLowerCase() === group.id.toLowerCase() ||
+                  f.remoteUrl
+                    ?.trim()
+                    .replace(/\.git$/, "")
+                    .toLowerCase() === group.id.trim().toLowerCase() ||
                   f.path === group.id,
               );
               const groupFolderId =
@@ -387,7 +390,7 @@ export function TaskListView({
                 <DraggableFolder key={group.id} id={group.id} index={index}>
                   <SidebarSection
                     id={group.id}
-                    label={group.name}
+                    label={folder?.name ?? group.name}
                     icon={
                       isExpanded ? (
                         <FolderOpenIcon size={14} className="text-gray-10" />
@@ -406,7 +409,7 @@ export function TaskListView({
                         navigateToTaskInput();
                       }
                     }}
-                    newTaskTooltip={`Start new task in ${group.name}`}
+                    newTaskTooltip={`Start new task in ${folder?.name ?? group.name}`}
                   >
                     {group.tasks.map((task) => (
                       <TaskRow

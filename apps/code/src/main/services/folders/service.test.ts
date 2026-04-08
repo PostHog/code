@@ -296,6 +296,82 @@ describe("FoldersService", () => {
       ]);
     });
 
+    it("strips .git suffix from remote repo name in display name", async () => {
+      const repos = [
+        {
+          id: "folder-1",
+          path: "/home/user/MURZINI",
+          remoteUrl: "PostHog/billing.git",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ];
+      mockRepositoryRepo.findAll.mockReturnValue(repos);
+      mockExistsSync.mockReturnValue(true);
+
+      const result = await service.getFolders();
+
+      expect(result[0].name).toBe("MURZINI (billing)");
+    });
+
+    it("uses remote repo name in display name when it differs from local dir", async () => {
+      const repos = [
+        {
+          id: "folder-1",
+          path: "/home/user/ph-tour-demo",
+          remoteUrl: "PostHog/hogotchi",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ];
+      mockRepositoryRepo.findAll.mockReturnValue(repos);
+      mockExistsSync.mockReturnValue(true);
+
+      const result = await service.getFolders();
+
+      expect(result[0].name).toBe("ph-tour-demo (hogotchi)");
+    });
+
+    it("uses local dir name when it matches remote repo name", async () => {
+      const repos = [
+        {
+          id: "folder-1",
+          path: "/home/user/hogotchi",
+          remoteUrl: "PostHog/hogotchi",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ];
+      mockRepositoryRepo.findAll.mockReturnValue(repos);
+      mockExistsSync.mockReturnValue(true);
+
+      const result = await service.getFolders();
+
+      expect(result[0].name).toBe("hogotchi");
+    });
+
+    it("uses local dir name when it matches remote repo name case-insensitively", async () => {
+      const repos = [
+        {
+          id: "folder-1",
+          path: "/home/user/Hogotchi",
+          remoteUrl: "PostHog/hogotchi",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ];
+      mockRepositoryRepo.findAll.mockReturnValue(repos);
+      mockExistsSync.mockReturnValue(true);
+
+      const result = await service.getFolders();
+
+      expect(result[0].name).toBe("Hogotchi");
+    });
+
     it("marks non-existent folders", async () => {
       const repos = [
         {
