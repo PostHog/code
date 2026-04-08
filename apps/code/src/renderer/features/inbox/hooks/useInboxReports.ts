@@ -7,6 +7,7 @@ import { useAuthenticatedInfiniteQuery } from "@hooks/useAuthenticatedInfiniteQu
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import type {
   AvailableSuggestedReviewersResponse,
+  SignalProcessingStateResponse,
   SignalReportArtefactsResponse,
   SignalReportSignalsResponse,
   SignalReportsQueryParams,
@@ -32,6 +33,7 @@ const reportKeys = {
       authIdentity ?? "anonymous",
       "available-reviewers",
     ] as const,
+  signalProcessingState: ["inbox", "signal-processing-state"] as const,
 };
 
 export function useInboxReports(
@@ -147,6 +149,19 @@ export function useInboxAvailableSuggestedReviewers(options?: {
   ]);
 
   return query;
+}
+
+export function useInboxSignalProcessingState(options?: {
+  enabled?: boolean;
+  refetchInterval?: number | false | (() => number | false | undefined);
+  refetchIntervalInBackground?: boolean;
+  staleTime?: number;
+}) {
+  return useAuthenticatedQuery<SignalProcessingStateResponse>(
+    reportKeys.signalProcessingState,
+    (client) => client.getSignalProcessingState(),
+    options,
+  );
 }
 
 export function useInboxReportArtefacts(

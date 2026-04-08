@@ -4,11 +4,11 @@ import {
   WarmingUpPane,
   WelcomePane,
 } from "@features/inbox/components/InboxEmptyStates";
-import { InboxLiveRail } from "@features/inbox/components/InboxLiveRail";
 import { InboxSourcesDialog } from "@features/inbox/components/InboxSourcesDialog";
 import {
   useInboxAvailableSuggestedReviewers,
   useInboxReportsInfinite,
+  useInboxSignalProcessingState,
 } from "@features/inbox/hooks/useInboxReports";
 import { useSignalSourceConfigs } from "@features/inbox/hooks/useSignalSourceConfigs";
 import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReportSelectionStore";
@@ -117,6 +117,13 @@ export function InboxSignalsTab() {
     () => filterReportsBySearch(allReports, searchQuery),
     [allReports, searchQuery],
   );
+
+  const { data: signalProcessingState } = useInboxSignalProcessingState({
+    enabled: isInboxView,
+    refetchInterval: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : false,
+    refetchIntervalInBackground: false,
+    staleTime: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : 12_000,
+  });
 
   const readyCount = useMemo(
     () => allReports.filter((r) => r.status === "ready").length,
@@ -325,6 +332,7 @@ export function InboxSignalsTab() {
         <Flex ref={containerRef} height="100%" style={{ minHeight: 0 }}>
           {/* ── Left pane: report list ───────────────────────────────── */}
           <Box
+            className="select-none"
             style={{
               width: `${sidebarWidth}px`,
               maxWidth: "60%",
@@ -337,7 +345,7 @@ export function InboxSignalsTab() {
           >
             <ScrollArea
               type="auto"
-              className="scroll-area-constrain-width"
+              className="scroll-area-constrain-width inbox-report-list-scroll"
               style={{ height: "100%" }}
             >
               <Flex
@@ -361,7 +369,6 @@ export function InboxSignalsTab() {
                   }
                 }}
               >
-                <InboxLiveRail active={inboxPollingActive} />
                 <Box
                   data-inbox-sticky-header
                   style={{
@@ -378,6 +385,7 @@ export function InboxSignalsTab() {
                     livePolling={inboxPollingActive}
                     readyCount={readyCount}
                     processingCount={processingCount}
+                    pipelinePausedUntil={signalProcessingState?.paused_until}
                     reports={reports}
                   />
                 </Box>
@@ -447,6 +455,7 @@ export function InboxSignalsTab() {
               totalCount={0}
               filteredCount={0}
               isSearchActive={false}
+              pipelinePausedUntil={signalProcessingState?.paused_until}
               searchDisabledReason={searchDisabledReason}
               hideFilters
             />

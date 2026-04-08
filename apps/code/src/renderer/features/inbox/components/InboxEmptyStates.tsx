@@ -181,7 +181,7 @@ export function SelectReportPane() {
 
 export function SkeletonBackdrop() {
   return (
-    <Flex direction="column" style={{ opacity: 0.4 }}>
+    <Flex direction="column" className="select-none" style={{ opacity: 0.4 }}>
       {Array.from({ length: 8 }).map((_, index) => (
         <Flex
           // biome-ignore lint/suspicious/noArrayIndexKey: static decorative placeholders
