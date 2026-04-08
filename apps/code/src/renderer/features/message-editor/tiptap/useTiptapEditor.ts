@@ -464,7 +464,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
 
     const text = editor.getText().trim();
 
-    if (text.startsWith("!")) {
+    if (enableBashMode && text.startsWith("!")) {
       // Bash mode requires immediate execution, can't be queued
       if (isLoading) {
         toast.error("Cannot run shell commands while agent is generating");
@@ -492,6 +492,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
     draft,
     clearOnSubmit,
     attachments,
+    enableBashMode,
   ]);
 
   submitRef.current = submit;
