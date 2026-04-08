@@ -6,6 +6,8 @@ export interface QueryStrings {
   pythonCaptureCalls?: string;
   goStructCalls?: string;
   rubyCaptureCalls?: string;
+  identifierArgCalls: string;
+  dynamicCalls: string;
   flagAssignments: string;
   functions: string;
   clientAliases: string;
@@ -215,6 +217,22 @@ const JS_QUERIES: QueryStrings = {
       function: (identifier) @func_name
       arguments: (arguments . (string (string_fragment) @key))) @call
   `,
+
+  identifierArgCalls: `
+    (call_expression
+      function: (member_expression
+        object: (_) @client
+        property: (property_identifier) @method)
+      arguments: (arguments . (identifier) @arg_id)) @call
+  `,
+
+  dynamicCalls: `
+    (call_expression
+      function: (member_expression
+        object: (_) @client
+        property: (property_identifier) @method)
+      arguments: (arguments . (_) @first_arg)) @call
+  `,
 };
 
 const PY_QUERIES: QueryStrings = {
@@ -285,6 +303,22 @@ const PY_QUERIES: QueryStrings = {
     (call
       function: (identifier) @func_name
       arguments: (argument_list . (string (string_content) @key))) @call
+  `,
+
+  identifierArgCalls: `
+    (call
+      function: (attribute
+        object: (_) @client
+        attribute: (identifier) @method)
+      arguments: (argument_list . (identifier) @arg_id)) @call
+  `,
+
+  dynamicCalls: `
+    (call
+      function: (attribute
+        object: (_) @client
+        attribute: (identifier) @method)
+      arguments: (argument_list . (_) @first_arg)) @call
   `,
 };
 
@@ -367,6 +401,22 @@ const GO_QUERIES: QueryStrings = {
   destructuredMethods: "",
 
   bareFunctionCalls: "",
+
+  identifierArgCalls: `
+    (call_expression
+      function: (selector_expression
+        operand: (_) @client
+        field: (field_identifier) @method)
+      arguments: (argument_list . (identifier) @arg_id)) @call
+  `,
+
+  dynamicCalls: `
+    (call_expression
+      function: (selector_expression
+        operand: (_) @client
+        field: (field_identifier) @method)
+      arguments: (argument_list . (_) @first_arg)) @call
+  `,
 };
 
 const RB_QUERIES: QueryStrings = {
@@ -427,6 +477,25 @@ const RB_QUERIES: QueryStrings = {
     (call
       method: (identifier) @func_name
       arguments: (argument_list . (string (string_content) @key))) @call
+  `,
+
+  identifierArgCalls: `
+    (call
+      receiver: (_) @client
+      method: (identifier) @method
+      arguments: (argument_list . (identifier) @arg_id)) @call
+
+    (call
+      receiver: (_) @client
+      method: (identifier) @method
+      arguments: (argument_list . (constant) @arg_id)) @call
+  `,
+
+  dynamicCalls: `
+    (call
+      receiver: (_) @client
+      method: (identifier) @method
+      arguments: (argument_list . (_) @first_arg)) @call
   `,
 };
 

@@ -18,6 +18,21 @@ import { DEFAULT_CONFIG } from "./types.js";
 const POSTHOG_CLASS_NAMES = new Set(["PostHog", "Posthog"]);
 const GO_CONSTRUCTOR_NAMES = new Set(["New", "NewWithConfig"]);
 
+// ── Helpers ──
+
+interface Capture {
+  name: string;
+  node: Parser.SyntaxNode;
+}
+
+function getCapture(
+  captures: Capture[],
+  name: string,
+): Parser.SyntaxNode | null {
+  const found = captures.find((c) => c.name === name);
+  return found ? found.node : null;
+}
+
 // ── Service ──
 
 export class PostHogDetector {
@@ -190,14 +205,14 @@ export class PostHogDetector {
     if (aliasQuery) {
       const matches = aliasQuery.matches(tree.rootNode);
       for (const match of matches) {
-        const aliasNode = match.captures.find((c) => c.name === "alias");
-        const sourceNode = match.captures.find((c) => c.name === "source");
+        const aliasNode = getCapture(match.captures, "alias");
+        const sourceNode = getCapture(match.captures, "source");
         if (
           aliasNode &&
           sourceNode &&
-          this.getEffectiveClients().has(sourceNode.node.text)
+          this.getEffectiveClients().has(sourceNode.text)
         ) {
-          clientAliases.add(aliasNode.node.text);
+          clientAliases.add(aliasNode.text);
         }
       }
     }
@@ -211,44 +226,38 @@ export class PostHogDetector {
     if (constructorQuery) {
       const matches = constructorQuery.matches(tree.rootNode);
       for (const match of matches) {
-        const aliasNode = match.captures.find((c) => c.name === "alias");
-        const classNode = match.captures.find((c) => c.name === "class_name");
-        const pkgNode = match.captures.find((c) => c.name === "pkg_name");
-        const funcNode = match.captures.find((c) => c.name === "func_name");
+        const aliasNode = getCapture(match.captures, "alias");
+        const classNode = getCapture(match.captures, "class_name");
+        const pkgNode = getCapture(match.captures, "pkg_name");
+        const funcNode = getCapture(match.captures, "func_name");
 
         // JS/Python: new PostHog(...) or Posthog(...)
-        if (
-          aliasNode &&
-          classNode &&
-          POSTHOG_CLASS_NAMES.has(classNode.node.text)
-        ) {
-          clientAliases.add(aliasNode.node.text);
+        if (aliasNode && classNode && POSTHOG_CLASS_NAMES.has(classNode.text)) {
+          clientAliases.add(aliasNode.text);
         }
         // Go: posthog.New(...) or posthog.NewWithConfig(...)
         if (
           aliasNode &&
           pkgNode &&
           funcNode &&
-          pkgNode.node.text === "posthog" &&
-          GO_CONSTRUCTOR_NAMES.has(funcNode.node.text)
+          pkgNode.text === "posthog" &&
+          GO_CONSTRUCTOR_NAMES.has(funcNode.text)
         ) {
-          clientAliases.add(aliasNode.node.text);
+          clientAliases.add(aliasNode.text);
         }
         // Ruby: PostHog::Client.new(...)
-        const scopeNode = match.captures.find((c) => c.name === "scope_name");
-        const methodNameNode = match.captures.find(
-          (c) => c.name === "method_name",
-        );
+        const scopeNode = getCapture(match.captures, "scope_name");
+        const methodNameNode = getCapture(match.captures, "method_name");
         if (
           aliasNode &&
           scopeNode &&
           classNode &&
           methodNameNode &&
-          POSTHOG_CLASS_NAMES.has(scopeNode.node.text) &&
-          classNode.node.text === "Client" &&
-          methodNameNode.node.text === "new"
+          POSTHOG_CLASS_NAMES.has(scopeNode.text) &&
+          classNode.text === "Client" &&
+          methodNameNode.text === "new"
         ) {
-          clientAliases.add(aliasNode.node.text);
+          clientAliases.add(aliasNode.text);
         }
       }
     }
@@ -262,16 +271,14 @@ export class PostHogDetector {
       if (destructQuery) {
         const matches = destructQuery.matches(tree.rootNode);
         for (const match of matches) {
-          const methodNode = match.captures.find(
-            (c) => c.name === "method_name",
-          );
-          const sourceNode = match.captures.find((c) => c.name === "source");
+          const methodNode = getCapture(match.captures, "method_name");
+          const sourceNode = getCapture(match.captures, "source");
           if (
             methodNode &&
             sourceNode &&
-            this.getEffectiveClients().has(sourceNode.node.text)
+            this.getEffectiveClients().has(sourceNode.text)
           ) {
-            const name = methodNode.node.text;
+            const name = methodNode.text;
             if (family.captureMethods.has(name)) {
               destructuredCapture.add(name);
             }
@@ -319,16 +326,16 @@ export class PostHogDetector {
     if (callQuery) {
       const matches = callQuery.matches(tree.rootNode);
       for (const match of matches) {
-        const clientNode = match.captures.find((c) => c.name === "client");
-        const methodNode = match.captures.find((c) => c.name === "method");
-        const keyNode = match.captures.find((c) => c.name === "key");
+        const clientNode = getCapture(match.captures, "client");
+        const methodNode = getCapture(match.captures, "method");
+        const keyNode = getCapture(match.captures, "key");
 
         if (!clientNode || !methodNode || !keyNode) {
           continue;
         }
 
-        const clientName = this.extractClientName(clientNode.node);
-        const method = methodNode.node.text;
+        const clientName = this.extractClientName(clientNode);
+        const method = methodNode.text;
 
         if (!clientName || !allClients.has(clientName)) {
           continue;
@@ -357,10 +364,10 @@ export class PostHogDetector {
 
         calls.push({
           method,
-          key: this.cleanStringValue(keyNode.node.text),
-          line: keyNode.node.startPosition.row,
-          keyStartCol: keyNode.node.startPosition.column,
-          keyEndCol: keyNode.node.endPosition.column,
+          key: this.cleanStringValue(keyNode.text),
+          line: keyNode.startPosition.row,
+          keyStartCol: keyNode.startPosition.column,
+          keyEndCol: keyNode.endPosition.column,
         });
       }
     }
@@ -371,19 +378,17 @@ export class PostHogDetector {
       const structQuery = this.getQuery(lang, family.queries.goStructCalls);
       if (structQuery) {
         for (const match of structQuery.matches(tree.rootNode)) {
-          const clientNode = match.captures.find((c) => c.name === "client");
-          const methodNode = match.captures.find((c) => c.name === "method");
-          const fieldNameNode = match.captures.find(
-            (c) => c.name === "field_name",
-          );
-          const keyNode = match.captures.find((c) => c.name === "key");
+          const clientNode = getCapture(match.captures, "client");
+          const methodNode = getCapture(match.captures, "method");
+          const fieldNameNode = getCapture(match.captures, "field_name");
+          const keyNode = getCapture(match.captures, "key");
           if (!clientNode || !methodNode || !fieldNameNode || !keyNode) {
             continue;
           }
 
-          const clientName = this.extractClientName(clientNode.node);
-          const method = methodNode.node.text;
-          const fieldName = fieldNameNode.node.text;
+          const clientName = this.extractClientName(clientNode);
+          const method = methodNode.text;
+          const fieldName = fieldNameNode.text;
           if (!clientName || !allClients.has(clientName)) {
             continue;
           }
@@ -397,8 +402,8 @@ export class PostHogDetector {
           }
 
           const effectiveMethod = isCapture ? "capture" : method;
-          const key = this.cleanStringValue(keyNode.node.text);
-          const line = keyNode.node.startPosition.row;
+          const key = this.cleanStringValue(keyNode.text);
+          const line = keyNode.startPosition.row;
           const dedupKey = `${line}:${key}`;
           if (seen.has(dedupKey)) {
             continue;
@@ -409,8 +414,8 @@ export class PostHogDetector {
             method: effectiveMethod,
             key,
             line,
-            keyStartCol: keyNode.node.startPosition.column,
-            keyEndCol: keyNode.node.endPosition.column,
+            keyStartCol: keyNode.startPosition.column,
+            keyEndCol: keyNode.endPosition.column,
           });
         }
       }
@@ -424,17 +429,17 @@ export class PostHogDetector {
     if (nodeCaptureQuery) {
       const matches = nodeCaptureQuery.matches(tree.rootNode);
       for (const match of matches) {
-        const clientNode = match.captures.find((c) => c.name === "client");
-        const methodNode = match.captures.find((c) => c.name === "method");
-        const propNameNode = match.captures.find((c) => c.name === "prop_name");
-        const keyNode = match.captures.find((c) => c.name === "key");
+        const clientNode = getCapture(match.captures, "client");
+        const methodNode = getCapture(match.captures, "method");
+        const propNameNode = getCapture(match.captures, "prop_name");
+        const keyNode = getCapture(match.captures, "key");
 
         if (!clientNode || !methodNode || !propNameNode || !keyNode) {
           continue;
         }
 
-        const clientName = this.extractClientName(clientNode.node);
-        const method = methodNode.node.text;
+        const clientName = this.extractClientName(clientNode);
+        const method = methodNode.text;
 
         if (!clientName || !allClients.has(clientName)) {
           continue;
@@ -442,16 +447,16 @@ export class PostHogDetector {
         if (method !== "capture") {
           continue;
         }
-        if (propNameNode.node.text !== "event") {
+        if (propNameNode.text !== "event") {
           continue;
         }
 
         calls.push({
           method,
-          key: this.cleanStringValue(keyNode.node.text),
-          line: keyNode.node.startPosition.row,
-          keyStartCol: keyNode.node.startPosition.column,
-          keyEndCol: keyNode.node.endPosition.column,
+          key: this.cleanStringValue(keyNode.text),
+          line: keyNode.startPosition.row,
+          keyStartCol: keyNode.startPosition.column,
+          keyEndCol: keyNode.endPosition.column,
         });
       }
     }
@@ -466,19 +471,17 @@ export class PostHogDetector {
       if (pyCaptureQuery) {
         const matches = pyCaptureQuery.matches(tree.rootNode);
         for (const match of matches) {
-          const clientNode = match.captures.find((c) => c.name === "client");
-          const methodNode = match.captures.find((c) => c.name === "method");
-          const keyNode = match.captures.find((c) => c.name === "key");
-          const kwargNameNode = match.captures.find(
-            (c) => c.name === "kwarg_name",
-          );
+          const clientNode = getCapture(match.captures, "client");
+          const methodNode = getCapture(match.captures, "method");
+          const keyNode = getCapture(match.captures, "key");
+          const kwargNameNode = getCapture(match.captures, "kwarg_name");
 
           if (!clientNode || !methodNode || !keyNode) {
             continue;
           }
 
-          const clientName = this.extractClientName(clientNode.node);
-          const method = methodNode.node.text;
+          const clientName = this.extractClientName(clientNode);
+          const method = methodNode.text;
 
           if (!clientName || !allClients.has(clientName)) {
             continue;
@@ -488,12 +491,12 @@ export class PostHogDetector {
           }
 
           // For keyword argument form, only match event=
-          if (kwargNameNode && kwargNameNode.node.text !== "event") {
+          if (kwargNameNode && kwargNameNode.text !== "event") {
             continue;
           }
 
-          const key = this.cleanStringValue(keyNode.node.text);
-          const line = keyNode.node.startPosition.row;
+          const key = this.cleanStringValue(keyNode.text);
+          const line = keyNode.startPosition.row;
           const dedupKey = `${line}:${key}`;
           if (seen.has(dedupKey)) {
             continue;
@@ -504,8 +507,8 @@ export class PostHogDetector {
             method,
             key,
             line,
-            keyStartCol: keyNode.node.startPosition.column,
-            keyEndCol: keyNode.node.endPosition.column,
+            keyStartCol: keyNode.startPosition.column,
+            keyEndCol: keyNode.endPosition.column,
           });
         }
       }
@@ -521,19 +524,17 @@ export class PostHogDetector {
       if (rbCaptureQuery) {
         const matches = rbCaptureQuery.matches(tree.rootNode);
         for (const match of matches) {
-          const clientNode = match.captures.find((c) => c.name === "client");
-          const methodNode = match.captures.find((c) => c.name === "method");
-          const keyNode = match.captures.find((c) => c.name === "key");
-          const kwargNameNode = match.captures.find(
-            (c) => c.name === "kwarg_name",
-          );
+          const clientNode = getCapture(match.captures, "client");
+          const methodNode = getCapture(match.captures, "method");
+          const keyNode = getCapture(match.captures, "key");
+          const kwargNameNode = getCapture(match.captures, "kwarg_name");
 
           if (!clientNode || !methodNode || !keyNode || !kwargNameNode) {
             continue;
           }
 
-          const clientName = this.extractClientName(clientNode.node);
-          const method = methodNode.node.text;
+          const clientName = this.extractClientName(clientNode);
+          const method = methodNode.text;
 
           if (!clientName || !allClients.has(clientName)) {
             continue;
@@ -541,12 +542,12 @@ export class PostHogDetector {
           if (method !== "capture") {
             continue;
           }
-          if (kwargNameNode.node.text !== "event") {
+          if (kwargNameNode.text !== "event") {
             continue;
           }
 
-          const key = this.cleanStringValue(keyNode.node.text);
-          const line = keyNode.node.startPosition.row;
+          const key = this.cleanStringValue(keyNode.text);
+          const line = keyNode.startPosition.row;
           const dedupKey = `${line}:${key}`;
           if (seen.has(dedupKey)) {
             continue;
@@ -557,8 +558,8 @@ export class PostHogDetector {
             method,
             key,
             line,
-            keyStartCol: keyNode.node.startPosition.column,
-            keyEndCol: keyNode.node.endPosition.column,
+            keyStartCol: keyNode.startPosition.column,
+            keyEndCol: keyNode.endPosition.column,
           });
         }
       }
@@ -570,20 +571,20 @@ export class PostHogDetector {
       if (bareQuery) {
         const matches = bareQuery.matches(tree.rootNode);
         for (const match of matches) {
-          const funcNode = match.captures.find((c) => c.name === "func_name");
-          const keyNode = match.captures.find((c) => c.name === "key");
+          const funcNode = getCapture(match.captures, "func_name");
+          const keyNode = getCapture(match.captures, "key");
           if (!funcNode || !keyNode) {
             continue;
           }
 
-          const name = funcNode.node.text;
+          const name = funcNode.text;
           if (destructuredCapture.has(name) || destructuredFlag.has(name)) {
             calls.push({
               method: name,
-              key: this.cleanStringValue(keyNode.node.text),
-              line: keyNode.node.startPosition.row,
-              keyStartCol: keyNode.node.startPosition.column,
-              keyEndCol: keyNode.node.endPosition.column,
+              key: this.cleanStringValue(keyNode.text),
+              line: keyNode.startPosition.row,
+              keyStartCol: keyNode.startPosition.column,
+              keyEndCol: keyNode.endPosition.column,
             });
           }
         }
@@ -600,19 +601,19 @@ export class PostHogDetector {
       if (bareQuery) {
         const matches = bareQuery.matches(tree.rootNode);
         for (const match of matches) {
-          const funcNode = match.captures.find((c) => c.name === "func_name");
-          const keyNode = match.captures.find((c) => c.name === "key");
+          const funcNode = getCapture(match.captures, "func_name");
+          const keyNode = getCapture(match.captures, "key");
           if (!funcNode || !keyNode) {
             continue;
           }
 
-          if (additionalFlagFuncs.has(funcNode.node.text)) {
+          if (additionalFlagFuncs.has(funcNode.text)) {
             calls.push({
-              method: funcNode.node.text,
-              key: this.cleanStringValue(keyNode.node.text),
-              line: keyNode.node.startPosition.row,
-              keyStartCol: keyNode.node.startPosition.column,
-              keyEndCol: keyNode.node.endPosition.column,
+              method: funcNode.text,
+              key: this.cleanStringValue(keyNode.text),
+              line: keyNode.startPosition.row,
+              keyStartCol: keyNode.startPosition.column,
+              keyEndCol: keyNode.endPosition.column,
             });
           }
         }
@@ -622,52 +623,22 @@ export class PostHogDetector {
     // Resolve calls with identifier first argument: posthog.capture(MY_CONST) / posthog.getFeatureFlag(FLAG_KEY)
     const constantMap = this.buildConstantMap(lang, tree);
     if (constantMap.size > 0) {
-      let identArgQueryStr: string;
-      if (family.queries.rubyCaptureCalls) {
-        // Ruby: call with receiver + method, identifier or constant args
-        identArgQueryStr = `
-                    (call
-                        receiver: (_) @client
-                        method: (identifier) @method
-                        arguments: (argument_list . (identifier) @arg_id)) @call
-
-                    (call
-                        receiver: (_) @client
-                        method: (identifier) @method
-                        arguments: (argument_list . (constant) @arg_id)) @call`;
-      } else if (family.queries.goStructCalls) {
-        // Go: selector_expression + argument_list
-        identArgQueryStr = `(call_expression
-                    function: (selector_expression
-                        operand: (_) @client
-                        field: (field_identifier) @method)
-                    arguments: (argument_list . (identifier) @arg_id)) @call`;
-      } else if (family.queries.pythonCaptureCalls) {
-        identArgQueryStr = `(call
-                    function: (attribute
-                        object: (_) @client
-                        attribute: (identifier) @method)
-                    arguments: (argument_list . (identifier) @arg_id)) @call`;
-      } else {
-        identArgQueryStr = `(call_expression
-                    function: (member_expression
-                        object: (_) @client
-                        property: (property_identifier) @method)
-                    arguments: (arguments . (identifier) @arg_id)) @call`;
-      }
-      const identArgQuery = this.getQuery(lang, identArgQueryStr);
+      const identArgQuery = this.getQuery(
+        lang,
+        family.queries.identifierArgCalls,
+      );
       if (identArgQuery) {
         const identMatches = identArgQuery.matches(tree.rootNode);
         for (const match of identMatches) {
-          const clientNode = match.captures.find((c) => c.name === "client");
-          const methodNode = match.captures.find((c) => c.name === "method");
-          const argNode = match.captures.find((c) => c.name === "arg_id");
+          const clientNode = getCapture(match.captures, "client");
+          const methodNode = getCapture(match.captures, "method");
+          const argNode = getCapture(match.captures, "arg_id");
           if (!clientNode || !methodNode || !argNode) {
             continue;
           }
 
-          const clientName = this.extractClientName(clientNode.node);
-          const method = methodNode.node.text;
+          const clientName = this.extractClientName(clientNode);
+          const method = methodNode.text;
           if (!clientName || !allClients.has(clientName)) {
             continue;
           }
@@ -675,12 +646,12 @@ export class PostHogDetector {
             continue;
           }
 
-          const resolved = constantMap.get(argNode.node.text);
+          const resolved = constantMap.get(argNode.text);
           if (!resolved) {
             continue;
           }
 
-          const line = argNode.node.startPosition.row;
+          const line = argNode.startPosition.row;
           const dedupKey = `${line}:${resolved}`;
           if (seen.has(dedupKey)) {
             continue;
@@ -691,8 +662,8 @@ export class PostHogDetector {
             method,
             key: resolved,
             line,
-            keyStartCol: argNode.node.startPosition.column,
-            keyEndCol: argNode.node.endPosition.column,
+            keyStartCol: argNode.startPosition.column,
+            keyEndCol: argNode.endPosition.column,
           });
         }
       }
@@ -700,49 +671,19 @@ export class PostHogDetector {
 
     // Detect dynamic capture calls (non-string first argument)
     const matchedLines = new Set(calls.map((c) => c.line));
-
-    let dynamicQueryStr: string;
-    if (family.queries.rubyCaptureCalls) {
-      // Ruby: call with receiver + method
-      dynamicQueryStr = `(call
-                receiver: (_) @client
-                method: (identifier) @method
-                arguments: (argument_list . (_) @first_arg)) @call`;
-    } else if (family.queries.goStructCalls) {
-      // Go: selector_expression + argument_list
-      dynamicQueryStr = `(call_expression
-                function: (selector_expression
-                    operand: (_) @client
-                    field: (field_identifier) @method)
-                arguments: (argument_list . (_) @first_arg)) @call`;
-    } else if (family.queries.pythonCaptureCalls) {
-      // Python: attribute + argument_list
-      dynamicQueryStr = `(call
-                function: (attribute
-                    object: (_) @client
-                    attribute: (identifier) @method)
-                arguments: (argument_list . (_) @first_arg)) @call`;
-    } else {
-      // JS/TS: member_expression + arguments
-      dynamicQueryStr = `(call_expression
-                function: (member_expression
-                    object: (_) @client
-                    property: (property_identifier) @method)
-                arguments: (arguments . (_) @first_arg)) @call`;
-    }
-    const dynamicQuery = this.getQuery(lang, dynamicQueryStr);
+    const dynamicQuery = this.getQuery(lang, family.queries.dynamicCalls);
     if (dynamicQuery) {
       const matches = dynamicQuery.matches(tree.rootNode);
       for (const match of matches) {
-        const clientNode = match.captures.find((c) => c.name === "client");
-        const methodNode = match.captures.find((c) => c.name === "method");
-        const firstArgNode = match.captures.find((c) => c.name === "first_arg");
+        const clientNode = getCapture(match.captures, "client");
+        const methodNode = getCapture(match.captures, "method");
+        const firstArgNode = getCapture(match.captures, "first_arg");
         if (!clientNode || !methodNode || !firstArgNode) {
           continue;
         }
 
-        const clientName = this.extractClientName(clientNode.node);
-        const method = methodNode.node.text;
+        const clientName = this.extractClientName(clientNode);
+        const method = methodNode.text;
         if (!clientName || !allClients.has(clientName)) {
           continue;
         }
@@ -750,7 +691,7 @@ export class PostHogDetector {
           continue;
         }
 
-        const line = firstArgNode.node.startPosition.row;
+        const line = firstArgNode.startPosition.row;
         if (matchedLines.has(line)) {
           continue;
         } // already matched with a string key
@@ -759,8 +700,8 @@ export class PostHogDetector {
           method,
           key: "",
           line,
-          keyStartCol: firstArgNode.node.startPosition.column,
-          keyEndCol: firstArgNode.node.endPosition.column,
+          keyStartCol: firstArgNode.startPosition.column,
+          keyEndCol: firstArgNode.endPosition.column,
           dynamic: true,
         });
         matchedLines.add(line);
@@ -803,24 +744,24 @@ export class PostHogDetector {
     const initQuery = this.getQuery(lang, initQueryStr);
     if (initQuery) {
       for (const match of initQuery.matches(tree.rootNode)) {
-        const clientNode = match.captures.find((c) => c.name === "client");
-        const methodNode = match.captures.find((c) => c.name === "method");
-        const tokenNode = match.captures.find((c) => c.name === "token");
-        const configNode = match.captures.find((c) => c.name === "config");
+        const clientNode = getCapture(match.captures, "client");
+        const methodNode = getCapture(match.captures, "method");
+        const tokenNode = getCapture(match.captures, "token");
+        const configNode = getCapture(match.captures, "config");
 
         if (!clientNode || !methodNode || !tokenNode) {
           continue;
         }
-        if (methodNode.node.text !== "init") {
+        if (methodNode.text !== "init") {
           continue;
         }
 
-        const clientName = this.extractClientName(clientNode.node);
+        const clientName = this.extractClientName(clientNode);
         if (!clientName || !allClients.has(clientName)) {
           continue;
         }
 
-        results.push(this.buildInitCall(tokenNode.node, configNode?.node));
+        results.push(this.buildInitCall(tokenNode, configNode ?? undefined));
       }
     }
 
@@ -836,18 +777,18 @@ export class PostHogDetector {
     const ctorQuery = this.getQuery(lang, constructorQueryStr);
     if (ctorQuery) {
       for (const match of ctorQuery.matches(tree.rootNode)) {
-        const classNode = match.captures.find((c) => c.name === "class_name");
-        const tokenNode = match.captures.find((c) => c.name === "token");
-        const configNode = match.captures.find((c) => c.name === "config");
+        const classNode = getCapture(match.captures, "class_name");
+        const tokenNode = getCapture(match.captures, "token");
+        const configNode = getCapture(match.captures, "config");
 
         if (!classNode || !tokenNode) {
           continue;
         }
-        if (!POSTHOG_CLASS_NAMES.has(classNode.node.text)) {
+        if (!POSTHOG_CLASS_NAMES.has(classNode.text)) {
           continue;
         }
 
-        results.push(this.buildInitCall(tokenNode.node, configNode?.node));
+        results.push(this.buildInitCall(tokenNode, configNode ?? undefined));
       }
     }
 
@@ -872,37 +813,37 @@ export class PostHogDetector {
     const pyCtorKwQuery = this.getQuery(lang, pyCtorKwQueryStr);
     if (pyCtorKwQuery) {
       for (const match of pyCtorKwQuery.matches(tree.rootNode)) {
-        const classNode = match.captures.find((c) => c.name === "class_name");
-        const kwNameNode = match.captures.find((c) => c.name === "kw_name");
-        const tokenNode = match.captures.find((c) => c.name === "token");
+        const classNode = getCapture(match.captures, "class_name");
+        const kwNameNode = getCapture(match.captures, "kw_name");
+        const tokenNode = getCapture(match.captures, "token");
 
         if (!classNode || !kwNameNode || !tokenNode) {
           continue;
         }
-        if (!POSTHOG_CLASS_NAMES.has(classNode.node.text)) {
+        if (!POSTHOG_CLASS_NAMES.has(classNode.text)) {
           continue;
         }
         if (
-          kwNameNode.node.text !== "api_key" &&
-          kwNameNode.node.text !== "project_api_key"
+          kwNameNode.text !== "api_key" &&
+          kwNameNode.text !== "project_api_key"
         ) {
           continue;
         }
 
         // Check we didn't already match this call via positional pattern
-        const line = tokenNode.node.startPosition.row;
+        const line = tokenNode.startPosition.row;
         if (seenLines.has(line)) {
           continue;
         }
         seenLines.add(line);
 
         // Extract other keyword args for config
-        const callNode = match.captures.find((c) => c.name === "call");
+        const callNode = getCapture(match.captures, "call");
         const configProperties = new Map<string, string>();
         let apiHost: string | null = null;
 
         if (callNode) {
-          const argsNode = callNode.node.childForFieldName("arguments");
+          const argsNode = callNode.childForFieldName("arguments");
           if (argsNode) {
             for (const child of argsNode.namedChildren) {
               if (child.type === "keyword_argument") {
@@ -935,10 +876,10 @@ export class PostHogDetector {
         }
 
         results.push({
-          token: this.cleanStringValue(tokenNode.node.text),
-          tokenLine: tokenNode.node.startPosition.row,
-          tokenStartCol: tokenNode.node.startPosition.column,
-          tokenEndCol: tokenNode.node.endPosition.column,
+          token: this.cleanStringValue(tokenNode.text),
+          tokenLine: tokenNode.startPosition.row,
+          tokenStartCol: tokenNode.startPosition.column,
+          tokenEndCol: tokenNode.endPosition.column,
           apiHost,
           configProperties,
         });
@@ -948,23 +889,23 @@ export class PostHogDetector {
     const pyCtorQuery = this.getQuery(lang, pyCtorQueryStr);
     if (pyCtorQuery) {
       for (const match of pyCtorQuery.matches(tree.rootNode)) {
-        const classNode = match.captures.find((c) => c.name === "class_name");
-        const tokenNode = match.captures.find((c) => c.name === "token");
+        const classNode = getCapture(match.captures, "class_name");
+        const tokenNode = getCapture(match.captures, "token");
 
         if (!classNode || !tokenNode) {
           continue;
         }
-        if (!POSTHOG_CLASS_NAMES.has(classNode.node.text)) {
+        if (!POSTHOG_CLASS_NAMES.has(classNode.text)) {
           continue;
         }
 
         // Extract keyword arguments for config
-        const callNode = match.captures.find((c) => c.name === "call");
+        const callNode = getCapture(match.captures, "call");
         const configProperties = new Map<string, string>();
         let apiHost: string | null = null;
 
         if (callNode) {
-          const argsNode = callNode.node.childForFieldName("arguments");
+          const argsNode = callNode.childForFieldName("arguments");
           if (argsNode) {
             for (const child of argsNode.namedChildren) {
               if (child.type === "keyword_argument") {
@@ -992,10 +933,10 @@ export class PostHogDetector {
         }
 
         results.push({
-          token: this.cleanStringValue(tokenNode.node.text),
-          tokenLine: tokenNode.node.startPosition.row,
-          tokenStartCol: tokenNode.node.startPosition.column,
-          tokenEndCol: tokenNode.node.endPosition.column,
+          token: this.cleanStringValue(tokenNode.text),
+          tokenLine: tokenNode.startPosition.row,
+          tokenStartCol: tokenNode.startPosition.column,
+          tokenEndCol: tokenNode.endPosition.column,
           apiHost,
           configProperties,
         });
@@ -1015,22 +956,22 @@ export class PostHogDetector {
     const goCtorQuery = this.getQuery(lang, goCtorQueryStr);
     if (goCtorQuery) {
       for (const match of goCtorQuery.matches(tree.rootNode)) {
-        const pkgNode = match.captures.find((c) => c.name === "pkg_name");
-        const funcNode = match.captures.find((c) => c.name === "func_name");
-        const tokenNode = match.captures.find((c) => c.name === "token");
+        const pkgNode = getCapture(match.captures, "pkg_name");
+        const funcNode = getCapture(match.captures, "func_name");
+        const tokenNode = getCapture(match.captures, "token");
 
         if (!pkgNode || !funcNode || !tokenNode) {
           continue;
         }
-        if (pkgNode.node.text !== "posthog") {
+        if (pkgNode.text !== "posthog") {
           continue;
         }
-        if (!GO_CONSTRUCTOR_NAMES.has(funcNode.node.text)) {
+        if (!GO_CONSTRUCTOR_NAMES.has(funcNode.text)) {
           continue;
         }
 
-        const token = this.cleanStringValue(tokenNode.node.text);
-        const line = tokenNode.node.startPosition.row;
+        const token = this.cleanStringValue(tokenNode.text);
+        const line = tokenNode.startPosition.row;
         if (seenLines.has(line)) {
           continue;
         }
@@ -1040,9 +981,9 @@ export class PostHogDetector {
         const configProperties = new Map<string, string>();
         let apiHost: string | null = null;
 
-        const callNode = match.captures.find((c) => c.name === "call");
+        const callNode = getCapture(match.captures, "call");
         if (callNode) {
-          const argsNode = callNode.node.childForFieldName("arguments");
+          const argsNode = callNode.childForFieldName("arguments");
           if (argsNode) {
             for (const arg of argsNode.namedChildren) {
               if (arg.type === "composite_literal") {
@@ -1076,9 +1017,9 @@ export class PostHogDetector {
 
         results.push({
           token,
-          tokenLine: tokenNode.node.startPosition.row,
-          tokenStartCol: tokenNode.node.startPosition.column,
-          tokenEndCol: tokenNode.node.endPosition.column,
+          tokenLine: tokenNode.startPosition.row,
+          tokenStartCol: tokenNode.startPosition.column,
+          tokenEndCol: tokenNode.endPosition.column,
           apiHost,
           configProperties,
         });
@@ -1100,11 +1041,11 @@ export class PostHogDetector {
     const rbCtorQuery = this.getQuery(lang, rbCtorQueryStr);
     if (rbCtorQuery) {
       for (const match of rbCtorQuery.matches(tree.rootNode)) {
-        const scopeNode = match.captures.find((c) => c.name === "scope_name");
-        const classNode = match.captures.find((c) => c.name === "class_name");
-        const methodNode = match.captures.find((c) => c.name === "method_name");
-        const kwNameNode = match.captures.find((c) => c.name === "kw_name");
-        const tokenNode = match.captures.find((c) => c.name === "token");
+        const scopeNode = getCapture(match.captures, "scope_name");
+        const classNode = getCapture(match.captures, "class_name");
+        const methodNode = getCapture(match.captures, "method_name");
+        const kwNameNode = getCapture(match.captures, "kw_name");
+        const tokenNode = getCapture(match.captures, "token");
 
         if (
           !scopeNode ||
@@ -1115,32 +1056,32 @@ export class PostHogDetector {
         ) {
           continue;
         }
-        if (!POSTHOG_CLASS_NAMES.has(scopeNode.node.text)) {
+        if (!POSTHOG_CLASS_NAMES.has(scopeNode.text)) {
           continue;
         }
-        if (classNode.node.text !== "Client") {
+        if (classNode.text !== "Client") {
           continue;
         }
-        if (methodNode.node.text !== "new") {
+        if (methodNode.text !== "new") {
           continue;
         }
-        if (kwNameNode.node.text !== "api_key") {
+        if (kwNameNode.text !== "api_key") {
           continue;
         }
 
-        const line = tokenNode.node.startPosition.row;
+        const line = tokenNode.startPosition.row;
         if (seenLines.has(line)) {
           continue;
         }
         seenLines.add(line);
 
         // Extract other keyword args for config
-        const callNode = match.captures.find((c) => c.name === "call");
+        const callNode = getCapture(match.captures, "call");
         const configProperties = new Map<string, string>();
         let apiHost: string | null = null;
 
         if (callNode) {
-          const argsNode = callNode.node.childForFieldName("arguments");
+          const argsNode = callNode.childForFieldName("arguments");
           if (argsNode) {
             for (const child of argsNode.namedChildren) {
               if (child.type === "pair") {
@@ -1172,10 +1113,10 @@ export class PostHogDetector {
         }
 
         results.push({
-          token: this.cleanStringValue(tokenNode.node.text),
-          tokenLine: tokenNode.node.startPosition.row,
-          tokenStartCol: tokenNode.node.startPosition.column,
-          tokenEndCol: tokenNode.node.endPosition.column,
+          token: this.cleanStringValue(tokenNode.text),
+          tokenLine: tokenNode.startPosition.row,
+          tokenStartCol: tokenNode.startPosition.column,
+          tokenEndCol: tokenNode.endPosition.column,
           apiHost,
           configProperties,
         });
@@ -1253,30 +1194,28 @@ export class PostHogDetector {
     const matches = query.matches(tree.rootNode);
 
     for (const match of matches) {
-      const nameNode = match.captures.find((c) => c.name === "func_name");
-      const paramsNode = match.captures.find((c) => c.name === "func_params");
-      const singleParamNode = match.captures.find(
-        (c) => c.name === "func_single_param",
-      );
-      const bodyNode = match.captures.find((c) => c.name === "func_body");
+      const nameNode = getCapture(match.captures, "func_name");
+      const paramsNode = getCapture(match.captures, "func_params");
+      const singleParamNode = getCapture(match.captures, "func_single_param");
+      const bodyNode = getCapture(match.captures, "func_body");
 
       if (!nameNode || !bodyNode) {
         continue;
       }
 
-      const name = nameNode.node.text;
+      const name = nameNode.text;
       // Skip control flow keywords that might match method patterns
       if (["if", "for", "while", "switch", "catch", "else"].includes(name)) {
         continue;
       }
 
       const params = singleParamNode
-        ? [singleParamNode.node.text]
+        ? [singleParamNode.text]
         : paramsNode
-          ? this.extractParams(paramsNode.node.text)
+          ? this.extractParams(paramsNode.text)
           : [];
 
-      const bodyLine = bodyNode.node.startPosition.row;
+      const bodyLine = bodyNode.startPosition.row;
       const nextLineIdx = bodyLine + 1;
       const lines = text.split("\n");
       const nextLine = nextLineIdx < lines.length ? lines[nextLineIdx] : "";
@@ -1322,28 +1261,28 @@ export class PostHogDetector {
     if (assignQuery) {
       const matches = assignQuery.matches(tree.rootNode);
       for (const match of matches) {
-        const varNode = match.captures.find((c) => c.name === "var_name");
-        const clientNode = match.captures.find((c) => c.name === "client");
-        const methodNode = match.captures.find((c) => c.name === "method");
-        const keyNode = match.captures.find((c) => c.name === "flag_key");
-        const assignNode = match.captures.find((c) => c.name === "assignment");
+        const varNode = getCapture(match.captures, "var_name");
+        const clientNode = getCapture(match.captures, "client");
+        const methodNode = getCapture(match.captures, "method");
+        const keyNode = getCapture(match.captures, "flag_key");
+        const assignNode = getCapture(match.captures, "assignment");
 
         if (!varNode || !clientNode || !methodNode || !keyNode) {
           continue;
         }
-        const varClientName = this.extractClientName(clientNode.node);
+        const varClientName = this.extractClientName(clientNode);
         if (!varClientName || !allClients.has(varClientName)) {
           continue;
         }
 
-        const method = methodNode.node.text;
+        const method = methodNode.text;
         if (!family.flagMethods.has(method)) {
           continue;
         }
 
-        const varName = varNode.node.text;
-        const flagKey = this.cleanStringValue(keyNode.node.text);
-        const afterNode = assignNode?.node || varNode.node;
+        const varName = varNode.text;
+        const flagKey = this.cleanStringValue(keyNode.text);
+        const afterNode = assignNode ?? varNode;
 
         // Find if-chains and switches using this variable
         this.findIfChainsForVar(
@@ -1437,32 +1376,30 @@ export class PostHogDetector {
       if (identAssignQuery) {
         const matches = identAssignQuery.matches(tree.rootNode);
         for (const match of matches) {
-          const varNode = match.captures.find((c) => c.name === "var_name");
-          const clientNode = match.captures.find((c) => c.name === "client");
-          const methodNode = match.captures.find((c) => c.name === "method");
-          const argNode = match.captures.find((c) => c.name === "flag_id");
-          const assignNode = match.captures.find(
-            (c) => c.name === "assignment",
-          );
+          const varNode = getCapture(match.captures, "var_name");
+          const clientNode = getCapture(match.captures, "client");
+          const methodNode = getCapture(match.captures, "method");
+          const argNode = getCapture(match.captures, "flag_id");
+          const assignNode = getCapture(match.captures, "assignment");
 
           if (!varNode || !clientNode || !methodNode || !argNode) {
             continue;
           }
-          const varClientName = this.extractClientName(clientNode.node);
+          const varClientName = this.extractClientName(clientNode);
           if (!varClientName || !allClients.has(varClientName)) {
             continue;
           }
-          if (!family.flagMethods.has(methodNode.node.text)) {
+          if (!family.flagMethods.has(methodNode.text)) {
             continue;
           }
 
-          const resolved = constantMap.get(argNode.node.text);
+          const resolved = constantMap.get(argNode.text);
           if (!resolved) {
             continue;
           }
 
-          const varName = varNode.node.text;
-          const afterNode = assignNode?.node || varNode.node;
+          const varName = varNode.text;
+          const afterNode = assignNode ?? varNode;
           this.findIfChainsForVar(
             tree.rootNode,
             varName,
@@ -1516,23 +1453,21 @@ export class PostHogDetector {
       if (bareAssignQuery) {
         const matches = bareAssignQuery.matches(tree.rootNode);
         for (const match of matches) {
-          const varNode = match.captures.find((c) => c.name === "var_name");
-          const funcNode = match.captures.find((c) => c.name === "func_name");
-          const keyNode = match.captures.find((c) => c.name === "flag_key");
-          const assignNode = match.captures.find(
-            (c) => c.name === "assignment",
-          );
+          const varNode = getCapture(match.captures, "var_name");
+          const funcNode = getCapture(match.captures, "func_name");
+          const keyNode = getCapture(match.captures, "flag_key");
+          const assignNode = getCapture(match.captures, "assignment");
 
           if (!varNode || !funcNode || !keyNode) {
             continue;
           }
-          if (!bareFlagFunctions.has(funcNode.node.text)) {
+          if (!bareFlagFunctions.has(funcNode.text)) {
             continue;
           }
 
-          const varName = varNode.node.text;
-          const flagKey = this.cleanStringValue(keyNode.node.text);
-          const afterNode = assignNode?.node || varNode.node;
+          const varName = varNode.text;
+          const flagKey = this.cleanStringValue(keyNode.text);
+          const afterNode = assignNode ?? varNode;
 
           this.findIfChainsForVar(
             tree.rootNode,
@@ -1588,37 +1523,37 @@ export class PostHogDetector {
     if (assignQuery) {
       const matches = assignQuery.matches(tree.rootNode);
       for (const match of matches) {
-        const varNode = match.captures.find((c) => c.name === "var_name");
-        const clientNode = match.captures.find((c) => c.name === "client");
-        const methodNode = match.captures.find((c) => c.name === "method");
-        const keyNode = match.captures.find((c) => c.name === "flag_key");
+        const varNode = getCapture(match.captures, "var_name");
+        const clientNode = getCapture(match.captures, "client");
+        const methodNode = getCapture(match.captures, "method");
+        const keyNode = getCapture(match.captures, "flag_key");
 
         if (!varNode || !clientNode || !methodNode || !keyNode) {
           continue;
         }
-        const varClientName = this.extractClientName(clientNode.node);
+        const varClientName = this.extractClientName(clientNode);
         if (!varClientName || !allClients.has(varClientName)) {
           continue;
         }
 
-        const method = methodNode.node.text;
+        const method = methodNode.text;
         if (!family.flagMethods.has(method)) {
           continue;
         }
 
         // Check if there's already a type annotation by looking at the parent
         // In TS: `const flag: boolean = ...` — the variable_declarator has a type_annotation child
-        const declarator = varNode.node.parent;
+        const declarator = varNode.parent;
         const hasTypeAnnotation = declarator
           ? declarator.namedChildren.some((c) => c.type === "type_annotation")
           : false;
 
         assignments.push({
-          varName: varNode.node.text,
+          varName: varNode.text,
           method,
-          flagKey: this.cleanStringValue(keyNode.node.text),
-          line: varNode.node.startPosition.row,
-          varNameEndCol: varNode.node.endPosition.column,
+          flagKey: this.cleanStringValue(keyNode.text),
+          line: varNode.startPosition.row,
+          varNameEndCol: varNode.endPosition.column,
           hasTypeAnnotation,
         });
       }
@@ -2537,10 +2472,10 @@ export class PostHogDetector {
     if (jsQuery) {
       const matches = jsQuery.matches(tree.rootNode);
       for (const match of matches) {
-        const nameNode = match.captures.find((c) => c.name === "name");
-        const valueNode = match.captures.find((c) => c.name === "value");
+        const nameNode = getCapture(match.captures, "name");
+        const valueNode = getCapture(match.captures, "value");
         if (nameNode && valueNode) {
-          constants.set(nameNode.node.text, valueNode.node.text);
+          constants.set(nameNode.text, valueNode.text);
         }
       }
     }
@@ -2558,10 +2493,10 @@ export class PostHogDetector {
     if (pyQuery) {
       const matches = pyQuery.matches(tree.rootNode);
       for (const match of matches) {
-        const nameNode = match.captures.find((c) => c.name === "name");
-        const valueNode = match.captures.find((c) => c.name === "value");
+        const nameNode = getCapture(match.captures, "name");
+        const valueNode = getCapture(match.captures, "value");
         if (nameNode && valueNode) {
-          constants.set(nameNode.node.text, valueNode.node.text);
+          constants.set(nameNode.text, valueNode.text);
         }
       }
     }
@@ -2578,13 +2513,10 @@ export class PostHogDetector {
     if (goVarQuery) {
       const matches = goVarQuery.matches(tree.rootNode);
       for (const match of matches) {
-        const nameNode = match.captures.find((c) => c.name === "name");
-        const valueNode = match.captures.find((c) => c.name === "value");
+        const nameNode = getCapture(match.captures, "name");
+        const valueNode = getCapture(match.captures, "value");
         if (nameNode && valueNode) {
-          constants.set(
-            nameNode.node.text,
-            this.cleanStringValue(valueNode.node.text),
-          );
+          constants.set(nameNode.text, this.cleanStringValue(valueNode.text));
         }
       }
     }
@@ -2601,13 +2533,10 @@ export class PostHogDetector {
     if (goConstQuery) {
       const matches = goConstQuery.matches(tree.rootNode);
       for (const match of matches) {
-        const nameNode = match.captures.find((c) => c.name === "name");
-        const valueNode = match.captures.find((c) => c.name === "value");
+        const nameNode = getCapture(match.captures, "name");
+        const valueNode = getCapture(match.captures, "value");
         if (nameNode && valueNode) {
-          constants.set(
-            nameNode.node.text,
-            this.cleanStringValue(valueNode.node.text),
-          );
+          constants.set(nameNode.text, this.cleanStringValue(valueNode.text));
         }
       }
     }
@@ -2628,10 +2557,10 @@ export class PostHogDetector {
     if (rbQuery) {
       const matches = rbQuery.matches(tree.rootNode);
       for (const match of matches) {
-        const nameNode = match.captures.find((c) => c.name === "name");
-        const valueNode = match.captures.find((c) => c.name === "value");
+        const nameNode = getCapture(match.captures, "name");
+        const valueNode = getCapture(match.captures, "value");
         if (nameNode && valueNode) {
-          constants.set(nameNode.node.text, valueNode.node.text);
+          constants.set(nameNode.text, valueNode.text);
         }
       }
     }
