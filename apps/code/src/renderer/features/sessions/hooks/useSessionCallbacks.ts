@@ -86,8 +86,13 @@ export function useSessionCallbacks({
   }, [taskId, setPendingContent, requestFocus]);
 
   const handleRetry = useCallback(async () => {
-    if (!repoPath) return;
     try {
+      if (sessionRef.current?.isCloud) {
+        await getSessionService().retryCloudTaskWatch(taskId);
+        return;
+      }
+
+      if (!repoPath) return;
       await getSessionService().clearSessionError(taskId, repoPath);
     } catch (error) {
       log.error("Failed to clear session error", error);

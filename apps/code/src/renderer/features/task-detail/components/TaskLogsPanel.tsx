@@ -155,9 +155,9 @@ export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
               cloudDiffStats={cloudDiffStats}
               hasError={hasError}
               errorTitle={errorTitle}
-              errorMessage={errorMessage}
+              errorMessage={errorMessage ?? undefined}
               hideInput={hideInput}
-              onRetry={isCloud ? undefined : handleRetry}
+              onRetry={handleRetry}
               onNewSession={isCloud ? undefined : handleNewSession}
               isInitializing={isInitializing}
               slackThreadUrl={slackThreadUrl}

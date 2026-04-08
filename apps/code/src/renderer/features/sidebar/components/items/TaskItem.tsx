@@ -11,6 +11,7 @@ import {
   Pause,
   PushPin,
 } from "@phosphor-icons/react";
+import { isTerminalStatus, type TaskRunStatus } from "@shared/types";
 import { selectIsFocusedOnWorktree, useFocusStore } from "@stores/focusStore";
 import { formatRelativeTimeShort } from "@utils/time";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -28,12 +29,7 @@ interface TaskItemProps {
   isPinned?: boolean;
   isSuspended?: boolean;
   needsPermission?: boolean;
-  taskRunStatus?:
-    | "started"
-    | "in_progress"
-    | "completed"
-    | "failed"
-    | "cancelled";
+  taskRunStatus?: TaskRunStatus;
   timestamp?: number;
   isEditing?: boolean;
   onClick: () => void;
@@ -116,7 +112,7 @@ function CloudStatusIcon({
 }: {
   taskRunStatus?: TaskItemProps["taskRunStatus"];
 }) {
-  if (taskRunStatus === "started" || taskRunStatus === "in_progress") {
+  if (taskRunStatus === "queued" || taskRunStatus === "in_progress") {
     return (
       <Tooltip content="Cloud (running)" side="right">
         <span className="flex items-center justify-center">
@@ -184,6 +180,8 @@ export function TaskItem({
   const isWorktreeTask = workspaceMode === "worktree";
   const isCloudTask = workspaceMode === "cloud";
 
+  const isTerminalCloud = isCloudTask && isTerminalStatus(taskRunStatus);
+
   const icon = isSuspended ? (
     <Tooltip content="Suspended" side="right">
       <span className="flex items-center justify-center">
@@ -192,16 +190,18 @@ export function TaskItem({
     </Tooltip>
   ) : needsPermission ? (
     <BellRinging size={ICON_SIZE} className="text-blue-11" />
+  ) : isTerminalCloud ? (
+    <CloudStatusIcon taskRunStatus={taskRunStatus} />
   ) : isGenerating ? (
     <DotsCircleSpinner size={ICON_SIZE} className="text-accent-11" />
+  ) : isCloudTask ? (
+    <CloudStatusIcon taskRunStatus={taskRunStatus} />
   ) : isUnread ? (
     <span className="flex items-center justify-center text-[8px] text-green-11">
       ■
     </span>
   ) : isPinned ? (
     <PushPin size={ICON_SIZE} className="text-accent-11" />
-  ) : isCloudTask ? (
-    <CloudStatusIcon taskRunStatus={taskRunStatus} />
   ) : isWorktreeTask ? (
     isFocused ? (
       <Tooltip content="Worktree (syncing)" side="right">

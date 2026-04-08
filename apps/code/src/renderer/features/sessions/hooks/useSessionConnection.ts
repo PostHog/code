@@ -1,5 +1,7 @@
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { trpcClient } from "@renderer/trpc/client";
+import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type { Task } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
@@ -32,6 +34,7 @@ export function useSessionConnection({
 }: UseSessionConnectionOptions) {
   const queryClient = useQueryClient();
   const { isOnline } = useConnectivity();
+  const cloudAuthState = useAuthStateValue((state) => state);
 
   useChatTitleGenerator(taskId);
 
@@ -64,17 +67,31 @@ export function useSessionConnection({
 
   useEffect(() => {
     if (!isCloud || !task.latest_run?.id) return;
+    if (cloudAuthState.status !== "authenticated") return;
+    if (!cloudAuthState.bootstrapComplete) return;
+    if (!cloudAuthState.projectId || !cloudAuthState.cloudRegion) return;
+
     const runId = task.latest_run.id;
     const cleanup = getSessionService().watchCloudTask(
       task.id,
       runId,
+      getCloudUrlFromRegion(cloudAuthState.cloudRegion),
+      cloudAuthState.projectId,
       () => {
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
       },
-      true,
     );
     return cleanup;
-  }, [isCloud, task.id, task.latest_run?.id, queryClient]);
+  }, [
+    cloudAuthState.bootstrapComplete,
+    cloudAuthState.cloudRegion,
+    cloudAuthState.projectId,
+    cloudAuthState.status,
+    isCloud,
+    queryClient,
+    task.id,
+    task.latest_run?.id,
+  ]);
 
   useEffect(() => {
     if (!repoPath) return;

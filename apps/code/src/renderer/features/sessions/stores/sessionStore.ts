@@ -5,7 +5,7 @@ import type {
   SessionConfigSelectOption,
   SessionConfigSelectOptions,
 } from "@agentclientprotocol/sdk";
-import type { ExecutionMode } from "@shared/types";
+import type { ExecutionMode, TaskRunStatus } from "@shared/types";
 import type { AcpMessage } from "@shared/types/session-events";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
@@ -22,12 +22,7 @@ export interface QueuedMessage {
   queuedAt: number;
 }
 
-export type TaskRunStatus =
-  | "started"
-  | "in_progress"
-  | "completed"
-  | "failed"
-  | "cancelled";
+export type { TaskRunStatus };
 
 export type OptimisticItem = {
   type: "user_message";
