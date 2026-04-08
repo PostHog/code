@@ -4,11 +4,13 @@ import {
   ArrowSquareOutIcon,
   CaretDownIcon,
   CaretRightIcon,
+  CheckCircleIcon,
+  QuestionIcon,
   TagIcon,
   WarningIcon,
 } from "@phosphor-icons/react";
 import { Badge, Box, Flex, Text } from "@radix-ui/themes";
-import type { Signal } from "@shared/types";
+import type { Signal, SignalFindingContent } from "@shared/types";
 import { useState } from "react";
 
 const COLLAPSE_THRESHOLD = 300;
@@ -180,7 +182,34 @@ function isErrorTrackingExtra(
 
 // ── Shared components ────────────────────────────────────────────────────────
 
-function SignalCardHeader({ signal }: { signal: Signal }) {
+function VerificationBadge({ verified }: { verified: boolean }) {
+  return (
+    <Flex
+      align="center"
+      gap="1"
+      className="shrink-0 text-[11px]"
+      title={
+        verified ? "Verified by code or data evidence" : "Could not be verified"
+      }
+      style={{ color: verified ? "var(--green-9)" : "var(--gray-9)" }}
+    >
+      {verified ? (
+        <CheckCircleIcon size={12} weight="fill" />
+      ) : (
+        <QuestionIcon size={12} weight="bold" />
+      )}
+      <span>{verified ? "Verified" : "Unverified"}</span>
+    </Flex>
+  );
+}
+
+function SignalCardHeader({
+  signal,
+  verified,
+}: {
+  signal: Signal;
+  verified?: boolean;
+}) {
   const meta = SOURCE_PRODUCT_META[signal.source_product];
 
   return (
@@ -207,6 +236,7 @@ function SignalCardHeader({ signal }: { signal: Signal }) {
         {signalCardSourceLine(signal)}
       </Text>
       <span className="flex-1" />
+      {verified !== undefined && <VerificationBadge verified={verified} />}
       <Badge
         variant="soft"
         color="gray"
@@ -255,16 +285,22 @@ function CollapsibleBody({ body }: { body: string }) {
 function GitHubIssueSignalCard({
   signal,
   extra,
+  verified,
+  codePaths,
+  dataQueried,
 }: {
   signal: Signal;
   extra: GitHubIssueExtra;
+  verified?: boolean;
+  codePaths?: string[];
+  dataQueried?: string;
 }) {
   const labels = resolveLabels(extra.labels);
   const issueUrl = extra.html_url ?? null;
 
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
-      <SignalCardHeader signal={signal} />
+      <SignalCardHeader signal={signal} verified={verified} />
       <CollapsibleBody body={signal.content} />
       <Flex
         align="center"
@@ -321,6 +357,8 @@ function GitHubIssueSignalCard({
           Opened: {new Date(extra.created_at).toLocaleString()}
         </Text>
       )}
+      <CodePathsCollapsible paths={codePaths ?? []} />
+      <DataQueriedCollapsible text={dataQueried ?? ""} />
     </Box>
   );
 }
@@ -328,13 +366,19 @@ function GitHubIssueSignalCard({
 function ZendeskTicketSignalCard({
   signal,
   extra,
+  verified,
+  codePaths,
+  dataQueried,
 }: {
   signal: Signal;
   extra: ZendeskTicketExtra;
+  verified?: boolean;
+  codePaths?: string[];
+  dataQueried?: string;
 }) {
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
-      <SignalCardHeader signal={signal} />
+      <SignalCardHeader signal={signal} verified={verified} />
       <CollapsibleBody body={signal.content} />
       <Flex
         align="center"
@@ -378,6 +422,8 @@ function ZendeskTicketSignalCard({
           </a>
         )}
       </Flex>
+      <CodePathsCollapsible paths={codePaths ?? []} />
+      <DataQueriedCollapsible text={dataQueried ?? ""} />
     </Box>
   );
 }
@@ -385,13 +431,19 @@ function ZendeskTicketSignalCard({
 function LlmEvalSignalCard({
   signal,
   extra,
+  verified,
+  codePaths,
+  dataQueried,
 }: {
   signal: Signal;
   extra: LlmEvalExtra;
+  verified?: boolean;
+  codePaths?: string[];
+  dataQueried?: string;
 }) {
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
-      <SignalCardHeader signal={signal} />
+      <SignalCardHeader signal={signal} verified={verified} />
       <CollapsibleBody body={signal.content} />
       <Flex
         align="center"
@@ -414,6 +466,8 @@ function LlmEvalSignalCard({
           <span className="font-mono">{extra.trace_id.slice(0, 12)}...</span>
         </Text>
       )}
+      <CodePathsCollapsible paths={codePaths ?? []} />
+      <DataQueriedCollapsible text={dataQueried ?? ""} />
     </Box>
   );
 }
@@ -421,15 +475,21 @@ function LlmEvalSignalCard({
 function ErrorTrackingSignalCard({
   signal,
   extra,
+  verified,
+  codePaths,
+  dataQueried,
 }: {
   signal: Signal;
   extra: ErrorTrackingExtra;
+  verified?: boolean;
+  codePaths?: string[];
+  dataQueried?: string;
 }) {
   const fingerprint = extra.fingerprint ?? "";
 
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
-      <SignalCardHeader signal={signal} />
+      <SignalCardHeader signal={signal} verified={verified} />
       <CollapsibleBody body={signal.content} />
       <Flex
         align="center"
@@ -459,14 +519,26 @@ function ErrorTrackingSignalCard({
         <span className="flex-1" />
         {/* No "View issue" link in Code — error tracking lives in Cloud */}
       </Flex>
+      <CodePathsCollapsible paths={codePaths ?? []} />
+      <DataQueriedCollapsible text={dataQueried ?? ""} />
     </Box>
   );
 }
 
-function GenericSignalCard({ signal }: { signal: Signal }) {
+function GenericSignalCard({
+  signal,
+  verified,
+  codePaths,
+  dataQueried,
+}: {
+  signal: Signal;
+  verified?: boolean;
+  codePaths?: string[];
+  dataQueried?: string;
+}) {
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
-      <SignalCardHeader signal={signal} />
+      <SignalCardHeader signal={signal} verified={verified} />
       <CollapsibleBody body={signal.content} />
       <Text
         size="1"
@@ -475,29 +547,148 @@ function GenericSignalCard({ signal }: { signal: Signal }) {
       >
         {new Date(signal.timestamp).toLocaleString()}
       </Text>
+      <CodePathsCollapsible paths={codePaths ?? []} />
+      <DataQueriedCollapsible text={dataQueried ?? ""} />
+    </Box>
+  );
+}
+
+function CodePathsCollapsible({ paths }: { paths: string[] }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (paths.length === 0) return null;
+
+  return (
+    <Box mt="2" style={{ borderTop: "1px solid var(--gray-5)" }} pt="2">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-1 rounded px-1 py-0.5 font-medium text-[11px] text-gray-10 hover:bg-gray-3 hover:text-gray-12"
+      >
+        {expanded ? <CaretDownIcon size={10} /> : <CaretRightIcon size={10} />}
+        Relevant code ({paths.length})
+      </button>
+      {expanded && (
+        <Flex direction="column" gap="1" mt="1" className="pl-[18px]">
+          {paths.map((raw) => {
+            const trimmed = raw.trim();
+            const parenIdx = trimmed.indexOf(" (");
+            const filePath =
+              parenIdx >= 0 ? trimmed.slice(0, parenIdx) : trimmed;
+            const comment = parenIdx >= 0 ? trimmed.slice(parenIdx + 1) : null;
+            return (
+              <Text key={raw} size="1" className="text-[11px]">
+                <span className="font-mono" style={{ color: "var(--gray-12)" }}>
+                  {filePath}
+                </span>
+                {comment && (
+                  <span className="ml-1" style={{ color: "var(--gray-9)" }}>
+                    {comment}
+                  </span>
+                )}
+              </Text>
+            );
+          })}
+        </Flex>
+      )}
+    </Box>
+  );
+}
+
+function DataQueriedCollapsible({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!text) return null;
+
+  return (
+    <Box mt="2" style={{ borderTop: "1px solid var(--gray-5)" }} pt="2">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-1 rounded px-1 py-0.5 font-medium text-[11px] text-gray-10 hover:bg-gray-3 hover:text-gray-12"
+      >
+        {expanded ? <CaretDownIcon size={10} /> : <CaretRightIcon size={10} />}
+        Data queried
+      </button>
+      {expanded && (
+        <Text
+          size="1"
+          color="gray"
+          className="mt-1 block whitespace-pre-wrap text-pretty pl-[18px] text-[11px] leading-relaxed"
+        >
+          {text}
+        </Text>
+      )}
     </Box>
   );
 }
 
 // ── Main export ──────────────────────────────────────────────────────────────
 
-export function SignalCard({ signal }: { signal: Signal }) {
+export function SignalCard({
+  signal,
+  finding,
+}: {
+  signal: Signal;
+  finding?: SignalFindingContent;
+}) {
   const extra = parseExtra(signal.extra);
+  const verified = finding?.verified;
+  const codePaths = finding?.relevant_code_paths ?? [];
+  const dataQueried = finding?.data_queried ?? "";
 
   if (
     signal.source_product === "error_tracking" &&
     isErrorTrackingExtra(extra)
   ) {
-    return <ErrorTrackingSignalCard signal={signal} extra={extra} />;
+    return (
+      <ErrorTrackingSignalCard
+        signal={signal}
+        extra={extra}
+        verified={verified}
+        codePaths={codePaths}
+        dataQueried={dataQueried}
+      />
+    );
   }
   if (signal.source_product === "github" && isGithubIssueExtra(extra)) {
-    return <GitHubIssueSignalCard signal={signal} extra={extra} />;
+    return (
+      <GitHubIssueSignalCard
+        signal={signal}
+        extra={extra}
+        verified={verified}
+        codePaths={codePaths}
+        dataQueried={dataQueried}
+      />
+    );
   }
   if (signal.source_product === "zendesk" && isZendeskTicketExtra(extra)) {
-    return <ZendeskTicketSignalCard signal={signal} extra={extra} />;
+    return (
+      <ZendeskTicketSignalCard
+        signal={signal}
+        extra={extra}
+        verified={verified}
+        codePaths={codePaths}
+        dataQueried={dataQueried}
+      />
+    );
   }
   if (signal.source_product === "llm_analytics" && isLlmEvalExtra(extra)) {
-    return <LlmEvalSignalCard signal={signal} extra={extra} />;
+    return (
+      <LlmEvalSignalCard
+        signal={signal}
+        extra={extra}
+        verified={verified}
+        codePaths={codePaths}
+        dataQueried={dataQueried}
+      />
+    );
   }
-  return <GenericSignalCard signal={signal} />;
+  return (
+    <GenericSignalCard
+      signal={signal}
+      verified={verified}
+      codePaths={codePaths}
+    />
+  );
 }

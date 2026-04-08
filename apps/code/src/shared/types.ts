@@ -170,6 +170,12 @@ export type SignalReportStatus =
 /** Actionability priority from the researched report (actionability judgment artefact). */
 export type SignalReportPriority = "P0" | "P1" | "P2" | "P3" | "P4";
 
+/** Actionability choice from the researched report. */
+export type SignalReportActionability =
+  | "immediately_actionable"
+  | "requires_human_input"
+  | "not_actionable";
+
 /**
  * One or more `SignalReportStatus` values joined by commas, e.g. `potential` or `potential,candidate,ready`.
  * This looks horrendous but it's superb, trust me bro.
@@ -193,8 +199,12 @@ export interface SignalReport {
   created_at: string;
   updated_at: string;
   artefact_count: number;
-  /** P0–P4 from actionability judgment when the report is researched */
+  /** P0–P4 from priority judgment when the report is researched */
   priority?: SignalReportPriority | null;
+  /** Actionability choice from the actionability judgment artefact. */
+  actionability?: SignalReportActionability | null;
+  /** Whether the issue appears already fixed, from the actionability judgment artefact. */
+  already_addressed?: boolean | null;
   /** Whether the current user is a suggested reviewer for this report (server-annotated). */
   is_suggested_reviewer?: boolean;
   /** Distinct source products contributing signals to this report (e.g. "session_replay", "error_tracking"). */
@@ -215,6 +225,49 @@ export interface SignalReportArtefact {
   type: string;
   content: SignalReportArtefactContent;
   created_at: string;
+}
+
+/** Artefact with `type: "priority_judgment"` — priority assessment from the agentic report. */
+export interface PriorityJudgmentArtefact {
+  id: string;
+  type: "priority_judgment";
+  content: PriorityJudgmentContent;
+  created_at: string;
+}
+
+export interface PriorityJudgmentContent {
+  explanation: string;
+  priority: SignalReportPriority;
+}
+
+/** Artefact with `type: "actionability_judgment"` — actionability assessment from the agentic report. */
+export interface ActionabilityJudgmentArtefact {
+  id: string;
+  type: "actionability_judgment";
+  content: ActionabilityJudgmentContent;
+  created_at: string;
+}
+
+export interface ActionabilityJudgmentContent {
+  explanation: string;
+  actionability: SignalReportActionability;
+  already_addressed: boolean;
+}
+
+/** Artefact with `type: "signal_finding"` — per-signal research finding from the agentic report. */
+export interface SignalFindingArtefact {
+  id: string;
+  type: "signal_finding";
+  content: SignalFindingContent;
+  created_at: string;
+}
+
+export interface SignalFindingContent {
+  signal_id: string;
+  relevant_code_paths: string[];
+  relevant_commit_hashes: Record<string, string>;
+  data_queried: string;
+  verified: boolean;
 }
 
 /** Artefact with `type: "suggested_reviewers"` — content is an enriched reviewer list. */
@@ -281,7 +334,13 @@ export interface SignalReportSignalsResponse {
 }
 
 export interface SignalReportArtefactsResponse {
-  results: (SignalReportArtefact | SuggestedReviewersArtefact)[];
+  results: (
+    | SignalReportArtefact
+    | PriorityJudgmentArtefact
+    | ActionabilityJudgmentArtefact
+    | SignalFindingArtefact
+    | SuggestedReviewersArtefact
+  )[];
   count: number;
   unavailableReason?:
     | "forbidden"
