@@ -296,11 +296,11 @@ describe("FoldersService", () => {
       ]);
     });
 
-    it("strips .git suffix from remote repo name in display name", async () => {
+    it("strips .git suffix from remote repo name in display name (defensive against legacy data)", async () => {
       const repos = [
         {
           id: "folder-1",
-          path: "/home/user/MURZINI",
+          path: "/home/user/my-billing-fork",
           remoteUrl: "PostHog/billing.git",
           lastAccessedAt: "2024-01-01T00:00:00.000Z",
           createdAt: "2024-01-01T00:00:00.000Z",
@@ -312,7 +312,7 @@ describe("FoldersService", () => {
 
       const result = await service.getFolders();
 
-      expect(result[0].name).toBe("MURZINI (billing)");
+      expect(result[0].name).toBe("my-billing-fork (billing)");
     });
 
     it("uses remote repo name in display name when it differs from local dir", async () => {

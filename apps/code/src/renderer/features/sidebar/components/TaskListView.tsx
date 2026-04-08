@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import { Box, Flex, Popover, Text } from "@radix-ui/themes";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
+import { normalizeRepoKey } from "@shared/utils/repo";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useCallback, useEffect } from "react";
 import type { TaskData, TaskGroup } from "../hooks/useSidebarData";
@@ -378,10 +379,9 @@ export function TaskListView({
               const isExpanded = !collapsedSections.has(group.id);
               const folder = folders.find(
                 (f) =>
-                  f.remoteUrl
-                    ?.trim()
-                    .replace(/\.git$/, "")
-                    .toLowerCase() === group.id.trim().toLowerCase() ||
+                  (f.remoteUrl &&
+                    normalizeRepoKey(f.remoteUrl).toLowerCase() ===
+                      normalizeRepoKey(group.id).toLowerCase()) ||
                   f.path === group.id,
               );
               const groupFolderId =

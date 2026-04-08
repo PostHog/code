@@ -3,12 +3,14 @@ import path from "node:path";
 import { getRemoteUrl, isGitRepository } from "@posthog/git/queries";
 import { InitRepositorySaga } from "@posthog/git/sagas/init";
 
+import { normalizeRepoKey } from "@shared/utils/repo";
+
 function extractRepoKey(url: string): string | null {
   const httpsMatch = url.match(/github\.com\/([^/]+\/[^/]+)/);
-  if (httpsMatch) return httpsMatch[1].replace(/\.git$/, "");
+  if (httpsMatch) return normalizeRepoKey(httpsMatch[1]);
 
   const sshMatch = url.match(/github\.com:([^/]+\/[^/]+)/);
-  if (sshMatch) return sshMatch[1].replace(/\.git$/, "");
+  if (sshMatch) return normalizeRepoKey(sshMatch[1]);
 
   return null;
 }
@@ -86,12 +88,7 @@ export class FoldersService {
   ): string {
     const localName = path.basename(repoPath);
     if (remoteUrl) {
-      const repoName = remoteUrl
-        .trim()
-        .split("/")
-        .pop()
-        ?.replace(/\.git$/, "")
-        ?.trim();
+      const repoName = normalizeRepoKey(remoteUrl).split("/").pop();
       if (repoName && repoName.toLowerCase() !== localName.toLowerCase()) {
         return `${localName} (${repoName})`;
       }
