@@ -48,7 +48,10 @@ export function useSessionConnection({
       },
       5 * 60 * 1000,
     );
-    return () => clearInterval(heartbeat);
+    return () => {
+      clearInterval(heartbeat);
+      activityRecorded.delete(taskRunId);
+    };
   }, [session?.taskRunId]);
 
   useEffect(() => {
