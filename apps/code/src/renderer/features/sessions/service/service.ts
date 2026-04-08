@@ -767,11 +767,7 @@ export class SessionService {
       "stopReason" in msg.result
     ) {
       const stopReason = (msg.result as { stopReason?: string }).stopReason;
-      const freshSession = sessionStoreSetters.getSessions()[taskRunId];
-      const hasQueuedMessages =
-        freshSession &&
-        freshSession.messageQueue.length > 0 &&
-        freshSession.status === "connected";
+      const hasQueuedMessages = this.drainQueuedMessages(taskRunId, session);
 
       // Only notify when queue is empty - queued messages will start a new turn
       if (stopReason && !hasQueuedMessages) {
@@ -779,18 +775,6 @@ export class SessionService {
       }
 
       taskViewedApi.markActivity(session.taskId);
-
-      // Process queued messages after turn completes - send all as one prompt
-      if (hasQueuedMessages) {
-        setTimeout(() => {
-          this.sendQueuedMessages(session.taskId).catch((err) => {
-            log.error("Failed to send queued messages", {
-              taskId: session.taskId,
-              error: err,
-            });
-          });
-        }, 0);
-      }
     }
 
     if ("method" in msg && msg.method === "session/update" && "params" in msg) {
@@ -875,22 +859,32 @@ export class SessionService {
         isCompacting: false,
       });
 
-      const freshSession = sessionStoreSetters.getSessions()[taskRunId];
-      const hasQueuedMessages =
-        freshSession &&
-        freshSession.messageQueue.length > 0 &&
-        freshSession.status === "connected";
-      if (hasQueuedMessages) {
-        setTimeout(() => {
-          this.sendQueuedMessages(session.taskId).catch((err) => {
-            log.error("Failed to send queued messages after compaction", {
-              taskId: session.taskId,
-              error: err,
-            });
-          });
-        }, 0);
-      }
+      this.drainQueuedMessages(taskRunId, session);
     }
+  }
+
+  private drainQueuedMessages(
+    taskRunId: string,
+    session: AgentSession,
+  ): boolean {
+    const freshSession = sessionStoreSetters.getSessions()[taskRunId];
+    const hasQueuedMessages =
+      freshSession &&
+      freshSession.messageQueue.length > 0 &&
+      freshSession.status === "connected";
+
+    if (hasQueuedMessages) {
+      setTimeout(() => {
+        this.sendQueuedMessages(session.taskId).catch((err) => {
+          log.error("Failed to send queued messages", {
+            taskId: session.taskId,
+            error: err,
+          });
+        });
+      }, 0);
+    }
+
+    return hasQueuedMessages;
   }
 
   private handlePermissionRequest(
