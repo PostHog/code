@@ -61,13 +61,16 @@ export class FoldersService {
     }
 
     const existingFolders = folders.filter((f) => f.exists);
-    for (const folder of existingFolders) {
-      try {
-        await this.cleanupOrphanedWorktrees(folder.path);
-      } catch (err) {
+    const results = await Promise.allSettled(
+      existingFolders.map((folder) =>
+        this.cleanupOrphanedWorktrees(folder.path),
+      ),
+    );
+    for (const [i, result] of results.entries()) {
+      if (result.status === "rejected") {
         log.error(
-          `Failed to cleanup orphaned worktrees for ${folder.path}:`,
-          err,
+          `Failed to cleanup orphaned worktrees for ${existingFolders[i].path}:`,
+          result.reason,
         );
       }
     }
