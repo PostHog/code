@@ -1,4 +1,5 @@
 import { initTRPC } from "@trpc/server";
+import log from "electron-log/main";
 
 const trpc = initTRPC.create({
   isServer: true,
@@ -9,7 +10,24 @@ const CALL_RATE_THRESHOLD = 50;
 
 const callCounts: Record<string, number[]> = {};
 
-const callRateMonitor = trpc.middleware(async ({ path, next }) => {
+const ipcTimingEnabled = process.env.IPC_TIMINGS === "true";
+const ipcTimingBootMs = 15_000;
+const bootTime = Date.now();
+
+const callRateMonitor = trpc.middleware(async ({ path, next, type }) => {
+  if (ipcTimingEnabled) {
+    const elapsed = Date.now() - bootTime;
+    if (elapsed < ipcTimingBootMs) {
+      const t = performance.now();
+      log.info(`[ipc-timing] >> ${type} ${path}`);
+      const result = await next();
+      log.info(
+        `[ipc-timing] << ${type} ${path}: ${(performance.now() - t).toFixed(0)}ms`,
+      );
+      return result;
+    }
+  }
+
   if (process.env.NODE_ENV !== "development") {
     return next();
   }
