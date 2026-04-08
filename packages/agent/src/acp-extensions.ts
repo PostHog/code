@@ -73,8 +73,9 @@ type NotificationMethod =
  * possible `__posthog/` double-prefix from extNotification().
  */
 export function isNotification(
-  method: string,
+  method: string | undefined,
   notification: NotificationMethod,
 ): boolean {
+  if (!method) return false;
   return method === notification || method === `_${notification}`;
 }

@@ -17,7 +17,7 @@ import type {
   BetaContentBlock,
   BetaRawContentBlockDelta,
 } from "@anthropic-ai/sdk/resources/beta.mjs";
-import { POSTHOG_NOTIFICATIONS } from "@/index";
+import { POSTHOG_NOTIFICATIONS } from "@/acp-extensions";
 import { image, text } from "../../../utils/acp-content";
 import { unreachable } from "../../../utils/common";
 import type { Logger } from "../../../utils/logger";

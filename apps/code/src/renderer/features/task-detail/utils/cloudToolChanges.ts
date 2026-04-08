@@ -171,10 +171,7 @@ export function buildCloudEventSummary(
       const merged = mergeToolCall(toolCalls.get(toolCallId), patch);
       toolCalls.set(toolCallId, merged);
     } else if (
-      isNotification(
-        message.method as string,
-        POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT,
-      )
+      isNotification(message.method, POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT)
     ) {
       const params = message.params as
         | {

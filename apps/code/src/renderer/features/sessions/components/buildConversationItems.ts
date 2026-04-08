@@ -318,7 +318,7 @@ function handleNotification(
     return;
   }
 
-  if (isNotification(msg.method as string, POSTHOG_NOTIFICATIONS.CONSOLE)) {
+  if (isNotification(msg.method, POSTHOG_NOTIFICATIONS.CONSOLE)) {
     if (!b.currentTurn) {
       ensureImplicitTurn(b, ts);
     }
@@ -334,9 +334,7 @@ function handleNotification(
     return;
   }
 
-  if (
-    isNotification(msg.method as string, POSTHOG_NOTIFICATIONS.COMPACT_BOUNDARY)
-  ) {
+  if (isNotification(msg.method, POSTHOG_NOTIFICATIONS.COMPACT_BOUNDARY)) {
     if (!b.currentTurn) ensureImplicitTurn(b, ts);
     const params = msg.params as {
       trigger: "manual" | "auto";
@@ -353,7 +351,7 @@ function handleNotification(
     return;
   }
 
-  if (isNotification(msg.method as string, POSTHOG_NOTIFICATIONS.STATUS)) {
+  if (isNotification(msg.method, POSTHOG_NOTIFICATIONS.STATUS)) {
     if (!b.currentTurn) ensureImplicitTurn(b, ts);
     const params = msg.params as { status: string; isComplete?: boolean };
     if (params.status === "compacting" && !params.isComplete) {

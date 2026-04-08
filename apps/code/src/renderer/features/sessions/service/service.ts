@@ -767,8 +767,11 @@ export class SessionService {
       "stopReason" in msg.result
     ) {
       const stopReason = (msg.result as { stopReason?: string }).stopReason;
+      const freshSession = sessionStoreSetters.getSessions()[taskRunId];
       const hasQueuedMessages =
-        session.messageQueue.length > 0 && session.status === "connected";
+        freshSession &&
+        freshSession.messageQueue.length > 0 &&
+        freshSession.status === "connected";
 
       // Only notify when queue is empty - queued messages will start a new turn
       if (stopReason && !hasQueuedMessages) {
@@ -833,7 +836,7 @@ export class SessionService {
     // Handle SDK_SESSION notifications for adapter info
     if (
       "method" in msg &&
-      isNotification(msg.method as string, POSTHOG_NOTIFICATIONS.SDK_SESSION) &&
+      isNotification(msg.method, POSTHOG_NOTIFICATIONS.SDK_SESSION) &&
       "params" in msg
     ) {
       const params = msg.params as {
@@ -854,29 +857,29 @@ export class SessionService {
     if (
       "method" in msg &&
       "params" in msg &&
-      isNotification(msg.method as string, POSTHOG_NOTIFICATIONS.STATUS)
+      isNotification(msg.method, POSTHOG_NOTIFICATIONS.STATUS)
     ) {
       const params = msg.params as { status?: string; isComplete?: boolean };
-      if (params?.status === "compacting" && !params.isComplete) {
+      if (params?.status === "compacting") {
         sessionStoreSetters.updateSession(taskRunId, {
-          isCompacting: true,
+          isCompacting: !params.isComplete,
         });
       }
     }
 
     if (
       "method" in msg &&
-      isNotification(
-        msg.method as string,
-        POSTHOG_NOTIFICATIONS.COMPACT_BOUNDARY,
-      )
+      isNotification(msg.method, POSTHOG_NOTIFICATIONS.COMPACT_BOUNDARY)
     ) {
       sessionStoreSetters.updateSession(taskRunId, {
         isCompacting: false,
       });
 
+      const freshSession = sessionStoreSetters.getSessions()[taskRunId];
       const hasQueuedMessages =
-        session.messageQueue.length > 0 && session.status === "connected";
+        freshSession &&
+        freshSession.messageQueue.length > 0 &&
+        freshSession.status === "connected";
       if (hasQueuedMessages) {
         setTimeout(() => {
           this.sendQueuedMessages(session.taskId).catch((err) => {
