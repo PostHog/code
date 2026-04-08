@@ -12,6 +12,17 @@ function needsCustomInput(option: SelectorOption): boolean {
   return option.customInput === true || isOtherOption(option.id);
 }
 
+function isUserInInteractiveElement(): boolean {
+  const el = document.activeElement;
+  return (
+    el instanceof HTMLElement &&
+    (el.tagName === "INPUT" ||
+      el.tagName === "TEXTAREA" ||
+      el.tagName === "SELECT" ||
+      el.getAttribute("contenteditable") === "true")
+  );
+}
+
 interface UseActionSelectorStateProps {
   options: SelectorOption[];
   multiSelect: boolean;
@@ -76,7 +87,9 @@ export function useActionSelectorState({
     isEditing && selectedOption && needsCustomInput(selectedOption);
 
   useEffect(() => {
-    containerRef.current?.focus();
+    if (!isUserInInteractiveElement()) {
+      containerRef.current?.focus();
+    }
   }, []);
 
   useEffect(() => {
@@ -107,7 +120,7 @@ export function useActionSelectorState({
   }, [activeStep, checkedOptions, customInput, onStepAnswer]);
 
   const restoreStepAnswer = useCallback(
-    (step: number) => {
+    (step: number, { autoFocus = true }: { autoFocus?: boolean } = {}) => {
       const saved = stepAnswers.get(step);
       if (saved) {
         setCheckedOptions(new Set(saved.selectedIds));
@@ -121,13 +134,17 @@ export function useActionSelectorState({
       }
       setSelectedIndex(0);
       setIsEditing(false);
-      containerRef.current?.focus();
+      if (autoFocus) {
+        containerRef.current?.focus();
+      }
     },
     [initialSelections, stepAnswers],
   );
 
   useEffect(() => {
-    restoreStepAnswer(activeStep);
+    restoreStepAnswer(activeStep, {
+      autoFocus: !isUserInInteractiveElement(),
+    });
   }, [activeStep, restoreStepAnswer]);
 
   useEffect(() => {
