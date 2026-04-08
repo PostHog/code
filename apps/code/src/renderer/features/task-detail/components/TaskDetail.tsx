@@ -29,6 +29,7 @@ import { ExternalAppsOpener } from "./ExternalAppsOpener";
 import { HeaderTitleEditor } from "./HeaderTitleEditor";
 
 const MIN_REVIEW_WIDTH = 300;
+const log = logger.scope("task-detail");
 
 interface TaskDetailProps {
   task: Task;
@@ -94,7 +95,6 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const updateTask = useUpdateTask();
   const queryClient = useQueryClient();
-  const log = useMemo(() => logger.scope("task-detail"), []);
 
   const handleTitleEditSubmit = useCallback(
     async (newTitle: string) => {
@@ -119,10 +119,11 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
         });
       } catch (error) {
         log.error("Failed to rename task", error);
+        getSessionService().updateSessionTaskTitle(taskId, task.title);
         queryClient.invalidateQueries({ queryKey: ["tasks", "list"] });
       }
     },
-    [taskId, updateTask, queryClient, log],
+    [taskId, task.title, updateTask, queryClient],
   );
 
   const handleTitleEditCancel = useCallback(() => {
