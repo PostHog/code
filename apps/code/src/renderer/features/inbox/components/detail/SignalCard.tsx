@@ -1,5 +1,5 @@
 import { MarkdownRenderer } from "@features/editor/components/MarkdownRenderer";
-import { SOURCE_PRODUCT_META } from "@features/inbox/components/utils/SourceProductIcons";
+import { SOURCE_PRODUCT_META } from "@features/inbox/components/utils/source-product-icons";
 import {
   ArrowSquareOutIcon,
   CaretDownIcon,

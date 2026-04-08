@@ -1,5 +1,5 @@
 import { AnimatedEllipsis } from "@features/inbox/components/utils/AnimatedEllipsis";
-import { SOURCE_PRODUCT_META } from "@features/inbox/components/utils/SourceProductIcons";
+import { SOURCE_PRODUCT_META } from "@features/inbox/components/utils/source-product-icons";
 import { ArrowDownIcon } from "@phosphor-icons/react";
 import { Box, Button, Flex, Text, Tooltip } from "@radix-ui/themes";
 import explorerHog from "@renderer/assets/images/explorer-hog.png";

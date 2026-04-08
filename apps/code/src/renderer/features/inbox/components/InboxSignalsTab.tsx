@@ -8,6 +8,7 @@ import { InboxLiveRail } from "@features/inbox/components/InboxLiveRail";
 import { InboxSourcesDialog } from "@features/inbox/components/InboxSourcesDialog";
 import { useInboxReportsInfinite } from "@features/inbox/hooks/useInboxReports";
 import { useSignalSourceConfigs } from "@features/inbox/hooks/useSignalSourceConfigs";
+import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReportSelectionStore";
 import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsFilterStore";
 import { useInboxSignalsSidebarStore } from "@features/inbox/stores/inboxSignalsSidebarStore";
 import { useInboxSourcesDialogStore } from "@features/inbox/stores/inboxSourcesDialogStore";
@@ -107,6 +108,13 @@ export function InboxSignalsTab() {
 
   // ── Selection state ─────────────────────────────────────────────────────
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const selectedReportIds = useInboxReportSelectionStore(
+    (s) => s.selectedReportIds ?? [],
+  );
+  const toggleReportSelection = useInboxReportSelectionStore(
+    (s) => s.toggleReportSelection,
+  );
+  const pruneSelection = useInboxReportSelectionStore((s) => s.pruneSelection);
 
   useEffect(() => {
     if (reports.length === 0) {
@@ -123,6 +131,10 @@ export function InboxSignalsTab() {
       setSelectedReportId(null);
     }
   }, [reports, selectedReportId]);
+
+  useEffect(() => {
+    pruneSelection(reports.map((report) => report.id));
+  }, [reports, pruneSelection]);
 
   const selectedReport = useMemo(
     () => reports.find((report) => report.id === selectedReportId) ?? null,
@@ -201,19 +213,24 @@ export function InboxSignalsTab() {
   selectedReportIdRef.current = selectedReportId;
   const leftPaneRef = useRef<HTMLDivElement>(null);
 
+  const focusListPane = useCallback(() => {
+    requestAnimationFrame(() => {
+      leftPaneRef.current?.focus();
+    });
+  }, []);
+
   // Auto-focus the list pane when the two-pane layout appears
   useEffect(() => {
     if (showTwoPaneLayout) {
       // Small delay to ensure the ref is mounted after conditional render
-      requestAnimationFrame(() => {
-        leftPaneRef.current?.focus();
-      });
+      focusListPane();
     }
-  }, [showTwoPaneLayout]);
+  }, [focusListPane, showTwoPaneLayout]);
 
   const navigateReport = useCallback((direction: 1 | -1) => {
     const list = reportsRef.current;
     if (list.length === 0) return;
+
     const currentId = selectedReportIdRef.current;
     const currentIndex = currentId
       ? list.findIndex((r) => r.id === currentId)
@@ -223,10 +240,22 @@ export function InboxSignalsTab() {
         ? 0
         : Math.max(0, Math.min(list.length - 1, currentIndex + direction));
     const nextId = list[nextIndex].id;
+
     setSelectedReportId(nextId);
-    leftPaneRef.current
-      ?.querySelector(`[data-report-id="${nextId}"]`)
-      ?.scrollIntoView({ block: "nearest" });
+
+    const container = leftPaneRef.current;
+    const row = container?.querySelector<HTMLElement>(
+      `[data-report-id="${nextId}"]`,
+    );
+    const stickyHeader = container?.querySelector<HTMLElement>(
+      "[data-inbox-sticky-header]",
+    );
+
+    if (!row) return;
+
+    const stickyHeaderHeight = stickyHeader?.offsetHeight ?? 0;
+    row.style.scrollMarginTop = `${stickyHeaderHeight}px`;
+    row.scrollIntoView({ block: "nearest" });
   }, []);
 
   // Window-level keyboard handler so arrow keys work regardless of which
@@ -243,6 +272,7 @@ export function InboxSignalsTab() {
 
       const target = e.target as HTMLElement;
       if (target.closest("input, select, textarea")) return;
+      if (e.key === " " && target.closest("button, [role='checkbox']")) return;
 
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -250,11 +280,14 @@ export function InboxSignalsTab() {
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         navigateReport(-1);
+      } else if (e.key === " " && selectedReportIdRef.current) {
+        e.preventDefault();
+        toggleReportSelection(selectedReportIdRef.current);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [navigateReport]);
+  }, [navigateReport, toggleReportSelection]);
 
   const searchDisabledReason =
     !hasReports && !searchQuery.trim()
@@ -287,11 +320,33 @@ export function InboxSignalsTab() {
               <Flex
                 ref={leftPaneRef}
                 direction="column"
-                tabIndex={-1}
+                tabIndex={0}
                 className="outline-none"
+                onMouseDownCapture={(e) => {
+                  const target = e.target as HTMLElement;
+                  if (
+                    target.closest(
+                      "[data-report-id], button, input, select, textarea, [role='checkbox']",
+                    )
+                  ) {
+                    focusListPane();
+                  }
+                }}
+                onFocusCapture={(e) => {
+                  const target = e.target as HTMLElement;
+                  if (
+                    target !== leftPaneRef.current &&
+                    target.closest(
+                      "[data-report-id], button, input, select, textarea, [role='checkbox']",
+                    )
+                  ) {
+                    focusListPane();
+                  }
+                }}
               >
                 <InboxLiveRail active={inboxPollingActive} />
                 <Box
+                  data-inbox-sticky-header
                   style={{
                     position: "sticky",
                     top: 0,
@@ -306,6 +361,7 @@ export function InboxSignalsTab() {
                     livePolling={inboxPollingActive}
                     readyCount={readyCount}
                     processingCount={processingCount}
+                    reports={reports}
                   />
                 </Box>
                 <ReportListPane
@@ -322,7 +378,9 @@ export function InboxSignalsTab() {
                   searchQuery={searchQuery}
                   hasActiveFilters={hasActiveFilters}
                   selectedReportId={selectedReportId}
+                  selectedReportIds={selectedReportIds}
                   onSelectReport={setSelectedReportId}
+                  onToggleReportSelection={toggleReportSelection}
                 />
               </Flex>
             </ScrollArea>

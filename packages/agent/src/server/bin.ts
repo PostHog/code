@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { AgentServer } from "./agent-server";
 import { claudeCodeConfigSchema, mcpServersSchema } from "./schemas";
 
