@@ -29,6 +29,7 @@ import { useRendererWindowFocusStore } from "@stores/rendererWindowFocusStore";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { MultiSelectStack } from "./detail/MultiSelectStack";
 import { ReportDetailPane } from "./detail/ReportDetailPane";
+import { GitHubConnectionBanner } from "./list/GitHubConnectionBanner";
 import { ReportListPane } from "./list/ReportListPane";
 import { SignalsToolbar } from "./list/SignalsToolbar";
 
@@ -474,6 +475,8 @@ export function InboxSignalsTab() {
                 />
               </Flex>
             </ScrollArea>
+
+            <GitHubConnectionBanner />
 
             {/* Resize handle */}
             <Box
