@@ -6,10 +6,7 @@ export interface StalenessCheckOptions {
   staleFlagAgeDays?: number;
 }
 
-/**
- * Classify why a flag key is stale, or return null if it's not stale.
- * Pure function — no I/O, no VSCode APIs.
- */
+/** Classify why a flag key is stale, or return null if it's not stale. */
 export function classifyStaleness(
   flagKey: string,
   flag: FeatureFlag | undefined,

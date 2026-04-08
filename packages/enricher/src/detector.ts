@@ -2,17 +2,21 @@ import * as path from "node:path";
 import Parser from "web-tree-sitter";
 import type { LangFamily } from "./languages.js";
 import { CLIENT_NAMES, LANG_FAMILIES } from "./languages.js";
+import { warn } from "./log.js";
 import type {
-  CompletionContext,
   DetectionConfig,
   FlagAssignment,
   FunctionInfo,
-  Position,
   PostHogCall,
   PostHogInitCall,
   VariantBranch,
 } from "./types.js";
 import { DEFAULT_CONFIG } from "./types.js";
+
+// ── Constants ──
+
+const POSTHOG_CLASS_NAMES = new Set(["PostHog", "Posthog"]);
+const GO_CONSTRUCTOR_NAMES = new Set(["New", "NewWithConfig"]);
 
 // ── Service ──
 
@@ -83,10 +87,15 @@ export class PostHogDetector {
   }
 
   private async doInit(): Promise<void> {
-    await Parser.init({
-      locateFile: (scriptName: string) => path.join(this.wasmDir, scriptName),
-    });
-    this.parser = new Parser();
+    try {
+      await Parser.init({
+        locateFile: (scriptName: string) => path.join(this.wasmDir, scriptName),
+      });
+      this.parser = new Parser();
+    } catch (err) {
+      warn("Failed to initialize tree-sitter parser", err);
+      throw err;
+    }
   }
 
   isSupported(langId: string): boolean {
@@ -121,7 +130,7 @@ export class PostHogDetector {
         lang = await Parser.Language.load(wasmPath);
         this.languages.set(family.wasm, lang);
       } catch (err) {
-        console.warn(`[PostHog] Failed to load grammar ${family.wasm}:`, err);
+        warn(`Failed to load grammar ${family.wasm}`, err);
         return null;
       }
     }
@@ -156,7 +165,7 @@ export class PostHogDetector {
       this.queryCache.set(cacheKey, query);
       return query;
     } catch (err) {
-      console.warn("[PostHog] Query compilation failed:", err);
+      warn("Query compilation failed", err);
       return null;
     }
   }
@@ -211,8 +220,7 @@ export class PostHogDetector {
         if (
           aliasNode &&
           classNode &&
-          (classNode.node.text === "PostHog" ||
-            classNode.node.text === "Posthog")
+          POSTHOG_CLASS_NAMES.has(classNode.node.text)
         ) {
           clientAliases.add(aliasNode.node.text);
         }
@@ -222,8 +230,7 @@ export class PostHogDetector {
           pkgNode &&
           funcNode &&
           pkgNode.node.text === "posthog" &&
-          (funcNode.node.text === "New" ||
-            funcNode.node.text === "NewWithConfig")
+          GO_CONSTRUCTOR_NAMES.has(funcNode.node.text)
         ) {
           clientAliases.add(aliasNode.node.text);
         }
@@ -237,8 +244,7 @@ export class PostHogDetector {
           scopeNode &&
           classNode &&
           methodNameNode &&
-          (scopeNode.node.text === "PostHog" ||
-            scopeNode.node.text === "Posthog") &&
+          POSTHOG_CLASS_NAMES.has(scopeNode.node.text) &&
           classNode.node.text === "Client" &&
           methodNameNode.node.text === "new"
         ) {
@@ -298,6 +304,7 @@ export class PostHogDetector {
     }
 
     const calls: PostHogCall[] = [];
+    const seen = new Set<string>();
     const allClients = this.getEffectiveClients();
 
     // Resolve aliases
@@ -392,9 +399,11 @@ export class PostHogDetector {
           const effectiveMethod = isCapture ? "capture" : method;
           const key = this.cleanStringValue(keyNode.node.text);
           const line = keyNode.node.startPosition.row;
-          if (calls.some((c) => c.line === line && c.key === key)) {
+          const dedupKey = `${line}:${key}`;
+          if (seen.has(dedupKey)) {
             continue;
           }
+          seen.add(dedupKey);
 
           calls.push({
             method: effectiveMethod,
@@ -485,11 +494,11 @@ export class PostHogDetector {
 
           const key = this.cleanStringValue(keyNode.node.text);
           const line = keyNode.node.startPosition.row;
-
-          // Skip if already matched on this line (from postHogCalls query)
-          if (calls.some((c) => c.line === line && c.key === key)) {
+          const dedupKey = `${line}:${key}`;
+          if (seen.has(dedupKey)) {
             continue;
           }
+          seen.add(dedupKey);
 
           calls.push({
             method,
@@ -538,10 +547,11 @@ export class PostHogDetector {
 
           const key = this.cleanStringValue(keyNode.node.text);
           const line = keyNode.node.startPosition.row;
-
-          if (calls.some((c) => c.line === line && c.key === key)) {
+          const dedupKey = `${line}:${key}`;
+          if (seen.has(dedupKey)) {
             continue;
           }
+          seen.add(dedupKey);
 
           calls.push({
             method,
@@ -670,11 +680,12 @@ export class PostHogDetector {
             continue;
           }
 
-          // Skip if already matched with a string literal on this line
           const line = argNode.node.startPosition.row;
-          if (calls.some((c) => c.line === line && c.key === resolved)) {
+          const dedupKey = `${line}:${resolved}`;
+          if (seen.has(dedupKey)) {
             continue;
           }
+          seen.add(dedupKey);
 
           calls.push({
             method,
@@ -776,6 +787,7 @@ export class PostHogDetector {
 
     const allClients = this.getEffectiveClients();
     const results: PostHogInitCall[] = [];
+    const seenLines = new Set<number>();
 
     // Pattern 1: posthog.init('token', { ... })
     const initQueryStr = `
@@ -831,7 +843,7 @@ export class PostHogDetector {
         if (!classNode || !tokenNode) {
           continue;
         }
-        if (classNode.node.text !== "PostHog") {
+        if (!POSTHOG_CLASS_NAMES.has(classNode.node.text)) {
           continue;
         }
 
@@ -867,10 +879,7 @@ export class PostHogDetector {
         if (!classNode || !kwNameNode || !tokenNode) {
           continue;
         }
-        if (
-          classNode.node.text !== "PostHog" &&
-          classNode.node.text !== "Posthog"
-        ) {
+        if (!POSTHOG_CLASS_NAMES.has(classNode.node.text)) {
           continue;
         }
         if (
@@ -882,9 +891,10 @@ export class PostHogDetector {
 
         // Check we didn't already match this call via positional pattern
         const line = tokenNode.node.startPosition.row;
-        if (results.some((r) => r.tokenLine === line)) {
+        if (seenLines.has(line)) {
           continue;
         }
+        seenLines.add(line);
 
         // Extract other keyword args for config
         const callNode = match.captures.find((c) => c.name === "call");
@@ -944,10 +954,7 @@ export class PostHogDetector {
         if (!classNode || !tokenNode) {
           continue;
         }
-        if (
-          classNode.node.text !== "PostHog" &&
-          classNode.node.text !== "Posthog"
-        ) {
+        if (!POSTHOG_CLASS_NAMES.has(classNode.node.text)) {
           continue;
         }
 
@@ -1018,18 +1025,16 @@ export class PostHogDetector {
         if (pkgNode.node.text !== "posthog") {
           continue;
         }
-        if (
-          funcNode.node.text !== "New" &&
-          funcNode.node.text !== "NewWithConfig"
-        ) {
+        if (!GO_CONSTRUCTOR_NAMES.has(funcNode.node.text)) {
           continue;
         }
 
         const token = this.cleanStringValue(tokenNode.node.text);
         const line = tokenNode.node.startPosition.row;
-        if (results.some((r) => r.tokenLine === line)) {
+        if (seenLines.has(line)) {
           continue;
         }
+        seenLines.add(line);
 
         // Try to extract Endpoint from Config struct literal
         const configProperties = new Map<string, string>();
@@ -1110,10 +1115,7 @@ export class PostHogDetector {
         ) {
           continue;
         }
-        if (
-          scopeNode.node.text !== "PostHog" &&
-          scopeNode.node.text !== "Posthog"
-        ) {
+        if (!POSTHOG_CLASS_NAMES.has(scopeNode.node.text)) {
           continue;
         }
         if (classNode.node.text !== "Client") {
@@ -1127,9 +1129,10 @@ export class PostHogDetector {
         }
 
         const line = tokenNode.node.startPosition.row;
-        if (results.some((r) => r.tokenLine === line)) {
+        if (seenLines.has(line)) {
           continue;
         }
+        seenLines.add(line);
 
         // Extract other keyword args for config
         const callNode = match.captures.find((c) => c.name === "call");
@@ -1622,203 +1625,6 @@ export class PostHogDetector {
     }
 
     return assignments;
-  }
-
-  async getCompletionContext(
-    source: string,
-    languageId: string,
-    position: Position,
-  ): Promise<CompletionContext | null> {
-    const ready = await this.ensureReady(languageId);
-    if (!ready) {
-      return null;
-    }
-
-    const { lang, family } = ready;
-    const tree = this.parse(source, lang);
-    if (!tree) {
-      return null;
-    }
-
-    const allClients = this.getEffectiveClients();
-    const { clientAliases } = this.findAliases(lang, tree, family);
-    for (const a of clientAliases) {
-      allClients.add(a);
-    }
-
-    const node = tree.rootNode.descendantForPosition({
-      row: position.line,
-      column: position.column,
-    });
-
-    // Walk up the tree to find if we're inside a PostHog call's arguments
-    let current: Parser.SyntaxNode | null = node;
-    while (current) {
-      if (current.type === "arguments" || current.type === "argument_list") {
-        const callNode = current.parent;
-        if (!callNode) {
-          current = current.parent;
-          continue;
-        }
-
-        let clientName: string | undefined;
-        let methodName: string | undefined;
-
-        const func = callNode.childForFieldName("function");
-        if (func) {
-          // JS/Python/Go: function field wraps object.method
-          if (
-            func.type === "member_expression" ||
-            func.type === "attribute" ||
-            func.type === "selector_expression"
-          ) {
-            const obj =
-              func.childForFieldName("object") ||
-              func.childForFieldName("operand");
-            const prop =
-              func.childForFieldName("property") ||
-              func.childForFieldName("attribute") ||
-              func.childForFieldName("field");
-            clientName = obj
-              ? (this.extractClientName(obj) ?? undefined)
-              : undefined;
-            methodName = prop?.text;
-          }
-        } else {
-          // Ruby: call has receiver + method as separate fields (no function field)
-          const receiver = callNode.childForFieldName("receiver");
-          const method = callNode.childForFieldName("method");
-          if (receiver && method) {
-            clientName = this.extractClientName(receiver) ?? undefined;
-            methodName = method.text;
-          }
-        }
-
-        if (!clientName || !methodName || !allClients.has(clientName)) {
-          current = current.parent;
-          continue;
-        }
-
-        const args = current.namedChildren;
-        const argIndex = args.findIndex(
-          (a) =>
-            position.line >= a.startPosition.row &&
-            position.line <= a.endPosition.row &&
-            (position.line > a.startPosition.row ||
-              position.column >= a.startPosition.column) &&
-            (position.line < a.endPosition.row ||
-              position.column <= a.endPosition.column),
-        );
-
-        // Python capture: event is at argIndex 1 (distinct_id, event, ...)
-        // Also handle keyword argument: capture(distinct_id='x', event='y')
-        const isPythonCapture =
-          family.queries.pythonCaptureCalls !== undefined &&
-          family.captureMethods.has(methodName);
-
-        if (isPythonCapture) {
-          // Check if cursor is in a keyword_argument with name 'event'
-          let kwNode: Parser.SyntaxNode | null = node;
-          while (kwNode && kwNode !== current) {
-            if (kwNode.type === "keyword_argument") {
-              const nameN = kwNode.childForFieldName("name");
-              if (nameN?.text === "event") {
-                return { type: "capture_event" };
-              }
-            }
-            kwNode = kwNode.parent;
-          }
-          // Positional: event is 2nd arg (index 1)
-          if (argIndex === 1) {
-            return { type: "capture_event" };
-          }
-        } else if (
-          family.queries.rubyCaptureCalls &&
-          family.captureMethods.has(methodName)
-        ) {
-          // Ruby capture: event is in the `event:` keyword arg (pair with hash_key_symbol)
-          let kwNode: Parser.SyntaxNode | null = node;
-          while (kwNode && kwNode !== current) {
-            if (kwNode.type === "pair") {
-              const keyN = kwNode.namedChildren[0];
-              if (keyN?.type === "hash_key_symbol" && keyN.text === "event") {
-                return { type: "capture_event" };
-              }
-            }
-            kwNode = kwNode.parent;
-          }
-        } else if (family.captureMethods.has(methodName) && argIndex <= 0) {
-          // JS/Node: event is the first argument
-          return { type: "capture_event" };
-        }
-
-        if (family.flagMethods.has(methodName) && argIndex <= 0) {
-          return { type: "flag_key" };
-        }
-
-        // We're in the properties argument of a capture call
-        if (family.captureMethods.has(methodName)) {
-          const propsArgIndex = isPythonCapture ? 2 : 1;
-          const eventArgIndex = isPythonCapture ? 1 : 0;
-          if (argIndex === propsArgIndex && args[eventArgIndex]) {
-            const eventName = this.extractStringFromNode(args[eventArgIndex]);
-            if (eventName) {
-              // Determine key vs value position
-              const propCtx = this.detectPropertyPosition(node, position);
-              if (propCtx.mode === "value" && propCtx.propertyName) {
-                return {
-                  type: "property_value",
-                  eventName,
-                  propertyName: propCtx.propertyName,
-                };
-              }
-              return { type: "property_key", eventName };
-            }
-          }
-        }
-
-        return null;
-      }
-      current = current.parent;
-    }
-
-    // Check for additional bare flag functions: useFeatureFlag("key"), etc.
-    if (this.config.additionalFlagFunctions.length > 0) {
-      const additionalFlagFuncs = new Set(this.config.additionalFlagFunctions);
-      let cur: Parser.SyntaxNode | null = node;
-      while (cur) {
-        if (cur.type === "arguments" || cur.type === "argument_list") {
-          const callNode = cur.parent;
-          if (!callNode) {
-            cur = cur.parent;
-            continue;
-          }
-
-          const func = callNode.childForFieldName("function");
-          if (
-            func?.type === "identifier" &&
-            additionalFlagFuncs.has(func.text)
-          ) {
-            const args = cur.namedChildren;
-            const argIndex = args.findIndex(
-              (a) =>
-                position.line >= a.startPosition.row &&
-                position.line <= a.endPosition.row &&
-                (position.line > a.startPosition.row ||
-                  position.column >= a.startPosition.column) &&
-                (position.line < a.endPosition.row ||
-                  position.column <= a.endPosition.column),
-            );
-            if (argIndex <= 0) {
-              return { type: "flag_key" };
-            }
-          }
-        }
-        cur = cur.parent;
-      }
-    }
-
-    return null;
   }
 
   // ── Variant detection helpers ──
@@ -2933,34 +2739,6 @@ export class PostHogDetector {
       .filter((p) => p && !SKIP.has(p) && !p.startsWith("..."));
   }
 
-  private detectPropertyPosition(
-    node: Parser.SyntaxNode,
-    position: Position,
-  ): { mode: "key" | "value"; propertyName?: string } {
-    // Walk up to find if we're in a pair (key: value)
-    let current: Parser.SyntaxNode | null = node;
-    while (current) {
-      if (current.type === "pair") {
-        const key = current.childForFieldName("key");
-        const value = current.childForFieldName("value");
-        if (
-          value &&
-          position.line >= value.startPosition.row &&
-          (position.line > value.startPosition.row ||
-            position.column >= value.startPosition.column)
-        ) {
-          return { mode: "value", propertyName: key?.text };
-        }
-        return { mode: "key" };
-      }
-      if (current.type === "object" || current.type === "object_pattern") {
-        return { mode: "key" };
-      }
-      current = current.parent;
-    }
-    return { mode: "key" };
-  }
-
   private walkNodes(
     root: Parser.SyntaxNode,
     type: string,
@@ -2980,6 +2758,7 @@ export class PostHogDetector {
   dispose(): void {
     this.parser?.delete();
     this.parser = null;
+    this.initPromise = null;
     this.languages.clear();
     this.queryCache.clear();
   }

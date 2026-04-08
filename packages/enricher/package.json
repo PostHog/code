@@ -1,7 +1,7 @@
 {
-  "name": "@posthog/detect",
+  "name": "@posthog/enricher",
   "version": "1.0.0",
-  "description": "Detect PostHog SDK usage in source code via tree-sitter AST analysis",
+  "description": "Detect and enrich PostHog SDK usage in source code",
   "type": "module",
   "exports": {
     ".": {

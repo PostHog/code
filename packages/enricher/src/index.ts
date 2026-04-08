@@ -1,5 +1,4 @@
 export { PostHogDetector } from "./detector.js";
-
 export {
   classifyFlagType,
   extractConditionCount,
@@ -9,6 +8,8 @@ export {
 } from "./flag-classification.js";
 export type { LangFamily, QueryStrings } from "./languages.js";
 export { ALL_FLAG_METHODS, CLIENT_NAMES, LANG_FAMILIES } from "./languages.js";
+export type { DetectorLogger } from "./log.js";
+export { setLogger } from "./log.js";
 export type { StalenessCheckOptions } from "./stale-flags.js";
 export {
   classifyStaleness,
@@ -16,7 +17,6 @@ export {
 } from "./stale-flags.js";
 
 export type {
-  CompletionContext,
   DetectionConfig,
   EventDefinition,
   Experiment,
@@ -25,7 +25,6 @@ export type {
   FlagAssignment,
   FlagType,
   FunctionInfo,
-  Position,
   PostHogCall,
   PostHogInitCall,
   StalenessReason,

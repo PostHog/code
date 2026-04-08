@@ -44,23 +44,13 @@ export interface PostHogInitCall {
   configProperties: Map<string, string>;
 }
 
-export interface CompletionContext {
-  type: "capture_event" | "flag_key" | "property_key" | "property_value";
-  eventName?: string;
-  propertyName?: string;
-}
-
-export interface Position {
-  line: number;
-  column: number;
-}
-
 // ── Detection configuration ──
 
 export interface DetectionConfig {
   additionalClientNames: string[];
   additionalFlagFunctions: string[];
   detectNestedClients: boolean;
+  onError?: (message: string, error?: unknown) => void;
 }
 
 export const DEFAULT_CONFIG: DetectionConfig = {

@@ -1,5 +1,4 @@
 // ── Language-specific method sets and tree-sitter queries ──
-// Extracted from posthog-vscode/src/services/treeSitterService.ts
 
 export interface QueryStrings {
   postHogCalls: string;
