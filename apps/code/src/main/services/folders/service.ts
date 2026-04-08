@@ -50,14 +50,18 @@ export class FoldersService {
 
     const deletedFolders = folders.filter((f) => !f.exists);
     if (deletedFolders.length > 0) {
+      let removed = 0;
       for (const folder of deletedFolders) {
         try {
           await this.removeFolder(folder.id);
+          removed++;
         } catch (err) {
           log.error(`Failed to remove deleted folder ${folder.path}:`, err);
         }
       }
-      log.info(`Removed ${deletedFolders.length} deleted folder(s)`);
+      if (removed > 0) {
+        log.info(`Removed ${removed} deleted folder(s)`);
+      }
     }
 
     const existingFolders = folders.filter((f) => f.exists);
