@@ -67,7 +67,7 @@ export class CodexSettingsManager {
   }
 
   dispose(): void {
-    // No-op: no resources to release. Kept async to satisfy the BaseSettingsManager interface.
+    // No-op: no resources to release. Kept to satisfy the BaseSettingsManager interface.
   }
 }
 
