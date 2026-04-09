@@ -39,6 +39,7 @@ interface SessionViewProps {
   isRunning: boolean;
   isPromptPending?: boolean | null;
   promptStartedAt?: number | null;
+  onBeforeSubmit?: (text: string, clearEditor: () => void) => boolean;
   onSendPrompt: (text: string) => void;
   onBashCommand?: (command: string) => void;
   onCancelPrompt: () => void;
@@ -69,6 +70,7 @@ export function SessionView({
   isRunning,
   isPromptPending = false,
   promptStartedAt,
+  onBeforeSubmit,
   onSendPrompt,
   onBashCommand,
   onCancelPrompt,
@@ -531,6 +533,7 @@ export function SessionView({
                             disabled={!isRunning}
                           />
                         }
+                        onBeforeSubmit={onBeforeSubmit}
                         onSubmit={handleSubmit}
                         onBashCommand={onBashCommand}
                         onCancel={onCancelPrompt}

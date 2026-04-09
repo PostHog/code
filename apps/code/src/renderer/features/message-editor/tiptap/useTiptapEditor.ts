@@ -30,6 +30,7 @@ export interface UseTiptapEditorOptions {
   };
   clearOnSubmit?: boolean;
   getPromptHistory?: () => string[];
+  onBeforeSubmit?: (text: string, clearEditor: () => void) => boolean;
   onSubmit?: (text: string) => void;
   onBashCommand?: (command: string) => void;
   onBashModeChange?: (isBashMode: boolean) => void;
@@ -85,6 +86,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
     capabilities = {},
     clearOnSubmit = true,
     getPromptHistory,
+    onBeforeSubmit,
     onSubmit,
     onBashCommand,
     onBashModeChange,
@@ -100,6 +102,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
   } = capabilities;
 
   const callbackRefs = useRef({
+    onBeforeSubmit,
     onSubmit,
     onBashCommand,
     onBashModeChange,
@@ -108,6 +111,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
     onBlur,
   });
   callbackRefs.current = {
+    onBeforeSubmit,
     onSubmit,
     onBashCommand,
     onBashModeChange,
@@ -450,8 +454,19 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
 
     const text = editor.getText().trim();
 
+    const doClear = () => {
+      if (!clearOnSubmit) return;
+      editor.commands.clearContent();
+      prevBashModeRef.current = false;
+      pasteCountRef.current = 0;
+      setAttachments([]);
+      draft.clearDraft();
+    };
+
     if (enableBashMode && text.startsWith("!")) {
-      // Bash mode requires immediate execution, can't be queued
+      // Bash mode requires immediate execution, can't be queued.
+      // Intentionally bypasses onBeforeSubmit — bash commands run inline and
+      // cannot be deferred the way normal prompts can.
       if (isLoading) {
         toast.error("Cannot run shell commands while agent is generating");
         return;
@@ -459,17 +474,19 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
       const command = text.slice(1).trim();
       if (command) callbackRefs.current.onBashCommand?.(command);
     } else {
+      const serialized = contentToXml(content);
+
+      if (callbackRefs.current.onBeforeSubmit) {
+        if (!callbackRefs.current.onBeforeSubmit(serialized, doClear)) {
+          return;
+        }
+      }
+
       // Normal prompts can be queued when loading
-      callbackRefs.current.onSubmit?.(contentToXml(content));
+      callbackRefs.current.onSubmit?.(serialized);
     }
 
-    if (clearOnSubmit) {
-      editor.commands.clearContent();
-      prevBashModeRef.current = false;
-      pasteCountRef.current = 0;
-      setAttachments([]);
-      draft.clearDraft();
-    }
+    doClear();
   }, [
     editor,
     disabled,

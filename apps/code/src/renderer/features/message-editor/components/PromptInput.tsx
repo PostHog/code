@@ -45,6 +45,7 @@ export interface PromptInputProps {
   // prompt history provider
   getPromptHistory?: () => string[];
   // callbacks
+  onBeforeSubmit?: (text: string, clearEditor: () => void) => boolean;
   onSubmit?: (text: string) => void;
   onBashCommand?: (command: string) => void;
   onBashModeChange?: (isBashMode: boolean) => void;
@@ -80,6 +81,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
       reasoningSelector,
       tourHighlightSubmit = false,
       getPromptHistory,
+      onBeforeSubmit,
       onSubmit,
       onBashCommand,
       onBashModeChange,
@@ -127,6 +129,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
         commands: enableCommands,
       },
       getPromptHistory,
+      onBeforeSubmit,
       onSubmit,
       onBashCommand,
       onBashModeChange,

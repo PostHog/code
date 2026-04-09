@@ -369,6 +369,8 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       branchName,
     });
     trackAppEvent("branch_linked", {
+      task_id: taskId,
+      branch_name: branchName,
       source: source ?? "unknown",
     });
     log.info("Linked branch to task", { taskId, branchName, source });
@@ -381,6 +383,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       branchName: null,
     });
     trackAppEvent("branch_unlinked", {
+      task_id: taskId,
       source: source ?? "unknown",
     });
     log.info("Unlinked branch from task", { taskId, source });
