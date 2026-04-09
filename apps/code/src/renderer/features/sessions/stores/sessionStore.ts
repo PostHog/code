@@ -47,6 +47,7 @@ export interface AgentSession {
   errorTitle?: string;
   errorMessage?: string;
   isPromptPending: boolean;
+  isCompacting: boolean;
   promptStartedAt: number | null;
   logUrl?: string;
   processedLineCount?: number;

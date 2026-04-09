@@ -1,6 +1,6 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import { Saga } from "@posthog/shared";
-import { POSTHOG_NOTIFICATIONS } from "../acp-extensions";
+import { isNotification, POSTHOG_NOTIFICATIONS } from "../acp-extensions";
 import type { PostHogAPIClient } from "../posthog-api";
 import { TreeTracker } from "../tree-tracker";
 import type {
@@ -178,14 +178,13 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
   private findLatestTreeSnapshot(
     entries: StoredNotification[],
   ): TreeSnapshotEvent | null {
-    const sdkPrefixedMethod = `_${POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT}`;
-
     for (let i = entries.length - 1; i >= 0; i--) {
       const entry = entries[i];
-      const method = entry.notification?.method;
       if (
-        method === sdkPrefixedMethod ||
-        method === POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT
+        isNotification(
+          entry.notification?.method,
+          POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT,
+        )
       ) {
         const params = entry.notification.params as
           | TreeSnapshotEvent

@@ -19,7 +19,77 @@ import {
   buildCommentMergedOptions,
   buildHunkAnnotations,
 } from "../utils/diffAnnotations";
+import { buildFileAnnotations } from "../utils/prCommentAnnotations";
 import { CommentAnnotation } from "./CommentAnnotation";
+import { PrCommentThread } from "./PrCommentThread";
+
+function renderSharedAnnotation(
+  annotation: DiffLineAnnotation<AnnotationMetadata>,
+  filePath: string,
+  taskId: string,
+  prUrl: string | null,
+  reset: () => void,
+): React.ReactNode {
+  if (annotation.metadata.kind === "comment") {
+    const { startLine, endLine, side } = annotation.metadata;
+    return (
+      <CommentAnnotation
+        taskId={taskId}
+        filePath={filePath}
+        startLine={startLine}
+        endLine={endLine}
+        side={side}
+        onDismiss={reset}
+      />
+    );
+  }
+
+  if (annotation.metadata.kind === "pr-comment") {
+    return (
+      <PrCommentThread
+        taskId={taskId}
+        prUrl={prUrl}
+        filePath={filePath}
+        metadata={annotation.metadata}
+      />
+    );
+  }
+
+  return null;
+}
+
+function HunkRevertButton({
+  isReverting,
+  onRevert,
+}: {
+  isReverting: boolean;
+  onRevert: () => void;
+}) {
+  return (
+    <div className="relative w-full overflow-visible" style={{ height: 0 }}>
+      <button
+        type="button"
+        disabled={isReverting}
+        onClick={onRevert}
+        className={`absolute top-0 right-2 inline-flex items-center gap-0.5 rounded border-none text-white transition-opacity ${
+          isReverting ? "opacity-60" : "opacity-0 hover:opacity-100"
+        }`}
+        style={{
+          background: "var(--red-9)",
+          padding: "1px 6px",
+          fontSize: "10px",
+          fontWeight: 500,
+          lineHeight: "18px",
+          cursor: isReverting ? "default" : "pointer",
+          zIndex: 10,
+        }}
+      >
+        <ArrowCounterClockwise size={12} />
+        {isReverting ? "Reverting..." : "Revert"}
+      </button>
+    </div>
+  );
+}
 
 function isPatchDiff(props: InteractiveFileDiffProps): props is PatchDiffProps {
   return "fileDiff" in props && props.fileDiff != null;
@@ -37,7 +107,9 @@ function PatchDiffView({
   repoPath,
   options,
   renderCustomHeader,
-  onComment,
+  taskId,
+  prUrl,
+  commentThreads,
 }: PatchDiffProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -70,29 +142,18 @@ function PatchDiffView({
     () => (repoPath ? buildHunkAnnotations(fileDiff) : []),
     [fileDiff, repoPath],
   );
-  const annotations = useMemo(
+  const prAnnotations = useMemo(
     () =>
-      commentAnnotation
-        ? [...hunkAnnotations, commentAnnotation]
-        : hunkAnnotations,
-    [hunkAnnotations, commentAnnotation],
+      commentThreads
+        ? buildFileAnnotations(commentThreads, currentFilePath)
+        : [],
+    [commentThreads, currentFilePath],
   );
-
-  const handleCommentSubmit = useCallback(
-    (text: string) => {
-      const meta = commentAnnotation?.metadata;
-      if (!currentFilePath || !meta || meta.kind !== "comment") return;
-      reset();
-      onComment?.(
-        currentFilePath,
-        meta.startLine,
-        meta.endLine,
-        meta.side,
-        text,
-      );
-    },
-    [currentFilePath, commentAnnotation, reset, onComment],
-  );
+  const annotations = useMemo(() => {
+    const all = [...hunkAnnotations, ...prAnnotations];
+    if (commentAnnotation) all.push(commentAnnotation);
+    return all;
+  }, [hunkAnnotations, prAnnotations, commentAnnotation]);
 
   const handleRevert = useCallback(
     async (hunkIndex: number) => {
@@ -149,42 +210,25 @@ function PatchDiffView({
 
   const renderAnnotation = useCallback(
     (annotation: DiffLineAnnotation<AnnotationMetadata>) => {
-      if (annotation.metadata.kind === "comment") {
+      if (annotation.metadata.kind === "hunk-revert") {
+        const { hunkIndex } = annotation.metadata;
         return (
-          <CommentAnnotation onSubmit={handleCommentSubmit} onCancel={reset} />
+          <HunkRevertButton
+            isReverting={revertingHunks.has(hunkIndex)}
+            onRevert={() => handleRevert(hunkIndex)}
+          />
         );
       }
 
-      if (annotation.metadata.kind !== "hunk-revert") return null;
-      const { hunkIndex } = annotation.metadata;
-      const isReverting = revertingHunks.has(hunkIndex);
-
-      return (
-        <div className="relative w-full overflow-visible" style={{ height: 0 }}>
-          <button
-            type="button"
-            disabled={isReverting}
-            onClick={() => handleRevert(hunkIndex)}
-            className={`absolute top-0 right-2 inline-flex items-center gap-0.5 rounded border-none text-white transition-opacity ${
-              isReverting ? "opacity-60" : "opacity-0 hover:opacity-100"
-            }`}
-            style={{
-              background: "var(--red-9)",
-              padding: "1px 6px",
-              fontSize: "10px",
-              fontWeight: 500,
-              lineHeight: "18px",
-              cursor: isReverting ? "default" : "pointer",
-              zIndex: 10,
-            }}
-          >
-            <ArrowCounterClockwise size={12} />
-            {isReverting ? "Reverting..." : "Revert"}
-          </button>
-        </div>
+      return renderSharedAnnotation(
+        annotation,
+        currentFilePath,
+        taskId ?? "",
+        prUrl ?? null,
+        reset,
       );
     },
-    [handleRevert, handleCommentSubmit, reset, revertingHunks],
+    [handleRevert, revertingHunks, reset, taskId, prUrl, currentFilePath],
   );
 
   const mergedOptions = useMemo(
@@ -214,7 +258,9 @@ function FilesDiffView({
   newFile,
   options,
   renderCustomHeader,
-  onComment,
+  taskId,
+  prUrl,
+  commentThreads,
 }: FilesDiffProps) {
   const {
     selectedRange,
@@ -226,29 +272,27 @@ function FilesDiffView({
 
   const filePath = newFile.name || oldFile.name;
 
-  const annotations = useMemo(
-    () => (commentAnnotation ? [commentAnnotation] : []),
-    [commentAnnotation],
+  const prAnnotations = useMemo(
+    () =>
+      commentThreads ? buildFileAnnotations(commentThreads, filePath) : [],
+    [commentThreads, filePath],
   );
-
-  const handleCommentSubmit = useCallback(
-    (text: string) => {
-      const meta = commentAnnotation?.metadata;
-      if (!filePath || !meta || meta.kind !== "comment") return;
-      reset();
-      onComment?.(filePath, meta.startLine, meta.endLine, meta.side, text);
-    },
-    [filePath, commentAnnotation, reset, onComment],
-  );
+  const annotations = useMemo(() => {
+    const all = [...prAnnotations];
+    if (commentAnnotation) all.push(commentAnnotation);
+    return all;
+  }, [prAnnotations, commentAnnotation]);
 
   const renderAnnotation = useCallback(
-    (annotation: DiffLineAnnotation<AnnotationMetadata>) => {
-      if (annotation.metadata.kind !== "comment") return null;
-      return (
-        <CommentAnnotation onSubmit={handleCommentSubmit} onCancel={reset} />
-      );
-    },
-    [handleCommentSubmit, reset],
+    (annotation: DiffLineAnnotation<AnnotationMetadata>) =>
+      renderSharedAnnotation(
+        annotation,
+        filePath,
+        taskId ?? "",
+        prUrl ?? null,
+        reset,
+      ),
+    [reset, taskId, prUrl, filePath],
   );
 
   const mergedOptions = useMemo(

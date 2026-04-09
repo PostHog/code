@@ -39,6 +39,7 @@ const expandHomePath = (searchPath: string): string =>
 
 const MAX_IMAGE_DIMENSION = 1568;
 const JPEG_QUALITY = 85;
+const CLIPBOARD_TEMP_DIR = path.join(os.tmpdir(), "posthog-code-clipboard");
 
 interface DownscaledImage {
   buffer: Buffer;
@@ -88,6 +89,17 @@ function downscaleImage(raw: Buffer, mimeType: string): DownscaledImage {
   };
 }
 
+async function createClipboardTempFilePath(
+  displayName: string,
+): Promise<string> {
+  const safeName = path.basename(displayName) || "attachment";
+  await fsPromises.mkdir(CLIPBOARD_TEMP_DIR, { recursive: true });
+  const tempDir = await fsPromises.mkdtemp(
+    path.join(CLIPBOARD_TEMP_DIR, "attachment-"),
+  );
+  return path.join(tempDir, safeName);
+}
+
 const claudeSettingsPath = path.join(os.homedir(), ".claude", "settings.json");
 
 export const osRouter = router({
@@ -134,6 +146,25 @@ export const osRouter = router({
       return null;
     }
     return result.filePaths[0];
+  }),
+
+  /**
+   * Show file picker dialog
+   */
+  selectFiles: publicProcedure.output(z.array(z.string())).query(async () => {
+    const win = getMainWindow();
+    if (!win) return [];
+
+    const result = await dialog.showOpenDialog(win, {
+      title: "Select files",
+      properties: ["openFile", "multiSelections", "treatPackageAsDirectory"],
+    });
+
+    if (result.canceled || !result.filePaths?.length) {
+      return [];
+    }
+
+    return result.filePaths;
   }),
 
   /**
@@ -277,18 +308,18 @@ export const osRouter = router({
     .input(
       z.object({
         text: z.string(),
+        originalName: z.string().optional(),
       }),
     )
     .mutation(async ({ input }) => {
-      const filename = `pasted-text-${Date.now()}.txt`;
-      const tempDir = path.join(os.tmpdir(), "posthog-code-clipboard");
-
-      await fsPromises.mkdir(tempDir, { recursive: true });
-      const filePath = path.join(tempDir, filename);
+      const displayName = path.basename(
+        input.originalName ?? "pasted-text.txt",
+      );
+      const filePath = await createClipboardTempFilePath(displayName);
 
       await fsPromises.writeFile(filePath, input.text, "utf-8");
 
-      return { path: filePath, name: "pasted-text.txt" };
+      return { path: filePath, name: displayName };
     }),
 
   /**
@@ -321,12 +352,7 @@ export const osRouter = router({
             /\.[^.]+$/,
             `.${extension}`,
           );
-      const baseName = displayName.replace(/\.[^.]+$/, "");
-      const filename = `${baseName}-${Date.now()}.${extension}`;
-      const tempDir = path.join(os.tmpdir(), "posthog-code-clipboard");
-
-      await fsPromises.mkdir(tempDir, { recursive: true });
-      const filePath = path.join(tempDir, filename);
+      const filePath = await createClipboardTempFilePath(displayName);
 
       await fsPromises.writeFile(filePath, buffer);
 

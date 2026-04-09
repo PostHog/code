@@ -1,3 +1,4 @@
+import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   filterOtherOptions,
@@ -10,6 +11,29 @@ import type { ActionSelectorProps, SelectorOption, StepAnswer } from "./types";
 
 function needsCustomInput(option: SelectorOption): boolean {
   return option.customInput === true || isOtherOption(option.id);
+}
+
+function isInteractiveElementInDifferentCell(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+): boolean {
+  const el = document.activeElement;
+  if (!(el instanceof HTMLElement)) return false;
+
+  const isInteractive =
+    el.tagName === "INPUT" ||
+    el.tagName === "TEXTAREA" ||
+    el.tagName === "SELECT" ||
+    el.getAttribute("contenteditable") === "true";
+  if (!isInteractive) return false;
+
+  const activeCell = el.closest("[data-grid-cell]");
+  const ownCell = containerRef.current?.closest("[data-grid-cell]");
+
+  // Outside a grid (single-task mode): block focus steal from any interactive element.
+  // Inside a grid: only block when the interactive element is in a different cell.
+  if (!activeCell || !ownCell) return true;
+
+  return activeCell !== ownCell;
 }
 
 interface UseActionSelectorStateProps {
@@ -51,6 +75,7 @@ export function useActionSelectorState({
     () => new Map(),
   );
   const containerRef = useRef<HTMLDivElement>(null);
+  const prevActiveStepRef = useRef(currentStep);
 
   const activeStep = internalStep;
   const hasSteps = steps !== undefined && steps.length > 1;
@@ -76,7 +101,9 @@ export function useActionSelectorState({
     isEditing && selectedOption && needsCustomInput(selectedOption);
 
   useEffect(() => {
-    containerRef.current?.focus();
+    if (!isInteractiveElementInDifferentCell(containerRef)) {
+      containerRef.current?.focus();
+    }
   }, []);
 
   useEffect(() => {
@@ -107,7 +134,7 @@ export function useActionSelectorState({
   }, [activeStep, checkedOptions, customInput, onStepAnswer]);
 
   const restoreStepAnswer = useCallback(
-    (step: number) => {
+    (step: number, { autoFocus = true }: { autoFocus?: boolean } = {}) => {
       const saved = stepAnswers.get(step);
       if (saved) {
         setCheckedOptions(new Set(saved.selectedIds));
@@ -121,13 +148,19 @@ export function useActionSelectorState({
       }
       setSelectedIndex(0);
       setIsEditing(false);
-      containerRef.current?.focus();
+      if (autoFocus) {
+        containerRef.current?.focus();
+      }
     },
     [initialSelections, stepAnswers],
   );
 
   useEffect(() => {
-    restoreStepAnswer(activeStep);
+    if (activeStep === prevActiveStepRef.current) return;
+    prevActiveStepRef.current = activeStep;
+    restoreStepAnswer(activeStep, {
+      autoFocus: !isInteractiveElementInDifferentCell(containerRef),
+    });
   }, [activeStep, restoreStepAnswer]);
 
   useEffect(() => {

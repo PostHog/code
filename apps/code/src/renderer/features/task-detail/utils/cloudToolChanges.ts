@@ -2,6 +2,7 @@ import type {
   ToolCallContent,
   ToolCallLocation,
 } from "@features/sessions/types";
+import { isNotification, POSTHOG_NOTIFICATIONS } from "@posthog/agent";
 import type { ChangedFile, GitFileStatus } from "@shared/types";
 import {
   type AcpMessage,
@@ -169,7 +170,9 @@ export function buildCloudEventSummary(
 
       const merged = mergeToolCall(toolCalls.get(toolCallId), patch);
       toolCalls.set(toolCallId, merged);
-    } else if (isPosthogMethod(message.method, "tree_snapshot")) {
+    } else if (
+      isNotification(message.method, POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT)
+    ) {
       const params = message.params as
         | {
             changes?: Array<{ path: string; status: "A" | "M" | "D" }>;
@@ -227,10 +230,6 @@ export function extractCloudFileDiff(
     oldText: firstOldText ?? null,
     newText: lastNewText ?? null,
   };
-}
-
-function isPosthogMethod(method: string, name: string): boolean {
-  return method === `_posthog/${name}` || method === `__posthog/${name}`;
 }
 
 export function extractCloudToolChangedFiles(

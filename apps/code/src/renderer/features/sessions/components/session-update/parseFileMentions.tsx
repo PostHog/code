@@ -48,7 +48,7 @@ export const hasFileMentions = hasMentionTags;
 const chipClass =
   "inline-flex items-center gap-1 rounded-[var(--radius-1)] bg-[var(--accent-a3)] px-1 py-px align-middle font-medium text-[var(--accent-11)]";
 
-function MentionChip({
+export function MentionChip({
   icon,
   label,
   onClick,

@@ -118,48 +118,67 @@ export function BranchSelector({
           {triggerContent}
         </Combobox.Trigger>
 
-        <Combobox.Content>
-          <Combobox.Input placeholder="Search branches" />
-          <Combobox.Empty>No branches found.</Combobox.Empty>
+        <Combobox.Content
+          items={branches}
+          limit={50}
+          pinned={[displayedBranch, defaultBranch].filter(Boolean) as string[]}
+        >
+          {({ filtered, hasMore, moreCount }) => (
+            <>
+              <Combobox.Input placeholder="Search branches" />
+              <Combobox.Empty>No branches found.</Combobox.Empty>
 
-          <Combobox.Group
-            heading={isCloudMode ? "Remote branches" : "Local branches"}
-          >
-            {branches.map((branch) => (
-              <Combobox.Item
-                key={branch}
-                value={branch}
-                icon={<GitBranch size={11} weight="regular" />}
-              >
-                {branch}
-              </Combobox.Item>
-            ))}
-          </Combobox.Group>
-
-          {!isCloudMode && (
-            <Combobox.Footer>
-              <button
-                type="button"
-                className="combobox-footer-button"
-                onClick={() => {
-                  setOpen(false);
-                  actions.openBranch(
-                    taskId
-                      ? getSuggestedBranchName(taskId, repoPath ?? undefined)
-                      : undefined,
-                  );
-                }}
-              >
-                <Flex
-                  align="center"
-                  gap="2"
-                  style={{ color: "var(--accent-11)" }}
+              {filtered.length > 0 && (
+                <Combobox.Group
+                  heading={isCloudMode ? "Remote branches" : "Local branches"}
                 >
-                  <Plus size={11} weight="bold" />
-                  <span>Create new branch</span>
-                </Flex>
-              </button>
-            </Combobox.Footer>
+                  {filtered.map((branch) => (
+                    <Combobox.Item
+                      key={branch}
+                      value={branch}
+                      icon={<GitBranch size={11} weight="regular" />}
+                    >
+                      {branch}
+                    </Combobox.Item>
+                  ))}
+                  {hasMore && (
+                    <div className="combobox-label">
+                      {moreCount} more {moreCount === 1 ? "branch" : "branches"}{" "}
+                      — type to filter
+                    </div>
+                  )}
+                </Combobox.Group>
+              )}
+
+              {!isCloudMode && (
+                <Combobox.Footer>
+                  <button
+                    type="button"
+                    className="combobox-footer-button"
+                    onClick={() => {
+                      setOpen(false);
+                      actions.openBranch(
+                        taskId
+                          ? getSuggestedBranchName(
+                              taskId,
+                              repoPath ?? undefined,
+                            )
+                          : undefined,
+                      );
+                    }}
+                  >
+                    <Flex
+                      align="center"
+                      gap="2"
+                      style={{ color: "var(--accent-11)" }}
+                    >
+                      <Plus size={11} weight="bold" />
+                      <span>Create new branch</span>
+                    </Flex>
+                  </button>
+                </Combobox.Footer>
+              )}
+            </>
           )}
         </Combobox.Content>
       </Combobox.Root>

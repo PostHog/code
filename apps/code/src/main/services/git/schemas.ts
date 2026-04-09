@@ -223,6 +223,14 @@ export const ghStatusOutput = z.object({
 
 export type GhStatusOutput = z.infer<typeof ghStatusOutput>;
 
+export const ghAuthTokenOutput = z.object({
+  success: z.boolean(),
+  token: z.string().nullable(),
+  error: z.string().nullable(),
+});
+
+export type GhAuthTokenOutput = z.infer<typeof ghAuthTokenOutput>;
+
 // Pull request status
 export const prStatusInput = directoryPathInput;
 export const prStatusOutput = z.object({
@@ -316,6 +324,73 @@ export const getPrChangedFilesInput = z.object({
   prUrl: z.string(),
 });
 export const getPrChangedFilesOutput = z.array(changedFileSchema);
+
+// getPrDetailsByUrl schemas
+export const getPrDetailsByUrlInput = z.object({
+  prUrl: z.string(),
+});
+export const getPrDetailsByUrlOutput = z.object({
+  state: z.string(),
+  merged: z.boolean(),
+  draft: z.boolean(),
+});
+export type PrDetailsByUrlOutput = z.infer<typeof getPrDetailsByUrlOutput>;
+
+// getPrReviewComments schemas
+export const prReviewCommentUserSchema = z.object({
+  login: z.string(),
+  avatar_url: z.string(),
+});
+
+export const prReviewCommentSchema = z.object({
+  id: z.number(),
+  body: z.string(),
+  path: z.string(),
+  line: z.number().nullable(),
+  original_line: z.number().nullable(),
+  side: z.enum(["LEFT", "RIGHT"]),
+  start_line: z.number().nullable(),
+  start_side: z.enum(["LEFT", "RIGHT"]).nullable(),
+  diff_hunk: z.string(),
+  in_reply_to_id: z.number().nullish(),
+  user: prReviewCommentUserSchema,
+  created_at: z.string(),
+  updated_at: z.string(),
+  subject_type: z.enum(["line", "file"]).nullable(),
+});
+
+export type PrReviewComment = z.infer<typeof prReviewCommentSchema>;
+
+export const getPrReviewCommentsInput = z.object({
+  prUrl: z.string(),
+});
+export const getPrReviewCommentsOutput = z.array(prReviewCommentSchema);
+
+// replyToPrComment schemas
+export const replyToPrCommentInput = z.object({
+  prUrl: z.string(),
+  commentId: z.number(),
+  body: z.string(),
+});
+export const replyToPrCommentOutput = z.object({
+  success: z.boolean(),
+  comment: prReviewCommentSchema.nullable(),
+});
+export type ReplyToPrCommentOutput = z.infer<typeof replyToPrCommentOutput>;
+
+// updatePrByUrl schemas
+export const prActionType = z.enum(["close", "reopen", "ready", "draft"]);
+export type PrActionType = z.infer<typeof prActionType>;
+
+export const updatePrByUrlInput = z.object({
+  prUrl: z.string(),
+  action: prActionType,
+});
+export const updatePrByUrlOutput = z.object({
+  success: z.boolean(),
+  message: z.string(),
+});
+export type UpdatePrByUrlOutput = z.infer<typeof updatePrByUrlOutput>;
 
 export const getBranchChangedFilesInput = z.object({
   repo: z.string(),

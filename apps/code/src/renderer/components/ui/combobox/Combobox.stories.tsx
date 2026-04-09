@@ -338,6 +338,37 @@ export const EmptyState: Story = {
   },
 };
 
+export const FilteredContent: Story = {
+  render: () => {
+    const [value, setValue] = useState("");
+    const allFruits = [...fruits, ...tropicalFruits, ...citrusFruits];
+
+    return (
+      <Combobox.Root value={value} onValueChange={setValue}>
+        <Combobox.Trigger placeholder="Search fruits..." />
+        <Combobox.Content items={allFruits} getValue={(f) => f.label} limit={5}>
+          {({ filtered, hasMore, moreCount }) => (
+            <>
+              <Combobox.Input placeholder="Type to search..." />
+              <Combobox.Empty>No fruits found.</Combobox.Empty>
+              {filtered.map((fruit) => (
+                <Combobox.Item key={fruit.value} value={fruit.value}>
+                  {fruit.label}
+                </Combobox.Item>
+              ))}
+              {hasMore && (
+                <div className="combobox-label">
+                  {moreCount} more — type to filter
+                </div>
+              )}
+            </>
+          )}
+        </Combobox.Content>
+      </Combobox.Root>
+    );
+  },
+};
+
 export const ControlledSearch: Story = {
   render: () => {
     const [value, setValue] = useState("");

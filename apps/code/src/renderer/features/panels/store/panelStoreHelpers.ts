@@ -25,7 +25,6 @@ export function parseTabId(tabId: string): ParsedTabId & { status?: string } {
 }
 
 export function createTabLabel(tabId: string): string {
-  if (tabId === "review") return "Review";
   const parsed = parseTabId(tabId);
   if (parsed.type === "file") {
     return parsed.value.split("/").pop() || parsed.value;
@@ -121,9 +120,7 @@ export function createNewTab(
       };
       break;
     case "system":
-      if (tabId === "review") {
-        data = { type: "review" };
-      } else if (tabId === "logs") {
+      if (tabId === "logs") {
         data = { type: "logs" };
       } else if (tabId.startsWith("shell")) {
         data = {

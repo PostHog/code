@@ -4,6 +4,7 @@ import type {
 } from "@agentclientprotocol/sdk";
 import type { QueuedMessage } from "@features/sessions/stores/sessionStore";
 import type { SessionUpdate, ToolCall } from "@features/sessions/types";
+import { isNotification, POSTHOG_NOTIFICATIONS } from "@posthog/agent";
 import {
   type AcpMessage,
   isJsonRpcNotification,
@@ -11,8 +12,10 @@ import {
   isJsonRpcResponse,
   type UserShellExecuteParams,
 } from "@shared/types/session-events";
+import { extractPromptDisplayContent } from "@utils/promptContent";
 import { type GitActionType, parseGitActionMessage } from "./GitActionMessage";
 import type { RenderItem } from "./session-update/SessionUpdateView";
+import type { UserMessageAttachment } from "./session-update/UserMessage";
 import type { UserShellExecute } from "./session-update/UserShellExecuteView";
 
 export interface TurnContext {
@@ -23,7 +26,13 @@ export interface TurnContext {
 }
 
 export type ConversationItem =
-  | { type: "user_message"; id: string; content: string; timestamp: number }
+  | {
+      type: "user_message";
+      id: string;
+      content: string;
+      timestamp: number;
+      attachments?: UserMessageAttachment[];
+    }
   | { type: "git_action"; id: string; actionType: GitActionType }
   | {
       type: "session_update";
@@ -196,9 +205,12 @@ function handlePromptRequest(
     b.currentTurn.context.turnComplete = true;
   }
 
-  const userContent = extractUserContent(msg.params);
+  const userPrompt = extractUserPrompt(msg.params);
+  const userContent = userPrompt.content;
 
-  if (userContent.trim().length === 0) return;
+  if (userContent.trim().length === 0 && userPrompt.attachments.length === 0) {
+    return;
+  }
 
   const turnId = `turn-${ts}-${msg.id}`;
   const toolCalls = new Map<string, ToolCall>();
@@ -237,6 +249,7 @@ function handlePromptRequest(
       id: `${turnId}-user`,
       content: userContent,
       timestamp: ts,
+      attachments: userPrompt.attachments,
     });
   }
 }
@@ -282,12 +295,6 @@ function handlePromptResponse(
   b.pendingPrompts.delete(msg.id);
 }
 
-/** Check if a method matches a PostHog notification name, accounting for
- *  the SDK sometimes double-prefixing (`__posthog/` instead of `_posthog/`). */
-function isPosthogMethod(method: string, name: string): boolean {
-  return method === `_posthog/${name}` || method === `__posthog/${name}`;
-}
-
 function handleNotification(
   b: ItemBuilder,
   msg: { method: string; params?: unknown },
@@ -323,7 +330,7 @@ function handleNotification(
     return;
   }
 
-  if (isPosthogMethod(msg.method, "console")) {
+  if (isNotification(msg.method, POSTHOG_NOTIFICATIONS.CONSOLE)) {
     if (!b.currentTurn) {
       ensureImplicitTurn(b, ts);
     }
@@ -339,7 +346,7 @@ function handleNotification(
     return;
   }
 
-  if (isPosthogMethod(msg.method, "compact_boundary")) {
+  if (isNotification(msg.method, POSTHOG_NOTIFICATIONS.COMPACT_BOUNDARY)) {
     if (!b.currentTurn) ensureImplicitTurn(b, ts);
     const params = msg.params as {
       trigger: "manual" | "auto";
@@ -356,7 +363,7 @@ function handleNotification(
     return;
   }
 
-  if (isPosthogMethod(msg.method, "status")) {
+  if (isNotification(msg.method, POSTHOG_NOTIFICATIONS.STATUS)) {
     if (!b.currentTurn) ensureImplicitTurn(b, ts);
     const params = msg.params as { status: string; isComplete?: boolean };
     if (params.status === "compacting" && !params.isComplete) {
@@ -411,23 +418,19 @@ function ensureImplicitTurn(b: ItemBuilder, ts: number) {
   };
 }
 
-interface TextBlockWithMeta {
-  type: "text";
-  text: string;
-  _meta?: { ui?: { hidden?: boolean } };
-}
-
-function extractUserContent(params: unknown): string {
+function extractUserPrompt(params: unknown): {
+  content: string;
+  attachments: UserMessageAttachment[];
+} {
   const p = params as { prompt?: ContentBlock[] };
-  if (!p?.prompt?.length) return "";
+  if (!p?.prompt?.length) {
+    return { content: "", attachments: [] };
+  }
 
-  const visibleTextBlocks = p.prompt.filter((b): b is TextBlockWithMeta => {
-    if (b.type !== "text") return false;
-    const meta = (b as TextBlockWithMeta)._meta;
-    return !meta?.ui?.hidden;
+  const { text, attachments } = extractPromptDisplayContent(p.prompt, {
+    filterHidden: true,
   });
-
-  return visibleTextBlocks.map((b) => b.text).join("");
+  return { content: text, attachments };
 }
 
 function getParentToolCallId(update: SessionUpdate): string | undefined {

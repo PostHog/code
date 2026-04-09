@@ -1,6 +1,5 @@
 import { sessionStoreSetters } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore as useFeatureSettingsStore } from "@features/settings/stores/settingsStore";
-import { trpcClient } from "@renderer/trpc/client";
 import { toast } from "@renderer/utils/toast";
 import { useSettingsStore } from "@stores/settingsStore";
 import type { EditorView } from "@tiptap/pm/view";
@@ -10,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePromptHistoryStore } from "../stores/promptHistoryStore";
 import type { FileAttachment, MentionChip } from "../utils/content";
 import { contentToXml, isContentEmpty } from "../utils/content";
+import { persistImageFile, persistTextContent } from "../utils/persistFile";
 import { getEditorExtensions } from "./extensions";
 import { type DraftContext, useDraftSync } from "./useDraftSync";
 
@@ -45,7 +45,7 @@ async function pasteTextAsFile(
   text: string,
   pasteCountRef: React.MutableRefObject<number>,
 ): Promise<void> {
-  const result = await trpcClient.os.saveClipboardText.mutate({ text });
+  const result = await persistTextContent(text);
   pasteCountRef.current += 1;
   const lineCount = text.split("\n").length;
   const label = `Pasted text #${pasteCountRef.current} (${lineCount} lines)`;
@@ -331,19 +331,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
                 if (!file) continue;
 
                 try {
-                  const arrayBuffer = await file.arrayBuffer();
-                  const base64 = btoa(
-                    new Uint8Array(arrayBuffer).reduce(
-                      (data, byte) => data + String.fromCharCode(byte),
-                      "",
-                    ),
-                  );
-
-                  const result = await trpcClient.os.saveClipboardImage.mutate({
-                    base64Data: base64,
-                    mimeType: file.type,
-                    originalName: file.name,
-                  });
+                  const result = await persistImageFile(file);
 
                   setAttachments((prev) => {
                     if (prev.some((a) => a.id === result.path)) return prev;
@@ -448,9 +436,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
 
   // Restore attachments from draft on mount
   useEffect(() => {
-    if (draft.restoredAttachments.length > 0) {
-      setAttachments(draft.restoredAttachments);
-    }
+    setAttachments(draft.restoredAttachments);
     // Only run on mount / session change
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.restoredAttachments]);

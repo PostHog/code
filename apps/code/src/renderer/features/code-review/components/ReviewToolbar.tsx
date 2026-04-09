@@ -5,13 +5,20 @@ import {
   ArrowsIn,
   ArrowsOut,
   Columns,
+  CornersIn,
+  CornersOut,
   Rows,
 } from "@phosphor-icons/react";
-import { Flex, IconButton, Text } from "@radix-ui/themes";
+import { Flex, IconButton, Separator, Text } from "@radix-ui/themes";
 import { DiffSettingsMenu } from "@renderer/features/code-review/components/DiffSettingsMenu";
+import {
+  type ReviewMode,
+  useReviewNavigationStore,
+} from "@renderer/features/code-review/stores/reviewNavigationStore";
 import { memo } from "react";
 
 interface ReviewToolbarProps {
+  taskId: string;
   fileCount: number;
   linesAdded: number;
   linesRemoved: number;
@@ -22,6 +29,7 @@ interface ReviewToolbarProps {
 }
 
 export const ReviewToolbar = memo(function ReviewToolbar({
+  taskId,
   fileCount,
   linesAdded,
   linesRemoved,
@@ -32,6 +40,15 @@ export const ReviewToolbar = memo(function ReviewToolbar({
 }: ReviewToolbarProps) {
   const viewMode = useDiffViewerStore((s) => s.viewMode);
   const toggleViewMode = useDiffViewerStore((s) => s.toggleViewMode);
+  const reviewMode = useReviewNavigationStore(
+    (s) => s.reviewModes[taskId] ?? "closed",
+  );
+  const setReviewMode = useReviewNavigationStore((s) => s.setReviewMode);
+
+  const handleToggleExpand = () => {
+    const next: ReviewMode = reviewMode === "expanded" ? "split" : "expanded";
+    setReviewMode(taskId, next);
+  };
 
   return (
     <Flex
@@ -78,6 +95,7 @@ export const ReviewToolbar = memo(function ReviewToolbar({
             </IconButton>
           </Tooltip>
         )}
+
         <IconButton
           size="1"
           variant="ghost"
@@ -99,6 +117,28 @@ export const ReviewToolbar = memo(function ReviewToolbar({
         </IconButton>
 
         <DiffSettingsMenu />
+
+        <Separator orientation="vertical" size="1" />
+
+        <Tooltip
+          content={
+            reviewMode === "expanded" ? "Collapse review" : "Expand review"
+          }
+        >
+          <IconButton
+            size="1"
+            variant="ghost"
+            color="gray"
+            onClick={handleToggleExpand}
+            style={{ cursor: "pointer" }}
+          >
+            {reviewMode === "expanded" ? (
+              <CornersIn size={14} />
+            ) : (
+              <CornersOut size={14} />
+            )}
+          </IconButton>
+        </Tooltip>
       </Flex>
     </Flex>
   );

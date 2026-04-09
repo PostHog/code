@@ -3,6 +3,7 @@
   background: transparent;
   border: none;
   box-shadow: none;
+  overflow: hidden;
 }
 
 .combobox-content [cmdk-root] {

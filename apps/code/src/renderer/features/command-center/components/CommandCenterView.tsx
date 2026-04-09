@@ -13,16 +13,17 @@ export function CommandCenterView() {
   const { cells, summary } = useCommandCenterData();
   const { markAsViewed } = useTaskViewed();
 
-  const visibleTaskIds = useMemo(
-    () => cells.map((c) => c.taskId).filter((id): id is string => id != null),
-    [cells],
-  );
+  const visibleTaskIdsKey = cells
+    .map((c) => c.taskId)
+    .filter(Boolean)
+    .join(",");
 
   useEffect(() => {
-    for (const taskId of visibleTaskIds) {
+    if (!visibleTaskIdsKey) return;
+    for (const taskId of visibleTaskIdsKey.split(",")) {
       markAsViewed(taskId);
     }
-  }, [visibleTaskIds, markAsViewed]);
+  }, [visibleTaskIdsKey, markAsViewed]);
 
   const headerContent = useMemo(
     () => (

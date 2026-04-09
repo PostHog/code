@@ -33,6 +33,7 @@ interface ModeAndBranchRowProps {
   } | null;
   disabled?: boolean;
   isBashMode?: boolean;
+  isCloud?: boolean;
   taskId?: string;
 }
 
@@ -44,6 +45,7 @@ function ModeAndBranchRow({
   cloudDiffStats,
   disabled,
   isBashMode,
+  isCloud,
   taskId,
 }: ModeAndBranchRowProps) {
   const { currentBranch: gitBranch, diffStats } = useGitQueries(
@@ -104,6 +106,7 @@ function ModeAndBranchRow({
         <DiffStatsIndicator
           repoPath={repoPath}
           overrideStats={cloudDiffStats}
+          taskId={taskId}
         />
         {showBranchSelector && showDiffStats && (
           <Flex
@@ -119,7 +122,7 @@ function ModeAndBranchRow({
             <BranchSelector
               repoPath={repoPath ?? null}
               currentBranch={currentBranch}
-              disabled={disabled}
+              disabled={disabled || isCloud}
               variant="ghost"
               taskId={taskId}
             />
@@ -361,6 +364,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
           cloudDiffStats={cloudDiffStats}
           disabled={disabled}
           isBashMode={isBashMode}
+          isCloud={isCloud}
           taskId={taskId}
         />
       </Flex>

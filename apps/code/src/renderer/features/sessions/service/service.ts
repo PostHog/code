@@ -8,6 +8,11 @@ import {
   getAuthenticatedClient,
 } from "@features/auth/hooks/authClient";
 import { fetchAuthState } from "@features/auth/hooks/authQueries";
+import {
+  buildCloudPromptBlocks,
+  buildCloudTaskDescription,
+  serializeCloudPrompt,
+} from "@features/editor/utils/cloud-prompt";
 import { useSessionAdapterStore } from "@features/sessions/stores/sessionAdapterStore";
 import {
   getPersistedConfigOptions,
@@ -26,9 +31,11 @@ import {
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { taskViewedApi } from "@features/sidebar/hooks/useTaskViewed";
+import { isNotification, POSTHOG_NOTIFICATIONS } from "@posthog/agent";
 import { DEFAULT_GATEWAY_MODEL } from "@posthog/agent/gateway-models";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpcClient } from "@renderer/trpc/client";
+import { getGhUserTokenOrThrow } from "@renderer/utils/github";
 import { toast } from "@renderer/utils/toast";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import {
@@ -39,6 +46,7 @@ import {
   type Task,
 } from "@shared/types";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
+import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
 import type { AcpMessage, StoredLogEntry } from "@shared/types/session-events";
 import { isJsonRpcRequest } from "@shared/types/session-events";
 import { buildPermissionToolMetadata, track } from "@utils/analytics";
@@ -60,6 +68,7 @@ import {
 } from "@utils/session";
 
 const log = logger.scope("session-service");
+const TERMINAL_CLOUD_STATUSES = new Set(["completed", "failed", "cancelled"]);
 
 interface AuthCredentials {
   apiHost: string;
@@ -495,6 +504,7 @@ export class SessionService {
       errorMessage:
         "Session disconnected due to inactivity. Click Retry to reconnect.",
       isPromptPending: false,
+      isCompacting: false,
       promptStartedAt: null,
     });
   }
@@ -748,6 +758,14 @@ export class SessionService {
       isJsonRpcRequest(acpMsg.message) &&
       acpMsg.message.method === "session/prompt";
 
+    // Once the agent starts responding, clear initialPrompt so that
+    // retry reconnects to this session instead of creating a new one.
+    if (!isUserPromptEcho && session.initialPrompt?.length) {
+      sessionStoreSetters.updateSession(taskRunId, {
+        initialPrompt: undefined,
+      });
+    }
+
     if (isUserPromptEcho) {
       sessionStoreSetters.replaceOptimisticWithEvent(taskRunId, acpMsg);
     } else {
@@ -765,8 +783,7 @@ export class SessionService {
       "stopReason" in msg.result
     ) {
       const stopReason = (msg.result as { stopReason?: string }).stopReason;
-      const hasQueuedMessages =
-        session.messageQueue.length > 0 && session.status === "connected";
+      const hasQueuedMessages = this.drainQueuedMessages(taskRunId, session);
 
       // Only notify when queue is empty - queued messages will start a new turn
       if (stopReason && !hasQueuedMessages) {
@@ -774,18 +791,6 @@ export class SessionService {
       }
 
       taskViewedApi.markActivity(session.taskId);
-
-      // Process queued messages after turn completes - send all as one prompt
-      if (hasQueuedMessages) {
-        setTimeout(() => {
-          this.sendQueuedMessages(session.taskId).catch((err) => {
-            log.error("Failed to send queued messages", {
-              taskId: session.taskId,
-              error: err,
-            });
-          });
-        }, 0);
-      }
     }
 
     if ("method" in msg && msg.method === "session/update" && "params" in msg) {
@@ -828,10 +833,10 @@ export class SessionService {
       }
     }
 
-    // Handle _posthog/sdk_session notifications for adapter info
+    // Handle SDK_SESSION notifications for adapter info
     if (
       "method" in msg &&
-      msg.method === "_posthog/sdk_session" &&
+      isNotification(msg.method, POSTHOG_NOTIFICATIONS.SDK_SESSION) &&
       "params" in msg
     ) {
       const params = msg.params as {
@@ -848,6 +853,54 @@ export class SessionService {
         });
       }
     }
+
+    if (
+      "method" in msg &&
+      "params" in msg &&
+      isNotification(msg.method, POSTHOG_NOTIFICATIONS.STATUS)
+    ) {
+      const params = msg.params as { status?: string; isComplete?: boolean };
+      if (params?.status === "compacting") {
+        sessionStoreSetters.updateSession(taskRunId, {
+          isCompacting: !params.isComplete,
+        });
+      }
+    }
+
+    if (
+      "method" in msg &&
+      isNotification(msg.method, POSTHOG_NOTIFICATIONS.COMPACT_BOUNDARY)
+    ) {
+      sessionStoreSetters.updateSession(taskRunId, {
+        isCompacting: false,
+      });
+
+      this.drainQueuedMessages(taskRunId, session);
+    }
+  }
+
+  private drainQueuedMessages(
+    taskRunId: string,
+    session: AgentSession,
+  ): boolean {
+    const freshSession = sessionStoreSetters.getSessions()[taskRunId];
+    const hasQueuedMessages =
+      freshSession &&
+      freshSession.messageQueue.length > 0 &&
+      freshSession.status === "connected";
+
+    if (hasQueuedMessages) {
+      setTimeout(() => {
+        this.sendQueuedMessages(session.taskId).catch((err) => {
+          log.error("Failed to send queued messages", {
+            taskId: session.taskId,
+            error: err,
+          });
+        });
+      }, 0);
+    }
+
+    return hasQueuedMessages;
   }
 
   private handlePermissionRequest(
@@ -921,12 +974,13 @@ export class SessionService {
       throw new Error(`Session is not ready (status: ${session.status})`);
     }
 
-    if (session.isPromptPending) {
+    if (session.isPromptPending || session.isCompacting) {
       const promptText = extractPromptText(prompt);
       sessionStoreSetters.enqueueMessage(taskId, promptText);
       log.info("Message queued", {
         taskId,
         queueLength: session.messageQueue.length + 1,
+        reason: session.isCompacting ? "compacting" : "prompt_pending",
       });
       return { stopReason: "queued" };
     }
@@ -1053,11 +1107,13 @@ export class SessionService {
             errorDetails ||
             "Session connection lost. Please retry or start a new session.",
           isPromptPending: false,
+          isCompacting: false,
           promptStartedAt: null,
         });
       } else {
         sessionStoreSetters.updateSession(session.taskRunId, {
           isPromptPending: false,
+          isCompacting: false,
           promptStartedAt: null,
         });
       }
@@ -1109,23 +1165,42 @@ export class SessionService {
 
   // --- Cloud Commands ---
 
+  private async prepareCloudPrompt(
+    prompt: string | ContentBlock[],
+  ): Promise<{ blocks: ContentBlock[]; promptText: string }> {
+    const blocks =
+      typeof prompt === "string"
+        ? await buildCloudPromptBlocks(prompt)
+        : prompt;
+
+    if (blocks.length === 0) {
+      throw new Error("Cloud prompt cannot be empty");
+    }
+
+    const promptText =
+      extractPromptText(blocks).trim() ||
+      (typeof prompt === "string" ? buildCloudTaskDescription(prompt) : "");
+
+    return { blocks, promptText };
+  }
+
   private async sendCloudPrompt(
     session: AgentSession,
     prompt: string | ContentBlock[],
     options?: { skipQueueGuard?: boolean },
   ): Promise<{ stopReason: string }> {
-    const promptText = extractPromptText(prompt);
-    if (!promptText.trim()) {
-      return { stopReason: "empty" };
-    }
-
-    const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
-    if (session.cloudStatus && terminalStatuses.has(session.cloudStatus)) {
-      return this.resumeCloudRun(session, promptText);
+    if (
+      session.cloudStatus &&
+      TERMINAL_CLOUD_STATUSES.has(session.cloudStatus)
+    ) {
+      return this.resumeCloudRun(session, prompt);
     }
 
     if (!options?.skipQueueGuard && session.isPromptPending) {
-      sessionStoreSetters.enqueueMessage(session.taskId, promptText);
+      sessionStoreSetters.enqueueMessage(
+        session.taskId,
+        typeof prompt === "string" ? prompt : extractPromptText(prompt),
+      );
       log.info("Cloud message queued", {
         taskId: session.taskId,
         queueLength: session.messageQueue.length + 1,
@@ -1137,6 +1212,8 @@ export class SessionService {
     if (!auth) {
       throw new Error("Authentication required for cloud commands");
     }
+
+    const { blocks, promptText } = await this.prepareCloudPrompt(prompt);
 
     sessionStoreSetters.updateSession(session.taskRunId, {
       isPromptPending: true,
@@ -1156,7 +1233,11 @@ export class SessionService {
         apiHost: auth.apiHost,
         teamId: auth.teamId,
         method: "user_message",
-        params: { content: promptText },
+        params: {
+          // The live /command API still validates user_message content as a
+          // string, so structured prompts must go through the serialized form.
+          content: serializeCloudPrompt(blocks),
+        },
       });
 
       sessionStoreSetters.updateSession(session.taskRunId, {
@@ -1262,12 +1343,43 @@ export class SessionService {
 
   private async resumeCloudRun(
     session: AgentSession,
-    promptText: string,
+    prompt: string | ContentBlock[],
   ): Promise<{ stopReason: string }> {
     const client = await getAuthenticatedClient();
     if (!client) {
       throw new Error("Authentication required for cloud commands");
     }
+
+    const { blocks, promptText } = await this.prepareCloudPrompt(prompt);
+
+    const [previousRun, task] = await Promise.all([
+      client.getTaskRun(session.taskId, session.taskRunId),
+      client.getTask(session.taskId),
+    ]);
+    const hasGitHubRepo = !!task.repository && !!task.github_integration;
+    const previousState = previousRun.state as Record<string, unknown>;
+    const previousOutput = (previousRun.output ?? {}) as Record<
+      string,
+      unknown
+    >;
+    // Prefer the actual working branch the agent last pushed to (synced by
+    // agent-server after each turn), then the run-level branch field, then
+    // the original base branch from state. This preserves unmerged work when
+    // the snapshot has expired and the sandbox is rebuilt from scratch.
+    const previousBaseBranch =
+      (typeof previousOutput.head_branch === "string"
+        ? previousOutput.head_branch
+        : null) ??
+      previousRun.branch ??
+      (typeof previousState.pr_base_branch === "string"
+        ? previousState.pr_base_branch
+        : null) ??
+      session.cloudBranch;
+    const prAuthorshipMode = this.getCloudPrAuthorshipMode(previousState);
+    const githubUserToken =
+      prAuthorshipMode === "user" && hasGitHubRepo
+        ? await getGhUserTokenOrThrow()
+        : undefined;
 
     log.info("Creating resume run for terminal cloud task", {
       taskId: session.taskId,
@@ -1280,10 +1392,17 @@ export class SessionService {
     // The agent will load conversation history and restore the sandbox snapshot.
     const updatedTask = await client.runTaskInCloud(
       session.taskId,
-      session.cloudBranch,
+      previousBaseBranch,
       {
         resumeFromRunId: session.taskRunId,
-        pendingUserMessage: promptText,
+        pendingUserMessage: serializeCloudPrompt(blocks),
+        prAuthorshipMode,
+        runSource: this.getCloudRunSource(previousState),
+        signalReportId:
+          typeof previousState.signal_report_id === "string"
+            ? previousState.signal_report_id
+            : undefined,
+        githubUserToken,
       },
     );
     const newRun = updatedTask.latest_run;
@@ -1332,8 +1451,10 @@ export class SessionService {
   }
 
   private async cancelCloudPrompt(session: AgentSession): Promise<boolean> {
-    const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
-    if (session.cloudStatus && terminalStatuses.has(session.cloudStatus)) {
+    if (
+      session.cloudStatus &&
+      TERMINAL_CLOUD_STATUSES.has(session.cloudStatus)
+    ) {
       log.info("Skipping cancel for terminal cloud run", {
         taskId: session.taskId,
         status: session.cloudStatus,
@@ -1989,8 +2110,7 @@ export class SessionService {
         }
       }
 
-      const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
-      if (update.status && terminalStatuses.has(update.status)) {
+      if (update.status && TERMINAL_CLOUD_STATUSES.has(update.status)) {
         // Clean up any pending resume messages that couldn't be sent
         const session = sessionStoreSetters.getSessions()[taskRunId];
         if (
@@ -2005,6 +2125,20 @@ export class SessionService {
         this.stopCloudTaskWatch(update.taskId);
       }
     }
+  }
+
+  private getCloudPrAuthorshipMode(
+    state: Record<string, unknown>,
+  ): PrAuthorshipMode {
+    const explicitMode = state.pr_authorship_mode;
+    if (explicitMode === "user" || explicitMode === "bot") {
+      return explicitMode;
+    }
+    return state.run_source === "signal_report" ? "bot" : "user";
+  }
+
+  private getCloudRunSource(state: Record<string, unknown>): CloudRunSource {
+    return state.run_source === "signal_report" ? "signal_report" : "manual";
   }
 
   /**
@@ -2150,6 +2284,7 @@ export class SessionService {
       startedAt: Date.now(),
       status: "connecting",
       isPromptPending: false,
+      isCompacting: false,
       promptStartedAt: null,
       pendingPermissions: new Map(),
       pausedDurationMs: 0,

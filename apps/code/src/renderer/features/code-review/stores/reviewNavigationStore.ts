@@ -1,8 +1,11 @@
 import { create } from "zustand";
 
+export type ReviewMode = "closed" | "split" | "expanded";
+
 interface ReviewNavigationStoreState {
   activeFilePaths: Record<string, string | null>;
   scrollRequests: Record<string, string | null>;
+  reviewModes: Record<string, ReviewMode>;
 }
 
 interface ReviewNavigationStoreActions {
@@ -10,15 +13,18 @@ interface ReviewNavigationStoreActions {
   requestScrollToFile: (taskId: string, path: string) => void;
   clearScrollRequest: (taskId: string) => void;
   clearTask: (taskId: string) => void;
+  setReviewMode: (taskId: string, mode: ReviewMode) => void;
+  getReviewMode: (taskId: string) => ReviewMode;
 }
 
 type ReviewNavigationStore = ReviewNavigationStoreState &
   ReviewNavigationStoreActions;
 
 export const useReviewNavigationStore = create<ReviewNavigationStore>()(
-  (set) => ({
+  (set, get) => ({
     activeFilePaths: {},
     scrollRequests: {},
+    reviewModes: {},
 
     setActiveFilePath: (taskId, path) =>
       set((state) => ({
@@ -40,5 +46,12 @@ export const useReviewNavigationStore = create<ReviewNavigationStore>()(
         activeFilePaths: { ...state.activeFilePaths, [taskId]: null },
         scrollRequests: { ...state.scrollRequests, [taskId]: null },
       })),
+
+    setReviewMode: (taskId, mode) =>
+      set((state) => ({
+        reviewModes: { ...state.reviewModes, [taskId]: mode },
+      })),
+
+    getReviewMode: (taskId) => get().reviewModes[taskId] ?? "closed",
   }),
 );

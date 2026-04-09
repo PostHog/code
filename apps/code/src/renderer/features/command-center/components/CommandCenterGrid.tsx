@@ -103,6 +103,7 @@ function GridCell({
     // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: click delegates focus to ActionSelector within
     <div
       ref={cellRef}
+      data-grid-cell
       className="relative overflow-hidden bg-gray-1"
       onClick={handleCellClick}
       onPointerDownCapture={handleCellPointerDownCapture}

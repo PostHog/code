@@ -110,6 +110,7 @@ export class ContextMenuService {
     return this.showMenu<TaskAction>([
       this.item("Rename", { type: "rename" }),
       this.item(isPinned ? "Unpin" : "Pin", { type: "pin" }),
+      this.item("Copy Task ID", { type: "copy-task-id" }),
       this.separator(),
       ...(worktreePath
         ? [this.item("Suspend", { type: "suspend" as const })]

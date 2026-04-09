@@ -1,7 +1,6 @@
+import { DiffStatsBadge } from "@features/code-review/components/DiffStatsBadge";
 import { CloudGitInteractionHeader } from "@features/git-interaction/components/CloudGitInteractionHeader";
 import { GitInteractionHeader } from "@features/git-interaction/components/GitInteractionHeader";
-import { RightSidebarTrigger } from "@features/right-sidebar/components/RightSidebarTrigger";
-import { useRightSidebarStore } from "@features/right-sidebar/stores/rightSidebarStore";
 import { SidebarTrigger } from "@features/sidebar/components/SidebarTrigger";
 import { useSidebarStore } from "@features/sidebar/stores/sidebarStore";
 import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
@@ -24,30 +23,13 @@ export function HeaderRow() {
   const isResizing = useSidebarStore((state) => state.isResizing);
   const setIsResizing = useSidebarStore((state) => state.setIsResizing);
 
-  const rightSidebarOpen = useRightSidebarStore((state) => state.open);
-  const rightSidebarWidth = useRightSidebarStore((state) => state.width);
-  const rightSidebarIsResizing = useRightSidebarStore(
-    (state) => state.isResizing,
-  );
-  const setRightSidebarIsResizing = useRightSidebarStore(
-    (state) => state.setIsResizing,
-  );
-
   const activeTaskId = view.type === "task-detail" ? view.data?.id : undefined;
   const activeWorkspace = useWorkspace(activeTaskId);
   const isCloudTask = activeWorkspace?.mode === "cloud";
-  const showRightSidebarSection = view.type === "task-detail";
 
   const handleLeftSidebarMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizing(true);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  };
-
-  const handleRightSidebarMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setRightSidebarIsResizing(true);
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
   };
@@ -108,45 +90,24 @@ export function HeaderRow() {
         </Flex>
       )}
 
-      {showRightSidebarSection && view.type === "task-detail" && view.data && (
+      {view.type === "task-detail" && view.data && (
         <Flex
           align="center"
-          justify={rightSidebarOpen ? "between" : "end"}
-          px="3"
+          gap="3"
+          pr="3"
           style={{
-            width: rightSidebarOpen ? `${rightSidebarWidth}px` : undefined,
-            minWidth: rightSidebarOpen ? `${COLLAPSED_WIDTH}px` : undefined,
             height: "100%",
-            borderLeft: "1px solid var(--gray-6)",
-            transition: rightSidebarIsResizing
-              ? "none"
-              : "width 0.2s ease-in-out",
-            position: "relative",
+            flexShrink: 0,
           }}
         >
-          <RightSidebarTrigger />
-          {rightSidebarOpen &&
-            (isCloudTask ? (
+          <div className="no-drag">
+            {isCloudTask ? (
               <CloudGitInteractionHeader taskId={view.data.id} />
             ) : (
               <GitInteractionHeader taskId={view.data.id} />
-            ))}
-          {rightSidebarOpen && (
-            <Box
-              onMouseDown={handleRightSidebarMouseDown}
-              className="no-drag"
-              style={{
-                position: "absolute",
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: "4px",
-                cursor: "col-resize",
-                backgroundColor: "transparent",
-                zIndex: 100,
-              }}
-            />
-          )}
+            )}
+          </div>
+          <DiffStatsBadge task={view.data} />
         </Flex>
       )}
     </Flex>
