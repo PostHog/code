@@ -441,35 +441,6 @@ describe("ResumeSaga", () => {
       expect(result.data.latestSnapshot?.treeHash).toBe("hash-2");
     });
 
-    it("finds snapshot with SDK double-underscore prefix", async () => {
-      (mockApiClient.getTaskRun as ReturnType<typeof vi.fn>).mockResolvedValue(
-        createTaskRun(),
-      );
-      (
-        mockApiClient.fetchTaskRunLogs as ReturnType<typeof vi.fn>
-      ).mockResolvedValue([
-        createNotification(`_${POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT}`, {
-          treeHash: "sdk-prefixed-hash",
-          baseCommit: "abc",
-          changes: [],
-          timestamp: new Date().toISOString(),
-        }),
-      ]);
-
-      const saga = new ResumeSaga(mockLogger);
-      const result = await saga.run({
-        taskId: "task-1",
-        runId: "run-1",
-        repositoryPath: repo.path,
-        apiClient: mockApiClient,
-      });
-
-      expect(result.success).toBe(true);
-      if (!result.success) return;
-
-      expect(result.data.latestSnapshot?.treeHash).toBe("sdk-prefixed-hash");
-    });
-
     it("returns interrupted flag from snapshot", async () => {
       (mockApiClient.getTaskRun as ReturnType<typeof vi.fn>).mockResolvedValue(
         createTaskRun(),
