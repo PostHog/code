@@ -1,10 +1,10 @@
 import { isFullyRolledOut } from "./flag-classification.js";
-import type { Experiment, FeatureFlag, StalenessReason } from "./types.js";
-
-export interface StalenessCheckOptions {
-  /** Minimum age in days before a fully-rolled-out flag is considered stale. Default: 30 */
-  staleFlagAgeDays?: number;
-}
+import type {
+  Experiment,
+  FeatureFlag,
+  StalenessCheckOptions,
+  StalenessReason,
+} from "./types.js";
 
 /** Classify why a flag key is stale, or return null if it's not stale. */
 export function classifyStaleness(

@@ -15,7 +15,6 @@ function makeFlag(overrides: Partial<FeatureFlag> = {}): FeatureFlag {
     name: "Test",
     active: true,
     filters: {},
-    rollout_percentage: null,
     created_at: "2024-01-01",
     created_by: null,
     deleted: false,
@@ -149,15 +148,18 @@ describe("isFullyRolledOut", () => {
     expect(isFullyRolledOut(flag)).toBe(false);
   });
 
-  test("top-level rollout_percentage 100 with no groups returns true", () => {
-    const flag = makeFlag({ rollout_percentage: 100, filters: {} });
-    expect(isFullyRolledOut(flag)).toBe(true);
+  test("no groups and no multivariate returns false", () => {
+    const flag = makeFlag({ filters: {} });
+    expect(isFullyRolledOut(flag)).toBe(false);
   });
 });
 
 describe("extractRollout", () => {
-  test("top-level rollout returns it", () => {
-    expect(extractRollout(makeFlag({ rollout_percentage: 75 }))).toBe(75);
+  test("rollout from groups returns it", () => {
+    const flag = makeFlag({
+      filters: { groups: [{ rollout_percentage: 75 }] },
+    });
+    expect(extractRollout(flag)).toBe(75);
   });
 
   test("rollout in groups returns it", () => {
@@ -171,16 +173,18 @@ describe("extractRollout", () => {
     expect(extractRollout(makeFlag({ filters: {} }))).toBe(null);
   });
 
-  test("null top-level falls through to groups", () => {
+  test("first group rollout is returned", () => {
     const flag = makeFlag({
-      rollout_percentage: null,
       filters: { groups: [{ rollout_percentage: 60 }] },
     });
     expect(extractRollout(flag)).toBe(60);
   });
 
   test("rollout 0 returns 0 (not null)", () => {
-    expect(extractRollout(makeFlag({ rollout_percentage: 0 }))).toBe(0);
+    const flag = makeFlag({
+      filters: { groups: [{ rollout_percentage: 0 }] },
+    });
+    expect(extractRollout(flag)).toBe(0);
   });
 });
 

@@ -1,12 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: [
-    "src/index.ts",
-    "src/flag-classification.ts",
-    "src/stale-flags.ts",
-    "src/types.ts",
-  ],
+  entry: ["src/index.ts"],
   format: ["esm"],
   dts: true,
   sourcemap: true,

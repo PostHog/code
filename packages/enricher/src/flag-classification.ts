@@ -48,20 +48,11 @@ export function isFullyRolledOut(flag: FeatureFlag): boolean {
     });
   }
 
-  if (flag.rollout_percentage === 100) {
-    return true;
-  }
   return false;
 }
 
 /** Extract rollout percentage from a flag's filters */
 export function extractRollout(flag: FeatureFlag): number | null {
-  if (
-    flag.rollout_percentage !== null &&
-    flag.rollout_percentage !== undefined
-  ) {
-    return flag.rollout_percentage;
-  }
   const filters = flag.filters as Record<string, unknown> | undefined;
   if (filters?.groups && Array.isArray(filters.groups)) {
     for (const group of filters.groups) {

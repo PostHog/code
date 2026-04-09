@@ -9,7 +9,6 @@ function makeFlag(overrides: Partial<FeatureFlag> = {}): FeatureFlag {
     name: "Test",
     active: true,
     filters: {},
-    rollout_percentage: null,
     created_at: "2024-01-01",
     created_by: null,
     deleted: false,

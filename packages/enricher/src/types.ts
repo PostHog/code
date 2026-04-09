@@ -78,7 +78,6 @@ export interface FeatureFlag {
   name: string;
   active: boolean;
   filters: Record<string, unknown>;
-  rollout_percentage: number | null;
   created_at: string;
   created_by: { email: string; first_name: string } | null;
   deleted: boolean;
@@ -99,7 +98,13 @@ export interface Experiment {
     feature_flag_variants?: { key: string; rollout_percentage: number }[];
     recommended_sample_size?: number;
   };
-  conclusion?: "won" | "lost" | null;
+  conclusion?:
+    | "won"
+    | "lost"
+    | "inconclusive"
+    | "stopped_early"
+    | "invalid"
+    | null;
   conclusion_comment?: string | null;
 }
 
@@ -113,11 +118,11 @@ export interface ExperimentMetric {
 export interface EventDefinition {
   id: string;
   name: string;
-  description: string | null;
+  description?: string | null;
   tags: string[];
   last_seen_at: string | null;
-  verified: boolean;
-  hidden: boolean;
+  verified?: boolean;
+  hidden?: boolean;
 }
 
 // ── Stale flag types ──
@@ -129,3 +134,88 @@ export type StalenessReason =
   | "experiment_complete";
 
 export type FlagType = "boolean" | "multivariate" | "remote_config";
+
+// ── Enricher types ──
+
+export interface CapturedEvent {
+  name: string;
+  line: number;
+  dynamic: boolean;
+}
+
+export interface FlagCheck {
+  method: string;
+  flagKey: string;
+  line: number;
+}
+
+export interface ListItem {
+  type: "event" | "flag" | "init";
+  line: number;
+  name: string;
+  method: string;
+  detail?: string;
+}
+
+export interface EnrichedListItem extends ListItem {
+  flagType?: FlagType;
+  staleness?: StalenessReason | null;
+  rollout?: number | null;
+  experimentName?: string | null;
+  experimentStatus?: "running" | "complete" | null;
+  verified?: boolean;
+  description?: string | null;
+  volume?: number;
+  uniqueUsers?: number;
+  lastSeenAt?: string | null;
+  tags?: string[];
+}
+
+export interface EventStats {
+  volume?: number;
+  uniqueUsers?: number;
+  lastSeenAt?: string | null;
+}
+
+export interface EnrichmentContext {
+  flags?: Map<string, FeatureFlag>;
+  experiments?: Experiment[];
+  eventDefinitions?: Map<string, EventDefinition>;
+  eventStats?: Map<string, EventStats>;
+  stalenessOptions?: StalenessCheckOptions;
+}
+
+export interface StalenessCheckOptions {
+  staleFlagAgeDays?: number;
+}
+
+export interface EnrichedFlag {
+  flagKey: string;
+  occurrences: FlagCheck[];
+  flag: FeatureFlag | undefined;
+  flagType: FlagType;
+  staleness: StalenessReason | null;
+  rollout: number | null;
+  variants: { key: string; rollout_percentage: number }[];
+  experiment: Experiment | undefined;
+}
+
+export interface EnrichedEvent {
+  eventName: string;
+  occurrences: CapturedEvent[];
+  definition: EventDefinition | undefined;
+  verified: boolean;
+  lastSeenAt: string | null;
+  tags: string[];
+  stats: EventStats | undefined;
+}
+
+// ── API configuration ──
+
+export interface EnricherApiConfig {
+  apiKey: string;
+  host: string;
+  projectId: number;
+  /** Timeout in ms for each API request (default: 10 000). */
+  timeoutMs?: number;
+}
