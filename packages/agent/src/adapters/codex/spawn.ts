@@ -4,6 +4,7 @@ import { delimiter, dirname } from "node:path";
 import type { Readable, Writable } from "node:stream";
 import type { ProcessSpawnedCallback } from "../../types";
 import { Logger } from "../../utils/logger";
+import type { CodexSettings } from "./settings";
 
 export interface CodexProcessOptions {
   cwd?: string;
@@ -14,6 +15,7 @@ export interface CodexProcessOptions {
   binaryPath?: string;
   logger?: Logger;
   processCallbacks?: ProcessSpawnedCallback;
+  settings?: CodexSettings;
 }
 
 export interface CodexProcess {
@@ -27,6 +29,24 @@ function buildConfigArgs(options: CodexProcessOptions): string[] {
   const args: string[] = [];
 
   args.push("-c", `features.remote_models=false`);
+
+  // Disable the user's local MCPs one-by-one so Codex only uses the MCPs we
+  // provide via ACP. We can't use `-c mcp_servers={}` because that makes Codex
+  // ignore MCPs entirely, including the ones we inject later.
+  for (const name of options.settings?.mcpServerNames ?? []) {
+    args.push("-c", `mcp_servers.${name}.enabled=false`);
+  }
+
+  // TEMPORARY DEBUG: PostHog LLM gateway /v1/models is returning
+  //   "truncation_policy": {"mode":"bytes","limit":0}
+  // for every model, which codex-rs interprets as "replace every MCP tool
+  // output with the placeholder `…N chars truncated…`". This erases tool
+  // results before the model sees them and causes hallucinations.
+  //
+  // This override raises tool_output_token_limit to an effectively unbounded
+  // value to verify that truncation is the cause. REVERT once the gateway
+  // fix ships. See investigation in chat on 2026-04-09.
+  args.push("-c", `tool_output_token_limit=2000000`);
 
   if (options.apiBaseUrl) {
     args.push("-c", `model_provider="posthog"`);
