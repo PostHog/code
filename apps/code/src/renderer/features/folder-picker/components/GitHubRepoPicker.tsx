@@ -1,6 +1,8 @@
 import { Combobox } from "@components/ui/combobox/Combobox";
+import { useComboboxFilter } from "@components/ui/combobox/useComboboxFilter";
 import { GithubLogo } from "@phosphor-icons/react";
 import { Button, Flex, Text } from "@radix-ui/themes";
+import { useState } from "react";
 
 interface GitHubRepoPickerProps {
   value: string | null;
@@ -21,6 +23,14 @@ export function GitHubRepoPicker({
   size = "1",
   disabled = false,
 }: GitHubRepoPickerProps) {
+  const [open, setOpen] = useState(false);
+  const {
+    filtered: filteredRepos,
+    onSearchChange,
+    hasMore,
+    moreCount,
+  } = useComboboxFilter(repositories, { limit: 50, open });
+
   if (isLoading) {
     return (
       <Button color="gray" variant="outline" size={size} disabled>
@@ -47,6 +57,8 @@ export function GitHubRepoPicker({
     <Combobox.Root
       value={value ?? ""}
       onValueChange={onChange}
+      open={open}
+      onOpenChange={setOpen}
       size={size}
       disabled={disabled}
     >
@@ -58,14 +70,23 @@ export function GitHubRepoPicker({
           </Text>
         </Flex>
       </Combobox.Trigger>
-      <Combobox.Content>
-        <Combobox.Input placeholder="Search repositories..." />
+      <Combobox.Content shouldFilter={false}>
+        <Combobox.Input
+          placeholder="Search repositories..."
+          onValueChange={onSearchChange}
+        />
         <Combobox.Empty>No repositories found.</Combobox.Empty>
-        {repositories.map((repo) => (
+        {filteredRepos.map((repo) => (
           <Combobox.Item key={repo} value={repo} textValue={repo}>
             {repo}
           </Combobox.Item>
         ))}
+        {hasMore && (
+          <div className="combobox-label">
+            {moreCount} more {moreCount === 1 ? "repo" : "repos"} — type to
+            filter
+          </div>
+        )}
       </Combobox.Content>
     </Combobox.Root>
   );
