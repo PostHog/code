@@ -9,7 +9,12 @@ export {
   isFullyRolledOut,
 } from "./flag-classification.js";
 export type { LangFamily, QueryStrings } from "./languages.js";
-export { ALL_FLAG_METHODS, CLIENT_NAMES, LANG_FAMILIES } from "./languages.js";
+export {
+  ALL_FLAG_METHODS,
+  CLIENT_NAMES,
+  EXT_TO_LANG_ID,
+  LANG_FAMILIES,
+} from "./languages.js";
 export type { DetectorLogger } from "./log.js";
 export { setLogger } from "./log.js";
 export {

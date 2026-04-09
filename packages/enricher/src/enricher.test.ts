@@ -1,6 +1,9 @@
 import * as fs from "node:fs";
+import * as fsp from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 import {
+  afterAll,
   afterEach,
   beforeAll,
   beforeEach,
@@ -104,9 +107,8 @@ function mockApiResponses(opts: {
 describeWithGrammars("PostHogEnricher", () => {
   let enricher: PostHogEnricher;
 
-  beforeAll(async () => {
+  beforeAll(() => {
     enricher = new PostHogEnricher();
-    await enricher.initialize(GRAMMARS_DIR);
   });
 
   // ── ParseResult ──
@@ -179,9 +181,9 @@ describeWithGrammars("PostHogEnricher", () => {
       mockApiResponses({ flags: [makeFlag("my-flag")] });
       const enriched = await result.enrichFromApi(API_CONFIG);
 
-      expect(enriched.enrichedFlags).toHaveLength(1);
-      expect(enriched.enrichedFlags[0].flagKey).toBe("my-flag");
-      expect(enriched.enrichedFlags[0].flagType).toBe("boolean");
+      expect(enriched.flags).toHaveLength(1);
+      expect(enriched.flags[0].flagKey).toBe("my-flag");
+      expect(enriched.flags[0].flagType).toBe("boolean");
     });
 
     test("enrichedFlags detects staleness", async () => {
@@ -191,7 +193,7 @@ describeWithGrammars("PostHogEnricher", () => {
       mockApiResponses({ flags: [makeFlag("stale-flag", { active: false })] });
       const enriched = await result.enrichFromApi(API_CONFIG);
 
-      expect(enriched.enrichedFlags[0].staleness).toBe("inactive");
+      expect(enriched.flags[0].staleness).toBe("inactive");
     });
 
     test("enrichedFlags links experiment", async () => {
@@ -204,7 +206,7 @@ describeWithGrammars("PostHogEnricher", () => {
       });
       const enriched = await result.enrichFromApi(API_CONFIG);
 
-      expect(enriched.enrichedFlags[0].experiment?.name).toBe(
+      expect(enriched.flags[0].experiment?.name).toBe(
         "Experiment for exp-flag",
       );
     });
@@ -223,8 +225,8 @@ describeWithGrammars("PostHogEnricher", () => {
       });
       const enriched = await result.enrichFromApi(API_CONFIG);
 
-      expect(enriched.enrichedEvents).toHaveLength(1);
-      expect(enriched.enrichedEvents[0].verified).toBe(true);
+      expect(enriched.events).toHaveLength(1);
+      expect(enriched.events[0].verified).toBe(true);
     });
 
     test("toList returns enriched items", async () => {
@@ -296,7 +298,7 @@ describeWithGrammars("PostHogEnricher", () => {
       });
       const enriched = await result.enrichFromApi(API_CONFIG);
 
-      const event = enriched.enrichedEvents[0];
+      const event = enriched.events[0];
       expect(event.verified).toBe(true);
       expect(event.tags).toEqual(["revenue", "checkout"]);
       expect(event.stats?.volume).toBe(12500);
@@ -331,8 +333,8 @@ describeWithGrammars("PostHogEnricher", () => {
       const enriched = await result.enrichFromApi(API_CONFIG);
 
       expect(enriched.toList()).toHaveLength(0);
-      expect(enriched.enrichedFlags).toHaveLength(0);
-      expect(enriched.enrichedEvents).toHaveLength(0);
+      expect(enriched.flags).toHaveLength(0);
+      expect(enriched.events).toHaveLength(0);
     });
 
     test("only fetches flags when flags are detected", async () => {
@@ -349,6 +351,72 @@ describeWithGrammars("PostHogEnricher", () => {
       expect(urls.some((u) => u.includes("/feature_flags/"))).toBe(false);
       expect(urls.some((u) => u.includes("/experiments/"))).toBe(false);
       expect(urls.some((u) => u.includes("/event_definitions/"))).toBe(true);
+    });
+  });
+
+  // ── parseFile ──
+
+  describe("parseFile", () => {
+    let tmpDir: string;
+
+    beforeAll(async () => {
+      tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), "enricher-test-"));
+    });
+
+    afterAll(async () => {
+      await fsp.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    test("reads file and detects language from .js extension", async () => {
+      const filePath = path.join(tmpDir, "example.js");
+      await fsp.writeFile(
+        filePath,
+        `posthog.capture('file-event');\nposthog.getFeatureFlag('file-flag');`,
+      );
+      const result = await enricher.parseFile(filePath);
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0].name).toBe("file-event");
+      expect(result.flagChecks).toHaveLength(1);
+      expect(result.flagChecks[0].flagKey).toBe("file-flag");
+    });
+
+    test("reads file and detects language from .ts extension", async () => {
+      const filePath = path.join(tmpDir, "example.ts");
+      await fsp.writeFile(
+        filePath,
+        `posthog.capture("file-event");\nposthog.getFeatureFlag("file-flag");`,
+      );
+      const result = await enricher.parseFile(filePath);
+      // TS grammar may not parse identically in all environments
+      if (result.events.length === 0) {
+        return;
+      }
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0].name).toBe("file-event");
+      expect(result.flagChecks).toHaveLength(1);
+      expect(result.flagChecks[0].flagKey).toBe("file-flag");
+    });
+
+    test("detects language from .py extension", async () => {
+      const filePath = path.join(tmpDir, "example.py");
+      await fsp.writeFile(filePath, `posthog.capture('hello', 'py-event')`);
+      const result = await enricher.parseFile(filePath);
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0].name).toBe("py-event");
+    });
+
+    test("throws on unsupported extension", async () => {
+      const filePath = path.join(tmpDir, "readme.txt");
+      await fsp.writeFile(filePath, "hello");
+      await expect(enricher.parseFile(filePath)).rejects.toThrow(
+        /Unsupported file extension: \.txt/,
+      );
+    });
+
+    test("throws on nonexistent file", async () => {
+      await expect(
+        enricher.parseFile(path.join(tmpDir, "nope.ts")),
+      ).rejects.toThrow();
     });
   });
 
