@@ -1,4 +1,5 @@
 import { Combobox } from "@components/ui/combobox/Combobox";
+import { useComboboxFilter } from "@components/ui/combobox/useComboboxFilter";
 import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
 import { getSuggestedBranchName } from "@features/git-interaction/utils/getSuggestedBranchName";
 import { invalidateGitBranchQueries } from "@features/git-interaction/utils/gitCacheKeys";
@@ -62,6 +63,17 @@ export function BranchSelector({
   const branches = isCloudMode ? (cloudBranches ?? []) : localBranches;
   const effectiveLoading = loading || (isCloudMode && cloudBranchesLoading);
 
+  const {
+    filtered: filteredBranches,
+    onSearchChange,
+    hasMore,
+    moreCount,
+  } = useComboboxFilter(branches, {
+    limit: 50,
+    pinned: [displayedBranch, defaultBranch].filter(Boolean) as string[],
+    open,
+  });
+
   const checkoutMutation = useMutation(
     trpc.git.checkoutBranch.mutationOptions({
       onSuccess: () => {
@@ -118,23 +130,34 @@ export function BranchSelector({
           {triggerContent}
         </Combobox.Trigger>
 
-        <Combobox.Content>
-          <Combobox.Input placeholder="Search branches" />
+        <Combobox.Content shouldFilter={false}>
+          <Combobox.Input
+            placeholder="Search branches"
+            onValueChange={onSearchChange}
+          />
           <Combobox.Empty>No branches found.</Combobox.Empty>
 
-          <Combobox.Group
-            heading={isCloudMode ? "Remote branches" : "Local branches"}
-          >
-            {branches.map((branch) => (
-              <Combobox.Item
-                key={branch}
-                value={branch}
-                icon={<GitBranch size={11} weight="regular" />}
-              >
-                {branch}
-              </Combobox.Item>
-            ))}
-          </Combobox.Group>
+          {filteredBranches.length > 0 && (
+            <Combobox.Group
+              heading={isCloudMode ? "Remote branches" : "Local branches"}
+            >
+              {filteredBranches.map((branch) => (
+                <Combobox.Item
+                  key={branch}
+                  value={branch}
+                  icon={<GitBranch size={11} weight="regular" />}
+                >
+                  {branch}
+                </Combobox.Item>
+              ))}
+              {hasMore && (
+                <div className="combobox-label">
+                  {moreCount} more {moreCount === 1 ? "branch" : "branches"} —
+                  type to filter
+                </div>
+              )}
+            </Combobox.Group>
+          )}
 
           {!isCloudMode && (
             <Combobox.Footer>
