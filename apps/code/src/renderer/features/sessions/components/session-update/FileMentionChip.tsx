@@ -76,6 +76,12 @@ export const FileMentionChip = memo(function FileMentionChip({
 
   const isClickable = !!taskId;
 
+  const relativePath = toRelativePath(filePath, repoPath ?? null);
+  const directory =
+    relativePath && relativePath !== filename
+      ? relativePath.replace(`/${filename}`, "")
+      : null;
+
   return (
     <Flex
       align="center"
@@ -87,6 +93,9 @@ export const FileMentionChip = memo(function FileMentionChip({
     >
       <Text size="1">
         <FileIcon filename={filename} size={12} />
+        {directory && (
+          <span className="font-mono text-gray-9">{directory}/</span>
+        )}
         <span className="font-mono">{filename}</span>
       </Text>
     </Flex>
