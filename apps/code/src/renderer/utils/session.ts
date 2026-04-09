@@ -18,6 +18,7 @@ import {
   isJsonRpcNotification,
   isJsonRpcRequest,
 } from "@shared/types/session-events";
+import { extractPromptDisplayContent } from "@utils/promptContent";
 
 /**
  * Convert a stored log entry to an ACP message.
@@ -197,16 +198,9 @@ export function extractUserPromptsFromEvents(events: AcpMessage[]): string[] {
   return prompts;
 }
 
-/**
- * Extract prompt text from ContentBlocks, filtering out hidden blocks.
- */
 export function extractPromptText(prompt: string | ContentBlock[]): string {
   if (typeof prompt === "string") return prompt;
-
-  return (prompt as ContentBlock[])
-    .filter((b) => b.type === "text")
-    .map((b) => (b as { text: string }).text)
-    .join("");
+  return extractPromptDisplayContent(prompt).text;
 }
 
 /**

@@ -1,3 +1,5 @@
+import { escapeXmlAttr } from "@utils/xml";
+
 export interface MentionChip {
   type:
     | "file"
@@ -33,14 +35,6 @@ export function contentToPlainText(content: EditorContent): string {
       return `@${chip.label}`;
     })
     .join("");
-}
-
-function escapeXmlAttr(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
 
 export function contentToXml(content: EditorContent): string {

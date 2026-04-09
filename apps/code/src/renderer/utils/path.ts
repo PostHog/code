@@ -36,7 +36,13 @@ export function compactHomePath(text: string): string {
     .replace(/\/home\/[^/\s]+/g, "~");
 }
 
+export function getFileName(filePath: string): string {
+  const parts = filePath.split(/[\\/]/);
+  return parts[parts.length - 1] || filePath;
+}
+
 export function getFileExtension(filePath: string): string {
-  const parts = filePath.split(".");
-  return parts.length > 1 ? parts[parts.length - 1] : "";
+  const name = getFileName(filePath);
+  const lastDot = name.lastIndexOf(".");
+  return lastDot >= 0 ? name.slice(lastDot + 1).toLowerCase() : "";
 }

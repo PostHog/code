@@ -767,6 +767,9 @@ importers:
 
   packages/shared:
     devDependencies:
+      '@agentclientprotocol/sdk':
+        specifier: 0.16.1
+        version: 0.16.1(zod@4.3.6)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
