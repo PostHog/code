@@ -9,6 +9,7 @@ import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useRepositoryIntegration } from "@hooks/useIntegrations";
+import { useMeQuery } from "@hooks/useMeQuery";
 import {
   ArrowSquareOutIcon,
   CaretRightIcon,
@@ -16,6 +17,7 @@ import {
   ClockIcon,
   Cloud as CloudIcon,
   CommandIcon,
+  EyeIcon,
   GithubLogoIcon,
   KeyReturnIcon,
   WarningIcon,
@@ -36,6 +38,7 @@ import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type {
   SignalReport,
   SignalReportArtefact,
+  SuggestedReviewer,
   SuggestedReviewersArtefact,
 } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
@@ -46,6 +49,20 @@ import { SignalReportStatusBadge } from "../utils/SignalReportStatusBadge";
 import { SignalReportSummaryMarkdown } from "../utils/SignalReportSummaryMarkdown";
 import { ReportTaskLogs } from "./ReportTaskLogs";
 import { SignalCard } from "./SignalCard";
+
+function isSuggestedReviewerRowMe(
+  reviewer: SuggestedReviewer,
+  me: { uuid: string; github_login: string | null } | undefined | null,
+): boolean {
+  if (!me) return false;
+  if (reviewer.user?.uuid && me.uuid === reviewer.user.uuid) return true;
+  if (me.github_login && reviewer.github_login) {
+    return (
+      me.github_login.toLowerCase() === reviewer.github_login.toLowerCase()
+    );
+  }
+  return false;
+}
 
 // ── JudgmentBadges (only used in detail pane) ───────────────────────────────
 
@@ -184,6 +201,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
   // ── Auth / URLs ─────────────────────────────────────────────────────────
   const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
   const projectId = useAuthStateValue((state) => state.projectId);
+  const { data: me } = useMeQuery();
   const replayBaseUrl =
     cloudRegion && projectId
       ? `${getCloudUrlFromRegion(cloudRegion)}/project/${projectId}/replay`
@@ -412,52 +430,69 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
                 Suggested reviewers
               </Text>
               <Flex direction="column" gap="1">
-                {suggestedReviewers.map((reviewer) => (
-                  <Flex
-                    key={reviewer.github_login}
-                    align="center"
-                    gap="2"
-                    wrap="wrap"
-                  >
-                    <GithubLogoIcon
-                      size={14}
-                      className="shrink-0 text-gray-10"
-                    />
-                    <Text size="1" className="text-[12px]">
-                      {reviewer.user?.first_name ??
-                        reviewer.github_name ??
-                        reviewer.github_login}
-                    </Text>
-                    <a
-                      href={`https://github.com/${reviewer.github_login}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-0.5 text-[11px] text-gray-9 hover:text-gray-11"
+                {suggestedReviewers.map((reviewer) => {
+                  const isMe = isSuggestedReviewerRowMe(reviewer, me);
+                  return (
+                    <Flex
+                      key={reviewer.github_login}
+                      align="center"
+                      gap="2"
+                      wrap="wrap"
                     >
-                      @{reviewer.github_login}
-                      <ArrowSquareOutIcon size={10} />
-                    </a>
-                    {reviewer.relevant_commits.length > 0 && (
-                      <span className="text-[11px] text-gray-9">
-                        {reviewer.relevant_commits.map((commit, i) => (
-                          <span key={commit.sha}>
-                            {i > 0 && ", "}
-                            <Tooltip content={commit.reason || undefined}>
-                              <a
-                                href={commit.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="font-mono text-gray-9 hover:text-gray-11"
-                              >
-                                {commit.sha.slice(0, 7)}
-                              </a>
-                            </Tooltip>
+                      <GithubLogoIcon
+                        size={14}
+                        className="shrink-0 text-gray-10"
+                      />
+                      <Text size="1" className="text-[12px]">
+                        {reviewer.user?.first_name ??
+                          reviewer.github_name ??
+                          reviewer.github_login}
+                      </Text>
+                      {isMe && (
+                        <Tooltip content="You are a suggested reviewer">
+                          <span
+                            className="inline-flex shrink-0 items-center rounded-sm px-1 py-px"
+                            style={{
+                              color: "var(--amber-11)",
+                              backgroundColor: "var(--amber-3)",
+                              border: "1px solid var(--amber-6)",
+                            }}
+                          >
+                            <EyeIcon size={10} weight="bold" />
                           </span>
-                        ))}
-                      </span>
-                    )}
-                  </Flex>
-                ))}
+                        </Tooltip>
+                      )}
+                      <a
+                        href={`https://github.com/${reviewer.github_login}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-0.5 text-[11px] text-gray-9 hover:text-gray-11"
+                      >
+                        @{reviewer.github_login}
+                        <ArrowSquareOutIcon size={10} />
+                      </a>
+                      {reviewer.relevant_commits.length > 0 && (
+                        <span className="text-[11px] text-gray-9">
+                          {reviewer.relevant_commits.map((commit, i) => (
+                            <span key={commit.sha}>
+                              {i > 0 && ", "}
+                              <Tooltip content={commit.reason || undefined}>
+                                <a
+                                  href={commit.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="font-mono text-gray-9 hover:text-gray-11"
+                                >
+                                  {commit.sha.slice(0, 7)}
+                                </a>
+                              </Tooltip>
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </Flex>
+                  );
+                })}
               </Flex>
             </Box>
           )}

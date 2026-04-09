@@ -40,7 +40,7 @@ export function ReportListRow({
   const rowBgClass = isSelected
     ? "bg-gray-3"
     : report.is_suggested_reviewer
-      ? "bg-blue-2"
+      ? "bg-amber-2"
       : "";
 
   const firstProduct = (report.source_products ?? [])[0];
