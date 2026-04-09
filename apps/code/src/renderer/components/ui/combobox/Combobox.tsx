@@ -173,9 +173,11 @@ function ComboboxTrigger({
         style={style}
       >
         <span className="combobox-trigger-inner">{displayValue}</span>
-        <span className="combobox-trigger-icon">
-          <CaretDown weight="bold" />
-        </span>
+        {!disabled && (
+          <span className="combobox-trigger-icon">
+            <CaretDown weight="bold" />
+          </span>
+        )}
       </button>
     </Popover.Trigger>
   );
