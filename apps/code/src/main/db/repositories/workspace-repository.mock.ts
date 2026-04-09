@@ -41,6 +41,7 @@ export function createMockWorkspaceRepository(): MockWorkspaceRepository {
         pinnedAt: null,
         lastViewedAt: null,
         lastActivityAt: null,
+        linkedBranch: null,
         createdAt: now,
         updatedAt: now,
       };
@@ -62,6 +63,7 @@ export function createMockWorkspaceRepository(): MockWorkspaceRepository {
         workspaces.delete(id);
       }
     },
+    updateLinkedBranch: () => {},
     updatePinnedAt: () => {},
     updateLastViewedAt: () => {},
     updateLastActivityAt: () => {},
