@@ -44,6 +44,7 @@ import {
   getPrChangedFilesOutput,
   getPrTemplateInput,
   getPrTemplateOutput,
+  ghAuthTokenOutput,
   ghStatusOutput,
   gitStateSnapshotSchema,
   openPrInput,
@@ -263,6 +264,10 @@ export const gitRouter = router({
   getGhStatus: publicProcedure
     .output(ghStatusOutput)
     .query(() => getService().getGhStatus()),
+
+  getGhAuthToken: publicProcedure
+    .output(ghAuthTokenOutput)
+    .query(() => getService().getGhAuthToken()),
 
   getPrStatus: publicProcedure
     .input(prStatusInput)

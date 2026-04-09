@@ -46,6 +46,7 @@ import type {
   DiscardFileChangesOutput,
   GetCommitConventionsOutput,
   GetPrTemplateOutput,
+  GhAuthTokenOutput,
   GhStatusOutput,
   GitCommitInfo,
   GitFileStatus,
@@ -703,6 +704,33 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       error: authenticated
         ? null
         : authResult.stderr || authResult.error || null,
+    };
+  }
+
+  public async getGhAuthToken(): Promise<GhAuthTokenOutput> {
+    const result = await execGh(["auth", "token"]);
+    if (result.exitCode !== 0) {
+      return {
+        success: false,
+        token: null,
+        error:
+          result.stderr || result.error || "Failed to read GitHub auth token",
+      };
+    }
+
+    const token = result.stdout.trim();
+    if (!token) {
+      return {
+        success: false,
+        token: null,
+        error: "GitHub auth token is empty",
+      };
+    }
+
+    return {
+      success: true,
+      token,
+      error: null,
     };
   }
 

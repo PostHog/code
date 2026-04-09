@@ -18,6 +18,7 @@ import type {
   Task,
   TaskRun,
 } from "@shared/types";
+import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
 import type { StoredLogEntry } from "@shared/types/session-events";
 import { logger } from "@utils/logger";
 import { buildApiFetcher } from "./fetcher";
@@ -732,6 +733,10 @@ export class PostHogAPIClient {
       resumeFromRunId?: string;
       pendingUserMessage?: string;
       sandboxEnvironmentId?: string;
+      prAuthorshipMode?: PrAuthorshipMode;
+      runSource?: CloudRunSource;
+      signalReportId?: string;
+      githubUserToken?: string;
     },
   ): Promise<Task> {
     const teamId = await this.getTeamId();
@@ -747,6 +752,18 @@ export class PostHogAPIClient {
     }
     if (options?.sandboxEnvironmentId) {
       body.sandbox_environment_id = options.sandboxEnvironmentId;
+    }
+    if (options?.prAuthorshipMode) {
+      body.pr_authorship_mode = options.prAuthorshipMode;
+    }
+    if (options?.runSource) {
+      body.run_source = options.runSource;
+    }
+    if (options?.signalReportId) {
+      body.signal_report_id = options.signalReportId;
+    }
+    if (options?.githubUserToken) {
+      body.github_user_token = options.githubUserToken;
     }
 
     const data = await this.api.post(
