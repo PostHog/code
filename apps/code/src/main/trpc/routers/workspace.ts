@@ -186,12 +186,12 @@ export const workspaceRouter = router({
   linkBranch: publicProcedure
     .input(linkBranchInput)
     .mutation(({ input }) =>
-      getService().linkBranch(input.taskId, input.branchName),
+      getService().linkBranch(input.taskId, input.branchName, "user"),
     ),
 
   unlinkBranch: publicProcedure
     .input(unlinkBranchInput)
-    .mutation(({ input }) => getService().unlinkBranch(input.taskId)),
+    .mutation(({ input }) => getService().unlinkBranch(input.taskId, "user")),
 
   onError: subscribe(WorkspaceServiceEvent.Error),
   onWarning: subscribe(WorkspaceServiceEvent.Warning),
