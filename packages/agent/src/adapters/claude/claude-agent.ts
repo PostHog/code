@@ -474,6 +474,17 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
             const result = handleResultMessage(message);
             if (result.error) throw result.error;
 
+            // Deliver structured output from SDK's native outputFormat
+            if (
+              message.subtype === "success" &&
+              message.structured_output != null &&
+              this.options?.onStructuredOutput
+            ) {
+              await this.options.onStructuredOutput(
+                message.structured_output as Record<string, unknown>,
+              );
+            }
+
             // For local-only commands, forward the result text to the client
             if (
               isLocalOnlyCommand &&
@@ -808,44 +819,13 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const mcpServers = supportsMcpInjection(earlyModelId)
       ? parseMcpServers(params)
       : {};
-    let systemPrompt = buildSystemPrompt(meta?.systemPrompt);
+    const systemPrompt = buildSystemPrompt(meta?.systemPrompt);
 
-    // Inject structured output tool if the task defines a JSON schema
-    if (meta?.jsonSchema && this.options?.onStructuredOutput) {
-      const { createOutputMcpServer, OUTPUT_SERVER_NAME } = await import(
-        "./structured-output/create-output-server"
-      );
-      mcpServers[OUTPUT_SERVER_NAME] = createOutputMcpServer({
-        jsonSchema: meta.jsonSchema,
-        onOutput: this.options.onStructuredOutput,
-        logger: this.logger,
-      });
-
-      const schemaStr = JSON.stringify(meta.jsonSchema, null, 2);
-      const outputInstruction =
-        "\n\n# Structured Output\n\n" +
-        "This task requires structured output. You MUST use the `create_output` tool " +
-        "(available as `mcp__posthog_output__create_output`) to deliver your final result " +
-        "before ending the task. The output must conform to the following JSON Schema:\n\n" +
-        `\`\`\`json\n${schemaStr}\n\`\`\`\n\n` +
-        "Call the create_output tool with the required fields as arguments once you have " +
-        "gathered all necessary information. Do not end the task without calling create_output.";
-
-      if (typeof systemPrompt === "string") {
-        systemPrompt = systemPrompt + outputInstruction;
-      } else if (
-        systemPrompt &&
-        typeof systemPrompt === "object" &&
-        "append" in systemPrompt
-      ) {
-        systemPrompt = {
-          ...systemPrompt,
-          append:
-            ((systemPrompt as { append?: string }).append ?? "") +
-            outputInstruction,
-        };
-      }
-    }
+    // Configure structured output via SDK's native outputFormat
+    const outputFormat =
+      meta?.jsonSchema && this.options?.onStructuredOutput
+        ? { type: "json_schema" as const, schema: meta.jsonSchema }
+        : undefined;
 
     this.logger.info(isResume ? "Resuming session" : "Creating new session", {
       sessionId,
@@ -876,6 +856,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         ...(meta?.additionalRoots ?? []),
       ],
       disableBuiltInTools: meta?.disableBuiltInTools,
+      outputFormat,
       settingsManager,
       onModeChange: this.createOnModeChange(),
       onProcessSpawned: this.options?.onProcessSpawned,
