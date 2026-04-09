@@ -922,6 +922,46 @@ describe("SessionService", () => {
       expect(mockTrpcAgent.reconnect.mutate).toHaveBeenCalled();
     });
 
+    it("creates fresh session when initialPrompt is set (prompt never delivered)", async () => {
+      const service = getSessionService();
+      const mockSession = createMockSession({
+        status: "error",
+        initialPrompt: [{ type: "text", text: "fix the bug" }],
+      });
+      // First call returns the error session, subsequent calls return connected
+      mockSessionStoreSetters.getSessionByTaskId
+        .mockReturnValueOnce(mockSession)
+        .mockReturnValue(
+          createMockSession({
+            taskRunId: "new-run",
+            status: "connected",
+          }),
+        );
+      mockTrpcAgent.start.mutate.mockResolvedValue({
+        channel: "agent-event:new-run",
+        configOptions: [],
+      });
+      mockTrpcAgent.onSessionEvent.subscribe.mockReturnValue({
+        unsubscribe: vi.fn(),
+      });
+      mockTrpcAgent.onPermissionRequest.subscribe.mockReturnValue({
+        unsubscribe: vi.fn(),
+      });
+      mockTrpcAgent.prompt.mutate.mockResolvedValue({ stopReason: "end_turn" });
+      mockBuildAuthenticatedClient.mockReturnValue({
+        createTaskRun: vi.fn().mockResolvedValue({ id: "new-run" }),
+        appendTaskRunLog: vi.fn(),
+      });
+
+      await service.clearSessionError("task-123", "/repo");
+
+      // Should tear down old session and create a new one
+      expect(mockTrpcAgent.cancel.mutate).toHaveBeenCalledWith({
+        sessionId: "run-123",
+      });
+      expect(mockTrpcAgent.start.mutate).toHaveBeenCalled();
+    });
+
     it("handles missing session gracefully", async () => {
       const service = getSessionService();
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(undefined);

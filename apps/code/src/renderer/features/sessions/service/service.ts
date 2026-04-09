@@ -758,6 +758,14 @@ export class SessionService {
       isJsonRpcRequest(acpMsg.message) &&
       acpMsg.message.method === "session/prompt";
 
+    // Once the agent starts responding, clear initialPrompt so that
+    // retry reconnects to this session instead of creating a new one.
+    if (!isUserPromptEcho && session.initialPrompt?.length) {
+      sessionStoreSetters.updateSession(taskRunId, {
+        initialPrompt: undefined,
+      });
+    }
+
     if (isUserPromptEcho) {
       sessionStoreSetters.replaceOptimisticWithEvent(taskRunId, acpMsg);
     } else {
