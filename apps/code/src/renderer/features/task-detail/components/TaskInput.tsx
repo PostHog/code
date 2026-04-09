@@ -102,7 +102,7 @@ export function TaskInput({
   const setAdapter = (newAdapter: AgentAdapter) =>
     setLastUsedAdapter(newAdapter);
 
-  const { githubIntegration, repositories, isLoadingRepos } =
+  const { repositories, getIntegrationIdForRepo, isLoadingRepos } =
     useRepositoryIntegration();
   const [selectedRepository, setSelectedRepository] = useState<string | null>(
     () => lastUsedCloudRepository?.toLowerCase() ?? null,
@@ -115,8 +115,12 @@ export function TaskInput({
   const { currentBranch, branchLoading, defaultBranch } =
     useGitQueries(selectedDirectory);
 
+  const selectedIntegrationId = selectedCloudRepository
+    ? getIntegrationIdForRepo(selectedCloudRepository)
+    : undefined;
+
   const { data: cloudBranchData, isPending: cloudBranchesLoading } =
-    useGithubBranches(githubIntegration?.id, selectedCloudRepository);
+    useGithubBranches(selectedIntegrationId, selectedCloudRepository);
   const cloudBranches = cloudBranchData?.branches;
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
@@ -184,12 +188,7 @@ export function TaskInput({
   }, [lastUsedCloudRepository, selectedRepository]);
 
   useEffect(() => {
-    if (
-      isLoadingRepos ||
-      !githubIntegration ||
-      !selectedRepository ||
-      selectedCloudRepository
-    ) {
+    if (isLoadingRepos || !selectedRepository || selectedCloudRepository) {
       return;
     }
 
@@ -198,7 +197,6 @@ export function TaskInput({
       setLastUsedCloudRepository(null);
     }
   }, [
-    githubIntegration,
     isLoadingRepos,
     lastUsedCloudRepository,
     selectedCloudRepository,
@@ -264,7 +262,7 @@ export function TaskInput({
     editorRef,
     selectedDirectory,
     selectedRepository: selectedCloudRepository,
-    githubIntegrationId: githubIntegration?.id,
+    githubIntegrationId: selectedIntegrationId,
     workspaceMode: effectiveWorkspaceMode,
     branch: branchForTaskCreation,
     editorIsEmpty,

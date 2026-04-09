@@ -1,15 +1,13 @@
+import { useAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { AUTH_SCOPED_QUERY_META } from "@features/auth/hooks/authQueries";
 import {
+  type Integration,
   useIntegrationSelectors,
   useIntegrationStore,
 } from "@features/integrations/stores/integrationStore";
-import { useEffect } from "react";
+import { useQueries } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo } from "react";
 import { useAuthenticatedQuery } from "./useAuthenticatedQuery";
-
-interface Integration {
-  id: number;
-  kind: string;
-  [key: string]: unknown;
-}
 
 const integrationKeys = {
   all: ["integrations"] as const,
@@ -37,24 +35,36 @@ export function useIntegrations() {
   return query;
 }
 
-function useRepositories(integrationId?: number) {
-  const setRepositories = useIntegrationStore((state) => state.setRepositories);
+function useAllGithubRepositories(githubIntegrations: Integration[]) {
+  const client = useAuthenticatedClient();
 
-  const query = useAuthenticatedQuery(
-    integrationKeys.repositories(integrationId),
-    async (client) => {
-      if (!integrationId) return [];
-      return await client.getGithubRepositories(integrationId);
+  return useQueries({
+    queries: githubIntegrations.map((integration) => ({
+      queryKey: integrationKeys.repositories(integration.id),
+      queryFn: async () => {
+        if (!client) throw new Error("Not authenticated");
+        const repos = await client.getGithubRepositories(integration.id);
+        return { integrationId: integration.id, repos };
+      },
+      enabled: !!client,
+      staleTime: 5 * 60 * 1000,
+      meta: AUTH_SCOPED_QUERY_META,
+    })),
+    combine: (results) => {
+      const map: Record<string, number> = {};
+      let pending = false;
+      for (const result of results) {
+        if (result.isPending) pending = true;
+        if (!result.data) continue;
+        for (const repo of result.data.repos) {
+          if (!(repo in map)) {
+            map[repo] = result.data.integrationId;
+          }
+        }
+      }
+      return { repositoryMap: map, isPending: pending };
     },
-  );
-
-  useEffect(() => {
-    if (query.data) {
-      setRepositories(query.data);
-    }
-  }, [query.data, setRepositories]);
-
-  return query;
+  });
 }
 
 export function useGithubBranches(
@@ -73,16 +83,32 @@ export function useGithubBranches(
 
 export function useRepositoryIntegration() {
   const { isPending: integrationsPending } = useIntegrations();
-  const { githubIntegration } = useIntegrationSelectors();
-  const { isPending: reposPending } = useRepositories(githubIntegration?.id);
+  const { githubIntegrations, hasGithubIntegration } =
+    useIntegrationSelectors();
 
-  const repositories = useIntegrationStore((state) => state.repositories);
-  const { isRepoInIntegration } = useIntegrationSelectors();
+  const { repositoryMap, isPending: reposPending } =
+    useAllGithubRepositories(githubIntegrations);
+
+  const repositories = useMemo(
+    () => Object.keys(repositoryMap),
+    [repositoryMap],
+  );
+
+  const getIntegrationIdForRepo = useCallback(
+    (repoKey: string) => repositoryMap[repoKey?.toLowerCase()],
+    [repositoryMap],
+  );
+
+  const isRepoInIntegration = useCallback(
+    (repoKey: string) => !repoKey || repoKey.toLowerCase() in repositoryMap,
+    [repositoryMap],
+  );
 
   return {
-    githubIntegration,
     repositories,
+    getIntegrationIdForRepo,
     isRepoInIntegration,
     isLoadingRepos: integrationsPending || reposPending,
+    hasGithubIntegration,
   };
 }

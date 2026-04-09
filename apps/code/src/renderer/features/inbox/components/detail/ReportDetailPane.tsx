@@ -209,7 +209,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
   const { navigateToTaskInput, navigateToTask } = useNavigationStore();
   const draftActions = useDraftStore((s) => s.actions);
   const { invalidateTasks } = useCreateTask();
-  const { githubIntegration, repositories } = useRepositoryIntegration();
+  const { repositories, getIntegrationIdForRepo } = useRepositoryIntegration();
   const cloudModeEnabled = useFeatureFlag("twig-cloud-mode-toggle");
 
   const isRunningCloudTask = useInboxCloudTaskStore((s) => s.isRunning);
@@ -265,7 +265,9 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
 
     const result = await runCloudTask({
       prompt,
-      githubIntegrationId: githubIntegration?.id,
+      githubIntegrationId: selectedRepo
+        ? getIntegrationIdForRepo(selectedRepo)
+        : undefined,
       reportId: report.id,
     });
 
@@ -281,7 +283,8 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
     runCloudTask,
     invalidateTasks,
     navigateToTask,
-    githubIntegration?.id,
+    selectedRepo,
+    getIntegrationIdForRepo,
     report.id,
   ]);
 

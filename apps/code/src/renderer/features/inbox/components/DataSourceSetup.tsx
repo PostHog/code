@@ -59,8 +59,12 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
   const projectId = useAuthStateValue((state) => state.projectId);
   const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
   const client = useAuthenticatedClient();
-  const { githubIntegration, repositories, isLoadingRepos } =
-    useRepositoryIntegration();
+  const {
+    repositories,
+    getIntegrationIdForRepo,
+    isLoadingRepos,
+    hasGithubIntegration,
+  } = useRepositoryIntegration();
   const [repo, setRepo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -82,11 +86,11 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
 
   // Stop polling once integration appears
   useEffect(() => {
-    if (githubIntegration && connecting) {
+    if (hasGithubIntegration && connecting) {
       stopPolling();
       setConnecting(false);
     }
-  }, [githubIntegration, connecting, stopPolling]);
+  }, [hasGithubIntegration, connecting, stopPolling]);
 
   // Auto-select the first repo once loaded
   useEffect(() => {
@@ -137,7 +141,10 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
   }, [cloudRegion, projectId, client, stopPolling]);
 
   const handleSubmit = useCallback(async () => {
-    if (!projectId || !client || !repo || !githubIntegration) return;
+    const githubIntegrationId = repo
+      ? getIntegrationIdForRepo(repo)
+      : undefined;
+    if (!projectId || !client || !repo || !githubIntegrationId) return;
 
     setLoading(true);
     try {
@@ -147,7 +154,7 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
           repository: repo,
           auth_method: {
             selection: "oauth",
-            github_integration_id: githubIntegration.id,
+            github_integration_id: githubIntegrationId,
           },
           schemas: schemasPayload("github"),
         },
@@ -161,9 +168,9 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
     } finally {
       setLoading(false);
     }
-  }, [projectId, client, repo, githubIntegration, onComplete]);
+  }, [projectId, client, repo, getIntegrationIdForRepo, onComplete]);
 
-  if (!githubIntegration) {
+  if (!hasGithubIntegration) {
     return (
       <SetupFormContainer title="Connect GitHub">
         <Flex direction="column" gap="3">

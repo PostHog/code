@@ -54,11 +54,7 @@ export function GitHubRepoPicker({
         <Flex align="center" gap="2" style={{ minWidth: 0 }}>
           <GithubLogo size={16} weight="regular" style={{ flexShrink: 0 }} />
           <Text size={size} truncate>
-            {value
-              ? value.includes("/")
-                ? value.split("/").pop()
-                : value
-              : placeholder}
+            {value ?? placeholder}
           </Text>
         </Flex>
       </Combobox.Trigger>
