@@ -51,37 +51,36 @@ export function GitHubConnectionBanner() {
   const connectUrl = posthogCloudGithubAccountLinkUrl(cloudRegion);
 
   return (
-    <Button
-      size="1"
-      variant="soft"
-      color="gold"
-      className="text-[12px]"
-      style={{
-        position: "absolute",
-        bottom: 8,
-        left: 8,
-        right: 8,
-        zIndex: 20,
-      }}
-      tooltipContent={
-        <>
-          <InfoIcon size={14} className="mr-0.5" />
-          <div>
-            PostHog suggests report ownership based on the code's git history.
-            <br />
-            With your GitHub account verified,{" "}
-            <strong>reports relevant to you appear at the top</strong>.
-          </div>
-        </>
-      }
-      onClick={() => {
-        awaitingLink.current = true;
-        void trpcClient.os.openExternal.mutate({ url: connectUrl });
-      }}
-    >
-      <GithubLogoIcon size={12} />
-      Connect your GitHub profile to highlight what's relevant to you
-      <ArrowSquareOutIcon size={11} />
-    </Button>
+    <div className="pointer-events-auto absolute inset-x-2 bottom-2 z-20">
+      <Button
+        size="1"
+        variant="solid"
+        color="gray"
+        highContrast
+        className="h-fit w-full flex-wrap items-center justify-start gap-x-2 gap-y-1 whitespace-normal border-transparent bg-black py-1 text-left text-[12px] text-white leading-tight shadow-none hover:bg-neutral-900"
+        tooltipContent={
+          <>
+            <InfoIcon size={14} className="mr-0.5" />
+            <div>
+              PostHog Code suggests report ownership using cutting-edge{" "}
+              <code>git blame</code> technology.
+              <br />
+              For this, connect your GitHub profile (different from connecting
+              repositories).
+            </div>
+          </>
+        }
+        onClick={() => {
+          awaitingLink.current = true;
+          void trpcClient.os.openExternal.mutate({ url: connectUrl });
+        }}
+      >
+        <GithubLogoIcon className="flex-none" size={12} />
+        <span className="min-w-0 flex-1 basis-0">
+          {`Connect your GitHub profile to highlight what's relevant to you`}
+        </span>
+        <ArrowSquareOutIcon className="flex-none" size={11} />
+      </Button>
+    </div>
   );
 }
