@@ -21,6 +21,7 @@ interface BranchSelectorProps {
   onBranchSelect?: (branch: string | null) => void;
   cloudBranches?: string[];
   cloudBranchesLoading?: boolean;
+  cloudBranchesFetchingMore?: boolean;
   taskId?: string;
 }
 
@@ -36,6 +37,7 @@ export function BranchSelector({
   onBranchSelect,
   cloudBranches,
   cloudBranchesLoading,
+  cloudBranchesFetchingMore,
   taskId,
 }: BranchSelectorProps) {
   const [open, setOpen] = useState(false);
@@ -61,6 +63,8 @@ export function BranchSelector({
 
   const branches = isCloudMode ? (cloudBranches ?? []) : localBranches;
   const effectiveLoading = loading || (isCloudMode && cloudBranchesLoading);
+  const cloudStillLoading =
+    isCloudMode && cloudBranchesLoading && branches.length === 0;
 
   const checkoutMutation = useMutation(
     trpc.git.checkoutBranch.mutationOptions({
@@ -93,9 +97,12 @@ export function BranchSelector({
     ? "Loading..."
     : (displayedBranch ?? "No branch");
 
+  const showSpinner =
+    effectiveLoading || (isCloudMode && cloudBranchesFetchingMore);
+
   const triggerContent = (
     <Flex align="center" gap="1" style={{ minWidth: 0 }}>
-      {effectiveLoading ? (
+      {showSpinner ? (
         <Spinner size="1" />
       ) : (
         <GitBranch size={16} weight="regular" style={{ flexShrink: 0 }} />
@@ -112,7 +119,7 @@ export function BranchSelector({
         open={open}
         onOpenChange={setOpen}
         size="1"
-        disabled={disabled || !repoPath}
+        disabled={disabled || !repoPath || cloudStillLoading}
       >
         <Combobox.Trigger variant={variant} placeholder="No branch">
           {triggerContent}
@@ -126,6 +133,17 @@ export function BranchSelector({
           {({ filtered, hasMore, moreCount }) => (
             <>
               <Combobox.Input placeholder="Search branches" />
+              {isCloudMode && cloudBranchesFetchingMore && (
+                <Flex
+                  align="center"
+                  gap="1"
+                  className="combobox-label"
+                  style={{ padding: "6px 8px" }}
+                >
+                  <Spinner size="1" />
+                  Loading more ({branches.length})…
+                </Flex>
+              )}
               <Combobox.Empty>No branches found.</Combobox.Empty>
 
               {filtered.length > 0 && (

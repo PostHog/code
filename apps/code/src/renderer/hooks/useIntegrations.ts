@@ -7,6 +7,7 @@ import {
 } from "@features/integrations/stores/integrationStore";
 import { useQueries } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo } from "react";
+import { useAuthenticatedInfiniteQuery } from "./useAuthenticatedInfiniteQuery";
 import { useAuthenticatedQuery } from "./useAuthenticatedQuery";
 
 const integrationKeys = {
@@ -67,18 +68,63 @@ function useAllGithubRepositories(githubIntegrations: Integration[]) {
   });
 }
 
+const BRANCHES_PAGE_SIZE = 1000;
+
+interface GithubBranchesPage {
+  branches: string[];
+  defaultBranch: string | null;
+  hasMore: boolean;
+}
+
 export function useGithubBranches(
   integrationId?: number,
   repo?: string | null,
 ) {
-  return useAuthenticatedQuery(
+  const query = useAuthenticatedInfiniteQuery<GithubBranchesPage, number>(
     integrationKeys.branches(integrationId, repo),
-    async (client) => {
-      if (!integrationId || !repo) return { branches: [], defaultBranch: null };
-      return await client.getGithubBranches(integrationId, repo);
+    async (client, offset) => {
+      if (!integrationId || !repo) {
+        return { branches: [], defaultBranch: null, hasMore: false };
+      }
+      return await client.getGithubBranchesPage(
+        integrationId,
+        repo,
+        offset,
+        BRANCHES_PAGE_SIZE,
+      );
     },
-    { staleTime: 0, refetchOnMount: "always" },
+    {
+      initialPageParam: 0,
+      getNextPageParam: (lastPage, allPages) => {
+        if (!lastPage.hasMore) return undefined;
+        return allPages.reduce((n, p) => n + p.branches.length, 0);
+      },
+      staleTime: 0,
+    },
   );
+
+  // Auto-fetch remaining pages in background once the first page arrives
+  useEffect(() => {
+    if (query.hasNextPage && !query.isFetchingNextPage) {
+      query.fetchNextPage();
+    }
+  }, [query.hasNextPage, query.isFetchingNextPage, query.fetchNextPage]);
+
+  const data = useMemo(() => {
+    if (!query.data?.pages.length) {
+      return { branches: [] as string[], defaultBranch: null };
+    }
+    return {
+      branches: query.data.pages.flatMap((p) => p.branches),
+      defaultBranch: query.data.pages[0]?.defaultBranch ?? null,
+    };
+  }, [query.data?.pages]);
+
+  return {
+    data,
+    isPending: query.isPending,
+    isFetchingMore: query.isFetchingNextPage || (query.hasNextPage ?? false),
+  };
 }
 
 export function useRepositoryIntegration() {
