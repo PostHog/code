@@ -5,18 +5,29 @@ import {
   CaretUp,
   Check,
   Copy,
+  File,
   SlackLogo,
 } from "@phosphor-icons/react";
-import { Box, IconButton } from "@radix-ui/themes";
+import { Box, Flex, IconButton } from "@radix-ui/themes";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { hasFileMentions, parseFileMentions } from "./parseFileMentions";
+import {
+  hasFileMentions,
+  MentionChip,
+  parseFileMentions,
+} from "./parseFileMentions";
 
 const COLLAPSED_MAX_HEIGHT = 160;
+
+export interface UserMessageAttachment {
+  id: string;
+  label: string;
+}
 
 interface UserMessageProps {
   content: string;
   timestamp?: number;
   sourceUrl?: string;
+  attachments?: UserMessageAttachment[];
 }
 
 function formatTimestamp(ts: number): string {
@@ -34,8 +45,10 @@ export function UserMessage({
   content,
   timestamp,
   sourceUrl,
+  attachments = [],
 }: UserMessageProps) {
   const containsFileMentions = hasFileMentions(content);
+  const showAttachmentChips = attachments.length > 0 && !containsFileMentions;
   const [copied, setCopied] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -72,6 +85,17 @@ export function UserMessage({
           parseFileMentions(content)
         ) : (
           <MarkdownRenderer content={content} />
+        )}
+        {showAttachmentChips && (
+          <Flex wrap="wrap" gap="1" className={content.trim() ? "mt-1.5" : ""}>
+            {attachments.map((attachment) => (
+              <MentionChip
+                key={attachment.id}
+                icon={<File size={12} />}
+                label={attachment.label}
+              />
+            ))}
+          </Flex>
         )}
         {!isExpanded && isOverflowing && (
           <Box

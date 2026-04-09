@@ -1,3 +1,7 @@
+import {
+  buildCloudPromptBlocks,
+  serializeCloudPrompt,
+} from "@features/editor/utils/cloud-prompt";
 import { buildPromptBlocks } from "@features/editor/utils/prompt-builder";
 import { DEFAULT_PANEL_IDS } from "@features/panels/constants/panelConstants";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
@@ -61,6 +65,7 @@ export interface TaskCreationInput {
   taskId?: string;
   // For creating new task (required if no taskId)
   content?: string;
+  taskDescription?: string;
   filePaths?: string[];
   repoPath?: string;
   repository?: string | null;
@@ -99,6 +104,13 @@ export class TaskCreationSaga extends Saga<
   protected async execute(
     input: TaskCreationInput,
   ): Promise<TaskCreationOutput> {
+    const initialCloudPrompt =
+      input.workspaceMode === "cloud" && !input.taskId && input.content
+        ? await this.readOnlyStep("cloud_prompt_preparation", () =>
+            buildCloudPromptBlocks(input.content ?? "", input.filePaths),
+          )
+        : null;
+
     // Step 1: Get or create task
     // For new tasks, start folder registration in parallel with task creation
     // since folder_registration only needs repoPath (from input), not task.id
@@ -116,7 +128,11 @@ export class TaskCreationSaga extends Saga<
 
     // Fire-and-forget: generate a proper LLM title for new tasks
     if (!taskId) {
-      generateTaskTitle(task.id, input.content ?? "", this.deps.posthogClient);
+      generateTaskTitle(
+        task.id,
+        input.taskDescription ?? input.content ?? "",
+        this.deps.posthogClient,
+      );
     }
 
     const repoKey = getTaskRepository(task);
@@ -260,12 +276,12 @@ export class TaskCreationSaga extends Saga<
       task = await this.step({
         name: "cloud_run",
         execute: () =>
-          this.deps.posthogClient.runTaskInCloud(
-            task.id,
-            branch,
-            undefined,
-            input.sandboxEnvironmentId,
-          ),
+          this.deps.posthogClient.runTaskInCloud(task.id, branch, {
+            pendingUserMessage: initialCloudPrompt
+              ? serializeCloudPrompt(initialCloudPrompt)
+              : undefined,
+            sandboxEnvironmentId: input.sandboxEnvironmentId,
+          }),
         rollback: async () => {
           log.info("Rolling back: cloud run (no-op)", { taskId: task.id });
         },
@@ -390,7 +406,7 @@ export class TaskCreationSaga extends Saga<
       name: "task_creation",
       execute: async () => {
         const result = await this.deps.posthogClient.createTask({
-          description: input.content ?? "",
+          description: input.taskDescription ?? input.content ?? "",
           repository: repository ?? undefined,
           github_integration:
             input.workspaceMode === "cloud"

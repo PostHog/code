@@ -146,6 +146,7 @@ export function ConversationView({
           return (
             <UserMessage
               content={item.content}
+              attachments={item.attachments}
               timestamp={item.timestamp}
               sourceUrl={
                 slackThreadUrl && item.id === firstUserMessageId
