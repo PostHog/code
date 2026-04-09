@@ -68,7 +68,7 @@ function formatPauseRemaining(pausedUntil: string): string {
   return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
 }
 
-const inboxLivePollingTooltip = `Inbox refetches the report list about every ${(INBOX_REFETCH_INTERVAL_MS / 1000).toFixed(1)} seconds while this window is focused and Inbox is open. Refetching pauses when you switch to another app or navigate away from Inbox.`;
+const inboxLivePollingTooltip = `Inbox is focused – syncing reports every ${(INBOX_REFETCH_INTERVAL_MS / 1000).toFixed(1)} s…`;
 
 export function SignalsToolbar({
   totalCount,
