@@ -3,12 +3,14 @@ import path from "node:path";
 import { getRemoteUrl, isGitRepository } from "@posthog/git/queries";
 import { InitRepositorySaga } from "@posthog/git/sagas/init";
 
+import { normalizeRepoKey } from "@shared/utils/repo";
+
 function extractRepoKey(url: string): string | null {
   const httpsMatch = url.match(/github\.com\/([^/]+\/[^/]+)/);
-  if (httpsMatch) return httpsMatch[1].replace(/\.git$/, "");
+  if (httpsMatch) return normalizeRepoKey(httpsMatch[1]);
 
   const sshMatch = url.match(/github\.com:([^/]+\/[^/]+)/);
-  if (sshMatch) return sshMatch[1].replace(/\.git$/, "");
+  if (sshMatch) return normalizeRepoKey(sshMatch[1]);
 
   return null;
 }
@@ -26,10 +28,7 @@ import { MAIN_TOKENS } from "../../di/tokens";
 import { getMainWindow } from "../../trpc/context";
 import { logger } from "../../utils/logger";
 import { getWorktreeLocation } from "../settingsStore";
-import type {
-  CleanupOrphanedWorktreesOutput,
-  RegisteredFolder,
-} from "./schemas";
+import type { RegisteredFolder } from "./schemas";
 
 const log = logger.scope("folders-service");
 
@@ -42,7 +41,60 @@ export class FoldersService {
     private readonly workspaceRepo: IWorkspaceRepository,
     @inject(MAIN_TOKENS.WorktreeRepository)
     private readonly worktreeRepo: IWorktreeRepository,
-  ) {}
+  ) {
+    this.initialize().catch((err) => {
+      log.error("Folders initialization failed", err);
+    });
+  }
+
+  private async initialize(): Promise<void> {
+    const folders = await this.getFolders();
+
+    const deletedFolders = folders.filter((f) => !f.exists);
+    if (deletedFolders.length > 0) {
+      let removed = 0;
+      for (const folder of deletedFolders) {
+        try {
+          await this.removeFolder(folder.id);
+          removed++;
+        } catch (err) {
+          log.error(`Failed to remove deleted folder ${folder.path}:`, err);
+        }
+      }
+      if (removed > 0) {
+        log.info(`Removed ${removed} deleted folder(s)`);
+      }
+    }
+
+    const existingFolders = folders.filter((f) => f.exists);
+    const results = await Promise.allSettled(
+      existingFolders.map((folder) =>
+        this.cleanupOrphanedWorktrees(folder.path),
+      ),
+    );
+    for (const [i, result] of results.entries()) {
+      if (result.status === "rejected") {
+        log.error(
+          `Failed to cleanup orphaned worktrees for ${existingFolders[i].path}:`,
+          result.reason,
+        );
+      }
+    }
+  }
+
+  private getDisplayName(
+    repoPath: string,
+    remoteUrl: string | null | undefined,
+  ): string {
+    const localName = path.basename(repoPath);
+    if (remoteUrl) {
+      const repoName = normalizeRepoKey(remoteUrl).split("/").pop();
+      if (repoName && repoName.toLowerCase() !== localName.toLowerCase()) {
+        return `${localName} (${repoName})`;
+      }
+    }
+    return localName;
+  }
 
   async getFolders(): Promise<(RegisteredFolder & { exists: boolean })[]> {
     const repos = this.repositoryRepo.findAll();
@@ -51,7 +103,7 @@ export class FoldersService {
       .map((r) => ({
         id: r.id,
         path: r.path,
-        name: path.basename(r.path),
+        name: this.getDisplayName(r.path, r.remoteUrl),
         remoteUrl: r.remoteUrl ?? null,
         lastAccessed: r.lastAccessedAt ?? r.createdAt,
         createdAt: r.createdAt,
@@ -141,7 +193,7 @@ export class FoldersService {
     return {
       id: repo.id,
       path: repo.path,
-      name: path.basename(repo.path),
+      name: this.getDisplayName(repo.path, repo.remoteUrl),
       remoteUrl: repo.remoteUrl ?? null,
       lastAccessed: repo.lastAccessedAt ?? repo.createdAt,
       createdAt: repo.createdAt,
@@ -190,16 +242,14 @@ export class FoldersService {
     this.repositoryRepo.updateLastAccessed(folderId);
   }
 
-  async cleanupOrphanedWorktrees(
-    mainRepoPath: string,
-  ): Promise<CleanupOrphanedWorktreesOutput> {
+  async cleanupOrphanedWorktrees(mainRepoPath: string): Promise<void> {
     const worktreeBasePath = getWorktreeLocation();
     const manager = new WorktreeManager({ mainRepoPath, worktreeBasePath });
 
     const allWorktrees = this.worktreeRepo.findAll();
     const associatedWorktreePaths = allWorktrees.map((wt) => wt.path);
 
-    return await manager.cleanupOrphanedWorktrees(associatedWorktreePaths);
+    await manager.cleanupOrphanedWorktrees(associatedWorktreePaths);
   }
 
   getRepositoryByRemoteUrl(

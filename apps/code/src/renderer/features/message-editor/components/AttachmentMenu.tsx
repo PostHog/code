@@ -1,11 +1,13 @@
 import "./AttachmentMenu.css";
-import { Tooltip } from "@components/ui/Tooltip";
 import { File, GithubLogo, Paperclip } from "@phosphor-icons/react";
 import { IconButton, Popover } from "@radix-ui/themes";
-import { useTRPC } from "@renderer/trpc/client";
+import { trpcClient, useTRPC } from "@renderer/trpc/client";
+import { toast } from "@renderer/utils/toast";
 import { useQuery } from "@tanstack/react-query";
+import { getFileName } from "@utils/path";
 import { useRef, useState } from "react";
 import type { FileAttachment, MentionChip } from "../utils/content";
+import { persistBrowserFile } from "../utils/persistFile";
 import { IssuePicker } from "./IssuePicker";
 
 type View = "menu" | "issues";
@@ -54,19 +56,41 @@ export function AttachmentMenu({
 
   const issueDisabledReason = getIssueDisabledReason(ghStatus, repoPath);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      const fileArray = Array.from(files);
-      for (const file of fileArray) {
-        const filePath =
-          (file as globalThis.File & { path?: string }).path || file.name;
-        onAddAttachment({ id: filePath, label: file.name });
-      }
-      onAttachFiles?.(fileArray);
-    }
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+
+    if (files.length === 0) {
+      return;
+    }
+
+    try {
+      const attachments = await Promise.all(
+        files.map(async (file) => {
+          const filePath = (file as globalThis.File & { path?: string }).path;
+          if (filePath) {
+            return { id: filePath, label: file.name } satisfies FileAttachment;
+          }
+
+          return await persistBrowserFile(file);
+        }),
+      );
+
+      for (const attachment of attachments) {
+        if (attachment) {
+          onAddAttachment(attachment);
+        }
+      }
+
+      onAttachFiles?.(files);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to attach selected files from this picker",
+      );
     }
   };
 
@@ -77,8 +101,21 @@ export function AttachmentMenu({
     }
   };
 
-  const handleAddFile = () => {
+  const handleAddFile = async () => {
     setOpen(false);
+
+    try {
+      const filePaths = await trpcClient.os.selectFiles.query();
+      if (filePaths.length > 0) {
+        for (const filePath of filePaths) {
+          onAddAttachment({ id: filePath, label: getFileName(filePath) });
+        }
+      }
+      return;
+    } catch {
+      // Fall back to the input element for non-Electron environments.
+    }
+
     fileInputRef.current?.click();
   };
 
@@ -112,18 +149,17 @@ export function AttachmentMenu({
         style={{ display: "none" }}
       />
       <Popover.Root open={open} onOpenChange={handleOpenChange}>
-        <Tooltip content={attachTooltip}>
-          <Popover.Trigger>
-            <IconButton
-              size="1"
-              variant="ghost"
-              color="gray"
-              disabled={disabled}
-            >
-              <Paperclip size={iconSize} weight="bold" />
-            </IconButton>
-          </Popover.Trigger>
-        </Tooltip>
+        <Popover.Trigger>
+          <IconButton
+            size="1"
+            variant="ghost"
+            color="gray"
+            disabled={disabled}
+            title={attachTooltip}
+          >
+            <Paperclip size={iconSize} weight="bold" />
+          </IconButton>
+        </Popover.Trigger>
         <Popover.Content side="top" align="start" style={{ padding: 0 }}>
           {view === "menu" ? (
             <div className="attachment-menu">
@@ -138,9 +174,7 @@ export function AttachmentMenu({
                 <span>Add file</span>
               </button>
               {issueDisabledReason ? (
-                <Tooltip content={issueDisabledReason} side="right">
-                  <span>{issueButton}</span>
-                </Tooltip>
+                <span title={issueDisabledReason}>{issueButton}</span>
               ) : (
                 issueButton
               )}

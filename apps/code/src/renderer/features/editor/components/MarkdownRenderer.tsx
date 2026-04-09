@@ -12,6 +12,8 @@ import type { PluggableList } from "unified";
 interface MarkdownRendererProps {
   content: string;
   remarkPluginsOverride?: PluggableList;
+  componentsOverride?: Partial<Components>;
+  rehypePlugins?: PluggableList;
 }
 
 // Preprocessor to prevent setext heading interpretation of horizontal rules
@@ -170,14 +172,27 @@ export const defaultRemarkPlugins = [remarkGfm];
 export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
   remarkPluginsOverride,
+  componentsOverride,
+  rehypePlugins,
 }: MarkdownRendererProps) {
   const processedContent = useMemo(
     () => preprocessMarkdown(content),
     [content],
   );
   const plugins = remarkPluginsOverride ?? defaultRemarkPlugins;
+  const components = useMemo(
+    () =>
+      componentsOverride
+        ? { ...baseComponents, ...componentsOverride }
+        : baseComponents,
+    [componentsOverride],
+  );
   return (
-    <ReactMarkdown remarkPlugins={plugins} components={baseComponents}>
+    <ReactMarkdown
+      remarkPlugins={plugins}
+      rehypePlugins={rehypePlugins}
+      components={components}
+    >
       {processedContent}
     </ReactMarkdown>
   );

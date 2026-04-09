@@ -33,6 +33,7 @@ const externalAppAction = z.discriminatedUnion("type", [
 const taskAction = z.discriminatedUnion("type", [
   z.object({ type: z.literal("rename") }),
   z.object({ type: z.literal("pin") }),
+  z.object({ type: z.literal("copy-task-id") }),
   z.object({ type: z.literal("suspend") }),
   z.object({ type: z.literal("archive") }),
   z.object({ type: z.literal("delete") }),

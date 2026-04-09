@@ -1,3 +1,4 @@
+import type { ContentBlock } from "@agentclientprotocol/sdk";
 import type { AgentSession } from "@features/sessions/stores/sessionStore";
 import type { Task } from "@shared/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -29,11 +30,16 @@ const mockTrpcLogs = vi.hoisted(() => ({
   writeLocalLogs: { mutate: vi.fn() },
 }));
 
+const mockTrpcCloudTask = vi.hoisted(() => ({
+  sendCommand: { mutate: vi.fn() },
+}));
+
 vi.mock("@renderer/trpc/client", () => ({
   trpcClient: {
     agent: mockTrpcAgent,
     workspace: mockTrpcWorkspace,
     logs: mockTrpcLogs,
+    cloudTask: mockTrpcCloudTask,
   },
 }));
 
@@ -235,6 +241,7 @@ const createMockSession = (
   startedAt: Date.now(),
   status: "connected",
   isPromptPending: false,
+  isCompacting: false,
   promptStartedAt: null,
   pendingPermissions: new Map(),
   pausedDurationMs: 0,
@@ -551,6 +558,21 @@ describe("SessionService", () => {
       );
     });
 
+    it("queues message when compaction is in progress", async () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({ isCompacting: true }),
+      );
+
+      const result = await service.sendPrompt("task-123", "Hello");
+
+      expect(result.stopReason).toBe("queued");
+      expect(mockSessionStoreSetters.enqueueMessage).toHaveBeenCalledWith(
+        "task-123",
+        "Hello",
+      );
+    });
+
     it("sends prompt via tRPC when session is ready", async () => {
       const service = getSessionService();
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
@@ -565,6 +587,50 @@ describe("SessionService", () => {
         sessionId: "run-123",
         prompt: [{ type: "text", text: "Hello" }],
       });
+    });
+
+    it("serializes structured prompts before sending cloud follow-ups", async () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({
+          isCloud: true,
+          cloudStatus: "in_progress",
+        }),
+      );
+      mockTrpcCloudTask.sendCommand.mutate.mockResolvedValue({
+        success: true,
+        result: { stopReason: "end_turn" },
+      });
+
+      const prompt: ContentBlock[] = [
+        { type: "text", text: "read this" },
+        {
+          type: "resource",
+          resource: {
+            uri: "attachment://test.txt",
+            text: "hello from file",
+            mimeType: "text/plain",
+          },
+        },
+      ];
+
+      const result = await service.sendPrompt("task-123", prompt);
+
+      expect(result.stopReason).toBe("end_turn");
+      expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledTimes(1);
+
+      const [args] = mockTrpcCloudTask.sendCommand.mutate.mock.calls[0] as [
+        {
+          params?: { content?: unknown };
+        },
+      ];
+
+      expect(args.params?.content).toEqual(
+        expect.stringContaining("__twig_cloud_prompt_v1__:"),
+      );
+      expect(args.params?.content).toEqual(
+        expect.stringContaining('"type":"resource"'),
+      );
     });
 
     it("sets session to error state on fatal error", async () => {
@@ -854,6 +920,46 @@ describe("SessionService", () => {
       expect(mockSessionStoreSetters.removeSession).not.toHaveBeenCalled();
       // Should attempt reconnect in place
       expect(mockTrpcAgent.reconnect.mutate).toHaveBeenCalled();
+    });
+
+    it("creates fresh session when initialPrompt is set (prompt never delivered)", async () => {
+      const service = getSessionService();
+      const mockSession = createMockSession({
+        status: "error",
+        initialPrompt: [{ type: "text", text: "fix the bug" }],
+      });
+      // First call returns the error session, subsequent calls return connected
+      mockSessionStoreSetters.getSessionByTaskId
+        .mockReturnValueOnce(mockSession)
+        .mockReturnValue(
+          createMockSession({
+            taskRunId: "new-run",
+            status: "connected",
+          }),
+        );
+      mockTrpcAgent.start.mutate.mockResolvedValue({
+        channel: "agent-event:new-run",
+        configOptions: [],
+      });
+      mockTrpcAgent.onSessionEvent.subscribe.mockReturnValue({
+        unsubscribe: vi.fn(),
+      });
+      mockTrpcAgent.onPermissionRequest.subscribe.mockReturnValue({
+        unsubscribe: vi.fn(),
+      });
+      mockTrpcAgent.prompt.mutate.mockResolvedValue({ stopReason: "end_turn" });
+      mockBuildAuthenticatedClient.mockReturnValue({
+        createTaskRun: vi.fn().mockResolvedValue({ id: "new-run" }),
+        appendTaskRunLog: vi.fn(),
+      });
+
+      await service.clearSessionError("task-123", "/repo");
+
+      // Should tear down old session and create a new one
+      expect(mockTrpcAgent.cancel.mutate).toHaveBeenCalledWith({
+        sessionId: "run-123",
+      });
+      expect(mockTrpcAgent.start.mutate).toHaveBeenCalled();
     });
 
     it("handles missing session gracefully", async () => {

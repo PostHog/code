@@ -4,6 +4,10 @@ import type {
   SignalReportStatus,
 } from "@shared/types";
 
+function normalizeReviewerId(value: string): string {
+  return value.trim();
+}
+
 export function filterReportsBySearch(
   reports: SignalReport[],
   query: string,
@@ -38,4 +42,16 @@ export function buildSignalReportListOrdering(
 ): string {
   const fieldKey = direction === "desc" ? `-${field}` : field;
   return `status,-is_suggested_reviewer,${fieldKey}`;
+}
+
+export function buildSuggestedReviewerFilterParam(
+  reviewerIds: string[],
+): string | undefined {
+  const normalizedIds = reviewerIds.map(normalizeReviewerId).filter(Boolean);
+
+  if (normalizedIds.length === 0) {
+    return undefined;
+  }
+
+  return Array.from(new Set(normalizedIds)).join(",");
 }

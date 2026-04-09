@@ -128,6 +128,137 @@ describe("FoldersService", () => {
     vi.clearAllMocks();
   });
 
+  describe("initialize", () => {
+    function createService() {
+      return new FoldersService(
+        mockRepositoryRepo as unknown as IRepositoryRepository,
+        mockWorkspaceRepo as unknown as IWorkspaceRepository,
+        mockWorktreeRepo as unknown as IWorktreeRepository,
+      );
+    }
+
+    it("removes folders that no longer exist on disk", async () => {
+      mockRepositoryRepo.findAll.mockReturnValue([
+        {
+          id: "folder-1",
+          path: "/gone/project",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ]);
+      mockExistsSync.mockReturnValue(false);
+      mockRepositoryRepo.findById.mockReturnValue({
+        id: "folder-1",
+        path: "/gone/project",
+      });
+      mockWorkspaceRepo.findAllByRepositoryId.mockReturnValue([]);
+
+      createService();
+      await vi.waitFor(() => {
+        expect(mockRepositoryRepo.delete).toHaveBeenCalledWith("folder-1");
+      });
+    });
+
+    it("cleans up orphaned worktrees for each existing folder", async () => {
+      mockRepositoryRepo.findAll.mockReturnValue([
+        {
+          id: "folder-1",
+          path: "/home/user/project-a",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+        {
+          id: "folder-2",
+          path: "/home/user/project-b",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ]);
+      mockExistsSync.mockReturnValue(true);
+      mockWorktreeRepo.findAll.mockReturnValue([]);
+      mockWorktreeManager.cleanupOrphanedWorktrees.mockResolvedValue({
+        deleted: [],
+        errors: [],
+      });
+
+      createService();
+      await vi.waitFor(() => {
+        expect(
+          mockWorktreeManager.cleanupOrphanedWorktrees,
+        ).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it("continues if one folder removal fails", async () => {
+      mockRepositoryRepo.findAll.mockReturnValue([
+        {
+          id: "folder-1",
+          path: "/gone/a",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+        {
+          id: "folder-2",
+          path: "/gone/b",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ]);
+      mockExistsSync.mockReturnValue(false);
+      mockRepositoryRepo.findById
+        .mockReturnValueOnce({ id: "folder-1", path: "/gone/a" })
+        .mockReturnValueOnce({ id: "folder-2", path: "/gone/b" });
+      mockWorkspaceRepo.findAllByRepositoryId.mockReturnValue([]);
+      mockRepositoryRepo.delete
+        .mockImplementationOnce(() => {
+          throw new Error("db error");
+        })
+        .mockImplementationOnce(() => undefined);
+
+      createService();
+      await vi.waitFor(() => {
+        expect(mockRepositoryRepo.delete).toHaveBeenCalledTimes(2);
+        expect(mockRepositoryRepo.delete).toHaveBeenCalledWith("folder-2");
+      });
+    });
+
+    it("continues if one worktree cleanup fails", async () => {
+      mockRepositoryRepo.findAll.mockReturnValue([
+        {
+          id: "folder-1",
+          path: "/home/user/project-a",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+        {
+          id: "folder-2",
+          path: "/home/user/project-b",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ]);
+      mockExistsSync.mockReturnValue(true);
+      mockWorktreeRepo.findAll.mockReturnValue([]);
+      mockWorktreeManager.cleanupOrphanedWorktrees
+        .mockRejectedValueOnce(new Error("cleanup error"))
+        .mockResolvedValueOnce({ deleted: [], errors: [] });
+
+      createService();
+      await vi.waitFor(() => {
+        expect(
+          mockWorktreeManager.cleanupOrphanedWorktrees,
+        ).toHaveBeenCalledTimes(2);
+      });
+    });
+  });
+
   describe("getFolders", () => {
     it("returns empty array when no folders registered", async () => {
       mockRepositoryRepo.findAll.mockReturnValue([]);
@@ -163,6 +294,82 @@ describe("FoldersService", () => {
           exists: true,
         },
       ]);
+    });
+
+    it("strips .git suffix from remote repo name in display name (defensive against legacy data)", async () => {
+      const repos = [
+        {
+          id: "folder-1",
+          path: "/home/user/my-billing-fork",
+          remoteUrl: "PostHog/billing.git",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ];
+      mockRepositoryRepo.findAll.mockReturnValue(repos);
+      mockExistsSync.mockReturnValue(true);
+
+      const result = await service.getFolders();
+
+      expect(result[0].name).toBe("my-billing-fork (billing)");
+    });
+
+    it("uses remote repo name in display name when it differs from local dir", async () => {
+      const repos = [
+        {
+          id: "folder-1",
+          path: "/home/user/ph-tour-demo",
+          remoteUrl: "PostHog/hogotchi",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ];
+      mockRepositoryRepo.findAll.mockReturnValue(repos);
+      mockExistsSync.mockReturnValue(true);
+
+      const result = await service.getFolders();
+
+      expect(result[0].name).toBe("ph-tour-demo (hogotchi)");
+    });
+
+    it("uses local dir name when it matches remote repo name", async () => {
+      const repos = [
+        {
+          id: "folder-1",
+          path: "/home/user/hogotchi",
+          remoteUrl: "PostHog/hogotchi",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ];
+      mockRepositoryRepo.findAll.mockReturnValue(repos);
+      mockExistsSync.mockReturnValue(true);
+
+      const result = await service.getFolders();
+
+      expect(result[0].name).toBe("hogotchi");
+    });
+
+    it("uses local dir name when it matches remote repo name case-insensitively", async () => {
+      const repos = [
+        {
+          id: "folder-1",
+          path: "/home/user/Hogotchi",
+          remoteUrl: "PostHog/hogotchi",
+          lastAccessedAt: "2024-01-01T00:00:00.000Z",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ];
+      mockRepositoryRepo.findAll.mockReturnValue(repos);
+      mockExistsSync.mockReturnValue(true);
+
+      const result = await service.getFolders();
+
+      expect(result[0].name).toBe("Hogotchi");
     });
 
     it("marks non-existent folders", async () => {
@@ -318,11 +525,11 @@ describe("FoldersService", () => {
         errors: [],
       });
 
-      const result =
-        await service.cleanupOrphanedWorktrees("/home/user/project");
+      await service.cleanupOrphanedWorktrees("/home/user/project");
 
-      expect(result.deleted).toHaveLength(1);
-      expect(result.errors).toHaveLength(0);
+      expect(mockWorktreeManager.cleanupOrphanedWorktrees).toHaveBeenCalledWith(
+        [],
+      );
     });
 
     it("excludes associated worktrees from cleanup", async () => {

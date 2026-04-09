@@ -1,15 +1,24 @@
 import type {
+  ActionabilityJudgmentArtefact,
+  AvailableSuggestedReviewer,
+  AvailableSuggestedReviewersResponse,
+  PriorityJudgmentArtefact,
   SandboxEnvironment,
   SandboxEnvironmentInput,
+  SignalFindingArtefact,
+  SignalProcessingStateResponse,
+  SignalReport,
   SignalReportArtefact,
   SignalReportArtefactsResponse,
   SignalReportSignalsResponse,
+  SignalReportStatus,
   SignalReportsQueryParams,
   SignalReportsResponse,
   SuggestedReviewersArtefact,
   Task,
   TaskRun,
 } from "@shared/types";
+import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
 import type { StoredLogEntry } from "@shared/types/session-events";
 import { logger } from "@utils/logger";
 import { buildApiFetcher } from "./fetcher";
@@ -71,11 +80,130 @@ function optionalString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
-type AnyArtefact = SignalReportArtefact | SuggestedReviewersArtefact;
+type AnyArtefact =
+  | SignalReportArtefact
+  | PriorityJudgmentArtefact
+  | ActionabilityJudgmentArtefact
+  | SignalFindingArtefact
+  | SuggestedReviewersArtefact;
+
+const PRIORITY_VALUES = new Set(["P0", "P1", "P2", "P3", "P4"]);
+
+function normalizePriorityJudgmentArtefact(
+  value: Record<string, unknown>,
+): PriorityJudgmentArtefact | null {
+  const id = optionalString(value.id);
+  if (!id) return null;
+
+  const contentValue = isObjectRecord(value.content) ? value.content : null;
+  if (!contentValue) return null;
+
+  const priority = optionalString(contentValue.priority);
+  if (!priority || !PRIORITY_VALUES.has(priority)) return null;
+
+  return {
+    id,
+    type: "priority_judgment",
+    created_at: optionalString(value.created_at) ?? new Date(0).toISOString(),
+    content: {
+      explanation: optionalString(contentValue.explanation) ?? "",
+      priority: priority as PriorityJudgmentArtefact["content"]["priority"],
+    },
+  };
+}
+
+const ACTIONABILITY_VALUES = new Set([
+  "immediately_actionable",
+  "requires_human_input",
+  "not_actionable",
+]);
+
+function normalizeActionabilityJudgmentArtefact(
+  value: Record<string, unknown>,
+): ActionabilityJudgmentArtefact | null {
+  const id = optionalString(value.id);
+  if (!id) return null;
+
+  const contentValue = isObjectRecord(value.content) ? value.content : null;
+  if (!contentValue) return null;
+
+  // Support both agentic ("actionability") and legacy ("choice") field names
+  const actionability =
+    optionalString(contentValue.actionability) ??
+    optionalString(contentValue.choice);
+  if (!actionability || !ACTIONABILITY_VALUES.has(actionability)) return null;
+
+  return {
+    id,
+    type: "actionability_judgment",
+    created_at: optionalString(value.created_at) ?? new Date(0).toISOString(),
+    content: {
+      explanation: optionalString(contentValue.explanation) ?? "",
+      actionability:
+        actionability as ActionabilityJudgmentArtefact["content"]["actionability"],
+      already_addressed:
+        typeof contentValue.already_addressed === "boolean"
+          ? contentValue.already_addressed
+          : false,
+    },
+  };
+}
+
+function normalizeSignalFindingArtefact(
+  value: Record<string, unknown>,
+): SignalFindingArtefact | null {
+  const id = optionalString(value.id);
+  if (!id) return null;
+
+  const contentValue = isObjectRecord(value.content) ? value.content : null;
+  if (!contentValue) return null;
+
+  const signalId = optionalString(contentValue.signal_id);
+  if (!signalId) return null;
+
+  return {
+    id,
+    type: "signal_finding",
+    created_at: optionalString(value.created_at) ?? new Date(0).toISOString(),
+    content: {
+      signal_id: signalId,
+      relevant_code_paths: Array.isArray(contentValue.relevant_code_paths)
+        ? contentValue.relevant_code_paths.filter(
+            (p: unknown): p is string => typeof p === "string",
+          )
+        : [],
+      relevant_commit_hashes: isObjectRecord(
+        contentValue.relevant_commit_hashes,
+      )
+        ? Object.fromEntries(
+            Object.entries(contentValue.relevant_commit_hashes).filter(
+              (e): e is [string, string] => typeof e[1] === "string",
+            ),
+          )
+        : {},
+      data_queried: optionalString(contentValue.data_queried) ?? "",
+      verified:
+        typeof contentValue.verified === "boolean"
+          ? contentValue.verified
+          : false,
+    },
+  };
+}
 
 function normalizeSignalReportArtefact(value: unknown): AnyArtefact | null {
   if (!isObjectRecord(value)) {
     return null;
+  }
+
+  const dispatchType = optionalString(value.type);
+  if (dispatchType === "signal_finding") {
+    return normalizeSignalFindingArtefact(value);
+  }
+  if (dispatchType === "actionability_judgment") {
+    return normalizeActionabilityJudgmentArtefact(value);
+  }
+  if (dispatchType === "priority_judgment") {
+    return normalizePriorityJudgmentArtefact(value);
   }
 
   const id = optionalString(value.id);
@@ -83,7 +211,7 @@ function normalizeSignalReportArtefact(value: unknown): AnyArtefact | null {
     return null;
   }
 
-  const type = optionalString(value.type) ?? "unknown";
+  const type = dispatchType ?? "unknown";
   const created_at =
     optionalString(value.created_at) ?? new Date(0).toISOString();
 
@@ -156,6 +284,50 @@ function parseSignalReportArtefactsPayload(
   return {
     results,
     count,
+  };
+}
+
+function normalizeAvailableSuggestedReviewer(
+  uuid: string,
+  value: unknown,
+): AvailableSuggestedReviewer | null {
+  if (!isObjectRecord(value)) {
+    return null;
+  }
+
+  const normalizedUuid = optionalString(uuid);
+  if (!normalizedUuid) {
+    return null;
+  }
+
+  return {
+    uuid: normalizedUuid,
+    name: optionalString(value.name) ?? "",
+    email: optionalString(value.email) ?? "",
+  };
+}
+
+function parseAvailableSuggestedReviewersPayload(
+  value: unknown,
+): AvailableSuggestedReviewersResponse {
+  if (!isObjectRecord(value)) {
+    return {
+      results: [],
+      count: 0,
+    };
+  }
+
+  const results = Object.entries(value)
+    .map(([uuid, reviewer]) =>
+      normalizeAvailableSuggestedReviewer(uuid, reviewer),
+    )
+    .filter(
+      (reviewer): reviewer is AvailableSuggestedReviewer => reviewer !== null,
+    );
+
+  return {
+    results,
+    count: results.length,
   };
 }
 
@@ -557,20 +729,41 @@ export class PostHogAPIClient {
   async runTaskInCloud(
     taskId: string,
     branch?: string | null,
-    resumeOptions?: { resumeFromRunId: string; pendingUserMessage: string },
-    sandboxEnvironmentId?: string,
+    options?: {
+      resumeFromRunId?: string;
+      pendingUserMessage?: string;
+      sandboxEnvironmentId?: string;
+      prAuthorshipMode?: PrAuthorshipMode;
+      runSource?: CloudRunSource;
+      signalReportId?: string;
+      githubUserToken?: string;
+    },
   ): Promise<Task> {
     const teamId = await this.getTeamId();
     const body: Record<string, unknown> = { mode: "interactive" };
     if (branch) {
       body.branch = branch;
     }
-    if (resumeOptions) {
-      body.resume_from_run_id = resumeOptions.resumeFromRunId;
-      body.pending_user_message = resumeOptions.pendingUserMessage;
+    if (options?.resumeFromRunId) {
+      body.resume_from_run_id = options.resumeFromRunId;
     }
-    if (sandboxEnvironmentId) {
-      body.sandbox_environment_id = sandboxEnvironmentId;
+    if (options?.pendingUserMessage) {
+      body.pending_user_message = options.pendingUserMessage;
+    }
+    if (options?.sandboxEnvironmentId) {
+      body.sandbox_environment_id = options.sandboxEnvironmentId;
+    }
+    if (options?.prAuthorshipMode) {
+      body.pr_authorship_mode = options.prAuthorshipMode;
+    }
+    if (options?.runSource) {
+      body.run_source = options.runSource;
+    }
+    if (options?.signalReportId) {
+      body.signal_report_id = options.signalReportId;
+    }
+    if (options?.githubUserToken) {
+      body.github_user_token = options.githubUserToken;
     }
 
     const data = await this.api.post(
@@ -956,6 +1149,9 @@ export class PostHogAPIClient {
     if (params?.source_product) {
       url.searchParams.set("source_product", params.source_product);
     }
+    if (params?.suggested_reviewers) {
+      url.searchParams.set("suggested_reviewers", params.suggested_reviewers);
+    }
 
     const response = await this.api.fetcher.fetch({
       method: "get",
@@ -972,6 +1168,60 @@ export class PostHogAPIClient {
       results: data.results ?? data ?? [],
       count: data.count ?? data.results?.length ?? data?.length ?? 0,
     };
+  }
+
+  async getSignalProcessingState(): Promise<SignalProcessingStateResponse> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signal_processing/`,
+    );
+    const path = `/api/projects/${teamId}/signal_processing/`;
+
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch signal processing state: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return {
+      paused_until:
+        typeof data?.paused_until === "string" ? data.paused_until : null,
+    };
+  }
+
+  async getAvailableSuggestedReviewers(
+    query?: string,
+  ): Promise<AvailableSuggestedReviewersResponse> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/available_reviewers/`,
+    );
+    const path = `/api/projects/${teamId}/signal_reports/available_reviewers/`;
+
+    if (query?.trim()) {
+      url.searchParams.set("query", query.trim());
+    }
+
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch available suggested reviewers: ${response.statusText}`,
+      );
+    }
+
+    return parseAvailableSuggestedReviewersPayload(await response.json());
   }
 
   async getSignalReportSignals(
@@ -1066,6 +1316,92 @@ export class PostHogAPIClient {
         unavailableReason: "request_failed",
       };
     }
+  }
+
+  async updateSignalReportState(
+    reportId: string,
+    input: {
+      state: Extract<SignalReportStatus, "suppressed" | "potential">;
+      snooze_for?: number;
+      reset_weight?: boolean;
+      error?: string;
+    },
+  ): Promise<SignalReport> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/state/`,
+    );
+    const path = `/api/projects/${teamId}/signal_reports/${reportId}/state/`;
+
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path,
+      overrides: {
+        body: JSON.stringify(input),
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Failed to update signal report state");
+    }
+
+    return (await response.json()) as SignalReport;
+  }
+
+  async deleteSignalReport(reportId: string): Promise<{
+    status: "deletion_started" | "already_running";
+    report_id: string;
+  }> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/`,
+    );
+    const path = `/api/projects/${teamId}/signal_reports/${reportId}/`;
+
+    const response = await this.api.fetcher.fetch({
+      method: "delete",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Failed to delete signal report");
+    }
+
+    return (await response.json()) as {
+      status: "deletion_started" | "already_running";
+      report_id: string;
+    };
+  }
+
+  async reingestSignalReport(reportId: string): Promise<{
+    status: "reingestion_started" | "already_running";
+    report_id: string;
+  }> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/reingest/`,
+    );
+    const path = `/api/projects/${teamId}/signal_reports/${reportId}/reingest/`;
+
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Failed to reingest signal report");
+    }
+
+    return (await response.json()) as {
+      status: "reingestion_started" | "already_running";
+      report_id: string;
+    };
   }
 
   async getMcpServers(): Promise<McpRecommendedServer[]> {

@@ -28,6 +28,7 @@ import type { Task } from "@shared/types";
 import type { ArchivedTask } from "@shared/types/archive";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatRelativeTimeLong } from "@utils/time";
 import { toast } from "@utils/toast";
 import { useMemo, useState } from "react";
 
@@ -35,32 +36,7 @@ const BRANCH_NOT_FOUND_PATTERN = /Branch '(.+)' does not exist/;
 
 function formatRelativeDate(isoDate: string | undefined): string {
   if (!isoDate) return "—";
-  const date = new Date(isoDate);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffSeconds < 60) {
-    return "just now";
-  }
-  if (diffMinutes < 60) {
-    return diffMinutes === 1 ? "1 minute ago" : `${diffMinutes} minutes ago`;
-  }
-  if (diffHours < 24) {
-    return diffHours === 1 ? "1 hour ago" : `${diffHours} hours ago`;
-  }
-  if (diffDays < 7) {
-    return diffDays === 1 ? "1 day ago" : `${diffDays} days ago`;
-  }
-
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatRelativeTimeLong(isoDate);
 }
 
 function getRepoName(repository: string | null | undefined): string {

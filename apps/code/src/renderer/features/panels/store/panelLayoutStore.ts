@@ -53,7 +53,6 @@ export interface PanelLayoutStore {
     filePath: string,
     asPreview?: boolean,
   ) => void;
-  openReview: (taskId: string) => void;
   keepTab: (taskId: string, panelId: string, tabId: string) => void;
   closeTab: (taskId: string, panelId: string, tabId: string) => void;
   closeOtherTabs: (taskId: string, panelId: string, tabId: string) => void;
@@ -119,14 +118,6 @@ function createDefaultPanelTree(): PanelNode {
           id: DEFAULT_TAB_IDS.LOGS,
           label: "Chat",
           data: { type: "logs" },
-          component: null,
-          closeable: false,
-          draggable: true,
-        },
-        {
-          id: DEFAULT_TAB_IDS.REVIEW,
-          label: "Review",
-          data: { type: "review" as const },
           component: null,
           closeable: false,
           draggable: true,
@@ -392,13 +383,6 @@ export const usePanelLayoutStore = createWithEqualityFn<PanelLayoutStore>()(
         track(ANALYTICS_EVENTS.FILE_OPENED, {
           file_extension: getFileExtension(filePath),
           source: "sidebar",
-          task_id: taskId,
-        });
-      },
-
-      openReview: (taskId) => {
-        set((state) => openTab(state, taskId, "review", false));
-        track(ANALYTICS_EVENTS.REVIEW_PANEL_VIEWED, {
           task_id: taskId,
         });
       },
@@ -922,7 +906,7 @@ export const usePanelLayoutStore = createWithEqualityFn<PanelLayoutStore>()(
     {
       name: "panel-layout-store",
       // Bump this version when the default panel structure changes to reset all layouts
-      version: 9,
+      version: 10,
       migrate: () => ({ taskLayouts: {} }),
     },
   ),

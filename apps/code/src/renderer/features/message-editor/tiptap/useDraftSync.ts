@@ -171,9 +171,12 @@ export function useDraftSync(
   >([]);
   useLayoutEffect(() => {
     if (!draft || typeof draft === "string") return;
-    if (draft.attachments && draft.attachments.length > 0) {
-      setRestoredAttachments(draft.attachments);
-    }
+    const incoming = draft.attachments ?? [];
+    // Short-circuit the common empty→empty case to avoid creating a new array
+    // reference that would trigger unnecessary re-renders.
+    setRestoredAttachments((prev) =>
+      prev.length === 0 && incoming.length === 0 ? prev : incoming,
+    );
   }, [draft]);
 
   const attachmentsRef = useRef<FileAttachment[]>([]);

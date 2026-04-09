@@ -12,6 +12,7 @@ import {
   PushPin,
 } from "@phosphor-icons/react";
 import { selectIsFocusedOnWorktree, useFocusStore } from "@stores/focusStore";
+import { formatRelativeTimeShort } from "@utils/time";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SidebarItem } from "../SidebarItem";
 
@@ -44,26 +45,6 @@ interface TaskItemProps {
   onEditCancel?: () => void;
 }
 
-function formatRelativeTime(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
-
-  const minutes = Math.floor(diff / (1000 * 60));
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const weeks = Math.floor(days / 7);
-  const months = Math.floor(days / 30);
-  const years = Math.floor(days / 365);
-
-  if (years > 0) return `${years}y`;
-  if (months > 0) return `${months}mo`;
-  if (weeks > 0) return `${weeks}w`;
-  if (days > 0) return `${days}d`;
-  if (hours > 0) return `${hours}h`;
-  if (minutes > 0) return `${minutes}m`;
-  return "now";
-}
-
 interface TaskHoverToolbarProps {
   isPinned: boolean;
   onTogglePin?: () => void;
@@ -78,48 +59,50 @@ function TaskHoverToolbar({
   return (
     <span className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
       {onTogglePin && (
-        // biome-ignore lint/a11y/useSemanticElements: Cannot use button inside parent button (SidebarItem)
-        <span
-          role="button"
-          tabIndex={0}
-          className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
-          onClick={(e) => {
-            e.stopPropagation();
-            onTogglePin();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
+        <Tooltip content={isPinned ? "Unpin task" : "Pin task"} side="top">
+          {/* biome-ignore lint/a11y/useSemanticElements: Cannot use button inside parent button (SidebarItem) */}
+          <span
+            role="button"
+            tabIndex={0}
+            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
+            onClick={(e) => {
               e.stopPropagation();
               onTogglePin();
-            }
-          }}
-          title={isPinned ? "Unpin task" : "Pin task"}
-        >
-          <PushPin size={12} weight={isPinned ? "fill" : "regular"} />
-        </span>
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                onTogglePin();
+              }
+            }}
+          >
+            <PushPin size={12} weight={isPinned ? "fill" : "regular"} />
+          </span>
+        </Tooltip>
       )}
       {onArchive && (
-        // biome-ignore lint/a11y/useSemanticElements: Cannot use button inside parent button (SidebarItem)
-        <span
-          role="button"
-          tabIndex={0}
-          className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
-          onClick={(e) => {
-            e.stopPropagation();
-            onArchive();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
+        <Tooltip content="Archive task" side="top">
+          {/* biome-ignore lint/a11y/useSemanticElements: Cannot use button inside parent button (SidebarItem) */}
+          <span
+            role="button"
+            tabIndex={0}
+            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
+            onClick={(e) => {
               e.stopPropagation();
               onArchive();
-            }
-          }}
-          title="Archive task"
-        >
-          <Archive size={12} />
-        </span>
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                onArchive();
+              }
+            }}
+          >
+            <Archive size={12} />
+          </span>
+        </Tooltip>
       )}
     </span>
   );
@@ -250,7 +233,7 @@ export function TaskItem({
 
   const timestampNode = timestamp ? (
     <span className="shrink-0 text-[11px] text-gray-11 group-hover:hidden">
-      {formatRelativeTime(timestamp)}
+      {formatRelativeTimeShort(timestamp)}
     </span>
   ) : null;
 

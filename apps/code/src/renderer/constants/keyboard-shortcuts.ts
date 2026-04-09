@@ -8,7 +8,7 @@ export const SHORTCUTS = {
   GO_BACK: "mod+[",
   GO_FORWARD: "mod+]",
   TOGGLE_LEFT_SIDEBAR: "mod+b",
-  TOGGLE_RIGHT_SIDEBAR: "mod+shift+b",
+  TOGGLE_REVIEW_PANEL: "mod+shift+b",
   PREV_TASK: "mod+shift+[,ctrl+shift+tab",
   NEXT_TASK: "mod+shift+],ctrl+tab",
   CLOSE_TAB: "mod+w",
@@ -112,9 +112,9 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
     category: "navigation",
   },
   {
-    id: "toggle-right-sidebar",
-    keys: SHORTCUTS.TOGGLE_RIGHT_SIDEBAR,
-    description: "Toggle right sidebar",
+    id: "toggle-review-panel",
+    keys: SHORTCUTS.TOGGLE_REVIEW_PANEL,
+    description: "Toggle review panel",
     category: "navigation",
   },
   {

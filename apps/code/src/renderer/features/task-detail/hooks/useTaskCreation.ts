@@ -1,4 +1,5 @@
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
+import { buildCloudTaskDescription } from "@features/editor/utils/cloud-prompt";
 import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
 import { useTaskInputHistoryStore } from "@features/message-editor/stores/taskInputHistoryStore";
 import {
@@ -59,9 +60,16 @@ function prepareTaskInput(
     sandboxEnvironmentId?: string;
   },
 ): TaskCreationInput {
+  const serializedContent = contentToXml(content).trim();
+  const filePaths = extractFilePaths(content);
+
   return {
-    content: contentToXml(content).trim(),
-    filePaths: extractFilePaths(content),
+    content: serializedContent,
+    taskDescription:
+      options.workspaceMode === "cloud"
+        ? buildCloudTaskDescription(serializedContent, filePaths)
+        : undefined,
+    filePaths,
     repoPath: options.selectedDirectory,
     repository: options.selectedRepository,
     githubIntegrationId: options.githubIntegrationId,
@@ -81,6 +89,7 @@ function getErrorTitle(failedStep: string): string {
     repo_detection: "Failed to detect repository",
     task_creation: "Failed to create task",
     workspace_creation: "Failed to create workspace",
+    cloud_prompt_preparation: "Failed to prepare cloud attachments",
     cloud_run: "Failed to start cloud execution",
     agent_session: "Failed to start agent session",
   };

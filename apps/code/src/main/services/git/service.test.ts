@@ -127,3 +127,61 @@ describe("GitService.getPrChangedFiles", () => {
     ).rejects.toThrow("Failed to fetch PR files");
   });
 });
+
+describe("GitService.getGhAuthToken", () => {
+  let service: GitService;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    service = new GitService({} as LlmGatewayService);
+  });
+
+  it("returns the authenticated GitHub CLI token", async () => {
+    mockExecGh.mockResolvedValue({
+      exitCode: 0,
+      stdout: "ghu_test_token\n",
+      stderr: "",
+    });
+
+    const result = await service.getGhAuthToken();
+
+    expect(mockExecGh).toHaveBeenCalledWith(["auth", "token"]);
+    expect(result).toEqual({
+      success: true,
+      token: "ghu_test_token",
+      error: null,
+    });
+  });
+
+  it("returns the gh error when auth token lookup fails", async () => {
+    mockExecGh.mockResolvedValue({
+      exitCode: 1,
+      stdout: "",
+      stderr: "authentication required",
+    });
+
+    const result = await service.getGhAuthToken();
+
+    expect(result).toEqual({
+      success: false,
+      token: null,
+      error: "authentication required",
+    });
+  });
+
+  it("returns error when stdout is empty", async () => {
+    mockExecGh.mockResolvedValue({
+      exitCode: 0,
+      stdout: "",
+      stderr: "",
+    });
+
+    const result = await service.getGhAuthToken();
+
+    expect(result).toEqual({
+      success: false,
+      token: null,
+      error: "GitHub auth token is empty",
+    });
+  });
+});

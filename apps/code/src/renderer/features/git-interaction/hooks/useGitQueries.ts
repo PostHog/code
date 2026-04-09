@@ -154,12 +154,20 @@ export function useGitQueries(repoPath?: string) {
   };
 }
 
-export function useCloudPrChangedFiles(prUrl: string | null) {
+export function useCloudPrChangedFiles(
+  prUrl: string | null,
+  isRunActive?: boolean,
+) {
   const trpc = useTRPC();
   return useQuery(
     trpc.git.getPrChangedFiles.queryOptions(
       { prUrl: prUrl as string },
-      { enabled: !!prUrl, staleTime: 5 * 60_000, retry: 1 },
+      {
+        enabled: !!prUrl,
+        staleTime: isRunActive ? 10_000 : 5 * 60_000,
+        refetchInterval: isRunActive ? 10_000 : false,
+        retry: 1,
+      },
     ),
   );
 }
@@ -167,6 +175,7 @@ export function useCloudPrChangedFiles(prUrl: string | null) {
 export function useCloudBranchChangedFiles(
   repo: string | null,
   branch: string | null,
+  isRunActive?: boolean,
 ) {
   const trpc = useTRPC();
   return useQuery(
@@ -174,8 +183,8 @@ export function useCloudBranchChangedFiles(
       { repo: repo as string, branch: branch as string },
       {
         enabled: !!repo && !!branch,
-        staleTime: 30_000,
-        refetchInterval: 30_000,
+        staleTime: isRunActive ? 10_000 : 30_000,
+        refetchInterval: isRunActive ? 10_000 : 30_000,
         retry: 1,
       },
     ),

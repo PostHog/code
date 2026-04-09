@@ -28,7 +28,7 @@ import { CommitSaga } from "@posthog/git/sagas/commit";
 import { DiscardFileChangesSaga } from "@posthog/git/sagas/discard";
 import { PullSaga } from "@posthog/git/sagas/pull";
 import { PushSaga } from "@posthog/git/sagas/push";
-import { parseGitHubUrl } from "@posthog/git/utils";
+import { parseGitHubUrl, parsePrUrl } from "@posthog/git/utils";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
@@ -46,6 +46,7 @@ import type {
   DiscardFileChangesOutput,
   GetCommitConventionsOutput,
   GetPrTemplateOutput,
+  GhAuthTokenOutput,
   GhStatusOutput,
   GitCommitInfo,
   GitFileStatus,
@@ -54,11 +55,16 @@ import type {
   GitStateSnapshot,
   GitSyncStatus,
   OpenPrOutput,
+  PrActionType,
+  PrDetailsByUrlOutput,
+  PrReviewComment,
   PrStatusOutput,
   PublishOutput,
   PullOutput,
   PushOutput,
+  ReplyToPrCommentOutput,
   SyncOutput,
+  UpdatePrByUrlOutput,
 } from "./schemas";
 
 const fsPromises = fs.promises;
@@ -77,6 +83,23 @@ const log = logger.scope("git-service");
 
 const FETCH_THROTTLE_MS = 5 * 60 * 1000;
 const MAX_DIFF_LENGTH = 8000;
+
+/**
+ * Wraps a GitHub API per-file patch (hunk content only) with
+ * the `diff --git` / `---` / `+++` header so that unified-diff
+ * parsers like `@pierre/diffs` can process it correctly.
+ */
+function toUnifiedDiffPatch(
+  rawPatch: string,
+  filename: string,
+  previousFilename: string | undefined,
+  status: ChangedFile["status"],
+): string {
+  const oldPath = previousFilename ?? filename;
+  const fromPath = status === "added" ? "/dev/null" : `a/${oldPath}`;
+  const toPath = status === "deleted" ? "/dev/null" : `b/${filename}`;
+  return `diff --git a/${oldPath} b/${filename}\n--- ${fromPath}\n+++ ${toPath}\n${rawPatch}`;
+}
 
 @injectable()
 export class GitService extends TypedEventEmitter<GitServiceEvents> {
@@ -689,6 +712,33 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     };
   }
 
+  public async getGhAuthToken(): Promise<GhAuthTokenOutput> {
+    const result = await execGh(["auth", "token"]);
+    if (result.exitCode !== 0) {
+      return {
+        success: false,
+        token: null,
+        error:
+          result.stderr || result.error || "Failed to read GitHub auth token",
+      };
+    }
+
+    const token = result.stdout.trim();
+    if (!token) {
+      return {
+        success: false,
+        token: null,
+        error: "GitHub auth token is empty",
+      };
+    }
+
+    return {
+      success: true,
+      token,
+      error: null,
+    };
+  }
+
   public async getPrStatus(directoryPath: string): Promise<PrStatusOutput> {
     const base: PrStatusOutput = {
       hasRemote: false,
@@ -820,10 +870,10 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
   }
 
   public async getPrChangedFiles(prUrl: string): Promise<ChangedFile[]> {
-    const match = prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
-    if (!match) return [];
+    const pr = parsePrUrl(prUrl);
+    if (!pr) return [];
 
-    const [, owner, repo, number] = match;
+    const { owner, repo, number } = pr;
 
     try {
       const result = await execGh([
@@ -846,6 +896,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
           previous_filename?: string;
           additions: number;
           deletions: number;
+          patch?: string;
         }>
       >;
       const files = pages.flat();
@@ -873,11 +924,156 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
           originalPath: f.previous_filename,
           linesAdded: f.additions,
           linesRemoved: f.deletions,
+          patch: f.patch
+            ? toUnifiedDiffPatch(
+                f.patch,
+                f.filename,
+                f.previous_filename,
+                status,
+              )
+            : undefined,
         };
       });
     } catch (error) {
       log.warn("Failed to fetch PR changed files", { prUrl, error });
       throw error;
+    }
+  }
+
+  public async getPrDetailsByUrl(
+    prUrl: string,
+  ): Promise<PrDetailsByUrlOutput | null> {
+    const pr = parsePrUrl(prUrl);
+    if (!pr) return null;
+
+    try {
+      const result = await execGh([
+        "api",
+        `repos/${pr.owner}/${pr.repo}/pulls/${pr.number}`,
+        "--jq",
+        "{state,merged,draft}",
+      ]);
+
+      if (result.exitCode !== 0) {
+        log.warn("Failed to fetch PR details", {
+          prUrl,
+          error: result.stderr || result.error,
+        });
+        return null;
+      }
+
+      const data = JSON.parse(result.stdout) as {
+        state: string;
+        merged: boolean;
+        draft: boolean;
+      };
+
+      return data;
+    } catch (error) {
+      log.warn("Failed to fetch PR details", { prUrl, error });
+      return null;
+    }
+  }
+
+  public async updatePrByUrl(
+    prUrl: string,
+    action: PrActionType,
+  ): Promise<UpdatePrByUrlOutput> {
+    const pr = parsePrUrl(prUrl);
+    if (!pr) {
+      return { success: false, message: "Invalid PR URL" };
+    }
+
+    try {
+      const args =
+        action === "draft"
+          ? ["pr", "ready", "--undo", String(pr.number)]
+          : ["pr", action, String(pr.number)];
+
+      const result = await execGh([
+        ...args,
+        "--repo",
+        `${pr.owner}/${pr.repo}`,
+      ]);
+
+      if (result.exitCode !== 0) {
+        const errorMsg = result.stderr || result.error || "Unknown error";
+        log.warn("Failed to update PR", { prUrl, action, error: errorMsg });
+        return { success: false, message: errorMsg };
+      }
+
+      return { success: true, message: result.stdout };
+    } catch (error) {
+      log.warn("Failed to update PR", { prUrl, action, error });
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  public async getPrReviewComments(prUrl: string): Promise<PrReviewComment[]> {
+    const pr = parsePrUrl(prUrl);
+    if (!pr) return [];
+
+    const { owner, repo, number } = pr;
+
+    try {
+      const result = await execGh([
+        "api",
+        `repos/${owner}/${repo}/pulls/${number}/comments`,
+        "--paginate",
+        "--slurp",
+      ]);
+
+      if (result.exitCode !== 0) {
+        throw new Error(
+          `Failed to fetch PR review comments: ${result.stderr || result.error || "Unknown error"}`,
+        );
+      }
+
+      const pages = JSON.parse(result.stdout) as PrReviewComment[][];
+      return pages.flat();
+    } catch (error) {
+      log.warn("Failed to fetch PR review comments", { prUrl, error });
+      throw error;
+    }
+  }
+
+  public async replyToPrComment(
+    prUrl: string,
+    commentId: number,
+    body: string,
+  ): Promise<ReplyToPrCommentOutput> {
+    const pr = parsePrUrl(prUrl);
+    if (!pr) {
+      return { success: false, comment: null };
+    }
+
+    try {
+      const result = await execGh([
+        "api",
+        `repos/${pr.owner}/${pr.repo}/pulls/${pr.number}/comments/${commentId}/replies`,
+        "-X",
+        "POST",
+        "-f",
+        `body=${body}`,
+      ]);
+
+      if (result.exitCode !== 0) {
+        log.warn("Failed to reply to PR comment", {
+          prUrl,
+          commentId,
+          error: result.stderr || result.error,
+        });
+        return { success: false, comment: null };
+      }
+
+      const data = JSON.parse(result.stdout) as PrReviewComment;
+      return { success: true, comment: data };
+    } catch (error) {
+      log.warn("Failed to reply to PR comment", { prUrl, commentId, error });
+      return { success: false, comment: null };
     }
   }
 
@@ -906,8 +1102,6 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       const result = await execGh([
         "api",
         `repos/${owner}/${repoName}/compare/${defaultBranch}...${branch}`,
-        "--jq",
-        ".files",
       ]);
 
       if (result.exitCode !== 0) {
@@ -916,13 +1110,17 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
         );
       }
 
-      const files = JSON.parse(result.stdout) as Array<{
-        filename: string;
-        status: string;
-        previous_filename?: string;
-        additions: number;
-        deletions: number;
-      }> | null;
+      const response = JSON.parse(result.stdout) as {
+        files?: Array<{
+          filename: string;
+          status: string;
+          previous_filename?: string;
+          additions: number;
+          deletions: number;
+          patch?: string;
+        }>;
+      };
+      const files = response.files;
 
       if (!files) return [];
 
@@ -949,6 +1147,14 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
           originalPath: f.previous_filename,
           linesAdded: f.additions,
           linesRemoved: f.deletions,
+          patch: f.patch
+            ? toUnifiedDiffPatch(
+                f.patch,
+                f.filename,
+                f.previous_filename,
+                status,
+              )
+            : undefined,
         };
       });
     } catch (error) {

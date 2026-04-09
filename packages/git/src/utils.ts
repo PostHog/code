@@ -107,6 +107,18 @@ function execFileAsync(
   });
 }
 
+export interface GitHubPr {
+  owner: string;
+  repo: string;
+  number: number;
+}
+
+export function parsePrUrl(prUrl: string): GitHubPr | null {
+  const match = prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
+  if (!match) return null;
+  return { owner: match[1], repo: match[2], number: Number(match[3]) };
+}
+
 export function parseGitHubUrl(url: string): GitHubRepo | null {
   // Trim whitespace/newlines that git commands may include
   const trimmedUrl = url.trim();

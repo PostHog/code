@@ -42,8 +42,13 @@ import {
   getLatestCommitOutput,
   getPrChangedFilesInput,
   getPrChangedFilesOutput,
+  getPrDetailsByUrlInput,
+  getPrDetailsByUrlOutput,
+  getPrReviewCommentsInput,
+  getPrReviewCommentsOutput,
   getPrTemplateInput,
   getPrTemplateOutput,
+  ghAuthTokenOutput,
   ghStatusOutput,
   gitStateSnapshotSchema,
   openPrInput,
@@ -56,11 +61,15 @@ import {
   pullOutput,
   pushInput,
   pushOutput,
+  replyToPrCommentInput,
+  replyToPrCommentOutput,
   searchGithubIssuesInput,
   searchGithubIssuesOutput,
   stageFilesInput,
   syncInput,
   syncOutput,
+  updatePrByUrlInput,
+  updatePrByUrlOutput,
   validateRepoInput,
   validateRepoOutput,
 } from "../../services/git/schemas";
@@ -264,6 +273,10 @@ export const gitRouter = router({
     .output(ghStatusOutput)
     .query(() => getService().getGhStatus()),
 
+  getGhAuthToken: publicProcedure
+    .output(ghAuthTokenOutput)
+    .query(() => getService().getGhAuthToken()),
+
   getPrStatus: publicProcedure
     .input(prStatusInput)
     .output(prStatusOutput)
@@ -295,6 +308,33 @@ export const gitRouter = router({
     .input(getPrChangedFilesInput)
     .output(getPrChangedFilesOutput)
     .query(({ input }) => getService().getPrChangedFiles(input.prUrl)),
+
+  getPrDetailsByUrl: publicProcedure
+    .input(getPrDetailsByUrlInput)
+    .output(getPrDetailsByUrlOutput)
+    .query(async ({ input }) => {
+      const result = await getService().getPrDetailsByUrl(input.prUrl);
+      return result ?? { state: "unknown", merged: false, draft: false };
+    }),
+
+  updatePrByUrl: publicProcedure
+    .input(updatePrByUrlInput)
+    .output(updatePrByUrlOutput)
+    .mutation(({ input }) =>
+      getService().updatePrByUrl(input.prUrl, input.action),
+    ),
+
+  getPrReviewComments: publicProcedure
+    .input(getPrReviewCommentsInput)
+    .output(getPrReviewCommentsOutput)
+    .query(({ input }) => getService().getPrReviewComments(input.prUrl)),
+
+  replyToPrComment: publicProcedure
+    .input(replyToPrCommentInput)
+    .output(replyToPrCommentOutput)
+    .mutation(({ input }) =>
+      getService().replyToPrComment(input.prUrl, input.commentId, input.body),
+    ),
 
   getBranchChangedFiles: publicProcedure
     .input(getBranchChangedFilesInput)

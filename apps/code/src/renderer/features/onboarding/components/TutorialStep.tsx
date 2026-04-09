@@ -85,7 +85,7 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
   }, []);
 
   // GitHub repos
-  const { githubIntegration, repositories, isLoadingRepos } =
+  const { repositories, getIntegrationIdForRepo, isLoadingRepos } =
     useRepositoryIntegration();
   const [selectedRepository, setSelectedRepository] = useState<string | null>(
     null,
@@ -98,8 +98,12 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
   >("local");
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
 
+  const selectedIntegrationId = selectedRepository
+    ? getIntegrationIdForRepo(selectedRepository)
+    : undefined;
+
   const { data: cloudBranchData, isPending: cloudBranchesLoading } =
-    useGithubBranches(githubIntegration?.id, selectedRepository);
+    useGithubBranches(selectedIntegrationId, selectedRepository);
   const cloudBranches = cloudBranchData?.branches;
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
@@ -123,7 +127,7 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
     editorRef,
     selectedDirectory,
     selectedRepository,
-    githubIntegrationId: githubIntegration?.id,
+    githubIntegrationId: selectedIntegrationId,
     workspaceMode,
     branch: selectedBranch,
     editorIsEmpty,

@@ -1,17 +1,12 @@
 import type { RegisteredFolder } from "@main/services/folders/schemas";
-import { useFocusStore } from "@renderer/stores/focusStore";
 import { trpc, trpcClient, useTRPC } from "@renderer/trpc";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { logger } from "@utils/logger";
 import { queryClient } from "@utils/queryClient";
-import { useCallback, useEffect, useMemo, useRef } from "react";
-
-const log = logger.scope("folders");
+import { useCallback, useMemo } from "react";
 
 export function useFolders() {
   const trpcReact = useTRPC();
   const queryClient = useQueryClient();
-  const hasInitialized = useRef(false);
 
   const { data: folders = [], isLoading } = useQuery(
     trpcReact.folders.getFolders.queryOptions(undefined, {
@@ -23,46 +18,6 @@ export function useFolders() {
     () => folders.filter((f) => f.exists !== false),
     [folders],
   );
-
-  useEffect(() => {
-    if (hasInitialized.current || isLoading || folders.length === 0) return;
-    hasInitialized.current = true;
-
-    const deletedFolders = folders.filter((f) => f.exists === false);
-    if (deletedFolders.length > 0) {
-      Promise.all(
-        deletedFolders.map((folder) =>
-          trpcClient.folders.removeFolder
-            .mutate({ folderId: folder.id })
-            .catch((err) =>
-              log.error(`Failed to remove deleted folder ${folder.path}:`, err),
-            ),
-        ),
-      ).then(() => {
-        void queryClient.invalidateQueries(
-          trpcReact.folders.getFolders.pathFilter(),
-        );
-      });
-    }
-
-    for (const folder of existingFolders) {
-      useFocusStore
-        .getState()
-        .restore(folder.path)
-        .catch((error) => {
-          log.error(`Failed to restore focus state for ${folder.path}:`, error);
-        });
-
-      trpcClient.folders.cleanupOrphanedWorktrees
-        .mutate({ mainRepoPath: folder.path })
-        .catch((error) => {
-          log.error(
-            `Failed to cleanup orphaned worktrees for ${folder.path}:`,
-            error,
-          );
-        });
-    }
-  }, [folders, existingFolders, isLoading, queryClient, trpcReact]);
 
   const addFolderMutation = useMutation(
     trpcReact.folders.addFolder.mutationOptions({
@@ -176,11 +131,6 @@ export const foldersApi = {
   },
   async updateFolderAccessed(folderId: string) {
     return trpcClient.folders.updateFolderAccessed.mutate({ folderId });
-  },
-  async cleanupOrphanedWorktrees(mainRepoPath: string) {
-    return trpcClient.folders.cleanupOrphanedWorktrees.mutate({
-      mainRepoPath,
-    });
   },
   getFolderByPath(folders: RegisteredFolder[], path: string) {
     return folders.find((f) => f.path === path);

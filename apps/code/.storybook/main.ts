@@ -2,6 +2,7 @@
 import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { StorybookConfig } from "@storybook/react-vite";
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { mergeConfig } from "vite";
 
@@ -22,7 +23,7 @@ const config: StorybookConfig = {
   framework: getAbsolutePath("@storybook/react-vite"),
   async viteFinal(config) {
     return mergeConfig(config, {
-      plugins: [react()],
+      plugins: [tailwindcss(), react()],
       resolve: {
         alias: {
           "@": path.resolve(__dirname, "../src"),
