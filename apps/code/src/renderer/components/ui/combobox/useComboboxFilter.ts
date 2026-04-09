@@ -24,10 +24,9 @@ interface UseComboboxFilterResult<T> {
 /**
  * Fuzzy-filters and caps a list of items for use with Combobox.
  *
- * Bypasses cmdk's built-in DOM-based filtering. The consumer should pass
- * `shouldFilter={false}` to `Combobox.Content` and wire `onSearchChange`
- * to `Combobox.Input`'s `onValueChange`. Do not pass a controlled `value`
- * to the input -- let cmdk manage the input display natively.
+ * Prefer passing `items` directly to `Combobox.Content` which handles all
+ * wiring automatically. Use this hook directly only when you need custom
+ * control over the filtering lifecycle.
  */
 export function useComboboxFilter<T>(
   items: T[],

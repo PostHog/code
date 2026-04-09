@@ -1,5 +1,4 @@
 import { Combobox } from "@components/ui/combobox/Combobox";
-import { useComboboxFilter } from "@components/ui/combobox/useComboboxFilter";
 import { GithubLogo } from "@phosphor-icons/react";
 import { Button, Flex, Text } from "@radix-ui/themes";
 import { useState } from "react";
@@ -24,12 +23,6 @@ export function GitHubRepoPicker({
   disabled = false,
 }: GitHubRepoPickerProps) {
   const [open, setOpen] = useState(false);
-  const {
-    filtered: filteredRepos,
-    onSearchChange,
-    hasMore,
-    moreCount,
-  } = useComboboxFilter(repositories, { limit: 50, open });
 
   if (isLoading) {
     return (
@@ -70,22 +63,23 @@ export function GitHubRepoPicker({
           </Text>
         </Flex>
       </Combobox.Trigger>
-      <Combobox.Content shouldFilter={false}>
-        <Combobox.Input
-          placeholder="Search repositories..."
-          onValueChange={onSearchChange}
-        />
-        <Combobox.Empty>No repositories found.</Combobox.Empty>
-        {filteredRepos.map((repo) => (
-          <Combobox.Item key={repo} value={repo} textValue={repo}>
-            {repo}
-          </Combobox.Item>
-        ))}
-        {hasMore && (
-          <div className="combobox-label">
-            {moreCount} more {moreCount === 1 ? "repo" : "repos"} — type to
-            filter
-          </div>
+      <Combobox.Content items={repositories} limit={50}>
+        {({ filtered, hasMore, moreCount }) => (
+          <>
+            <Combobox.Input placeholder="Search repositories..." />
+            <Combobox.Empty>No repositories found.</Combobox.Empty>
+            {filtered.map((repo) => (
+              <Combobox.Item key={repo} value={repo} textValue={repo}>
+                {repo}
+              </Combobox.Item>
+            ))}
+            {hasMore && (
+              <div className="combobox-label">
+                {moreCount} more {moreCount === 1 ? "repo" : "repos"} — type to
+                filter
+              </div>
+            )}
+          </>
         )}
       </Combobox.Content>
     </Combobox.Root>
