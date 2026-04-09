@@ -13,6 +13,10 @@ export function DiffSettingsMenu() {
   const toggleHideWhitespaceChanges = useDiffViewerStore(
     (s) => s.toggleHideWhitespaceChanges,
   );
+  const showReviewComments = useDiffViewerStore((s) => s.showReviewComments);
+  const toggleShowReviewComments = useDiffViewerStore(
+    (s) => s.toggleShowReviewComments,
+  );
 
   return (
     <DropdownMenu.Root>
@@ -40,6 +44,14 @@ export function DiffSettingsMenu() {
         <DropdownMenu.Item onSelect={toggleHideWhitespaceChanges}>
           <Text size="1">
             {hideWhitespaceChanges ? "Show whitespace" : "Hide whitespace"}
+          </Text>
+        </DropdownMenu.Item>
+        <DropdownMenu.Separator />
+        <DropdownMenu.Item onSelect={toggleShowReviewComments}>
+          <Text size="1">
+            {showReviewComments
+              ? "Hide review comments"
+              : "Show review comments"}
           </Text>
         </DropdownMenu.Item>
       </DropdownMenu.Content>

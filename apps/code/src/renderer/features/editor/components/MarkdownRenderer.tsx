@@ -13,6 +13,7 @@ interface MarkdownRendererProps {
   content: string;
   remarkPluginsOverride?: PluggableList;
   componentsOverride?: Partial<Components>;
+  rehypePlugins?: PluggableList;
 }
 
 // Preprocessor to prevent setext heading interpretation of horizontal rules
@@ -172,6 +173,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
   remarkPluginsOverride,
   componentsOverride,
+  rehypePlugins,
 }: MarkdownRendererProps) {
   const processedContent = useMemo(
     () => preprocessMarkdown(content),
@@ -186,7 +188,11 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
     [componentsOverride],
   );
   return (
-    <ReactMarkdown remarkPlugins={plugins} components={components}>
+    <ReactMarkdown
+      remarkPlugins={plugins}
+      rehypePlugins={rehypePlugins}
+      components={components}
+    >
       {processedContent}
     </ReactMarkdown>
   );
