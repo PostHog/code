@@ -46,7 +46,7 @@ export function ReportCardContent({
         <Flex align="center" gapX="2" wrap="wrap" className="min-w-0 flex-1">
           <Text
             size="1"
-            weight="medium"
+            weight="bold"
             className="min-w-0 flex-1 basis-0 truncate text-[13px]"
           >
             {report.title ?? "Untitled signal"}

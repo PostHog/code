@@ -298,9 +298,9 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
       >
         <Flex align="start" justify="between" gap="2">
           <Text
-            size="1"
-            weight="medium"
-            className="block min-w-0 break-words text-[13px]"
+            size="2"
+            weight="bold"
+            className="block min-w-0 break-words text-[14px]"
           >
             {report.title ?? "Untitled signal"}
           </Text>

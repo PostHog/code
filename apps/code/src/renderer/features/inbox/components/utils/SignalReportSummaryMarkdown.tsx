@@ -27,7 +27,7 @@ export function SignalReportSummaryMarkdown({
   if (variant === "list") {
     return (
       <Box
-        className="[&_.rt-Text]:!mb-0 [&_p]:!mb-0 [&_ul]:!mb-0 min-w-0 text-left [&_li]:mb-0"
+        className="[&_.rt-Text]:!mb-0 [&_.rt-Text]:!text-[12px] [&_p]:!mb-0 [&_ul]:!mb-0 min-w-0 text-left [&_li]:mb-0"
         style={{ color: "var(--gray-11)", ...italicStyle }}
       >
         <div className="line-clamp-2 overflow-hidden text-[12px] leading-snug [&_a]:pointer-events-auto">
@@ -39,7 +39,7 @@ export function SignalReportSummaryMarkdown({
 
   return (
     <Box
-      className="min-w-0 text-pretty break-words [&_.rt-Text]:mb-2 [&_li]:mb-1 [&_p:last-child]:mb-0"
+      className="min-w-0 text-pretty break-words [&_.rt-Text]:mb-2 [&_.rt-Text]:!text-[12px] [&_li]:mb-1 [&_p:last-child]:mb-0"
       style={{ color: "var(--gray-11)", ...italicStyle }}
     >
       <div className="text-[12px] leading-relaxed [&_a]:pointer-events-auto">
