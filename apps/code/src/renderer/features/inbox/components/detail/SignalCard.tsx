@@ -262,7 +262,7 @@ function CollapsibleBody({ body }: { body: string }) {
   return (
     <Box>
       <Box
-        className="text-pretty break-words text-[11px] leading-relaxed [&_code]:rounded [&_code]:bg-gray-4 [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[10px] [&_p:last-child]:mb-0 [&_p]:mb-1 [&_pre]:text-[10px]"
+        className="text-pretty break-words text-[11px] leading-relaxed [&_code]:text-[10px] [&_p:last-child]:mb-0 [&_p]:mb-1 [&_pre]:text-[10px]"
         style={{ color: "var(--gray-11)" }}
       >
         <MarkdownRenderer content={displayBody} />
