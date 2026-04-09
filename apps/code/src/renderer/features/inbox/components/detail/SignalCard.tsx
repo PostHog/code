@@ -252,7 +252,12 @@ function SignalCardHeader({
 function CollapsibleBody({ body }: { body: string }) {
   const [expanded, setExpanded] = useState(false);
   const isLong = body.length > COLLAPSE_THRESHOLD;
-  const displayBody = isLong && !expanded ? truncateBody(body) : body;
+  // Preprocess content to handle escaped backticks and ensure proper markdown parsing
+  const processedBody = body
+    .replace(/\\`/g, "`") // Unescape escaped backticks
+    .replace(/`([^`]+)`/g, "`$1`"); // Ensure proper backtick formatting
+  const displayBody =
+    isLong && !expanded ? truncateBody(processedBody) : processedBody;
 
   return (
     <Box>
