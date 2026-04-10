@@ -1,11 +1,17 @@
 /*
  * Quill Design System integration
  *
- * Single pre-compiled stylesheet from @posthog/quill — contains color tokens
- * (light + dark), the @theme inline mappings, font sizes / line heights /
- * radii / shadows, and every utility class used by quill components.
+ * - styles.css: pre-compiled stylesheet — color tokens (light + dark),
+ *   font sizes / leading / radii / shadows, and every utility class used
+ *   by quill components. No consumer Tailwind setup needed for this part.
  *
- * Nothing else is needed on the consumer side: no @source directives, no
- * tw-animate-css, no shadcn/tailwind.css. See PostHog/posthog#54137.
+ * - theme.css: opt-in @theme inline block — registers quill's design
+ *   tokens with our own Tailwind v4 instance so that authoring utilities
+ *   like `bg-fill-active`, `text-muted-foreground`, or `data-active:bg-secondary`
+ *   in our own components actually compiles. Without this our Tailwind
+ *   has no idea `--color-fill-active` exists and silently drops the class.
+ *
+ * See PostHog/posthog#54137.
  */
 @import "@posthog/quill/styles.css";
+@import "@posthog/quill/theme.css";

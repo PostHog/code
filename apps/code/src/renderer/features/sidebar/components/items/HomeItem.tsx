@@ -22,7 +22,6 @@ export function NewTaskItem({ isActive, onClick }: NewTaskItemProps) {
       label="New task"
       isActive={isActive}
       onClick={onClick}
-      variant="primary"
     />
   );
 }

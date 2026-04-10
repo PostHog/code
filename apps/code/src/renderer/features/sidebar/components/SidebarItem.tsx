@@ -1,4 +1,4 @@
-import { Button, type ButtonProps, cn } from "@posthog/quill";
+import { Button, cn } from "@posthog/quill";
 import type { SidebarItemAction } from "../types";
 
 const INDENT_SIZE = 8;
@@ -17,7 +17,6 @@ interface SidebarItemProps {
   onContextMenu?: (e: React.MouseEvent) => void;
   action?: SidebarItemAction;
   endContent?: React.ReactNode;
-  variant?: ButtonProps["variant"];
 }
 
 export function SidebarItem({
@@ -32,18 +31,15 @@ export function SidebarItem({
   onDoubleClick,
   onContextMenu,
   endContent,
-  variant = "default",
 }: SidebarItemProps) {
   return (
     <Button
       type="button"
-      variant={variant}
       className={cn(
         "group focus-visible:-outline-offset-2 flex w-full text-left transition-colors focus-visible:outline-2 focus-visible:outline-accent-8",
         "data-active:bg-fill-active",
-        variant === "primary" && "data-active:bg-secondary/70",
       )}
-      data-active={isActive}
+      data-active={isActive || undefined}
       draggable={draggable}
       onDragStart={onDragStart}
       style={{
