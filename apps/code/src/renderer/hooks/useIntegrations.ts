@@ -68,6 +68,10 @@ function useAllGithubRepositories(githubIntegrations: Integration[]) {
   });
 }
 
+// Keep the first page small so it returns in a single upstream GitHub round
+// trip (GitHub's max per_page is 100), then fetch the remainder in larger
+// chunks to keep the total number of client/PostHog round trips low.
+const BRANCHES_FIRST_PAGE_SIZE = 100;
 const BRANCHES_PAGE_SIZE = 1000;
 
 interface GithubBranchesPage {
@@ -86,11 +90,13 @@ export function useGithubBranches(
       if (!integrationId || !repo) {
         return { branches: [], defaultBranch: null, hasMore: false };
       }
+      const pageSize =
+        offset === 0 ? BRANCHES_FIRST_PAGE_SIZE : BRANCHES_PAGE_SIZE;
       return await client.getGithubBranchesPage(
         integrationId,
         repo,
         offset,
-        BRANCHES_PAGE_SIZE,
+        pageSize,
       );
     },
     {
