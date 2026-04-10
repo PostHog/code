@@ -1,3 +1,4 @@
+import { Button, type ButtonProps, cn } from "@posthog/quill-primitives";
 import type { SidebarItemAction } from "../types";
 
 const INDENT_SIZE = 8;
@@ -16,6 +17,7 @@ interface SidebarItemProps {
   onContextMenu?: (e: React.MouseEvent) => void;
   action?: SidebarItemAction;
   endContent?: React.ReactNode;
+  variant?: ButtonProps["variant"];
 }
 
 export function SidebarItem({
@@ -24,56 +26,50 @@ export function SidebarItem({
   label,
   subtitle,
   isActive,
-  isDimmed,
   draggable,
   onDragStart,
   onClick,
   onDoubleClick,
   onContextMenu,
   endContent,
+  variant = "default",
 }: SidebarItemProps) {
   return (
-    <button
+    <Button
       type="button"
-      className="group focus-visible:-outline-offset-2 flex w-full cursor-pointer items-start bg-transparent px-2 py-1.5 text-left text-[13px] text-gray-11 transition-colors hover:bg-gray-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-8 data-[active]:bg-accent-4 data-[active]:text-gray-12"
+      variant={variant}
+      className={cn(
+        "group focus-visible:-outline-offset-2 flex w-full text-left transition-colors focus-visible:outline-2 focus-visible:outline-accent-8",
+        variant === "primary"
+          ? "data-active:opacity-50"
+          : "data-active:bg-fill-active",
+      )}
       data-active={isActive || undefined}
       draggable={draggable}
       onDragStart={onDragStart}
       style={{
         paddingLeft: `${depth * INDENT_SIZE + 8 + (depth > 0 ? 4 : 0)}px`,
-        gap: "4px",
       }}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
     >
-      {icon && (
-        <span
-          className="flex shrink-0 items-center text-gray-10 group-data-[active]:text-gray-11"
-          style={{
-            height: "18px",
-            width: "18px",
-            justifyContent: "center",
-          }}
-        >
-          {icon}
-        </span>
-      )}
+      {icon ? <span className="flex shrink-0 items-center">{icon}</span> : null}
       <span className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <span className="flex items-center gap-1" style={{ height: "18px" }}>
           <span
-            className={`min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap ${isDimmed ? "text-gray-10" : "text-gray-12"}`}
+            className={`min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap`}
           >
             {label}
           </span>
           {endContent}
         </span>
         {subtitle && (
-          <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-gray-10 group-data-[active]:text-gray-11">
+          <span className="overflow-hidden text-ellipsis whitespace-nowrap text-gray-10 group-data-active:text-gray-11">
             {subtitle}
           </span>
         )}
       </span>
-    </button>
+    </Button>
   );
 }

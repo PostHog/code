@@ -31,7 +31,7 @@ export const SidebarContent: React.FC = () => {
           </button>
         </Box>
       )}
-      <Box className="shrink-0 border-gray-6 border-t">
+      <Box p="2" className="shrink-0">
         <ProjectSwitcher />
       </Box>
     </Flex>

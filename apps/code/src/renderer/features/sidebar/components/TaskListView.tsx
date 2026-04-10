@@ -13,6 +13,7 @@ import {
   User,
   Users,
 } from "@phosphor-icons/react";
+import { MenuLabel } from "@posthog/quill-primitives";
 import { Box, Flex, Popover, Text } from "@radix-ui/themes";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 import { useNavigationStore } from "@stores/navigationStore";
@@ -51,12 +52,13 @@ function SectionLabel({
   endContent?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between px-2 py-1">
-      <span className="font-medium text-[11px] text-gray-10 uppercase tracking-wide">
-        {label}
-      </span>
-      {endContent}
-    </div>
+    <MenuLabel
+      className="flex items-center justify-between py-0 pr-0"
+      htmlFor="null"
+    >
+      {label}
+      {endContent ? <span>{endContent}</span> : null}
+    </MenuLabel>
   );
 }
 
@@ -436,7 +438,7 @@ export function TaskListView({
           </Flex>
         </DragDropProvider>
       ) : (
-        <Flex direction="column">
+        <Flex direction="column" gap="1px">
           {flatTasks.map((task) => (
             <TaskRow
               key={task.id}

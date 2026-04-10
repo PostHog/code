@@ -1,17 +1,25 @@
-import { Command as CmdkCommand } from "cmdk";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandRoot,
+} from "cmdk";
 import React from "react";
 import "./Command.css";
 
-interface CommandRootProps extends React.ComponentProps<typeof CmdkCommand> {
+type CommandRootProps = React.ComponentPropsWithoutRef<typeof CommandRoot> & {
   className?: string;
-}
+};
 
-const CommandRoot = React.forwardRef<
-  React.ElementRef<typeof CmdkCommand>,
+const CommandRootWrapper = React.forwardRef<
+  React.ElementRef<typeof CommandRoot>,
   CommandRootProps
 >(({ className, ...props }, ref) => {
   return (
-    <CmdkCommand
+    <CommandRoot
       ref={ref}
       className={`flex h-full w-full flex-col overflow-hidden ${className || ""}`}
       {...props}
@@ -19,33 +27,31 @@ const CommandRoot = React.forwardRef<
   );
 });
 
-CommandRoot.displayName = "CommandRoot";
+CommandRootWrapper.displayName = "CommandRoot";
 
-interface CommandInputProps
-  extends React.ComponentProps<typeof CmdkCommand.Input> {
+type CommandInputProps = React.ComponentPropsWithoutRef<typeof CommandInput> & {
   className?: string;
-}
+};
 
-const CommandInput = React.forwardRef<
-  React.ElementRef<typeof CmdkCommand.Input>,
+const CommandInputWrapper = React.forwardRef<
+  React.ElementRef<typeof CommandInput>,
   CommandInputProps
 >(({ className, ...props }, ref) => {
-  return <CmdkCommand.Input ref={ref} className={className} {...props} />;
+  return <CommandInput ref={ref} className={className} {...props} />;
 });
 
-CommandInput.displayName = "CommandInput";
+CommandInputWrapper.displayName = "CommandInput";
 
-interface CommandListProps
-  extends React.ComponentProps<typeof CmdkCommand.List> {
+type CommandListProps = React.ComponentPropsWithoutRef<typeof CommandList> & {
   className?: string;
-}
+};
 
-const CommandList = React.forwardRef<
-  React.ElementRef<typeof CmdkCommand.List>,
+const CommandListWrapper = React.forwardRef<
+  React.ElementRef<typeof CommandList>,
   CommandListProps
 >(({ className, ...props }, ref) => {
   return (
-    <CmdkCommand.List
+    <CommandList
       ref={ref}
       className={`overflow-y-auto ${className || ""}`}
       {...props}
@@ -53,19 +59,18 @@ const CommandList = React.forwardRef<
   );
 });
 
-CommandList.displayName = "CommandList";
+CommandListWrapper.displayName = "CommandList";
 
-interface CommandItemProps
-  extends React.ComponentProps<typeof CmdkCommand.Item> {
+type CommandItemProps = React.ComponentPropsWithoutRef<typeof CommandItem> & {
   className?: string;
-}
+};
 
-const CommandItem = React.forwardRef<
-  React.ElementRef<typeof CmdkCommand.Item>,
+const CommandItemWrapper = React.forwardRef<
+  React.ElementRef<typeof CommandItem>,
   CommandItemProps
 >(({ className, ...props }, ref) => {
   return (
-    <CmdkCommand.Item
+    <CommandItem
       ref={ref}
       className={`relative flex cursor-pointer select-none items-center px-3 py-2 text-sm outline-none data-[disabled=true]:pointer-events-none data-[selected=true]:bg-accent-3 data-[disabled=true]:opacity-50 ${className || ""}`}
       {...props}
@@ -73,47 +78,41 @@ const CommandItem = React.forwardRef<
   );
 });
 
-CommandItem.displayName = "CommandItem";
+CommandItemWrapper.displayName = "CommandItem";
 
-interface CommandGroupProps
-  extends React.ComponentProps<typeof CmdkCommand.Group> {
+type CommandGroupProps = React.ComponentPropsWithoutRef<typeof CommandGroup> & {
   className?: string;
   heading?: string;
-}
+};
 
-const CommandGroup = React.forwardRef<
-  React.ElementRef<typeof CmdkCommand.Group>,
+const CommandGroupWrapper = React.forwardRef<
+  React.ElementRef<typeof CommandGroup>,
   CommandGroupProps
 >(({ className, heading, children, ...props }, ref) => {
   return (
-    <CmdkCommand.Group
-      ref={ref}
-      className={`p-1 ${className || ""}`}
-      {...props}
-    >
+    <CommandGroup ref={ref} className={`p-1 ${className || ""}`} {...props}>
       {heading && (
         <div className="px-2 py-1.5 text-gray-11" style={{ fontSize: "14px" }}>
           {heading}
         </div>
       )}
       {children}
-    </CmdkCommand.Group>
+    </CommandGroup>
   );
 });
 
-CommandGroup.displayName = "CommandGroup";
+CommandGroupWrapper.displayName = "CommandGroup";
 
-interface CommandEmptyProps
-  extends React.ComponentProps<typeof CmdkCommand.Empty> {
+type CommandEmptyProps = React.ComponentPropsWithoutRef<typeof CommandEmpty> & {
   className?: string;
-}
+};
 
-const CommandEmpty = React.forwardRef<
-  React.ElementRef<typeof CmdkCommand.Empty>,
+const CommandEmptyWrapper = React.forwardRef<
+  React.ElementRef<typeof CommandEmpty>,
   CommandEmptyProps
 >(({ className, ...props }, ref) => {
   return (
-    <CmdkCommand.Empty
+    <CommandEmpty
       ref={ref}
       className={`py-6 text-center text-sm ${className || ""}`}
       {...props}
@@ -121,22 +120,23 @@ const CommandEmpty = React.forwardRef<
   );
 });
 
-CommandEmpty.displayName = "CommandEmpty";
+CommandEmptyWrapper.displayName = "CommandEmpty";
 
-interface CommandDialogProps
-  extends React.ComponentProps<typeof CmdkCommand.Dialog> {
+type CommandDialogProps = React.ComponentPropsWithoutRef<
+  typeof CommandDialog
+> & {
   className?: string;
   contentClassName?: string;
-}
+};
 
-const CommandDialog = ({
+const CommandDialogWrapper = ({
   className,
   contentClassName,
   children,
   ...props
 }: CommandDialogProps) => {
   return (
-    <CmdkCommand.Dialog
+    <CommandDialog
       label="Command menu"
       className={className}
       contentClassName={`command-dialog-content ${contentClassName || ""}`}
@@ -144,18 +144,18 @@ const CommandDialog = ({
       {...props}
     >
       {children}
-    </CmdkCommand.Dialog>
+    </CommandDialog>
   );
 };
 
-CommandDialog.displayName = "CommandDialog";
+CommandDialogWrapper.displayName = "CommandDialog";
 
 export const Command = {
-  Root: CommandRoot,
-  Dialog: CommandDialog,
-  Input: CommandInput,
-  List: CommandList,
-  Item: CommandItem,
-  Group: CommandGroup,
-  Empty: CommandEmpty,
+  Root: CommandRootWrapper,
+  Dialog: CommandDialogWrapper,
+  Input: CommandInputWrapper,
+  List: CommandListWrapper,
+  Item: CommandItemWrapper,
+  Group: CommandGroupWrapper,
+  Empty: CommandEmptyWrapper,
 };

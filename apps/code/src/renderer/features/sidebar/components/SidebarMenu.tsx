@@ -193,15 +193,16 @@ function SidebarMenuComponent() {
           overflowX: "hidden",
         }}
       >
-        <Flex direction="column" py="2">
+        <Flex direction="column" py="2" px="2" gap="1px">
           <Box mb="2">
             <NewTaskItem
               isActive={sidebarData.isHomeActive}
               onClick={handleNewTaskClick}
+              variant="primary"
             />
           </Box>
 
-          <Box mb="1">
+          <Box>
             <InboxItem
               isActive={sidebarData.isInboxActive}
               onClick={handleInboxClick}
@@ -209,7 +210,7 @@ function SidebarMenuComponent() {
             />
           </Box>
 
-          <Box mb="1">
+          <Box>
             <SkillsItem
               isActive={sidebarData.isSkillsActive}
               onClick={handleSkillsClick}
