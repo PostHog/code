@@ -1,105 +1,11 @@
 /*
  * Quill Design System integration
  *
- * Imports quill's color tokens as CSS custom properties and maps them
- * to Tailwind theme colors so quill component classes (bg-primary,
- * text-muted-foreground, etc.) generate correctly.
+ * Single pre-compiled stylesheet from @posthog/quill — contains color tokens
+ * (light + dark), the @theme inline mappings, font sizes / line heights /
+ * radii / shadows, and every utility class used by quill components.
  *
- * Only color mappings are imported — spacing, fonts, shadows, and radius
- * are intentionally omitted to avoid overriding the app's existing theme.
+ * Nothing else is needed on the consumer side: no @source directives, no
+ * tw-animate-css, no shadcn/tailwind.css. See PostHog/posthog#54137.
  */
-
-/* CSS custom properties for quill colors (light + dark via :root / .dark) */
-@import "@posthog/quill-tokens/color-system.css";
-
-/* Animations and CSS resets used by quill primitives */
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-
-/* Register quill color tokens as Tailwind theme values (inline = no CSS output) */
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-success: var(--success);
-  --color-success-foreground: var(--success-foreground);
-  --color-warning: var(--warning);
-  --color-warning-foreground: var(--warning-foreground);
-  --color-info: var(--info);
-  --color-info-foreground: var(--info-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-fill-hover: var(--fill-hover);
-  --color-fill-active: var(--fill-active);
-  --color-fill-expanded: var(--fill-expanded);
-  --color-fill-selected: var(--fill-selected);
-
-  /* Quill font sizes — rem() uses 16px base (rem = px / 16) and matches fontSize in source of truth.
-   * See: export const fontSize = {
-   *   xxs: [rem(10), { lineHeight: rem(12) }],   // 0.625rem (10px), 0.75rem (12px)
-   *   xs:  [rem(12), { lineHeight: rem(16) }],   // 0.75rem (12px), 1rem (16px)
-   *   sm:  [rem(14), { lineHeight: rem(20) }],   // 0.875rem (14px), 1.25rem (20px)
-   *   base:[rem(16), { lineHeight: rem(24) }],   // 1rem (16px), 1.5rem (24px)
-   *   lg:  [rem(18), { lineHeight: rem(28) }],   // 1.125rem (18px), 1.75rem (28px)
-   *   xl:  [rem(20), { lineHeight: rem(28) }],   // 1.25rem (20px), 1.75rem (28px)
-   *   '2xl':[rem(24), { lineHeight: rem(32) }],  // 1.5rem (24px), 2rem (32px)
-   * }
-   */
-
-  --text-xxs: 0.625rem;           /* 10px */
-  --text-xxs--line-height: 0.75rem;     /* 12px */
-  --text-xs: 0.75rem;             /* 12px */
-  --text-xs--line-height: 1rem;         /* 16px */
-  --text-sm: 0.875rem;            /* 14px */
-  --text-sm--line-height: 1.25rem;      /* 20px */
-  --text-base: 1rem;              /* 16px */
-  --text-base--line-height: 1.5rem;     /* 24px */
-  --text-lg: 1.125rem;            /* 18px */
-  --text-lg--line-height: 1.75rem;      /* 28px */
-  --text-xl: 1.25rem;             /* 20px */
-  --text-xl--line-height: 1.75rem;      /* 28px */
-  --text-2xl: 1.5rem;             /* 24px */
-  --text-2xl--line-height: 2rem;        /* 32px */
-
-  /* Quill line heights — the Radix preset replaces default lineHeight
-   * (tight/snug/normal/relaxed) with numbered scales (1-9). */
-  --leading-tight: 1.25;
-  --leading-snug: 1.375;
-  --leading-normal: 1.5;
-  --leading-relaxed: 1.625;
-  --leading-loose: 2;
-
-  /* Quill radius — uses --radius base from color-system.css.
-   * The Radix preset replaces default borderRadius (sm/md/lg) with
-   * numbered scales (1-6), so quill components need these re-added. */
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
-
-  /* Quill shadows — the Radix preset replaces default shadows (sm/md/lg)
-   * with numbered scales (1-6), so quill components need these re-added. */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
-}
-
-/* Scan quill package dist files so Tailwind generates their utility classes */
-@source "../../../node_modules/@posthog/quill-primitives/dist/";
-@source "../../../node_modules/@posthog/quill-components/dist/";
-@source "../../../node_modules/@posthog/quill-blocks/dist/";
+@import "@posthog/quill/styles.css";

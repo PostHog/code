@@ -1,6 +1,6 @@
 import { Tooltip } from "@components/ui/Tooltip";
 import { EnvelopeSimple, Plus } from "@phosphor-icons/react";
-import type { ButtonProps } from "@posthog/quill-primitives";
+import type { ButtonProps } from "@posthog/quill";
 import { Badge } from "@radix-ui/themes";
 import {
   formatHotkey,

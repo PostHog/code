@@ -13,7 +13,7 @@ import {
   User,
   Users,
 } from "@phosphor-icons/react";
-import { MenuLabel } from "@posthog/quill-primitives";
+import { MenuLabel } from "@posthog/quill";
 import { Box, Flex, Popover, Text } from "@radix-ui/themes";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 import { normalizeRepoKey } from "@shared/utils/repo";

@@ -40,7 +40,7 @@ import {
   ItemDescription,
   ItemTitle,
   Kbd,
-} from "@posthog/quill-primitives";
+} from "@posthog/quill";
 import { ChevronRightIcon } from "lucide-react";
 
 export function ProjectSwitcher() {
