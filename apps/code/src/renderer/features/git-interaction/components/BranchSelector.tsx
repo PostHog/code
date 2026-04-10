@@ -97,8 +97,12 @@ export function BranchSelector({
     ? "Loading..."
     : (displayedBranch ?? "No branch");
 
+  // Show the spinner on the trigger while the first page is still loading.
+  // Once we have branches to show, any "loading more" background work is
+  // surfaced inside the open picker instead, so the trigger goes back to its
+  // normal branch icon.
   const showSpinner =
-    effectiveLoading || (isCloudMode && cloudBranchesFetchingMore);
+    effectiveLoading || (isCloudMode && open && cloudBranchesFetchingMore);
 
   const triggerContent = (
     <Flex align="center" gap="1" style={{ minWidth: 0 }}>
