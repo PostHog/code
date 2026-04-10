@@ -1,4 +1,4 @@
-import { Button, type ButtonProps, cn } from "@posthog/quill-primitives";
+import { Button, type ButtonProps, cn } from "@posthog/quill";
 import type { SidebarItemAction } from "../types";
 
 const INDENT_SIZE = 8;
