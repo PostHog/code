@@ -123,6 +123,8 @@ export function TaskInput({
     data: cloudBranchData,
     isPending: cloudBranchesLoading,
     isFetchingMore: cloudBranchesFetchingMore,
+    pauseLoadingMore: pauseCloudBranchesLoading,
+    resumeLoadingMore: resumeCloudBranchesLoading,
   } = useGithubBranches(selectedIntegrationId, selectedCloudRepository);
   const cloudBranches = cloudBranchData?.branches;
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
@@ -468,6 +470,8 @@ export function TaskInput({
               cloudBranches={cloudBranches}
               cloudBranchesLoading={cloudBranchesLoading}
               cloudBranchesFetchingMore={cloudBranchesFetchingMore}
+              onCloudPickerOpen={resumeCloudBranchesLoading}
+              onCloudBranchCommit={pauseCloudBranchesLoading}
             />
             {workspaceMode === "worktree" && (
               <EnvironmentSelector

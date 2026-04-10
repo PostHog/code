@@ -22,6 +22,8 @@ interface BranchSelectorProps {
   cloudBranches?: string[];
   cloudBranchesLoading?: boolean;
   cloudBranchesFetchingMore?: boolean;
+  onCloudPickerOpen?: () => void;
+  onCloudBranchCommit?: () => void;
   taskId?: string;
 }
 
@@ -38,6 +40,8 @@ export function BranchSelector({
   cloudBranches,
   cloudBranchesLoading,
   cloudBranchesFetchingMore,
+  onCloudPickerOpen,
+  onCloudBranchCommit,
   taskId,
 }: BranchSelectorProps) {
   const [open, setOpen] = useState(false);
@@ -90,7 +94,20 @@ export function BranchSelector({
         branchName: value,
       });
     }
+    if (isCloudMode && value) {
+      // User committed to a branch — pause the background pagination. If they
+      // later re-open the picker, `onCloudPickerOpen` will resume it from
+      // wherever the cached pages left off.
+      onCloudBranchCommit?.();
+    }
     setOpen(false);
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (isCloudMode && next) {
+      onCloudPickerOpen?.();
+    }
   };
 
   const displayText = effectiveLoading
@@ -121,7 +138,7 @@ export function BranchSelector({
         value={displayedBranch ?? ""}
         onValueChange={handleBranchChange}
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={handleOpenChange}
         size="1"
         disabled={disabled || !repoPath || cloudStillLoading}
       >
