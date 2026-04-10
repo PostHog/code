@@ -32,6 +32,10 @@ const mockTrpcLogs = vi.hoisted(() => ({
 
 const mockTrpcCloudTask = vi.hoisted(() => ({
   sendCommand: { mutate: vi.fn() },
+  watch: { mutate: vi.fn().mockResolvedValue(undefined) },
+  retry: { mutate: vi.fn().mockResolvedValue(undefined) },
+  unwatch: { mutate: vi.fn().mockResolvedValue(undefined) },
+  onUpdate: { subscribe: vi.fn() },
 }));
 
 vi.mock("@renderer/trpc/client", () => ({
@@ -259,6 +263,19 @@ describe("SessionService", () => {
     mockGetIsOnline.mockReturnValue(true);
     mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(undefined);
     mockSessionStoreSetters.getSessions.mockReturnValue({});
+    mockAuth.fetchAuthState.mockResolvedValue({
+      status: "authenticated",
+      bootstrapComplete: true,
+      cloudRegion: "us",
+      projectId: 123,
+      availableProjectIds: [123],
+      availableOrgIds: [],
+      hasCodeAccess: true,
+      needsScopeReauth: false,
+    });
+    mockTrpcCloudTask.onUpdate.subscribe.mockReturnValue({
+      unsubscribe: vi.fn(),
+    });
   });
 
   describe("singleton management", () => {
@@ -436,6 +453,145 @@ describe("SessionService", () => {
       expect(mockSessionStoreSetters.removeSession).toHaveBeenCalledWith(
         "run-123",
       );
+    });
+  });
+
+  describe("watchCloudTask", () => {
+    it("subscribes to cloud updates before starting the watcher", async () => {
+      const service = getSessionService();
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+
+      expect(mockTrpcCloudTask.onUpdate.subscribe).toHaveBeenCalledWith(
+        { taskId: "task-123", runId: "run-123" },
+        expect.objectContaining({
+          onData: expect.any(Function),
+          onError: expect.any(Function),
+        }),
+      );
+
+      expect(mockTrpcCloudTask.watch.mutate).toHaveBeenCalledWith({
+        taskId: "task-123",
+        runId: "run-123",
+        apiHost: "https://api.anthropic.com",
+        teamId: 123,
+      });
+
+      expect(
+        mockTrpcCloudTask.onUpdate.subscribe.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        mockTrpcCloudTask.watch.mutate.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("ignores stale async starts when the same watcher is replaced", async () => {
+      const service = getSessionService();
+      let resolveFirstWatchStart!: () => void;
+      let resolveSecondWatchStart!: () => void;
+
+      mockTrpcCloudTask.watch.mutate
+        .mockImplementationOnce(
+          () =>
+            new Promise<void>((resolve) => {
+              resolveFirstWatchStart = resolve;
+            }),
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise<void>((resolve) => {
+              resolveSecondWatchStart = resolve;
+            }),
+        );
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+      service.stopCloudTaskWatch("task-123");
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+
+      resolveSecondWatchStart();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      resolveFirstWatchStart();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(mockTrpcCloudTask.watch.mutate).toHaveBeenCalledTimes(2);
+    });
+
+    it("sends a compensating unwatch if teardown wins the race after watch starts", async () => {
+      const service = getSessionService();
+      let resolveWatchStart!: () => void;
+      mockTrpcCloudTask.unwatch.mutate.mockClear();
+
+      mockTrpcCloudTask.watch.mutate.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveWatchStart = resolve;
+          }),
+      );
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+
+      service.stopCloudTaskWatch("task-123");
+      expect(mockTrpcCloudTask.unwatch.mutate).toHaveBeenCalledTimes(1);
+
+      resolveWatchStart();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(mockTrpcCloudTask.unwatch.mutate).toHaveBeenCalledTimes(2);
+      expect(mockTrpcCloudTask.unwatch.mutate).toHaveBeenLastCalledWith({
+        taskId: "task-123",
+        runId: "run-123",
+      });
+    });
+
+    it("retries an errored cloud watcher in place", async () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue({
+        ...createMockSession({
+          taskId: "task-123",
+          taskRunId: "run-123",
+          status: "error",
+        }),
+        isCloud: true,
+      });
+
+      await service.retryCloudTaskWatch("task-123");
+
+      expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+        "run-123",
+        expect.objectContaining({
+          status: "disconnected",
+          errorTitle: undefined,
+          errorMessage: undefined,
+          isPromptPending: false,
+        }),
+      );
+      expect(mockTrpcCloudTask.retry.mutate).toHaveBeenCalledWith({
+        taskId: "task-123",
+        runId: "run-123",
+      });
     });
   });
 

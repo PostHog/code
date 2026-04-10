@@ -33,7 +33,7 @@ function getTaskStatusSummary(task: Task): {
 } {
   const status = task.latest_run?.status;
   switch (status) {
-    case "started":
+    case "queued":
     case "in_progress":
       return {
         label: task.latest_run?.stage

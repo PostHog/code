@@ -45,6 +45,26 @@ export interface Task {
   latest_run?: TaskRun;
 }
 
+export type TaskRunStatus =
+  | "not_started"
+  | "queued"
+  | "in_progress"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export const TERMINAL_STATUSES = ["completed", "failed", "cancelled"] as const;
+
+export function isTerminalStatus(
+  status: TaskRunStatus | string | null | undefined,
+): boolean {
+  return (
+    status !== null &&
+    status !== undefined &&
+    TERMINAL_STATUSES.includes(status as (typeof TERMINAL_STATUSES)[number])
+  );
+}
+
 export interface TaskRun {
   id: string;
   task: string; // Task ID
@@ -52,7 +72,7 @@ export interface TaskRun {
   branch: string | null;
   stage?: string | null; // Current stage (e.g., 'research', 'plan', 'build')
   environment?: "local" | "cloud";
-  status: "started" | "in_progress" | "completed" | "failed" | "cancelled";
+  status: TaskRunStatus;
   log_url: string;
   error_message: string | null;
   output: Record<string, unknown> | null; // Structured output (PR URL, commit SHA, etc.)
@@ -89,22 +109,49 @@ export interface SandboxEnvironmentInput {
   private?: boolean;
 }
 
-export type CloudTaskUpdateKind = "logs" | "status" | "snapshot";
-
-export interface CloudTaskUpdatePayload {
+interface CloudTaskUpdateBase {
   taskId: string;
   runId: string;
-  kind: CloudTaskUpdateKind;
-  // Log fields (present when kind is "logs" or "snapshot")
-  newEntries?: StoredLogEntry[];
-  totalEntryCount?: number;
-  // Status fields (present when kind is "status" or "snapshot")
-  status?: TaskRun["status"];
+}
+
+export interface CloudTaskLogsUpdate extends CloudTaskUpdateBase {
+  kind: "logs";
+  newEntries: StoredLogEntry[];
+  totalEntryCount: number;
+}
+
+export interface CloudTaskStatusUpdate extends CloudTaskUpdateBase {
+  kind: "status";
+  status?: TaskRunStatus;
   stage?: string | null;
   output?: Record<string, unknown> | null;
   errorMessage?: string | null;
   branch?: string | null;
 }
+
+export interface CloudTaskSnapshotUpdate extends CloudTaskUpdateBase {
+  kind: "snapshot";
+  newEntries: StoredLogEntry[];
+  totalEntryCount: number;
+  status?: TaskRunStatus;
+  stage?: string | null;
+  output?: Record<string, unknown> | null;
+  errorMessage?: string | null;
+  branch?: string | null;
+}
+
+export interface CloudTaskErrorUpdate extends CloudTaskUpdateBase {
+  kind: "error";
+  errorTitle: string;
+  errorMessage: string;
+  retryable: boolean;
+}
+
+export type CloudTaskUpdatePayload =
+  | CloudTaskLogsUpdate
+  | CloudTaskStatusUpdate
+  | CloudTaskSnapshotUpdate
+  | CloudTaskErrorUpdate;
 
 // Mention types for editors
 type MentionType =

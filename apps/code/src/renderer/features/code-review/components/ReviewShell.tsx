@@ -542,7 +542,7 @@ export function DiffFileHeader({
     fileDiff.prevName && fileDiff.prevName !== fileDiff.name
       ? `${fileDiff.prevName} \u2192 ${fileDiff.name}`
       : fileDiff.name;
-  const { dirPath, fileName } = splitFilePath(fullPath);
+  const { dirPath, fileName } = splitFilePath(fullPath ?? "");
   const { additions, deletions } = sumHunkStats(fileDiff.hunks);
 
   return (

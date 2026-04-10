@@ -3,9 +3,9 @@ import { MAIN_TOKENS } from "../../di/tokens";
 import {
   CloudTaskEvent,
   onUpdateInput,
+  retryInput,
   sendCommandInput,
   sendCommandOutput,
-  setViewingInput,
   unwatchInput,
   watchInput,
 } from "../../services/cloud-task/schemas";
@@ -24,11 +24,9 @@ export const cloudTaskRouter = router({
     .input(unwatchInput)
     .mutation(({ input }) => getService().unwatch(input.taskId, input.runId)),
 
-  setViewing: publicProcedure
-    .input(setViewingInput)
-    .mutation(({ input }) =>
-      getService().setViewing(input.taskId, input.runId, input.viewing),
-    ),
+  retry: publicProcedure
+    .input(retryInput)
+    .mutation(({ input }) => getService().retry(input.taskId, input.runId)),
 
   sendCommand: publicProcedure
     .input(sendCommandInput)

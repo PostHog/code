@@ -4,7 +4,7 @@ import { useSuspendedTaskIds } from "@features/suspension/hooks/useSuspendedTask
 import { useTasks } from "@features/tasks/hooks/useTasks";
 import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
 import { getTaskRepository, parseRepository } from "@renderer/utils/repository";
-import type { Task } from "@shared/types";
+import type { Task, TaskRunStatus } from "@shared/types";
 import { useEffect, useMemo, useRef } from "react";
 import { useSidebarStore } from "../stores/sidebarStore";
 import type { SortMode } from "../types";
@@ -28,12 +28,7 @@ export interface TaskData {
   repository: TaskRepositoryInfo | null;
   isSuspended: boolean;
   folderId?: string;
-  taskRunStatus?:
-    | "started"
-    | "in_progress"
-    | "completed"
-    | "failed"
-    | "cancelled";
+  taskRunStatus?: TaskRunStatus;
   taskRunEnvironment?: "local" | "cloud";
 }
 
@@ -220,7 +215,7 @@ export function useSidebarData({
         needsPermission: (session?.pendingPermissions?.size ?? 0) > 0,
         repository: getRepositoryInfo(task, workspace?.folderPath),
         folderId: workspace?.folderId || undefined,
-        taskRunStatus: task.latest_run?.status,
+        taskRunStatus: session?.cloudStatus ?? task.latest_run?.status,
         taskRunEnvironment: task.latest_run?.environment,
       };
     });
