@@ -94,8 +94,15 @@ export const FileMentionChip = memo(function FileMentionChip({
       <Text size="1">
         <FileIcon filename={filename} size={12} />
         <span className="font-mono">
-          {directory && <span className="text-gray-9">{directory}/</span>}
-          {filename}
+          {directory ? (
+            <span className="inline-flex">
+              {directory}
+              <span className="text-gray-9">/</span>
+              {filename}
+            </span>
+          ) : (
+            filename
+          )}
         </span>
       </Text>
     </Flex>
