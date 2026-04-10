@@ -1,8 +1,8 @@
 @layer theme, base, radix, components, utilities;
 @import "@radix-ui/themes/styles.css" layer(radix);
 @import "tailwindcss";
-@config "../../../tailwind.config.js";
 @import "./quill.css";
+@config "../../../tailwind.config.js";
 
 @font-face {
   font-family: "Berkeley Mono";
