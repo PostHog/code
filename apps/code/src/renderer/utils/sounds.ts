@@ -1,14 +1,28 @@
 import type { CompletionSound } from "@features/settings/stores/settingsStore";
+import bubblesUrl from "@renderer/assets/sounds/bubbles.mp3";
 import daniloUrl from "@renderer/assets/sounds/danilo.mp3";
+import dropUrl from "@renderer/assets/sounds/drop.mp3";
 import guitarUrl from "@renderer/assets/sounds/guitar.mp3";
+import knockUrl from "@renderer/assets/sounds/knock.mp3";
 import meepUrl from "@renderer/assets/sounds/meep.mp3";
 import reviUrl from "@renderer/assets/sounds/revi.mp3";
+import ringUrl from "@renderer/assets/sounds/ring.mp3";
+import shootUrl from "@renderer/assets/sounds/shoot.mp3";
+import slideUrl from "@renderer/assets/sounds/slide.mp3";
+import switchUrl from "@renderer/assets/sounds/switch.mp3";
 
 const SOUND_URLS: Record<Exclude<CompletionSound, "none">, string> = {
   guitar: guitarUrl,
   danilo: daniloUrl,
   revi: reviUrl,
   meep: meepUrl,
+  bubbles: bubblesUrl,
+  drop: dropUrl,
+  knock: knockUrl,
+  ring: ringUrl,
+  shoot: shootUrl,
+  slide: slideUrl,
+  switch: switchUrl,
 };
 
 let currentAudio: HTMLAudioElement | null = null;

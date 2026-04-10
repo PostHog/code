@@ -7,7 +7,19 @@ import { persist } from "zustand/middleware";
 export type DefaultRunMode = "local" | "cloud" | "last_used";
 export type LocalWorkspaceMode = "worktree" | "local";
 export type SendMessagesWith = "enter" | "cmd+enter";
-export type CompletionSound = "none" | "guitar" | "danilo" | "revi" | "meep";
+export type CompletionSound =
+  | "none"
+  | "guitar"
+  | "danilo"
+  | "revi"
+  | "meep"
+  | "bubbles"
+  | "drop"
+  | "knock"
+  | "ring"
+  | "shoot"
+  | "slide"
+  | "switch";
 export type AgentAdapter = "claude" | "codex";
 export type AutoConvertLongText = "off" | "1000" | "2500" | "5000" | "10000";
 export type DefaultInitialTaskMode = "plan" | "last_used";

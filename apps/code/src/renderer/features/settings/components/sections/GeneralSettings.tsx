@@ -304,6 +304,13 @@ export function GeneralSettings() {
               <Select.Item value="danilo">I'm ready</Select.Item>
               <Select.Item value="revi">Cute noise</Select.Item>
               <Select.Item value="meep">Meep</Select.Item>
+              <Select.Item value="bubbles">Bubbles</Select.Item>
+              <Select.Item value="drop">Drop</Select.Item>
+              <Select.Item value="knock">Knock</Select.Item>
+              <Select.Item value="ring">Ring</Select.Item>
+              <Select.Item value="shoot">Shoot</Select.Item>
+              <Select.Item value="slide">Slide</Select.Item>
+              <Select.Item value="switch">Switch</Select.Item>
             </Select.Content>
           </Select.Root>
           {completionSound !== "none" && (
