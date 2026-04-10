@@ -40,9 +40,10 @@ export function SidebarItem({
       variant={variant}
       className={cn(
         "group focus-visible:-outline-offset-2 flex w-full text-left transition-colors focus-visible:outline-2 focus-visible:outline-accent-8",
-        variant === "primary" && "data-active:opacity-50",
+        "data-active:bg-fill-active",
+        variant === "primary" && "data-active:bg-secondary/70",
       )}
-      data-active={isActive || undefined}
+      data-active={isActive}
       draggable={draggable}
       onDragStart={onDragStart}
       style={{
@@ -55,9 +56,7 @@ export function SidebarItem({
       {icon ? <span className="flex shrink-0 items-center">{icon}</span> : null}
       <span className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <span className="flex items-center gap-1" style={{ height: "18px" }}>
-          <span
-            className={`min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap`}
-          >
+          <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
             {label}
           </span>
           {endContent}
