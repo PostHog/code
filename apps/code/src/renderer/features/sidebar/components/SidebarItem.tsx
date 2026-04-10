@@ -40,9 +40,7 @@ export function SidebarItem({
       variant={variant}
       className={cn(
         "group focus-visible:-outline-offset-2 flex w-full text-left transition-colors focus-visible:outline-2 focus-visible:outline-accent-8",
-        variant === "primary"
-          ? "data-active:opacity-50"
-          : "data-active:bg-fill-active",
+        variant === "primary" && "data-active:opacity-50",
       )}
       data-active={isActive || undefined}
       draggable={draggable}
