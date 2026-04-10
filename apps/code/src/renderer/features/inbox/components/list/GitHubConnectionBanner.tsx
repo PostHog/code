@@ -1,6 +1,6 @@
 import { Button } from "@components/ui/Button";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
-import { useMeQuery } from "@hooks/useMeQuery";
+import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import {
   ArrowSquareOutIcon,
   GithubLogoIcon,
@@ -20,7 +20,11 @@ function posthogCloudGithubAccountLinkUrl(region: CloudRegion): string {
 }
 
 export function GitHubConnectionBanner() {
-  const { data: user, isLoading } = useMeQuery();
+  const { data: githubLogin, isLoading } = useAuthenticatedQuery(
+    ["github_login"],
+    async (client) => client.getGithubLogin(),
+    { staleTime: 5 * 60 * 1000 },
+  );
   const cloudRegion = useAuthStateValue((s) => s.cloudRegion);
   const awaitingLink = useRef(false);
 
@@ -29,18 +33,18 @@ export function GitHubConnectionBanner() {
     const onFocus = () => {
       if (awaitingLink.current) {
         awaitingLink.current = false;
-        void queryClient.invalidateQueries({ queryKey: ["me"] });
+        void queryClient.invalidateQueries({ queryKey: ["github_login"] });
       }
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
-  if (isLoading || !user) {
+  if (isLoading) {
     return null;
   }
 
-  if (user.github_login) {
+  if (githubLogin) {
     return null;
   }
 

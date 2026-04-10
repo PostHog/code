@@ -382,6 +382,14 @@ export class PostHogAPIClient {
     return data;
   }
 
+  async getGithubLogin(): Promise<string | null> {
+    // @ts-expect-error this is not in the generated client YET
+    const data = (await this.api.get("/api/users/{uuid}/github_login/", {
+      path: { uuid: "@me" },
+    })) as { github_login: string | null };
+    return data.github_login;
+  }
+
   async switchOrganization(orgId: string): Promise<void> {
     await this.api.patch("/api/users/{uuid}/", {
       path: { uuid: "@me" },

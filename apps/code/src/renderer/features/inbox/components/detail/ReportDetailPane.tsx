@@ -63,16 +63,9 @@ import { SignalCard } from "./SignalCard";
 
 function isSuggestedReviewerRowMe(
   reviewer: SuggestedReviewer,
-  me: { uuid: string; github_login: string | null } | undefined | null,
+  meUuid: string | undefined,
 ): boolean {
-  if (!me) return false;
-  if (reviewer.user?.uuid && me.uuid === reviewer.user.uuid) return true;
-  if (me.github_login && reviewer.github_login) {
-    return (
-      me.github_login.toLowerCase() === reviewer.github_login.toLowerCase()
-    );
-  }
-  return false;
+  return !!reviewer.user?.uuid && !!meUuid && meUuid === reviewer.user.uuid;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -468,7 +461,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
               </Text>
               <Flex direction="column" gap="1">
                 {suggestedReviewers.map((reviewer) => {
-                  const isMe = isSuggestedReviewerRowMe(reviewer, me);
+                  const isMe = isSuggestedReviewerRowMe(reviewer, me?.uuid);
                   return (
                     <Flex
                       key={reviewer.github_login}
