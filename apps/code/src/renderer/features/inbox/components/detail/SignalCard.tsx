@@ -7,7 +7,6 @@ import {
   CheckCircleIcon,
   QuestionIcon,
   TagIcon,
-  WarningIcon,
 } from "@phosphor-icons/react";
 import { Badge, Box, Flex, Text } from "@radix-ui/themes";
 import type { Signal, SignalFindingContent } from "@shared/types";
@@ -252,7 +251,12 @@ function SignalCardHeader({
 function CollapsibleBody({ body }: { body: string }) {
   const [expanded, setExpanded] = useState(false);
   const isLong = body.length > COLLAPSE_THRESHOLD;
-  const displayBody = isLong && !expanded ? truncateBody(body) : body;
+  // Preprocess content to handle escaped backticks and ensure proper markdown parsing
+  const processedBody = body
+    .replace(/\\`/g, "`") // Unescape escaped backticks
+    .replace(/`([^`]+)`/g, "`$1`"); // Ensure proper backtick formatting
+  const displayBody =
+    isLong && !expanded ? truncateBody(processedBody) : processedBody;
 
   return (
     <Box>
@@ -474,51 +478,19 @@ function LlmEvalSignalCard({
 
 function ErrorTrackingSignalCard({
   signal,
-  extra,
   verified,
   codePaths,
   dataQueried,
 }: {
   signal: Signal;
-  extra: ErrorTrackingExtra;
   verified?: boolean;
   codePaths?: string[];
   dataQueried?: string;
 }) {
-  const fingerprint = extra.fingerprint ?? "";
-
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
       <SignalCardHeader signal={signal} verified={verified} />
       <CollapsibleBody body={signal.content} />
-      <Flex
-        align="center"
-        gap="2"
-        wrap="wrap"
-        mt="2"
-        className="text-[11px]"
-        style={{ color: "var(--gray-10)" }}
-      >
-        <Flex align="center" gap="1">
-          <WarningIcon
-            size={14}
-            weight="bold"
-            className="shrink-0"
-            style={{ color: "var(--amber-9)" }}
-          />
-          <span>
-            Fingerprint{" "}
-            <span
-              className="break-all font-mono"
-              style={{ color: "var(--gray-12)" }}
-            >
-              {fingerprint}
-            </span>
-          </span>
-        </Flex>
-        <span className="flex-1" />
-        {/* No "View issue" link in Code — error tracking lives in Cloud */}
-      </Flex>
       <CodePathsCollapsible paths={codePaths ?? []} />
       <DataQueriedCollapsible text={dataQueried ?? ""} />
     </Box>
@@ -644,7 +616,6 @@ export function SignalCard({
     return (
       <ErrorTrackingSignalCard
         signal={signal}
-        extra={extra}
         verified={verified}
         codePaths={codePaths}
         dataQueried={dataQueried}

@@ -94,7 +94,7 @@ const createRun = (overrides: Partial<TaskRun> = {}): TaskRun => ({
   team: 1,
   branch: "release/remembered-branch",
   environment: "cloud",
-  status: "started",
+  status: "queued",
   log_url: "https://example.com/logs/run-123",
   error_message: null,
   output: null,

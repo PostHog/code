@@ -14,13 +14,11 @@ export function useSessionViewState(taskId: string, task: Task) {
   const cloudStatus = session?.cloudStatus ?? null;
   const isCloudRunNotTerminal =
     isCloud &&
-    (!cloudStatus ||
-      cloudStatus === "started" ||
-      cloudStatus === "in_progress");
+    (!cloudStatus || cloudStatus === "queued" || cloudStatus === "in_progress");
   const isCloudRunTerminal = isCloud && !isCloudRunNotTerminal;
 
-  const isRunning = isCloud ? true : session?.status === "connected";
-  const hasError = isCloud ? false : session?.status === "error";
+  const hasError = session?.status === "error";
+  const isRunning = isCloud ? !hasError : session?.status === "connected";
 
   const events = session?.events ?? [];
   const isPromptPending = session?.isPromptPending ?? false;
@@ -30,7 +28,7 @@ export function useSessionViewState(taskId: string, task: Task) {
     !task.latest_run?.id && !!task.description;
   const isResumingExistingSession = !!task.latest_run?.id;
   const isInitializing = isCloud
-    ? !session || (events.length === 0 && isCloudRunNotTerminal)
+    ? !hasError && (!session || (events.length === 0 && isCloudRunNotTerminal))
     : !session ||
       (session.status === "connecting" && events.length === 0) ||
       (session.status === "connected" &&
@@ -57,7 +55,9 @@ export function useSessionViewState(taskId: string, task: Task) {
     promptStartedAt,
     isInitializing,
     cloudBranch,
-    errorTitle: isCloud ? undefined : session?.errorTitle,
-    errorMessage: isCloud ? undefined : session?.errorMessage,
+    errorTitle: session?.errorTitle,
+    errorMessage:
+      session?.errorMessage ??
+      (isCloud ? session?.cloudErrorMessage : undefined),
   };
 }
