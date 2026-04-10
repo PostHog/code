@@ -1,5 +1,6 @@
 import { Tooltip } from "@components/ui/Tooltip";
 import { EnvelopeSimple, Plus } from "@phosphor-icons/react";
+import type { ButtonProps } from "@posthog/quill-primitives";
 import { Badge } from "@radix-ui/themes";
 import {
   formatHotkey,
@@ -10,6 +11,7 @@ import { SidebarItem } from "../SidebarItem";
 interface NewTaskItemProps {
   isActive: boolean;
   onClick: () => void;
+  variant?: ButtonProps["variant"];
 }
 
 export function NewTaskItem({ isActive, onClick }: NewTaskItemProps) {
@@ -20,6 +22,7 @@ export function NewTaskItem({ isActive, onClick }: NewTaskItemProps) {
       label="New task"
       isActive={isActive}
       onClick={onClick}
+      variant="primary"
     />
   );
 }
