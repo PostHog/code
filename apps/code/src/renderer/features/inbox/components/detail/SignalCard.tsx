@@ -1,5 +1,7 @@
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { MarkdownRenderer } from "@features/editor/components/MarkdownRenderer";
 import { SOURCE_PRODUCT_META } from "@features/inbox/components/utils/source-product-icons";
+import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import {
   ArrowSquareOutIcon,
   CaretDownIcon,
@@ -10,7 +12,7 @@ import {
 } from "@phosphor-icons/react";
 import { Badge, Box, Flex, Text } from "@radix-ui/themes";
 import type { Signal, SignalFindingContent } from "@shared/types";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 const COLLAPSE_THRESHOLD = 300;
 
@@ -32,6 +34,12 @@ function signalCardSourceLine(signal: {
     const typeLabel =
       ERROR_TRACKING_TYPE_LABELS[source_type] ?? source_type.replace(/_/g, " ");
     return `Error tracking · ${typeLabel}`;
+  }
+  if (
+    source_product === "session_replay" &&
+    source_type === "session_problem"
+  ) {
+    return "Session replay · Session problem";
   }
   if (
     source_product === "session_replay" &&
@@ -89,6 +97,27 @@ interface LlmEvalExtra {
   trace_id?: string;
   model?: string;
   provider?: string;
+}
+
+interface SessionProblemEventEntry {
+  event: string;
+  timestamp: string;
+  current_url?: string;
+  event_type?: string;
+  interaction_text?: string;
+}
+
+interface SessionProblemExtra {
+  session_id?: string;
+  segment_title?: string;
+  start_time?: string;
+  end_time?: string;
+  problem_type?: string;
+  distinct_id?: string;
+  session_start_time?: string;
+  session_end_time?: string;
+  exported_asset_id?: number;
+  event_history?: SessionProblemEventEntry[];
 }
 
 interface ErrorTrackingExtra {
@@ -171,6 +200,14 @@ function isLlmEvalExtra(
   extra: Record<string, unknown>,
 ): extra is Record<string, unknown> & LlmEvalExtra {
   return "evaluation_id" in extra && "trace_id" in extra;
+}
+
+function isSessionProblemExtra(
+  extra: Record<string, unknown>,
+): extra is Record<string, unknown> & SessionProblemExtra {
+  return (
+    "session_id" in extra && "problem_type" in extra && "segment_title" in extra
+  );
 }
 
 function isErrorTrackingExtra(
@@ -476,6 +513,221 @@ function LlmEvalSignalCard({
   );
 }
 
+const PROBLEM_TYPE_LABELS: Record<
+  string,
+  { label: string; color: "red" | "orange" }
+> = {
+  blocking_exception: { label: "Blocking exception", color: "red" },
+  non_blocking_exception: { label: "Non-blocking exception", color: "orange" },
+  abandonment: { label: "Abandonment", color: "red" },
+  confusion: { label: "Confusion", color: "orange" },
+  failure: { label: "Failure", color: "red" },
+};
+
+// Human-readable labels for common PostHog dollar-prefixed event names
+const EVENT_DISPLAY_NAMES: Record<string, string> = {
+  $pageview: "Pageview",
+  $autocapture: "Autocapture",
+  $exception: "Exception",
+  $rageclick: "Rageclick",
+  $dead_click: "Dead click",
+  $screen: "Screen",
+  $csp_violation: "CSP violation",
+  $pageleave: "Pageleave",
+};
+
+function eventDisplayName(raw: string): string {
+  return EVENT_DISPLAY_NAMES[raw] ?? raw;
+}
+
+function EventHistoryTable({ events }: { events: SessionProblemEventEntry[] }) {
+  return (
+    <Box className="min-w-0 flex-1">
+      <Text
+        size="1"
+        weight="medium"
+        className="mb-1 block text-[11px]"
+        style={{ color: "var(--gray-10)" }}
+      >
+        Events around the problem
+      </Text>
+      <Box className="max-h-[180px] overflow-y-auto rounded border border-gray-5 bg-gray-2">
+        <table className="w-full text-[11px]">
+          <tbody>
+            {events.map((entry) => (
+              <tr
+                key={entry.timestamp}
+                className="border-gray-4 border-b last:border-b-0"
+              >
+                <td
+                  className="whitespace-nowrap px-1.5 py-1 align-top font-mono"
+                  style={{ color: "var(--gray-9)" }}
+                >
+                  {entry.timestamp}
+                </td>
+                <td className="px-1.5 py-1 align-top">
+                  <span style={{ color: "var(--gray-12)" }}>
+                    {eventDisplayName(entry.event)}
+                  </span>
+                  {entry.event_type ? (
+                    <span className="ml-1" style={{ color: "var(--gray-9)" }}>
+                      [{entry.event_type}]
+                    </span>
+                  ) : null}
+                  {entry.interaction_text ? (
+                    <span className="ml-1" style={{ color: "var(--gray-11)" }}>
+                      &quot;{entry.interaction_text}&quot;
+                    </span>
+                  ) : null}
+                </td>
+                {entry.current_url ? (
+                  <td
+                    className="max-w-[200px] truncate px-1.5 py-1 align-top"
+                    style={{ color: "var(--gray-9)" }}
+                    title={entry.current_url}
+                  >
+                    {entry.current_url}
+                  </td>
+                ) : null}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Box>
+    </Box>
+  );
+}
+
+function SessionProblemSignalCard({
+  signal,
+  extra,
+  verified,
+  codePaths,
+  dataQueried,
+}: {
+  signal: Signal;
+  extra: SessionProblemExtra;
+  verified?: boolean;
+  codePaths?: string[];
+  dataQueried?: string;
+}) {
+  const problemInfo = extra.problem_type
+    ? (PROBLEM_TYPE_LABELS[extra.problem_type] ?? {
+        label: extra.problem_type.replace(/_/g, " "),
+        color: "orange" as const,
+      })
+    : null;
+  const hasEventHistory = extra.event_history && extra.event_history.length > 0;
+
+  return (
+    <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
+      <SignalCardHeader signal={signal} verified={verified} />
+      <CollapsibleBody body={signal.content} />
+
+      {extra.session_id && (
+        <SessionRecordingVideo
+          exportedAssetId={extra.exported_asset_id}
+          sessionId={extra.session_id}
+        />
+      )}
+      {hasEventHistory && (
+        <Box mt="2">
+          <EventHistoryTable events={extra.event_history ?? []} />
+        </Box>
+      )}
+
+      <Flex
+        align="center"
+        gap="2"
+        wrap="wrap"
+        mt="2"
+        className="text-[11px]"
+        style={{ color: "var(--gray-10)" }}
+      >
+        {problemInfo && (
+          <Badge
+            variant="soft"
+            color={problemInfo.color}
+            size="1"
+            className="text-[11px]"
+          >
+            {problemInfo.label}
+          </Badge>
+        )}
+        {extra.distinct_id && (
+          <Text className="font-mono text-[11px]">
+            {extra.distinct_id.slice(0, 10)}…
+          </Text>
+        )}
+        {extra.start_time && extra.end_time && (
+          <>
+            <span>·</span>
+            <span>
+              {extra.start_time} – {extra.end_time}
+            </span>
+          </>
+        )}
+      </Flex>
+      <CodePathsCollapsible paths={codePaths ?? []} />
+      <DataQueriedCollapsible text={dataQueried ?? ""} />
+    </Box>
+  );
+}
+
+function SessionRecordingVideo({
+  exportedAssetId,
+  sessionId,
+}: {
+  exportedAssetId?: number;
+  sessionId: string;
+}) {
+  const projectId = useAuthStateValue((state) => state.projectId);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoQuery = useAuthenticatedQuery<string | null>(
+    ["export-video", projectId, exportedAssetId, sessionId],
+    async (client) => {
+      if (!projectId) return null;
+      let assetId: number | null = exportedAssetId ?? null;
+      // If no asset ID in the signal, look up the export by session_id
+      if (assetId == null) {
+        assetId = await client.findExportBySessionRecordingId(
+          projectId,
+          sessionId,
+        );
+        if (assetId == null) return null;
+      }
+      return client.getExportContentUrl(projectId, assetId);
+    },
+    { enabled: !!projectId, staleTime: Infinity },
+  );
+
+  if (videoQuery.isError || videoQuery.data === null) return null;
+  if (videoQuery.isLoading || videoQuery.data === undefined) {
+    return (
+      <Box
+        mt="2"
+        className="flex h-24 items-center justify-center rounded bg-gray-3 text-[11px] text-gray-9"
+      >
+        Loading recording…
+      </Box>
+    );
+  }
+
+  return (
+    <Box mt="2" className="overflow-hidden rounded">
+      <video
+        ref={videoRef}
+        src={videoQuery.data}
+        controls
+        muted
+        preload="metadata"
+        className="w-full rounded"
+        style={{ maxHeight: 300 }}
+      />
+    </Box>
+  );
+}
+
 function ErrorTrackingSignalCard({
   signal,
   verified,
@@ -609,6 +861,21 @@ export function SignalCard({
   const codePaths = finding?.relevant_code_paths ?? [];
   const dataQueried = finding?.data_queried ?? "";
 
+  if (
+    signal.source_product === "session_replay" &&
+    signal.source_type === "session_problem" &&
+    isSessionProblemExtra(extra)
+  ) {
+    return (
+      <SessionProblemSignalCard
+        signal={signal}
+        extra={extra}
+        verified={verified}
+        codePaths={codePaths}
+        dataQueried={dataQueried}
+      />
+    );
+  }
   if (
     signal.source_product === "error_tracking" &&
     isErrorTrackingExtra(extra)

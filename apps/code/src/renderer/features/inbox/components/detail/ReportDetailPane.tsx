@@ -14,7 +14,6 @@ import {
   ArrowSquareOutIcon,
   CaretDownIcon,
   CaretRightIcon,
-  ClockIcon,
   Cloud as CloudIcon,
   EyeIcon,
   GitPullRequestIcon,
@@ -37,8 +36,6 @@ import type {
   PriorityJudgmentArtefact,
   SignalFindingArtefact,
   SignalReport,
-  SignalReportArtefact,
-  SignalReportArtefactsResponse,
   SuggestedReviewer,
   SuggestedReviewersArtefact,
 } from "@shared/types";
@@ -68,23 +65,6 @@ function isSuggestedReviewerRowMe(
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-
-function getArtefactsUnavailableMessage(
-  reason: SignalReportArtefactsResponse["unavailableReason"],
-): string {
-  switch (reason) {
-    case "forbidden":
-      return "Evidence could not be loaded with the current API permissions.";
-    case "not_found":
-      return "Evidence endpoint is unavailable for this signal in this environment.";
-    case "invalid_payload":
-      return "Evidence format was unexpected, so no artefacts could be shown.";
-    case "request_failed":
-      return "Evidence is temporarily unavailable. You can still create a task from this report.";
-    default:
-      return "Evidence is currently unavailable for this signal.";
-  }
-}
 
 function DetailRow({
   label,
@@ -161,10 +141,6 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
   });
   const allArtefacts = artefactsQuery.data?.results ?? [];
 
-  const videoSegments = allArtefacts.filter(
-    (a): a is SignalReportArtefact => a.type === "video_segment",
-  );
-
   const suggestedReviewers = useMemo(() => {
     const reviewerArtefact = allArtefacts.find(
       (a): a is SuggestedReviewersArtefact => a.type === "suggested_reviewers",
@@ -203,17 +179,24 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
   }, [allArtefacts]);
 
   const artefactsUnavailableReason = artefactsQuery.data?.unavailableReason;
-  const showArtefactsUnavailable =
-    !artefactsQuery.isLoading &&
-    (!!artefactsQuery.error || !!artefactsUnavailableReason);
-  const artefactsUnavailableMessage = artefactsQuery.error
-    ? "Evidence could not be loaded right now. You can still create a task from this report."
-    : getArtefactsUnavailableMessage(artefactsUnavailableReason);
+  void artefactsUnavailableReason; // TODO: wire up unavailable UI
 
   const signalsQuery = useInboxReportSignals(report.id, {
     enabled: true,
   });
-  const signals = signalsQuery.data?.signals ?? [];
+  const allSignals = signalsQuery.data?.signals ?? [];
+  const sessionProblemSignals = allSignals.filter(
+    (s) =>
+      s.source_product === "session_replay" &&
+      s.source_type === "session_problem",
+  );
+  const signals = allSignals.filter(
+    (s) =>
+      !(
+        s.source_product === "session_replay" &&
+        s.source_type === "session_problem"
+      ),
+  );
 
   // ── Task creation ───────────────────────────────────────────────────────
   const { navigateToTask } = useNavigationStore();
@@ -524,67 +507,28 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
             </Text>
           )}
 
-          {/* ── Evidence (session segments) ─────────────────────── */}
-          <Box>
-            <Text size="1" weight="medium" className="block text-[13px]" mb="2">
-              Evidence
-            </Text>
-            {artefactsQuery.isLoading && (
-              <Text size="1" color="gray" className="block text-[12px]">
-                Loading evidence...
+          {/* ── Session problem evidence ─────────────────────────── */}
+          {sessionProblemSignals.length > 0 && (
+            <Box>
+              <Text
+                size="1"
+                weight="medium"
+                className="block text-[13px]"
+                mb="2"
+              >
+                Evidence ({sessionProblemSignals.length})
               </Text>
-            )}
-            {showArtefactsUnavailable && (
-              <Text size="1" color="gray" className="block text-[12px]">
-                {artefactsUnavailableMessage}
-              </Text>
-            )}
-            {!artefactsQuery.isLoading &&
-              !showArtefactsUnavailable &&
-              videoSegments.length === 0 && (
-                <Text size="1" color="gray" className="block text-[12px]">
-                  No session segments available for this report.
-                </Text>
-              )}
-            <Flex direction="column" gap="1">
-              {videoSegments.map((artefact) => (
-                <Box
-                  key={artefact.id}
-                  className="rounded border border-gray-6 bg-gray-1 p-2"
-                >
-                  <Text
-                    size="1"
-                    className="whitespace-pre-wrap text-pretty break-words text-[12px]"
-                  >
-                    {artefact.content.content}
-                  </Text>
-                  <Flex align="center" justify="between" mt="1" gap="2">
-                    <Flex align="center" gap="1">
-                      <ClockIcon size={12} className="text-gray-9" />
-                      <Text size="1" color="gray" className="text-[12px]">
-                        {artefact.content.start_time
-                          ? new Date(
-                              artefact.content.start_time,
-                            ).toLocaleString()
-                          : "Unknown time"}
-                      </Text>
-                    </Flex>
-                    {replayBaseUrl && artefact.content.session_id && (
-                      <a
-                        href={`${replayBaseUrl}/${artefact.content.session_id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[12px] text-gray-11 hover:text-gray-12"
-                      >
-                        View replay
-                        <ArrowSquareOutIcon size={12} />
-                      </a>
-                    )}
-                  </Flex>
-                </Box>
-              ))}
-            </Flex>
-          </Box>
+              <Flex direction="column" gap="2">
+                {sessionProblemSignals.map((signal) => (
+                  <SignalCard
+                    key={signal.signal_id}
+                    signal={signal}
+                    finding={signalFindings.get(signal.signal_id)}
+                  />
+                ))}
+              </Flex>
+            </Box>
+          )}
         </Flex>
       </ScrollArea>
 
