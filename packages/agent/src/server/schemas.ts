@@ -5,6 +5,19 @@ const httpHeaderSchema = z.object({
   value: z.string(),
 });
 
+const nullishString = z
+  .string()
+  .nullish()
+  .transform((value) => value ?? null);
+
+export const handoffLocalGitStateSchema = z.object({
+  head: nullishString,
+  branch: nullishString,
+  upstreamHead: nullishString,
+  upstreamRemote: nullishString,
+  upstreamMergeRef: nullishString,
+});
+
 const remoteMcpServerSchema = z.object({
   type: z.enum(["http", "sse"]),
   name: z.string().min(1, "MCP server name is required"),
@@ -83,13 +96,19 @@ export const refreshSessionParamsSchema = z.object({
   mcpServers: mcpServersSchema,
 });
 
+export const closeParamsSchema = z
+  .object({
+    localGitState: handoffLocalGitStateSchema.optional(),
+  })
+  .optional();
+
 export const commandParamsSchemas = {
   user_message: userMessageParamsSchema,
   "posthog/user_message": userMessageParamsSchema,
   cancel: z.object({}).optional(),
   "posthog/cancel": z.object({}).optional(),
-  close: z.object({}).optional(),
-  "posthog/close": z.object({}).optional(),
+  close: closeParamsSchema,
+  "posthog/close": closeParamsSchema,
   permission_response: permissionResponseParamsSchema,
   "posthog/permission_response": permissionResponseParamsSchema,
   set_config_option: setConfigOptionParamsSchema,

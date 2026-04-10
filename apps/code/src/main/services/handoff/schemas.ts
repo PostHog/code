@@ -1,3 +1,4 @@
+import { handoffLocalGitStateSchema } from "@posthog/agent/server/schemas";
 import { z } from "zod";
 
 export const handoffPreflightInput = z.object({
@@ -14,6 +15,7 @@ export const handoffPreflightResult = z.object({
   canHandoff: z.boolean(),
   reason: z.string().optional(),
   localTreeDirty: z.boolean(),
+  localGitState: handoffLocalGitStateSchema.optional(),
 });
 
 export type HandoffPreflightResult = z.infer<typeof handoffPreflightResult>;
@@ -26,6 +28,7 @@ export const handoffExecuteInput = z.object({
   teamId: z.number(),
   sessionId: z.string().optional(),
   adapter: z.enum(["claude", "codex"]).optional(),
+  localGitState: handoffLocalGitStateSchema.optional(),
 });
 
 export type HandoffExecuteInput = z.infer<typeof handoffExecuteInput>;
@@ -40,6 +43,7 @@ export type HandoffExecuteResult = z.infer<typeof handoffExecuteResult>;
 
 export type HandoffStep =
   | "fetching_logs"
+  | "applying_git_checkpoint"
   | "applying_snapshot"
   | "updating_run"
   | "spawning_agent"

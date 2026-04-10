@@ -34,7 +34,7 @@ import {
   isOpenAIModel,
 } from "@posthog/agent/gateway-models";
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
-import type { OnLogCallback } from "@posthog/agent/types";
+import type * as AgentTypes from "@posthog/agent/types";
 import { getCurrentBranch } from "@posthog/git/queries";
 import type { IAppMeta } from "@posthog/platform/app-meta";
 import type { IBundledResources } from "@posthog/platform/bundled-resources";
@@ -180,7 +180,7 @@ function createTappedWritableStream(
   });
 }
 
-const onAgentLog: OnLogCallback = (level, scope, message, data) => {
+const onAgentLog: AgentTypes.OnLogCallback = (level, scope, message, data) => {
   const scopedLog = logger.scope(scope);
   if (data !== undefined) {
     scopedLog[level as keyof typeof scopedLog](message, data);

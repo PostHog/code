@@ -27,6 +27,7 @@ import {
 } from "../adapters/claude/conversion/sdk-to-acp";
 import type { PermissionMode } from "../execution-mode";
 import { DEFAULT_CODEX_MODEL } from "../gateway-models";
+import { HandoffCheckpointTracker } from "../handoff-checkpoint";
 import { PostHogAPIClient } from "../posthog-api";
 import {
   formatConversationForResume,
@@ -38,6 +39,8 @@ import { TreeTracker } from "../tree-tracker";
 import type {
   AgentMode,
   DeviceInfo,
+  GitCheckpointEvent,
+  HandoffLocalGitState,
   LogLevel,
   TaskRun,
   TaskRunArtifact,
@@ -52,7 +55,11 @@ import {
   promptBlocksToText,
 } from "./cloud-prompt";
 import { type JwtPayload, JwtValidationError, validateJwt } from "./jwt";
-import { jsonRpcRequestSchema, validateCommandParams } from "./schemas";
+import {
+  handoffLocalGitStateSchema,
+  jsonRpcRequestSchema,
+  validateCommandParams,
+} from "./schemas";
 import type { AgentServerConfig } from "./types";
 
 const agentErrorClassificationSchema = z.enum([
@@ -185,6 +192,7 @@ interface ActiveSession {
   permissionMode: PermissionMode;
   /** Whether a desktop client has ever connected via SSE during this session */
   hasDesktopConnected: boolean;
+  pendingHandoffGitState?: HandoffLocalGitState;
 }
 
 function getTaskRunStateString(
@@ -661,6 +669,10 @@ export class AgentServer {
       case POSTHOG_NOTIFICATIONS.CLOSE:
       case "close": {
         this.logger.debug("Close requested");
+        const localGitState = this.extractHandoffLocalGitState(params);
+        if (localGitState && this.session) {
+          this.session.pendingHandoffGitState = localGitState;
+        }
         await this.cleanupSession();
         return { closed: true };
       }
@@ -958,6 +970,7 @@ export class AgentServer {
       logWriter,
       permissionMode: initialPermissionMode,
       hasDesktopConnected: sseController !== null,
+      pendingHandoffGitState: undefined,
     };
 
     this.logger = new Logger({
@@ -2105,6 +2118,12 @@ ${attributionInstructions}
     this.logger.debug("Cleaning up session");
 
     try {
+      await this.captureHandoffCheckpoint();
+    } catch (error) {
+      this.logger.error("Failed to capture handoff checkpoint", error);
+    }
+
+    try {
       await this.captureTreeState();
     } catch (error) {
       this.logger.error("Failed to capture final tree state", error);
@@ -2178,6 +2197,60 @@ ${attributionInstructions}
     } catch (error) {
       this.logger.error("Failed to capture tree state", error);
     }
+  }
+
+  private async captureHandoffCheckpoint(): Promise<void> {
+    if (!this.session?.treeTracker || !this.session.pendingHandoffGitState) {
+      return;
+    }
+    if (!this.posthogAPI) {
+      this.logger.warn(
+        "Skipping handoff checkpoint capture: PostHog API client is not configured",
+      );
+      return;
+    }
+
+    const tracker = new HandoffCheckpointTracker({
+      repositoryPath: this.config.repositoryPath ?? "/tmp/workspace",
+      taskId: this.session.payload.task_id,
+      runId: this.session.payload.run_id,
+      apiClient: this.posthogAPI,
+      logger: this.logger.child("HandoffCheckpoint"),
+    });
+
+    const checkpoint = await tracker.captureForHandoff(
+      this.session.pendingHandoffGitState,
+    );
+    if (!checkpoint) return;
+
+    const checkpointWithDevice: GitCheckpointEvent = {
+      ...checkpoint,
+      device: this.session.deviceInfo,
+    };
+
+    const notification = {
+      jsonrpc: "2.0" as const,
+      method: POSTHOG_NOTIFICATIONS.GIT_CHECKPOINT,
+      params: checkpointWithDevice,
+    };
+
+    this.broadcastEvent({
+      type: "notification",
+      timestamp: new Date().toISOString(),
+      notification,
+    });
+
+    this.session.logWriter.appendRawLine(
+      this.session.payload.run_id,
+      JSON.stringify(notification),
+    );
+  }
+
+  private extractHandoffLocalGitState(
+    params: Record<string, unknown>,
+  ): HandoffLocalGitState | null {
+    const result = handoffLocalGitStateSchema.safeParse(params.localGitState);
+    return result.success ? result.data : null;
   }
 
   private broadcastTurnComplete(stopReason: string): void {

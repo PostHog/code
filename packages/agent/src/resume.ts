@@ -19,12 +19,17 @@ import type { ContentBlock } from "@agentclientprotocol/sdk";
 import { selectRecentTurns } from "./adapters/claude/session/jsonl-hydration";
 import type { PostHogAPIClient } from "./posthog-api";
 import { ResumeSaga } from "./sagas/resume-saga";
-import type { DeviceInfo, TreeSnapshotEvent } from "./types";
+import type {
+  DeviceInfo,
+  GitCheckpointEvent,
+  TreeSnapshotEvent,
+} from "./types";
 import { Logger } from "./utils/logger";
 
 export interface ResumeState {
   conversation: ConversationTurn[];
   latestSnapshot: TreeSnapshotEvent | null;
+  latestGitCheckpoint: GitCheckpointEvent | null;
   /** Whether the tree snapshot was successfully applied (files restored) */
   snapshotApplied: boolean;
   interrupted: boolean;
@@ -96,6 +101,7 @@ export async function resumeFromLog(
   return {
     conversation: result.data.conversation as ConversationTurn[],
     latestSnapshot: result.data.latestSnapshot,
+    latestGitCheckpoint: result.data.latestGitCheckpoint,
     snapshotApplied: result.data.snapshotApplied,
     interrupted: result.data.interrupted,
     lastDevice: result.data.lastDevice,

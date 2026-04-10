@@ -8,6 +8,9 @@ const mockSendCommand = vi.hoisted(() => vi.fn());
 const mockCreatePosthogConfig = vi.hoisted(() => vi.fn());
 const mockUpdateMode = vi.hoisted(() => vi.fn());
 const mockNetFetch = vi.hoisted(() => vi.fn());
+const mockShowMessageBox = vi.hoisted(() => vi.fn());
+const mockApplyFromHandoff = vi.hoisted(() => vi.fn());
+const mockReadHandoffLocalGitState = vi.hoisted(() => vi.fn());
 
 vi.mock("@main/utils/logger", () => ({
   logger: {
@@ -34,6 +37,7 @@ vi.mock("inversify", () => ({
 vi.mock("electron", () => ({
   app: { getPath: () => "/home" },
   net: { fetch: mockNetFetch },
+  dialog: { showMessageBox: mockShowMessageBox },
 }));
 
 vi.mock("@posthog/agent/posthog-api", () => ({
@@ -44,6 +48,16 @@ vi.mock("@posthog/agent/tree-tracker", () => ({
   TreeTracker: vi.fn().mockImplementation(() => ({
     applyTreeSnapshot: vi.fn(),
   })),
+}));
+
+vi.mock("@posthog/agent/handoff-checkpoint", () => ({
+  HandoffCheckpointTracker: vi.fn().mockImplementation(() => ({
+    applyFromHandoff: mockApplyFromHandoff,
+  })),
+}));
+
+vi.mock("@posthog/git/handoff", () => ({
+  readHandoffLocalGitState: mockReadHandoffLocalGitState,
 }));
 
 vi.mock("@main/di/tokens", () => ({
@@ -59,6 +73,14 @@ vi.mock("@main/di/tokens", () => ({
 import type { HandoffPreflightInput } from "./schemas";
 import { HandoffService } from "./service";
 
+const DEFAULT_LOCAL_GIT_STATE = {
+  head: "abc123",
+  branch: "main",
+  upstreamHead: "def456",
+  upstreamRemote: "origin",
+  upstreamMergeRef: "refs/heads/main",
+};
+
 function createService(): HandoffService {
   const gitService = { getChangedFilesHead: mockGetChangedFilesHead } as never;
   const agentService = {
@@ -71,6 +93,10 @@ function createService(): HandoffService {
     createPosthogConfig: mockCreatePosthogConfig,
   } as never;
   const workspaceRepo = { updateMode: mockUpdateMode } as never;
+  const dialog = { confirm: vi.fn().mockResolvedValue(1) } as never;
+  const appLifecycle = {
+    whenReady: vi.fn().mockResolvedValue(undefined),
+  } as never;
 
   return new HandoffService(
     gitService,
@@ -78,6 +104,8 @@ function createService(): HandoffService {
     cloudTaskService,
     agentAuthAdapter,
     workspaceRepo,
+    dialog,
+    appLifecycle,
   );
 }
 
@@ -97,6 +125,7 @@ function createPreflightInput(
 describe("HandoffService.preflight", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockReadHandoffLocalGitState.mockResolvedValue(DEFAULT_LOCAL_GIT_STATE);
   });
 
   it("returns canHandoff=true when working tree is clean", async () => {
@@ -108,6 +137,7 @@ describe("HandoffService.preflight", () => {
     expect(result.canHandoff).toBe(true);
     expect(result.localTreeDirty).toBe(false);
     expect(result.reason).toBeUndefined();
+    expect(result.localGitState).toEqual(DEFAULT_LOCAL_GIT_STATE);
   });
 
   it("returns canHandoff=false when working tree has changes", async () => {
