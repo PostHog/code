@@ -105,7 +105,6 @@ export function useGithubBranches(
         if (!lastPage.hasMore) return undefined;
         return allPages.reduce((n, p) => n + p.branches.length, 0);
       },
-      staleTime: 0,
     },
   );
 
