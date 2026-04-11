@@ -1,4 +1,4 @@
-@layer theme, base, radix, components, utilities;
+@layer theme, base, quill, radix, components, utilities;
 @import "@radix-ui/themes/styles.css" layer(radix);
 @import "tailwindcss";
 @import "./quill.css";

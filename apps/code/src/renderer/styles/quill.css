@@ -5,13 +5,23 @@
  *   font sizes / leading / radii / shadows, and every utility class used
  *   by quill components. No consumer Tailwind setup needed for this part.
  *
+ *   Imported into `layer(quill)` so that Quill's utility classes land
+ *   *below* our own `@layer utilities` in the cascade. Without this,
+ *   Quill's pre-compiled `.px-2` (loaded after our Tailwind output)
+ *   would beat our own `.pr-0` from later source order, even though
+ *   tailwind-merge emits both classes correctly. The layer ordering is
+ *   declared in globals.css: `theme, base, radix, quill, components,
+ *   utilities` — anything we author always wins over a Quill primitive's
+ *   internal class.
+ *
  * - theme.css: opt-in @theme inline block — registers quill's design
  *   tokens with our own Tailwind v4 instance so that authoring utilities
  *   like `bg-fill-active`, `text-muted-foreground`, or `data-active:bg-secondary`
  *   in our own components actually compiles. Without this our Tailwind
  *   has no idea `--color-fill-active` exists and silently drops the class.
+ *   NOT layered — `@theme` is compile-time metadata, not cascade output.
  *
  * See PostHog/posthog#54137.
  */
-@import "@posthog/quill/styles.css";
+@import "@posthog/quill/styles.css" layer(quill);
 @import "@posthog/quill/theme.css";
