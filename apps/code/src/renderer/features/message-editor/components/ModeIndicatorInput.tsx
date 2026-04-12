@@ -91,7 +91,7 @@ export function ModeIndicatorInput({
       align="center"
       justify="between"
       py="1"
-      style={onCycleMode ? { cursor: "pointer" } : undefined}
+      style={onCycleMode ? { cursor: "pointer", userSelect: "none" } : undefined}
       onClick={onCycleMode}
     >
       <Flex align="center" gap="1">
