@@ -76,7 +76,7 @@ export const TaskInputEditor = forwardRef<
 
     const hints = [
       "@ to add files",
-      "/ for commands and skills",
+      "/ for skills",
       hasHistory ? "\u2191\u2193 for history" : "",
     ]
       .filter(Boolean)
