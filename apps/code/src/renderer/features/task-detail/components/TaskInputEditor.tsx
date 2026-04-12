@@ -65,10 +65,22 @@ export const TaskInputEditor = forwardRef<
     const { isOnline } = useConnectivity();
     const isSubmitDisabled = isCreatingTask || !isOnline;
 
+    const hasHistory = useTaskInputHistoryStore(
+      (s) => s.prompts.length > 0,
+    );
+
     const getPromptHistory = useCallback(
       () => useTaskInputHistoryStore.getState().prompts,
       [],
     );
+
+    const hints = [
+      "@ to add files",
+      "/ for commands and skills",
+      hasHistory ? "\u2191\u2193 for history" : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
 
     const {
       editor,
@@ -85,8 +97,7 @@ export const TaskInputEditor = forwardRef<
       removeAttachment,
     } = useTiptapEditor({
       sessionId,
-      placeholder:
-        "What do you want to work on? \u2191\u2193 for history, @ to add context",
+      placeholder: `What do you want to ship? ${hints}`,
       disabled: isCreatingTask,
       submitDisabled: !isOnline,
       isLoading: isCreatingTask,
