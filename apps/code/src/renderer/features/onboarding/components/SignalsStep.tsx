@@ -1,7 +1,6 @@
+import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
-import { useAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
-import type { SignalSourceValues } from "@features/inbox/components/SignalSourceToggles";
 import { useSignalSourceManager } from "@features/inbox/hooks/useSignalSourceManager";
 import { useRepositoryIntegration } from "@hooks/useIntegrations";
 import {
@@ -74,7 +73,7 @@ function GitHubIssuesCard({
   onSetupComplete,
 }: GitHubIssuesCardProps) {
   const projectId = useAuthStateValue((s) => s.projectId);
-  const client = useAuthenticatedClient();
+  const client = useOptionalAuthenticatedClient();
   const { repositories, isLoadingRepos } = useRepositoryIntegration();
   const [expanded, setExpanded] = useState(false);
   const [repo, setRepo] = useState<string | null>(null);
@@ -252,7 +251,7 @@ function ZendeskCard({
   onSetupComplete,
 }: ZendeskCardProps) {
   const projectId = useAuthStateValue((s) => s.projectId);
-  const client = useAuthenticatedClient();
+  const client = useOptionalAuthenticatedClient();
   const [expanded, setExpanded] = useState(false);
   const [subdomain, setSubdomain] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -522,7 +521,7 @@ function ExternalSourceCard({
 export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
   const cloudRegion = useAuthStateValue((s) => s.cloudRegion);
   const currentProjectId = useAuthStateValue((s) => s.projectId);
-  const client = useAuthenticatedClient();
+  const client = useOptionalAuthenticatedClient();
   const queryClient = useQueryClient();
   const { projects } = useProjectsWithIntegrations();
 
@@ -537,23 +536,17 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
     displayValues,
     sourceStates,
     isLoading: signalsLoading,
-    handleChange,
+    handleToggle,
     handleSetupComplete,
   } = useSignalSourceManager();
   const autoEnabledRef = useRef(false);
   useEffect(() => {
     if (signalsLoading || autoEnabledRef.current) return;
-    if (!displayValues.session_replay || !displayValues.llm_analytics) {
-      autoEnabledRef.current = true;
-      void handleChange({
-        ...displayValues,
-        session_replay: true,
-        llm_analytics: true,
-      } as SignalSourceValues);
-    } else {
-      autoEnabledRef.current = true;
+    autoEnabledRef.current = true;
+    if (!displayValues.session_replay) {
+      void handleToggle("session_replay", true);
     }
-  }, [signalsLoading, displayValues, handleChange]);
+  }, [signalsLoading, displayValues, handleToggle]);
 
   const linearPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const linearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -685,10 +678,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
                 <GitHubIssuesCard
                   checked={displayValues.github}
                   onCheckedChange={(checked) =>
-                    void handleChange({
-                      ...displayValues,
-                      github: checked,
-                    } as SignalSourceValues)
+                    void handleToggle("github", checked)
                   }
                   disabled={signalsLoading}
                   requiresSetup={sourceStates?.github?.requiresSetup}
@@ -708,10 +698,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
                   description="Surface action items from your Linear issues."
                   checked={displayValues.linear}
                   onCheckedChange={(checked) =>
-                    void handleChange({
-                      ...displayValues,
-                      linear: checked,
-                    } as SignalSourceValues)
+                    void handleToggle("linear", checked)
                   }
                   disabled={signalsLoading}
                   requiresSetup={sourceStates?.linear?.requiresSetup}
@@ -728,10 +715,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
                 <ZendeskCard
                   checked={displayValues.zendesk}
                   onCheckedChange={(checked) =>
-                    void handleChange({
-                      ...displayValues,
-                      zendesk: checked,
-                    } as SignalSourceValues)
+                    void handleToggle("zendesk", checked)
                   }
                   disabled={signalsLoading}
                   requiresSetup={sourceStates?.zendesk?.requiresSetup}
@@ -752,6 +736,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
               />
             </motion.div>
           </Flex>
+        </Flex>
 
         <motion.div
           initial={{ opacity: 0, y: 8 }}

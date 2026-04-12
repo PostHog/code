@@ -1,4 +1,5 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useProjects } from "@features/projects/hooks/useProjects";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
@@ -8,8 +9,8 @@ import { useEffect } from "react";
  * Call this early in the onboarding flow (e.g. in OnboardingFlow component).
  */
 export function usePrefetchSignalData(): void {
-  const client = useAuthStore((s) => s.client);
-  const projectId = useAuthStore((s) => s.projectId);
+  const client = useOptionalAuthenticatedClient();
+  const projectId = useAuthStateValue((state) => state.projectId);
   const { projects } = useProjects();
   const queryClient = useQueryClient();
 

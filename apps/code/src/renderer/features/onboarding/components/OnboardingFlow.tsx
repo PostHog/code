@@ -67,11 +67,7 @@ export function OnboardingFlow() {
           {isWelcome ? (
             <WelcomeScreen onNext={next} />
           ) : isTutorial ? (
-            <Flex
-              align="center"
-              justify="center"
-              style={{ flex: 1 }}
-            >
+            <Flex align="center" justify="center" style={{ flex: 1 }}>
               <Button size="3" onClick={handleComplete}>
                 Get started
               </Button>

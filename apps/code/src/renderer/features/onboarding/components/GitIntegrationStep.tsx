@@ -1,7 +1,8 @@
 import { useAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
-import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
+import { useIntegrationSelectors } from "@features/integrations/stores/integrationStore";
+import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { useRepositoryIntegration } from "@hooks/useIntegrations";
 import {
   ArrowLeft,
@@ -68,8 +69,9 @@ export function GitIntegrationStep({
   );
 
   const hasGitIntegration = selectedProject?.hasGithubIntegration ?? false;
-  const { githubIntegration, repositories, isLoadingRepos } =
-    useRepositoryIntegration();
+  const { repositories, isLoadingRepos } = useRepositoryIntegration();
+  const { githubIntegrations } = useIntegrationSelectors();
+  const githubIntegration = githubIntegrations[0] ?? null;
 
   const repoSummary = useMemo(() => {
     if (repositories.length === 0) return null;

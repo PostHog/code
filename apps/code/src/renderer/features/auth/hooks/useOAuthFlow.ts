@@ -35,7 +35,7 @@ export function getErrorMessage(error: unknown) {
 }
 
 export function useOAuthFlow() {
-  const staleRegion = useAuthStore((s) => s.staleTokens?.cloudRegion);
+  const staleRegion = useAuthStore((s) => s.staleCloudRegion);
   const [region, setRegion] = useState<CloudRegion>(staleRegion ?? "us");
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const { loginWithOAuth, signupWithOAuth } = useAuthStore();

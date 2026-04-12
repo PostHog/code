@@ -1,5 +1,6 @@
 import { OAuthControls } from "@features/auth/components/OAuthControls";
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { useSelectProjectMutation } from "@features/auth/hooks/authMutations";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { Command } from "@features/command/components/Command";
 import { useProjects } from "@features/projects/hooks/useProjects";
 import {
@@ -22,9 +23,10 @@ interface ProjectSelectStepProps {
 }
 
 export function ProjectSelectStep({ onNext }: ProjectSelectStepProps) {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const selectProject = useAuthStore((s) => s.selectProject);
-  const currentProjectId = useAuthStore((s) => s.projectId);
+  const isAuthenticated =
+    useAuthStateValue((state) => state.status) === "authenticated";
+  const selectProjectMutation = useSelectProjectMutation();
+  const currentProjectId = useAuthStateValue((state) => state.projectId);
   const { projects, currentProject, currentUser, isLoading } = useProjects();
   const [open, setOpen] = useState(false);
 
@@ -234,7 +236,7 @@ export function ProjectSelectStep({ onNext }: ProjectSelectStepProps) {
                                   key={project.id}
                                   value={`${project.name} ${project.id}`}
                                   onSelect={() => {
-                                    selectProject(project.id);
+                                    selectProjectMutation.mutate(project.id);
                                     setOpen(false);
                                   }}
                                 >
