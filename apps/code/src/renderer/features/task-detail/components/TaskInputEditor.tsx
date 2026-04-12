@@ -191,7 +191,7 @@ export const TaskInputEditor = forwardRef<
       >
         <Flex
           direction="column"
-          p="3"
+          p="4"
           style={{
             cursor: "text",
             position: "relative",
@@ -247,8 +247,8 @@ export const TaskInputEditor = forwardRef<
           </Flex>
         </Flex>
 
-        <Flex justify="between" align="center" px="3" pb="3">
-          <Flex align="center" gap="3">
+        <Flex justify="between" align="center" px="4" pb="4">
+          <Flex align="center" gap="4">
             <EditorToolbar
               disabled={isCreatingTask}
               adapter={adapter}

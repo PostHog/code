@@ -39,7 +39,6 @@ export function ReasoningLevelSelector({
           fontSize: "var(--font-size-1)",
           color: "var(--gray-11)",
           padding: "4px 8px",
-          marginLeft: "4px",
           height: "auto",
           minHeight: "unset",
           gap: "6px",
