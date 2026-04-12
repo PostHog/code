@@ -122,7 +122,7 @@ export function BranchSelector({
     effectiveLoading || (isCloudMode && open && cloudBranchesFetchingMore);
 
   const triggerContent = (
-    <Flex align="center" gap="1" style={{ minWidth: 0 }}>
+    <Flex align="center" gap="2" style={{ minWidth: 0 }}>
       {showSpinner ? (
         <Spinner size="1" />
       ) : (
