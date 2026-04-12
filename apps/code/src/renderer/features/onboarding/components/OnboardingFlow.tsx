@@ -4,7 +4,7 @@ import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { SignOut } from "@phosphor-icons/react";
 import { Button, Flex, Theme } from "@radix-ui/themes";
-import phWordmark from "@renderer/assets/images/wordmark-alt.png";
+import phWordmark from "@renderer/assets/images/wordmark.svg";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 
 import { useOnboardingFlow } from "../hooks/useOnboardingFlow";
