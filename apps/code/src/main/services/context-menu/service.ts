@@ -116,6 +116,19 @@ export class ContextMenuService {
         ? [this.item("Suspend", { type: "suspend" as const })]
         : []),
       this.item("Archive", { type: "archive" }),
+      this.item(
+        "Archive prior tasks",
+        { type: "archive-prior" },
+        {
+          confirm: {
+            title: "Archive Prior Tasks",
+            message: "Archive all tasks older than this one?",
+            detail:
+              "This will archive every task created before this one. You can unarchive them later.",
+            confirmLabel: "Archive",
+          },
+        },
+      ),
       this.item("Delete", { type: "delete" }),
       ...(worktreePath
         ? [

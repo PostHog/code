@@ -25,12 +25,14 @@ export function useTaskContextMenu() {
         worktreePath?: string;
         isPinned?: boolean;
         onTogglePin?: () => void;
+        onArchivePrior?: (taskId: string) => void;
       },
     ) => {
       event.preventDefault();
       event.stopPropagation();
 
-      const { worktreePath, isPinned, onTogglePin } = options ?? {};
+      const { worktreePath, isPinned, onTogglePin, onArchivePrior } =
+        options ?? {};
 
       try {
         const result = await trpcClient.contextMenu.showTaskContextMenu.mutate({
@@ -57,6 +59,9 @@ export function useTaskContextMenu() {
             break;
           case "archive":
             await archiveTask({ taskId: task.id });
+            break;
+          case "archive-prior":
+            await onArchivePrior?.(task.id);
             break;
           case "delete":
             await deleteWithConfirm({
