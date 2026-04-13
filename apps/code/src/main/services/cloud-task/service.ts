@@ -654,6 +654,16 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
 
     watcher.reconnectAttempts = 0;
 
+    if (
+      event.event === "keepalive" ||
+      (typeof event.data === "object" &&
+        event.data !== null &&
+        "type" in event.data &&
+        event.data.type === "keepalive")
+    ) {
+      return;
+    }
+
     if (isTaskRunStateEvent(event.data)) {
       if (this.applyTaskRunState(watcher, event.data)) {
         if (!watcher.isBootstrapping && !isTerminalStatus(watcher.lastStatus)) {
