@@ -17,12 +17,6 @@ import "./Combobox.css";
 import { useComboboxFilter } from "./useComboboxFilter";
 
 type ComboboxSize = "1" | "2" | "3";
-type ComboboxTriggerVariant =
-  | "classic"
-  | "surface"
-  | "soft"
-  | "ghost"
-  | "outline";
 type ComboboxContentVariant = "solid" | "soft";
 
 interface ComboboxContextValue {
