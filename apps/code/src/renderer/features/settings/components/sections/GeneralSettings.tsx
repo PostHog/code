@@ -25,8 +25,9 @@ import { useThemeStore } from "@stores/themeStore";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { track } from "@utils/analytics";
 import { playCompletionSound } from "@utils/sounds";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { SoundRecorder } from "../SoundRecorder";
 
 export function GeneralSettings() {
   const trpcReact = useTRPC();
@@ -132,8 +133,16 @@ export function GeneralSettings() {
   );
 
   // Chat handlers
+  const [showRecorder, setShowRecorder] = useState(false);
+  const previousSoundRef = useRef<CompletionSound>(completionSound);
+
   const handleCompletionSoundChange = useCallback(
     (value: CompletionSound) => {
+      if (value === "custom" && completionSound !== "custom") {
+        previousSoundRef.current = completionSound;
+        setShowRecorder(true);
+        return;
+      }
       track(ANALYTICS_EVENTS.SETTING_CHANGED, {
         setting_name: "completion_sound",
         new_value: value,
@@ -143,6 +152,20 @@ export function GeneralSettings() {
     },
     [completionSound, setCompletionSound],
   );
+
+  const handleRecordSave = useCallback(() => {
+    track(ANALYTICS_EVENTS.SETTING_CHANGED, {
+      setting_name: "completion_sound",
+      new_value: "custom",
+      old_value: previousSoundRef.current,
+    });
+    setCompletionSound("custom");
+    setShowRecorder(false);
+  }, [setCompletionSound]);
+
+  const handleRecordCancel = useCallback(() => {
+    setShowRecorder(false);
+  }, []);
 
   const handleTestSound = useCallback(() => {
     playCompletionSound(completionSound, completionVolume);
@@ -298,7 +321,7 @@ export function GeneralSettings() {
             size="1"
           >
             <Select.Trigger style={{ minWidth: "100px" }} />
-            <Select.Content>
+            <Select.Content position="popper" sideOffset={4}>
               <Select.Item value="none">None</Select.Item>
               <Select.Item value="guitar">Guitar solo</Select.Item>
               <Select.Item value="danilo">I'm ready</Select.Item>
@@ -311,15 +334,34 @@ export function GeneralSettings() {
               <Select.Item value="shoot">Shoot</Select.Item>
               <Select.Item value="slide">Slide</Select.Item>
               <Select.Item value="switch">Switch</Select.Item>
+              <Select.Separator />
+              <Select.Item value="custom">Custom recording</Select.Item>
             </Select.Content>
           </Select.Root>
           {completionSound !== "none" && (
-            <Button variant="soft" size="1" onClick={handleTestSound}>
-              Test
-            </Button>
+            <Flex align="center" gap="2">
+              <Button variant="soft" size="1" onClick={handleTestSound}>
+                Test
+              </Button>
+              {completionSound === "custom" && (
+                <Button
+                  variant="ghost"
+                  size="1"
+                  onClick={() => setShowRecorder(true)}
+                >
+                  Re-record
+                </Button>
+              )}
+            </Flex>
           )}
         </Flex>
       </SettingRow>
+      {showRecorder && (
+        <SoundRecorder
+          onSave={handleRecordSave}
+          onCancel={handleRecordCancel}
+        />
+      )}
 
       {completionSound !== "none" && (
         <SettingRow label="Sound volume" noBorder>

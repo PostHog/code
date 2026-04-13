@@ -10,8 +10,12 @@ import ringUrl from "@renderer/assets/sounds/ring.mp3";
 import shootUrl from "@renderer/assets/sounds/shoot.mp3";
 import slideUrl from "@renderer/assets/sounds/slide.mp3";
 import switchUrl from "@renderer/assets/sounds/switch.mp3";
+import { trpcClient } from "@renderer/trpc/client";
 
-const SOUND_URLS: Record<Exclude<CompletionSound, "none">, string> = {
+const SOUND_URLS: Record<
+  Exclude<CompletionSound, "none" | "custom">,
+  string
+> = {
   guitar: guitarUrl,
   danilo: daniloUrl,
   revi: reviUrl,
@@ -26,11 +30,39 @@ const SOUND_URLS: Record<Exclude<CompletionSound, "none">, string> = {
 };
 
 let currentAudio: HTMLAudioElement | null = null;
+let customSoundDataUrl: string | null = null;
+let customSoundLoading = false;
+
+export async function loadCustomSoundUrl(): Promise<string | null> {
+  customSoundLoading = true;
+  try {
+    customSoundDataUrl = await trpcClient.os.getCustomSoundDataUrl.query();
+    return customSoundDataUrl;
+  } finally {
+    customSoundLoading = false;
+  }
+}
+
+export function clearCustomSoundCache(): void {
+  customSoundDataUrl = null;
+}
 
 export function playCompletionSound(sound: CompletionSound, volume = 80): void {
   if (sound === "none") return;
 
-  const url = SOUND_URLS[sound];
+  let url: string | null;
+  if (sound === "custom") {
+    url = customSoundDataUrl;
+    if (!url && !customSoundLoading) {
+      loadCustomSoundUrl().then((loaded) => {
+        if (loaded) playCompletionSound("custom", volume);
+      });
+      return;
+    }
+    if (!url) return;
+  } else {
+    url = SOUND_URLS[sound];
+  }
   if (!url) return;
 
   if (currentAudio) {
