@@ -5,43 +5,9 @@ export const POSTHOG_EU_CLIENT_ID = "AIvijgMS0dxKEmr5z6odvRd8Pkh5vts3nPTzgzU9";
 export const POSTHOG_DEV_CLIENT_ID = "DC5uRLVbGI02YQ82grxgnK6Qn12SXWpCqdPb60oZ";
 
 // Bump OAUTH_SCOPE_VERSION below whenever OAUTH_SCOPES changes to force re-authentication
-export const OAUTH_SCOPES = [
-  // PostHog Code app needs
-  "user:read",
-  "user:write",
-  "project:read",
-  "task:write",
-  "llm_gateway:read",
-  "integration:read",
-  "introspection",
-  // MCP server scopes
-  "action:read",
-  "action:write",
-  "dashboard:read",
-  "dashboard:write",
-  "error_tracking:read",
-  "error_tracking:write",
-  "event_definition:read",
-  "event_definition:write",
-  "experiment:read",
-  "experiment:write",
-  "feature_flag:read",
-  "feature_flag:write",
-  "insight:read",
-  "insight:write",
-  "logs:read",
-  "organization:read",
-  "property_definition:read",
-  "query:read",
-  "survey:read",
-  "survey:write",
-  "warehouse_table:read",
-  "warehouse_view:read",
-  "external_data_source:read",
-  "external_data_source:write",
-];
+export const OAUTH_SCOPES = ["*"];
 
-export const OAUTH_SCOPE_VERSION = 3;
+export const OAUTH_SCOPE_VERSION = 4;
 
 export const REGION_LABELS: Record<CloudRegion, string> = {
   us: "🇺🇸 US Cloud",
