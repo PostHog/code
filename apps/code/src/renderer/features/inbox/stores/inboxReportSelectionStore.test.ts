@@ -164,4 +164,78 @@ describe("inboxReportSelectionStore", () => {
       expect(useInboxReportSelectionStore.getState().lastClickedId).toBe("r3");
     });
   });
+
+  describe("selectExactRange", () => {
+    const orderedIds = ["r1", "r2", "r3", "r4", "r5"];
+
+    it("selects exactly the range from anchor to target", () => {
+      useInboxReportSelectionStore
+        .getState()
+        .selectExactRange("r2", "r4", orderedIds);
+
+      expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual(
+        ["r2", "r3", "r4"],
+      );
+    });
+
+    it("replaces existing selection instead of merging", () => {
+      useInboxReportSelectionStore.setState({
+        selectedReportIds: ["r1", "r5"],
+      });
+
+      useInboxReportSelectionStore
+        .getState()
+        .selectExactRange("r2", "r4", orderedIds);
+
+      expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual(
+        ["r2", "r3", "r4"],
+      );
+    });
+
+    it("keeps lastClickedId as the anchor", () => {
+      useInboxReportSelectionStore
+        .getState()
+        .selectExactRange("r2", "r4", orderedIds);
+
+      expect(useInboxReportSelectionStore.getState().lastClickedId).toBe("r2");
+    });
+
+    it("contracts selection when cursor moves back toward anchor", () => {
+      // Simulate: anchor=r2, extend to r4, then contract back to r3
+      useInboxReportSelectionStore
+        .getState()
+        .selectExactRange("r2", "r4", orderedIds);
+      expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual(
+        ["r2", "r3", "r4"],
+      );
+
+      useInboxReportSelectionStore
+        .getState()
+        .selectExactRange("r2", "r3", orderedIds);
+      expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual(
+        ["r2", "r3"],
+      );
+    });
+
+    it("works in reverse direction", () => {
+      useInboxReportSelectionStore
+        .getState()
+        .selectExactRange("r4", "r2", orderedIds);
+
+      expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual(
+        ["r2", "r3", "r4"],
+      );
+      expect(useInboxReportSelectionStore.getState().lastClickedId).toBe("r4");
+    });
+
+    it("selects just the target when anchor is not in the ordered list", () => {
+      useInboxReportSelectionStore
+        .getState()
+        .selectExactRange("r99", "r3", orderedIds);
+
+      expect(useInboxReportSelectionStore.getState().selectedReportIds).toEqual(
+        ["r3"],
+      );
+    });
+  });
 });

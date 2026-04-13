@@ -14,6 +14,13 @@ interface InboxReportSelectionActions {
   /** Select a contiguous range from the last-clicked report to `toId` within the given ordered list.
    *  Existing selection outside the range is preserved (shift-click behavior). */
   selectRange: (toId: string, orderedIds: string[]) => void;
+  /** Select exactly the contiguous range from `anchorId` to `toId`, replacing the entire selection.
+   *  Unlike `selectRange`, this does not merge with existing selection — used for Shift+Arrow keyboard navigation. */
+  selectExactRange: (
+    anchorId: string,
+    toId: string,
+    orderedIds: string[],
+  ) => void;
   isReportSelected: (reportId: string) => boolean;
   clearSelection: () => void;
   pruneSelection: (visibleReportIds: string[]) => void;
@@ -65,6 +72,20 @@ export const useInboxReportSelectionStore = create<InboxReportSelectionStore>()(
           new Set([...state.selectedReportIds, ...rangeIds]),
         );
         return { selectedReportIds: merged, lastClickedId: toId };
+      }),
+
+    selectExactRange: (anchorId, toId, orderedIds) =>
+      set(() => {
+        const anchorIndex = orderedIds.indexOf(anchorId);
+        const toIndex = orderedIds.indexOf(toId);
+        if (anchorIndex === -1 || toIndex === -1) {
+          return { selectedReportIds: [toId], lastClickedId: toId };
+        }
+        const start = Math.min(anchorIndex, toIndex);
+        const end = Math.max(anchorIndex, toIndex);
+        const rangeIds = orderedIds.slice(start, end + 1);
+        // Keep lastClickedId as the anchor — the caller manages cursor position
+        return { selectedReportIds: rangeIds, lastClickedId: anchorId };
       }),
 
     isReportSelected: (reportId) => get().selectedReportIds.includes(reportId),
