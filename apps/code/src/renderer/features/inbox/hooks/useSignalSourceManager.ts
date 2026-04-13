@@ -130,6 +130,15 @@ export function useSignalSourceManager() {
     [configs],
   );
 
+  const sessionAnalysisStatus = useMemo(() => {
+    const config = configs?.find(
+      (c) =>
+        c.source_product === "session_replay" &&
+        c.source_type === "session_analysis_cluster",
+    );
+    return config?.status ?? null;
+  }, [configs]);
+
   // Merge: optimistic overrides take precedence over server values.
   const displayValues = useMemo<SignalSourceValues>(() => {
     if (Object.keys(optimistic).length === 0) return serverValues;
@@ -396,6 +405,7 @@ export function useSignalSourceManager() {
   return {
     displayValues,
     sourceStates,
+    sessionAnalysisStatus,
     setupSource,
     isLoading,
     handleToggle,

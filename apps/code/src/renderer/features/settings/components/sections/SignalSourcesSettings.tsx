@@ -7,6 +7,7 @@ export function SignalSourcesSettings() {
   const {
     displayValues,
     sourceStates,
+    sessionAnalysisStatus,
     setupSource,
     isLoading,
     handleToggle,
@@ -44,6 +45,7 @@ export function SignalSourcesSettings() {
           value={displayValues}
           onToggle={(source, enabled) => void handleToggle(source, enabled)}
           sourceStates={sourceStates}
+          sessionAnalysisStatus={sessionAnalysisStatus}
           onSetup={handleSetup}
           evaluations={evaluations}
           evaluationsUrl={evaluationsUrl}

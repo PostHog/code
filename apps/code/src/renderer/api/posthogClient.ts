@@ -53,6 +53,7 @@ export interface SignalSourceConfig {
   config: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+  status: "running" | "completed" | "failed" | null;
 }
 
 export interface ExternalDataSourceSchema {
