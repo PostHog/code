@@ -23,9 +23,7 @@ import { useEffect, useState } from "react";
 const log = logger.scope("plan-usage");
 
 interface UsageBucket {
-  used_usd: number;
-  limit_usd: number;
-  remaining_usd: number;
+  used_percent: number;
   resets_in_seconds: number;
   exceeded: boolean;
 }
@@ -34,10 +32,6 @@ interface UsageData {
   sustained: UsageBucket;
   burst: UsageBucket;
   is_rate_limited: boolean;
-}
-
-function formatUsd(amount: number): string {
-  return `$${amount.toFixed(2)}`;
 }
 
 function formatResetTime(seconds: number): string {
@@ -374,10 +368,7 @@ interface UsageMeterProps {
 }
 
 function UsageMeter({ label, bucket, color }: UsageMeterProps) {
-  const percentage =
-    bucket.limit_usd > 0
-      ? Math.min(100, (bucket.used_usd / bucket.limit_usd) * 100)
-      : 0;
+  const percentage = bucket.used_percent;
 
   const borderColor = color === "red" ? "var(--red-7)" : "var(--gray-5)";
 
@@ -396,7 +387,7 @@ function UsageMeter({ label, bucket, color }: UsageMeterProps) {
           {label}
         </Text>
         <Text size="2" weight="medium">
-          {formatUsd(bucket.used_usd)} / {formatUsd(bucket.limit_usd)}
+          {Math.round(percentage)}%
         </Text>
       </Flex>
       <Progress
@@ -407,7 +398,7 @@ function UsageMeter({ label, bucket, color }: UsageMeterProps) {
       <Text size="1" style={{ color: "var(--gray-9)" }}>
         {bucket.exceeded
           ? "Limit exceeded"
-          : `${formatUsd(bucket.remaining_usd)} remaining \u00b7 resets in ${formatResetTime(bucket.resets_in_seconds)}`}
+          : `Resets in ${formatResetTime(bucket.resets_in_seconds)}`}
       </Text>
     </Flex>
   );

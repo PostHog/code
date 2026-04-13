@@ -58,9 +58,7 @@ export interface AnthropicErrorResponse {
 }
 
 export const usageBucketSchema = z.object({
-  used_usd: z.number(),
-  limit_usd: z.number(),
-  remaining_usd: z.number(),
+  used_percent: z.number(),
   resets_in_seconds: z.number(),
   exceeded: z.boolean(),
 });
