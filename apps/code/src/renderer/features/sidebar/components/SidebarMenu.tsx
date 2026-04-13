@@ -63,9 +63,14 @@ function SidebarMenuComponent() {
     (r) => r.status === "ready",
   ).length;
 
+  const taskMap = new Map<string, Task>();
+  for (const task of allTasks) {
+    taskMap.set(task.id, task);
+  }
+
   const commandCenterCells = useCommandCenterStore((s) => s.cells);
   const commandCenterActiveCount = commandCenterCells.filter(
-    (taskId) => taskId != null,
+    (taskId) => taskId != null && taskMap.has(taskId),
   ).length;
 
   const previousTaskIdRef = useRef<string | null>(null);
@@ -87,11 +92,6 @@ function SidebarMenuComponent() {
 
     previousTaskIdRef.current = currentTaskId;
   }, [view, markAsViewed]);
-
-  const taskMap = new Map<string, Task>();
-  for (const task of allTasks) {
-    taskMap.set(task.id, task);
-  }
 
   const handleNewTaskClick = () => {
     navigateToTaskInput();
