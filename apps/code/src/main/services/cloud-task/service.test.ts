@@ -322,6 +322,78 @@ describe("CloudTaskService", () => {
     );
   });
 
+  it("ignores keepalive SSE events while keeping the stream open", async () => {
+    const updates: unknown[] = [];
+    service.on(CloudTaskEvent.Update, (payload) => updates.push(payload));
+
+    mockNetFetch
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          id: "run-1",
+          status: "in_progress",
+          stage: "build",
+          output: null,
+          error_message: null,
+          branch: "main",
+          updated_at: "2026-01-01T00:00:00Z",
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse([], 200, { "X-Has-More": "false" }),
+      );
+
+    mockStreamFetch.mockResolvedValueOnce(
+      createOpenSseResponse(
+        'event: keepalive\ndata: {"type":"keepalive"}\n\nid: 2\ndata: {"type":"notification","timestamp":"2026-01-01T00:00:02Z","notification":{"jsonrpc":"2.0","method":"_posthog/console","params":{"sessionId":"run-1","level":"info","message":"live tail"}}}\n\n',
+      ),
+    );
+
+    service.watch({
+      taskId: "task-1",
+      runId: "run-1",
+      apiHost: "https://app.example.com",
+      teamId: 2,
+    });
+
+    await waitFor(() => updates.length >= 2);
+
+    expect(updates).toEqual([
+      {
+        taskId: "task-1",
+        runId: "run-1",
+        kind: "snapshot",
+        newEntries: [],
+        totalEntryCount: 0,
+        status: "in_progress",
+        stage: "build",
+        output: null,
+        errorMessage: null,
+        branch: "main",
+      },
+      {
+        taskId: "task-1",
+        runId: "run-1",
+        kind: "logs",
+        newEntries: [
+          {
+            type: "notification",
+            timestamp: "2026-01-01T00:00:02Z",
+            notification: {
+              jsonrpc: "2.0",
+              method: "_posthog/console",
+              params: {
+                sessionId: "run-1",
+                level: "info",
+                message: "live tail",
+              },
+            },
+          },
+        ],
+        totalEntryCount: 1,
+      },
+    ]);
+  });
+
   it("emits a retryable cloud error after repeated stream failures", async () => {
     vi.useFakeTimers();
 

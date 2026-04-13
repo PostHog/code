@@ -200,6 +200,14 @@ export class SessionService {
     const { id: taskId, latest_run: latestRun } = task;
     const taskTitle = task.title || task.description || "Task";
 
+    if (latestRun?.environment === "cloud") {
+      log.info("Skipping local session connect for cloud run", {
+        taskId,
+        taskRunId: latestRun.id,
+      });
+      return;
+    }
+
     try {
       const auth = await this.getAuthCredentials();
       if (!auth) {
@@ -1931,7 +1939,19 @@ export class SessionService {
 
     // Create session in the store
     const existing = sessionStoreSetters.getSessionByTaskId(taskId);
-    if (!existing || existing.taskRunId !== taskRunId) {
+    // A same-run session with history but no processedLineCount came from a
+    // non-cloud hydration path. Reset it so the cloud snapshot becomes the
+    // single source of truth instead of being appended on top.
+    const shouldResetExistingSession =
+      existing?.taskRunId === taskRunId &&
+      existing.events.length > 0 &&
+      existing.processedLineCount === undefined;
+
+    if (
+      !existing ||
+      existing.taskRunId !== taskRunId ||
+      shouldResetExistingSession
+    ) {
       const taskTitle = existing?.taskTitle ?? "Cloud Task";
       const session = this.createBaseSession(taskRunId, taskId, taskTitle);
       session.status = "disconnected";
