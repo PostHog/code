@@ -127,7 +127,6 @@ export class ContextMenuService {
           ]
         : []),
       this.separator(),
-      this.item("Delete", { type: "delete" }),
       this.item("Archive", { type: "archive" }),
       this.item(
         "Archive prior tasks",
