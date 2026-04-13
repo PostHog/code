@@ -3,7 +3,9 @@ import { z } from "zod";
 export const taskContextMenuInput = z.object({
   taskTitle: z.string(),
   worktreePath: z.string().optional(),
+  folderPath: z.string().optional(),
   isPinned: z.boolean().optional(),
+  isSuspended: z.boolean().optional(),
 });
 
 export const archivedTaskContextMenuInput = z.object({

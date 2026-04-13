@@ -104,8 +104,9 @@ export class ContextMenuService {
   async showTaskContextMenu(
     input: TaskContextMenuInput,
   ): Promise<TaskContextMenuResult> {
-    const { worktreePath, isPinned } = input;
+    const { worktreePath, folderPath, isPinned, isSuspended } = input;
     const { apps, lastUsedAppId } = await this.getExternalAppsData();
+    const hasPath = worktreePath || folderPath;
 
     return this.showMenu<TaskAction>([
       this.item(isPinned ? "Unpin" : "Pin", { type: "pin" }),
@@ -114,7 +115,14 @@ export class ContextMenuService {
       ...(worktreePath
         ? [
             this.separator(),
-            this.item("Suspend", { type: "suspend" as const }),
+            this.item(isSuspended ? "Unsuspend" : "Suspend", {
+              type: "suspend" as const,
+            }),
+          ]
+        : []),
+      ...(hasPath
+        ? [
+            ...(worktreePath ? [] : [this.separator()]),
             ...this.externalAppItems<TaskAction>(apps, lastUsedAppId),
           ]
         : []),

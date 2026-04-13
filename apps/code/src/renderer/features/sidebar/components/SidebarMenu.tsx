@@ -120,6 +120,11 @@ function SidebarMenuComponent() {
     }
   };
 
+  const allSidebarTasks = [
+    ...sidebarData.pinnedTasks,
+    ...sidebarData.flatTasks,
+  ];
+
   const handleTaskContextMenu = (
     taskId: string,
     e: React.MouseEvent,
@@ -128,10 +133,12 @@ function SidebarMenuComponent() {
     const task = taskMap.get(taskId);
     if (task) {
       const workspace = workspaces[taskId];
-      const effectivePath = workspace?.worktreePath ?? workspace?.folderPath;
+      const taskData = allSidebarTasks.find((t) => t.id === taskId);
       showContextMenu(task, e, {
-        worktreePath: effectivePath ?? undefined,
+        worktreePath: workspace?.worktreePath ?? undefined,
+        folderPath: workspace?.folderPath ?? undefined,
         isPinned,
+        isSuspended: taskData?.isSuspended,
         onTogglePin: () => togglePin(taskId),
         onArchivePrior: handleArchivePrior,
       });
