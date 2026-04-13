@@ -108,13 +108,18 @@ export class ContextMenuService {
     const { apps, lastUsedAppId } = await this.getExternalAppsData();
 
     return this.showMenu<TaskAction>([
-      this.item("Rename", { type: "rename" }),
       this.item(isPinned ? "Unpin" : "Pin", { type: "pin" }),
+      this.item("Rename", { type: "rename" }),
       this.item("Copy Task ID", { type: "copy-task-id" }),
-      this.separator(),
       ...(worktreePath
-        ? [this.item("Suspend", { type: "suspend" as const })]
+        ? [
+            this.separator(),
+            this.item("Suspend", { type: "suspend" as const }),
+            ...this.externalAppItems<TaskAction>(apps, lastUsedAppId),
+          ]
         : []),
+      this.separator(),
+      this.item("Delete", { type: "delete" }),
       this.item("Archive", { type: "archive" }),
       this.item(
         "Archive prior tasks",
@@ -129,13 +134,6 @@ export class ContextMenuService {
           },
         },
       ),
-      this.item("Delete", { type: "delete" }),
-      ...(worktreePath
-        ? [
-            this.separator(),
-            ...this.externalAppItems<TaskAction>(apps, lastUsedAppId),
-          ]
-        : []),
     ]);
   }
 
