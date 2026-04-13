@@ -68,7 +68,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
 
         <Flex
           direction="column"
-          justify="center"
+          mt="4"
           style={{ flex: 1, minHeight: 0, overflowY: "auto" }}
         >
           <Flex direction="column" gap="6">
