@@ -65,9 +65,7 @@ export const TaskInputEditor = forwardRef<
     const { isOnline } = useConnectivity();
     const isSubmitDisabled = isCreatingTask || !isOnline;
 
-    const hasHistory = useTaskInputHistoryStore(
-      (s) => s.prompts.length > 0,
-    );
+    const hasHistory = useTaskInputHistoryStore((s) => s.prompts.length > 0);
 
     const getPromptHistory = useCallback(
       () => useTaskInputHistoryStore.getState().prompts,
