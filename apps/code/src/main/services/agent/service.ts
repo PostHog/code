@@ -573,7 +573,10 @@ When creating pull requests, add the following footer at the end of the PR descr
       }
 
       for (const proc of this.processTracking.getByTaskId(taskId)) {
-        if (proc.category === "agent" || proc.category === "child") {
+        if (
+          (proc.category === "agent" || proc.category === "child") &&
+          proc.metadata?.taskRunId === taskRunId
+        ) {
           this.processTracking.kill(proc.pid);
         }
       }

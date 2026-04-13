@@ -1121,6 +1121,7 @@ export class SessionService {
           isPromptPending: false,
           isCompacting: false,
           promptStartedAt: null,
+          initialPrompt: undefined,
         });
       } else {
         sessionStoreSetters.updateSession(session.taskRunId, {
