@@ -6,7 +6,8 @@ import {
   useIntegrationStore,
 } from "@features/integrations/stores/integrationStore";
 import { useQueries } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuthenticatedInfiniteQuery } from "./useAuthenticatedInfiniteQuery";
 import { useAuthenticatedQuery } from "./useAuthenticatedQuery";
 
 const integrationKeys = {
@@ -67,18 +68,92 @@ function useAllGithubRepositories(githubIntegrations: Integration[]) {
   });
 }
 
+// Keep the first page small so it returns in a single upstream GitHub round
+// trip (GitHub's max per_page is 100), then fetch the remainder in larger
+// chunks to keep the total number of client/PostHog round trips low.
+const BRANCHES_FIRST_PAGE_SIZE = 100;
+const BRANCHES_PAGE_SIZE = 1000;
+
+interface GithubBranchesPage {
+  branches: string[];
+  defaultBranch: string | null;
+  hasMore: boolean;
+}
+
 export function useGithubBranches(
   integrationId?: number,
   repo?: string | null,
 ) {
-  return useAuthenticatedQuery(
+  // While paused we stop chaining `fetchNextPage` calls. The flag is scoped
+  // to the current query target and resets whenever it changes, so switching
+  // repos or integrations starts a fresh fetch.
+  const [paused, setPaused] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on key change
+  useEffect(() => {
+    setPaused(false);
+  }, [integrationId, repo]);
+
+  const query = useAuthenticatedInfiniteQuery<GithubBranchesPage, number>(
     integrationKeys.branches(integrationId, repo),
-    async (client) => {
-      if (!integrationId || !repo) return { branches: [], defaultBranch: null };
-      return await client.getGithubBranches(integrationId, repo);
+    async (client, offset) => {
+      if (!integrationId || !repo) {
+        return { branches: [], defaultBranch: null, hasMore: false };
+      }
+      const pageSize =
+        offset === 0 ? BRANCHES_FIRST_PAGE_SIZE : BRANCHES_PAGE_SIZE;
+      return await client.getGithubBranchesPage(
+        integrationId,
+        repo,
+        offset,
+        pageSize,
+      );
     },
-    { staleTime: 0, refetchOnMount: "always" },
+    {
+      initialPageParam: 0,
+      getNextPageParam: (lastPage, allPages) => {
+        if (!lastPage.hasMore) return undefined;
+        return allPages.reduce((n, p) => n + p.branches.length, 0);
+      },
+    },
   );
+
+  // Auto-fetch remaining pages in the background whenever we are not paused.
+  // Any in-flight page is allowed to finish and land in the cache; the pause
+  // just prevents us from kicking off the next one. Resuming picks up from
+  // wherever `getNextPageParam` computes the next offset to be.
+  useEffect(() => {
+    if (paused) return;
+    if (query.hasNextPage && !query.isFetchingNextPage) {
+      query.fetchNextPage();
+    }
+  }, [
+    paused,
+    query.hasNextPage,
+    query.isFetchingNextPage,
+    query.fetchNextPage,
+  ]);
+
+  const data = useMemo(() => {
+    if (!query.data?.pages.length) {
+      return { branches: [] as string[], defaultBranch: null };
+    }
+    return {
+      branches: query.data.pages.flatMap((p) => p.branches),
+      defaultBranch: query.data.pages[0]?.defaultBranch ?? null,
+    };
+  }, [query.data?.pages]);
+
+  const pauseLoadingMore = useCallback(() => setPaused(true), []);
+  const resumeLoadingMore = useCallback(() => setPaused(false), []);
+
+  return {
+    data,
+    isPending: query.isPending,
+    isFetchingMore:
+      !paused && (query.isFetchingNextPage || (query.hasNextPage ?? false)),
+    pauseLoadingMore,
+    resumeLoadingMore,
+  };
 }
 
 export function useRepositoryIntegration() {
