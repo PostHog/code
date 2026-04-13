@@ -570,7 +570,7 @@ function CodePathsCollapsible({ paths }: { paths: string[] }) {
 function DataQueriedCollapsible({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
 
-  if (!text) return null;
+  if (!text.trim()) return null;
 
   return (
     <Box mt="2" style={{ borderTop: "1px solid var(--gray-5)" }} pt="2">
