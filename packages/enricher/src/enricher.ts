@@ -1,14 +1,13 @@
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { PostHogDetector } from "./detector.js";
+import { EXT_TO_LANG_ID } from "./languages.js";
 import { warn } from "./log.js";
 import { ParseResult } from "./parse-result.js";
 import type { DetectionConfig } from "./types.js";
 
 export class PostHogEnricher {
   private detector = new PostHogDetector();
-
-  async initialize(wasmDir: string): Promise<void> {
-    return this.detector.initialize(wasmDir);
-  }
 
   updateConfig(config: DetectionConfig): void {
     this.detector.updateConfig(config);
@@ -55,6 +54,16 @@ export class PostHogEnricher {
       settled[3] as Awaited<ReturnType<PostHogDetector["findVariantBranches"]>>,
       settled[4] as Awaited<ReturnType<PostHogDetector["findFunctions"]>>,
     );
+  }
+
+  async parseFile(filePath: string): Promise<ParseResult> {
+    const ext = path.extname(filePath).toLowerCase();
+    const languageId = EXT_TO_LANG_ID[ext];
+    if (!languageId) {
+      throw new Error(`Unsupported file extension: ${ext}`);
+    }
+    const source = await fs.readFile(filePath, "utf-8");
+    return this.parse(source, languageId);
   }
 
   dispose(): void {

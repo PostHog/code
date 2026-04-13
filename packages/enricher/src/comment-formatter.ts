@@ -56,16 +56,9 @@ export function formatComments(
   const sorted = [...items].sort((a, b) => a.line - b.line);
 
   let offset = 0;
-  // One comment per original source line — if multiple detections share a line,
-  // only the first (by sort order) gets an annotation to keep output readable.
-  const annotatedLines = new Set<number>();
 
   for (const item of sorted) {
     const targetLine = item.line + offset;
-    if (annotatedLines.has(item.line)) {
-      continue;
-    }
-    annotatedLines.add(item.line);
 
     let comment: string | null = null;
 

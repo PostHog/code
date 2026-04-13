@@ -24,7 +24,7 @@ export class EnrichedResult {
     this.context = context;
   }
 
-  get enrichedFlags(): EnrichedFlag[] {
+  get flags(): EnrichedFlag[] {
     if (this.cachedFlags) {
       return this.cachedFlags;
     }
@@ -63,7 +63,7 @@ export class EnrichedResult {
     return this.cachedFlags;
   }
 
-  get enrichedEvents(): EnrichedEvent[] {
+  get events(): EnrichedEvent[] {
     if (this.cachedEvents) {
       return this.cachedEvents;
     }
@@ -102,12 +102,12 @@ export class EnrichedResult {
     const _experiments = this.context.experiments ?? [];
 
     const flagLookup = new Map<string, EnrichedFlag>();
-    for (const f of this.enrichedFlags) {
+    for (const f of this.flags) {
       flagLookup.set(f.flagKey, f);
     }
 
     const eventLookup = new Map<string, EnrichedEvent>();
-    for (const e of this.enrichedEvents) {
+    for (const e of this.events) {
       eventLookup.set(e.eventName, e);
     }
 
@@ -145,12 +145,12 @@ export class EnrichedResult {
 
   toComments(): string {
     const flagLookup = new Map<string, EnrichedFlag>();
-    for (const f of this.enrichedFlags) {
+    for (const f of this.flags) {
       flagLookup.set(f.flagKey, f);
     }
 
     const eventLookup = new Map<string, EnrichedEvent>();
-    for (const e of this.enrichedEvents) {
+    for (const e of this.events) {
       eventLookup.set(e.eventName, e);
     }
 

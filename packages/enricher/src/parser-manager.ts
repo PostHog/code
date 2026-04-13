@@ -1,4 +1,5 @@
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import Parser from "web-tree-sitter";
 import type { LangFamily } from "./languages.js";
 import { LANG_FAMILIES } from "./languages.js";
@@ -6,13 +7,19 @@ import { warn } from "./log.js";
 import type { DetectionConfig } from "./types.js";
 import { DEFAULT_CONFIG } from "./types.js";
 
+function resolveGrammarsDir(): string {
+  // Works from both dist/ (built) and src/ (tests) — both are one level below package root
+  const thisFile = fileURLToPath(import.meta.url);
+  return path.join(path.dirname(thisFile), "..", "grammars");
+}
+
 export class ParserManager {
   private parser: Parser | null = null;
   private languages = new Map<string, Parser.Language>();
   private queryCache = new Map<string, Parser.Query>();
   private maxCacheSize = 256;
   private initPromise: Promise<void> | null = null;
-  private wasmDir = "";
+  private wasmDir = resolveGrammarsDir();
   config: DetectionConfig = DEFAULT_CONFIG;
 
   updateConfig(config: DetectionConfig): void {
@@ -20,9 +27,10 @@ export class ParserManager {
     this.queryCache.clear();
   }
 
-  async initialize(wasmDir: string): Promise<void> {
-    this.wasmDir = wasmDir;
-    this.initPromise = this.doInit();
+  private async ensureInitialized(): Promise<void> {
+    if (!this.initPromise) {
+      this.initPromise = this.doInit();
+    }
     return this.initPromise;
   }
 
@@ -33,6 +41,7 @@ export class ParserManager {
       });
       this.parser = new Parser();
     } catch (err) {
+      this.initPromise = null;
       warn("Failed to initialize tree-sitter parser", err);
       throw err;
     }
@@ -49,9 +58,7 @@ export class ParserManager {
   async ensureReady(
     langId: string,
   ): Promise<{ lang: Parser.Language; family: LangFamily } | null> {
-    if (this.initPromise) {
-      await this.initPromise;
-    }
+    await this.ensureInitialized();
     if (!this.parser) {
       return null;
     }

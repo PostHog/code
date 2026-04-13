@@ -35,9 +35,8 @@ function simpleInits(inits: PostHogInitCall[]) {
 describeWithGrammars("PostHogDetector", () => {
   let detector: PostHogDetector;
 
-  beforeAll(async () => {
+  beforeAll(() => {
     detector = new PostHogDetector();
-    await detector.initialize(GRAMMARS_DIR);
     detector.updateConfig({
       additionalClientNames: [],
       additionalFlagFunctions: [
