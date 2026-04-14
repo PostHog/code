@@ -18,6 +18,7 @@ export interface AgentServerConfig {
   mode: AgentMode;
   taskId: string;
   runId: string;
+  createPr?: boolean;
   version?: string;
   mcpServers?: RemoteMcpServer[];
   baseBranch?: string;

@@ -30,6 +30,16 @@ const envSchema = z.object({
 
 const program = new Command();
 
+function parseBooleanOption(
+  raw: string | undefined,
+  flag: string,
+): boolean | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === "true") return true;
+  if (raw === "false") return false;
+  program.error(`${flag} must be either "true" or "false"`);
+}
+
 function parseJsonOption<S extends z.ZodType>(
   raw: string | undefined,
   schema: S,
@@ -70,6 +80,7 @@ program
     "--mcpServers <json>",
     "MCP servers config as JSON array (ACP McpServer[] format)",
   )
+  .option("--createPr <boolean>", "Whether this run may publish changes")
   .option("--baseBranch <branch>", "Base branch for PR creation")
   .option(
     "--claudeCodeConfig <json>",
@@ -93,6 +104,7 @@ program
     const env = envResult.data;
 
     const mode = options.mode === "background" ? "background" : "interactive";
+    const createPr = parseBooleanOption(options.createPr, "--createPr");
 
     const mcpServers = parseJsonOption(
       options.mcpServers,
@@ -122,6 +134,7 @@ program
       mode,
       taskId: options.taskId,
       runId: options.runId,
+      createPr,
       mcpServers,
       baseBranch: options.baseBranch,
       claudeCode,

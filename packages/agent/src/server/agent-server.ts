@@ -1,4 +1,8 @@
-import type { ContentBlock } from "@agentclientprotocol/sdk";
+import type {
+  ContentBlock,
+  RequestPermissionRequest,
+  RequestPermissionResponse,
+} from "@agentclientprotocol/sdk";
 import {
   ClientSideConnection,
   ndJsonStream,
@@ -511,13 +515,9 @@ export class AgentServer {
           prompt,
           ...(this.detectedPrUrl && {
             _meta: {
-              prContext:
-                `IMPORTANT — OVERRIDE PREVIOUS INSTRUCTIONS ABOUT CREATING BRANCHES/PRs.\n` +
-                `You already have an open pull request: ${this.detectedPrUrl}\n` +
-                `You MUST:\n` +
-                `1. Check out the existing PR branch with \`gh pr checkout ${this.detectedPrUrl}\`\n` +
-                `2. Make changes, commit, and push to that branch\n` +
-                `You MUST NOT create a new branch, close the existing PR, or create a new PR.`,
+              // Keep the live-session PR override aligned with the startup
+              // prompt policy so non-Slack runs remain review-first.
+              prContext: this.buildDetectedPrContext(this.detectedPrUrl),
             },
           }),
         });
@@ -1121,13 +1121,53 @@ export class AgentServer {
     return { append: cloudAppend };
   }
 
+  private getCloudInteractionOrigin(): string | undefined {
+    return (
+      process.env.POSTHOG_CODE_INTERACTION_ORIGIN ??
+      process.env.CODE_INTERACTION_ORIGIN ??
+      process.env.TWIG_INTERACTION_ORIGIN
+    );
+  }
+
+  /**
+   * Slack-origin cloud runs auto-publish by default. Every other origin is
+   * review-first unless the user explicitly asks, and createPr=false always
+   * disables publishing.
+   */
+  private shouldAutoPublishCloudChanges(): boolean {
+    return (
+      this.getCloudInteractionOrigin() === "slack" &&
+      this.config.createPr !== false
+    );
+  }
+
+  private buildDetectedPrContext(prUrl: string): string {
+    if (!this.shouldAutoPublishCloudChanges()) {
+      return (
+        `An open pull request already exists: ${prUrl}\n` +
+        `Use that PR as context if it is helpful, but stop with local changes ready for review.\n` +
+        `Do NOT create commits, push to the PR branch, update the pull request, create a new branch, or create a new pull request unless the user explicitly asks.`
+      );
+    }
+
+    return (
+      `IMPORTANT — OVERRIDE PREVIOUS INSTRUCTIONS ABOUT CREATING BRANCHES/PRs.\n` +
+      `You already have an open pull request: ${prUrl}\n` +
+      `You MUST:\n` +
+      `1. Check out the existing PR branch with \`gh pr checkout ${prUrl}\`\n` +
+      `2. Make changes, commit, and push to that branch\n` +
+      `You MUST NOT create a new branch, close the existing PR, or create a new PR.`
+    );
+  }
+
   private buildCloudSystemPrompt(prUrl?: string | null): string {
     const taskId = this.config.taskId;
+    const shouldAutoCreatePr = this.shouldAutoPublishCloudChanges();
     const attributionInstructions = `
 ## Attribution
 Do NOT use Claude Code's default attribution (no "Co-Authored-By" trailers, no "Generated with [Claude Code]" lines).
 
-Instead, add the following trailers to EVERY commit message (after a blank line at the end):
+If you create a commit, add the following trailers to the commit message (after a blank line at the end):
   Generated-By: PostHog Code
   Task-Id: ${taskId}
 
@@ -1143,6 +1183,21 @@ EOF
 \`\`\``;
 
     if (prUrl) {
+      if (!shouldAutoCreatePr) {
+        return `
+# Cloud Task Execution
+
+This task already has an open pull request: ${prUrl}
+
+Do the requested work, but stop with local changes ready for review.
+
+Important:
+- Do NOT create new commits, push to the branch, or update the pull request unless the user explicitly asks.
+- Do NOT create a new branch or a new pull request.
+${attributionInstructions}
+`;
+      }
+
       return `
 # Cloud Task Execution
 
@@ -1177,6 +1232,18 @@ When the user asks for code changes or software engineering tasks:
 Important:
 - Do NOT create branches, commits, or pull requests in this mode.
 - Prefer using MCP tools to answer questions with real data over giving generic advice.
+`;
+    }
+
+    if (!shouldAutoCreatePr) {
+      return `
+# Cloud Task Execution
+
+Do the requested work, but stop with local changes ready for review.
+
+Important:
+- Do NOT create a branch, commit, push, or open a pull request unless the user explicitly asks.
+${attributionInstructions}
 `;
     }
 
@@ -1304,19 +1371,64 @@ ${attributionInstructions}
     });
   }
 
+  private buildSlackQuestionRelayResponse(
+    payload: JwtPayload,
+    toolMeta: Record<string, unknown> | null | undefined,
+  ): RequestPermissionResponse {
+    this.relaySlackQuestion(payload, toolMeta);
+    return {
+      outcome: { outcome: "cancelled" as const },
+      _meta: {
+        message:
+          "This question has been relayed to the Slack thread where this task originated. " +
+          "The user will reply there. Do NOT re-ask the question or pick an answer yourself. " +
+          "Simply let the user know you are waiting for their reply.",
+      },
+    };
+  }
+
+  private shouldBlockPublishPermission(
+    params: RequestPermissionRequest,
+  ): boolean {
+    if (this.config.createPr !== false) {
+      return false;
+    }
+
+    const meta =
+      params.toolCall?._meta &&
+      typeof params.toolCall._meta === "object" &&
+      !Array.isArray(params.toolCall._meta)
+        ? (params.toolCall._meta as Record<string, unknown>)
+        : null;
+    const rawInput =
+      params.toolCall?.rawInput &&
+      typeof params.toolCall.rawInput === "object" &&
+      !Array.isArray(params.toolCall.rawInput)
+        ? (params.toolCall.rawInput as Record<string, unknown>)
+        : null;
+    const toolName = typeof meta?.toolName === "string" ? meta.toolName : null;
+    const command =
+      typeof rawInput?.command === "string" ? rawInput.command : null;
+
+    return Boolean(
+      toolName &&
+        (toolName === "Bash" || toolName.includes("bash")) &&
+        command &&
+        /\bgit\s+push\b|\bgh\s+pr\s+(create|edit|ready|merge)\b/.test(command),
+    );
+  }
+
   private createCloudClient(payload: JwtPayload) {
     const mode = this.getEffectiveMode(payload);
     const interactionOrigin =
+      process.env.POSTHOG_CODE_INTERACTION_ORIGIN ??
       process.env.CODE_INTERACTION_ORIGIN ??
       process.env.TWIG_INTERACTION_ORIGIN;
 
     return {
-      requestPermission: async (params: {
-        options: Array<{ kind: string; optionId: string; name?: string }>;
-        toolCall?: {
-          _meta?: Record<string, unknown> | null;
-        };
-      }) => {
+      requestPermission: async (
+        params: RequestPermissionRequest,
+      ): Promise<RequestPermissionResponse> => {
         // Background mode: always auto-approve permissions
         // Interactive mode: also auto-approve for now (user can monitor via SSE)
         // Future: interactive mode could pause and wait for user approval via SSE
@@ -1335,17 +1447,21 @@ ${attributionInstructions}
         if (interactionOrigin === "slack") {
           const codeToolKind = params.toolCall?._meta?.codeToolKind;
           if (codeToolKind === "question") {
-            this.relaySlackQuestion(payload, params.toolCall?._meta);
-            return {
-              outcome: { outcome: "cancelled" as const },
-              _meta: {
-                message:
-                  "This question has been relayed to the Slack thread where this task originated. " +
-                  "The user will reply there. Do NOT re-ask the question or pick an answer yourself. " +
-                  "Simply let the user know you are waiting for their reply.",
-              },
-            };
+            return this.buildSlackQuestionRelayResponse(
+              payload,
+              params.toolCall?._meta,
+            );
           }
+        }
+
+        if (this.shouldBlockPublishPermission(params)) {
+          return {
+            outcome: { outcome: "cancelled" },
+            _meta: {
+              message:
+                "This run is configured to stop before publishing. Do not push commits or create/update pull requests unless the user explicitly asks.",
+            },
+          };
         }
 
         return {

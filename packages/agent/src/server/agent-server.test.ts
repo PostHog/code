@@ -20,6 +20,7 @@ interface TestableServer {
   detectAndAttachPrUrl(payload: unknown, update: unknown): void;
   detectedPrUrl: string | null;
   buildCloudSystemPrompt(prUrl?: string | null): string;
+  buildDetectedPrContext(prUrl: string): string;
 }
 
 // The Claude Agent SDK has an internal readMessages() loop that rejects with
@@ -380,14 +381,17 @@ describe("AgentServer HTTP Mode", () => {
   });
 
   describe("buildCloudSystemPrompt", () => {
-    it("returns PR-aware prompt when prUrl is provided", () => {
+    it("returns review-first prompt for existing PRs on non-Slack runs", () => {
       const s = createServer();
       const prompt = (s as unknown as TestableServer).buildCloudSystemPrompt(
         "https://github.com/org/repo/pull/1",
       );
-      expect(prompt).toContain("Do NOT create a new branch");
+      expect(prompt).toContain("stop with local changes ready for review");
       expect(prompt).toContain("https://github.com/org/repo/pull/1");
-      expect(prompt).toContain("gh pr checkout");
+      expect(prompt).toContain(
+        "Do NOT create new commits, push to the branch, or update the pull request unless the user explicitly asks.",
+      );
+      expect(prompt).not.toContain("gh pr checkout");
       expect(prompt).not.toContain("Create a draft pull request");
       expect(prompt).toContain("Generated-By: PostHog Code");
       expect(prompt).toContain("Task-Id: test-task-id");
@@ -396,12 +400,13 @@ describe("AgentServer HTTP Mode", () => {
     it("returns default prompt when no prUrl", () => {
       const s = createServer();
       const prompt = (s as unknown as TestableServer).buildCloudSystemPrompt();
-      expect(prompt).toContain("posthog-code/");
-      expect(prompt).toContain("Create a draft pull request");
-      expect(prompt).toContain("gh pr create --draft");
+      expect(prompt).toContain("stop with local changes ready for review");
+      expect(prompt).toContain(
+        "Do NOT create a branch, commit, push, or open a pull request unless the user explicitly asks.",
+      );
       expect(prompt).toContain("Generated-By: PostHog Code");
       expect(prompt).toContain("Task-Id: test-task-id");
-      expect(prompt).toContain("Created with [PostHog Code]");
+      expect(prompt).not.toContain("gh pr create --draft");
     });
 
     it("returns default prompt when prUrl is null", () => {
@@ -409,12 +414,41 @@ describe("AgentServer HTTP Mode", () => {
       const prompt = (s as unknown as TestableServer).buildCloudSystemPrompt(
         null,
       );
+      expect(prompt).toContain("stop with local changes ready for review");
+    });
+
+    it("returns auto-PR prompt for Slack-origin runs", () => {
+      process.env.POSTHOG_CODE_INTERACTION_ORIGIN = "slack";
+      const s = createServer();
+      const prompt = (s as unknown as TestableServer).buildCloudSystemPrompt();
       expect(prompt).toContain("posthog-code/");
       expect(prompt).toContain("Create a draft pull request");
       expect(prompt).toContain("gh pr create --draft");
+      expect(prompt).toContain("Generated-By: PostHog Code");
+      expect(prompt).toContain("Task-Id: test-task-id");
+      expect(prompt).toContain("Created with [PostHog Code]");
+      delete process.env.POSTHOG_CODE_INTERACTION_ORIGIN;
+    });
+
+    it("returns PR-update prompt for existing PRs on Slack-origin runs", () => {
+      process.env.POSTHOG_CODE_INTERACTION_ORIGIN = "slack";
+      const s = createServer();
+      const prompt = (s as unknown as TestableServer).buildCloudSystemPrompt(
+        "https://github.com/org/repo/pull/1",
+      );
+      expect(prompt).toContain(
+        "gh pr checkout https://github.com/org/repo/pull/1",
+      );
+      expect(prompt).toContain(
+        "Stage and commit all changes with a clear commit message",
+      );
+      expect(prompt).toContain("Push to the existing PR branch");
+      expect(prompt).not.toContain("Create a draft pull request");
+      delete process.env.POSTHOG_CODE_INTERACTION_ORIGIN;
     });
 
     it("includes --base flag when baseBranch is configured", () => {
+      process.env.POSTHOG_CODE_INTERACTION_ORIGIN = "slack";
       server = new AgentServer({
         port,
         jwtPublicKey: TEST_PUBLIC_KEY,
@@ -433,13 +467,112 @@ describe("AgentServer HTTP Mode", () => {
       expect(prompt).toContain(
         "gh pr create --draft --base add-yolo-to-readme",
       );
+      delete process.env.POSTHOG_CODE_INTERACTION_ORIGIN;
     });
 
     it("omits --base flag when baseBranch is not configured", () => {
+      process.env.POSTHOG_CODE_INTERACTION_ORIGIN = "slack";
       const s = createServer();
       const prompt = (s as unknown as TestableServer).buildCloudSystemPrompt();
       expect(prompt).toContain("gh pr create --draft`");
       expect(prompt).not.toContain("--base");
+      delete process.env.POSTHOG_CODE_INTERACTION_ORIGIN;
+    });
+
+    it("disables auto-publish for Slack-origin runs when createPr is false", () => {
+      process.env.POSTHOG_CODE_INTERACTION_ORIGIN = "slack";
+      server = new AgentServer({
+        port,
+        jwtPublicKey: TEST_PUBLIC_KEY,
+        repositoryPath: repo.path,
+        apiUrl: "http://localhost:8000",
+        apiKey: "test-api-key",
+        projectId: 1,
+        mode: "interactive",
+        taskId: "test-task-id",
+        runId: "test-run-id",
+        createPr: false,
+      });
+      const prompt = (
+        server as unknown as TestableServer
+      ).buildCloudSystemPrompt();
+      expect(prompt).toContain("stop with local changes ready for review");
+      expect(prompt).not.toContain("gh pr create --draft");
+      delete process.env.POSTHOG_CODE_INTERACTION_ORIGIN;
+    });
+
+    it("disables auto-publish for existing PRs when createPr is false", () => {
+      process.env.POSTHOG_CODE_INTERACTION_ORIGIN = "slack";
+      server = new AgentServer({
+        port,
+        jwtPublicKey: TEST_PUBLIC_KEY,
+        repositoryPath: repo.path,
+        apiUrl: "http://localhost:8000",
+        apiKey: "test-api-key",
+        projectId: 1,
+        mode: "interactive",
+        taskId: "test-task-id",
+        runId: "test-run-id",
+        createPr: false,
+      });
+      const prompt = (
+        server as unknown as TestableServer
+      ).buildCloudSystemPrompt("https://github.com/org/repo/pull/1");
+      expect(prompt).toContain("stop with local changes ready for review");
+      expect(prompt).not.toContain("gh pr checkout");
+      expect(prompt).not.toContain("Push to the existing PR branch");
+      delete process.env.POSTHOG_CODE_INTERACTION_ORIGIN;
+    });
+  });
+
+  describe("buildDetectedPrContext", () => {
+    const prUrl = "https://github.com/org/repo/pull/1";
+
+    it("returns review-first PR context for non-Slack runs", () => {
+      const s = createServer();
+      const context = (s as unknown as TestableServer).buildDetectedPrContext(
+        prUrl,
+      );
+      expect(context).toContain("stop with local changes ready for review");
+      expect(context).toContain(
+        "Do NOT create commits, push to the PR branch, update the pull request",
+      );
+      expect(context).not.toContain("gh pr checkout");
+    });
+
+    it("returns auto-update PR context for Slack-origin runs", () => {
+      process.env.POSTHOG_CODE_INTERACTION_ORIGIN = "slack";
+      const s = createServer();
+      const context = (s as unknown as TestableServer).buildDetectedPrContext(
+        prUrl,
+      );
+      expect(context).toContain(`gh pr checkout ${prUrl}`);
+      expect(context).toContain(
+        "Make changes, commit, and push to that branch",
+      );
+      delete process.env.POSTHOG_CODE_INTERACTION_ORIGIN;
+    });
+
+    it("returns review-first PR context when createPr is false", () => {
+      process.env.POSTHOG_CODE_INTERACTION_ORIGIN = "slack";
+      server = new AgentServer({
+        port,
+        jwtPublicKey: TEST_PUBLIC_KEY,
+        repositoryPath: repo.path,
+        apiUrl: "http://localhost:8000",
+        apiKey: "test-api-key",
+        projectId: 1,
+        mode: "interactive",
+        taskId: "test-task-id",
+        runId: "test-run-id",
+        createPr: false,
+      });
+      const context = (
+        server as unknown as TestableServer
+      ).buildDetectedPrContext(prUrl);
+      expect(context).toContain("stop with local changes ready for review");
+      expect(context).not.toContain("gh pr checkout");
+      delete process.env.POSTHOG_CODE_INTERACTION_ORIGIN;
     });
   });
 });
