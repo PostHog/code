@@ -20,7 +20,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
 import { dirname, join } from "node:path";
-import { app } from "electron";
+import { getUserDataDir } from "./env";
 
 const DELIMITER = "_SHELL_ENV_DELIMITER_";
 
@@ -65,7 +65,7 @@ function detectDefaultShell(): string {
 }
 
 function getCachePath(): string {
-  return join(app.getPath("userData"), "shell-env-cache.json");
+  return join(getUserDataDir(), "shell-env-cache.json");
 }
 
 function readCachedPath(): string | undefined {

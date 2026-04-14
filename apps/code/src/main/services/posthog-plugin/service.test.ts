@@ -7,24 +7,25 @@ vi.hoisted(() => {
   process.env.CONTEXT_MILL_ZIP_URL = "https://example.com/context-mill.zip";
 });
 
-const mockApp = vi.hoisted(() => ({
-  getPath: vi.fn(() => "/mock/userData"),
-  getAppPath: vi.fn(() => "/mock/appPath"),
-  isPackaged: false as boolean,
+const mockStoragePaths = vi.hoisted(() => ({
+  appDataPath: "/mock/userData",
+  logsPath: "/mock/logs",
 }));
 
-const mockNet = vi.hoisted(() => ({
-  fetch: vi.fn(),
+const mockBundledResources = vi.hoisted(() => ({
+  resolve: vi.fn((rel: string) => `/mock/appPath/${rel}`),
+  _setPackaged: (packaged: boolean) => {
+    mockBundledResources.resolve.mockImplementation((rel: string) =>
+      packaged ? `/mock/appPath.unpacked/${rel}` : `/mock/appPath/${rel}`,
+    );
+  },
 }));
+
+const mockFetch = vi.hoisted(() => vi.fn());
 
 const mockExtractZip = vi.hoisted(() =>
   vi.fn<(zipPath: string, extractDir: string) => Promise<void>>(async () => {}),
 );
-
-vi.mock("electron", () => ({
-  app: mockApp,
-  net: mockNet,
-}));
 
 vi.mock("node:fs", async () => {
   const { fs } = await import("memfs");
@@ -62,6 +63,8 @@ vi.mock("../../utils/logger.js", () => ({
   },
 }));
 
+import type { IBundledResources } from "@posthog/platform/bundled-resources";
+import type { IStoragePaths } from "@posthog/platform/storage-paths";
 import { PosthogPluginService } from "./service";
 import { syncCodexSkills } from "./update-skills-saga";
 
@@ -136,11 +139,19 @@ describe("PosthogPluginService", () => {
     vi.useFakeTimers();
     vol.reset();
 
-    mockApp.isPackaged = false;
-    mockNet.fetch.mockResolvedValue(mockFetchResponse(true));
+    mockBundledResources._setPackaged(false);
+    mockFetch.mockResolvedValue(mockFetchResponse(true));
+    vi.stubGlobal("fetch", mockFetch);
     mockExtractZip.mockResolvedValue(undefined);
 
-    service = new PosthogPluginService();
+    service = new PosthogPluginService(
+      mockStoragePaths as unknown as IStoragePaths,
+      mockBundledResources as unknown as IBundledResources,
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   afterEach(() => {
@@ -150,12 +161,14 @@ describe("PosthogPluginService", () => {
 
   describe("getPluginPath", () => {
     it("returns bundled path in dev mode", () => {
-      mockApp.isPackaged = false;
+      process.env.POSTHOG_CODE_IS_DEV = "true";
+      mockBundledResources._setPackaged(false);
       expect(service.getPluginPath()).toBe(BUNDLED_PLUGIN_DIR);
     });
 
     it("returns runtime path in prod when plugin.json exists", () => {
-      mockApp.isPackaged = true;
+      process.env.POSTHOG_CODE_IS_DEV = "false";
+      mockBundledResources._setPackaged(true);
       vol.mkdirSync(RUNTIME_PLUGIN_DIR, { recursive: true });
       vol.writeFileSync(`${RUNTIME_PLUGIN_DIR}/plugin.json`, "{}");
 
@@ -163,7 +176,8 @@ describe("PosthogPluginService", () => {
     });
 
     it("returns bundled path as fallback in prod", () => {
-      mockApp.isPackaged = true;
+      process.env.POSTHOG_CODE_IS_DEV = "false";
+      mockBundledResources._setPackaged(true);
       expect(service.getPluginPath()).toBe(BUNDLED_PLUGIN_DIR_PACKAGED);
     });
   });
@@ -236,9 +250,7 @@ describe("PosthogPluginService", () => {
       expect(
         vol.existsSync(`${RUNTIME_SKILLS_DIR}/remote-skill/SKILL.md`),
       ).toBe(true);
-      expect(mockNet.fetch).toHaveBeenCalledWith(
-        "https://example.com/skills.zip",
-      );
+      expect(mockFetch).toHaveBeenCalledWith("https://example.com/skills.zip");
       expect(mockExtractZip).toHaveBeenCalled();
     });
 
@@ -287,27 +299,27 @@ describe("PosthogPluginService", () => {
     it("throttles: skips if called within 30 minutes", async () => {
       simulateExtractZip();
       await service.updateSkills();
-      mockNet.fetch.mockClear();
+      mockFetch.mockClear();
 
       await service.updateSkills();
 
-      expect(mockNet.fetch).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it("allows update after throttle period expires", async () => {
       simulateExtractZip();
       await service.updateSkills();
-      mockNet.fetch.mockClear();
+      mockFetch.mockClear();
 
       vi.advanceTimersByTime(31 * 60 * 1000);
       await service.updateSkills();
 
-      expect(mockNet.fetch).toHaveBeenCalled();
+      expect(mockFetch).toHaveBeenCalled();
     });
 
     it("skips if already updating (reentrance guard)", async () => {
       let resolveDownload!: (value: unknown) => void;
-      mockNet.fetch.mockReturnValue(
+      mockFetch.mockReturnValue(
         new Promise((resolve) => {
           resolveDownload = resolve;
         }),
@@ -318,11 +330,11 @@ describe("PosthogPluginService", () => {
 
       // Advance past throttle so second call reaches the `updating` check
       vi.advanceTimersByTime(31 * 60 * 1000);
-      mockNet.fetch.mockClear();
+      mockFetch.mockClear();
       await service.updateSkills();
 
       // Second call should not have triggered another fetch
-      expect(mockNet.fetch).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
 
       // Clean up hanging promise
       resolveDownload(mockFetchResponse(true));
@@ -380,12 +392,12 @@ describe("PosthogPluginService", () => {
     });
 
     it("handles download failure gracefully", async () => {
-      mockNet.fetch.mockRejectedValue(new Error("Network error"));
+      mockFetch.mockRejectedValue(new Error("Network error"));
       await expect(service.updateSkills()).resolves.toBeUndefined();
     });
 
     it("handles non-ok response gracefully", async () => {
-      mockNet.fetch.mockResolvedValue(mockFetchResponse(false, 404));
+      mockFetch.mockResolvedValue(mockFetchResponse(false, 404));
       await expect(service.updateSkills()).resolves.toBeUndefined();
     });
 

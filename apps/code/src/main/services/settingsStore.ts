@@ -2,9 +2,8 @@ import { existsSync, renameSync } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { LEGACY_DATA_DIRS, WORKTREES_DIR } from "@shared/constants";
-import { app } from "electron";
 import Store from "electron-store";
-import { isDevBuild } from "../utils/env";
+import { getUserDataDir, isDevBuild } from "../utils/env";
 
 interface SettingsSchema {
   worktreeLocation: string;
@@ -90,7 +89,7 @@ const schema = {
 export const settingsStore = new Store<SettingsSchema>({
   name: "settings",
   schema,
-  cwd: app.getPath("userData"),
+  cwd: getUserDataDir(),
   defaults: {
     worktreeLocation: getDefaultWorktreeLocation(),
     preventSleepWhileRunning: false,

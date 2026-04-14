@@ -49,13 +49,8 @@ const mockAgentConstructor = vi.hoisted(() =>
 
 // --- Module mocks ---
 
-const mockPowerMonitor = vi.hoisted(() => ({
-  on: vi.fn(),
-}));
-
 vi.mock("electron", () => ({
   app: mockApp,
-  powerMonitor: mockPowerMonitor,
 }));
 
 vi.mock("../../utils/logger.js", () => ({
@@ -176,6 +171,21 @@ function createMockDependencies() {
       notifyToolResult: vi.fn(),
       notifyToolCancelled: vi.fn(),
     },
+    powerManager: {
+      onResume: vi.fn(() => () => {}),
+      preventSleep: vi.fn(() => () => {}),
+    },
+    bundledResources: {
+      resolve: vi.fn((rel: string) => `/mock/appPath/${rel}`),
+    },
+    appMeta: {
+      version: "0.0.0-test",
+      isProduction: false,
+    },
+    storagePaths: {
+      appDataPath: "/mock/userData",
+      logsPath: "/mock/logs",
+    },
   };
 }
 
@@ -189,11 +199,12 @@ const baseSessionParams = {
 
 describe("AgentService", () => {
   let service: AgentService;
+  let deps: ReturnType<typeof createMockDependencies>;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    const deps = createMockDependencies();
+    deps = createMockDependencies();
     service = new AgentService(
       deps.processTracking as never,
       deps.sleepService as never,
@@ -201,6 +212,10 @@ describe("AgentService", () => {
       deps.posthogPluginService as never,
       deps.agentAuthAdapter as never,
       deps.mcpAppsService as never,
+      deps.powerManager as never,
+      deps.bundledResources as never,
+      deps.appMeta as never,
+      deps.storagePaths as never,
     );
   });
 
@@ -408,9 +423,9 @@ describe("AgentService", () => {
       injectSession(service, "run-1");
       service.recordActivity("run-1");
 
-      const resumeHandler = mockPowerMonitor.on.mock.calls.find(
-        ([event]: string[]) => event === "resume",
-      )?.[1] as () => void;
+      const resumeHandler = (
+        deps.powerManager.onResume.mock.calls[0] as unknown as [() => void]
+      )[0];
       expect(resumeHandler).toBeDefined();
 
       vi.advanceTimersByTime(20 * 60 * 1000);
@@ -426,9 +441,9 @@ describe("AgentService", () => {
       injectSession(service, "run-1");
       service.recordActivity("run-1");
 
-      const resumeHandler = mockPowerMonitor.on.mock.calls.find(
-        ([event]: string[]) => event === "resume",
-      )?.[1] as () => void;
+      const resumeHandler = (
+        deps.powerManager.onResume.mock.calls[0] as unknown as [() => void]
+      )[0];
 
       vi.advanceTimersByTime(5 * 60 * 1000);
       resumeHandler();

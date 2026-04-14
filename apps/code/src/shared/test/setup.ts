@@ -2,6 +2,14 @@ import "@testing-library/jest-dom";
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from "vitest";
 
+// Populate env vars that utility singletons (utils/env, utils/store, etc.)
+// read at module-load time. In production these are set by bootstrap.ts from
+// Electron's app.getPath/getVersion/isPackaged; in tests we provide stable
+// defaults so any service/util that reads process.env at import time works.
+process.env.POSTHOG_CODE_DATA_DIR ??= "/mock/userData";
+process.env.POSTHOG_CODE_IS_DEV ??= "true";
+process.env.POSTHOG_CODE_VERSION ??= "0.0.0-test";
+
 // Mock localStorage for Zustand persist middleware
 const localStorageMock = (() => {
   let store: Record<string, string> = {};

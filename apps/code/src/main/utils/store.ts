@@ -1,5 +1,5 @@
-import { app } from "electron";
 import Store from "electron-store";
+import { getUserDataDir } from "./env";
 
 interface FocusSession {
   mainRepoPath: string;
@@ -26,14 +26,16 @@ export interface WindowStateSchema {
   isMaximized: boolean;
 }
 
+const userDataDir = getUserDataDir();
+
 export const rendererStore = new Store<RendererStoreSchema>({
   name: "renderer-storage",
-  cwd: app.getPath("userData"),
+  cwd: userDataDir,
 });
 
 export const focusStore = new Store<FocusStoreSchema>({
   name: "focus",
-  cwd: app.getPath("userData"),
+  cwd: userDataDir,
   defaults: { sessions: {} },
 });
 
@@ -41,7 +43,7 @@ export type { FocusSession };
 
 export const windowStateStore = new Store<WindowStateSchema>({
   name: "window-state",
-  cwd: app.getPath("userData"),
+  cwd: userDataDir,
   defaults: {
     x: undefined,
     y: undefined,

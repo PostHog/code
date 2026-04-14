@@ -6,8 +6,8 @@ import {
   LoggerProvider,
 } from "@opentelemetry/sdk-logs";
 import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
-import { app } from "electron";
 import type ElectronLog from "electron-log";
+import { getAppVersion } from "./env";
 
 /** Maps electron-log levels to OTEL severity text. Most are just uppercase,
  *  but "verbose" and "silly" need explicit mapping. */
@@ -66,7 +66,7 @@ export function initOtelTransport(
   loggerProvider = new LoggerProvider({
     resource: resourceFromAttributes({
       [ATTR_SERVICE_NAME]: "posthog-code-desktop",
-      "service.version": app.getVersion(),
+      "service.version": getAppVersion(),
       "os.type": process.platform,
       "os.version": os.release(),
       "process.runtime.name": "electron",

@@ -1,5 +1,7 @@
-import { app } from "electron";
-import { injectable } from "inversify";
+import type { IAppLifecycle } from "@posthog/platform/app-lifecycle";
+import { inject, injectable } from "inversify";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { isDevBuild } from "../../utils/env";
 import { logger } from "../../utils/logger";
 
 const log = logger.scope("deep-link-service");
@@ -17,6 +19,11 @@ export class DeepLinkService {
   private protocolRegistered = false;
   private handlers = new Map<string, DeepLinkHandler>();
 
+  constructor(
+    @inject(MAIN_TOKENS.AppLifecycle)
+    private readonly appLifecycle: IAppLifecycle,
+  ) {}
+
   public registerProtocol(): void {
     if (this.protocolRegistered) {
       return;
@@ -24,14 +31,14 @@ export class DeepLinkService {
 
     // Skip protocol registration in development to avoid hijacking deep links
     // from the production app. OAuth uses HTTP callback in dev mode anyway.
-    if (process.defaultApp) {
+    if (isDevBuild()) {
       return;
     }
 
     // Production: register primary and legacy protocols
-    app.setAsDefaultProtocolClient(PROTOCOL);
+    this.appLifecycle.registerDeepLinkScheme(PROTOCOL);
     for (const legacy of LEGACY_PROTOCOLS) {
-      app.setAsDefaultProtocolClient(legacy);
+      this.appLifecycle.registerDeepLinkScheme(legacy);
     }
 
     this.protocolRegistered = true;

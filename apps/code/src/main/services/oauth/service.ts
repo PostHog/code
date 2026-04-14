@@ -1,6 +1,7 @@
 import * as crypto from "node:crypto";
 import * as http from "node:http";
 import type { Socket } from "node:net";
+import type { IMainWindow } from "@posthog/platform/main-window";
 import type { IUrlLauncher } from "@posthog/platform/url-launcher";
 import {
   getOauthClientIdFromRegion,
@@ -9,8 +10,8 @@ import {
 import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
+import { isDevBuild } from "../../utils/env";
 import { logger } from "../../utils/logger";
-import { focusMainWindow } from "../../window";
 import type { DeepLinkService } from "../deep-link/service";
 import type {
   CancelFlowOutput,
@@ -25,9 +26,6 @@ const log = logger.scope("oauth-service");
 const PROTOCOL = "posthog-code";
 const OAUTH_TIMEOUT_MS = 180_000; // 3 minutes
 const DEV_CALLBACK_PORT = 8237;
-
-// Use HTTP callback in development, deep link in production
-const IS_DEV = process.defaultApp || false;
 
 interface OAuthConfig {
   scopes: string[];
@@ -53,6 +51,8 @@ export class OAuthService {
     private readonly deepLinkService: DeepLinkService,
     @inject(MAIN_TOKENS.UrlLauncher)
     private readonly urlLauncher: IUrlLauncher,
+    @inject(MAIN_TOKENS.MainWindow)
+    private readonly mainWindow: IMainWindow,
   ) {
     // Register OAuth callback handler for deep links
     this.deepLinkService.registerHandler("callback", (_path, searchParams) =>
@@ -70,7 +70,9 @@ export class OAuthService {
       log.info(
         "OAuth callback deep link with no in-app flow — refocusing (e.g. return from web auth)",
       );
-      focusMainWindow("oauth callback deep link (no in-app flow)");
+      log.info("oauth callback deep link (no in-app flow) — focusing window");
+      if (this.mainWindow.isMinimized()) this.mainWindow.restore();
+      this.mainWindow.focus();
       return true;
     }
 
@@ -96,7 +98,7 @@ export class OAuthService {
    * Get the redirect URI based on environment.
    */
   private getRedirectUri(): string {
-    return IS_DEV
+    return isDevBuild()
       ? `http://localhost:${DEV_CALLBACK_PORT}/callback`
       : `${PROTOCOL}://callback`;
   }
@@ -477,7 +479,7 @@ export class OAuthService {
     codeVerifier: string,
     authUrl: string,
   ): Promise<StartFlowOutput> {
-    const code = IS_DEV
+    const code = isDevBuild()
       ? await this.waitForHttpCallback(codeVerifier, config, authUrl)
       : await this.waitForDeepLinkCallback(codeVerifier, config, authUrl);
 

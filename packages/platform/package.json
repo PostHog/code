@@ -31,6 +31,38 @@
     "./secure-storage": {
       "types": "./dist/secure-storage.d.ts",
       "import": "./dist/secure-storage.js"
+    },
+    "./main-window": {
+      "types": "./dist/main-window.d.ts",
+      "import": "./dist/main-window.js"
+    },
+    "./app-lifecycle": {
+      "types": "./dist/app-lifecycle.d.ts",
+      "import": "./dist/app-lifecycle.js"
+    },
+    "./power-manager": {
+      "types": "./dist/power-manager.d.ts",
+      "import": "./dist/power-manager.js"
+    },
+    "./updater": {
+      "types": "./dist/updater.d.ts",
+      "import": "./dist/updater.js"
+    },
+    "./notifier": {
+      "types": "./dist/notifier.d.ts",
+      "import": "./dist/notifier.js"
+    },
+    "./context-menu": {
+      "types": "./dist/context-menu.d.ts",
+      "import": "./dist/context-menu.js"
+    },
+    "./bundled-resources": {
+      "types": "./dist/bundled-resources.d.ts",
+      "import": "./dist/bundled-resources.js"
+    },
+    "./image-processor": {
+      "types": "./dist/image-processor.d.ts",
+      "import": "./dist/image-processor.js"
     }
   },
   "scripts": {

@@ -13,6 +13,14 @@ export const MAIN_TOKENS = Object.freeze({
   Clipboard: Symbol.for("Platform.Clipboard"),
   FileIcon: Symbol.for("Platform.FileIcon"),
   SecureStorage: Symbol.for("Platform.SecureStorage"),
+  MainWindow: Symbol.for("Platform.MainWindow"),
+  AppLifecycle: Symbol.for("Platform.AppLifecycle"),
+  PowerManager: Symbol.for("Platform.PowerManager"),
+  Updater: Symbol.for("Platform.Updater"),
+  Notifier: Symbol.for("Platform.Notifier"),
+  ContextMenu: Symbol.for("Platform.ContextMenu"),
+  BundledResources: Symbol.for("Platform.BundledResources"),
+  ImageProcessor: Symbol.for("Platform.ImageProcessor"),
 
   // Stores
   SettingsStore: Symbol.for("Main.SettingsStore"),

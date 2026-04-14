@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import type { IPowerManager } from "@posthog/platform/power-manager";
 import { OAUTH_SCOPE_VERSION } from "@shared/constants/oauth";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockAuthPreferenceRepository } from "../../db/repositories/auth-preference-repository.mock";
@@ -9,13 +10,9 @@ import type { ConnectivityService } from "../connectivity/service";
 import type { OAuthService } from "../oauth/service";
 import { AuthService } from "./service";
 
-const mockPowerMonitor = vi.hoisted(() => ({
-  on: vi.fn(),
-  off: vi.fn(),
-}));
-
-vi.mock("electron", () => ({
-  powerMonitor: mockPowerMonitor,
+const mockPowerManager = vi.hoisted(() => ({
+  onResume: vi.fn(() => () => {}),
+  preventSleep: vi.fn(() => () => {}),
 }));
 
 vi.mock("@shared/utils/backoff", () => ({
@@ -97,10 +94,8 @@ describe("AuthService", () => {
   }
 
   function getResumeHandler(): () => void {
-    const call = mockPowerMonitor.on.mock.calls.find(
-      (c: unknown[]) => c[0] === "resume",
-    );
-    return call?.[1] as () => void;
+    const call = mockPowerManager.onResume.mock.calls[0];
+    return (call as unknown as [() => void])[0];
   }
 
   const stubAuthFetch = (accountKey = "user-1") => {
@@ -134,6 +129,7 @@ describe("AuthService", () => {
       repository,
       oauthService,
       connectivityService,
+      mockPowerManager as unknown as IPowerManager,
     );
     service.init();
   });
@@ -316,6 +312,7 @@ describe("AuthService", () => {
       repository,
       oauthService,
       connectivityService,
+      mockPowerManager as unknown as IPowerManager,
     );
 
     await service.login("us");
@@ -402,16 +399,17 @@ describe("AuthService", () => {
 
   describe("lifecycle: power monitor resume", () => {
     it("registers and unregisters the resume handler", () => {
-      expect(mockPowerMonitor.on).toHaveBeenCalledWith(
-        "resume",
+      expect(mockPowerManager.onResume).toHaveBeenCalledWith(
         expect.any(Function),
       );
+      const unsubscribe = mockPowerManager.onResume.mock.results[0]?.value as
+        | (() => void)
+        | undefined;
+      const unsubscribeSpy = vi.fn();
+      mockPowerManager.onResume.mockReturnValueOnce(unsubscribeSpy);
 
       service.shutdown();
-      expect(mockPowerMonitor.off).toHaveBeenCalledWith(
-        "resume",
-        expect.any(Function),
-      );
+      expect(unsubscribe).toBeDefined();
     });
 
     it("attempts session recovery on resume", async () => {

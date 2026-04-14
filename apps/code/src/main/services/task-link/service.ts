@@ -1,6 +1,6 @@
+import type { IMainWindow } from "@posthog/platform/main-window";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
-import { getMainWindow } from "../../trpc/context";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 import type { DeepLinkService } from "../deep-link/service";
@@ -31,6 +31,8 @@ export class TaskLinkService extends TypedEventEmitter<TaskLinkEvents> {
   constructor(
     @inject(MAIN_TOKENS.DeepLinkService)
     private readonly deepLinkService: DeepLinkService,
+    @inject(MAIN_TOKENS.MainWindow)
+    private readonly mainWindow: IMainWindow,
   ) {
     super();
 
@@ -70,13 +72,10 @@ export class TaskLinkService extends TypedEventEmitter<TaskLinkEvents> {
 
     // Focus the window
     log.info("Deep link focusing window", { taskId, taskRunId });
-    const mainWindow = getMainWindow();
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) {
-        mainWindow.restore();
-      }
-      mainWindow.focus();
+    if (this.mainWindow.isMinimized()) {
+      this.mainWindow.restore();
     }
+    this.mainWindow.focus();
 
     return true;
   }

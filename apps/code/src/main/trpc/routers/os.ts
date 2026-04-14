@@ -3,8 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import type { IAppMeta } from "@posthog/platform/app-meta";
 import type { DialogSeverity, IDialog } from "@posthog/platform/dialog";
+import type { IImageProcessor } from "@posthog/platform/image-processor";
 import type { IUrlLauncher } from "@posthog/platform/url-launcher";
-import { nativeImage } from "electron";
 import { z } from "zod";
 import { container } from "../../di/container";
 import { MAIN_TOKENS } from "../../di/tokens";
@@ -17,6 +17,8 @@ const getUrlLauncher = () =>
   container.get<IUrlLauncher>(MAIN_TOKENS.UrlLauncher);
 const getDialog = () => container.get<IDialog>(MAIN_TOKENS.Dialog);
 const getAppMeta = () => container.get<IAppMeta>(MAIN_TOKENS.AppMeta);
+const getImageProcessor = () =>
+  container.get<IImageProcessor>(MAIN_TOKENS.ImageProcessor);
 
 const IMAGE_MIME_MAP: Record<string, string> = {
   png: "image/png",
@@ -49,54 +51,6 @@ const expandHomePath = (searchPath: string): string =>
 const MAX_IMAGE_DIMENSION = 1568;
 const JPEG_QUALITY = 85;
 const CLIPBOARD_TEMP_DIR = path.join(os.tmpdir(), "posthog-code-clipboard");
-
-interface DownscaledImage {
-  buffer: Buffer;
-  mimeType: string;
-  extension: string;
-}
-
-function downscaleImage(raw: Buffer, mimeType: string): DownscaledImage {
-  const image = nativeImage.createFromBuffer(raw);
-  if (image.isEmpty()) {
-    return {
-      buffer: raw,
-      mimeType,
-      extension: mimeType.split("/")[1] || "png",
-    };
-  }
-
-  const { width, height } = image.getSize();
-  const maxDim = Math.max(width, height);
-
-  if (maxDim <= MAX_IMAGE_DIMENSION) {
-    return {
-      buffer: raw,
-      mimeType,
-      extension: mimeType.split("/")[1] || "png",
-    };
-  }
-
-  const scale = MAX_IMAGE_DIMENSION / maxDim;
-  const newWidth = Math.round(width * scale);
-  const newHeight = Math.round(height * scale);
-  const resized = image.resize({
-    width: newWidth,
-    height: newHeight,
-    quality: "best",
-  });
-
-  const hasAlpha = mimeType === "image/png" || mimeType === "image/webp";
-  if (hasAlpha) {
-    return { buffer: resized.toPNG(), mimeType: "image/png", extension: "png" };
-  }
-
-  return {
-    buffer: resized.toJPEG(JPEG_QUALITY),
-    mimeType: "image/jpeg",
-    extension: "jpeg",
-  };
-}
 
 async function createClipboardTempFilePath(
   displayName: string,
@@ -325,10 +279,11 @@ export const osRouter = router({
       }),
     )
     .mutation(async ({ input }) => {
-      const raw = Buffer.from(input.base64Data, "base64");
-      const { buffer, mimeType, extension } = downscaleImage(
+      const raw = new Uint8Array(Buffer.from(input.base64Data, "base64"));
+      const { buffer, mimeType, extension } = getImageProcessor().downscale(
         raw,
         input.mimeType,
+        { maxDimension: MAX_IMAGE_DIMENSION, jpegQuality: JPEG_QUALITY },
       );
 
       const isGenericName =
@@ -344,7 +299,7 @@ export const osRouter = router({
           );
       const filePath = await createClipboardTempFilePath(displayName);
 
-      await fsPromises.writeFile(filePath, buffer);
+      await fsPromises.writeFile(filePath, Buffer.from(buffer));
 
       return { path: filePath, name: displayName, mimeType };
     }),

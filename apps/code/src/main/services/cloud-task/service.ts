@@ -1,6 +1,5 @@
 import type { CloudTaskPermissionRequestUpdate } from "@shared/types";
 import type { StoredLogEntry } from "@shared/types/session-events";
-import { net } from "electron";
 import { inject, injectable, preDestroy } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
@@ -300,17 +299,13 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     };
 
     try {
-      const response = await this.authService.authenticatedFetch(
-        net.fetch,
-        url,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(body),
+      const response = await this.authService.authenticatedFetch(fetch, url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(body),
+      });
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => "");
@@ -999,7 +994,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
 
     try {
       const authedResponse = await this.authService.authenticatedFetch(
-        net.fetch,
+        fetch,
         url.toString(),
         {
           method: "GET",
@@ -1062,7 +1057,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
 
     try {
       const authedResponse = await this.authService.authenticatedFetch(
-        net.fetch,
+        fetch,
         url,
         {
           method: "GET",

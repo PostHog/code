@@ -2,7 +2,6 @@ import {
   getGatewayUsageUrl,
   getLlmGatewayUrl,
 } from "@posthog/agent/posthog-api";
-import { net } from "electron";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
@@ -73,7 +72,7 @@ export class LlmGatewayService {
     });
 
     const response = await this.authService.authenticatedFetch(
-      net.fetch,
+      fetch,
       messagesUrl,
       {
         method: "POST",
@@ -146,10 +145,7 @@ export class LlmGatewayService {
 
     log.debug("Fetching usage from gateway", { url: usageUrl });
 
-    const response = await this.authService.authenticatedFetch(
-      net.fetch,
-      usageUrl,
-    );
+    const response = await this.authService.authenticatedFetch(fetch, usageUrl);
 
     if (!response.ok) {
       throw new LlmGatewayError(
