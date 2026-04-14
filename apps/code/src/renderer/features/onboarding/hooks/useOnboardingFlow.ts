@@ -1,7 +1,6 @@
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
-import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { trpcClient } from "@renderer/trpc/client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ONBOARDING_STEPS, type OnboardingStep } from "../types";
 
 export interface DetectedRepo {
@@ -16,7 +15,6 @@ export function useOnboardingFlow() {
   const currentStep = useOnboardingStore((state) => state.currentStep);
   const setCurrentStep = useOnboardingStore((state) => state.setCurrentStep);
   const directionRef = useRef<1 | -1>(1);
-  const billingEnabled = useFeatureFlag("twig-billing", false);
 
   const [selectedDirectory, setSelectedDirectory] = useState("");
   const [detectedRepo, setDetectedRepo] = useState<DetectedRepo | null>(null);
@@ -48,15 +46,7 @@ export function useOnboardingFlow() {
     }
   }, []);
 
-  const activeSteps = useMemo(() => {
-    let steps = ONBOARDING_STEPS;
-    if (!billingEnabled) {
-      steps = steps.filter(
-        (step) => step !== "billing" && step !== "org",
-      );
-    }
-    return steps;
-  }, [billingEnabled]);
+  const activeSteps = ONBOARDING_STEPS;
 
   useEffect(() => {
     if (!activeSteps.includes(currentStep)) {

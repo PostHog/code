@@ -14,7 +14,6 @@ import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 
 import { useOnboardingFlow } from "../hooks/useOnboardingFlow";
 import { usePrefetchSignalData } from "../hooks/usePrefetchSignalData";
-import { BillingStep } from "./BillingStep";
 import { ContextCollectionStep } from "./ContextCollectionStep";
 import { ParticleBackground } from "./context-collection/ParticleBackground";
 import { GitIntegrationStep } from "./GitIntegrationStep";
@@ -23,7 +22,6 @@ import { ProjectSelectStep } from "./ProjectSelectStep";
 import { SignalsStep } from "./SignalsStep";
 import { StepIndicator } from "./StepIndicator";
 import { WelcomeScreen } from "./WelcomeScreen";
-import { WorkContextStep } from "./WorkContextStep";
 
 const stepVariants = {
   enter: (dir: number) => ({ opacity: 0, x: dir * 20 }),
@@ -151,36 +149,6 @@ export function OnboardingFlow() {
                     style={{ width: "100%", flex: 1, minHeight: 0 }}
                   >
                     <ProjectSelectStep onNext={next} onBack={back} />
-                  </motion.div>
-                )}
-
-                {currentStep === "work-context" && (
-                  <motion.div
-                    key="work-context"
-                    custom={direction}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    variants={stepVariants}
-                    transition={{ duration: 0.3 }}
-                    style={{ width: "100%", flex: 1, minHeight: 0 }}
-                  >
-                    <WorkContextStep onNext={next} onBack={back} />
-                  </motion.div>
-                )}
-
-                {currentStep === "billing" && (
-                  <motion.div
-                    key="billing"
-                    custom={direction}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    variants={stepVariants}
-                    transition={{ duration: 0.3 }}
-                    style={{ width: "100%", flex: 1, minHeight: 0 }}
-                  >
-                    <BillingStep onNext={next} onBack={back} />
                   </motion.div>
                 )}
 

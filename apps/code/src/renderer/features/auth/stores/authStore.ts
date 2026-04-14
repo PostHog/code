@@ -43,7 +43,6 @@ interface AuthStoreState {
   hasCompletedOnboarding: boolean;
   selectedPlan: "free" | "pro" | null;
   selectedOrgId: string | null;
-  workContext: string | null;
 
   checkCodeAccess: () => Promise<void>;
   redeemInviteCode: (code: string) => Promise<void>;
@@ -53,7 +52,6 @@ interface AuthStoreState {
   completeOnboarding: () => void;
   selectPlan: (plan: "free" | "pro") => void;
   selectOrg: (orgId: string) => void;
-  setWorkContext: (context: string) => void;
   logout: () => Promise<void>;
 }
 
@@ -213,7 +211,6 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
   hasCompletedOnboarding: false,
   selectedPlan: null,
   selectedOrgId: null,
-  workContext: null,
 
   checkCodeAccess: async () => {
     await syncAuthState();
@@ -261,10 +258,6 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
     set({ selectedOrgId: orgId });
   },
 
-  setWorkContext: (context: string) => {
-    set({ workContext: context });
-  },
-
   logout: async () => {
     track(ANALYTICS_EVENTS.USER_LOGGED_OUT);
     sessionResetCallback?.();
@@ -285,7 +278,6 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
       hasCodeAccess: null,
       selectedPlan: null,
       selectedOrgId: null,
-      workContext: null,
     }));
     inFlightAuthSync = null;
     inFlightAuthSyncKey = null;
