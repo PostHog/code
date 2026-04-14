@@ -743,13 +743,8 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, delay: 0.25 }}
         >
-          <Flex gap="3" align="center" flexShrink="0">
-            <Button
-              size="3"
-              variant="ghost"
-              onClick={onBack}
-              style={{ color: "var(--gray-12)" }}
-            >
+          <Flex gap="4" align="center" flexShrink="0">
+            <Button size="3" variant="outline" color="gray" onClick={onBack}>
               <ArrowLeft size={16} />
               Back
             </Button>

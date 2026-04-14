@@ -97,17 +97,12 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
             </Text>
           </Flex>
 
-          <Flex gap="3" align="center" justify="between" flexShrink="0" mt="6">
-            <Button
-              size="2"
-              variant="ghost"
-              onClick={onBack}
-              style={{ color: "var(--gray-12)" }}
-            >
+          <Flex gap="4" align="center" justify="between" flexShrink="0" mt="6">
+            <Button size="3" variant="outline" color="gray" onClick={onBack}>
               <ArrowLeft size={16} />
               Back
             </Button>
-            <Button size="2" onClick={handleContinue}>
+            <Button size="3" onClick={handleContinue}>
               Continue
               <ArrowRight size={16} />
             </Button>

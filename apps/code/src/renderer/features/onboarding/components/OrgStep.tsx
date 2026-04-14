@@ -1,27 +1,21 @@
 import { useAuthenticatedClient } from "@features/auth/hooks/authClient";
-import {
-  authKeys,
-  useAuthStateValue,
-  useCurrentUser,
-} from "@features/auth/hooks/authQueries";
+import { authKeys, useCurrentUser } from "@features/auth/hooks/authQueries";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
-import { useProjects } from "@features/projects/hooks/useProjects";
 import { useOrganizations } from "@hooks/useOrganizations";
 import { ArrowLeft, ArrowRight, CheckCircle } from "@phosphor-icons/react";
 import {
+  Badge,
   Box,
   Button,
   Callout,
   Flex,
-  Select,
   Skeleton,
   Text,
 } from "@radix-ui/themes";
-import { trpcClient } from "@renderer/trpc/client";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { AnimatePresence, motion } from "framer-motion";
-import { useMemo } from "react";
 
 const log = logger.scope("org-step");
 
@@ -33,17 +27,9 @@ interface OrgStepProps {
 export function OrgStep({ onNext, onBack }: OrgStepProps) {
   const selectedOrgId = useOnboardingStore((state) => state.selectedOrgId);
   const selectOrg = useOnboardingStore((state) => state.selectOrg);
-  const manuallySelectedProjectId = useOnboardingStore(
-    (state) => state.selectedProjectId,
-  );
-  const setSelectedProjectId = useOnboardingStore(
-    (state) => state.selectProjectId,
-  );
   const client = useAuthenticatedClient();
   const { data: currentUser } = useCurrentUser({ client });
-  const currentProjectId = useAuthStateValue((state) => state.projectId);
   const queryClient = useQueryClient();
-
   const switchOrganizationMutation = useMutation({
     mutationFn: async (orgId: string) => {
       await client.switchOrganization(orgId);
@@ -56,17 +42,10 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
     },
   });
 
-  const { orgs, effectiveSelectedOrgId, isLoading, error } = useOrganizations();
+  const { orgsWithBilling, effectiveSelectedOrgId, isLoading, error } =
+    useOrganizations();
 
   const currentUserOrgId = currentUser?.organization?.id;
-  const hasOrgChanged = effectiveSelectedOrgId !== currentUserOrgId;
-
-  const { projects, isLoading: projectsLoading } = useProjects();
-
-  const selectedProjectId = useMemo(() => {
-    if (manuallySelectedProjectId !== null) return manuallySelectedProjectId;
-    return currentProjectId ?? projects[0]?.id ?? null;
-  }, [manuallySelectedProjectId, currentProjectId, projects]);
 
   const handleContinue = async () => {
     if (!effectiveSelectedOrgId) return;
@@ -75,30 +54,17 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
       selectOrg(effectiveSelectedOrgId);
     }
 
-    if (client && hasOrgChanged) {
+    if (client && effectiveSelectedOrgId !== currentUserOrgId) {
       try {
         await switchOrganizationMutation.mutateAsync(effectiveSelectedOrgId);
-      } catch {
-        // Error handled by onError callback
-      }
-    }
-
-    if (
-      !hasOrgChanged &&
-      selectedProjectId &&
-      selectedProjectId !== currentProjectId
-    ) {
-      await trpcClient.auth.selectProject.mutate({
-        projectId: selectedProjectId,
-      });
+      } catch {}
     }
 
     onNext();
   };
 
-  const handleSelectOrg = (orgId: string) => {
+  const handleSelect = (orgId: string) => {
     selectOrg(orgId);
-    setSelectedProjectId(null);
   };
 
   return (
@@ -125,8 +91,8 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
             Who's footing the bill?
           </Text>
           <Text size="3" style={{ color: "var(--gray-12)", opacity: 0.7 }}>
-            Select which PostHog organization and project to use with PostHog
-            Code.
+            Select which organization should be billed for your PostHog Code
+            usage.
           </Text>
         </Flex>
 
@@ -147,115 +113,70 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
             marginBottom: "var(--space-6)",
           }}
         >
-          <Flex direction="column" gap="2">
-            <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
-              Organization
-            </Text>
-            <AnimatePresence mode="wait">
-              {isLoading ? (
-                <motion.div
-                  key="skeleton"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                >
-                  <Flex direction="column" gap="3">
-                    <Flex
-                      align="center"
-                      justify="between"
-                      gap="3"
-                      px="4"
-                      py="3"
-                      style={{
-                        backgroundColor: "var(--color-panel-solid)",
-                        border: "2px solid var(--gray-4)",
-                      }}
-                    >
-                      <Flex align="center" gap="3">
-                        <Skeleton style={{ width: "140px", height: "20px" }} />
-                      </Flex>
-                      <Skeleton
-                        style={{
-                          width: "16px",
-                          height: "16px",
-                          borderRadius: "50%",
-                        }}
-                      />
+          <AnimatePresence mode="wait">
+            {isLoading ? (
+              <motion.div
+                key="skeleton"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <Flex direction="column" gap="3">
+                  <Flex
+                    align="center"
+                    justify="between"
+                    gap="3"
+                    px="4"
+                    py="3"
+                    style={{
+                      backgroundColor: "var(--color-panel-solid)",
+                      border: "2px solid var(--gray-4)",
+                    }}
+                  >
+                    <Flex align="center" gap="3">
+                      <Skeleton style={{ width: "140px", height: "20px" }} />
                     </Flex>
+                    <Skeleton
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        borderRadius: "50%",
+                      }}
+                    />
                   </Flex>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="content"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Flex direction="column" gap="2">
-                    {orgs.map((org) => (
-                      <OrgCard
-                        key={org.id}
-                        name={org.name}
-                        isSelected={effectiveSelectedOrgId === org.id}
-                        onSelect={() => handleSelectOrg(org.id)}
-                      />
-                    ))}
-                  </Flex>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </Flex>
-
-          {!isLoading && !hasOrgChanged && projects.length > 0 && (
-            <Flex direction="column" gap="2" mt="4">
-              <Text
-                size="2"
-                weight="medium"
-                style={{ color: "var(--gray-12)" }}
+                </Flex>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="content"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
               >
-                Project
-              </Text>
-              <Select.Root
-                value={
-                  selectedProjectId !== null
-                    ? String(selectedProjectId)
-                    : undefined
-                }
-                onValueChange={(value) => setSelectedProjectId(Number(value))}
-                size="2"
-                disabled={projectsLoading}
-              >
-                <Select.Trigger
-                  placeholder="Select a project..."
-                  color="gray"
-                  variant="surface"
-                  style={{ width: "100%" }}
-                />
-                <Select.Content color="gray">
-                  {projects.map((project) => (
-                    <Select.Item key={project.id} value={String(project.id)}>
-                      {project.name}
-                    </Select.Item>
+                <Flex direction="column" gap="3">
+                  {orgsWithBilling.map((org) => (
+                    <OrgCard
+                      key={org.id}
+                      name={org.name}
+                      hasActiveBilling={org.has_active_subscription}
+                      isSelected={effectiveSelectedOrgId === org.id}
+                      onSelect={() => handleSelect(org.id)}
+                    />
                   ))}
-                </Select.Content>
-              </Select.Root>
-            </Flex>
-          )}
+                </Flex>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </Box>
 
-        <Flex gap="3" align="center" justify="between" flexShrink="0">
-          <Button
-            size="2"
-            variant="ghost"
-            onClick={onBack}
-            style={{ color: "var(--gray-12)" }}
-          >
+        <Flex gap="4" align="center" justify="between" flexShrink="0">
+          <Button size="3" variant="outline" color="gray" onClick={onBack}>
             <ArrowLeft size={16} />
             Back
           </Button>
           <Button
-            size="2"
+            size="3"
             onClick={handleContinue}
             disabled={
               !effectiveSelectedOrgId ||
@@ -274,11 +195,17 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
 
 interface OrgCardProps {
   name: string;
+  hasActiveBilling: boolean;
   isSelected: boolean;
   onSelect: () => void;
 }
 
-function OrgCard({ name, isSelected, onSelect }: OrgCardProps) {
+function OrgCard({
+  name,
+  hasActiveBilling,
+  isSelected,
+  onSelect,
+}: OrgCardProps) {
   return (
     <Flex
       align="center"
@@ -305,6 +232,12 @@ function OrgCard({ name, isSelected, onSelect }: OrgCardProps) {
         >
           {name}
         </Text>
+        {hasActiveBilling && (
+          <Badge color="green" size="1" variant="soft">
+            <CheckCircle size={10} weight="fill" />
+            Billing active
+          </Badge>
+        )}
       </Flex>
 
       <Box

@@ -6,6 +6,7 @@ import { ArrowRight, Lifebuoy, SignOut } from "@phosphor-icons/react";
 import { Button, Flex, Theme } from "@radix-ui/themes";
 import phWordmark from "@renderer/assets/images/wordmark.svg";
 import { trpcClient } from "@renderer/trpc/client";
+import { IS_DEV } from "@shared/constants/environment";
 import { EXTERNAL_LINKS } from "@utils/links";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 
@@ -278,8 +279,8 @@ export function OnboardingFlow() {
                 <Lifebuoy size={14} />
                 Get support
               </Button>
-              {isAuthenticated && (
-                <Flex gap="5">
+              <Flex gap="5">
+                {isAuthenticated && (
                   <Button
                     size="1"
                     variant="ghost"
@@ -290,6 +291,8 @@ export function OnboardingFlow() {
                     <SignOut size={14} />
                     Log out
                   </Button>
+                )}
+                {IS_DEV && (
                   <Button
                     size="1"
                     variant="ghost"
@@ -300,8 +303,8 @@ export function OnboardingFlow() {
                     <ArrowRight size={14} />
                     Skip setup
                   </Button>
-                </Flex>
-              )}
+                )}
+              </Flex>
             </Flex>
           </Flex>
         </Flex>
