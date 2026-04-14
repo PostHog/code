@@ -15,6 +15,12 @@ import { StepActions } from "./StepActions";
 
 const FEATURES = [
   {
+    icon: <ChartLine size={24} />,
+    title: "Product data as context",
+    description:
+      "Every agent has context from your analytics, session replays and feature flags built in.",
+  },
+  {
     icon: <Robot size={24} />,
     title: "Use any agent or harness",
     description:
@@ -27,22 +33,16 @@ const FEATURES = [
       "Work locally, in a worktree or in the cloud with seamless handoff between environments.",
   },
   {
-    icon: <ChartLine size={24} />,
-    title: "Product data as context",
+    icon: <Stack size={24} />,
+    title: "Run many agents at once",
     description:
-      "Every agent has context from your analytics, session replays and feature flags built in.",
+      "Parallelize work across multiple agents tackling different tasks simultaneously.",
   },
   {
     icon: <GitPullRequest size={24} />,
     title: "Review and ship with confidence",
     description:
       "Inline diffs, AI-assisted code review and automated pull request creation in one flow.",
-  },
-  {
-    icon: <Stack size={24} />,
-    title: "Run many agents at once",
-    description:
-      "Parallelize work across multiple agents tackling different tasks simultaneously.",
   },
 ];
 
