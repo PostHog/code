@@ -145,7 +145,7 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
 
             <OnboardingHogTip
               hogSrc={explorerHog}
-              message="Let's get you set up. It only takes a minute."
+              message="Let's get you set up! It only takes a minute."
             />
           </Flex>
         </Flex>
