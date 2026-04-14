@@ -1,4 +1,4 @@
-import { useAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { AUTH_SCOPED_QUERY_META } from "@features/auth/hooks/authQueries";
 import {
   type Integration,
@@ -37,7 +37,7 @@ export function useIntegrations() {
 }
 
 function useAllGithubRepositories(githubIntegrations: Integration[]) {
-  const client = useAuthenticatedClient();
+  const client = useOptionalAuthenticatedClient();
 
   return useQueries({
     queries: githubIntegrations.map((integration) => ({
