@@ -1,5 +1,6 @@
 import { Flex, Text } from "@radix-ui/themes";
 import type { ReactNode } from "react";
+import "./FeatureListItem.css";
 
 interface FeatureListItemProps {
   icon: ReactNode;
@@ -18,10 +19,10 @@ export function FeatureListItem({
       gap="3"
       py="2"
       pr="4"
+      className="feature-list-item"
       style={{
         userSelect: "none",
         cursor: "default",
-        borderLeft: "2px solid var(--gray-4)",
         paddingLeft: "var(--space-3)",
       }}
     >
