@@ -44,6 +44,7 @@ export function OnboardingFlow() {
   const completeOnboarding = useOnboardingStore(
     (state) => state.completeOnboarding,
   );
+  const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
   const logoutMutation = useLogoutMutation();
   const isAuthenticated = useAuthStateValue(
     (state) => state.status === "authenticated",
@@ -260,7 +261,10 @@ export function OnboardingFlow() {
                     size="1"
                     variant="ghost"
                     color="gray"
-                    onClick={() => logoutMutation.mutate()}
+                    onClick={() => {
+                      logoutMutation.mutate();
+                      resetOnboarding();
+                    }}
                     style={{ opacity: 0.5 }}
                   >
                     <SignOut size={14} />

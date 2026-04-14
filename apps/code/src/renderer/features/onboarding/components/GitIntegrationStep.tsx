@@ -1,4 +1,4 @@
-import { useAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import { useIntegrationSelectors } from "@features/integrations/stores/integrationStore";
@@ -51,7 +51,7 @@ export function GitIntegrationStep({
 }: GitIntegrationStepProps) {
   const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
   const currentProjectId = useAuthStateValue((state) => state.projectId);
-  const client = useAuthenticatedClient();
+  const client = useOptionalAuthenticatedClient();
 
   const queryClient = useQueryClient();
   const { projects, isLoading } = useProjectsWithIntegrations();
@@ -520,13 +520,23 @@ export function GitIntegrationStep({
                               color="gray"
                               onClick={() => {
                                 const config = githubIntegration?.config as
-                                  | Record<string, unknown>
+                                  | {
+                                      installation_id?: number;
+                                      account?: {
+                                        name?: string;
+                                        type?: string;
+                                      };
+                                    }
                                   | undefined;
-                                const installationId = config?.installation_id;
-                                const url = installationId
-                                  ? `https://github.com/settings/installations/${installationId}`
+                                const id = config?.installation_id;
+                                const account = config?.account;
+                                const url = id
+                                  ? account?.type === "Organization" &&
+                                    account.name
+                                    ? `https://github.com/organizations/${account.name}/settings/installations/${id}`
+                                    : `https://github.com/settings/installations/${id}`
                                   : "https://github.com/settings/installations";
-                                window.open(url, "_blank");
+                                trpcClient.os.openExternal.mutate({ url });
                               }}
                             >
                               <GearSix size={16} />
