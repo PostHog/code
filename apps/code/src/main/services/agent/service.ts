@@ -51,6 +51,7 @@ import type { ProcessTrackingService } from "../process-tracking/service";
 import type { SleepService } from "../sleep/service";
 import type { AgentAuthAdapter } from "./auth-adapter";
 import { discoverExternalPlugins } from "./discover-plugins";
+import type { LocalCommandReceiver } from "./local-command-receiver";
 import {
   AgentServiceEvent,
   type AgentServiceEvents,
@@ -257,6 +258,8 @@ interface SessionConfig {
   model?: string;
   /** JSON Schema for structured task output — when set, the agent gets a create_output tool */
   jsonSchema?: Record<string, unknown> | null;
+  /** Whether this session runs locally on the desktop or in a cloud sandbox */
+  runMode?: "local" | "cloud";
 }
 
 interface ManagedSession {
@@ -324,6 +327,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private posthogPluginService: PosthogPluginService;
   private agentAuthAdapter: AgentAuthAdapter;
   private mcpAppsService: McpAppsService;
+  private localCommandReceiver: LocalCommandReceiver;
 
   constructor(
     @inject(MAIN_TOKENS.ProcessTrackingService)
@@ -338,6 +342,8 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     agentAuthAdapter: AgentAuthAdapter,
     @inject(MAIN_TOKENS.McpAppsService)
     mcpAppsService: McpAppsService,
+    @inject(MAIN_TOKENS.LocalCommandReceiver)
+    localCommandReceiver: LocalCommandReceiver,
   ) {
     super();
     this.processTracking = processTracking;
@@ -346,6 +352,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     this.posthogPluginService = posthogPluginService;
     this.agentAuthAdapter = agentAuthAdapter;
     this.mcpAppsService = mcpAppsService;
+    this.localCommandReceiver = localCommandReceiver;
 
     powerMonitor.on("resume", () => this.checkIdleDeadlines());
   }
@@ -390,6 +397,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     });
 
     this.pendingPermissions.delete(key);
+    this.emit(AgentServiceEvent.PermissionResolved, { taskRunId, toolCallId });
     this.recordActivity(taskRunId);
   }
 
@@ -418,6 +426,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     });
 
     this.pendingPermissions.delete(key);
+    this.emit(AgentServiceEvent.PermissionResolved, { taskRunId, toolCallId });
     this.recordActivity(taskRunId);
   }
 
@@ -822,6 +831,15 @@ When creating pull requests, add the following footer at the end of the PR descr
       this.sessions.set(taskRunId, session);
       this.recordActivity(taskRunId);
 
+      if (config.runMode === "local") {
+        this.ensureLocalCommandSubscription(
+          taskId,
+          taskRunId,
+          credentials.projectId,
+          credentials.apiHost,
+        );
+      }
+
       if (isRetry) {
         log.info("Session created after auth retry", { taskRunId });
       }
@@ -1161,7 +1179,110 @@ For git operations while detached:
     session.inFlightMcpToolCalls.clear();
   }
 
+  /**
+   * Idempotently subscribe the LocalCommandReceiver to a task-run's SSE
+   * stream so mobile-originated /command/ calls reach this session. Called
+   * both on fresh session creation and when an existing session is reused
+   * — the receiver itself short-circuits duplicate subscribes, so multiple
+   * calls are safe. Without this, a session that existed before this code
+   * path shipped (or that had its subscription torn down by an earlier
+   * cleanup) would silently drop mobile commands.
+   */
+  private ensureLocalCommandSubscription(
+    taskId: string,
+    taskRunId: string,
+    projectId: number,
+    apiHost: string,
+  ): void {
+    this.localCommandReceiver.subscribe({
+      taskId,
+      taskRunId,
+      projectId,
+      apiHost,
+      onCommand: async (payload) => {
+        log.debug("Local command received", {
+          taskRunId,
+          method: payload.method,
+        });
+
+        // Mobile (or any external client) answering an outstanding
+        // requestPermission call. Route it directly to the pending
+        // promise rather than treating it as a new prompt — otherwise
+        // the agent stays blocked inside the current turn and the
+        // answer starts a second turn that can never run.
+        if (payload.method === "permission_response") {
+          const params = payload.params ?? {};
+          const toolCallId =
+            typeof params.toolCallId === "string"
+              ? params.toolCallId
+              : undefined;
+          const optionId =
+            typeof params.optionId === "string" ? params.optionId : undefined;
+          const customInput =
+            typeof params.customInput === "string"
+              ? params.customInput
+              : undefined;
+          const rawAnswers = params.answers;
+          const answers =
+            rawAnswers && typeof rawAnswers === "object"
+              ? (rawAnswers as Record<string, string>)
+              : undefined;
+          if (!toolCallId || !optionId) {
+            log.warn("Invalid permission_response from external client", {
+              taskRunId,
+              hasToolCallId: !!toolCallId,
+              hasOptionId: !!optionId,
+            });
+            return;
+          }
+          try {
+            this.respondToPermission(
+              taskRunId,
+              toolCallId,
+              optionId,
+              customInput,
+              answers,
+            );
+          } catch (err) {
+            log.error("Failed to apply external permission_response", {
+              taskRunId,
+              toolCallId,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+          return;
+        }
+
+        if (payload.method !== "user_message") {
+          log.debug("Ignoring non-user_message local command", {
+            method: payload.method,
+            taskRunId,
+          });
+          return;
+        }
+        const content = payload.params?.content;
+        if (typeof content !== "string" || content.length === 0) {
+          log.warn("Local command missing content", { taskRunId });
+          return;
+        }
+        try {
+          await this.prompt(taskRunId, [{ type: "text", text: content }]);
+        } catch (err) {
+          log.error("Failed to deliver local command to session", {
+            taskRunId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      },
+    });
+  }
+
   private async cleanupSession(taskRunId: string): Promise<void> {
+    // Abort any outstanding SSE subscription for this run first — per
+    // async-cleanup-ordering guidance, we release external resources
+    // before awaiting anything that depends on the session being gone.
+    this.localCommandReceiver.unsubscribe(taskRunId);
+
     const session = this.sessions.get(taskRunId);
     if (session) {
       this.cancelInFlightMcpToolCalls(session);
@@ -1484,6 +1605,7 @@ For git operations while detached:
       effort: "effort" in params ? params.effort : undefined,
       model: "model" in params ? params.model : undefined,
       jsonSchema: "jsonSchema" in params ? params.jsonSchema : undefined,
+      runMode: "runMode" in params ? params.runMode : undefined,
     };
   }
 
