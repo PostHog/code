@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   ChartLine,
+  Cloud,
   GitPullRequest,
   Robot,
   Tray,
@@ -27,9 +28,15 @@ const FEATURES = [
   },
   {
     icon: <Robot size={24} />,
-    title: "Agents that fit your workflow",
+    title: "Any model, any harness",
     description:
-      "Run agents locally, in the cloud or both at once. Bring any framework and parallelize across as many as you need.",
+      "Bring your own agent framework or use our built-in harnesses. Swap models without changing your workflow.",
+  },
+  {
+    icon: <Cloud size={24} />,
+    title: "Ship work, not messages",
+    description:
+      "Run tasks in parallel across local and cloud environments. Work gets done whether you're watching or not.",
   },
   {
     icon: <GitPullRequest size={24} />,
