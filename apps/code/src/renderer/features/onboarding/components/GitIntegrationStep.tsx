@@ -211,7 +211,7 @@ export function GitIntegrationStep({
                     lineHeight: 1.3,
                   }}
                 >
-                  Give your agent access to code
+                  Give your agents access to code
                 </Text>
               </motion.div>
 

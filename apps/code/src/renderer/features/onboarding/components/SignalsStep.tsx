@@ -87,7 +87,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
                     weight="bold"
                     style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
                   >
-                    Teach your agent what matters
+                    Teach your agents what matters
                   </Text>
                   <Text
                     size="2"
