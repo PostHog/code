@@ -211,6 +211,7 @@ export class TaskCreationSaga extends Saga<
         worktreeName: workspaceInfo.worktree?.worktreeName ?? null,
         branchName: workspaceInfo.worktree?.branchName ?? null,
         baseBranch: workspaceInfo.worktree?.baseBranch ?? null,
+        linkedBranch: workspaceInfo.linkedBranch ?? null,
         createdAt:
           workspaceInfo.worktree?.createdAt ?? new Date().toISOString(),
       };
@@ -247,6 +248,7 @@ export class TaskCreationSaga extends Saga<
         worktreeName: null,
         branchName: null,
         baseBranch: branch,
+        linkedBranch: null,
         createdAt: new Date().toISOString(),
       };
     }

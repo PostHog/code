@@ -61,9 +61,9 @@ export function ReportCardContent({
               <span
                 className="inline-flex shrink-0 items-center rounded-sm px-1 py-px"
                 style={{
-                  color: "var(--blue-11)",
-                  backgroundColor: "var(--blue-3)",
-                  border: "1px solid var(--blue-6)",
+                  color: "var(--amber-11)",
+                  backgroundColor: "var(--amber-3)",
+                  border: "1px solid var(--amber-6)",
                 }}
               >
                 <EyeIcon size={10} weight="bold" />

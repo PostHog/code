@@ -27,6 +27,7 @@ export const workspaces = sqliteTable(
       onDelete: "set null",
     }),
     mode: text({ enum: ["cloud", "local", "worktree"] }).notNull(),
+    linkedBranch: text(),
     pinnedAt: text(),
     lastViewedAt: text(),
     lastActivityAt: text(),

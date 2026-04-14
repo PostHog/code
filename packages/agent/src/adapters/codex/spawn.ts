@@ -4,6 +4,7 @@ import { delimiter, dirname } from "node:path";
 import type { Readable, Writable } from "node:stream";
 import type { ProcessSpawnedCallback } from "../../types";
 import { Logger } from "../../utils/logger";
+import type { CodexSettings } from "./settings";
 
 export interface CodexProcessOptions {
   cwd?: string;
@@ -14,6 +15,7 @@ export interface CodexProcessOptions {
   binaryPath?: string;
   logger?: Logger;
   processCallbacks?: ProcessSpawnedCallback;
+  settings?: CodexSettings;
 }
 
 export interface CodexProcess {
@@ -27,6 +29,13 @@ function buildConfigArgs(options: CodexProcessOptions): string[] {
   const args: string[] = [];
 
   args.push("-c", `features.remote_models=false`);
+
+  // Disable the user's local MCPs one-by-one so Codex only uses the MCPs we
+  // provide via ACP. We can't use `-c mcp_servers={}` because that makes Codex
+  // ignore MCPs entirely, including the ones we inject later.
+  for (const name of options.settings?.mcpServerNames ?? []) {
+    args.push("-c", `mcp_servers.${name}.enabled=false`);
+  }
 
   if (options.apiBaseUrl) {
     args.push("-c", `model_provider="posthog"`);

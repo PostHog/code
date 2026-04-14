@@ -65,10 +65,20 @@ export const TaskInputEditor = forwardRef<
     const { isOnline } = useConnectivity();
     const isSubmitDisabled = isCreatingTask || !isOnline;
 
+    const hasHistory = useTaskInputHistoryStore((s) => s.prompts.length > 0);
+
     const getPromptHistory = useCallback(
       () => useTaskInputHistoryStore.getState().prompts,
       [],
     );
+
+    const hints = [
+      "@ to add files",
+      "/ for skills",
+      hasHistory ? "\u2191\u2193 for history" : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
 
     const {
       editor,
@@ -85,8 +95,7 @@ export const TaskInputEditor = forwardRef<
       removeAttachment,
     } = useTiptapEditor({
       sessionId,
-      placeholder:
-        "What do you want to work on? \u2191\u2193 for history, @ to add context",
+      placeholder: `What do you want to ship? ${hints}`,
       disabled: isCreatingTask,
       submitDisabled: !isOnline,
       isLoading: isCreatingTask,
@@ -180,7 +189,7 @@ export const TaskInputEditor = forwardRef<
       >
         <Flex
           direction="column"
-          p="3"
+          p="4"
           style={{
             cursor: "text",
             position: "relative",
@@ -236,8 +245,8 @@ export const TaskInputEditor = forwardRef<
           </Flex>
         </Flex>
 
-        <Flex justify="between" align="center" px="3" pb="3">
-          <Flex align="center" gap="3">
+        <Flex justify="between" align="center" px="4" pb="4">
+          <Flex align="center" gap="4">
             <EditorToolbar
               disabled={isCreatingTask}
               adapter={adapter}

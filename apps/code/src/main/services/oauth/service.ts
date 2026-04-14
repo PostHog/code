@@ -10,6 +10,7 @@ import { shell } from "electron";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
+import { focusMainWindow } from "../../window";
 import type { DeepLinkService } from "../deep-link/service";
 import type {
   CancelFlowOutput,
@@ -63,8 +64,13 @@ export class OAuthService {
     const error = searchParams.get("error");
 
     if (!this.pendingFlow) {
-      log.warn("Received OAuth callback but no pending flow");
-      return false;
+      // Same deep link as desktop sign-in (`posthog-code://callback`), but auth finished in
+      // the browser (e.g. GitHub on PostHog Cloud) — refocus so the user lands back in Code.
+      log.info(
+        "OAuth callback deep link with no in-app flow — refocusing (e.g. return from web auth)",
+      );
+      focusMainWindow("oauth callback deep link (no in-app flow)");
+      return true;
     }
 
     const { resolve, reject, timeoutId } = this.pendingFlow;

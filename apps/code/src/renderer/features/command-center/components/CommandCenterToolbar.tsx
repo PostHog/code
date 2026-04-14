@@ -118,7 +118,7 @@ export function CommandCenterToolbar({
       gap="3"
       px="3"
       py="2"
-      className="shrink-0 border-gray-6 border-b"
+      className="no-drag shrink-0 border-gray-6 border-b"
     >
       <Select.Root
         value={layout}

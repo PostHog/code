@@ -13,6 +13,8 @@ export interface CodexSettings {
   personality?: string;
   modelReasoningEffort?: string;
   trustLevel?: string;
+  // Names of every `[mcp_servers.<name>]` section declared in the user's config.toml
+  mcpServerNames: string[];
 }
 
 /**
@@ -24,32 +26,29 @@ export interface CodexSettings {
  */
 export class CodexSettingsManager {
   private cwd: string;
-  private settings: CodexSettings = {};
-  private initialized = false;
+  private settings: CodexSettings = { mcpServerNames: [] };
 
   constructor(cwd: string) {
     this.cwd = cwd;
+    this.loadSettings();
   }
 
   async initialize(): Promise<void> {
-    if (this.initialized) {
-      return;
-    }
-    await this.loadSettings();
-    this.initialized = true;
+    // No-op: settings are loaded in the constructor. Kept async to
+    // satisfy the BaseSettingsManager interface.
   }
 
   private getConfigPath(): string {
     return path.join(os.homedir(), ".codex", "config.toml");
   }
 
-  private async loadSettings(): Promise<void> {
+  private loadSettings(): void {
     const configPath = this.getConfigPath();
     try {
-      const content = await fs.promises.readFile(configPath, "utf-8");
+      const content = fs.readFileSync(configPath, "utf-8");
       this.settings = parseCodexToml(content, this.cwd);
     } catch {
-      this.settings = {};
+      this.settings = { mcpServerNames: [] };
     }
   }
 
@@ -62,17 +61,13 @@ export class CodexSettingsManager {
   }
 
   async setCwd(cwd: string): Promise<void> {
-    if (this.cwd === cwd) {
-      return;
-    }
-    this.dispose();
+    if (this.cwd === cwd) return;
     this.cwd = cwd;
-    this.initialized = false;
-    await this.initialize();
+    this.loadSettings();
   }
 
   dispose(): void {
-    this.initialized = false;
+    // No-op: no resources to release. Kept to satisfy the BaseSettingsManager interface.
   }
 }
 
@@ -82,7 +77,8 @@ export class CodexSettingsManager {
  * Does NOT handle full TOML spec — only what codex config uses.
  */
 function parseCodexToml(content: string, cwd: string): CodexSettings {
-  const settings: CodexSettings = {};
+  const settings: CodexSettings = { mcpServerNames: [] };
+  const mcpServerNames = new Set<string>();
   let currentSection = "";
 
   for (const line of content.split("\n")) {
@@ -93,6 +89,9 @@ function parseCodexToml(content: string, cwd: string): CodexSettings {
     const sectionMatch = trimmed.match(/^\[(.+)\]$/);
     if (sectionMatch) {
       currentSection = sectionMatch[1] ?? "";
+      if (currentSection.startsWith("mcp_servers.")) {
+        mcpServerNames.add(currentSection.slice("mcp_servers.".length));
+      }
       continue;
     }
 
@@ -123,5 +122,6 @@ function parseCodexToml(content: string, cwd: string): CodexSettings {
     }
   }
 
+  settings.mcpServerNames = Array.from(mcpServerNames);
   return settings;
 }

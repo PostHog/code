@@ -6,7 +6,10 @@ import {
   INBOX_REFETCH_INTERVAL_MS,
 } from "@features/inbox/utils/inboxConstants";
 import { getSessionService } from "@features/sessions/service/service";
-import { useArchiveTask } from "@features/tasks/hooks/useArchiveTask";
+import {
+  archiveTaskImperative,
+  useArchiveTask,
+} from "@features/tasks/hooks/useArchiveTask";
 import { useTasks, useUpdateTask } from "@features/tasks/hooks/useTasks";
 import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
 import { useTaskContextMenu } from "@hooks/useTaskContextMenu";
@@ -16,6 +19,7 @@ import { useNavigationStore } from "@stores/navigationStore";
 import { useRendererWindowFocusStore } from "@stores/rendererWindowFocusStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
+import { toast } from "@utils/toast";
 import { memo, useCallback, useEffect, useRef } from "react";
 import { usePinnedTasks } from "../hooks/usePinnedTasks";
 import { useSidebarData } from "../hooks/useSidebarData";
@@ -63,9 +67,14 @@ function SidebarMenuComponent() {
     (r) => r.status === "ready",
   ).length;
 
+  const taskMap = new Map<string, Task>();
+  for (const task of allTasks) {
+    taskMap.set(task.id, task);
+  }
+
   const commandCenterCells = useCommandCenterStore((s) => s.cells);
   const commandCenterActiveCount = commandCenterCells.filter(
-    (taskId) => taskId != null,
+    (taskId) => taskId != null && taskMap.has(taskId),
   ).length;
 
   const previousTaskIdRef = useRef<string | null>(null);
@@ -87,11 +96,6 @@ function SidebarMenuComponent() {
 
     previousTaskIdRef.current = currentTaskId;
   }, [view, markAsViewed]);
-
-  const taskMap = new Map<string, Task>();
-  for (const task of allTasks) {
-    taskMap.set(task.id, task);
-  }
 
   const handleNewTaskClick = () => {
     navigateToTaskInput();
@@ -116,6 +120,11 @@ function SidebarMenuComponent() {
     }
   };
 
+  const allSidebarTasks = [
+    ...sidebarData.pinnedTasks,
+    ...sidebarData.flatTasks,
+  ];
+
   const handleTaskContextMenu = (
     taskId: string,
     e: React.MouseEvent,
@@ -124,11 +133,14 @@ function SidebarMenuComponent() {
     const task = taskMap.get(taskId);
     if (task) {
       const workspace = workspaces[taskId];
-      const effectivePath = workspace?.worktreePath ?? workspace?.folderPath;
+      const taskData = allSidebarTasks.find((t) => t.id === taskId);
       showContextMenu(task, e, {
-        worktreePath: effectivePath ?? undefined,
+        worktreePath: workspace?.worktreePath ?? undefined,
+        folderPath: workspace?.folderPath ?? undefined,
         isPinned,
+        isSuspended: taskData?.isSuspended,
         onTogglePin: () => togglePin(taskId),
+        onArchivePrior: handleArchivePrior,
       });
     }
   };
@@ -139,6 +151,55 @@ function SidebarMenuComponent() {
 
   const updateTask = useUpdateTask();
   const queryClient = useQueryClient();
+
+  const handleArchivePrior = useCallback(
+    async (taskId: string) => {
+      const allVisible = [...sidebarData.pinnedTasks, ...sidebarData.flatTasks];
+      const clickedTask = allVisible.find((t) => t.id === taskId);
+      if (!clickedTask) return;
+
+      const sortKey = "createdAt" as const;
+      const threshold = clickedTask[sortKey];
+      const priorTaskIds = allVisible
+        .filter((t) => t.id !== taskId && t[sortKey] < threshold)
+        .map((t) => t.id);
+
+      if (priorTaskIds.length === 0) {
+        toast.info("No older tasks to archive");
+        return;
+      }
+
+      const nav = useNavigationStore.getState();
+      const priorSet = new Set(priorTaskIds);
+      if (
+        nav.view.type === "task-detail" &&
+        nav.view.data &&
+        priorSet.has(nav.view.data.id)
+      ) {
+        nav.navigateToTaskInput();
+      }
+
+      let done = 0;
+      let failed = 0;
+      for (const id of priorTaskIds) {
+        try {
+          await archiveTaskImperative(id, queryClient, {
+            skipNavigate: true,
+          });
+          done++;
+        } catch {
+          failed++;
+        }
+      }
+
+      if (failed === 0) {
+        toast.success(`${done} ${done === 1 ? "task" : "tasks"} archived`);
+      } else {
+        toast.error(`${done} archived, ${failed} failed`);
+      }
+    },
+    [sidebarData.pinnedTasks, sidebarData.flatTasks, queryClient],
+  );
   const log = logger.scope("sidebar-menu");
 
   const handleTaskDoubleClick = useCallback(

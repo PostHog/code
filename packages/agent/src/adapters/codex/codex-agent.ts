@@ -108,9 +108,15 @@ export class CodexAcpAgent extends BaseAcpAgent {
     super(client);
     this.logger = new Logger({ debug: true, prefix: "[CodexAcpAgent]" });
 
+    // Load user codex settings before spawning so spawnCodexProcess can
+    // filter out any [mcp_servers.*] entries from ~/.codex/config.toml.
+    const cwd = options.codexProcessOptions.cwd ?? process.cwd();
+    const settingsManager = new CodexSettingsManager(cwd);
+
     // Spawn the codex-acp subprocess
     this.codexProcess = spawnCodexProcess({
       ...options.codexProcessOptions,
+      settings: settingsManager.getSettings(),
       logger: this.logger,
       processCallbacks: options.processCallbacks,
     });
@@ -120,9 +126,6 @@ export class CodexAcpAgent extends BaseAcpAgent {
     const codexWritable = nodeWritableToWebWritable(this.codexProcess.stdin);
     const codexStream = ndJsonStream(codexWritable, codexReadable);
 
-    // Set up session with CodexSettingsManager
-    const cwd = options.codexProcessOptions.cwd ?? process.cwd();
-    const settingsManager = new CodexSettingsManager(cwd);
     const abortController = new AbortController();
     this.session = {
       abortController,

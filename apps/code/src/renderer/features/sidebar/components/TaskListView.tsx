@@ -360,7 +360,22 @@ export function TaskListView({
 
       <SectionLabel label="Tasks" endContent={<TaskFilterMenu />} />
 
-      {organizeMode === "by-project" ? (
+      {pinnedTasks.length === 0 &&
+      flatTasks.length === 0 &&
+      groupedTasks.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+          <Text size="2" className="text-gray-11">
+            No tasks yet
+          </Text>
+          <button
+            type="button"
+            className="rounded-md bg-gray-3 px-3 py-1.5 text-[13px] text-gray-12 transition-colors hover:bg-gray-4"
+            onClick={() => navigateToTaskInput()}
+          >
+            New task
+          </button>
+        </div>
+      ) : organizeMode === "by-project" ? (
         <DragDropProvider
           onDragOver={handleDragOver}
           sensors={[

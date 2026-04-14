@@ -200,6 +200,14 @@ export class SessionService {
     const { id: taskId, latest_run: latestRun } = task;
     const taskTitle = task.title || task.description || "Task";
 
+    if (latestRun?.environment === "cloud") {
+      log.info("Skipping local session connect for cloud run", {
+        taskId,
+        taskRunId: latestRun.id,
+      });
+      return;
+    }
+
     try {
       const auth = await this.getAuthCredentials();
       if (!auth) {
@@ -1113,6 +1121,7 @@ export class SessionService {
           isPromptPending: false,
           isCompacting: false,
           promptStartedAt: null,
+          initialPrompt: undefined,
         });
       } else {
         sessionStoreSetters.updateSession(session.taskRunId, {
@@ -1908,6 +1917,7 @@ export class SessionService {
     apiHost: string,
     teamId: number,
     onStatusChange?: () => void,
+    logUrl?: string,
   ): () => void {
     const taskRunId = runId;
     const startToken = ++this.nextCloudTaskWatchToken;
@@ -1931,7 +1941,24 @@ export class SessionService {
 
     // Create session in the store
     const existing = sessionStoreSetters.getSessionByTaskId(taskId);
-    if (!existing || existing.taskRunId !== taskRunId) {
+    // A same-run session with history but no processedLineCount came from a
+    // non-cloud hydration path. Reset it so the cloud snapshot becomes the
+    // single source of truth instead of being appended on top.
+    const shouldResetExistingSession =
+      existing?.taskRunId === taskRunId &&
+      existing.events.length > 0 &&
+      existing.processedLineCount === undefined;
+    const shouldHydrateSession =
+      !existing ||
+      existing.taskRunId !== taskRunId ||
+      shouldResetExistingSession ||
+      existing.events.length === 0;
+
+    if (
+      !existing ||
+      existing.taskRunId !== taskRunId ||
+      shouldResetExistingSession
+    ) {
       const taskTitle = existing?.taskTitle ?? "Cloud Task";
       const session = this.createBaseSession(taskRunId, taskId, taskTitle);
       session.status = "disconnected";
@@ -1941,6 +1968,10 @@ export class SessionService {
       sessionStoreSetters.updateSession(existing.taskRunId, {
         isCloud: true,
       });
+    }
+
+    if (shouldHydrateSession) {
+      this.hydrateCloudTaskSessionFromLogs(taskId, taskRunId, logUrl);
     }
 
     // Subscribe before starting the main-process watcher so the first replayed
@@ -2002,6 +2033,46 @@ export class SessionService {
     })();
 
     return () => {};
+  }
+
+  private hydrateCloudTaskSessionFromLogs(
+    taskId: string,
+    taskRunId: string,
+    logUrl?: string,
+  ): void {
+    void (async () => {
+      const { rawEntries } = await this.fetchSessionLogs(logUrl, taskRunId);
+      if (rawEntries.length === 0) {
+        return;
+      }
+
+      const session = sessionStoreSetters.getSessionByTaskId(taskId);
+      if (!session || session.taskRunId !== taskRunId) {
+        return;
+      }
+
+      // If live updates already populated a processed count, don't overwrite
+      // that newer state with the persisted baseline fetched during startup.
+      if (
+        session.processedLineCount !== undefined &&
+        session.processedLineCount > 0
+      ) {
+        return;
+      }
+
+      sessionStoreSetters.updateSession(taskRunId, {
+        events: convertStoredEntriesToEvents(rawEntries),
+        isCloud: true,
+        logUrl: logUrl ?? session.logUrl,
+        processedLineCount: rawEntries.length,
+      });
+    })().catch((err: unknown) => {
+      log.warn("Failed to hydrate cloud task session from logs", {
+        taskId,
+        taskRunId,
+        err,
+      });
+    });
   }
 
   private isCurrentCloudTaskWatcher(

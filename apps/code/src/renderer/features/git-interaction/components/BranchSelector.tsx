@@ -21,6 +21,9 @@ interface BranchSelectorProps {
   onBranchSelect?: (branch: string | null) => void;
   cloudBranches?: string[];
   cloudBranchesLoading?: boolean;
+  cloudBranchesFetchingMore?: boolean;
+  onCloudPickerOpen?: () => void;
+  onCloudBranchCommit?: () => void;
   taskId?: string;
 }
 
@@ -36,6 +39,9 @@ export function BranchSelector({
   onBranchSelect,
   cloudBranches,
   cloudBranchesLoading,
+  cloudBranchesFetchingMore,
+  onCloudPickerOpen,
+  onCloudBranchCommit,
   taskId,
 }: BranchSelectorProps) {
   const [open, setOpen] = useState(false);
@@ -61,6 +67,8 @@ export function BranchSelector({
 
   const branches = isCloudMode ? (cloudBranches ?? []) : localBranches;
   const effectiveLoading = loading || (isCloudMode && cloudBranchesLoading);
+  const cloudStillLoading =
+    isCloudMode && cloudBranchesLoading && branches.length === 0;
 
   const checkoutMutation = useMutation(
     trpc.git.checkoutBranch.mutationOptions({
@@ -86,16 +94,36 @@ export function BranchSelector({
         branchName: value,
       });
     }
+    if (isCloudMode && value) {
+      // User committed to a branch — pause the background pagination. If they
+      // later re-open the picker, `onCloudPickerOpen` will resume it from
+      // wherever the cached pages left off.
+      onCloudBranchCommit?.();
+    }
     setOpen(false);
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (isCloudMode && next) {
+      onCloudPickerOpen?.();
+    }
   };
 
   const displayText = effectiveLoading
     ? "Loading..."
     : (displayedBranch ?? "No branch");
 
+  // Show the spinner on the trigger while the first page is still loading.
+  // Once we have branches to show, any "loading more" background work is
+  // surfaced inside the open picker instead, so the trigger goes back to its
+  // normal branch icon.
+  const showSpinner =
+    effectiveLoading || (isCloudMode && open && cloudBranchesFetchingMore);
+
   const triggerContent = (
-    <Flex align="center" gap="1" style={{ minWidth: 0 }}>
-      {effectiveLoading ? (
+    <Flex align="center" gap="2" style={{ minWidth: 0 }}>
+      {showSpinner ? (
         <Spinner size="1" />
       ) : (
         <GitBranch size={16} weight="regular" style={{ flexShrink: 0 }} />
@@ -110,9 +138,9 @@ export function BranchSelector({
         value={displayedBranch ?? ""}
         onValueChange={handleBranchChange}
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={handleOpenChange}
         size="1"
-        disabled={disabled || !repoPath}
+        disabled={disabled || !repoPath || cloudStillLoading}
       >
         <Combobox.Trigger variant={variant} placeholder="No branch">
           {triggerContent}
@@ -126,6 +154,17 @@ export function BranchSelector({
           {({ filtered, hasMore, moreCount }) => (
             <>
               <Combobox.Input placeholder="Search branches" />
+              {isCloudMode && cloudBranchesFetchingMore && (
+                <Flex
+                  align="center"
+                  gap="1"
+                  className="combobox-label"
+                  style={{ padding: "6px 8px" }}
+                >
+                  <Spinner size="1" />
+                  Loading more ({branches.length})…
+                </Flex>
+              )}
               <Combobox.Empty>No branches found.</Combobox.Empty>
 
               {filtered.length > 0 && (

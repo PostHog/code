@@ -4,6 +4,7 @@ import { IconButton, Popover } from "@radix-ui/themes";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import { toast } from "@renderer/utils/toast";
 import { useQuery } from "@tanstack/react-query";
+import { getFilePath } from "@utils/getFilePath";
 import { getFileName } from "@utils/path";
 import { useRef, useState } from "react";
 import type { FileAttachment, MentionChip } from "../utils/content";
@@ -69,7 +70,7 @@ export function AttachmentMenu({
     try {
       const attachments = await Promise.all(
         files.map(async (file) => {
-          const filePath = (file as globalThis.File & { path?: string }).path;
+          const filePath = getFilePath(file);
           if (filePath) {
             return { id: filePath, label: file.name } satisfies FileAttachment;
           }

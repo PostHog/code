@@ -298,6 +298,35 @@ describe("SessionService", () => {
   });
 
   describe("connectToTask", () => {
+    it("skips local connection for cloud runs", async () => {
+      const service = getSessionService();
+
+      await service.connectToTask({
+        task: createMockTask({
+          latest_run: {
+            id: "run-123",
+            task: "task-123",
+            team: 123,
+            environment: "cloud",
+            status: "in_progress",
+            log_url: "https://logs.example.com/run-123",
+            error_message: null,
+            output: null,
+            state: {},
+            branch: "main",
+            created_at: "2024-01-01T00:00:00Z",
+            updated_at: "2024-01-01T00:00:00Z",
+            completed_at: null,
+          },
+        }),
+        repoPath: "/repo",
+      });
+
+      expect(mockAuth.fetchAuthState).not.toHaveBeenCalled();
+      expect(mockTrpcAgent.reconnect.mutate).not.toHaveBeenCalled();
+      expect(mockSessionStoreSetters.setSession).not.toHaveBeenCalled();
+    });
+
     it("skips connection if already connected", async () => {
       const service = getSessionService();
       const mockSession = createMockSession({ status: "connected" });
@@ -457,6 +486,40 @@ describe("SessionService", () => {
   });
 
   describe("watchCloudTask", () => {
+    it("resets a same-run preloaded session before the first cloud snapshot", () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({
+          taskRunId: "run-123",
+          taskId: "task-123",
+          taskTitle: "Cloud Task",
+          events: [{ type: "acp_message", ts: 1, message: { method: "test" } }],
+        }),
+      );
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://app.example.com",
+        2,
+      );
+
+      expect(mockSessionStoreSetters.setSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskRunId: "run-123",
+          taskId: "task-123",
+          taskTitle: "Cloud Task",
+          isCloud: true,
+          status: "disconnected",
+          events: [],
+        }),
+      );
+      expect(mockSessionStoreSetters.updateSession).not.toHaveBeenCalledWith(
+        "run-123",
+        expect.objectContaining({ isCloud: true }),
+      );
+    });
+
     it("subscribes to cloud updates before starting the watcher", async () => {
       const service = getSessionService();
 
@@ -487,6 +550,59 @@ describe("SessionService", () => {
       ).toBeLessThan(
         mockTrpcCloudTask.watch.mutate.mock.invocationCallOrder[0],
       );
+    });
+
+    it("hydrates a fresh cloud session from persisted logs before replay arrives", async () => {
+      const service = getSessionService();
+      const hydratedSession = createMockSession({
+        taskRunId: "run-123",
+        taskId: "task-123",
+        taskTitle: "Cloud Task",
+        status: "disconnected",
+        isCloud: true,
+        events: [],
+      });
+
+      mockSessionStoreSetters.getSessionByTaskId.mockImplementation(() => {
+        return hydratedSession;
+      });
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue("");
+      mockTrpcLogs.fetchS3Logs.query.mockResolvedValue(
+        JSON.stringify({
+          type: "notification",
+          timestamp: "2024-01-01T00:00:00Z",
+          notification: {
+            method: "session/update",
+            params: {
+              update: {
+                sessionUpdate: "assistant_message",
+              },
+            },
+          },
+        }),
+      );
+      mockTrpcLogs.writeLocalLogs.mutate.mockResolvedValue(undefined);
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+        undefined,
+        "https://logs.example.com/run-123",
+      );
+
+      await vi.waitFor(() => {
+        expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+          "run-123",
+          expect.objectContaining({
+            events: [],
+            isCloud: true,
+            logUrl: "https://logs.example.com/run-123",
+            processedLineCount: 1,
+          }),
+        );
+      });
     });
 
     it("ignores stale async starts when the same watcher is replaced", async () => {

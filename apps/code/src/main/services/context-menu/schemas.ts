@@ -3,7 +3,9 @@ import { z } from "zod";
 export const taskContextMenuInput = z.object({
   taskTitle: z.string(),
   worktreePath: z.string().optional(),
+  folderPath: z.string().optional(),
   isPinned: z.boolean().optional(),
+  isSuspended: z.boolean().optional(),
 });
 
 export const archivedTaskContextMenuInput = z.object({
@@ -36,6 +38,7 @@ const taskAction = z.discriminatedUnion("type", [
   z.object({ type: z.literal("copy-task-id") }),
   z.object({ type: z.literal("suspend") }),
   z.object({ type: z.literal("archive") }),
+  z.object({ type: z.literal("archive-prior") }),
   z.object({ type: z.literal("delete") }),
   z.object({ type: z.literal("external-app"), action: externalAppAction }),
 ]);

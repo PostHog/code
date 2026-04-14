@@ -10906,6 +10906,7 @@ export namespace Schemas {
     events_column_config?: unknown | undefined;
     is_2fa_enabled: boolean;
     has_social_auth: boolean;
+    github_login: string | null;
     has_sso_enforcement: boolean;
     has_seen_product_intro_for?: null | undefined;
     scene_personalisation: Array<ScenePersonalisationBasic>;
@@ -12487,6 +12488,7 @@ export namespace Schemas {
     events_column_config: unknown;
     is_2fa_enabled: boolean;
     has_social_auth: boolean;
+    github_login: string | null;
     has_sso_enforcement: boolean;
     has_seen_product_intro_for: null;
     scene_personalisation: Array<ScenePersonalisationBasic>;

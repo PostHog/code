@@ -1,5 +1,7 @@
-import { CaretDown, Check, MagnifyingGlass } from "@phosphor-icons/react";
-import { Popover } from "@radix-ui/themes";
+import { Check, MagnifyingGlass } from "@phosphor-icons/react";
+import { ChevronDownIcon } from "@radix-ui/react-icons";
+import { Button, Flex, Popover } from "@radix-ui/themes";
+import type { Responsive } from "@radix-ui/themes/dist/esm/props/prop-def.js";
 import { Command as CmdkCommand } from "cmdk";
 import React, {
   createContext,
@@ -15,12 +17,6 @@ import "./Combobox.css";
 import { useComboboxFilter } from "./useComboboxFilter";
 
 type ComboboxSize = "1" | "2" | "3";
-type ComboboxTriggerVariant =
-  | "classic"
-  | "surface"
-  | "soft"
-  | "ghost"
-  | "outline";
 type ComboboxContentVariant = "solid" | "soft";
 
 interface ComboboxContextValue {
@@ -150,7 +146,7 @@ function ComboboxRoot({
 interface ComboboxTriggerProps {
   children?: React.ReactNode;
   className?: string;
-  variant?: ComboboxTriggerVariant;
+  variant?: "outline" | "ghost" | "surface" | "soft" | "classic";
   color?: string;
   placeholder?: string;
   style?: React.CSSProperties;
@@ -159,7 +155,7 @@ interface ComboboxTriggerProps {
 function ComboboxTrigger({
   children,
   className = "",
-  variant = "surface",
+  variant = "outline",
   placeholder = "Select...",
   style,
 }: ComboboxTriggerProps) {
@@ -167,25 +163,25 @@ function ComboboxTrigger({
 
   const displayValue =
     children ?? (getItemLabel(value) || value || placeholder);
-  const hasPlaceholder = !children && !value;
 
   return (
     <Popover.Trigger>
-      <button
-        type="button"
-        className={`combobox-trigger size-${size} variant-${variant} ${className}`}
-        data-state={open ? "open" : "closed"}
-        data-placeholder={hasPlaceholder ? "" : undefined}
+      <Button
+        color="gray"
+        variant={variant}
+        size={size as Responsive<"1" | "2" | "3">}
         disabled={disabled}
+        className={className}
+        data-state={open ? "open" : "closed"}
         style={style}
       >
-        <span className="combobox-trigger-inner">{displayValue}</span>
-        {!disabled && (
-          <span className="combobox-trigger-icon">
-            <CaretDown weight="bold" />
-          </span>
-        )}
-      </button>
+        <Flex justify="between" align="center" gap="2">
+          <Flex align="center" gap="2" style={{ minWidth: 0 }}>
+            {displayValue}
+          </Flex>
+          {!disabled && <ChevronDownIcon style={{ flexShrink: 0 }} />}
+        </Flex>
+      </Button>
     </Popover.Trigger>
   );
 }

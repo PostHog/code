@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
+import { trackAppEvent } from "@main/services/posthog-analytics";
 import { createGitClient } from "@posthog/git/client";
 import {
   getCurrentBranch,
@@ -22,6 +23,7 @@ import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 import { deriveWorktreePath } from "../../utils/worktree-helpers";
+import { AgentServiceEvent } from "../agent/schemas";
 import type { AgentService } from "../agent/service";
 import { FileWatcherEvent } from "../file-watcher/schemas";
 import type { FileWatcherService } from "../file-watcher/service";
@@ -34,6 +36,7 @@ import type { SuspensionService } from "../suspension/service.js";
 import type {
   BranchChangedPayload,
   CreateWorkspaceInput,
+  LinkedBranchChangedPayload,
   Workspace,
   WorkspaceErrorPayload,
   WorkspaceInfo,
@@ -100,6 +103,7 @@ export const WorkspaceServiceEvent = {
   Warning: "warning",
   Promoted: "promoted",
   BranchChanged: "branchChanged",
+  LinkedBranchChanged: "linkedBranchChanged",
 } as const;
 
 export interface WorkspaceServiceEvents {
@@ -107,6 +111,7 @@ export interface WorkspaceServiceEvents {
   [WorkspaceServiceEvent.Warning]: WorkspaceWarningPayload;
   [WorkspaceServiceEvent.Promoted]: WorkspacePromotedPayload;
   [WorkspaceServiceEvent.BranchChanged]: BranchChangedPayload;
+  [WorkspaceServiceEvent.LinkedBranchChanged]: LinkedBranchChangedPayload;
 }
 
 @injectable()
@@ -234,6 +239,11 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       this.handleFocusBranchRenamed.bind(this),
     );
 
+    this.agentService.on(
+      AgentServiceEvent.AgentFileActivity,
+      this.handleAgentFileActivity.bind(this),
+    );
+
     log.info("Branch watcher initialized");
   }
 
@@ -307,10 +317,76 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     }
   }
 
+  private async handleAgentFileActivity({
+    taskId,
+    branchName,
+  }: {
+    taskId: string;
+    branchName: string | null;
+  }): Promise<void> {
+    if (!branchName) return;
+
+    const dbRow = this.workspaceRepo.findByTaskId(taskId);
+    if (!dbRow || dbRow.mode !== "local") return;
+    if (!dbRow.repositoryId) return;
+
+    const folderPath = this.getFolderPath(dbRow.repositoryId);
+    if (!folderPath) return;
+
+    try {
+      const defaultBranch = await getDefaultBranch(folderPath);
+      if (branchName === defaultBranch) return;
+    } catch (error) {
+      log.warn("Failed to determine default branch, skipping branch link", {
+        taskId,
+        branchName,
+        error,
+      });
+      trackAppEvent("branch_link_default_branch_unknown", {
+        taskId,
+        branchName,
+      });
+      return;
+    }
+
+    const currentLinked = dbRow.linkedBranch ?? null;
+    if (currentLinked === branchName) return;
+
+    this.linkBranch(taskId, branchName, "agent");
+  }
+
   private updateAssociationBranchName(
     _taskId: string,
     _branchName: string,
   ): void {}
+
+  public linkBranch(
+    taskId: string,
+    branchName: string,
+    source?: "agent" | "user",
+  ): void {
+    this.workspaceRepo.updateLinkedBranch(taskId, branchName);
+    this.emit(WorkspaceServiceEvent.LinkedBranchChanged, {
+      taskId,
+      branchName,
+    });
+    trackAppEvent("branch_linked", {
+      source: source ?? "unknown",
+    });
+    log.info("Linked branch to task", { taskId, branchName, source });
+  }
+
+  public unlinkBranch(taskId: string, source?: "agent" | "user"): void {
+    this.workspaceRepo.updateLinkedBranch(taskId, null);
+    this.emit(WorkspaceServiceEvent.LinkedBranchChanged, {
+      taskId,
+      branchName: null,
+    });
+    trackAppEvent("branch_unlinked", {
+      source: source ?? "unknown",
+    });
+    log.info("Unlinked branch from task", { taskId, source });
+  }
 
   private async getLocalWorktreePathIfExists(
     mainRepoPath: string,
@@ -392,6 +468,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         mode,
         worktree: null,
         branchName: null,
+        linkedBranch: null,
       };
     }
 
@@ -433,6 +510,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         mode,
         worktree: null,
         branchName: localBranch,
+        linkedBranch: null,
       };
     }
 
@@ -539,6 +617,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       mode,
       worktree,
       branchName: worktree.branchName,
+      linkedBranch: null,
     };
   }
 
@@ -710,12 +789,15 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       return null;
     }
 
+    const dbRow = this.workspaceRepo.findByTaskId(taskId);
+
     if (association.mode === "cloud") {
       return {
         taskId,
         mode: "cloud",
         worktree: null,
         branchName: null,
+        linkedBranch: dbRow?.linkedBranch ?? null,
       };
     }
 
@@ -750,11 +832,16 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       mode: association.mode,
       worktree: worktreeInfo,
       branchName,
+      linkedBranch: dbRow?.linkedBranch ?? null,
     };
   }
 
   async getAllWorkspaces(): Promise<Record<string, Workspace>> {
     const associations = this.getAllTaskAssociations();
+    const dbRows = this.workspaceRepo.findAll();
+    const linkedBranchByTaskId = new Map(
+      dbRows.map((row) => [row.taskId, row.linkedBranch ?? null]),
+    );
     const workspaces: Record<string, Workspace> = {};
 
     for (const assoc of associations) {
@@ -768,6 +855,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
           worktreeName: null,
           branchName: null,
           baseBranch: null,
+          linkedBranch: linkedBranchByTaskId.get(assoc.taskId) ?? null,
           createdAt: new Date().toISOString(),
         };
         continue;
@@ -804,6 +892,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         worktreeName,
         branchName,
         baseBranch: null,
+        linkedBranch: linkedBranchByTaskId.get(assoc.taskId) ?? null,
         createdAt: new Date().toISOString(),
       };
     }

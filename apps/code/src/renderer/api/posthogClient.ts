@@ -382,6 +382,14 @@ export class PostHogAPIClient {
     return data;
   }
 
+  async getGithubLogin(): Promise<string | null> {
+    // @ts-expect-error this is not in the generated client YET
+    const data = (await this.api.get("/api/users/{uuid}/github_login/", {
+      path: { uuid: "@me" },
+    })) as { github_login: string | null };
+    return data.github_login;
+  }
+
   async switchOrganization(orgId: string): Promise<void> {
     await this.api.patch("/api/users/{uuid}/", {
       path: { uuid: "@me" },
@@ -992,6 +1000,43 @@ export class PostHogAPIClient {
     return {
       branches: data.branches ?? data.results ?? data ?? [],
       defaultBranch: data.default_branch ?? null,
+    };
+  }
+
+  async getGithubBranchesPage(
+    integrationId: string | number,
+    repo: string,
+    offset: number,
+    limit: number,
+  ): Promise<{
+    branches: string[];
+    defaultBranch: string | null;
+    hasMore: boolean;
+  }> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/environments/${teamId}/integrations/${integrationId}/github_branches/`,
+    );
+    url.searchParams.set("repo", repo);
+    url.searchParams.set("offset", String(offset));
+    url.searchParams.set("limit", String(limit));
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: `/api/environments/${teamId}/integrations/${integrationId}/github_branches/`,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch GitHub branches: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return {
+      branches: data.branches ?? data.results ?? data ?? [],
+      defaultBranch: data.default_branch ?? null,
+      hasMore: data.has_more ?? false,
     };
   }
 

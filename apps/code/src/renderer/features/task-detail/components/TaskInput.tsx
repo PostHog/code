@@ -29,6 +29,7 @@ import { useAuthStore } from "@renderer/features/auth/stores/authStore";
 import { useTRPC } from "@renderer/trpc/client";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
+import { getFilePath } from "@utils/getFilePath";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { usePreviewConfig } from "../hooks/usePreviewConfig";
@@ -119,8 +120,13 @@ export function TaskInput({
     ? getIntegrationIdForRepo(selectedCloudRepository)
     : undefined;
 
-  const { data: cloudBranchData, isPending: cloudBranchesLoading } =
-    useGithubBranches(selectedIntegrationId, selectedCloudRepository);
+  const {
+    data: cloudBranchData,
+    isPending: cloudBranchesLoading,
+    isFetchingMore: cloudBranchesFetchingMore,
+    pauseLoadingMore: pauseCloudBranchesLoading,
+    resumeLoadingMore: resumeCloudBranchesLoading,
+  } = useGithubBranches(selectedIntegrationId, selectedCloudRepository);
   const cloudBranches = cloudBranchData?.branches;
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
@@ -339,7 +345,7 @@ export function TaskInput({
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const filePath = (file as File & { path?: string }).path;
+      const filePath = getFilePath(file);
       if (filePath) {
         editorRef.current?.addAttachment({
           id: filePath,
@@ -464,6 +470,9 @@ export function TaskInput({
               onBranchSelect={setSelectedBranch}
               cloudBranches={cloudBranches}
               cloudBranchesLoading={cloudBranchesLoading}
+              cloudBranchesFetchingMore={cloudBranchesFetchingMore}
+              onCloudPickerOpen={resumeCloudBranchesLoading}
+              onCloudBranchCommit={pauseCloudBranchesLoading}
             />
             {workspaceMode === "worktree" && (
               <EnvironmentSelector

@@ -102,8 +102,13 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
     ? getIntegrationIdForRepo(selectedRepository)
     : undefined;
 
-  const { data: cloudBranchData, isPending: cloudBranchesLoading } =
-    useGithubBranches(selectedIntegrationId, selectedRepository);
+  const {
+    data: cloudBranchData,
+    isPending: cloudBranchesLoading,
+    isFetchingMore: cloudBranchesFetchingMore,
+    pauseLoadingMore: pauseCloudBranchesLoading,
+    resumeLoadingMore: resumeCloudBranchesLoading,
+  } = useGithubBranches(selectedIntegrationId, selectedRepository);
   const cloudBranches = cloudBranchData?.branches;
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
@@ -359,6 +364,9 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
                   onBranchSelect={setSelectedBranch}
                   cloudBranches={cloudBranches}
                   cloudBranchesLoading={cloudBranchesLoading}
+                  cloudBranchesFetchingMore={cloudBranchesFetchingMore}
+                  onCloudPickerOpen={resumeCloudBranchesLoading}
+                  onCloudBranchCommit={pauseCloudBranchesLoading}
                 />
               </TourHighlight>
             </Flex>
