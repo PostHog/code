@@ -3,9 +3,8 @@ import type { DragDropEvents } from "@dnd-kit/react";
 import { DragDropProvider } from "@dnd-kit/react";
 import { useFolders } from "@features/folders/hooks/useFolders";
 import {
-  FolderOpenIcon,
-  FolderSimple,
   FunnelSimple as FunnelSimpleIcon,
+  GitBranch,
 } from "@phosphor-icons/react";
 import {
   Button,
@@ -321,13 +320,7 @@ export function TaskListView({
                   <SidebarSection
                     id={group.id}
                     label={folder?.name ?? group.name}
-                    icon={
-                      isExpanded ? (
-                        <FolderOpenIcon size={14} className="text-gray-10" />
-                      ) : (
-                        <FolderSimple size={14} className="text-gray-10" />
-                      )
-                    }
+                    icon={<GitBranch size={14} className="text-gray-10" />}
                     isExpanded={isExpanded}
                     onToggle={() => toggleSection(group.id)}
                     addSpacingBefore={false}
