@@ -152,11 +152,13 @@ export function GeneratingIndicator({
     <Flex
       align="center"
       gap="2"
-      className="select-none text-accent-11"
+      className="select-none"
       style={{ userSelect: "none", WebkitUserSelect: "none" }}
     >
       <Brain size={12} className="ph-pulse" />
-      <Text size="1">{activity}...</Text>
+      <Text size="1" className="text-accent-11">
+        {activity}...
+      </Text>
       <Text size="1" color="gray">
         (Esc to stop
       </Text>
