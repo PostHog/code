@@ -50,7 +50,13 @@ export const sendCommandInput = z.object({
   runId: z.string(),
   apiHost: z.string(),
   teamId: z.number(),
-  method: z.enum(["user_message", "cancel", "close"]),
+  method: z.enum([
+    "user_message",
+    "cancel",
+    "close",
+    "permission_response",
+    "set_config_option",
+  ]),
   params: z.record(z.string(), z.unknown()).optional(),
 });
 

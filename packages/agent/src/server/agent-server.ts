@@ -18,6 +18,7 @@ import {
   type InProcessAcpConnection,
 } from "../adapters/acp-connection";
 import { selectRecentTurns } from "../adapters/claude/session/jsonl-hydration";
+import type { CodeExecutionMode } from "../execution-mode";
 import { PostHogAPIClient } from "../posthog-api";
 import {
   type ConversationTurn,
@@ -161,6 +162,10 @@ interface ActiveSession {
   sseController: SseController | null;
   deviceInfo: DeviceInfo;
   logWriter: SessionLogWriter;
+  /** Current permission mode, tracked for relay decisions */
+  permissionMode: CodeExecutionMode;
+  /** Whether a desktop client has ever connected via SSE during this session */
+  hasDesktopConnected: boolean;
 }
 
 export class AgentServer {
@@ -180,6 +185,15 @@ export class AgentServer {
   // causing a second session to be created and duplicate Slack messages to be sent.
   private initializationPromise: Promise<void> | null = null;
   private pendingEvents: Record<string, unknown>[] = [];
+  private pendingPermissions = new Map<
+    string,
+    {
+      resolve: (response: {
+        outcome: { outcome: "selected"; optionId: string };
+        _meta?: Record<string, unknown>;
+      }) => void;
+    }
+  >();
 
   private detachSseController(controller: SseController): void {
     if (this.session?.sseController === controller) {
@@ -230,6 +244,10 @@ export class AgentServer {
 
   private getEffectiveMode(payload: JwtPayload): AgentMode {
     return payload.mode ?? this.config.mode;
+  }
+
+  private getSessionPermissionMode(): CodeExecutionMode {
+    return this.session?.permissionMode ?? "default";
   }
 
   private createApp(): Hono {
@@ -285,6 +303,7 @@ export class AgentServer {
             await this.initializeSession(payload, sseController);
           } else {
             this.session.sseController = sseController;
+            this.session.hasDesktopConnected = true;
             this.replayPendingEvents();
           }
 
@@ -579,6 +598,51 @@ export class AgentServer {
         return { closed: true };
       }
 
+      case "posthog/set_config_option":
+      case "set_config_option": {
+        const configId = params.configId as string;
+        const value = params.value as string;
+
+        this.logger.info("Set config option requested", { configId, value });
+
+        const result =
+          await this.session.clientConnection.setSessionConfigOption({
+            sessionId: this.session.acpSessionId,
+            configId,
+            value,
+          });
+
+        return {
+          configOptions: result.configOptions,
+        };
+      }
+
+      case POSTHOG_NOTIFICATIONS.PERMISSION_RESPONSE:
+      case "permission_response": {
+        const requestId = params.requestId as string;
+        const optionId = params.optionId as string;
+        const customInput = params.customInput as string | undefined;
+        const answers = params.answers as Record<string, string> | undefined;
+
+        this.logger.info("Permission response received", {
+          requestId,
+          optionId,
+        });
+
+        const resolved = this.resolvePermission(
+          requestId,
+          optionId,
+          customInput,
+          answers,
+        );
+        if (!resolved) {
+          throw new Error(
+            `No pending permission request found for id: ${requestId}`,
+          );
+        }
+        return { resolved: true };
+      }
+
       default:
         throw new Error(`Unknown method: ${method}`);
     }
@@ -740,6 +804,14 @@ export class AgentServer {
       this.detectedPrUrl = prUrl;
     }
 
+    const runState = preTaskRun?.state as Record<string, unknown> | undefined;
+    // Cloud runs default to bypassPermissions (auto-approve everything).
+    // Only PostHog Code sets initial_permission_mode explicitly (e.g., "plan").
+    const initialPermissionMode: CodeExecutionMode =
+      typeof runState?.initial_permission_mode === "string"
+        ? (runState.initial_permission_mode as CodeExecutionMode)
+        : "bypassPermissions";
+
     const sessionResponse = await clientConnection.newSession({
       cwd: this.config.repositoryPath ?? "/tmp/workspace",
       mcpServers: this.config.mcpServers ?? [],
@@ -749,6 +821,7 @@ export class AgentServer {
         systemPrompt: this.buildSessionSystemPrompt(prUrl),
         allowedDomains: this.config.allowedDomains,
         jsonSchema: preTask?.json_schema ?? null,
+        permissionMode: initialPermissionMode,
         ...(this.config.claudeCode?.plugins?.length && {
           claudeCode: {
             options: {
@@ -774,6 +847,8 @@ export class AgentServer {
       sseController,
       deviceInfo,
       logWriter,
+      permissionMode: initialPermissionMode,
+      hasDesktopConnected: sseController !== null,
     };
 
     this.logger = new Logger({
@@ -791,6 +866,7 @@ export class AgentServer {
     this.logger.info(
       `Agent version: ${this.config.version ?? packageJson.version}`,
     );
+    this.logger.info(`Initial permission mode: ${initialPermissionMode}`);
 
     // Signal in_progress so the UI can start polling for updates
     this.posthogAPI
@@ -1429,12 +1505,10 @@ ${attributionInstructions}
       requestPermission: async (
         params: RequestPermissionRequest,
       ): Promise<RequestPermissionResponse> => {
-        // Background mode: always auto-approve permissions
-        // Interactive mode: also auto-approve for now (user can monitor via SSE)
-        // Future: interactive mode could pause and wait for user approval via SSE
         this.logger.debug("Permission request", {
           mode,
           interactionOrigin,
+          kind: params.toolCall?.kind,
           options: params.options,
         });
 
@@ -1444,13 +1518,37 @@ ${attributionInstructions}
         const selectedOptionId =
           allowOption?.optionId ?? params.options[0].optionId;
 
+        const codeToolKind = params.toolCall?._meta?.codeToolKind;
+        const isPlanApproval = params.toolCall?.kind === "switch_mode";
+
+        // Relay questions to Slack when interaction originated there
         if (interactionOrigin === "slack") {
-          const codeToolKind = params.toolCall?._meta?.codeToolKind;
           if (codeToolKind === "question") {
             return this.buildSlackQuestionRelayResponse(
               payload,
               params.toolCall?._meta,
             );
+          }
+        }
+
+        // Relay permission requests to the desktop app when:
+        // - Questions: always relay (need human answers regardless of mode)
+        // - Plan approvals: always relay
+        // - Edit/bash in "default" mode: relay for manual approval
+        // Other modes auto-approve. No client connected → auto-approve.
+        {
+          const isQuestion = codeToolKind === "question";
+          const sessionPermissionMode = this.getSessionPermissionMode();
+          const needsRelay =
+            isQuestion || isPlanApproval || sessionPermissionMode === "default";
+
+          if (needsRelay && this.session?.hasDesktopConnected) {
+            this.logger.info("Relaying permission to connected client", {
+              kind: params.toolCall?.kind,
+              isQuestion,
+              sessionPermissionMode,
+            });
+            return this.relayPermissionToClient(params);
           }
         }
 
@@ -1481,6 +1579,19 @@ ${attributionInstructions}
         sessionId: string;
         update?: Record<string, unknown>;
       }) => {
+        // Track permission mode changes for relay decisions
+        if (
+          params.update?.sessionUpdate === "current_mode_update" &&
+          typeof params.update?.currentModeId === "string" &&
+          this.session
+        ) {
+          this.session.permissionMode = params.update
+            .currentModeId as CodeExecutionMode;
+          this.logger.info("Permission mode updated", {
+            mode: params.update.currentModeId,
+          });
+        }
+
         // session/update notifications flow through the tapped stream (like local transport)
         // Only handle tree state capture for file changes here
         if (params.update?.sessionUpdate === "tool_call_update") {
@@ -1730,6 +1841,16 @@ ${attributionInstructions}
       this.logger.error("Failed to flush session logs", error);
     }
 
+    // Drain pending permissions before ACP cleanup to avoid deadlocks —
+    // cleanup may await operations that are blocked on a permission response.
+    for (const [, pending] of this.pendingPermissions) {
+      pending.resolve({
+        outcome: { outcome: "selected", optionId: "reject" },
+        _meta: { customInput: "Session is shutting down." },
+      });
+    }
+    this.pendingPermissions.clear();
+
     try {
       await this.session.acpConnection.cleanup();
     } catch (error) {
@@ -1822,5 +1943,56 @@ ${attributionInstructions}
     } catch {
       this.detachSseController(controller);
     }
+  }
+
+  /**
+   * Relay a permission request (e.g., plan approval) to the connected desktop
+   * app via SSE and wait for a response via the `/command` endpoint.
+   *
+   * The promise waits indefinitely — if SSE is disconnected, the event is
+   * buffered by broadcastEvent and replayed when the client reconnects. Session
+   * cleanup force-resolves all pending permissions, so there is no leak.
+   */
+  private relayPermissionToClient(params: {
+    options: Array<{ kind: string; optionId: string; name?: string }>;
+    toolCall?: Record<string, unknown> | null;
+  }): Promise<{
+    outcome: { outcome: "selected"; optionId: string };
+    _meta?: Record<string, unknown>;
+  }> {
+    const requestId = crypto.randomUUID();
+
+    this.broadcastEvent({
+      type: "permission_request",
+      requestId,
+      options: params.options,
+      toolCall: params.toolCall,
+    });
+
+    return new Promise((resolve) => {
+      this.pendingPermissions.set(requestId, { resolve });
+    });
+  }
+
+  private resolvePermission(
+    requestId: string,
+    optionId: string,
+    customInput?: string,
+    answers?: Record<string, string>,
+  ): boolean {
+    const pending = this.pendingPermissions.get(requestId);
+    if (!pending) return false;
+
+    this.pendingPermissions.delete(requestId);
+
+    const meta: Record<string, unknown> = {};
+    if (customInput) meta.customInput = customInput;
+    if (answers) meta.answers = answers;
+
+    pending.resolve({
+      outcome: { outcome: "selected" as const, optionId },
+      ...(Object.keys(meta).length > 0 ? { _meta: meta } : {}),
+    });
+    return true;
   }
 }

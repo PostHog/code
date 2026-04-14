@@ -132,4 +132,56 @@ describe("validateCommandParams", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("accepts valid permission_response", () => {
+    const result = validateCommandParams("permission_response", {
+      requestId: "abc-123",
+      optionId: "acceptEdits",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts permission_response with customInput", () => {
+    const result = validateCommandParams("permission_response", {
+      requestId: "abc-123",
+      optionId: "reject_with_feedback",
+      customInput: "Please change the approach",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects permission_response without requestId", () => {
+    const result = validateCommandParams("permission_response", {
+      optionId: "acceptEdits",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects permission_response without optionId", () => {
+    const result = validateCommandParams("permission_response", {
+      requestId: "abc-123",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts valid set_config_option", () => {
+    const result = validateCommandParams("set_config_option", {
+      configId: "mode",
+      value: "plan",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects set_config_option without configId", () => {
+    const result = validateCommandParams("set_config_option", {
+      value: "plan",
+    });
+
+    expect(result.success).toBe(false);
+  });
 });

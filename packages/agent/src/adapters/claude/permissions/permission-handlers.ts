@@ -490,11 +490,17 @@ export async function canUseTool(
     return planFileResult;
   }
 
-  // if (session.permissionMode === "dontAsk") {
-  //   const message = "Tool not pre-approved. Denied by dontAsk mode.";
-  //   await emitToolDenial(context, message);
-  //   return { behavior: "deny", message, interrupt: false };
-  // }
+  // In plan mode, deny tools that aren't in the allowed set. The agent must
+  // write its plan to ~/.claude/plans/ and call ExitPlanMode before it can
+  // use write or bash tools. Without this guard, cloud runs auto-approve
+  // restricted tools and the agent skips planning entirely.
+  if (session.permissionMode === "plan") {
+    const message =
+      "This tool is not available in plan mode. Write your plan " +
+      `to a file in ${getClaudePlansDir()} and call ExitPlanMode when ready.`;
+    await emitToolDenial(context, message);
+    return { behavior: "deny", message, interrupt: false };
+  }
 
   return handleDefaultPermissionFlow(context);
 }

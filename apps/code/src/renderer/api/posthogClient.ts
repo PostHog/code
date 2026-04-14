@@ -746,6 +746,7 @@ export class PostHogAPIClient {
       runSource?: CloudRunSource;
       signalReportId?: string;
       githubUserToken?: string;
+      initialPermissionMode?: string;
     },
   ): Promise<Task> {
     const teamId = await this.getTeamId();
@@ -773,6 +774,9 @@ export class PostHogAPIClient {
     }
     if (options?.githubUserToken) {
       body.github_user_token = options.githubUserToken;
+    }
+    if (options?.initialPermissionMode) {
+      body.initial_permission_mode = options.initialPermissionMode;
     }
 
     const data = await this.api.post(

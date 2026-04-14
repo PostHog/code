@@ -300,6 +300,7 @@ export class TaskCreationSaga extends Saga<
             runSource: input.cloudRunSource ?? "manual",
             signalReportId: input.signalReportId,
             githubUserToken,
+            initialPermissionMode: input.executionMode ?? "plan",
           });
         },
         rollback: async () => {
