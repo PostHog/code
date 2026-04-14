@@ -28,6 +28,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useProjectsWithIntegrations } from "../hooks/useProjectsWithIntegrations";
 import { OnboardingHogTip } from "./OnboardingHogTip";
+import { StepActions } from "./StepActions";
 
 const POLL_INTERVAL_MS = 3_000;
 const POLL_TIMEOUT_MS = 300_000;
@@ -648,7 +649,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
         >
           <Flex
             direction="column"
-            gap="5"
+            gap="6"
             style={{
               width: "100%",
               maxWidth: 560,
@@ -656,105 +657,98 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
               padding: "16px 0",
             }}
           >
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Text
-                size="6"
-                weight="bold"
-                style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+            {/* Header + content */}
+            <Flex direction="column" gap="5" style={{ width: "100%" }}>
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
               >
-                Teach your agent what matters
-              </Text>
-            </motion.div>
+                <Text
+                  size="6"
+                  weight="bold"
+                  style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+                >
+                  Teach your agent what matters
+                </Text>
+              </motion.div>
 
-            <Flex direction="column" gap="2">
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.05 }}
-              >
-                <GitHubIssuesCard
-                  checked={displayValues.github}
-                  onCheckedChange={(checked) =>
-                    void handleToggle("github", checked)
-                  }
-                  disabled={signalsLoading}
-                  requiresSetup={sourceStates?.github?.requiresSetup}
-                  loading={sourceStates?.github?.loading}
-                  hasGitIntegration={hasGitIntegration}
-                  onSetupComplete={handleInlineSetupComplete}
-                />
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.1 }}
-              >
-                <ExternalSourceCard
-                  icon={<KanbanIcon size={18} />}
-                  label="Linear"
-                  description="Surface action items from your Linear issues."
-                  checked={displayValues.linear}
-                  onCheckedChange={(checked) =>
-                    void handleToggle("linear", checked)
-                  }
-                  disabled={signalsLoading}
-                  requiresSetup={sourceStates?.linear?.requiresSetup}
-                  onSetup={() => void handleConnectLinear()}
-                  loading={sourceStates?.linear?.loading}
-                  isPolling={isConnectingLinear}
-                />
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.15 }}
-              >
-                <ZendeskCard
-                  checked={displayValues.zendesk}
-                  onCheckedChange={(checked) =>
-                    void handleToggle("zendesk", checked)
-                  }
-                  disabled={signalsLoading}
-                  requiresSetup={sourceStates?.zendesk?.requiresSetup}
-                  loading={sourceStates?.zendesk?.loading}
-                  onSetupComplete={handleInlineSetupComplete}
-                />
-              </motion.div>
+              <Flex direction="column" gap="2">
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.05 }}
+                >
+                  <GitHubIssuesCard
+                    checked={displayValues.github}
+                    onCheckedChange={(checked) =>
+                      void handleToggle("github", checked)
+                    }
+                    disabled={signalsLoading}
+                    requiresSetup={sourceStates?.github?.requiresSetup}
+                    loading={sourceStates?.github?.loading}
+                    hasGitIntegration={hasGitIntegration}
+                    onSetupComplete={handleInlineSetupComplete}
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.1 }}
+                >
+                  <ExternalSourceCard
+                    icon={<KanbanIcon size={18} />}
+                    label="Linear"
+                    description="Surface action items from your Linear issues."
+                    checked={displayValues.linear}
+                    onCheckedChange={(checked) =>
+                      void handleToggle("linear", checked)
+                    }
+                    disabled={signalsLoading}
+                    requiresSetup={sourceStates?.linear?.requiresSetup}
+                    onSetup={() => void handleConnectLinear()}
+                    loading={sourceStates?.linear?.loading}
+                    isPolling={isConnectingLinear}
+                  />
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.15 }}
+                >
+                  <ZendeskCard
+                    checked={displayValues.zendesk}
+                    onCheckedChange={(checked) =>
+                      void handleToggle("zendesk", checked)
+                    }
+                    disabled={signalsLoading}
+                    requiresSetup={sourceStates?.zendesk?.requiresSetup}
+                    loading={sourceStates?.zendesk?.loading}
+                    onSetupComplete={handleInlineSetupComplete}
+                  />
+                </motion.div>
+              </Flex>
             </Flex>
 
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
-            >
-              <OnboardingHogTip
-                hogSrc={detectiveHog}
-                message="These help me find things worth working on beyond your PostHog data."
-              />
-            </motion.div>
+            {/* Hog tip */}
+            <OnboardingHogTip
+              hogSrc={detectiveHog}
+              message="These help me find things worth working on beyond your PostHog data."
+              delay={0.2}
+            />
           </Flex>
         </Flex>
 
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: 0.25 }}
-        >
-          <Flex gap="4" align="center" flexShrink="0">
-            <Button size="3" variant="outline" color="gray" onClick={onBack}>
-              <ArrowLeft size={16} />
-              Back
-            </Button>
-            <Button size="3" onClick={onNext}>
-              Continue
-              <ArrowRight size={16} />
-            </Button>
-          </Flex>
-        </motion.div>
+        <StepActions delay={0.25}>
+          <Button size="3" variant="outline" color="gray" onClick={onBack}>
+            <ArrowLeft size={16} />
+            Back
+          </Button>
+          <Button size="3" onClick={onNext}>
+            Continue
+            <ArrowRight size={16} />
+          </Button>
+        </StepActions>
       </Flex>
     </Flex>
   );

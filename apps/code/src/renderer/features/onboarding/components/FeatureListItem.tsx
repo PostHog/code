@@ -62,6 +62,7 @@ export function FeatureListItem({
           </Text>
           <Text
             size="2"
+            className="feature-list-item__description"
             style={{
               color: "var(--gray-12)",
               opacity: 0.5,

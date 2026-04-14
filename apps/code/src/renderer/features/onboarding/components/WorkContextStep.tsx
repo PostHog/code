@@ -9,6 +9,7 @@ import graphsHog from "@renderer/assets/images/hedgehogs/graphs-hog.png";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { StepActions } from "./StepActions";
 
 const EXAMPLES = [
   { text: "Improving our onboarding conversion funnel", hog: graphsHog },
@@ -63,7 +64,7 @@ export function WorkContextStep({ onNext, onBack }: WorkContextStepProps) {
         >
           <Flex
             direction="column"
-            gap="5"
+            gap="6"
             style={{
               width: "100%",
               minWidth: 560,
@@ -71,48 +72,51 @@ export function WorkContextStep({ onNext, onBack }: WorkContextStepProps) {
               margin: "0 auto",
             }}
           >
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Flex direction="column" gap="2">
-                <Text
-                  size="6"
-                  weight="bold"
-                  style={{
-                    color: "var(--gray-12)",
-                    lineHeight: 1.3,
-                  }}
-                >
-                  What are you focused on right now?
-                </Text>
-                <Text size="2" style={{ color: "var(--gray-11)" }}>
-                  This helps us prioritize what to surface first.
-                </Text>
-              </Flex>
-            </motion.div>
+            {/* Header + content */}
+            <Flex direction="column" gap="5" style={{ width: "100%" }}>
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Flex direction="column" gap="2">
+                  <Text
+                    size="6"
+                    weight="bold"
+                    style={{
+                      color: "var(--gray-12)",
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    What are you focused on right now?
+                  </Text>
+                  <Text size="2" style={{ color: "var(--gray-11)" }}>
+                    This helps us prioritize what to surface first.
+                  </Text>
+                </Flex>
+              </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.05 }}
-            >
-              <TextArea
-                size="3"
-                placeholder="In a few words, describe your current goals..."
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                autoFocus={true}
-                style={{
-                  minHeight: 120,
-                  outline: "none",
-                  boxShadow: "none",
-                  width: "100%",
-                  border: "1px solid var(--gray-4)",
-                }}
-              />
-            </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.05 }}
+              >
+                <TextArea
+                  size="3"
+                  placeholder="In a few words, describe your current goals..."
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  autoFocus={true}
+                  style={{
+                    minHeight: 120,
+                    outline: "none",
+                    boxShadow: "none",
+                    width: "100%",
+                    border: "1px solid var(--gray-4)",
+                  }}
+                />
+              </motion.div>
+            </Flex>
 
             {/* Hog with rotating speech bubble */}
             <motion.div
@@ -202,22 +206,16 @@ export function WorkContextStep({ onNext, onBack }: WorkContextStepProps) {
           </Flex>
         </Flex>
 
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: 0.15 }}
-        >
-          <Flex gap="4" align="center" flexShrink="0">
-            <Button size="3" variant="outline" color="gray" onClick={onBack}>
-              <ArrowLeft size={16} />
-              Back
-            </Button>
-            <Button size="3" onClick={handleContinue}>
-              Continue
-              <ArrowRight size={16} />
-            </Button>
-          </Flex>
-        </motion.div>
+        <StepActions>
+          <Button size="3" variant="outline" color="gray" onClick={onBack}>
+            <ArrowLeft size={16} />
+            Back
+          </Button>
+          <Button size="3" onClick={handleContinue}>
+            Continue
+            <ArrowRight size={16} />
+          </Button>
+        </StepActions>
       </Flex>
     </Flex>
   );

@@ -8,10 +8,10 @@ import {
 } from "@phosphor-icons/react";
 import { Button, Flex, Text } from "@radix-ui/themes";
 import explorerHog from "@renderer/assets/images/hedgehogs/explorer-hog.png";
-import { motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FeatureListItem } from "./FeatureListItem";
 import { OnboardingHogTip } from "./OnboardingHogTip";
+import { StepActions } from "./StepActions";
 
 const FEATURES = [
   {
@@ -93,8 +93,8 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
         style={{
           width: "100%",
           height: "100%",
-          paddingTop: 24,
-          paddingBottom: 40,
+          paddingTop: "clamp(8px, 2vh, 24px)",
+          paddingBottom: "clamp(16px, 3vh, 40px)",
         }}
       >
         <Flex
@@ -106,8 +106,11 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
           <Flex
             direction="column"
             align="start"
-            gap="6"
-            style={{ width: "100%", maxWidth: 560 }}
+            style={{
+              width: "100%",
+              maxWidth: 560,
+              gap: "clamp(12px, 2.5vh, 24px)",
+            }}
           >
             <Flex direction="column" gap="1">
               <Text
@@ -122,7 +125,10 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
               </Text>
             </Flex>
 
-            <Flex direction="column" gap="3" style={{ width: "100%" }}>
+            <Flex
+              direction="column"
+              style={{ width: "100%", gap: "clamp(4px, 1vh, 12px)" }}
+            >
               {FEATURES.map((feature, index) => (
                 <FeatureListItem
                   key={feature.title}
@@ -137,25 +143,19 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
               ))}
             </Flex>
 
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-            >
-              <OnboardingHogTip
-                hogSrc={explorerHog}
-                message="Let's get you set up. It only takes a minute."
-              />
-            </motion.div>
+            <OnboardingHogTip
+              hogSrc={explorerHog}
+              message="Let's get you set up. It only takes a minute."
+            />
           </Flex>
         </Flex>
 
-        <Flex gap="3" align="center" flexShrink="0">
+        <StepActions>
           <Button size="3" onClick={onNext}>
-            Get Started
+            Start shipping
             <ArrowRight size={16} />
           </Button>
-        </Flex>
+        </StepActions>
       </Flex>
     </Flex>
   );

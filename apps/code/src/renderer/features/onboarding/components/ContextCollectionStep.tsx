@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useContextCollection } from "../hooks/useContextCollection";
 import { SourceFeed } from "./context-collection/SourceFeed";
 import { SuggestedTasks } from "./context-collection/SuggestedTasks";
+import { StepActions } from "./StepActions";
 
 interface ContextCollectionStepProps {
   onNext: () => void;
@@ -194,32 +195,26 @@ export function ContextCollectionStep({
         </Flex>
 
         {/* Footer buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: 0.15 }}
-        >
-          <Flex gap="4" align="center" flexShrink="0">
-            <Button size="3" variant="outline" color="gray" onClick={onBack}>
-              <ArrowLeft size={16} />
-              Back
-            </Button>
-            <AnimatePresence>
-              {showTasks && (
-                <motion.div
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.3 }}
-                >
-                  <Button size="3" variant="ghost" onClick={onNext}>
-                    Skip for now
-                    <ArrowRight size={16} />
-                  </Button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </Flex>
-        </motion.div>
+        <StepActions>
+          <Button size="3" variant="outline" color="gray" onClick={onBack}>
+            <ArrowLeft size={16} />
+            Back
+          </Button>
+          <AnimatePresence>
+            {showTasks && (
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.3 }}
+              >
+                <Button size="3" variant="ghost" onClick={onNext}>
+                  Skip for now
+                  <ArrowRight size={16} />
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </StepActions>
       </Flex>
     </Flex>
   );

@@ -106,7 +106,7 @@ export function OnboardingFlow() {
                 objectFit: "contain",
                 alignSelf: "flex-start",
                 marginLeft: 32,
-                marginTop: 80,
+                marginTop: "clamp(24px, 6vh, 80px)",
                 flexShrink: 0,
               }}
             />

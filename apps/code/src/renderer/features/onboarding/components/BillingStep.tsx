@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, Check } from "@phosphor-icons/react";
 import { Badge, Button, Flex, Text } from "@radix-ui/themes";
 
 import { useEffect } from "react";
+import { StepActions } from "./StepActions";
 
 interface BillingStepProps {
   onNext: () => void;
@@ -97,7 +98,7 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
             </Text>
           </Flex>
 
-          <Flex gap="4" align="center" justify="between" flexShrink="0" mt="6">
+          <StepActions>
             <Button size="3" variant="outline" color="gray" onClick={onBack}>
               <ArrowLeft size={16} />
               Back
@@ -106,7 +107,7 @@ export function BillingStep({ onNext, onBack }: BillingStepProps) {
               Continue
               <ArrowRight size={16} />
             </Button>
-          </Flex>
+          </StepActions>
         </Flex>
       </Flex>
     </Flex>

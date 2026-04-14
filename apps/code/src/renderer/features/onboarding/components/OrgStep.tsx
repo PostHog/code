@@ -16,6 +16,7 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { AnimatePresence, motion } from "framer-motion";
+import { StepActions } from "./StepActions";
 
 const log = logger.scope("org-step");
 
@@ -170,7 +171,7 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
           </AnimatePresence>
         </Box>
 
-        <Flex gap="4" align="center" justify="between" flexShrink="0">
+        <StepActions>
           <Button size="3" variant="outline" color="gray" onClick={onBack}>
             <ArrowLeft size={16} />
             Back
@@ -187,7 +188,7 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
             {switchOrganizationMutation.isPending ? "Switching..." : "Continue"}
             {!switchOrganizationMutation.isPending && <ArrowRight size={16} />}
           </Button>
-        </Flex>
+        </StepActions>
       </Flex>
     </Flex>
   );
