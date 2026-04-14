@@ -6,6 +6,7 @@ import { ArrowRight, Lifebuoy, SignOut } from "@phosphor-icons/react";
 import { Button, Flex, Theme } from "@radix-ui/themes";
 import phWordmark from "@renderer/assets/images/wordmark.svg";
 import { trpcClient } from "@renderer/trpc/client";
+import { EXTERNAL_LINKS } from "@utils/links";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 
 import { useOnboardingFlow } from "../hooks/useOnboardingFlow";
@@ -269,7 +270,7 @@ export function OnboardingFlow() {
                 color="gray"
                 onClick={() =>
                   trpcClient.os.openExternal.mutate({
-                    url: "https://discord.gg/posthog",
+                    url: EXTERNAL_LINKS.discord,
                   })
                 }
                 style={{ opacity: 0.5 }}
