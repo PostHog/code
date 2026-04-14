@@ -179,5 +179,6 @@ describe("HandoffCheckpointTracker", () => {
     expect(status).toContain("M  tracked.txt");
     expect(status).toContain(" M unstaged.txt");
     expect(status).toContain("?? untracked.txt");
+    expect(localRepo.exists(".posthog/tmp")).toBe(false);
   });
 });

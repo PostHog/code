@@ -168,7 +168,7 @@ interface GitDialogProps {
   hideCancel?: boolean;
 }
 
-function GitDialog({
+export function GitDialog({
   open,
   onOpenChange,
   icon,

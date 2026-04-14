@@ -13,6 +13,8 @@ import {
   type GitHandoffBranchDivergence,
   readHandoffLocalGitState,
 } from "@posthog/git/handoff";
+import { ResetToDefaultBranchSaga } from "@posthog/git/sagas/branch";
+import { StashPushSaga } from "@posthog/git/sagas/stash";
 import type { IAppLifecycle } from "@posthog/platform/app-lifecycle";
 import type { IDialog } from "@posthog/platform/dialog";
 import { inject, injectable } from "inversify";
@@ -69,9 +71,16 @@ export class HandoffService extends TypedEventEmitter<HandoffServiceEvents> {
 
     let localTreeDirty = false;
     let localGitState: AgentTypes.HandoffLocalGitState | undefined;
+    let changedFileDetails: HandoffPreflightResult["changedFiles"];
     try {
       const changedFiles = await this.gitService.getChangedFilesHead(repoPath);
       localTreeDirty = changedFiles.length > 0;
+      changedFileDetails = changedFiles.map((f) => ({
+        path: f.path,
+        status: f.status,
+        linesAdded: f.linesAdded,
+        linesRemoved: f.linesRemoved,
+      }));
       localGitState = await this.getLocalGitState(repoPath);
     } catch (err) {
       log.warn("Failed to check local working tree", { repoPath, err });
@@ -82,7 +91,13 @@ export class HandoffService extends TypedEventEmitter<HandoffServiceEvents> {
       ? "Local working tree has uncommitted changes. Commit or stash them first."
       : undefined;
 
-    return { canHandoff, reason, localTreeDirty, localGitState };
+    return {
+      canHandoff,
+      reason,
+      localTreeDirty,
+      localGitState,
+      changedFiles: changedFileDetails,
+    };
   }
 
   async execute(input: HandoffExecuteInput): Promise<HandoffExecuteResult> {
@@ -369,10 +384,60 @@ export class HandoffService extends TypedEventEmitter<HandoffServiceEvents> {
       };
     }
 
+    await this.cleanupLocalAfterCloudHandoff(
+      repoPath,
+      input.localGitState?.branch ?? null,
+    );
+
     return {
       success: true,
       logEntryCount: result.data.flushedLogEntryCount,
     };
+  }
+
+  private async cleanupLocalAfterCloudHandoff(
+    repoPath: string,
+    branchName: string | null,
+  ): Promise<void> {
+    try {
+      const hasChanges =
+        (await this.gitService.getChangedFilesHead(repoPath)).length > 0;
+
+      if (hasChanges) {
+        const label = branchName ?? "unknown";
+        const stashSaga = new StashPushSaga();
+        const stashResult = await stashSaga.run({
+          baseDir: repoPath,
+          message: `posthog-code: handoff backup (${label})`,
+        });
+        if (!stashResult.success) {
+          log.warn("Failed to stash changes during cloud handoff cleanup", {
+            error: stashResult.error,
+          });
+          return;
+        }
+      }
+
+      const resetSaga = new ResetToDefaultBranchSaga();
+      const resetResult = await resetSaga.run({ baseDir: repoPath });
+      if (!resetResult.success) {
+        log.warn(
+          "Failed to reset to default branch during cloud handoff cleanup",
+          {
+            error: resetResult.error,
+          },
+        );
+        return;
+      }
+
+      log.info("Local cleanup after cloud handoff complete", {
+        repoPath,
+        switched: resetResult.data.switched,
+        defaultBranch: resetResult.data.defaultBranch,
+      });
+    } catch (err) {
+      log.warn("Post-handoff local cleanup failed", { repoPath, err });
+    }
   }
 
   private createApiClient(apiHost: string, teamId: number): PostHogAPIClient {

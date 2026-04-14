@@ -366,6 +366,24 @@ describe("CaptureTreeSaga", () => {
       const indexFiles = files.filter((f: string) => f.startsWith("index-"));
       expect(indexFiles).toHaveLength(0);
     });
+
+    it("cleans up uploaded tree archive and tmp dir on success", async () => {
+      const mockApiClient = createMockApiClient();
+
+      await repo.writeFile("new.ts", "content");
+
+      const saga = new CaptureTreeSaga(mockLogger);
+      const result = await saga.run({
+        repositoryPath: repo.path,
+        taskId: "task-1",
+        runId: "run-1",
+        lastTreeHash: null,
+        apiClient: mockApiClient,
+      });
+
+      expect(result.success).toBe(true);
+      expect(repo.exists(".posthog/tmp")).toBe(false);
+    });
   });
 
   describe("git state isolation", () => {

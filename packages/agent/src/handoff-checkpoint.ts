@@ -1,4 +1,11 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  rmdir,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import {
   type GitHandoffBranchDivergence,
@@ -161,6 +168,7 @@ export class HandoffCheckpointTracker {
     } finally {
       await this.removeIfPresent(packPath);
       await this.removeIfPresent(indexPath);
+      await this.removeTmpDirIfEmpty(tmpDir);
     }
   }
 
@@ -363,5 +371,13 @@ export class HandoffCheckpointTracker {
       return;
     }
     await rm(filePath, { force: true }).catch(() => {});
+  }
+
+  private async removeTmpDirIfEmpty(tmpDir: string): Promise<void> {
+    const entries = await readdir(tmpDir).catch(() => null);
+    if (!entries || entries.length > 0) {
+      return;
+    }
+    await rmdir(tmpDir).catch(() => {});
   }
 }

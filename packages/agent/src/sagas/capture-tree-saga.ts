@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { readFile, rm } from "node:fs/promises";
+import { readdir, readFile, rm, rmdir } from "node:fs/promises";
 import { join } from "node:path";
 import { CaptureTreeSaga as GitCaptureTreeSaga } from "@posthog/git/sagas/tree";
 import { Saga } from "@posthog/shared";
@@ -45,60 +45,67 @@ export class CaptureTreeSaga extends Saga<CaptureTreeInput, CaptureTreeOutput> {
       ? join(tmpDir, `tree-${Date.now()}.tar.gz`)
       : undefined;
 
-    const gitCaptureSaga = new GitCaptureTreeSaga(this.log);
-    const captureResult = await gitCaptureSaga.run({
-      baseDir: repositoryPath,
-      lastTreeHash,
-      archivePath,
-    });
+    try {
+      const gitCaptureSaga = new GitCaptureTreeSaga(this.log);
+      const captureResult = await gitCaptureSaga.run({
+        baseDir: repositoryPath,
+        lastTreeHash,
+        archivePath,
+      });
 
-    if (!captureResult.success) {
-      throw new Error(`Failed to capture tree: ${captureResult.error}`);
-    }
-
-    const {
-      snapshot: gitSnapshot,
-      archivePath: createdArchivePath,
-      changed,
-    } = captureResult.data;
-
-    if (!changed || !gitSnapshot) {
-      this.log.debug("No changes since last capture", { lastTreeHash });
-      return { snapshot: null, newTreeHash: lastTreeHash };
-    }
-
-    let archiveUrl: string | undefined;
-    if (apiClient && createdArchivePath) {
-      try {
-        archiveUrl = await this.uploadArchive(
-          createdArchivePath,
-          gitSnapshot.treeHash,
-          apiClient,
-          taskId,
-          runId,
-        );
-      } finally {
-        await rm(createdArchivePath, { force: true }).catch(() => {});
+      if (!captureResult.success) {
+        throw new Error(`Failed to capture tree: ${captureResult.error}`);
       }
+
+      const {
+        snapshot: gitSnapshot,
+        archivePath: createdArchivePath,
+        changed,
+      } = captureResult.data;
+
+      if (!changed || !gitSnapshot) {
+        this.log.debug("No changes since last capture", { lastTreeHash });
+        return { snapshot: null, newTreeHash: lastTreeHash };
+      }
+
+      let archiveUrl: string | undefined;
+      if (apiClient && createdArchivePath) {
+        try {
+          archiveUrl = await this.uploadArchive(
+            createdArchivePath,
+            gitSnapshot.treeHash,
+            apiClient,
+            taskId,
+            runId,
+          );
+        } finally {
+          await rm(createdArchivePath, { force: true }).catch(() => {});
+        }
+      }
+
+      const snapshot: TreeSnapshot = {
+        treeHash: gitSnapshot.treeHash,
+        baseCommit: gitSnapshot.baseCommit,
+        changes: gitSnapshot.changes,
+        timestamp: gitSnapshot.timestamp,
+        interrupted,
+        archiveUrl,
+      };
+
+      this.log.info("Tree captured", {
+        treeHash: snapshot.treeHash,
+        changes: snapshot.changes.length,
+        interrupted,
+        archiveUrl,
+      });
+
+      return { snapshot, newTreeHash: snapshot.treeHash };
+    } finally {
+      if (archivePath) {
+        await rm(archivePath, { force: true }).catch(() => {});
+      }
+      await this.removeTmpDirIfEmpty(tmpDir);
     }
-
-    const snapshot: TreeSnapshot = {
-      treeHash: gitSnapshot.treeHash,
-      baseCommit: gitSnapshot.baseCommit,
-      changes: gitSnapshot.changes,
-      timestamp: gitSnapshot.timestamp,
-      interrupted,
-      archiveUrl,
-    };
-
-    this.log.info("Tree captured", {
-      treeHash: snapshot.treeHash,
-      changes: snapshot.changes.length,
-      interrupted,
-      archiveUrl,
-    });
-
-    return { snapshot, newTreeHash: snapshot.treeHash };
   }
 
   private async uploadArchive(
@@ -146,5 +153,13 @@ export class CaptureTreeSaga extends Saga<CaptureTreeInput, CaptureTreeOutput> {
     });
 
     return archiveUrl;
+  }
+
+  private async removeTmpDirIfEmpty(tmpDir: string): Promise<void> {
+    const entries = await readdir(tmpDir).catch(() => null);
+    if (!entries || entries.length > 0) {
+      return;
+    }
+    await rmdir(tmpDir).catch(() => {});
   }
 }

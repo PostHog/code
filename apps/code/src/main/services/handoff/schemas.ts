@@ -28,6 +28,22 @@ export const handoffPreflightResult = z.object({
   reason: z.string().optional(),
   localTreeDirty: z.boolean(),
   localGitState: handoffLocalGitStateSchema.optional(),
+  changedFiles: z
+    .array(
+      z.object({
+        path: z.string(),
+        status: z.enum([
+          "modified",
+          "added",
+          "deleted",
+          "renamed",
+          "untracked",
+        ]),
+        linesAdded: z.number().optional(),
+        linesRemoved: z.number().optional(),
+      }),
+    )
+    .optional(),
 });
 
 export type HandoffPreflightResult = z.infer<typeof handoffPreflightResult>;

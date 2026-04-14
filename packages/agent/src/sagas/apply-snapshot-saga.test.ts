@@ -328,6 +328,7 @@ describe("ApplySnapshotSaga", () => {
       });
 
       expect(repo.exists(".posthog/tmp/test-tree-hash.tar.gz")).toBe(false);
+      expect(repo.exists(".posthog/tmp")).toBe(false);
     });
 
     it("cleans up downloaded archive on checkout failure (rollback verification)", async () => {

@@ -2583,6 +2583,40 @@ export class SessionService {
       );
   }
 
+  async preflightToLocal(taskId: string, repoPath: string) {
+    const session = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (!session)
+      return {
+        canHandoff: false as const,
+        localTreeDirty: false as const,
+        reason: "No session found",
+      };
+
+    const auth = await this.getHandoffAuth();
+    if (!auth)
+      return {
+        canHandoff: false as const,
+        localTreeDirty: false as const,
+        reason: "Authentication required",
+      };
+
+    const preflight = await trpcClient.handoff.preflight.query({
+      taskId,
+      runId: session.taskRunId,
+      repoPath,
+      apiHost: auth.apiHost,
+      teamId: auth.projectId,
+    });
+
+    return {
+      canHandoff: preflight.canHandoff,
+      localTreeDirty: preflight.localTreeDirty,
+      localGitState: preflight.localGitState,
+      changedFiles: preflight.changedFiles,
+      reason: preflight.reason,
+    };
+  }
+
   async handoffToLocal(taskId: string, repoPath: string): Promise<void> {
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) {
@@ -2614,8 +2648,11 @@ export class SessionService {
       );
       this.transitionToLocalSession(runId);
       this.subscribeToChannel(runId);
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter());
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["tasks"] }),
+        queryClient.refetchQueries(trpc.workspace.getAll.pathFilter()),
+      ]);
+      sessionStoreSetters.updateSession(runId, { handoffInProgress: false });
       log.info("Cloud-to-local handoff complete", { taskId, runId });
     } catch (err) {
       log.error("Handoff failed", { taskId, err });
@@ -2678,14 +2715,16 @@ export class SessionService {
         cloudOutput: undefined,
         cloudErrorMessage: undefined,
         cloudBranch: undefined,
-        handoffInProgress: false,
         status: "disconnected",
         processedLineCount: result.logEntryCount ?? 0,
       });
 
       this.watchCloudTask(taskId, runId, auth.apiHost, auth.projectId);
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter());
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["tasks"] }),
+        queryClient.refetchQueries(trpc.workspace.getAll.pathFilter()),
+      ]);
+      sessionStoreSetters.updateSession(runId, { handoffInProgress: false });
       log.info("Local-to-cloud handoff complete", { taskId, runId });
     } catch (err) {
       log.error("Handoff to cloud failed", { taskId, err });
@@ -2774,7 +2813,6 @@ export class SessionService {
       cloudOutput: undefined,
       cloudErrorMessage: undefined,
       cloudBranch: undefined,
-      handoffInProgress: false,
       status: "connected",
     });
   }
