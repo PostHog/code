@@ -102,14 +102,6 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
             <Flex direction="column" gap="5" style={{ width: "100%" }}>
               {/* Section 1: Sign in */}
               <Flex direction="column" gap="3" style={{ width: "100%" }}>
-                <Text
-                  size="6"
-                  weight="bold"
-                  style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
-                >
-                  Pick your home base
-                </Text>
-
                 <AnimatePresence mode="wait">
                   {isAuthenticated ? (
                     <motion.div
@@ -118,25 +110,36 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <Flex
-                        align="center"
-                        gap="2"
-                        style={{
-                          padding: "8px 12px",
-                          backgroundColor: "var(--green-a2)",
-                          border: "1px solid var(--green-a5)",
-                          borderRadius: 8,
-                        }}
-                      >
-                        <CheckCircle
-                          size={16}
-                          weight="fill"
-                          style={{ color: "var(--green-9)" }}
-                        />
-                        <Text size="2" style={{ color: "var(--green-11)" }}>
-                          Signed in
-                          {currentUser?.email ? ` as ${currentUser.email}` : ""}
+                      <Flex direction="column" gap="3">
+                        <Text
+                          size="6"
+                          weight="bold"
+                          style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+                        >
+                          Pick your home base
                         </Text>
+                        <Flex
+                          align="center"
+                          gap="2"
+                          style={{
+                            padding: "8px 12px",
+                            backgroundColor: "var(--green-a2)",
+                            border: "1px solid var(--green-a5)",
+                            borderRadius: 8,
+                          }}
+                        >
+                          <CheckCircle
+                            size={16}
+                            weight="fill"
+                            style={{ color: "var(--green-9)" }}
+                          />
+                          <Text size="2" style={{ color: "var(--green-11)" }}>
+                            Signed in
+                            {currentUser?.email
+                              ? ` as ${currentUser.email}`
+                              : ""}
+                          </Text>
+                        </Flex>
                       </Flex>
                     </motion.div>
                   ) : (
@@ -146,14 +149,27 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                       exit={{ opacity: 0, y: -4 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <OAuthControls />
+                      <Flex direction="column" gap="4">
+                        <Text
+                          size="6"
+                          weight="bold"
+                          style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+                        >
+                          Sign in to PostHog
+                        </Text>
+                        <OAuthControls />
+                        <OnboardingHogTip
+                          hogSrc={explorerHog}
+                          message="I don't bite. Just need to know who I'm working with."
+                        />
+                      </Flex>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </Flex>
 
-              {/* Section 2: Organization selector (only if multiple orgs) */}
-              {hasMultipleOrgs && (
+              {/* Section 2: Organization selector (only if authenticated + multiple orgs) */}
+              {isAuthenticated && hasMultipleOrgs && (
                 <motion.div
                   style={{ width: "100%" }}
                   animate={{ opacity: isAuthenticated ? 1 : 0.4 }}
@@ -266,12 +282,8 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                 </motion.div>
               )}
 
-              {/* Section 3: Project selector */}
-              <motion.div
-                style={{ width: "100%" }}
-                animate={{ opacity: isAuthenticated ? 1 : 0.4 }}
-                transition={{ duration: 0.3 }}
-              >
+              {/* Section 3: Project selector (only when authenticated) */}
+              {isAuthenticated && (
                 <Flex direction="column" gap="2" style={{ width: "100%" }}>
                   <Text
                     size="2"
@@ -281,35 +293,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                     Project
                   </Text>
 
-                  {!isAuthenticated ? (
-                    <button
-                      type="button"
-                      disabled
-                      style={{
-                        all: "unset",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        width: "100%",
-                        boxSizing: "border-box",
-                        padding: "10px 14px",
-                        backgroundColor: "var(--gray-3)",
-                        border: "1px solid var(--gray-a3)",
-                        borderRadius: 10,
-                        fontSize: 14,
-                        fontFamily: "inherit",
-                        cursor: "not-allowed",
-                      }}
-                    >
-                      <Text size="2" style={{ color: "var(--gray-8)" }}>
-                        Sign in to see your projects
-                      </Text>
-                      <CaretDown
-                        size={14}
-                        style={{ color: "var(--gray-6)", flexShrink: 0 }}
-                      />
-                    </button>
-                  ) : isLoading || switchOrgMutation.isPending ? (
+                  {isLoading || switchOrgMutation.isPending ? (
                     <Skeleton
                       style={{ height: 40, borderRadius: 8, width: "100%" }}
                     />
@@ -424,7 +408,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                     </motion.div>
                   )}
                 </Flex>
-              </motion.div>
+              )}
             </Flex>
 
             {/* Hog tip */}
