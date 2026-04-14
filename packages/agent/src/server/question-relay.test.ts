@@ -225,7 +225,7 @@ describe("Question relay", () => {
         delete process.env.POSTHOG_CODE_INTERACTION_ORIGIN;
       });
 
-      it("auto-approves question tools (no Slack relay)", async () => {
+      it("returns cancelled with wait message for interactive question tools", async () => {
         const client = server.createCloudClient(TEST_PAYLOAD);
 
         const result = await client.requestPermission({
@@ -233,7 +233,10 @@ describe("Question relay", () => {
           toolCall: { _meta: QUESTION_META },
         });
 
-        expect(result.outcome.outcome).toBe("selected");
+        expect(result.outcome.outcome).toBe("cancelled");
+        expect(result._meta?.message).toContain(
+          "sent to the user's device",
+        );
       });
 
       it("keeps auto-approving permissions after SSE send failures", async () => {

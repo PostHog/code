@@ -176,6 +176,11 @@ function createMockDependencies() {
       notifyToolResult: vi.fn(),
       notifyToolCancelled: vi.fn(),
     },
+    localCommandReceiver: {
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn(),
+      shutdown: vi.fn().mockResolvedValue(undefined),
+    },
   };
 }
 
@@ -189,11 +194,12 @@ const baseSessionParams = {
 
 describe("AgentService", () => {
   let service: AgentService;
+  let deps: ReturnType<typeof createMockDependencies>;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    const deps = createMockDependencies();
+    deps = createMockDependencies();
     service = new AgentService(
       deps.processTracking as never,
       deps.sleepService as never,
@@ -201,6 +207,7 @@ describe("AgentService", () => {
       deps.posthogPluginService as never,
       deps.agentAuthAdapter as never,
       deps.mcpAppsService as never,
+      deps.localCommandReceiver as never,
     );
   });
 
@@ -436,6 +443,120 @@ describe("AgentService", () => {
       expect(service.emit).not.toHaveBeenCalledWith(
         "session-idle-killed",
         expect.anything(),
+      );
+    });
+  });
+
+  describe("local runMode", () => {
+    it("subscribes to local command receiver when runMode is local", async () => {
+      await service.startSession({
+        ...baseSessionParams,
+        runMode: "local",
+      });
+
+      expect(deps.localCommandReceiver.subscribe).toHaveBeenCalledTimes(1);
+      const call = deps.localCommandReceiver.subscribe.mock.calls[0][0];
+      expect(call).toMatchObject({
+        taskId: "task-1",
+        taskRunId: "run-1",
+        projectId: 1,
+        apiHost: "https://app.posthog.com",
+      });
+      expect(typeof call.onCommand).toBe("function");
+    });
+
+    it("does not subscribe when runMode is cloud", async () => {
+      await service.startSession({
+        ...baseSessionParams,
+        runMode: "cloud",
+      });
+
+      expect(deps.localCommandReceiver.subscribe).not.toHaveBeenCalled();
+    });
+
+    it("delivers user_message commands to the session via prompt", async () => {
+      const promptSpy = vi
+        .spyOn(service, "prompt")
+        .mockResolvedValue(undefined as never);
+
+      await service.startSession({
+        ...baseSessionParams,
+        runMode: "local",
+      });
+
+      const onCommand = deps.localCommandReceiver.subscribe.mock.calls[0][0]
+        .onCommand as (payload: unknown) => Promise<void>;
+
+      await onCommand({
+        jsonrpc: "2.0",
+        method: "user_message",
+        params: { content: "hello from mobile" },
+      });
+
+      expect(promptSpy).toHaveBeenCalledWith("run-1", [
+        { type: "text", text: "hello from mobile" },
+      ]);
+    });
+
+    it("ignores non-user_message commands", async () => {
+      const promptSpy = vi
+        .spyOn(service, "prompt")
+        .mockResolvedValue(undefined as never);
+
+      await service.startSession({
+        ...baseSessionParams,
+        runMode: "local",
+      });
+
+      const onCommand = deps.localCommandReceiver.subscribe.mock.calls[0][0]
+        .onCommand as (payload: unknown) => Promise<void>;
+
+      await onCommand({
+        jsonrpc: "2.0",
+        method: "something_else",
+        params: { content: "ignored" },
+      });
+
+      expect(promptSpy).not.toHaveBeenCalled();
+    });
+
+    it("ignores commands with missing or non-string content", async () => {
+      const promptSpy = vi
+        .spyOn(service, "prompt")
+        .mockResolvedValue(undefined as never);
+
+      await service.startSession({
+        ...baseSessionParams,
+        runMode: "local",
+      });
+
+      const onCommand = deps.localCommandReceiver.subscribe.mock.calls[0][0]
+        .onCommand as (payload: unknown) => Promise<void>;
+
+      await onCommand({ jsonrpc: "2.0", method: "user_message", params: {} });
+      await onCommand({
+        jsonrpc: "2.0",
+        method: "user_message",
+        params: { content: "" },
+      });
+
+      expect(promptSpy).not.toHaveBeenCalled();
+    });
+
+    it("unsubscribes on session cleanup", async () => {
+      await service.startSession({
+        ...baseSessionParams,
+        runMode: "local",
+      });
+
+      await (
+        service as unknown as {
+          cleanupSession: (id: string) => Promise<void>;
+        }
+      ).cleanupSession("run-1");
+
+      expect(deps.localCommandReceiver.unsubscribe).toHaveBeenCalledWith(
+        "run-1",
       );
     });
   });
