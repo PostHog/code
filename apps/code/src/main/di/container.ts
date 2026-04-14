@@ -9,6 +9,7 @@ import { SuspensionRepositoryImpl } from "../db/repositories/suspension-reposito
 import { WorkspaceRepository } from "../db/repositories/workspace-repository";
 import { WorktreeRepository } from "../db/repositories/worktree-repository";
 import { DatabaseService } from "../db/service";
+import { ElectronUrlLauncher } from "../platform-adapters/electron-url-launcher";
 import { AgentAuthAdapter } from "../services/agent/auth-adapter";
 import { AgentService } from "../services/agent/service";
 import { AppLifecycleService } from "../services/app-lifecycle/service";
@@ -52,6 +53,8 @@ import { MAIN_TOKENS } from "./tokens";
 export const container = new Container({
   defaultScope: "Singleton",
 });
+
+container.bind(MAIN_TOKENS.UrlLauncher).to(ElectronUrlLauncher);
 
 container.bind(MAIN_TOKENS.DatabaseService).to(DatabaseService);
 container
