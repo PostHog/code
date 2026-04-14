@@ -15,8 +15,6 @@ import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 
 import { useOnboardingFlow } from "../hooks/useOnboardingFlow";
 import { usePrefetchSignalData } from "../hooks/usePrefetchSignalData";
-import { ContextCollectionStep } from "./ContextCollectionStep";
-import { ParticleBackground } from "./context-collection/ParticleBackground";
 import { GitIntegrationStep } from "./GitIntegrationStep";
 import { OrgStep } from "./OrgStep";
 import { ProjectSelectStep } from "./ProjectSelectStep";
@@ -80,20 +78,6 @@ export function OnboardingFlow() {
             }}
           />
           <DotPatternBackground />
-
-          {/* Particle background for context-collection step */}
-          {currentStep === "context-collection" && (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                zIndex: 0,
-                pointerEvents: "none",
-              }}
-            >
-              <ParticleBackground />
-            </div>
-          )}
 
           {/* Content */}
           <Flex
@@ -192,26 +176,6 @@ export function OnboardingFlow() {
                   </motion.div>
                 )}
 
-                {currentStep === "context-collection" && (
-                  <motion.div
-                    key="context-collection"
-                    custom={direction}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    variants={stepVariants}
-                    transition={{ duration: 0.3 }}
-                    style={{
-                      width: "100%",
-                      flex: 1,
-                      minHeight: 0,
-                      position: "relative",
-                    }}
-                  >
-                    <ContextCollectionStep onNext={next} onBack={back} />
-                  </motion.div>
-                )}
-
                 {currentStep === "signals" && (
                   <motion.div
                     key="signals"
@@ -223,7 +187,7 @@ export function OnboardingFlow() {
                     transition={{ duration: 0.3 }}
                     style={{ width: "100%", flex: 1, minHeight: 0 }}
                   >
-                    <SignalsStep onNext={next} onBack={back} />
+                    <SignalsStep onNext={handleComplete} onBack={back} />
                   </motion.div>
                 )}
               </AnimatePresence>

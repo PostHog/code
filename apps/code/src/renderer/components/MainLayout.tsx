@@ -10,6 +10,7 @@ import { InboxView } from "@features/inbox/components/InboxView";
 import { FolderSettingsView } from "@features/settings/components/FolderSettingsView";
 import { SettingsDialog } from "@features/settings/components/SettingsDialog";
 import { MainSidebar } from "@features/sidebar/components/MainSidebar";
+import { SetupView } from "@features/setup/components/SetupView";
 import { SkillsView } from "@features/skills/components/SkillsView";
 import { TaskDetail } from "@features/task-detail/components/TaskDetail";
 import { TaskInput } from "@features/task-detail/components/TaskInput";
@@ -80,6 +81,8 @@ export function MainLayout() {
           {view.type === "command-center" && <CommandCenterView />}
 
           {view.type === "skills" && <SkillsView />}
+
+          {view.type === "setup" && <SetupView />}
         </Box>
       </Flex>
 
