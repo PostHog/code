@@ -80,6 +80,7 @@ export function useSessionConnection({
       () => {
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
       },
+      task.latest_run?.log_url,
     );
     return cleanup;
   }, [
@@ -91,6 +92,7 @@ export function useSessionConnection({
     queryClient,
     task.id,
     task.latest_run?.id,
+    task.latest_run?.log_url,
   ]);
 
   useEffect(() => {

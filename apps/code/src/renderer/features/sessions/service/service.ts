@@ -1917,6 +1917,7 @@ export class SessionService {
     apiHost: string,
     teamId: number,
     onStatusChange?: () => void,
+    logUrl?: string,
   ): () => void {
     const taskRunId = runId;
     const startToken = ++this.nextCloudTaskWatchToken;
@@ -1947,6 +1948,11 @@ export class SessionService {
       existing?.taskRunId === taskRunId &&
       existing.events.length > 0 &&
       existing.processedLineCount === undefined;
+    const shouldHydrateSession =
+      !existing ||
+      existing.taskRunId !== taskRunId ||
+      shouldResetExistingSession ||
+      existing.events.length === 0;
 
     if (
       !existing ||
@@ -1962,6 +1968,10 @@ export class SessionService {
       sessionStoreSetters.updateSession(existing.taskRunId, {
         isCloud: true,
       });
+    }
+
+    if (shouldHydrateSession) {
+      this.hydrateCloudTaskSessionFromLogs(taskId, taskRunId, logUrl);
     }
 
     // Subscribe before starting the main-process watcher so the first replayed
@@ -2023,6 +2033,46 @@ export class SessionService {
     })();
 
     return () => {};
+  }
+
+  private hydrateCloudTaskSessionFromLogs(
+    taskId: string,
+    taskRunId: string,
+    logUrl?: string,
+  ): void {
+    void (async () => {
+      const { rawEntries } = await this.fetchSessionLogs(logUrl, taskRunId);
+      if (rawEntries.length === 0) {
+        return;
+      }
+
+      const session = sessionStoreSetters.getSessionByTaskId(taskId);
+      if (!session || session.taskRunId !== taskRunId) {
+        return;
+      }
+
+      // If live updates already populated a processed count, don't overwrite
+      // that newer state with the persisted baseline fetched during startup.
+      if (
+        session.processedLineCount !== undefined &&
+        session.processedLineCount > 0
+      ) {
+        return;
+      }
+
+      sessionStoreSetters.updateSession(taskRunId, {
+        events: convertStoredEntriesToEvents(rawEntries),
+        isCloud: true,
+        logUrl: logUrl ?? session.logUrl,
+        processedLineCount: rawEntries.length,
+      });
+    })().catch((err: unknown) => {
+      log.warn("Failed to hydrate cloud task session from logs", {
+        taskId,
+        taskRunId,
+        err,
+      });
+    });
   }
 
   private isCurrentCloudTaskWatcher(

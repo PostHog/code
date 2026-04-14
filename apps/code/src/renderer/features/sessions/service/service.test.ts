@@ -552,6 +552,59 @@ describe("SessionService", () => {
       );
     });
 
+    it("hydrates a fresh cloud session from persisted logs before replay arrives", async () => {
+      const service = getSessionService();
+      const hydratedSession = createMockSession({
+        taskRunId: "run-123",
+        taskId: "task-123",
+        taskTitle: "Cloud Task",
+        status: "disconnected",
+        isCloud: true,
+        events: [],
+      });
+
+      mockSessionStoreSetters.getSessionByTaskId.mockImplementation(() => {
+        return hydratedSession;
+      });
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue("");
+      mockTrpcLogs.fetchS3Logs.query.mockResolvedValue(
+        JSON.stringify({
+          type: "notification",
+          timestamp: "2024-01-01T00:00:00Z",
+          notification: {
+            method: "session/update",
+            params: {
+              update: {
+                sessionUpdate: "assistant_message",
+              },
+            },
+          },
+        }),
+      );
+      mockTrpcLogs.writeLocalLogs.mutate.mockResolvedValue(undefined);
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+        undefined,
+        "https://logs.example.com/run-123",
+      );
+
+      await vi.waitFor(() => {
+        expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+          "run-123",
+          expect.objectContaining({
+            events: [],
+            isCloud: true,
+            logUrl: "https://logs.example.com/run-123",
+            processedLineCount: 1,
+          }),
+        );
+      });
+    });
+
     it("ignores stale async starts when the same watcher is replaced", async () => {
       const service = getSessionService();
       let resolveFirstWatchStart!: () => void;
