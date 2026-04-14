@@ -7,6 +7,30 @@
     "./url-launcher": {
       "types": "./dist/url-launcher.d.ts",
       "import": "./dist/url-launcher.js"
+    },
+    "./storage-paths": {
+      "types": "./dist/storage-paths.d.ts",
+      "import": "./dist/storage-paths.js"
+    },
+    "./app-meta": {
+      "types": "./dist/app-meta.d.ts",
+      "import": "./dist/app-meta.js"
+    },
+    "./dialog": {
+      "types": "./dist/dialog.d.ts",
+      "import": "./dist/dialog.js"
+    },
+    "./clipboard": {
+      "types": "./dist/clipboard.d.ts",
+      "import": "./dist/clipboard.js"
+    },
+    "./file-icon": {
+      "types": "./dist/file-icon.d.ts",
+      "import": "./dist/file-icon.js"
+    },
+    "./secure-storage": {
+      "types": "./dist/secure-storage.d.ts",
+      "import": "./dist/secure-storage.js"
     }
   },
   "scripts": {

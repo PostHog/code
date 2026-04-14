@@ -1,13 +1,8 @@
+import type { IDialog } from "@posthog/platform/dialog";
 import type { DetectedApplication } from "@shared/types";
-import {
-  dialog,
-  Menu,
-  type MenuItemConstructorOptions,
-  nativeImage,
-} from "electron";
+import { Menu, type MenuItemConstructorOptions, nativeImage } from "electron";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
-import { getMainWindow } from "../../trpc/context";
 import type { ExternalAppsService } from "../external-apps/service";
 import type {
   ArchivedTaskAction,
@@ -46,6 +41,8 @@ export class ContextMenuService {
   constructor(
     @inject(MAIN_TOKENS.ExternalAppsService)
     private readonly externalAppsService: ExternalAppsService,
+    @inject(MAIN_TOKENS.Dialog)
+    private readonly dialog: IDialog,
   ) {}
 
   private async getExternalAppsData() {
@@ -358,17 +355,15 @@ export class ContextMenuService {
   }
 
   private async confirm(options: ConfirmOptions): Promise<boolean> {
-    const win = getMainWindow();
-    const result = await dialog.showMessageBox({
-      ...(win ? { parent: win } : {}),
-      type: "question",
+    const response = await this.dialog.confirm({
+      severity: "question",
       title: options.title,
       message: options.message,
       detail: options.detail,
-      buttons: ["Cancel", options.confirmLabel],
-      defaultId: 1,
-      cancelId: 0,
+      options: ["Cancel", options.confirmLabel],
+      defaultIndex: 1,
+      cancelIndex: 0,
     });
-    return result.response === 1;
+    return response === 1;
   }
 }

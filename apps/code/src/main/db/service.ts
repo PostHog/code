@@ -1,12 +1,13 @@
 import path from "node:path";
+import type { IStoragePaths } from "@posthog/platform/storage-paths";
 import Database from "better-sqlite3";
 import {
   type BetterSQLite3Database,
   drizzle,
 } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import { app } from "electron";
-import { injectable, postConstruct, preDestroy } from "inversify";
+import { inject, injectable, postConstruct, preDestroy } from "inversify";
+import { MAIN_TOKENS } from "../di/tokens";
 import { logger } from "../utils/logger";
 
 import * as schema from "./schema";
@@ -20,6 +21,11 @@ export class DatabaseService {
   private _db: BetterSQLite3Database<typeof schema> | null = null;
   private _sqlite: InstanceType<typeof Database> | null = null;
 
+  constructor(
+    @inject(MAIN_TOKENS.StoragePaths)
+    private readonly storagePaths: IStoragePaths,
+  ) {}
+
   get db(): BetterSQLite3Database<typeof schema> {
     if (!this._db) {
       throw new Error("Database not initialized — call initialize() first");
@@ -29,7 +35,7 @@ export class DatabaseService {
 
   @postConstruct()
   initialize(): void {
-    const dbPath = path.join(app.getPath("userData"), "posthog-code.db");
+    const dbPath = path.join(this.storagePaths.appDataPath, "posthog-code.db");
     log.info("Opening database", {
       path: dbPath,
       migrationsFolder: MIGRATIONS_FOLDER,

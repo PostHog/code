@@ -1,6 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
+import type { IUrlLauncher } from "@posthog/platform/url-launcher";
 import {
   type McpAppsDiscoveryCompleteEvent,
   McpAppsServiceEvent,
@@ -14,8 +15,8 @@ import {
   type McpToolUiMeta,
   type McpUiResource,
 } from "@shared/types/mcp-apps";
-import { shell } from "electron";
-import { injectable } from "inversify";
+import { inject, injectable } from "inversify";
+import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 
@@ -40,6 +41,13 @@ export class McpAppsService extends TypedEventEmitter<McpAppsServiceEvents> {
   private pendingConnections = new Map<string, Promise<ServerConnection>>();
   private pendingFetches = new Map<string, Promise<McpUiResource | null>>();
   private resourceMetaCache = new Map<string, McpResourceUiMeta>();
+
+  constructor(
+    @inject(MAIN_TOKENS.UrlLauncher)
+    private readonly urlLauncher: IUrlLauncher,
+  ) {
+    super();
+  }
 
   /**
    * Store server configs for lazy connections later.
@@ -356,7 +364,7 @@ export class McpAppsService extends TypedEventEmitter<McpAppsServiceEvents> {
         `Only http/https URLs are allowed, got: ${parsed.protocol}`,
       );
     }
-    await shell.openExternal(url);
+    await this.urlLauncher.launch(url);
   }
 
   notifyToolInput(toolKey: string, toolCallId: string, args: unknown): void {

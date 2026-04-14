@@ -1,12 +1,12 @@
 import * as crypto from "node:crypto";
 import * as http from "node:http";
 import type { Socket } from "node:net";
+import type { IUrlLauncher } from "@posthog/platform/url-launcher";
 import {
   getOauthClientIdFromRegion,
   OAUTH_SCOPES,
 } from "@shared/constants/oauth";
 import { getCloudUrlFromRegion } from "@shared/utils/urls";
-import { shell } from "electron";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
@@ -51,6 +51,8 @@ export class OAuthService {
   constructor(
     @inject(MAIN_TOKENS.DeepLinkService)
     private readonly deepLinkService: DeepLinkService,
+    @inject(MAIN_TOKENS.UrlLauncher)
+    private readonly urlLauncher: IUrlLauncher,
   ) {
     // Register OAuth callback handler for deep links
     this.deepLinkService.registerHandler("callback", (_path, searchParams) =>
@@ -262,7 +264,7 @@ export class OAuthService {
       };
 
       // Open the browser for authentication
-      shell.openExternal(authUrl).catch((error) => {
+      this.urlLauncher.launch(authUrl).catch((error) => {
         clearTimeout(timeoutId);
         this.pendingFlow = null;
         reject(new Error(`Failed to open browser: ${error.message}`));
@@ -347,7 +349,7 @@ export class OAuthService {
           `Dev OAuth callback server listening on port ${DEV_CALLBACK_PORT}`,
         );
         // Open the browser for authentication
-        shell.openExternal(authUrl).catch((error) => {
+        this.urlLauncher.launch(authUrl).catch((error) => {
           this.cleanupHttpServer();
           reject(new Error(`Failed to open browser: ${error.message}`));
         });
@@ -503,6 +505,6 @@ export class OAuthService {
    * Open an external URL in the default browser.
    */
   public async openExternalUrl(url: string): Promise<void> {
-    await shell.openExternal(url);
+    await this.urlLauncher.launch(url);
   }
 }

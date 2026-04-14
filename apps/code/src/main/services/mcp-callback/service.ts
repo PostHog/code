@@ -1,6 +1,6 @@
 import * as http from "node:http";
 import type { Socket } from "node:net";
-import { shell } from "electron";
+import type { IUrlLauncher } from "@posthog/platform/url-launcher";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
@@ -39,6 +39,8 @@ export class McpCallbackService extends TypedEventEmitter<McpCallbackEvents> {
   constructor(
     @inject(MAIN_TOKENS.DeepLinkService)
     private readonly deepLinkService: DeepLinkService,
+    @inject(MAIN_TOKENS.UrlLauncher)
+    private readonly urlLauncher: IUrlLauncher,
   ) {
     super();
     // Register deep link handler for MCP OAuth callbacks (production)
@@ -130,7 +132,7 @@ export class McpCallbackService extends TypedEventEmitter<McpCallbackEvents> {
       };
 
       // Open the browser for authentication
-      shell.openExternal(redirectUrl).catch((error) => {
+      this.urlLauncher.launch(redirectUrl).catch((error) => {
         clearTimeout(timeoutId);
         this.pendingCallback = null;
         reject(new Error(`Failed to open browser: ${error.message}`));
@@ -210,7 +212,7 @@ export class McpCallbackService extends TypedEventEmitter<McpCallbackEvents> {
           `Dev MCP OAuth callback server listening on port ${DEV_CALLBACK_PORT}`,
         );
         // Open the browser for authentication
-        shell.openExternal(redirectUrl).catch((error) => {
+        this.urlLauncher.launch(redirectUrl).catch((error) => {
           this.cleanupHttpServer();
           reject(new Error(`Failed to open browser: ${error.message}`));
         });

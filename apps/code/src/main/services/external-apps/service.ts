@@ -2,10 +2,13 @@ import { exec } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
+import type { IClipboard } from "@posthog/platform/clipboard";
+import type { IFileIcon } from "@posthog/platform/file-icon";
+import type { IStoragePaths } from "@posthog/platform/storage-paths";
 import type { DetectedApplication } from "@shared/types";
-import { app, clipboard } from "electron";
 import Store from "electron-store";
-import { injectable } from "inversify";
+import { inject, injectable } from "inversify";
+import { MAIN_TOKENS } from "../../di/tokens";
 import type { AppDefinition, ExternalAppsSchema } from "./types";
 
 const execAsync = promisify(exec);
@@ -475,46 +478,30 @@ export class ExternalAppsService {
     explorer: "Explorer",
   };
 
-  private fileIconModule: typeof import("file-icon") | null = null;
   private cachedApps: DetectedApplication[] | null = null;
   private detectionPromise: Promise<DetectedApplication[]> | null = null;
   private prefsStore: Store<ExternalAppsSchema>;
 
-  constructor() {
+  constructor(
+    @inject(MAIN_TOKENS.StoragePaths)
+    private readonly storagePaths: IStoragePaths,
+    @inject(MAIN_TOKENS.Clipboard)
+    private readonly clipboard: IClipboard,
+    @inject(MAIN_TOKENS.FileIcon)
+    private readonly fileIcon: IFileIcon,
+  ) {
     this.prefsStore = new Store<ExternalAppsSchema>({
       name: "external-apps",
-      cwd: app.getPath("userData"),
+      cwd: this.storagePaths.appDataPath,
       defaults: {
         externalAppsPrefs: {},
       },
     });
   }
 
-  private async getFileIcon() {
-    if (!this.fileIconModule) {
-      this.fileIconModule = await import("file-icon");
-    }
-    return this.fileIconModule;
-  }
-
   private async extractIcon(appPath: string): Promise<string | undefined> {
-    try {
-      if (process.platform === "darwin") {
-        const fileIconModule = await this.getFileIcon();
-        const uint8Array = await fileIconModule.fileIconToBuffer(appPath, {
-          size: 64,
-        });
-        const buffer = Buffer.from(uint8Array);
-        const base64 = buffer.toString("base64");
-        return `data:image/png;base64,${base64}`;
-      }
-
-      const icon = await app.getFileIcon(appPath, { size: "normal" });
-      const base64 = icon.toPNG().toString("base64");
-      return `data:image/png;base64,${base64}`;
-    } catch {
-      return undefined;
-    }
+    const dataUrl = await this.fileIcon.getAsDataUrl(appPath);
+    return dataUrl ?? undefined;
   }
 
   private async findWin32Executable(
@@ -666,7 +653,7 @@ export class ExternalAppsService {
   }
 
   async copyPath(targetPath: string): Promise<void> {
-    clipboard.writeText(targetPath);
+    await this.clipboard.writeText(targetPath);
   }
 
   getPrefsStore() {

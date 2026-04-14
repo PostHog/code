@@ -9,6 +9,12 @@ import { SuspensionRepositoryImpl } from "../db/repositories/suspension-reposito
 import { WorkspaceRepository } from "../db/repositories/workspace-repository";
 import { WorktreeRepository } from "../db/repositories/worktree-repository";
 import { DatabaseService } from "../db/service";
+import { ElectronAppMeta } from "../platform-adapters/electron-app-meta";
+import { ElectronClipboard } from "../platform-adapters/electron-clipboard";
+import { ElectronDialog } from "../platform-adapters/electron-dialog";
+import { ElectronFileIcon } from "../platform-adapters/electron-file-icon";
+import { ElectronSecureStorage } from "../platform-adapters/electron-secure-storage";
+import { ElectronStoragePaths } from "../platform-adapters/electron-storage-paths";
 import { ElectronUrlLauncher } from "../platform-adapters/electron-url-launcher";
 import { AgentAuthAdapter } from "../services/agent/auth-adapter";
 import { AgentService } from "../services/agent/service";
@@ -55,6 +61,12 @@ export const container = new Container({
 });
 
 container.bind(MAIN_TOKENS.UrlLauncher).to(ElectronUrlLauncher);
+container.bind(MAIN_TOKENS.StoragePaths).to(ElectronStoragePaths);
+container.bind(MAIN_TOKENS.AppMeta).to(ElectronAppMeta);
+container.bind(MAIN_TOKENS.Dialog).to(ElectronDialog);
+container.bind(MAIN_TOKENS.Clipboard).to(ElectronClipboard);
+container.bind(MAIN_TOKENS.FileIcon).to(ElectronFileIcon);
+container.bind(MAIN_TOKENS.SecureStorage).to(ElectronSecureStorage);
 
 container.bind(MAIN_TOKENS.DatabaseService).to(DatabaseService);
 container

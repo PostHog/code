@@ -1,13 +1,22 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { app, dialog, nativeImage, shell } from "electron";
+import type { IAppMeta } from "@posthog/platform/app-meta";
+import type { DialogSeverity, IDialog } from "@posthog/platform/dialog";
+import type { IUrlLauncher } from "@posthog/platform/url-launcher";
+import { nativeImage } from "electron";
 import { z } from "zod";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import { getWorktreeLocation } from "../../services/settingsStore";
-import { getMainWindow } from "../context";
 import { publicProcedure, router } from "../trpc";
 
 const fsPromises = fs.promises;
+
+const getUrlLauncher = () =>
+  container.get<IUrlLauncher>(MAIN_TOKENS.UrlLauncher);
+const getDialog = () => container.get<IDialog>(MAIN_TOKENS.Dialog);
+const getAppMeta = () => container.get<IAppMeta>(MAIN_TOKENS.AppMeta);
 
 const IMAGE_MIME_MAP: Record<string, string> = {
   png: "image/png",
@@ -131,40 +140,22 @@ export const osRouter = router({
    * Show directory picker dialog
    */
   selectDirectory: publicProcedure.query(async () => {
-    const win = getMainWindow();
-    if (!win) return null;
-
-    const result = await dialog.showOpenDialog(win, {
+    const paths = await getDialog().pickFile({
       title: "Select a repository folder",
-      properties: [
-        "openDirectory",
-        "createDirectory",
-        "treatPackageAsDirectory",
-      ],
+      directories: true,
+      createDirectories: true,
     });
-    if (result.canceled || !result.filePaths?.length) {
-      return null;
-    }
-    return result.filePaths[0];
+    return paths[0] ?? null;
   }),
 
   /**
    * Show file picker dialog
    */
   selectFiles: publicProcedure.output(z.array(z.string())).query(async () => {
-    const win = getMainWindow();
-    if (!win) return [];
-
-    const result = await dialog.showOpenDialog(win, {
+    return await getDialog().pickFile({
       title: "Select files",
-      properties: ["openFile", "multiSelections", "treatPackageAsDirectory"],
+      multiple: true,
     });
-
-    if (result.canceled || !result.filePaths?.length) {
-      return [];
-    }
-
-    return result.filePaths;
   }),
 
   /**
@@ -194,23 +185,22 @@ export const osRouter = router({
   showMessageBox: publicProcedure
     .input(z.object({ options: messageBoxOptionsSchema }))
     .mutation(async ({ input }) => {
-      const win = getMainWindow();
-      if (!win) throw new Error("Main window not available");
-
       const options = input.options;
-      const result = await dialog.showMessageBox(win, {
-        type: options?.type || "info",
+      const severity: DialogSeverity | undefined =
+        options?.type && options.type !== "none" ? options.type : undefined;
+      const response = await getDialog().confirm({
+        severity,
         title: options?.title || "PostHog Code",
         message: options?.message || "",
         detail: options?.detail,
-        buttons:
+        options:
           Array.isArray(options?.buttons) && options.buttons.length > 0
             ? options.buttons
             : ["OK"],
-        defaultId: options?.defaultId ?? 0,
-        cancelId: options?.cancelId ?? 1,
+        defaultIndex: options?.defaultId ?? 0,
+        cancelIndex: options?.cancelId ?? 1,
       });
-      return { response: result.response };
+      return { response };
     }),
 
   /**
@@ -219,7 +209,7 @@ export const osRouter = router({
   openExternal: publicProcedure
     .input(z.object({ url: z.string() }))
     .mutation(async ({ input }) => {
-      await shell.openExternal(input.url);
+      await getUrlLauncher().launch(input.url);
     }),
 
   /**
@@ -264,7 +254,7 @@ export const osRouter = router({
   /**
    * Get the application version
    */
-  getAppVersion: publicProcedure.query(() => app.getVersion()),
+  getAppVersion: publicProcedure.query(() => getAppMeta().version),
 
   /**
    * Get the worktree base location (e.g., ~/.posthog-code)

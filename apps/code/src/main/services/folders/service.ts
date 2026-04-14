@@ -16,7 +16,7 @@ function extractRepoKey(url: string): string | null {
 }
 
 import { WorktreeManager } from "@posthog/git/worktree";
-import { dialog } from "electron";
+import type { IDialog } from "@posthog/platform/dialog";
 import { inject, injectable } from "inversify";
 import type {
   IRepositoryRepository,
@@ -25,7 +25,6 @@ import type {
 import type { IWorkspaceRepository } from "../../db/repositories/workspace-repository";
 import type { IWorktreeRepository } from "../../db/repositories/worktree-repository";
 import { MAIN_TOKENS } from "../../di/tokens";
-import { getMainWindow } from "../../trpc/context";
 import { logger } from "../../utils/logger";
 import { getWorktreeLocation } from "../settingsStore";
 import type { RegisteredFolder } from "./schemas";
@@ -41,6 +40,8 @@ export class FoldersService {
     private readonly workspaceRepo: IWorkspaceRepository,
     @inject(MAIN_TOKENS.WorktreeRepository)
     private readonly worktreeRepo: IWorktreeRepository,
+    @inject(MAIN_TOKENS.Dialog)
+    private readonly dialog: IDialog,
   ) {
     this.initialize().catch((err) => {
       log.error("Folders initialization failed", err);
@@ -124,22 +125,17 @@ export class FoldersService {
     const isRepo = await isGitRepository(folderPath);
 
     if (!isRepo) {
-      const mainWindow = getMainWindow();
-      if (!mainWindow) {
-        throw new Error("This folder is not a git repository");
-      }
-
-      const result = await dialog.showMessageBox(mainWindow, {
-        type: "question",
+      const response = await this.dialog.confirm({
+        severity: "question",
         title: "Initialize Git Repository",
         message: "This folder is not a git repository",
         detail: `Would you like to initialize git in "${path.basename(folderPath)}"?`,
-        buttons: ["Initialize Git", "Cancel"],
-        defaultId: 0,
-        cancelId: 1,
+        options: ["Initialize Git", "Cancel"],
+        defaultIndex: 0,
+        cancelIndex: 1,
       });
 
-      if (result.response === 1) {
+      if (response === 1) {
         throw new Error("Folder must be a git repository");
       }
 

@@ -7,6 +7,12 @@
 export const MAIN_TOKENS = Object.freeze({
   // Platform ports (host-agnostic interfaces from @posthog/platform)
   UrlLauncher: Symbol.for("Platform.UrlLauncher"),
+  StoragePaths: Symbol.for("Platform.StoragePaths"),
+  AppMeta: Symbol.for("Platform.AppMeta"),
+  Dialog: Symbol.for("Platform.Dialog"),
+  Clipboard: Symbol.for("Platform.Clipboard"),
+  FileIcon: Symbol.for("Platform.FileIcon"),
+  SecureStorage: Symbol.for("Platform.SecureStorage"),
 
   // Stores
   SettingsStore: Symbol.for("Main.SettingsStore"),
