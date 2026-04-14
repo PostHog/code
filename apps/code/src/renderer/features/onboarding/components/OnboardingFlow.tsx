@@ -2,9 +2,10 @@ import { DraggableTitleBar } from "@components/DraggableTitleBar";
 import { useLogoutMutation } from "@features/auth/hooks/authMutations";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
-import { SignOut } from "@phosphor-icons/react";
+import { ArrowRight, Lifebuoy, SignOut } from "@phosphor-icons/react";
 import { Button, Flex, Theme } from "@radix-ui/themes";
 import phWordmark from "@renderer/assets/images/wordmark.svg";
+import { trpcClient } from "@renderer/trpc/client";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 
 import { useOnboardingFlow } from "../hooks/useOnboardingFlow";
@@ -252,38 +253,55 @@ export function OnboardingFlow() {
               currentStep={currentStep}
               activeSteps={activeSteps}
             />
-            {isAuthenticated && (
-              <Flex
-                justify="between"
-                style={{
-                  position: "absolute",
-                  bottom: 20,
-                  left: 32,
-                  right: 32,
-                  zIndex: 2,
-                }}
+            <Flex
+              justify="between"
+              style={{
+                position: "absolute",
+                bottom: 20,
+                left: 32,
+                right: 32,
+                zIndex: 2,
+              }}
+            >
+              <Button
+                size="1"
+                variant="ghost"
+                color="gray"
+                onClick={() =>
+                  trpcClient.os.openExternal.mutate({
+                    url: "https://discord.gg/posthog",
+                  })
+                }
+                style={{ opacity: 0.5 }}
               >
-                <Button
-                  size="1"
-                  variant="ghost"
-                  color="gray"
-                  onClick={() => logoutMutation.mutate()}
-                  style={{ opacity: 0.5 }}
-                >
-                  <SignOut size={14} />
-                  Log out
-                </Button>
-                <Button
-                  size="1"
-                  variant="ghost"
-                  color="gray"
-                  onClick={handleComplete}
-                  style={{ opacity: 0.5 }}
-                >
-                  Skip setup
-                </Button>
-              </Flex>
-            )}
+                <Lifebuoy size={14} />
+                Get support
+              </Button>
+              {isAuthenticated && (
+                <Flex gap="5">
+                  <Button
+                    size="1"
+                    variant="ghost"
+                    color="gray"
+                    onClick={() => logoutMutation.mutate()}
+                    style={{ opacity: 0.5 }}
+                  >
+                    <SignOut size={14} />
+                    Log out
+                  </Button>
+                  <Button
+                    size="1"
+                    variant="ghost"
+                    color="gray"
+                    onClick={handleComplete}
+                    style={{ opacity: 0.5 }}
+                  >
+                    <ArrowRight size={14} />
+                    Skip setup
+                  </Button>
+                </Flex>
+              )}
+            </Flex>
           </Flex>
         </Flex>
       </LayoutGroup>
