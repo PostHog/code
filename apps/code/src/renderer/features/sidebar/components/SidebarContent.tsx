@@ -18,6 +18,7 @@ export const SidebarContent: React.FC = () => {
       <Box flexGrow="1" overflow="hidden">
         <SidebarMenu />
       </Box>
+      <UpdateBanner />
       {archivedTaskIds.size > 0 && (
         <Box className="shrink-0 border-gray-6 border-t">
           <button
@@ -32,7 +33,6 @@ export const SidebarContent: React.FC = () => {
           </button>
         </Box>
       )}
-      <UpdateBanner />
       <Box p="2" className="shrink-0 border-gray-6 border-t">
         <ProjectSwitcher />
       </Box>
