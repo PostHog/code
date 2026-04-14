@@ -118,7 +118,6 @@ export class ContextMenuService {
     return this.showMenu<TaskAction>([
       this.item(isPinned ? "Unpin" : "Pin", { type: "pin" }),
       this.item("Rename", { type: "rename" }),
-      this.item("Copy Task ID", { type: "copy-task-id" }),
       ...(worktreePath
         ? [
             this.separator(),
@@ -273,11 +272,6 @@ export class ContextMenuService {
     const lastUsedApp = apps.find((app) => app.id === lastUsedAppId) || apps[0];
     const openIn = (appId: string): T =>
       ({ type: "external-app", action: { type: "open-in-app", appId } }) as T;
-    const copyPath: T = {
-      type: "external-app",
-      action: { type: "copy-path" },
-    } as T;
-
     return [
       this.item(`Open in ${lastUsedApp.name}`, openIn(lastUsedApp.id)),
       {
@@ -293,7 +287,6 @@ export class ContextMenuService {
           action: openIn(app.id),
         })),
       },
-      this.item("Copy Path", copyPath, { accelerator: "CmdOrCtrl+Shift+C" }),
     ];
   }
 
