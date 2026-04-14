@@ -1,3 +1,4 @@
+import { DotPatternBackground } from "@components/DotPatternBackground";
 import { DraggableTitleBar } from "@components/DraggableTitleBar";
 import { useLogoutMutation } from "@features/auth/hooks/authMutations";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
@@ -78,6 +79,7 @@ export function OnboardingFlow() {
               backgroundColor: "var(--color-background)",
             }}
           />
+          <DotPatternBackground />
 
           {/* Particle background for context-collection step */}
           {currentStep === "context-collection" && (

@@ -1,3 +1,4 @@
+import { DotPatternBackground } from "@components/DotPatternBackground";
 import { EnvironmentSelector } from "@features/environments/components/EnvironmentSelector";
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
@@ -43,8 +44,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePreviewConfig } from "../hooks/usePreviewConfig";
 import { useTaskCreation } from "../hooks/useTaskCreation";
 import { type WorkspaceMode, WorkspaceModeSelect } from "./WorkspaceModeSelect";
-
-const DOT_FILL = "var(--gray-6)";
 
 const TASK_EXAMPLES = [
   { text: "Improve our onboarding conversion funnel", hog: graphsHog },
@@ -431,37 +430,7 @@ export function TaskInput({
         height="100%"
         style={{ position: "relative" }}
       >
-        <svg
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            width: "100%",
-            height: "100.333%",
-            pointerEvents: "none",
-            opacity: 0.4,
-            maskImage: "linear-gradient(to top, black 0%, transparent 100%)",
-            WebkitMaskImage:
-              "linear-gradient(to top, black 0%, transparent 100%)",
-          }}
-        >
-          <defs>
-            <pattern
-              id="dot-pattern"
-              patternUnits="userSpaceOnUse"
-              width="8"
-              height="8"
-            >
-              <circle cx="0" cy="0" r="1" fill={DOT_FILL} />
-              <circle cx="0" cy="8" r="1" fill={DOT_FILL} />
-              <circle cx="8" cy="8" r="1" fill={DOT_FILL} />
-              <circle cx="8" cy="0" r="1" fill={DOT_FILL} />
-              <circle cx="4" cy="4" r="1" fill={DOT_FILL} />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#dot-pattern)" />
-        </svg>
+        <DotPatternBackground style={{ height: "100.333%" }} />
         <Flex
           direction="column"
           gap="2"
