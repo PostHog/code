@@ -26,7 +26,7 @@ export function UpdateBanner() {
           <AnimatePresence mode="wait">
             {status === "downloading" && (
               <BannerContent key="downloading">
-                <Spinner size={14} className="animate-spin" />
+                <Spinner size={16} className="animate-spin" />
                 <span>Downloading update...</span>
               </BannerContent>
             )}
