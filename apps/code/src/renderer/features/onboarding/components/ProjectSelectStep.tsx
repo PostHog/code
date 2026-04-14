@@ -15,12 +15,12 @@ import {
   Check,
   CheckCircle,
 } from "@phosphor-icons/react";
-import { Box, Button, Flex, Popover, Skeleton, Text } from "@radix-ui/themes";
+import { Box, Button, Flex, Popover, Spinner, Text } from "@radix-ui/themes";
 import happyHog from "@renderer/assets/images/hedgehogs/happy-hog.png";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { AnimatePresence, motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { OnboardingHogTip } from "./OnboardingHogTip";
 import { StepActions } from "./StepActions";
 
@@ -41,6 +41,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
   const { projects, currentProject, currentUser, isLoading } = useProjects();
   const [projectOpen, setProjectOpen] = useState(false);
   const [orgOpen, setOrgOpen] = useState(false);
+  const [isSwitchingOrg, setIsSwitchingOrg] = useState(false);
 
   const client = useOptionalAuthenticatedClient();
   const queryClient = useQueryClient();
@@ -68,10 +69,20 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
         queryKey: authKeys.currentUsers(),
       });
     },
+    onMutate: () => {
+      setIsSwitchingOrg(true);
+    },
     onError: (err) => {
+      setIsSwitchingOrg(false);
       log.error("Failed to switch organization", err);
     },
   });
+
+  useEffect(() => {
+    if (isSwitchingOrg && !switchOrgMutation.isPending && !isLoading) {
+      setIsSwitchingOrg(false);
+    }
+  }, [isSwitchingOrg, switchOrgMutation.isPending, isLoading]);
 
   return (
     <Flex align="center" justify="center" height="100%" px="8">
@@ -118,28 +129,27 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                         >
                           Pick your home base
                         </Text>
-                        <Flex
-                          align="center"
-                          gap="2"
-                          style={{
-                            padding: "8px 12px",
-                            backgroundColor: "var(--green-a2)",
-                            border: "1px solid var(--green-a5)",
-                            borderRadius: 8,
-                          }}
-                        >
-                          <CheckCircle
-                            size={16}
-                            weight="fill"
-                            style={{ color: "var(--green-9)" }}
-                          />
-                          <Text size="2" style={{ color: "var(--green-11)" }}>
-                            Signed in
-                            {currentUser?.email
-                              ? ` as ${currentUser.email}`
-                              : ""}
-                          </Text>
-                        </Flex>
+                        {!isLoading && !isSwitchingOrg && (
+                          <Flex
+                            align="center"
+                            gap="2"
+                            style={{
+                              padding: "8px 12px",
+                              backgroundColor: "var(--green-a2)",
+                              border: "1px solid var(--green-a5)",
+                              borderRadius: 8,
+                            }}
+                          >
+                            <CheckCircle
+                              size={16}
+                              weight="fill"
+                              style={{ color: "var(--green-9)" }}
+                            />
+                            <Text size="2" style={{ color: "var(--green-11)" }}>
+                              Signed in as {currentUser?.email}
+                            </Text>
+                          </Flex>
+                        )}
                       </Flex>
                     </motion.div>
                   ) : (
@@ -168,12 +178,19 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                 </AnimatePresence>
               </Flex>
 
-              {/* Section 2: Organization selector (only if authenticated + multiple orgs) */}
-              {isAuthenticated && hasMultipleOrgs && (
+              {/* Sections 2+3: Org & project selectors (authenticated only) */}
+              {isAuthenticated && (isLoading || isSwitchingOrg) && (
+                <Flex align="center" justify="center" style={{ height: 80 }}>
+                  <Spinner size="3" />
+                </Flex>
+              )}
+
+              {isAuthenticated && !isSwitchingOrg && hasMultipleOrgs && (
                 <motion.div
-                  style={{ width: "100%" }}
-                  animate={{ opacity: isAuthenticated ? 1 : 0.4 }}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
+                  style={{ width: "100%" }}
                 >
                   <Flex direction="column" gap="2" style={{ width: "100%" }}>
                     <Text
@@ -188,7 +205,6 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                       <Popover.Trigger>
                         <button
                           type="button"
-                          disabled={switchOrgMutation.isPending}
                           style={{
                             all: "unset",
                             display: "flex",
@@ -202,9 +218,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                             borderRadius: 10,
                             boxShadow:
                               "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
-                            cursor: switchOrgMutation.isPending
-                              ? "wait"
-                              : "pointer",
+                            cursor: "pointer",
                             fontSize: 14,
                             fontFamily: "inherit",
                           }}
@@ -214,9 +228,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                             weight="medium"
                             style={{ color: "var(--gray-12)" }}
                           >
-                            {switchOrgMutation.isPending
-                              ? "Switching..."
-                              : (currentOrg?.name ?? "Select organization...")}
+                            {currentOrg?.name ?? "Select organization..."}
                           </Text>
                           <CaretDown
                             size={14}
@@ -282,137 +294,130 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                 </motion.div>
               )}
 
-              {/* Section 3: Project selector (only when authenticated) */}
-              {isAuthenticated && (
-                <Flex direction="column" gap="2" style={{ width: "100%" }}>
-                  <Text
-                    size="2"
-                    weight="medium"
-                    style={{ color: "var(--gray-11)" }}
-                  >
-                    Project
-                  </Text>
-
-                  {isLoading || switchOrgMutation.isPending ? (
-                    <Skeleton
-                      style={{ height: 40, borderRadius: 8, width: "100%" }}
-                    />
-                  ) : (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: 0.05 }}
-                      style={{ width: "100%" }}
+              {/* Section 3: Project selector (only when authenticated, not switching, and loaded) */}
+              {isAuthenticated && !isSwitchingOrg && !isLoading && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.05 }}
+                  style={{ width: "100%" }}
+                >
+                  <Flex direction="column" gap="2" style={{ width: "100%" }}>
+                    <Text
+                      size="2"
+                      weight="medium"
+                      style={{ color: "var(--gray-11)" }}
                     >
-                      <Popover.Root
-                        open={projectOpen}
-                        onOpenChange={setProjectOpen}
-                      >
-                        <Popover.Trigger>
-                          <button
-                            type="button"
-                            style={{
-                              all: "unset",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              width: "100%",
-                              boxSizing: "border-box",
-                              padding: "10px 14px",
-                              backgroundColor: "var(--color-panel-solid)",
-                              border: "1px solid var(--gray-a3)",
-                              borderRadius: 10,
-                              boxShadow:
-                                "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
-                              cursor: "pointer",
-                              fontSize: 14,
-                              fontFamily: "inherit",
-                            }}
-                          >
-                            <Flex direction="column" gap="1">
-                              <Text
-                                size="2"
-                                weight="medium"
-                                style={{ color: "var(--gray-12)" }}
-                              >
-                                {currentProject?.name ?? "Select a project..."}
-                              </Text>
-                              {currentProject && !hasMultipleOrgs && (
-                                <Text
-                                  size="1"
-                                  style={{ color: "var(--gray-11)" }}
-                                >
-                                  {currentProject.organization.name}
-                                </Text>
-                              )}
-                            </Flex>
-                            <CaretDown
-                              size={14}
-                              style={{ color: "var(--gray-9)", flexShrink: 0 }}
-                            />
-                          </button>
-                        </Popover.Trigger>
-                        <Popover.Content
-                          className="project-select-popover"
+                      Project
+                    </Text>
+                    <Popover.Root
+                      open={projectOpen}
+                      onOpenChange={setProjectOpen}
+                    >
+                      <Popover.Trigger>
+                        <button
+                          type="button"
                           style={{
-                            padding: 0,
-                            width: "var(--radix-popover-trigger-width)",
+                            all: "unset",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            width: "100%",
+                            boxSizing: "border-box",
+                            padding: "10px 14px",
+                            backgroundColor: "var(--color-panel-solid)",
+                            border: "1px solid var(--gray-a3)",
+                            borderRadius: 10,
+                            boxShadow:
+                              "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
+                            cursor: "pointer",
+                            fontSize: 14,
+                            fontFamily: "inherit",
                           }}
-                          side="bottom"
-                          align="center"
-                          sideOffset={4}
-                          avoidCollisions={false}
                         >
-                          <Command.Root
-                            shouldFilter={true}
-                            label="Project picker"
-                          >
-                            <Command.Input
-                              placeholder="Search projects..."
-                              autoFocus={true}
-                            />
-                            <Command.List>
-                              <Command.Empty>No projects found.</Command.Empty>
-                              {[...projects]
-                                .sort((a, b) => a.name.localeCompare(b.name))
-                                .map((project) => (
-                                  <Command.Item
-                                    key={project.id}
-                                    value={`${project.name} ${project.id}`}
-                                    onSelect={() => {
-                                      selectProjectMutation.mutate(project.id);
-                                      setProjectOpen(false);
-                                    }}
+                          <Flex direction="column" gap="1">
+                            <Text
+                              size="2"
+                              weight="medium"
+                              style={{ color: "var(--gray-12)" }}
+                            >
+                              {currentProject?.name ?? "Select a project..."}
+                            </Text>
+                            {currentProject && !hasMultipleOrgs && (
+                              <Text
+                                size="1"
+                                style={{ color: "var(--gray-11)" }}
+                              >
+                                {currentProject.organization.name}
+                              </Text>
+                            )}
+                          </Flex>
+                          <CaretDown
+                            size={14}
+                            style={{ color: "var(--gray-9)", flexShrink: 0 }}
+                          />
+                        </button>
+                      </Popover.Trigger>
+                      <Popover.Content
+                        className="project-select-popover"
+                        style={{
+                          padding: 0,
+                          width: "var(--radix-popover-trigger-width)",
+                        }}
+                        side="bottom"
+                        align="center"
+                        sideOffset={4}
+                        avoidCollisions={false}
+                      >
+                        <Command.Root
+                          shouldFilter={true}
+                          label="Project picker"
+                        >
+                          <Command.Input
+                            placeholder="Search projects..."
+                            autoFocus={true}
+                          />
+                          <Command.List>
+                            <Command.Empty>No projects found.</Command.Empty>
+                            {[...projects]
+                              .sort((a, b) => a.name.localeCompare(b.name))
+                              .map((project) => (
+                                <Command.Item
+                                  key={project.id}
+                                  value={`${project.name} ${project.id}`}
+                                  onSelect={() => {
+                                    selectProjectMutation.mutate(project.id);
+                                    setProjectOpen(false);
+                                  }}
+                                >
+                                  <Flex
+                                    align="center"
+                                    justify="between"
+                                    width="100%"
                                   >
-                                    <Flex
-                                      align="center"
-                                      justify="between"
-                                      width="100%"
-                                    >
-                                      <Box>
-                                        <Text size="2">{project.name}</Text>
-                                      </Box>
-                                      {project.id === currentProjectId && (
-                                        <Check
-                                          size={14}
-                                          style={{ color: "var(--accent-11)" }}
-                                        />
-                                      )}
-                                    </Flex>
-                                  </Command.Item>
-                                ))}
-                            </Command.List>
-                          </Command.Root>
-                        </Popover.Content>
-                      </Popover.Root>
-                    </motion.div>
-                  )}
-                </Flex>
+                                    <Box>
+                                      <Text size="2">{project.name}</Text>
+                                    </Box>
+                                    {project.id === currentProjectId && (
+                                      <Check
+                                        size={14}
+                                        style={{ color: "var(--accent-11)" }}
+                                      />
+                                    )}
+                                  </Flex>
+                                </Command.Item>
+                              ))}
+                          </Command.List>
+                        </Command.Root>
+                      </Popover.Content>
+                    </Popover.Root>
+                  </Flex>
+                </motion.div>
               )}
             </Flex>
 
             {/* Hog tip */}
-            {isAuthenticated && !isLoading && !switchOrgMutation.isPending && (
+            {isAuthenticated && !isLoading && !isSwitchingOrg && (
               <OnboardingHogTip
                 hogSrc={happyHog}
                 message="I'll use data from this project to help drive product decisions."
