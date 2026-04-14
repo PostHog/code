@@ -51,9 +51,6 @@ export function OnboardingFlow() {
     completeOnboarding();
   };
 
-  const isWelcome = currentStep === "welcome";
-  const isTutorial = currentStep === "tutorial";
-
   return (
     <Theme appearance="light" accentColor="orange" radius="medium">
       <LayoutGroup>
@@ -64,227 +61,230 @@ export function OnboardingFlow() {
         >
           <DraggableTitleBar />
 
-          {isWelcome ? (
-            <WelcomeScreen onNext={next} />
-          ) : isTutorial ? (
-            <Flex align="center" justify="center" style={{ flex: 1 }}>
-              <Button size="3" onClick={handleComplete}>
-                Get started
-              </Button>
-            </Flex>
-          ) : (
-            <>
-              {/* Background */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  backgroundColor: "rgb(243, 244, 240)",
-                }}
-              />
+          {/* Background */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundColor: "rgb(243, 244, 240)",
+            }}
+          />
 
-              {/* Particle background for context-collection step */}
-              {currentStep === "context-collection" && (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    zIndex: 0,
-                    pointerEvents: "none",
-                  }}
-                >
-                  <ParticleBackground />
-                </div>
-              )}
+          {/* Particle background for context-collection step */}
+          {currentStep === "context-collection" && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                zIndex: 0,
+                pointerEvents: "none",
+              }}
+            >
+              <ParticleBackground />
+            </div>
+          )}
 
-              {/* Content */}
-              <Flex
-                direction="column"
-                flexGrow="1"
-                style={{
-                  position: "relative",
-                  zIndex: 1,
-                  minHeight: 0,
-                  width: "100%",
-                }}
-              >
-                <img
-                  src={phWordmark}
-                  alt="PostHog"
-                  style={{
-                    height: "40px",
-                    objectFit: "contain",
-                    alignSelf: "flex-start",
-                    marginLeft: 32,
-                    marginTop: 80,
-                    flexShrink: 0,
-                  }}
-                />
-                <Flex
-                  direction="column"
-                  flexGrow="1"
-                  overflow="hidden"
-                  style={{ minHeight: 0 }}
-                >
-                  <AnimatePresence mode="wait" custom={direction}>
-                    {currentStep === "project-select" && (
-                      <motion.div
-                        key="project-select"
-                        custom={direction}
-                        initial="enter"
-                        animate="center"
-                        exit="exit"
-                        variants={stepVariants}
-                        transition={{ duration: 0.3 }}
-                        style={{ width: "100%", flex: 1, minHeight: 0 }}
-                      >
-                        <ProjectSelectStep onNext={next} onBack={back} />
-                      </motion.div>
-                    )}
+          {/* Content */}
+          <Flex
+            direction="column"
+            flexGrow="1"
+            style={{
+              position: "relative",
+              zIndex: 1,
+              minHeight: 0,
+              width: "100%",
+            }}
+          >
+            <img
+              src={phWordmark}
+              alt="PostHog"
+              style={{
+                height: "40px",
+                objectFit: "contain",
+                alignSelf: "flex-start",
+                marginLeft: 32,
+                marginTop: 80,
+                flexShrink: 0,
+              }}
+            />
+            <Flex
+              direction="column"
+              flexGrow="1"
+              overflow="hidden"
+              style={{ minHeight: 0 }}
+            >
+              <AnimatePresence mode="wait" custom={direction}>
+                {currentStep === "welcome" && (
+                  <motion.div
+                    key="welcome"
+                    custom={direction}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    variants={stepVariants}
+                    transition={{ duration: 0.3 }}
+                    style={{ width: "100%", flex: 1, minHeight: 0 }}
+                  >
+                    <WelcomeScreen onNext={next} />
+                  </motion.div>
+                )}
 
-                    {currentStep === "work-context" && (
-                      <motion.div
-                        key="work-context"
-                        custom={direction}
-                        initial="enter"
-                        animate="center"
-                        exit="exit"
-                        variants={stepVariants}
-                        transition={{ duration: 0.3 }}
-                        style={{ width: "100%", flex: 1, minHeight: 0 }}
-                      >
-                        <WorkContextStep onNext={next} onBack={back} />
-                      </motion.div>
-                    )}
+                {currentStep === "project-select" && (
+                  <motion.div
+                    key="project-select"
+                    custom={direction}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    variants={stepVariants}
+                    transition={{ duration: 0.3 }}
+                    style={{ width: "100%", flex: 1, minHeight: 0 }}
+                  >
+                    <ProjectSelectStep onNext={next} onBack={back} />
+                  </motion.div>
+                )}
 
-                    {currentStep === "billing" && (
-                      <motion.div
-                        key="billing"
-                        custom={direction}
-                        initial="enter"
-                        animate="center"
-                        exit="exit"
-                        variants={stepVariants}
-                        transition={{ duration: 0.3 }}
-                        style={{ width: "100%", flex: 1, minHeight: 0 }}
-                      >
-                        <BillingStep onNext={next} onBack={back} />
-                      </motion.div>
-                    )}
+                {currentStep === "work-context" && (
+                  <motion.div
+                    key="work-context"
+                    custom={direction}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    variants={stepVariants}
+                    transition={{ duration: 0.3 }}
+                    style={{ width: "100%", flex: 1, minHeight: 0 }}
+                  >
+                    <WorkContextStep onNext={next} onBack={back} />
+                  </motion.div>
+                )}
 
-                    {currentStep === "org" && (
-                      <motion.div
-                        key="org"
-                        custom={direction}
-                        initial="enter"
-                        animate="center"
-                        exit="exit"
-                        variants={stepVariants}
-                        transition={{ duration: 0.3 }}
-                        style={{ width: "100%", flex: 1, minHeight: 0 }}
-                      >
-                        <OrgStep onNext={next} onBack={back} />
-                      </motion.div>
-                    )}
+                {currentStep === "billing" && (
+                  <motion.div
+                    key="billing"
+                    custom={direction}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    variants={stepVariants}
+                    transition={{ duration: 0.3 }}
+                    style={{ width: "100%", flex: 1, minHeight: 0 }}
+                  >
+                    <BillingStep onNext={next} onBack={back} />
+                  </motion.div>
+                )}
 
-                    {currentStep === "github" && (
-                      <motion.div
-                        key="github"
-                        custom={direction}
-                        initial="enter"
-                        animate="center"
-                        exit="exit"
-                        variants={stepVariants}
-                        transition={{ duration: 0.3 }}
-                        style={{ width: "100%", flex: 1, minHeight: 0 }}
-                      >
-                        <GitIntegrationStep
-                          onNext={next}
-                          onBack={back}
-                          selectedDirectory={selectedDirectory}
-                          detectedRepo={detectedRepo}
-                          isDetectingRepo={isDetectingRepo}
-                          onDirectoryChange={handleDirectoryChange}
-                        />
-                      </motion.div>
-                    )}
+                {currentStep === "org" && (
+                  <motion.div
+                    key="org"
+                    custom={direction}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    variants={stepVariants}
+                    transition={{ duration: 0.3 }}
+                    style={{ width: "100%", flex: 1, minHeight: 0 }}
+                  >
+                    <OrgStep onNext={next} onBack={back} />
+                  </motion.div>
+                )}
 
-                    {currentStep === "context-collection" && (
-                      <motion.div
-                        key="context-collection"
-                        custom={direction}
-                        initial="enter"
-                        animate="center"
-                        exit="exit"
-                        variants={stepVariants}
-                        transition={{ duration: 0.3 }}
-                        style={{
-                          width: "100%",
-                          flex: 1,
-                          minHeight: 0,
-                          position: "relative",
-                        }}
-                      >
-                        <ContextCollectionStep onNext={next} onBack={back} />
-                      </motion.div>
-                    )}
+                {currentStep === "github" && (
+                  <motion.div
+                    key="github"
+                    custom={direction}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    variants={stepVariants}
+                    transition={{ duration: 0.3 }}
+                    style={{ width: "100%", flex: 1, minHeight: 0 }}
+                  >
+                    <GitIntegrationStep
+                      onNext={next}
+                      onBack={back}
+                      selectedDirectory={selectedDirectory}
+                      detectedRepo={detectedRepo}
+                      isDetectingRepo={isDetectingRepo}
+                      onDirectoryChange={handleDirectoryChange}
+                    />
+                  </motion.div>
+                )}
 
-                    {currentStep === "signals" && (
-                      <motion.div
-                        key="signals"
-                        custom={direction}
-                        initial="enter"
-                        animate="center"
-                        exit="exit"
-                        variants={stepVariants}
-                        transition={{ duration: 0.3 }}
-                        style={{ width: "100%", flex: 1, minHeight: 0 }}
-                      >
-                        <SignalsStep onNext={next} onBack={back} />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </Flex>
-
-                <StepIndicator
-                  currentStep={currentStep}
-                  activeSteps={activeSteps}
-                />
-                {isAuthenticated && (
-                  <Flex
-                    justify="between"
+                {currentStep === "context-collection" && (
+                  <motion.div
+                    key="context-collection"
+                    custom={direction}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    variants={stepVariants}
+                    transition={{ duration: 0.3 }}
                     style={{
-                      position: "absolute",
-                      bottom: 20,
-                      left: 32,
-                      right: 32,
-                      zIndex: 2,
+                      width: "100%",
+                      flex: 1,
+                      minHeight: 0,
+                      position: "relative",
                     }}
                   >
-                    <Button
-                      size="1"
-                      variant="ghost"
-                      color="gray"
-                      onClick={() => logoutMutation.mutate()}
-                      style={{ opacity: 0.5 }}
-                    >
-                      <SignOut size={14} />
-                      Log out
-                    </Button>
-                    <Button
-                      size="1"
-                      variant="ghost"
-                      color="gray"
-                      onClick={handleComplete}
-                      style={{ opacity: 0.5 }}
-                    >
-                      Skip setup
-                    </Button>
-                  </Flex>
+                    <ContextCollectionStep onNext={next} onBack={back} />
+                  </motion.div>
                 )}
+
+                {currentStep === "signals" && (
+                  <motion.div
+                    key="signals"
+                    custom={direction}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    variants={stepVariants}
+                    transition={{ duration: 0.3 }}
+                    style={{ width: "100%", flex: 1, minHeight: 0 }}
+                  >
+                    <SignalsStep onNext={next} onBack={back} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Flex>
+
+            <StepIndicator
+              currentStep={currentStep}
+              activeSteps={activeSteps}
+            />
+            {isAuthenticated && (
+              <Flex
+                justify="between"
+                style={{
+                  position: "absolute",
+                  bottom: 20,
+                  left: 32,
+                  right: 32,
+                  zIndex: 2,
+                }}
+              >
+                <Button
+                  size="1"
+                  variant="ghost"
+                  color="gray"
+                  onClick={() => logoutMutation.mutate()}
+                  style={{ opacity: 0.5 }}
+                >
+                  <SignOut size={14} />
+                  Log out
+                </Button>
+                <Button
+                  size="1"
+                  variant="ghost"
+                  color="gray"
+                  onClick={handleComplete}
+                  style={{ opacity: 0.5 }}
+                >
+                  Skip setup
+                </Button>
               </Flex>
-            </>
-          )}
+            )}
+          </Flex>
         </Flex>
       </LayoutGroup>
     </Theme>

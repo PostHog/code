@@ -1,4 +1,3 @@
-import { ZenHedgehog } from "@components/ZenHedgehog";
 import {
   ArrowRight,
   Cloud,
@@ -7,10 +6,11 @@ import {
   Robot,
   Stack,
 } from "@phosphor-icons/react";
-import { Button, Flex } from "@radix-ui/themes";
-import phWordmark from "@renderer/assets/images/wordmark.svg";
+import { Button, Flex, Text } from "@radix-ui/themes";
+import explorerHog from "@renderer/assets/images/hedgehogs/explorer-hog.png";
 import { motion } from "framer-motion";
 import { FeatureListItem } from "./FeatureListItem";
+import { OnboardingHogTip } from "./OnboardingHogTip";
 
 const FEATURES = [
   {
@@ -51,101 +51,64 @@ interface WelcomeScreenProps {
 
 export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
   return (
-    <>
-      {/* Background */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          backgroundColor: "rgb(243, 244, 240)",
-        }}
-      />
-
-      {/* Right panel — zen hedgehog */}
-      <Flex
-        align="center"
-        justify="center"
-        style={{
-          position: "absolute",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: "55%",
-          backgroundColor: "rgb(243, 244, 240)",
-        }}
-      >
-        <ZenHedgehog />
-      </Flex>
-
-      {/* Content */}
+    <Flex align="center" height="100%" px="8">
       <Flex
         direction="column"
-        flexGrow="1"
+        align="center"
         style={{
-          position: "relative",
-          zIndex: 1,
-          minHeight: 0,
-          width: "45%",
+          width: "100%",
+          height: "100%",
+          paddingTop: 24,
+          paddingBottom: 40,
         }}
       >
-        <motion.div
-          key="welcome"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.3 }}
-          style={{ width: "100%", flex: 1, minHeight: 0 }}
+        <Flex
+          direction="column"
+          justify="center"
+          align="center"
+          style={{ flex: 1, minHeight: 0, width: "100%" }}
         >
-          <Flex align="center" height="100%" px="8">
-            <Flex
-              direction="column"
-              style={{
-                width: "100%",
-                maxWidth: 520,
-                height: "100%",
-                paddingTop: 80,
-                paddingBottom: 40,
-              }}
-            >
-              <Flex direction="column" gap="3" mb="4">
-                <img
-                  src={phWordmark}
-                  alt="PostHog"
-                  style={{
-                    height: "40px",
-                    objectFit: "contain",
-                    alignSelf: "flex-start",
-                  }}
+          <Flex
+            direction="column"
+            align="start"
+            gap="6"
+            style={{ width: "100%", maxWidth: 560 }}
+          >
+            <Text size="6" style={{ color: "var(--gray-12)", lineHeight: 1.3 }}>
+              Welcome to PostHog Code
+            </Text>
+
+            <Flex direction="column" gap="3" style={{ width: "100%" }}>
+              {FEATURES.map((feature) => (
+                <FeatureListItem
+                  key={feature.title}
+                  icon={feature.icon}
+                  title={feature.title}
+                  description={feature.description}
                 />
-              </Flex>
-
-              <Flex
-                direction="column"
-                justify="center"
-                style={{ flex: 1, minHeight: 0, overflowY: "auto" }}
-              >
-                <Flex direction="column" gap="3">
-                  {FEATURES.map((feature) => (
-                    <FeatureListItem
-                      key={feature.title}
-                      icon={feature.icon}
-                      title={feature.title}
-                      description={feature.description}
-                    />
-                  ))}
-                </Flex>
-              </Flex>
-
-              <Flex direction="column" gap="3" flexShrink="0" mt="4">
-                <Button size="3" onClick={onNext}>
-                  Get Started
-                  <ArrowRight size={16} />
-                </Button>
-              </Flex>
+              ))}
             </Flex>
+
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+            >
+              <OnboardingHogTip
+                hogSrc={explorerHog}
+                message="Let's get you set up. It only takes a minute."
+              />
+            </motion.div>
           </Flex>
-        </motion.div>
+        </Flex>
+
+        <Flex gap="3" align="center" flexShrink="0">
+          <Button size="3" onClick={onNext}>
+            Get Started
+            <ArrowRight size={16} />
+          </Button>
+        </Flex>
       </Flex>
-    </>
+    </Flex>
   );
 }

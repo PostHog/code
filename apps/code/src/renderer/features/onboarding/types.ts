@@ -6,17 +6,15 @@ export type OnboardingStep =
   | "billing"
   | "org"
   | "github"
-  | "signals"
-  | "tutorial";
+  | "signals";
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   "welcome",
   "project-select",
   "github",
   "billing",
-  "org-billing",
+  "org",
   "signals",
   "work-context",
   "context-collection",
-  "tutorial",
 ];
