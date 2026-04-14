@@ -27,10 +27,13 @@ const ACTIONABILITY_CHIP_STYLE: Record<
 
 interface SignalReportActionabilityBadgeProps {
   actionability: SignalReportActionability | null | undefined;
+  /** When true, prefix the label with "Researched ·" to signal that research is complete. */
+  researched?: boolean;
 }
 
 export function SignalReportActionabilityBadge({
   actionability,
+  researched,
 }: SignalReportActionabilityBadgeProps): ReactNode {
   if (actionability == null) {
     return null;
@@ -51,7 +54,7 @@ export function SignalReportActionabilityBadge({
       }}
       title="Actionability assessment from research"
     >
-      {s.label}
+      {researched ? `Researched · ${s.label}` : s.label}
     </span>
   );
 }

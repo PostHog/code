@@ -51,10 +51,11 @@ export function ReportCardContent({
           >
             {report.title ?? "Untitled signal"}
           </Text>
-          <SignalReportStatusBadge status={report.status} />
+          {!isReady && <SignalReportStatusBadge status={report.status} />}
           <SignalReportPriorityBadge priority={report.priority} />
           <SignalReportActionabilityBadge
             actionability={report.actionability}
+            researched={isReady}
           />
           {report.is_suggested_reviewer && (
             <Tooltip content="You are a suggested reviewer">

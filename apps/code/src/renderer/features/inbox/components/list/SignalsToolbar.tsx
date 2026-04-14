@@ -5,6 +5,7 @@ import { INBOX_REFETCH_INTERVAL_MS } from "@features/inbox/utils/inboxConstants"
 import {
   ArrowClockwiseIcon,
   EyeSlashIcon,
+  GearSixIcon,
   MagnifyingGlass,
   PauseIcon,
   TrashIcon,
@@ -40,6 +41,8 @@ interface SignalsToolbarProps {
   effectiveBulkIds?: string[];
   /** Called when the select-all checkbox is toggled. Parent owns all state transitions. */
   onToggleSelectAll?: (checked: boolean) => void;
+  /** Called when the "Configure sources" button is clicked. */
+  onConfigureSources?: () => void;
 }
 
 function formatPauseRemaining(pausedUntil: string): string {
@@ -83,6 +86,7 @@ export function SignalsToolbar({
   reports = [],
   effectiveBulkIds = [],
   onToggleSelectAll,
+  onConfigureSources,
 }: SignalsToolbarProps) {
   const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
   const setSearchQuery = useInboxSignalsFilterStore((s) => s.setSearchQuery);
@@ -115,7 +119,7 @@ export function SignalsToolbar({
       : null,
     pipelinePausedUntil
       ? `Pipeline paused · resumes in ${formatPauseRemaining(pipelinePausedUntil)}`
-      : "Pipeline running",
+      : null,
   ].filter(Boolean);
 
   const pipelineHint =
@@ -188,6 +192,16 @@ export function SignalsToolbar({
               </Text>
             ) : null}
           </Flex>
+          {onConfigureSources ? (
+            <button
+              type="button"
+              onClick={onConfigureSources}
+              className="flex shrink-0 cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-[12px] text-gray-10 transition-colors hover:text-gray-12"
+            >
+              <GearSixIcon size={12} />
+              <span>Configure sources</span>
+            </button>
+          ) : null}
         </Flex>
 
         <Flex align="center" gap="2">
@@ -218,7 +232,7 @@ export function SignalsToolbar({
           )}
         </Flex>
 
-        <Flex gap="2" align="center" wrap="wrap">
+        <Flex gap="2" align="center" justify="between" wrap="wrap-reverse">
           <Tooltip
             content={
               <>
@@ -248,64 +262,70 @@ export function SignalsToolbar({
               </Text>
             </label>
           </Tooltip>
-          <Button
-            size="1"
-            variant="soft"
-            color="gray"
-            className="text-[12px]"
-            tooltipContent="Wait for this report to gather more context"
-            disabledReason={snoozeDisabledReason}
-            disabled={snoozeDisabledReason !== null || isSnoozing}
-            onClick={() => void handleSnooze()}
-          >
-            {isSnoozing ? <Spinner size="1" /> : <PauseIcon size={12} />}
-            Snooze
-          </Button>
-          <Button
-            size="1"
-            variant="soft"
-            color="red"
-            className="text-[12px]"
-            tooltipContent="Suppress this report to ignore all future signals matched to it"
-            disabledReason={suppressDisabledReason}
-            disabled={suppressDisabledReason !== null || isSuppressing}
-            onClick={() => setShowSuppressConfirm(true)}
-          >
-            {isSuppressing ? <Spinner size="1" /> : <EyeSlashIcon size={12} />}
-            Suppress
-          </Button>
-          <Button
-            size="1"
-            variant="soft"
-            color="red"
-            className="text-[12px]"
-            tooltipContent="Delete this report and its signals"
-            disabledReason={deleteDisabledReason}
-            disabled={deleteDisabledReason !== null || isDeleting}
-            onClick={() => setShowDeleteConfirm(true)}
-          >
-            {isDeleting ? <Spinner size="1" /> : <TrashIcon size={12} />}
-            Delete
-          </Button>
-          {IS_DEV && (
+          <Flex gap="2" align="center" wrap="wrap">
             <Button
               size="1"
               variant="soft"
-              color="blue"
+              color="gray"
               className="text-[12px]"
-              tooltipContent="DEV-ONLY: Reingest this report to gather more context"
-              disabledReason={reingestDisabledReason}
-              disabled={reingestDisabledReason !== null || isReingesting}
-              onClick={() => void handleReingest()}
+              tooltipContent="Wait for this report to gather more context"
+              disabledReason={snoozeDisabledReason}
+              disabled={snoozeDisabledReason !== null || isSnoozing}
+              onClick={() => void handleSnooze()}
             >
-              {isReingesting ? (
+              {isSnoozing ? <Spinner size="1" /> : <PauseIcon size={12} />}
+              Snooze
+            </Button>
+            <Button
+              size="1"
+              variant="soft"
+              color="red"
+              className="text-[12px]"
+              tooltipContent="Suppress this report to ignore all future signals matched to it"
+              disabledReason={suppressDisabledReason}
+              disabled={suppressDisabledReason !== null || isSuppressing}
+              onClick={() => setShowSuppressConfirm(true)}
+            >
+              {isSuppressing ? (
                 <Spinner size="1" />
               ) : (
-                <ArrowClockwiseIcon size={12} />
+                <EyeSlashIcon size={12} />
               )}
-              Reingest
+              Suppress
             </Button>
-          )}
+            <Button
+              size="1"
+              variant="soft"
+              color="red"
+              className="text-[12px]"
+              tooltipContent="Delete this report and its signals"
+              disabledReason={deleteDisabledReason}
+              disabled={deleteDisabledReason !== null || isDeleting}
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              {isDeleting ? <Spinner size="1" /> : <TrashIcon size={12} />}
+              Delete
+            </Button>
+            {IS_DEV && (
+              <Button
+                size="1"
+                variant="soft"
+                color="blue"
+                className="text-[12px]"
+                tooltipContent="DEV-ONLY: Reingest this report to gather more context"
+                disabledReason={reingestDisabledReason}
+                disabled={reingestDisabledReason !== null || isReingesting}
+                onClick={() => void handleReingest()}
+              >
+                {isReingesting ? (
+                  <Spinner size="1" />
+                ) : (
+                  <ArrowClockwiseIcon size={12} />
+                )}
+                Reingest
+              </Button>
+            )}
+          </Flex>
         </Flex>
       </Flex>
 

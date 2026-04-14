@@ -64,7 +64,10 @@ function SidebarMenuComponent() {
   );
   const inboxResults = inboxProbe?.results ?? [];
   const inboxSignalCount = inboxResults.filter(
-    (r) => r.status === "ready",
+    (r) =>
+      r.status === "ready" &&
+      r.is_suggested_reviewer &&
+      r.actionability === "immediately_actionable",
   ).length;
 
   const taskMap = new Map<string, Task>();

@@ -34,6 +34,7 @@ export interface SignalSourceValues {
 interface SignalSourceToggleCardProps {
   icon: React.ReactNode;
   label: string;
+  labelSuffix?: React.ReactNode;
   description: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
@@ -47,6 +48,7 @@ interface SignalSourceToggleCardProps {
 const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
   icon,
   label,
+  labelSuffix,
   description,
   checked,
   onCheckedChange,
@@ -77,9 +79,16 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
         <Flex align="center" gap="3">
           <Box style={{ color: "var(--gray-11)", flexShrink: 0 }}>{icon}</Box>
           <Flex direction="column" gap="1">
-            <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
-              {label}
-            </Text>
+            <Flex align="center" gap="2">
+              <Text
+                size="2"
+                weight="medium"
+                style={{ color: "var(--gray-12)" }}
+              >
+                {label}
+              </Text>
+              {labelSuffix}
+            </Flex>
             <Text size="1" style={{ color: "var(--gray-11)" }}>
               {description}
             </Text>
@@ -174,9 +183,25 @@ export const EvaluationsSection = memo(function EvaluationsSection({
             <BrainIcon size={20} />
           </Box>
           <Flex direction="column" gap="1" style={{ flex: 1, minWidth: 0 }}>
-            <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
-              LLM evaluations
-            </Text>
+            <Flex align="center" gap="2">
+              <Text
+                size="2"
+                weight="medium"
+                style={{ color: "var(--gray-12)" }}
+              >
+                PostHog LLM Analytics
+              </Text>
+              <span
+                className="shrink-0 rounded-sm px-1 py-px text-[9px] uppercase tracking-wider"
+                style={{
+                  color: "var(--blue-11)",
+                  backgroundColor: "var(--blue-3)",
+                  border: "1px solid var(--blue-6)",
+                }}
+              >
+                Internal
+              </span>
+            </Flex>
             <Text size="1" style={{ color: "var(--gray-11)" }}>
               Ongoing evaluation of how your AI features are performing based on
               defined criteria
@@ -296,8 +321,28 @@ export function SignalSourceToggles({
   return (
     <Flex direction="column" gap="2">
       <SignalSourceToggleCard
+        icon={<BugIcon size={20} />}
+        label="PostHog Error Tracking"
+        description="Surface new issues, reopenings, and volume spikes"
+        checked={value.error_tracking}
+        onCheckedChange={toggleErrorTracking}
+        disabled={disabled}
+      />
+      <SignalSourceToggleCard
         icon={<VideoIcon size={20} />}
         label="PostHog Session Replay"
+        labelSuffix={
+          <span
+            className="shrink-0 rounded-sm px-1 py-px text-[9px] uppercase tracking-wider"
+            style={{
+              color: "var(--orange-11)",
+              backgroundColor: "var(--orange-3)",
+              border: "1px solid var(--orange-6)",
+            }}
+          >
+            Alpha
+          </span>
+        }
         description="Analyze session recordings and event data for UX issues"
         checked={value.session_replay}
         onCheckedChange={toggleSessionReplay}
@@ -310,14 +355,6 @@ export function SignalSourceToggles({
             />
           ) : undefined
         }
-      />
-      <SignalSourceToggleCard
-        icon={<BugIcon size={20} />}
-        label="PostHog Error Tracking"
-        description="Surface new issues, reopenings, and volume spikes"
-        checked={value.error_tracking}
-        onCheckedChange={toggleErrorTracking}
-        disabled={disabled}
       />
       {evaluations && evaluationsUrl && onToggleEvaluation && (
         <EvaluationsSection

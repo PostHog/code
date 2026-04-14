@@ -51,15 +51,31 @@ export function InboxItem({ isActive, onClick, signalCount }: InboxItemProps) {
           isActive={isActive}
           onClick={onClick}
           endContent={
-            signalCount && signalCount > 0 ? (
+            <>
+              {signalCount && signalCount > 0 ? (
+                <span
+                  className="inline-flex min-w-[16px] shrink-0 items-center justify-center rounded-full px-1 font-medium text-[10px] leading-none"
+                  style={{
+                    height: "16px",
+                    backgroundColor: "var(--red-9)",
+                    color: "white",
+                  }}
+                  title={`${signalCount} actionable reports for you`}
+                >
+                  {formatSignalCount(signalCount)}
+                </span>
+              ) : null}
               <span
-                className="inline-flex min-w-[16px] items-center justify-center rounded-full px-1 text-[11px] text-gray-11 leading-none"
-                style={{ height: "16px" }}
-                title={`${signalCount} ready reports`}
+                className="shrink-0 rounded-sm px-1 py-px text-[9px] uppercase tracking-wider"
+                style={{
+                  color: "var(--amber-11)",
+                  backgroundColor: "var(--amber-3)",
+                  border: "1px solid var(--amber-6)",
+                }}
               >
-                {formatSignalCount(signalCount)}
+                Beta
               </span>
-            ) : undefined
+            </>
           }
         />
       </div>

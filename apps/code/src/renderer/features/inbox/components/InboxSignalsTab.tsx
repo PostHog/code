@@ -481,6 +481,7 @@ export function InboxSignalsTab() {
                     reports={reports}
                     effectiveBulkIds={selectedReportIds}
                     onToggleSelectAll={handleToggleSelectAll}
+                    onConfigureSources={() => setSourcesDialogOpen(true)}
                   />
                 </Box>
                 <ReportListPane
@@ -558,6 +559,7 @@ export function InboxSignalsTab() {
               pipelinePausedUntil={signalProcessingState?.paused_until}
               searchDisabledReason={searchDisabledReason}
               hideFilters
+              onConfigureSources={() => setSourcesDialogOpen(true)}
             />
             <SkeletonBackdrop />
           </Flex>
