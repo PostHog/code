@@ -57,7 +57,7 @@ function useAllGithubRepositories(githubIntegrations: Integration[]) {
       for (const result of results) {
         if (result.isPending) pending = true;
         if (!result.data) continue;
-        for (const repo of result.data.repos) {
+        for (const repo of result.data.repos ?? []) {
           if (!(repo in map)) {
             map[repo] = result.data.integrationId;
           }

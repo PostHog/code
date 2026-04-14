@@ -1123,7 +1123,8 @@ export class PostHogAPIClient {
 
     const data = await response.json();
 
-    const repos = data.repositories ?? data.results ?? data ?? [];
+    const repos =
+      data.repositories ?? data.results ?? (Array.isArray(data) ? data : []);
     return repos.map((repo: string | { full_name?: string; name?: string }) => {
       if (typeof repo === "string") return repo;
       return (repo.full_name ?? repo.name ?? "").toLowerCase();
