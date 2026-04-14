@@ -78,7 +78,7 @@ export function GitIntegrationStep({
     if (repositories.length === 0) return null;
     const names = repositories.map((r) => r.split("/").pop() ?? r);
     if (names.length <= 2) return names.join(" and ");
-    return `${names[0]}, ${names[1]}, and ${names.length - 2} more`;
+    return `${names[0]}, ${names[1]} and ${names.length - 2} more`;
   }, [repositories]);
 
   const repoMatchesGitHub = useMemo(() => {
