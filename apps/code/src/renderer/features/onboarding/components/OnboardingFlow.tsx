@@ -281,7 +281,7 @@ export function OnboardingFlow() {
                     onClick={handleComplete}
                     style={{ opacity: 0.5 }}
                   >
-                    <ArrowRight size={14} />
+                    <ArrowRight size={14} weight="bold" />
                     Skip setup
                   </Button>
                 )}

@@ -428,7 +428,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
 
         <StepActions>
           <Button size="3" variant="outline" color="gray" onClick={onBack}>
-            <ArrowLeft size={16} />
+            <ArrowLeft size={16} weight="bold" />
             Back
           </Button>
           {isAuthenticated && !isLoading && (
@@ -438,7 +438,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
               disabled={currentProjectId == null}
             >
               Continue
-              <ArrowRight size={16} />
+              <ArrowRight size={16} weight="bold" />
             </Button>
           )}
         </StepActions>

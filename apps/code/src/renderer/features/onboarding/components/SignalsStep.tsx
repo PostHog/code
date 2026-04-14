@@ -141,7 +141,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
             onClick={onBack}
             disabled={isLoading}
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={16} weight="bold" />
             Back
           </Button>
           {anyEnabled ? (
@@ -151,7 +151,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
               disabled={isLoading}
             >
               Continue
-              <ArrowRight size={16} />
+              <ArrowRight size={16} weight="bold" />
             </Button>
           ) : (
             <Button
@@ -162,7 +162,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
               disabled={isLoading}
             >
               Skip for now
-              <ArrowRight size={16} />
+              <ArrowRight size={16} weight="bold" />
             </Button>
           )}
         </StepActions>

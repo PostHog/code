@@ -153,7 +153,7 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
         <StepActions>
           <Button size="3" onClick={onNext}>
             Start shipping
-            <ArrowRight size={16} />
+            <ArrowRight size={16} weight="bold" />
           </Button>
         </StepActions>
       </Flex>

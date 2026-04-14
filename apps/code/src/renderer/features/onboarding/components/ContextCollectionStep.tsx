@@ -197,7 +197,7 @@ export function ContextCollectionStep({
         {/* Footer buttons */}
         <StepActions>
           <Button size="3" variant="outline" color="gray" onClick={onBack}>
-            <ArrowLeft size={16} />
+            <ArrowLeft size={16} weight="bold" />
             Back
           </Button>
           <AnimatePresence>
@@ -209,7 +209,7 @@ export function ContextCollectionStep({
               >
                 <Button size="3" variant="ghost" onClick={onNext}>
                   Skip for now
-                  <ArrowRight size={16} />
+                  <ArrowRight size={16} weight="bold" />
                 </Button>
               </motion.div>
             )}
