@@ -74,13 +74,18 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
             gap="6"
             style={{ width: "100%", maxWidth: 560 }}
           >
-            <Text
-              size="6"
-              weight="bold"
-              style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
-            >
-              Welcome to PostHog Code
-            </Text>
+            <Flex direction="column" gap="1">
+              <Text
+                size="6"
+                weight="bold"
+                style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+              >
+                Welcome to PostHog Code
+              </Text>
+              <Text size="3" style={{ opacity: 0.5 }}>
+                Your product workbench.
+              </Text>
+            </Flex>
 
             <Flex direction="column" gap="3" style={{ width: "100%" }}>
               {FEATURES.map((feature) => (
