@@ -1,4 +1,3 @@
-import { Badge } from "@components/ui/Badge";
 import {
   ArrowSquareOutIcon,
   BrainIcon,
@@ -8,7 +7,6 @@ import {
   GithubLogoIcon,
   KanbanIcon,
   TicketIcon,
-  VideoIcon,
 } from "@phosphor-icons/react";
 import {
   Box,
@@ -18,12 +16,7 @@ import {
   Spinner,
   Switch,
   Text,
-  Tooltip,
 } from "@radix-ui/themes";
-import type {
-  Evaluation,
-  SignalSourceConfig,
-} from "@renderer/api/posthogClient";
 import { memo, useCallback } from "react";
 
 export interface SignalSourceValues {
@@ -150,53 +143,13 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
   );
 });
 
-interface EvaluationRowProps {
-  evaluation: Evaluation;
-  onToggle: (id: string, enabled: boolean) => void;
-}
-
-const EvaluationRow = memo(function EvaluationRow({
-  evaluation,
-  onToggle,
-}: EvaluationRowProps) {
-  const handleChange = useCallback(
-    (checked: boolean) => onToggle(evaluation.id, checked),
-    [onToggle, evaluation.id],
-  );
-
-  return (
-    <Flex align="center" justify="between" gap="3" py="1" px="2">
-      <Text
-        size="1"
-        style={{
-          color: "var(--gray-12)",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {evaluation.name}
-      </Text>
-      <Switch
-        size="1"
-        checked={evaluation.enabled ?? false}
-        onCheckedChange={handleChange}
-      />
-    </Flex>
-  );
-});
-
-interface EvaluationsSectionProps {
-  evaluations: Evaluation[];
+interface EvaluationsCardProps {
   evaluationsUrl: string;
-  onToggleEvaluation: (id: string, enabled: boolean) => void;
 }
 
-export const EvaluationsSection = memo(function EvaluationsSection({
-  evaluations,
+const EvaluationsCard = memo(function EvaluationsCard({
   evaluationsUrl,
-  onToggleEvaluation,
-}: EvaluationsSectionProps) {
+}: EvaluationsCardProps) {
   return (
     <Box
       p="4"
@@ -206,59 +159,31 @@ export const EvaluationsSection = memo(function EvaluationsSection({
         borderRadius: "var(--radius-3)",
       }}
     >
-      <Flex direction="column" gap="2">
+      <Flex align="center" justify="between" gap="4">
         <Flex align="center" gap="3">
           <Box style={{ color: "var(--gray-11)", flexShrink: 0 }}>
             <BrainIcon size={20} />
           </Box>
-          <Flex direction="column" gap="1" style={{ flex: 1, minWidth: 0 }}>
-            <Flex align="center" gap="2">
-              <Text
-                size="2"
-                weight="medium"
-                style={{ color: "var(--gray-12)" }}
-              >
-                PostHog LLM Analytics
-              </Text>
-              <Tooltip content="This is only visible to staff users of PostHog">
-                <Badge color="blue">Internal</Badge>
-              </Tooltip>
-            </Flex>
+          <Flex direction="column" gap="1">
+            <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
+              LLM evaluations
+            </Text>
             <Text size="1" style={{ color: "var(--gray-11)" }}>
-              Ongoing evaluation of how your AI features are performing based on
-              defined criteria
+              Monitor how your AI features are performing
             </Text>
           </Flex>
         </Flex>
-
-        <Flex direction="column" gap="2" style={{ marginLeft: 32 }}>
-          {evaluations.length > 0 ? (
-            <Flex direction="column" gap="1">
-              {evaluations.map((evaluation) => (
-                <EvaluationRow
-                  key={evaluation.id}
-                  evaluation={evaluation}
-                  onToggle={onToggleEvaluation}
-                />
-              ))}
-            </Flex>
-          ) : (
-            <Text size="1" style={{ color: "var(--gray-9)" }}>
-              No evaluations configured yet.
-            </Text>
-          )}
-
-          <Link
-            href={evaluationsUrl}
-            target="_blank"
-            rel="noopener"
-            size="1"
-            style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
-          >
-            Manage evaluations in PostHog Cloud
+        <Link
+          href={evaluationsUrl}
+          target="_blank"
+          rel="noopener"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button size="1" variant="soft" tabIndex={-1}>
+            Manage
             <ArrowSquareOutIcon size={12} />
-          </Link>
-        </Flex>
+          </Button>
+        </Link>
       </Flex>
     </Box>
   );
@@ -268,7 +193,7 @@ function SourceRunningIndicator({
   status,
   message,
 }: {
-  status: SignalSourceConfig["status"];
+  status: string | null | undefined;
   message: string;
 }) {
   if (status !== "running") {
@@ -303,9 +228,7 @@ interface SignalSourceTogglesProps {
     >
   >;
   onSetup?: (source: keyof SignalSourceValues) => void;
-  evaluations?: Evaluation[];
   evaluationsUrl?: string;
-  onToggleEvaluation?: (id: string, enabled: boolean) => void;
 }
 
 export function SignalSourceToggles({
@@ -314,9 +237,7 @@ export function SignalSourceToggles({
   disabled,
   sourceStates,
   onSetup,
-  evaluations,
   evaluationsUrl,
-  onToggleEvaluation,
 }: SignalSourceTogglesProps) {
   const toggleSessionReplay = useCallback(
     (checked: boolean) => onToggle("session_replay", checked),
@@ -365,30 +286,7 @@ export function SignalSourceToggles({
         onCheckedChange={toggleConversations}
         disabled={disabled}
       />
-      <SignalSourceToggleCard
-        icon={<VideoIcon size={20} />}
-        label="PostHog Session Replay"
-        labelSuffix={<Badge color="orange">Alpha</Badge>}
-        description="Analyze session recordings and event data for UX issues"
-        checked={value.session_replay}
-        onCheckedChange={toggleSessionReplay}
-        disabled={disabled}
-        statusSection={
-          value.session_replay ? (
-            <SourceRunningIndicator
-              status={sourceStates?.session_replay?.syncStatus ?? null}
-              message="Session analysis run in progress now…"
-            />
-          ) : undefined
-        }
-      />
-      {evaluations && evaluationsUrl && onToggleEvaluation && (
-        <EvaluationsSection
-          evaluations={evaluations}
-          evaluationsUrl={evaluationsUrl}
-          onToggleEvaluation={onToggleEvaluation}
-        />
-      )}
+      {evaluationsUrl && <EvaluationsCard evaluationsUrl={evaluationsUrl} />}
       <SignalSourceToggleCard
         icon={<GithubLogoIcon size={20} />}
         label="GitHub Issues"

@@ -32,9 +32,7 @@ export function SignalSourcesSettings() {
     handleSetup,
     handleSetupComplete,
     handleSetupCancel,
-    evaluations,
     evaluationsUrl,
-    handleToggleEvaluation,
     userAutonomyConfig,
     handleUpdateUserAutonomyPriority,
   } = useSignalSourceManager();
@@ -90,13 +88,7 @@ export function SignalSourcesSettings() {
                 disabled={!hasGithubIntegration}
                 sourceStates={sourceStates}
                 onSetup={handleSetup}
-                evaluations={isStaff ? evaluations : undefined}
                 evaluationsUrl={isStaff ? evaluationsUrl : undefined}
-                onToggleEvaluation={
-                  isStaff
-                    ? (id, enabled) => void handleToggleEvaluation(id, enabled)
-                    : undefined
-                }
               />
             )}
           </Box>
