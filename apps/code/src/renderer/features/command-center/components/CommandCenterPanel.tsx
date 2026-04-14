@@ -87,7 +87,7 @@ function EmptyCell({ cellIndex }: { cellIndex: number }) {
 
   return (
     <Flex align="center" justify="center" height="100%">
-      <Flex direction="column" align="center" gap="2">
+      <Flex direction="column" align="center" gap="2" className="select-none">
         <TaskSelector
           cellIndex={cellIndex}
           open={selectorOpen}
