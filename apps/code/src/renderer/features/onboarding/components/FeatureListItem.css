@@ -3,7 +3,8 @@
   transition: border-color 0.2s ease, transform 0.2s ease;
 }
 
-.feature-list-item:hover {
+.feature-list-item:hover,
+.feature-list-item--active {
   border-left-color: var(--accent-9);
   transform: translateX(6px);
 }

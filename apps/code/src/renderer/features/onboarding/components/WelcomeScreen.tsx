@@ -9,6 +9,7 @@ import {
 import { Button, Flex, Text } from "@radix-ui/themes";
 import explorerHog from "@renderer/assets/images/hedgehogs/explorer-hog.png";
 import { motion } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FeatureListItem } from "./FeatureListItem";
 import { OnboardingHogTip } from "./OnboardingHogTip";
 
@@ -49,7 +50,41 @@ interface WelcomeScreenProps {
   onNext: () => void;
 }
 
+const CYCLE_INTERVAL_MS = 2500;
+const CYCLE_START_DELAY_MS = FEATURES.length * 100 + 400;
+
 export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const timerRef = useRef<ReturnType<typeof setInterval>>(null);
+
+  const startCycling = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % FEATURES.length);
+    }, CYCLE_INTERVAL_MS);
+  }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setActiveIndex(0);
+      startCycling();
+    }, CYCLE_START_DELAY_MS);
+
+    return () => {
+      clearTimeout(timeout);
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [startCycling]);
+
+  const handleMouseEnter = (index: number) => {
+    setActiveIndex(index);
+    if (timerRef.current) clearInterval(timerRef.current);
+  };
+
+  const handleMouseLeave = () => {
+    startCycling();
+  };
+
   return (
     <Flex align="center" height="100%" px="8">
       <Flex
@@ -88,12 +123,16 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
             </Flex>
 
             <Flex direction="column" gap="3" style={{ width: "100%" }}>
-              {FEATURES.map((feature) => (
+              {FEATURES.map((feature, index) => (
                 <FeatureListItem
                   key={feature.title}
                   icon={feature.icon}
                   title={feature.title}
                   description={feature.description}
+                  active={activeIndex === index}
+                  index={index}
+                  onMouseEnter={() => handleMouseEnter(index)}
+                  onMouseLeave={handleMouseLeave}
                 />
               ))}
             </Flex>
