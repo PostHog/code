@@ -1,10 +1,9 @@
 import {
   ArrowRight,
   ChartLine,
-  Cloud,
   GitPullRequest,
   Robot,
-  Stack,
+  Tray,
 } from "@phosphor-icons/react";
 import { Button, Flex, Text } from "@radix-ui/themes";
 import explorerHog from "@renderer/assets/images/hedgehogs/explorer-hog.png";
@@ -15,28 +14,22 @@ import { StepActions } from "./StepActions";
 
 const FEATURES = [
   {
+    icon: <Tray size={24} />,
+    title: "Your signals inbox",
+    description:
+      "Automatically surfaces the highest-impact work from your product data so you always know what to do next.",
+  },
+  {
     icon: <ChartLine size={24} />,
     title: "Product data as context",
     description:
-      "Every agent has context from your analytics, session replays and feature flags built in.",
+      "Your agents have context from your analytics, session replays and feature flags built in.",
   },
   {
     icon: <Robot size={24} />,
-    title: "Use any agent or harness",
+    title: "Agents that fit your workflow",
     description:
-      "Bring your own agent framework or use our built-in harnesses to get started fast.",
-  },
-  {
-    icon: <Cloud size={24} />,
-    title: "Run your agent anywhere",
-    description:
-      "Work locally, in a worktree or in the cloud with seamless handoff between environments.",
-  },
-  {
-    icon: <Stack size={24} />,
-    title: "Run many agents at once",
-    description:
-      "Parallelize work across multiple agents tackling different tasks simultaneously.",
+      "Run agents locally, in the cloud or both at once. Bring any framework and parallelize across as many as you need.",
   },
   {
     icon: <GitPullRequest size={24} />,

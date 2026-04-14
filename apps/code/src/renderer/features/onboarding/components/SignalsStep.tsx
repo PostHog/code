@@ -93,8 +93,8 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
                     size="2"
                     style={{ color: "var(--gray-12)", opacity: 0.7 }}
                   >
-                    Signals automatically analyze your product data and turn
-                    them into prioritized tasks in your Inbox.
+                    Signals watch your product data around the clock and surface
+                    the highest-impact work straight to your Inbox.
                   </Text>
                 </Flex>
               </motion.div>
