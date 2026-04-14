@@ -1,5 +1,7 @@
 export const EXTERNAL_LINKS = {
   discord: "https://discord.gg/posthog",
-  website: "https://posthog.com/code",
+  ghInstall: "https://cli.github.com/",
+  gitInstall: "https://git-scm.com/install/mac",
   privacy: "https://posthog.com/privacy",
+  website: "https://posthog.com/code",
 } as const;

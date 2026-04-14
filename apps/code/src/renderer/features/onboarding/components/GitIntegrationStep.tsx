@@ -351,252 +351,110 @@ export function GitIntegrationStep({
                       "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
                   }}
                 >
-                  <Flex direction="column" gap="4" align="center">
-                    <AnimatePresence mode="wait">
+                  <Flex direction="column" gap="3">
+                    <Flex align="center" justify="between">
+                      <Flex align="center" gap="2">
+                        <GitBranch
+                          size={18}
+                          style={{ color: "var(--gray-12)" }}
+                        />
+                        <Text
+                          size="3"
+                          weight="bold"
+                          style={{ color: "var(--gray-12)" }}
+                        >
+                          Connect GitHub
+                        </Text>
+                      </Flex>
                       {isLoading ? (
-                        <motion.div
-                          key="icon-skeleton"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.15 }}
-                        >
-                          <Skeleton
-                            style={{
-                              width: "32px",
-                              height: "32px",
-                              borderRadius: "8px",
-                            }}
-                          />
-                        </motion.div>
+                        <Skeleton style={{ width: "80px", height: "16px" }} />
                       ) : hasGitIntegration ? (
-                        <motion.div
-                          key="icon-connected"
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.9 }}
-                          transition={{ duration: 0.2 }}
-                        >
+                        <Flex align="center" gap="1">
                           <CheckCircle
-                            size={32}
+                            size={14}
                             weight="fill"
                             style={{ color: "var(--green-9)" }}
                           />
-                        </motion.div>
-                      ) : (
-                        <motion.div
-                          key="icon-disconnected"
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.9 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <GitBranch
-                            size={32}
-                            style={{ color: "var(--gray-12)" }}
-                          />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                    <Flex direction="column" gap="2" align="center">
-                      <AnimatePresence mode="wait">
-                        {isLoading ? (
-                          <motion.div
-                            key="text-skeleton"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.15 }}
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "8px",
-                              alignItems: "center",
-                            }}
-                          >
-                            <Skeleton
-                              style={{ width: "180px", height: "20px" }}
-                            />
-                            <Skeleton
-                              style={{ width: "260px", height: "16px" }}
-                            />
-                          </motion.div>
-                        ) : hasGitIntegration ? (
-                          <motion.div
-                            key="text-connected"
-                            initial={{ opacity: 0, y: 4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -4 }}
-                            transition={{ duration: 0.2, delay: 0.05 }}
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "8px",
-                              alignItems: "center",
-                              width: "100%",
-                            }}
-                          >
-                            <Text
-                              size="3"
-                              weight="bold"
-                              style={{ color: "var(--gray-12)" }}
-                            >
-                              GitHub connected
-                            </Text>
-                            <Text
-                              size="2"
-                              align="center"
-                              style={{ color: "var(--gray-11)" }}
-                            >
-                              {isLoadingRepos
-                                ? "Loading repositories..."
-                                : repoSummary
-                                  ? `Access to ${repoSummary}`
-                                  : "No repositories found. Check your GitHub app settings."}
-                            </Text>
-                          </motion.div>
-                        ) : (
-                          <motion.div
-                            key="text-disconnected"
-                            initial={{ opacity: 0, y: 4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -4 }}
-                            transition={{ duration: 0.2, delay: 0.05 }}
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "8px",
-                              alignItems: "center",
-                            }}
-                          >
-                            <Text
-                              size="3"
-                              weight="bold"
-                              style={{ color: "var(--gray-12)" }}
-                            >
-                              Connect GitHub
-                            </Text>
-                            <Text
-                              size="2"
-                              align="center"
-                              style={{ color: "var(--gray-11)" }}
-                            >
-                              Optional. Unlocks cloud agents and pull request
-                              workflows.
-                            </Text>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </Flex>
-                    <AnimatePresence mode="wait">
-                      {isLoading ? (
-                        <motion.div
-                          key="action-skeleton"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.15 }}
-                        >
-                          <Skeleton
-                            style={{
-                              width: "160px",
-                              height: "32px",
-                              borderRadius: "6px",
-                            }}
-                          />
-                        </motion.div>
-                      ) : hasGitIntegration ? (
-                        <motion.div
-                          key="action-connected"
-                          initial={{ opacity: 0, y: 4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -4 }}
-                          transition={{ duration: 0.2, delay: 0.1 }}
-                        >
-                          <Flex gap="2" align="center">
-                            <Button
-                              size="2"
-                              variant="soft"
-                              color="gray"
-                              onClick={() => {
-                                const config = githubIntegration?.config as
-                                  | {
-                                      installation_id?: number;
-                                      account?: {
-                                        name?: string;
-                                        type?: string;
-                                      };
-                                    }
-                                  | undefined;
-                                const id = config?.installation_id;
-                                const account = config?.account;
-                                const url = id
-                                  ? account?.type === "Organization" &&
-                                    account.name
-                                    ? `https://github.com/organizations/${account.name}/settings/installations/${id}`
-                                    : `https://github.com/settings/installations/${id}`
-                                  : "https://github.com/settings/installations";
-                                trpcClient.os.openExternal.mutate({ url });
-                              }}
-                            >
-                              <GearSix size={16} />
-                              Settings
-                            </Button>
-                            <Button
-                              size="2"
-                              variant="soft"
-                              color="gray"
-                              onClick={() => {
-                                queryClient.invalidateQueries({
-                                  queryKey: ["integrations"],
-                                });
-                              }}
-                            >
-                              <ArrowsClockwise size={16} />
-                              Refresh
-                            </Button>
-                          </Flex>
-                        </motion.div>
-                      ) : (
-                        <motion.div
-                          key="action-disconnected"
-                          initial={{ opacity: 0, y: 4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -4 }}
-                          transition={{ duration: 0.2, delay: 0.1 }}
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "8px",
-                            alignItems: "center",
-                          }}
-                        >
-                          <Button
-                            size="2"
-                            variant="outline"
-                            onClick={() => void handleConnectGitHub()}
-                            loading={isConnecting}
-                          >
-                            {isConnecting ? "Retry connection" : "Connect GitHub"}
-                            <ArrowSquareOut size={16} />
-                          </Button>
-                          <Text
-                            size="1"
-                            align="center"
-                            style={{
-                              color: "var(--gray-11)",
-                              maxWidth: 360,
-                            }}
-                          >
-                            {timedOut
-                              ? "We didn't hear back from GitHub. If the browser tab was closed, click Connect again."
-                              : isConnecting
-                                ? "Waiting for GitHub... You'll return here automatically once the install completes."
-                                : "Opens GitHub to authorize the PostHog app"}
+                          <Text size="1" style={{ color: "var(--green-11)" }}>
+                            Connected
                           </Text>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                        </Flex>
+                      ) : null}
+                    </Flex>
+                    {hasGitIntegration ? (
+                      <Flex direction="column" gap="3">
+                        <Text size="2" style={{ color: "var(--gray-11)" }}>
+                          {isLoadingRepos
+                            ? "Loading repositories..."
+                            : repoSummary
+                              ? `Access to ${repoSummary}`
+                              : "No repositories found. Check your GitHub app settings."}
+                        </Text>
+                        <Flex align="center" gap="3">
+                          <Button
+                            size="1"
+                            variant="soft"
+                            color="gray"
+                            onClick={() => {
+                              const config = githubIntegration?.config as
+                                | {
+                                    installation_id?: number;
+                                    account?: {
+                                      name?: string;
+                                      type?: string;
+                                    };
+                                  }
+                                | undefined;
+                              const id = config?.installation_id;
+                              const account = config?.account;
+                              const url = id
+                                ? account?.type === "Organization" &&
+                                  account.name
+                                  ? `https://github.com/organizations/${account.name}/settings/installations/${id}`
+                                  : `https://github.com/settings/installations/${id}`
+                                : "https://github.com/settings/installations";
+                              trpcClient.os.openExternal.mutate({ url });
+                            }}
+                          >
+                            <GearSix size={12} />
+                            Settings
+                          </Button>
+                          <Button
+                            size="1"
+                            variant="soft"
+                            color="gray"
+                            onClick={() => {
+                              queryClient.invalidateQueries({
+                                queryKey: ["integrations"],
+                              });
+                            }}
+                          >
+                            <ArrowsClockwise size={12} />
+                            Refresh
+                          </Button>
+                        </Flex>
+                      </Flex>
+                    ) : !isLoading ? (
+                      <Flex direction="column" gap="3">
+                        <Text size="2" style={{ color: "var(--gray-11)" }}>
+                          {timedOut
+                            ? "We didn't hear back from GitHub. If the browser tab was closed, click Connect again."
+                            : isConnecting
+                              ? "Waiting for GitHub... You'll return here automatically once the install completes."
+                              : "Optional. Unlocks cloud agents and pull request workflows."}
+                        </Text>
+                        <Button
+                          size="1"
+                          variant="soft"
+                          style={{ alignSelf: "flex-start" }}
+                          onClick={() => void handleConnectGitHub()}
+                          loading={isConnecting}
+                        >
+                          {isConnecting ? "Retry connection" : "Connect GitHub"}
+                          <ArrowSquareOut size={12} />
+                        </Button>
+                      </Flex>
+                    ) : null}
                   </Flex>
                 </Box>
               </motion.div>
@@ -605,7 +463,7 @@ export function GitIntegrationStep({
             {/* Hog tip */}
             <OnboardingHogTip
               hogSrc={builderHog}
-              message="GitHub access lets agents read issues and open PRs for you."
+              message="GitHub access lets agents read issues and open pull requests for you."
               delay={0.15}
             />
           </Flex>

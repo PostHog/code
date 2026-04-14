@@ -51,6 +51,7 @@ import {
   ghAuthTokenOutput,
   ghStatusOutput,
   gitStateSnapshotSchema,
+  gitStatusOutput,
   openPrInput,
   openPrOutput,
   prStatusInput,
@@ -268,6 +269,10 @@ export const gitRouter = router({
     .mutation(({ input }) =>
       getService().sync(input.directoryPath, input.remote),
     ),
+
+  getGitStatus: publicProcedure
+    .output(gitStatusOutput)
+    .query(() => getService().getGitStatus()),
 
   getGhStatus: publicProcedure
     .output(ghStatusOutput)
