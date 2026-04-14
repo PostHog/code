@@ -1,7 +1,7 @@
 import {
   ArrowRight,
+  ChartLine,
   Cloud,
-  CodeBlock,
   GitPullRequest,
   Robot,
   Stack,
@@ -23,25 +23,25 @@ const FEATURES = [
     icon: <Cloud size={24} />,
     title: "Run your agent anywhere",
     description:
-      "Work locally, in a worktree, or spin up cloud environments on demand.",
+      "Work locally, in a worktree or in the cloud with seamless handoff between environments.",
   },
   {
-    icon: <CodeBlock size={24} />,
-    title: "Review your code",
+    icon: <ChartLine size={24} />,
+    title: "Product data as context",
     description:
-      "Inline diffs, focused reviews, and AI-assisted code understanding.",
+      "Every agent has context from your analytics, session replays and feature flags built in.",
   },
   {
     icon: <GitPullRequest size={24} />,
-    title: "Create pull requests",
+    title: "Review and ship with confidence",
     description:
-      "Go from task to PR with automated branch management and descriptions.",
+      "Inline diffs, AI-assisted code review and automated pull request creation in one flow.",
   },
   {
     icon: <Stack size={24} />,
     title: "Run many agents at once",
     description:
-      "Parallelise work across multiple agents tackling different tasks simultaneously.",
+      "Parallelize work across multiple agents tackling different tasks simultaneously.",
   },
 ];
 
@@ -74,7 +74,11 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
             gap="6"
             style={{ width: "100%", maxWidth: 560 }}
           >
-            <Text size="6" style={{ color: "var(--gray-12)", lineHeight: 1.3 }}>
+            <Text
+              size="6"
+              weight="bold"
+              style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+            >
               Welcome to PostHog Code
             </Text>
 

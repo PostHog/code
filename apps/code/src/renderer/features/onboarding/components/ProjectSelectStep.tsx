@@ -100,6 +100,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
             <Flex direction="column" gap="4" style={{ width: "100%" }}>
               <Text
                 size="6"
+                weight="bold"
                 style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
               >
                 Pick your home base

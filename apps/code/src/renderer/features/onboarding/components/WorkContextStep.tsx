@@ -79,6 +79,7 @@ export function WorkContextStep({ onNext, onBack }: WorkContextStepProps) {
               <Flex direction="column" gap="2">
                 <Text
                   size="6"
+                  weight="bold"
                   style={{
                     color: "var(--gray-12)",
                     lineHeight: 1.3,

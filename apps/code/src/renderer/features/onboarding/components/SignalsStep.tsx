@@ -663,6 +663,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
             >
               <Text
                 size="6"
+                weight="bold"
                 style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
               >
                 Teach your agent what matters
