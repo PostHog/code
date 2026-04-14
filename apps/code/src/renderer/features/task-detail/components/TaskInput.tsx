@@ -28,30 +28,16 @@ import {
 } from "@hooks/useIntegrations";
 import { ButtonGroup } from "@posthog/quill";
 import { Flex, Text } from "@radix-ui/themes";
-import builderHog from "@renderer/assets/images/hedgehogs/builder-hog-03.png";
-import detectiveHog from "@renderer/assets/images/hedgehogs/detective-hog.png";
-import explorerHog from "@renderer/assets/images/hedgehogs/explorer-hog.png";
-import featureFlagHog from "@renderer/assets/images/hedgehogs/feature-flag-hog.png";
-import graphsHog from "@renderer/assets/images/hedgehogs/graphs-hog.png";
 import { useAuthStore } from "@renderer/features/auth/stores/authStore";
 import { useDraftStore } from "@renderer/features/message-editor/stores/draftStore";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
 import { getFilePath } from "@utils/getFilePath";
-import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePreviewConfig } from "../hooks/usePreviewConfig";
 import { useTaskCreation } from "../hooks/useTaskCreation";
 import { type WorkspaceMode, WorkspaceModeSelect } from "./WorkspaceModeSelect";
-
-const TASK_EXAMPLES = [
-  { text: "Improve our onboarding conversion funnel", hog: graphsHog },
-  { text: "Set up feature flags for a new launch", hog: featureFlagHog },
-  { text: "Debug a spike in errors on checkout", hog: detectiveHog },
-  { text: "Add analytics to understand user behavior", hog: explorerHog },
-  { text: "Migrate from Amplitude to PostHog", hog: builderHog },
-];
 
 interface TaskInputProps {
   sessionId?: string;
@@ -559,79 +545,6 @@ export function TaskInput({
               if (canSubmit) handleSubmit();
             }}
           />
-
-          <Flex align="center" gap="3" py="1">
-            <AnimatePresence mode="wait">
-              <motion.img
-                key={exampleIndex}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.25 }}
-                src={TASK_EXAMPLES[exampleIndex].hog}
-                alt=""
-                style={{
-                  width: 40,
-                  height: 40,
-                  objectFit: "contain",
-                  flexShrink: 0,
-                }}
-              />
-            </AnimatePresence>
-            <div>
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={exampleIndex}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.2 }}
-                  style={{
-                    position: "relative",
-                    backgroundColor: "var(--color-panel-solid)",
-                    border: "1px solid var(--gray-a4)",
-                    borderRadius: "var(--radius-3)",
-                    padding: "6px 12px",
-                  }}
-                >
-                  <Text
-                    size="1"
-                    style={{
-                      color: "var(--gray-11)",
-                      lineHeight: 1.5,
-                      fontStyle: "italic",
-                    }}
-                  >
-                    "{TASK_EXAMPLES[exampleIndex].text}"
-                  </Text>
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 14,
-                      left: -8,
-                      width: 0,
-                      height: 0,
-                      borderTop: "8px solid transparent",
-                      borderBottom: "8px solid transparent",
-                      borderRight: "8px solid var(--gray-a4)",
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 15,
-                      left: -7,
-                      width: 0,
-                      height: 0,
-                      borderTop: "7px solid transparent",
-                      borderBottom: "7px solid transparent",
-                      borderRight: "7px solid var(--color-panel-solid)",
-                    }}
-                  />
-                </motion.div>
-              </AnimatePresence>
-            </div>
-          </Flex>
         </Flex>
       </Flex>
 
