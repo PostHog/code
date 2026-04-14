@@ -709,14 +709,17 @@ When creating pull requests, add the following footer at the end of the PR descr
       let configOptions: SessionConfigOption[] | undefined;
       let agentSessionId: string;
 
+      // Claude-specific: hydrate session JSONL from PostHog before resuming.
+      // If hydration finds no conversation to restore, skip the resume and
+      // fall through to creating a new session. This avoids a doomed
+      // unstable_resumeSession that would fail with "Resource not found"
       if (isReconnect && config.sessionId) {
         const existingSessionId = config.sessionId;
 
-        // Claude-specific: hydrate session JSONL from PostHog before resuming
         if (adapter !== "codex") {
           const posthogAPI = agent.getPosthogAPI();
           if (posthogAPI) {
-            await hydrateSessionJsonl({
+            const hasSession = await hydrateSessionJsonl({
               sessionId: existingSessionId,
               cwd: repoPath,
               taskId,
@@ -725,8 +728,19 @@ When creating pull requests, add the following footer at the end of the PR descr
               posthogAPI,
               log,
             });
+            if (!hasSession) {
+              log.info(
+                "No session JSONL to resume, creating new session instead",
+                { taskId, taskRunId },
+              );
+              config.sessionId = undefined;
+            }
           }
         }
+      }
+
+      if (isReconnect && config.sessionId) {
+        const existingSessionId = config.sessionId;
 
         // Both adapters implement unstable_resumeSession:
         // - Claude: delegates to SDK's resumeSession with JSONL hydration

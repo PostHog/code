@@ -496,7 +496,7 @@ export async function hydrateSessionJsonl(params: {
   permissionMode?: string;
   posthogAPI: PostHogAPIClient;
   log: HydrationLog;
-}): Promise<void> {
+}): Promise<boolean> {
   const { posthogAPI, log } = params;
 
   try {
@@ -506,7 +506,7 @@ export async function hydrateSessionJsonl(params: {
       log.info("Local JSONL exists, skipping S3 hydration", {
         sessionId: params.sessionId,
       });
-      return;
+      return true;
     } catch {
       // File doesn't exist, proceed with hydration
     }
@@ -514,13 +514,13 @@ export async function hydrateSessionJsonl(params: {
     const taskRun = await posthogAPI.getTaskRun(params.taskId, params.runId);
     if (!taskRun.log_url) {
       log.info("No log URL, skipping JSONL hydration");
-      return;
+      return false;
     }
 
     const entries = await posthogAPI.fetchTaskRunLogs(taskRun);
     if (entries.length === 0) {
       log.info("No S3 log entries, skipping JSONL hydration");
-      return;
+      return false;
     }
 
     const entryCounts: Record<string, number> = {};
@@ -545,7 +545,7 @@ export async function hydrateSessionJsonl(params: {
     const allTurns = rebuildConversation(entries);
     if (allTurns.length === 0) {
       log.info("No conversation in S3 logs, skipping JSONL hydration");
-      return;
+      return false;
     }
 
     const maxTokens = supports1MContext(params.model ?? "")
@@ -577,10 +577,12 @@ export async function hydrateSessionJsonl(params: {
       turns: conversation.length,
       lines: jsonlLines.length,
     });
+    return true;
   } catch (err) {
     log.warn("Failed to hydrate session JSONL, continuing", {
       sessionId: params.sessionId,
       error: err instanceof Error ? err.message : String(err),
     });
+    return false;
   }
 }
