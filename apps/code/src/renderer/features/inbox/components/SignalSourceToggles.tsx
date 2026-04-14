@@ -1,22 +1,10 @@
 import {
-  ArrowSquareOutIcon,
-  BrainIcon,
   BugIcon,
-  ChatsIcon,
-  CircleNotchIcon,
   GithubLogoIcon,
   KanbanIcon,
   TicketIcon,
 } from "@phosphor-icons/react";
-import {
-  Box,
-  Button,
-  Flex,
-  Link,
-  Spinner,
-  Switch,
-  Text,
-} from "@radix-ui/themes";
+import { Box, Button, Flex, Spinner, Switch, Text } from "@radix-ui/themes";
 import { memo, useCallback } from "react";
 
 export interface SignalSourceValues {
@@ -143,76 +131,6 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
   );
 });
 
-interface EvaluationsCardProps {
-  evaluationsUrl: string;
-}
-
-const EvaluationsCard = memo(function EvaluationsCard({
-  evaluationsUrl,
-}: EvaluationsCardProps) {
-  return (
-    <Box
-      p="4"
-      style={{
-        backgroundColor: "var(--color-panel-solid)",
-        border: "1px solid var(--gray-4)",
-        borderRadius: "var(--radius-3)",
-      }}
-    >
-      <Flex align="center" justify="between" gap="4">
-        <Flex align="center" gap="3">
-          <Box style={{ color: "var(--gray-11)", flexShrink: 0 }}>
-            <BrainIcon size={20} />
-          </Box>
-          <Flex direction="column" gap="1">
-            <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
-              LLM evaluations
-            </Text>
-            <Text size="1" style={{ color: "var(--gray-11)" }}>
-              Monitor how your AI features are performing
-            </Text>
-          </Flex>
-        </Flex>
-        <Link
-          href={evaluationsUrl}
-          target="_blank"
-          rel="noopener"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Button size="1" variant="soft" tabIndex={-1}>
-            Manage
-            <ArrowSquareOutIcon size={12} />
-          </Button>
-        </Link>
-      </Flex>
-    </Box>
-  );
-});
-
-function SourceRunningIndicator({
-  status,
-  message,
-}: {
-  status: string | null | undefined;
-  message: string;
-}) {
-  if (status !== "running") {
-    return null;
-  }
-  return (
-    <Flex align="center" gap="2" mt="2">
-      <CircleNotchIcon
-        size={14}
-        className="animate-spin"
-        style={{ color: "var(--accent-11)" }}
-      />
-      <Text size="1" style={{ color: "var(--accent-11)" }}>
-        {message}
-      </Text>
-    </Flex>
-  );
-}
-
 interface SignalSourceTogglesProps {
   value: SignalSourceValues;
   onToggle: (source: keyof SignalSourceValues, enabled: boolean) => void;
@@ -228,7 +146,6 @@ interface SignalSourceTogglesProps {
     >
   >;
   onSetup?: (source: keyof SignalSourceValues) => void;
-  evaluationsUrl?: string;
 }
 
 export function SignalSourceToggles({
@@ -237,12 +154,7 @@ export function SignalSourceToggles({
   disabled,
   sourceStates,
   onSetup,
-  evaluationsUrl,
 }: SignalSourceTogglesProps) {
-  const toggleSessionReplay = useCallback(
-    (checked: boolean) => onToggle("session_replay", checked),
-    [onToggle],
-  );
   const toggleErrorTracking = useCallback(
     (checked: boolean) => onToggle("error_tracking", checked),
     [onToggle],
@@ -272,21 +184,12 @@ export function SignalSourceToggles({
       <SignalSourceToggleCard
         icon={<BugIcon size={20} />}
         label="PostHog Error Tracking"
-        description="Surface new issues, reopenings, and volume spikes"
+        description="Surface new issues, reopenings and volume spikes"
         checked={value.error_tracking}
         onCheckedChange={toggleErrorTracking}
         disabled={disabled}
         syncStatus={sourceStates?.error_tracking?.syncStatus}
       />
-      <SignalSourceToggleCard
-        icon={<ChatsIcon size={20} />}
-        label="PostHog Conversations"
-        description="Turn support conversations into signals for the inbox"
-        checked={value.conversations}
-        onCheckedChange={toggleConversations}
-        disabled={disabled}
-      />
-      {evaluationsUrl && <EvaluationsCard evaluationsUrl={evaluationsUrl} />}
       <SignalSourceToggleCard
         icon={<GithubLogoIcon size={20} />}
         label="GitHub Issues"

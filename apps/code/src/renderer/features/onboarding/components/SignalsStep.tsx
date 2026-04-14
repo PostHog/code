@@ -25,11 +25,9 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
     handleSetup,
     handleSetupComplete,
     handleSetupCancel,
-    evaluationsUrl,
   } = useSignalSourceManager();
 
   const anyEnabled =
-    displayValues.session_replay ||
     displayValues.error_tracking ||
     displayValues.github ||
     displayValues.linear ||
@@ -121,7 +119,6 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
                     disabled={isLoading}
                     sourceStates={sourceStates}
                     onSetup={handleSetup}
-                    evaluationsUrl={evaluationsUrl}
                   />
                 )}
               </motion.div>
