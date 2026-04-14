@@ -5,6 +5,7 @@ import { useNavigationStore } from "@stores/navigationStore";
 import type React from "react";
 import { ProjectSwitcher } from "./ProjectSwitcher";
 import { SidebarMenu } from "./SidebarMenu";
+import { UpdateBanner } from "./UpdateBanner";
 
 export const SidebarContent: React.FC = () => {
   const archivedTaskIds = useArchivedTaskIds();
@@ -31,7 +32,8 @@ export const SidebarContent: React.FC = () => {
           </button>
         </Box>
       )}
-      <Box p="2" className="shrink-0">
+      <UpdateBanner />
+      <Box p="2" className="shrink-0 border-gray-6 border-t">
         <ProjectSwitcher />
       </Box>
     </Flex>
