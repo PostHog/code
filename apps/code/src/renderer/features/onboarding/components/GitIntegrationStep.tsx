@@ -481,8 +481,8 @@ export function GitIntegrationStep({
                               align="center"
                               style={{ color: "var(--gray-11)" }}
                             >
-                              Optional -- enables cloud agents and pull
-                              requests.
+                              Optional. Unlocks cloud agents and pull request
+                              workflows.
                             </Text>
                           </motion.div>
                         )}

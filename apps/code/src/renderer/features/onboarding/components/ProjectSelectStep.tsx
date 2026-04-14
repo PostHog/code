@@ -16,7 +16,7 @@ import {
   CheckCircle,
 } from "@phosphor-icons/react";
 import { Box, Button, Flex, Popover, Skeleton, Text } from "@radix-ui/themes";
-import explorerHog from "@renderer/assets/images/hedgehogs/explorer-hog.png";
+import happyHog from "@renderer/assets/images/hedgehogs/happy-hog.png";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { AnimatePresence, motion } from "framer-motion";
@@ -159,7 +159,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                         </Text>
                         <OAuthControls />
                         <OnboardingHogTip
-                          hogSrc={explorerHog}
+                          hogSrc={happyHog}
                           message="I don't bite. Just need to know who I'm working with."
                         />
                       </Flex>
@@ -414,7 +414,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
             {/* Hog tip */}
             {isAuthenticated && !isLoading && !switchOrgMutation.isPending && (
               <OnboardingHogTip
-                hogSrc={explorerHog}
+                hogSrc={happyHog}
                 message="I'll use data from this project to help drive product decisions."
               />
             )}
