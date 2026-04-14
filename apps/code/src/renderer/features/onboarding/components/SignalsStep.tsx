@@ -127,7 +127,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
             {/* Hog tip */}
             <OnboardingHogTip
               hogSrc={detectiveHog}
-              message="I'll watch these sources and surface the stuff that actually needs attention."
+              message="I'll investigate these sources around the clock and deliver tasks straight to your inbox when I find something worth acting on."
               delay={0.2}
             />
           </Flex>
