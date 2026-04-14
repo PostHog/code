@@ -6,7 +6,9 @@ import {
 import { useAuthUiStateStore } from "@features/auth/stores/authUiStateStore";
 import { Callout, Flex, Spinner, Text, Theme } from "@radix-ui/themes";
 import phWordmark from "@renderer/assets/images/wordmark.svg";
+import phWordmarkWhite from "@renderer/assets/images/wordmark-white.svg";
 import zenHedgehog from "@renderer/assets/images/zen.png";
+import { useThemeStore } from "@stores/themeStore";
 
 export function InviteCodeScreen() {
   const code = useAuthUiStateStore((state) => state.inviteCode);
@@ -23,10 +25,15 @@ export function InviteCodeScreen() {
     });
   };
 
+  const isDarkMode = useThemeStore((state) => state.isDarkMode);
   const errorMessage = redeemMutation.error?.message ?? null;
 
   return (
-    <Theme appearance="light" accentColor="orange" radius="medium">
+    <Theme
+      appearance={isDarkMode ? "dark" : "light"}
+      accentColor={isDarkMode ? "yellow" : "orange"}
+      radius="medium"
+    >
       <Flex height="100vh" style={{ position: "relative", overflow: "hidden" }}>
         <DraggableTitleBar />
 
@@ -35,7 +42,7 @@ export function InviteCodeScreen() {
           style={{
             position: "absolute",
             inset: 0,
-            backgroundColor: "rgb(243, 244, 240)",
+            backgroundColor: "var(--color-background)",
           }}
         />
 
@@ -84,7 +91,7 @@ export function InviteCodeScreen() {
           >
             {/* Logo */}
             <img
-              src={phWordmark}
+              src={isDarkMode ? phWordmarkWhite : phWordmark}
               alt="PostHog"
               style={{
                 height: "48px",

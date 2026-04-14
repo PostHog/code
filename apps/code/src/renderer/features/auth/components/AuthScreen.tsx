@@ -2,11 +2,18 @@ import { DraggableTitleBar } from "@components/DraggableTitleBar";
 import { ZenHedgehog } from "@components/ZenHedgehog";
 import { Flex, Theme } from "@radix-ui/themes";
 import codeLogo from "@renderer/assets/images/code.svg";
+import { useThemeStore } from "@stores/themeStore";
 import { OAuthControls } from "./OAuthControls";
 
 export function AuthScreen() {
+  const isDarkMode = useThemeStore((state) => state.isDarkMode);
+
   return (
-    <Theme appearance="light" accentColor="orange" radius="medium">
+    <Theme
+      appearance={isDarkMode ? "dark" : "light"}
+      accentColor={isDarkMode ? "yellow" : "orange"}
+      radius="medium"
+    >
       <Flex height="100vh" style={{ position: "relative", overflow: "hidden" }}>
         <DraggableTitleBar />
 
@@ -15,7 +22,7 @@ export function AuthScreen() {
           style={{
             position: "absolute",
             inset: 0,
-            backgroundColor: "rgb(243, 244, 240)",
+            backgroundColor: "var(--color-background)",
           }}
         />
 
@@ -29,7 +36,7 @@ export function AuthScreen() {
             right: 0,
             bottom: 0,
             width: "50%",
-            backgroundColor: "rgb(243, 244, 240)",
+            backgroundColor: "var(--color-background)",
           }}
         >
           <ZenHedgehog />

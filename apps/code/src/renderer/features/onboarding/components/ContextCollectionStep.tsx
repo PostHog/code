@@ -59,7 +59,7 @@ export function ContextCollectionStep({
               minWidth: 520,
               maxWidth: 520,
               margin: "0 auto",
-              backgroundColor: "rgba(243, 244, 240, 0.85)",
+              backgroundColor: "var(--color-panel-translucent)",
               borderRadius: 16,
               padding: "24px 28px",
             }}

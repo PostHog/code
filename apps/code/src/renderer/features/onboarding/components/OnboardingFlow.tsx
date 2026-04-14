@@ -5,8 +5,10 @@ import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore"
 import { ArrowRight, Lifebuoy, SignOut } from "@phosphor-icons/react";
 import { Button, Flex, Theme } from "@radix-ui/themes";
 import phWordmark from "@renderer/assets/images/wordmark.svg";
+import phWordmarkWhite from "@renderer/assets/images/wordmark-white.svg";
 import { trpcClient } from "@renderer/trpc/client";
 import { IS_DEV } from "@shared/constants/environment";
+import { useThemeStore } from "@stores/themeStore";
 import { EXTERNAL_LINKS } from "@utils/links";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 
@@ -48,6 +50,7 @@ export function OnboardingFlow() {
   const isAuthenticated = useAuthStateValue(
     (state) => state.status === "authenticated",
   );
+  const isDarkMode = useThemeStore((state) => state.isDarkMode);
   usePrefetchSignalData();
 
   const handleComplete = () => {
@@ -55,7 +58,11 @@ export function OnboardingFlow() {
   };
 
   return (
-    <Theme appearance="light" accentColor="orange" radius="medium">
+    <Theme
+      appearance={isDarkMode ? "dark" : "light"}
+      accentColor={isDarkMode ? "yellow" : "orange"}
+      radius="medium"
+    >
       <LayoutGroup>
         <Flex
           direction="column"
@@ -69,7 +76,7 @@ export function OnboardingFlow() {
             style={{
               position: "absolute",
               inset: 0,
-              backgroundColor: "rgb(243, 244, 240)",
+              backgroundColor: "var(--color-background)",
             }}
           />
 
@@ -99,7 +106,7 @@ export function OnboardingFlow() {
             }}
           >
             <img
-              src={phWordmark}
+              src={isDarkMode ? phWordmarkWhite : phWordmark}
               alt="PostHog"
               style={{
                 height: "40px",
