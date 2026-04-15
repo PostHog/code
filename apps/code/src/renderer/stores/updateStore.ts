@@ -70,6 +70,12 @@ export function initializeUpdateStore() {
         if (current === "checking" || current === "downloading") {
           useUpdateStore.setState({ status: "idle" });
         }
+      } else if (status.error) {
+        log.error("Update check failed", { error: status.error });
+        const current = useUpdateStore.getState().status;
+        if (current === "checking" || current === "downloading") {
+          useUpdateStore.setState({ status: "idle" });
+        }
       }
     },
     onError: (error) => {

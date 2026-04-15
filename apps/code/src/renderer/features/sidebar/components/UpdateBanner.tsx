@@ -63,7 +63,7 @@ export function UpdateBanner() {
                     </motion.div>
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="font-medium">
-                        {version ? `Updated to ${version}` : "Update available"}
+                        {version ? `v${version} ready` : "Update ready"}
                       </span>
                       <span
                         className="text-[11px]"
@@ -74,20 +74,8 @@ export function UpdateBanner() {
                     </div>
                     <button
                       type="button"
-                      className="shrink-0 rounded px-2 py-1 font-medium text-[12px] transition-colors"
-                      style={{
-                        backgroundColor: "var(--green-a4)",
-                        color: "var(--green-11)",
-                      }}
+                      className="shrink-0 rounded bg-[var(--green-a4)] px-2 py-1 font-medium text-[12px] text-[var(--green-11)] transition-colors hover:bg-[var(--green-a5)]"
                       onClick={() => void installUpdate()}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor =
-                          "var(--green-a5)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor =
-                          "var(--green-a4)";
-                      }}
                     >
                       Restart
                     </button>
@@ -97,29 +85,10 @@ export function UpdateBanner() {
             )}
 
             {status === "installing" && (
-              <motion.div
-                key="installing"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                <Box className="p-2">
-                  <div
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 font-medium text-[13px]"
-                    style={{
-                      backgroundColor: "var(--green-a3)",
-                      color: "var(--green-11)",
-                    }}
-                  >
-                    <ArrowsClockwise
-                      size={16}
-                      className="shrink-0 animate-spin"
-                    />
-                    <span>Restarting...</span>
-                  </div>
-                </Box>
-              </motion.div>
+              <BannerContent key="installing">
+                <ArrowsClockwise size={16} className="shrink-0 animate-spin" />
+                <span className="font-medium">Restarting...</span>
+              </BannerContent>
             )}
           </AnimatePresence>
         </motion.div>
