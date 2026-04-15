@@ -12,6 +12,7 @@ import { IS_DEV } from "@shared/constants/environment";
 import { useThemeStore } from "@stores/themeStore";
 import { EXTERNAL_LINKS } from "@utils/links";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { useHotkeys } from "react-hotkeys-hook";
 
 import { useOnboardingFlow } from "../hooks/useOnboardingFlow";
 import { usePrefetchSignalData } from "../hooks/usePrefetchSignalData";
@@ -51,6 +52,9 @@ export function OnboardingFlow() {
   );
   const isDarkMode = useThemeStore((state) => state.isDarkMode);
   usePrefetchSignalData();
+
+  useHotkeys("right", next, { enableOnFormTags: false }, [next]);
+  useHotkeys("left", back, { enableOnFormTags: false }, [back]);
 
   const handleComplete = () => {
     completeOnboarding();
