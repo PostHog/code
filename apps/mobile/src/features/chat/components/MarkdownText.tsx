@@ -72,7 +72,11 @@ function parseBlocks(text: string): Block[] {
     }
 
     // Table: lines with pipes, second line is separator (|---|---|)
-    if (line.includes("|") && i + 1 < lines.length && /^\s*\|?[\s-:|]+\|/.test(lines[i + 1])) {
+    if (
+      line.includes("|") &&
+      i + 1 < lines.length &&
+      /^\s*\|?[\s-:|]+\|/.test(lines[i + 1])
+    ) {
       const rows: string[][] = [];
       while (i < lines.length && lines[i].includes("|")) {
         const row = lines[i]
@@ -107,7 +111,11 @@ function parseBlocks(text: string): Block[] {
       !lines[i].match(/^#{1,6}\s/) &&
       !/^\s*[-*]\s/.test(lines[i]) &&
       !/^\s*\d+[.)]\s/.test(lines[i]) &&
-      !(lines[i].includes("|") && i + 1 < lines.length && /^\s*\|?[\s-:|]+\|/.test(lines[i + 1]))
+      !(
+        lines[i].includes("|") &&
+        i + 1 < lines.length &&
+        /^\s*\|?[\s-:|]+\|/.test(lines[i + 1])
+      )
     ) {
       paraLines.push(lines[i]);
       i++;
@@ -229,44 +237,68 @@ export function MarkdownText({ content }: MarkdownTextProps) {
             const header = rows[0];
             const body = rows.slice(1);
             return (
-              <ScrollView key={key} horizontal showsHorizontalScrollIndicator={false}>
+              <ScrollView
+                key={key}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+              >
                 <View className="overflow-hidden rounded-md border border-gray-6">
                   {header && (
                     <View className="flex-row bg-gray-3">
-                      {/* biome-ignore lint/suspicious/noArrayIndexKey: static markdown table cells never reorder */}
-                      {header.map((cell, ci) => (
-                        <View
-                          key={`${key}-h-${ci}-${cell}`}
-                          className="border-gray-6 px-3 py-1.5"
-                          style={ci > 0 ? { borderLeftWidth: 1, borderLeftColor: "#3333" } : undefined}
-                        >
-                          <Text className="font-bold text-[12px] text-gray-12">
-                            {renderInline(cell)}
-                          </Text>
-                        </View>
-                      ))}
+                      {header.map((cell, col) => {
+                        const colKey = `${key}-h${col}-${cell}`;
+                        return (
+                          <View
+                            key={colKey}
+                            className="border-gray-6 px-3 py-1.5"
+                            style={
+                              col > 0
+                                ? {
+                                    borderLeftWidth: 1,
+                                    borderLeftColor: "#3333",
+                                  }
+                                : undefined
+                            }
+                          >
+                            <Text className="font-bold text-[12px] text-gray-12">
+                              {renderInline(cell)}
+                            </Text>
+                          </View>
+                        );
+                      })}
                     </View>
                   )}
-                  {/* biome-ignore lint/suspicious/noArrayIndexKey: static markdown table rows never reorder */}
-                  {body.map((row, ri) => (
-                    <View
-                      key={`${key}-r-${ri}`}
-                      className="flex-row border-t border-gray-6"
-                    >
-                      {/* biome-ignore lint/suspicious/noArrayIndexKey: static markdown table cells never reorder */}
-                      {row.map((cell, ci) => (
-                        <View
-                          key={`${key}-r-${ri}-c-${ci}`}
-                          className="px-3 py-1.5"
-                          style={ci > 0 ? { borderLeftWidth: 1, borderLeftColor: "#3333" } : undefined}
-                        >
-                          <Text className="text-[12px] text-gray-12">
-                            {renderInline(cell)}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                  ))}
+                  {body.map((row, ri) => {
+                    const rowKey = `${key}-r${ri}`;
+                    return (
+                      <View
+                        key={rowKey}
+                        className="flex-row border-gray-6 border-t"
+                      >
+                        {row.map((cell, col) => {
+                          const cellKey = `${rowKey}-c${col}-${cell}`;
+                          return (
+                            <View
+                              key={cellKey}
+                              className="px-3 py-1.5"
+                              style={
+                                col > 0
+                                  ? {
+                                      borderLeftWidth: 1,
+                                      borderLeftColor: "#3333",
+                                    }
+                                  : undefined
+                              }
+                            >
+                              <Text className="text-[12px] text-gray-12">
+                                {renderInline(cell)}
+                              </Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    );
+                  })}
                 </View>
               </ScrollView>
             );

@@ -1,9 +1,4 @@
-import {
-  ArrowDown,
-  Brain,
-  CaretRight,
-  Robot,
-} from "phosphor-react-native";
+import { ArrowDown, Brain, CaretRight, Robot } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -28,6 +23,9 @@ interface TaskSessionViewProps {
   events: SessionEvent[];
   isConnecting?: boolean;
   isThinking?: boolean;
+  terminalStatus?: "failed" | "completed";
+  lastError?: string | null;
+  onRetry?: () => void;
   onOpenTask?: (taskId: string) => void;
   onSendAnswer?: (answer: string) => void;
   contentContainerStyle?: object;
@@ -113,8 +111,7 @@ function parseSessionNotification(
     }
     case "tool_call": {
       const meta = update._meta?.claudeCode;
-      const isAgent =
-        meta?.toolName === "Agent" || meta?.toolName === "Task";
+      const isAgent = meta?.toolName === "Agent" || meta?.toolName === "Task";
       return {
         type: "tool",
         toolData: {
@@ -387,7 +384,11 @@ function CollapsedThought({ content }: { content: string }) {
 function tryReassembleString(obj: Record<string, unknown>): string | null {
   const numericKeys = Object.keys(obj).filter((k) => /^\d+$/.test(k));
   if (numericKeys.length < 3) return null;
-  if (numericKeys.every((k) => typeof obj[k] === "string" && (obj[k] as string).length === 1)) {
+  if (
+    numericKeys.every(
+      (k) => typeof obj[k] === "string" && (obj[k] as string).length === 1,
+    )
+  ) {
     return numericKeys
       .sort((a, b) => Number(a) - Number(b))
       .map((k) => obj[k])
@@ -410,7 +411,14 @@ function extractErrorText(result: unknown): string | null {
   if (reassembled) return reassembled;
 
   // Check simple string fields, recurse into nested objects
-  for (const key of ["error", "message", "stderr", "output", "text", "content"]) {
+  for (const key of [
+    "error",
+    "message",
+    "stderr",
+    "output",
+    "text",
+    "content",
+  ]) {
     if (typeof obj[key] === "string") return obj[key] as string;
     if (obj[key] && typeof obj[key] === "object") {
       const nested = extractErrorText(obj[key]);
@@ -439,11 +447,12 @@ function agentPromptSummary(args?: Record<string, unknown>): string | null {
         : null;
   if (!prompt) return null;
   // Take the first meaningful line, truncated
-  const firstLine = prompt.split("\n").find((l) => l.trim())?.trim();
+  const firstLine = prompt
+    .split("\n")
+    .find((l) => l.trim())
+    ?.trim();
   if (!firstLine) return null;
-  return firstLine.length > 120
-    ? `${firstLine.slice(0, 120)}…`
-    : firstLine;
+  return firstLine.length > 120 ? `${firstLine.slice(0, 120)}…` : firstLine;
 }
 
 function AgentToolCard({
@@ -469,10 +478,7 @@ function AgentToolCard({
   return (
     <View className="mx-4 my-1 overflow-hidden rounded-lg border border-gray-6 bg-gray-2">
       {/* Header */}
-      <Pressable
-        onPress={() => setExpanded(!expanded)}
-        className="px-3 py-2"
-      >
+      <Pressable onPress={() => setExpanded(!expanded)} className="px-3 py-2">
         <View className="flex-row items-center gap-2">
           {isLoading ? (
             <ActivityIndicator size={12} color={themeColors.accent[9]} />
@@ -551,20 +557,27 @@ function AgentToolCard({
   );
 }
 
-const CONNECTING_MESSAGE: ParsedMessage = {
-  id: "__connecting__",
-  type: "connecting",
-  content: "",
-};
+function formatElapsed(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
 
-const THINKING_MESSAGE: ParsedMessage = {
-  id: "__thinking__",
-  type: "thinking",
-  content: "",
-};
+function useElapsedTimer() {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    setElapsed(0);
+    const interval = setInterval(() => {
+      setElapsed((e) => e + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+  return elapsed;
+}
 
 function ThinkingIndicator() {
   const [dots, setDots] = useState(1);
+  const elapsed = useElapsedTimer();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -574,17 +587,18 @@ function ThinkingIndicator() {
   }, []);
 
   return (
-    <View className="px-4 py-2">
+    <View className="flex-row items-center justify-between px-4 py-2">
       <Text className="text-[13px] text-gray-9 italic">
         Thinking{".".repeat(dots)}
       </Text>
+      <Text className="text-[12px] text-gray-8">{formatElapsed(elapsed)}</Text>
     </View>
   );
 }
 
 function ConnectingIndicator() {
-  const themeColors = useThemeColors();
   const [dots, setDots] = useState(1);
+  const elapsed = useElapsedTimer();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -594,10 +608,11 @@ function ConnectingIndicator() {
   }, []);
 
   return (
-    <View className="px-4 py-2">
+    <View className="flex-row items-center justify-between px-4 py-2">
       <Text className="text-[13px] text-gray-9">
         Connecting{".".repeat(dots)}
       </Text>
+      <Text className="text-[12px] text-gray-8">{formatElapsed(elapsed)}</Text>
     </View>
   );
 }
@@ -606,6 +621,9 @@ export function TaskSessionView({
   events,
   isConnecting,
   isThinking,
+  terminalStatus,
+  lastError,
+  onRetry,
   onOpenTask,
   onSendAnswer,
   contentContainerStyle,
@@ -614,7 +632,10 @@ export function TaskSessionView({
   const prevEventsRef = useRef(events);
   // Reset processor when events array shrinks or changes identity completely
   // (e.g., navigating between tasks while Expo Router reuses the component).
-  if (events.length === 0 || (events !== prevEventsRef.current && events[0] !== prevEventsRef.current[0])) {
+  if (
+    events.length === 0 ||
+    (events !== prevEventsRef.current && events[0] !== prevEventsRef.current[0])
+  ) {
     processorRef.current = createProcessorState();
   }
   prevEventsRef.current = events;
@@ -624,22 +645,7 @@ export function TaskSessionView({
   );
   // Inverted FlatList renders data[0] at the visual bottom.
   // Reverse so newest messages are at index 0 = bottom.
-  const displayMessages = useMemo(() => {
-    const onlyUserMessages = messages.every((m) => m.type === "user");
-    // Show "Connecting..." when pending and no agent activity yet
-    if (isConnecting && onlyUserMessages) {
-      return [...messages, CONNECTING_MESSAGE];
-    }
-    // Show "Thinking..." when agent is working (after initial connection)
-    if (isThinking && !onlyUserMessages) {
-      return [...messages, THINKING_MESSAGE];
-    }
-    return messages;
-  }, [messages, isConnecting, isThinking]);
-  const reversedMessages = useMemo(
-    () => [...displayMessages].reverse(),
-    [displayMessages],
-  );
+  const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
   const themeColors = useThemeColors();
   const flatListRef = useRef<FlatList>(null);
   const buttonRef = useRef<View>(null);
@@ -676,10 +682,6 @@ export function TaskSessionView({
           );
         case "thought":
           return <CollapsedThought content={item.content} />;
-        case "connecting":
-          return <ConnectingIndicator />;
-        case "thinking":
-          return <ThinkingIndicator />;
         case "tool":
           if (!item.toolData) return null;
           if (isQuestionTool(item.toolData)) {
@@ -691,9 +693,7 @@ export function TaskSessionView({
             );
           }
           if (item.toolData.isAgent) {
-            return (
-              <AgentToolCard item={item} onOpenTask={onOpenTask} />
-            );
+            return <AgentToolCard item={item} onOpenTask={onOpenTask} />;
           }
           return (
             <ToolMessage
@@ -731,6 +731,58 @@ export function TaskSessionView({
         windowSize={21}
         initialNumToRender={30}
       />
+      {/* Status indicators absolutely positioned above the Composer area.
+          Rendered outside FlatList to avoid inverted-list double-mount bugs. */}
+      {(terminalStatus || isConnecting || isThinking) && (
+        <View className="absolute inset-x-0 bottom-[92px] pb-2">
+          {terminalStatus ? (
+            <View
+              className={`mx-4 mb-12 rounded-lg px-4 py-3 ${
+                terminalStatus === "failed"
+                  ? "bg-status-error/10"
+                  : "bg-status-success/10"
+              }`}
+            >
+              <Text
+                className={`font-semibold text-sm ${
+                  terminalStatus === "failed"
+                    ? "text-status-error"
+                    : "text-status-success"
+                }`}
+              >
+                {terminalStatus === "failed" ? "Run failed" : "Run completed"}
+              </Text>
+              {lastError && (
+                <Text className="mt-1 text-gray-11 text-xs">{lastError}</Text>
+              )}
+              {onRetry && (
+                <Pressable
+                  onPress={onRetry}
+                  className={`mt-2 self-start rounded-md px-3 py-1.5 ${
+                    terminalStatus === "failed"
+                      ? "bg-status-error/20"
+                      : "bg-status-success/20"
+                  }`}
+                >
+                  <Text
+                    className={`font-medium text-xs ${
+                      terminalStatus === "failed"
+                        ? "text-status-error"
+                        : "text-status-success"
+                    }`}
+                  >
+                    {terminalStatus === "failed" ? "Retry" : "Continue"}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          ) : isConnecting ? (
+            <ConnectingIndicator />
+          ) : isThinking ? (
+            <ThinkingIndicator />
+          ) : null}
+        </View>
+      )}
       <View
         ref={buttonRef}
         className="absolute right-4 bottom-32"

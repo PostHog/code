@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Composer } from "@/features/chat";
 import {
   getTask,
+  runTaskInCloud,
   type Task,
   TaskSessionView,
   useTaskSessionStore,
@@ -22,6 +23,7 @@ export default function TaskDetailScreen() {
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   const { connectToTask, disconnectFromTask, sendPrompt, getSessionForTask } =
     useTaskSessionStore();
@@ -76,6 +78,31 @@ export default function TaskDetailScreen() {
     };
   }, [taskId, connectToTask, disconnectFromTask]);
 
+  // Auto-reconnect if the session disappears while the screen is active
+  // (e.g., cloud sandbox expired and the session was cleaned up).
+  // Re-fetches the task to get a fresh S3 presigned URL.
+  useEffect(() => {
+    if (!taskId || !task || loading) return;
+    if (session) return;
+    if (retrying) return;
+
+    let cancelled = false;
+    getTask(taskId)
+      .then((freshTask) => {
+        if (cancelled) return;
+        setTask(freshTask);
+        return connectToTask(freshTask);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("Failed to reconnect to task:", err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [taskId, task, loading, session, connectToTask, retrying]);
+
   const handleSendPrompt = useCallback(
     (text: string) => {
       if (!taskId) return;
@@ -85,6 +112,33 @@ export default function TaskDetailScreen() {
     },
     [taskId, sendPrompt],
   );
+
+  const handleRetry = useCallback(async () => {
+    if (!taskId || !task) return;
+    try {
+      setRetrying(true);
+      disconnectFromTask(taskId);
+
+      const updatedTask = await runTaskInCloud(taskId, {
+        resumeFromRunId: task.latest_run?.id,
+      });
+      setTask(updatedTask);
+      await connectToTask(updatedTask);
+      // Don't clear retrying here — the effect below clears it
+      // once the session shows meaningful state (thinking or terminal).
+    } catch (err) {
+      console.error("Failed to retry task:", err);
+      setRetrying(false);
+    }
+  }, [taskId, task, disconnectFromTask, connectToTask]);
+
+  // Clear retrying once the agent finishes a turn or the run terminates.
+  useEffect(() => {
+    if (!retrying || !session) return;
+    if (!session.isPromptPending || session.terminalStatus) {
+      setRetrying(false);
+    }
+  }, [retrying, session]);
 
   const handleOpenTask = useCallback(
     (newTaskId: string) => {
@@ -163,12 +217,25 @@ export default function TaskDetailScreen() {
             switching from loading spinner to rendered content. */}
         <TaskSessionView
           events={session?.events ?? []}
-          isConnecting={session?.isPromptPending ?? false}
-          isThinking={session?.isPromptPending ?? false}
+          isConnecting={
+            retrying ||
+            ((session?.isPromptPending ?? false) &&
+              (session?.events?.length ?? 0) === 0)
+          }
+          isThinking={
+            (session?.isPromptPending ?? false) &&
+            (session?.events?.length ?? 0) > 0
+          }
+          terminalStatus={retrying ? undefined : session?.terminalStatus}
+          lastError={retrying ? undefined : session?.lastError}
+          onRetry={
+            !retrying && session?.terminalStatus ? handleRetry : undefined
+          }
           onOpenTask={handleOpenTask}
           onSendAnswer={handleSendPrompt}
           contentContainerStyle={{
-            paddingTop: 80 + insets.bottom,
+            paddingTop:
+              session?.terminalStatus && !retrying ? 16 : 80 + insets.bottom,
             paddingBottom: 16,
           }}
         />
@@ -177,21 +244,25 @@ export default function TaskDetailScreen() {
         {loading && (
           <View className="absolute inset-0 items-center justify-center bg-background">
             <ActivityIndicator size="large" color={themeColors.accent[9]} />
-            <Text className="mt-4 text-gray-11">Loading task...</Text>
+            <Text className="mt-4 text-gray-11">
+              {task?.latest_run ? "Connecting..." : "Loading task..."}
+            </Text>
           </View>
         )}
 
-        {/* Fixed input at bottom */}
-        <Animated.View
-          className="absolute inset-x-0 bottom-0"
-          style={inputContainerStyle}
-        >
-          <Composer
-            onSend={handleSendPrompt}
-            isUserTurn={!(session?.isPromptPending ?? true)}
-            queuedCount={session?.messageQueue?.length ?? 0}
-          />
-        </Animated.View>
+        {/* Fixed input at bottom — hidden when run is terminal */}
+        {!session?.terminalStatus && (
+          <Animated.View
+            className="absolute inset-x-0 bottom-0"
+            style={inputContainerStyle}
+          >
+            <Composer
+              onSend={handleSendPrompt}
+              isUserTurn={!(session?.isPromptPending ?? true)}
+              queuedCount={session?.messageQueue?.length ?? 0}
+            />
+          </Animated.View>
+        )}
       </Animated.View>
     </>
   );
