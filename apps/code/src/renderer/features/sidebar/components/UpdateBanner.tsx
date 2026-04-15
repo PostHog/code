@@ -40,13 +40,7 @@ export function UpdateBanner() {
                 transition={{ duration: 0.15 }}
               >
                 <Box className="p-2">
-                  <div
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px]"
-                    style={{
-                      backgroundColor: "var(--green-a3)",
-                      color: "var(--green-11)",
-                    }}
-                  >
+                  <div className="flex w-full items-center gap-3 rounded-lg bg-[var(--green-a3)] px-3 py-2.5 text-[13px] text-[var(--green-11)]">
                     <motion.div
                       className="shrink-0"
                       animate={{
@@ -65,10 +59,7 @@ export function UpdateBanner() {
                       <span className="font-medium">
                         {version ? `v${version} ready` : "Update ready"}
                       </span>
-                      <span
-                        className="text-[11px]"
-                        style={{ color: "var(--green-a11)" }}
-                      >
+                      <span className="text-[11px] text-[var(--green-a11)]">
                         Restart to apply
                       </span>
                     </div>
@@ -110,13 +101,7 @@ function BannerContent({
       className="p-2"
       {...props}
     >
-      <div
-        className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-[13px]"
-        style={{
-          backgroundColor: "var(--green-a3)",
-          color: "var(--green-11)",
-        }}
-      >
+      <div className="flex items-center gap-2 rounded-lg bg-[var(--green-a3)] px-3 py-2.5 text-[13px] text-[var(--green-11)]">
         {children}
       </div>
     </motion.div>
