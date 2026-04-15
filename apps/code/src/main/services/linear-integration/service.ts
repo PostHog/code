@@ -14,7 +14,7 @@ export class LinearIntegrationService {
   ): Promise<StartLinearFlowOutput> {
     try {
       const cloudUrl = getCloudUrlFromRegion(region);
-      const next = `${cloudUrl}/projects/${projectId}`;
+      const next = `${cloudUrl}/project/${projectId}`;
       const authorizeUrl = `${cloudUrl}/api/environments/${projectId}/integrations/authorize/?kind=linear&next=${encodeURIComponent(next)}`;
 
       log.info("Opening Linear authorization URL in browser");
