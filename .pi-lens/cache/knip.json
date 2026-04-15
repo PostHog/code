@@ -1,0 +1,4557 @@
+{
+  "success": true,
+  "issues": [
+    {
+      "type": "dependency",
+      "name": "@base-ui/react",
+      "file": "apps/code/package.json",
+      "line": 90
+    },
+    {
+      "type": "dependency",
+      "name": "@fontsource-variable/inter",
+      "file": "apps/code/package.json",
+      "line": 116
+    },
+    {
+      "type": "dependency",
+      "name": "@opentelemetry/api-logs",
+      "file": "apps/code/package.json",
+      "line": 121
+    },
+    {
+      "type": "dependency",
+      "name": "@posthog/quill-blocks",
+      "file": "apps/code/package.json",
+      "line": 133
+    },
+    {
+      "type": "dependency",
+      "name": "@posthog/quill-components",
+      "file": "apps/code/package.json",
+      "line": 134
+    },
+    {
+      "type": "dependency",
+      "name": "@posthog/quill-primitives",
+      "file": "apps/code/package.json",
+      "line": 135
+    },
+    {
+      "type": "dependency",
+      "name": "@posthog/quill-tokens",
+      "file": "apps/code/package.json",
+      "line": 136
+    },
+    {
+      "type": "dependency",
+      "name": "class-variance-authority",
+      "file": "apps/code/package.json",
+      "line": 159
+    },
+    {
+      "type": "dependency",
+      "name": "clsx",
+      "file": "apps/code/package.json",
+      "line": 160
+    },
+    {
+      "type": "dependency",
+      "name": "lucide-react",
+      "file": "apps/code/package.json",
+      "line": 175
+    },
+    {
+      "type": "dependency",
+      "name": "remark-breaks",
+      "file": "apps/code/package.json",
+      "line": 189
+    },
+    {
+      "type": "dependency",
+      "name": "striptags",
+      "file": "apps/code/package.json",
+      "line": 193
+    },
+    {
+      "type": "dependency",
+      "name": "tailwind-merge",
+      "file": "apps/code/package.json",
+      "line": 194
+    },
+    {
+      "type": "dependency",
+      "name": "tw-animate-css",
+      "file": "apps/code/package.json",
+      "line": 196
+    },
+    {
+      "type": "dependency",
+      "name": "vaul",
+      "file": "apps/code/package.json",
+      "line": 197
+    },
+    {
+      "type": "devDependency",
+      "name": "@biomejs/biome",
+      "file": "apps/code/package.json",
+      "line": 45
+    },
+    {
+      "type": "devDependency",
+      "name": "@electron/rebuild",
+      "file": "apps/code/package.json",
+      "line": 53
+    },
+    {
+      "type": "devDependency",
+      "name": "@posthog/rollup-plugin",
+      "file": "apps/code/package.json",
+      "line": 55
+    },
+    {
+      "type": "devDependency",
+      "name": "adm-zip",
+      "file": "apps/code/package.json",
+      "line": 68
+    },
+    {
+      "type": "devDependency",
+      "name": "husky",
+      "file": "apps/code/package.json",
+      "line": 72
+    },
+    {
+      "type": "devDependency",
+      "name": "lint-staged",
+      "file": "apps/code/package.json",
+      "line": 75
+    },
+    {
+      "type": "devDependency",
+      "name": "postcss",
+      "file": "apps/code/package.json",
+      "line": 77
+    },
+    {
+      "type": "devDependency",
+      "name": "@posthog/cli",
+      "file": "package.json",
+      "line": 45
+    },
+    {
+      "type": "devDependency",
+      "name": "@types/tar",
+      "file": "packages/agent/package.json",
+      "line": 90
+    },
+    {
+      "type": "devDependency",
+      "name": "tsx",
+      "file": "packages/agent/package.json",
+      "line": 93
+    },
+    {
+      "type": "devDependency",
+      "name": "@types/tar",
+      "file": "packages/git/package.json",
+      "line": 20
+    },
+    {
+      "type": "unlisted",
+      "name": "@vitest/coverage-v8",
+      "file": "apps/code/vitest.config.ts"
+    },
+    {
+      "type": "unlisted",
+      "name": "@vitest/coverage-v8",
+      "file": "packages/agent/vitest.config.ts"
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/utils/session.ts",
+      "line": 9
+    },
+    {
+      "type": "unlisted",
+      "name": "@anthropic-ai/claude-agent-sdk",
+      "file": "apps/code/src/main/services/agent/discover-plugins.ts",
+      "line": 5
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/main/services/agent/service.ts",
+      "line": 14
+    },
+    {
+      "type": "export",
+      "name": "isSelectGroup",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 93
+    },
+    {
+      "type": "export",
+      "name": "getPendingPermissionsForTask",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 209
+    },
+    {
+      "type": "export",
+      "name": "useAdapterForTask",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 211
+    },
+    {
+      "type": "export",
+      "name": "useAvailableCommandsForTask",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 212
+    },
+    {
+      "type": "export",
+      "name": "useConfigOptionForTask",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 213
+    },
+    {
+      "type": "export",
+      "name": "useThoughtLevelConfigOptionForTask",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 221
+    },
+    {
+      "type": "export",
+      "name": "SessionState",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 188
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 7
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/service/service.ts",
+      "line": 5
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/components/permissions/PermissionSelector.tsx",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/components/ConversationView.stories.tsx",
+      "line": 1
+    },
+    {
+      "type": "export",
+      "name": "ConfigOptionUpdate",
+      "file": "apps/code/src/renderer/features/sessions/types.ts",
+      "line": 31
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/types.ts",
+      "line": 7
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/main/trpc/routers/agent.ts",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/message-editor/components/MessageEditor.tsx",
+      "line": 2
+    },
+    {
+      "type": "export",
+      "name": "fetchSessionLogs",
+      "file": "apps/code/src/renderer/features/sessions/utils/parseSessionLogs.ts",
+      "line": 28
+    },
+    {
+      "type": "export",
+      "name": "findPendingPermissions",
+      "file": "apps/code/src/renderer/features/sessions/utils/parseSessionLogs.ts",
+      "line": 171
+    },
+    {
+      "type": "export",
+      "name": "StoredLogEntry",
+      "file": "apps/code/src/renderer/features/sessions/utils/parseSessionLogs.ts",
+      "line": 12
+    },
+    {
+      "type": "export",
+      "name": "ParsedSessionLogs",
+      "file": "apps/code/src/renderer/features/sessions/utils/parseSessionLogs.ts",
+      "line": 16
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/utils/parseSessionLogs.ts",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "effortLevelSchema",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "sessionConfigSchema",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "modelOptionSchema",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 57
+    },
+    {
+      "type": "export",
+      "name": "sessionConfigOptionSchema",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 103
+    },
+    {
+      "type": "export",
+      "name": "contentBlockSchema",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 119
+    },
+    {
+      "type": "export",
+      "name": "detachedHeadContext",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 262
+    },
+    {
+      "type": "export",
+      "name": "sessionContextChangeSchema",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 268
+    },
+    {
+      "type": "export",
+      "name": "sessionInfoSchema",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 281
+    },
+    {
+      "type": "export",
+      "name": "SessionConfig",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 35
+    },
+    {
+      "type": "export",
+      "name": "ModelOption",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 64
+    },
+    {
+      "type": "export",
+      "name": "SessionConfigOption",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 108
+    },
+    {
+      "type": "export",
+      "name": "PromptInput",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 130
+    },
+    {
+      "type": "export",
+      "name": "PermissionOption",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 211
+    },
+    {
+      "type": "export",
+      "name": "RespondToPermissionInput",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 248
+    },
+    {
+      "type": "export",
+      "name": "CancelPermissionInput",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 256
+    },
+    {
+      "type": "export",
+      "name": "SessionContextChange",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 270
+    },
+    {
+      "type": "export",
+      "name": "NotifySessionContextInput",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 277
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "findTerminalContent",
+      "file": "apps/code/src/renderer/components/permissions/types.ts",
+      "line": 48
+    },
+    {
+      "type": "export",
+      "name": "DiffContent",
+      "file": "apps/code/src/renderer/components/permissions/types.ts",
+      "line": 42
+    },
+    {
+      "type": "export",
+      "name": "TerminalContent",
+      "file": "apps/code/src/renderer/components/permissions/types.ts",
+      "line": 45
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/components/permissions/types.ts",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "TooltipPrimitive",
+      "file": "apps/code/src/renderer/components/ui/Tooltip.tsx",
+      "line": 77
+    },
+    {
+      "type": "unlisted",
+      "name": "@radix-ui/react-tooltip",
+      "file": "apps/code/src/renderer/components/ui/Tooltip.tsx",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/message-editor/commands.ts",
+      "line": 1
+    },
+    {
+      "type": "export",
+      "name": "SuggestionType",
+      "file": "apps/code/src/renderer/features/message-editor/types.ts",
+      "line": 36
+    },
+    {
+      "type": "export",
+      "name": "SuggestionLoadingState",
+      "file": "apps/code/src/renderer/features/message-editor/types.ts",
+      "line": 37
+    },
+    {
+      "type": "export",
+      "name": "SuggestionPosition",
+      "file": "apps/code/src/renderer/features/message-editor/types.ts",
+      "line": 39
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/message-editor/types.ts",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/editor/utils/prompt-builder.ts",
+      "line": 1
+    },
+    {
+      "type": "export",
+      "name": "CloudDiffStats",
+      "file": "apps/code/src/renderer/features/message-editor/stores/draftStore.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "EditorContext",
+      "file": "apps/code/src/renderer/features/message-editor/stores/draftStore.ts",
+      "line": 16
+    },
+    {
+      "type": "export",
+      "name": "DraftActions",
+      "file": "apps/code/src/renderer/features/message-editor/stores/draftStore.ts",
+      "line": 35
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/message-editor/stores/draftStore.ts",
+      "line": 1
+    },
+    {
+      "type": "export",
+      "name": "useAvailableCommandsForTask",
+      "file": "apps/code/src/renderer/features/sessions/hooks/useSession.ts",
+      "line": 33
+    },
+    {
+      "type": "export",
+      "name": "getPendingPermissionsForTask",
+      "file": "apps/code/src/renderer/features/sessions/hooks/useSession.ts",
+      "line": 80
+    },
+    {
+      "type": "export",
+      "name": "useConfigOptionForTask",
+      "file": "apps/code/src/renderer/features/sessions/hooks/useSession.ts",
+      "line": 117
+    },
+    {
+      "type": "export",
+      "name": "useThoughtLevelConfigOptionForTask",
+      "file": "apps/code/src/renderer/features/sessions/hooks/useSession.ts",
+      "line": 145
+    },
+    {
+      "type": "export",
+      "name": "useAdapterForTask",
+      "file": "apps/code/src/renderer/features/sessions/hooks/useSession.ts",
+      "line": 152
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/hooks/useSession.ts",
+      "line": 4
+    },
+    {
+      "type": "unlisted",
+      "name": "unified",
+      "file": "apps/code/src/renderer/features/editor/components/MarkdownRenderer.tsx",
+      "line": 10
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/components/ModelSelector.tsx",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/message-editor/components/ModeIndicatorInput.tsx",
+      "line": 6
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/message-editor/suggestions/getSuggestions.ts",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/task-detail/components/TaskInputEditor.tsx",
+      "line": 2
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/task-detail/hooks/usePreviewConfig.ts",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/components/buildConversationItems.ts",
+      "line": 4
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/components/ReasoningLevelSelector.tsx",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/components/UnifiedModelSelector.tsx",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "useSessionConfigStore",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionConfigStore.ts",
+      "line": 28
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionConfigStore.ts",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@dnd-kit/dom",
+      "file": "apps/code/src/renderer/features/sidebar/components/TaskListView.tsx",
+      "line": 1
+    },
+    {
+      "type": "export",
+      "name": "isObject",
+      "file": "packages/electron-trpc/src/main/utils.ts",
+      "line": 1
+    },
+    {
+      "type": "export",
+      "name": "makeAsyncResource",
+      "file": "packages/electron-trpc/src/main/utils.ts",
+      "line": 23
+    },
+    {
+      "type": "export",
+      "name": "resolveSelfTuple",
+      "file": "packages/electron-trpc/src/vendor/unpromise/unpromise.ts",
+      "line": 333
+    },
+    {
+      "type": "export",
+      "name": "ipcLink",
+      "file": "apps/code/.storybook/mocks/electron-trpc.ts",
+      "line": 6
+    },
+    {
+      "type": "export",
+      "name": "POSTHOG_US_CLIENT_ID",
+      "file": "apps/code/src/shared/constants/oauth.ts",
+      "line": 3
+    },
+    {
+      "type": "export",
+      "name": "POSTHOG_EU_CLIENT_ID",
+      "file": "apps/code/src/shared/constants/oauth.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "POSTHOG_DEV_CLIENT_ID",
+      "file": "apps/code/src/shared/constants/oauth.ts",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "TOKEN_REFRESH_BUFFER_MS",
+      "file": "apps/code/src/shared/constants/oauth.ts",
+      "line": 53
+    },
+    {
+      "type": "export",
+      "name": "TOKEN_REFRESH_FORCE_MS",
+      "file": "apps/code/src/shared/constants/oauth.ts",
+      "line": 54
+    },
+    {
+      "type": "export",
+      "name": "environmentActionSchema",
+      "file": "apps/code/src/main/services/environment/schemas.ts",
+      "line": 9
+    },
+    {
+      "type": "export",
+      "name": "EnvironmentAction",
+      "file": "apps/code/src/main/services/environment/schemas.ts",
+      "line": 50
+    },
+    {
+      "type": "export",
+      "name": "LlmGatewayError",
+      "file": "apps/code/src/main/services/llm-gateway/service.ts",
+      "line": 17
+    },
+    {
+      "type": "export",
+      "name": "SuspensionServiceEvent",
+      "file": "apps/code/src/main/services/suspension/service.ts",
+      "line": 47
+    },
+    {
+      "type": "export",
+      "name": "checkErrorCode",
+      "file": "apps/code/src/main/services/updates/schemas.ts",
+      "line": 7
+    },
+    {
+      "type": "export",
+      "name": "CheckErrorCode",
+      "file": "apps/code/src/main/services/updates/schemas.ts",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "IsEnabledOutput",
+      "file": "apps/code/src/main/services/updates/schemas.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "logSessionRecordingStatus",
+      "file": "apps/code/src/renderer/utils/analytics.ts",
+      "line": 54
+    },
+    {
+      "type": "export",
+      "name": "startSessionRecording",
+      "file": "apps/code/src/renderer/utils/analytics.ts",
+      "line": 77
+    },
+    {
+      "type": "export",
+      "name": "reloadFeatureFlags",
+      "file": "apps/code/src/renderer/utils/analytics.ts",
+      "line": 208
+    },
+    {
+      "type": "export",
+      "name": "setSessionResetCallback",
+      "file": "apps/code/src/renderer/features/auth/stores/authStore.ts",
+      "line": 21
+    },
+    {
+      "type": "export",
+      "name": "isCancelOption",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "isOtherOption",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 6
+    },
+    {
+      "type": "export",
+      "name": "isSubmitOption",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 7
+    },
+    {
+      "type": "export",
+      "name": "makeOptionId",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "OPTION_ID_PREFIX",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 9
+    },
+    {
+      "type": "export",
+      "name": "OTHER_OPTION_ID",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "OTHER_OPTION_ID_ALT",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 11
+    },
+    {
+      "type": "export",
+      "name": "ActionSelectorProps",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 16
+    },
+    {
+      "type": "export",
+      "name": "getGitInteractionActionLabel",
+      "file": "apps/code/src/renderer/features/git-interaction/state/gitInteractionStore.ts",
+      "line": 189
+    },
+    {
+      "type": "export",
+      "name": "CommitNextStep",
+      "file": "apps/code/src/renderer/features/git-interaction/state/gitInteractionStore.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "PushMode",
+      "file": "apps/code/src/renderer/features/git-interaction/state/gitInteractionStore.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "PushState",
+      "file": "apps/code/src/renderer/features/git-interaction/state/gitInteractionStore.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "shutdownOtelTransport",
+      "file": "apps/code/src/main/utils/logger.ts",
+      "line": 54
+    },
+    {
+      "type": "export",
+      "name": "Logger",
+      "file": "apps/code/src/main/utils/logger.ts",
+      "line": 51
+    },
+    {
+      "type": "export",
+      "name": "ScopedLogger",
+      "file": "apps/code/src/main/utils/logger.ts",
+      "line": 52
+    },
+    {
+      "type": "export",
+      "name": "getCurrentUserId",
+      "file": "apps/code/src/main/services/posthog-analytics.ts",
+      "line": 30
+    },
+    {
+      "type": "export",
+      "name": "getPostHogClient",
+      "file": "apps/code/src/main/services/posthog-analytics.ts",
+      "line": 78
+    },
+    {
+      "type": "export",
+      "name": "getMainWindow",
+      "file": "apps/code/src/main/window.ts",
+      "line": 65
+    },
+    {
+      "type": "export",
+      "name": "getErrorMessage",
+      "file": "apps/code/src/renderer/features/auth/components/AuthScreen.tsx",
+      "line": 16
+    },
+    {
+      "type": "export",
+      "name": "ANONYMOUS_AUTH_STATE",
+      "file": "apps/code/src/renderer/features/auth/hooks/authQueries.ts",
+      "line": 14
+    },
+    {
+      "type": "export",
+      "name": "useAuthState",
+      "file": "apps/code/src/renderer/features/auth/hooks/authQueries.ts",
+      "line": 57
+    },
+    {
+      "type": "export",
+      "name": "resolveIsDarkMode",
+      "file": "apps/code/src/renderer/stores/themeStore.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "DATA_DIR",
+      "file": "apps/code/src/shared/constants.ts",
+      "line": 2
+    },
+    {
+      "type": "export",
+      "name": "getErrorMessage",
+      "file": "apps/code/src/shared/errors.ts",
+      "line": 9
+    },
+    {
+      "type": "export",
+      "name": "getAllWorktreeLocations",
+      "file": "apps/code/src/main/services/settingsStore.ts",
+      "line": 129
+    },
+    {
+      "type": "export",
+      "name": "setWorktreeLocation",
+      "file": "apps/code/src/main/services/settingsStore.ts",
+      "line": 143
+    },
+    {
+      "type": "export",
+      "name": "middleware",
+      "file": "apps/code/src/main/trpc/trpc.ts",
+      "line": 60
+    },
+    {
+      "type": "export",
+      "name": "successStatusCodes",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24563
+    },
+    {
+      "type": "export",
+      "name": "errorStatusCodes",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24569
+    },
+    {
+      "type": "export",
+      "name": "TypedStatusError",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24712
+    },
+    {
+      "type": "export",
+      "name": "ApiClient",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24725
+    },
+    {
+      "type": "export",
+      "name": "EndpointByMethod",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 23634
+    },
+    {
+      "type": "export",
+      "name": "GetEndpoints",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24501
+    },
+    {
+      "type": "export",
+      "name": "PostEndpoints",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24502
+    },
+    {
+      "type": "export",
+      "name": "PatchEndpoints",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24503
+    },
+    {
+      "type": "export",
+      "name": "DeleteEndpoints",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24504
+    },
+    {
+      "type": "export",
+      "name": "PutEndpoints",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24505
+    },
+    {
+      "type": "export",
+      "name": "EndpointParameters",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24509
+    },
+    {
+      "type": "export",
+      "name": "MutationMethod",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24516
+    },
+    {
+      "type": "export",
+      "name": "Method",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24517
+    },
+    {
+      "type": "export",
+      "name": "DefaultEndpoint",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24521
+    },
+    {
+      "type": "export",
+      "name": "Endpoint",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24527
+    },
+    {
+      "type": "export",
+      "name": "SuccessStatusCode",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24567
+    },
+    {
+      "type": "export",
+      "name": "ErrorStatusCode",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24574
+    },
+    {
+      "type": "export",
+      "name": "TypedHeaders",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24577
+    },
+    {
+      "type": "export",
+      "name": "TypedSuccessResponse",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24630
+    },
+    {
+      "type": "export",
+      "name": "TypedErrorResponse",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24641
+    },
+    {
+      "type": "export",
+      "name": "TypedApiResponse",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24651
+    },
+    {
+      "type": "export",
+      "name": "SafeApiResponse",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24684
+    },
+    {
+      "type": "export",
+      "name": "InferResponseByStatus",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24695
+    },
+    {
+      "type": "export",
+      "name": "OTHER_OPTION_ID_ALT",
+      "file": "apps/code/src/renderer/components/action-selector/constants.ts",
+      "line": 2
+    },
+    {
+      "type": "export",
+      "name": "OPTION_ID_PREFIX",
+      "file": "apps/code/src/renderer/components/action-selector/constants.ts",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "makeOptionId",
+      "file": "apps/code/src/renderer/components/action-selector/constants.ts",
+      "line": 27
+    },
+    {
+      "type": "export",
+      "name": "useDeleteWorkspace",
+      "file": "apps/code/src/renderer/features/workspace/hooks/useWorkspace.ts",
+      "line": 80
+    },
+    {
+      "type": "export",
+      "name": "KEYBOARD_SHORTCUTS",
+      "file": "apps/code/src/renderer/constants/keyboard-shortcuts.ts",
+      "line": 37
+    },
+    {
+      "type": "export",
+      "name": "TRPCProvider",
+      "file": "apps/code/src/renderer/trpc/index.ts",
+      "line": 2
+    },
+    {
+      "type": "export",
+      "name": "container",
+      "file": "apps/code/src/renderer/di/container.ts",
+      "line": 12
+    },
+    {
+      "type": "export",
+      "name": "getLastUsedDirectory",
+      "file": "apps/code/src/renderer/hooks/useRepositoryDirectory.ts",
+      "line": 26
+    },
+    {
+      "type": "export",
+      "name": "localBackgroundedPayload",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 100
+    },
+    {
+      "type": "export",
+      "name": "localForegroundedPayload",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 106
+    },
+    {
+      "type": "export",
+      "name": "isLocalBackgroundedInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 111
+    },
+    {
+      "type": "export",
+      "name": "isLocalBackgroundedOutput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 115
+    },
+    {
+      "type": "export",
+      "name": "getLocalWorktreePathInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 117
+    },
+    {
+      "type": "export",
+      "name": "getLocalWorktreePathOutput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 121
+    },
+    {
+      "type": "export",
+      "name": "backgroundLocalWorkspaceInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 123
+    },
+    {
+      "type": "export",
+      "name": "backgroundLocalWorkspaceOutput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 128
+    },
+    {
+      "type": "export",
+      "name": "foregroundLocalWorkspaceInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 130
+    },
+    {
+      "type": "export",
+      "name": "foregroundLocalWorkspaceOutput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 134
+    },
+    {
+      "type": "export",
+      "name": "localTaskSchema",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 140
+    },
+    {
+      "type": "export",
+      "name": "gitWorktreeEntrySchema",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 156
+    },
+    {
+      "type": "export",
+      "name": "DeleteWorkspaceInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 223
+    },
+    {
+      "type": "export",
+      "name": "VerifyWorkspaceInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 224
+    },
+    {
+      "type": "export",
+      "name": "GetWorkspaceInfoInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 225
+    },
+    {
+      "type": "export",
+      "name": "ListGitWorktreesInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 226
+    },
+    {
+      "type": "export",
+      "name": "GetWorktreeSizeInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 227
+    },
+    {
+      "type": "export",
+      "name": "DeleteWorktreeInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 228
+    },
+    {
+      "type": "export",
+      "name": "LocalBackgroundedPayload",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 233
+    },
+    {
+      "type": "export",
+      "name": "LocalForegroundedPayload",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 234
+    },
+    {
+      "type": "export",
+      "name": "IsLocalBackgroundedInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 235
+    },
+    {
+      "type": "export",
+      "name": "GetLocalWorktreePathInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 236
+    },
+    {
+      "type": "export",
+      "name": "skillSource",
+      "file": "apps/code/src/main/services/agent/skill-schemas.ts",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "skillInfo",
+      "file": "apps/code/src/main/services/agent/skill-schemas.ts",
+      "line": 7
+    },
+    {
+      "type": "export",
+      "name": "archivedTaskSchema",
+      "file": "apps/code/src/main/services/archive/schemas.ts",
+      "line": 7
+    },
+    {
+      "type": "export",
+      "name": "UnarchiveTaskInput",
+      "file": "apps/code/src/main/services/archive/schemas.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "oAuthErrorCode",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 13
+    },
+    {
+      "type": "export",
+      "name": "startFlowInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 32
+    },
+    {
+      "type": "export",
+      "name": "startSignupFlowInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 45
+    },
+    {
+      "type": "export",
+      "name": "refreshTokenInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 48
+    },
+    {
+      "type": "export",
+      "name": "openExternalUrlInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 68
+    },
+    {
+      "type": "export",
+      "name": "OAuthErrorCode",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 19
+    },
+    {
+      "type": "export",
+      "name": "StartFlowInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 35
+    },
+    {
+      "type": "export",
+      "name": "StartSignupFlowInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 46
+    },
+    {
+      "type": "export",
+      "name": "RefreshTokenInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 52
+    },
+    {
+      "type": "export",
+      "name": "OpenExternalUrlInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 71
+    },
+    {
+      "type": "export",
+      "name": "authStatusSchema",
+      "file": "apps/code/src/main/services/auth/schemas.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "AuthStatus",
+      "file": "apps/code/src/main/services/auth/schemas.ts",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "LoginInput",
+      "file": "apps/code/src/main/services/auth/schemas.ts",
+      "line": 22
+    },
+    {
+      "type": "export",
+      "name": "LoginOutput",
+      "file": "apps/code/src/main/services/auth/schemas.ts",
+      "line": 27
+    },
+    {
+      "type": "export",
+      "name": "registeredFolderSchema",
+      "file": "apps/code/src/main/services/folders/schemas.ts",
+      "line": 3
+    },
+    {
+      "type": "export",
+      "name": "GetFoldersOutput",
+      "file": "apps/code/src/main/services/folders/schemas.ts",
+      "line": 33
+    },
+    {
+      "type": "export",
+      "name": "AddFolderInput",
+      "file": "apps/code/src/main/services/folders/schemas.ts",
+      "line": 34
+    },
+    {
+      "type": "export",
+      "name": "AddFolderOutput",
+      "file": "apps/code/src/main/services/folders/schemas.ts",
+      "line": 35
+    },
+    {
+      "type": "export",
+      "name": "RemoveFolderInput",
+      "file": "apps/code/src/main/services/folders/schemas.ts",
+      "line": 36
+    },
+    {
+      "type": "export",
+      "name": "UpdateFolderAccessedInput",
+      "file": "apps/code/src/main/services/folders/schemas.ts",
+      "line": 37
+    },
+    {
+      "type": "export",
+      "name": "RepositoryLookupResult",
+      "file": "apps/code/src/main/services/folders/schemas.ts",
+      "line": 52
+    },
+    {
+      "type": "export",
+      "name": "directoryPathInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "cloneProgressStatus",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 104
+    },
+    {
+      "type": "export",
+      "name": "getGitSyncStatusInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 173
+    },
+    {
+      "type": "export",
+      "name": "createPrStep",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 400
+    },
+    {
+      "type": "export",
+      "name": "DetectRepoInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 83
+    },
+    {
+      "type": "export",
+      "name": "PushInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 192
+    },
+    {
+      "type": "export",
+      "name": "PullInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 201
+    },
+    {
+      "type": "export",
+      "name": "CommitInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 213
+    },
+    {
+      "type": "export",
+      "name": "PrStatusInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 242
+    },
+    {
+      "type": "export",
+      "name": "CreatePrInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 259
+    },
+    {
+      "type": "export",
+      "name": "OpenPrInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 269
+    },
+    {
+      "type": "export",
+      "name": "PublishInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 278
+    },
+    {
+      "type": "export",
+      "name": "SyncInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 286
+    },
+    {
+      "type": "export",
+      "name": "CreatePrStep",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 409
+    },
+    {
+      "type": "export",
+      "name": "cloudRegion",
+      "file": "apps/code/src/main/services/github-integration/schemas.ts",
+      "line": 3
+    },
+    {
+      "type": "export",
+      "name": "StartGitHubFlowInput",
+      "file": "apps/code/src/main/services/github-integration/schemas.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "cloudRegion",
+      "file": "apps/code/src/main/services/linear-integration/schemas.ts",
+      "line": 3
+    },
+    {
+      "type": "export",
+      "name": "StartLinearFlowInput",
+      "file": "apps/code/src/main/services/linear-integration/schemas.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "suspendedTaskSchema",
+      "file": "apps/code/src/main/services/suspension/schemas.ts",
+      "line": 9
+    },
+    {
+      "type": "export",
+      "name": "SuspendTaskInput",
+      "file": "apps/code/src/main/services/suspension/schemas.ts",
+      "line": 16
+    },
+    {
+      "type": "export",
+      "name": "RestoreTaskInput",
+      "file": "apps/code/src/main/services/suspension/schemas.ts",
+      "line": 23
+    },
+    {
+      "type": "export",
+      "name": "getLineCount",
+      "file": "apps/code/src/renderer/features/sessions/components/session-update/toolCallUtils.tsx",
+      "line": 96
+    },
+    {
+      "type": "export",
+      "name": "contentToPlainText",
+      "file": "apps/code/src/renderer/features/message-editor/utils/content.ts",
+      "line": 26
+    },
+    {
+      "type": "export",
+      "name": "PanelGroupTree",
+      "file": "apps/code/src/renderer/features/panels/components/PanelTree.tsx",
+      "line": 37
+    },
+    {
+      "type": "export",
+      "name": "PanelLeaf",
+      "file": "apps/code/src/renderer/features/panels/components/PanelTree.tsx",
+      "line": 41
+    },
+    {
+      "type": "export",
+      "name": "PanelTab",
+      "file": "apps/code/src/renderer/features/panels/components/PanelTree.tsx",
+      "line": 45
+    },
+    {
+      "type": "export",
+      "name": "PanelGroupTreeProps",
+      "file": "apps/code/src/renderer/features/panels/components/PanelTree.tsx",
+      "line": 14
+    },
+    {
+      "type": "export",
+      "name": "PanelLeafProps",
+      "file": "apps/code/src/renderer/features/panels/components/PanelTree.tsx",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "PanelTabProps",
+      "file": "apps/code/src/renderer/features/panels/components/PanelTree.tsx",
+      "line": 27
+    },
+    {
+      "type": "export",
+      "name": "usePanelStore",
+      "file": "apps/code/src/renderer/features/panels/store/panelStore.ts",
+      "line": 68
+    },
+    {
+      "type": "export",
+      "name": "PanelNode",
+      "file": "apps/code/src/renderer/features/panels/store/panelStore.ts",
+      "line": 267
+    },
+    {
+      "type": "export",
+      "name": "Tab",
+      "file": "apps/code/src/renderer/features/panels/store/panelStore.ts",
+      "line": 269
+    },
+    {
+      "type": "export",
+      "name": "DEFAULT_FALLBACK_TAB",
+      "file": "apps/code/src/renderer/features/panels/store/panelStoreHelpers.ts",
+      "line": 6
+    },
+    {
+      "type": "export",
+      "name": "createTabLabel",
+      "file": "apps/code/src/renderer/features/panels/store/panelStoreHelpers.ts",
+      "line": 27
+    },
+    {
+      "type": "export",
+      "name": "getGroupPanel",
+      "file": "apps/code/src/renderer/features/panels/store/panelStoreHelpers.ts",
+      "line": 62
+    },
+    {
+      "type": "export",
+      "name": "resetPanelIdCounter",
+      "file": "apps/code/src/renderer/features/panels/store/panelStoreHelpers.ts",
+      "line": 77
+    },
+    {
+      "type": "export",
+      "name": "createNewTab",
+      "file": "apps/code/src/renderer/features/panels/store/panelStoreHelpers.ts",
+      "line": 104
+    },
+    {
+      "type": "export",
+      "name": "isTabActiveInTree",
+      "file": "apps/code/src/renderer/features/panels/store/panelStoreHelpers.ts",
+      "line": 237
+    },
+    {
+      "type": "export",
+      "name": "TabType",
+      "file": "apps/code/src/renderer/features/panels/store/panelStoreHelpers.ts",
+      "line": 9
+    },
+    {
+      "type": "export",
+      "name": "PanelGroupTree",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 3
+    },
+    {
+      "type": "export",
+      "name": "PanelLeaf",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "PanelTab",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "useDragDropHandlers",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 7
+    },
+    {
+      "type": "export",
+      "name": "usePanelStore",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 9
+    },
+    {
+      "type": "export",
+      "name": "isFileTabActiveInTree",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "GroupId",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 13
+    },
+    {
+      "type": "export",
+      "name": "GroupPanel",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 14
+    },
+    {
+      "type": "export",
+      "name": "LeafPanel",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 15
+    },
+    {
+      "type": "export",
+      "name": "PanelContent",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 16
+    },
+    {
+      "type": "export",
+      "name": "PanelId",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 17
+    },
+    {
+      "type": "export",
+      "name": "PanelNode",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 18
+    },
+    {
+      "type": "export",
+      "name": "SplitDirection",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 19
+    },
+    {
+      "type": "export",
+      "name": "Tab",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "TabId",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 21
+    },
+    {
+      "type": "export",
+      "name": "UI_SIZES",
+      "file": "apps/code/src/renderer/features/panels/constants/panelConstants.ts",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "IMAGE_MIME_TYPES",
+      "file": "apps/code/src/renderer/features/code-editor/utils/imageUtils.ts",
+      "line": 1
+    },
+    {
+      "type": "export",
+      "name": "computeAutoDeferred",
+      "file": "apps/code/src/renderer/features/code-review/components/ReviewShell.tsx",
+      "line": 81
+    },
+    {
+      "type": "export",
+      "name": "getLastChangeLineNumber",
+      "file": "apps/code/src/renderer/features/code-review/utils/diffAnnotations.ts",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "mergeTreeContent",
+      "file": "apps/code/src/renderer/features/panels/store/panelTree.ts",
+      "line": 157
+    },
+    {
+      "type": "export",
+      "name": "isGroup",
+      "file": "apps/code/src/renderer/features/panels/store/panelTree.ts",
+      "line": 249
+    },
+    {
+      "type": "export",
+      "name": "deriveStatus",
+      "file": "apps/code/src/renderer/features/command-center/hooks/useCommandCenterData.ts",
+      "line": 29
+    },
+    {
+      "type": "export",
+      "name": "EvaluationsSection",
+      "file": "apps/code/src/renderer/features/inbox/components/SignalSourceToggles.tsx",
+      "line": 150
+    },
+    {
+      "type": "export",
+      "name": "groupProjectsByOrg",
+      "file": "apps/code/src/renderer/features/projects/hooks/useProjects.tsx",
+      "line": 24
+    },
+    {
+      "type": "export",
+      "name": "GroupedProjects",
+      "file": "apps/code/src/renderer/features/projects/hooks/useProjects.tsx",
+      "line": 18
+    },
+    {
+      "type": "export",
+      "name": "extractContextUsage",
+      "file": "apps/code/src/renderer/features/sessions/hooks/useContextUsage.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "SkillCard",
+      "file": "apps/code/src/renderer/features/skills/components/SkillCard.tsx",
+      "line": 29
+    },
+    {
+      "type": "export",
+      "name": "buildChangesTree",
+      "file": "apps/code/src/renderer/features/task-detail/components/ChangesTreeView.tsx",
+      "line": 12
+    },
+    {
+      "type": "export",
+      "name": "compactTree",
+      "file": "apps/code/src/renderer/features/task-detail/components/ChangesTreeView.tsx",
+      "line": 37
+    },
+    {
+      "type": "export",
+      "name": "TreeNode",
+      "file": "apps/code/src/renderer/features/task-detail/components/ChangesTreeView.tsx",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "extractCloudFileDiff",
+      "file": "apps/code/src/renderer/features/task-detail/utils/cloudToolChanges.ts",
+      "line": 197
+    },
+    {
+      "type": "export",
+      "name": "TASK_STATUS_ORDER",
+      "file": "apps/code/src/renderer/features/tasks/stores/taskStore.types.ts",
+      "line": 36
+    },
+    {
+      "type": "export",
+      "name": "FilterValue",
+      "file": "apps/code/src/renderer/features/tasks/stores/taskStore.types.ts",
+      "line": 27
+    },
+    {
+      "type": "export",
+      "name": "InlineMarkdown",
+      "file": "apps/code/src/renderer/features/sessions/components/session-update/parseFileMentions.tsx",
+      "line": 27
+    },
+    {
+      "type": "export",
+      "name": "hasMentionTags",
+      "file": "apps/code/src/renderer/features/sessions/components/session-update/parseFileMentions.tsx",
+      "line": 42
+    },
+    {
+      "type": "export",
+      "name": "parseMentionTags",
+      "file": "apps/code/src/renderer/features/sessions/components/session-update/parseFileMentions.tsx",
+      "line": 87
+    },
+    {
+      "type": "export",
+      "name": "userMessageParamsSchema",
+      "file": "packages/agent/src/server/schemas.ts",
+      "line": 44
+    },
+    {
+      "type": "export",
+      "name": "JsonRpcRequest",
+      "file": "packages/agent/src/server/schemas.ts",
+      "line": 42
+    },
+    {
+      "type": "export",
+      "name": "hydrateSessionJsonl",
+      "file": "packages/agent/src/adapters/claude/session/jsonl-hydration.ts",
+      "line": 489
+    },
+    {
+      "type": "export",
+      "name": "getLlmGatewayUrl",
+      "file": "packages/agent/src/posthog-api.ts",
+      "line": 12
+    },
+    {
+      "type": "export",
+      "name": "conversationToPromptHistory",
+      "file": "packages/agent/src/resume.ts",
+      "line": 108
+    },
+    {
+      "type": "export",
+      "name": "CODEX_NATIVE_MODES",
+      "file": "packages/agent/src/execution-mode.ts",
+      "line": 63
+    },
+    {
+      "type": "export",
+      "name": "getAvailableCodexModes",
+      "file": "packages/agent/src/execution-mode.ts",
+      "line": 91
+    },
+    {
+      "type": "export",
+      "name": "CodexNativeMode",
+      "file": "packages/agent/src/execution-mode.ts",
+      "line": 65
+    },
+    {
+      "type": "export",
+      "name": "PermissionMode",
+      "file": "packages/agent/src/execution-mode.ts",
+      "line": 68
+    },
+    {
+      "type": "export",
+      "name": "isOpenAIModel",
+      "file": "packages/agent/src/gateway-models.ts",
+      "line": 84
+    },
+    {
+      "type": "export",
+      "name": "getProviderName",
+      "file": "packages/agent/src/gateway-models.ts",
+      "line": 151
+    },
+    {
+      "type": "export",
+      "name": "formatModelId",
+      "file": "packages/agent/src/gateway-models.ts",
+      "line": 161
+    },
+    {
+      "type": "export",
+      "name": "Agent",
+      "file": "packages/agent/src/agent.ts",
+      "line": 16
+    },
+    {
+      "type": "export",
+      "name": "clearMcpToolMetadataCache",
+      "file": "packages/agent/src/adapters/claude/mcp/tool-metadata.ts",
+      "line": 107
+    },
+    {
+      "type": "export",
+      "name": "isNotification",
+      "file": "packages/agent/src/index.ts",
+      "line": 1
+    },
+    {
+      "type": "export",
+      "name": "POSTHOG_NOTIFICATIONS",
+      "file": "packages/agent/src/index.ts",
+      "line": 1
+    },
+    {
+      "type": "export",
+      "name": "getMcpToolMetadata",
+      "file": "packages/agent/src/index.ts",
+      "line": 3
+    },
+    {
+      "type": "export",
+      "name": "isMcpToolReadOnly",
+      "file": "packages/agent/src/index.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "McpToolMetadata",
+      "file": "packages/agent/src/index.ts",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "supportsEffort",
+      "file": "packages/agent/src/adapters/claude/session/models.ts",
+      "line": 32
+    },
+    {
+      "type": "export",
+      "name": "supportsMaxEffort",
+      "file": "packages/agent/src/adapters/claude/session/models.ts",
+      "line": 36
+    },
+    {
+      "type": "export",
+      "name": "toDisplayPath",
+      "file": "packages/agent/src/adapters/claude/conversion/tool-use-to-acp.ts",
+      "line": 42
+    },
+    {
+      "type": "export",
+      "name": "WEB_TOOLS",
+      "file": "packages/agent/src/adapters/claude/tools.ts",
+      "line": 27
+    },
+    {
+      "type": "export",
+      "name": "AGENT_TOOLS",
+      "file": "packages/agent/src/adapters/claude/tools.ts",
+      "line": 29
+    },
+    {
+      "type": "export",
+      "name": "ModeInfo",
+      "file": "packages/agent/src/adapters/claude/tools.ts",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "QuestionOptionSchema",
+      "file": "packages/agent/src/adapters/claude/questions/utils.ts",
+      "line": 7
+    },
+    {
+      "type": "export",
+      "name": "QuestionMetaSchema",
+      "file": "packages/agent/src/adapters/claude/questions/utils.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "buildQuestionToolCallData",
+      "file": "packages/agent/src/adapters/claude/questions/utils.ts",
+      "line": 68
+    },
+    {
+      "type": "export",
+      "name": "buildQuestionOptions",
+      "file": "packages/agent/src/adapters/claude/questions/utils.ts",
+      "line": 83
+    },
+    {
+      "type": "export",
+      "name": "QuestionMeta",
+      "file": "packages/agent/src/adapters/claude/questions/utils.ts",
+      "line": 26
+    },
+    {
+      "type": "export",
+      "name": "createMockApiClient",
+      "file": "packages/agent/src/test/fixtures/api.ts",
+      "line": 67
+    },
+    {
+      "type": "export",
+      "name": "createTaskRun",
+      "file": "packages/agent/src/test/fixtures/api.ts",
+      "line": 81
+    },
+    {
+      "type": "export",
+      "name": "createSnapshot",
+      "file": "packages/agent/src/test/fixtures/api.ts",
+      "line": 101
+    },
+    {
+      "type": "export",
+      "name": "getManagedSettingsPath",
+      "file": "packages/agent/src/adapters/claude/session/settings.ts",
+      "line": 162
+    },
+    {
+      "type": "export",
+      "name": "PermissionDecision",
+      "file": "packages/agent/src/adapters/claude/session/settings.ts",
+      "line": 154
+    },
+    {
+      "type": "export",
+      "name": "SuggestedReviewerCommit",
+      "file": "apps/code/src/shared/types.ts",
+      "line": 281
+    },
+    {
+      "type": "export",
+      "name": "SuggestedReviewerUser",
+      "file": "apps/code/src/shared/types.ts",
+      "line": 287
+    },
+    {
+      "type": "export",
+      "name": "SendMessagesWith",
+      "file": "apps/code/src/renderer/stores/settingsStore.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "SessionIdInput",
+      "file": "apps/code/src/main/services/shell/schemas.ts",
+      "line": 38
+    },
+    {
+      "type": "export",
+      "name": "CreateInput",
+      "file": "apps/code/src/main/services/shell/schemas.ts",
+      "line": 39
+    },
+    {
+      "type": "export",
+      "name": "CreateCommandInput",
+      "file": "apps/code/src/main/services/shell/schemas.ts",
+      "line": 40
+    },
+    {
+      "type": "export",
+      "name": "WriteInput",
+      "file": "apps/code/src/main/services/shell/schemas.ts",
+      "line": 41
+    },
+    {
+      "type": "export",
+      "name": "ResizeInput",
+      "file": "apps/code/src/main/services/shell/schemas.ts",
+      "line": 42
+    },
+    {
+      "type": "export",
+      "name": "ExecuteInput",
+      "file": "apps/code/src/main/services/shell/schemas.ts",
+      "line": 43
+    },
+    {
+      "type": "export",
+      "name": "PanelLayoutStore",
+      "file": "apps/code/src/renderer/features/panels/store/panelLayoutStore.ts",
+      "line": 45
+    },
+    {
+      "type": "export",
+      "name": "DefaultRunMode",
+      "file": "apps/code/src/renderer/features/settings/stores/settingsStore.ts",
+      "line": 7
+    },
+    {
+      "type": "export",
+      "name": "LocalWorkspaceMode",
+      "file": "apps/code/src/renderer/features/settings/stores/settingsStore.ts",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "HintState",
+      "file": "apps/code/src/renderer/features/settings/stores/settingsStore.ts",
+      "line": 15
+    },
+    {
+      "type": "export",
+      "name": "ProvisioningOutputPayload",
+      "file": "apps/code/src/main/services/provisioning/service.ts",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "StartIntegrationFlowInput",
+      "file": "apps/code/src/main/services/integration-flow-schemas.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "OrgWithBilling",
+      "file": "apps/code/src/renderer/hooks/useOrganizations.ts",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "SidebarStoreState",
+      "file": "apps/code/src/renderer/stores/createSidebarStore.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "SidebarStoreActions",
+      "file": "apps/code/src/renderer/stores/createSidebarStore.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "ConfirmDeleteWorktreeInput",
+      "file": "apps/code/src/main/services/context-menu/schemas.ts",
+      "line": 134
+    },
+    {
+      "type": "export",
+      "name": "ConfirmDeleteWorktreeResult",
+      "file": "apps/code/src/main/services/context-menu/schemas.ts",
+      "line": 137
+    },
+    {
+      "type": "export",
+      "name": "OpenInAppInput",
+      "file": "apps/code/src/main/services/external-apps/schemas.ts",
+      "line": 36
+    },
+    {
+      "type": "export",
+      "name": "SetLastUsedInput",
+      "file": "apps/code/src/main/services/external-apps/schemas.ts",
+      "line": 37
+    },
+    {
+      "type": "export",
+      "name": "CopyPathInput",
+      "file": "apps/code/src/main/services/external-apps/schemas.ts",
+      "line": 38
+    },
+    {
+      "type": "export",
+      "name": "DetectedApplication",
+      "file": "apps/code/src/main/services/external-apps/schemas.ts",
+      "line": 39
+    },
+    {
+      "type": "export",
+      "name": "OpenInAppOutput",
+      "file": "apps/code/src/main/services/external-apps/schemas.ts",
+      "line": 40
+    },
+    {
+      "type": "export",
+      "name": "GetLastUsedOutput",
+      "file": "apps/code/src/main/services/external-apps/schemas.ts",
+      "line": 41
+    },
+    {
+      "type": "export",
+      "name": "ListDirectoryInput",
+      "file": "apps/code/src/main/services/file-watcher/schemas.ts",
+      "line": 19
+    },
+    {
+      "type": "export",
+      "name": "WatcherInput",
+      "file": "apps/code/src/main/services/file-watcher/schemas.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "ListRepoFilesInput",
+      "file": "apps/code/src/main/services/fs/schemas.ts",
+      "line": 33
+    },
+    {
+      "type": "export",
+      "name": "ReadRepoFileInput",
+      "file": "apps/code/src/main/services/fs/schemas.ts",
+      "line": 34
+    },
+    {
+      "type": "export",
+      "name": "WriteRepoFileInput",
+      "file": "apps/code/src/main/services/fs/schemas.ts",
+      "line": 35
+    },
+    {
+      "type": "export",
+      "name": "PromptInput",
+      "file": "apps/code/src/main/services/llm-gateway/schemas.ts",
+      "line": 17
+    },
+    {
+      "type": "export",
+      "name": "OpenAndWaitInput",
+      "file": "apps/code/src/main/services/mcp-callback/schemas.ts",
+      "line": 18
+    },
+    {
+      "type": "export",
+      "name": "ButtonProps",
+      "file": "apps/code/src/renderer/components/ui/Button.tsx",
+      "line": 9
+    },
+    {
+      "type": "export",
+      "name": "ActionStatus",
+      "file": "apps/code/src/renderer/features/actions/stores/actionStore.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "TerminalInstance",
+      "file": "apps/code/src/renderer/features/terminal/services/TerminalManager.ts",
+      "line": 28
+    },
+    {
+      "type": "export",
+      "name": "CreateOptions",
+      "file": "apps/code/src/renderer/features/terminal/services/TerminalManager.ts",
+      "line": 44
+    },
+    {
+      "type": "export",
+      "name": "ViewMode",
+      "file": "apps/code/src/renderer/features/code-editor/stores/diffViewerStore.ts",
+      "line": 6
+    },
+    {
+      "type": "export",
+      "name": "StatusColor",
+      "file": "apps/code/src/renderer/features/git-interaction/utils/gitStatusUtils.ts",
+      "line": 3
+    },
+    {
+      "type": "export",
+      "name": "SuggestionListProps",
+      "file": "apps/code/src/renderer/features/message-editor/tiptap/SuggestionList.tsx",
+      "line": 15
+    },
+    {
+      "type": "export",
+      "name": "FileStatus",
+      "file": "packages/agent/src/types.ts",
+      "line": 167
+    }
+  ],
+  "unusedExports": [
+    {
+      "type": "export",
+      "name": "isSelectGroup",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 93
+    },
+    {
+      "type": "export",
+      "name": "getPendingPermissionsForTask",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 209
+    },
+    {
+      "type": "export",
+      "name": "useAdapterForTask",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 211
+    },
+    {
+      "type": "export",
+      "name": "useAvailableCommandsForTask",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 212
+    },
+    {
+      "type": "export",
+      "name": "useConfigOptionForTask",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 213
+    },
+    {
+      "type": "export",
+      "name": "useThoughtLevelConfigOptionForTask",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 221
+    },
+    {
+      "type": "export",
+      "name": "SessionState",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 188
+    },
+    {
+      "type": "export",
+      "name": "ConfigOptionUpdate",
+      "file": "apps/code/src/renderer/features/sessions/types.ts",
+      "line": 31
+    },
+    {
+      "type": "export",
+      "name": "fetchSessionLogs",
+      "file": "apps/code/src/renderer/features/sessions/utils/parseSessionLogs.ts",
+      "line": 28
+    },
+    {
+      "type": "export",
+      "name": "findPendingPermissions",
+      "file": "apps/code/src/renderer/features/sessions/utils/parseSessionLogs.ts",
+      "line": 171
+    },
+    {
+      "type": "export",
+      "name": "StoredLogEntry",
+      "file": "apps/code/src/renderer/features/sessions/utils/parseSessionLogs.ts",
+      "line": 12
+    },
+    {
+      "type": "export",
+      "name": "ParsedSessionLogs",
+      "file": "apps/code/src/renderer/features/sessions/utils/parseSessionLogs.ts",
+      "line": 16
+    },
+    {
+      "type": "export",
+      "name": "effortLevelSchema",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "sessionConfigSchema",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "modelOptionSchema",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 57
+    },
+    {
+      "type": "export",
+      "name": "sessionConfigOptionSchema",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 103
+    },
+    {
+      "type": "export",
+      "name": "contentBlockSchema",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 119
+    },
+    {
+      "type": "export",
+      "name": "detachedHeadContext",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 262
+    },
+    {
+      "type": "export",
+      "name": "sessionContextChangeSchema",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 268
+    },
+    {
+      "type": "export",
+      "name": "sessionInfoSchema",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 281
+    },
+    {
+      "type": "export",
+      "name": "SessionConfig",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 35
+    },
+    {
+      "type": "export",
+      "name": "ModelOption",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 64
+    },
+    {
+      "type": "export",
+      "name": "SessionConfigOption",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 108
+    },
+    {
+      "type": "export",
+      "name": "PromptInput",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 130
+    },
+    {
+      "type": "export",
+      "name": "PermissionOption",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 211
+    },
+    {
+      "type": "export",
+      "name": "RespondToPermissionInput",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 248
+    },
+    {
+      "type": "export",
+      "name": "CancelPermissionInput",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 256
+    },
+    {
+      "type": "export",
+      "name": "SessionContextChange",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 270
+    },
+    {
+      "type": "export",
+      "name": "NotifySessionContextInput",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 277
+    },
+    {
+      "type": "export",
+      "name": "findTerminalContent",
+      "file": "apps/code/src/renderer/components/permissions/types.ts",
+      "line": 48
+    },
+    {
+      "type": "export",
+      "name": "DiffContent",
+      "file": "apps/code/src/renderer/components/permissions/types.ts",
+      "line": 42
+    },
+    {
+      "type": "export",
+      "name": "TerminalContent",
+      "file": "apps/code/src/renderer/components/permissions/types.ts",
+      "line": 45
+    },
+    {
+      "type": "export",
+      "name": "TooltipPrimitive",
+      "file": "apps/code/src/renderer/components/ui/Tooltip.tsx",
+      "line": 77
+    },
+    {
+      "type": "export",
+      "name": "SuggestionType",
+      "file": "apps/code/src/renderer/features/message-editor/types.ts",
+      "line": 36
+    },
+    {
+      "type": "export",
+      "name": "SuggestionLoadingState",
+      "file": "apps/code/src/renderer/features/message-editor/types.ts",
+      "line": 37
+    },
+    {
+      "type": "export",
+      "name": "SuggestionPosition",
+      "file": "apps/code/src/renderer/features/message-editor/types.ts",
+      "line": 39
+    },
+    {
+      "type": "export",
+      "name": "CloudDiffStats",
+      "file": "apps/code/src/renderer/features/message-editor/stores/draftStore.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "EditorContext",
+      "file": "apps/code/src/renderer/features/message-editor/stores/draftStore.ts",
+      "line": 16
+    },
+    {
+      "type": "export",
+      "name": "DraftActions",
+      "file": "apps/code/src/renderer/features/message-editor/stores/draftStore.ts",
+      "line": 35
+    },
+    {
+      "type": "export",
+      "name": "useAvailableCommandsForTask",
+      "file": "apps/code/src/renderer/features/sessions/hooks/useSession.ts",
+      "line": 33
+    },
+    {
+      "type": "export",
+      "name": "getPendingPermissionsForTask",
+      "file": "apps/code/src/renderer/features/sessions/hooks/useSession.ts",
+      "line": 80
+    },
+    {
+      "type": "export",
+      "name": "useConfigOptionForTask",
+      "file": "apps/code/src/renderer/features/sessions/hooks/useSession.ts",
+      "line": 117
+    },
+    {
+      "type": "export",
+      "name": "useThoughtLevelConfigOptionForTask",
+      "file": "apps/code/src/renderer/features/sessions/hooks/useSession.ts",
+      "line": 145
+    },
+    {
+      "type": "export",
+      "name": "useAdapterForTask",
+      "file": "apps/code/src/renderer/features/sessions/hooks/useSession.ts",
+      "line": 152
+    },
+    {
+      "type": "export",
+      "name": "useSessionConfigStore",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionConfigStore.ts",
+      "line": 28
+    },
+    {
+      "type": "export",
+      "name": "isObject",
+      "file": "packages/electron-trpc/src/main/utils.ts",
+      "line": 1
+    },
+    {
+      "type": "export",
+      "name": "makeAsyncResource",
+      "file": "packages/electron-trpc/src/main/utils.ts",
+      "line": 23
+    },
+    {
+      "type": "export",
+      "name": "resolveSelfTuple",
+      "file": "packages/electron-trpc/src/vendor/unpromise/unpromise.ts",
+      "line": 333
+    },
+    {
+      "type": "export",
+      "name": "ipcLink",
+      "file": "apps/code/.storybook/mocks/electron-trpc.ts",
+      "line": 6
+    },
+    {
+      "type": "export",
+      "name": "POSTHOG_US_CLIENT_ID",
+      "file": "apps/code/src/shared/constants/oauth.ts",
+      "line": 3
+    },
+    {
+      "type": "export",
+      "name": "POSTHOG_EU_CLIENT_ID",
+      "file": "apps/code/src/shared/constants/oauth.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "POSTHOG_DEV_CLIENT_ID",
+      "file": "apps/code/src/shared/constants/oauth.ts",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "TOKEN_REFRESH_BUFFER_MS",
+      "file": "apps/code/src/shared/constants/oauth.ts",
+      "line": 53
+    },
+    {
+      "type": "export",
+      "name": "TOKEN_REFRESH_FORCE_MS",
+      "file": "apps/code/src/shared/constants/oauth.ts",
+      "line": 54
+    },
+    {
+      "type": "export",
+      "name": "environmentActionSchema",
+      "file": "apps/code/src/main/services/environment/schemas.ts",
+      "line": 9
+    },
+    {
+      "type": "export",
+      "name": "EnvironmentAction",
+      "file": "apps/code/src/main/services/environment/schemas.ts",
+      "line": 50
+    },
+    {
+      "type": "export",
+      "name": "LlmGatewayError",
+      "file": "apps/code/src/main/services/llm-gateway/service.ts",
+      "line": 17
+    },
+    {
+      "type": "export",
+      "name": "SuspensionServiceEvent",
+      "file": "apps/code/src/main/services/suspension/service.ts",
+      "line": 47
+    },
+    {
+      "type": "export",
+      "name": "checkErrorCode",
+      "file": "apps/code/src/main/services/updates/schemas.ts",
+      "line": 7
+    },
+    {
+      "type": "export",
+      "name": "CheckErrorCode",
+      "file": "apps/code/src/main/services/updates/schemas.ts",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "IsEnabledOutput",
+      "file": "apps/code/src/main/services/updates/schemas.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "logSessionRecordingStatus",
+      "file": "apps/code/src/renderer/utils/analytics.ts",
+      "line": 54
+    },
+    {
+      "type": "export",
+      "name": "startSessionRecording",
+      "file": "apps/code/src/renderer/utils/analytics.ts",
+      "line": 77
+    },
+    {
+      "type": "export",
+      "name": "reloadFeatureFlags",
+      "file": "apps/code/src/renderer/utils/analytics.ts",
+      "line": 208
+    },
+    {
+      "type": "export",
+      "name": "setSessionResetCallback",
+      "file": "apps/code/src/renderer/features/auth/stores/authStore.ts",
+      "line": 21
+    },
+    {
+      "type": "export",
+      "name": "isCancelOption",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "isOtherOption",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 6
+    },
+    {
+      "type": "export",
+      "name": "isSubmitOption",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 7
+    },
+    {
+      "type": "export",
+      "name": "makeOptionId",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "OPTION_ID_PREFIX",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 9
+    },
+    {
+      "type": "export",
+      "name": "OTHER_OPTION_ID",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "OTHER_OPTION_ID_ALT",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 11
+    },
+    {
+      "type": "export",
+      "name": "ActionSelectorProps",
+      "file": "apps/code/src/renderer/components/ActionSelector.tsx",
+      "line": 16
+    },
+    {
+      "type": "export",
+      "name": "getGitInteractionActionLabel",
+      "file": "apps/code/src/renderer/features/git-interaction/state/gitInteractionStore.ts",
+      "line": 189
+    },
+    {
+      "type": "export",
+      "name": "CommitNextStep",
+      "file": "apps/code/src/renderer/features/git-interaction/state/gitInteractionStore.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "PushMode",
+      "file": "apps/code/src/renderer/features/git-interaction/state/gitInteractionStore.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "PushState",
+      "file": "apps/code/src/renderer/features/git-interaction/state/gitInteractionStore.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "shutdownOtelTransport",
+      "file": "apps/code/src/main/utils/logger.ts",
+      "line": 54
+    },
+    {
+      "type": "export",
+      "name": "Logger",
+      "file": "apps/code/src/main/utils/logger.ts",
+      "line": 51
+    },
+    {
+      "type": "export",
+      "name": "ScopedLogger",
+      "file": "apps/code/src/main/utils/logger.ts",
+      "line": 52
+    },
+    {
+      "type": "export",
+      "name": "getCurrentUserId",
+      "file": "apps/code/src/main/services/posthog-analytics.ts",
+      "line": 30
+    },
+    {
+      "type": "export",
+      "name": "getPostHogClient",
+      "file": "apps/code/src/main/services/posthog-analytics.ts",
+      "line": 78
+    },
+    {
+      "type": "export",
+      "name": "getMainWindow",
+      "file": "apps/code/src/main/window.ts",
+      "line": 65
+    },
+    {
+      "type": "export",
+      "name": "getErrorMessage",
+      "file": "apps/code/src/renderer/features/auth/components/AuthScreen.tsx",
+      "line": 16
+    },
+    {
+      "type": "export",
+      "name": "ANONYMOUS_AUTH_STATE",
+      "file": "apps/code/src/renderer/features/auth/hooks/authQueries.ts",
+      "line": 14
+    },
+    {
+      "type": "export",
+      "name": "useAuthState",
+      "file": "apps/code/src/renderer/features/auth/hooks/authQueries.ts",
+      "line": 57
+    },
+    {
+      "type": "export",
+      "name": "resolveIsDarkMode",
+      "file": "apps/code/src/renderer/stores/themeStore.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "DATA_DIR",
+      "file": "apps/code/src/shared/constants.ts",
+      "line": 2
+    },
+    {
+      "type": "export",
+      "name": "getErrorMessage",
+      "file": "apps/code/src/shared/errors.ts",
+      "line": 9
+    },
+    {
+      "type": "export",
+      "name": "getAllWorktreeLocations",
+      "file": "apps/code/src/main/services/settingsStore.ts",
+      "line": 129
+    },
+    {
+      "type": "export",
+      "name": "setWorktreeLocation",
+      "file": "apps/code/src/main/services/settingsStore.ts",
+      "line": 143
+    },
+    {
+      "type": "export",
+      "name": "middleware",
+      "file": "apps/code/src/main/trpc/trpc.ts",
+      "line": 60
+    },
+    {
+      "type": "export",
+      "name": "successStatusCodes",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24563
+    },
+    {
+      "type": "export",
+      "name": "errorStatusCodes",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24569
+    },
+    {
+      "type": "export",
+      "name": "TypedStatusError",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24712
+    },
+    {
+      "type": "export",
+      "name": "ApiClient",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24725
+    },
+    {
+      "type": "export",
+      "name": "EndpointByMethod",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 23634
+    },
+    {
+      "type": "export",
+      "name": "GetEndpoints",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24501
+    },
+    {
+      "type": "export",
+      "name": "PostEndpoints",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24502
+    },
+    {
+      "type": "export",
+      "name": "PatchEndpoints",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24503
+    },
+    {
+      "type": "export",
+      "name": "DeleteEndpoints",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24504
+    },
+    {
+      "type": "export",
+      "name": "PutEndpoints",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24505
+    },
+    {
+      "type": "export",
+      "name": "EndpointParameters",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24509
+    },
+    {
+      "type": "export",
+      "name": "MutationMethod",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24516
+    },
+    {
+      "type": "export",
+      "name": "Method",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24517
+    },
+    {
+      "type": "export",
+      "name": "DefaultEndpoint",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24521
+    },
+    {
+      "type": "export",
+      "name": "Endpoint",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24527
+    },
+    {
+      "type": "export",
+      "name": "SuccessStatusCode",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24567
+    },
+    {
+      "type": "export",
+      "name": "ErrorStatusCode",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24574
+    },
+    {
+      "type": "export",
+      "name": "TypedHeaders",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24577
+    },
+    {
+      "type": "export",
+      "name": "TypedSuccessResponse",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24630
+    },
+    {
+      "type": "export",
+      "name": "TypedErrorResponse",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24641
+    },
+    {
+      "type": "export",
+      "name": "TypedApiResponse",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24651
+    },
+    {
+      "type": "export",
+      "name": "SafeApiResponse",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24684
+    },
+    {
+      "type": "export",
+      "name": "InferResponseByStatus",
+      "file": "apps/code/src/renderer/api/generated.ts",
+      "line": 24695
+    },
+    {
+      "type": "export",
+      "name": "OTHER_OPTION_ID_ALT",
+      "file": "apps/code/src/renderer/components/action-selector/constants.ts",
+      "line": 2
+    },
+    {
+      "type": "export",
+      "name": "OPTION_ID_PREFIX",
+      "file": "apps/code/src/renderer/components/action-selector/constants.ts",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "makeOptionId",
+      "file": "apps/code/src/renderer/components/action-selector/constants.ts",
+      "line": 27
+    },
+    {
+      "type": "export",
+      "name": "useDeleteWorkspace",
+      "file": "apps/code/src/renderer/features/workspace/hooks/useWorkspace.ts",
+      "line": 80
+    },
+    {
+      "type": "export",
+      "name": "KEYBOARD_SHORTCUTS",
+      "file": "apps/code/src/renderer/constants/keyboard-shortcuts.ts",
+      "line": 37
+    },
+    {
+      "type": "export",
+      "name": "TRPCProvider",
+      "file": "apps/code/src/renderer/trpc/index.ts",
+      "line": 2
+    },
+    {
+      "type": "export",
+      "name": "container",
+      "file": "apps/code/src/renderer/di/container.ts",
+      "line": 12
+    },
+    {
+      "type": "export",
+      "name": "getLastUsedDirectory",
+      "file": "apps/code/src/renderer/hooks/useRepositoryDirectory.ts",
+      "line": 26
+    },
+    {
+      "type": "export",
+      "name": "localBackgroundedPayload",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 100
+    },
+    {
+      "type": "export",
+      "name": "localForegroundedPayload",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 106
+    },
+    {
+      "type": "export",
+      "name": "isLocalBackgroundedInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 111
+    },
+    {
+      "type": "export",
+      "name": "isLocalBackgroundedOutput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 115
+    },
+    {
+      "type": "export",
+      "name": "getLocalWorktreePathInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 117
+    },
+    {
+      "type": "export",
+      "name": "getLocalWorktreePathOutput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 121
+    },
+    {
+      "type": "export",
+      "name": "backgroundLocalWorkspaceInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 123
+    },
+    {
+      "type": "export",
+      "name": "backgroundLocalWorkspaceOutput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 128
+    },
+    {
+      "type": "export",
+      "name": "foregroundLocalWorkspaceInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 130
+    },
+    {
+      "type": "export",
+      "name": "foregroundLocalWorkspaceOutput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 134
+    },
+    {
+      "type": "export",
+      "name": "localTaskSchema",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 140
+    },
+    {
+      "type": "export",
+      "name": "gitWorktreeEntrySchema",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 156
+    },
+    {
+      "type": "export",
+      "name": "DeleteWorkspaceInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 223
+    },
+    {
+      "type": "export",
+      "name": "VerifyWorkspaceInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 224
+    },
+    {
+      "type": "export",
+      "name": "GetWorkspaceInfoInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 225
+    },
+    {
+      "type": "export",
+      "name": "ListGitWorktreesInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 226
+    },
+    {
+      "type": "export",
+      "name": "GetWorktreeSizeInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 227
+    },
+    {
+      "type": "export",
+      "name": "DeleteWorktreeInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 228
+    },
+    {
+      "type": "export",
+      "name": "LocalBackgroundedPayload",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 233
+    },
+    {
+      "type": "export",
+      "name": "LocalForegroundedPayload",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 234
+    },
+    {
+      "type": "export",
+      "name": "IsLocalBackgroundedInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 235
+    },
+    {
+      "type": "export",
+      "name": "GetLocalWorktreePathInput",
+      "file": "apps/code/src/main/services/workspace/schemas.ts",
+      "line": 236
+    },
+    {
+      "type": "export",
+      "name": "skillSource",
+      "file": "apps/code/src/main/services/agent/skill-schemas.ts",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "skillInfo",
+      "file": "apps/code/src/main/services/agent/skill-schemas.ts",
+      "line": 7
+    },
+    {
+      "type": "export",
+      "name": "archivedTaskSchema",
+      "file": "apps/code/src/main/services/archive/schemas.ts",
+      "line": 7
+    },
+    {
+      "type": "export",
+      "name": "UnarchiveTaskInput",
+      "file": "apps/code/src/main/services/archive/schemas.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "oAuthErrorCode",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 13
+    },
+    {
+      "type": "export",
+      "name": "startFlowInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 32
+    },
+    {
+      "type": "export",
+      "name": "startSignupFlowInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 45
+    },
+    {
+      "type": "export",
+      "name": "refreshTokenInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 48
+    },
+    {
+      "type": "export",
+      "name": "openExternalUrlInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 68
+    },
+    {
+      "type": "export",
+      "name": "OAuthErrorCode",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 19
+    },
+    {
+      "type": "export",
+      "name": "StartFlowInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 35
+    },
+    {
+      "type": "export",
+      "name": "StartSignupFlowInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 46
+    },
+    {
+      "type": "export",
+      "name": "RefreshTokenInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 52
+    },
+    {
+      "type": "export",
+      "name": "OpenExternalUrlInput",
+      "file": "apps/code/src/main/services/oauth/schemas.ts",
+      "line": 71
+    },
+    {
+      "type": "export",
+      "name": "authStatusSchema",
+      "file": "apps/code/src/main/services/auth/schemas.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "AuthStatus",
+      "file": "apps/code/src/main/services/auth/schemas.ts",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "LoginInput",
+      "file": "apps/code/src/main/services/auth/schemas.ts",
+      "line": 22
+    },
+    {
+      "type": "export",
+      "name": "LoginOutput",
+      "file": "apps/code/src/main/services/auth/schemas.ts",
+      "line": 27
+    },
+    {
+      "type": "export",
+      "name": "registeredFolderSchema",
+      "file": "apps/code/src/main/services/folders/schemas.ts",
+      "line": 3
+    },
+    {
+      "type": "export",
+      "name": "GetFoldersOutput",
+      "file": "apps/code/src/main/services/folders/schemas.ts",
+      "line": 33
+    },
+    {
+      "type": "export",
+      "name": "AddFolderInput",
+      "file": "apps/code/src/main/services/folders/schemas.ts",
+      "line": 34
+    },
+    {
+      "type": "export",
+      "name": "AddFolderOutput",
+      "file": "apps/code/src/main/services/folders/schemas.ts",
+      "line": 35
+    },
+    {
+      "type": "export",
+      "name": "RemoveFolderInput",
+      "file": "apps/code/src/main/services/folders/schemas.ts",
+      "line": 36
+    },
+    {
+      "type": "export",
+      "name": "UpdateFolderAccessedInput",
+      "file": "apps/code/src/main/services/folders/schemas.ts",
+      "line": 37
+    },
+    {
+      "type": "export",
+      "name": "RepositoryLookupResult",
+      "file": "apps/code/src/main/services/folders/schemas.ts",
+      "line": 52
+    },
+    {
+      "type": "export",
+      "name": "directoryPathInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "cloneProgressStatus",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 104
+    },
+    {
+      "type": "export",
+      "name": "getGitSyncStatusInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 173
+    },
+    {
+      "type": "export",
+      "name": "createPrStep",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 400
+    },
+    {
+      "type": "export",
+      "name": "DetectRepoInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 83
+    },
+    {
+      "type": "export",
+      "name": "PushInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 192
+    },
+    {
+      "type": "export",
+      "name": "PullInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 201
+    },
+    {
+      "type": "export",
+      "name": "CommitInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 213
+    },
+    {
+      "type": "export",
+      "name": "PrStatusInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 242
+    },
+    {
+      "type": "export",
+      "name": "CreatePrInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 259
+    },
+    {
+      "type": "export",
+      "name": "OpenPrInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 269
+    },
+    {
+      "type": "export",
+      "name": "PublishInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 278
+    },
+    {
+      "type": "export",
+      "name": "SyncInput",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 286
+    },
+    {
+      "type": "export",
+      "name": "CreatePrStep",
+      "file": "apps/code/src/main/services/git/schemas.ts",
+      "line": 409
+    },
+    {
+      "type": "export",
+      "name": "cloudRegion",
+      "file": "apps/code/src/main/services/github-integration/schemas.ts",
+      "line": 3
+    },
+    {
+      "type": "export",
+      "name": "StartGitHubFlowInput",
+      "file": "apps/code/src/main/services/github-integration/schemas.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "cloudRegion",
+      "file": "apps/code/src/main/services/linear-integration/schemas.ts",
+      "line": 3
+    },
+    {
+      "type": "export",
+      "name": "StartLinearFlowInput",
+      "file": "apps/code/src/main/services/linear-integration/schemas.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "suspendedTaskSchema",
+      "file": "apps/code/src/main/services/suspension/schemas.ts",
+      "line": 9
+    },
+    {
+      "type": "export",
+      "name": "SuspendTaskInput",
+      "file": "apps/code/src/main/services/suspension/schemas.ts",
+      "line": 16
+    },
+    {
+      "type": "export",
+      "name": "RestoreTaskInput",
+      "file": "apps/code/src/main/services/suspension/schemas.ts",
+      "line": 23
+    },
+    {
+      "type": "export",
+      "name": "getLineCount",
+      "file": "apps/code/src/renderer/features/sessions/components/session-update/toolCallUtils.tsx",
+      "line": 96
+    },
+    {
+      "type": "export",
+      "name": "contentToPlainText",
+      "file": "apps/code/src/renderer/features/message-editor/utils/content.ts",
+      "line": 26
+    },
+    {
+      "type": "export",
+      "name": "PanelGroupTree",
+      "file": "apps/code/src/renderer/features/panels/components/PanelTree.tsx",
+      "line": 37
+    },
+    {
+      "type": "export",
+      "name": "PanelLeaf",
+      "file": "apps/code/src/renderer/features/panels/components/PanelTree.tsx",
+      "line": 41
+    },
+    {
+      "type": "export",
+      "name": "PanelTab",
+      "file": "apps/code/src/renderer/features/panels/components/PanelTree.tsx",
+      "line": 45
+    },
+    {
+      "type": "export",
+      "name": "PanelGroupTreeProps",
+      "file": "apps/code/src/renderer/features/panels/components/PanelTree.tsx",
+      "line": 14
+    },
+    {
+      "type": "export",
+      "name": "PanelLeafProps",
+      "file": "apps/code/src/renderer/features/panels/components/PanelTree.tsx",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "PanelTabProps",
+      "file": "apps/code/src/renderer/features/panels/components/PanelTree.tsx",
+      "line": 27
+    },
+    {
+      "type": "export",
+      "name": "usePanelStore",
+      "file": "apps/code/src/renderer/features/panels/store/panelStore.ts",
+      "line": 68
+    },
+    {
+      "type": "export",
+      "name": "PanelNode",
+      "file": "apps/code/src/renderer/features/panels/store/panelStore.ts",
+      "line": 267
+    },
+    {
+      "type": "export",
+      "name": "Tab",
+      "file": "apps/code/src/renderer/features/panels/store/panelStore.ts",
+      "line": 269
+    },
+    {
+      "type": "export",
+      "name": "DEFAULT_FALLBACK_TAB",
+      "file": "apps/code/src/renderer/features/panels/store/panelStoreHelpers.ts",
+      "line": 6
+    },
+    {
+      "type": "export",
+      "name": "createTabLabel",
+      "file": "apps/code/src/renderer/features/panels/store/panelStoreHelpers.ts",
+      "line": 27
+    },
+    {
+      "type": "export",
+      "name": "getGroupPanel",
+      "file": "apps/code/src/renderer/features/panels/store/panelStoreHelpers.ts",
+      "line": 62
+    },
+    {
+      "type": "export",
+      "name": "resetPanelIdCounter",
+      "file": "apps/code/src/renderer/features/panels/store/panelStoreHelpers.ts",
+      "line": 77
+    },
+    {
+      "type": "export",
+      "name": "createNewTab",
+      "file": "apps/code/src/renderer/features/panels/store/panelStoreHelpers.ts",
+      "line": 104
+    },
+    {
+      "type": "export",
+      "name": "isTabActiveInTree",
+      "file": "apps/code/src/renderer/features/panels/store/panelStoreHelpers.ts",
+      "line": 237
+    },
+    {
+      "type": "export",
+      "name": "TabType",
+      "file": "apps/code/src/renderer/features/panels/store/panelStoreHelpers.ts",
+      "line": 9
+    },
+    {
+      "type": "export",
+      "name": "PanelGroupTree",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 3
+    },
+    {
+      "type": "export",
+      "name": "PanelLeaf",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "PanelTab",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "useDragDropHandlers",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 7
+    },
+    {
+      "type": "export",
+      "name": "usePanelStore",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 9
+    },
+    {
+      "type": "export",
+      "name": "isFileTabActiveInTree",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "GroupId",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 13
+    },
+    {
+      "type": "export",
+      "name": "GroupPanel",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 14
+    },
+    {
+      "type": "export",
+      "name": "LeafPanel",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 15
+    },
+    {
+      "type": "export",
+      "name": "PanelContent",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 16
+    },
+    {
+      "type": "export",
+      "name": "PanelId",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 17
+    },
+    {
+      "type": "export",
+      "name": "PanelNode",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 18
+    },
+    {
+      "type": "export",
+      "name": "SplitDirection",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 19
+    },
+    {
+      "type": "export",
+      "name": "Tab",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "TabId",
+      "file": "apps/code/src/renderer/features/panels/index.ts",
+      "line": 21
+    },
+    {
+      "type": "export",
+      "name": "UI_SIZES",
+      "file": "apps/code/src/renderer/features/panels/constants/panelConstants.ts",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "IMAGE_MIME_TYPES",
+      "file": "apps/code/src/renderer/features/code-editor/utils/imageUtils.ts",
+      "line": 1
+    },
+    {
+      "type": "export",
+      "name": "computeAutoDeferred",
+      "file": "apps/code/src/renderer/features/code-review/components/ReviewShell.tsx",
+      "line": 81
+    },
+    {
+      "type": "export",
+      "name": "getLastChangeLineNumber",
+      "file": "apps/code/src/renderer/features/code-review/utils/diffAnnotations.ts",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "mergeTreeContent",
+      "file": "apps/code/src/renderer/features/panels/store/panelTree.ts",
+      "line": 157
+    },
+    {
+      "type": "export",
+      "name": "isGroup",
+      "file": "apps/code/src/renderer/features/panels/store/panelTree.ts",
+      "line": 249
+    },
+    {
+      "type": "export",
+      "name": "deriveStatus",
+      "file": "apps/code/src/renderer/features/command-center/hooks/useCommandCenterData.ts",
+      "line": 29
+    },
+    {
+      "type": "export",
+      "name": "EvaluationsSection",
+      "file": "apps/code/src/renderer/features/inbox/components/SignalSourceToggles.tsx",
+      "line": 150
+    },
+    {
+      "type": "export",
+      "name": "groupProjectsByOrg",
+      "file": "apps/code/src/renderer/features/projects/hooks/useProjects.tsx",
+      "line": 24
+    },
+    {
+      "type": "export",
+      "name": "GroupedProjects",
+      "file": "apps/code/src/renderer/features/projects/hooks/useProjects.tsx",
+      "line": 18
+    },
+    {
+      "type": "export",
+      "name": "extractContextUsage",
+      "file": "apps/code/src/renderer/features/sessions/hooks/useContextUsage.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "SkillCard",
+      "file": "apps/code/src/renderer/features/skills/components/SkillCard.tsx",
+      "line": 29
+    },
+    {
+      "type": "export",
+      "name": "buildChangesTree",
+      "file": "apps/code/src/renderer/features/task-detail/components/ChangesTreeView.tsx",
+      "line": 12
+    },
+    {
+      "type": "export",
+      "name": "compactTree",
+      "file": "apps/code/src/renderer/features/task-detail/components/ChangesTreeView.tsx",
+      "line": 37
+    },
+    {
+      "type": "export",
+      "name": "TreeNode",
+      "file": "apps/code/src/renderer/features/task-detail/components/ChangesTreeView.tsx",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "extractCloudFileDiff",
+      "file": "apps/code/src/renderer/features/task-detail/utils/cloudToolChanges.ts",
+      "line": 197
+    },
+    {
+      "type": "export",
+      "name": "TASK_STATUS_ORDER",
+      "file": "apps/code/src/renderer/features/tasks/stores/taskStore.types.ts",
+      "line": 36
+    },
+    {
+      "type": "export",
+      "name": "FilterValue",
+      "file": "apps/code/src/renderer/features/tasks/stores/taskStore.types.ts",
+      "line": 27
+    },
+    {
+      "type": "export",
+      "name": "InlineMarkdown",
+      "file": "apps/code/src/renderer/features/sessions/components/session-update/parseFileMentions.tsx",
+      "line": 27
+    },
+    {
+      "type": "export",
+      "name": "hasMentionTags",
+      "file": "apps/code/src/renderer/features/sessions/components/session-update/parseFileMentions.tsx",
+      "line": 42
+    },
+    {
+      "type": "export",
+      "name": "parseMentionTags",
+      "file": "apps/code/src/renderer/features/sessions/components/session-update/parseFileMentions.tsx",
+      "line": 87
+    },
+    {
+      "type": "export",
+      "name": "userMessageParamsSchema",
+      "file": "packages/agent/src/server/schemas.ts",
+      "line": 44
+    },
+    {
+      "type": "export",
+      "name": "JsonRpcRequest",
+      "file": "packages/agent/src/server/schemas.ts",
+      "line": 42
+    },
+    {
+      "type": "export",
+      "name": "hydrateSessionJsonl",
+      "file": "packages/agent/src/adapters/claude/session/jsonl-hydration.ts",
+      "line": 489
+    },
+    {
+      "type": "export",
+      "name": "getLlmGatewayUrl",
+      "file": "packages/agent/src/posthog-api.ts",
+      "line": 12
+    },
+    {
+      "type": "export",
+      "name": "conversationToPromptHistory",
+      "file": "packages/agent/src/resume.ts",
+      "line": 108
+    },
+    {
+      "type": "export",
+      "name": "CODEX_NATIVE_MODES",
+      "file": "packages/agent/src/execution-mode.ts",
+      "line": 63
+    },
+    {
+      "type": "export",
+      "name": "getAvailableCodexModes",
+      "file": "packages/agent/src/execution-mode.ts",
+      "line": 91
+    },
+    {
+      "type": "export",
+      "name": "CodexNativeMode",
+      "file": "packages/agent/src/execution-mode.ts",
+      "line": 65
+    },
+    {
+      "type": "export",
+      "name": "PermissionMode",
+      "file": "packages/agent/src/execution-mode.ts",
+      "line": 68
+    },
+    {
+      "type": "export",
+      "name": "isOpenAIModel",
+      "file": "packages/agent/src/gateway-models.ts",
+      "line": 84
+    },
+    {
+      "type": "export",
+      "name": "getProviderName",
+      "file": "packages/agent/src/gateway-models.ts",
+      "line": 151
+    },
+    {
+      "type": "export",
+      "name": "formatModelId",
+      "file": "packages/agent/src/gateway-models.ts",
+      "line": 161
+    },
+    {
+      "type": "export",
+      "name": "Agent",
+      "file": "packages/agent/src/agent.ts",
+      "line": 16
+    },
+    {
+      "type": "export",
+      "name": "clearMcpToolMetadataCache",
+      "file": "packages/agent/src/adapters/claude/mcp/tool-metadata.ts",
+      "line": 107
+    },
+    {
+      "type": "export",
+      "name": "isNotification",
+      "file": "packages/agent/src/index.ts",
+      "line": 1
+    },
+    {
+      "type": "export",
+      "name": "POSTHOG_NOTIFICATIONS",
+      "file": "packages/agent/src/index.ts",
+      "line": 1
+    },
+    {
+      "type": "export",
+      "name": "getMcpToolMetadata",
+      "file": "packages/agent/src/index.ts",
+      "line": 3
+    },
+    {
+      "type": "export",
+      "name": "isMcpToolReadOnly",
+      "file": "packages/agent/src/index.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "McpToolMetadata",
+      "file": "packages/agent/src/index.ts",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "supportsEffort",
+      "file": "packages/agent/src/adapters/claude/session/models.ts",
+      "line": 32
+    },
+    {
+      "type": "export",
+      "name": "supportsMaxEffort",
+      "file": "packages/agent/src/adapters/claude/session/models.ts",
+      "line": 36
+    },
+    {
+      "type": "export",
+      "name": "toDisplayPath",
+      "file": "packages/agent/src/adapters/claude/conversion/tool-use-to-acp.ts",
+      "line": 42
+    },
+    {
+      "type": "export",
+      "name": "WEB_TOOLS",
+      "file": "packages/agent/src/adapters/claude/tools.ts",
+      "line": 27
+    },
+    {
+      "type": "export",
+      "name": "AGENT_TOOLS",
+      "file": "packages/agent/src/adapters/claude/tools.ts",
+      "line": 29
+    },
+    {
+      "type": "export",
+      "name": "ModeInfo",
+      "file": "packages/agent/src/adapters/claude/tools.ts",
+      "line": 5
+    },
+    {
+      "type": "export",
+      "name": "QuestionOptionSchema",
+      "file": "packages/agent/src/adapters/claude/questions/utils.ts",
+      "line": 7
+    },
+    {
+      "type": "export",
+      "name": "QuestionMetaSchema",
+      "file": "packages/agent/src/adapters/claude/questions/utils.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "buildQuestionToolCallData",
+      "file": "packages/agent/src/adapters/claude/questions/utils.ts",
+      "line": 68
+    },
+    {
+      "type": "export",
+      "name": "buildQuestionOptions",
+      "file": "packages/agent/src/adapters/claude/questions/utils.ts",
+      "line": 83
+    },
+    {
+      "type": "export",
+      "name": "QuestionMeta",
+      "file": "packages/agent/src/adapters/claude/questions/utils.ts",
+      "line": 26
+    },
+    {
+      "type": "export",
+      "name": "createMockApiClient",
+      "file": "packages/agent/src/test/fixtures/api.ts",
+      "line": 67
+    },
+    {
+      "type": "export",
+      "name": "createTaskRun",
+      "file": "packages/agent/src/test/fixtures/api.ts",
+      "line": 81
+    },
+    {
+      "type": "export",
+      "name": "createSnapshot",
+      "file": "packages/agent/src/test/fixtures/api.ts",
+      "line": 101
+    },
+    {
+      "type": "export",
+      "name": "getManagedSettingsPath",
+      "file": "packages/agent/src/adapters/claude/session/settings.ts",
+      "line": 162
+    },
+    {
+      "type": "export",
+      "name": "PermissionDecision",
+      "file": "packages/agent/src/adapters/claude/session/settings.ts",
+      "line": 154
+    },
+    {
+      "type": "export",
+      "name": "SuggestedReviewerCommit",
+      "file": "apps/code/src/shared/types.ts",
+      "line": 281
+    },
+    {
+      "type": "export",
+      "name": "SuggestedReviewerUser",
+      "file": "apps/code/src/shared/types.ts",
+      "line": 287
+    },
+    {
+      "type": "export",
+      "name": "SendMessagesWith",
+      "file": "apps/code/src/renderer/stores/settingsStore.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "SessionIdInput",
+      "file": "apps/code/src/main/services/shell/schemas.ts",
+      "line": 38
+    },
+    {
+      "type": "export",
+      "name": "CreateInput",
+      "file": "apps/code/src/main/services/shell/schemas.ts",
+      "line": 39
+    },
+    {
+      "type": "export",
+      "name": "CreateCommandInput",
+      "file": "apps/code/src/main/services/shell/schemas.ts",
+      "line": 40
+    },
+    {
+      "type": "export",
+      "name": "WriteInput",
+      "file": "apps/code/src/main/services/shell/schemas.ts",
+      "line": 41
+    },
+    {
+      "type": "export",
+      "name": "ResizeInput",
+      "file": "apps/code/src/main/services/shell/schemas.ts",
+      "line": 42
+    },
+    {
+      "type": "export",
+      "name": "ExecuteInput",
+      "file": "apps/code/src/main/services/shell/schemas.ts",
+      "line": 43
+    },
+    {
+      "type": "export",
+      "name": "PanelLayoutStore",
+      "file": "apps/code/src/renderer/features/panels/store/panelLayoutStore.ts",
+      "line": 45
+    },
+    {
+      "type": "export",
+      "name": "DefaultRunMode",
+      "file": "apps/code/src/renderer/features/settings/stores/settingsStore.ts",
+      "line": 7
+    },
+    {
+      "type": "export",
+      "name": "LocalWorkspaceMode",
+      "file": "apps/code/src/renderer/features/settings/stores/settingsStore.ts",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "HintState",
+      "file": "apps/code/src/renderer/features/settings/stores/settingsStore.ts",
+      "line": 15
+    },
+    {
+      "type": "export",
+      "name": "ProvisioningOutputPayload",
+      "file": "apps/code/src/main/services/provisioning/service.ts",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "StartIntegrationFlowInput",
+      "file": "apps/code/src/main/services/integration-flow-schemas.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "OrgWithBilling",
+      "file": "apps/code/src/renderer/hooks/useOrganizations.ts",
+      "line": 8
+    },
+    {
+      "type": "export",
+      "name": "SidebarStoreState",
+      "file": "apps/code/src/renderer/stores/createSidebarStore.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "SidebarStoreActions",
+      "file": "apps/code/src/renderer/stores/createSidebarStore.ts",
+      "line": 10
+    },
+    {
+      "type": "export",
+      "name": "ConfirmDeleteWorktreeInput",
+      "file": "apps/code/src/main/services/context-menu/schemas.ts",
+      "line": 134
+    },
+    {
+      "type": "export",
+      "name": "ConfirmDeleteWorktreeResult",
+      "file": "apps/code/src/main/services/context-menu/schemas.ts",
+      "line": 137
+    },
+    {
+      "type": "export",
+      "name": "OpenInAppInput",
+      "file": "apps/code/src/main/services/external-apps/schemas.ts",
+      "line": 36
+    },
+    {
+      "type": "export",
+      "name": "SetLastUsedInput",
+      "file": "apps/code/src/main/services/external-apps/schemas.ts",
+      "line": 37
+    },
+    {
+      "type": "export",
+      "name": "CopyPathInput",
+      "file": "apps/code/src/main/services/external-apps/schemas.ts",
+      "line": 38
+    },
+    {
+      "type": "export",
+      "name": "DetectedApplication",
+      "file": "apps/code/src/main/services/external-apps/schemas.ts",
+      "line": 39
+    },
+    {
+      "type": "export",
+      "name": "OpenInAppOutput",
+      "file": "apps/code/src/main/services/external-apps/schemas.ts",
+      "line": 40
+    },
+    {
+      "type": "export",
+      "name": "GetLastUsedOutput",
+      "file": "apps/code/src/main/services/external-apps/schemas.ts",
+      "line": 41
+    },
+    {
+      "type": "export",
+      "name": "ListDirectoryInput",
+      "file": "apps/code/src/main/services/file-watcher/schemas.ts",
+      "line": 19
+    },
+    {
+      "type": "export",
+      "name": "WatcherInput",
+      "file": "apps/code/src/main/services/file-watcher/schemas.ts",
+      "line": 20
+    },
+    {
+      "type": "export",
+      "name": "ListRepoFilesInput",
+      "file": "apps/code/src/main/services/fs/schemas.ts",
+      "line": 33
+    },
+    {
+      "type": "export",
+      "name": "ReadRepoFileInput",
+      "file": "apps/code/src/main/services/fs/schemas.ts",
+      "line": 34
+    },
+    {
+      "type": "export",
+      "name": "WriteRepoFileInput",
+      "file": "apps/code/src/main/services/fs/schemas.ts",
+      "line": 35
+    },
+    {
+      "type": "export",
+      "name": "PromptInput",
+      "file": "apps/code/src/main/services/llm-gateway/schemas.ts",
+      "line": 17
+    },
+    {
+      "type": "export",
+      "name": "OpenAndWaitInput",
+      "file": "apps/code/src/main/services/mcp-callback/schemas.ts",
+      "line": 18
+    },
+    {
+      "type": "export",
+      "name": "ButtonProps",
+      "file": "apps/code/src/renderer/components/ui/Button.tsx",
+      "line": 9
+    },
+    {
+      "type": "export",
+      "name": "ActionStatus",
+      "file": "apps/code/src/renderer/features/actions/stores/actionStore.ts",
+      "line": 4
+    },
+    {
+      "type": "export",
+      "name": "TerminalInstance",
+      "file": "apps/code/src/renderer/features/terminal/services/TerminalManager.ts",
+      "line": 28
+    },
+    {
+      "type": "export",
+      "name": "CreateOptions",
+      "file": "apps/code/src/renderer/features/terminal/services/TerminalManager.ts",
+      "line": 44
+    },
+    {
+      "type": "export",
+      "name": "ViewMode",
+      "file": "apps/code/src/renderer/features/code-editor/stores/diffViewerStore.ts",
+      "line": 6
+    },
+    {
+      "type": "export",
+      "name": "StatusColor",
+      "file": "apps/code/src/renderer/features/git-interaction/utils/gitStatusUtils.ts",
+      "line": 3
+    },
+    {
+      "type": "export",
+      "name": "SuggestionListProps",
+      "file": "apps/code/src/renderer/features/message-editor/tiptap/SuggestionList.tsx",
+      "line": 15
+    },
+    {
+      "type": "export",
+      "name": "FileStatus",
+      "file": "packages/agent/src/types.ts",
+      "line": 167
+    }
+  ],
+  "unusedFiles": [],
+  "unusedDeps": [
+    {
+      "type": "dependency",
+      "name": "@base-ui/react",
+      "file": "apps/code/package.json",
+      "line": 90
+    },
+    {
+      "type": "dependency",
+      "name": "@fontsource-variable/inter",
+      "file": "apps/code/package.json",
+      "line": 116
+    },
+    {
+      "type": "dependency",
+      "name": "@opentelemetry/api-logs",
+      "file": "apps/code/package.json",
+      "line": 121
+    },
+    {
+      "type": "dependency",
+      "name": "@posthog/quill-blocks",
+      "file": "apps/code/package.json",
+      "line": 133
+    },
+    {
+      "type": "dependency",
+      "name": "@posthog/quill-components",
+      "file": "apps/code/package.json",
+      "line": 134
+    },
+    {
+      "type": "dependency",
+      "name": "@posthog/quill-primitives",
+      "file": "apps/code/package.json",
+      "line": 135
+    },
+    {
+      "type": "dependency",
+      "name": "@posthog/quill-tokens",
+      "file": "apps/code/package.json",
+      "line": 136
+    },
+    {
+      "type": "dependency",
+      "name": "class-variance-authority",
+      "file": "apps/code/package.json",
+      "line": 159
+    },
+    {
+      "type": "dependency",
+      "name": "clsx",
+      "file": "apps/code/package.json",
+      "line": 160
+    },
+    {
+      "type": "dependency",
+      "name": "lucide-react",
+      "file": "apps/code/package.json",
+      "line": 175
+    },
+    {
+      "type": "dependency",
+      "name": "remark-breaks",
+      "file": "apps/code/package.json",
+      "line": 189
+    },
+    {
+      "type": "dependency",
+      "name": "striptags",
+      "file": "apps/code/package.json",
+      "line": 193
+    },
+    {
+      "type": "dependency",
+      "name": "tailwind-merge",
+      "file": "apps/code/package.json",
+      "line": 194
+    },
+    {
+      "type": "dependency",
+      "name": "tw-animate-css",
+      "file": "apps/code/package.json",
+      "line": 196
+    },
+    {
+      "type": "dependency",
+      "name": "vaul",
+      "file": "apps/code/package.json",
+      "line": 197
+    },
+    {
+      "type": "devDependency",
+      "name": "@biomejs/biome",
+      "file": "apps/code/package.json",
+      "line": 45
+    },
+    {
+      "type": "devDependency",
+      "name": "@electron/rebuild",
+      "file": "apps/code/package.json",
+      "line": 53
+    },
+    {
+      "type": "devDependency",
+      "name": "@posthog/rollup-plugin",
+      "file": "apps/code/package.json",
+      "line": 55
+    },
+    {
+      "type": "devDependency",
+      "name": "adm-zip",
+      "file": "apps/code/package.json",
+      "line": 68
+    },
+    {
+      "type": "devDependency",
+      "name": "husky",
+      "file": "apps/code/package.json",
+      "line": 72
+    },
+    {
+      "type": "devDependency",
+      "name": "lint-staged",
+      "file": "apps/code/package.json",
+      "line": 75
+    },
+    {
+      "type": "devDependency",
+      "name": "postcss",
+      "file": "apps/code/package.json",
+      "line": 77
+    },
+    {
+      "type": "devDependency",
+      "name": "@posthog/cli",
+      "file": "package.json",
+      "line": 45
+    },
+    {
+      "type": "devDependency",
+      "name": "@types/tar",
+      "file": "packages/agent/package.json",
+      "line": 90
+    },
+    {
+      "type": "devDependency",
+      "name": "tsx",
+      "file": "packages/agent/package.json",
+      "line": 93
+    },
+    {
+      "type": "devDependency",
+      "name": "@types/tar",
+      "file": "packages/git/package.json",
+      "line": 20
+    }
+  ],
+  "unlistedDeps": [
+    {
+      "type": "unlisted",
+      "name": "@vitest/coverage-v8",
+      "file": "apps/code/vitest.config.ts"
+    },
+    {
+      "type": "unlisted",
+      "name": "@vitest/coverage-v8",
+      "file": "packages/agent/vitest.config.ts"
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/utils/session.ts",
+      "line": 9
+    },
+    {
+      "type": "unlisted",
+      "name": "@anthropic-ai/claude-agent-sdk",
+      "file": "apps/code/src/main/services/agent/discover-plugins.ts",
+      "line": 5
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/main/services/agent/service.ts",
+      "line": 14
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionStore.ts",
+      "line": 7
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/service/service.ts",
+      "line": 5
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/components/permissions/PermissionSelector.tsx",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/components/ConversationView.stories.tsx",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/types.ts",
+      "line": 7
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/main/trpc/routers/agent.ts",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/message-editor/components/MessageEditor.tsx",
+      "line": 2
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/utils/parseSessionLogs.ts",
+      "line": 8
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/main/services/agent/schemas.ts",
+      "line": 4
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/components/permissions/types.ts",
+      "line": 5
+    },
+    {
+      "type": "unlisted",
+      "name": "@radix-ui/react-tooltip",
+      "file": "apps/code/src/renderer/components/ui/Tooltip.tsx",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/message-editor/commands.ts",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/message-editor/types.ts",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/editor/utils/prompt-builder.ts",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/message-editor/stores/draftStore.ts",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/hooks/useSession.ts",
+      "line": 4
+    },
+    {
+      "type": "unlisted",
+      "name": "unified",
+      "file": "apps/code/src/renderer/features/editor/components/MarkdownRenderer.tsx",
+      "line": 10
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/components/ModelSelector.tsx",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/message-editor/components/ModeIndicatorInput.tsx",
+      "line": 6
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/message-editor/suggestions/getSuggestions.ts",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/task-detail/components/TaskInputEditor.tsx",
+      "line": 2
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/task-detail/hooks/usePreviewConfig.ts",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/components/buildConversationItems.ts",
+      "line": 4
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/components/ReasoningLevelSelector.tsx",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/components/UnifiedModelSelector.tsx",
+      "line": 4
+    },
+    {
+      "type": "unlisted",
+      "name": "@agentclientprotocol/sdk",
+      "file": "apps/code/src/renderer/features/sessions/stores/sessionConfigStore.ts",
+      "line": 1
+    },
+    {
+      "type": "unlisted",
+      "name": "@dnd-kit/dom",
+      "file": "apps/code/src/renderer/features/sidebar/components/TaskListView.tsx",
+      "line": 1
+    }
+  ],
+  "summary": "Found 379 issues"
+}

@@ -55,7 +55,7 @@ function getFilePathWrapper(container: HTMLElement): HTMLElement {
   const button = container.querySelector("button");
   expect(button).toBeTruthy();
 
-  const spans = button!.querySelectorAll<HTMLSpanElement>("span");
+  const spans = button?.querySelectorAll<HTMLSpanElement>("span");
   // Find the span that contains the directory path (has gray color, no fontWeight)
   const dirSpan = Array.from(spans).find(
     (s) => s.style.color === "var(--gray-9)" && !s.style.fontWeight,

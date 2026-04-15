@@ -1,0 +1,88 @@
+{
+  "items": [
+    {
+      "type": "TODO",
+      "message": "Migrate to posthog-code",
+      "file": "apps/code/src/main/utils/encryption.ts",
+      "line": 7,
+      "column": 3
+    },
+    {
+      "type": "TODO",
+      "message": "Remove this, used for local debugging only",
+      "file": "apps/code/src/renderer/features/sessions/components/session-update/McpToolBlock.tsx",
+      "line": 38,
+      "column": 5
+    },
+    {
+      "type": "TODO",
+      "message": "Implement hover state",
+      "file": "apps/code/src/renderer/features/sessions/components/session-update/ToolCallBlock.stories.tsx",
+      "line": 409,
+      "column": 33
+    },
+    {
+      "type": "TODO",
+      "message": "Add retry logic",
+      "file": "apps/code/src/renderer/features/sessions/components/session-update/ToolCallBlock.stories.tsx",
+      "line": 410,
+      "column": 26
+    },
+    {
+      "type": "TODO",
+      "message": "Handle token refresh",
+      "file": "apps/code/src/renderer/features/sessions/components/session-update/ToolCallBlock.stories.tsx",
+      "line": 411,
+      "column": 28
+    },
+    {
+      "type": "TODO",
+      "message": "Add loading skeleton`,",
+      "file": "apps/code/src/renderer/features/sessions/components/session-update/ToolCallBlock.stories.tsx",
+      "line": 412,
+      "column": 31
+    },
+    {
+      "type": "TODO",
+      "message": "Actions UI disabled for now",
+      "file": "apps/code/src/renderer/features/settings/components/sections/environments/EnvironmentForm.tsx",
+      "line": 146,
+      "column": 10
+    },
+    {
+      "type": "TODO",
+      "message": "These should all have their own type as well",
+      "file": "apps/code/src/renderer/features/task-detail/components/TabContentRenderer.tsx",
+      "line": 53,
+      "column": 9
+    },
+    {
+      "type": "HACK",
+      "message": "@posthog/hedgehog-mode): The package bundles react-dom 18 code that",
+      "file": "apps/code/src/renderer/main.tsx",
+      "line": 11,
+      "column": 3
+    },
+    {
+      "type": "TODO",
+      "message": "Fix this and use NativeTabs.Trigger for opening the chat */}",
+      "file": "apps/mobile/src/app/(tabs)/_layout.tsx",
+      "line": 63,
+      "column": 10
+    },
+    {
+      "type": "TODO",
+      "message": "Set up proper production logging",
+      "file": "apps/mobile/src/lib/logger.ts",
+      "line": 1,
+      "column": 3
+    },
+    {
+      "type": "FIXME",
+      "message": ":",
+      "file": "packages/electron-trpc/src/renderer/utils.ts",
+      "line": 13,
+      "column": 3
+    }
+  ]
+}

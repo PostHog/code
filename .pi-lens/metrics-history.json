@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "files": {
+    "apps/code/src/renderer/features/code-review/components/ReviewShell.test.tsx": {
+      "latest": {
+        "commit": "416ccef2",
+        "timestamp": "2026-04-15T23:34:36.288Z",
+        "mi": 38.3,
+        "cognitive": 10,
+        "nesting": 3,
+        "lines": 112,
+        "maxCyclomatic": 13,
+        "entropy": 5.69
+      },
+      "history": [
+        {
+          "commit": "416ccef2",
+          "timestamp": "2026-04-15T23:34:36.288Z",
+          "mi": 38.3,
+          "cognitive": 10,
+          "nesting": 3,
+          "lines": 112,
+          "maxCyclomatic": 13,
+          "entropy": 5.69
+        }
+      ],
+      "trend": "stable"
+    },
+    "apps/code/src/renderer/features/code-review/components/ReviewShell.tsx": {
+      "latest": {
+        "commit": "416ccef2",
+        "timestamp": "2026-04-15T23:35:59.272Z",
+        "mi": 11,
+        "cognitive": 119,
+        "nesting": 5,
+        "lines": 628,
+        "maxCyclomatic": 27,
+        "entropy": 7.18
+      },
+      "history": [
+        {
+          "commit": "416ccef2",
+          "timestamp": "2026-04-15T23:35:59.272Z",
+          "mi": 11,
+          "cognitive": 119,
+          "nesting": 5,
+          "lines": 628,
+          "maxCyclomatic": 27,
+          "entropy": 7.18
+        }
+      ],
+      "trend": "stable"
+    }
+  },
+  "capturedAt": "2026-04-15T23:36:04.272Z"
+}
