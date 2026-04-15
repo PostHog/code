@@ -182,14 +182,16 @@ export function extractUserPromptsFromEvents(events: AcpMessage[]): string[] {
     if (isJsonRpcRequest(msg) && msg.method === "session/prompt") {
       const params = msg.params as { prompt?: ContentBlock[] };
       if (params?.prompt?.length) {
-        // Find first visible text block (skip hidden context blocks)
-        const textBlock = params.prompt.find((b) => {
-          if (b.type !== "text") return false;
-          const meta = (b as { _meta?: { ui?: { hidden?: boolean } } })._meta;
-          return !meta?.ui?.hidden;
-        });
-        if (textBlock && textBlock.type === "text") {
-          prompts.push(textBlock.text);
+        const { text, attachments } = extractPromptDisplayContent(
+          params.prompt,
+          { filterHidden: true },
+        );
+
+        if (text) {
+          prompts.push(text);
+        } else if (attachments.length > 0) {
+          const labels = attachments.map((a) => a.label).join(", ");
+          prompts.push(`[Attached files: ${labels}]`);
         }
       }
     }
