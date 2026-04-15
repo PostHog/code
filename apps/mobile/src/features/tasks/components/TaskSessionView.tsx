@@ -60,7 +60,12 @@ function parseSessionNotification(notification: SessionNotification): {
 
   switch (update.sessionUpdate) {
     case "user_message_chunk":
-    case "agent_message_chunk": {
+    case "agent_message_chunk":
+    // `agent_message` is the aggregated final message emitted by the server
+    // once a response is complete; the desktop treats it the same as a
+    // streaming chunk. Without this case the final answer is silently
+    // dropped and the spinner stays on forever.
+    case "agent_message": {
       if (update.content?.type === "text") {
         return {
           type:
@@ -110,6 +115,7 @@ function processEvents(events: SessionEvent[]): ParsedMessage[] {
   let pendingThoughtText = "";
   let agentMessageCount = 0;
   let thoughtMessageCount = 0;
+  let userMessageCount = 0;
   const toolMessages = new Map<string, ParsedMessage>();
 
   const flushAgentText = () => {
@@ -147,7 +153,7 @@ function processEvents(events: SessionEvent[]): ParsedMessage[] {
       case "user":
         flushPending();
         messages.push({
-          id: `user-${event.ts}`,
+          id: `user-${userMessageCount++}`,
           type: "user",
           content: parsed.content ?? "",
         });
@@ -163,14 +169,21 @@ function processEvents(events: SessionEvent[]): ParsedMessage[] {
       case "tool":
         flushPending();
         if (parsed.toolData) {
-          const msg: ParsedMessage = {
-            id: `tool-${parsed.toolData.toolCallId}`,
-            type: "tool",
-            content: "",
-            toolData: parsed.toolData,
-          };
-          toolMessages.set(parsed.toolData.toolCallId, msg);
-          messages.push(msg);
+          const existing = toolMessages.get(parsed.toolData.toolCallId);
+          if (existing?.toolData) {
+            // Duplicate tool_call — refresh fields on the existing message
+            // in place instead of pushing a second entry with a colliding key.
+            existing.toolData = { ...existing.toolData, ...parsed.toolData };
+          } else {
+            const msg: ParsedMessage = {
+              id: `tool-${parsed.toolData.toolCallId}`,
+              type: "tool",
+              content: "",
+              toolData: parsed.toolData,
+            };
+            toolMessages.set(parsed.toolData.toolCallId, msg);
+            messages.push(msg);
+          }
         }
         break;
       case "tool_update":

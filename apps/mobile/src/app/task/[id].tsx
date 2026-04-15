@@ -165,6 +165,32 @@ export default function TaskDetailScreen() {
           className="absolute inset-x-0 bottom-0"
           style={inputContainerStyle}
         >
+          {session?.terminalStatus && (
+            <View
+              className={`mx-3 mb-2 rounded-lg border px-3 py-2 ${
+                session.terminalStatus === "failed"
+                  ? "border-status-error bg-status-error/10"
+                  : "border-gray-6 bg-gray-2"
+              }`}
+            >
+              <Text
+                className={`font-medium text-xs ${
+                  session.terminalStatus === "failed"
+                    ? "text-status-error"
+                    : "text-gray-11"
+                }`}
+              >
+                {session.terminalStatus === "failed"
+                  ? `Run failed${session.lastError ? `: ${session.lastError}` : ""}`
+                  : "Run completed"}
+              </Text>
+              {session.terminalStatus === "failed" && (
+                <Text className="mt-1 text-gray-11 text-xs">
+                  Send a message to start a new run.
+                </Text>
+              )}
+            </View>
+          )}
           <Composer onSend={handleSendPrompt} />
         </Animated.View>
       </Animated.View>

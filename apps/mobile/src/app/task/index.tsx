@@ -1,7 +1,7 @@
 import { Text } from "@components/text";
 import { Stack, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -79,9 +79,16 @@ export default function NewTaskScreen() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [repositories, setRepositories] = useState<string[]>([]);
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
+  const [repoSearch, setRepoSearch] = useState("");
   const [prompt, setPrompt] = useState("");
   const [creating, setCreating] = useState(false);
   const [loadingRepos, setLoadingRepos] = useState(true);
+
+  const filteredRepositories = useMemo(() => {
+    const query = repoSearch.trim().toLowerCase();
+    if (!query) return repositories;
+    return repositories.filter((repo) => repo.toLowerCase().includes(query));
+  }, [repositories, repoSearch]);
 
   const loadIntegrations = useCallback(async () => {
     try {
@@ -116,14 +123,21 @@ export default function NewTaskScreen() {
     try {
       const githubIntegration = integrations.find((i) => i.kind === "github");
 
+      const trimmedPrompt = prompt.trim();
       const task = await createTask({
-        description: prompt.trim(),
-        title: prompt.trim().slice(0, 100),
+        description: trimmedPrompt,
+        title: trimmedPrompt.slice(0, 100),
         repository: selectedRepo,
         github_integration: githubIntegration?.id,
       });
 
-      await runTaskInCloud(task.id);
+      // Pass the prompt as pending_user_message so the cloud agent has
+      // something to process on start — matches how the desktop launches
+      // new cloud runs. Without this the sandbox starts idle and the UI
+      // stays stuck on "Thinking...".
+      await runTaskInCloud(task.id, {
+        pendingUserMessage: trimmedPrompt,
+      });
 
       // Navigate to task detail (replaces current modal)
       router.replace(`/task/${task.id}`);
@@ -161,29 +175,50 @@ export default function NewTaskScreen() {
         ) : (
           <>
             <Text className="mb-2 text-gray-9 text-xs">Repository</Text>
+            <TextInput
+              className="mb-2 rounded-lg border border-gray-6 px-3 py-2 text-gray-12 text-sm"
+              placeholder="Search repositories"
+              placeholderTextColor={themeColors.gray[9]}
+              value={repoSearch}
+              onChangeText={setRepoSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+            />
             <View className="mb-4 max-h-48 rounded-lg border border-gray-6">
-              <FlatList
-                data={repositories}
-                keyExtractor={(item) => item}
-                renderItem={({ item }) => (
-                  <Pressable
-                    onPress={() => setSelectedRepo(item)}
-                    className={`border-gray-6 border-b px-3 py-3 ${
-                      selectedRepo === item ? "bg-accent-3" : ""
-                    }`}
-                  >
-                    <Text
-                      className={`text-sm ${
-                        selectedRepo === item
-                          ? "text-accent-11"
-                          : "text-gray-11"
+              {filteredRepositories.length === 0 ? (
+                <View className="px-3 py-4">
+                  <Text className="text-center text-gray-9 text-sm">
+                    {repoSearch
+                      ? `No repositories match "${repoSearch}"`
+                      : "No repositories available"}
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={filteredRepositories}
+                  keyExtractor={(item) => item}
+                  keyboardShouldPersistTaps="handled"
+                  renderItem={({ item }) => (
+                    <Pressable
+                      onPress={() => setSelectedRepo(item)}
+                      className={`border-gray-6 border-b px-3 py-3 ${
+                        selectedRepo === item ? "bg-accent-3" : ""
                       }`}
                     >
-                      {item}
-                    </Text>
-                  </Pressable>
-                )}
-              />
+                      <Text
+                        className={`text-sm ${
+                          selectedRepo === item
+                            ? "text-accent-11"
+                            : "text-gray-11"
+                        }`}
+                      >
+                        {item}
+                      </Text>
+                    </Pressable>
+                  )}
+                />
+              )}
             </View>
 
             <Text className="mb-2 text-gray-9 text-xs">Task description</Text>

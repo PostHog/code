@@ -160,16 +160,52 @@ export async function deleteTask(taskId: string): Promise<void> {
   }
 }
 
-export async function runTaskInCloud(taskId: string): Promise<Task> {
+export interface RunTaskInCloudOptions {
+  branch?: string | null;
+  resumeFromRunId?: string;
+  pendingUserMessage?: string;
+  mode?: "interactive" | "background";
+}
+
+export async function runTaskInCloud(
+  taskId: string,
+  options?: RunTaskInCloudOptions,
+): Promise<Task> {
   const baseUrl = getBaseUrl();
   const projectId = getProjectId();
   const headers = getHeaders();
+
+  // Only serialize a body when we have options to send. Sending an empty
+  // or minimal body on the initial run historically changed backend
+  // behavior, so we preserve the "no body" path for the common case.
+  const hasOptions =
+    !!options &&
+    (options.branch !== undefined ||
+      options.resumeFromRunId !== undefined ||
+      options.pendingUserMessage !== undefined ||
+      options.mode !== undefined);
+
+  let body: string | undefined;
+  if (hasOptions) {
+    const payload: Record<string, unknown> = {
+      mode: options?.mode ?? "interactive",
+    };
+    if (options?.branch) payload.branch = options.branch;
+    if (options?.resumeFromRunId) {
+      payload.resume_from_run_id = options.resumeFromRunId;
+    }
+    if (options?.pendingUserMessage) {
+      payload.pending_user_message = options.pendingUserMessage;
+    }
+    body = JSON.stringify(payload);
+  }
 
   const response = await fetch(
     `${baseUrl}/api/projects/${projectId}/tasks/${taskId}/run/`,
     {
       method: "POST",
       headers,
+      body,
     },
   );
 
@@ -228,6 +264,103 @@ export async function appendTaskRunLog(
   );
 }
 
+/**
+ * Structured error thrown by `sendCloudCommand`. Exposes the HTTP status and
+ * the backend error payload so callers can branch on specific failure modes
+ * (e.g. "No active sandbox for this task run" → trigger a resume flow).
+ */
+export class CloudCommandError extends Error {
+  readonly status: number;
+  readonly backendError: string | null;
+  readonly method: string;
+
+  constructor(
+    method: string,
+    status: number,
+    backendError: string | null,
+    message: string,
+  ) {
+    super(message);
+    this.name = "CloudCommandError";
+    this.method = method;
+    this.status = status;
+    this.backendError = backendError;
+  }
+
+  /** True when the cloud sandbox for this run has terminated. */
+  isSandboxInactive(): boolean {
+    return !!this.backendError?.includes("No active sandbox");
+  }
+}
+
+/**
+ * Sends a JSON-RPC command to a running cloud task. This is the correct path
+ * for delivering follow-up user prompts to the agent — it gets translated into
+ * `session/prompt` on the agent side. Note: `appendTaskRunLog` only writes to
+ * S3 for display; it does NOT notify the agent.
+ */
+export async function sendCloudCommand(
+  taskId: string,
+  runId: string,
+  method: string,
+  params: Record<string, unknown> = {},
+): Promise<unknown> {
+  const baseUrl = getBaseUrl();
+  const projectId = getProjectId();
+  const headers = getHeaders();
+
+  const body = {
+    jsonrpc: "2.0",
+    method,
+    params,
+    id: `posthog-mobile-${Date.now()}`,
+  };
+
+  const response = await fetch(
+    `${baseUrl}/api/projects/${projectId}/tasks/${taskId}/runs/${runId}/command/`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    let backendError: string | null = null;
+    try {
+      const parsed = JSON.parse(text);
+      backendError =
+        typeof parsed?.error === "string"
+          ? parsed.error
+          : (parsed?.error?.message ?? null);
+    } catch {
+      backendError = text || null;
+    }
+    throw new CloudCommandError(
+      method,
+      response.status,
+      backendError,
+      `Cloud command '${method}' failed: ${response.status} ${response.statusText} ${text}`,
+    );
+  }
+
+  const data = await response.json();
+  if (data?.error) {
+    const message =
+      typeof data.error === "string"
+        ? data.error
+        : (data.error.message ?? JSON.stringify(data.error));
+    throw new CloudCommandError(
+      method,
+      200,
+      message,
+      `Cloud command '${method}' error: ${message}`,
+    );
+  }
+  return data?.result;
+}
+
 export async function fetchS3Logs(logUrl: string): Promise<string> {
   return withRetry(
     async () => {
@@ -281,17 +414,13 @@ export async function getGithubRepositories(
   }
 
   const data = await response.json();
+  const repos: Array<string | { full_name?: string; name?: string }> =
+    data.repositories ?? data.results ?? data ?? [];
 
-  const integrations = await getIntegrations();
-  const integration = integrations.find((i) => i.id === integrationId);
-  const organization =
-    integration?.display_name ||
-    integration?.config?.account?.login ||
-    "unknown";
-
-  const repoNames = data.repositories ?? data.results ?? data ?? [];
-  return repoNames.map(
-    (repoName: string) =>
-      `${organization.toLowerCase()}/${repoName.toLowerCase()}`,
-  );
+  return repos
+    .map((repo) => {
+      if (typeof repo === "string") return repo.toLowerCase();
+      return (repo.full_name ?? repo.name ?? "").toLowerCase();
+    })
+    .filter((name) => name.length > 0);
 }
