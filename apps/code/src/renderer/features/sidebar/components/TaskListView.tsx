@@ -269,9 +269,6 @@ export function TaskListView({
               timestamp={task[timestampKey]}
             />
           ))}
-          {(flatTasks.length > 0 || groupedTasks.length > 0) && (
-            <div className="mx-2 my-2 border-gray-6 border-t" />
-          )}
         </>
       )}
 
