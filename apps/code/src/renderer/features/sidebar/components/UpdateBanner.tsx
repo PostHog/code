@@ -65,7 +65,7 @@ export function UpdateBanner() {
                     </div>
                     <button
                       type="button"
-                      className="shrink-0 rounded-md bg-[var(--green-a4)] px-2 py-1 font-medium text-[12px] text-[var(--green-11)] transition-colors hover:bg-[var(--green-a5)]"
+                      className="shrink-0 rounded-2 bg-[var(--green-a4)] px-2 py-1 font-medium text-[12px] text-[var(--green-11)] transition-colors hover:bg-[var(--green-a5)]"
                       onClick={() => void installUpdate()}
                     >
                       Restart
