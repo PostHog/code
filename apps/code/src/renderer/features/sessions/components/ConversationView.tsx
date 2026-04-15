@@ -73,17 +73,17 @@ export function ConversationView({
   }
   const firstUserMessageId = firstUserMessageIdRef.current;
 
-  const initialItemIdsRef = useRef<Set<string> | null>(null);
-  if (initialItemIdsRef.current === null) {
-    initialItemIdsRef.current = new Set(
-      conversationItems
-        .filter((i) => i.type === "user_message")
-        .map((i) => i.id),
-    );
-  }
-  const hasMountedRef = useRef(false);
+  const [initialItemIds] = useState(
+    () =>
+      new Set(
+        conversationItems
+          .filter((i) => i.type === "user_message")
+          .map((i) => i.id),
+      ),
+  );
+  const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => {
-    hasMountedRef.current = true;
+    setHasMounted(true);
   }, []);
 
   const pendingPermissions = usePendingPermissionsForTask(taskId ?? "");
@@ -161,10 +161,7 @@ export function ConversationView({
               content={item.content}
               attachments={item.attachments}
               timestamp={item.timestamp}
-              animate={
-                hasMountedRef.current &&
-                !initialItemIdsRef.current?.has(item.id)
-              }
+              animate={hasMounted && !initialItemIds.has(item.id)}
               sourceUrl={
                 slackThreadUrl && item.id === firstUserMessageId
                   ? slackThreadUrl
@@ -211,7 +208,14 @@ export function ConversationView({
           );
       }
     },
-    [repoPath, taskId, slackThreadUrl, firstUserMessageId],
+    [
+      repoPath,
+      taskId,
+      slackThreadUrl,
+      firstUserMessageId,
+      hasMounted,
+      initialItemIds,
+    ],
   );
 
   const getItemKey = useCallback((item: ConversationItem) => item.id, []);
