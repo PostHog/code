@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "files": {
+    "apps/code/src/renderer/features/sessions/hooks/useChatTitleGenerator.ts": {
+      "latest": {
+        "commit": "416ccef2",
+        "timestamp": "2026-04-15T23:38:19.488Z",
+        "mi": 32,
+        "cognitive": 74,
+        "nesting": 9,
+        "lines": 103,
+        "maxCyclomatic": 38,
+        "entropy": 5.72
+      },
+      "history": [
+        {
+          "commit": "416ccef2",
+          "timestamp": "2026-04-15T23:38:19.488Z",
+          "mi": 32,
+          "cognitive": 74,
+          "nesting": 9,
+          "lines": 103,
+          "maxCyclomatic": 38,
+          "entropy": 5.72
+        }
+      ],
+      "trend": "stable"
+    },
+    "apps/code/src/renderer/features/sessions/hooks/useChatTitleGenerator.test.ts": {
+      "latest": {
+        "commit": "416ccef2",
+        "timestamp": "2026-04-15T23:38:35.686Z",
+        "mi": 32,
+        "cognitive": 4,
+        "nesting": 4,
+        "lines": 177,
+        "maxCyclomatic": 2,
+        "entropy": 5.59
+      },
+      "history": [
+        {
+          "commit": "416ccef2",
+          "timestamp": "2026-04-15T23:38:35.686Z",
+          "mi": 32,
+          "cognitive": 4,
+          "nesting": 4,
+          "lines": 177,
+          "maxCyclomatic": 2,
+          "entropy": 5.59
+        }
+      ],
+      "trend": "stable"
+    }
+  },
+  "capturedAt": "2026-04-15T23:38:40.686Z"
+}
