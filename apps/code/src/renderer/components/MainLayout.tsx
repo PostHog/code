@@ -14,6 +14,8 @@ import { SkillsView } from "@features/skills/components/SkillsView";
 import { TaskDetail } from "@features/task-detail/components/TaskDetail";
 import { TaskInput } from "@features/task-detail/components/TaskInput";
 import { useTasks } from "@features/tasks/hooks/useTasks";
+import { TourOverlay } from "@features/tour/components/TourOverlay";
+import { useTourStore } from "@features/tour/stores/tourStore";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { useIntegrations } from "@hooks/useIntegrations";
 import { Box, Flex } from "@radix-ui/themes";
@@ -39,6 +41,11 @@ export function MainLayout() {
   const { data: tasks } = useTasks();
   const { showPrompt, isChecking, check, dismiss } = useConnectivity();
 
+  const startTour = useTourStore((s) => s.startTour);
+  const isFirstTaskTourDone = useTourStore((s) =>
+    s.completedTourIds.includes("create-first-task"),
+  );
+
   useIntegrations();
   useTaskDeepLink();
 
@@ -53,6 +60,12 @@ export function MainLayout() {
       navigateToTaskInput();
     }
   }, [view, navigateToTaskInput]);
+
+  useEffect(() => {
+    if (isFirstTaskTourDone) return;
+    const timer = setTimeout(() => startTour("create-first-task"), 600);
+    return () => clearTimeout(timer);
+  }, [isFirstTaskTourDone, startTour]);
 
   const handleToggleCommandMenu = useCallback(() => {
     toggleCommandMenu();
@@ -99,6 +112,7 @@ export function MainLayout() {
         onToggleShortcutsSheet={toggleShortcutsSheet}
       />
       <SettingsDialog />
+      <TourOverlay />
       <HedgehogMode />
     </Flex>
   );

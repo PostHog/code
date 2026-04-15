@@ -443,7 +443,7 @@ export function TaskInput({
                 disabled={isCreatingTask}
               />
             )}
-            <ButtonGroup ref={buttonGroupRef}>
+            <ButtonGroup ref={buttonGroupRef} data-tour="folder-picker">
               {workspaceMode === "cloud" ? (
                 <GitHubRepoPicker
                   value={selectedRepository}

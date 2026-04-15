@@ -30,7 +30,7 @@ const preview: Preview = {
           grayColor="slate"
           panelBackground="solid"
           radius="none"
-          scaling="105%"
+          scaling="100%"
         >
           <Story />
         </Theme>
