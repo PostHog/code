@@ -102,21 +102,6 @@ async function makeCloudChanges(
   await writeFile(path.join(cloudRepo, "untracked.txt"), "untracked\n");
 }
 
-async function mirrorWorktreeFiles(
-  fromRepo: string,
-  toRepo: string,
-  files: string[],
-): Promise<void> {
-  await Promise.all(
-    files.map(async (file) => {
-      await writeFile(
-        path.join(toRepo, file),
-        await readFile(path.join(fromRepo, file), "utf-8"),
-      );
-    }),
-  );
-}
-
 async function cleanupCapture(capture: GitHandoffCaptureResult): Promise<void> {
   if (capture.headPack?.path) {
     await rm(capture.headPack.path, { force: true }).catch(() => {});
@@ -160,18 +145,12 @@ async function captureAndApply(
 }
 
 describe("GitHandoffTracker", () => {
-  it("captures and reapplies head and index state from local files", async () => {
+  it("captures and reapplies head, worktree, and index state from local files", async () => {
     await withRepos(async (repos) => {
       await makeCloudChanges(repos.cloudRepo, repos.cloudGit);
       const capture = await captureAndApply(repos);
 
       try {
-        await mirrorWorktreeFiles(repos.cloudRepo, repos.localRepo, [
-          "tracked.txt",
-          "unstaged.txt",
-          "untracked.txt",
-        ]);
-
         expect((await repos.localGit.revparse(["HEAD"])).trim()).toBe(
           capture.checkpoint.head,
         );
@@ -181,11 +160,41 @@ describe("GitHandoffTracker", () => {
         expect(
           await readFile(path.join(repos.localRepo, "committed.txt"), "utf-8"),
         ).toBe("cloud commit\n");
+        expect(
+          await readFile(path.join(repos.localRepo, "tracked.txt"), "utf-8"),
+        ).toBe("staged change\n");
+        expect(
+          await readFile(path.join(repos.localRepo, "unstaged.txt"), "utf-8"),
+        ).toBe("unstaged change\n");
+        expect(
+          await readFile(path.join(repos.localRepo, "untracked.txt"), "utf-8"),
+        ).toBe("untracked\n");
 
         const status = await repos.localGit.raw(["status", "--porcelain"]);
         expect(status).toContain("M  tracked.txt");
         expect(status).toContain(" M unstaged.txt");
         expect(status).toContain("?? untracked.txt");
+      } finally {
+        await cleanupCapture(capture);
+      }
+    });
+  }, 15000);
+
+  it("removes tracked files absent from the checkpoint worktree", async () => {
+    await withRepos(async (repos) => {
+      await rm(path.join(repos.cloudRepo, "tracked.txt"));
+      await repos.cloudGit.raw(["rm", "--cached", "tracked.txt"]);
+      await repos.cloudGit.commit("Remove tracked file");
+
+      const capture = await captureAndApply(repos);
+
+      try {
+        await expect(
+          readFile(path.join(repos.localRepo, "tracked.txt"), "utf-8"),
+        ).rejects.toThrow();
+
+        const status = await repos.localGit.raw(["status", "--porcelain"]);
+        expect(status).not.toContain("tracked.txt");
       } finally {
         await cleanupCapture(capture);
       }

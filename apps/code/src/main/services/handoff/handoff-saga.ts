@@ -13,18 +13,11 @@ export type HandoffSagaInput = HandoffExecuteInput;
 
 export interface HandoffSagaOutput {
   sessionId: string;
-  snapshotApplied: boolean;
+  checkpointApplied: boolean;
   conversationTurns: number;
 }
 
 export interface HandoffSagaDeps extends HandoffBaseDeps {
-  applyTreeSnapshot(
-    snapshot: AgentTypes.TreeSnapshotEvent,
-    repoPath: string,
-    taskId: string,
-    runId: string,
-    apiClient: PostHogAPIClient,
-  ): Promise<void>;
   applyGitCheckpoint(
     checkpoint: AgentTypes.GitCheckpointEvent,
     repoPath: string,
@@ -102,7 +95,7 @@ export class HandoffSaga extends Saga<HandoffSagaInput, HandoffSagaOutput> {
       },
     );
 
-    let filesRestored = false;
+    let checkpointApplied = false;
     const checkpoint = resumeState.latestGitCheckpoint;
     if (checkpoint) {
       this.deps.onProgress(
@@ -121,29 +114,7 @@ export class HandoffSaga extends Saga<HandoffSagaInput, HandoffSagaOutput> {
             apiClient,
             input.localGitState,
           );
-        },
-        rollback: async () => {},
-      });
-    }
-
-    const snapshot = resumeState.latestSnapshot;
-    if (snapshot?.archiveUrl) {
-      this.deps.onProgress(
-        "applying_snapshot",
-        "Applying cloud file state locally...",
-      );
-
-      await this.step({
-        name: "apply_snapshot",
-        execute: async () => {
-          await this.deps.applyTreeSnapshot(
-            snapshot,
-            repoPath,
-            taskId,
-            runId,
-            apiClient,
-          );
-          filesRestored = true;
+          checkpointApplied = true;
         },
         rollback: async () => {},
       });
@@ -198,7 +169,7 @@ export class HandoffSaga extends Saga<HandoffSagaInput, HandoffSagaOutput> {
     await this.readOnlyStep("set_context", async () => {
       const context = this.buildHandoffContext(
         resumeState.conversation,
-        filesRestored,
+        checkpointApplied,
       );
       this.deps.setPendingContext(runId, context);
     });
@@ -207,20 +178,20 @@ export class HandoffSaga extends Saga<HandoffSagaInput, HandoffSagaOutput> {
 
     return {
       sessionId: agentSessionId,
-      snapshotApplied: filesRestored,
+      checkpointApplied,
       conversationTurns: resumeState.conversation.length,
     };
   }
 
   private buildHandoffContext(
     conversation: AgentResume.ConversationTurn[],
-    snapshotApplied: boolean,
+    checkpointApplied: boolean,
   ): string {
     const conversationSummary = formatConversationForResume(conversation);
 
-    const fileStatus = snapshotApplied
-      ? "The workspace files have been fully restored from the cloud session."
-      : "The workspace files from the cloud session could not be restored. You are working with the local file state.";
+    const fileStatus = checkpointApplied
+      ? "The workspace git state and files have been restored from the cloud session checkpoint."
+      : "The workspace from the cloud session could not be restored from a checkpoint. You are working with the local file state.";
 
     return (
       `You are resuming a previous conversation that was running in a cloud sandbox. ` +

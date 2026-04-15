@@ -797,9 +797,6 @@ importers:
       simple-git:
         specifier: ^3.30.0
         version: 3.30.0
-      tar:
-        specifier: ^7.5.6
-        version: 7.5.7
     devDependencies:
       '@types/tar':
         specifier: ^6.1.13

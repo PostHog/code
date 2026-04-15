@@ -34,9 +34,6 @@ export const POSTHOG_NOTIFICATIONS = {
   /** Maps taskRunId to agent's sessionId and adapter type (for resumption) */
   SDK_SESSION: "_posthog/sdk_session",
 
-  /** Tree state snapshot captured (git tree hash + file archive) */
-  TREE_SNAPSHOT: "_posthog/tree_snapshot",
-
   /** Git checkpoint captured for handoff */
   GIT_CHECKPOINT: "_posthog/git_checkpoint",
 

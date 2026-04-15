@@ -6,6 +6,7 @@ import {
 } from "@features/message-editor/components/PromptInput";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { CHAT_CONTENT_MAX_WIDTH } from "@features/sessions/constants";
+import { useSessionForTask } from "@features/sessions/hooks/useSession";
 import {
   useModeConfigOptionForTask,
   usePendingPermissionsForTask,
@@ -103,6 +104,8 @@ export function SessionView({
   const modeOption = useModeConfigOptionForTask(taskId);
   const { allowBypassPermissions } = useSettingsStore();
   const currentModeId = modeOption?.currentValue;
+  const handoffInProgress =
+    useSessionForTask(taskId)?.handoffInProgress ?? false;
 
   useEffect(() => {
     if (allowBypassPermissions) return;
@@ -555,7 +558,8 @@ export function SessionView({
                           ref={editorRef}
                           sessionId={sessionId}
                           placeholder="Type a message... @ to mention files, ! for bash mode, / for skills"
-                          disabled={!isRunning}
+                          disabled={!isRunning && !handoffInProgress}
+                          submitDisabledExternal={handoffInProgress}
                           isLoading={!!isPromptPending}
                           isActiveSession={isActiveSession}
                           taskId={taskId}

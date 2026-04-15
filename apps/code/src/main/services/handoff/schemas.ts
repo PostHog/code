@@ -97,10 +97,8 @@ export type HandoffToCloudExecuteResult = z.infer<
 export type HandoffStep =
   | "fetching_logs"
   | "applying_git_checkpoint"
-  | "applying_snapshot"
   | "spawning_agent"
   | "capturing_checkpoint"
-  | "capturing_snapshot"
   | "stopping_agent"
   | "starting_cloud_run"
   | "complete"

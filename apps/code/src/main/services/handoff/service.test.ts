@@ -44,12 +44,6 @@ vi.mock("@posthog/agent/posthog-api", () => ({
   PostHogAPIClient: vi.fn(),
 }));
 
-vi.mock("@posthog/agent/tree-tracker", () => ({
-  TreeTracker: vi.fn().mockImplementation(() => ({
-    applyTreeSnapshot: vi.fn(),
-  })),
-}));
-
 vi.mock("@posthog/agent/handoff-checkpoint", () => ({
   HandoffCheckpointTracker: vi.fn().mockImplementation(() => ({
     applyFromHandoff: mockApplyFromHandoff,

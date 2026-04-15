@@ -61,7 +61,6 @@ export type ArtifactType =
   | "reference"
   | "output"
   | "artifact"
-  | "tree_snapshot"
   | "user_attachment";
 
 export interface TaskRunArtifact {
@@ -185,21 +184,6 @@ export type FileStatus = "A" | "M" | "D";
 export interface FileChange {
   path: string;
   status: FileStatus;
-}
-
-// Tree snapshot - what TreeTracker captures
-export interface TreeSnapshot {
-  treeHash: string;
-  baseCommit: string | null;
-  archiveUrl?: string;
-  changes: FileChange[];
-  timestamp: string;
-  interrupted?: boolean;
-}
-
-// Tree snapshot event - includes device info when sent as notification
-export interface TreeSnapshotEvent extends TreeSnapshot {
-  device?: DeviceInfo;
 }
 
 export type HandoffLocalGitState = GitHandoffLocalGitState;

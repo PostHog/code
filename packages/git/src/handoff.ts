@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
-import { copyFile, mkdir, readFile, rm, stat } from "node:fs/promises";
+import { copyFile, mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import type { SagaLogger } from "@posthog/shared";
 import { createGitClient, type GitClient } from "./client";
@@ -92,7 +93,7 @@ export class GitHandoffTracker {
   }
 
   async captureForHandoff(
-    localGitState?: HandoffLocalGitState,
+    _localGitState?: HandoffLocalGitState,
   ): Promise<GitHandoffCaptureResult> {
     const captureSaga = new CaptureCheckpointSaga(this.logger);
     const result = await captureSaga.run({ baseDir: this.repositoryPath });
@@ -104,21 +105,22 @@ export class GitHandoffTracker {
 
     const checkpoint = result.data;
     const git = createGitClient(this.repositoryPath);
-    const tempDir = await this.getTempDir(git);
+    const tempDir = await this.createTempDir(checkpoint.checkpointId);
     const checkpointRef = `${CHECKPOINT_REF_PREFIX}${checkpoint.checkpointId}`;
-    const shouldIncludeHead =
-      !!checkpoint.head && checkpoint.head !== localGitState?.head;
-    const headRef = shouldIncludeHead
+    const packRefs = [
+      checkpoint.head,
+      checkpoint.indexTree,
+      checkpoint.worktreeTree,
+    ].filter((ref): ref is string => !!ref);
+    const headRef = checkpoint.head
       ? `${HANDOFF_HEAD_REF_PREFIX}${checkpoint.checkpointId}`
       : undefined;
     const packPrefix = path.join(tempDir, checkpoint.checkpointId);
 
     try {
       const [headPack, indexFile, tracking] = await Promise.all([
-        shouldIncludeHead && checkpoint.head
-          ? this.captureHeadPack(packPrefix, checkpoint.head)
-          : Promise.resolve(undefined),
-        this.copyIndexFile(git, checkpoint.checkpointId),
+        this.captureObjectPack(packPrefix, packRefs),
+        this.copyIndexFile(git, checkpoint.checkpointId, tempDir),
         getTrackingMetadata(git, checkpoint.branch),
       ]);
 
@@ -190,6 +192,9 @@ export class GitHandoffTracker {
       await git.checkout(checkpoint.head);
     }
 
+    await git.clean(["f", "d"]);
+    await git.raw(["read-tree", "--reset", "-u", checkpoint.worktreeTree]);
+
     if (indexPath) {
       await this.restoreIndexFile(git, indexPath);
     }
@@ -204,13 +209,13 @@ export class GitHandoffTracker {
     };
   }
 
-  private async captureHeadPack(
+  private async captureObjectPack(
     packPrefix: string,
-    headCommit: string,
+    refs: string[],
   ): Promise<GitHandoffArtifactFile> {
     const hash = await this.runGitWithInput(
       ["pack-objects", packPrefix, "--revs"],
-      `${headCommit}\n`,
+      `${refs.join("\n")}\n`,
     );
     const packPath = `${packPrefix}-${hash.trim()}.pack`;
     const rawBytes = await this.getFileSize(packPath);
@@ -221,9 +226,9 @@ export class GitHandoffTracker {
   private async copyIndexFile(
     git: GitClient,
     checkpointId: string,
+    tempDir: string,
   ): Promise<GitHandoffArtifactFile> {
     const indexPath = await this.getGitPath(git, "index");
-    const tempDir = await this.getTempDir(git);
     const copiedIndexPath = path.join(tempDir, `${checkpointId}.index`);
     await copyFile(indexPath, copiedIndexPath);
     return {
@@ -422,15 +427,8 @@ export class GitHandoffTracker {
     return exitCode === 0;
   }
 
-  private async getTempDir(git: GitClient): Promise<string> {
-    const raw = await git.raw(["rev-parse", "--git-common-dir"]);
-    const commonDir = raw.trim() || ".git";
-    const resolved = path.isAbsolute(commonDir)
-      ? commonDir
-      : path.resolve(this.repositoryPath, commonDir);
-    const tempDir = path.join(resolved, "posthog-code-tmp");
-    await mkdir(tempDir, { recursive: true });
-    return tempDir;
+  private async createTempDir(checkpointId: string): Promise<string> {
+    return mkdtemp(joinTempPrefix(checkpointId));
   }
 
   private async getGitPath(git: GitClient, gitPath: string): Promise<string> {
@@ -520,6 +518,10 @@ export class GitHandoffTracker {
       child.stdin.end(input);
     });
   }
+}
+
+function joinTempPrefix(checkpointId: string): string {
+  return path.join(tmpdir(), `posthog-code-handoff-${checkpointId}-`);
 }
 
 export async function readHandoffLocalGitState(

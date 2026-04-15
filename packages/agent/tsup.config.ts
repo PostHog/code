@@ -77,7 +77,6 @@ export default defineConfig([
       "src/handoff-checkpoint.ts",
       "src/posthog-api.ts",
       "src/resume.ts",
-      "src/tree-tracker.ts",
       "src/types.ts",
       "src/adapters/claude/questions/utils.ts",
       "src/adapters/claude/permissions/permission-options.ts",
