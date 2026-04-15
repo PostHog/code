@@ -4,7 +4,7 @@ import {
   CaretRight,
   Robot,
 } from "phosphor-react-native";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -26,6 +26,7 @@ import { QuestionCard } from "./QuestionCard";
 
 interface TaskSessionViewProps {
   events: SessionEvent[];
+  isConnecting?: boolean;
   onOpenTask?: (taskId: string) => void;
   onSendAnswer?: (answer: string) => void;
   contentContainerStyle?: object;
@@ -43,7 +44,7 @@ interface ToolData {
 
 interface ParsedMessage {
   id: string;
-  type: "user" | "agent" | "thought" | "tool";
+  type: "user" | "agent" | "thought" | "tool" | "connecting";
   content: string;
   toolData?: ToolData;
   children?: ParsedMessage[];
@@ -380,6 +381,53 @@ function CollapsedThought({ content }: { content: string }) {
   );
 }
 
+// Detect objects like {"0":"E","1":"r","2":"r",...,"isError":true} — a string
+// serialized as char-per-key (possibly with extra metadata keys mixed in).
+function tryReassembleString(obj: Record<string, unknown>): string | null {
+  const numericKeys = Object.keys(obj).filter((k) => /^\d+$/.test(k));
+  if (numericKeys.length < 3) return null;
+  if (numericKeys.every((k) => typeof obj[k] === "string" && (obj[k] as string).length === 1)) {
+    return numericKeys
+      .sort((a, b) => Number(a) - Number(b))
+      .map((k) => obj[k])
+      .join("");
+  }
+  return null;
+}
+
+function extractErrorText(result: unknown): string | null {
+  if (typeof result === "string") return result;
+  if (Array.isArray(result)) {
+    const texts = result.map(extractErrorText).filter(Boolean);
+    return texts.length > 0 ? texts.join("\n") : null;
+  }
+  if (!result || typeof result !== "object") return null;
+  const obj = result as Record<string, unknown>;
+
+  // Reassemble char-per-key strings: {"0":"E","1":"r",...}
+  const reassembled = tryReassembleString(obj);
+  if (reassembled) return reassembled;
+
+  // Check simple string fields, recurse into nested objects
+  for (const key of ["error", "message", "stderr", "output", "text", "content"]) {
+    if (typeof obj[key] === "string") return obj[key] as string;
+    if (obj[key] && typeof obj[key] === "object") {
+      const nested = extractErrorText(obj[key]);
+      if (nested) return nested;
+    }
+  }
+
+  // Last resort: stringify the result so *something* shows
+  try {
+    const str = JSON.stringify(result, null, 2);
+    if (str && str !== "{}") return str;
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
+
 function agentPromptSummary(args?: Record<string, unknown>): string | null {
   if (!args) return null;
   const prompt =
@@ -415,6 +463,7 @@ function AgentToolCard({
   const isFailed = toolData.status === "error";
   const childCount = children.length;
   const subtitle = agentPromptSummary(toolData.args);
+  const errorText = isFailed ? extractErrorText(toolData.result) : null;
 
   return (
     <View className="mx-4 my-1 overflow-hidden rounded-lg border border-gray-6 bg-gray-2">
@@ -468,9 +517,19 @@ function AgentToolCard({
         )}
       </Pressable>
 
-      {/* Nested tool calls */}
-      {expanded && children.length > 0 && (
+      {/* Error message + nested tool calls */}
+      {expanded && (
         <View className="border-gray-6 border-t">
+          {errorText && (
+            <View className="mx-3 my-2 rounded bg-status-error/10 px-3 py-2">
+              <Text
+                className="font-mono text-[12px] text-status-error leading-4"
+                selectable
+              >
+                {errorText}
+              </Text>
+            </View>
+          )}
           {children.map((child) => {
             if (!child.toolData) return null;
             return (
@@ -491,8 +550,35 @@ function AgentToolCard({
   );
 }
 
+const CONNECTING_MESSAGE: ParsedMessage = {
+  id: "__connecting__",
+  type: "connecting",
+  content: "",
+};
+
+function ConnectingIndicator() {
+  const themeColors = useThemeColors();
+  const [dots, setDots] = useState(1);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots((d) => (d % 3) + 1);
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <View className="px-4 py-2">
+      <Text className="text-[13px] text-gray-9">
+        Connecting{".".repeat(dots)}
+      </Text>
+    </View>
+  );
+}
+
 export function TaskSessionView({
   events,
+  isConnecting,
   onOpenTask,
   onSendAnswer,
   contentContainerStyle,
@@ -504,7 +590,17 @@ export function TaskSessionView({
   );
   // Inverted FlatList renders data[0] at the visual bottom.
   // Reverse so newest messages are at index 0 = bottom.
-  const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
+  const displayMessages = useMemo(() => {
+    // Show "Connecting..." when pending and no agent activity yet
+    if (isConnecting && messages.every((m) => m.type === "user")) {
+      return [...messages, CONNECTING_MESSAGE];
+    }
+    return messages;
+  }, [messages, isConnecting]);
+  const reversedMessages = useMemo(
+    () => [...displayMessages].reverse(),
+    [displayMessages],
+  );
   const themeColors = useThemeColors();
   const flatListRef = useRef<FlatList>(null);
   const buttonRef = useRef<View>(null);
@@ -541,6 +637,8 @@ export function TaskSessionView({
           );
         case "thought":
           return <CollapsedThought content={item.content} />;
+        case "connecting":
+          return <ConnectingIndicator />;
         case "tool":
           if (!item.toolData) return null;
           if (isQuestionTool(item.toolData)) {

@@ -1732,18 +1732,27 @@ ${attributionInstructions}
 
   private broadcastTurnComplete(stopReason: string): void {
     if (!this.session) return;
+    const notification = {
+      jsonrpc: "2.0" as const,
+      method: POSTHOG_NOTIFICATIONS.TURN_COMPLETE,
+      params: {
+        sessionId: this.session.acpSessionId,
+        stopReason,
+      },
+    };
+
     this.broadcastEvent({
       type: "notification",
       timestamp: new Date().toISOString(),
-      notification: {
-        jsonrpc: "2.0",
-        method: POSTHOG_NOTIFICATIONS.TURN_COMPLETE,
-        params: {
-          sessionId: this.session.acpSessionId,
-          stopReason,
-        },
-      },
+      notification,
     });
+
+    // Persist to S3 log so mobile clients (which poll S3) can detect
+    // turn completion and trigger "your turn" indicators / sounds.
+    this.session.logWriter.appendRawLine(
+      this.session.payload.run_id,
+      JSON.stringify(notification),
+    );
   }
 
   private broadcastEvent(event: Record<string, unknown>): void {

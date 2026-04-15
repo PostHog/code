@@ -158,6 +158,7 @@ export default function TaskDetailScreen() {
             switching from loading spinner to rendered content. */}
         <TaskSessionView
           events={session?.events ?? []}
+          isConnecting={session?.isPromptPending ?? false}
           onOpenTask={handleOpenTask}
           onSendAnswer={handleSendPrompt}
           contentContainerStyle={{

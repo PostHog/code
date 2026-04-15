@@ -173,6 +173,9 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
               logUrl: newLogUrl,
               processedLineCount: 0,
               awaitingPing: true,
+              localUserEchoes: taskDescription
+                ? new Set([taskDescription])
+                : undefined,
             },
           },
         }));
@@ -484,6 +487,9 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
           // update. This prevents N re-renders per poll tick.
           const batchedEvents: SessionEvent[] = [];
           let receivedAgentMessage = false;
+          // Track when a user_message_chunk arrives that wasn't sent from
+          // this device — means someone prompted from the desktop app.
+          let receivedExternalUserMessage = false;
 
           for (const line of newLines) {
             try {
@@ -505,6 +511,27 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
                 continue;
               }
               currentHashes.add(hash);
+
+              // Check for local echo dedup BEFORE pushing any events for
+              // this entry — otherwise the acp_message duplicate gets in.
+              if (
+                entry.type === "notification" &&
+                entry.notification?.method === "session/update" &&
+                entry.notification?.params
+              ) {
+                const params = entry.notification.params as SessionNotification;
+                const sessionUpdate = params?.update?.sessionUpdate;
+
+                if (sessionUpdate === "user_message_chunk") {
+                  const text = params?.update?.content?.text;
+                  if (text && remainingLocalEchoes.has(text)) {
+                    remainingLocalEchoes.delete(text);
+                    continue;
+                  }
+                  // User message not from this device (e.g. desktop app)
+                  receivedExternalUserMessage = true;
+                }
+              }
 
               batchedEvents.push({
                 type: "acp_message",
@@ -530,36 +557,52 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
                 const params = entry.notification.params as SessionNotification;
                 const sessionUpdate = params?.update?.sessionUpdate;
 
-                if (sessionUpdate === "user_message_chunk") {
-                  const text = params?.update?.content?.text;
-                  if (text && remainingLocalEchoes.has(text)) {
-                    remainingLocalEchoes.delete(text);
-                    continue;
-                  }
-                }
-
                 batchedEvents.push({
                   type: "session_update",
                   ts,
                   notification: params,
                 });
 
-                // Note: agent_message_chunk / agent_thought_chunk are NOT
-                // turn-completion signals — the agent streams them mid-turn.
-                // Turn completion is signalled by _posthog/turn_complete above.
+                // agent_message (finalized, non-chunk) is a reasonable proxy
+                // for turn completion — it's emitted once the full response
+                // is assembled. Chunks and thoughts fire mid-turn and are NOT
+                // reliable. The proper signal is _posthog/turn_complete but
+                // it's not yet written to S3 logs by the server.
+                if (sessionUpdate === "agent_message") {
+                  receivedAgentMessage = true;
+                }
               }
             } catch {
               // Skip invalid JSON
             }
           }
 
-          // Single store update for all new events
+          // Determine if we should ping. If an external user message armed
+          // the ping in this same batch, honour it even though the store
+          // hasn't updated yet.
+          const wasAwaitingPing =
+            get().sessions[taskRunId]?.awaitingPing ?? false;
           const shouldPingAfterBatch =
             receivedAgentMessage &&
-            (get().sessions[taskRunId]?.awaitingPing ?? false);
+            (wasAwaitingPing || receivedExternalUserMessage);
           set((state) => {
             const current = state.sessions[taskRunId];
             if (!current) return state;
+
+            // Determine isPromptPending: external user message starts work,
+            // turn/task completion ends it.
+            let nextIsPromptPending = current.isPromptPending;
+            if (receivedExternalUserMessage) nextIsPromptPending = true;
+            if (receivedAgentMessage) nextIsPromptPending = false;
+
+            // awaitingPing: arm when work starts (even from another device),
+            // disarm when it completes and the ping fires.
+            let nextAwaitingPing = current.awaitingPing;
+            if (receivedExternalUserMessage && !current.awaitingPing) {
+              nextAwaitingPing = true;
+            }
+            if (receivedAgentMessage) nextAwaitingPing = false;
+
             return {
               sessions: {
                 ...state.sessions,
@@ -572,12 +615,8 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
                   processedLineCount: lines.length,
                   processedHashes: currentHashes,
                   localUserEchoes: remainingLocalEchoes,
-                  isPromptPending: receivedAgentMessage
-                    ? false
-                    : current.isPromptPending,
-                  awaitingPing: receivedAgentMessage
-                    ? false
-                    : current.awaitingPing,
+                  isPromptPending: nextIsPromptPending,
+                  awaitingPing: nextAwaitingPing,
                 },
               },
             };

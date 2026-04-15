@@ -1,18 +1,19 @@
-import { Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 
 interface MarkdownTextProps {
   content: string;
 }
 
 // Lightweight markdown renderer for agent messages.
-// Handles: code blocks, inline code, bold, italic, headers, bullet/numbered lists.
+// Handles: code blocks, inline code, bold, italic, headers, bullet/numbered lists, tables.
 
 interface Block {
-  type: "paragraph" | "code" | "heading" | "list";
+  type: "paragraph" | "code" | "heading" | "list" | "table";
   content: string;
   level?: number;
   items?: string[];
   ordered?: boolean;
+  rows?: string[][];
 }
 
 function parseBlocks(text: string): Block[] {
@@ -70,6 +71,27 @@ function parseBlocks(text: string): Block[] {
       continue;
     }
 
+    // Table: lines with pipes, second line is separator (|---|---|)
+    if (line.includes("|") && i + 1 < lines.length && /^\s*\|?[\s-:|]+\|/.test(lines[i + 1])) {
+      const rows: string[][] = [];
+      while (i < lines.length && lines[i].includes("|")) {
+        const row = lines[i]
+          .replace(/^\s*\|/, "")
+          .replace(/\|\s*$/, "")
+          .split("|")
+          .map((cell) => cell.trim());
+        // Skip the separator row
+        if (!/^[\s-:|]+$/.test(lines[i].replace(/\|/g, ""))) {
+          rows.push(row);
+        }
+        i++;
+      }
+      if (rows.length > 0) {
+        blocks.push({ type: "table", content: "", rows });
+      }
+      continue;
+    }
+
     // Empty line
     if (line.trim() === "") {
       i++;
@@ -84,7 +106,8 @@ function parseBlocks(text: string): Block[] {
       !lines[i].startsWith("```") &&
       !lines[i].match(/^#{1,3}\s/) &&
       !/^\s*[-*]\s/.test(lines[i]) &&
-      !/^\s*\d+[.)]\s/.test(lines[i])
+      !/^\s*\d+[.)]\s/.test(lines[i]) &&
+      !(lines[i].includes("|") && i + 1 < lines.length && /^\s*\|?[\s-:|]+\|/.test(lines[i + 1]))
     ) {
       paraLines.push(lines[i]);
       i++;
@@ -200,6 +223,51 @@ export function MarkdownText({ content }: MarkdownTextProps) {
                 ))}
               </View>
             );
+
+          case "table": {
+            const rows = block.rows ?? [];
+            const header = rows[0];
+            const body = rows.slice(1);
+            return (
+              <ScrollView key={key} horizontal showsHorizontalScrollIndicator={false}>
+                <View className="overflow-hidden rounded-md border border-gray-6">
+                  {header && (
+                    <View className="flex-row bg-gray-3">
+                      {header.map((cell, ci) => (
+                        <View
+                          key={`${key}-h-${ci}`}
+                          className="border-gray-6 px-3 py-1.5"
+                          style={ci > 0 ? { borderLeftWidth: 1, borderLeftColor: "#3333" } : undefined}
+                        >
+                          <Text className="font-bold text-[12px] text-gray-12">
+                            {renderInline(cell)}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  {body.map((row, ri) => (
+                    <View
+                      key={`${key}-r-${ri}`}
+                      className="flex-row border-t border-gray-6"
+                    >
+                      {row.map((cell, ci) => (
+                        <View
+                          key={`${key}-r-${ri}-c-${ci}`}
+                          className="px-3 py-1.5"
+                          style={ci > 0 ? { borderLeftWidth: 1, borderLeftColor: "#3333" } : undefined}
+                        >
+                          <Text className="text-[12px] text-gray-12">
+                            {renderInline(cell)}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            );
+          }
 
           default:
             return (
