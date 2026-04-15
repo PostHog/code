@@ -28,7 +28,7 @@ export const createFirstTaskTour: TourDefinition = {
       target: "submit-button",
       caretDirection: "left",
       hogSrc: happyHog,
-      message: "Hit send or press Enter to launch your first task!",
+      message: "Hit send or press Enter to launch your first agent!",
       advanceOn: { type: "click" },
     },
   ],

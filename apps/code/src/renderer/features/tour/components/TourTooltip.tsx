@@ -109,6 +109,7 @@ export function TourTooltip({
   const controls = useAnimationControls();
 
   useEffect(() => {
+    controls.stop();
     const timer = setTimeout(() => {
       controls.start(talkingAnimation);
     }, 500);
