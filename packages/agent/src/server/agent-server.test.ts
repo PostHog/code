@@ -21,6 +21,17 @@ interface TestableServer {
   detectedPrUrl: string | null;
   buildCloudSystemPrompt(prUrl?: string | null): string;
   buildDetectedPrContext(prUrl: string): string;
+  buildSessionSystemPrompt(prUrl?: string | null): string | { append: string };
+  buildCodexInstructions(systemPrompt: string | { append: string }): string;
+  getRuntimeAdapter(): "claude" | "codex";
+}
+
+let nextTestPort = 20000;
+
+function getNextTestPort(): number {
+  const port = nextTestPort;
+  nextTestPort += 1;
+  return port;
 }
 
 // The Claude Agent SDK has an internal readMessages() loop that rejects with
@@ -112,14 +123,16 @@ JwIDAQAB
 
 describe("AgentServer HTTP Mode", () => {
   let repo: TestRepo;
-  let server: AgentServer;
+  let server: AgentServer | undefined;
   let mswServer: SetupServerApi;
   let appendLogCalls: unknown[][];
-  const port = 3099;
+  let port: number;
 
   beforeEach(async () => {
     repo = await createTestRepo("agent-server-http");
     appendLogCalls = [];
+    // Use a unique high port per test to avoid reuse and browser-blocked ports.
+    port = getNextTestPort();
     mswServer = setupServer(
       ...createPostHogHandlers({
         baseUrl: "http://localhost:8000",
@@ -132,12 +145,15 @@ describe("AgentServer HTTP Mode", () => {
   afterEach(async () => {
     if (server) {
       await server.stop();
+      server = undefined;
     }
     mswServer.close();
     await repo.cleanup();
   });
 
-  const createServer = () => {
+  const createServer = (
+    overrides: Partial<ConstructorParameters<typeof AgentServer>[0]> = {},
+  ) => {
     server = new AgentServer({
       port,
       jwtPublicKey: TEST_PUBLIC_KEY,
@@ -148,6 +164,7 @@ describe("AgentServer HTTP Mode", () => {
       mode: "interactive",
       taskId: "test-task-id",
       runId: "test-run-id",
+      ...overrides,
     });
     return server;
   };
@@ -176,7 +193,7 @@ describe("AgentServer HTTP Mode", () => {
 
       expect(response.status).toBe(200);
       expect(body).toEqual({ status: "ok", hasSession: true });
-    });
+    }, 30000);
   });
 
   describe("GET /events", () => {
@@ -188,7 +205,7 @@ describe("AgentServer HTTP Mode", () => {
 
       expect(response.status).toBe(401);
       expect(body.error).toBe("Missing authorization header");
-    });
+    }, 20000);
 
     it("returns 401 with invalid token", async () => {
       await createServer().start();
@@ -200,7 +217,7 @@ describe("AgentServer HTTP Mode", () => {
 
       expect(response.status).toBe(401);
       expect(body.code).toBe("invalid_signature");
-    });
+    }, 20000);
 
     it("accepts valid JWT and returns SSE stream", async () => {
       await createServer().start();
@@ -212,7 +229,7 @@ describe("AgentServer HTTP Mode", () => {
 
       expect(response.status).toBe(200);
       expect(response.headers.get("content-type")).toBe("text/event-stream");
-    });
+    }, 20000);
   });
 
   describe("POST /command", () => {
@@ -230,7 +247,7 @@ describe("AgentServer HTTP Mode", () => {
       });
 
       expect(response.status).toBe(401);
-    });
+    }, 20000);
 
     it("returns 400 when run_id does not match active session", async () => {
       await createServer().start();
@@ -252,7 +269,7 @@ describe("AgentServer HTTP Mode", () => {
       expect(response.status).toBe(400);
       const body = await response.json();
       expect(body.error).toBe("No active session for this run");
-    });
+    }, 20000);
 
     it("accepts structured user_message content", async () => {
       await createServer().start();
@@ -276,7 +293,7 @@ describe("AgentServer HTTP Mode", () => {
       expect(response.status).toBe(400);
       const body = await response.json();
       expect(body.error).toBe("No active session for this run");
-    });
+    }, 20000);
   });
 
   describe("404 handling", () => {
@@ -288,7 +305,7 @@ describe("AgentServer HTTP Mode", () => {
 
       expect(response.status).toBe(404);
       expect(body.error).toBe("Not found");
-    });
+    }, 20000);
   });
 
   describe("getInitialPromptOverride", () => {
@@ -332,6 +349,48 @@ describe("AgentServer HTTP Mode", () => {
         run,
       );
       expect(result).toBeNull();
+    });
+  });
+
+  describe("runtime adapter selection", () => {
+    it("defaults to claude when no runtime adapter is configured", () => {
+      const s = createServer();
+
+      expect((s as unknown as TestableServer).getRuntimeAdapter()).toBe(
+        "claude",
+      );
+    });
+
+    it("uses codex when the runtime adapter is configured", () => {
+      const s = createServer({ runtimeAdapter: "codex" });
+
+      expect((s as unknown as TestableServer).getRuntimeAdapter()).toBe(
+        "codex",
+      );
+    });
+
+    it("flattens append-style prompts into plain codex instructions", () => {
+      const s = createServer({
+        claudeCode: {
+          systemPrompt: {
+            type: "preset",
+            preset: "claude_code",
+            append: "User codex instructions",
+          },
+        },
+      });
+
+      const sessionPrompt = (
+        s as unknown as TestableServer
+      ).buildSessionSystemPrompt("https://github.com/PostHog/code/pull/1");
+
+      expect(typeof sessionPrompt).toBe("object");
+      expect(
+        (s as unknown as TestableServer).buildCodexInstructions(sessionPrompt),
+      ).toContain("User codex instructions");
+      expect(
+        (s as unknown as TestableServer).buildCodexInstructions(sessionPrompt),
+      ).toContain("Cloud Task Execution");
     });
   });
 

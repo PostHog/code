@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { z } from "zod/v4";
+import { isSupportedReasoningEffort } from "../adapters/reasoning-effort";
 import { AgentServer } from "./agent-server";
 import { claudeCodeConfigSchema, mcpServersSchema } from "./schemas";
 
@@ -26,6 +27,11 @@ const envSchema = z.object({
     })
     .regex(/^\d+$/, "POSTHOG_PROJECT_ID must be a numeric string")
     .transform((val) => parseInt(val, 10)),
+  POSTHOG_CODE_RUNTIME_ADAPTER: z.enum(["claude", "codex"]).optional(),
+  POSTHOG_CODE_MODEL: z.string().optional(),
+  POSTHOG_CODE_REASONING_EFFORT: z
+    .enum(["low", "medium", "high", "max"])
+    .optional(),
 });
 
 const program = new Command();
@@ -124,6 +130,21 @@ program
           .filter(Boolean)
       : undefined;
 
+    if (
+      env.POSTHOG_CODE_RUNTIME_ADAPTER &&
+      env.POSTHOG_CODE_MODEL &&
+      env.POSTHOG_CODE_REASONING_EFFORT &&
+      !isSupportedReasoningEffort(
+        env.POSTHOG_CODE_RUNTIME_ADAPTER,
+        env.POSTHOG_CODE_MODEL,
+        env.POSTHOG_CODE_REASONING_EFFORT,
+      )
+    ) {
+      program.error(
+        `POSTHOG_CODE_REASONING_EFFORT '${env.POSTHOG_CODE_REASONING_EFFORT}' is not supported for ${env.POSTHOG_CODE_RUNTIME_ADAPTER} model '${env.POSTHOG_CODE_MODEL}'.`,
+      );
+    }
+
     const server = new AgentServer({
       port: parseInt(options.port, 10),
       jwtPublicKey: env.JWT_PUBLIC_KEY,
@@ -139,6 +160,9 @@ program
       baseBranch: options.baseBranch,
       claudeCode,
       allowedDomains,
+      runtimeAdapter: env.POSTHOG_CODE_RUNTIME_ADAPTER,
+      model: env.POSTHOG_CODE_MODEL,
+      reasoningEffort: env.POSTHOG_CODE_REASONING_EFFORT,
     });
 
     process.on("SIGINT", async () => {

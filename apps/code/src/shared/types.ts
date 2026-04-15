@@ -70,6 +70,9 @@ export interface TaskRun {
   task: string; // Task ID
   team: number;
   branch: string | null;
+  runtime_adapter?: "claude" | "codex" | null;
+  model?: string | null;
+  reasoning_effort?: "low" | "medium" | "high" | "max" | null;
   stage?: string | null; // Current stage (e.g., 'research', 'plan', 'build')
   environment?: "local" | "cloud";
   status: TaskRunStatus;
