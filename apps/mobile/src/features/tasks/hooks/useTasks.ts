@@ -27,7 +27,6 @@ export function useTasks(filters?: { repository?: string }) {
 
   const queryFilters = {
     ...filters,
-    createdBy: currentUser?.id,
   };
 
   const query = useQuery({

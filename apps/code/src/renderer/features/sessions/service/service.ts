@@ -412,6 +412,7 @@ export class SessionService {
         adapter: resolvedAdapter,
         permissionMode: persistedMode,
         customInstructions: customInstructions || undefined,
+        runMode: "local",
       });
 
       if (result) {
@@ -586,6 +587,7 @@ export class SessionService {
         ? (reasoningLevel as EffortLevel)
         : undefined,
       model: preferredModel,
+      runMode: "local",
     });
 
     const session = this.createBaseSession(taskRun.id, taskId, taskTitle);

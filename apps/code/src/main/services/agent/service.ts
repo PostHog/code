@@ -51,6 +51,7 @@ import type { ProcessTrackingService } from "../process-tracking/service";
 import type { SleepService } from "../sleep/service";
 import type { AgentAuthAdapter } from "./auth-adapter";
 import { discoverExternalPlugins } from "./discover-plugins";
+import type { LocalCommandReceiver } from "./local-command-receiver";
 import {
   AgentServiceEvent,
   type AgentServiceEvents,
@@ -255,6 +256,8 @@ interface SessionConfig {
   effort?: EffortLevel;
   /** Model to use for the session (e.g. "claude-sonnet-4-6") */
   model?: string;
+  /** Whether this session runs locally on the desktop or in a cloud sandbox */
+  runMode?: "local" | "cloud";
 }
 
 interface ManagedSession {
@@ -322,6 +325,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private posthogPluginService: PosthogPluginService;
   private agentAuthAdapter: AgentAuthAdapter;
   private mcpAppsService: McpAppsService;
+  private localCommandReceiver: LocalCommandReceiver;
 
   constructor(
     @inject(MAIN_TOKENS.ProcessTrackingService)
@@ -336,6 +340,8 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     agentAuthAdapter: AgentAuthAdapter,
     @inject(MAIN_TOKENS.McpAppsService)
     mcpAppsService: McpAppsService,
+    @inject(MAIN_TOKENS.LocalCommandReceiver)
+    localCommandReceiver: LocalCommandReceiver,
   ) {
     super();
     this.processTracking = processTracking;
@@ -344,6 +350,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     this.posthogPluginService = posthogPluginService;
     this.agentAuthAdapter = agentAuthAdapter;
     this.mcpAppsService = mcpAppsService;
+    this.localCommandReceiver = localCommandReceiver;
 
     powerMonitor.on("resume", () => this.checkIdleDeadlines());
   }
@@ -809,6 +816,40 @@ When creating pull requests, add the following footer at the end of the PR descr
       this.sessions.set(taskRunId, session);
       this.recordActivity(taskRunId);
 
+      if (config.runMode === "local") {
+        // Subscribe to the task-run SSE stream so mobile-originated
+        // /command/ calls (published to Redis by the backend) are
+        // delivered into this local session as prompts.
+        this.localCommandReceiver.subscribe({
+          taskId,
+          taskRunId,
+          projectId: credentials.projectId,
+          apiHost: credentials.apiHost,
+          onCommand: async (payload) => {
+            if (payload.method !== "user_message") {
+              log.debug("Ignoring non-user_message local command", {
+                method: payload.method,
+                taskRunId,
+              });
+              return;
+            }
+            const content = payload.params?.content;
+            if (typeof content !== "string" || content.length === 0) {
+              log.warn("Local command missing content", { taskRunId });
+              return;
+            }
+            try {
+              await this.prompt(taskRunId, [{ type: "text", text: content }]);
+            } catch (err) {
+              log.error("Failed to deliver local command to session", {
+                taskRunId,
+                error: err instanceof Error ? err.message : String(err),
+              });
+            }
+          },
+        });
+      }
+
       if (isRetry) {
         log.info("Session created after auth retry", { taskRunId });
       }
@@ -1149,6 +1190,11 @@ For git operations while detached:
   }
 
   private async cleanupSession(taskRunId: string): Promise<void> {
+    // Abort any outstanding SSE subscription for this run first — per
+    // async-cleanup-ordering guidance, we release external resources
+    // before awaiting anything that depends on the session being gone.
+    this.localCommandReceiver.unsubscribe(taskRunId);
+
     const session = this.sessions.get(taskRunId);
     if (session) {
       this.cancelInFlightMcpToolCalls(session);
@@ -1470,6 +1516,7 @@ For git operations while detached:
         "customInstructions" in params ? params.customInstructions : undefined,
       effort: "effort" in params ? params.effort : undefined,
       model: "model" in params ? params.model : undefined,
+      runMode: "runMode" in params ? params.runMode : undefined,
     };
   }
 

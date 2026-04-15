@@ -16,24 +16,6 @@ export const credentialsSchema = z.object({
 
 export type Credentials = z.infer<typeof credentialsSchema>;
 
-// Session config schema
-export const sessionConfigSchema = z.object({
-  taskId: z.string(),
-  taskRunId: z.string(),
-  repoPath: z.string(),
-  credentials: credentialsSchema,
-  logUrl: z.string().optional(),
-  /** The agent's session ID (for resume - SDK session ID for Claude, Codex's session ID for Codex) */
-  sessionId: z.string().optional(),
-  adapter: z.enum(["claude", "codex"]).optional(),
-  /** Additional directories Claude can access beyond cwd (for worktree support) */
-  additionalDirectories: z.array(z.string()).optional(),
-  /** Permission mode to use for the session (e.g. "default", "acceptEdits", "plan", "bypassPermissions") */
-  permissionMode: z.string().optional(),
-});
-
-export type SessionConfig = z.infer<typeof sessionConfigSchema>;
-
 // Start session input/output
 
 export const startSessionInput = z.object({
@@ -173,6 +155,7 @@ export const reconnectSessionInput = z.object({
   permissionMode: z.string().optional(),
   customInstructions: z.string().max(2000).optional(),
   effort: effortLevelSchema.optional(),
+  runMode: z.enum(["local", "cloud"]).optional(),
 });
 
 export type ReconnectSessionInput = z.infer<typeof reconnectSessionInput>;
