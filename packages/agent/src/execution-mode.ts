@@ -35,8 +35,8 @@ const availableModes: ModeInfo[] = [
 if (ALLOW_BYPASS) {
   availableModes.push({
     id: "bypassPermissions",
-    name: "Auto-accept Permissions",
-    description: "Auto-accept all permission requests",
+    name: "Bypass Permissions",
+    description: "Bypass all permission prompts",
   });
 }
 
@@ -84,7 +84,7 @@ if (ALLOW_BYPASS) {
   codexModes.push({
     id: "full-access",
     name: "Full Access",
-    description: "Auto-accept all permission requests",
+    description: "Bypass all permission prompts",
   });
 }
 
