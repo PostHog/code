@@ -10,6 +10,7 @@ import { ActivityIndicator, View } from "react-native";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useAuthStore } from "@/features/auth";
+import { usePreferencesStore } from "@/features/preferences/stores/preferencesStore";
 import {
   POSTHOG_API_KEY,
   POSTHOG_OPTIONS,
@@ -20,6 +21,7 @@ import { darkTheme, lightTheme, useThemeColors } from "@/lib/theme";
 
 function RootLayoutNav() {
   const { isLoading, initializeAuth } = useAuthStore();
+  const aiChatEnabled = usePreferencesStore((s) => s.aiChatEnabled);
   const themeColors = useThemeColors();
 
   useScreenTracking();
@@ -47,25 +49,29 @@ function RootLayoutNav() {
       <Stack.Screen name="auth" options={{ headerShown: false }} />
       <Stack.Screen name="index" options={{ headerShown: false }} />
 
-      {/* Chat routes - regular stack navigation */}
-      <Stack.Screen
-        name="chat/index"
-        options={{
-          headerShown: true,
-          headerBackTitle: "",
-          headerStyle: { backgroundColor: themeColors.background },
-          headerTintColor: themeColors.gray[12],
-        }}
-      />
-      <Stack.Screen
-        name="chat/[id]"
-        options={{
-          headerShown: true,
-          headerBackTitle: "Back",
-          headerStyle: { backgroundColor: themeColors.background },
-          headerTintColor: themeColors.gray[12],
-        }}
-      />
+      {/* Chat routes - only registered when AI chat feature is enabled */}
+      {aiChatEnabled && (
+        <>
+          <Stack.Screen
+            name="chat/index"
+            options={{
+              headerShown: true,
+              headerBackTitle: "",
+              headerStyle: { backgroundColor: themeColors.background },
+              headerTintColor: themeColors.gray[12],
+            }}
+          />
+          <Stack.Screen
+            name="chat/[id]"
+            options={{
+              headerShown: true,
+              headerBackTitle: "Back",
+              headerStyle: { backgroundColor: themeColors.background },
+              headerTintColor: themeColors.gray[12],
+            }}
+          />
+        </>
+      )}
 
       {/* Task routes - modal presentation */}
       <Stack.Screen

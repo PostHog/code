@@ -20,8 +20,10 @@ export default function TasksScreen() {
       <View className="border-gray-6 border-b px-4 pt-16 pb-4">
         <View className="flex-row items-center justify-between">
           <View>
-            <Text className="font-bold text-2xl text-gray-12">Tasks</Text>
-            <Text className="text-gray-11 text-sm">Your PostHog tasks</Text>
+            <Text className="font-bold text-2xl text-gray-12">Code</Text>
+            <Text className="text-gray-11 text-sm">
+              Your PostHog Code sessions
+            </Text>
           </View>
           <Pressable
             onPress={handleCreateTask}

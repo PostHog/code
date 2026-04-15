@@ -2,15 +2,19 @@ import { router } from "expo-router";
 import {
   Linking,
   ScrollView,
+  Switch,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useAuthStore, useUserQuery } from "@/features/auth";
+import { usePreferencesStore } from "@/features/preferences/stores/preferencesStore";
 
 export default function SettingsScreen() {
   const { logout, cloudRegion, getCloudUrlFromRegion } = useAuthStore();
   const { data: userData } = useUserQuery();
+  const aiChatEnabled = usePreferencesStore((s) => s.aiChatEnabled);
+  const setAiChatEnabled = usePreferencesStore((s) => s.setAiChatEnabled);
 
   const handleLogout = async () => {
     await logout();
@@ -85,6 +89,25 @@ export default function SettingsScreen() {
             <Text className="font-medium text-gray-12 text-sm">
               {userData?.email || "—"}
             </Text>
+          </View>
+        </View>
+
+        {/* Labs */}
+        <View className="mb-6 rounded-xl bg-gray-2 p-4">
+          <Text className="mb-1 font-semibold text-gray-12 text-lg">Labs</Text>
+          <Text className="mb-4 text-gray-11 text-xs">
+            Experimental features
+          </Text>
+          <View className="flex-row items-center justify-between py-2">
+            <View className="flex-1 pr-4">
+              <Text className="font-medium text-gray-12 text-sm">
+                PostHog AI chat
+              </Text>
+              <Text className="text-gray-11 text-xs">
+                Show the Chats tab for PostHog AI conversations
+              </Text>
+            </View>
+            <Switch value={aiChatEnabled} onValueChange={setAiChatEnabled} />
           </View>
         </View>
 

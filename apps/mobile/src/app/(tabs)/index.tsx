@@ -1,13 +1,19 @@
 import { Text } from "@components/text";
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { Pressable, View } from "react-native";
 import {
   type ConversationDetail,
   ConversationList,
 } from "@/features/conversations";
+import { usePreferencesStore } from "@/features/preferences/stores/preferencesStore";
 
 export default function ConversationsScreen() {
   const router = useRouter();
+  const aiChatEnabled = usePreferencesStore((s) => s.aiChatEnabled);
+
+  if (!aiChatEnabled) {
+    return <Redirect href="/(tabs)/tasks" />;
+  }
 
   const handleConversationPress = (conversation: ConversationDetail) => {
     router.push(`/chat/${conversation.id}`);
