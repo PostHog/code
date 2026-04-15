@@ -185,18 +185,14 @@ export function ProjectSwitcher() {
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent side="right" sideOffset={4}>
                   <DropdownMenuItem
-                    onClick={() =>
-                      handleOpenExternal(EXTERNAL_LINKS.website)
-                    }
+                    onClick={() => handleOpenExternal(EXTERNAL_LINKS.website)}
                   >
                     <ArrowSquareOut size={14} className="text-gray-11" />
                     PostHog Code Website
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() =>
-                      handleOpenExternal(EXTERNAL_LINKS.privacy)
-                    }
+                    onClick={() => handleOpenExternal(EXTERNAL_LINKS.privacy)}
                   >
                     <ShieldCheck size={14} className="text-gray-11" />
                     Privacy Policy
