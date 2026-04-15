@@ -57,7 +57,7 @@ export function TourOverlay() {
 
   useEffect(() => {
     advancedRef.current = false;
-  }, [activeStepIndex]);
+  }, []);
 
   useEffect(() => {
     if (!step || step.advanceOn.type !== "click" || !selector) return;

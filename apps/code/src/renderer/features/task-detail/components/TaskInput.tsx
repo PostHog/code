@@ -447,7 +447,11 @@ export function TaskInput({
               ref={buttonGroupRef}
               data-tour="folder-picker"
               data-tour-ready={
-                (workspaceMode === "cloud" ? selectedRepository : selectedDirectory)
+                (
+                  workspaceMode === "cloud"
+                    ? selectedRepository
+                    : selectedDirectory
+                )
                   ? "true"
                   : undefined
               }
