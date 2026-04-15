@@ -12,6 +12,7 @@ interface TourStoreActions {
   startTour: (tourId: string) => void;
   advance: () => void;
   dismiss: () => void;
+  resetTours: () => void;
 }
 
 type TourStore = TourStoreState & TourStoreActions;
@@ -54,6 +55,10 @@ export const useTourStore = create<TourStore>()(
           activeTourId: null,
           activeStepIndex: 0,
         }));
+      },
+
+      resetTours: () => {
+        set({ completedTourIds: [], activeTourId: null, activeStepIndex: 0 });
       },
     }),
     {

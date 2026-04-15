@@ -443,7 +443,15 @@ export function TaskInput({
                 disabled={isCreatingTask}
               />
             )}
-            <ButtonGroup ref={buttonGroupRef} data-tour="folder-picker">
+            <ButtonGroup
+              ref={buttonGroupRef}
+              data-tour="folder-picker"
+              data-tour-ready={
+                (workspaceMode === "cloud" ? selectedRepository : selectedDirectory)
+                  ? "true"
+                  : undefined
+              }
+            >
               {workspaceMode === "cloud" ? (
                 <GitHubRepoPicker
                   value={selectedRepository}

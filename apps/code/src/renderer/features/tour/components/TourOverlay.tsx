@@ -1,8 +1,45 @@
+import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
+import { useCommandMenuStore } from "@stores/commandMenuStore";
+import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useElementRect } from "../hooks/useElementRect";
 import { useTourStore } from "../stores/tourStore";
 import { TOUR_REGISTRY } from "../tours/tourRegistry";
 import { TourTooltip } from "./TourTooltip";
+
+const SPOTLIGHT_PADDING = 6;
+const SPOTLIGHT_RADIUS = 8;
+
+function SpotlightOverlay({ targetRect }: { targetRect: DOMRect | null }) {
+  return createPortal(
+    <AnimatePresence>
+      {targetRect && (
+        <motion.div
+          key="spotlight"
+          initial={{ opacity: 0 }}
+          animate={{
+            opacity: 1,
+            top: targetRect.top - SPOTLIGHT_PADDING,
+            left: targetRect.left - SPOTLIGHT_PADDING,
+            width: targetRect.width + SPOTLIGHT_PADDING * 2,
+            height: targetRect.height + SPOTLIGHT_PADDING * 2,
+          }}
+          exit={{ opacity: 0 }}
+          transition={{ type: "spring", stiffness: 200, damping: 25 }}
+          style={{
+            position: "fixed",
+            borderRadius: SPOTLIGHT_RADIUS,
+            boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.5)",
+            zIndex: 199,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+    </AnimatePresence>,
+    document.body,
+  );
+}
 
 export function TourOverlay() {
   const activeTourId = useTourStore((s) => s.activeTourId);
@@ -20,7 +57,7 @@ export function TourOverlay() {
 
   useEffect(() => {
     advancedRef.current = false;
-  }, []);
+  }, [activeStepIndex]);
 
   useEffect(() => {
     if (!step || step.advanceOn.type !== "click" || !selector) return;
@@ -42,33 +79,63 @@ export function TourOverlay() {
   useEffect(() => {
     if (!step || step.advanceOn.type !== "action" || !selector) return;
 
-    let frameId: number;
+    const SETTLE_MS = 2000;
+    let settleTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const poll = () => {
+    const tryAdvance = () => {
       const el = document.querySelector(selector);
-      if (el?.getAttribute("data-tour-ready") === "true") {
-        if (!advancedRef.current) {
-          advancedRef.current = true;
-          advance();
-        }
-        return;
+      if (
+        el?.getAttribute("data-tour-ready") === "true" &&
+        !advancedRef.current
+      ) {
+        advancedRef.current = true;
+        advance();
       }
-      frameId = requestAnimationFrame(poll);
     };
 
-    frameId = requestAnimationFrame(poll);
-    return () => cancelAnimationFrame(frameId);
+    const resetTimer = () => {
+      if (settleTimer) clearTimeout(settleTimer);
+      const el = document.querySelector(selector);
+      if (el?.getAttribute("data-tour-ready") === "true") {
+        settleTimer = setTimeout(tryAdvance, SETTLE_MS);
+      }
+    };
+
+    const observer = new MutationObserver(resetTimer);
+
+    const el = document.querySelector(selector);
+    if (el) {
+      observer.observe(el, {
+        subtree: true,
+        childList: true,
+        characterData: true,
+        attributes: true,
+      });
+      resetTimer();
+    }
+
+    return () => {
+      observer.disconnect();
+      if (settleTimer) clearTimeout(settleTimer);
+    };
   }, [step, selector, advance]);
 
-  if (!tour || !step || !targetRect) return null;
+  const settingsOpen = useSettingsDialogStore((s) => s.isOpen);
+  const commandMenuOpen = useCommandMenuStore((s) => s.isOpen);
+  const overlayBlocked = settingsOpen || commandMenuOpen;
+  const isActive = !!(tour && step && targetRect && !overlayBlocked);
 
   return (
-    <TourTooltip
-      step={step}
-      stepNumber={activeStepIndex + 1}
-      totalSteps={tour.steps.length}
-      targetRect={targetRect}
-      onDismiss={dismiss}
-    />
+    <>
+      <SpotlightOverlay targetRect={isActive ? targetRect : null} />
+      {isActive && (
+        <TourTooltip
+          step={step}
+          stepNumber={activeStepIndex + 1}
+          totalSteps={tour.steps.length}
+          onDismiss={dismiss}
+        />
+      )}
+    </>
   );
 }

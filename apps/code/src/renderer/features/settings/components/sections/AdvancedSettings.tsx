@@ -2,6 +2,7 @@ import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore"
 import { SettingRow } from "@features/settings/components/SettingRow";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
+import { useTourStore } from "@features/tour/stores/tourStore";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { Button, Flex, Switch } from "@radix-ui/themes";
 import { clearApplicationStorage } from "@utils/clearStorage";
@@ -27,6 +28,18 @@ export function AdvancedSettings() {
             useSettingsDialogStore.getState().close();
             useOnboardingStore.getState().resetOnboarding();
           }}
+        >
+          Reset
+        </Button>
+      </SettingRow>
+      <SettingRow
+        label="Reset product tours"
+        description="Re-run product tours on next app restart"
+      >
+        <Button
+          variant="soft"
+          size="1"
+          onClick={() => useTourStore.getState().resetTours()}
         >
           Reset
         </Button>

@@ -12,7 +12,7 @@ export const createFirstTaskTour: TourDefinition = {
       caretDirection: "bottom",
       hogSrc: explorerHog,
       message: "Pick a repo to work with. This tells me where your code lives!",
-      advanceOn: { type: "click" },
+      advanceOn: { type: "action" },
     },
     {
       id: "task-editor",
@@ -28,7 +28,7 @@ export const createFirstTaskTour: TourDefinition = {
       target: "submit-button",
       caretDirection: "left",
       hogSrc: happyHog,
-      message: "Hit send to launch your first task!",
+      message: "Hit send or press Enter to launch your first task!",
       advanceOn: { type: "click" },
     },
   ],

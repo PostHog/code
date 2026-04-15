@@ -9,6 +9,7 @@ import { CommandCenterView } from "@features/command-center/components/CommandCe
 import { InboxView } from "@features/inbox/components/InboxView";
 import { FolderSettingsView } from "@features/settings/components/FolderSettingsView";
 import { SettingsDialog } from "@features/settings/components/SettingsDialog";
+import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { MainSidebar } from "@features/sidebar/components/MainSidebar";
 import { SkillsView } from "@features/skills/components/SkillsView";
 import { TaskDetail } from "@features/task-detail/components/TaskDetail";
@@ -61,11 +62,13 @@ export function MainLayout() {
     }
   }, [view, navigateToTaskInput]);
 
+  const settingsOpen = useSettingsDialogStore((s) => s.isOpen);
+
   useEffect(() => {
-    if (isFirstTaskTourDone) return;
+    if (isFirstTaskTourDone || settingsOpen) return;
     const timer = setTimeout(() => startTour("create-first-task"), 600);
     return () => clearTimeout(timer);
-  }, [isFirstTaskTourDone, startTour]);
+  }, [isFirstTaskTourDone, settingsOpen, startTour]);
 
   const handleToggleCommandMenu = useCallback(() => {
     toggleCommandMenu();
