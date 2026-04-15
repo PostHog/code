@@ -61,25 +61,31 @@ export function TourOverlay() {
   }, [activeStepIndex]);
 
   useEffect(() => {
-    if (!step || step.advanceOn.type !== "click" || !selector) return;
+    if (!step || !activeTourId || step.advanceOn.type !== "click" || !selector)
+      return;
 
     const el = document.querySelector(selector);
     if (!el) return;
 
+    const tourId = activeTourId;
+    const stepId = step.id;
     const handler = () => {
       if (!advancedRef.current) {
         advancedRef.current = true;
-        setTimeout(advance, 0);
+        setTimeout(() => advance(tourId, stepId), 0);
       }
     };
 
     el.addEventListener("click", handler, { capture: true });
     return () => el.removeEventListener("click", handler, { capture: true });
-  }, [step, selector, advance]);
+  }, [step, selector, advance, activeTourId]);
 
   useEffect(() => {
-    if (!step || step.advanceOn.type !== "action" || !selector) return;
+    if (!step || !activeTourId || step.advanceOn.type !== "action" || !selector)
+      return;
 
+    const tourId = activeTourId;
+    const stepId = step.id;
     const SETTLE_MS = 2000;
     let settleTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -90,7 +96,7 @@ export function TourOverlay() {
         !advancedRef.current
       ) {
         advancedRef.current = true;
-        advance();
+        advance(tourId, stepId);
       }
     };
 
@@ -119,7 +125,7 @@ export function TourOverlay() {
       observer.disconnect();
       if (settleTimer) clearTimeout(settleTimer);
     };
-  }, [step, selector, advance]);
+  }, [step, selector, advance, activeTourId]);
 
   const settingsOpen = useSettingsDialogStore((s) => s.isOpen);
   const commandMenuOpen = useCommandMenuStore((s) => s.isOpen);

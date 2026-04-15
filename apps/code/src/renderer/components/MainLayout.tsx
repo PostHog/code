@@ -17,6 +17,7 @@ import { TaskInput } from "@features/task-detail/components/TaskInput";
 import { useTasks } from "@features/tasks/hooks/useTasks";
 import { TourOverlay } from "@features/tour/components/TourOverlay";
 import { useTourStore } from "@features/tour/stores/tourStore";
+import { createFirstTaskTour } from "@features/tour/tours/createFirstTaskTour";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { useIntegrations } from "@hooks/useIntegrations";
 import { Box, Flex } from "@radix-ui/themes";
@@ -44,7 +45,7 @@ export function MainLayout() {
 
   const startTour = useTourStore((s) => s.startTour);
   const isFirstTaskTourDone = useTourStore((s) =>
-    s.completedTourIds.includes("create-first-task"),
+    s.completedTourIds.includes(createFirstTaskTour.id),
   );
 
   useIntegrations();
@@ -66,7 +67,7 @@ export function MainLayout() {
 
   useEffect(() => {
     if (isFirstTaskTourDone || settingsOpen) return;
-    const timer = setTimeout(() => startTour("create-first-task"), 600);
+    const timer = setTimeout(() => startTour(createFirstTaskTour.id), 600);
     return () => clearTimeout(timer);
   }, [isFirstTaskTourDone, settingsOpen, startTour]);
 

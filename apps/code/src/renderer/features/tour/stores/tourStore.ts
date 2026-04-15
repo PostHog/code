@@ -10,7 +10,8 @@ interface TourStoreState {
 
 interface TourStoreActions {
   startTour: (tourId: string) => void;
-  advance: () => void;
+  advance: (tourId: string, stepId: string) => void;
+  completeTour: (tourId: string) => void;
   dismiss: () => void;
   resetTours: () => void;
 }
@@ -29,12 +30,15 @@ export const useTourStore = create<TourStore>()(
         set({ activeTourId: tourId, activeStepIndex: 0 });
       },
 
-      advance: () => {
+      advance: (tourId, stepId) => {
         const { activeTourId, activeStepIndex } = get();
-        if (!activeTourId) return;
+        if (activeTourId !== tourId) return;
 
         const tour = TOUR_REGISTRY[activeTourId];
         if (!tour) return;
+
+        const currentStep = tour.steps[activeStepIndex];
+        if (!currentStep || currentStep.id !== stepId) return;
 
         if (activeStepIndex >= tour.steps.length - 1) {
           set((state) => ({
@@ -45,6 +49,17 @@ export const useTourStore = create<TourStore>()(
         } else {
           set({ activeStepIndex: activeStepIndex + 1 });
         }
+      },
+
+      completeTour: (tourId) => {
+        const { activeTourId, completedTourIds } = get();
+        if (activeTourId !== tourId) return;
+        if (completedTourIds.includes(tourId)) return;
+        set({
+          completedTourIds: [...completedTourIds, tourId],
+          activeTourId: null,
+          activeStepIndex: 0,
+        });
       },
 
       dismiss: () => {
