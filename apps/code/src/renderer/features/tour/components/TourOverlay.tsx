@@ -55,9 +55,10 @@ export function TourOverlay() {
 
   const advancedRef = useRef(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on step change
   useEffect(() => {
     advancedRef.current = false;
-  }, []);
+  }, [activeStepIndex]);
 
   useEffect(() => {
     if (!step || step.advanceOn.type !== "click" || !selector) return;

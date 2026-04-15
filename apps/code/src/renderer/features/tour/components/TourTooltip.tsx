@@ -108,13 +108,14 @@ export function TourTooltip({
   const isDarkMode = useThemeStore((s) => s.isDarkMode);
   const controls = useAnimationControls();
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: restart animation on step change
   useEffect(() => {
     controls.stop();
     const timer = setTimeout(() => {
       controls.start(talkingAnimation);
     }, 500);
     return () => clearTimeout(timer);
-  }, [controls]);
+  }, [controls, step.id]);
 
   return createPortal(
     <Theme
