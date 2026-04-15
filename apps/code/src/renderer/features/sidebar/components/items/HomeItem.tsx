@@ -1,5 +1,6 @@
 import { Tooltip } from "@components/ui/Tooltip";
 import { EnvelopeSimple, Plus } from "@phosphor-icons/react";
+import { Badge } from "@radix-ui/themes";
 import {
   formatHotkey,
   SHORTCUTS,
@@ -37,7 +38,11 @@ function formatSignalCount(count: number): string {
 export function InboxItem({ isActive, onClick, signalCount }: InboxItemProps) {
   return (
     <Tooltip
-      content="Open inbox"
+      content={
+        signalCount && signalCount > 0
+          ? `${signalCount} actionable report${signalCount === 1 ? "" : "s"} assigned to you`
+          : "No actionable reports assigned to you yet"
+      }
       shortcut={formatHotkey(SHORTCUTS.INBOX)}
       side="right"
     >
@@ -47,16 +52,14 @@ export function InboxItem({ isActive, onClick, signalCount }: InboxItemProps) {
           icon={
             <EnvelopeSimple size={16} weight={isActive ? "fill" : "regular"} />
           }
-          label="Inbox"
-          isActive={isActive}
-          onClick={onClick}
-          endContent={
+          label={
             <>
+              Inbox
               {signalCount && signalCount > 0 ? (
                 <span
-                  className="inline-flex min-w-[16px] shrink-0 items-center justify-center rounded-full px-1 font-medium text-[10px] leading-none"
+                  className="inline-flex min-w-[14px] shrink-0 items-center justify-center rounded-full px-0.5 font-medium text-[9px] leading-none"
                   style={{
-                    height: "16px",
+                    height: "14px",
                     backgroundColor: "var(--red-9)",
                     color: "white",
                   }}
@@ -65,17 +68,19 @@ export function InboxItem({ isActive, onClick, signalCount }: InboxItemProps) {
                   {formatSignalCount(signalCount)}
                 </span>
               ) : null}
-              <span
-                className="shrink-0 rounded-sm px-1 py-px text-[9px] uppercase tracking-wider"
-                style={{
-                  color: "var(--amber-11)",
-                  backgroundColor: "var(--amber-3)",
-                  border: "1px solid var(--amber-6)",
-                }}
-              >
-                Beta
-              </span>
             </>
+          }
+          isActive={isActive}
+          onClick={onClick}
+          endContent={
+            <Badge
+              color="amber"
+              size="1"
+              variant="surface"
+              className="!py-0 !text-[9px] !leading-tight uppercase"
+            >
+              Beta
+            </Badge>
           }
         />
       </div>

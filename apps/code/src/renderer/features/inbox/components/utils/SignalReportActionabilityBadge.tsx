@@ -1,60 +1,40 @@
+import { Badge } from "@radix-ui/themes";
 import type { SignalReportActionability } from "@shared/types";
 import type { ReactNode } from "react";
 
-const ACTIONABILITY_CHIP_STYLE: Record<
+const ACTIONABILITY_STYLE: Record<
   SignalReportActionability,
-  { color: string; backgroundColor: string; borderColor: string; label: string }
+  { color: "green" | "amber" | "gray"; label: string }
 > = {
-  immediately_actionable: {
-    color: "var(--green-11)",
-    backgroundColor: "var(--green-3)",
-    borderColor: "var(--green-6)",
-    label: "Actionable",
-  },
-  requires_human_input: {
-    color: "var(--amber-11)",
-    backgroundColor: "var(--amber-3)",
-    borderColor: "var(--amber-6)",
-    label: "Needs input",
-  },
-  not_actionable: {
-    color: "var(--gray-11)",
-    backgroundColor: "var(--gray-3)",
-    borderColor: "var(--gray-6)",
-    label: "Not actionable",
-  },
+  immediately_actionable: { color: "green", label: "Actionable" },
+  requires_human_input: { color: "amber", label: "Needs input" },
+  not_actionable: { color: "gray", label: "Not actionable" },
 };
 
 interface SignalReportActionabilityBadgeProps {
   actionability: SignalReportActionability | null | undefined;
-  /** When true, prefix the label with "Researched ·" to signal that research is complete. */
-  researched?: boolean;
 }
 
 export function SignalReportActionabilityBadge({
   actionability,
-  researched,
 }: SignalReportActionabilityBadgeProps): ReactNode {
   if (actionability == null) {
     return null;
   }
 
-  const s = ACTIONABILITY_CHIP_STYLE[actionability];
+  const s = ACTIONABILITY_STYLE[actionability];
   if (!s) {
     return null;
   }
 
   return (
-    <span
-      className="shrink-0 rounded-sm px-1 py-px text-[9px] uppercase tracking-wider"
-      style={{
-        color: s.color,
-        backgroundColor: s.backgroundColor,
-        border: `1px solid ${s.borderColor}`,
-      }}
-      title="Actionability assessment from research"
+    <Badge
+      color={s.color}
+      size="1"
+      variant="surface"
+      className="!py-0 !text-[9px] !leading-tight uppercase"
     >
-      {researched ? `Researched · ${s.label}` : s.label}
-    </span>
+      {s.label}
+    </Badge>
   );
 }

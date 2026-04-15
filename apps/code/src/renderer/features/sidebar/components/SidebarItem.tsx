@@ -5,7 +5,7 @@ const INDENT_SIZE = 8;
 interface SidebarItemProps {
   depth: number;
   icon?: React.ReactNode;
-  label: string;
+  label: React.ReactNode;
   subtitle?: React.ReactNode;
   isActive?: boolean;
   isDimmed?: boolean;
@@ -59,10 +59,10 @@ export function SidebarItem({
           {icon}
         </span>
       )}
-      <span className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex items-center gap-1" style={{ height: "18px" }}>
           <span
-            className={`min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap ${isDimmed ? "text-gray-10" : "text-gray-12"}`}
+            className={`flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap ${isDimmed ? "text-gray-10" : "text-gray-12"}`}
           >
             {label}
           </span>

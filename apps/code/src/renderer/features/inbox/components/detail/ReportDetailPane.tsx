@@ -18,13 +18,13 @@ import {
   Cloud as CloudIcon,
   CommandIcon,
   EyeIcon,
-  GithubLogoIcon,
   KeyReturnIcon,
   WarningIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import {
   AlertDialog,
+  Badge,
   Box,
   Button,
   Flex,
@@ -469,9 +469,12 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
                       gap="2"
                       wrap="wrap"
                     >
-                      <GithubLogoIcon
-                        size={14}
-                        className="shrink-0 text-gray-10"
+                      <img
+                        src={`https://github.com/${reviewer.github_login}.png?size=28`}
+                        alt=""
+                        className="github-avatar shrink-0 rounded-full"
+                        style={{ width: 18, height: 18 }}
+                        onLoad={(e) => e.currentTarget.classList.add("loaded")}
                       />
                       <Text size="1" className="text-[12px]">
                         {reviewer.user?.first_name ??
@@ -480,16 +483,18 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
                       </Text>
                       {isMe && (
                         <Tooltip content="You are a suggested reviewer">
-                          <span
-                            className="inline-flex shrink-0 items-center rounded-sm px-1 py-px"
-                            style={{
-                              color: "var(--amber-11)",
-                              backgroundColor: "var(--amber-3)",
-                              border: "1px solid var(--amber-6)",
-                            }}
+                          <Badge
+                            color="amber"
+                            size="1"
+                            variant="surface"
+                            className="!py-1 !text-[8px] !leading-tight"
                           >
-                            <EyeIcon size={10} weight="bold" />
-                          </span>
+                            <EyeIcon
+                              size={8}
+                              weight="bold"
+                              className="shrink-0"
+                            />
+                          </Badge>
                         </Tooltip>
                       )}
                       <a
