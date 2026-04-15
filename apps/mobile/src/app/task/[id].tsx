@@ -47,26 +47,31 @@ export default function TaskDetailScreen() {
   useEffect(() => {
     if (!taskId) return;
 
+    let cancelled = false;
     setLoading(true);
     setError(null);
 
     getTask(taskId)
       .then((fetchedTask) => {
+        if (cancelled) return;
         setTask(fetchedTask);
         return connectToTask(fetchedTask);
       })
       .then(() => {
+        if (cancelled) return;
         // Brief delay for FlatList to render its initial batch behind
         // the loading overlay before revealing.
         setTimeout(() => setLoading(false), 150);
       })
       .catch((err) => {
+        if (cancelled) return;
         console.error("Failed to load task:", err);
         setError("Failed to load task");
         setLoading(false);
       });
 
     return () => {
+      cancelled = true;
       disconnectFromTask(taskId);
     };
   }, [taskId, connectToTask, disconnectFromTask]);
@@ -83,7 +88,7 @@ export default function TaskDetailScreen() {
 
   const handleOpenTask = useCallback(
     (newTaskId: string) => {
-      router.push(`/task/${newTaskId}`);
+      router.replace(`/task/${newTaskId}`);
     },
     [router],
   );

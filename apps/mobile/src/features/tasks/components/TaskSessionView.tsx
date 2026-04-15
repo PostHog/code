@@ -611,6 +611,13 @@ export function TaskSessionView({
   contentContainerStyle,
 }: TaskSessionViewProps) {
   const processorRef = useRef(createProcessorState());
+  const prevEventsRef = useRef(events);
+  // Reset processor when events array shrinks or changes identity completely
+  // (e.g., navigating between tasks while Expo Router reuses the component).
+  if (events.length === 0 || (events !== prevEventsRef.current && events[0] !== prevEventsRef.current[0])) {
+    processorRef.current = createProcessorState();
+  }
+  prevEventsRef.current = events;
   const { messages, plan } = useMemo(
     () => processNewEvents(processorRef.current, events),
     [events],

@@ -112,6 +112,9 @@ const connectAttempts = new Set<string>();
 // interval fires while the previous is still running, causing both to read
 // the same processedLineCount and produce duplicate events.
 const pollInFlight = new Set<string>();
+// Timestamps for when each poll tick started — used to force-clear stuck ticks.
+const pollInFlightSince = new Map<string, number>();
+const POLL_IN_FLIGHT_TIMEOUT_MS = 30_000;
 // Tick counts per task run used to throttle backend task-run status polling.
 const pollTicks = new Map<string, number>();
 // How many S3 polling ticks between each backend task-run status check.
@@ -410,9 +413,16 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
     logger.debug("Starting cloud S3 polling", { taskRunId });
 
     const pollS3 = async () => {
-      // Skip if previous tick is still in flight
-      if (pollInFlight.has(taskRunId)) return;
+      // Skip if previous tick is still in flight — but force-clear if stuck
+      if (pollInFlight.has(taskRunId)) {
+        const startedAt = pollInFlightSince.get(taskRunId) ?? 0;
+        if (Date.now() - startedAt < POLL_IN_FLIGHT_TIMEOUT_MS) return;
+        logger.warn("Force-clearing stuck pollInFlight", { taskRunId });
+        pollInFlight.delete(taskRunId);
+        pollInFlightSince.delete(taskRunId);
+      }
       pollInFlight.add(taskRunId);
+      pollInFlightSince.set(taskRunId, Date.now());
 
       try {
         const session = get().sessions[taskRunId];
@@ -641,6 +651,7 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
         logger.warn("Cloud polling error", { error: err });
       } finally {
         pollInFlight.delete(taskRunId);
+        pollInFlightSince.delete(taskRunId);
       }
     };
 

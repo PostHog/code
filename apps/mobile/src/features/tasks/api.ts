@@ -368,7 +368,9 @@ export async function sendCloudCommand(
 export async function fetchS3Logs(logUrl: string): Promise<string> {
   return withRetry(
     async () => {
-      const response = await fetch(logUrl);
+      const response = await fetch(logUrl, {
+        signal: AbortSignal.timeout(10_000),
+      });
 
       if (!response.ok) {
         if (response.status === 404) {

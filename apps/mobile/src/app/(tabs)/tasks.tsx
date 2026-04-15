@@ -1,18 +1,41 @@
 import { Text } from "@components/text";
-import { useRouter } from "expo-router";
-import { Pressable, View } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useRef } from "react";
+import { InteractionManager, Pressable, View } from "react-native";
 import { TaskList } from "@/features/tasks";
 
 export default function TasksScreen() {
   const router = useRouter();
+  const readyRef = useRef(true);
+
+  // Block navigation while a modal dismiss animation is in progress.
+  // When the screen loses focus (modal opens), readyRef is false.
+  // When focus returns (modal dismissed), we wait for all native
+  // animations to finish before allowing the next push.
+  useFocusEffect(
+    useCallback(() => {
+      const handle = InteractionManager.runAfterInteractions(() => {
+        readyRef.current = true;
+      });
+      return () => {
+        readyRef.current = false;
+        handle.cancel();
+      };
+    }, []),
+  );
 
   const handleCreateTask = () => {
     router.push("/task");
   };
 
-  const handleTaskPress = (taskId: string) => {
-    router.push(`/task/${taskId}`);
-  };
+  const handleTaskPress = useCallback(
+    (taskId: string) => {
+      if (!readyRef.current) return;
+      readyRef.current = false;
+      router.push(`/task/${taskId}`);
+    },
+    [router],
+  );
 
   return (
     <View className="flex-1 bg-background">

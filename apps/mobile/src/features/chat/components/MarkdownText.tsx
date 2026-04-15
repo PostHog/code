@@ -38,7 +38,7 @@ function parseBlocks(text: string): Block[] {
     }
 
     // Heading
-    const headingMatch = line.match(/^(#{1,3})\s+(.+)$/);
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
     if (headingMatch) {
       blocks.push({
         type: "heading",
@@ -104,7 +104,7 @@ function parseBlocks(text: string): Block[] {
       i < lines.length &&
       lines[i].trim() !== "" &&
       !lines[i].startsWith("```") &&
-      !lines[i].match(/^#{1,3}\s/) &&
+      !lines[i].match(/^#{1,6}\s/) &&
       !/^\s*[-*]\s/.test(lines[i]) &&
       !/^\s*\d+[.)]\s/.test(lines[i]) &&
       !(lines[i].includes("|") && i + 1 < lines.length && /^\s*\|?[\s-:|]+\|/.test(lines[i + 1]))
@@ -233,9 +233,10 @@ export function MarkdownText({ content }: MarkdownTextProps) {
                 <View className="overflow-hidden rounded-md border border-gray-6">
                   {header && (
                     <View className="flex-row bg-gray-3">
+                      {/* biome-ignore lint/suspicious/noArrayIndexKey: static markdown table cells never reorder */}
                       {header.map((cell, ci) => (
                         <View
-                          key={`${key}-h-${ci}`}
+                          key={`${key}-h-${ci}-${cell}`}
                           className="border-gray-6 px-3 py-1.5"
                           style={ci > 0 ? { borderLeftWidth: 1, borderLeftColor: "#3333" } : undefined}
                         >
@@ -246,11 +247,13 @@ export function MarkdownText({ content }: MarkdownTextProps) {
                       ))}
                     </View>
                   )}
+                  {/* biome-ignore lint/suspicious/noArrayIndexKey: static markdown table rows never reorder */}
                   {body.map((row, ri) => (
                     <View
                       key={`${key}-r-${ri}`}
                       className="flex-row border-t border-gray-6"
                     >
+                      {/* biome-ignore lint/suspicious/noArrayIndexKey: static markdown table cells never reorder */}
                       {row.map((cell, ci) => (
                         <View
                           key={`${key}-r-${ri}-c-${ci}`}
