@@ -157,6 +157,7 @@ describe("TaskCreationSaga", () => {
         runSource: "manual",
         signalReportId: undefined,
         githubUserToken: undefined,
+        initialPermissionMode: "plan",
       },
     );
     expect(sendRunCommandMock).not.toHaveBeenCalled();
