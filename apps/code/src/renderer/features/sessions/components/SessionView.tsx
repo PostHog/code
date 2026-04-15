@@ -44,11 +44,6 @@ interface SessionViewProps {
   onCancelPrompt: () => void;
   repoPath?: string | null;
   cloudBranch?: string | null;
-  cloudDiffStats?: {
-    filesChanged: number;
-    linesAdded: number;
-    linesRemoved: number;
-  } | null;
   isSuspended?: boolean;
   onRestoreWorktree?: () => void;
   isRestoring?: boolean;
@@ -79,7 +74,6 @@ export function SessionView({
   onCancelPrompt,
   repoPath,
   cloudBranch,
-  cloudDiffStats,
   isSuspended = false,
   onRestoreWorktree,
   isRestoring = false,
@@ -133,7 +127,6 @@ export function SessionView({
     taskId,
     repoPath,
     cloudBranch,
-    cloudDiffStats,
     disabled: !isRunning,
     isLoading: !!isPromptPending,
   });

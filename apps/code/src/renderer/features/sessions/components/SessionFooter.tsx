@@ -79,9 +79,9 @@ export function SessionFooter({
   return (
     <Box className="pb-1">
       <Flex align="center" justify="between" gap="2">
-        <Flex align="center" gap="2" className="select-none text-gray-10">
-          <Brain size={12} />
-          {showDuration && (
+        {showDuration && (
+          <Flex align="center" gap="2" className="select-none text-gray-10">
+            <Brain size={12} />
             <Text
               size="1"
               color="gray"
@@ -89,8 +89,8 @@ export function SessionFooter({
             >
               Generated in {formatDuration(lastGenerationDuration)}
             </Text>
-          )}
-        </Flex>
+          </Flex>
+        )}
         <ContextUsageIndicator usage={usage ?? null} />
       </Flex>
     </Box>

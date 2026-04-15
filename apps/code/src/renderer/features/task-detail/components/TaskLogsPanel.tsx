@@ -1,11 +1,6 @@
 import { BackgroundWrapper } from "@components/BackgroundWrapper";
 import { ErrorBoundary } from "@components/ErrorBoundary";
 import { useFolders } from "@features/folders/hooks/useFolders";
-import {
-  useCloudBranchChangedFiles,
-  useCloudPrChangedFiles,
-} from "@features/git-interaction/hooks/useGitQueries";
-import { computeDiffStats } from "@features/git-interaction/utils/diffStats";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { ProvisioningView } from "@features/provisioning/components/ProvisioningView";
 import { useProvisioningStore } from "@features/provisioning/stores/provisioningStore";
@@ -23,7 +18,7 @@ import {
 import { Box, Flex } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { getTaskRepository } from "@utils/repository";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect } from "react";
 
 interface TaskLogsPanelProps {
   taskId: string;
@@ -81,26 +76,10 @@ export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
     handleBashCommand,
   } = useSessionCallbacks({ taskId, task, session, repoPath });
 
-  const cloudOutput = session?.cloudOutput ?? null;
-  const prUrl =
-    isCloud && cloudOutput?.pr_url ? (cloudOutput.pr_url as string) : null;
   const slackThreadUrl =
     typeof task.latest_run?.state?.slack_thread_url === "string"
       ? task.latest_run.state.slack_thread_url
       : undefined;
-
-  const cloudRepo = isCloud ? (task.repository ?? null) : null;
-  const { data: prFiles } = useCloudPrChangedFiles(prUrl);
-  const { data: branchFiles } = useCloudBranchChangedFiles(
-    !prUrl ? cloudRepo : null,
-    !prUrl ? cloudBranch : null,
-  );
-  const cloudDiffStats = useMemo(() => {
-    if (!isCloud) return null;
-    const files = prUrl ? prFiles : branchFiles;
-    if (!files || files.length === 0) return null;
-    return computeDiffStats(files);
-  }, [isCloud, prUrl, prFiles, branchFiles]);
 
   useEffect(() => {
     requestFocus(taskId);
@@ -152,7 +131,6 @@ export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
               onCancelPrompt={handleCancelPrompt}
               repoPath={repoPath}
               cloudBranch={cloudBranch}
-              cloudDiffStats={cloudDiffStats}
               hasError={hasError}
               errorTitle={errorTitle}
               errorMessage={errorMessage ?? undefined}

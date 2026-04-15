@@ -7,18 +7,11 @@ import type { EditorContent } from "../utils/content";
 
 type SessionId = string;
 
-export interface CloudDiffStats {
-  filesChanged: number;
-  linesAdded: number;
-  linesRemoved: number;
-}
-
 export interface EditorContext {
   sessionId: string;
   taskId: string | undefined;
   repoPath: string | null | undefined;
   cloudBranch?: string | null;
-  cloudDiffStats?: CloudDiffStats | null;
   disabled: boolean;
   isLoading: boolean;
 }
@@ -87,7 +80,6 @@ export const useDraftStore = create<DraftStore>()(
             taskId: context.taskId ?? existing?.taskId,
             repoPath: context.repoPath ?? existing?.repoPath,
             cloudBranch: context.cloudBranch ?? existing?.cloudBranch,
-            cloudDiffStats: context.cloudDiffStats ?? existing?.cloudDiffStats,
             disabled: context.disabled ?? existing?.disabled ?? false,
             isLoading: context.isLoading ?? existing?.isLoading ?? false,
           };
@@ -96,12 +88,6 @@ export const useDraftStore = create<DraftStore>()(
             existing?.taskId === newContext.taskId &&
             existing?.repoPath === newContext.repoPath &&
             existing?.cloudBranch === newContext.cloudBranch &&
-            existing?.cloudDiffStats?.filesChanged ===
-              newContext.cloudDiffStats?.filesChanged &&
-            existing?.cloudDiffStats?.linesAdded ===
-              newContext.cloudDiffStats?.linesAdded &&
-            existing?.cloudDiffStats?.linesRemoved ===
-              newContext.cloudDiffStats?.linesRemoved &&
             existing?.disabled === newContext.disabled &&
             existing?.isLoading === newContext.isLoading
           ) {

@@ -64,10 +64,17 @@ export function UserMessage({
     }
   }, []);
 
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    return () => clearTimeout(copiedTimerRef.current);
+  }, []);
+
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(content);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
   }, [content]);
 
   return (
