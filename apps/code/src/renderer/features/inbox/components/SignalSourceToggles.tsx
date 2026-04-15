@@ -2,6 +2,7 @@ import {
   ArrowSquareOutIcon,
   BrainIcon,
   BugIcon,
+  ChatsIcon,
   CircleNotchIcon,
   GithubLogoIcon,
   KanbanIcon,
@@ -31,6 +32,7 @@ export interface SignalSourceValues {
   github: boolean;
   linear: boolean;
   zendesk: boolean;
+  conversations: boolean;
 }
 
 interface SignalSourceToggleCardProps {
@@ -315,6 +317,10 @@ export function SignalSourceToggles({
     (checked: boolean) => onToggle("zendesk", checked),
     [onToggle],
   );
+  const toggleConversations = useCallback(
+    (checked: boolean) => onToggle("conversations", checked),
+    [onToggle],
+  );
   const setupGithub = useCallback(() => onSetup?.("github"), [onSetup]);
   const setupLinear = useCallback(() => onSetup?.("linear"), [onSetup]);
   const setupZendesk = useCallback(() => onSetup?.("zendesk"), [onSetup]);
@@ -327,6 +333,14 @@ export function SignalSourceToggles({
         description="Surface new issues, reopenings, and volume spikes"
         checked={value.error_tracking}
         onCheckedChange={toggleErrorTracking}
+        disabled={disabled}
+      />
+      <SignalSourceToggleCard
+        icon={<ChatsIcon size={20} />}
+        label="PostHog Conversations"
+        description="Turn support conversations into signals for the inbox"
+        checked={value.conversations}
+        onCheckedChange={toggleConversations}
         disabled={disabled}
       />
       <SignalSourceToggleCard
