@@ -104,7 +104,14 @@ export class ContextMenuService {
   async showTaskContextMenu(
     input: TaskContextMenuInput,
   ): Promise<TaskContextMenuResult> {
-    const { worktreePath, folderPath, isPinned, isSuspended } = input;
+    const {
+      worktreePath,
+      folderPath,
+      isPinned,
+      isSuspended,
+      isInCommandCenter,
+      hasEmptyCommandCenterCell,
+    } = input;
     const { apps, lastUsedAppId } = await this.getExternalAppsData();
     const hasPath = worktreePath || folderPath;
 
@@ -124,6 +131,16 @@ export class ContextMenuService {
         ? [
             ...(worktreePath ? [] : [this.separator()]),
             ...this.externalAppItems<TaskAction>(apps, lastUsedAppId),
+          ]
+        : []),
+      ...(!isInCommandCenter
+        ? [
+            this.separator(),
+            this.item(
+              "Add to Command Center",
+              { type: "add-to-command-center" as const },
+              { enabled: hasEmptyCommandCenterCell ?? true },
+            ),
           ]
         : []),
       this.separator(),
