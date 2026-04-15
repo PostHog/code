@@ -93,6 +93,7 @@ export function GitIntegrationStep({
 
   const handleConnectGitHub = async () => {
     if (!cloudRegion || !selectedProjectId || !client) return;
+    stopPolling();
     setConnectingGithub(true);
     try {
       await trpcClient.githubIntegration.startFlow.mutate({
@@ -365,12 +366,8 @@ export function GitIntegrationStep({
                         alignItems: "center",
                       }}
                     >
-                      <Button
-                        size="2"
-                        onClick={handleConnectGitHub}
-                        loading={isConnecting}
-                      >
-                        Connect GitHub
+                      <Button size="2" onClick={handleConnectGitHub}>
+                        {isConnecting ? "Retry connection" : "Connect GitHub"}
                         <ArrowSquareOut size={16} />
                       </Button>
                       <Text
@@ -380,7 +377,9 @@ export function GitIntegrationStep({
                           opacity: 0.5,
                         }}
                       >
-                        Opens GitHub to authorize the PostHog app
+                        {isConnecting
+                          ? "Waiting for authorization\u2026 Click again if the browser tab was closed."
+                          : "Opens GitHub to authorize the PostHog app"}
                       </Text>
                       <Button
                         size="1"

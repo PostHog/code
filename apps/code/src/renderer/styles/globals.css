@@ -943,6 +943,12 @@ button,
   transition: none;
 }
 
+/* GitHub avatar loading placeholder */
+.github-avatar:not(.loaded) {
+  outline: 1px dashed var(--gray-7);
+  outline-offset: -1px;
+}
+
 /* Inbox warming-up ellipsis wave */
 @keyframes inboxEllipsisWave {
   0%,

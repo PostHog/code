@@ -69,8 +69,7 @@ export function GitHubConnectionBanner() {
               PostHog Code suggests report ownership using cutting-edge{" "}
               <code>git blame</code> technology.
               <br />
-              For this, connect your GitHub profile (different from connecting
-              repositories).
+              For relevant reports, connect your GitHub profile.
             </div>
           </>
         }

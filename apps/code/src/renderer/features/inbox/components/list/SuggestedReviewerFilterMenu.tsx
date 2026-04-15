@@ -146,19 +146,32 @@ export function SuggestedReviewerFilterMenu() {
                         className="flex w-full items-start justify-between rounded-sm px-1 py-1 text-left text-[13px] text-gray-12 transition-colors hover:bg-gray-3 focus-visible:bg-gray-3 focus-visible:outline-none"
                         onClick={() => toggleSuggestedReviewer(reviewer.uuid)}
                       >
-                        <Flex direction="column" gap="0" className="min-w-0">
-                          <Text size="1" className="truncate text-[12px]">
-                            {displayName}
-                          </Text>
-                          {reviewer.email ? (
-                            <Text
-                              size="1"
-                              color="gray"
-                              className="truncate text-[11px]"
-                            >
-                              {reviewer.email}
-                            </Text>
+                        <Flex align="center" gap="2" className="min-w-0">
+                          {reviewer.github_login ? (
+                            <img
+                              src={`https://github.com/${reviewer.github_login}.png?size=32`}
+                              alt=""
+                              className="github-avatar shrink-0 rounded-full"
+                              style={{ width: 20, height: 20 }}
+                              onLoad={(e) =>
+                                e.currentTarget.classList.add("loaded")
+                              }
+                            />
                           ) : null}
+                          <Flex direction="column" gap="0" className="min-w-0">
+                            <Text size="1" className="truncate text-[12px]">
+                              {displayName}
+                            </Text>
+                            {reviewer.email ? (
+                              <Text
+                                size="1"
+                                color="gray"
+                                className="truncate text-[11px]"
+                              >
+                                {reviewer.email}
+                              </Text>
+                            ) : null}
+                          </Flex>
                         </Flex>
                         <span
                           className="flex h-4 w-4 shrink-0 items-center justify-center text-gray-12"
