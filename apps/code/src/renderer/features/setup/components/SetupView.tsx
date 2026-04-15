@@ -1,9 +1,9 @@
 import { DotPatternBackground } from "@components/DotPatternBackground";
-import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
-import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
-import { useContextCollection } from "@features/onboarding/hooks/useContextCollection";
 import { SourceFeed } from "@features/onboarding/components/context-collection/SourceFeed";
 import { SuggestedTasks } from "@features/onboarding/components/context-collection/SuggestedTasks";
+import { useContextCollection } from "@features/onboarding/hooks/useContextCollection";
+import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
+import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
 import { Rocket } from "@phosphor-icons/react";
 import { Box, Button, Flex, ScrollArea, Text } from "@radix-ui/themes";
 import explorerHog from "@renderer/assets/images/hedgehogs/explorer-hog.png";

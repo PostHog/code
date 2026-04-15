@@ -14,9 +14,7 @@ export function SetupItem({ isActive, onClick }: SetupItemProps) {
       style={{
         gap: "4px",
         paddingLeft: "8px",
-        backgroundColor: isActive
-          ? "var(--green-4)"
-          : "var(--green-a3)",
+        backgroundColor: isActive ? "var(--green-4)" : "var(--green-a3)",
         color: "var(--green-11)",
       }}
       onClick={onClick}

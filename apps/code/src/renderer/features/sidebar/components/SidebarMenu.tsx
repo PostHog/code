@@ -1,11 +1,11 @@
 import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
 import { useCommandCenterStore } from "@features/command-center/stores/commandCenterStore";
-import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { useInboxReports } from "@features/inbox/hooks/useInboxReports";
 import {
   INBOX_PIPELINE_STATUS_FILTER,
   INBOX_REFETCH_INTERVAL_MS,
 } from "@features/inbox/utils/inboxConstants";
+import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { getSessionService } from "@features/sessions/service/service";
 import {
   archiveTaskImperative,
