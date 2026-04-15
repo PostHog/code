@@ -24,7 +24,7 @@ import type { ExecutionMode, Task } from "@shared/types";
 import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
 import { getGhUserTokenOrThrow } from "@utils/github";
 import { logger } from "@utils/logger";
-import { queryClient } from "@utils/queryClient";
+import { getCachedTask, queryClient } from "@utils/queryClient";
 
 const log = logger.scope("task-creation-saga");
 
@@ -39,13 +39,7 @@ async function generateTaskTitle(
   if (!result?.title) return;
   const { title } = result;
 
-  const allTaskQueries = queryClient.getQueriesData<Task[]>({
-    queryKey: ["tasks", "list"],
-  });
-  const cachedTask = allTaskQueries
-    .flatMap(([, tasks]) => tasks ?? [])
-    .find((t) => t.id === taskId);
-  if (cachedTask?.title_manually_set) {
+  if (getCachedTask(taskId)?.title_manually_set) {
     log.debug("Skipping auto-title, user renamed task", { taskId });
     return;
   }

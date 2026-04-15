@@ -7,7 +7,7 @@ import {
 import type { Task } from "@shared/types";
 import { generateTitleAndSummary } from "@utils/generateTitle";
 import { logger } from "@utils/logger";
-import { queryClient } from "@utils/queryClient";
+import { getCachedTask, queryClient } from "@utils/queryClient";
 import { extractUserPromptsFromEvents } from "@utils/session";
 import { useEffect, useRef } from "react";
 
@@ -65,13 +65,7 @@ export function useChatTitleGenerator(taskId: string): void {
 
     const run = async () => {
       try {
-        const allTaskQueries = queryClient.getQueriesData<Task[]>({
-          queryKey: ["tasks", "list"],
-        });
-        const cachedTask = allTaskQueries
-          .flatMap(([, tasks]) => tasks ?? [])
-          .find((t) => t.id === taskId);
-        if (cachedTask?.title_manually_set) {
+        if (getCachedTask(taskId)?.title_manually_set) {
           log.debug("Skipping auto-title, user renamed task", { taskId });
           return;
         }
@@ -80,6 +74,13 @@ export function useChatTitleGenerator(taskId: string): void {
         if (result) {
           const { title, summary } = result;
           if (title) {
+            if (getCachedTask(taskId)?.title_manually_set) {
+              log.debug(
+                "Skipping auto-title, user renamed task during generation",
+                { taskId },
+              );
+              return;
+            }
             const client = await getAuthenticatedClient();
             if (client) {
               await client.updateTask(taskId, { title });
