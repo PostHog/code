@@ -134,6 +134,8 @@ export default function TaskDetailScreen() {
     );
   }
 
+  const environment = task.latest_run?.environment;
+
   return (
     <>
       <Stack.Screen
@@ -147,6 +149,25 @@ export default function TaskDetailScreen() {
             fontWeight: "600",
           },
           presentation: "modal",
+          headerRight: environment
+            ? () => (
+                <View
+                  className={`rounded px-2 py-0.5 ${
+                    environment === "cloud" ? "bg-accent-3" : "bg-gray-4"
+                  }`}
+                >
+                  <Text
+                    className={`font-medium text-xs ${
+                      environment === "cloud"
+                        ? "text-accent-11"
+                        : "text-gray-11"
+                    }`}
+                  >
+                    {environment === "cloud" ? "Cloud" : "Local"}
+                  </Text>
+                </View>
+              )
+            : undefined,
         }}
       />
       <Animated.View className="flex-1 bg-background" style={contentPosition}>
