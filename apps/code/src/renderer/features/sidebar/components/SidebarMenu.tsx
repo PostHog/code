@@ -13,6 +13,7 @@ import {
 import { useTasks, useUpdateTask } from "@features/tasks/hooks/useTasks";
 import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
 import { useTaskContextMenu } from "@hooks/useTaskContextMenu";
+import { ScrollArea, Separator } from "@posthog/quill";
 import { Box, Flex } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
@@ -250,13 +251,7 @@ function SidebarMenuComponent() {
 
   return (
     <Box height="100%" position="relative">
-      <Box
-        style={{
-          height: "100%",
-          overflowY: "auto",
-          overflowX: "hidden",
-        }}
-      >
+      <ScrollArea className="h-full overflow-y-auto overflow-x-hidden">
         <Flex direction="column" py="2" px="2" gap="1px">
           <Box mb="2">
             <NewTaskItem
@@ -289,11 +284,14 @@ function SidebarMenuComponent() {
             />
           </Box>
 
+          <Separator className="mx-2 my-2" />
+
           {sidebarData.isLoading ? (
             <SidebarItem
               depth={0}
               icon={<DotsCircleSpinner size={12} className="text-gray-10" />}
               label="Loading tasks..."
+              disabled
             />
           ) : (
             <TaskListView
@@ -313,7 +311,7 @@ function SidebarMenuComponent() {
             />
           )}
         </Flex>
-      </Box>
+      </ScrollArea>
     </Box>
   );
 }

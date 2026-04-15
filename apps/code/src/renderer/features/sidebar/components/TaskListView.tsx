@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
   MenuLabel,
 } from "@posthog/quill";
-import { Flex } from "@radix-ui/themes";
+import { Flex, Text } from "@radix-ui/themes";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 import { normalizeRepoKey } from "@shared/utils/repo";
 import { useNavigationStore } from "@stores/navigationStore";
@@ -270,9 +270,6 @@ export function TaskListView({
               timestamp={task[timestampKey]}
             />
           ))}
-          {(flatTasks.length > 0 || groupedTasks.length > 0) && (
-            <div className="mx-2 my-2 border-gray-6 border-t" />
-          )}
         </>
       )}
 

@@ -17,6 +17,7 @@ interface SidebarItemProps {
   onContextMenu?: (e: React.MouseEvent) => void;
   action?: SidebarItemAction;
   endContent?: React.ReactNode;
+  disabled?: boolean;
 }
 
 export function SidebarItem({
@@ -31,13 +32,14 @@ export function SidebarItem({
   onDoubleClick,
   onContextMenu,
   endContent,
+  disabled,
 }: SidebarItemProps) {
   return (
     <Button
       type="button"
       className={cn(
         "group focus-visible:-outline-offset-2 flex w-full text-left transition-colors focus-visible:outline-2 focus-visible:outline-accent-8",
-        "data-active:bg-fill-active",
+        "cursor-default disabled:opacity-100 data-active:bg-fill-selected",
       )}
       data-active={isActive || undefined}
       draggable={draggable}
@@ -48,6 +50,7 @@ export function SidebarItem({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
+      disabled={disabled}
     >
       {icon ? <span className="flex shrink-0 items-center">{icon}</span> : null}
       <span className="flex min-w-0 flex-1 flex-col overflow-hidden">
