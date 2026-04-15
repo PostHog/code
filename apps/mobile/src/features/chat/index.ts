@@ -11,7 +11,7 @@ export type {
   ToolMessageProps,
   ToolStatus,
 } from "./components/ToolMessage";
-export { ToolMessage } from "./components/ToolMessage";
+export { deriveToolKind, ToolMessage } from "./components/ToolMessage";
 export { VisualizationArtifact } from "./components/VisualizationArtifact";
 
 // Hooks

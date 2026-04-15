@@ -291,8 +291,21 @@ async function handleAskUserQuestionTool(
     },
   });
 
-  if (context.signal?.aborted || response.outcome?.outcome === "cancelled") {
+  if (context.signal?.aborted) {
     throw new Error("Tool use aborted");
+  }
+
+  if (response.outcome?.outcome === "cancelled") {
+    const cancelMessage = (
+      response._meta as Record<string, unknown> | undefined
+    )?.message;
+    return {
+      behavior: "deny",
+      message:
+        typeof cancelMessage === "string"
+          ? cancelMessage
+          : "User cancelled the questions",
+    };
   }
 
   if (response.outcome?.outcome !== "selected") {

@@ -5,6 +5,7 @@ import { useThemeColors } from "@/lib/theme";
 import { usePeriodicRerender } from "../hooks/usePeriodicRerender";
 import type { AssistantToolCall } from "../types";
 import { getRandomThinkingMessage } from "../utils/thinkingMessages";
+import { MarkdownText } from "./MarkdownText";
 import { ToolMessage } from "./ToolMessage";
 
 interface AgentMessageProps {
@@ -107,9 +108,7 @@ export function AgentMessage({
       {/* Show final content */}
       {content && (
         <View className="max-w-[95%] px-4 py-1">
-          <Text className="font-mono text-[13px] text-gray-12 leading-5">
-            {content}
-          </Text>
+          <MarkdownText content={content} />
         </View>
       )}
     </View>

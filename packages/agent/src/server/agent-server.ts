@@ -1315,20 +1315,101 @@ ${attributionInstructions}
         const selectedOptionId =
           allowOption?.optionId ?? params.options[0].optionId;
 
-        if (interactionOrigin === "slack") {
-          const codeToolKind = params.toolCall?._meta?.codeToolKind;
-          if (codeToolKind === "question") {
-            this.relaySlackQuestion(payload, params.toolCall?._meta);
-            return {
-              outcome: { outcome: "cancelled" as const },
-              _meta: {
-                message:
-                  "This question has been relayed to the Slack thread where this task originated. " +
-                  "The user will reply there. Do NOT re-ask the question or pick an answer yourself. " +
-                  "Simply let the user know you are waiting for their reply.",
+        const codeToolKind = params.toolCall?._meta?.codeToolKind;
+
+        if (interactionOrigin === "slack" && codeToolKind === "question") {
+          this.relaySlackQuestion(payload, params.toolCall?._meta);
+          return {
+            outcome: { outcome: "cancelled" as const },
+            _meta: {
+              message:
+                "This question has been relayed to the Slack thread where this task originated. " +
+                "The user will reply there. Do NOT re-ask the question or pick an answer yourself. " +
+                "Simply let the user know you are waiting for their reply.",
+            },
+          };
+        }
+
+        // Interactive sessions (mobile/web): don't auto-approve questions.
+        // Log the question as in-progress so the client renders it interactively,
+        // then return cancelled with a wait message so the agent waits for the
+        // user's reply (same pattern as the Slack relay above).
+        if (
+          mode === "interactive" &&
+          codeToolKind === "question" &&
+          interactionOrigin !== "slack" &&
+          params.toolCall?._meta
+        ) {
+          const questionMeta = params.toolCall._meta;
+          const toolCallId = `question-${Date.now()}`;
+
+          const questionNotification = {
+            jsonrpc: "2.0",
+            method: "session/update",
+            params: {
+              update: {
+                sessionUpdate: "tool_call",
+                title: "AskUserQuestion",
+                toolCallId,
+                status: "in_progress",
+                rawInput: questionMeta,
               },
-            };
-          }
+            },
+          };
+
+          this.broadcastEvent({
+            type: "notification",
+            timestamp: new Date().toISOString(),
+            notification: questionNotification,
+          });
+
+          this.session?.logWriter.appendRawLine(
+            payload.run_id,
+            JSON.stringify(questionNotification),
+          );
+
+          return {
+            outcome: { outcome: "cancelled" as const },
+            _meta: {
+              message:
+                "This question has been sent to the user's device. " +
+                "The user will reply with their selection. Do NOT re-ask the question or pick an answer yourself. " +
+                "Wait for the user's reply.",
+            },
+          };
+        }
+
+        // Background mode or non-question permissions: log as completed and auto-approve
+        if (codeToolKind === "question" && params.toolCall?._meta) {
+          const questionMeta = params.toolCall._meta;
+          const toolCallId = `question-${Date.now()}`;
+          const selectedOption = allowOption?.name ?? "Auto-approved";
+
+          const questionNotification = {
+            jsonrpc: "2.0",
+            method: "session/update",
+            params: {
+              update: {
+                sessionUpdate: "tool_call",
+                title: "AskUserQuestion",
+                toolCallId,
+                status: "completed",
+                rawInput: questionMeta,
+                rawOutput: { answer: selectedOption },
+              },
+            },
+          };
+
+          this.broadcastEvent({
+            type: "notification",
+            timestamp: new Date().toISOString(),
+            notification: questionNotification,
+          });
+
+          this.session?.logWriter.appendRawLine(
+            payload.run_id,
+            JSON.stringify(questionNotification),
+          );
         }
 
         return {

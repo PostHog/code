@@ -15,6 +15,8 @@ export default function SettingsScreen() {
   const { data: userData } = useUserQuery();
   const aiChatEnabled = usePreferencesStore((s) => s.aiChatEnabled);
   const setAiChatEnabled = usePreferencesStore((s) => s.setAiChatEnabled);
+  const pingsEnabled = usePreferencesStore((s) => s.pingsEnabled);
+  const setPingsEnabled = usePreferencesStore((s) => s.setPingsEnabled);
 
   const handleLogout = async () => {
     await logout();
@@ -108,6 +110,17 @@ export default function SettingsScreen() {
               </Text>
             </View>
             <Switch value={aiChatEnabled} onValueChange={setAiChatEnabled} />
+          </View>
+          <View className="flex-row items-center justify-between py-2">
+            <View className="flex-1 pr-4">
+              <Text className="font-medium text-gray-12 text-sm">
+                Enable pings
+              </Text>
+              <Text className="text-gray-11 text-xs">
+                Play a sound when a task completes
+              </Text>
+            </View>
+            <Switch value={pingsEnabled} onValueChange={setPingsEnabled} />
           </View>
         </View>
 

@@ -19,6 +19,7 @@
       "bundleIdentifier": "com.posthog.mobile",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Allow PostHog to use your microphone for voice-to-text input",
+        "NSSpeechRecognitionUsageDescription": "Allow PostHog to transcribe your voice input on-device",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -152,7 +153,14 @@
           }
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow PostHog to use your microphone for voice-to-text input",
+          "speechRecognitionPermission": "Allow PostHog to transcribe your voice input on-device"
+        }
+      ]
     ],
     "extra": {
       "router": {},

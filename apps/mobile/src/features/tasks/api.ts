@@ -289,7 +289,11 @@ export class CloudCommandError extends Error {
 
   /** True when the cloud sandbox for this run has terminated. */
   isSandboxInactive(): boolean {
-    return !!this.backendError?.includes("No active sandbox");
+    return (
+      !!this.backendError?.includes("No active sandbox") ||
+      !!this.backendError?.includes("returned 404") ||
+      this.status === 404
+    );
   }
 }
 

@@ -55,11 +55,14 @@ export default function TaskDetailScreen() {
         setTask(fetchedTask);
         return connectToTask(fetchedTask);
       })
+      .then(() => {
+        // Brief delay for FlatList to render its initial batch behind
+        // the loading overlay before revealing.
+        setTimeout(() => setLoading(false), 150);
+      })
       .catch((err) => {
         console.error("Failed to load task:", err);
         setError("Failed to load task");
-      })
-      .finally(() => {
         setLoading(false);
       });
 
@@ -85,28 +88,7 @@ export default function TaskDetailScreen() {
     [router],
   );
 
-  if (loading) {
-    return (
-      <>
-        <Stack.Screen
-          options={{
-            headerShown: true,
-            headerTransparent: false,
-            headerTitle: "Loading...",
-            headerStyle: { backgroundColor: themeColors.background },
-            headerTintColor: themeColors.gray[12],
-            presentation: "modal",
-          }}
-        />
-        <View className="flex-1 items-center justify-center bg-background">
-          <ActivityIndicator size="large" color={themeColors.accent[9]} />
-          <Text className="mt-4 text-gray-11">Loading task...</Text>
-        </View>
-      </>
-    );
-  }
-
-  if (error || !task) {
+  if (error || (!task && !loading)) {
     return (
       <>
         <Stack.Screen
@@ -134,7 +116,7 @@ export default function TaskDetailScreen() {
     );
   }
 
-  const environment = task.latest_run?.environment;
+  const environment = task?.latest_run?.environment;
 
   return (
     <>
@@ -142,7 +124,7 @@ export default function TaskDetailScreen() {
         options={{
           headerShown: true,
           headerTransparent: false,
-          headerTitle: task.title || "Task",
+          headerTitle: loading ? "Loading..." : task?.title || "Task",
           headerStyle: { backgroundColor: themeColors.background },
           headerTintColor: themeColors.gray[12],
           headerTitleStyle: {
@@ -171,48 +153,36 @@ export default function TaskDetailScreen() {
         }}
       />
       <Animated.View className="flex-1 bg-background" style={contentPosition}>
+        {/* Always render TaskSessionView so the FlatList can layout behind
+            the loading overlay. This prevents the "flash of messages" when
+            switching from loading spinner to rendered content. */}
         <TaskSessionView
           events={session?.events ?? []}
-          isPromptPending={session?.isPromptPending ?? false}
           onOpenTask={handleOpenTask}
+          onSendAnswer={handleSendPrompt}
           contentContainerStyle={{
             paddingTop: 80 + insets.bottom,
             paddingBottom: 16,
           }}
         />
 
+        {/* Loading overlay — covers the list while it does initial layout */}
+        {loading && (
+          <View className="absolute inset-0 items-center justify-center bg-background">
+            <ActivityIndicator size="large" color={themeColors.accent[9]} />
+            <Text className="mt-4 text-gray-11">Loading task...</Text>
+          </View>
+        )}
+
         {/* Fixed input at bottom */}
         <Animated.View
           className="absolute inset-x-0 bottom-0"
           style={inputContainerStyle}
         >
-          {session?.terminalStatus && (
-            <View
-              className={`mx-3 mb-2 rounded-lg border px-3 py-2 ${
-                session.terminalStatus === "failed"
-                  ? "border-status-error bg-status-error/10"
-                  : "border-gray-6 bg-gray-2"
-              }`}
-            >
-              <Text
-                className={`font-medium text-xs ${
-                  session.terminalStatus === "failed"
-                    ? "text-status-error"
-                    : "text-gray-11"
-                }`}
-              >
-                {session.terminalStatus === "failed"
-                  ? `Run failed${session.lastError ? `: ${session.lastError}` : ""}`
-                  : "Run completed"}
-              </Text>
-              {session.terminalStatus === "failed" && (
-                <Text className="mt-1 text-gray-11 text-xs">
-                  Send a message to start a new run.
-                </Text>
-              )}
-            </View>
-          )}
-          <Composer onSend={handleSendPrompt} />
+          <Composer
+            onSend={handleSendPrompt}
+            isUserTurn={!(session?.isPromptPending ?? true)}
+          />
         </Animated.View>
       </Animated.View>
     </>

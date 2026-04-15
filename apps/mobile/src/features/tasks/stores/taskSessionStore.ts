@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { usePreferencesStore } from "@/features/preferences/stores/preferencesStore";
 import { logger } from "@/lib/logger";
 import {
   CloudCommandError,
@@ -8,11 +9,56 @@ import {
   runTaskInCloud,
   sendCloudCommand,
 } from "../api";
-import type { SessionEvent, SessionNotification, Task } from "../types";
+import type {
+  SessionEvent,
+  SessionNotification,
+  StoredLogEntry,
+  Task,
+} from "../types";
 import {
   convertRawEntriesToEvents,
   parseSessionLogs,
 } from "../utils/parseSessionLogs";
+import { playMeepSound } from "../utils/sounds";
+
+// Infer whether the agent is actively working or idle (waiting for user input).
+// Primary signal: _posthog/turn_complete or _posthog/task_complete in raw log
+// entries. Fallback: session update notification heuristic for older logs.
+function inferAgentIsIdle(
+  rawEntries: StoredLogEntry[],
+  notifications: SessionNotification[],
+): boolean {
+  // Check raw entries for explicit turn/task completion signals
+  for (let i = rawEntries.length - 1; i >= 0; i--) {
+    const method = rawEntries[i].notification?.method;
+    if (
+      method === "_posthog/turn_complete" ||
+      method === "_posthog/task_complete"
+    ) {
+      return true;
+    }
+    // If we hit a client-direction entry (user message), the agent hasn't
+    // completed a turn since the last user input.
+    if (rawEntries[i].direction === "client") break;
+  }
+
+  // Fallback: check session update notifications for agent responses
+  for (let i = notifications.length - 1; i >= 0; i--) {
+    const su = notifications[i].update?.sessionUpdate;
+    if (su === "agent_message" || su === "agent_message_chunk") {
+      return true;
+    }
+    if (
+      su === "user_message_chunk" ||
+      su === "tool_call" ||
+      su === "tool_call_update" ||
+      su === "agent_thought_chunk"
+    ) {
+      return false;
+    }
+  }
+  return false;
+}
 
 const CLOUD_POLLING_INTERVAL_MS = 500;
 
@@ -32,6 +78,10 @@ export interface TaskSession {
   // poller so the UI can surface "Run failed" / "Run completed".
   terminalStatus?: "failed" | "completed";
   lastError?: string | null;
+  // True when the user initiated work (new task, sendPrompt, resume) and
+  // we should play a sound when control returns. False when reconnecting
+  // to an already-running task to avoid spurious pings.
+  awaitingPing?: boolean;
 }
 
 interface TaskSessionStore {
@@ -55,6 +105,10 @@ interface TaskSessionStore {
 
 const cloudPollers = new Map<string, ReturnType<typeof setInterval>>();
 const connectAttempts = new Set<string>();
+// Guard against overlapping poll ticks — if a fetch takes >500ms, the next
+// interval fires while the previous is still running, causing both to read
+// the same processedLineCount and produce duplicate events.
+const pollInFlight = new Set<string>();
 // Tick counts per task run used to throttle backend task-run status polling.
 const pollTicks = new Map<string, number>();
 // How many S3 polling ticks between each backend task-run status check.
@@ -118,6 +172,7 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
               isPromptPending: true, // Agent is processing initial task
               logUrl: newLogUrl,
               processedLineCount: 0,
+              awaitingPing: true,
             },
           },
         }));
@@ -148,10 +203,9 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
         taskDescription,
       );
 
-      // Source of truth for "is the agent still working" is the backend run
-      // status, not a heuristic over the log shape. A completed/failed run
-      // must NOT show the "Thinking..." indicator even if the last log entry
-      // isn't a recognized agent-response type.
+      // Terminal runs (completed/failed) always clear isPromptPending.
+      // For non-terminal runs we infer idle vs working from the log shape
+      // because the backend has no "waiting_for_input" status.
       const backendStatus = task.latest_run?.status;
       const isTerminal =
         backendStatus === "completed" || backendStatus === "failed";
@@ -170,7 +224,9 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
             taskId,
             events: historicalEvents,
             status: "connected",
-            isPromptPending: !isTerminal,
+            isPromptPending: isTerminal
+              ? false
+              : !inferAgentIsIdle(rawEntries, notifications),
             logUrl: latestRunLogUrl,
             processedLineCount: rawEntries.length,
             terminalStatus,
@@ -239,6 +295,7 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
             events: [...current.events, userEvent],
             localUserEchoes: nextLocalEchoes,
             isPromptPending: true,
+            awaitingPing: true,
           },
         },
       };
@@ -345,6 +402,10 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
     logger.debug("Starting cloud S3 polling", { taskRunId });
 
     const pollS3 = async () => {
+      // Skip if previous tick is still in flight
+      if (pollInFlight.has(taskRunId)) return;
+      pollInFlight.add(taskRunId);
+
       try {
         const session = get().sessions[taskRunId];
         if (!session) {
@@ -352,12 +413,13 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
           return;
         }
 
-        // Periodically check the backend task-run status as a safety net
-        // for runs that never write anything to the S3 log (e.g. failed
-        // pre-agent-start). This prevents "stuck on Thinking..." forever.
+        // Check backend status periodically, or every tick while the agent
+        // is pending (so "Thinking..." clears promptly when the run finishes).
         const tick = (pollTicks.get(taskRunId) ?? 0) + 1;
         pollTicks.set(taskRunId, tick);
-        if (tick % STATUS_CHECK_TICK_INTERVAL === 0) {
+        const shouldCheckStatus =
+          session.isPromptPending || tick % STATUS_CHECK_TICK_INTERVAL === 0;
+        if (shouldCheckStatus) {
           try {
             const run = await getTaskRun(session.taskId, taskRunId);
             logger.debug("Status check", {
@@ -371,6 +433,8 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
                 status: run.status,
                 error: run.error_message,
               });
+              const shouldPing =
+                get().sessions[taskRunId]?.awaitingPing ?? false;
               set((state) => {
                 const current = state.sessions[taskRunId];
                 if (!current) return state;
@@ -382,10 +446,17 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
                       isPromptPending: false,
                       terminalStatus: run.status as "failed" | "completed",
                       lastError: run.error_message,
+                      awaitingPing: false,
                     },
                   },
                 };
               });
+              if (
+                shouldPing &&
+                usePreferencesStore.getState().pingsEnabled
+              ) {
+                playMeepSound().catch(() => {});
+              }
             }
           } catch (statusErr) {
             logger.warn("Failed to fetch task run status", {
@@ -409,7 +480,9 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
           });
           const currentHashes = new Set(session.processedHashes ?? []);
           const remainingLocalEchoes = new Set(session.localUserEchoes ?? []);
-
+          // Collect all new events in a batch, then do a single store
+          // update. This prevents N re-renders per poll tick.
+          const batchedEvents: SessionEvent[] = [];
           let receivedAgentMessage = false;
 
           for (const line of newLines) {
@@ -419,33 +492,34 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
                 ? new Date(entry.timestamp).getTime()
                 : Date.now();
 
-              const hash = `${entry.timestamp ?? ""}-${entry.notification?.method ?? ""}-${entry.direction ?? ""}`;
+              // Build a dedup hash specific enough to distinguish different
+              // events at the same timestamp. For session/update entries,
+              // include the update type, toolCallId, and status so that a
+              // tool_call and its tool_call_update don't collide.
+              const params = entry.notification?.params;
+              const suDetail = params?.update
+                ? `-${params.update.sessionUpdate ?? ""}-${params.update.toolCallId ?? ""}-${params.update.status ?? ""}`
+                : `-${entry.direction ?? ""}`;
+              const hash = `${entry.timestamp ?? ""}-${entry.notification?.method ?? ""}${suDetail}`;
               if (currentHashes.has(hash)) {
                 continue;
               }
               currentHashes.add(hash);
 
-              const acpEvent: SessionEvent = {
+              batchedEvents.push({
                 type: "acp_message",
                 direction: entry.direction ?? "agent",
                 ts,
                 message: entry.notification,
-              };
-              get()._handleEvent(taskRunId, acpEvent);
+              });
 
-              // Terminal notifications from the agent — when the run
-              // completes or errors, clear the pending indicator so the
-              // UI doesn't stay stuck on "Thinking...".
               if (
                 entry.type === "notification" &&
-                (entry.notification?.method === "_posthog/task_complete" ||
+                (entry.notification?.method === "_posthog/turn_complete" ||
+                  entry.notification?.method === "_posthog/task_complete" ||
                   entry.notification?.method === "_posthog/error")
               ) {
                 receivedAgentMessage = true;
-                logger.debug("Received terminal notification", {
-                  taskRunId,
-                  method: entry.notification.method,
-                });
               }
 
               if (
@@ -456,9 +530,6 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
                 const params = entry.notification.params as SessionNotification;
                 const sessionUpdate = params?.update?.sessionUpdate;
 
-                // If this is a user_message_chunk that matches a locally
-                // echoed prompt, consume the echo and skip — prevents the
-                // prompt from rendering twice.
                 if (sessionUpdate === "user_message_chunk") {
                   const text = params?.update?.content?.text;
                   if (text && remainingLocalEchoes.has(text)) {
@@ -467,48 +538,61 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
                   }
                 }
 
-                const sessionUpdateEvent: SessionEvent = {
+                batchedEvents.push({
                   type: "session_update",
                   ts,
                   notification: params,
-                };
-                get()._handleEvent(taskRunId, sessionUpdateEvent);
+                });
 
-                // Check if this is an agent message - means agent is
-                // responding. `agent_message` is the aggregated final
-                // message emitted by the server once a response completes
-                // (as opposed to streaming `agent_message_chunk` frames).
-                if (
-                  sessionUpdate === "agent_message_chunk" ||
-                  sessionUpdate === "agent_message" ||
-                  sessionUpdate === "agent_thought_chunk"
-                ) {
-                  receivedAgentMessage = true;
-                }
+                // Note: agent_message_chunk / agent_thought_chunk are NOT
+                // turn-completion signals — the agent streams them mid-turn.
+                // Turn completion is signalled by _posthog/turn_complete above.
               }
             } catch {
               // Skip invalid JSON
             }
           }
 
-          set((state) => ({
-            sessions: {
-              ...state.sessions,
-              [taskRunId]: {
-                ...state.sessions[taskRunId],
-                processedLineCount: lines.length,
-                processedHashes: currentHashes,
-                localUserEchoes: remainingLocalEchoes,
-                // Clear pending state when we receive agent response
-                isPromptPending: receivedAgentMessage
-                  ? false
-                  : (state.sessions[taskRunId]?.isPromptPending ?? false),
+          // Single store update for all new events
+          const shouldPingAfterBatch =
+            receivedAgentMessage &&
+            (get().sessions[taskRunId]?.awaitingPing ?? false);
+          set((state) => {
+            const current = state.sessions[taskRunId];
+            if (!current) return state;
+            return {
+              sessions: {
+                ...state.sessions,
+                [taskRunId]: {
+                  ...current,
+                  events:
+                    batchedEvents.length > 0
+                      ? [...current.events, ...batchedEvents]
+                      : current.events,
+                  processedLineCount: lines.length,
+                  processedHashes: currentHashes,
+                  localUserEchoes: remainingLocalEchoes,
+                  isPromptPending: receivedAgentMessage
+                    ? false
+                    : current.isPromptPending,
+                  awaitingPing: receivedAgentMessage
+                    ? false
+                    : current.awaitingPing,
+                },
               },
-            },
-          }));
+            };
+          });
+          if (
+            shouldPingAfterBatch &&
+            usePreferencesStore.getState().pingsEnabled
+          ) {
+            playMeepSound().catch(() => {});
+          }
         }
       } catch (err) {
         logger.warn("Cloud polling error", { error: err });
+      } finally {
+        pollInFlight.delete(taskRunId);
       }
     };
 
@@ -570,6 +654,7 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
             isPromptPending: true,
             processedLineCount: 0,
             processedHashes: new Set<string>(),
+            awaitingPing: true,
           },
         },
       };
