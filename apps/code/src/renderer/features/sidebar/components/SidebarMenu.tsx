@@ -139,11 +139,12 @@ function SidebarMenuComponent() {
     if (task) {
       const workspace = workspaces[taskId];
       const taskData = allSidebarTasks.find((t) => t.id === taskId);
-      const isInCommandCenter = commandCenterCells.includes(taskId);
-      const firstEmptyIndex = commandCenterCells.findIndex(
+      const isInCommandCenter = commandCenterCells.some(
+        (id) => id === taskId && taskMap.has(id),
+      );
+      const hasEmptyCommandCenterCell = commandCenterCells.some(
         (id) => id == null || !taskMap.has(id),
       );
-      const hasEmptyCommandCenterCell = firstEmptyIndex !== -1;
 
       showContextMenu(task, e, {
         worktreePath: workspace?.worktreePath ?? undefined,
@@ -155,8 +156,10 @@ function SidebarMenuComponent() {
         onTogglePin: () => togglePin(taskId),
         onArchivePrior: handleArchivePrior,
         onAddToCommandCenter: () => {
-          if (firstEmptyIndex !== -1) {
-            assignTaskToCommandCenter(firstEmptyIndex, taskId);
+          const cells = useCommandCenterStore.getState().cells;
+          const idx = cells.findIndex((id) => id == null || !taskMap.has(id));
+          if (idx !== -1) {
+            assignTaskToCommandCenter(idx, taskId);
             navigateToCommandCenter();
           } else {
             toast.info("Command center is full");
