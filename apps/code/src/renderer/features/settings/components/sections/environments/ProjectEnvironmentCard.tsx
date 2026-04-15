@@ -36,7 +36,7 @@ export function ProjectEnvironmentCard({
         borderRadius: "var(--radius-2)",
       }}
     >
-      <Flex align="center" justify="between" gap="2" px="2" py="2">
+      <Flex align="center" justify="between" gap="2" px="3" py="2">
         <Flex align="center" gap="2" style={{ minWidth: 0, flex: 1 }}>
           <FolderIcon
             size={14}
@@ -68,7 +68,7 @@ export function ProjectEnvironmentCard({
       {environments.length > 0 && (
         <Flex
           direction="column"
-          px="2"
+          px="3"
           style={{ borderTop: "1px solid var(--gray-4)" }}
         >
           {environments.map((env, index) => (
