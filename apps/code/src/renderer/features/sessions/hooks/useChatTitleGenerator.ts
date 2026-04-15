@@ -65,20 +65,12 @@ export function useChatTitleGenerator(taskId: string): void {
 
     const run = async () => {
       try {
-        if (getCachedTask(taskId)?.title_manually_set) {
-          log.debug("Skipping auto-title, user renamed task", { taskId });
-          return;
-        }
-
         const result = await generateTitleAndSummary(content);
         if (result) {
           const { title, summary } = result;
           if (title) {
             if (getCachedTask(taskId)?.title_manually_set) {
-              log.debug(
-                "Skipping auto-title, user renamed task during generation",
-                { taskId },
-              );
+              log.debug("Skipping auto-title, user renamed task", { taskId });
               return;
             }
             const client = await getAuthenticatedClient();
