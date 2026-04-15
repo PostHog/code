@@ -123,13 +123,24 @@ export function SessionView({
   const sessionId = taskId ?? "default";
   const setContext = useDraftStore((s) => s.actions.setContext);
   const requestFocus = useDraftStore((s) => s.actions.requestFocus);
-  setContext(sessionId, {
+
+  useEffect(() => {
+    setContext(sessionId, {
+      taskId,
+      repoPath,
+      cloudBranch,
+      disabled: !isRunning,
+      isLoading: !!isPromptPending,
+    });
+  }, [
+    setContext,
+    sessionId,
     taskId,
     repoPath,
     cloudBranch,
-    disabled: !isRunning,
-    isLoading: !!isPromptPending,
-  });
+    isRunning,
+    isPromptPending,
+  ]);
 
   useHotkeys(
     "shift+tab",
