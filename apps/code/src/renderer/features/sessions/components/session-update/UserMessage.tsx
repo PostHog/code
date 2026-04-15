@@ -29,6 +29,7 @@ interface UserMessageProps {
   timestamp?: number;
   sourceUrl?: string;
   attachments?: UserMessageAttachment[];
+  animate?: boolean;
 }
 
 function formatTimestamp(ts: number): string {
@@ -47,6 +48,7 @@ export function UserMessage({
   timestamp,
   sourceUrl,
   attachments = [],
+  animate = true,
 }: UserMessageProps) {
   const containsFileMentions = hasFileMentions(content);
   const showAttachmentChips = attachments.length > 0 && !containsFileMentions;
@@ -70,9 +72,9 @@ export function UserMessage({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
+      initial={animate ? { opacity: 0, y: 6 } : false}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: "easeOut" }}
+      transition={animate ? { duration: 0.25, ease: "easeOut" } : undefined}
     >
       <Box
         className="group/msg relative border-l-2 bg-gray-2 py-2 pl-3"

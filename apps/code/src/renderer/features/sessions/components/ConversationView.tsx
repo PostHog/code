@@ -73,6 +73,19 @@ export function ConversationView({
   }
   const firstUserMessageId = firstUserMessageIdRef.current;
 
+  const initialItemIdsRef = useRef<Set<string> | null>(null);
+  if (initialItemIdsRef.current === null) {
+    initialItemIdsRef.current = new Set(
+      conversationItems
+        .filter((i) => i.type === "user_message")
+        .map((i) => i.id),
+    );
+  }
+  const hasMountedRef = useRef(false);
+  useEffect(() => {
+    hasMountedRef.current = true;
+  }, []);
+
   const pendingPermissions = usePendingPermissionsForTask(taskId ?? "");
   const pendingPermissionsCount = pendingPermissions.size;
   const queuedMessages = useQueuedMessagesForTask(taskId);
@@ -148,6 +161,10 @@ export function ConversationView({
               content={item.content}
               attachments={item.attachments}
               timestamp={item.timestamp}
+              animate={
+                hasMountedRef.current &&
+                !initialItemIdsRef.current?.has(item.id)
+              }
               sourceUrl={
                 slackThreadUrl && item.id === firstUserMessageId
                   ? slackThreadUrl
