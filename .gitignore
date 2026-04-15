@@ -39,6 +39,8 @@ AGENTS.md
 MEMORY.md
 .claude-config/
 .agent-trigger
+.posthog-code/
+.claude/worktrees/
 
 # Testing
 playwright-results/
