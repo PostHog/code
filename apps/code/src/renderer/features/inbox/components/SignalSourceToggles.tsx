@@ -45,6 +45,24 @@ interface SignalSourceToggleCardProps {
   onSetup?: () => void;
   loading?: boolean;
   statusSection?: React.ReactNode;
+  syncStatus?: string | null;
+}
+
+function syncStatusLabel(status: string | null | undefined): {
+  text: string;
+  color: string;
+} | null {
+  if (!status) return null;
+  switch (status) {
+    case "running":
+      return { text: "Syncing…", color: "var(--amber-11)" };
+    case "completed":
+      return { text: "Synced", color: "var(--green-11)" };
+    case "failed":
+      return { text: "Sync failed", color: "var(--red-11)" };
+    default:
+      return null;
+  }
 }
 
 const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
@@ -59,7 +77,10 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
   onSetup,
   loading,
   statusSection,
+  syncStatus,
 }: SignalSourceToggleCardProps) {
+  const statusInfo = checked ? syncStatusLabel(syncStatus) : null;
+
   return (
     <Box
       p="4"
@@ -90,6 +111,11 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
                 {label}
               </Text>
               {labelSuffix}
+              {statusInfo && (
+                <Text size="1" style={{ color: statusInfo.color }}>
+                  {statusInfo.text}
+                </Text>
+              )}
             </Flex>
             <Text size="1" style={{ color: "var(--gray-11)" }}>
               {description}
@@ -274,7 +300,7 @@ interface SignalSourceTogglesProps {
   sourceStates?: Partial<
     Record<
       keyof SignalSourceValues,
-      { requiresSetup: boolean; loading: boolean }
+      { requiresSetup: boolean; loading: boolean; syncStatus?: string | null }
     >
   >;
   sessionAnalysisStatus?: SignalSourceConfig["status"];
@@ -322,38 +348,22 @@ export function SignalSourceToggles({
   return (
     <Flex direction="column" gap="2">
       <SignalSourceToggleCard
+        icon={<VideoIcon size={20} />}
+        label="PostHog Session Replay"
+        description="Analyze session recordings and event data for UX issues"
+        checked={value.session_replay}
+        onCheckedChange={toggleSessionReplay}
+        disabled={disabled}
+        syncStatus={sourceStates?.session_replay?.syncStatus}
+      />
+      <SignalSourceToggleCard
         icon={<BugIcon size={20} />}
         label="PostHog Error Tracking"
         description="Surface new issues, reopenings, and volume spikes"
         checked={value.error_tracking}
         onCheckedChange={toggleErrorTracking}
         disabled={disabled}
-      />
-      <SignalSourceToggleCard
-        icon={<VideoIcon size={20} />}
-        label="PostHog Session Replay"
-        labelSuffix={
-          <Badge
-            color="orange"
-            size="1"
-            variant="surface"
-            className="!py-0 !text-[9px] !leading-tight uppercase"
-          >
-            Alpha
-          </Badge>
-        }
-        description="Analyze session recordings and event data for UX issues"
-        checked={value.session_replay}
-        onCheckedChange={toggleSessionReplay}
-        disabled={disabled}
-        statusSection={
-          value.session_replay ? (
-            <SourceRunningIndicator
-              status={sessionAnalysisStatus ?? null}
-              message="Session analysis run in progress now…"
-            />
-          ) : undefined
-        }
+        syncStatus={sourceStates?.error_tracking?.syncStatus}
       />
       {evaluations && evaluationsUrl && onToggleEvaluation && (
         <EvaluationsSection
@@ -372,6 +382,7 @@ export function SignalSourceToggles({
         requiresSetup={sourceStates?.github?.requiresSetup}
         onSetup={setupGithub}
         loading={sourceStates?.github?.loading}
+        syncStatus={sourceStates?.github?.syncStatus}
       />
       <SignalSourceToggleCard
         icon={<KanbanIcon size={20} />}
@@ -383,6 +394,7 @@ export function SignalSourceToggles({
         requiresSetup={sourceStates?.linear?.requiresSetup}
         onSetup={setupLinear}
         loading={sourceStates?.linear?.loading}
+        syncStatus={sourceStates?.linear?.syncStatus}
       />
       <SignalSourceToggleCard
         icon={<TicketIcon size={20} />}
@@ -394,6 +406,7 @@ export function SignalSourceToggles({
         requiresSetup={sourceStates?.zendesk?.requiresSetup}
         onSetup={setupZendesk}
         loading={sourceStates?.zendesk?.loading}
+        syncStatus={sourceStates?.zendesk?.syncStatus}
       />
     </Flex>
   );

@@ -264,7 +264,6 @@ export interface SignalReport {
   total_weight: number;
   signal_count: number;
   signals_at_run?: number;
-  relevant_user_count: number | null;
   created_at: string;
   updated_at: string;
   artefact_count: number;
@@ -276,8 +275,6 @@ export interface SignalReport {
   already_addressed?: boolean | null;
   /** Whether the current user is a suggested reviewer for this report (server-annotated). */
   is_suggested_reviewer?: boolean;
-  /** Distinct source products contributing signals to this report (e.g. "session_replay", "error_tracking"). */
-  source_products?: string[];
 }
 
 export interface SignalReportArtefactContent {
@@ -455,4 +452,25 @@ export interface SignalReportsQueryParams {
   source_product?: string;
   /** Comma-separated PostHog user UUIDs — only returns reports with these suggested reviewers. */
   suggested_reviewers?: string;
+}
+
+export interface SignalReportTask {
+  id: string;
+  relationship: "repo_selection" | "research" | "implementation";
+  task_id: string;
+  created_at: string;
+}
+
+export interface SignalTeamConfig {
+  id: string;
+  default_autostart_priority: SignalReportPriority;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SignalUserAutonomyConfig {
+  id?: string;
+  autostart_priority: SignalReportPriority | null;
+  created_at?: string;
+  updated_at?: string;
 }

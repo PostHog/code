@@ -7,21 +7,41 @@ import {
   XCircleIcon,
 } from "@phosphor-icons/react";
 import { Flex, Spinner, Text, Tooltip } from "@radix-ui/themes";
-import type { SignalReportStatus, Task } from "@shared/types";
+import type { SignalReportStatus, SignalReportTask, Task } from "@shared/types";
 import { useState } from "react";
 
-function useReportTask(reportId: string) {
-  return useAuthenticatedQuery<Task | null>(
+const RELATIONSHIP_LABELS: Record<SignalReportTask["relationship"], string> = {
+  repo_selection: "Repository selection",
+  research: "Research task",
+  implementation: "Implementation task",
+};
+
+interface ReportTaskData {
+  task: Task;
+  relationship: SignalReportTask["relationship"];
+}
+
+function useReportTask(reportId: string, reportStatus: SignalReportStatus) {
+  const isActive =
+    reportStatus === "candidate" ||
+    reportStatus === "in_progress" ||
+    reportStatus === "pending_input";
+
+  return useAuthenticatedQuery<ReportTaskData | null>(
     ["inbox", "report-task", reportId],
     async (client) => {
-      const tasks = (await client.getTasks({
-        originProduct: "signal_report",
-      })) as unknown as Task[];
-      return tasks.find((t) => t.signal_report === reportId) ?? null;
+      const reportTasks = await client.getSignalReportTasks(reportId, {
+        relationship: "research",
+      });
+      const match = reportTasks[0];
+      if (!match) return null;
+      const task = await client.getTask(match.task_id);
+      return { task, relationship: match.relationship };
     },
     {
       enabled: !!reportId,
-      staleTime: 10_000,
+      staleTime: isActive ? 5_000 : 10_000,
+      refetchInterval: isActive ? 5_000 : false,
     },
   );
 }
@@ -80,8 +100,11 @@ export function ReportTaskLogs({
   reportId,
   reportStatus,
 }: ReportTaskLogsProps) {
-  const { data: task, isLoading } = useReportTask(reportId);
+  const { data, isLoading } = useReportTask(reportId, reportStatus);
   const [expanded, setExpanded] = useState(false);
+
+  const task = data?.task ?? null;
+  const relationship = data?.relationship ?? null;
 
   const showBar =
     isLoading ||
@@ -190,7 +213,7 @@ export function ReportTaskLogs({
         >
           <span style={{ color: status.color }}>{status.icon}</span>
           <Text size="1" weight="medium" className="flex-1 text-[12px]">
-            Research task
+            {relationship ? RELATIONSHIP_LABELS[relationship] : "Research task"}
           </Text>
           <Text
             size="1"

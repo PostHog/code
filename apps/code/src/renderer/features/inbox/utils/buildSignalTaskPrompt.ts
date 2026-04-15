@@ -23,7 +23,7 @@ export function buildSignalTaskPrompt({
     "",
     summary,
     "",
-    `**Signal strength:** ${report.signal_count} occurrences, ${report.relevant_user_count ?? 0} affected users`,
+    `**Signal strength:** ${report.signal_count} occurrences`,
   ];
 
   if (signals.length > 0) {
