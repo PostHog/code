@@ -26,7 +26,7 @@ interface ToolData {
 
 interface ParsedMessage {
   id: string;
-  type: "user" | "agent" | "tool";
+  type: "user" | "agent" | "thought" | "tool";
   content: string;
   toolData?: ToolData;
 }
@@ -49,7 +49,7 @@ function mapToolStatus(
 }
 
 function parseSessionNotification(notification: SessionNotification): {
-  type: "user" | "agent" | "tool" | "tool_update";
+  type: "user" | "agent" | "thought" | "tool" | "tool_update";
   content?: string;
   toolData?: ToolData;
 } | null {
@@ -67,6 +67,12 @@ function parseSessionNotification(notification: SessionNotification): {
             update.sessionUpdate === "user_message_chunk" ? "user" : "agent",
           content: update.content.text,
         };
+      }
+      return null;
+    }
+    case "agent_thought_chunk": {
+      if (update.content?.type === "text") {
+        return { type: "thought", content: update.content.text };
       }
       return null;
     }
@@ -101,7 +107,9 @@ function parseSessionNotification(notification: SessionNotification): {
 function processEvents(events: SessionEvent[]): ParsedMessage[] {
   const messages: ParsedMessage[] = [];
   let pendingAgentText = "";
+  let pendingThoughtText = "";
   let agentMessageCount = 0;
+  let thoughtMessageCount = 0;
   const toolMessages = new Map<string, ParsedMessage>();
 
   const flushAgentText = () => {
@@ -114,6 +122,21 @@ function processEvents(events: SessionEvent[]): ParsedMessage[] {
     pendingAgentText = "";
   };
 
+  const flushThoughtText = () => {
+    if (!pendingThoughtText) return;
+    messages.push({
+      id: `thought-${thoughtMessageCount++}`,
+      type: "thought",
+      content: pendingThoughtText,
+    });
+    pendingThoughtText = "";
+  };
+
+  const flushPending = () => {
+    flushThoughtText();
+    flushAgentText();
+  };
+
   for (const event of events) {
     if (event.type !== "session_update") continue;
 
@@ -122,7 +145,7 @@ function processEvents(events: SessionEvent[]): ParsedMessage[] {
 
     switch (parsed.type) {
       case "user":
-        flushAgentText();
+        flushPending();
         messages.push({
           id: `user-${event.ts}`,
           type: "user",
@@ -130,10 +153,15 @@ function processEvents(events: SessionEvent[]): ParsedMessage[] {
         });
         break;
       case "agent":
+        flushThoughtText();
         pendingAgentText += parsed.content ?? "";
         break;
-      case "tool":
+      case "thought":
         flushAgentText();
+        pendingThoughtText += parsed.content ?? "";
+        break;
+      case "tool":
+        flushPending();
         if (parsed.toolData) {
           const msg: ParsedMessage = {
             id: `tool-${parsed.toolData.toolCallId}`,
@@ -157,7 +185,7 @@ function processEvents(events: SessionEvent[]): ParsedMessage[] {
     }
   }
 
-  flushAgentText();
+  flushPending();
   return messages;
 }
 
@@ -178,6 +206,14 @@ export function TaskSessionView({
         case "agent":
           return (
             <AgentMessage content={item.content} onOpenTask={onOpenTask} />
+          );
+        case "thought":
+          return (
+            <AgentMessage
+              content=""
+              thinkingText={item.content}
+              onOpenTask={onOpenTask}
+            />
           );
         case "tool":
           return item.toolData ? (
