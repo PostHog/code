@@ -2,7 +2,6 @@ import {
   ArrowSquareOutIcon,
   BrainIcon,
   BugIcon,
-  CircleNotchIcon,
   GithubLogoIcon,
   KanbanIcon,
   TicketIcon,
@@ -19,10 +18,7 @@ import {
   Text,
   Tooltip,
 } from "@radix-ui/themes";
-import type {
-  Evaluation,
-  SignalSourceConfig,
-} from "@renderer/api/posthogClient";
+import type { Evaluation } from "@renderer/api/posthogClient";
 import { memo, useCallback } from "react";
 
 export interface SignalSourceValues {
@@ -269,30 +265,6 @@ export const EvaluationsSection = memo(function EvaluationsSection({
   );
 });
 
-function SourceRunningIndicator({
-  status,
-  message,
-}: {
-  status: SignalSourceConfig["status"];
-  message: string;
-}) {
-  if (status !== "running") {
-    return null;
-  }
-  return (
-    <Flex align="center" gap="2" mt="2">
-      <CircleNotchIcon
-        size={14}
-        className="animate-spin"
-        style={{ color: "var(--accent-11)" }}
-      />
-      <Text size="1" style={{ color: "var(--accent-11)" }}>
-        {message}
-      </Text>
-    </Flex>
-  );
-}
-
 interface SignalSourceTogglesProps {
   value: SignalSourceValues;
   onToggle: (source: keyof SignalSourceValues, enabled: boolean) => void;
@@ -303,7 +275,6 @@ interface SignalSourceTogglesProps {
       { requiresSetup: boolean; loading: boolean; syncStatus?: string | null }
     >
   >;
-  sessionAnalysisStatus?: SignalSourceConfig["status"];
   onSetup?: (source: keyof SignalSourceValues) => void;
   evaluations?: Evaluation[];
   evaluationsUrl?: string;
@@ -315,7 +286,6 @@ export function SignalSourceToggles({
   onToggle,
   disabled,
   sourceStates,
-  sessionAnalysisStatus,
   onSetup,
   evaluations,
   evaluationsUrl,

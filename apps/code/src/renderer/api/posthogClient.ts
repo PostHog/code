@@ -54,7 +54,6 @@ export interface SignalSourceConfig {
     | "issue_spiking";
   enabled: boolean;
   config: Record<string, unknown>;
-  status?: string | null;
   created_at: string;
   updated_at: string;
   status: "running" | "completed" | "failed" | null;

@@ -23,7 +23,6 @@ export function SignalSourcesSettings() {
   const {
     displayValues,
     sourceStates,
-    sessionAnalysisStatus,
     setupSource,
     isLoading,
     handleToggle,
