@@ -81,10 +81,6 @@ export function ConversationView({
           .map((i) => i.id),
       ),
   );
-  const [hasMounted, setHasMounted] = useState(false);
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
 
   const pendingPermissions = usePendingPermissionsForTask(taskId ?? "");
   const pendingPermissionsCount = pendingPermissions.size;
@@ -161,7 +157,7 @@ export function ConversationView({
               content={item.content}
               attachments={item.attachments}
               timestamp={item.timestamp}
-              animate={hasMounted && !initialItemIds.has(item.id)}
+              animate={!initialItemIds.has(item.id)}
               sourceUrl={
                 slackThreadUrl && item.id === firstUserMessageId
                   ? slackThreadUrl
@@ -208,14 +204,7 @@ export function ConversationView({
           );
       }
     },
-    [
-      repoPath,
-      taskId,
-      slackThreadUrl,
-      firstUserMessageId,
-      hasMounted,
-      initialItemIds,
-    ],
+    [repoPath, taskId, slackThreadUrl, firstUserMessageId, initialItemIds],
   );
 
   const getItemKey = useCallback((item: ConversationItem) => item.id, []);
