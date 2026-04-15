@@ -40,7 +40,7 @@ export function UpdateBanner() {
                 transition={{ duration: 0.15 }}
               >
                 <Box className="p-2">
-                  <div className="flex w-full items-center gap-3 rounded-lg bg-[var(--green-a3)] px-3 py-2.5 text-[13px] text-[var(--green-11)]">
+                  <div className="flex w-full items-center gap-3 rounded-md border border-[var(--green-a5)] bg-[var(--green-a3)] px-3 py-2.5 text-[13px] text-[var(--green-11)]">
                     <motion.div
                       className="shrink-0"
                       animate={{
@@ -65,7 +65,7 @@ export function UpdateBanner() {
                     </div>
                     <button
                       type="button"
-                      className="shrink-0 rounded bg-[var(--green-a4)] px-2 py-1 font-medium text-[12px] text-[var(--green-11)] transition-colors hover:bg-[var(--green-a5)]"
+                      className="shrink-0 rounded-md bg-[var(--green-a4)] px-2 py-1 font-medium text-[12px] text-[var(--green-11)] transition-colors hover:bg-[var(--green-a5)]"
                       onClick={() => void installUpdate()}
                     >
                       Restart
@@ -101,7 +101,7 @@ function BannerContent({
       className="p-2"
       {...props}
     >
-      <div className="flex items-center gap-2 rounded-lg bg-[var(--green-a3)] px-3 py-2.5 text-[13px] text-[var(--green-11)]">
+      <div className="flex items-center gap-2 rounded-md border border-[var(--green-a5)] bg-[var(--green-a3)] px-3 py-2.5 text-[13px] text-[var(--green-11)]">
         {children}
       </div>
     </motion.div>
