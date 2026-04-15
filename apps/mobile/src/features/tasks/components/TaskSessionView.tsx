@@ -27,6 +27,7 @@ import { QuestionCard } from "./QuestionCard";
 interface TaskSessionViewProps {
   events: SessionEvent[];
   isConnecting?: boolean;
+  isThinking?: boolean;
   onOpenTask?: (taskId: string) => void;
   onSendAnswer?: (answer: string) => void;
   contentContainerStyle?: object;
@@ -44,7 +45,7 @@ interface ToolData {
 
 interface ParsedMessage {
   id: string;
-  type: "user" | "agent" | "thought" | "tool" | "connecting";
+  type: "user" | "agent" | "thought" | "tool" | "connecting" | "thinking";
   content: string;
   toolData?: ToolData;
   children?: ParsedMessage[];
@@ -556,6 +557,31 @@ const CONNECTING_MESSAGE: ParsedMessage = {
   content: "",
 };
 
+const THINKING_MESSAGE: ParsedMessage = {
+  id: "__thinking__",
+  type: "thinking",
+  content: "",
+};
+
+function ThinkingIndicator() {
+  const [dots, setDots] = useState(1);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots((d) => (d % 3) + 1);
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <View className="px-4 py-2">
+      <Text className="text-[13px] text-gray-9 italic">
+        Thinking{".".repeat(dots)}
+      </Text>
+    </View>
+  );
+}
+
 function ConnectingIndicator() {
   const themeColors = useThemeColors();
   const [dots, setDots] = useState(1);
@@ -579,6 +605,7 @@ function ConnectingIndicator() {
 export function TaskSessionView({
   events,
   isConnecting,
+  isThinking,
   onOpenTask,
   onSendAnswer,
   contentContainerStyle,
@@ -591,12 +618,17 @@ export function TaskSessionView({
   // Inverted FlatList renders data[0] at the visual bottom.
   // Reverse so newest messages are at index 0 = bottom.
   const displayMessages = useMemo(() => {
+    const onlyUserMessages = messages.every((m) => m.type === "user");
     // Show "Connecting..." when pending and no agent activity yet
-    if (isConnecting && messages.every((m) => m.type === "user")) {
+    if (isConnecting && onlyUserMessages) {
       return [...messages, CONNECTING_MESSAGE];
     }
+    // Show "Thinking..." when agent is working (after initial connection)
+    if (isThinking && !onlyUserMessages) {
+      return [...messages, THINKING_MESSAGE];
+    }
     return messages;
-  }, [messages, isConnecting]);
+  }, [messages, isConnecting, isThinking]);
   const reversedMessages = useMemo(
     () => [...displayMessages].reverse(),
     [displayMessages],
@@ -639,6 +671,8 @@ export function TaskSessionView({
           return <CollapsedThought content={item.content} />;
         case "connecting":
           return <ConnectingIndicator />;
+        case "thinking":
+          return <ThinkingIndicator />;
         case "tool":
           if (!item.toolData) return null;
           if (isQuestionTool(item.toolData)) {

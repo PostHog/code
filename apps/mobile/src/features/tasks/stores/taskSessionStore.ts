@@ -82,6 +82,9 @@ export interface TaskSession {
   // we should play a sound when control returns. False when reconnecting
   // to an already-running task to avoid spurious pings.
   awaitingPing?: boolean;
+  // Messages queued while the agent is working. Auto-sent when control
+  // returns (isPromptPending flips to false).
+  messageQueue?: string[];
 }
 
 interface TaskSessionStore {
@@ -154,28 +157,12 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
             [newRunId]: {
               taskRunId: newRunId,
               taskId,
-              events: taskDescription
-                ? [
-                    {
-                      type: "session_update" as const,
-                      ts: Date.now(),
-                      notification: {
-                        update: {
-                          sessionUpdate: "user_message_chunk",
-                          content: { type: "text", text: taskDescription },
-                        },
-                      },
-                    },
-                  ]
-                : [],
+              events: [],
               status: "connected",
-              isPromptPending: true, // Agent is processing initial task
+              isPromptPending: true,
               logUrl: newLogUrl,
               processedLineCount: 0,
               awaitingPing: true,
-              localUserEchoes: taskDescription
-                ? new Set([taskDescription])
-                : undefined,
             },
           },
         }));
@@ -203,7 +190,6 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
       const historicalEvents = convertRawEntriesToEvents(
         rawEntries,
         notifications,
-        taskDescription,
       );
 
       // Terminal runs (completed/failed) always clear isPromptPending.
@@ -269,6 +255,25 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
     const session = get().getSessionForTask(taskId);
     if (!session) {
       throw new Error("No active session for task");
+    }
+
+    // If the agent is still working, queue the message for later.
+    if (session.isPromptPending) {
+      logger.debug("Agent busy, queuing message", { taskId });
+      set((state) => {
+        const current = state.sessions[session.taskRunId];
+        if (!current) return state;
+        return {
+          sessions: {
+            ...state.sessions,
+            [session.taskRunId]: {
+              ...current,
+              messageQueue: [...(current.messageQueue ?? []), prompt],
+            },
+          },
+        };
+      });
+      return;
     }
 
     // Local echo for immediate UX feedback — polling will re-surface the
@@ -450,6 +455,7 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
                       terminalStatus: run.status as "failed" | "completed",
                       lastError: run.error_message,
                       awaitingPing: false,
+                      messageQueue: undefined,
                     },
                   },
                 };
@@ -614,7 +620,10 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
                       : current.events,
                   processedLineCount: lines.length,
                   processedHashes: currentHashes,
-                  localUserEchoes: remainingLocalEchoes,
+                  localUserEchoes:
+                    remainingLocalEchoes.size > 0
+                      ? remainingLocalEchoes
+                      : undefined,
                   isPromptPending: nextIsPromptPending,
                   awaitingPing: nextAwaitingPing,
                 },
@@ -707,3 +716,49 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
     });
   },
 }));
+
+// Watch for isPromptPending transitions (true → false) and auto-send the
+// next queued message. Uses setTimeout so state is fully settled before
+// sendPrompt re-enters the store.
+const drainInFlight = new Set<string>();
+useTaskSessionStore.subscribe((state, prev) => {
+  for (const [runId, session] of Object.entries(state.sessions)) {
+    const prevSession = prev.sessions[runId];
+    if (
+      prevSession?.isPromptPending &&
+      !session.isPromptPending &&
+      !session.terminalStatus &&
+      session.messageQueue?.length &&
+      !drainInFlight.has(runId)
+    ) {
+      drainInFlight.add(runId);
+      setTimeout(async () => {
+        try {
+          const current = useTaskSessionStore.getState().sessions[runId];
+          if (!current?.messageQueue?.length) return;
+
+          const [next, ...rest] = current.messageQueue;
+          useTaskSessionStore.setState((s) => {
+            const sess = s.sessions[runId];
+            if (!sess) return s;
+            return {
+              sessions: {
+                ...s.sessions,
+                [runId]: {
+                  ...sess,
+                  messageQueue: rest.length > 0 ? rest : undefined,
+                },
+              },
+            };
+          });
+
+          await useTaskSessionStore.getState().sendPrompt(current.taskId, next);
+        } catch (err) {
+          logger.warn("Failed to send queued message", { runId, error: err });
+        } finally {
+          drainInFlight.delete(runId);
+        }
+      }, 50);
+    }
+  }
+});

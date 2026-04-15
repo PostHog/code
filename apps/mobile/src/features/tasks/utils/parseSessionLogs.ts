@@ -56,32 +56,9 @@ export function parseSessionLogs(content: string): ParsedSessionLogs {
 export function convertRawEntriesToEvents(
   rawEntries: StoredLogEntry[],
   notifications: SessionNotification[],
-  taskDescription?: string,
 ): SessionEvent[] {
   const events: SessionEvent[] = [];
   let notificationIdx = 0;
-
-  // Only prepend a synthetic user message when the logs don't already
-  // contain one (i.e. brand-new run with no log entries yet). Historical
-  // logs from S3 already include the original user_message_chunk.
-  const logsHaveUserMessage = notifications.some(
-    (n) => n.update?.sessionUpdate === "user_message_chunk",
-  );
-  if (taskDescription && !logsHaveUserMessage) {
-    const startTs = rawEntries[0]?.timestamp
-      ? new Date(rawEntries[0].timestamp).getTime() - 1
-      : Date.now();
-    events.push({
-      type: "session_update",
-      ts: startTs,
-      notification: {
-        update: {
-          sessionUpdate: "user_message_chunk",
-          content: { type: "text", text: taskDescription },
-        },
-      },
-    });
-  }
 
   for (const entry of rawEntries) {
     const ts = entry.timestamp

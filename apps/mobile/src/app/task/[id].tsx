@@ -133,8 +133,8 @@ export default function TaskDetailScreen() {
           presentation: "modal",
           headerRight: environment
             ? () => (
-                <View
-                  className={`rounded px-2 py-0.5 ${
+                <Pressable
+                  className={`rounded-full px-3 py-1 ${
                     environment === "cloud" ? "bg-accent-3" : "bg-gray-4"
                   }`}
                 >
@@ -147,7 +147,7 @@ export default function TaskDetailScreen() {
                   >
                     {environment === "cloud" ? "Cloud" : "Local"}
                   </Text>
-                </View>
+                </Pressable>
               )
             : undefined,
         }}
@@ -159,6 +159,7 @@ export default function TaskDetailScreen() {
         <TaskSessionView
           events={session?.events ?? []}
           isConnecting={session?.isPromptPending ?? false}
+          isThinking={session?.isPromptPending ?? false}
           onOpenTask={handleOpenTask}
           onSendAnswer={handleSendPrompt}
           contentContainerStyle={{
@@ -183,6 +184,7 @@ export default function TaskDetailScreen() {
           <Composer
             onSend={handleSendPrompt}
             isUserTurn={!(session?.isPromptPending ?? true)}
+            queuedCount={session?.messageQueue?.length ?? 0}
           />
         </Animated.View>
       </Animated.View>
