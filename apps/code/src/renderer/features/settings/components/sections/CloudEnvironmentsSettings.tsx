@@ -134,10 +134,6 @@ function NetworkAccessSelect({
     NETWORK_ACCESS_OPTIONS.find((o) => o.value === value) ??
     NETWORK_ACCESS_OPTIONS[0];
 
-  if (!current) {
-    return null;
-  }
-
   return (
     <div style={{ position: "relative" }}>
       <button
