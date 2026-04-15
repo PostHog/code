@@ -31,6 +31,7 @@ interface SignalsToolbarProps {
   filteredCount: number;
   isSearchActive: boolean;
   livePolling?: boolean;
+  isFetching?: boolean;
   readyCount?: number;
   processingCount?: number;
   pipelinePausedUntil?: string | null;
@@ -71,13 +72,14 @@ function formatPauseRemaining(pausedUntil: string): string {
   return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
 }
 
-const inboxLivePollingTooltip = `Inbox is focused – syncing reports every ${(INBOX_REFETCH_INTERVAL_MS / 1000).toFixed(1)} s…`;
+const inboxLivePollingTooltip = `Inbox is focused – syncing reports every ${Math.round(INBOX_REFETCH_INTERVAL_MS / 1000)}s…`;
 
 export function SignalsToolbar({
   totalCount,
   filteredCount,
   isSearchActive,
   livePolling = false,
+  isFetching = false,
   readyCount,
   processingCount = 0,
   pipelinePausedUntil,
@@ -179,7 +181,11 @@ export function SignalsToolbar({
                     style={{
                       backgroundColor: "var(--red-9)",
                       boxShadow: "0 0 8px var(--red-9)",
-                      animation: "inboxToolbarPulse 1.4s ease-in-out infinite",
+                      opacity: isFetching ? 1 : 0.55,
+                      transform: isFetching ? "scale(1)" : "scale(0.92)",
+                      transition: isFetching
+                        ? "opacity 0.1s ease-out, transform 0.1s ease-out"
+                        : "opacity 0.4s ease-in, transform 0.4s ease-in",
                     }}
                     aria-label="Live inbox refresh active"
                   />

@@ -897,17 +897,6 @@ button,
   transition: none;
 }
 
-/* Inbox toolbar polling indicator pulse */
-@keyframes inboxToolbarPulse {
-  0%,
-  100% {
-    opacity: 0.35;
-    transform: scale(0.92);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1);
-  }
 }
 
 /* Inbox warming-up ellipsis wave */
