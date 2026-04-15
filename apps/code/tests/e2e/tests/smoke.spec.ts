@@ -20,6 +20,12 @@ test.describe("Smoke Tests", () => {
       .waitFor({ state: "hidden", timeout: 30000 })
       .catch(() => {});
 
+    const hasOnboarding = await window
+      .locator("text=Welcome to PostHog Code")
+      .first()
+      .isVisible()
+      .catch(() => false);
+
     const hasAuthScreen = await window
       .locator("text=Sign in")
       .first()
@@ -38,7 +44,8 @@ test.describe("Smoke Tests", () => {
       .isVisible()
       .catch(() => false);
 
-    const isValidBootState = hasAuthScreen || hasMainLayout || hasSettings;
+    const isValidBootState =
+      hasOnboarding || hasAuthScreen || hasMainLayout || hasSettings;
     expect(isValidBootState).toBe(true);
   });
 
