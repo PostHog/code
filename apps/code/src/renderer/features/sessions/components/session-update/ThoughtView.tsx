@@ -26,7 +26,7 @@ export const ThoughtView = memo(function ThoughtView({
     : contentLines.slice(0, COLLAPSED_LINE_COUNT).join("\n");
 
   return (
-    <Box>
+    <Box className="min-w-0 pl-3">
       <button
         type="button"
         onClick={() => hasContent && setIsExpanded((v) => !v)}

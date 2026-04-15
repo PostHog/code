@@ -55,8 +55,8 @@ export function ExecuteToolView({
       className={`group py-0.5 ${isExpandable ? "cursor-pointer" : ""}`}
       onClick={handleClick}
     >
-      <Flex gap="2" className="min-w-0">
-        <Box className="shrink-0 pt-px">
+      <Flex align="center" gap="2" className="min-w-0">
+        <Box className="shrink-0">
           <ExpandableIcon
             icon={Terminal}
             isLoading={isLoading}
@@ -65,9 +65,11 @@ export function ExecuteToolView({
           />
         </Box>
         <Flex align="center" gap="2" wrap="wrap" className="min-w-0">
-          {description && <ToolTitle>{description}</ToolTitle>}
+          {description && (
+            <ToolTitle className="min-w-0 truncate">{description}</ToolTitle>
+          )}
           {command && (
-            <ToolTitle className="min-w-0 truncate">
+            <ToolTitle className="shrink-0 truncate">
               <span className="font-mono text-accent-11" title={command}>
                 {truncateText(compactHomePath(command), MAX_COMMAND_LENGTH)}
               </span>

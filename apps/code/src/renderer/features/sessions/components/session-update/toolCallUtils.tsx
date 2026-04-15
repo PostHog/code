@@ -210,7 +210,7 @@ export function ExpandableIcon({
     return <IconComponent size={ICON_SIZE} className={ICON_CLASS} />;
   }
   return (
-    <>
+    <span className="relative inline-flex size-[12px] shrink-0">
       <IconComponent
         size={ICON_SIZE}
         className={`${ICON_CLASS} group-hover:hidden`}
@@ -218,15 +218,15 @@ export function ExpandableIcon({
       {isExpanded ? (
         <Minus
           size={ICON_SIZE}
-          className={`hidden ${ICON_CLASS} group-hover:block`}
+          className={`absolute inset-0 hidden ${ICON_CLASS} group-hover:block`}
         />
       ) : (
         <Plus
           size={ICON_SIZE}
-          className={`hidden ${ICON_CLASS} group-hover:block`}
+          className={`absolute inset-0 hidden ${ICON_CLASS} group-hover:block`}
         />
       )}
-    </>
+    </span>
   );
 }
 

@@ -98,8 +98,8 @@ export function ToolCallView({
       className={`group py-0.5 ${isExpandable ? "cursor-pointer" : ""}`}
       onClick={handleClick}
     >
-      <Flex gap="2" className="min-w-0">
-        <Box className="shrink-0 pt-px">
+      <Flex align="center" gap="2" className="min-w-0">
+        <Box className="shrink-0">
           <ExpandableIcon
             icon={KindIcon}
             isLoading={isLoading}
@@ -108,9 +108,9 @@ export function ToolCallView({
           />
         </Box>
         <Flex align="center" gap="1" wrap="wrap" className="min-w-0">
-          <ToolTitle>{displayText}</ToolTitle>
+          <ToolTitle className="min-w-0 truncate">{displayText}</ToolTitle>
           {inputPreview && (
-            <ToolTitle>
+            <ToolTitle className="shrink-0">
               <span className="font-mono text-accent-11">{inputPreview}</span>
             </ToolTitle>
           )}
