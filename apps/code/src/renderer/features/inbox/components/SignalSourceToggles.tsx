@@ -9,6 +9,7 @@ import {
   VideoIcon,
 } from "@phosphor-icons/react";
 import {
+  Badge,
   Box,
   Button,
   Flex,
@@ -16,6 +17,7 @@ import {
   Spinner,
   Switch,
   Text,
+  Tooltip,
 } from "@radix-ui/themes";
 import type {
   Evaluation,
@@ -99,13 +101,12 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
         ) : requiresSetup ? (
           <Button
             size="1"
-            variant="soft"
             onClick={(e) => {
               e.stopPropagation();
               onSetup?.();
             }}
           >
-            Connect
+            Enable
           </Button>
         ) : (
           <Switch
@@ -191,16 +192,16 @@ export const EvaluationsSection = memo(function EvaluationsSection({
               >
                 PostHog LLM Analytics
               </Text>
-              <span
-                className="shrink-0 rounded-sm px-1 py-px text-[9px] uppercase tracking-wider"
-                style={{
-                  color: "var(--blue-11)",
-                  backgroundColor: "var(--blue-3)",
-                  border: "1px solid var(--blue-6)",
-                }}
-              >
-                Internal
-              </span>
+              <Tooltip content="This is only visible to staff users of PostHog">
+                <Badge
+                  color="blue"
+                  size="1"
+                  variant="surface"
+                  className="!py-0 !text-[9px] !leading-tight uppercase"
+                >
+                  Internal
+                </Badge>
+              </Tooltip>
             </Flex>
             <Text size="1" style={{ color: "var(--gray-11)" }}>
               Ongoing evaluation of how your AI features are performing based on
@@ -332,16 +333,14 @@ export function SignalSourceToggles({
         icon={<VideoIcon size={20} />}
         label="PostHog Session Replay"
         labelSuffix={
-          <span
-            className="shrink-0 rounded-sm px-1 py-px text-[9px] uppercase tracking-wider"
-            style={{
-              color: "var(--orange-11)",
-              backgroundColor: "var(--orange-3)",
-              border: "1px solid var(--orange-6)",
-            }}
+          <Badge
+            color="orange"
+            size="1"
+            variant="surface"
+            className="!py-0 !text-[9px] !leading-tight uppercase"
           >
             Alpha
-          </span>
+          </Badge>
         }
         description="Analyze session recordings and event data for UX issues"
         checked={value.session_replay}

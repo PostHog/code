@@ -897,8 +897,6 @@ button,
   transition: none;
 }
 
-}
-
 /* Inbox warming-up ellipsis wave */
 @keyframes inboxEllipsisWave {
   0%,
