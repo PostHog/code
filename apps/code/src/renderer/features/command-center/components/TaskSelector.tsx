@@ -74,7 +74,7 @@ export function TaskSelector({
             ))}
             {hasMore && (
               <div className="combobox-label">
-                {moreCount} more {moreCount === 1 ? "task" : "tasks"} — type to
+                {moreCount} more {moreCount === 1 ? "task" : "tasks"}; type to
                 filter
               </div>
             )}

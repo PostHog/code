@@ -140,7 +140,9 @@ function SidebarMenuComponent() {
       const workspace = workspaces[taskId];
       const taskData = allSidebarTasks.find((t) => t.id === taskId);
       const isInCommandCenter = commandCenterCells.includes(taskId);
-      const firstEmptyIndex = commandCenterCells.indexOf(null);
+      const firstEmptyIndex = commandCenterCells.findIndex(
+        (id) => id == null || !taskMap.has(id),
+      );
       const hasEmptyCommandCenterCell = firstEmptyIndex !== -1;
 
       showContextMenu(task, e, {
@@ -156,6 +158,8 @@ function SidebarMenuComponent() {
           if (firstEmptyIndex !== -1) {
             assignTaskToCommandCenter(firstEmptyIndex, taskId);
             navigateToCommandCenter();
+          } else {
+            toast.info("Command center is full");
           }
         },
       });
