@@ -3,6 +3,7 @@ import {
   BrainIcon,
   BugIcon,
   ChatsIcon,
+  CircleNotchIcon,
   GithubLogoIcon,
   KanbanIcon,
   TicketIcon,
@@ -19,7 +20,10 @@ import {
   Text,
   Tooltip,
 } from "@radix-ui/themes";
-import type { Evaluation } from "@renderer/api/posthogClient";
+import type {
+  Evaluation,
+  SignalSourceConfig,
+} from "@renderer/api/posthogClient";
 import { memo, useCallback } from "react";
 
 export interface SignalSourceValues {
@@ -267,6 +271,30 @@ export const EvaluationsSection = memo(function EvaluationsSection({
   );
 });
 
+function SourceRunningIndicator({
+  status,
+  message,
+}: {
+  status: SignalSourceConfig["status"];
+  message: string;
+}) {
+  if (status !== "running") {
+    return null;
+  }
+  return (
+    <Flex align="center" gap="2" mt="2">
+      <CircleNotchIcon
+        size={14}
+        className="animate-spin"
+        style={{ color: "var(--accent-11)" }}
+      />
+      <Text size="1" style={{ color: "var(--accent-11)" }}>
+        {message}
+      </Text>
+    </Flex>
+  );
+}
+
 interface SignalSourceTogglesProps {
   value: SignalSourceValues;
   onToggle: (source: keyof SignalSourceValues, enabled: boolean) => void;
@@ -277,6 +305,7 @@ interface SignalSourceTogglesProps {
       { requiresSetup: boolean; loading: boolean; syncStatus?: string | null }
     >
   >;
+  sessionAnalysisStatus?: SignalSourceConfig["status"];
   onSetup?: (source: keyof SignalSourceValues) => void;
   evaluations?: Evaluation[];
   evaluationsUrl?: string;
@@ -288,6 +317,7 @@ export function SignalSourceToggles({
   onToggle,
   disabled,
   sourceStates,
+  sessionAnalysisStatus,
   onSetup,
   evaluations,
   evaluationsUrl,
@@ -324,15 +354,6 @@ export function SignalSourceToggles({
   return (
     <Flex direction="column" gap="2">
       <SignalSourceToggleCard
-        icon={<VideoIcon size={20} />}
-        label="PostHog Session Replay"
-        description="Analyze session recordings and event data for UX issues"
-        checked={value.session_replay}
-        onCheckedChange={toggleSessionReplay}
-        disabled={disabled}
-        syncStatus={sourceStates?.session_replay?.syncStatus}
-      />
-      <SignalSourceToggleCard
         icon={<BugIcon size={20} />}
         label="PostHog Error Tracking"
         description="Surface new issues, reopenings, and volume spikes"
@@ -348,6 +369,32 @@ export function SignalSourceToggles({
         checked={value.conversations}
         onCheckedChange={toggleConversations}
         disabled={disabled}
+      />
+      <SignalSourceToggleCard
+        icon={<VideoIcon size={20} />}
+        label="PostHog Session Replay"
+        labelSuffix={
+          <Badge
+            color="orange"
+            size="1"
+            variant="surface"
+            className="!py-0 !text-[9px] !leading-tight uppercase"
+          >
+            Alpha
+          </Badge>
+        }
+        description="Analyze session recordings and event data for UX issues"
+        checked={value.session_replay}
+        onCheckedChange={toggleSessionReplay}
+        disabled={disabled}
+        statusSection={
+          value.session_replay ? (
+            <SourceRunningIndicator
+              status={sessionAnalysisStatus ?? null}
+              message="Session analysis run in progress now…"
+            />
+          ) : undefined
+        }
       />
       {evaluations && evaluationsUrl && onToggleEvaluation && (
         <EvaluationsSection
