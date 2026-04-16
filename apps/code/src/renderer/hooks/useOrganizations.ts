@@ -1,6 +1,5 @@
 import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useCurrentUser } from "@features/auth/hooks/authQueries";
-import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { useMemo } from "react";
@@ -28,7 +27,6 @@ async function fetchOrgs(client: PostHogAPIClient): Promise<OrgInfo[]> {
 }
 
 export function useOrganizations() {
-  const selectedOrgId = useOnboardingStore((state) => state.selectedOrgId);
   const client = useOptionalAuthenticatedClient();
   const { data: currentUser } = useCurrentUser({ client });
 
@@ -43,17 +41,15 @@ export function useOrganizations() {
   );
 
   const effectiveSelectedOrgId = useMemo(() => {
-    if (selectedOrgId) return selectedOrgId;
     if (!orgs?.length) return null;
 
-    // Default to the user's currently active org in PostHog
     const userCurrentOrgId = currentUser?.organization?.id;
     if (userCurrentOrgId && orgs.some((org) => org.id === userCurrentOrgId)) {
       return userCurrentOrgId;
     }
 
     return orgs[0].id;
-  }, [currentUser?.organization?.id, orgs, selectedOrgId]);
+  }, [currentUser?.organization?.id, orgs]);
 
   const sortedOrgs = useMemo(() => {
     return [...(orgs ?? [])].sort((a, b) => a.name.localeCompare(b.name));

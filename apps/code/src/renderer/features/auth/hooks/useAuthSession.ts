@@ -9,6 +9,7 @@ import {
 } from "@features/auth/hooks/authQueries";
 import { useAuthUiStateStore } from "@features/auth/stores/authUiStateStore";
 import { useSeatStore } from "@features/billing/stores/seatStore";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { trpcClient } from "@renderer/trpc/client";
 import { identifyUser, resetUser } from "@utils/analytics";
 import { logger } from "@utils/logger";
@@ -81,15 +82,20 @@ function useAuthAnalyticsIdentity(
   }, [authIdentity, authState.cloudRegion, authState.projectId, currentUser]);
 }
 
-function useSeatSync(authIdentity: string | null): void {
+function useSeatSync(
+  authIdentity: string | null,
+  billingEnabled: boolean,
+): void {
   useEffect(() => {
     if (!authIdentity) {
       useSeatStore.getState().reset();
       return;
     }
 
-    void useSeatStore.getState().fetchSeat();
-  }, [authIdentity]);
+    void useSeatStore.getState().fetchSeat({
+      autoProvision: billingEnabled,
+    });
+  }, [authIdentity, billingEnabled]);
 }
 
 export function useAuthSession() {
@@ -98,10 +104,12 @@ export function useAuthSession() {
   const { data: currentUser } = useCurrentUser({ client });
   const authIdentity = getAuthIdentity(authState);
 
+  const billingEnabled = useFeatureFlag("posthog-code-billing");
+
   useAuthSubscriptionSync();
   useAuthIdentitySync(authIdentity, authState.cloudRegion);
   useAuthAnalyticsIdentity(authIdentity, authState, currentUser);
-  useSeatSync(authIdentity);
+  useSeatSync(authIdentity, billingEnabled);
 
   return {
     authState,

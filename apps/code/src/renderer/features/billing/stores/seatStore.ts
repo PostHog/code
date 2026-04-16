@@ -15,7 +15,7 @@ interface SeatStoreState {
 }
 
 interface SeatStoreActions {
-  fetchSeat: () => Promise<void>;
+  fetchSeat: (options?: { autoProvision?: boolean }) => Promise<void>;
   provisionFreeSeat: () => Promise<void>;
   upgradeToPro: () => Promise<void>;
   cancelSeat: () => Promise<void>;
@@ -116,12 +116,12 @@ const initialState: SeatStoreState = {
 export const useSeatStore = create<SeatStore>()((set) => ({
   ...initialState,
 
-  fetchSeat: async () => {
+  fetchSeat: async (options?: { autoProvision?: boolean }) => {
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
       const client = await getClient();
       let seat = await client.getMySeat();
-      if (!seat) {
+      if (!seat && options?.autoProvision) {
         log.info("No seat found, auto-provisioning free plan");
         seat = await client.createSeat(PLAN_FREE);
       }
