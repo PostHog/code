@@ -16,12 +16,10 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { Tooltip } from "@renderer/components/ui/Tooltip";
-import { trpcClient } from "@renderer/trpc/client";
-import { logger } from "@utils/logger";
+import { useTRPC } from "@renderer/trpc";
+import { useQuery } from "@tanstack/react-query";
 import { getPostHogUrl } from "@utils/urls";
-import { useEffect, useState } from "react";
-
-const log = logger.scope("plan-usage");
+import { useState } from "react";
 
 interface UsageBucket {
   used_percent: number;
@@ -29,43 +27,23 @@ interface UsageBucket {
   exceeded: boolean;
 }
 
-interface UsageData {
-  sustained: UsageBucket;
-  burst: UsageBucket;
-  is_rate_limited: boolean;
-}
-
 function formatResetTime(seconds: number): string {
+  if (seconds < 3600) return "less than 1 hour";
+  if (seconds < 86400) {
+    const hours = Math.ceil(seconds / 3600);
+    return hours === 1 ? "1 hour" : `${hours} hours`;
+  }
   const days = Math.ceil(seconds / 86400);
   if (days === 1) return "1 day";
   return `${days} days`;
 }
 
 function useUsage() {
-  const [usage, setUsage] = useState<UsageData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    trpcClient.llmGateway.usage
-      .query()
-      .then((data) => {
-        if (!cancelled) setUsage(data);
-      })
-      .catch((error) => {
-        log.warn("Failed to fetch usage", error);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return { usage, isLoading };
+  const trpc = useTRPC();
+  const { data: usage, isLoading } = useQuery(
+    trpc.llmGateway.usage.queryOptions(),
+  );
+  return { usage: usage ?? null, isLoading };
 }
 
 export function PlanUsageSettings() {

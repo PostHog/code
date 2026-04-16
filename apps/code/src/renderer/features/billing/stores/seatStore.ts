@@ -1,4 +1,8 @@
 import { getAuthenticatedClient } from "@features/auth/hooks/authClient";
+import {
+  SeatPaymentFailedError,
+  SeatSubscriptionRequiredError,
+} from "@renderer/api/posthogClient";
 import type { SeatData } from "@shared/types/seat";
 import { PLAN_FREE, PLAN_PRO } from "@shared/types/seat";
 import { logger } from "@utils/logger";
@@ -34,25 +38,6 @@ async function getClient() {
   return client;
 }
 
-function parseFetcherError(
-  error: Error,
-): { status: number; body: Record<string, unknown> } | null {
-  const match = error.message.match(/\[(\d+)\]\s*(.*)/);
-  if (!match) return null;
-  try {
-    return {
-      status: Number.parseInt(match[1], 10),
-      body: JSON.parse(match[2]) as Record<string, unknown>,
-    };
-  } catch {
-    return { status: Number.parseInt(match[1], 10), body: {} };
-  }
-}
-
-function getBillingUrl(): string {
-  return getPostHogUrl("/organization/billing");
-}
-
 function handleSeatError(
   error: unknown,
   set: (state: Partial<SeatStoreState>) => void,
@@ -63,43 +48,18 @@ function handleSeatError(
     return;
   }
 
-  const billingUrl = getBillingUrl();
-
-  if (
-    "redirectUrl" in error &&
-    typeof (error as { redirectUrl: unknown }).redirectUrl === "string"
-  ) {
+  if (error instanceof SeatSubscriptionRequiredError) {
     set({
       isLoading: false,
       error: "Billing subscription required",
-      redirectUrl: billingUrl,
+      redirectUrl: getPostHogUrl("/organization/billing"),
     });
     return;
   }
 
-  const parsed = parseFetcherError(error);
-  if (parsed) {
-    if (parsed.status === 400 && typeof parsed.body.redirect_url === "string") {
-      set({
-        isLoading: false,
-        error:
-          typeof parsed.body.error === "string"
-            ? parsed.body.error
-            : "Billing subscription required",
-        redirectUrl: billingUrl,
-      });
-      return;
-    }
-    if (parsed.status === 402) {
-      set({
-        isLoading: false,
-        error:
-          typeof parsed.body.error === "string"
-            ? parsed.body.error
-            : "Payment failed",
-      });
-      return;
-    }
+  if (error instanceof SeatPaymentFailedError) {
+    set({ isLoading: false, error: error.message });
+    return;
   }
 
   log.error("Seat operation failed", error);
@@ -132,28 +92,24 @@ export const useSeatStore = create<SeatStore>()((set) => ({
   },
 
   provisionFreeSeat: async () => {
-    log.info("[seat] provisionFreeSeat called");
+    log.info("Provisioning free seat");
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
       const client = await getClient();
       const existing = await client.getMySeat();
       if (existing) {
-        log.info("[seat] seat already exists on server", {
+        log.info("Seat already exists on server", {
           plan: existing.plan_key,
           status: existing.status,
         });
         set({ seat: existing, isLoading: false });
         return;
       }
-      log.info("[seat] creating free seat");
       const seat = await client.createSeat(PLAN_FREE);
-      log.info("[seat] free seat created", {
-        id: seat.id,
-        plan: seat.plan_key,
-      });
+      log.info("Free seat created", { id: seat.id, plan: seat.plan_key });
       set({ seat, isLoading: false });
     } catch (error) {
-      log.error("[seat] provisionFreeSeat failed", error);
+      log.error("provisionFreeSeat failed", error);
       handleSeatError(error, set);
     }
   },

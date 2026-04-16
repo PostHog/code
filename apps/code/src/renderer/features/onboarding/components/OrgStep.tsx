@@ -18,6 +18,7 @@ import {
   Text,
 } from "@radix-ui/themes";
 import codeLogo from "@renderer/assets/images/code.svg";
+import { trpcClient } from "@renderer/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { AnimatePresence, motion } from "framer-motion";
@@ -81,6 +82,16 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
       } catch {
         // Error handled by onError callback
       }
+    }
+
+    if (
+      !hasOrgChanged &&
+      selectedProjectId &&
+      selectedProjectId !== currentProjectId
+    ) {
+      await trpcClient.auth.selectProject.mutate({
+        projectId: selectedProjectId,
+      });
     }
 
     onNext();

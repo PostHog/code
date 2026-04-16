@@ -193,7 +193,7 @@ async function syncAuthState(): Promise<void> {
   await inFlightAuthSync;
 }
 
-export const useAuthStore = create<AuthStoreState>((set, _get) => ({
+export const useAuthStore = create<AuthStoreState>((set) => ({
   cloudRegion: null,
   staleCloudRegion: null,
 

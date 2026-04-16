@@ -1,3 +1,8 @@
+import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
+import {
+  useAuthStateValue,
+  useCurrentUser,
+} from "@features/auth/hooks/authQueries";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import {
   type SettingsCategory,
@@ -24,7 +29,6 @@ import {
   Wrench,
 } from "@phosphor-icons/react";
 import { Avatar, Box, Flex, ScrollArea, Text } from "@radix-ui/themes";
-import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { AdvancedSettings } from "./sections/AdvancedSettings";
@@ -118,7 +122,11 @@ const CATEGORY_COMPONENTS: Record<SettingsCategory, React.ComponentType> = {
 export function SettingsDialog() {
   const { isOpen, activeCategory, close, setCategory } =
     useSettingsDialogStore();
-  const { client, isAuthenticated } = useAuthStore();
+  const isAuthenticated = useAuthStateValue(
+    (state) => state.status === "authenticated",
+  );
+  const client = useOptionalAuthenticatedClient();
+  const { data: user } = useCurrentUser({ client });
   const { seat, planLabel } = useSeat();
   const billingEnabled = useFeatureFlag("posthog-code-billing");
 
@@ -129,15 +137,6 @@ export function SettingsDialog() {
         : SIDEBAR_ITEMS.filter((item) => item.id !== "plan-usage"),
     [billingEnabled],
   );
-
-  const { data: user } = useQuery({
-    queryKey: ["currentUser"],
-    queryFn: async () => {
-      if (!client) return null;
-      return await client.getCurrentUser();
-    },
-    enabled: !!client && isAuthenticated,
-  });
 
   useHotkeys("escape", close, {
     enabled: isOpen,

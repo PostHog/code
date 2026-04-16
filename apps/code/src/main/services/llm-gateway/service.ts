@@ -7,13 +7,14 @@ import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
 import type { AuthService } from "../auth/service";
-import type {
-  AnthropicErrorResponse,
-  AnthropicMessagesRequest,
-  AnthropicMessagesResponse,
-  LlmMessage,
-  PromptOutput,
-  UsageOutput,
+import {
+  type AnthropicErrorResponse,
+  type AnthropicMessagesRequest,
+  type AnthropicMessagesResponse,
+  type LlmMessage,
+  type PromptOutput,
+  type UsageOutput,
+  usageOutput,
 } from "./schemas";
 
 const log = logger.scope("llm-gateway");
@@ -159,6 +160,6 @@ export class LlmGatewayService {
       );
     }
 
-    return (await response.json()) as UsageOutput;
+    return usageOutput.parse(await response.json());
   }
 }

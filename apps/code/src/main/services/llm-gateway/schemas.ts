@@ -71,4 +71,5 @@ export const usageOutput = z.object({
   is_rate_limited: z.boolean(),
 });
 
+export type UsageBucket = z.infer<typeof usageBucketSchema>;
 export type UsageOutput = z.infer<typeof usageOutput>;
