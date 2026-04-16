@@ -1,3 +1,4 @@
+import * as Haptics from "expo-haptics";
 import { Archive, ArrowCounterClockwise } from "phosphor-react-native";
 import { useEffect, useRef } from "react";
 import {
@@ -41,7 +42,7 @@ export function SwipeableTaskItem({
   useEffect(() => {
     translateX.setValue(0);
     actionTriggeredRef.current = false;
-  }, [isArchived, translateX]);
+  }, [translateX]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -63,20 +64,18 @@ export function SwipeableTaskItem({
         actionTriggeredRef.current = false;
         onSwipeStart?.();
       },
-      onPanResponderMove: Animated.event(
-        [null, { dx: translateX }],
-        {
-          useNativeDriver: false,
-          listener: (_: unknown, gesture: { dx: number }) => {
-            // Clamp to left-only
-            if (gesture.dx > 0) translateX.setValue(0);
-          },
+      onPanResponderMove: Animated.event([null, { dx: translateX }], {
+        useNativeDriver: false,
+        listener: (_: unknown, gesture: { dx: number }) => {
+          // Clamp to left-only
+          if (gesture.dx > 0) translateX.setValue(0);
         },
-      ),
+      }),
       onPanResponderRelease: (_, gesture) => {
         onSwipeEnd?.();
         if (gesture.dx < -SWIPE_THRESHOLD && !actionTriggeredRef.current) {
           actionTriggeredRef.current = true;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           Animated.timing(translateX, {
             toValue: -400,
             duration: 150,
@@ -119,7 +118,7 @@ export function SwipeableTaskItem({
     <View className="overflow-hidden">
       {/* Action revealed behind the row */}
       <View
-        className="absolute inset-y-0 left-0 right-0 flex-row items-center justify-end px-5"
+        className="absolute inset-y-0 right-0 left-0 flex-row items-center justify-end px-5"
         style={{ backgroundColor: actionBg }}
       >
         <ActionIcon size={18} color="#fff" />
