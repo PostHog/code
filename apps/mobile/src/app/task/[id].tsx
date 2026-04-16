@@ -410,7 +410,6 @@ export default function TaskDetailScreen() {
               onSend={handleSendPrompt}
               onStop={handleStop}
               isUserTurn={!(session?.isPromptPending ?? true)}
-              queuedCount={session?.messageQueue?.length ?? 0}
               placeholder={
                 isLocal ? "Reply to continue in cloud" : "Ask a question"
               }

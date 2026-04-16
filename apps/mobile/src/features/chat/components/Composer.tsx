@@ -125,12 +125,7 @@ export function Composer({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onStop?.();
   };
-  const effectivePlaceholder =
-    queuedCount > 0
-      ? `${queuedCount} message${queuedCount > 1 ? "s" : ""} queued...`
-      : !isUserTurn && !disabled
-        ? "Message will be queued..."
-        : placeholder;
+  const effectivePlaceholder = placeholder;
 
   if (Platform.OS === "ios") {
     return (

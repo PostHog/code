@@ -86,9 +86,6 @@ export interface TaskSession {
   // True after a user prompt is sent, cleared when the first piece of
   // agent output (tool call, message, etc.) arrives from polling.
   awaitingAgentOutput?: boolean;
-  // Messages queued while the agent is working. Auto-sent when control
-  // returns (isPromptPending flips to false).
-  messageQueue?: string[];
   // Timestamp of the last new event received via polling. Used to detect
   // stale local sessions (desktop stopped syncing).
   lastEventAt?: number;

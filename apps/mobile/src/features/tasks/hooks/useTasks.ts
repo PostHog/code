@@ -14,7 +14,7 @@ import type { CreateTaskOptions, Task } from "../types";
 export const taskKeys = {
   all: ["tasks"] as const,
   lists: () => [...taskKeys.all, "list"] as const,
-  list: (filters?: { repository?: string }) =>
+  list: (filters?: { repository?: string; createdBy?: number }) =>
     [...taskKeys.lists(), filters] as const,
   details: () => [...taskKeys.all, "detail"] as const,
   detail: (id: string) => [...taskKeys.details(), id] as const,
@@ -27,6 +27,7 @@ export function useTasks(filters?: { repository?: string }) {
 
   const queryFilters = {
     ...filters,
+    createdBy: currentUser?.id,
   };
 
   const query = useQuery({
