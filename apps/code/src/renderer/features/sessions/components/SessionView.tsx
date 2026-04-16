@@ -11,7 +11,6 @@ import {
   usePendingPermissionsForTask,
 } from "@features/sessions/stores/sessionStore";
 import type { Plan } from "@features/sessions/types";
-import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
 import { Pause, Spinner, Warning } from "@phosphor-icons/react";
 import { Box, Button, ContextMenu, Flex, Text } from "@radix-ui/themes";
@@ -92,25 +91,10 @@ export function SessionView({
   const { setShowRawLogs } = useSessionViewActions();
   const pendingPermissions = usePendingPermissionsForTask(taskId);
   const modeOption = useModeConfigOptionForTask(taskId);
-  const { allowBypassPermissions } = useSettingsStore();
-  const currentModeId = modeOption?.currentValue;
-
-  useEffect(() => {
-    if (allowBypassPermissions) return;
-    const isBypass =
-      currentModeId === "bypassPermissions" || currentModeId === "full-access";
-    if (isBypass && taskId) {
-      getSessionService().setSessionConfigOptionByCategory(
-        taskId,
-        "mode",
-        "default",
-      );
-    }
-  }, [allowBypassPermissions, currentModeId, taskId]);
 
   const handleModeChange = useCallback(() => {
     if (!taskId) return;
-    const nextMode = cycleModeOption(modeOption, allowBypassPermissions);
+    const nextMode = cycleModeOption(modeOption);
     if (nextMode) {
       getSessionService().setSessionConfigOptionByCategory(
         taskId,
@@ -118,7 +102,7 @@ export function SessionView({
         nextMode,
       );
     }
-  }, [taskId, allowBypassPermissions, modeOption]);
+  }, [taskId, modeOption]);
 
   const sessionId = taskId ?? "default";
   const setContext = useDraftStore((s) => s.actions.setContext);
@@ -147,7 +131,7 @@ export function SessionView({
     (e) => {
       e.preventDefault();
       if (!taskId) return;
-      const nextMode = cycleModeOption(modeOption, allowBypassPermissions);
+      const nextMode = cycleModeOption(modeOption);
       if (nextMode) {
         getSessionService().setSessionConfigOptionByCategory(
           taskId,
@@ -161,14 +145,7 @@ export function SessionView({
       enableOnContentEditable: true,
       enabled: isRunning && !!modeOption && isActiveSession,
     },
-    [
-      taskId,
-      currentModeId,
-      isRunning,
-      modeOption,
-      allowBypassPermissions,
-      isActiveSession,
-    ],
+    [taskId, isRunning, modeOption, isActiveSession],
   );
 
   const latestPlan = useMemo((): Plan | null => {
