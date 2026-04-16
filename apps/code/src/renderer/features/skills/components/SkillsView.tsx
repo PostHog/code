@@ -31,9 +31,9 @@ export function SkillsView() {
   const selectedSkill = useMemo(() => {
     if (skills.length === 0) return null;
     if (selectedPath !== null) {
-      return skills.find((s) => s.path === selectedPath) ?? skills[0];
+      return skills.find((s) => s.path === selectedPath) ?? null;
     }
-    return skills[0];
+    return null;
   }, [skills, selectedPath]);
 
   const handleSelect = useCallback((path: string) => {
