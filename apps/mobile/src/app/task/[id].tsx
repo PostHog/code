@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActionSheetIOS,
   ActivityIndicator,
   Alert,
   Linking,
@@ -72,17 +73,16 @@ export default function TaskDetailScreen() {
         setTask(fetchedTask);
         return connectToTask(fetchedTask);
       })
-      .then(() => {
-        if (cancelled) return;
-        // Brief delay for FlatList to render its initial batch behind
-        // the loading overlay before revealing.
-        setTimeout(() => setLoading(false), 150);
-      })
       .catch((err) => {
         if (cancelled) return;
         console.error("Failed to load task:", err);
         setError("Failed to load task");
-        setLoading(false);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        // Brief delay for FlatList to render its initial batch behind
+        // the loading overlay before revealing.
+        setTimeout(() => setLoading(false), 150);
       });
 
     return () => {
@@ -315,6 +315,28 @@ export default function TaskDetailScreen() {
           headerRight: environment
             ? () => (
                 <Pressable
+                  onPress={
+                    isLocal
+                      ? () =>
+                          ActionSheetIOS.showActionSheetWithOptions(
+                            {
+                              options: [
+                                "Cancel",
+                                "Open on Desktop",
+                                "Continue in Cloud",
+                              ],
+                              cancelButtonIndex: 0,
+                              title: isStale
+                                ? "Desktop may be offline"
+                                : "Running on your desktop",
+                            },
+                            (index) => {
+                              if (index === 1) handleOpenOnDesktop();
+                              if (index === 2) handleContinueInCloud();
+                            },
+                          )
+                      : undefined
+                  }
                   className={`rounded-full px-3 py-1 ${
                     environment === "cloud" ? "bg-accent-3" : "bg-gray-4"
                   }`}
@@ -362,37 +384,6 @@ export default function TaskDetailScreen() {
             <Text className="mt-4 text-gray-11">
               {task?.latest_run ? "Connecting..." : "Loading task..."}
             </Text>
-          </View>
-        )}
-
-        {/* Local task banner */}
-        {isLocal && !session?.terminalStatus && !loading && (
-          <View className="absolute inset-x-0 bottom-[100px] px-4">
-            <View className="rounded-lg border border-gray-6 bg-gray-2 px-3 py-2.5">
-              <Text className="mb-2 font-mono text-[12px] text-gray-11">
-                {isStale ? "Desktop may be offline" : "Running on your desktop"}
-              </Text>
-              <View className="flex-row gap-2">
-                <Pressable
-                  onPress={handleOpenOnDesktop}
-                  className="flex-1 items-center rounded-md bg-gray-4 py-1.5"
-                >
-                  <Text className="font-mono text-[12px] text-gray-12">
-                    Open on Desktop
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={handleContinueInCloud}
-                  className={`flex-1 items-center rounded-md py-1.5 ${isStale ? "bg-accent-9" : "bg-gray-4"}`}
-                >
-                  <Text
-                    className={`font-mono text-[12px] ${isStale ? "text-accent-contrast" : "text-gray-12"}`}
-                  >
-                    Continue in Cloud
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
           </View>
         )}
 
