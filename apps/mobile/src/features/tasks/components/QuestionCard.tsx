@@ -35,9 +35,17 @@ interface ToolData {
   result?: unknown;
 }
 
+interface PermissionResponseArgs {
+  toolCallId: string;
+  optionId: string;
+  answers?: Record<string, string>;
+  customInput?: string;
+  displayText: string;
+}
+
 interface QuestionCardProps {
   toolData: ToolData;
-  onSendAnswer?: (answer: string) => void;
+  onSendPermissionResponse?: (args: PermissionResponseArgs) => void;
 }
 
 function extractQuestions(args?: Record<string, unknown>): QuestionItem[] {
@@ -70,7 +78,10 @@ function extractAnswer(result: unknown): string | null {
   return null;
 }
 
-export function QuestionCard({ toolData, onSendAnswer }: QuestionCardProps) {
+export function QuestionCard({
+  toolData,
+  onSendPermissionResponse,
+}: QuestionCardProps) {
   const themeColors = useThemeColors();
   const questions = extractQuestions(toolData.args);
   const isCompleted =
@@ -115,16 +126,22 @@ export function QuestionCard({ toolData, onSendAnswer }: QuestionCardProps) {
   }
 
   return (
-    <InteractiveQuestion questions={questions} onSendAnswer={onSendAnswer} />
+    <InteractiveQuestion
+      questions={questions}
+      toolCallId={toolData.toolCallId}
+      onSendPermissionResponse={onSendPermissionResponse}
+    />
   );
 }
 
 function InteractiveQuestion({
   questions,
-  onSendAnswer,
+  toolCallId,
+  onSendPermissionResponse,
 }: {
   questions: QuestionItem[];
-  onSendAnswer?: (answer: string) => void;
+  toolCallId: string;
+  onSendPermissionResponse?: (args: PermissionResponseArgs) => void;
 }) {
   const themeColors = useThemeColors();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -195,18 +212,38 @@ function InteractiveQuestion({
     for (const label of selected) {
       parts.push(label);
     }
-    if (otherText.trim()) {
-      parts.push(otherText.trim());
+    const trimmedOther = otherText.trim();
+    if (trimmedOther) {
+      parts.push(trimmedOther);
     }
     const answer = parts.join(", ");
 
-    if (isLastQuestion) {
-      if (answer && onSendAnswer) {
-        onSendAnswer(answer);
-      }
-    } else {
+    if (!isLastQuestion) {
       setCurrentIndex(currentIndex + 1);
+      return;
     }
+
+    if (!answer || !onSendPermissionResponse) return;
+
+    // Derive the ACP optionId the agent is expecting. Options are built
+    // server-side (buildQuestionOptions in packages/agent) as
+    // `${OPTION_PREFIX}${idx}` where OPTION_PREFIX is "option_". If the
+    // user only typed into "Other", fall back to option_0 — the answers
+    // map carries the actual content for the agent.
+    const firstSelectedLabel = parts[0];
+    const selectedIdx = question.options.findIndex(
+      (o) => o.label === firstSelectedLabel,
+    );
+    const optionIdx = selectedIdx >= 0 ? selectedIdx : 0;
+    const optionId = `option_${optionIdx}`;
+
+    onSendPermissionResponse({
+      toolCallId,
+      optionId,
+      answers: { [question.question]: answer },
+      customInput: trimmedOther || undefined,
+      displayText: answer,
+    });
   };
 
   return (

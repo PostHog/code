@@ -25,6 +25,14 @@ export const POSTHOG_NOTIFICATIONS = {
   /** Agent finished processing a turn (prompt returned, waiting for next input) */
   TURN_COMPLETE: "_posthog/turn_complete",
 
+  /**
+   * Agent has stopped mid-turn and is blocked on a user reply (e.g. a
+   * question tool invoked via requestPermission). Emitted by permission
+   * handlers before they block; clients use it to unblock their input UI
+   * so the user's answer is sent directly instead of being queued.
+   */
+  AWAITING_USER_INPUT: "_posthog/awaiting_user_input",
+
   /** Error occurred during task execution */
   ERROR: "_posthog/error",
 

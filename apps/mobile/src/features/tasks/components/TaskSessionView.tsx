@@ -1,9 +1,4 @@
-import {
-  ArrowDown,
-  Brain,
-  CaretRight,
-  Robot,
-} from "phosphor-react-native";
+import { ArrowDown, Brain, CaretRight, Robot } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -24,12 +19,20 @@ import type { PlanEntry, SessionEvent, SessionNotification } from "../types";
 import { PlanStatusBar } from "./PlanStatusBar";
 import { QuestionCard } from "./QuestionCard";
 
+interface PermissionResponseArgs {
+  toolCallId: string;
+  optionId: string;
+  answers?: Record<string, string>;
+  customInput?: string;
+  displayText: string;
+}
+
 interface TaskSessionViewProps {
   events: SessionEvent[];
   isConnecting?: boolean;
   isThinking?: boolean;
   onOpenTask?: (taskId: string) => void;
-  onSendAnswer?: (answer: string) => void;
+  onSendPermissionResponse?: (args: PermissionResponseArgs) => void;
   contentContainerStyle?: object;
 }
 
@@ -113,8 +116,7 @@ function parseSessionNotification(
     }
     case "tool_call": {
       const meta = update._meta?.claudeCode;
-      const isAgent =
-        meta?.toolName === "Agent" || meta?.toolName === "Task";
+      const isAgent = meta?.toolName === "Agent" || meta?.toolName === "Task";
       return {
         type: "tool",
         toolData: {
@@ -387,7 +389,11 @@ function CollapsedThought({ content }: { content: string }) {
 function tryReassembleString(obj: Record<string, unknown>): string | null {
   const numericKeys = Object.keys(obj).filter((k) => /^\d+$/.test(k));
   if (numericKeys.length < 3) return null;
-  if (numericKeys.every((k) => typeof obj[k] === "string" && (obj[k] as string).length === 1)) {
+  if (
+    numericKeys.every(
+      (k) => typeof obj[k] === "string" && (obj[k] as string).length === 1,
+    )
+  ) {
     return numericKeys
       .sort((a, b) => Number(a) - Number(b))
       .map((k) => obj[k])
@@ -410,7 +416,14 @@ function extractErrorText(result: unknown): string | null {
   if (reassembled) return reassembled;
 
   // Check simple string fields, recurse into nested objects
-  for (const key of ["error", "message", "stderr", "output", "text", "content"]) {
+  for (const key of [
+    "error",
+    "message",
+    "stderr",
+    "output",
+    "text",
+    "content",
+  ]) {
     if (typeof obj[key] === "string") return obj[key] as string;
     if (obj[key] && typeof obj[key] === "object") {
       const nested = extractErrorText(obj[key]);
@@ -439,11 +452,12 @@ function agentPromptSummary(args?: Record<string, unknown>): string | null {
         : null;
   if (!prompt) return null;
   // Take the first meaningful line, truncated
-  const firstLine = prompt.split("\n").find((l) => l.trim())?.trim();
+  const firstLine = prompt
+    .split("\n")
+    .find((l) => l.trim())
+    ?.trim();
   if (!firstLine) return null;
-  return firstLine.length > 120
-    ? `${firstLine.slice(0, 120)}…`
-    : firstLine;
+  return firstLine.length > 120 ? `${firstLine.slice(0, 120)}…` : firstLine;
 }
 
 function AgentToolCard({
@@ -469,10 +483,7 @@ function AgentToolCard({
   return (
     <View className="mx-4 my-1 overflow-hidden rounded-lg border border-gray-6 bg-gray-2">
       {/* Header */}
-      <Pressable
-        onPress={() => setExpanded(!expanded)}
-        className="px-3 py-2"
-      >
+      <Pressable onPress={() => setExpanded(!expanded)} className="px-3 py-2">
         <View className="flex-row items-center gap-2">
           {isLoading ? (
             <ActivityIndicator size={12} color={themeColors.accent[9]} />
@@ -583,7 +594,7 @@ function ThinkingIndicator() {
 }
 
 function ConnectingIndicator() {
-  const themeColors = useThemeColors();
+  const _themeColors = useThemeColors();
   const [dots, setDots] = useState(1);
 
   useEffect(() => {
@@ -607,7 +618,7 @@ export function TaskSessionView({
   isConnecting,
   isThinking,
   onOpenTask,
-  onSendAnswer,
+  onSendPermissionResponse,
   contentContainerStyle,
 }: TaskSessionViewProps) {
   const processorRef = useRef(createProcessorState());
@@ -679,14 +690,12 @@ export function TaskSessionView({
             return (
               <QuestionCard
                 toolData={item.toolData}
-                onSendAnswer={onSendAnswer}
+                onSendPermissionResponse={onSendPermissionResponse}
               />
             );
           }
           if (item.toolData.isAgent) {
-            return (
-              <AgentToolCard item={item} onOpenTask={onOpenTask} />
-            );
+            return <AgentToolCard item={item} onOpenTask={onOpenTask} />;
           }
           return (
             <ToolMessage
@@ -702,7 +711,7 @@ export function TaskSessionView({
           return null;
       }
     },
-    [onOpenTask, onSendAnswer],
+    [onOpenTask, onSendPermissionResponse],
   );
 
   return (

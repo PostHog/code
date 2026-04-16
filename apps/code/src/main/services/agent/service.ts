@@ -395,6 +395,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     });
 
     this.pendingPermissions.delete(key);
+    this.emit(AgentServiceEvent.PermissionResolved, { taskRunId, toolCallId });
     this.recordActivity(taskRunId);
   }
 
@@ -423,6 +424,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     });
 
     this.pendingPermissions.delete(key);
+    this.emit(AgentServiceEvent.PermissionResolved, { taskRunId, toolCallId });
     this.recordActivity(taskRunId);
   }
 
@@ -817,37 +819,12 @@ When creating pull requests, add the following footer at the end of the PR descr
       this.recordActivity(taskRunId);
 
       if (config.runMode === "local") {
-        // Subscribe to the task-run SSE stream so mobile-originated
-        // /command/ calls (published to Redis by the backend) are
-        // delivered into this local session as prompts.
-        this.localCommandReceiver.subscribe({
+        this.ensureLocalCommandSubscription(
           taskId,
           taskRunId,
-          projectId: credentials.projectId,
-          apiHost: credentials.apiHost,
-          onCommand: async (payload) => {
-            if (payload.method !== "user_message") {
-              log.debug("Ignoring non-user_message local command", {
-                method: payload.method,
-                taskRunId,
-              });
-              return;
-            }
-            const content = payload.params?.content;
-            if (typeof content !== "string" || content.length === 0) {
-              log.warn("Local command missing content", { taskRunId });
-              return;
-            }
-            try {
-              await this.prompt(taskRunId, [{ type: "text", text: content }]);
-            } catch (err) {
-              log.error("Failed to deliver local command to session", {
-                taskRunId,
-                error: err instanceof Error ? err.message : String(err),
-              });
-            }
-          },
-        });
+          credentials.projectId,
+          credentials.apiHost,
+        );
       }
 
       if (isRetry) {
@@ -1187,6 +1164,104 @@ For git operations while detached:
     }
 
     session.inFlightMcpToolCalls.clear();
+  }
+
+  /**
+   * Idempotently subscribe the LocalCommandReceiver to a task-run's SSE
+   * stream so mobile-originated /command/ calls reach this session. Called
+   * both on fresh session creation and when an existing session is reused
+   * — the receiver itself short-circuits duplicate subscribes, so multiple
+   * calls are safe. Without this, a session that existed before this code
+   * path shipped (or that had its subscription torn down by an earlier
+   * cleanup) would silently drop mobile commands.
+   */
+  private ensureLocalCommandSubscription(
+    taskId: string,
+    taskRunId: string,
+    projectId: number,
+    apiHost: string,
+  ): void {
+    this.localCommandReceiver.subscribe({
+      taskId,
+      taskRunId,
+      projectId,
+      apiHost,
+      onCommand: async (payload) => {
+        log.debug("Local command received", {
+          taskRunId,
+          method: payload.method,
+        });
+
+        // Mobile (or any external client) answering an outstanding
+        // requestPermission call. Route it directly to the pending
+        // promise rather than treating it as a new prompt — otherwise
+        // the agent stays blocked inside the current turn and the
+        // answer starts a second turn that can never run.
+        if (payload.method === "permission_response") {
+          const params = payload.params ?? {};
+          const toolCallId =
+            typeof params.toolCallId === "string"
+              ? params.toolCallId
+              : undefined;
+          const optionId =
+            typeof params.optionId === "string" ? params.optionId : undefined;
+          const customInput =
+            typeof params.customInput === "string"
+              ? params.customInput
+              : undefined;
+          const rawAnswers = params.answers;
+          const answers =
+            rawAnswers && typeof rawAnswers === "object"
+              ? (rawAnswers as Record<string, string>)
+              : undefined;
+          if (!toolCallId || !optionId) {
+            log.warn("Invalid permission_response from external client", {
+              taskRunId,
+              hasToolCallId: !!toolCallId,
+              hasOptionId: !!optionId,
+            });
+            return;
+          }
+          try {
+            this.respondToPermission(
+              taskRunId,
+              toolCallId,
+              optionId,
+              customInput,
+              answers,
+            );
+          } catch (err) {
+            log.error("Failed to apply external permission_response", {
+              taskRunId,
+              toolCallId,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+          return;
+        }
+
+        if (payload.method !== "user_message") {
+          log.debug("Ignoring non-user_message local command", {
+            method: payload.method,
+            taskRunId,
+          });
+          return;
+        }
+        const content = payload.params?.content;
+        if (typeof content !== "string" || content.length === 0) {
+          log.warn("Local command missing content", { taskRunId });
+          return;
+        }
+        try {
+          await this.prompt(taskRunId, [{ type: "text", text: content }]);
+        } catch (err) {
+          log.error("Failed to deliver local command to session", {
+            taskRunId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      },
+    });
   }
 
   private async cleanupSession(taskRunId: string): Promise<void> {

@@ -561,6 +561,38 @@ export class AgentServer {
         };
       }
 
+      case "permission_response": {
+        // Cloud questions are not a blocking permission wait (the cloud
+        // permission handler returns "cancelled" with a wait hint so
+        // Claude ends its turn, then resumes on the next user_message).
+        // So a mobile permission_response for a cloud run is effectively
+        // a follow-up prompt — forward it through the user_message path
+        // using the user's answer as prompt text.
+        const customInput =
+          typeof params.customInput === "string" ? params.customInput : "";
+        const rawAnswers = params.answers;
+        const answerValues =
+          rawAnswers &&
+          typeof rawAnswers === "object" &&
+          !Array.isArray(rawAnswers)
+            ? Object.values(rawAnswers as Record<string, unknown>).filter(
+                (v): v is string => typeof v === "string",
+              )
+            : [];
+        const answerText = customInput || answerValues.join(", ");
+
+        if (!answerText) {
+          this.logger.warn("permission_response missing answer content", {
+            toolCallId: params.toolCallId,
+          });
+          return { stopReason: "cancelled" };
+        }
+
+        return await this.executeCommand("user_message", {
+          content: answerText,
+        });
+      }
+
       case POSTHOG_NOTIFICATIONS.CANCEL:
       case "cancel": {
         this.logger.info("Cancel requested", {

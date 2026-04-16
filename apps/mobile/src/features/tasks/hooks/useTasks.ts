@@ -14,7 +14,7 @@ import type { CreateTaskOptions, Task } from "../types";
 export const taskKeys = {
   all: ["tasks"] as const,
   lists: () => [...taskKeys.all, "list"] as const,
-  list: (filters?: { repository?: string; createdBy?: number }) =>
+  list: (filters?: { repository?: string }) =>
     [...taskKeys.lists(), filters] as const,
   details: () => [...taskKeys.all, "detail"] as const,
   detail: (id: string) => [...taskKeys.details(), id] as const,
@@ -63,23 +63,15 @@ export function useTask(taskId: string) {
 
 export function useCreateTask() {
   const queryClient = useQueryClient();
-  const { data: currentUser } = useUserQuery();
 
-  const invalidateTasks = (newTask?: Task) => {
-    if (newTask && currentUser?.id) {
-      // Update the correct cache entry with the user's filter
-      const queryKey = taskKeys.list({ createdBy: currentUser.id });
-      queryClient.setQueryData<Task[]>(queryKey, (old) =>
-        old ? [newTask, ...old] : [newTask],
-      );
-    }
+  const invalidateTasks = () => {
     queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
   };
 
   const mutation = useMutation({
     mutationFn: (options: CreateTaskOptions) => createTask(options),
-    onSuccess: (newTask) => {
-      invalidateTasks(newTask);
+    onSuccess: () => {
+      invalidateTasks();
     },
     onError: (error) => {
       console.error("Failed to create task:", error.message);

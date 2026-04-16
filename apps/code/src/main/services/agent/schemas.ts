@@ -181,6 +181,11 @@ export const recordActivityInput = z.object({
 export const AgentServiceEvent = {
   SessionEvent: "session-event",
   PermissionRequest: "permission-request",
+  // Fires when a pending permission is resolved by anything other than the
+  // Electron UI (e.g. a mobile client calling permission_response). Renderer
+  // uses this to clear its own pendingPermissions copy in lockstep with the
+  // main-process map.
+  PermissionResolved: "permission-resolved",
   SessionsIdle: "sessions-idle",
   SessionIdleKilled: "session-idle-killed",
   AgentFileActivity: "agent-file-activity",
@@ -209,9 +214,15 @@ export interface AgentFileActivityPayload {
   branchName: string | null;
 }
 
+export interface PermissionResolvedPayload {
+  taskRunId: string;
+  toolCallId: string;
+}
+
 export interface AgentServiceEvents {
   [AgentServiceEvent.SessionEvent]: AgentSessionEventPayload;
   [AgentServiceEvent.PermissionRequest]: PermissionRequestPayload;
+  [AgentServiceEvent.PermissionResolved]: PermissionResolvedPayload;
   [AgentServiceEvent.SessionsIdle]: undefined;
   [AgentServiceEvent.SessionIdleKilled]: SessionIdleKilledPayload;
   [AgentServiceEvent.AgentFileActivity]: AgentFileActivityPayload;

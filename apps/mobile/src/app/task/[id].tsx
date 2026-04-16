@@ -23,8 +23,13 @@ export default function TaskDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { connectToTask, disconnectFromTask, sendPrompt, getSessionForTask } =
-    useTaskSessionStore();
+  const {
+    connectToTask,
+    disconnectFromTask,
+    sendPrompt,
+    sendPermissionResponse,
+    getSessionForTask,
+  } = useTaskSessionStore();
 
   const session = taskId ? getSessionForTask(taskId) : undefined;
 
@@ -79,6 +84,16 @@ export default function TaskDetailScreen() {
       });
     },
     [taskId, sendPrompt],
+  );
+
+  const handleSendPermissionResponse = useCallback(
+    (args: Parameters<typeof sendPermissionResponse>[1]) => {
+      if (!taskId) return;
+      sendPermissionResponse(taskId, args).catch((err) => {
+        console.error("Failed to send permission response:", err);
+      });
+    },
+    [taskId, sendPermissionResponse],
   );
 
   const handleOpenTask = useCallback(
@@ -161,7 +176,7 @@ export default function TaskDetailScreen() {
           isConnecting={session?.isPromptPending ?? false}
           isThinking={session?.isPromptPending ?? false}
           onOpenTask={handleOpenTask}
-          onSendAnswer={handleSendPrompt}
+          onSendPermissionResponse={handleSendPermissionResponse}
           contentContainerStyle={{
             paddingTop: 80 + insets.bottom,
             paddingBottom: 16,

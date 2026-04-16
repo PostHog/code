@@ -4,7 +4,12 @@ import { logger } from "../../utils/logger";
 import type { AuthService } from "../auth/service";
 
 const log = logger.scope("local-command-receiver");
-const RECONNECT_DELAY_MS = 2000;
+const INITIAL_RECONNECT_DELAY_MS = 2000;
+const MAX_RECONNECT_DELAY_MS = 30_000;
+// After this many consecutive failures, assume Last-Event-ID is stale (event
+// trimmed from the backend buffer) and fall back to a fresh connect with
+// start=latest. Accepts that we may drop commands issued during the outage.
+const STALE_EVENT_ID_THRESHOLD = 3;
 
 /**
  * JSON-RPC envelope carried inside an `incoming_command` SSE event. The
@@ -90,8 +95,10 @@ export class LocalCommandReceiver {
     controller: AbortController,
   ): Promise<void> {
     let lastEventId: string | undefined;
+    let consecutiveFailures = 0;
 
     while (!controller.signal.aborted) {
+      let streamOpened = false;
       try {
         const { accessToken } = await this.auth.getValidAccessToken();
         const url = new URL(
@@ -120,6 +127,8 @@ export class LocalCommandReceiver {
           );
         }
 
+        streamOpened = true;
+        consecutiveFailures = 0;
         lastEventId = await this.readEventStream(
           response.body,
           params.onCommand,
@@ -131,13 +140,32 @@ export class LocalCommandReceiver {
         });
       } catch (err) {
         if (controller.signal.aborted) return;
+        if (!streamOpened) consecutiveFailures++;
+        if (
+          consecutiveFailures >= STALE_EVENT_ID_THRESHOLD &&
+          lastEventId !== undefined
+        ) {
+          log.warn(
+            "Dropping possibly-stale Last-Event-ID after repeated failures",
+            {
+              taskRunId: params.taskRunId,
+              consecutiveFailures,
+            },
+          );
+          lastEventId = undefined;
+        }
         log.warn("SSE disconnected, will reconnect", {
           taskRunId: params.taskRunId,
+          consecutiveFailures,
           error: err instanceof Error ? err.message : String(err),
         });
       }
       if (controller.signal.aborted) return;
-      await this.sleep(RECONNECT_DELAY_MS, controller.signal);
+      const delay = Math.min(
+        MAX_RECONNECT_DELAY_MS,
+        INITIAL_RECONNECT_DELAY_MS * 2 ** Math.max(0, consecutiveFailures - 1),
+      );
+      await this.sleep(delay, controller.signal);
     }
   }
 

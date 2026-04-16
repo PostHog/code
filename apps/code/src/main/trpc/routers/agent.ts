@@ -105,6 +105,26 @@ export const agentRouter = router({
       }
     }),
 
+  // Permission resolved subscription - yields when a pending permission gets
+  // answered through a path other than the local UI (e.g. a mobile client).
+  // The renderer uses this to clear its mirror of pendingPermissions.
+  onPermissionResolved: publicProcedure
+    .input(subscribeSessionInput)
+    .subscription(async function* (opts) {
+      const service = getService();
+      const targetTaskRunId = opts.input.taskRunId;
+      const iterable = service.toIterable(
+        AgentServiceEvent.PermissionResolved,
+        { signal: opts.signal },
+      );
+
+      for await (const event of iterable) {
+        if (event.taskRunId === targetTaskRunId) {
+          yield event;
+        }
+      }
+    }),
+
   // Respond to a permission request from the UI
   respondToPermission: publicProcedure
     .input(respondToPermissionInput)
