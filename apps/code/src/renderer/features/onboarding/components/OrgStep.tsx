@@ -1,6 +1,11 @@
 import { useAuthenticatedClient } from "@features/auth/hooks/authClient";
-import { authKeys, useCurrentUser } from "@features/auth/hooks/authQueries";
+import {
+  authKeys,
+  useAuthStateValue,
+  useCurrentUser,
+} from "@features/auth/hooks/authQueries";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
+import { useProjects } from "@features/projects/hooks/useProjects";
 import { useOrganizations } from "@hooks/useOrganizations";
 import { ArrowLeft, ArrowRight, CheckCircle } from "@phosphor-icons/react";
 import { Box, Button, Callout, Flex, Skeleton, Text } from "@radix-ui/themes";
@@ -8,6 +13,8 @@ import codeLogo from "@renderer/assets/images/code.svg";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { AnimatePresence, motion } from "framer-motion";
+import { useMemo } from "react";
+import { ProjectSelect } from "./ProjectSelect";
 
 const log = logger.scope("org-step");
 
@@ -19,9 +26,17 @@ interface OrgStepProps {
 export function OrgStep({ onNext, onBack }: OrgStepProps) {
   const selectedOrgId = useOnboardingStore((state) => state.selectedOrgId);
   const selectOrg = useOnboardingStore((state) => state.selectOrg);
+  const manuallySelectedProjectId = useOnboardingStore(
+    (state) => state.selectedProjectId,
+  );
+  const setSelectedProjectId = useOnboardingStore(
+    (state) => state.selectProjectId,
+  );
   const client = useAuthenticatedClient();
   const { data: currentUser } = useCurrentUser({ client });
+  const currentProjectId = useAuthStateValue((state) => state.projectId);
   const queryClient = useQueryClient();
+
   const switchOrganizationMutation = useMutation({
     mutationFn: async (orgId: string) => {
       await client.switchOrganization(orgId);
@@ -37,6 +52,19 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
   const { orgs, effectiveSelectedOrgId, isLoading, error } = useOrganizations();
 
   const currentUserOrgId = currentUser?.organization?.id;
+  const hasOrgChanged = effectiveSelectedOrgId !== currentUserOrgId;
+
+  const { projects, isLoading: projectsLoading } = useProjects();
+
+  const selectedProjectId = useMemo(() => {
+    if (manuallySelectedProjectId !== null) return manuallySelectedProjectId;
+    return currentProjectId ?? projects[0]?.id ?? null;
+  }, [manuallySelectedProjectId, currentProjectId, projects]);
+
+  const selectedProject = useMemo(
+    () => projects.find((p) => p.id === selectedProjectId),
+    [projects, selectedProjectId],
+  );
 
   const handleContinue = async () => {
     if (!effectiveSelectedOrgId) return;
@@ -45,7 +73,7 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
       selectOrg(effectiveSelectedOrgId);
     }
 
-    if (client && effectiveSelectedOrgId !== currentUserOrgId) {
+    if (client && hasOrgChanged) {
       try {
         await switchOrganizationMutation.mutateAsync(effectiveSelectedOrgId);
       } catch {
@@ -58,6 +86,7 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
 
   const handleSelect = (orgId: string) => {
     selectOrg(orgId);
+    setSelectedProjectId(null);
   };
 
   return (
@@ -93,7 +122,8 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
             Choose your organization
           </Text>
           <Text size="3" style={{ color: "var(--gray-12)", opacity: 0.7 }}>
-            Select which PostHog organization to use with PostHog Code.
+            Select which PostHog organization and project to use with PostHog
+            Code.
           </Text>
         </Flex>
 
@@ -168,6 +198,28 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {!isLoading && !hasOrgChanged && selectedProject && (
+            <Flex direction="column" gap="1" mt="5">
+              <Text
+                size="2"
+                weight="medium"
+                style={{ color: "var(--gray-12)" }}
+              >
+                Project
+              </Text>
+              <ProjectSelect
+                projectId={selectedProject.id}
+                projectName={selectedProject.name}
+                projects={projects.map((p) => ({
+                  id: p.id,
+                  name: p.name,
+                }))}
+                onProjectChange={setSelectedProjectId}
+                disabled={projectsLoading}
+              />
+            </Flex>
+          )}
         </Box>
 
         <Flex gap="3" align="center" justify="between" flexShrink="0">
