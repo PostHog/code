@@ -171,10 +171,6 @@ export function SignalSourceToggles({
     (checked: boolean) => onToggle("zendesk", checked),
     [onToggle],
   );
-  const toggleConversations = useCallback(
-    (checked: boolean) => onToggle("conversations", checked),
-    [onToggle],
-  );
   const setupGithub = useCallback(() => onSetup?.("github"), [onSetup]);
   const setupLinear = useCallback(() => onSetup?.("linear"), [onSetup]);
   const setupZendesk = useCallback(() => onSetup?.("zendesk"), [onSetup]);
