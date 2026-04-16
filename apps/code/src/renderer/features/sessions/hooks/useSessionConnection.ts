@@ -76,6 +76,8 @@ export function useSessionConnection({
       typeof task.latest_run.state?.initial_permission_mode === "string"
         ? task.latest_run.state.initial_permission_mode
         : undefined;
+    const adapter =
+      task.latest_run.runtime_adapter === "codex" ? "codex" : "claude";
     const cleanup = getSessionService().watchCloudTask(
       task.id,
       runId,
@@ -86,6 +88,7 @@ export function useSessionConnection({
       },
       task.latest_run?.log_url,
       initialMode,
+      adapter,
     );
     return cleanup;
   }, [
@@ -98,6 +101,7 @@ export function useSessionConnection({
     task.id,
     task.latest_run?.id,
     task.latest_run?.log_url,
+    task.latest_run?.runtime_adapter,
     task.latest_run?.state?.initial_permission_mode,
   ]);
 

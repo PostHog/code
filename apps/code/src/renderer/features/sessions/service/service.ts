@@ -33,7 +33,10 @@ import {
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { taskViewedApi } from "@features/sidebar/hooks/useTaskViewed";
 import { isNotification, POSTHOG_NOTIFICATIONS } from "@posthog/agent";
-import { getAvailableModes } from "@posthog/agent/execution-mode";
+import {
+  getAvailableCodexModes,
+  getAvailableModes,
+} from "@posthog/agent/execution-mode";
 import { DEFAULT_GATEWAY_MODEL } from "@posthog/agent/gateway-models";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpcClient } from "@renderer/trpc/client";
@@ -89,15 +92,23 @@ const LOCAL_SESSION_RECOVERY_FAILED_MESSAGE =
  * is available in the UI even without a local agent connection.
  */
 function buildCloudDefaultConfigOptions(
-  initialMode = "plan",
+  initialMode: string | undefined,
+  adapter: Adapter = "claude",
 ): SessionConfigOption[] {
-  const modes = getAvailableModes();
+  const modes =
+    adapter === "codex" ? getAvailableCodexModes() : getAvailableModes();
+  const currentMode =
+    typeof initialMode === "string"
+      ? initialMode
+      : adapter === "codex"
+        ? "auto"
+        : "plan";
   return [
     {
       id: "mode",
       name: "Approval Preset",
       type: "select",
-      currentValue: initialMode,
+      currentValue: currentMode,
       options: modes.map((mode) => ({
         value: mode.id,
         name: mode.name,
@@ -399,7 +410,6 @@ export class SessionService {
       .getState()
       .getAdapter(taskRunId);
     const resolvedAdapter = adapter ?? storedAdapter;
-
     const persistedConfigOptions = getPersistedConfigOptions(taskRunId);
 
     const session = this.createBaseSession(taskRunId, taskId, taskTitle);
@@ -1684,7 +1694,20 @@ export class SessionService {
     // in run state (pending_user_message), NOT via user_message command.
 
     // Start the watcher immediately so we don't miss status updates.
-    this.watchCloudTask(session.taskId, newRun.id, auth.apiHost, auth.teamId);
+    const initialMode =
+      typeof newRun.state?.initial_permission_mode === "string"
+        ? newRun.state.initial_permission_mode
+        : undefined;
+    this.watchCloudTask(
+      session.taskId,
+      newRun.id,
+      auth.apiHost,
+      auth.teamId,
+      undefined,
+      newRun.log_url,
+      initialMode,
+      newRun.runtime_adapter ?? session.adapter ?? "claude",
+    );
 
     // Invalidate task queries so the UI picks up the new run metadata
     queryClient.invalidateQueries({ queryKey: ["tasks"] });
@@ -2211,6 +2234,7 @@ export class SessionService {
     onStatusChange?: () => void,
     logUrl?: string,
     initialMode?: string,
+    adapter: Adapter = "claude",
   ): () => void {
     const taskRunId = runId;
     const startToken = ++this.nextCloudTaskWatchToken;
@@ -2226,10 +2250,21 @@ export class SessionService {
       existingWatcher.onStatusChange = onStatusChange;
       // Ensure configOptions is populated on revisit
       const existing = sessionStoreSetters.getSessionByTaskId(taskId);
-      if (existing && !existing.configOptions?.length) {
-        sessionStoreSetters.updateSession(existing.taskRunId, {
-          configOptions: buildCloudDefaultConfigOptions(initialMode),
-        });
+      if (existing) {
+        const existingMode = getConfigOptionByCategory(
+          existing.configOptions,
+          "mode",
+        )?.currentValue;
+        const currentMode =
+          typeof existingMode === "string" ? existingMode : initialMode;
+        const shouldRefreshConfigOptions =
+          !existing.configOptions?.length || existing.adapter !== adapter;
+        if (shouldRefreshConfigOptions) {
+          sessionStoreSetters.updateSession(existing.taskRunId, {
+            adapter,
+            configOptions: buildCloudDefaultConfigOptions(currentMode, adapter),
+          });
+        }
       }
       return () => {};
     }
@@ -2263,14 +2298,28 @@ export class SessionService {
       const session = this.createBaseSession(taskRunId, taskId, taskTitle);
       session.status = "disconnected";
       session.isCloud = true;
-      session.configOptions = buildCloudDefaultConfigOptions(initialMode);
+      session.adapter = adapter;
+      session.configOptions = buildCloudDefaultConfigOptions(
+        initialMode,
+        adapter,
+      );
       sessionStoreSetters.setSession(session);
     } else {
       // Ensure cloud flag and configOptions are set on existing sessions
       const updates: Partial<AgentSession> = {};
       if (!existing.isCloud) updates.isCloud = true;
-      if (!existing.configOptions?.length) {
-        updates.configOptions = buildCloudDefaultConfigOptions(initialMode);
+      if (existing.adapter !== adapter) updates.adapter = adapter;
+      if (!existing.configOptions?.length || existing.adapter !== adapter) {
+        const existingMode = getConfigOptionByCategory(
+          existing.configOptions,
+          "mode",
+        )?.currentValue;
+        const currentMode =
+          typeof existingMode === "string" ? existingMode : initialMode;
+        updates.configOptions = buildCloudDefaultConfigOptions(
+          currentMode,
+          adapter,
+        );
       }
       if (Object.keys(updates).length > 0) {
         sessionStoreSetters.updateSession(existing.taskRunId, updates);
