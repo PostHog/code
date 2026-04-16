@@ -36,6 +36,7 @@ export default function TaskDetailScreen() {
     connectToTask,
     disconnectFromTask,
     sendPrompt,
+    cancelPrompt,
     sendPermissionResponse,
     getSessionForTask,
   } = useTaskSessionStore();
@@ -129,6 +130,17 @@ export default function TaskDetailScreen() {
     },
     [taskId, sendPrompt],
   );
+
+  const handleStop = useCallback(() => {
+    if (!taskId) return;
+    cancelPrompt(taskId).catch((err) => {
+      console.error("Failed to stop agent:", err);
+      Alert.alert(
+        "Failed to stop",
+        "Could not stop the agent. Please try again.",
+      );
+    });
+  }, [taskId, cancelPrompt]);
 
   const handleRetry = useCallback(async () => {
     if (!taskId || !task) return;
@@ -396,6 +408,7 @@ export default function TaskDetailScreen() {
           >
             <Composer
               onSend={handleSendPrompt}
+              onStop={handleStop}
               isUserTurn={!(session?.isPromptPending ?? true)}
               queuedCount={session?.messageQueue?.length ?? 0}
               placeholder={

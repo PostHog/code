@@ -1,10 +1,12 @@
 import { GlassContainer, GlassView } from "expo-glass-effect";
+import * as Haptics from "expo-haptics";
 import { ArrowUp, Microphone, Stop } from "phosphor-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
   Easing,
+  Keyboard,
   Platform,
   TextInput,
   TouchableOpacity,
@@ -15,6 +17,7 @@ import { useVoiceRecording } from "../hooks/useVoiceRecording";
 
 interface ComposerProps {
   onSend: (message: string) => void;
+  onStop?: () => void;
   disabled?: boolean;
   placeholder?: string;
   isUserTurn?: boolean;
@@ -76,6 +79,7 @@ function PulsingBorder({ active, color }: { active: boolean; color: string }) {
 
 export function Composer({
   onSend,
+  onStop,
   disabled = false,
   placeholder = "Ask a question",
   isUserTurn = false,
@@ -93,6 +97,7 @@ export function Composer({
     if (!trimmed || disabled) return;
     onSend(trimmed);
     setMessage("");
+    Keyboard.dismiss();
   };
 
   const handleMicPress = async () => {
@@ -113,7 +118,19 @@ export function Composer({
   };
 
   const canSend = message.trim().length > 0 && !disabled && !isRecording;
-  const effectivePlaceholder = placeholder;
+  const showStop =
+    !isUserTurn && !canSend && !isRecording && !isTranscribing && !!onStop;
+
+  const handleStop = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onStop?.();
+  };
+  const effectivePlaceholder =
+    queuedCount > 0
+      ? `${queuedCount} message${queuedCount > 1 ? "s" : ""} queued...`
+      : !isUserTurn && !disabled
+        ? "Message will be queued..."
+        : placeholder;
 
   if (Platform.OS === "ios") {
     return (
@@ -182,9 +199,11 @@ export function Composer({
             </GlassView>
           </View>
 
-          {/* Mic / Send button */}
+          {/* Mic / Send / Stop button */}
           <TouchableOpacity
-            onPress={canSend ? handleSend : handleMicPress}
+            onPress={
+              canSend ? handleSend : showStop ? handleStop : handleMicPress
+            }
             onLongPress={handleMicLongPress}
             activeOpacity={0.7}
             disabled={isTranscribing || disabled}
@@ -203,7 +222,7 @@ export function Composer({
                 <ActivityIndicator size="small" color={themeColors.gray[12]} />
               ) : canSend ? (
                 <ArrowUp size={20} color={themeColors.gray[12]} weight="bold" />
-              ) : isRecording ? (
+              ) : isRecording || showStop ? (
                 <Stop
                   size={20}
                   color={themeColors.status.error}

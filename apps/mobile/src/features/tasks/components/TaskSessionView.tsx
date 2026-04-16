@@ -231,6 +231,8 @@ function processNewEvents(
     return { messages: state.messages, plan: state.plan };
   }
 
+  let hasItemMutation = false;
+
   const flushAgentText = () => {
     if (!state.pendingAgentText) return;
     const msg: ParsedMessage = {
@@ -265,8 +267,6 @@ function processNewEvents(
     flushThoughtText();
     flushAgentText();
   };
-
-  let hasItemMutation = false;
 
   for (let i = state.processedIdx; i < events.length; i++) {
     const event = events[i];
@@ -684,6 +684,31 @@ export function TaskSessionView({
     () => processNewEvents(processorRef.current, events),
     [events],
   );
+
+  // When the agent stops (cancel, completion, terminal), sweep any
+  // tools still stuck in pending/running to "completed" so their
+  // spinners stop.
+  const agentActive = isConnecting || isThinking;
+  const prevAgentActive = useRef(agentActive);
+  if (prevAgentActive.current && !agentActive) {
+    const state = processorRef.current;
+    let swept = false;
+    for (const msg of state.toolMessages.values()) {
+      if (
+        msg.toolData &&
+        (msg.toolData.status === "pending" || msg.toolData.status === "running")
+      ) {
+        msg.toolData.status = "completed";
+        swept = true;
+      }
+    }
+    if (swept) {
+      state.lastSnapshot = [...state.messages];
+      state.lastSnapshotLength = state.messages.length;
+    }
+  }
+  prevAgentActive.current = agentActive;
+
   // Inverted FlatList renders data[0] at the visual bottom.
   // Reverse so newest messages are at index 0 = bottom.
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);

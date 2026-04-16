@@ -342,6 +342,37 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
         runId: session.taskRunId,
       });
     } catch (err) {
+      // Transient server errors (504 gateway timeout, etc.) — the sandbox
+      // may still be alive, just temporarily unreachable.  Roll back so the
+      // user can retry but don't attempt a full resume.
+      if (
+        err instanceof CloudCommandError &&
+        (err.status === 504 || err.status === 502 || err.status === 503)
+      ) {
+        logger.warn("Transient server error sending prompt, rolling back", {
+          status: err.status,
+          taskId,
+        });
+        set((state) => {
+          const current = state.sessions[session.taskRunId];
+          if (!current) return state;
+          const nextLocalEchoes = new Set(current.localUserEchoes ?? []);
+          nextLocalEchoes.delete(prompt);
+          return {
+            sessions: {
+              ...state.sessions,
+              [session.taskRunId]: {
+                ...current,
+                events: current.events.filter((e) => e !== userEvent),
+                localUserEchoes: nextLocalEchoes,
+                isPromptPending: false,
+              },
+            },
+          };
+        });
+        throw err;
+      }
+
       // Sandbox for this run has shut down — create a resume run on the
       // backend and swap the local session to the new run id.
       let rollbackError: unknown = err;
