@@ -1,4 +1,5 @@
 import { Text } from "@components/text";
+import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -6,7 +7,6 @@ import {
   ActionSheetIOS,
   ActivityIndicator,
   Alert,
-  Linking,
   Pressable,
   View,
 } from "react-native";
@@ -19,6 +19,7 @@ import {
   runTaskInCloud,
   type Task,
   TaskSessionView,
+  taskKeys,
   useTaskSessionStore,
 } from "@/features/tasks";
 import { useThemeColors } from "@/lib/theme";
@@ -26,6 +27,7 @@ import { useThemeColors } from "@/lib/theme";
 export default function TaskDetailScreen() {
   const { id: taskId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const themeColors = useThemeColors();
   const [task, setTask] = useState<Task | null>(null);
@@ -138,6 +140,18 @@ export default function TaskDetailScreen() {
     cancelPrompt(taskId).catch(() => {});
   }, [taskId, cancelPrompt]);
 
+  const updateTaskInCache = useCallback(
+    (updated: Task) => {
+      // Directly patch the task in all list query caches so the task list
+      // reflects the change immediately (e.g., environment: local → cloud).
+      queryClient.setQueriesData<Task[]>(
+        { queryKey: taskKeys.lists() },
+        (old) => old?.map((t) => (t.id === updated.id ? updated : t)),
+      );
+    },
+    [queryClient],
+  );
+
   const handleRetry = useCallback(async () => {
     if (!taskId || !task) return;
     try {
@@ -149,6 +163,7 @@ export default function TaskDetailScreen() {
       });
       setTask(updatedTask);
       await connectToTask(updatedTask);
+      updateTaskInCache(updatedTask);
       // Don't clear retrying here — the effect below clears it
       // once the session shows meaningful state (thinking or terminal).
     } catch (err) {
@@ -159,7 +174,7 @@ export default function TaskDetailScreen() {
         "Could not restart the task. Please try again.",
       );
     }
-  }, [taskId, task, disconnectFromTask, connectToTask]);
+  }, [taskId, task, disconnectFromTask, connectToTask, updateTaskInCache]);
 
   // Clear retrying once the agent finishes a turn or the run terminates.
   useEffect(() => {
@@ -206,19 +221,6 @@ export default function TaskDetailScreen() {
     return () => clearInterval(interval);
   }, [isLocal, session?.isPromptPending, session?.lastEventAt]);
 
-  const handleOpenOnDesktop = useCallback(async () => {
-    if (!taskId) return;
-    const url = `posthog-code://task/${taskId}`;
-    try {
-      await Linking.openURL(url);
-    } catch {
-      Alert.alert(
-        "Desktop app not found",
-        "Install PostHog Code on your Mac to open tasks locally.",
-      );
-    }
-  }, [taskId]);
-
   const handleContinueInCloud = useCallback(async () => {
     if (!taskId || !task) return;
     try {
@@ -229,6 +231,7 @@ export default function TaskDetailScreen() {
       });
       setTask(updatedTask);
       await connectToTask(updatedTask);
+      updateTaskInCache(updatedTask);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
       console.error("Failed to continue in cloud:", err);
@@ -238,7 +241,7 @@ export default function TaskDetailScreen() {
         "Could not continue this task in the cloud. Please try again.",
       );
     }
-  }, [taskId, task, disconnectFromTask, connectToTask]);
+  }, [taskId, task, disconnectFromTask, connectToTask, updateTaskInCache]);
 
   const environment = task?.latest_run?.environment;
 
@@ -320,19 +323,14 @@ export default function TaskDetailScreen() {
                       ? () =>
                           ActionSheetIOS.showActionSheetWithOptions(
                             {
-                              options: [
-                                "Cancel",
-                                "Open on Desktop",
-                                "Continue in Cloud",
-                              ],
+                              options: ["Keep locally", "Move to Cloud"],
                               cancelButtonIndex: 0,
                               title: isStale
                                 ? "Desktop may be offline"
                                 : "Running on your desktop",
                             },
                             (index) => {
-                              if (index === 1) handleOpenOnDesktop();
-                              if (index === 2) handleContinueInCloud();
+                              if (index === 1) handleContinueInCloud();
                             },
                           )
                       : undefined
@@ -397,9 +395,7 @@ export default function TaskDetailScreen() {
               onSend={handleSendPrompt}
               onStop={handleStop}
               isUserTurn={!(session?.isPromptPending ?? true)}
-              placeholder={
-                isLocal ? "Reply to continue in cloud" : "Ask a question"
-              }
+              placeholder={"Ask a question"}
             />
           </Animated.View>
         )}
