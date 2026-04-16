@@ -1,16 +1,17 @@
 import { isOtherOption } from "@components/action-selector/constants";
 import { PermissionSelector } from "@components/permissions/PermissionSelector";
 import {
-  MessageEditor,
-  type MessageEditorHandle,
-} from "@features/message-editor/components/MessageEditor";
+  PromptInput,
+  type EditorHandle as PromptInputHandle,
+} from "@features/message-editor/components/PromptInput";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import {
-  cycleModeOption,
   useModeConfigOptionForTask,
   usePendingPermissionsForTask,
 } from "@features/sessions/stores/sessionStore";
 import type { Plan } from "@features/sessions/types";
+import { useSettingsStore } from "@features/settings/stores/settingsStore";
+import { useIsWorkspaceCloudRun } from "@features/workspace/hooks/useWorkspace";
 import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
 import { Pause, Spinner, Warning } from "@phosphor-icons/react";
 import { Box, Button, ContextMenu, Flex, Text } from "@radix-ui/themes";
@@ -21,7 +22,6 @@ import {
 } from "@shared/types/session-events";
 import { getFilePath } from "@utils/getFilePath";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { getSessionService } from "../service/service";
 import {
   useSessionViewActions,
@@ -29,6 +29,7 @@ import {
 } from "../stores/sessionViewStore";
 import { ConversationView } from "./ConversationView";
 import { DropZoneOverlay } from "./DropZoneOverlay";
+import { ModelSelector } from "./ModelSelector";
 import { PlanStatusBar } from "./PlanStatusBar";
 import { RawLogsView } from "./raw-logs/RawLogsView";
 
@@ -91,18 +92,33 @@ export function SessionView({
   const { setShowRawLogs } = useSessionViewActions();
   const pendingPermissions = usePendingPermissionsForTask(taskId);
   const modeOption = useModeConfigOptionForTask(taskId);
+  const { allowBypassPermissions } = useSettingsStore();
+  const currentModeId = modeOption?.currentValue;
 
-  const handleModeChange = useCallback(() => {
-    if (!taskId) return;
-    const nextMode = cycleModeOption(modeOption);
-    if (nextMode) {
+  useEffect(() => {
+    if (allowBypassPermissions) return;
+    const isBypass =
+      currentModeId === "bypassPermissions" || currentModeId === "full-access";
+    if (isBypass && taskId) {
+      getSessionService().setSessionConfigOptionByCategory(
+        taskId,
+        "mode",
+        "default",
+      );
+    }
+  }, [allowBypassPermissions, currentModeId, taskId]);
+
+  const handleModeChange = useCallback(
+    (nextMode: string) => {
+      if (!taskId) return;
       getSessionService().setSessionConfigOptionByCategory(
         taskId,
         "mode",
         nextMode,
       );
-    }
-  }, [taskId, modeOption]);
+    },
+    [taskId],
+  );
 
   const sessionId = taskId ?? "default";
   const setContext = useDraftStore((s) => s.actions.setContext);
@@ -126,27 +142,7 @@ export function SessionView({
     isPromptPending,
   ]);
 
-  useHotkeys(
-    "shift+tab",
-    (e) => {
-      e.preventDefault();
-      if (!taskId) return;
-      const nextMode = cycleModeOption(modeOption);
-      if (nextMode) {
-        getSessionService().setSessionConfigOptionByCategory(
-          taskId,
-          "mode",
-          nextMode,
-        );
-      }
-    },
-    {
-      enableOnFormTags: true,
-      enableOnContentEditable: true,
-      enabled: isRunning && !!modeOption && isActiveSession,
-    },
-    [taskId, isRunning, modeOption, isActiveSession],
-  );
+  const isCloudRun = useIsWorkspaceCloudRun(taskId);
 
   const latestPlan = useMemo((): Plan | null => {
     let planIndex = -1;
@@ -195,7 +191,7 @@ export function SessionView({
   );
 
   const [isDraggingFile, setIsDraggingFile] = useState(false);
-  const editorRef = useRef<MessageEditorHandle>(null);
+  const editorRef = useRef<PromptInputHandle>(null);
   const dragCounterRef = useRef(0);
 
   const firstPendingPermission = useMemo(() => {
@@ -347,7 +343,7 @@ export function SessionView({
         <Flex
           direction="column"
           height="100%"
-          className="relative bg-gray-1"
+          className="relative bg-background"
           onClick={handlePaneClick}
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
@@ -416,7 +412,7 @@ export function SessionView({
             <Flex
               align="center"
               justify="center"
-              className="absolute inset-0 bg-gray-1"
+              className="absolute inset-0 bg-background"
             >
               <Spinner size={32} className="animate-spin text-gray-9" />
             </Flex>
@@ -445,7 +441,7 @@ export function SessionView({
                   justify="center"
                   direction="column"
                   gap="2"
-                  className="absolute inset-0 bg-gray-1"
+                  className="absolute inset-0 bg-background"
                 >
                   <Warning size={32} weight="duotone" color="var(--red-9)" />
                   {errorTitle && (
@@ -516,16 +512,28 @@ export function SessionView({
                     <Box
                       className={compact ? "p-1" : "mx-auto max-w-[750px] p-2"}
                     >
-                      <MessageEditor
+                      <PromptInput
                         ref={editorRef}
                         sessionId={sessionId}
                         placeholder="Type a message... @ to mention files, ! for bash mode, / for skills"
+                        disabled={!isRunning}
+                        isLoading={!!isPromptPending}
+                        isActiveSession={isActiveSession}
+                        taskId={taskId}
+                        repoPath={repoPath}
+                        modeOption={modeOption}
+                        onModeChange={modeOption ? handleModeChange : undefined}
+                        allowBypassPermissions={allowBypassPermissions}
+                        enableBashMode={!isCloudRun}
+                        modelSelector={
+                          <ModelSelector
+                            taskId={taskId}
+                            disabled={!isRunning}
+                          />
+                        }
                         onSubmit={handleSubmit}
                         onBashCommand={onBashCommand}
                         onCancel={onCancelPrompt}
-                        modeOption={modeOption}
-                        onModeChange={modeOption ? handleModeChange : undefined}
-                        isActiveSession={isActiveSession}
                       />
                     </Box>
                   </Box>

@@ -152,10 +152,16 @@ export const TabbedPanel: React.FC<TabbedPanelProps> = ({
   }, [content.activeTabId, content.tabs]);
 
   return (
-    <Box position="relative" height="100%" className="flex flex-col">
+    <Box
+      position="relative"
+      height="100%"
+      id="tabbed-panel"
+      className="flex flex-col"
+    >
       {content.showTabs !== false && (
         <Box
-          className="flex-shrink-0 border-b"
+          className="shrink-0 border-b"
+          id="tabbed-panel-tab-bar"
           style={{
             borderColor: "var(--gray-6)",
             height: "32px",

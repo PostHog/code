@@ -2,10 +2,22 @@ import { useSandboxEnvironments } from "@features/settings/hooks/useSandboxEnvir
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import type { WorkspaceMode } from "@main/services/workspace/schemas";
-import { ArrowsSplit, Cloud, Laptop, Plus } from "@phosphor-icons/react";
-import { ChevronDownIcon } from "@radix-ui/react-icons";
-import { Button, DropdownMenu, Flex, Text } from "@radix-ui/themes";
-import type { Responsive } from "@radix-ui/themes/dist/esm/props/prop-def.js";
+import {
+  ArrowsSplit,
+  CaretDown,
+  Cloud,
+  Laptop,
+  Plus,
+} from "@phosphor-icons/react";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  MenuLabel,
+} from "@posthog/quill";
 import { useCallback, useMemo, useState } from "react";
 
 export type { WorkspaceMode };
@@ -13,7 +25,7 @@ export type { WorkspaceMode };
 interface WorkspaceModeSelectProps {
   value: WorkspaceMode;
   onChange: (mode: WorkspaceMode) => void;
-  size?: Responsive<"1" | "2">;
+  size?: "1" | "2";
   disabled?: boolean;
   /** Override the available modes instead of deriving from feature flags */
   overrideModes?: WorkspaceMode[];
@@ -34,27 +46,22 @@ const LOCAL_MODES: {
     label: "Worktree",
     description: "Create a copy of your local project to work in parallel",
     icon: (
-      <ArrowsSplit
-        size={16}
-        weight="regular"
-        style={{ transform: "rotate(270deg)" }}
-      />
+      <ArrowsSplit size={14} weight="regular" className="rotate-[270deg]" />
     ),
   },
   {
     mode: "local",
     label: "Local",
     description: "Edits your repo directly on current branch",
-    icon: <Laptop size={16} weight="regular" />,
+    icon: <Laptop size={14} weight="regular" />,
   },
 ];
 
-const CLOUD_ICON = <Cloud size={16} weight="regular" />;
+const CLOUD_ICON = <Cloud size={14} weight="regular" />;
 
 export function WorkspaceModeSelect({
   value,
   onChange,
-  size = "1",
   disabled,
   overrideModes,
   selectedCloudEnvironmentId,
@@ -104,141 +111,105 @@ export function WorkspaceModeSelect({
   }, [value]);
 
   return (
-    <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
-      <DropdownMenu.Trigger disabled={disabled}>
-        <Button color="gray" variant="outline" size={size} disabled={disabled}>
-          <Flex justify="between" align="center" gap="2">
-            <Flex align="center" gap="2" style={{ minWidth: 0 }}>
-              {triggerIcon}
-              <Text size={size}>{triggerLabel}</Text>
-            </Flex>
-            <ChevronDownIcon style={{ flexShrink: 0 }} />
-          </Flex>
-        </Button>
-      </DropdownMenu.Trigger>
-
-      <DropdownMenu.Content align="start" size="1">
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            aria-label="Workspace mode"
+          >
+            <span className="text-muted-foreground">{triggerIcon}</span>
+            {triggerLabel}
+            <CaretDown
+              size={10}
+              weight="bold"
+              className="text-muted-foreground"
+            />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="start" side="bottom" sideOffset={6}>
         {localModes.map((item) => (
-          <DropdownMenu.Item
+          <DropdownMenuItem
             key={item.mode}
-            onSelect={() => {
+            onClick={() => {
               onChange(item.mode);
               onCloudEnvironmentChange?.(null);
             }}
-            style={{ padding: "6px 8px", height: "auto" }}
           >
-            <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-              <span
-                style={{
-                  marginTop: 2,
-                  flexShrink: 0,
-                  color: "var(--gray-11)",
-                }}
-              >
-                {item.icon}
+            <span className="mt-0.5 mr-2 text-muted-foreground">
+              {item.icon}
+            </span>
+            <span className="flex flex-col">
+              <span>{item.label}</span>
+              <span className="text-muted-foreground text-xs">
+                {item.description}
               </span>
-              <div>
-                <Text size="1">{item.label}</Text>
-                <Text size="1" color="gray" style={{ display: "block" }}>
-                  {item.description}
-                </Text>
-              </div>
-            </div>
-          </DropdownMenu.Item>
+            </span>
+          </DropdownMenuItem>
         ))}
 
         {showCloud && (
           <>
-            <DropdownMenu.Separator />
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "4px 8px",
-              }}
-            >
-              <Text size="1" color="gray" weight="medium">
-                Cloud environments
-              </Text>
+            <DropdownMenuSeparator />
+            <div className="flex items-center justify-between px-2 py-1">
+              <MenuLabel className="p-0">Cloud environments</MenuLabel>
               <button
                 type="button"
                 onClick={handleAddEnvironment}
-                className="flex cursor-pointer items-center justify-center rounded-1 border-0 bg-transparent p-0.5 text-gray-10 transition-colors hover:bg-gray-4 hover:text-gray-12"
+                aria-label="Add cloud environment"
+                className="flex cursor-pointer items-center justify-center rounded-sm border-0 bg-transparent p-0.5 text-muted-foreground transition-colors hover:bg-fill-hover hover:text-foreground"
               >
                 <Plus size={12} />
               </button>
             </div>
 
-            <DropdownMenu.Item
-              onSelect={() => {
+            <DropdownMenuItem
+              onClick={() => {
                 onChange("cloud");
                 onCloudEnvironmentChange?.(null);
               }}
-              style={{ padding: "6px 8px", height: "auto" }}
             >
-              <div
-                style={{ display: "flex", gap: 6, alignItems: "flex-start" }}
-              >
-                <span
-                  style={{
-                    marginTop: 2,
-                    flexShrink: 0,
-                    color: "var(--gray-11)",
-                  }}
-                >
-                  {CLOUD_ICON}
+              <span className="mt-0.5 mr-2 text-muted-foreground">
+                {CLOUD_ICON}
+              </span>
+              <span className="flex flex-col">
+                <span>Default</span>
+                <span className="text-muted-foreground text-xs">
+                  Full network access
                 </span>
-                <div>
-                  <Text size="1">Default</Text>
-                  <Text size="1" color="gray" style={{ display: "block" }}>
-                    Full network access
-                  </Text>
-                </div>
-              </div>
-            </DropdownMenu.Item>
+              </span>
+            </DropdownMenuItem>
 
             {environments.map((env) => (
-              <DropdownMenu.Item
+              <DropdownMenuItem
                 key={`cloud-env-${env.id}`}
-                onSelect={() => {
+                onClick={() => {
                   onChange("cloud");
                   onCloudEnvironmentChange?.(env.id);
                 }}
-                style={{ padding: "6px 8px", height: "auto" }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 6,
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <span
-                    style={{
-                      marginTop: 2,
-                      flexShrink: 0,
-                      color: "var(--gray-11)",
-                    }}
-                  >
-                    {CLOUD_ICON}
+                <span className="mt-0.5 mr-2 text-muted-foreground">
+                  {CLOUD_ICON}
+                </span>
+                <span className="flex flex-col">
+                  <span>{env.name}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {env.network_access_level === "full"
+                      ? "Full network access"
+                      : env.network_access_level === "trusted"
+                        ? "Trusted sources only"
+                        : `${env.allowed_domains.length} allowed domain${env.allowed_domains.length !== 1 ? "s" : ""}`}
                   </span>
-                  <div>
-                    <Text size="1">{env.name}</Text>
-                    <Text size="1" color="gray" style={{ display: "block" }}>
-                      {env.network_access_level === "full"
-                        ? "Full network access"
-                        : env.network_access_level === "trusted"
-                          ? "Trusted sources only"
-                          : `${env.allowed_domains.length} allowed domain${env.allowed_domains.length !== 1 ? "s" : ""}`}
-                    </Text>
-                  </div>
-                </div>
-              </DropdownMenu.Item>
+                </span>
+              </DropdownMenuItem>
             ))}
           </>
         )}
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -270,7 +270,7 @@ function SidebarMenuComponent() {
   }, [setEditingTaskId]);
 
   return (
-    <Box height="100%" position="relative">
+    <Box height="100%" position="relative" id="side-bar-menu">
       <ScrollArea className="h-full overflow-y-auto overflow-x-hidden">
         <Flex direction="column" py="2" px="2" gap="1px">
           <Box mb="2">

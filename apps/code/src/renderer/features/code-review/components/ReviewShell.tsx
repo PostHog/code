@@ -434,7 +434,7 @@ export function ReviewShell({
         theme: { dark: "github-dark", light: "github-light" },
       }}
     >
-      <Flex direction="column" height="100%">
+      <Flex direction="column" height="100%" id="review-shell">
         <ReviewToolbar
           taskId={taskId}
           fileCount={fileCount}
@@ -449,6 +449,7 @@ export function ReviewShell({
           <div
             ref={scrollContainerRef}
             className="scrollbar-hide flex-1 space-y-2 overflow-auto"
+            id="review-shell-diff-container"
             style={{ minWidth: 0 }}
           >
             {children}
@@ -491,7 +492,7 @@ function FileHeaderRow({
         fontFamily: "var(--code-font-family)",
         fontSize: "12px",
         cursor: "pointer",
-        userSelect: "none",
+        // userSelect: "none",
         width: "100%",
         background: "none",
         border: "none",

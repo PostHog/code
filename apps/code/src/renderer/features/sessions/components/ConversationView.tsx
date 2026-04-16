@@ -223,7 +223,7 @@ export function ConversationView({
         renderItem={renderItem}
         onScrollStateChange={handleScrollStateChange}
         keepMounted={mcpAppIndices}
-        className="absolute inset-0 bg-gray-1"
+        className="absolute inset-0 bg-background"
         itemClassName="mx-auto max-w-[750px] px-2 py-1.5"
         footer={
           <div className={compact ? "pb-1" : "pb-16"}>

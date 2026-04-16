@@ -1,7 +1,7 @@
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { buildCloudTaskDescription } from "@features/editor/utils/cloud-prompt";
-import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
 import { useTaskInputHistoryStore } from "@features/message-editor/stores/taskInputHistoryStore";
+import type { EditorHandle } from "@features/message-editor/types";
 import {
   contentToXml,
   extractFilePaths,
@@ -22,7 +22,7 @@ import type { TaskCreationInput, TaskService } from "../service/service";
 const log = logger.scope("task-creation");
 
 interface UseTaskCreationOptions {
-  editorRef: React.RefObject<MessageEditorHandle | null>;
+  editorRef: React.RefObject<EditorHandle | null>;
   selectedDirectory: string;
   selectedRepository?: string | null;
   githubIntegrationId?: number;

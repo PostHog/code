@@ -6,12 +6,21 @@ import type { AgentAdapter } from "@features/settings/stores/settingsStore";
 import {
   ArrowsClockwise,
   CaretDown,
-  Check,
   Cpu,
   Robot,
   Spinner,
 } from "@phosphor-icons/react";
-import { Button, DropdownMenu, Flex, Text } from "@radix-ui/themes";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  MenuLabel,
+} from "@posthog/quill";
 import { Fragment, useMemo } from "react";
 import { flattenSelectOptions } from "../stores/sessionStore";
 
@@ -64,103 +73,83 @@ export function UnifiedModelSelector({
 
   const otherAdapter = getOtherAdapter(adapter);
 
-  const handleModelSelect = (value: string) => {
-    onModelChange?.(value);
-  };
-
-  const triggerStyle = {
-    fontSize: "var(--font-size-1)",
-    color: "var(--gray-11)",
-    padding: "4px 8px",
-    height: "auto",
-    minHeight: "unset",
-    gap: "6px",
-    userSelect: "none" as const,
-  };
-
   if (isConnecting) {
     return (
-      <Button
-        variant="ghost"
-        color="gray"
-        size="1"
-        disabled
-        style={triggerStyle}
-      >
+      <Button type="button" variant="default" size="sm" disabled>
         <Spinner size={12} className="animate-spin" />
-        <Text size="1">Loading...</Text>
+        Loading...
       </Button>
     );
   }
 
-  const renderModelItems = (models: { value: string; name: string }[]) =>
-    models.map((model) => (
-      <DropdownMenu.Item
-        key={model.value}
-        onSelect={() => handleModelSelect(model.value)}
-      >
-        <Flex align="center" gap="2" style={{ minWidth: "140px" }}>
-          <Check
-            size={12}
-            weight="bold"
-            style={{
-              flexShrink: 0,
-              opacity: model.value === currentValue ? 1 : 0,
-            }}
-          />
-          <Text size="1">{model.name}</Text>
-        </Flex>
-      </DropdownMenu.Item>
-    ));
-
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger disabled={disabled}>
-        <Button variant="ghost" color="gray" size="1" style={triggerStyle}>
-          <Flex
-            align="center"
-            style={{ color: "var(--gray-9)", flexShrink: 0 }}
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            disabled={disabled}
+            aria-label="Model"
           >
-            {ADAPTER_ICONS[adapter]}
-          </Flex>
-          <Text size="1">{currentLabel ?? "Model"}</Text>
-          <CaretDown
-            size={10}
-            weight="bold"
-            style={{ color: "var(--gray-9)", flexShrink: 0 }}
-          />
-        </Button>
-      </DropdownMenu.Trigger>
-
-      <DropdownMenu.Content align="start" sideOffset={4} size="1">
-        <DropdownMenu.Label>
-          <Flex align="center" gap="1">
+            <span className="text-muted-foreground">
+              {ADAPTER_ICONS[adapter]}
+            </span>
+            {currentLabel ?? "Model"}
+            <CaretDown
+              size={10}
+              weight="bold"
+              className="text-muted-foreground"
+            />
+          </Button>
+        }
+      />
+      <DropdownMenuContent
+        align="start"
+        side="top"
+        sideOffset={6}
+        className="min-w-[220px]"
+      >
+        <MenuLabel>
+          <span className="flex items-center gap-1">
             {ADAPTER_ICONS[adapter]}
             {ADAPTER_LABELS[adapter]}
-          </Flex>
-        </DropdownMenu.Label>
-        {groupedOptions.length > 0
-          ? groupedOptions.map((group, index) => (
-              <Fragment key={group.group}>
-                {index > 0 && <DropdownMenu.Separator />}
-                <DropdownMenu.Label>{group.name}</DropdownMenu.Label>
-                {renderModelItems(group.options)}
-              </Fragment>
-            ))
-          : renderModelItems(options)}
-
-        <DropdownMenu.Separator />
-
-        <DropdownMenu.Item
-          onSelect={() => onAdapterChange(otherAdapter)}
-          color="gray"
+          </span>
+        </MenuLabel>
+        <DropdownMenuRadioGroup
+          value={currentValue ?? ""}
+          onValueChange={(value) => onModelChange?.(value)}
         >
-          <Flex align="center" gap="2">
-            <ArrowsClockwise size={12} weight="bold" />
-            <Text size="1">Switch to {ADAPTER_LABELS[otherAdapter]}</Text>
-          </Flex>
-        </DropdownMenu.Item>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+          {groupedOptions.length > 0
+            ? groupedOptions.map((group, index) => (
+                <Fragment key={group.group}>
+                  {index > 0 && <DropdownMenuSeparator />}
+                  <MenuLabel>{group.name}</MenuLabel>
+                  {group.options.map((model) => (
+                    <DropdownMenuRadioItem
+                      key={model.value}
+                      value={model.value}
+                    >
+                      <span className="whitespace-nowrap">{model.name}</span>
+                    </DropdownMenuRadioItem>
+                  ))}
+                </Fragment>
+              ))
+            : options.map((model) => (
+                <DropdownMenuRadioItem key={model.value} value={model.value}>
+                  <span className="whitespace-nowrap">{model.name}</span>
+                </DropdownMenuRadioItem>
+              ))}
+        </DropdownMenuRadioGroup>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem onClick={() => onAdapterChange(otherAdapter)}>
+          <ArrowsClockwise size={12} weight="bold" className="mr-2" />
+          Switch to {ADAPTER_LABELS[otherAdapter]}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

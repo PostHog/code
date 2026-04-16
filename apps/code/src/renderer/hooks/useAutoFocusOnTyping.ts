@@ -1,8 +1,8 @@
-import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
+import type { EditorHandle } from "@features/message-editor/types";
 import { type RefObject, useEffect } from "react";
 
 export function useAutoFocusOnTyping(
-  editorRef: RefObject<MessageEditorHandle | null>,
+  editorRef: RefObject<EditorHandle | null>,
   disabled = false,
 ) {
   useEffect(() => {

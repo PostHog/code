@@ -446,7 +446,7 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
   }
 
   return (
-    <Box height="100%" overflowY="auto" py="2">
+    <Box height="100%" overflowY="auto" py="2" id="changes-panel-cloud">
       <Flex direction="column">
         <ChangesTreeView files={effectiveFiles} renderFile={renderFile} />
         {isRunActive && (
@@ -564,7 +564,7 @@ function LocalChangesPanel({ taskId, task: _task }: ChangesPanelProps) {
     : [{ files: changedFiles }];
 
   return (
-    <Box height="100%" overflowY="auto" py="2">
+    <Box height="100%" overflowY="auto" py="2" id="changes-panel-local">
       <Flex direction="column">
         {fileGroups.map(({ files, header }) => (
           <Fragment key={header ?? "all"}>

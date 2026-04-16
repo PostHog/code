@@ -1,20 +1,14 @@
 import { Tooltip } from "@components/ui/Tooltip";
 import { useDiffViewerStore } from "@features/code-editor/stores/diffViewerStore";
-import {
-  ArrowsClockwise,
-  ArrowsIn,
-  ArrowsOut,
-  Columns,
-  CornersIn,
-  CornersOut,
-  Rows,
-} from "@phosphor-icons/react";
-import { Flex, IconButton, Separator, Text } from "@radix-ui/themes";
+import { ArrowsClockwise, Columns, Rows, X } from "@phosphor-icons/react";
+import { Button } from "@posthog/quill";
+import { Flex, Separator, Text } from "@radix-ui/themes";
 import { DiffSettingsMenu } from "@renderer/features/code-review/components/DiffSettingsMenu";
 import {
   type ReviewMode,
   useReviewNavigationStore,
 } from "@renderer/features/code-review/stores/reviewNavigationStore";
+import { FoldVertical, Maximize, Minimize, UnfoldVertical } from "lucide-react";
 import { memo } from "react";
 
 interface ReviewToolbarProps {
@@ -31,8 +25,6 @@ interface ReviewToolbarProps {
 export const ReviewToolbar = memo(function ReviewToolbar({
   taskId,
   fileCount,
-  linesAdded,
-  linesRemoved,
   allExpanded,
   onExpandAll,
   onCollapseAll,
@@ -50,16 +42,21 @@ export const ReviewToolbar = memo(function ReviewToolbar({
     setReviewMode(taskId, next);
   };
 
+  const handleClose = () => {
+    setReviewMode(taskId, "closed");
+  };
+
   return (
     <Flex
-      px="3"
-      py="2"
+      id="review-toolbar"
+      px="1"
       align="center"
       gap="3"
       style={{
         borderBottom: "1px solid var(--gray-6)",
         background: "var(--color-background)",
         position: "sticky",
+        height: "32px",
         top: 0,
         zIndex: 2,
         flexShrink: 0,
@@ -68,76 +65,67 @@ export const ReviewToolbar = memo(function ReviewToolbar({
       <Text size="1" weight="medium">
         {fileCount} file{fileCount !== 1 ? "s" : ""} changed
       </Text>
-      <Flex
-        align="center"
-        gap="1"
-        style={{ fontSize: "11px", fontFamily: "monospace" }}
-      >
-        {linesAdded > 0 && (
-          <Text style={{ color: "var(--green-9)" }}>+{linesAdded}</Text>
-        )}
-        {linesRemoved > 0 && (
-          <Text style={{ color: "var(--red-9)" }}>-{linesRemoved}</Text>
-        )}
-      </Flex>
 
-      <Flex align="center" gap="2" ml="auto">
+      <Flex align="center" gap="1" ml="auto">
         {onRefresh && (
           <Tooltip content="Refresh diff">
-            <IconButton
-              size="1"
-              variant="ghost"
-              color="gray"
-              onClick={onRefresh}
-              style={{ cursor: "pointer" }}
-            >
+            <Button size="icon-sm" onClick={onRefresh} className="rounded-xs">
               <ArrowsClockwise size={14} />
-            </IconButton>
+            </Button>
           </Tooltip>
         )}
 
-        <IconButton
-          size="1"
-          variant="ghost"
-          color="gray"
-          onClick={toggleViewMode}
-          style={{ cursor: "pointer" }}
-        >
-          {viewMode === "split" ? <Rows size={14} /> : <Columns size={14} />}
-        </IconButton>
+        <Tooltip content={viewMode === "split" ? "Split view" : "Columns view"}>
+          <Button
+            size="icon-sm"
+            onClick={toggleViewMode}
+            className="rounded-xs"
+          >
+            {viewMode === "split" ? <Rows size={14} /> : <Columns size={14} />}
+          </Button>
+        </Tooltip>
 
-        <IconButton
-          size="1"
-          variant="ghost"
-          color="gray"
-          onClick={allExpanded ? onCollapseAll : onExpandAll}
-          style={{ cursor: "pointer" }}
-        >
-          {allExpanded ? <ArrowsIn size={14} /> : <ArrowsOut size={14} />}
-        </IconButton>
-
-        <DiffSettingsMenu />
-
-        <Separator orientation="vertical" size="1" />
+        <Tooltip content={allExpanded ? "Collapse all" : "Expand all"}>
+          <Button
+            size="icon-sm"
+            onClick={allExpanded ? onCollapseAll : onExpandAll}
+            className="rounded-xs"
+          >
+            {allExpanded ? (
+              <FoldVertical size={12} />
+            ) : (
+              <UnfoldVertical size={12} />
+            )}
+          </Button>
+        </Tooltip>
 
         <Tooltip
           content={
             reviewMode === "expanded" ? "Collapse review" : "Expand review"
           }
         >
-          <IconButton
-            size="1"
-            variant="ghost"
-            color="gray"
+          <Button
+            size="icon-sm"
             onClick={handleToggleExpand}
-            style={{ cursor: "pointer" }}
+            aria-selected={reviewMode === "expanded"}
+            className="rounded-xs"
           >
             {reviewMode === "expanded" ? (
-              <CornersIn size={14} />
+              <Minimize size={12} />
             ) : (
-              <CornersOut size={14} />
+              <Maximize size={12} />
             )}
-          </IconButton>
+          </Button>
+        </Tooltip>
+
+        <Separator orientation="vertical" size="1" />
+
+        <DiffSettingsMenu />
+
+        <Tooltip content="Close review">
+          <Button size="icon-sm" onClick={handleClose} className="rounded-xs">
+            <X size={14} />
+          </Button>
         </Tooltip>
       </Flex>
     </Flex>

@@ -7,8 +7,10 @@ Tiptap-based editor with mention support for files (`@`) and commands (`/`).
 ```
 message-editor/
 ├── components/
-│   ├── MessageEditor.tsx    # Main editor component
-│   └── EditorToolbar.tsx    # Attachment buttons
+│   ├── PromptInput.tsx      # Shared prompt input (editor + Quill InputGroup toolbar)
+│   ├── ModeSelector.tsx     # Mode dropdown (plan / acceptEdits / default / etc.)
+│   ├── AttachmentMenu.tsx   # File + issue picker
+│   └── AttachmentsBar.tsx   # Attached-files strip shown above the editor
 ├── tiptap/
 │   ├── useTiptapEditor.ts   # Hook that creates the editor
 │   ├── useDraftSync.ts      # Persists drafts to store
@@ -23,12 +25,12 @@ message-editor/
 │   └── draftStore.ts        # Zustand store for drafts
 ├── utils/
 │   └── content.ts           # EditorContent type + serialization
-└── types.ts                 # Suggestion item types
+└── types.ts                 # EditorHandle + suggestion item types
 ```
 
 ## How it works
 
-1. `MessageEditor` calls `useTiptapEditor` with session config
+1. `PromptInput` calls `useTiptapEditor` with session config
 2. `useTiptapEditor` creates a Tiptap editor with extensions from `extensions.ts`
 3. Extensions include `CommandMention` and `FileMention` which show suggestions on `/` and `@`
 4. Suggestions are fetched via `getSuggestions.ts` (commands from session store, files via tRPC)
