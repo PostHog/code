@@ -1,6 +1,5 @@
-import { useSessionForTask } from "@features/sessions/hooks/useSession";
+import { useCloudEventSummary } from "@features/task-detail/hooks/useCloudEventSummary";
 import {
-  buildCloudEventSummary,
   type CloudFileContent,
   extractCloudFileContent,
 } from "@features/task-detail/utils/cloudToolChanges";
@@ -13,16 +12,14 @@ export function useCloudFileContent(
   filePath: string,
   enabled: boolean,
 ): CloudFileResult {
-  const session = useSessionForTask(enabled ? taskId : undefined);
-  const events = session?.events;
-  const isLoading = enabled && session === undefined;
+  const summary = useCloudEventSummary(taskId, enabled);
+  const isLoading = enabled && summary.toolCalls.size === 0;
 
   return useMemo(() => {
-    if (!enabled || !events) {
-      return { content: null, touched: false, isLoading };
+    if (!enabled) {
+      return { content: null, touched: false, isLoading: false };
     }
-    const summary = buildCloudEventSummary(events);
     const result = extractCloudFileContent(summary.toolCalls, filePath);
-    return { ...result, isLoading: false };
-  }, [enabled, events, filePath, isLoading]);
+    return { ...result, isLoading };
+  }, [enabled, summary, filePath, isLoading]);
 }
