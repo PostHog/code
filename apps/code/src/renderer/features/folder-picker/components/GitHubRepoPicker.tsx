@@ -1,7 +1,14 @@
-import { Combobox } from "@components/ui/combobox/Combobox";
 import { GithubLogo } from "@phosphor-icons/react";
-import { Button, Flex, Text } from "@radix-ui/themes";
-import { useState } from "react";
+import {
+  Button,
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+} from "@posthog/quill";
 
 interface GitHubRepoPickerProps {
   value: string | null;
@@ -19,69 +26,59 @@ export function GitHubRepoPicker({
   repositories,
   isLoading,
   placeholder = "Select repository...",
-  size = "1",
   disabled = false,
 }: GitHubRepoPickerProps) {
-  const [open, setOpen] = useState(false);
-
   if (isLoading) {
     return (
-      <Button color="gray" variant="outline" size={size} disabled>
-        <Flex align="center" gap="2">
-          <GithubLogo size={16} weight="regular" style={{ flexShrink: 0 }} />
-          <Text size={size}>Loading repos...</Text>
-        </Flex>
+      <Button variant="outline" disabled size="sm">
+        <GithubLogo size={16} weight="regular" style={{ flexShrink: 0 }} />
+        Loading repos...
       </Button>
     );
   }
 
   if (repositories.length === 0) {
     return (
-      <Button color="gray" variant="outline" size={size} disabled>
-        <Flex align="center" gap="2">
-          <GithubLogo size={16} weight="regular" style={{ flexShrink: 0 }} />
-          <Text size={size}>No GitHub repos</Text>
-        </Flex>
+      <Button variant="outline" disabled size="sm">
+        <GithubLogo size={16} weight="regular" style={{ flexShrink: 0 }} />
+        No GitHub repos
       </Button>
     );
   }
 
   return (
-    <Combobox.Root
-      value={value ?? ""}
-      onValueChange={onChange}
-      open={open}
-      onOpenChange={setOpen}
-      size={size}
+    <Combobox
+      items={repositories}
+      value={value}
+      onValueChange={(v) => {
+        if (v) onChange(v as string);
+      }}
       disabled={disabled}
     >
-      <Combobox.Trigger variant="outline" placeholder={placeholder}>
-        <Flex align="center" gap="2" style={{ minWidth: 0 }}>
-          <GithubLogo size={16} weight="regular" style={{ flexShrink: 0 }} />
-          <Text size={size} truncate>
-            {value ?? placeholder}
-          </Text>
-        </Flex>
-      </Combobox.Trigger>
-      <Combobox.Content items={repositories} limit={50}>
-        {({ filtered, hasMore, moreCount }) => (
-          <>
-            <Combobox.Input placeholder="Search repositories..." />
-            <Combobox.Empty>No repositories found.</Combobox.Empty>
-            {filtered.map((repo) => (
-              <Combobox.Item key={repo} value={repo} textValue={repo}>
-                {repo}
-              </Combobox.Item>
-            ))}
-            {hasMore && (
-              <div className="combobox-label">
-                {moreCount} more {moreCount === 1 ? "repo" : "repos"} — type to
-                filter
-              </div>
-            )}
-          </>
-        )}
-      </Combobox.Content>
-    </Combobox.Root>
+      <ComboboxTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            aria-label="Repository"
+          >
+            <GithubLogo size={14} weight="regular" className="shrink-0" />
+            <span className="min-w-0 truncate">{value ?? placeholder}</span>
+          </Button>
+        }
+      />
+      <ComboboxContent side="bottom" sideOffset={6} className="min-w-[280px]">
+        <ComboboxInput placeholder="Search repositories..." />
+        <ComboboxEmpty>No repositories found.</ComboboxEmpty>
+        <ComboboxList>
+          {(repo: string) => (
+            <ComboboxItem key={repo} value={repo}>
+              {repo}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }

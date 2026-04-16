@@ -13,9 +13,15 @@ import {
   Button,
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemMenuItem,
+  ItemTitle,
   MenuLabel,
 } from "@posthog/quill";
 import { useCallback, useMemo, useState } from "react";
@@ -27,11 +33,8 @@ interface WorkspaceModeSelectProps {
   onChange: (mode: WorkspaceMode) => void;
   size?: "1" | "2";
   disabled?: boolean;
-  /** Override the available modes instead of deriving from feature flags */
   overrideModes?: WorkspaceMode[];
-  /** Currently selected cloud environment ID (only relevant when mode is "cloud") */
   selectedCloudEnvironmentId?: string | null;
-  /** Called when a specific cloud environment is selected */
   onCloudEnvironmentChange?: (envId: string | null) => void;
 }
 
@@ -45,9 +48,7 @@ const LOCAL_MODES: {
     mode: "worktree",
     label: "Worktree",
     description: "Create a copy of your local project to work in parallel",
-    icon: (
-      <ArrowsSplit size={14} weight="regular" className="rotate-[270deg]" />
-    ),
+    icon: <ArrowsSplit size={14} weight="regular" className="rotate-270" />,
   },
   {
     mode: "local",
@@ -131,26 +132,36 @@ export function WorkspaceModeSelect({
           </Button>
         }
       />
-      <DropdownMenuContent align="start" side="bottom" sideOffset={6}>
-        {localModes.map((item) => (
-          <DropdownMenuItem
-            key={item.mode}
-            onClick={() => {
-              onChange(item.mode);
-              onCloudEnvironmentChange?.(null);
-            }}
-          >
-            <span className="mt-0.5 mr-2 text-muted-foreground">
-              {item.icon}
-            </span>
-            <span className="flex flex-col">
-              <span>{item.label}</span>
-              <span className="text-muted-foreground text-xs">
-                {item.description}
-              </span>
-            </span>
-          </DropdownMenuItem>
-        ))}
+      <DropdownMenuContent
+        align="start"
+        side="bottom"
+        sideOffset={6}
+        className="w-auto min-w-[280px]"
+      >
+        <DropdownMenuGroup>
+          {localModes.map((item) => (
+            <DropdownMenuItem
+              key={item.mode}
+              onClick={() => {
+                onChange(item.mode);
+                onCloudEnvironmentChange?.(null);
+              }}
+              render={
+                <ItemMenuItem size="xs" className="w-full">
+                  <ItemMedia variant="icon" className="mt-2 ml-2">
+                    <span>{item.icon}</span>
+                  </ItemMedia>
+                  <ItemContent variant="menuItem">
+                    <ItemTitle>{item.label}</ItemTitle>
+                    <ItemDescription className="whitespace-nowrap leading-none">
+                      {item.description}
+                    </ItemDescription>
+                  </ItemContent>
+                </ItemMenuItem>
+              }
+            />
+          ))}
+        </DropdownMenuGroup>
 
         {showCloud && (
           <>
@@ -167,46 +178,54 @@ export function WorkspaceModeSelect({
               </button>
             </div>
 
-            <DropdownMenuItem
-              onClick={() => {
-                onChange("cloud");
-                onCloudEnvironmentChange?.(null);
-              }}
-            >
-              <span className="mt-0.5 mr-2 text-muted-foreground">
-                {CLOUD_ICON}
-              </span>
-              <span className="flex flex-col">
-                <span>Default</span>
-                <span className="text-muted-foreground text-xs">
-                  Full network access
-                </span>
-              </span>
-            </DropdownMenuItem>
-
-            {environments.map((env) => (
+            <DropdownMenuGroup>
               <DropdownMenuItem
-                key={`cloud-env-${env.id}`}
                 onClick={() => {
                   onChange("cloud");
-                  onCloudEnvironmentChange?.(env.id);
+                  onCloudEnvironmentChange?.(null);
                 }}
-              >
-                <span className="mt-0.5 mr-2 text-muted-foreground">
-                  {CLOUD_ICON}
-                </span>
-                <span className="flex flex-col">
-                  <span>{env.name}</span>
-                  <span className="text-muted-foreground text-xs">
-                    {env.network_access_level === "full"
-                      ? "Full network access"
-                      : env.network_access_level === "trusted"
-                        ? "Trusted sources only"
-                        : `${env.allowed_domains.length} allowed domain${env.allowed_domains.length !== 1 ? "s" : ""}`}
-                  </span>
-                </span>
-              </DropdownMenuItem>
-            ))}
+                render={
+                  <ItemMenuItem size="xs" className="w-full">
+                    <ItemMedia variant="icon" className="mt-2 ml-2">
+                      <span>{CLOUD_ICON}</span>
+                    </ItemMedia>
+                    <ItemContent variant="menuItem">
+                      <ItemTitle>Default</ItemTitle>
+                      <ItemDescription className="whitespace-nowrap leading-none">
+                        Full network access
+                      </ItemDescription>
+                    </ItemContent>
+                  </ItemMenuItem>
+                }
+              />
+
+              {environments.map((env) => (
+                <DropdownMenuItem
+                  key={`cloud-env-${env.id}`}
+                  onClick={() => {
+                    onChange("cloud");
+                    onCloudEnvironmentChange?.(env.id);
+                  }}
+                  render={
+                    <ItemMenuItem size="xs" className="w-full">
+                      <ItemMedia variant="icon" className="mt-2 ml-2">
+                        <span>{CLOUD_ICON}</span>
+                      </ItemMedia>
+                      <ItemContent variant="menuItem">
+                        <ItemTitle>{env.name}</ItemTitle>
+                        <ItemDescription className="whitespace-nowrap leading-none">
+                          {env.network_access_level === "full"
+                            ? "Full network access"
+                            : env.network_access_level === "trusted"
+                              ? "Trusted sources only"
+                              : `${env.allowed_domains.length} allowed domain${env.allowed_domains.length !== 1 ? "s" : ""}`}
+                        </ItemDescription>
+                      </ItemContent>
+                    </ItemMenuItem>
+                  }
+                />
+              ))}
+            </DropdownMenuGroup>
           </>
         )}
       </DropdownMenuContent>
