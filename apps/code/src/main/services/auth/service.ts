@@ -517,12 +517,10 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       });
     };
 
-    if (timeUntilRefresh <= 0) {
-      fire();
-      return;
-    }
-
-    this.refreshTimeoutId = setTimeout(fire, timeUntilRefresh);
+    // Always schedule via setTimeout — never call fire() synchronously.
+    // A synchronous call during syncAuthenticatedSession() would cascade:
+    // fire → refreshAccessToken → syncAuthenticatedSession → scheduleTokenRefresh → fire …
+    this.refreshTimeoutId = setTimeout(fire, Math.max(timeUntilRefresh, 0));
   }
   private persistSession(input: {
     refreshToken: string;

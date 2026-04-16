@@ -857,10 +857,14 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       CODE_EXECUTION_MODES.includes(meta.permissionMode as CodeExecutionMode)
         ? (meta.permissionMode as CodeExecutionMode)
         : "default";
-    this.logger.info("mcpServers", { mcpServers });
+    // Route our MCP servers through setMcpServers() below rather than Options.mcpServers.
+    // Servers passed via Options go into Claude Code's appState.mcp, which setMcpServers()
+    // does NOT touch — it only reconciles dynamicMcpState. Registering via setMcpServers
+    // from the start keeps everything in dynamicMcpState so later refresh calls cleanly
+    // replace the existing connection instead of creating a second one.
     const options = buildSessionOptions({
       cwd,
-      mcpServers,
+      mcpServers: {},
       permissionMode,
       canUseTool: this.createCanUseTool(sessionId, meta?.allowedDomains),
       logger: this.logger,
@@ -995,6 +999,15 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         });
         throw err;
       }
+    }
+
+    if (Object.keys(mcpServers).length > 0) {
+      const result = await q.setMcpServers(mcpServers);
+      this.logger.info("MCP servers registered dynamically", {
+        sessionId,
+        added: result.added,
+        errors: result.errors,
+      });
     }
 
     const settingsModel = settingsManager.getSettings().model;
