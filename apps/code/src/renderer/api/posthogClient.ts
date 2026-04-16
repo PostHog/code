@@ -1,4 +1,5 @@
 import { isSupportedReasoningEffort } from "@posthog/agent/adapters/reasoning-effort";
+import { type PermissionMode } from "@posthog/agent/execution-mode";
 import type {
   ActionabilityJudgmentArtefact,
   AvailableSuggestedReviewer,
@@ -755,7 +756,7 @@ export class PostHogAPIClient {
       runSource?: CloudRunSource;
       signalReportId?: string;
       githubUserToken?: string;
-      initialPermissionMode?: string;
+      initialPermissionMode?: PermissionMode;
     },
   ): Promise<Task> {
     const teamId = await this.getTeamId();

@@ -92,8 +92,12 @@ export function usePreviewConfig(
         ) {
           initialMode = lastUsedInitialTaskMode;
         } else {
+          const fallbackDefault = adapter === "codex" ? "auto" : "plan";
           initialMode =
-            typeof serverDefault === "string" ? serverDefault : "plan";
+            typeof serverDefault === "string" &&
+            availableValues.includes(serverDefault)
+              ? serverDefault
+              : fallbackDefault;
         }
 
         const withMode = options.map((opt) =>
