@@ -1,4 +1,4 @@
-import { ArrowDown, Brain, CaretRight, Robot } from "phosphor-react-native";
+import { ArrowDown, Brain, CaretRight, CloudArrowDown, Robot } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -584,6 +584,7 @@ function useElapsedTimer() {
 }
 
 function ThinkingIndicator() {
+  const themeColors = useThemeColors();
   const [dots, setDots] = useState(1);
   const elapsed = useElapsedTimer();
 
@@ -595,16 +596,24 @@ function ThinkingIndicator() {
   }, []);
 
   return (
-    <View className="flex-row items-center justify-between px-4 py-2">
-      <Text className="text-[13px] text-gray-9 italic">
-        Thinking{".".repeat(dots)}
-      </Text>
-      <Text className="text-[12px] text-gray-8">{formatElapsed(elapsed)}</Text>
+    <View className="px-4 py-0.5">
+      <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center gap-2">
+          <Brain size={12} color={themeColors.gray[8]} />
+          <Text className="font-mono text-[12px] text-gray-8">
+            Thinking{".".repeat(dots)}
+          </Text>
+        </View>
+        <Text className="font-mono text-[12px] text-gray-8">
+          {formatElapsed(elapsed)}
+        </Text>
+      </View>
     </View>
   );
 }
 
 function ConnectingIndicator() {
+  const themeColors = useThemeColors();
   const [dots, setDots] = useState(1);
   const elapsed = useElapsedTimer();
 
@@ -616,11 +625,18 @@ function ConnectingIndicator() {
   }, []);
 
   return (
-    <View className="flex-row items-center justify-between px-4 py-2">
-      <Text className="text-[13px] text-gray-9">
-        Connecting{".".repeat(dots)}
-      </Text>
-      <Text className="text-[12px] text-gray-8">{formatElapsed(elapsed)}</Text>
+    <View className="px-4 py-0.5">
+      <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center gap-2">
+          <CloudArrowDown size={12} color={themeColors.gray[8]} />
+          <Text className="font-mono text-[12px] text-gray-8">
+            Connecting{".".repeat(dots)}
+          </Text>
+        </View>
+        <Text className="font-mono text-[12px] text-gray-8">
+          {formatElapsed(elapsed)}
+        </Text>
+      </View>
     </View>
   );
 }

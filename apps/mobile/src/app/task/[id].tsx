@@ -192,6 +192,21 @@ export default function TaskDetailScreen() {
 
   const environment = task?.latest_run?.environment;
 
+  const visibleAgentTypes = [
+    "agent_message_chunk",
+    "agent_message",
+    "agent_thought_chunk",
+    "tool_call",
+  ];
+  const hasAnyAgentOutput =
+    session?.events.some((e) => {
+      if (e.type !== "session_update") return false;
+      const su = (e.notification as Record<string, unknown>)?.update;
+      return visibleAgentTypes.includes(
+        (su as Record<string, unknown>)?.sessionUpdate as string,
+      );
+    }) ?? false;
+
   return (
     <>
       <Stack.Screen
@@ -232,15 +247,8 @@ export default function TaskDetailScreen() {
             switching from loading spinner to rendered content. */}
         <TaskSessionView
           events={session?.events ?? []}
-          isConnecting={
-            retrying ||
-            ((session?.isPromptPending ?? false) &&
-              (session?.events?.length ?? 0) === 0)
-          }
-          isThinking={
-            (session?.isPromptPending ?? false) &&
-            (session?.events?.length ?? 0) > 0
-          }
+          isConnecting={retrying || (!!session?.awaitingAgentOutput && !hasAnyAgentOutput)}
+          isThinking={!!session?.awaitingAgentOutput && hasAnyAgentOutput}
           terminalStatus={retrying ? undefined : session?.terminalStatus}
           lastError={retrying ? undefined : session?.lastError}
           onRetry={
