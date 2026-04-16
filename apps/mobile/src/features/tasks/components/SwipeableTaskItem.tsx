@@ -1,3 +1,4 @@
+import * as Haptics from "expo-haptics";
 import { Archive, ArrowCounterClockwise } from "phosphor-react-native";
 import { useEffect, useRef } from "react";
 import {
@@ -74,6 +75,7 @@ export function SwipeableTaskItem({
         onSwipeEnd?.();
         if (gesture.dx < -SWIPE_THRESHOLD && !actionTriggeredRef.current) {
           actionTriggeredRef.current = true;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           Animated.timing(translateX, {
             toValue: -400,
             duration: 150,

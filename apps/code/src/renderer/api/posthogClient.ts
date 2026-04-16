@@ -41,6 +41,7 @@ export interface SignalSourceConfig {
     | "github"
     | "linear"
     | "zendesk"
+    | "conversations"
     | "error_tracking";
   source_type:
     | "session_analysis_cluster"

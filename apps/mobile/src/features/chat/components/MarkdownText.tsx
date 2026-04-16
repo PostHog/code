@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Linking, ScrollView, Text, View } from "react-native";
 import { getColorForClass, highlightCode } from "@/lib/syntax-highlight";
 import { useThemeColors } from "@/lib/theme";
 
@@ -45,7 +45,14 @@ function HighlightedCode({
 }
 
 interface Block {
-  type: "paragraph" | "code" | "heading" | "list" | "table";
+  type:
+    | "paragraph"
+    | "code"
+    | "heading"
+    | "list"
+    | "table"
+    | "blockquote"
+    | "hr";
   content: string;
   language?: string;
   level?: number;
@@ -85,6 +92,24 @@ function parseBlocks(text: string): Block[] {
         level: headingMatch[1].length,
       });
       i++;
+      continue;
+    }
+
+    // Horizontal rule (---, ***, ___ with optional spaces, 3+ chars)
+    if (/^([-*_])\s*\1\s*\1[\s1]*$/.test(line)) {
+      blocks.push({ type: "hr", content: "" });
+      i++;
+      continue;
+    }
+
+    // Blockquote (consecutive > lines)
+    if (/^>\s?/.test(line)) {
+      const quoteLines: string[] = [];
+      while (i < lines.length && /^>\s?/.test(lines[i])) {
+        quoteLines.push(lines[i].replace(/^>\s?/, ""));
+        i++;
+      }
+      blocks.push({ type: "blockquote", content: quoteLines.join("\n") });
       continue;
     }
 
@@ -150,6 +175,8 @@ function parseBlocks(text: string): Block[] {
       !lines[i].match(/^#{1,6}\s/) &&
       !/^\s*[-*]\s/.test(lines[i]) &&
       !/^\s*\d+[.)]\s/.test(lines[i]) &&
+      !/^>\s?/.test(lines[i]) &&
+      !/^([-*_])\s*\1\s*\1[\s1]*$/.test(lines[i]) &&
       !(
         lines[i].includes("|") &&
         i + 1 < lines.length &&
@@ -167,9 +194,15 @@ function parseBlocks(text: string): Block[] {
   return blocks;
 }
 
+function openUrl(url: string) {
+  Linking.openURL(url);
+}
+
 function renderInline(text: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
-  const pattern = /(\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`)/g;
+  // Links must come first to avoid bold/italic consuming text inside []
+  const pattern =
+    /(\[([^\]]+)\]\(([^)]+)\)|\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null = null;
 
@@ -179,25 +212,40 @@ function renderInline(text: string): React.ReactNode[] {
       nodes.push(text.slice(lastIndex, match.index));
     }
 
-    if (match[2]) {
+    if (match[2] && match[3]) {
+      // Link: [text](url)
+      const url = match[3];
       nodes.push(
-        <Text key={match.index} className="font-bold">
+        <Text
+          key={match.index}
+          className="text-accent-11 underline"
+          onPress={() => openUrl(url)}
+        >
           {match[2]}
         </Text>,
       );
-    } else if (match[3]) {
+    } else if (match[4]) {
+      // Bold
       nodes.push(
-        <Text key={match.index} className="italic">
-          {match[3]}
+        <Text key={match.index} className="font-bold">
+          {match[4]}
         </Text>,
       );
-    } else if (match[4]) {
+    } else if (match[5]) {
+      // Italic
+      nodes.push(
+        <Text key={match.index} className="italic">
+          {match[5]}
+        </Text>,
+      );
+    } else if (match[6]) {
+      // Inline code
       nodes.push(
         <Text
           key={match.index}
           className="rounded bg-gray-4 px-1 font-mono text-[12px] text-accent-11"
         >
-          {match[4]}
+          {match[6]}
         </Text>,
       );
     }
@@ -225,21 +273,30 @@ export function MarkdownText({ content }: MarkdownTextProps) {
             return (
               <View
                 key={key}
-                className="rounded-md border border-gray-6 bg-gray-3 px-3 py-2"
+                className="rounded-md border border-gray-6 bg-gray-3"
               >
-                {block.language ? (
-                  <HighlightedCode
-                    code={block.content}
-                    language={block.language}
-                  />
-                ) : (
-                  <Text
-                    className="font-mono text-[12px] text-gray-12 leading-4"
-                    selectable
-                  >
-                    {block.content}
-                  </Text>
+                {block.language && (
+                  <View className="border-gray-6 border-b px-3 py-1">
+                    <Text className="font-mono text-[10px] text-gray-9">
+                      {block.language}
+                    </Text>
+                  </View>
                 )}
+                <View className="px-3 py-2">
+                  {block.language ? (
+                    <HighlightedCode
+                      code={block.content}
+                      language={block.language}
+                    />
+                  ) : (
+                    <Text
+                      className="font-mono text-[12px] text-gray-12 leading-4"
+                      selectable
+                    >
+                      {block.content}
+                    </Text>
+                  )}
+                </View>
               </View>
             );
 
@@ -349,6 +406,18 @@ export function MarkdownText({ content }: MarkdownTextProps) {
               </ScrollView>
             );
           }
+
+          case "blockquote":
+            return (
+              <View key={key} className="border-gray-8 border-l-2 pl-3">
+                <Text className="text-[13px] text-gray-11 italic leading-5">
+                  {renderInline(block.content)}
+                </Text>
+              </View>
+            );
+
+          case "hr":
+            return <View key={key} className="my-1 h-px bg-gray-6" />;
 
           default:
             return (

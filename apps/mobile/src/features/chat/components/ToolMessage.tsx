@@ -785,6 +785,7 @@ export function ToolMessage({
 
   if (fileToolArgs && !isCreateTask) {
     const stats = countDiffLines(editArgs, multiEditArgs, writeArgs);
+    const diffLanguage = languageFromPath(fileToolArgs.file_path);
     // Collapse diffs for failed edits (retries make them noise)
     const showDiff = !isFailed || isOpen;
 
@@ -818,6 +819,11 @@ export function ToolMessage({
           {stats.removed > 0 && !isFailed && (
             <Text className="font-mono text-[11px] text-status-error">
               -{stats.removed}
+            </Text>
+          )}
+          {diffLanguage && !isFailed && (
+            <Text className="font-mono text-[10px] text-gray-8">
+              {diffLanguage}
             </Text>
           )}
           {isFailed && (

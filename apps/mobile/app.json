@@ -20,6 +20,7 @@
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Allow PostHog to use your microphone for voice-to-text input",
         "NSSpeechRecognitionUsageDescription": "Allow PostHog to transcribe your voice input on-device",
+        "NSPhotoLibraryUsageDescription": "Allow PostHog to access your photos for attaching images to tasks",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -30,7 +31,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.posthog.mobile",
+      "package": "com.posthog.code.mobile",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"

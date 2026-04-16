@@ -2,6 +2,7 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { useCallback } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
+import { MarkdownText } from "./MarkdownText";
 
 interface HumanMessageProps {
   content: string;
@@ -32,9 +33,7 @@ export function HumanMessage({ content, timestamp }: HumanMessageProps) {
     <View className="px-4 py-2">
       <Pressable onLongPress={handleLongPress} delayLongPress={400}>
         <View className="mt-3 max-w-[95%] rounded bg-accent-3 px-3 py-2">
-          <Text className="font-mono text-[13px] text-accent-12 leading-5">
-            {content}
-          </Text>
+          <MarkdownText content={content} />
         </View>
       </Pressable>
       {timestamp && (

@@ -1,4 +1,5 @@
 import { Text } from "@components/text";
+import * as Haptics from "expo-haptics";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, View } from "react-native";
@@ -111,6 +112,7 @@ export default function TaskDetailScreen() {
   const handleSendPrompt = useCallback(
     (text: string) => {
       if (!taskId) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       sendPrompt(taskId, text).catch((err) => {
         console.error("Failed to send prompt:", err);
         Alert.alert(

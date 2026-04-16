@@ -7,6 +7,10 @@ import type { AuthService } from "../auth/service";
 const log = logger.scope("local-command-receiver");
 const INITIAL_RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
+// After this many consecutive failures, assume Last-Event-ID is stale (event
+// trimmed from the backend buffer) and fall back to a fresh connect with
+// start=latest. Accepts that we may drop commands issued during the outage.
+const STALE_EVENT_ID_THRESHOLD = 3;
 
 /**
  * JSON-RPC envelope carried inside an `incoming_command` SSE event. The
@@ -98,6 +102,10 @@ export class LocalCommandReceiver {
     // mobile-originated commands published while this desktop was offline.
     let lastEventId = this.loadCursor(params.taskRunId);
     let consecutiveFailures = 0;
+    // Set after we drop a stale Last-Event-ID so the next fetch asks for
+    // start=latest — we accept dropping commands issued during the outage
+    // rather than looping forever on an un-resumable cursor.
+    let droppedStaleCursor = false;
 
     while (!controller.signal.aborted) {
       let streamOpened = false;
@@ -106,6 +114,9 @@ export class LocalCommandReceiver {
         const url = new URL(
           `${params.apiHost}/api/projects/${params.projectId}/tasks/${params.taskId}/runs/${params.taskRunId}/stream/`,
         );
+        if (droppedStaleCursor) {
+          url.searchParams.set("start", "latest");
+        }
 
         const headers: Record<string, string> = {
           Authorization: `Bearer ${accessToken}`,
@@ -126,6 +137,7 @@ export class LocalCommandReceiver {
 
         streamOpened = true;
         consecutiveFailures = 0;
+        droppedStaleCursor = false;
         lastEventId = await this.readEventStream(
           response.body,
           params.onCommand,
@@ -139,6 +151,20 @@ export class LocalCommandReceiver {
       } catch (err) {
         if (controller.signal.aborted) return;
         if (!streamOpened) consecutiveFailures++;
+        if (
+          consecutiveFailures >= STALE_EVENT_ID_THRESHOLD &&
+          lastEventId !== undefined
+        ) {
+          log.warn(
+            "Dropping possibly-stale Last-Event-ID after repeated failures",
+            {
+              taskRunId: params.taskRunId,
+              consecutiveFailures,
+            },
+          );
+          lastEventId = undefined;
+          droppedStaleCursor = true;
+        }
         log.warn("SSE disconnected, will reconnect", {
           taskRunId: params.taskRunId,
           consecutiveFailures,
