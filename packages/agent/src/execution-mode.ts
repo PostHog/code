@@ -35,8 +35,8 @@ const availableModes: ModeInfo[] = [
 if (ALLOW_BYPASS) {
   availableModes.push({
     id: "bypassPermissions",
-    name: "Bypass Permissions",
-    description: "Bypass all permission prompts",
+    name: "Auto-accept Permissions",
+    description: "Auto-accept all permission requests",
   });
 }
 
@@ -51,8 +51,11 @@ export const CODE_EXECUTION_MODES = [
 
 export type CodeExecutionMode = (typeof CODE_EXECUTION_MODES)[number];
 
+export function isCodeExecutionMode(mode: string): mode is CodeExecutionMode {
+  return (CODE_EXECUTION_MODES as readonly string[]).includes(mode);
+}
+
 export function getAvailableModes(): ModeInfo[] {
-  // When IS_ROOT, do not allow bypassPermissions
   return IS_ROOT
     ? availableModes.filter((m) => m.id !== "bypassPermissions")
     : availableModes;
@@ -66,6 +69,10 @@ export type CodexNativeMode = (typeof CODEX_NATIVE_MODES)[number];
 
 /** Union of all permission mode IDs across adapters */
 export type PermissionMode = CodeExecutionMode | CodexNativeMode;
+
+export function isCodexNativeMode(mode: string): mode is CodexNativeMode {
+  return (CODEX_NATIVE_MODES as readonly string[]).includes(mode);
+}
 
 const codexModes: ModeInfo[] = [
   {
@@ -84,7 +91,7 @@ if (ALLOW_BYPASS) {
   codexModes.push({
     id: "full-access",
     name: "Full Access",
-    description: "Bypass all permission prompts",
+    description: "Auto-accept all permission requests",
   });
 }
 
