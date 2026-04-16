@@ -1,6 +1,52 @@
+/*
+ * Explicit cascade layer order. Without this, Tailwind v4's internal
+ * `@layer theme, base, components, utilities;` declaration pushes
+ * `radix` (declared by the @import layer() below) to the front, so
+ * preflight's `* { padding: 0; margin: 0 }` in the `base` layer beats
+ * radix's `.rt-r-p-2 { padding: calc(var(--space-2)) }` and every
+ * radix component collapses.
+ *
+ * Order: base (preflight) < radix (component defaults) < utilities
+ * (consumer + quill overrides). Quill is NOT layered — its classes
+ * live in the top-level `utilities` layer alongside this app's own.
+ */
 @layer theme, base, radix, components, utilities;
+
 @import "@radix-ui/themes/styles.css" layer(radix);
 @import "tailwindcss";
+
+/*
+ * @posthog/quill — shadcn-style integration.
+ *
+ *   tokens.css   registers quill's design tokens (:root + .dark CSS
+ *                custom properties AND the @theme inline block) with
+ *                this app's Tailwind v4 instance so utilities like
+ *                `bg-fill-hover` and `text-muted-foreground` compile.
+ *
+ *   base.css     one `* { border-border outline-ring/50 }` reset,
+ *                load-bearing for primitives that write plain `border`.
+ *
+ *   tailwind.css `@source "./**\/*.js"` — tells this app's Tailwind to
+ *                scan quill's compiled library JS for class-name
+ *                strings. No pre-compiled stylesheet, no cascade-layer
+ *                fight. Consumer overrides via `className` just work
+ *                because tailwind-merge inside quill dedupes and this
+ *                app's utilities land in the same `utilities` layer.
+ */
+@import "@posthog/quill/tokens.css";
+@import "@posthog/quill/base.css";
+@import "@posthog/quill/tailwind.css";
+
+/*
+ * Explicit @source directive alongside the import above. Tailwind v4's
+ * `@config` legacy-compat mode (loading tailwind.config.js) appears to
+ * ignore `@source` directives nested inside imported CSS files, so the
+ * `@source "./**\/*.js"` sitting in @posthog/quill/tailwind.css never
+ * actually runs. Pointing the scanner at quill's dist directly here
+ * guarantees the primitive/component class strings get compiled.
+ */
+@source "../../../../node_modules/@posthog/quill/dist/**/*.js";
+
 @config "../../../tailwind.config.js";
 
 @font-face {
@@ -895,19 +941,6 @@ button,
 /* Inbox report list: Radix ScrollArea thumb defaults to 100ms background-color transition */
 .scroll-area-constrain-width.inbox-report-list-scroll .rt-ScrollAreaThumb {
   transition: none;
-}
-
-/* Inbox toolbar polling indicator pulse */
-@keyframes inboxToolbarPulse {
-  0%,
-  100% {
-    opacity: 0.35;
-    transform: scale(0.92);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1);
-  }
 }
 
 /* Inbox warming-up ellipsis wave */

@@ -114,6 +114,8 @@ export interface TaskExecutionOptions {
   codexBinaryPath?: string;
   instructions?: string;
   processCallbacks?: ProcessSpawnedCallback;
+  /** Callback invoked when the agent calls the create_output tool for structured output */
+  onStructuredOutput?: (output: Record<string, unknown>) => Promise<void>;
 }
 
 export type LogLevel = "debug" | "info" | "warn" | "error";

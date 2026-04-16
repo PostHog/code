@@ -71,6 +71,9 @@ export const POSTHOG_NOTIFICATIONS = {
 
   /** Token usage update for a session turn */
   USAGE_UPDATE: "_posthog/usage_update",
+
+  /** Response to a relayed permission request (plan approval, question) */
+  PERMISSION_RESPONSE: "_posthog/permission_response",
 } as const;
 
 type NotificationMethod =

@@ -23,6 +23,7 @@ import {
 import type {
   Adapter,
   AgentSession,
+  PermissionRequest,
 } from "@features/sessions/stores/sessionStore";
 import {
   getConfigOptionByCategory,
@@ -32,6 +33,7 @@ import {
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { taskViewedApi } from "@features/sidebar/hooks/useTaskViewed";
 import { isNotification, POSTHOG_NOTIFICATIONS } from "@posthog/agent";
+import { getAvailableModes } from "@posthog/agent/execution-mode";
 import { DEFAULT_GATEWAY_MODEL } from "@posthog/agent/gateway-models";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpcClient } from "@renderer/trpc/client";
@@ -39,12 +41,14 @@ import { getGhUserTokenOrThrow } from "@renderer/utils/github";
 import { toast } from "@renderer/utils/toast";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import {
+  type CloudTaskPermissionRequestUpdate,
   type CloudTaskUpdatePayload,
   type EffortLevel,
   type ExecutionMode,
   effortLevelSchema,
   isTerminalStatus,
   type Task,
+  type TaskRun,
 } from "@shared/types";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
@@ -69,6 +73,30 @@ import {
 } from "@utils/session";
 
 const log = logger.scope("session-service");
+
+/**
+ * Build default configOptions for cloud sessions so the mode switcher
+ * is available in the UI even without a local agent connection.
+ */
+function buildCloudDefaultConfigOptions(
+  initialMode = "plan",
+): SessionConfigOption[] {
+  const modes = getAvailableModes();
+  return [
+    {
+      id: "mode",
+      name: "Approval Preset",
+      type: "select",
+      currentValue: initialMode,
+      options: modes.map((mode) => ({
+        value: mode.id,
+        name: mode.name,
+      })),
+      category: "mode" as SessionConfigOption["category"],
+      description: "Choose an approval and sandboxing preset for your session",
+    },
+  ];
+}
 
 interface AuthCredentials {
   apiHost: string;
@@ -133,6 +161,8 @@ export class SessionService {
       onStatusChange?: () => void;
     }
   >();
+  /** Maps toolCallId → cloud requestId for routing permission responses */
+  private cloudPermissionRequestIds = new Map<string, string>();
   private idleKilledSubscription: { unsubscribe: () => void } | null = null;
 
   constructor() {
@@ -757,6 +787,7 @@ export class SessionService {
     }
 
     this.connectingTasks.clear();
+    this.cloudPermissionRequestIds.clear();
     this.idleKilledSubscription?.unsubscribe();
     this.idleKilledSubscription = null;
   }
@@ -967,6 +998,42 @@ export class SessionService {
     // Add receivedAt to create PermissionRequest
     newPermissions.set(payload.toolCall.toolCallId, {
       ...payload,
+      receivedAt: Date.now(),
+    });
+
+    sessionStoreSetters.setPendingPermissions(taskRunId, newPermissions);
+    taskViewedApi.markActivity(session.taskId);
+    notifyPermissionRequest(session.taskTitle, session.taskId);
+  }
+
+  private handleCloudPermissionRequest(
+    taskRunId: string,
+    update: CloudTaskPermissionRequestUpdate,
+  ): void {
+    log.info("Cloud permission request received", {
+      taskRunId,
+      requestId: update.requestId,
+      toolCallId: update.toolCall.toolCallId,
+      title: update.toolCall.title,
+    });
+
+    const session = sessionStoreSetters.getSessions()[taskRunId];
+    if (!session) {
+      log.warn("Session not found for cloud permission request", { taskRunId });
+      return;
+    }
+
+    // Store the cloud requestId so we can route the response back
+    this.cloudPermissionRequestIds.set(
+      update.toolCall.toolCallId,
+      update.requestId,
+    );
+
+    const newPermissions = new Map(session.pendingPermissions);
+    newPermissions.set(update.toolCall.toolCallId, {
+      toolCall: update.toolCall as PermissionRequest["toolCall"],
+      options: update.options as PermissionRequest["options"],
+      taskRunId,
       receivedAt: Date.now(),
     });
 
@@ -1430,6 +1497,8 @@ export class SessionService {
       previousStatus: session.cloudStatus,
     });
 
+    const runtimeOptions = this.getCloudRuntimeOptions(session, previousRun);
+
     // Create a new run WITH resume context — backend validates the previous run,
     // derives snapshot_external_id server-side, and passes everything as extra_state.
     // The agent will load conversation history and restore the sandbox snapshot.
@@ -1437,6 +1506,9 @@ export class SessionService {
       session.taskId,
       previousBaseBranch,
       {
+        adapter: runtimeOptions.adapter,
+        model: runtimeOptions.model,
+        reasoningLevel: runtimeOptions.reasoningLevel,
         resumeFromRunId: session.taskRunId,
         pendingUserMessage: serializeCloudPrompt(blocks),
         prAuthorshipMode,
@@ -1554,6 +1626,29 @@ export class SessionService {
     };
   }
 
+  /**
+   * Send a command to the cloud agent server via the backend proxy.
+   * Handles auth lookup and throws if credentials are unavailable.
+   */
+  private async sendCloudCommand(
+    session: AgentSession,
+    method: "permission_response" | "set_config_option",
+    params: Record<string, unknown>,
+  ): Promise<void> {
+    const auth = await this.getCloudCommandAuth();
+    if (!auth) {
+      throw new Error("No cloud auth credentials available");
+    }
+    await trpcClient.cloudTask.sendCommand.mutate({
+      taskId: session.taskId,
+      runId: session.taskRunId,
+      apiHost: auth.apiHost,
+      teamId: auth.teamId,
+      method,
+      params,
+    });
+  }
+
   // --- Permissions ---
 
   private resolvePermission(session: AgentSession, toolCallId: string): void {
@@ -1596,21 +1691,33 @@ export class SessionService {
       ...buildPermissionToolMetadata(permission, optionId, customInput),
     });
 
+    const cloudRequestId = this.cloudPermissionRequestIds.get(toolCallId);
     this.resolvePermission(session, toolCallId);
 
     try {
-      await trpcClient.agent.respondToPermission.mutate({
-        taskRunId: session.taskRunId,
-        toolCallId,
-        optionId,
-        customInput,
-        answers,
-      });
+      if (session.isCloud && cloudRequestId) {
+        this.cloudPermissionRequestIds.delete(toolCallId);
+        await this.sendCloudCommand(session, "permission_response", {
+          requestId: cloudRequestId,
+          optionId,
+          customInput,
+          answers,
+        });
+      } else {
+        await trpcClient.agent.respondToPermission.mutate({
+          taskRunId: session.taskRunId,
+          toolCallId,
+          optionId,
+          customInput,
+          answers,
+        });
+      }
 
       log.info("Permission response sent", {
         taskId,
         toolCallId,
         optionId,
+        isCloud: !!cloudRequestId,
         hasCustomInput: !!customInput,
       });
     } catch (error) {
@@ -1639,15 +1746,29 @@ export class SessionService {
       ...buildPermissionToolMetadata(permission),
     });
 
+    const cloudRequestId = this.cloudPermissionRequestIds.get(toolCallId);
     this.resolvePermission(session, toolCallId);
 
     try {
-      await trpcClient.agent.cancelPermission.mutate({
-        taskRunId: session.taskRunId,
-        toolCallId,
-      });
+      if (session.isCloud && cloudRequestId) {
+        this.cloudPermissionRequestIds.delete(toolCallId);
+        await this.sendCloudCommand(session, "permission_response", {
+          requestId: cloudRequestId,
+          optionId: "reject_with_feedback",
+          customInput: "User cancelled the permission request.",
+        });
+      } else {
+        await trpcClient.agent.cancelPermission.mutate({
+          taskRunId: session.taskRunId,
+          toolCallId,
+        });
+      }
 
-      log.info("Permission cancelled", { taskId, toolCallId });
+      log.info("Permission cancelled", {
+        taskId,
+        toolCallId,
+        isCloud: !!cloudRequestId,
+      });
     } catch (error) {
       log.error("Failed to cancel permission", {
         taskId,
@@ -1698,11 +1819,18 @@ export class SessionService {
     updatePersistedConfigOptionValue(session.taskRunId, configId, value);
 
     try {
-      await trpcClient.agent.setConfigOption.mutate({
-        sessionId: session.taskRunId,
-        configId,
-        value,
-      });
+      if (session.isCloud) {
+        await this.sendCloudCommand(session, "set_config_option", {
+          configId,
+          value,
+        });
+      } else {
+        await trpcClient.agent.setConfigOption.mutate({
+          sessionId: session.taskRunId,
+          configId,
+          value,
+        });
+      }
     } catch (error) {
       // Rollback on error
       const rolledBackOptions = configOptions.map((opt) =>
@@ -1945,6 +2073,7 @@ export class SessionService {
     teamId: number,
     onStatusChange?: () => void,
     logUrl?: string,
+    initialMode?: string,
   ): () => void {
     const taskRunId = runId;
     const startToken = ++this.nextCloudTaskWatchToken;
@@ -1958,6 +2087,13 @@ export class SessionService {
       existingWatcher.teamId === teamId
     ) {
       existingWatcher.onStatusChange = onStatusChange;
+      // Ensure configOptions is populated on revisit
+      const existing = sessionStoreSetters.getSessionByTaskId(taskId);
+      if (existing && !existing.configOptions?.length) {
+        sessionStoreSetters.updateSession(existing.taskRunId, {
+          configOptions: buildCloudDefaultConfigOptions(initialMode),
+        });
+      }
       return () => {};
     }
 
@@ -1990,11 +2126,18 @@ export class SessionService {
       const session = this.createBaseSession(taskRunId, taskId, taskTitle);
       session.status = "disconnected";
       session.isCloud = true;
+      session.configOptions = buildCloudDefaultConfigOptions(initialMode);
       sessionStoreSetters.setSession(session);
-    } else if (!existing.isCloud) {
-      sessionStoreSetters.updateSession(existing.taskRunId, {
-        isCloud: true,
-      });
+    } else {
+      // Ensure cloud flag and configOptions are set on existing sessions
+      const updates: Partial<AgentSession> = {};
+      if (!existing.isCloud) updates.isCloud = true;
+      if (!existing.configOptions?.length) {
+        updates.configOptions = buildCloudDefaultConfigOptions(initialMode);
+      }
+      if (Object.keys(updates).length > 0) {
+        sessionStoreSetters.updateSession(existing.taskRunId, updates);
+      }
     }
 
     if (shouldHydrateSession) {
@@ -2184,6 +2327,11 @@ export class SessionService {
       return;
     }
 
+    if (update.kind === "permission_request") {
+      this.handleCloudPermissionRequest(taskRunId, update);
+      return;
+    }
+
     // Append new log entries with dedup guard
     if (
       (update.kind === "logs" || update.kind === "snapshot") &&
@@ -2349,6 +2497,36 @@ export class SessionService {
 
     if (!apiHost || !projectId || !client) return null;
     return { apiHost, projectId, client };
+  }
+
+  private getCloudRuntimeOptions(
+    session: AgentSession,
+    previousRun?: TaskRun,
+  ): {
+    adapter?: Adapter;
+    model?: string;
+    reasoningLevel?: string;
+  } {
+    const modelOption = getConfigOptionByCategory(
+      session.configOptions,
+      "model",
+    );
+    const thoughtLevelOption = getConfigOptionByCategory(
+      session.configOptions,
+      "thought_level",
+    );
+
+    return {
+      adapter: session.adapter ?? previousRun?.runtime_adapter ?? undefined,
+      model:
+        typeof modelOption?.currentValue === "string"
+          ? modelOption.currentValue
+          : (previousRun?.model ?? undefined),
+      reasoningLevel:
+        typeof thoughtLevelOption?.currentValue === "string"
+          ? thoughtLevelOption.currentValue
+          : (previousRun?.reasoning_effort ?? undefined),
+    };
   }
 
   private parseLogContent(content: string): {

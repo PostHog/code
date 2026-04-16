@@ -61,7 +61,8 @@
       "electron",
       "electron-winstaller",
       "node-pty",
-      "better-sqlite3"
+      "better-sqlite3",
+      "@posthog/cli"
     ]
   }
 }

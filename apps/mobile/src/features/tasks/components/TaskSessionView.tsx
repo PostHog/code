@@ -1,4 +1,10 @@
-import { ArrowDown, Brain, CaretRight, Robot } from "phosphor-react-native";
+import {
+  ArrowDown,
+  Brain,
+  CaretRight,
+  CloudArrowDown,
+  Robot,
+} from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -584,6 +590,7 @@ function useElapsedTimer() {
 }
 
 function ThinkingIndicator() {
+  const themeColors = useThemeColors();
   const [dots, setDots] = useState(1);
   const elapsed = useElapsedTimer();
 
@@ -595,16 +602,24 @@ function ThinkingIndicator() {
   }, []);
 
   return (
-    <View className="flex-row items-center justify-between px-4 py-2">
-      <Text className="text-[13px] text-gray-9 italic">
-        Thinking{".".repeat(dots)}
-      </Text>
-      <Text className="text-[12px] text-gray-8">{formatElapsed(elapsed)}</Text>
+    <View className="px-4 py-0.5">
+      <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center gap-2">
+          <Brain size={12} color={themeColors.gray[8]} />
+          <Text className="font-mono text-[12px] text-gray-8">
+            Thinking{".".repeat(dots)}
+          </Text>
+        </View>
+        <Text className="font-mono text-[12px] text-gray-8">
+          {formatElapsed(elapsed)}
+        </Text>
+      </View>
     </View>
   );
 }
 
 function ConnectingIndicator() {
+  const themeColors = useThemeColors();
   const [dots, setDots] = useState(1);
   const elapsed = useElapsedTimer();
 
@@ -616,11 +631,18 @@ function ConnectingIndicator() {
   }, []);
 
   return (
-    <View className="flex-row items-center justify-between px-4 py-2">
-      <Text className="text-[13px] text-gray-9">
-        Connecting{".".repeat(dots)}
-      </Text>
-      <Text className="text-[12px] text-gray-8">{formatElapsed(elapsed)}</Text>
+    <View className="px-4 py-0.5">
+      <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center gap-2">
+          <CloudArrowDown size={12} color={themeColors.gray[8]} />
+          <Text className="font-mono text-[12px] text-gray-8">
+            Connecting{".".repeat(dots)}
+          </Text>
+        </View>
+        <Text className="font-mono text-[12px] text-gray-8">
+          {formatElapsed(elapsed)}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -738,14 +760,10 @@ export function TaskSessionView({
         maxToRenderPerBatch={15}
         windowSize={21}
         initialNumToRender={30}
-      />
-      {/* Status indicators absolutely positioned above the Composer area.
-          Rendered outside FlatList to avoid inverted-list double-mount bugs. */}
-      {(terminalStatus || isConnecting || isThinking) && (
-        <View className="absolute inset-x-0 bottom-[92px] pb-2">
-          {terminalStatus ? (
+        ListHeaderComponent={
+          terminalStatus ? (
             <View
-              className={`mx-4 mb-12 rounded-lg px-4 py-3 ${
+              className={`mx-4 mt-2 mb-4 rounded-lg px-4 py-3 ${
                 terminalStatus === "failed"
                   ? "bg-status-error/10"
                   : "bg-status-success/10"
@@ -784,7 +802,14 @@ export function TaskSessionView({
                 </Pressable>
               )}
             </View>
-          ) : isConnecting ? (
+          ) : null
+        }
+      />
+      {/* Thinking/connecting indicators absolutely positioned above the Composer area.
+          Rendered outside FlatList to avoid inverted-list double-mount bugs. */}
+      {(isConnecting || isThinking) && (
+        <View className="absolute inset-x-0 bottom-[92px] pb-2">
+          {isConnecting ? (
             <ConnectingIndicator />
           ) : isThinking ? (
             <ThinkingIndicator />

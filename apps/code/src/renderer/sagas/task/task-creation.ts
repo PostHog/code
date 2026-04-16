@@ -292,6 +292,9 @@ export class TaskCreationSaga extends Saga<
           }
 
           return this.deps.posthogClient.runTaskInCloud(task.id, branch, {
+            adapter: input.adapter,
+            model: input.model,
+            reasoningLevel: input.reasoningLevel,
             pendingUserMessage: initialCloudPrompt
               ? serializeCloudPrompt(initialCloudPrompt)
               : undefined,
@@ -300,6 +303,7 @@ export class TaskCreationSaga extends Saga<
             runSource: input.cloudRunSource ?? "manual",
             signalReportId: input.signalReportId,
             githubUserToken,
+            initialPermissionMode: input.executionMode ?? "plan",
           });
         },
         rollback: async () => {

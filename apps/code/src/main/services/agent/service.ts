@@ -18,7 +18,7 @@ import {
   POSTHOG_NOTIFICATIONS,
 } from "@posthog/agent";
 import { hydrateSessionJsonl } from "@posthog/agent/adapters/claude/session/jsonl-hydration";
-import { getEffortOptions } from "@posthog/agent/adapters/claude/session/models";
+import { getReasoningEffortOptions } from "@posthog/agent/adapters/reasoning-effort";
 import { Agent } from "@posthog/agent/agent";
 import {
   getAvailableCodexModes,
@@ -256,6 +256,8 @@ interface SessionConfig {
   effort?: EffortLevel;
   /** Model to use for the session (e.g. "claude-sonnet-4-6") */
   model?: string;
+  /** JSON Schema for structured task output — when set, the agent gets a create_output tool */
+  jsonSchema?: Record<string, unknown> | null;
   /** Whether this session runs locally on the desktop or in a cloud sandbox */
   runMode?: "local" | "cloud";
 }
@@ -570,6 +572,7 @@ When creating pull requests, add the following footer at the end of the PR descr
       customInstructions,
       effort,
       model,
+      jsonSchema,
     } = config;
 
     // Preview config doesn't need a real repo — use a temp directory
@@ -632,6 +635,14 @@ When creating pull requests, add the following footer at the end of the PR descr
         codexBinaryPath: adapter === "codex" ? getCodexBinaryPath() : undefined,
         model,
         instructions: adapter === "codex" ? systemPrompt.append : undefined,
+        onStructuredOutput: jsonSchema
+          ? async (output) => {
+              const posthogAPI = agent.getPosthogAPI();
+              if (posthogAPI) {
+                await posthogAPI.updateTaskRun(taskId, taskRunId, { output });
+              }
+            }
+          : undefined,
         processCallbacks: {
           onProcessSpawned: (info) => {
             this.processTracking.register(
@@ -767,6 +778,7 @@ When creating pull requests, add the following footer at the end of the PR descr
             systemPrompt,
             ...(permissionMode && { permissionMode }),
             ...(model != null && { model }),
+            ...(jsonSchema && { jsonSchema }),
             claudeCode: {
               options: claudeCodeOptions,
             },
@@ -789,6 +801,7 @@ When creating pull requests, add the following footer at the end of the PR descr
             systemPrompt,
             ...(permissionMode && { permissionMode }),
             ...(model != null && { model }),
+            ...(jsonSchema && { jsonSchema }),
             claudeCode: {
               options: claudeCodeOptions,
             },
@@ -1591,6 +1604,7 @@ For git operations while detached:
         "customInstructions" in params ? params.customInstructions : undefined,
       effort: "effort" in params ? params.effort : undefined,
       model: "model" in params ? params.model : undefined,
+      jsonSchema: "jsonSchema" in params ? params.jsonSchema : undefined,
       runMode: "runMode" in params ? params.runMode : undefined,
     };
   }
@@ -1857,33 +1871,20 @@ For git operations while detached:
       },
     ];
 
-    if (adapter === "codex") {
+    const effortOpts = getReasoningEffortOptions(adapter, resolvedModelId);
+    if (effortOpts) {
       configOptions.push({
-        id: "reasoning_effort",
-        name: "Reasoning Level",
+        id: adapter === "codex" ? "reasoning_effort" : "effort",
+        name: adapter === "codex" ? "Reasoning Level" : "Effort",
         type: "select",
         currentValue: "high",
-        options: [
-          { value: "low", name: "Low" },
-          { value: "medium", name: "Medium" },
-          { value: "high", name: "High" },
-        ],
+        options: effortOpts,
         category: "thought_level",
-        description: "Controls how much reasoning effort the model uses",
+        description:
+          adapter === "codex"
+            ? "Controls how much reasoning effort the model uses"
+            : "Controls how much effort Claude puts into its response",
       });
-    } else {
-      const effortOpts = getEffortOptions(resolvedModelId);
-      if (effortOpts) {
-        configOptions.push({
-          id: "effort",
-          name: "Effort",
-          type: "select",
-          currentValue: "high",
-          options: effortOpts,
-          category: "thought_level",
-          description: "Controls how much effort Claude puts into its response",
-        });
-      }
     }
 
     return configOptions;

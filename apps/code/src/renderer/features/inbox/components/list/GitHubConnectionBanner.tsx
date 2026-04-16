@@ -80,8 +80,8 @@ export function GitHubConnectionBanner() {
         }}
       >
         <GithubLogoIcon className="flex-none" size={12} />
-        <span className="min-w-0 flex-1 basis-0">
-          {`Connect your GitHub profile to highlight what's relevant to you`}
+        <span className="min-w-0 flex-1 basis-0 text-balance">
+          Connect your GitHub profile to highlight what's relevant to you
         </span>
         <ArrowSquareOutIcon className="flex-none" size={11} />
       </Button>

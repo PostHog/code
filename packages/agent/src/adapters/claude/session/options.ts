@@ -6,6 +6,7 @@ import type {
   CanUseTool,
   McpServerConfig,
   Options,
+  OutputFormat,
   SpawnedProcess,
   SpawnOptions,
 } from "@anthropic-ai/claude-agent-sdk";
@@ -42,6 +43,7 @@ export interface BuildOptionsParams {
   forkSession?: boolean;
   additionalDirectories?: string[];
   disableBuiltInTools?: boolean;
+  outputFormat?: OutputFormat;
   settingsManager: SettingsManager;
   onModeChange?: OnModeChange;
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
@@ -268,6 +270,7 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
       params.settingsManager,
       params.logger,
     ),
+    outputFormat: params.outputFormat,
     abortController: getAbortController(
       params.userProvidedOptions?.abortController,
     ),

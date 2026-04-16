@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { z } from "zod/v4";
+import { isSupportedReasoningEffort } from "../adapters/reasoning-effort";
 import { AgentServer } from "./agent-server";
 import { claudeCodeConfigSchema, mcpServersSchema } from "./schemas";
 
@@ -26,9 +27,24 @@ const envSchema = z.object({
     })
     .regex(/^\d+$/, "POSTHOG_PROJECT_ID must be a numeric string")
     .transform((val) => parseInt(val, 10)),
+  POSTHOG_CODE_RUNTIME_ADAPTER: z.enum(["claude", "codex"]).optional(),
+  POSTHOG_CODE_MODEL: z.string().optional(),
+  POSTHOG_CODE_REASONING_EFFORT: z
+    .enum(["low", "medium", "high", "max"])
+    .optional(),
 });
 
 const program = new Command();
+
+function parseBooleanOption(
+  raw: string | undefined,
+  flag: string,
+): boolean | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === "true") return true;
+  if (raw === "false") return false;
+  program.error(`${flag} must be either "true" or "false"`);
+}
 
 function parseJsonOption<S extends z.ZodType>(
   raw: string | undefined,
@@ -70,6 +86,7 @@ program
     "--mcpServers <json>",
     "MCP servers config as JSON array (ACP McpServer[] format)",
   )
+  .option("--createPr <boolean>", "Whether this run may publish changes")
   .option("--baseBranch <branch>", "Base branch for PR creation")
   .option(
     "--claudeCodeConfig <json>",
@@ -93,6 +110,7 @@ program
     const env = envResult.data;
 
     const mode = options.mode === "background" ? "background" : "interactive";
+    const createPr = parseBooleanOption(options.createPr, "--createPr");
 
     const mcpServers = parseJsonOption(
       options.mcpServers,
@@ -112,6 +130,21 @@ program
           .filter(Boolean)
       : undefined;
 
+    if (
+      env.POSTHOG_CODE_RUNTIME_ADAPTER &&
+      env.POSTHOG_CODE_MODEL &&
+      env.POSTHOG_CODE_REASONING_EFFORT &&
+      !isSupportedReasoningEffort(
+        env.POSTHOG_CODE_RUNTIME_ADAPTER,
+        env.POSTHOG_CODE_MODEL,
+        env.POSTHOG_CODE_REASONING_EFFORT,
+      )
+    ) {
+      program.error(
+        `POSTHOG_CODE_REASONING_EFFORT '${env.POSTHOG_CODE_REASONING_EFFORT}' is not supported for ${env.POSTHOG_CODE_RUNTIME_ADAPTER} model '${env.POSTHOG_CODE_MODEL}'.`,
+      );
+    }
+
     const server = new AgentServer({
       port: parseInt(options.port, 10),
       jwtPublicKey: env.JWT_PUBLIC_KEY,
@@ -122,10 +155,14 @@ program
       mode,
       taskId: options.taskId,
       runId: options.runId,
+      createPr,
       mcpServers,
       baseBranch: options.baseBranch,
       claudeCode,
       allowedDomains,
+      runtimeAdapter: env.POSTHOG_CODE_RUNTIME_ADAPTER,
+      model: env.POSTHOG_CODE_MODEL,
+      reasoningEffort: env.POSTHOG_CODE_REASONING_EFFORT,
     });
 
     process.on("SIGINT", async () => {

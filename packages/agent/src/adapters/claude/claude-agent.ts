@@ -109,6 +109,7 @@ export interface ClaudeAcpAgentOptions {
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
   onProcessExited?: (pid: number) => void;
   onMcpServersReady?: (serverNames: string[]) => void;
+  onStructuredOutput?: (output: Record<string, unknown>) => Promise<void>;
 }
 
 export class ClaudeAcpAgent extends BaseAcpAgent {
@@ -483,6 +484,17 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
             const result = handleResultMessage(message);
             if (result.error) throw result.error;
 
+            // Deliver structured output from SDK's native outputFormat
+            if (
+              message.subtype === "success" &&
+              message.structured_output != null &&
+              this.options?.onStructuredOutput
+            ) {
+              await this.options.onStructuredOutput(
+                message.structured_output as Record<string, unknown>,
+              );
+            }
+
             // For local-only commands, forward the result text to the client
             if (
               isLocalOnlyCommand &&
@@ -825,6 +837,12 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       : {};
     const systemPrompt = buildSystemPrompt(meta?.systemPrompt);
 
+    // Configure structured output via SDK's native outputFormat
+    const outputFormat =
+      meta?.jsonSchema && this.options?.onStructuredOutput
+        ? { type: "json_schema" as const, schema: meta.jsonSchema }
+        : undefined;
+
     this.logger.info(isResume ? "Resuming session" : "Creating new session", {
       sessionId,
       taskId,
@@ -854,6 +872,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         ...(meta?.additionalRoots ?? []),
       ],
       disableBuiltInTools: meta?.disableBuiltInTools,
+      outputFormat,
       settingsManager,
       onModeChange: this.createOnModeChange(),
       onProcessSpawned: this.options?.onProcessSpawned,

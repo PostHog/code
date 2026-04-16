@@ -1,7 +1,7 @@
 import type { SessionConfigOption } from "@agentclientprotocol/sdk";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
-import { getEffortOptions } from "@posthog/agent/adapters/claude/session/models";
+import { getReasoningEffortOptions } from "@posthog/agent/adapters/reasoning-effort";
 import { trpcClient } from "@renderer/trpc/client";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { logger } from "@utils/logger";
@@ -116,50 +116,65 @@ export function usePreviewConfig(
     };
   }, [adapter, apiHost]);
 
-  const setConfigOption = useCallback((configId: string, value: string) => {
-    setConfigOptions((prev) => {
-      let updated = prev.map((opt) =>
-        opt.id === configId
-          ? ({ ...opt, currentValue: value } as SessionConfigOption)
-          : opt,
-      );
+  const setConfigOption = useCallback(
+    (configId: string, value: string) => {
+      setConfigOptions((prev) => {
+        let updated = prev.map((opt) =>
+          opt.id === configId
+            ? ({ ...opt, currentValue: value } as SessionConfigOption)
+            : opt,
+        );
 
-      if (configId === "model") {
-        const effortOpts = getEffortOptions(value);
-        const existingIdx = updated.findIndex((o) => o.id === "effort");
+        if (configId === "model") {
+          const effortOpts = getReasoningEffortOptions(adapter, value);
+          const existingIdx = updated.findIndex(
+            (o) => o.category === "thought_level",
+          );
+          const effortOptionId =
+            existingIdx >= 0
+              ? updated[existingIdx].id
+              : adapter === "codex"
+                ? "reasoning_effort"
+                : "effort";
 
-        if (effortOpts && existingIdx >= 0) {
-          const currentEffort = updated[existingIdx].currentValue;
-          const validEffort = effortOpts.some((e) => e.value === currentEffort)
-            ? currentEffort
-            : "high";
-          updated[existingIdx] = {
-            ...updated[existingIdx],
-            currentValue: validEffort,
-            options: effortOpts,
-          } as SessionConfigOption;
-        } else if (effortOpts && existingIdx === -1) {
-          updated = [
-            ...updated,
-            {
-              id: "effort",
-              name: "Effort",
-              type: "select",
-              currentValue: "high",
+          if (effortOpts && existingIdx >= 0) {
+            const currentEffort = updated[existingIdx].currentValue;
+            const validEffort = effortOpts.some(
+              (e) => e.value === currentEffort,
+            )
+              ? currentEffort
+              : "high";
+            updated[existingIdx] = {
+              ...updated[existingIdx],
+              currentValue: validEffort,
               options: effortOpts,
-              category: "thought_level",
-              description:
-                "Controls how much effort Claude puts into its response",
-            } as SessionConfigOption,
-          ];
-        } else if (!effortOpts && existingIdx >= 0) {
-          updated = updated.filter((o) => o.id !== "effort");
+            } as SessionConfigOption;
+          } else if (effortOpts && existingIdx === -1) {
+            updated = [
+              ...updated,
+              {
+                id: effortOptionId,
+                name: adapter === "codex" ? "Reasoning Level" : "Effort",
+                type: "select",
+                currentValue: "high",
+                options: effortOpts,
+                category: "thought_level",
+                description:
+                  adapter === "codex"
+                    ? "Controls how much reasoning effort the model uses"
+                    : "Controls how much effort Claude puts into its response",
+              } as SessionConfigOption,
+            ];
+          } else if (!effortOpts && existingIdx >= 0) {
+            updated = updated.filter((o) => o.category !== "thought_level");
+          }
         }
-      }
 
-      return updated;
-    });
-  }, []);
+        return updated;
+      });
+    },
+    [adapter],
+  );
 
   const modeOption = getOptionByCategory(configOptions, "mode");
   const modelOption = getOptionByCategory(configOptions, "model");

@@ -68,22 +68,33 @@ const mockSessionStoreSetters = vi.hoisted(() => ({
   replaceOptimisticWithEvent: vi.fn(),
 }));
 
+const mockGetConfigOptionByCategory = vi.hoisted(() =>
+  vi.fn(
+    (
+      _configOptions?: Array<{ category?: string }>,
+      _category?: string,
+    ): { category?: string } | undefined => undefined,
+  ),
+);
+
 vi.mock("@features/sessions/stores/sessionStore", () => ({
   sessionStoreSetters: mockSessionStoreSetters,
-  getConfigOptionByCategory: vi.fn(() => undefined),
+  getConfigOptionByCategory: mockGetConfigOptionByCategory,
   mergeConfigOptions: vi.fn((live: unknown[], _persisted: unknown[]) => live),
 }));
 
+const mockAuthenticatedClient = vi.hoisted(() => ({
+  createTaskRun: vi.fn(),
+  appendTaskRunLog: vi.fn(),
+  getTaskRun: vi.fn(),
+  getTask: vi.fn(),
+  runTaskInCloud: vi.fn(),
+}));
+
+type MockAuthenticatedClient = typeof mockAuthenticatedClient;
+
 const mockBuildAuthenticatedClient = vi.hoisted(() =>
-  vi.fn<
-    () => {
-      createTaskRun: ReturnType<typeof vi.fn>;
-      appendTaskRunLog: ReturnType<typeof vi.fn>;
-    } | null
-  >(() => ({
-    createTaskRun: vi.fn(),
-    appendTaskRunLog: vi.fn(),
-  })),
+  vi.fn<() => MockAuthenticatedClient | null>(() => mockAuthenticatedClient),
 );
 
 const mockAuth = vi.hoisted(() => ({
@@ -198,6 +209,12 @@ vi.mock("@utils/notifications", () => ({
 vi.mock("@renderer/utils/toast", () => ({
   toast: { error: vi.fn() },
 }));
+vi.mock("@utils/queryClient", () => ({
+  queryClient: {
+    invalidateQueries: vi.fn(),
+    setQueriesData: vi.fn(),
+  },
+}));
 vi.mock("@shared/constants/oauth", () => ({
   getCloudUrlFromRegion: () => "https://api.anthropic.com",
 }));
@@ -206,6 +223,11 @@ vi.mock("@utils/session", async () => {
     await vi.importActual<typeof import("@utils/session")>("@utils/session");
   return {
     convertStoredEntriesToEvents: vi.fn(() => []),
+    createUserMessageEvent: vi.fn((message, ts) => ({
+      type: "user",
+      ts,
+      message,
+    })),
     createUserShellExecuteEvent: vi.fn(() => ({
       type: "acp_message",
       ts: Date.now(),
@@ -264,6 +286,7 @@ describe("SessionService", () => {
     vi.clearAllMocks();
     resetSessionService();
     mockGetIsOnline.mockReturnValue(true);
+    mockGetConfigOptionByCategory.mockReturnValue(undefined);
     mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(undefined);
     mockSessionStoreSetters.getSessions.mockReturnValue({});
     mockAuth.fetchAuthState.mockResolvedValue({
@@ -375,6 +398,7 @@ describe("SessionService", () => {
         needsScopeReauth: false,
       });
       mockBuildAuthenticatedClient.mockReturnValue({
+        ...mockAuthenticatedClient,
         createTaskRun: createTaskRunMock,
         appendTaskRunLog: vi.fn(),
       });
@@ -747,6 +771,7 @@ describe("SessionService", () => {
         needsScopeReauth: false,
       });
       mockBuildAuthenticatedClient.mockReturnValue({
+        ...mockAuthenticatedClient,
         createTaskRun: createTaskRunMock,
         appendTaskRunLog: vi.fn(),
       });
@@ -905,6 +930,100 @@ describe("SessionService", () => {
       );
       expect(args.params?.content).toEqual(
         expect.stringContaining('"type":"resource"'),
+      );
+    });
+
+    it("preserves codex runtime selection when resuming a terminal cloud run", async () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({
+          isCloud: true,
+          cloudStatus: "completed",
+          cloudBranch: "feature/codex-run",
+          adapter: "codex",
+          configOptions: [
+            {
+              id: "model",
+              name: "Model",
+              type: "select",
+              category: "model",
+              currentValue: "gpt-5.4",
+              options: [],
+            },
+            {
+              id: "effort",
+              name: "Effort",
+              type: "select",
+              category: "thought_level",
+              currentValue: "high",
+              options: [],
+            },
+          ],
+        }),
+      );
+      mockGetConfigOptionByCategory.mockImplementation(
+        (
+          configOptions: Array<{ category?: string }> | undefined,
+          category?: string,
+        ) => configOptions?.find((opt) => opt.category === category),
+      );
+      mockAuthenticatedClient.getTaskRun.mockResolvedValue({
+        id: "run-123",
+        task: "task-123",
+        team: 123,
+        branch: "feature/codex-run",
+        runtime_adapter: "codex",
+        model: "gpt-5.4",
+        reasoning_effort: "high",
+        environment: "cloud",
+        status: "completed",
+        log_url: "https://example.com/logs/run-123",
+        error_message: null,
+        output: {},
+        state: {},
+        created_at: "2026-04-14T00:00:00Z",
+        updated_at: "2026-04-14T00:00:00Z",
+        completed_at: "2026-04-14T00:05:00Z",
+      });
+      mockAuthenticatedClient.getTask.mockResolvedValue(createMockTask());
+      mockAuthenticatedClient.runTaskInCloud.mockResolvedValue(
+        createMockTask({
+          latest_run: {
+            id: "run-456",
+            task: "task-123",
+            team: 123,
+            branch: "feature/codex-run",
+            runtime_adapter: "codex",
+            model: "gpt-5.4",
+            reasoning_effort: "high",
+            environment: "cloud",
+            status: "queued",
+            log_url: "https://example.com/logs/run-456",
+            error_message: null,
+            output: {},
+            state: {},
+            created_at: "2026-04-14T00:06:00Z",
+            updated_at: "2026-04-14T00:06:00Z",
+            completed_at: null,
+          },
+        }),
+      );
+
+      const result = await service.sendPrompt(
+        "task-123",
+        "Continue with Codex",
+      );
+
+      expect(result.stopReason).toBe("queued");
+      expect(mockAuthenticatedClient.runTaskInCloud).toHaveBeenCalledWith(
+        "task-123",
+        "feature/codex-run",
+        expect.objectContaining({
+          adapter: "codex",
+          model: "gpt-5.4",
+          reasoningLevel: "high",
+          resumeFromRunId: "run-123",
+        }),
       );
     });
 
@@ -1224,6 +1343,7 @@ describe("SessionService", () => {
       });
       mockTrpcAgent.prompt.mutate.mockResolvedValue({ stopReason: "end_turn" });
       mockBuildAuthenticatedClient.mockReturnValue({
+        ...mockAuthenticatedClient,
         createTaskRun: vi.fn().mockResolvedValue({ id: "new-run" }),
         appendTaskRunLog: vi.fn(),
       });

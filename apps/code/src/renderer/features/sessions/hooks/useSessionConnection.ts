@@ -72,6 +72,10 @@ export function useSessionConnection({
     if (!cloudAuthState.projectId || !cloudAuthState.cloudRegion) return;
 
     const runId = task.latest_run.id;
+    const initialMode =
+      typeof task.latest_run.state?.initial_permission_mode === "string"
+        ? task.latest_run.state.initial_permission_mode
+        : undefined;
     const cleanup = getSessionService().watchCloudTask(
       task.id,
       runId,
@@ -81,6 +85,7 @@ export function useSessionConnection({
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
       },
       task.latest_run?.log_url,
+      initialMode,
     );
     return cleanup;
   }, [
@@ -93,6 +98,7 @@ export function useSessionConnection({
     task.id,
     task.latest_run?.id,
     task.latest_run?.log_url,
+    task.latest_run?.state?.initial_permission_mode,
   ]);
 
   useEffect(() => {

@@ -130,7 +130,11 @@ function NetworkAccessSelect({
   onChange: (v: NetworkAccessLevel) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const current = NETWORK_ACCESS_OPTIONS.find((o) => o.value === value)!;
+  const current = NETWORK_ACCESS_OPTIONS.find((o) => o.value === value);
+
+  if (!current) {
+    return null;
+  }
 
   return (
     <div style={{ position: "relative" }}>

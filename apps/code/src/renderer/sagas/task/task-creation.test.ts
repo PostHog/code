@@ -140,6 +140,9 @@ describe("TaskCreationSaga", () => {
       repository: "posthog/posthog",
       workspaceMode: "cloud",
       branch: "release/remembered-branch",
+      adapter: "codex",
+      model: "gpt-5.4",
+      reasoningLevel: "high",
     });
 
     expect(result.success).toBe(true);
@@ -151,12 +154,16 @@ describe("TaskCreationSaga", () => {
       "task-123",
       "release/remembered-branch",
       {
+        adapter: "codex",
+        model: "gpt-5.4",
+        reasoningLevel: "high",
         pendingUserMessage: "Ship the fix",
         sandboxEnvironmentId: undefined,
         prAuthorshipMode: "bot",
         runSource: "manual",
         signalReportId: undefined,
         githubUserToken: undefined,
+        initialPermissionMode: "plan",
       },
     );
     expect(sendRunCommandMock).not.toHaveBeenCalled();
@@ -201,6 +208,9 @@ describe("TaskCreationSaga", () => {
       repository: "posthog/posthog",
       workspaceMode: "cloud",
       branch: "release/remembered-branch",
+      adapter: "codex",
+      model: "gpt-5.4",
+      reasoningLevel: "medium",
     });
 
     expect(result.success).toBe(true);
@@ -217,6 +227,9 @@ describe("TaskCreationSaga", () => {
       "task-123",
       "release/remembered-branch",
       expect.objectContaining({
+        adapter: "codex",
+        model: "gpt-5.4",
+        reasoningLevel: "medium",
         pendingUserMessage: expect.stringContaining(
           "__twig_cloud_prompt_v1__:",
         ),

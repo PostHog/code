@@ -1,5 +1,6 @@
 import { Tooltip } from "@components/ui/Tooltip";
 import { EnvelopeSimple, Plus } from "@phosphor-icons/react";
+import { Badge, type ButtonProps } from "@posthog/quill";
 import {
   formatHotkey,
   SHORTCUTS,
@@ -9,6 +10,7 @@ import { SidebarItem } from "../SidebarItem";
 interface NewTaskItemProps {
   isActive: boolean;
   onClick: () => void;
+  variant?: ButtonProps["variant"];
 }
 
 export function NewTaskItem({ isActive, onClick }: NewTaskItemProps) {
@@ -37,7 +39,11 @@ function formatSignalCount(count: number): string {
 export function InboxItem({ isActive, onClick, signalCount }: InboxItemProps) {
   return (
     <Tooltip
-      content="Open inbox"
+      content={
+        signalCount && signalCount > 0
+          ? `${signalCount} actionable report${signalCount === 1 ? "" : "s"} assigned to you`
+          : "No actionable reports assigned to you yet"
+      }
       shortcut={formatHotkey(SHORTCUTS.INBOX)}
       side="right"
     >
@@ -47,20 +53,27 @@ export function InboxItem({ isActive, onClick, signalCount }: InboxItemProps) {
           icon={
             <EnvelopeSimple size={16} weight={isActive ? "fill" : "regular"} />
           }
-          label="Inbox"
+          label={
+            <>
+              Inbox
+              {signalCount && signalCount > 0 ? (
+                <span
+                  className="inline-flex min-w-[14px] shrink-0 items-center justify-center rounded-full px-0.5 font-medium text-[9px] leading-none"
+                  style={{
+                    height: "14px",
+                    backgroundColor: "var(--red-9)",
+                    color: "white",
+                  }}
+                  title={`${signalCount} actionable reports for you`}
+                >
+                  {formatSignalCount(signalCount)}
+                </span>
+              ) : null}
+            </>
+          }
           isActive={isActive}
           onClick={onClick}
-          endContent={
-            signalCount && signalCount > 0 ? (
-              <span
-                className="inline-flex min-w-[16px] items-center justify-center rounded-full px-1 text-[11px] text-gray-11 leading-none"
-                style={{ height: "16px" }}
-                title={`${signalCount} ready reports`}
-              >
-                {formatSignalCount(signalCount)}
-              </span>
-            ) : undefined
-          }
+          endContent={<Badge variant="warning">Beta</Badge>}
         />
       </div>
     </Tooltip>

@@ -110,6 +110,7 @@ export type NewSessionMeta = {
   allowedDomains?: string[];
   /** Model ID to use for this session (e.g. "claude-sonnet-4-6") */
   model?: string;
+  jsonSchema?: Record<string, unknown> | null;
   claudeCode?: {
     options?: Options;
   };

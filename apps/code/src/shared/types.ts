@@ -70,6 +70,9 @@ export interface TaskRun {
   task: string; // Task ID
   team: number;
   branch: string | null;
+  runtime_adapter?: "claude" | "codex" | null;
+  model?: string | null;
+  reasoning_effort?: "low" | "medium" | "high" | "max" | null;
   stage?: string | null; // Current stage (e.g., 'research', 'plan', 'build')
   environment?: "local" | "cloud";
   status: TaskRunStatus;
@@ -147,11 +150,33 @@ export interface CloudTaskErrorUpdate extends CloudTaskUpdateBase {
   retryable: boolean;
 }
 
+export interface CloudPermissionOption {
+  kind: string;
+  optionId: string;
+  name: string;
+  _meta?: Record<string, unknown>;
+}
+
+export interface CloudTaskPermissionRequestUpdate extends CloudTaskUpdateBase {
+  kind: "permission_request";
+  requestId: string;
+  toolCall: {
+    toolCallId: string;
+    title: string;
+    kind: string;
+    content?: unknown[];
+    rawInput?: Record<string, unknown>;
+    _meta?: Record<string, unknown>;
+  };
+  options: CloudPermissionOption[];
+}
+
 export type CloudTaskUpdatePayload =
   | CloudTaskLogsUpdate
   | CloudTaskStatusUpdate
   | CloudTaskSnapshotUpdate
-  | CloudTaskErrorUpdate;
+  | CloudTaskErrorUpdate
+  | CloudTaskPermissionRequestUpdate;
 
 // Mention types for editors
 type MentionType =

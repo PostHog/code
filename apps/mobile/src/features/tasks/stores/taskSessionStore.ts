@@ -82,6 +82,9 @@ export interface TaskSession {
   // we should play a sound when control returns. False when reconnecting
   // to an already-running task to avoid spurious pings.
   awaitingPing?: boolean;
+  // True after a user prompt is sent, cleared when the first piece of
+  // agent output (tool call, message, etc.) arrives from polling.
+  awaitingAgentOutput?: boolean;
   // Messages queued while the agent is working. Auto-sent when control
   // returns (isPromptPending flips to false).
   messageQueue?: string[];
@@ -176,6 +179,7 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
               logUrl: newLogUrl,
               processedLineCount: 0,
               awaitingPing: true,
+              awaitingAgentOutput: true,
             },
           },
         }));
@@ -218,6 +222,9 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
         ? (task.latest_run?.error_message ?? null)
         : null;
 
+      const agentIsIdle = inferAgentIsIdle(rawEntries, notifications);
+      const isPromptPending = isTerminal ? false : !agentIsIdle;
+
       set((state) => ({
         sessions: {
           ...state.sessions,
@@ -226,13 +233,27 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
             taskId,
             events: historicalEvents,
             status: "connected",
-            isPromptPending: isTerminal
-              ? false
-              : !inferAgentIsIdle(rawEntries, notifications),
+            isPromptPending,
             logUrl: latestRunLogUrl,
             processedLineCount: rawEntries.length,
             terminalStatus,
             lastError,
+            // Show "Connecting/Thinking" for active non-terminal runs
+            // that haven't produced visible agent output yet.
+            awaitingAgentOutput:
+              isPromptPending &&
+              !historicalEvents.some((e) => {
+                if (e.type !== "session_update") return false;
+                const su = (e.notification as SessionNotification)?.update
+                  ?.sessionUpdate;
+                return (
+                  su === "agent_message_chunk" ||
+                  su === "agent_message" ||
+                  su === "agent_thought_chunk" ||
+                  su === "tool_call" ||
+                  su === "tool_call_update"
+                );
+              }),
           },
         },
       }));
@@ -317,6 +338,7 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
             localUserEchoes: nextLocalEchoes,
             isPromptPending: true,
             awaitingPing: true,
+            awaitingAgentOutput: true,
           },
         },
       };
@@ -407,6 +429,7 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
             localUserEchoes: nextLocalEchoes,
             isPromptPending: true,
             awaitingPing: true,
+            awaitingAgentOutput: true,
           },
         },
       };
@@ -710,6 +733,24 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
             }
             if (receivedAgentMessage) nextAwaitingPing = false;
 
+            // Clear awaitingAgentOutput once a visibly-rendered event arrives
+            // (agent message, thought, tool call) — not just any non-user event.
+            const visibleSessionUpdates = new Set([
+              "agent_message_chunk",
+              "agent_message",
+              "agent_thought_chunk",
+              "tool_call",
+              "tool_call_update",
+            ]);
+            const hasVisibleAgentOutput = batchedEvents.some((e) => {
+              if (e.type !== "session_update") return false;
+              const su = (e.notification as SessionNotification)?.update
+                ?.sessionUpdate;
+              return su !== undefined && visibleSessionUpdates.has(su);
+            });
+            const nextAwaitingAgentOutput =
+              current.awaitingAgentOutput && !hasVisibleAgentOutput;
+
             return {
               sessions: {
                 ...state.sessions,
@@ -727,6 +768,7 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
                       : undefined,
                   isPromptPending: nextIsPromptPending,
                   awaitingPing: nextAwaitingPing,
+                  awaitingAgentOutput: nextAwaitingAgentOutput,
                 },
               },
             };
@@ -805,6 +847,7 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
             processedLineCount: 0,
             processedHashes: new Set<string>(),
             awaitingPing: true,
+            awaitingAgentOutput: true,
           },
         },
       };

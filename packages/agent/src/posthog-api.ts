@@ -158,6 +158,20 @@ export class PostHogAPIClient {
     );
   }
 
+  async setTaskRunOutput(
+    taskId: string,
+    runId: string,
+    output: Record<string, unknown>,
+  ): Promise<TaskRun> {
+    return this.apiRequest(
+      `/api/projects/${this.getTeamId()}/tasks/${taskId}/runs/${runId}/set_output/`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(output),
+      },
+    );
+  }
+
   async appendTaskRunLog(
     taskId: string,
     runId: string,

@@ -1,3 +1,4 @@
+import { Kbd } from "@posthog/quill";
 import type React from "react";
 
 interface KeyHintProps {
@@ -7,7 +8,7 @@ interface KeyHintProps {
 
 export function KeyHint({ children, style }: KeyHintProps) {
   return (
-    <kbd
+    <Kbd
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -17,7 +18,7 @@ export function KeyHint({ children, style }: KeyHintProps) {
         ...style,
       }}
     >
-      {children}
-    </kbd>
+      {children as string}
+    </Kbd>
   );
 }

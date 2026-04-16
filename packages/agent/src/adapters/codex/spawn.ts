@@ -11,6 +11,7 @@ export interface CodexProcessOptions {
   apiBaseUrl?: string;
   apiKey?: string;
   model?: string;
+  reasoningEffort?: string;
   instructions?: string;
   binaryPath?: string;
   logger?: Logger;
@@ -50,6 +51,10 @@ function buildConfigArgs(options: CodexProcessOptions): string[] {
 
   if (options.model) {
     args.push("-c", `model="${options.model}"`);
+  }
+
+  if (options.reasoningEffort) {
+    args.push("-c", `model_reasoning_effort="${options.reasoningEffort}"`);
   }
 
   if (options.instructions) {
