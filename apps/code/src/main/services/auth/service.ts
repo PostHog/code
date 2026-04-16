@@ -31,6 +31,12 @@ import {
 
 const log = logger.scope("auth-service");
 const TOKEN_EXPIRY_SKEW_MS = 60_000;
+// Proactively refresh 30 min before expiry. The lazy skew check in
+// ensureValidSession() isn't enough on its own: long-running agent turns can
+// hold a token reference for many minutes, and the PostHog MCP server needs a
+// valid bearer on *every* turn. A background refresh keeps the in-memory token
+// fresh even when nothing else in the app happens to call getValidAccessToken().
+const TOKEN_REFRESH_BUFFER_MS = 30 * 60 * 1000;
 type FetchLike = (
   input: string | Request,
   init?: RequestInit,
@@ -73,6 +79,7 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
   private session: InMemorySession | null = null;
   private initializePromise: Promise<void> | null = null;
   private refreshPromise: Promise<InMemorySession> | null = null;
+  private refreshTimeoutId: NodeJS.Timeout | null = null;
   constructor(
     @inject(MAIN_TOKENS.AuthPreferenceRepository)
     private readonly authPreferenceRepository: IAuthPreferenceRepository,
@@ -221,6 +228,10 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
   async logout(): Promise<AuthState> {
     const { cloudRegion, projectId } = this.state;
 
+    if (this.refreshTimeoutId) {
+      clearTimeout(this.refreshTimeoutId);
+      this.refreshTimeoutId = null;
+    }
     this.authSessionRepository.clearCurrent();
     this.session = null;
     this.setAnonymousState({ cloudRegion, projectId });
@@ -457,7 +468,35 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       availableOrgIds: session.availableOrgIds,
       needsScopeReauth: false,
     });
+    this.scheduleTokenRefresh();
     await this.updateCodeAccessFromSession();
+  }
+  private scheduleTokenRefresh(): void {
+    if (this.refreshTimeoutId) {
+      clearTimeout(this.refreshTimeoutId);
+      this.refreshTimeoutId = null;
+    }
+
+    if (!this.session) {
+      return;
+    }
+
+    const timeUntilRefresh =
+      this.session.accessTokenExpiresAt - Date.now() - TOKEN_REFRESH_BUFFER_MS;
+
+    const fire = () => {
+      this.refreshTimeoutId = null;
+      this.refreshAccessToken().catch((error) => {
+        log.warn("Proactive token refresh failed", { error });
+      });
+    };
+
+    if (timeUntilRefresh <= 0) {
+      fire();
+      return;
+    }
+
+    this.refreshTimeoutId = setTimeout(fire, timeUntilRefresh);
   }
   private persistSession(input: {
     refreshToken: string;
@@ -598,6 +637,10 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
   }
   @preDestroy()
   shutdown(): void {
+    if (this.refreshTimeoutId) {
+      clearTimeout(this.refreshTimeoutId);
+      this.refreshTimeoutId = null;
+    }
     this.connectivityUnsubscribe?.();
     this.connectivityUnsubscribe = null;
     powerMonitor.off("resume", this.handleResume);
