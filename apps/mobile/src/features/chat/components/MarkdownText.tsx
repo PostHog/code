@@ -1,15 +1,53 @@
+import { useMemo } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { getColorForClass, highlightCode } from "@/lib/syntax-highlight";
+import { useThemeColors } from "@/lib/theme";
 
 interface MarkdownTextProps {
   content: string;
 }
 
-// Lightweight markdown renderer for agent messages.
-// Handles: code blocks, inline code, bold, italic, headers, bullet/numbered lists, tables.
+function HighlightedCode({
+  code,
+  language,
+}: {
+  code: string;
+  language: string;
+}) {
+  const themeColors = useThemeColors();
+  const segments = useMemo(
+    () => highlightCode(code, language),
+    [code, language],
+  );
+
+  if (!segments) {
+    return (
+      <Text className="font-mono text-[12px] text-gray-12 leading-4" selectable>
+        {code}
+      </Text>
+    );
+  }
+
+  return (
+    <Text className="font-mono text-[12px] leading-4" selectable>
+      {segments.map((segment, i) => (
+        <Text
+          key={`s-${i}-${segment.className ?? "p"}`}
+          style={{
+            color: getColorForClass(segment.className) ?? themeColors.gray[12],
+          }}
+        >
+          {segment.text}
+        </Text>
+      ))}
+    </Text>
+  );
+}
 
 interface Block {
   type: "paragraph" | "code" | "heading" | "list" | "table";
   content: string;
+  language?: string;
   level?: number;
   items?: string[];
   ordered?: boolean;
@@ -26,6 +64,7 @@ function parseBlocks(text: string): Block[] {
 
     // Code block
     if (line.startsWith("```")) {
+      const language = line.slice(3).trim() || undefined;
       const codeLines: string[] = [];
       i++;
       while (i < lines.length && !lines[i].startsWith("```")) {
@@ -33,7 +72,7 @@ function parseBlocks(text: string): Block[] {
         i++;
       }
       i++; // skip closing ```
-      blocks.push({ type: "code", content: codeLines.join("\n") });
+      blocks.push({ type: "code", content: codeLines.join("\n"), language });
       continue;
     }
 
@@ -188,12 +227,19 @@ export function MarkdownText({ content }: MarkdownTextProps) {
                 key={key}
                 className="rounded-md border border-gray-6 bg-gray-3 px-3 py-2"
               >
-                <Text
-                  className="font-mono text-[12px] text-gray-12 leading-4"
-                  selectable
-                >
-                  {block.content}
-                </Text>
+                {block.language ? (
+                  <HighlightedCode
+                    code={block.content}
+                    language={block.language}
+                  />
+                ) : (
+                  <Text
+                    className="font-mono text-[12px] text-gray-12 leading-4"
+                    selectable
+                  >
+                    {block.content}
+                  </Text>
+                )}
               </View>
             );
 

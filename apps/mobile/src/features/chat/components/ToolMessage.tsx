@@ -14,7 +14,7 @@ import {
   Trash,
   Wrench,
 } from "phosphor-react-native";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -22,6 +22,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import {
+  getColorForClass,
+  highlightCode,
+  languageFromPath,
+} from "@/lib/syntax-highlight";
 import { useThemeColors } from "@/lib/theme";
 
 export type ToolStatus = "pending" | "running" | "completed" | "error";
@@ -517,12 +522,55 @@ function computeLineDiff(
 interface DiffBlockProps {
   oldText: string;
   newText: string;
+  language?: string | null;
   maxLines?: number;
 }
 
-function DiffBlock({ oldText, newText, maxLines = 60 }: DiffBlockProps) {
+function HighlightedDiffLine({
+  text,
+  language,
+  fallbackColor,
+}: {
+  text: string;
+  language?: string | null;
+  fallbackColor: string;
+}) {
+  const segments = useMemo(
+    () => (language ? highlightCode(text, language) : null),
+    [text, language],
+  );
+
+  if (!segments) {
+    return <>{text || " "}</>;
+  }
+
+  return (
+    <>
+      {segments.map((seg, i) => {
+        const color = getColorForClass(seg.className);
+        return (
+          <Text
+            key={`h-${i}-${seg.className ?? "p"}`}
+            style={{ color: color ?? fallbackColor }}
+          >
+            {seg.text}
+          </Text>
+        );
+      })}
+    </>
+  );
+}
+
+function DiffBlock({
+  oldText,
+  newText,
+  language,
+  maxLines = 60,
+}: DiffBlockProps) {
+  const themeColors = useThemeColors();
+  const [expanded, setExpanded] = useState(false);
   const allLines = computeLineDiff(oldText, newText);
-  const truncated = allLines.length > maxLines;
+  const truncated = !expanded && allLines.length > maxLines;
   const lines = truncated ? allLines.slice(0, maxLines) : allLines;
 
   return (
@@ -540,26 +588,36 @@ function DiffBlock({ oldText, newText, maxLines = 60 }: DiffBlockProps) {
           );
         }
         let cls = "font-mono text-[11px] leading-4 px-2";
+        const fallbackColor =
+          line.kind === "added"
+            ? themeColors.status.success
+            : line.kind === "removed"
+              ? themeColors.status.error
+              : themeColors.gray[11];
         if (line.kind === "added") {
-          cls += " bg-status-success/10 text-status-success";
+          cls += " bg-status-success/10";
         } else if (line.kind === "removed") {
-          cls += " bg-status-error/10 text-status-error";
-        } else {
-          cls += " text-gray-11";
+          cls += " bg-status-error/10";
         }
         const prefix =
           line.kind === "added" ? "+ " : line.kind === "removed" ? "- " : "  ";
         return (
           <Text key={key} className={cls} selectable>
-            {prefix}
-            {line.text || " "}
+            <Text style={{ color: fallbackColor }}>{prefix}</Text>
+            <HighlightedDiffLine
+              text={line.text}
+              language={language}
+              fallbackColor={fallbackColor}
+            />
           </Text>
         );
       })}
       {truncated && (
-        <Text className="px-2 py-1 font-mono text-[11px] text-gray-9 italic">
-          … {allLines.length - maxLines} more lines
-        </Text>
+        <Pressable onPress={() => setExpanded(true)}>
+          <Text className="px-2 py-1.5 font-mono text-[11px] text-accent-11">
+            Show all {allLines.length} lines
+          </Text>
+        </Pressable>
       )}
     </View>
   );
@@ -776,6 +834,7 @@ export function ToolMessage({
               <DiffBlock
                 oldText={editArgs.old_string}
                 newText={editArgs.new_string}
+                language={languageFromPath(fileToolArgs.file_path)}
               />
             )}
             {multiEditArgs?.edits.map((edit, i) => (
@@ -783,9 +842,16 @@ export function ToolMessage({
                 key={`${multiEditArgs.file_path}-${i}`}
                 oldText={edit.old_string}
                 newText={edit.new_string}
+                language={languageFromPath(fileToolArgs.file_path)}
               />
             ))}
-            {writeArgs && <DiffBlock oldText="" newText={writeArgs.content} />}
+            {writeArgs && (
+              <DiffBlock
+                oldText=""
+                newText={writeArgs.content}
+                language={languageFromPath(fileToolArgs.file_path)}
+              />
+            )}
           </>
         )}
       </View>
