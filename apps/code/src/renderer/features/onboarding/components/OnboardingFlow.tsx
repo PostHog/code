@@ -8,6 +8,7 @@ import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 
 import { useOnboardingFlow } from "../hooks/useOnboardingFlow";
 import { GitIntegrationStep } from "./GitIntegrationStep";
+import { OrgStep } from "./OrgStep";
 import { SignalsStep } from "./SignalsStep";
 import { StepIndicator } from "./StepIndicator";
 import { TutorialStep } from "./TutorialStep";
@@ -93,6 +94,19 @@ export function OnboardingFlow() {
                         style={{ width: "100%", flex: 1, minHeight: 0 }}
                       >
                         <WelcomeStep onNext={next} />
+                      </motion.div>
+                    )}
+
+                    {currentStep === "org" && (
+                      <motion.div
+                        key="org"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.3 }}
+                        style={{ width: "100%", flex: 1, minHeight: 0 }}
+                      >
+                        <OrgStep onNext={next} onBack={back} />
                       </motion.div>
                     )}
 
