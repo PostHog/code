@@ -145,7 +145,7 @@ export function PlanUsageSettings() {
               period="/mo"
               features={[
                 "Limited usage",
-                "Local execution only",
+                "Local and cloud execution",
                 "All Claude and Codex models",
               ]}
               isCurrent={!isPro}
