@@ -8,13 +8,20 @@ import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore"
 import { useProjects } from "@features/projects/hooks/useProjects";
 import { useOrganizations } from "@hooks/useOrganizations";
 import { ArrowLeft, ArrowRight, CheckCircle } from "@phosphor-icons/react";
-import { Box, Button, Callout, Flex, Skeleton, Text } from "@radix-ui/themes";
+import {
+  Box,
+  Button,
+  Callout,
+  Flex,
+  Select,
+  Skeleton,
+  Text,
+} from "@radix-ui/themes";
 import codeLogo from "@renderer/assets/images/code.svg";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { AnimatePresence, motion } from "framer-motion";
 import { useMemo } from "react";
-import { ProjectSelect } from "./ProjectSelect";
 
 const log = logger.scope("org-step");
 
@@ -61,11 +68,6 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
     return currentProjectId ?? projects[0]?.id ?? null;
   }, [manuallySelectedProjectId, currentProjectId, projects]);
 
-  const selectedProject = useMemo(
-    () => projects.find((p) => p.id === selectedProjectId),
-    [projects, selectedProjectId],
-  );
-
   const handleContinue = async () => {
     if (!effectiveSelectedOrgId) return;
 
@@ -84,7 +86,7 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
     onNext();
   };
 
-  const handleSelect = (orgId: string) => {
+  const handleSelectOrg = (orgId: string) => {
     selectOrg(orgId);
     setSelectedProjectId(null);
   };
@@ -101,7 +103,7 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
           paddingBottom: 40,
         }}
       >
-        <Flex direction="column" gap="3" mb="6">
+        <Flex direction="column" gap="3" mb="4">
           <img
             src={codeLogo}
             alt="PostHog"
@@ -144,63 +146,68 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
             marginBottom: "var(--space-6)",
           }}
         >
-          <AnimatePresence mode="wait">
-            {isLoading ? (
-              <motion.div
-                key="skeleton"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                <Flex direction="column" gap="3">
-                  <Flex
-                    align="center"
-                    justify="between"
-                    gap="3"
-                    px="4"
-                    py="3"
-                    style={{
-                      backgroundColor: "var(--color-panel-solid)",
-                      border: "2px solid var(--gray-4)",
-                    }}
-                  >
-                    <Flex align="center" gap="3">
-                      <Skeleton style={{ width: "140px", height: "20px" }} />
-                    </Flex>
-                    <Skeleton
+          <Flex direction="column" gap="2">
+            <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
+              Organization
+            </Text>
+            <AnimatePresence mode="wait">
+              {isLoading ? (
+                <motion.div
+                  key="skeleton"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <Flex direction="column" gap="3">
+                    <Flex
+                      align="center"
+                      justify="between"
+                      gap="3"
+                      px="4"
+                      py="3"
                       style={{
-                        width: "16px",
-                        height: "16px",
-                        borderRadius: "50%",
+                        backgroundColor: "var(--color-panel-solid)",
+                        border: "2px solid var(--gray-4)",
                       }}
-                    />
+                    >
+                      <Flex align="center" gap="3">
+                        <Skeleton style={{ width: "140px", height: "20px" }} />
+                      </Flex>
+                      <Skeleton
+                        style={{
+                          width: "16px",
+                          height: "16px",
+                          borderRadius: "50%",
+                        }}
+                      />
+                    </Flex>
                   </Flex>
-                </Flex>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="content"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.2 }}
-              >
-                <Flex direction="column" gap="3">
-                  {orgs.map((org) => (
-                    <OrgCard
-                      key={org.id}
-                      name={org.name}
-                      isSelected={effectiveSelectedOrgId === org.id}
-                      onSelect={() => handleSelect(org.id)}
-                    />
-                  ))}
-                </Flex>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="content"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Flex direction="column" gap="2">
+                    {orgs.map((org) => (
+                      <OrgCard
+                        key={org.id}
+                        name={org.name}
+                        isSelected={effectiveSelectedOrgId === org.id}
+                        onSelect={() => handleSelectOrg(org.id)}
+                      />
+                    ))}
+                  </Flex>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </Flex>
 
-          {!isLoading && !hasOrgChanged && selectedProject && (
-            <Flex direction="column" gap="1" mt="5">
+          {!isLoading && !hasOrgChanged && projects.length > 0 && (
+            <Flex direction="column" gap="2" mt="4">
               <Text
                 size="2"
                 weight="medium"
@@ -208,16 +215,30 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
               >
                 Project
               </Text>
-              <ProjectSelect
-                projectId={selectedProject.id}
-                projectName={selectedProject.name}
-                projects={projects.map((p) => ({
-                  id: p.id,
-                  name: p.name,
-                }))}
-                onProjectChange={setSelectedProjectId}
+              <Select.Root
+                value={
+                  selectedProjectId !== null
+                    ? String(selectedProjectId)
+                    : undefined
+                }
+                onValueChange={(value) => setSelectedProjectId(Number(value))}
+                size="2"
                 disabled={projectsLoading}
-              />
+              >
+                <Select.Trigger
+                  placeholder="Select a project..."
+                  color="gray"
+                  variant="surface"
+                  style={{ width: "100%" }}
+                />
+                <Select.Content color="gray">
+                  {projects.map((project) => (
+                    <Select.Item key={project.id} value={String(project.id)}>
+                      {project.name}
+                    </Select.Item>
+                  ))}
+                </Select.Content>
+              </Select.Root>
             </Flex>
           )}
         </Box>
