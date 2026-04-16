@@ -1,5 +1,6 @@
+import { Combobox } from "@components/ui/combobox/Combobox";
 import { Plus } from "@phosphor-icons/react";
-import { Popover, Separator } from "@radix-ui/themes";
+import { Popover } from "@radix-ui/themes";
 import { useNavigationStore } from "@stores/navigationStore";
 import { type ReactNode, useCallback } from "react";
 import { useAvailableTasks } from "../hooks/useAvailableTasks";
@@ -42,42 +43,54 @@ export function TaskSelector({
   }, [onOpenChange, onNewTask, navigateToTaskInput]);
 
   return (
-    <Popover.Root open={open} onOpenChange={onOpenChange}>
+    <Combobox.Root
+      open={open}
+      onOpenChange={onOpenChange}
+      value=""
+      onValueChange={handleSelect}
+      size="1"
+    >
       <Popover.Trigger>{children}</Popover.Trigger>
-      <Popover.Content
+      <Combobox.Content
+        items={availableTasks}
+        getValue={(task) => task.title}
         side="bottom"
         align="center"
         sideOffset={4}
-        style={{ padding: 4, minWidth: 240, maxHeight: 300 }}
+        style={{ minWidth: 240 }}
       >
-        <button
-          type="button"
-          onClick={handleNewTask}
-          className="flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left text-[12px] text-gray-12 transition-colors hover:bg-gray-3"
-        >
-          <Plus size={12} />
-          New task
-        </button>
-        <Separator size="4" className="my-1" />
-        <div className="overflow-y-auto" style={{ maxHeight: 240 }}>
-          {availableTasks.length === 0 ? (
-            <div className="px-2 py-3 text-center font-mono text-[11px] text-gray-10">
-              No available tasks
-            </div>
-          ) : (
-            availableTasks.map((task) => (
-              <button
+        {({ filtered, hasMore, moreCount }) => (
+          <>
+            <Combobox.Input placeholder="Search tasks..." />
+            <Combobox.Empty>No matching tasks</Combobox.Empty>
+            {filtered.map((task) => (
+              <Combobox.Item
                 key={task.id}
-                type="button"
-                onClick={() => handleSelect(task.id)}
-                className="flex w-full items-center rounded-sm px-2 py-1.5 text-left text-[12px] text-gray-12 transition-colors hover:bg-gray-3"
+                value={task.id}
+                textValue={task.title}
               >
-                <span className="min-w-0 flex-1 truncate">{task.title}</span>
+                {task.title}
+              </Combobox.Item>
+            ))}
+            {hasMore && (
+              <div className="combobox-label">
+                {moreCount} more {moreCount === 1 ? "task" : "tasks"}; type to
+                filter
+              </div>
+            )}
+            <Combobox.Footer>
+              <button
+                type="button"
+                className="combobox-footer-button"
+                onClick={handleNewTask}
+              >
+                <Plus size={11} weight="bold" />
+                New task
               </button>
-            ))
-          )}
-        </div>
-      </Popover.Content>
-    </Popover.Root>
+            </Combobox.Footer>
+          </>
+        )}
+      </Combobox.Content>
+    </Combobox.Root>
   );
 }

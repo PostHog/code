@@ -28,8 +28,11 @@ export function useTaskContextMenu() {
         folderPath?: string;
         isPinned?: boolean;
         isSuspended?: boolean;
+        isInCommandCenter?: boolean;
+        hasEmptyCommandCenterCell?: boolean;
         onTogglePin?: () => void;
         onArchivePrior?: (taskId: string) => void;
+        onAddToCommandCenter?: () => void;
       },
     ) => {
       event.preventDefault();
@@ -40,8 +43,11 @@ export function useTaskContextMenu() {
         folderPath,
         isPinned,
         isSuspended,
+        isInCommandCenter,
+        hasEmptyCommandCenterCell,
         onTogglePin,
         onArchivePrior,
+        onAddToCommandCenter,
       } = options ?? {};
 
       try {
@@ -51,6 +57,8 @@ export function useTaskContextMenu() {
           folderPath,
           isPinned,
           isSuspended,
+          isInCommandCenter,
+          hasEmptyCommandCenterCell,
         });
 
         if (!result.action) return;
@@ -85,6 +93,9 @@ export function useTaskContextMenu() {
               taskTitle: task.title,
               hasWorktree: !!worktreePath,
             });
+            break;
+          case "add-to-command-center":
+            onAddToCommandCenter?.();
             break;
           case "external-app": {
             const effectivePath = worktreePath ?? folderPath;

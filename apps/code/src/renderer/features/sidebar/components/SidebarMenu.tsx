@@ -77,6 +77,7 @@ function SidebarMenuComponent() {
   }
 
   const commandCenterCells = useCommandCenterStore((s) => s.cells);
+  const assignTaskToCommandCenter = useCommandCenterStore((s) => s.assignTask);
   const commandCenterActiveCount = commandCenterCells.filter(
     (taskId) => taskId != null && taskMap.has(taskId),
   ).length;
@@ -138,13 +139,32 @@ function SidebarMenuComponent() {
     if (task) {
       const workspace = workspaces[taskId];
       const taskData = allSidebarTasks.find((t) => t.id === taskId);
+      const isInCommandCenter = commandCenterCells.some(
+        (id) => id === taskId && taskMap.has(id),
+      );
+      const hasEmptyCommandCenterCell = commandCenterCells.some(
+        (id) => id == null || !taskMap.has(id),
+      );
+
       showContextMenu(task, e, {
         worktreePath: workspace?.worktreePath ?? undefined,
         folderPath: workspace?.folderPath ?? undefined,
         isPinned,
         isSuspended: taskData?.isSuspended,
+        isInCommandCenter,
+        hasEmptyCommandCenterCell,
         onTogglePin: () => togglePin(taskId),
         onArchivePrior: handleArchivePrior,
+        onAddToCommandCenter: () => {
+          const cells = useCommandCenterStore.getState().cells;
+          const idx = cells.findIndex((id) => id == null || !taskMap.has(id));
+          if (idx !== -1) {
+            assignTaskToCommandCenter(idx, taskId);
+            navigateToCommandCenter();
+          } else {
+            toast.info("Command center is full");
+          }
+        },
       });
     }
   };

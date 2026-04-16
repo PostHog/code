@@ -6,6 +6,8 @@ export const taskContextMenuInput = z.object({
   folderPath: z.string().optional(),
   isPinned: z.boolean().optional(),
   isSuspended: z.boolean().optional(),
+  isInCommandCenter: z.boolean().optional(),
+  hasEmptyCommandCenterCell: z.boolean().optional(),
 });
 
 export const archivedTaskContextMenuInput = z.object({
@@ -40,6 +42,7 @@ const taskAction = z.discriminatedUnion("type", [
   z.object({ type: z.literal("archive") }),
   z.object({ type: z.literal("archive-prior") }),
   z.object({ type: z.literal("delete") }),
+  z.object({ type: z.literal("add-to-command-center") }),
   z.object({ type: z.literal("external-app"), action: externalAppAction }),
 ]);
 
