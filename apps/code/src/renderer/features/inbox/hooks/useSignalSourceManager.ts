@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { useEvaluations } from "./useEvaluations";
 import { useExternalDataSources } from "./useExternalDataSources";
 import { useSignalSourceConfigs } from "./useSignalSourceConfigs";
+import { useSignalTeamConfig } from "./useSignalTeamConfig";
+import { useSignalUserAutonomyConfig } from "./useSignalUserAutonomyConfig";
 
 type SourceProduct = SignalSourceConfig["source_product"];
 type SourceType = SignalSourceConfig["source_type"];
@@ -100,6 +102,8 @@ export function useSignalSourceManager() {
   const { data: externalSources, isLoading: sourcesLoading } =
     useExternalDataSources();
   const { data: evaluations } = useEvaluations();
+  const { data: teamConfig } = useSignalTeamConfig();
+  const { data: userAutonomyConfig } = useSignalUserAutonomyConfig();
 
   // Optimistic overrides keyed by source product — only sources actively being
   // toggled get an entry, so unrelated sources never see a prop change.
@@ -134,15 +138,6 @@ export function useSignalSourceManager() {
     [configs],
   );
 
-  const sessionAnalysisStatus = useMemo(() => {
-    const config = configs?.find(
-      (c) =>
-        c.source_product === "session_replay" &&
-        c.source_type === "session_analysis_cluster",
-    );
-    return config?.status ?? null;
-  }, [configs]);
-
   // Merge: optimistic overrides take precedence over server values.
   const displayValues = useMemo<SignalSourceValues>(() => {
     if (Object.keys(optimistic).length === 0) return serverValues;
@@ -153,19 +148,38 @@ export function useSignalSourceManager() {
     const states: Partial<
       Record<
         keyof SignalSourceValues,
-        { requiresSetup: boolean; loading: boolean }
+        {
+          requiresSetup: boolean;
+          loading: boolean;
+          syncStatus?: string | null;
+        }
       >
     > = {};
-    for (const product of ["github", "linear", "zendesk"] as const) {
-      const hasExternalSource = !!findExternalSource(product);
-      const isEnabled = serverValues[product];
-      states[product] = {
-        requiresSetup: !hasExternalSource && !isEnabled,
-        loading: !!loadingSources[product],
-      };
+    for (const product of ALL_SOURCE_PRODUCTS) {
+      if (
+        product === "github" ||
+        product === "linear" ||
+        product === "zendesk"
+      ) {
+        const hasExternalSource = !!findExternalSource(product);
+        const isEnabled = serverValues[product];
+        const config = configs?.find((c) => c.source_product === product);
+        states[product] = {
+          requiresSetup: !hasExternalSource && !isEnabled,
+          loading: !!loadingSources[product],
+          syncStatus: config?.status ?? null,
+        };
+      } else {
+        const config = configs?.find((c) => c.source_product === product);
+        states[product] = {
+          requiresSetup: false,
+          loading: false,
+          syncStatus: config?.status ?? null,
+        };
+      }
     }
     return states;
-  }, [findExternalSource, serverValues, loadingSources]);
+  }, [findExternalSource, serverValues, loadingSources, configs]);
 
   const evaluationsUrl = useMemo(() => {
     if (!cloudRegion) return "";
@@ -406,10 +420,56 @@ export function useSignalSourceManager() {
     setSetupSource(null);
   }, []);
 
+  const handleUpdateAutostartPriority = useCallback(
+    async (priority: string) => {
+      if (!client) return;
+      try {
+        await client.updateSignalTeamConfig({
+          default_autostart_priority: priority,
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["signals", "team-config"],
+        });
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to update autostart priority";
+        toast.error(message);
+      }
+    },
+    [client, queryClient],
+  );
+
+  const handleUpdateUserAutonomyPriority = useCallback(
+    async (priority: string | null) => {
+      if (!client) return;
+      try {
+        if (priority === null) {
+          await client.deleteSignalUserAutonomyConfig();
+        } else {
+          await client.updateSignalUserAutonomyConfig({
+            autostart_priority: priority,
+          });
+        }
+        await queryClient.invalidateQueries({
+          queryKey: ["signals", "user-autonomy-config"],
+        });
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to update autonomy setting";
+        toast.error(message);
+      }
+    },
+    [client, queryClient],
+  );
+
   return {
     displayValues,
     sourceStates,
-    sessionAnalysisStatus,
+
     setupSource,
     isLoading,
     handleToggle,
@@ -419,5 +479,9 @@ export function useSignalSourceManager() {
     evaluations: displayEvaluations,
     evaluationsUrl,
     handleToggleEvaluation,
+    teamConfig,
+    handleUpdateAutostartPriority,
+    userAutonomyConfig,
+    handleUpdateUserAutonomyPriority,
   };
 }

@@ -15,6 +15,9 @@ import type {
   SignalReportStatus,
   SignalReportsQueryParams,
   SignalReportsResponse,
+  SignalReportTask,
+  SignalTeamConfig,
+  SignalUserAutonomyConfig,
   SuggestedReviewersArtefact,
   Task,
   TaskRun,
@@ -412,7 +415,7 @@ export class PostHogAPIClient {
   async listSignalSourceConfigs(
     projectId: number,
   ): Promise<SignalSourceConfig[]> {
-    const urlPath = `/api/projects/${projectId}/signal_source_configs/`;
+    const urlPath = `/api/projects/${projectId}/signals/source_configs/`;
     const url = new URL(`${this.api.baseUrl}${urlPath}`);
     const response = await this.api.fetcher.fetch({
       method: "get",
@@ -439,7 +442,7 @@ export class PostHogAPIClient {
       config?: Record<string, unknown>;
     },
   ): Promise<SignalSourceConfig> {
-    const urlPath = `/api/projects/${projectId}/signal_source_configs/`;
+    const urlPath = `/api/projects/${projectId}/signals/source_configs/`;
     const url = new URL(`${this.api.baseUrl}${urlPath}`);
     const response = await this.api.fetcher.fetch({
       method: "post",
@@ -466,7 +469,7 @@ export class PostHogAPIClient {
     configId: string,
     updates: { enabled: boolean },
   ): Promise<SignalSourceConfig> {
-    const urlPath = `/api/projects/${projectId}/signal_source_configs/${configId}/`;
+    const urlPath = `/api/projects/${projectId}/signals/source_configs/${configId}/`;
     const url = new URL(`${this.api.baseUrl}${urlPath}`);
     const response = await this.api.fetcher.fetch({
       method: "patch",
@@ -1212,7 +1215,7 @@ export class PostHogAPIClient {
   ): Promise<SignalReportsResponse> {
     const teamId = await this.getTeamId();
     const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/`,
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/`,
     );
 
     if (params?.limit != null) {
@@ -1237,7 +1240,7 @@ export class PostHogAPIClient {
     const response = await this.api.fetcher.fetch({
       method: "get",
       url,
-      path: `/api/projects/${teamId}/signal_reports/`,
+      path: `/api/projects/${teamId}/signals/reports/`,
     });
 
     if (!response.ok) {
@@ -1254,9 +1257,9 @@ export class PostHogAPIClient {
   async getSignalProcessingState(): Promise<SignalProcessingStateResponse> {
     const teamId = await this.getTeamId();
     const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signal_processing/`,
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/processing/`,
     );
-    const path = `/api/projects/${teamId}/signal_processing/`;
+    const path = `/api/projects/${teamId}/signals/processing/`;
 
     const response = await this.api.fetcher.fetch({
       method: "get",
@@ -1282,9 +1285,9 @@ export class PostHogAPIClient {
   ): Promise<AvailableSuggestedReviewersResponse> {
     const teamId = await this.getTeamId();
     const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/available_reviewers/`,
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/available_reviewers/`,
     );
-    const path = `/api/projects/${teamId}/signal_reports/available_reviewers/`;
+    const path = `/api/projects/${teamId}/signals/reports/available_reviewers/`;
 
     if (query?.trim()) {
       url.searchParams.set("query", query.trim());
@@ -1311,12 +1314,12 @@ export class PostHogAPIClient {
     try {
       const teamId = await this.getTeamId();
       const url = new URL(
-        `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/signals/`,
+        `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/${reportId}/signals/`,
       );
       const response = await this.api.fetcher.fetch({
         method: "get",
         url,
-        path: `/api/projects/${teamId}/signal_reports/${reportId}/signals/`,
+        path: `/api/projects/${teamId}/signals/reports/${reportId}/signals/`,
       });
 
       if (!response.ok) {
@@ -1343,9 +1346,9 @@ export class PostHogAPIClient {
   ): Promise<SignalReportArtefactsResponse> {
     const teamId = await this.getTeamId();
     const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/artefacts/`,
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/${reportId}/artefacts/`,
     );
-    const path = `/api/projects/${teamId}/signal_reports/${reportId}/artefacts/`;
+    const path = `/api/projects/${teamId}/signals/reports/${reportId}/artefacts/`;
 
     try {
       const response = await this.api.fetcher.fetch({
@@ -1410,9 +1413,9 @@ export class PostHogAPIClient {
   ): Promise<SignalReport> {
     const teamId = await this.getTeamId();
     const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/state/`,
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/${reportId}/state/`,
     );
-    const path = `/api/projects/${teamId}/signal_reports/${reportId}/state/`;
+    const path = `/api/projects/${teamId}/signals/reports/${reportId}/state/`;
 
     const response = await this.api.fetcher.fetch({
       method: "post",
@@ -1437,9 +1440,9 @@ export class PostHogAPIClient {
   }> {
     const teamId = await this.getTeamId();
     const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/`,
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/${reportId}/`,
     );
-    const path = `/api/projects/${teamId}/signal_reports/${reportId}/`;
+    const path = `/api/projects/${teamId}/signals/reports/${reportId}/`;
 
     const response = await this.api.fetcher.fetch({
       method: "delete",
@@ -1464,9 +1467,9 @@ export class PostHogAPIClient {
   }> {
     const teamId = await this.getTeamId();
     const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/reingest/`,
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/${reportId}/reingest/`,
     );
-    const path = `/api/projects/${teamId}/signal_reports/${reportId}/reingest/`;
+    const path = `/api/projects/${teamId}/signals/reports/${reportId}/reingest/`;
 
     const response = await this.api.fetcher.fetch({
       method: "post",
@@ -1483,6 +1486,137 @@ export class PostHogAPIClient {
       status: "reingestion_started" | "already_running";
       report_id: string;
     };
+  }
+
+  async getSignalReportTasks(
+    reportId: string,
+    options?: { relationship?: SignalReportTask["relationship"] },
+  ): Promise<SignalReportTask[]> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/${reportId}/tasks/`,
+    );
+    if (options?.relationship) {
+      url.searchParams.set("relationship", options.relationship);
+    }
+    const path = `/api/projects/${teamId}/signals/reports/${reportId}/tasks/`;
+
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch signal report tasks: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return data.results ?? [];
+  }
+
+  async getSignalTeamConfig(): Promise<SignalTeamConfig> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/config/`,
+    );
+    const path = `/api/projects/${teamId}/signals/config/`;
+
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch signal team config: ${response.statusText}`,
+      );
+    }
+
+    return (await response.json()) as SignalTeamConfig;
+  }
+
+  async updateSignalTeamConfig(updates: {
+    default_autostart_priority: string;
+  }): Promise<SignalTeamConfig> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/config/`,
+    );
+    const path = `/api/projects/${teamId}/signals/config/`;
+
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path,
+      overrides: {
+        body: JSON.stringify(updates),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to update signal team config: ${response.statusText}`,
+      );
+    }
+
+    return (await response.json()) as SignalTeamConfig;
+  }
+
+  async getSignalUserAutonomyConfig(): Promise<SignalUserAutonomyConfig | null> {
+    const url = new URL(`${this.api.baseUrl}/api/users/@me/signal_autonomy/`);
+    const path = "/api/users/@me/signal_autonomy/";
+
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path,
+    });
+
+    return (await response.json()) as SignalUserAutonomyConfig;
+  }
+
+  async updateSignalUserAutonomyConfig(updates: {
+    autostart_priority: string | null;
+  }): Promise<SignalUserAutonomyConfig> {
+    const url = new URL(`${this.api.baseUrl}/api/users/@me/signal_autonomy/`);
+    const path = "/api/users/@me/signal_autonomy/";
+
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path,
+      overrides: {
+        body: JSON.stringify(updates),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to update signal user autonomy config: ${response.statusText}`,
+      );
+    }
+    return (await response.json()) as SignalUserAutonomyConfig;
+  }
+
+  async deleteSignalUserAutonomyConfig(): Promise<void> {
+    const url = new URL(`${this.api.baseUrl}/api/users/@me/signal_autonomy/`);
+    const path = "/api/users/@me/signal_autonomy/";
+
+    const response = await this.api.fetcher.fetch({
+      method: "delete",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to delete signal user autonomy config: ${response.statusText}`,
+      );
+    }
   }
 
   async getMcpServers(): Promise<McpRecommendedServer[]> {
