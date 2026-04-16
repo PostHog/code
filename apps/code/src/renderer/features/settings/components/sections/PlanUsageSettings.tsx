@@ -15,6 +15,7 @@ import {
   Spinner,
   Text,
 } from "@radix-ui/themes";
+import { Tooltip } from "@renderer/components/ui/Tooltip";
 import { trpcClient } from "@renderer/trpc/client";
 import { logger } from "@utils/logger";
 import { getPostHogUrl } from "@utils/urls";
@@ -476,7 +477,16 @@ function PlanCard({
                 style={{ color: "var(--accent-9)", flexShrink: 0 }}
               />
               <Text size="2" style={{ color: "var(--gray-11)" }}>
-                {feature}
+                {feature.endsWith("*") ? (
+                  <>
+                    {feature.slice(0, -1)}
+                    <Tooltip content="Usage is limited to human-level usage. This cannot be used as your API key. If you hit this limit, please contact support.">
+                      <span style={{ cursor: "help" }}>*</span>
+                    </Tooltip>
+                  </>
+                ) : (
+                  feature
+                )}
               </Text>
             </Flex>
           ))}
