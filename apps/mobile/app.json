@@ -21,6 +21,7 @@
         "NSMicrophoneUsageDescription": "Allow PostHog to use your microphone for voice-to-text input",
         "NSSpeechRecognitionUsageDescription": "Allow PostHog to transcribe your voice input on-device",
         "NSPhotoLibraryUsageDescription": "Allow PostHog to access your photos for attaching images to tasks",
+        "NSCameraUsageDescription": "Allow PostHog to use your camera to scan QR codes for sign-in",
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": ["posthog-code"]
       }
@@ -35,7 +36,8 @@
       "package": "com.posthog.code.mobile",
       "permissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -47,6 +49,12 @@
         "expo-av",
         {
           "microphonePermission": "Allow PostHog to use your microphone for voice-to-text input"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow PostHog to use your camera to scan QR codes for sign-in"
         }
       ],
       [
