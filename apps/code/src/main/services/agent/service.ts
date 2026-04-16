@@ -18,7 +18,7 @@ import {
   POSTHOG_NOTIFICATIONS,
 } from "@posthog/agent";
 import { hydrateSessionJsonl } from "@posthog/agent/adapters/claude/session/jsonl-hydration";
-import { getEffortOptions } from "@posthog/agent/adapters/claude/session/models";
+import { getReasoningEffortOptions } from "@posthog/agent/adapters/reasoning-effort";
 import { Agent } from "@posthog/agent/agent";
 import {
   getAvailableCodexModes,
@@ -1749,33 +1749,20 @@ For git operations while detached:
       },
     ];
 
-    if (adapter === "codex") {
+    const effortOpts = getReasoningEffortOptions(adapter, resolvedModelId);
+    if (effortOpts) {
       configOptions.push({
-        id: "reasoning_effort",
-        name: "Reasoning Level",
+        id: adapter === "codex" ? "reasoning_effort" : "effort",
+        name: adapter === "codex" ? "Reasoning Level" : "Effort",
         type: "select",
         currentValue: "high",
-        options: [
-          { value: "low", name: "Low" },
-          { value: "medium", name: "Medium" },
-          { value: "high", name: "High" },
-        ],
+        options: effortOpts,
         category: "thought_level",
-        description: "Controls how much reasoning effort the model uses",
+        description:
+          adapter === "codex"
+            ? "Controls how much reasoning effort the model uses"
+            : "Controls how much effort Claude puts into its response",
       });
-    } else {
-      const effortOpts = getEffortOptions(resolvedModelId);
-      if (effortOpts) {
-        configOptions.push({
-          id: "effort",
-          name: "Effort",
-          type: "select",
-          currentValue: "high",
-          options: effortOpts,
-          category: "thought_level",
-          description: "Controls how much effort Claude puts into its response",
-        });
-      }
     }
 
     return configOptions;

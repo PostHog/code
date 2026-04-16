@@ -48,6 +48,10 @@
       "types": "./dist/adapters/claude/session/models.d.ts",
       "import": "./dist/adapters/claude/session/models.js"
     },
+    "./adapters/reasoning-effort": {
+      "types": "./dist/adapters/reasoning-effort.d.ts",
+      "import": "./dist/adapters/reasoning-effort.js"
+    },
     "./execution-mode": {
       "types": "./dist/execution-mode.d.ts",
       "import": "./dist/execution-mode.js"

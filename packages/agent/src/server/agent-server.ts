@@ -19,6 +19,7 @@ import {
 } from "../adapters/acp-connection";
 import { selectRecentTurns } from "../adapters/claude/session/jsonl-hydration";
 import type { CodeExecutionMode } from "../execution-mode";
+import { DEFAULT_CODEX_MODEL } from "../gateway-models";
 import { PostHogAPIClient } from "../posthog-api";
 import {
   type ConversationTurn,
@@ -168,6 +169,20 @@ interface ActiveSession {
   hasDesktopConnected: boolean;
 }
 
+function getTaskRunStateString(
+  taskRun: TaskRun | null,
+  key: string,
+): string | null {
+  const state = taskRun?.state;
+
+  if (!state || typeof state !== "object") {
+    return null;
+  }
+
+  const value = (state as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : null;
+}
+
 export class AgentServer {
   private config: AgentServerConfig;
   private logger: Logger;
@@ -240,6 +255,10 @@ export class AgentServer {
       userAgent: `posthog/cloud.hog.dev; version: ${config.version ?? packageJson.version}`,
     });
     this.app = this.createApp();
+  }
+
+  private getRuntimeAdapter(): "claude" | "codex" {
+    return this.config.runtimeAdapter ?? "claude";
   }
 
   private getEffectiveMode(payload: JwtPayload): AgentMode {
@@ -702,6 +721,39 @@ export class AgentServer {
 
     this.configureEnvironment();
 
+    const [preTaskRun, preTask] = await Promise.all([
+      this.posthogAPI
+        .getTaskRun(payload.task_id, payload.run_id)
+        .catch((err) => {
+          this.logger.warn("Failed to fetch task run for session context", {
+            taskId: payload.task_id,
+            runId: payload.run_id,
+            error: err,
+          });
+          return null;
+        }),
+      this.posthogAPI.getTask(payload.task_id).catch((err) => {
+        this.logger.warn("Failed to fetch task for session context", {
+          taskId: payload.task_id,
+          error: err,
+        });
+        return null;
+      }),
+    ]);
+
+    const prUrl = getTaskRunStateString(preTaskRun, "slack_notified_pr_url");
+
+    if (prUrl) {
+      this.detectedPrUrl = prUrl;
+    }
+
+    const runtimeAdapter = this.getRuntimeAdapter();
+    const sessionSystemPrompt = this.buildSessionSystemPrompt(prUrl);
+    const codexInstructions =
+      runtimeAdapter === "codex"
+        ? this.buildCodexInstructions(sessionSystemPrompt)
+        : undefined;
+
     const posthogAPI = new PostHogAPIClient({
       apiUrl: this.config.apiUrl,
       projectId: this.config.projectId,
@@ -725,10 +777,23 @@ export class AgentServer {
     });
 
     const acpConnection = createAcpConnection({
+      adapter: runtimeAdapter,
       taskRunId: payload.run_id,
       taskId: payload.task_id,
       deviceType: deviceInfo.type,
       logWriter,
+      logger: this.logger,
+      codexOptions:
+        runtimeAdapter === "codex"
+          ? {
+              cwd: this.config.repositoryPath ?? "/tmp/workspace",
+              apiBaseUrl: process.env.OPENAI_BASE_URL,
+              apiKey: this.config.apiKey,
+              model: this.config.model ?? DEFAULT_CODEX_MODEL,
+              reasoningEffort: this.config.reasoningEffort,
+              instructions: codexInstructions,
+            }
+          : undefined,
       onStructuredOutput: async (output) => {
         await this.posthogAPI.setTaskRunOutput(
           payload.task_id,
@@ -773,37 +838,6 @@ export class AgentServer {
       clientCapabilities: {},
     });
 
-    const [preTaskRun, preTask] = await Promise.all([
-      this.posthogAPI
-        .getTaskRun(payload.task_id, payload.run_id)
-        .catch((err) => {
-          this.logger.warn("Failed to fetch task run for session context", {
-            taskId: payload.task_id,
-            runId: payload.run_id,
-            error: err,
-          });
-          return null;
-        }),
-      this.posthogAPI.getTask(payload.task_id).catch((err) => {
-        this.logger.warn("Failed to fetch task for session context", {
-          taskId: payload.task_id,
-          error: err,
-        });
-        return null;
-      }),
-    ]);
-
-    const prUrl =
-      typeof (preTaskRun?.state as Record<string, unknown>)
-        ?.slack_notified_pr_url === "string"
-        ? ((preTaskRun?.state as Record<string, unknown>)
-            .slack_notified_pr_url as string)
-        : null;
-
-    if (prUrl) {
-      this.detectedPrUrl = prUrl;
-    }
-
     const runState = preTaskRun?.state as Record<string, unknown> | undefined;
     // Cloud runs default to bypassPermissions (auto-approve everything).
     // Only PostHog Code sets initial_permission_mode explicitly (e.g., "plan").
@@ -811,21 +845,27 @@ export class AgentServer {
       typeof runState?.initial_permission_mode === "string"
         ? (runState.initial_permission_mode as CodeExecutionMode)
         : "bypassPermissions";
-
     const sessionResponse = await clientConnection.newSession({
       cwd: this.config.repositoryPath ?? "/tmp/workspace",
       mcpServers: this.config.mcpServers ?? [],
       _meta: {
         sessionId: payload.run_id,
         taskRunId: payload.run_id,
-        systemPrompt: this.buildSessionSystemPrompt(prUrl),
+        systemPrompt: sessionSystemPrompt,
+        ...(this.config.model && { model: this.config.model }),
         allowedDomains: this.config.allowedDomains,
         jsonSchema: preTask?.json_schema ?? null,
         permissionMode: initialPermissionMode,
         ...(this.config.claudeCode?.plugins?.length && {
           claudeCode: {
             options: {
-              plugins: this.config.claudeCode.plugins,
+              ...(this.config.claudeCode?.plugins?.length && {
+                plugins: this.config.claudeCode.plugins,
+              }),
+              ...(runtimeAdapter === "claude" &&
+                this.config.reasoningEffort && {
+                  effort: this.config.reasoningEffort,
+                }),
             },
           },
         }),
@@ -1195,6 +1235,14 @@ export class AgentServer {
 
     // Default: just cloud instructions
     return { append: cloudAppend };
+  }
+
+  private buildCodexInstructions(
+    systemPrompt: string | { append: string },
+  ): string {
+    return typeof systemPrompt === "string"
+      ? systemPrompt
+      : systemPrompt.append;
   }
 
   private getCloudInteractionOrigin(): string | undefined {

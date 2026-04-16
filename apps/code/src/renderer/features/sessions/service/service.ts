@@ -48,6 +48,7 @@ import {
   effortLevelSchema,
   isTerminalStatus,
   type Task,
+  type TaskRun,
 } from "@shared/types";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
@@ -1469,6 +1470,8 @@ export class SessionService {
       previousStatus: session.cloudStatus,
     });
 
+    const runtimeOptions = this.getCloudRuntimeOptions(session, previousRun);
+
     // Create a new run WITH resume context — backend validates the previous run,
     // derives snapshot_external_id server-side, and passes everything as extra_state.
     // The agent will load conversation history and restore the sandbox snapshot.
@@ -1476,6 +1479,9 @@ export class SessionService {
       session.taskId,
       previousBaseBranch,
       {
+        adapter: runtimeOptions.adapter,
+        model: runtimeOptions.model,
+        reasoningLevel: runtimeOptions.reasoningLevel,
         resumeFromRunId: session.taskRunId,
         pendingUserMessage: serializeCloudPrompt(blocks),
         prAuthorshipMode,
@@ -2464,6 +2470,36 @@ export class SessionService {
 
     if (!apiHost || !projectId || !client) return null;
     return { apiHost, projectId, client };
+  }
+
+  private getCloudRuntimeOptions(
+    session: AgentSession,
+    previousRun?: TaskRun,
+  ): {
+    adapter?: Adapter;
+    model?: string;
+    reasoningLevel?: string;
+  } {
+    const modelOption = getConfigOptionByCategory(
+      session.configOptions,
+      "model",
+    );
+    const thoughtLevelOption = getConfigOptionByCategory(
+      session.configOptions,
+      "thought_level",
+    );
+
+    return {
+      adapter: session.adapter ?? previousRun?.runtime_adapter ?? undefined,
+      model:
+        typeof modelOption?.currentValue === "string"
+          ? modelOption.currentValue
+          : (previousRun?.model ?? undefined),
+      reasoningLevel:
+        typeof thoughtLevelOption?.currentValue === "string"
+          ? thoughtLevelOption.currentValue
+          : (previousRun?.reasoning_effort ?? undefined),
+    };
   }
 
   private parseLogContent(content: string): {

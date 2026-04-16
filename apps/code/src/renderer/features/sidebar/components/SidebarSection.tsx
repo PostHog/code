@@ -1,5 +1,6 @@
 import { Tooltip } from "@components/ui/Tooltip";
 import { CaretDownIcon, CaretRightIcon, Plus } from "@phosphor-icons/react";
+import { Button } from "@posthog/quill";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import { useState } from "react";
 
@@ -36,13 +37,12 @@ export function SidebarSection({
   return (
     <Collapsible.Root open={isExpanded} onOpenChange={onToggle}>
       <Collapsible.Trigger asChild>
-        <button
+        <Button
           ref={dragHandleRef}
           type="button"
-          className="flex w-full cursor-pointer items-center justify-between border-0 bg-transparent px-2 py-1 text-left text-[13px] text-gray-11 transition-colors hover:bg-gray-3"
+          className="flex w-full items-center justify-between pl-2 not-hover:aria-expanded:bg-transparent"
           style={{
             marginTop: addSpacingBefore ? "12px" : undefined,
-            paddingLeft: "8px",
           }}
           onContextMenu={onContextMenu}
           onMouseEnter={() => setIsHovered(true)}
@@ -103,7 +103,7 @@ export function SidebarSection({
               </Tooltip>
             )}
           </span>
-        </button>
+        </Button>
       </Collapsible.Trigger>
       <Collapsible.Content>{children}</Collapsible.Content>
     </Collapsible.Root>

@@ -24,4 +24,7 @@ export interface AgentServerConfig {
   baseBranch?: string;
   claudeCode?: ClaudeCodeConfig;
   allowedDomains?: string[];
+  runtimeAdapter?: "claude" | "codex";
+  model?: string;
+  reasoningEffort?: "low" | "medium" | "high" | "max";
 }

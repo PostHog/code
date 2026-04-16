@@ -1,3 +1,4 @@
+import { isSupportedReasoningEffort } from "@posthog/agent/adapters/reasoning-effort";
 import type {
   ActionabilityJudgmentArtefact,
   AvailableSuggestedReviewer,
@@ -43,6 +44,7 @@ export interface SignalSourceConfig {
     | "github"
     | "linear"
     | "zendesk"
+    | "conversations"
     | "error_tracking";
   source_type:
     | "session_analysis_cluster"
@@ -75,6 +77,8 @@ export interface ExternalDataSource {
   // but the actual API returns an array of schema objects
   schemas?: ExternalDataSourceSchema[] | string;
 }
+
+type CloudRuntimeAdapter = "claude" | "codex";
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -387,7 +391,6 @@ export class PostHogAPIClient {
   }
 
   async getGithubLogin(): Promise<string | null> {
-    // @ts-expect-error this is not in the generated client YET
     const data = (await this.api.get("/api/users/{uuid}/github_login/", {
       path: { uuid: "@me" },
     })) as { github_login: string | null };
@@ -742,6 +745,9 @@ export class PostHogAPIClient {
     taskId: string,
     branch?: string | null,
     options?: {
+      adapter?: CloudRuntimeAdapter;
+      model?: string;
+      reasoningLevel?: string;
       resumeFromRunId?: string;
       pendingUserMessage?: string;
       sandboxEnvironmentId?: string;
@@ -756,6 +762,31 @@ export class PostHogAPIClient {
     const body: Record<string, unknown> = { mode: "interactive" };
     if (branch) {
       body.branch = branch;
+    }
+    if (options?.adapter) {
+      body.runtime_adapter = options.adapter;
+      if (options.model) {
+        body.model = options.model;
+      }
+      if (options.reasoningLevel) {
+        if (!options.model) {
+          throw new Error(
+            "A cloud reasoning level requires a model to be selected.",
+          );
+        }
+        if (
+          !isSupportedReasoningEffort(
+            options.adapter,
+            options.model,
+            options.reasoningLevel,
+          )
+        ) {
+          throw new Error(
+            `Reasoning effort '${options.reasoningLevel}' is not supported for ${options.adapter} model '${options.model}'.`,
+          );
+        }
+        body.reasoning_effort = options.reasoningLevel;
+      }
     }
     if (options?.resumeFromRunId) {
       body.resume_from_run_id = options.resumeFromRunId;
@@ -1094,10 +1125,10 @@ export class PostHogAPIClient {
   }
 
   async getUsers() {
-    const data = await this.api.get("/api/users/", {
+    const data = (await this.api.get("/api/users/", {
       query: { limit: 1000 },
-    });
-    return data.results ?? [];
+    })) as unknown as { results: Schemas.User[] } | Schemas.User[];
+    return Array.isArray(data) ? data : (data.results ?? []);
   }
 
   async updateTeam(updates: {

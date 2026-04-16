@@ -26,6 +26,7 @@ const SOURCE_TYPE_MAP: Record<
   github: "issue",
   linear: "issue",
   zendesk: "ticket",
+  conversations: "ticket",
 };
 
 const ERROR_TRACKING_SOURCE_TYPES: SourceType[] = [
@@ -40,6 +41,7 @@ const SOURCE_LABELS: Record<keyof SignalSourceValues, string> = {
   github: "GitHub Issues",
   linear: "Linear Issues",
   zendesk: "Zendesk Tickets",
+  conversations: "PostHog Conversations",
 };
 
 const DATA_WAREHOUSE_SOURCES: Record<
@@ -57,6 +59,7 @@ const ALL_SOURCE_PRODUCTS: (keyof SignalSourceValues)[] = [
   "github",
   "linear",
   "zendesk",
+  "conversations",
 ];
 
 function computeValues(
@@ -68,6 +71,7 @@ function computeValues(
     github: false,
     linear: false,
     zendesk: false,
+    conversations: false,
   };
   if (!configs?.length) return result;
   for (const product of ALL_SOURCE_PRODUCTS) {
