@@ -1,6 +1,7 @@
 import { PanelMessage } from "@components/ui/PanelMessage";
 import { Tooltip } from "@components/ui/Tooltip";
 import { CodeMirrorEditor } from "@features/code-editor/components/CodeMirrorEditor";
+import { useCloudFileContent } from "@features/code-editor/hooks/useCloudFileContent";
 import { useMarkdownViewerStore } from "@features/code-editor/stores/markdownViewerStore";
 import { getImageMimeType } from "@features/code-editor/utils/imageUtils";
 import { isMarkdownFile } from "@features/code-editor/utils/markdownUtils";
@@ -9,6 +10,7 @@ import { isImageFile } from "@features/message-editor/utils/imageUtils";
 import { usePanelLayoutStore } from "@features/panels";
 import { useFileTreeStore } from "@features/right-sidebar/stores/fileTreeStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
+import { useIsWorkspaceCloudRun } from "@features/workspace/hooks/useWorkspace";
 import { Code, Eye } from "@phosphor-icons/react";
 import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
@@ -82,34 +84,50 @@ export function CodeEditorPanel({
     [handleMarkdownLinkClick],
   );
 
+  const isCloudRun = useIsWorkspaceCloudRun(taskId);
+  const cloudFile = useCloudFileContent(
+    taskId,
+    filePath,
+    isCloudRun && !isImage,
+  );
+
   const repoQuery = useQuery(
     trpcReact.fs.readRepoFile.queryOptions(
       { repoPath: repoPath ?? "", filePath },
-      { enabled: isInsideRepo && !isImage, staleTime: Infinity },
+      { enabled: isInsideRepo && !isImage && !isCloudRun, staleTime: Infinity },
     ),
   );
 
   const absoluteQuery = useQuery(
     trpcReact.fs.readAbsoluteFile.queryOptions(
       { filePath: absolutePath },
-      { enabled: !isInsideRepo && !isImage, staleTime: Infinity },
+      {
+        enabled: !isInsideRepo && !isImage && !isCloudRun,
+        staleTime: Infinity,
+      },
     ),
   );
 
   const imageQuery = useQuery(
     trpcReact.fs.readFileAsBase64.queryOptions(
       { filePath: absolutePath },
-      { enabled: isImage, staleTime: Infinity },
+      { enabled: isImage && !isCloudRun, staleTime: Infinity },
     ),
   );
 
-  const {
-    data: fileContent,
-    isLoading,
-    error,
-  } = isInsideRepo ? repoQuery : absoluteQuery;
+  const localQuery = isInsideRepo ? repoQuery : absoluteQuery;
+  const fileContent = isCloudRun ? cloudFile.content : localQuery.data;
+  const isLoading = isCloudRun ? cloudFile.isLoading : localQuery.isLoading;
+  const error = isCloudRun ? null : localQuery.error;
 
   if (isImage) {
+    if (isCloudRun) {
+      return (
+        <PanelMessage detail={filePath}>
+          Images not available for cloud runs
+        </PanelMessage>
+      );
+    }
     if (imageQuery.isLoading) {
       return <PanelMessage>Loading image...</PanelMessage>;
     }
@@ -138,6 +156,22 @@ export function CodeEditorPanel({
 
   if (isLoading) {
     return <PanelMessage>Loading file...</PanelMessage>;
+  }
+
+  if (isCloudRun && !cloudFile.touched) {
+    return (
+      <PanelMessage detail={filePath}>
+        File content not available — the agent did not read or write this file
+      </PanelMessage>
+    );
+  }
+
+  if (isCloudRun && cloudFile.touched && cloudFile.content == null) {
+    return (
+      <PanelMessage detail={filePath}>
+        This file was deleted by the agent
+      </PanelMessage>
+    );
   }
 
   if (error || fileContent == null) {
