@@ -133,13 +133,9 @@ export default function TaskDetailScreen() {
 
   const handleStop = useCallback(() => {
     if (!taskId) return;
-    cancelPrompt(taskId).catch((err) => {
-      console.error("Failed to stop agent:", err);
-      Alert.alert(
-        "Failed to stop",
-        "Could not stop the agent. Please try again.",
-      );
-    });
+    // cancelPrompt returns false on failure — no need to alert,
+    // the agent may have already finished or the sandbox expired.
+    cancelPrompt(taskId).catch(() => {});
   }, [taskId, cancelPrompt]);
 
   const handleRetry = useCallback(async () => {

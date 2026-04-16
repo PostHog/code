@@ -95,9 +95,9 @@ export function Composer({
   const handleSend = () => {
     const trimmed = message.trim();
     if (!trimmed || disabled) return;
-    onSend(trimmed);
     setMessage("");
     Keyboard.dismiss();
+    onSend(trimmed);
   };
 
   const handleMicPress = async () => {

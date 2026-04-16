@@ -66,6 +66,7 @@ const CLOUD_POLLING_INTERVAL_MS = 500;
 export interface TaskSession {
   taskRunId: string;
   taskId: string;
+  taskTitle?: string;
   events: SessionEvent[];
   status: "connecting" | "connected" | "disconnected" | "error";
   isPromptPending: boolean;
@@ -174,6 +175,7 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
             [newRunId]: {
               taskRunId: newRunId,
               taskId,
+              taskTitle: task.title,
               events: [],
               status: "connected",
               isPromptPending: true,
@@ -232,6 +234,7 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
           [latestRunId]: {
             taskRunId: latestRunId,
             taskId,
+            taskTitle: task.title,
             events: historicalEvents,
             status: "connected",
             isPromptPending,
