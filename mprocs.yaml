@@ -1,25 +1,26 @@
 procs:
-  code:
+  1-code:
     shell: 'node scripts/pnpm-run.mjs --filter code run start'
     env:
       DEBUG: "false"
     depends_on:
       - agent
       - git
+      - enricher
 
-  agent:
+  2-agent:
     shell: 'node scripts/pnpm-run.mjs --filter agent run dev'
 
-  git:
+  3-git:
     shell: 'node scripts/pnpm-run.mjs --filter @posthog/git run dev'
 
-  enricher:
+  4-enricher:
     shell: 'node scripts/pnpm-run.mjs --filter @posthog/enricher run dev'
 
-  storybook:
+  5-storybook:
     shell: 'node scripts/pnpm-run.mjs --filter code run storybook'
     autostart: false
 
-  mobile-ios:
+  6-mobile-ios:
     shell: 'node scripts/pnpm-run.mjs --filter @posthog/mobile run ios'
     autostart: false
