@@ -1,8 +1,14 @@
 import { Text } from "@components/text";
 import * as Haptics from "expo-haptics";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Pressable,
+  View,
+} from "react-native";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -176,6 +182,87 @@ export default function TaskDetailScreen() {
     [router],
   );
 
+  // Stale detection for local tasks: if no new S3 data arrives for 30s
+  // while the agent is supposedly working, the desktop may be offline.
+  const isLocal = task?.latest_run?.environment === "local";
+  const [isStale, setIsStale] = useState(false);
+  useEffect(() => {
+    if (!isLocal || !session?.isPromptPending) {
+      setIsStale(false);
+      return;
+    }
+    const interval = setInterval(() => {
+      const lastEvent = session.lastEventAt ?? 0;
+      setIsStale(lastEvent > 0 && Date.now() - lastEvent > 30_000);
+    }, 5_000);
+    return () => clearInterval(interval);
+  }, [isLocal, session?.isPromptPending, session?.lastEventAt]);
+
+  const handleOpenOnDesktop = useCallback(async () => {
+    if (!taskId) return;
+    const url = `posthog-code://task/${taskId}`;
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert(
+        "Desktop app not found",
+        "Install PostHog Code on your Mac to open tasks locally.",
+      );
+    }
+  }, [taskId]);
+
+  const handleContinueInCloud = useCallback(async () => {
+    if (!taskId || !task) return;
+    try {
+      setRetrying(true);
+      disconnectFromTask(taskId);
+      const updatedTask = await runTaskInCloud(taskId, {
+        resumeFromRunId: task.latest_run?.id,
+      });
+      setTask(updatedTask);
+      await connectToTask(updatedTask);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      console.error("Failed to continue in cloud:", err);
+      setRetrying(false);
+      Alert.alert(
+        "Failed to switch",
+        "Could not continue this task in the cloud. Please try again.",
+      );
+    }
+  }, [taskId, task, disconnectFromTask, connectToTask]);
+
+  const environment = task?.latest_run?.environment;
+
+  const visibleAgentTypes = [
+    "agent_message_chunk",
+    "agent_message",
+    "agent_thought_chunk",
+    "tool_call",
+  ];
+  const hasAnyAgentOutput =
+    session?.events.some((e) => {
+      if (e.type !== "session_update") return false;
+      const su = (e.notification as Record<string, unknown>)?.update;
+      return visibleAgentTypes.includes(
+        (su as Record<string, unknown>)?.sessionUpdate as string,
+      );
+    }) ?? false;
+
+  const isConnecting =
+    retrying || (!!session?.awaitingAgentOutput && !hasAnyAgentOutput);
+  const isThinking = !!session?.awaitingAgentOutput && hasAnyAgentOutput;
+
+  // Haptic pulse when connecting/thinking indicators dismiss
+  const prevWaiting = useRef(false);
+  useEffect(() => {
+    const waiting = isConnecting || isThinking;
+    if (prevWaiting.current && !waiting) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    prevWaiting.current = waiting;
+  }, [isConnecting, isThinking]);
+
   if (error || (!task && !loading)) {
     return (
       <>
@@ -203,23 +290,6 @@ export default function TaskDetailScreen() {
       </>
     );
   }
-
-  const environment = task?.latest_run?.environment;
-
-  const visibleAgentTypes = [
-    "agent_message_chunk",
-    "agent_message",
-    "agent_thought_chunk",
-    "tool_call",
-  ];
-  const hasAnyAgentOutput =
-    session?.events.some((e) => {
-      if (e.type !== "session_update") return false;
-      const su = (e.notification as Record<string, unknown>)?.update;
-      return visibleAgentTypes.includes(
-        (su as Record<string, unknown>)?.sessionUpdate as string,
-      );
-    }) ?? false;
 
   return (
     <>
@@ -261,10 +331,8 @@ export default function TaskDetailScreen() {
             switching from loading spinner to rendered content. */}
         <TaskSessionView
           events={session?.events ?? []}
-          isConnecting={
-            retrying || (!!session?.awaitingAgentOutput && !hasAnyAgentOutput)
-          }
-          isThinking={!!session?.awaitingAgentOutput && hasAnyAgentOutput}
+          isConnecting={isConnecting}
+          isThinking={isThinking}
           terminalStatus={retrying ? undefined : session?.terminalStatus}
           lastError={retrying ? undefined : session?.lastError}
           onRetry={
@@ -289,6 +357,37 @@ export default function TaskDetailScreen() {
           </View>
         )}
 
+        {/* Local task banner */}
+        {isLocal && !session?.terminalStatus && !loading && (
+          <View className="absolute inset-x-0 bottom-[100px] px-4">
+            <View className="rounded-lg border border-gray-6 bg-gray-2 px-3 py-2.5">
+              <Text className="mb-2 font-mono text-[12px] text-gray-11">
+                {isStale ? "Desktop may be offline" : "Running on your desktop"}
+              </Text>
+              <View className="flex-row gap-2">
+                <Pressable
+                  onPress={handleOpenOnDesktop}
+                  className="flex-1 items-center rounded-md bg-gray-4 py-1.5"
+                >
+                  <Text className="font-mono text-[12px] text-gray-12">
+                    Open on Desktop
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleContinueInCloud}
+                  className={`flex-1 items-center rounded-md py-1.5 ${isStale ? "bg-accent-9" : "bg-gray-4"}`}
+                >
+                  <Text
+                    className={`font-mono text-[12px] ${isStale ? "text-accent-contrast" : "text-gray-12"}`}
+                  >
+                    Continue in Cloud
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Fixed input at bottom — hidden when run is terminal */}
         {!session?.terminalStatus && (
           <Animated.View
@@ -298,6 +397,10 @@ export default function TaskDetailScreen() {
             <Composer
               onSend={handleSendPrompt}
               isUserTurn={!(session?.isPromptPending ?? true)}
+              queuedCount={session?.messageQueue?.length ?? 0}
+              placeholder={
+                isLocal ? "Reply to continue in cloud" : "Ask a question"
+              }
             />
           </Animated.View>
         )}

@@ -1,3 +1,4 @@
+import * as Haptics from "expo-haptics";
 import { create } from "zustand";
 import { usePreferencesStore } from "@/features/preferences/stores/preferencesStore";
 import { logger } from "@/lib/logger";
@@ -85,6 +86,12 @@ export interface TaskSession {
   // True after a user prompt is sent, cleared when the first piece of
   // agent output (tool call, message, etc.) arrives from polling.
   awaitingAgentOutput?: boolean;
+  // Messages queued while the agent is working. Auto-sent when control
+  // returns (isPromptPending flips to false).
+  messageQueue?: string[];
+  // Timestamp of the last new event received via polling. Used to detect
+  // stale local sessions (desktop stopped syncing).
+  lastEventAt?: number;
 }
 
 interface TaskSessionStore {
@@ -564,6 +571,9 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
               });
               if (shouldPing && usePreferencesStore.getState().pingsEnabled) {
                 playMeepSound().catch(() => {});
+                Haptics.notificationAsync(
+                  Haptics.NotificationFeedbackType.Success,
+                );
               }
             }
           } catch (statusErr) {
@@ -750,6 +760,8 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
                   isPromptPending: nextIsPromptPending,
                   awaitingPing: nextAwaitingPing,
                   awaitingAgentOutput: nextAwaitingAgentOutput,
+                  lastEventAt:
+                    batchedEvents.length > 0 ? Date.now() : current.lastEventAt,
                 },
               },
             };
@@ -759,6 +771,7 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
             usePreferencesStore.getState().pingsEnabled
           ) {
             playMeepSound().catch(() => {});
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           }
         }
       } catch (err) {

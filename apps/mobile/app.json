@@ -21,7 +21,8 @@
         "NSMicrophoneUsageDescription": "Allow PostHog to use your microphone for voice-to-text input",
         "NSSpeechRecognitionUsageDescription": "Allow PostHog to transcribe your voice input on-device",
         "NSPhotoLibraryUsageDescription": "Allow PostHog to access your photos for attaching images to tasks",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": ["posthog-code"]
       }
     },
     "android": {

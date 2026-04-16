@@ -24,9 +24,11 @@ export default function TasksScreen() {
     }, []),
   );
 
-  const handleCreateTask = () => {
+  const handleCreateTask = useCallback(() => {
+    if (!readyRef.current) return;
+    readyRef.current = false;
     router.push("/task");
-  };
+  }, [router]);
 
   const handleTaskPress = useCallback(
     (taskId: string) => {
