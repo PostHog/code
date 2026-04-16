@@ -19,6 +19,14 @@ import type { PlanEntry, SessionEvent, SessionNotification } from "../types";
 import { PlanStatusBar } from "./PlanStatusBar";
 import { QuestionCard } from "./QuestionCard";
 
+interface PermissionResponseArgs {
+  toolCallId: string;
+  optionId: string;
+  answers?: Record<string, string>;
+  customInput?: string;
+  displayText: string;
+}
+
 interface TaskSessionViewProps {
   events: SessionEvent[];
   isConnecting?: boolean;
@@ -27,7 +35,7 @@ interface TaskSessionViewProps {
   lastError?: string | null;
   onRetry?: () => void;
   onOpenTask?: (taskId: string) => void;
-  onSendAnswer?: (answer: string) => void;
+  onSendPermissionResponse?: (args: PermissionResponseArgs) => void;
   contentContainerStyle?: object;
 }
 
@@ -625,7 +633,7 @@ export function TaskSessionView({
   lastError,
   onRetry,
   onOpenTask,
-  onSendAnswer,
+  onSendPermissionResponse,
   contentContainerStyle,
 }: TaskSessionViewProps) {
   const processorRef = useRef(createProcessorState());
@@ -688,7 +696,7 @@ export function TaskSessionView({
             return (
               <QuestionCard
                 toolData={item.toolData}
-                onSendAnswer={onSendAnswer}
+                onSendPermissionResponse={onSendPermissionResponse}
               />
             );
           }
@@ -709,7 +717,7 @@ export function TaskSessionView({
           return null;
       }
     },
-    [onOpenTask, onSendAnswer],
+    [onOpenTask, onSendPermissionResponse],
   );
 
   return (

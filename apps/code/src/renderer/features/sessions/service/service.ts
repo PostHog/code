@@ -118,6 +118,7 @@ export class SessionService {
     {
       event: { unsubscribe: () => void };
       permission?: { unsubscribe: () => void };
+      permissionResolved?: { unsubscribe: () => void };
     }
   >();
   /** Active cloud task watchers, keyed by taskId */
@@ -412,6 +413,7 @@ export class SessionService {
         adapter: resolvedAdapter,
         permissionMode: persistedMode,
         customInstructions: customInstructions || undefined,
+        runMode: "local",
       });
 
       if (result) {
@@ -586,6 +588,7 @@ export class SessionService {
         ? (reasoningLevel as EffortLevel)
         : undefined,
       model: preferredModel,
+      runMode: "local",
     });
 
     const session = this.createBaseSession(taskRun.id, taskId, taskTitle);
@@ -695,9 +698,32 @@ export class SessionService {
         },
       );
 
+    // Clears the local pendingPermissions mirror when a permission is
+    // resolved outside the Electron UI (e.g. a mobile client answers
+    // the question). Without this, the desktop card would stay visible
+    // indefinitely even though the agent has already moved on.
+    const permissionResolvedSubscription =
+      trpcClient.agent.onPermissionResolved.subscribe(
+        { taskRunId },
+        {
+          onData: (payload) => {
+            const session = sessionStoreSetters.getSessions()[taskRunId];
+            if (!session) return;
+            this.resolvePermission(session, payload.toolCallId);
+          },
+          onError: (err) => {
+            log.error("Permission-resolved subscription error", {
+              taskRunId,
+              error: err,
+            });
+          },
+        },
+      );
+
     this.subscriptions.set(taskRunId, {
       event: eventSubscription,
       permission: permissionSubscription,
+      permissionResolved: permissionResolvedSubscription,
     });
   }
 
@@ -705,6 +731,7 @@ export class SessionService {
     const subscription = this.subscriptions.get(taskRunId);
     subscription?.event.unsubscribe();
     subscription?.permission?.unsubscribe();
+    subscription?.permissionResolved?.unsubscribe();
     this.subscriptions.delete(taskRunId);
   }
 

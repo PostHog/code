@@ -3,6 +3,7 @@ import type {
   RequestPermissionResponse,
 } from "@agentclientprotocol/sdk";
 import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
+import { POSTHOG_NOTIFICATIONS } from "../../../acp-extensions";
 import { text } from "../../../utils/acp-content";
 import type { Logger } from "../../../utils/logger";
 import { toolInfoFromToolUse } from "../conversion/tool-use-to-acp";
@@ -275,6 +276,25 @@ async function handleAskUserQuestionTool(
     name: context.toolName,
     input: toolInput,
   });
+
+  // Tell any attached clients (including log readers like the mobile app)
+  // that the agent has stopped and is blocked on a user reply. Without this
+  // signal, clients reading the log-only stream have no reliable way to
+  // distinguish "tool running" from "tool waiting for a human" — and treat
+  // replies as queued-while-busy instead of sending them through.
+  try {
+    await client.extNotification(POSTHOG_NOTIFICATIONS.AWAITING_USER_INPUT, {
+      sessionId,
+      toolCallId: toolUseID,
+    });
+  } catch (err) {
+    context.logger.warn(
+      "[AskUserQuestion] Failed to emit awaiting_user_input",
+      {
+        error: err,
+      },
+    );
+  }
 
   const response = await client.requestPermission({
     options,

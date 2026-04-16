@@ -93,6 +93,16 @@ interface TaskSessionStore {
   connectToTask: (task: Task) => Promise<void>;
   disconnectFromTask: (taskId: string) => void;
   sendPrompt: (taskId: string, prompt: string) => Promise<void>;
+  sendPermissionResponse: (
+    taskId: string,
+    args: {
+      toolCallId: string;
+      optionId: string;
+      answers?: Record<string, string>;
+      customInput?: string;
+      displayText: string;
+    },
+  ) => Promise<void>;
   cancelPrompt: (taskId: string) => Promise<boolean>;
   getSessionForTask: (taskId: string) => TaskSession | undefined;
 
@@ -127,7 +137,7 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
     const taskId = task.id;
     const latestRunId = task.latest_run?.id;
     const latestRunLogUrl = task.latest_run?.log_url;
-    const taskDescription = task.description;
+    const _taskDescription = task.description;
 
     if (connectAttempts.has(taskId)) {
       logger.debug("Connection already in progress", { taskId });
@@ -360,6 +370,84 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
     }
   },
 
+  // Resolve an outstanding requestPermission on the desktop/agent side
+  // (e.g. AskUserQuestion). Unlike sendPrompt, this never queues — a
+  // permission reply only makes sense while the agent is paused inside
+  // requestPermission, and it completes an existing turn rather than
+  // starting a new one.
+  sendPermissionResponse: async (taskId, args) => {
+    const session = get().getSessionForTask(taskId);
+    if (!session) {
+      throw new Error("No active session for task");
+    }
+
+    const ts = Date.now();
+    const userEvent: SessionEvent = {
+      type: "session_update",
+      ts,
+      notification: {
+        update: {
+          sessionUpdate: "user_message_chunk",
+          content: { type: "text", text: args.displayText },
+        },
+      },
+    };
+
+    set((state) => {
+      const current = state.sessions[session.taskRunId];
+      if (!current) return state;
+      const nextLocalEchoes = new Set(current.localUserEchoes ?? []);
+      nextLocalEchoes.add(args.displayText);
+      return {
+        sessions: {
+          ...state.sessions,
+          [session.taskRunId]: {
+            ...current,
+            events: [...current.events, userEvent],
+            localUserEchoes: nextLocalEchoes,
+            isPromptPending: true,
+            awaitingPing: true,
+          },
+        },
+      };
+    });
+
+    try {
+      await sendCloudCommand(taskId, session.taskRunId, "permission_response", {
+        toolCallId: args.toolCallId,
+        optionId: args.optionId,
+        ...(args.answers ? { answers: args.answers } : {}),
+        ...(args.customInput ? { customInput: args.customInput } : {}),
+      });
+      logger.debug("Sent permission_response", {
+        taskId,
+        runId: session.taskRunId,
+        toolCallId: args.toolCallId,
+      });
+    } catch (err) {
+      logger.error("Failed to send permission_response", err);
+      // Roll back the optimistic state so the UI reflects reality.
+      set((state) => {
+        const current = state.sessions[session.taskRunId];
+        if (!current) return state;
+        const nextLocalEchoes = new Set(current.localUserEchoes ?? []);
+        nextLocalEchoes.delete(args.displayText);
+        return {
+          sessions: {
+            ...state.sessions,
+            [session.taskRunId]: {
+              ...current,
+              events: current.events.filter((e) => e !== userEvent),
+              localUserEchoes: nextLocalEchoes,
+              isPromptPending: false,
+            },
+          },
+        };
+      });
+      throw err;
+    }
+  },
+
   cancelPrompt: async (taskId: string) => {
     const session = get().getSessionForTask(taskId);
     if (!session) return false;
@@ -470,10 +558,7 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
                   },
                 };
               });
-              if (
-                shouldPing &&
-                usePreferencesStore.getState().pingsEnabled
-              ) {
+              if (shouldPing && usePreferencesStore.getState().pingsEnabled) {
                 playMeepSound().catch(() => {});
               }
             }
@@ -560,7 +645,13 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
                 entry.type === "notification" &&
                 (entry.notification?.method === "_posthog/turn_complete" ||
                   entry.notification?.method === "_posthog/task_complete" ||
-                  entry.notification?.method === "_posthog/error")
+                  entry.notification?.method === "_posthog/error" ||
+                  // Agent explicitly blocked on a user reply (e.g. a question
+                  // tool invoked via requestPermission). Treat this as a
+                  // turn boundary so the input UI unblocks — otherwise the
+                  // user's answer would be stuck in the "queue while busy"
+                  // path in sendPrompt.
+                  entry.notification?.method === "_posthog/awaiting_user_input")
               ) {
                 receivedAgentMessage = true;
               }

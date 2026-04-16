@@ -25,8 +25,13 @@ export default function TaskDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
 
-  const { connectToTask, disconnectFromTask, sendPrompt, getSessionForTask } =
-    useTaskSessionStore();
+  const {
+    connectToTask,
+    disconnectFromTask,
+    sendPrompt,
+    sendPermissionResponse,
+    getSessionForTask,
+  } = useTaskSessionStore();
 
   const session = taskId ? getSessionForTask(taskId) : undefined;
 
@@ -140,6 +145,16 @@ export default function TaskDetailScreen() {
     }
   }, [retrying, session]);
 
+  const handleSendPermissionResponse = useCallback(
+    (args: Parameters<typeof sendPermissionResponse>[1]) => {
+      if (!taskId) return;
+      sendPermissionResponse(taskId, args).catch((err) => {
+        console.error("Failed to send permission response:", err);
+      });
+    },
+    [taskId, sendPermissionResponse],
+  );
+
   const handleOpenTask = useCallback(
     (newTaskId: string) => {
       router.replace(`/task/${newTaskId}`);
@@ -232,7 +247,7 @@ export default function TaskDetailScreen() {
             !retrying && session?.terminalStatus ? handleRetry : undefined
           }
           onOpenTask={handleOpenTask}
-          onSendAnswer={handleSendPrompt}
+          onSendPermissionResponse={handleSendPermissionResponse}
           contentContainerStyle={{
             paddingTop:
               session?.terminalStatus && !retrying ? 16 : 80 + insets.bottom,
