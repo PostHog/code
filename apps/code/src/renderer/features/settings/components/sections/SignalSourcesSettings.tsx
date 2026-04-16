@@ -32,8 +32,6 @@ export function SignalSourcesSettings() {
     evaluations,
     evaluationsUrl,
     handleToggleEvaluation,
-    teamConfig,
-    handleUpdateAutostartPriority,
     userAutonomyConfig,
     handleUpdateUserAutonomyPriority,
   } = useSignalSourceManager();
@@ -75,46 +73,6 @@ export function SignalSourcesSettings() {
               void handleToggleEvaluation(id, enabled)
             }
           />
-
-          {teamConfig && (
-            <Box
-              p="4"
-              style={{
-                backgroundColor: "var(--color-panel-solid)",
-                border: "1px solid var(--gray-4)",
-                borderRadius: "var(--radius-3)",
-              }}
-            >
-              <Flex direction="column" gap="2">
-                <Text
-                  size="2"
-                  weight="medium"
-                  style={{ color: "var(--gray-12)" }}
-                >
-                  Auto-research priority
-                </Text>
-                <Text size="1" style={{ color: "var(--gray-11)" }}>
-                  Automatically start research on signal reports at or above
-                  this priority level.
-                </Text>
-                <Select.Root
-                  value={teamConfig.default_autostart_priority}
-                  onValueChange={(value) =>
-                    void handleUpdateAutostartPriority(value)
-                  }
-                >
-                  <Select.Trigger style={{ maxWidth: 240 }} />
-                  <Select.Content>
-                    {PRIORITY_OPTIONS.map((opt) => (
-                      <Select.Item key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </Select.Item>
-                    ))}
-                  </Select.Content>
-                </Select.Root>
-              </Flex>
-            </Box>
-          )}
 
           <Box
             p="4"
