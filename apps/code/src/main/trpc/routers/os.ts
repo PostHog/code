@@ -323,6 +323,58 @@ export const osRouter = router({
     }),
 
   /**
+   * Save a custom notification sound recorded by the user
+   */
+  saveCustomSound: publicProcedure
+    .input(
+      z.object({
+        base64Data: z.string(),
+        mimeType: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const soundsDir = path.join(app.getPath("userData"), "sounds");
+      await fsPromises.mkdir(soundsDir, { recursive: true });
+      const filePath = path.join(soundsDir, "custom-sound.webm");
+      const buffer = Buffer.from(input.base64Data, "base64");
+      await fsPromises.writeFile(filePath, buffer);
+      return { path: filePath };
+    }),
+
+  /**
+   * Read the custom notification sound as a data URL
+   */
+  getCustomSoundDataUrl: publicProcedure.query(async () => {
+    const filePath = path.join(
+      app.getPath("userData"),
+      "sounds",
+      "custom-sound.webm",
+    );
+    try {
+      const buffer = await fsPromises.readFile(filePath);
+      return `data:audio/webm;base64,${buffer.toString("base64")}`;
+    } catch {
+      return null;
+    }
+  }),
+
+  /**
+   * Delete the custom notification sound
+   */
+  deleteCustomSound: publicProcedure.mutation(async () => {
+    const filePath = path.join(
+      app.getPath("userData"),
+      "sounds",
+      "custom-sound.webm",
+    );
+    try {
+      await fsPromises.unlink(filePath);
+    } catch {
+      // File may not exist
+    }
+  }),
+
+  /**
    * Save clipboard image data to a temp file
    * Returns the file path for use as a file attachment
    */
