@@ -16,7 +16,7 @@
     "ios": {
       "icon": "./assets/posthog.icon",
       "supportsTablet": true,
-      "bundleIdentifier": "com.posthog.code",
+      "bundleIdentifier": "com.posthog.code.mobile",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Allow PostHog to use your microphone for voice-to-text input",
         "NSSpeechRecognitionUsageDescription": "Allow PostHog to transcribe your voice input on-device",
