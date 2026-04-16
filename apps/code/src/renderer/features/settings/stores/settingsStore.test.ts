@@ -28,6 +28,7 @@ describe("feature settingsStore cloud selections", () => {
     removeItem.mockResolvedValue(undefined);
 
     useSettingsStore.setState({
+      allowBypassPermissions: false,
       lastUsedCloudRepository: null,
     });
   });
@@ -64,5 +65,20 @@ describe("feature settingsStore cloud selections", () => {
     expect(useSettingsStore.getState().lastUsedCloudRepository).toBe(
       "posthog/posthog",
     );
+  });
+
+  it("rehydrates the unsafe mode toggle", async () => {
+    getItem.mockResolvedValue(
+      JSON.stringify({
+        state: {
+          allowBypassPermissions: true,
+        },
+        version: 0,
+      }),
+    );
+
+    await useSettingsStore.persist.rehydrate();
+
+    expect(useSettingsStore.getState().allowBypassPermissions).toBe(true);
   });
 });

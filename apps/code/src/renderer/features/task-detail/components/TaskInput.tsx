@@ -62,7 +62,6 @@ export function TaskInput({
     setLastUsedAdapter,
     lastUsedCloudRepository,
     setLastUsedCloudRepository,
-    allowBypassPermissions,
     setLastUsedEnvironment,
     getLastUsedEnvironment,
     defaultInitialTaskMode,
@@ -285,11 +284,11 @@ export function TaskInput({
   });
 
   const handleCycleMode = useCallback(() => {
-    const nextValue = cycleModeOption(modeOption, allowBypassPermissions);
+    const nextValue = cycleModeOption(modeOption);
     if (nextValue && modeOption) {
       setConfigOption(modeOption.id, nextValue);
     }
-  }, [modeOption, allowBypassPermissions, setConfigOption]);
+  }, [modeOption, setConfigOption]);
 
   // Global shift+tab to cycle mode regardless of focus
   useHotkeys(
