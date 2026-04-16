@@ -317,6 +317,18 @@ export function extractCloudFileContent(
     } else if (kind === "delete" && pathsMatch(locationPath, filePath)) {
       latestContent = null;
       touched = true;
+    } else if (kind === "move") {
+      const destinationPath = toolCall.locations?.[1]?.path;
+      if (
+        pathsMatch(locationPath, filePath) ||
+        pathsMatch(destinationPath, filePath)
+      ) {
+        const diff = getDiffContent(toolCall.content);
+        if (diff?.newText != null) {
+          latestContent = diff.newText;
+        }
+        touched = true;
+      }
     } else if (kind && ["write", "edit"].includes(kind)) {
       const diff = getDiffContent(toolCall.content);
       const diffPath = diff?.path ?? locationPath;
