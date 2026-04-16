@@ -20,7 +20,7 @@ import {
   useCreateWorkspace,
   useWorkspaceLoaded,
 } from "@features/workspace/hooks/useWorkspace";
-import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
+import { Box, Flex } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { getTaskRepository } from "@utils/repository";
 import { useCallback, useEffect, useMemo } from "react";
@@ -30,16 +30,9 @@ interface TaskLogsPanelProps {
   task: Task;
   /** Hide the message input — log-only view. */
   hideInput?: boolean;
-  /** Hide the cloud status footer bar. */
-  hideCloudStatus?: boolean;
 }
 
-export function TaskLogsPanel({
-  taskId,
-  task,
-  hideInput,
-  hideCloudStatus,
-}: TaskLogsPanelProps) {
+export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
   const isWorkspaceLoaded = useWorkspaceLoaded();
   const { isPending: isCreatingWorkspace } = useCreateWorkspace();
   const repoKey = getTaskRepository(task);
@@ -60,8 +53,6 @@ export function TaskLogsPanel({
     session,
     repoPath,
     isCloud,
-    isCloudRunNotTerminal,
-    cloudStatus,
     isRunning,
     hasError,
     events,
@@ -90,9 +81,7 @@ export function TaskLogsPanel({
     handleBashCommand,
   } = useSessionCallbacks({ taskId, task, session, repoPath });
 
-  const cloudStage = session?.cloudStage ?? null;
   const cloudOutput = session?.cloudOutput ?? null;
-  const cloudErrorMessage = session?.cloudErrorMessage ?? null;
   const prUrl =
     isCloud && cloudOutput?.pr_url ? (cloudOutput.pr_url as string) : null;
   const slackThreadUrl =
@@ -166,59 +155,15 @@ export function TaskLogsPanel({
               cloudDiffStats={cloudDiffStats}
               hasError={hasError}
               errorTitle={errorTitle}
-              errorMessage={errorMessage}
+              errorMessage={errorMessage ?? undefined}
               hideInput={hideInput}
-              onRetry={isCloud ? undefined : handleRetry}
+              onRetry={handleRetry}
               onNewSession={isCloud ? undefined : handleNewSession}
               isInitializing={isInitializing}
               slackThreadUrl={slackThreadUrl}
             />
           </ErrorBoundary>
         </Box>
-        {isCloud && !hideCloudStatus && (
-          <Flex
-            align="center"
-            justify="center"
-            gap="2"
-            py="2"
-            className="border-gray-4 border-t"
-          >
-            {prUrl ? (
-              <>
-                <Text size="2" color="gray">
-                  Task completed
-                </Text>
-                <Button size="2" variant="soft" asChild>
-                  <a href={prUrl} target="_blank" rel="noopener noreferrer">
-                    View Pull Request
-                  </a>
-                </Button>
-              </>
-            ) : isCloudRunNotTerminal ? (
-              <>
-                <Spinner size="2" />
-                <Text size="2" color="gray">
-                  Running in cloud
-                  {cloudStage ? ` \u2014 ${cloudStage}` : ""}
-                  ...
-                </Text>
-              </>
-            ) : cloudStatus === "failed" ? (
-              <Text size="2" color="red">
-                Task failed
-                {cloudErrorMessage ? `: ${cloudErrorMessage}` : ""}
-              </Text>
-            ) : cloudStatus === "cancelled" ? (
-              <Text size="2" color="red">
-                Task cancelled
-              </Text>
-            ) : cloudStatus ? (
-              <Text size="2" color="gray">
-                Cloud task completed
-              </Text>
-            ) : null}
-          </Flex>
-        )}
       </Flex>
     </BackgroundWrapper>
   );

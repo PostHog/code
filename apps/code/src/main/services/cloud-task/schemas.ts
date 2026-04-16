@@ -1,11 +1,13 @@
-import type { CloudTaskUpdatePayload, TaskRun } from "@shared/types";
+import {
+  type CloudTaskUpdatePayload,
+  isTerminalStatus,
+  type TaskRunStatus,
+  TERMINAL_STATUSES,
+} from "@shared/types";
 import { z } from "zod";
 
-export type { CloudTaskUpdatePayload };
-
-// --- Terminal statuses ---
-
-export const TERMINAL_STATUSES = ["completed", "failed", "cancelled"] as const;
+export type { CloudTaskUpdatePayload, TaskRunStatus };
+export { TERMINAL_STATUSES, isTerminalStatus };
 
 // --- Events ---
 
@@ -17,8 +19,6 @@ export interface CloudTaskEvents {
   [CloudTaskEvent.Update]: CloudTaskUpdatePayload;
 }
 
-export type TaskRunStatus = TaskRun["status"];
-
 // --- tRPC Schemas ---
 
 export const watchInput = z.object({
@@ -26,7 +26,6 @@ export const watchInput = z.object({
   runId: z.string(),
   apiHost: z.string(),
   teamId: z.number(),
-  viewing: z.boolean().optional(),
 });
 
 export type WatchInput = z.infer<typeof watchInput>;
@@ -36,15 +35,14 @@ export const unwatchInput = z.object({
   runId: z.string(),
 });
 
-export const onUpdateInput = z.object({
+export const retryInput = z.object({
   taskId: z.string(),
   runId: z.string(),
 });
 
-export const setViewingInput = z.object({
+export const onUpdateInput = z.object({
   taskId: z.string(),
   runId: z.string(),
-  viewing: z.boolean(),
 });
 
 export const sendCommandInput = z.object({
@@ -52,7 +50,13 @@ export const sendCommandInput = z.object({
   runId: z.string(),
   apiHost: z.string(),
   teamId: z.number(),
-  method: z.enum(["user_message", "cancel", "close"]),
+  method: z.enum([
+    "user_message",
+    "cancel",
+    "close",
+    "permission_response",
+    "set_config_option",
+  ]),
   params: z.record(z.string(), z.unknown()).optional(),
 });
 

@@ -33,6 +33,13 @@ const log = logger.scope("git-interaction");
 
 export type { GitMenuAction, GitMenuActionId };
 
+function getConversationContext(taskId: string): string | undefined {
+  const state = useSessionStore.getState();
+  const taskRunId = state.taskIdIndex[taskId];
+  if (!taskRunId) return undefined;
+  return state.sessions[taskRunId]?.conversationSummary;
+}
+
 interface GitInteractionState {
   primaryAction: GitMenuAction;
   actions: GitMenuAction[];
@@ -248,6 +255,7 @@ export function useGitInteraction(
         draft: store.createPrDraft || undefined,
         stagedOnly: stagedOnly || undefined,
         taskId,
+        conversationContext: getConversationContext(taskId),
       });
 
       if (!result.success) {
@@ -268,6 +276,17 @@ export function useGitInteraction(
       }
       if (store.createPrNeedsBranch) {
         invalidateGitBranchQueries(repoPath);
+        trpcClient.workspace.linkBranch
+          .mutate({ taskId, branchName: store.branchName.trim() })
+          .catch((err) =>
+            log.warn("Failed to link branch to task", { taskId, err }),
+          );
+      } else if (git.currentBranch) {
+        trpcClient.workspace.linkBranch
+          .mutate({ taskId, branchName: git.currentBranch })
+          .catch((err) =>
+            log.warn("Failed to link branch to task", { taskId, err }),
+          );
       }
 
       if (result.prUrl) {
@@ -336,6 +355,7 @@ export function useGitInteraction(
       try {
         const generated = await trpcClient.git.generateCommitMessage.mutate({
           directoryPath: repoPath,
+          conversationContext: getConversationContext(taskId),
         });
 
         if (!generated.message) {
@@ -442,6 +462,7 @@ export function useGitInteraction(
     try {
       const result = await trpcClient.git.generateCommitMessage.mutate({
         directoryPath: repoPath,
+        conversationContext: getConversationContext(taskId),
       });
 
       if (result.message) {
@@ -472,6 +493,7 @@ export function useGitInteraction(
     try {
       const result = await trpcClient.git.generatePrTitleAndBody.mutate({
         directoryPath: repoPath,
+        conversationContext: getConversationContext(taskId),
       });
 
       if (result.title || result.body) {
@@ -517,6 +539,12 @@ export function useGitInteraction(
 
       trackGitAction(taskId, "branch-here", true);
       await queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter());
+
+      trpcClient.workspace.linkBranch
+        .mutate({ taskId, branchName: store.branchName.trim() })
+        .catch((err) =>
+          log.warn("Failed to link branch to task", { taskId, err }),
+        );
 
       modal.closeBranch();
     } catch (error) {

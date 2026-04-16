@@ -1,13 +1,14 @@
 import { FileIcon } from "@components/ui/FileIcon";
 import { useDiffViewerStore } from "@features/code-editor/stores/diffViewerStore";
 import { computeDiffStats } from "@features/git-interaction/utils/diffStats";
+import { ChangesPanel } from "@features/task-detail/components/ChangesPanel";
 import { ArrowSquareOut, CaretDown } from "@phosphor-icons/react";
 import type { FileDiffMetadata } from "@pierre/diffs/react";
 import { WorkerPoolContextProvider } from "@pierre/diffs/react";
 import WorkerUrl from "@pierre/diffs/worker/worker.js?worker&url";
 import { Flex, Spinner, Text } from "@radix-ui/themes";
 import { useReviewNavigationStore } from "@renderer/features/code-review/stores/reviewNavigationStore";
-import type { ChangedFile } from "@shared/types";
+import type { ChangedFile, Task } from "@shared/types";
 import { useThemeStore } from "@stores/themeStore";
 import {
   type ReactNode,
@@ -75,7 +76,7 @@ const AUTO_COLLAPSE_PATTERNS = [
   /\.pbxproj$/,
 ];
 
-export type DeferredReason = "deleted" | "large" | "generated";
+export type DeferredReason = "deleted" | "large" | "generated" | "unavailable";
 
 export function computeAutoDeferred(
   files: {
@@ -208,8 +209,92 @@ function useCollapseState(
   };
 }
 
+const SIDEBAR_MIN_WIDTH = 200;
+const SIDEBAR_MAX_WIDTH = 500;
+const SIDEBAR_DEFAULT_WIDTH = 280;
+
+function ExpandedSidebar({ task }: { task: Task }) {
+  const taskId = task.id;
+  const [width, setWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const isDragging = useRef(false);
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isDragging.current = true;
+      const startX = e.clientX;
+      const startWidth = width;
+
+      const handleMouseMove = (e: MouseEvent) => {
+        if (!isDragging.current) return;
+        const delta = startX - e.clientX;
+        const newWidth = Math.min(
+          SIDEBAR_MAX_WIDTH,
+          Math.max(SIDEBAR_MIN_WIDTH, startWidth + delta),
+        );
+        setWidth(newWidth);
+      };
+
+      const handleMouseUp = () => {
+        isDragging.current = false;
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    },
+    [width],
+  );
+
+  return (
+    <Flex direction="row" style={{ flexShrink: 0 }}>
+      <button
+        type="button"
+        aria-label="Resize sidebar"
+        onMouseDown={handleMouseDown}
+        style={{
+          width: "4px",
+          cursor: "col-resize",
+          background: "transparent",
+          flexShrink: 0,
+          transition: "background 0.1s",
+          padding: 0,
+          border: "none",
+          borderLeftWidth: "1px",
+          borderLeftStyle: "solid",
+          borderLeftColor: "var(--gray-6)",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "var(--accent-8)";
+        }}
+        onMouseLeave={(e) => {
+          if (!isDragging.current) {
+            e.currentTarget.style.background = "transparent";
+          }
+        }}
+      />
+      <Flex
+        direction="column"
+        style={{
+          width: `${width}px`,
+          minWidth: `${SIDEBAR_MIN_WIDTH}px`,
+          background: "var(--color-background)",
+          flexShrink: 0,
+        }}
+      >
+        <ChangesPanel taskId={taskId} task={task} />
+      </Flex>
+    </Flex>
+  );
+}
+
 export interface ReviewShellProps {
-  taskId: string;
+  task: Task;
   fileCount: number;
   linesAdded: number;
   linesRemoved: number;
@@ -224,7 +309,7 @@ export interface ReviewShellProps {
 }
 
 export function ReviewShell({
-  taskId,
+  task,
   fileCount,
   linesAdded,
   linesRemoved,
@@ -237,7 +322,13 @@ export function ReviewShell({
   onCollapseAll,
   onRefresh,
 }: ReviewShellProps) {
+  const taskId = task.id;
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const reviewMode = useReviewNavigationStore(
+    (s) => s.reviewModes[taskId] ?? "closed",
+  );
+  const isExpanded = reviewMode === "expanded";
 
   const scrollRequest = useReviewNavigationStore(
     (s) => s.scrollRequests[taskId] ?? null,
@@ -345,6 +436,7 @@ export function ReviewShell({
     >
       <Flex direction="column" height="100%">
         <ReviewToolbar
+          taskId={taskId}
           fileCount={fileCount}
           linesAdded={linesAdded}
           linesRemoved={linesRemoved}
@@ -353,12 +445,17 @@ export function ReviewShell({
           onCollapseAll={onCollapseAll}
           onRefresh={onRefresh}
         />
-        <div
-          ref={scrollContainerRef}
-          className="scrollbar-hide flex-1 space-y-2 overflow-auto"
-        >
-          {children}
-        </div>
+        <Flex style={{ flex: 1, minHeight: 0 }}>
+          <div
+            ref={scrollContainerRef}
+            className="scrollbar-hide flex-1 space-y-2 overflow-auto"
+            style={{ minWidth: 0 }}
+          >
+            {children}
+          </div>
+
+          {isExpanded && <ExpandedSidebar task={task} />}
+        </Flex>
       </Flex>
     </WorkerPoolContextProvider>
   );
@@ -445,7 +542,7 @@ export function DiffFileHeader({
     fileDiff.prevName && fileDiff.prevName !== fileDiff.name
       ? `${fileDiff.prevName} \u2192 ${fileDiff.name}`
       : fileDiff.name;
-  const { dirPath, fileName } = splitFilePath(fullPath);
+  const { dirPath, fileName } = splitFilePath(fullPath ?? "");
   const { additions, deletions } = sumHunkStats(fileDiff.hunks);
 
   return (
@@ -495,6 +592,8 @@ function getDeferredMessage(
       return `Generated file not rendered — ${totalLines} lines changed.`;
     case "large":
       return `Large diff not rendered — ${totalLines} lines changed.`;
+    case "unavailable":
+      return "Unable to load diff.";
   }
 }
 
@@ -506,6 +605,7 @@ export function DeferredDiffPlaceholder({
   collapsed,
   onToggle,
   onShow,
+  externalUrl,
 }: {
   filePath: string;
   linesAdded: number;
@@ -513,7 +613,8 @@ export function DeferredDiffPlaceholder({
   reason: DeferredReason;
   collapsed: boolean;
   onToggle: () => void;
-  onShow: () => void;
+  onShow?: () => void;
+  externalUrl?: string;
 }) {
   const { dirPath, fileName } = splitFilePath(filePath);
 
@@ -528,28 +629,55 @@ export function DeferredDiffPlaceholder({
         onToggle={onToggle}
       />
       {!collapsed && (
-        <button
-          type="button"
-          onClick={onShow}
+        <div
           style={{
             padding: "16px",
             textAlign: "center",
             color: "var(--gray-9)",
             fontSize: "12px",
-            cursor: "pointer",
             background: "var(--gray-2)",
             borderBottom: "1px solid var(--gray-5)",
             width: "100%",
-            border: "none",
           }}
         >
-          {getDeferredMessage(reason, linesAdded + linesRemoved)}{" "}
-          <span
-            style={{ color: "var(--accent-9)", textDecoration: "underline" }}
-          >
-            Load diff
-          </span>
-        </button>
+          {getDeferredMessage(reason, linesAdded + linesRemoved)}
+          {onShow ? (
+            <>
+              {" "}
+              <button
+                type="button"
+                onClick={onShow}
+                style={{
+                  color: "var(--accent-9)",
+                  textDecoration: "underline",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "inherit",
+                  padding: 0,
+                }}
+              >
+                Load diff
+              </button>
+            </>
+          ) : externalUrl ? (
+            <>
+              {" "}
+              <a
+                href={externalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: "var(--accent-9)",
+                  textDecoration: "underline",
+                  fontSize: "inherit",
+                }}
+              >
+                View on GitHub
+              </a>
+            </>
+          ) : null}
+        </div>
       )}
     </div>
   );

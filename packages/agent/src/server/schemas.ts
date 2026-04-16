@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const httpHeaderSchema = z.object({
   name: z.string(),
@@ -42,7 +42,22 @@ export const jsonRpcRequestSchema = z.object({
 export type JsonRpcRequest = z.infer<typeof jsonRpcRequestSchema>;
 
 export const userMessageParamsSchema = z.object({
-  content: z.string().min(1, "Content is required"),
+  content: z.union([
+    z.string().min(1, "Content is required"),
+    z.array(z.record(z.string(), z.unknown())).min(1, "Content is required"),
+  ]),
+});
+
+export const permissionResponseParamsSchema = z.object({
+  requestId: z.string().min(1, "requestId is required"),
+  optionId: z.string().min(1, "optionId is required"),
+  customInput: z.string().optional(),
+  answers: z.record(z.string(), z.string()).optional(),
+});
+
+export const setConfigOptionParamsSchema = z.object({
+  configId: z.string().min(1, "configId is required"),
+  value: z.string().min(1, "value is required"),
 });
 
 export const commandParamsSchemas = {
@@ -52,6 +67,10 @@ export const commandParamsSchemas = {
   "posthog/cancel": z.object({}).optional(),
   close: z.object({}).optional(),
   "posthog/close": z.object({}).optional(),
+  permission_response: permissionResponseParamsSchema,
+  "posthog/permission_response": permissionResponseParamsSchema,
+  set_config_option: setConfigOptionParamsSchema,
+  "posthog/set_config_option": setConfigOptionParamsSchema,
 } as const;
 
 export type CommandMethod = keyof typeof commandParamsSchemas;

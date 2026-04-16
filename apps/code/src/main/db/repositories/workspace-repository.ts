@@ -30,6 +30,7 @@ export interface IWorkspaceRepository {
   updatePinnedAt(taskId: string, pinnedAt: string | null): void;
   updateLastViewedAt(taskId: string, lastViewedAt: string): void;
   updateLastActivityAt(taskId: string, lastActivityAt: string): void;
+  updateLinkedBranch(taskId: string, linkedBranch: string | null): void;
   updateMode(taskId: string, mode: WorkspaceMode): void;
   deleteAll(): void;
 }
@@ -129,6 +130,14 @@ export class WorkspaceRepository implements IWorkspaceRepository {
     this.db
       .update(workspaces)
       .set({ lastActivityAt, updatedAt: now() })
+      .where(byTaskId(taskId))
+      .run();
+  }
+
+  updateLinkedBranch(taskId: string, linkedBranch: string | null): void {
+    this.db
+      .update(workspaces)
+      .set({ linkedBranch, updatedAt: now() })
       .where(byTaskId(taskId))
       .run();
   }

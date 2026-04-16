@@ -20,6 +20,7 @@ export const workspaceInfoSchema = z.object({
   worktree: worktreeInfoSchema.nullable(),
   branchName: z.string().nullable(),
   label: z.string().nullable().optional(),
+  linkedBranch: z.string().nullable(),
 });
 
 export const workspaceSchema = z.object({
@@ -32,6 +33,7 @@ export const workspaceSchema = z.object({
   branchName: z.string().nullable(),
   baseBranch: z.string().nullable(),
   label: z.string().nullable().optional(),
+  linkedBranch: z.string().nullable(),
   createdAt: z.string(),
 });
 
@@ -116,6 +118,20 @@ export const workspacePromotedPayload = z.object({
 export const branchChangedPayload = z.object({
   taskId: z.string(),
   branchName: z.string().nullable(),
+});
+
+export const linkedBranchChangedPayload = z.object({
+  taskId: z.string(),
+  branchName: z.string().nullable(),
+});
+
+export const linkBranchInput = z.object({
+  taskId: z.string(),
+  branchName: z.string(),
+});
+
+export const unlinkBranchInput = z.object({
+  taskId: z.string(),
 });
 
 export const localBackgroundedPayload = z.object({
@@ -251,6 +267,11 @@ export type WorkspaceErrorPayload = z.infer<typeof workspaceErrorPayload>;
 export type WorkspaceWarningPayload = z.infer<typeof workspaceWarningPayload>;
 export type WorkspacePromotedPayload = z.infer<typeof workspacePromotedPayload>;
 export type BranchChangedPayload = z.infer<typeof branchChangedPayload>;
+export type LinkedBranchChangedPayload = z.infer<
+  typeof linkedBranchChangedPayload
+>;
+export type LinkBranchInput = z.infer<typeof linkBranchInput>;
+export type UnlinkBranchInput = z.infer<typeof unlinkBranchInput>;
 export type LocalBackgroundedPayload = z.infer<typeof localBackgroundedPayload>;
 export type LocalForegroundedPayload = z.infer<typeof localForegroundedPayload>;
 export type IsLocalBackgroundedInput = z.infer<typeof isLocalBackgroundedInput>;

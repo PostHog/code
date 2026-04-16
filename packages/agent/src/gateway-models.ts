@@ -17,6 +17,8 @@ export interface FetchGatewayModelsOptions {
 
 export const DEFAULT_GATEWAY_MODEL = "claude-opus-4-6";
 
+export const DEFAULT_CODEX_MODEL = "gpt-5.4";
+
 export const BLOCKED_MODELS = new Set(["gpt-5-mini", "openai/gpt-5-mini"]);
 
 type ModelsListResponse =

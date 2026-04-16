@@ -72,21 +72,21 @@ export class CreatePrSaga extends Saga<CreatePrSagaInput, CreatePrSagaOutput> {
     let { commitMessage, prTitle, prBody } = input;
 
     if (input.branchName) {
+      const branchName = input.branchName;
       const currentBranch = await this.readOnlyStep("get-original-branch", () =>
         this.deps.getCurrentBranch(directoryPath),
       );
 
       // on retry, do not attempt to re-create the branch
-      if (currentBranch !== input.branchName) {
+      if (currentBranch !== branchName) {
         this.deps.onProgress(
           "creating-branch",
-          `Creating branch ${input.branchName}...`,
+          `Creating branch ${branchName}...`,
         );
 
         await this.step({
           name: "creating-branch",
-          execute: () =>
-            this.deps.createBranch(directoryPath, input.branchName!),
+          execute: () => this.deps.createBranch(directoryPath, branchName),
           rollback: async () => {
             if (currentBranch) {
               await this.deps.checkoutBranch(directoryPath, currentBranch);
@@ -120,6 +120,8 @@ export class CreatePrSaga extends Saga<CreatePrSagaInput, CreatePrSagaOutput> {
         throw new Error("Commit message is required.");
       }
 
+      const finalCommitMessage = commitMessage;
+
       this.deps.onProgress("committing", "Committing changes...");
 
       const preCommitSha = await this.readOnlyStep("get-pre-commit-sha", () =>
@@ -129,10 +131,14 @@ export class CreatePrSaga extends Saga<CreatePrSagaInput, CreatePrSagaOutput> {
       await this.step({
         name: "committing",
         execute: async () => {
-          const result = await this.deps.commit(directoryPath, commitMessage!, {
-            stagedOnly: input.stagedOnly,
-            taskId: input.taskId,
-          });
+          const result = await this.deps.commit(
+            directoryPath,
+            finalCommitMessage,
+            {
+              stagedOnly: input.stagedOnly,
+              taskId: input.taskId,
+            },
+          );
           if (!result.success) throw new Error(result.message);
           return result;
         },

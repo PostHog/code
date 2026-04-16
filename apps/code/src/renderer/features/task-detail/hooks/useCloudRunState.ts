@@ -26,7 +26,7 @@ export function useCloudRunState(taskId: string, task: Task) {
   const cloudStatus =
     session?.cloudStatus ?? freshTask.latest_run?.status ?? null;
   const isRunActive =
-    cloudStatus === "started" ||
+    cloudStatus === "queued" ||
     cloudStatus === "in_progress" ||
     (cloudStatus === null && session != null);
 

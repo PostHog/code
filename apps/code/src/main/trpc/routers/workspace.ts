@@ -19,12 +19,14 @@ import {
   getWorktreeSizeOutput,
   getWorktreeTasksInput,
   getWorktreeTasksOutput,
+  linkBranchInput,
   listGitWorktreesInput,
   listGitWorktreesOutput,
   markActivityInput,
   markViewedInput,
   togglePinInput,
   togglePinOutput,
+  unlinkBranchInput,
   verifyWorkspaceInput,
   verifyWorkspaceOutput,
 } from "../../services/workspace/schemas";
@@ -181,8 +183,19 @@ export const workspaceRouter = router({
       return result;
     }),
 
+  linkBranch: publicProcedure
+    .input(linkBranchInput)
+    .mutation(({ input }) =>
+      getService().linkBranch(input.taskId, input.branchName, "user"),
+    ),
+
+  unlinkBranch: publicProcedure
+    .input(unlinkBranchInput)
+    .mutation(({ input }) => getService().unlinkBranch(input.taskId, "user")),
+
   onError: subscribe(WorkspaceServiceEvent.Error),
   onWarning: subscribe(WorkspaceServiceEvent.Warning),
   onPromoted: subscribe(WorkspaceServiceEvent.Promoted),
   onBranchChanged: subscribe(WorkspaceServiceEvent.BranchChanged),
+  onLinkedBranchChanged: subscribe(WorkspaceServiceEvent.LinkedBranchChanged),
 });

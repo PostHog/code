@@ -64,7 +64,7 @@ export function CommandCenterSessionView({
         cloudBranch={cloudBranch}
         hasError={hasError}
         errorTitle={errorTitle}
-        errorMessage={errorMessage}
+        errorMessage={errorMessage ?? undefined}
         onRetry={isCloud ? undefined : handleRetry}
         onNewSession={isCloud ? undefined : handleNewSession}
         isInitializing={isInitializing}

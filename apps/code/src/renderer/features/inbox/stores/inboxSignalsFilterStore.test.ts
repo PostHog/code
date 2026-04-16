@@ -8,6 +8,15 @@ describe("inboxSignalsFilterStore", () => {
       sortField: "total_weight",
       sortDirection: "desc",
       searchQuery: "",
+      statusFilter: [
+        "ready",
+        "pending_input",
+        "in_progress",
+        "candidate",
+        "potential",
+      ],
+      sourceProductFilter: [],
+      suggestedReviewerFilter: [],
     });
   });
 
@@ -16,6 +25,15 @@ describe("inboxSignalsFilterStore", () => {
     expect(state.sortField).toBe("total_weight");
     expect(state.sortDirection).toBe("desc");
     expect(state.searchQuery).toBe("");
+    expect(state.statusFilter).toEqual([
+      "ready",
+      "pending_input",
+      "in_progress",
+      "candidate",
+      "potential",
+    ]);
+    expect(state.sourceProductFilter).toEqual([]);
+    expect(state.suggestedReviewerFilter).toEqual([]);
   });
 
   it("setSort updates field and direction", () => {
@@ -47,5 +65,42 @@ describe("inboxSignalsFilterStore", () => {
     expect(raw).toBeTruthy();
     const persisted = JSON.parse(raw as string);
     expect(persisted.state.searchQuery).toBeUndefined();
+  });
+
+  it("toggleSuggestedReviewer adds and removes reviewer ids", () => {
+    useInboxSignalsFilterStore.getState().toggleSuggestedReviewer("reviewer-1");
+    expect(
+      useInboxSignalsFilterStore.getState().suggestedReviewerFilter,
+    ).toEqual(["reviewer-1"]);
+
+    useInboxSignalsFilterStore.getState().toggleSuggestedReviewer("reviewer-1");
+    expect(
+      useInboxSignalsFilterStore.getState().suggestedReviewerFilter,
+    ).toEqual([]);
+  });
+
+  it("setSuggestedReviewerFilter de-duplicates reviewer ids", () => {
+    useInboxSignalsFilterStore
+      .getState()
+      .setSuggestedReviewerFilter(["reviewer-1", "reviewer-2", "reviewer-1"]);
+
+    expect(
+      useInboxSignalsFilterStore.getState().suggestedReviewerFilter,
+    ).toEqual(["reviewer-1", "reviewer-2"]);
+  });
+
+  it("persists suggestedReviewerFilter", () => {
+    useInboxSignalsFilterStore
+      .getState()
+      .setSuggestedReviewerFilter(["reviewer-1", "reviewer-2"]);
+
+    const raw = localStorage.getItem("inbox-signals-filter-storage");
+    expect(raw).toBeTruthy();
+    const persisted = JSON.parse(raw as string);
+
+    expect(persisted.state.suggestedReviewerFilter).toEqual([
+      "reviewer-1",
+      "reviewer-2",
+    ]);
   });
 });

@@ -4,15 +4,19 @@ import { delimiter, dirname } from "node:path";
 import type { Readable, Writable } from "node:stream";
 import type { ProcessSpawnedCallback } from "../../types";
 import { Logger } from "../../utils/logger";
+import type { CodexSettings } from "./settings";
 
 export interface CodexProcessOptions {
   cwd?: string;
   apiBaseUrl?: string;
   apiKey?: string;
   model?: string;
+  reasoningEffort?: string;
+  instructions?: string;
   binaryPath?: string;
   logger?: Logger;
   processCallbacks?: ProcessSpawnedCallback;
+  settings?: CodexSettings;
 }
 
 export interface CodexProcess {
@@ -27,6 +31,13 @@ function buildConfigArgs(options: CodexProcessOptions): string[] {
 
   args.push("-c", `features.remote_models=false`);
 
+  // Disable the user's local MCPs one-by-one so Codex only uses the MCPs we
+  // provide via ACP. We can't use `-c mcp_servers={}` because that makes Codex
+  // ignore MCPs entirely, including the ones we inject later.
+  for (const name of options.settings?.mcpServerNames ?? []) {
+    args.push("-c", `mcp_servers.${name}.enabled=false`);
+  }
+
   if (options.apiBaseUrl) {
     args.push("-c", `model_provider="posthog"`);
     args.push("-c", `model_providers.posthog.name="PostHog Gateway"`);
@@ -40,6 +51,19 @@ function buildConfigArgs(options: CodexProcessOptions): string[] {
 
   if (options.model) {
     args.push("-c", `model="${options.model}"`);
+  }
+
+  if (options.reasoningEffort) {
+    args.push("-c", `model_reasoning_effort="${options.reasoningEffort}"`);
+  }
+
+  if (options.instructions) {
+    const escaped = options.instructions
+      .replace(/\\/g, "\\\\")
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
+      .replace(/"/g, '\\"');
+    args.push("-c", `instructions="${escaped}"`);
   }
 
   return args;

@@ -214,8 +214,8 @@ export function ActionSelector({
       }}
       style={{
         outline: "none",
-        border: "1px solid var(--blue-11)",
-        background: "var(--blue-1)",
+        border: "1px solid var(--gray-6)",
+        background: "var(--gray-1)",
         borderRadius: "var(--radius-3)",
       }}
     >

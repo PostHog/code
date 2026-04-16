@@ -1,6 +1,7 @@
 import { Combobox } from "@components/ui/combobox/Combobox";
 import { GithubLogo } from "@phosphor-icons/react";
 import { Button, Flex, Text } from "@radix-ui/themes";
+import { useState } from "react";
 
 interface GitHubRepoPickerProps {
   value: string | null;
@@ -21,6 +22,8 @@ export function GitHubRepoPicker({
   size = "1",
   disabled = false,
 }: GitHubRepoPickerProps) {
+  const [open, setOpen] = useState(false);
+
   if (isLoading) {
     return (
       <Button color="gray" variant="outline" size={size} disabled>
@@ -47,6 +50,8 @@ export function GitHubRepoPicker({
     <Combobox.Root
       value={value ?? ""}
       onValueChange={onChange}
+      open={open}
+      onOpenChange={setOpen}
       size={size}
       disabled={disabled}
     >
@@ -54,22 +59,28 @@ export function GitHubRepoPicker({
         <Flex align="center" gap="2" style={{ minWidth: 0 }}>
           <GithubLogo size={16} weight="regular" style={{ flexShrink: 0 }} />
           <Text size={size} truncate>
-            {value
-              ? value.includes("/")
-                ? value.split("/").pop()
-                : value
-              : placeholder}
+            {value ?? placeholder}
           </Text>
         </Flex>
       </Combobox.Trigger>
-      <Combobox.Content style={{ maxHeight: "300px" }}>
-        <Combobox.Input placeholder="Search repositories..." />
-        <Combobox.Empty>No repositories found.</Combobox.Empty>
-        {repositories.map((repo) => (
-          <Combobox.Item key={repo} value={repo} textValue={repo}>
-            {repo}
-          </Combobox.Item>
-        ))}
+      <Combobox.Content items={repositories} limit={50}>
+        {({ filtered, hasMore, moreCount }) => (
+          <>
+            <Combobox.Input placeholder="Search repositories..." />
+            <Combobox.Empty>No repositories found.</Combobox.Empty>
+            {filtered.map((repo) => (
+              <Combobox.Item key={repo} value={repo} textValue={repo}>
+                {repo}
+              </Combobox.Item>
+            ))}
+            {hasMore && (
+              <div className="combobox-label">
+                {moreCount} more {moreCount === 1 ? "repo" : "repos"} — type to
+                filter
+              </div>
+            )}
+          </>
+        )}
       </Combobox.Content>
     </Combobox.Root>
   );

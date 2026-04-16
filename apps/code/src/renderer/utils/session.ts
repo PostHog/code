@@ -18,6 +18,7 @@ import {
   isJsonRpcNotification,
   isJsonRpcRequest,
 } from "@shared/types/session-events";
+import { extractPromptDisplayContent } from "@utils/promptContent";
 
 /**
  * Convert a stored log entry to an ACP message.
@@ -181,14 +182,16 @@ export function extractUserPromptsFromEvents(events: AcpMessage[]): string[] {
     if (isJsonRpcRequest(msg) && msg.method === "session/prompt") {
       const params = msg.params as { prompt?: ContentBlock[] };
       if (params?.prompt?.length) {
-        // Find first visible text block (skip hidden context blocks)
-        const textBlock = params.prompt.find((b) => {
-          if (b.type !== "text") return false;
-          const meta = (b as { _meta?: { ui?: { hidden?: boolean } } })._meta;
-          return !meta?.ui?.hidden;
-        });
-        if (textBlock && textBlock.type === "text") {
-          prompts.push(textBlock.text);
+        const { text, attachments } = extractPromptDisplayContent(
+          params.prompt,
+          { filterHidden: true },
+        );
+
+        if (text) {
+          prompts.push(text);
+        } else if (attachments.length > 0) {
+          const labels = attachments.map((a) => a.label).join(", ");
+          prompts.push(`[Attached files: ${labels}]`);
         }
       }
     }
@@ -197,16 +200,9 @@ export function extractUserPromptsFromEvents(events: AcpMessage[]): string[] {
   return prompts;
 }
 
-/**
- * Extract prompt text from ContentBlocks, filtering out hidden blocks.
- */
 export function extractPromptText(prompt: string | ContentBlock[]): string {
   if (typeof prompt === "string") return prompt;
-
-  return (prompt as ContentBlock[])
-    .filter((b) => b.type === "text")
-    .map((b) => (b as { text: string }).text)
-    .join("");
+  return extractPromptDisplayContent(prompt).text;
 }
 
 /**

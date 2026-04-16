@@ -1,12 +1,19 @@
+import {
+  getAuthIdentity,
+  useAuthStateValue,
+} from "@features/auth/hooks/authQueries";
+import { useInboxAvailableSuggestedReviewersStore } from "@features/inbox/stores/inboxAvailableSuggestedReviewersStore";
 import { useAuthenticatedInfiniteQuery } from "@hooks/useAuthenticatedInfiniteQuery";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import type {
+  AvailableSuggestedReviewersResponse,
+  SignalProcessingStateResponse,
   SignalReportArtefactsResponse,
   SignalReportSignalsResponse,
   SignalReportsQueryParams,
   SignalReportsResponse,
 } from "@shared/types";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 const REPORTS_PAGE_SIZE = 100;
 
@@ -20,6 +27,13 @@ const reportKeys = {
     [...reportKeys.all, reportId, "artefacts"] as const,
   signals: (reportId: string) =>
     [...reportKeys.all, reportId, "signals"] as const,
+  availableSuggestedReviewers: (authIdentity: string | null) =>
+    [
+      ...reportKeys.all,
+      authIdentity ?? "anonymous",
+      "available-reviewers",
+    ] as const,
+  signalProcessingState: ["inbox", "signal-processing-state"] as const,
 };
 
 export function useInboxReports(
@@ -80,6 +94,74 @@ export function useInboxReportsInfinite(
   const totalCount = query.data?.pages[0]?.count ?? 0;
 
   return { ...query, allReports, totalCount };
+}
+
+export function useInboxAvailableSuggestedReviewers(options?: {
+  enabled?: boolean;
+  staleTime?: number;
+  query?: string;
+}) {
+  const authState = useAuthStateValue((state) => state);
+  const authIdentity = getAuthIdentity(authState);
+  const reviewerQuery = options?.query?.trim() ?? "";
+  const shouldUseCachedBaseList = reviewerQuery.length === 0;
+  const cachedEntry = useInboxAvailableSuggestedReviewersStore((state) =>
+    shouldUseCachedBaseList
+      ? state.getReviewersForAuthIdentity(authIdentity)
+      : null,
+  );
+  const setReviewersForAuthIdentity = useInboxAvailableSuggestedReviewersStore(
+    (state) => state.setReviewersForAuthIdentity,
+  );
+
+  const query = useAuthenticatedQuery<AvailableSuggestedReviewersResponse>(
+    reportKeys.availableSuggestedReviewers(
+      authIdentity ? `${authIdentity}:${reviewerQuery}` : null,
+    ),
+    (client) => client.getAvailableSuggestedReviewers(reviewerQuery),
+    {
+      enabled: !!authIdentity && (options?.enabled ?? true),
+      staleTime: options?.staleTime ?? 5 * 60 * 1000,
+      refetchOnMount: "always",
+      refetchInterval: 60_000,
+      refetchIntervalInBackground: true,
+      placeholderData:
+        shouldUseCachedBaseList && cachedEntry
+          ? {
+              results: cachedEntry.reviewers,
+              count: cachedEntry.reviewers.length,
+            }
+          : undefined,
+    },
+  );
+
+  useEffect(() => {
+    if (!authIdentity || !query.data || !shouldUseCachedBaseList) {
+      return;
+    }
+
+    setReviewersForAuthIdentity(authIdentity, query.data.results);
+  }, [
+    authIdentity,
+    query.data,
+    setReviewersForAuthIdentity,
+    shouldUseCachedBaseList,
+  ]);
+
+  return query;
+}
+
+export function useInboxSignalProcessingState(options?: {
+  enabled?: boolean;
+  refetchInterval?: number | false | (() => number | false | undefined);
+  refetchIntervalInBackground?: boolean;
+  staleTime?: number;
+}) {
+  return useAuthenticatedQuery<SignalProcessingStateResponse>(
+    reportKeys.signalProcessingState,
+    (client) => client.getSignalProcessingState(),
+    options,
+  );
 }
 
 export function useInboxReportArtefacts(

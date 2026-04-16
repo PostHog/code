@@ -4,6 +4,7 @@ import { Box, Flex, Text } from "@radix-ui/themes";
 import { useEffect, useMemo } from "react";
 import { useCodeMirror } from "../hooks/useCodeMirror";
 import { useEditorExtensions } from "../hooks/useEditorExtensions";
+import { usePendingScrollStore } from "../stores/pendingScrollStore";
 
 interface CodeMirrorEditorProps {
   content: string;
@@ -24,6 +25,29 @@ export function CodeMirrorEditor({
     [content, extensions, filePath],
   );
   const { containerRef, instanceRef } = useCodeMirror(options);
+  useEffect(() => {
+    if (!filePath) return;
+    const scrollToLine = () => {
+      const line = usePendingScrollStore.getState().pendingLine[filePath];
+      if (line === undefined) return;
+      const view = instanceRef.current;
+      if (!view) return;
+      usePendingScrollStore.getState().consumeScroll(filePath);
+      const lineCount = view.state.doc.lines;
+      if (line < 1 || line > lineCount) return;
+      const lineInfo = view.state.doc.line(line);
+      view.dispatch({
+        selection: { anchor: lineInfo.from },
+        effects: EditorView.scrollIntoView(lineInfo.from, { y: "center" }),
+      });
+    };
+    const rafId = requestAnimationFrame(scrollToLine);
+    const unsub = usePendingScrollStore.subscribe(scrollToLine);
+    return () => {
+      cancelAnimationFrame(rafId);
+      unsub();
+    };
+  }, [filePath, instanceRef]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

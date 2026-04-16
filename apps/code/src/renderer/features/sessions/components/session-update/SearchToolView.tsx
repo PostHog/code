@@ -54,7 +54,7 @@ export function SearchToolView({
       <Flex
         align="center"
         gap="2"
-        className="group cursor-pointer py-0.5"
+        className="group min-w-0 cursor-pointer py-0.5"
         onClick={handleClick}
       >
         <ExpandableIcon
@@ -63,7 +63,7 @@ export function SearchToolView({
           isExpandable
           isExpanded={isExpanded}
         />
-        <ToolTitle className="truncate">
+        <ToolTitle className="min-w-0 truncate">
           <span className="font-mono">{title || "Search"}</span>
         </ToolTitle>
         <ToolTitle className="shrink-0 whitespace-nowrap">

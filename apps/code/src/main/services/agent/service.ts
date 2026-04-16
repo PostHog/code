@@ -12,12 +12,20 @@ import {
   type SessionConfigOption,
   type SessionNotification,
 } from "@agentclientprotocol/sdk";
-import { isMcpToolReadOnly } from "@posthog/agent";
-import { hydrateSessionJsonl } from "@posthog/agent/adapters/claude/session/jsonl-hydration";
-import { getEffortOptions } from "@posthog/agent/adapters/claude/session/models";
-import { Agent } from "@posthog/agent/agent";
-import { getAvailableModes } from "@posthog/agent/execution-mode";
 import {
+  isMcpToolReadOnly,
+  isNotification,
+  POSTHOG_NOTIFICATIONS,
+} from "@posthog/agent";
+import { hydrateSessionJsonl } from "@posthog/agent/adapters/claude/session/jsonl-hydration";
+import { getReasoningEffortOptions } from "@posthog/agent/adapters/reasoning-effort";
+import { Agent } from "@posthog/agent/agent";
+import {
+  getAvailableCodexModes,
+  getAvailableModes,
+} from "@posthog/agent/execution-mode";
+import {
+  DEFAULT_CODEX_MODEL,
   DEFAULT_GATEWAY_MODEL,
   fetchGatewayModels,
   formatGatewayModelName,
@@ -178,6 +186,56 @@ const onAgentLog: OnLogCallback = (level, scope, message, data) => {
   }
 };
 
+const HAIKU_EXPLORE_AGENT_OVERRIDE = {
+  description:
+    'Fast agent for exploring and understanding codebases. Use this when you need to find files by pattern (eg. "src/components/**/*.tsx"), search for code or keywords (eg. "where is the auth middleware?"), or answer questions about how the codebase works (eg. "how does the session service handle reconnects?"). When calling this agent, specify a thoroughness level: "quick" for targeted lookups, "medium" for broader exploration, or "very thorough" for comprehensive analysis across multiple locations.',
+  model: "haiku",
+  prompt: `You are a fast, read-only codebase exploration agent.
+
+Your job is to find files, search code, read the most relevant sources, and report findings clearly.
+
+Rules:
+- Never create, modify, delete, move, or copy files.
+- Never use shell redirection or any command that changes system state.
+- Use Glob for broad file pattern matching.
+- Use Grep for searching file contents.
+- Use Read when you know the exact file path to inspect.
+- Use Bash only for safe read-only commands like ls, git status, git log, git diff, find, cat, head, and tail.
+- Adapt your search approach based on the thoroughness level specified by the caller.
+- Return file paths as absolute paths in your final response.
+- Avoid using emojis.
+- Wherever possible, spawn multiple parallel tool calls for grepping and reading files.
+- Search efficiently, then read only the most relevant files.
+- Return findings directly in your final response — do not create files.`,
+  tools: [
+    "Bash",
+    "Glob",
+    "Grep",
+    "Read",
+    "WebFetch",
+    "WebSearch",
+    "NotebookRead",
+    "TodoWrite",
+  ],
+};
+
+function buildClaudeCodeOptions(args: {
+  additionalDirectories?: string[];
+  effort?: EffortLevel;
+  plugins: { type: "local"; path: string }[];
+}) {
+  return {
+    ...(args.additionalDirectories?.length && {
+      additionalDirectories: args.additionalDirectories,
+    }),
+    ...(args.effort && { effort: args.effort }),
+    plugins: args.plugins,
+    agents: {
+      "ph-explore": HAIKU_EXPLORE_AGENT_OVERRIDE,
+    },
+  };
+}
+
 interface SessionConfig {
   taskId: string;
   taskRunId: string;
@@ -197,6 +255,8 @@ interface SessionConfig {
   effort?: EffortLevel;
   /** Model to use for the session (e.g. "claude-sonnet-4-6") */
   model?: string;
+  /** JSON Schema for structured task output — when set, the agent gets a create_output tool */
+  jsonSchema?: Record<string, unknown> | null;
 }
 
 interface ManagedSession {
@@ -503,6 +563,7 @@ When creating pull requests, add the following footer at the end of the PR descr
       customInstructions,
       effort,
       model,
+      jsonSchema,
     } = config;
 
     // Preview config doesn't need a real repo — use a temp directory
@@ -515,7 +576,10 @@ When creating pull requests, add the following footer at the end of the PR descr
       }
 
       for (const proc of this.processTracking.getByTaskId(taskId)) {
-        if (proc.category === "agent" || proc.category === "child") {
+        if (
+          (proc.category === "agent" || proc.category === "child") &&
+          proc.metadata?.taskRunId === taskRunId
+        ) {
           this.processTracking.kill(proc.pid);
         }
       }
@@ -550,10 +614,26 @@ When creating pull requests, add the following footer at the end of the PR descr
     });
 
     try {
+      const systemPrompt = this.buildSystemPrompt(
+        credentials,
+        taskId,
+        customInstructions,
+      );
+
       const acpConnection = await agent.run(taskId, taskRunId, {
         adapter,
         gatewayUrl: proxyUrl,
         codexBinaryPath: adapter === "codex" ? getCodexBinaryPath() : undefined,
+        model,
+        instructions: adapter === "codex" ? systemPrompt.append : undefined,
+        onStructuredOutput: jsonSchema
+          ? async (output) => {
+              const posthogAPI = agent.getPosthogAPI();
+              if (posthogAPI) {
+                await posthogAPI.updateTaskRun(taskId, taskRunId, { output });
+              }
+            }
+          : undefined,
         processCallbacks: {
           onProcessSpawned: (info) => {
             this.processTracking.register(
@@ -631,40 +711,51 @@ When creating pull requests, add the following footer at the end of the PR descr
         },
         ...externalPlugins,
       ];
+      const claudeCodeOptions = buildClaudeCodeOptions({
+        additionalDirectories,
+        effort,
+        plugins,
+      });
 
       let configOptions: SessionConfigOption[] | undefined;
       let agentSessionId: string;
 
-      if (isReconnect && adapter === "codex" && config.sessionId) {
-        const existingSessionId = config.sessionId;
-        const loadResponse = await connection.loadSession({
-          sessionId: existingSessionId,
-          cwd: repoPath,
-          mcpServers,
-        });
-        configOptions = loadResponse.configOptions ?? undefined;
-        agentSessionId = existingSessionId;
-      } else if (isReconnect && adapter === "claude" && config.sessionId) {
+      // Claude-specific: hydrate session JSONL from PostHog before resuming.
+      // If hydration finds no conversation to restore, skip the resume and
+      // fall through to creating a new session. This avoids a doomed
+      // unstable_resumeSession that would fail with "Resource not found"
+      if (isReconnect && config.sessionId) {
         const existingSessionId = config.sessionId;
 
-        const posthogAPI = agent.getPosthogAPI();
-        if (posthogAPI) {
-          await hydrateSessionJsonl({
-            sessionId: existingSessionId,
-            cwd: repoPath,
-            taskId,
-            runId: taskRunId,
-            permissionMode: config.permissionMode,
-            posthogAPI,
-            log,
-          });
+        if (adapter !== "codex") {
+          const posthogAPI = agent.getPosthogAPI();
+          if (posthogAPI) {
+            const hasSession = await hydrateSessionJsonl({
+              sessionId: existingSessionId,
+              cwd: repoPath,
+              taskId,
+              runId: taskRunId,
+              permissionMode: config.permissionMode,
+              posthogAPI,
+              log,
+            });
+            if (!hasSession) {
+              log.info(
+                "No session JSONL to resume, creating new session instead",
+                { taskId, taskRunId },
+              );
+              config.sessionId = undefined;
+            }
+          }
         }
+      }
 
-        const systemPrompt = this.buildSystemPrompt(
-          credentials,
-          taskId,
-          customInstructions,
-        );
+      if (isReconnect && config.sessionId) {
+        const existingSessionId = config.sessionId;
+
+        // Both adapters implement unstable_resumeSession:
+        // - Claude: delegates to SDK's resumeSession with JSONL hydration
+        // - Codex: delegates to codex-acp's loadSession internally
         const resumeResponse = await connection.unstable_resumeSession({
           sessionId: existingSessionId,
           cwd: repoPath,
@@ -678,14 +769,9 @@ When creating pull requests, add the following footer at the end of the PR descr
             systemPrompt,
             ...(permissionMode && { permissionMode }),
             ...(model != null && { model }),
+            ...(jsonSchema && { jsonSchema }),
             claudeCode: {
-              options: {
-                ...(additionalDirectories?.length && {
-                  additionalDirectories,
-                }),
-                ...(effort && { effort }),
-                plugins,
-              },
+              options: claudeCodeOptions,
             },
           },
         });
@@ -698,11 +784,6 @@ When creating pull requests, add the following footer at the end of the PR descr
             taskRunId,
           });
         }
-        const systemPrompt = this.buildSystemPrompt(
-          credentials,
-          taskId,
-          customInstructions,
-        );
         const newSessionResponse = await connection.newSession({
           cwd: repoPath,
           mcpServers,
@@ -711,12 +792,9 @@ When creating pull requests, add the following footer at the end of the PR descr
             systemPrompt,
             ...(permissionMode && { permissionMode }),
             ...(model != null && { model }),
+            ...(jsonSchema && { jsonSchema }),
             claudeCode: {
-              options: {
-                ...(additionalDirectories?.length && { additionalDirectories }),
-                ...(effort && { effort }),
-                plugins,
-              },
+              options: claudeCodeOptions,
             },
           },
         });
@@ -1306,7 +1384,7 @@ For git operations while detached:
         method: string,
         params: Record<string, unknown>,
       ): Promise<void> => {
-        if (method === "_posthog/sdk_session") {
+        if (isNotification(method, POSTHOG_NOTIFICATIONS.SDK_SESSION)) {
           const {
             taskRunId: notifTaskRunId,
             sessionId,
@@ -1405,6 +1483,7 @@ For git operations while detached:
         "customInstructions" in params ? params.customInstructions : undefined,
       effort: "effort" in params ? params.effort : undefined,
       model: "model" in params ? params.model : undefined,
+      jsonSchema: "jsonSchema" in params ? params.jsonSchema : undefined,
     };
   }
 
@@ -1622,7 +1701,9 @@ For git operations while detached:
 
     const defaultModel =
       adapter === "codex"
-        ? (modelOptions[0]?.value ?? "")
+        ? (modelOptions.find((o) => o.value === DEFAULT_CODEX_MODEL)?.value ??
+          modelOptions[0]?.value ??
+          "")
         : DEFAULT_GATEWAY_MODEL;
 
     const resolvedModelId = modelOptions.some((o) => o.value === defaultModel)
@@ -1637,18 +1718,21 @@ For git operations while detached:
       });
     }
 
-    const modeOptions = getAvailableModes().map((mode) => ({
+    const modes =
+      adapter === "codex" ? getAvailableCodexModes() : getAvailableModes();
+    const modeOptions = modes.map((mode) => ({
       value: mode.id,
       name: mode.name,
       description: mode.description ?? undefined,
     }));
+    const defaultMode = adapter === "codex" ? "auto" : "plan";
 
     const configOptions: SessionConfigOption[] = [
       {
         id: "mode",
         name: "Approval Preset",
         type: "select",
-        currentValue: "plan",
+        currentValue: defaultMode,
         options: modeOptions,
         category: "mode",
         description:
@@ -1665,33 +1749,20 @@ For git operations while detached:
       },
     ];
 
-    if (adapter === "codex") {
+    const effortOpts = getReasoningEffortOptions(adapter, resolvedModelId);
+    if (effortOpts) {
       configOptions.push({
-        id: "reasoning_effort",
-        name: "Reasoning Level",
+        id: adapter === "codex" ? "reasoning_effort" : "effort",
+        name: adapter === "codex" ? "Reasoning Level" : "Effort",
         type: "select",
         currentValue: "high",
-        options: [
-          { value: "low", name: "Low" },
-          { value: "medium", name: "Medium" },
-          { value: "high", name: "High" },
-        ],
+        options: effortOpts,
         category: "thought_level",
-        description: "Controls how much reasoning effort the model uses",
+        description:
+          adapter === "codex"
+            ? "Controls how much reasoning effort the model uses"
+            : "Controls how much effort Claude puts into its response",
       });
-    } else {
-      const effortOpts = getEffortOptions(resolvedModelId);
-      if (effortOpts) {
-        configOptions.push({
-          id: "effort",
-          name: "Effort",
-          type: "select",
-          currentValue: "high",
-          options: effortOpts,
-          category: "thought_level",
-          description: "Controls how much effort Claude puts into its response",
-        });
-      }
     }
 
     return configOptions;

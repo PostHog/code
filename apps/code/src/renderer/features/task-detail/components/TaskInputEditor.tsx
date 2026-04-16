@@ -12,7 +12,7 @@ import { UnifiedModelSelector } from "@features/sessions/components/UnifiedModel
 import type { AgentAdapter } from "@features/settings/stores/settingsStore";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { ArrowUp } from "@phosphor-icons/react";
-import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
 import { trpcClient } from "@renderer/trpc/client";
 import { EditorContent } from "@tiptap/react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react";
@@ -65,10 +65,20 @@ export const TaskInputEditor = forwardRef<
     const { isOnline } = useConnectivity();
     const isSubmitDisabled = isCreatingTask || !isOnline;
 
+    const hasHistory = useTaskInputHistoryStore((s) => s.prompts.length > 0);
+
     const getPromptHistory = useCallback(
       () => useTaskInputHistoryStore.getState().prompts,
       [],
     );
+
+    const hints = [
+      "@ to add files",
+      "/ for skills",
+      hasHistory ? "\u2191\u2193 for history" : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
 
     const {
       editor,
@@ -85,8 +95,7 @@ export const TaskInputEditor = forwardRef<
       removeAttachment,
     } = useTiptapEditor({
       sessionId,
-      placeholder:
-        "What do you want to work on? \u2191\u2193 for history, @ to add context",
+      placeholder: `What do you want to ship? ${hints}`,
       disabled: isCreatingTask,
       submitDisabled: !isOnline,
       isLoading: isCreatingTask,
@@ -180,7 +189,7 @@ export const TaskInputEditor = forwardRef<
       >
         <Flex
           direction="column"
-          p="3"
+          p="4"
           style={{
             cursor: "text",
             position: "relative",
@@ -236,8 +245,8 @@ export const TaskInputEditor = forwardRef<
           </Flex>
         </Flex>
 
-        <Flex justify="between" align="center" px="3" pb="3">
-          <Flex align="center" gap="3">
+        <Flex justify="between" align="center" px="4" pb="4">
+          <Flex align="center" gap="4">
             <EditorToolbar
               disabled={isCreatingTask}
               adapter={adapter}
@@ -270,30 +279,29 @@ export const TaskInputEditor = forwardRef<
 
           <Flex align="center" gap="4">
             <TourHighlight active={tourHighlight === "submit-button"}>
-              <Tooltip content={getSubmitTooltip()}>
-                <IconButton
-                  size="1"
-                  variant="solid"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSubmit();
-                  }}
-                  disabled={!canSubmit || isSubmitDisabled}
-                  loading={isCreatingTask}
-                  style={{
-                    backgroundColor:
-                      !canSubmit || isSubmitDisabled
-                        ? "var(--accent-a4)"
-                        : undefined,
-                    color:
-                      !canSubmit || isSubmitDisabled
-                        ? "var(--accent-8)"
-                        : undefined,
-                  }}
-                >
-                  <ArrowUp size={16} weight="bold" />
-                </IconButton>
-              </Tooltip>
+              <IconButton
+                size="1"
+                variant="solid"
+                title={getSubmitTooltip()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSubmit();
+                }}
+                disabled={!canSubmit || isSubmitDisabled}
+                loading={isCreatingTask}
+                style={{
+                  backgroundColor:
+                    !canSubmit || isSubmitDisabled
+                      ? "var(--accent-a4)"
+                      : undefined,
+                  color:
+                    !canSubmit || isSubmitDisabled
+                      ? "var(--accent-8)"
+                      : undefined,
+                }}
+              >
+                <ArrowUp size={16} weight="bold" />
+              </IconButton>
             </TourHighlight>
           </Flex>
         </Flex>

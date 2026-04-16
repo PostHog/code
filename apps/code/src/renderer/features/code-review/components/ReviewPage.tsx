@@ -3,14 +3,15 @@ import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import type { parsePatchFiles } from "@pierre/diffs";
 import { Flex, Text } from "@radix-ui/themes";
+import { useReviewNavigationStore } from "@renderer/features/code-review/stores/reviewNavigationStore";
 import { useTRPC } from "@renderer/trpc/client";
-import type { ChangedFile } from "@shared/types";
+import type { ChangedFile, Task } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { useReviewComment } from "../hooks/useReviewComment";
 import { useReviewDiffs } from "../hooks/useReviewDiffs";
-import type { DiffOptions, OnCommentCallback } from "../types";
+import type { DiffOptions } from "../types";
 import { InteractiveFileDiff } from "./InteractiveFileDiff";
+import { LazyDiff } from "./LazyDiff";
 import {
   DeferredDiffPlaceholder,
   type DeferredReason,
@@ -21,14 +22,16 @@ import {
 } from "./ReviewShell";
 
 interface ReviewPageProps {
-  taskId: string;
+  task: Task;
 }
 
-export function ReviewPage({ taskId }: ReviewPageProps) {
+export function ReviewPage({ task }: ReviewPageProps) {
+  const taskId = task.id;
   const repoPath = useCwd(taskId);
   const openFile = usePanelLayoutStore((s) => s.openFile);
-  const onComment = useReviewComment(taskId);
-
+  const isReviewOpen = useReviewNavigationStore(
+    (s) => (s.reviewModes[taskId] ?? "closed") !== "closed",
+  );
   const {
     changedFiles,
     changesLoading,
@@ -40,7 +43,7 @@ export function ReviewPage({ taskId }: ReviewPageProps) {
     allPaths,
     diffLoading,
     refetch,
-  } = useReviewDiffs(repoPath);
+  } = useReviewDiffs(repoPath, isReviewOpen);
 
   const {
     diffOptions,
@@ -74,12 +77,11 @@ export function ReviewPage({ taskId }: ReviewPageProps) {
     revealFile,
     getDeferredReason,
     openFile,
-    onComment,
   };
 
   return (
     <ReviewShell
-      taskId={taskId}
+      task={task}
       fileCount={totalFileCount}
       linesAdded={linesAdded}
       linesRemoved={linesRemoved}
@@ -107,14 +109,16 @@ export function ReviewPage({ taskId }: ReviewPageProps) {
         const isCollapsed = collapsedFiles.has(key);
         return (
           <div key={key} data-file-path={key}>
-            <UntrackedFileDiff
-              file={file}
-              repoPath={repoPath}
-              options={diffOptions}
-              collapsed={isCollapsed}
-              onToggle={() => toggleFile(key)}
-              onComment={onComment}
-            />
+            <LazyDiff>
+              <UntrackedFileDiff
+                file={file}
+                repoPath={repoPath}
+                options={diffOptions}
+                collapsed={isCollapsed}
+                onToggle={() => toggleFile(key)}
+                taskId={taskId}
+              />
+            </LazyDiff>
           </div>
         );
       })}
@@ -143,7 +147,6 @@ interface FileDiffListProps {
   revealFile: (key: string) => void;
   getDeferredReason: (key: string) => DeferredReason | null;
   openFile: (taskId: string, path: string, preview: boolean) => void;
-  onComment: OnCommentCallback;
 }
 
 function FileDiffList({
@@ -157,7 +160,6 @@ function FileDiffList({
   revealFile,
   getDeferredReason,
   openFile,
-  onComment,
 }: FileDiffListProps) {
   return files.map((fileDiff) => {
     const filePath = fileDiff.name ?? fileDiff.prevName ?? "";
@@ -184,22 +186,24 @@ function FileDiffList({
 
     return (
       <div key={key} data-file-path={key}>
-        <InteractiveFileDiff
-          fileDiff={fileDiff}
-          repoPath={repoPath}
-          options={{ ...diffOptions, collapsed: isCollapsed }}
-          onComment={onComment}
-          renderCustomHeader={(fd) => (
-            <DiffFileHeader
-              fileDiff={fd}
-              collapsed={isCollapsed}
-              onToggle={() => toggleFile(key)}
-              onOpenFile={() =>
-                openFile(taskId, `${repoPath}/${filePath}`, false)
-              }
-            />
-          )}
-        />
+        <LazyDiff>
+          <InteractiveFileDiff
+            fileDiff={fileDiff}
+            repoPath={repoPath}
+            options={{ ...diffOptions, collapsed: isCollapsed }}
+            taskId={taskId}
+            renderCustomHeader={(fd) => (
+              <DiffFileHeader
+                fileDiff={fd}
+                collapsed={isCollapsed}
+                onToggle={() => toggleFile(key)}
+                onOpenFile={() =>
+                  openFile(taskId, `${repoPath}/${filePath}`, false)
+                }
+              />
+            )}
+          />
+        </LazyDiff>
       </div>
     );
   });
@@ -208,17 +212,17 @@ function FileDiffList({
 function UntrackedFileDiff({
   file,
   repoPath,
+  taskId,
   options,
   collapsed,
   onToggle,
-  onComment,
 }: {
   file: ChangedFile;
   repoPath: string;
+  taskId: string;
   options: DiffOptions;
   collapsed: boolean;
   onToggle: () => void;
-  onComment: OnCommentCallback;
 }) {
   const trpc = useTRPC();
   const { data: content } = useQuery(
@@ -240,7 +244,7 @@ function UntrackedFileDiff({
       oldFile={oldFile}
       newFile={newFile}
       options={{ ...options, collapsed }}
-      onComment={onComment}
+      taskId={taskId}
       renderCustomHeader={(fd) => (
         <DiffFileHeader
           fileDiff={fd}

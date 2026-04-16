@@ -3,6 +3,7 @@ import type { SessionConfigOption } from "@agentclientprotocol/sdk";
 import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
 import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import { getUserPromptsForTask } from "@features/sessions/stores/sessionStore";
+import { useIsWorkspaceCloudRun } from "@features/workspace/hooks/useWorkspace";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { ArrowUp, Circle, Stop } from "@phosphor-icons/react";
 import { Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
@@ -32,6 +33,7 @@ interface ModeAndBranchRowProps {
   } | null;
   disabled?: boolean;
   isBashMode?: boolean;
+  isCloud?: boolean;
   taskId?: string;
 }
 
@@ -43,6 +45,7 @@ function ModeAndBranchRow({
   cloudDiffStats,
   disabled,
   isBashMode,
+  isCloud,
   taskId,
 }: ModeAndBranchRowProps) {
   const { currentBranch: gitBranch, diffStats } = useGitQueries(
@@ -64,7 +67,12 @@ function ModeAndBranchRow({
   }
 
   return (
-    <Flex align="center" justify="between" style={{ overflow: "hidden" }}>
+    <Flex
+      align="center"
+      justify="between"
+      gap="3"
+      style={{ overflow: "hidden" }}
+    >
       <Flex align="center" gap="2" flexShrink="0">
         {isBashMode ? (
           <Text
@@ -89,10 +97,16 @@ function ModeAndBranchRow({
           </>
         )}
       </Flex>
-      <Flex align="center" gap="2" style={{ minWidth: 0, overflow: "hidden" }}>
+      <Flex
+        align="center"
+        gap="2"
+        wrap="nowrap"
+        style={{ minWidth: 0, overflow: "hidden" }}
+      >
         <DiffStatsIndicator
           repoPath={repoPath}
           overrideStats={cloudDiffStats}
+          taskId={taskId}
         />
         {showBranchSelector && showDiffStats && (
           <Flex
@@ -108,7 +122,7 @@ function ModeAndBranchRow({
             <BranchSelector
               repoPath={repoPath ?? null}
               currentBranch={currentBranch}
-              disabled={disabled}
+              disabled={disabled || isCloud}
               variant="ghost"
               taskId={taskId}
             />
@@ -159,6 +173,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
     const clearFocusRequest = useDraftStore((s) => s.actions.clearFocusRequest);
     const { isOnline } = useConnectivity();
     const taskId = context?.taskId;
+    const isCloud = useIsWorkspaceCloudRun(taskId);
     const disabled = context?.disabled ?? false;
     const isLoading = context?.isLoading ?? false;
     const repoPath = context?.repoPath;
@@ -197,6 +212,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
       autoFocus,
       context: { taskId, repoPath },
       getPromptHistory,
+      capabilities: { bashMode: !isCloud },
       onSubmit,
       onBashCommand,
       onBashModeChange,
@@ -348,6 +364,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
           cloudDiffStats={cloudDiffStats}
           disabled={disabled}
           isBashMode={isBashMode}
+          isCloud={isCloud}
           taskId={taskId}
         />
       </Flex>

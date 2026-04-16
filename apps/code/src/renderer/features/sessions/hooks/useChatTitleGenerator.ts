@@ -1,8 +1,11 @@
 import { getAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { getSessionService } from "@features/sessions/service/service";
-import { useSessionStore } from "@features/sessions/stores/sessionStore";
+import {
+  sessionStoreSetters,
+  useSessionStore,
+} from "@features/sessions/stores/sessionStore";
 import type { Task } from "@shared/types";
-import { generateTitle } from "@utils/generateTitle";
+import { generateTitleAndSummary } from "@utils/generateTitle";
 import { logger } from "@utils/logger";
 import { queryClient } from "@utils/queryClient";
 import { extractUserPromptsFromEvents } from "@utils/session";
@@ -69,22 +72,37 @@ export function useChatTitleGenerator(taskId: string): void {
           return;
         }
 
-        const title = await generateTitle(content);
-        if (title) {
-          const client = await getAuthenticatedClient();
-          if (client) {
-            await client.updateTask(taskId, { title });
-            queryClient.setQueriesData<Task[]>(
-              { queryKey: ["tasks", "list"] },
-              (old) =>
-                old?.map((task) =>
-                  task.id === taskId ? { ...task, title } : task,
-                ),
-            );
-            getSessionService().updateSessionTaskTitle(taskId, title);
-            log.debug("Updated task title from conversation", {
+        const result = await generateTitleAndSummary(content);
+        if (result) {
+          const { title, summary } = result;
+          if (title) {
+            const client = await getAuthenticatedClient();
+            if (client) {
+              await client.updateTask(taskId, { title });
+              queryClient.setQueriesData<Task[]>(
+                { queryKey: ["tasks", "list"] },
+                (old) =>
+                  old?.map((task) =>
+                    task.id === taskId ? { ...task, title } : task,
+                  ),
+              );
+              getSessionService().updateSessionTaskTitle(taskId, title);
+              log.debug("Updated task title from conversation", {
+                taskId,
+                title,
+                promptCount,
+              });
+            }
+          }
+
+          if (summary) {
+            sessionStoreSetters.updateSession(taskRunId, {
+              conversationSummary: result.summary,
+            });
+
+            log.debug("Updated task summary from conversation", {
               taskId,
-              title,
+              summary,
               promptCount,
             });
           }

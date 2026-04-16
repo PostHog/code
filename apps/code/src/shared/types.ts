@@ -7,6 +7,9 @@ export const executionModeSchema = z.enum([
   "acceptEdits",
   "plan",
   "bypassPermissions",
+  "auto",
+  "read-only",
+  "full-access",
 ]);
 export type ExecutionMode = z.infer<typeof executionModeSchema>;
 
@@ -50,14 +53,37 @@ export interface Task {
   latest_run?: TaskRun;
 }
 
+export type TaskRunStatus =
+  | "not_started"
+  | "queued"
+  | "in_progress"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export const TERMINAL_STATUSES = ["completed", "failed", "cancelled"] as const;
+
+export function isTerminalStatus(
+  status: TaskRunStatus | string | null | undefined,
+): boolean {
+  return (
+    status !== null &&
+    status !== undefined &&
+    TERMINAL_STATUSES.includes(status as (typeof TERMINAL_STATUSES)[number])
+  );
+}
+
 export interface TaskRun {
   id: string;
   task: string; // Task ID
   team: number;
   branch: string | null;
+  runtime_adapter?: "claude" | "codex" | null;
+  model?: string | null;
+  reasoning_effort?: "low" | "medium" | "high" | "max" | null;
   stage?: string | null; // Current stage (e.g., 'research', 'plan', 'build')
   environment?: "local" | "cloud";
-  status: "started" | "in_progress" | "completed" | "failed" | "cancelled";
+  status: TaskRunStatus;
   log_url: string;
   error_message: string | null;
   output: Record<string, unknown> | null; // Structured output (PR URL, commit SHA, etc.)
@@ -94,22 +120,71 @@ export interface SandboxEnvironmentInput {
   private?: boolean;
 }
 
-export type CloudTaskUpdateKind = "logs" | "status" | "snapshot";
-
-export interface CloudTaskUpdatePayload {
+interface CloudTaskUpdateBase {
   taskId: string;
   runId: string;
-  kind: CloudTaskUpdateKind;
-  // Log fields (present when kind is "logs" or "snapshot")
-  newEntries?: StoredLogEntry[];
-  totalEntryCount?: number;
-  // Status fields (present when kind is "status" or "snapshot")
-  status?: TaskRun["status"];
+}
+
+export interface CloudTaskLogsUpdate extends CloudTaskUpdateBase {
+  kind: "logs";
+  newEntries: StoredLogEntry[];
+  totalEntryCount: number;
+}
+
+export interface CloudTaskStatusUpdate extends CloudTaskUpdateBase {
+  kind: "status";
+  status?: TaskRunStatus;
   stage?: string | null;
   output?: Record<string, unknown> | null;
   errorMessage?: string | null;
   branch?: string | null;
 }
+
+export interface CloudTaskSnapshotUpdate extends CloudTaskUpdateBase {
+  kind: "snapshot";
+  newEntries: StoredLogEntry[];
+  totalEntryCount: number;
+  status?: TaskRunStatus;
+  stage?: string | null;
+  output?: Record<string, unknown> | null;
+  errorMessage?: string | null;
+  branch?: string | null;
+}
+
+export interface CloudTaskErrorUpdate extends CloudTaskUpdateBase {
+  kind: "error";
+  errorTitle: string;
+  errorMessage: string;
+  retryable: boolean;
+}
+
+export interface CloudPermissionOption {
+  kind: string;
+  optionId: string;
+  name: string;
+  _meta?: Record<string, unknown>;
+}
+
+export interface CloudTaskPermissionRequestUpdate extends CloudTaskUpdateBase {
+  kind: "permission_request";
+  requestId: string;
+  toolCall: {
+    toolCallId: string;
+    title: string;
+    kind: string;
+    content?: unknown[];
+    rawInput?: Record<string, unknown>;
+    _meta?: Record<string, unknown>;
+  };
+  options: CloudPermissionOption[];
+}
+
+export type CloudTaskUpdatePayload =
+  | CloudTaskLogsUpdate
+  | CloudTaskStatusUpdate
+  | CloudTaskSnapshotUpdate
+  | CloudTaskErrorUpdate
+  | CloudTaskPermissionRequestUpdate;
 
 // Mention types for editors
 type MentionType =
@@ -147,6 +222,7 @@ export interface ChangedFile {
   linesAdded?: number;
   linesRemoved?: number;
   staged?: boolean;
+  patch?: string; // Unified diff patch from GitHub API
 }
 
 // External apps detection types
@@ -174,6 +250,12 @@ export type SignalReportStatus =
 /** Actionability priority from the researched report (actionability judgment artefact). */
 export type SignalReportPriority = "P0" | "P1" | "P2" | "P3" | "P4";
 
+/** Actionability choice from the researched report. */
+export type SignalReportActionability =
+  | "immediately_actionable"
+  | "requires_human_input"
+  | "not_actionable";
+
 /**
  * One or more `SignalReportStatus` values joined by commas, e.g. `potential` or `potential,candidate,ready`.
  * This looks horrendous but it's superb, trust me bro.
@@ -197,8 +279,12 @@ export interface SignalReport {
   created_at: string;
   updated_at: string;
   artefact_count: number;
-  /** P0–P4 from actionability judgment when the report is researched */
+  /** P0–P4 from priority judgment when the report is researched */
   priority?: SignalReportPriority | null;
+  /** Actionability choice from the actionability judgment artefact. */
+  actionability?: SignalReportActionability | null;
+  /** Whether the issue appears already fixed, from the actionability judgment artefact. */
+  already_addressed?: boolean | null;
   /** Whether the current user is a suggested reviewer for this report (server-annotated). */
   is_suggested_reviewer?: boolean;
   /** Distinct source products contributing signals to this report (e.g. "session_replay", "error_tracking"). */
@@ -221,6 +307,49 @@ export interface SignalReportArtefact {
   created_at: string;
 }
 
+/** Artefact with `type: "priority_judgment"` — priority assessment from the agentic report. */
+export interface PriorityJudgmentArtefact {
+  id: string;
+  type: "priority_judgment";
+  content: PriorityJudgmentContent;
+  created_at: string;
+}
+
+export interface PriorityJudgmentContent {
+  explanation: string;
+  priority: SignalReportPriority;
+}
+
+/** Artefact with `type: "actionability_judgment"` — actionability assessment from the agentic report. */
+export interface ActionabilityJudgmentArtefact {
+  id: string;
+  type: "actionability_judgment";
+  content: ActionabilityJudgmentContent;
+  created_at: string;
+}
+
+export interface ActionabilityJudgmentContent {
+  explanation: string;
+  actionability: SignalReportActionability;
+  already_addressed: boolean;
+}
+
+/** Artefact with `type: "signal_finding"` — per-signal research finding from the agentic report. */
+export interface SignalFindingArtefact {
+  id: string;
+  type: "signal_finding";
+  content: SignalFindingContent;
+  created_at: string;
+}
+
+export interface SignalFindingContent {
+  signal_id: string;
+  relevant_code_paths: string[];
+  relevant_commit_hashes: Record<string, string>;
+  data_queried: string;
+  verified: boolean;
+}
+
 /** Artefact with `type: "suggested_reviewers"` — content is an enriched reviewer list. */
 export interface SuggestedReviewersArtefact {
   id: string;
@@ -240,6 +369,13 @@ export interface SuggestedReviewerUser {
   uuid: string;
   email: string;
   first_name: string;
+  last_name: string;
+}
+
+export interface AvailableSuggestedReviewer {
+  uuid: string;
+  name: string;
+  email: string;
 }
 
 export interface SuggestedReviewer {
@@ -279,13 +415,28 @@ export interface SignalReportsResponse {
   count: number;
 }
 
+export interface SignalProcessingStateResponse {
+  paused_until: string | null;
+}
+
+export interface AvailableSuggestedReviewersResponse {
+  results: AvailableSuggestedReviewer[];
+  count: number;
+}
+
 export interface SignalReportSignalsResponse {
   report: SignalReport | null;
   signals: Signal[];
 }
 
 export interface SignalReportArtefactsResponse {
-  results: (SignalReportArtefact | SuggestedReviewersArtefact)[];
+  results: (
+    | SignalReportArtefact
+    | PriorityJudgmentArtefact
+    | ActionabilityJudgmentArtefact
+    | SignalFindingArtefact
+    | SuggestedReviewersArtefact
+  )[];
   count: number;
   unavailableReason?:
     | "forbidden"
@@ -313,4 +464,6 @@ export interface SignalReportsQueryParams {
   ordering?: string;
   /** Comma-separated source products — only returns reports with signals from these sources. */
   source_product?: string;
+  /** Comma-separated PostHog user UUIDs — only returns reports with these suggested reviewers. */
+  suggested_reviewers?: string;
 }

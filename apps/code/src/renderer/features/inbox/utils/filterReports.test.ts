@@ -2,6 +2,7 @@ import type { SignalReport } from "@shared/types";
 import { describe, expect, it } from "vitest";
 import {
   buildSignalReportListOrdering,
+  buildSuggestedReviewerFilterParam,
   filterReportsBySearch,
 } from "./filterReports";
 
@@ -113,5 +114,43 @@ describe("buildSignalReportListOrdering", () => {
     expect(buildSignalReportListOrdering("signal_count", "desc")).toBe(
       "status,-is_suggested_reviewer,-signal_count",
     );
+  });
+});
+
+describe("buildSuggestedReviewerFilterParam", () => {
+  it("returns undefined for an empty array", () => {
+    expect(buildSuggestedReviewerFilterParam([])).toBeUndefined();
+  });
+
+  it("trims reviewer ids and joins them with commas", () => {
+    expect(
+      buildSuggestedReviewerFilterParam([
+        " reviewer-1 ",
+        "reviewer-2",
+        " reviewer-3",
+      ]),
+    ).toBe("reviewer-1,reviewer-2,reviewer-3");
+  });
+
+  it("deduplicates reviewer ids after trimming", () => {
+    expect(
+      buildSuggestedReviewerFilterParam([
+        " reviewer-1 ",
+        "reviewer-2",
+        "reviewer-1",
+        " reviewer-2 ",
+      ]),
+    ).toBe("reviewer-1,reviewer-2");
+  });
+
+  it("drops blank reviewer ids", () => {
+    expect(
+      buildSuggestedReviewerFilterParam([
+        "reviewer-1",
+        "   ",
+        "reviewer-2",
+        "",
+      ]),
+    ).toBe("reviewer-1,reviewer-2");
   });
 });

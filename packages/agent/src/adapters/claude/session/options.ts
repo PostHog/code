@@ -6,6 +6,7 @@ import type {
   CanUseTool,
   McpServerConfig,
   Options,
+  OutputFormat,
   SpawnedProcess,
   SpawnOptions,
 } from "@anthropic-ai/claude-agent-sdk";
@@ -14,6 +15,7 @@ import type { Logger } from "../../../utils/logger";
 import {
   createPostToolUseHook,
   createPreToolUseHook,
+  createSubagentRewriteHook,
   type OnModeChange,
 } from "../hooks";
 import type { CodeExecutionMode } from "../tools";
@@ -41,6 +43,7 @@ export interface BuildOptionsParams {
   forkSession?: boolean;
   additionalDirectories?: string[];
   disableBuiltInTools?: boolean;
+  outputFormat?: OutputFormat;
   settingsManager: SettingsManager;
   onModeChange?: OnModeChange;
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
@@ -117,7 +120,10 @@ function buildHooks(
     PreToolUse: [
       ...(userHooks?.PreToolUse || []),
       {
-        hooks: [createPreToolUseHook(settingsManager, logger)],
+        hooks: [
+          createPreToolUseHook(settingsManager, logger),
+          createSubagentRewriteHook(logger),
+        ],
       },
     ],
   };
@@ -264,6 +270,7 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
       params.settingsManager,
       params.logger,
     ),
+    outputFormat: params.outputFormat,
     abortController: getAbortController(
       params.userProvidedOptions?.abortController,
     ),

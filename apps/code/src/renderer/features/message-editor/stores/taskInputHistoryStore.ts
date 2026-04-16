@@ -11,7 +11,7 @@ interface TaskInputHistoryActions {
 
 type TaskInputHistoryStore = TaskInputHistoryState & TaskInputHistoryActions;
 
-const MAX_HISTORY = 50;
+const MAX_HISTORY = 15;
 
 export const useTaskInputHistoryStore = create<TaskInputHistoryStore>()(
   persist(

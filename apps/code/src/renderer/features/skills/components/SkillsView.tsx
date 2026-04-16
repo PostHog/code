@@ -1,7 +1,7 @@
 import { ResizableSidebar } from "@components/ResizableSidebar";
 import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
-import { Lightbulb } from "@phosphor-icons/react";
-import { Box, Flex, ScrollArea, Text } from "@radix-ui/themes";
+import { Lightbulb, MagnifyingGlass } from "@phosphor-icons/react";
+import { Box, Flex, ScrollArea, Text, TextField } from "@radix-ui/themes";
 import { useTRPC } from "@renderer/trpc";
 import type { SkillInfo, SkillSource } from "@shared/types/skills";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +19,7 @@ export function SkillsView() {
   );
 
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const {
     width: sidebarWidth,
@@ -48,14 +49,22 @@ export function SkillsView() {
     for (const source of SOURCE_ORDER) {
       map.set(source, []);
     }
+    const query = searchQuery.trim().toLowerCase();
     for (const skill of skills) {
+      if (
+        query &&
+        !skill.name.toLowerCase().includes(query) &&
+        !(skill.description?.toLowerCase().includes(query) ?? false)
+      ) {
+        continue;
+      }
       const list = map.get(skill.source);
       if (list) {
         list.push(skill);
       }
     }
     return map;
-  }, [skills]);
+  }, [skills, searchQuery]);
 
   const headerContent = useMemo(
     () => (
@@ -86,6 +95,19 @@ export function SkillsView() {
             style={{ height: "100%" }}
           >
             <Box px="4" py="3">
+              <Box pb="3">
+                <TextField.Root
+                  size="2"
+                  placeholder="Search skills..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="text-[13px]"
+                >
+                  <TextField.Slot>
+                    <MagnifyingGlass size={14} />
+                  </TextField.Slot>
+                </TextField.Root>
+              </Box>
               {skills.length === 0 && !isLoading ? (
                 <Flex
                   align="center"

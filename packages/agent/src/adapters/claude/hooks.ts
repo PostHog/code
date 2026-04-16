@@ -71,6 +71,56 @@ export const createPostToolUseHook =
     return { continue: true };
   };
 
+/**
+ * Rewrites Agent tool calls targeting built-in subagent types to use our custom
+ * definitions instead. This works around a Claude Agent SDK bug where
+ * `options.agents` cannot override built-in agent definitions because the
+ * built-ins appear first in the agents array and `Array.find()` returns the
+ * first match.
+ *
+ * By giving our custom agent a different name (e.g. "ph-explore") and rewriting
+ * the subagent_type in the tool input, we sidestep the collision entirely.
+ *
+ * https://github.com/anthropics/claude-agent-sdk-typescript/issues/267
+ */
+const SUBAGENT_REWRITES: Record<string, string> = {
+  Explore: "ph-explore",
+};
+
+export const createSubagentRewriteHook =
+  (logger: Logger): HookCallback =>
+  async (input: HookInput, _toolUseID: string | undefined) => {
+    if (input.hook_event_name !== "PreToolUse") {
+      return { continue: true };
+    }
+
+    if (input.tool_name !== "Agent") {
+      return { continue: true };
+    }
+
+    const toolInput = input.tool_input as Record<string, unknown> | undefined;
+    const subagentType = toolInput?.subagent_type;
+    if (typeof subagentType !== "string" || !SUBAGENT_REWRITES[subagentType]) {
+      return { continue: true };
+    }
+
+    const target = SUBAGENT_REWRITES[subagentType];
+    logger.info(
+      `[SubagentRewriteHook] Rewriting subagent_type: ${subagentType} → ${target}`,
+    );
+
+    return {
+      continue: true,
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse" as const,
+        updatedInput: {
+          ...toolInput,
+          subagent_type: target,
+        },
+      },
+    };
+  };
+
 export const createPreToolUseHook =
   (settingsManager: SettingsManager, logger: Logger): HookCallback =>
   async (input: HookInput, _toolUseID: string | undefined) => {

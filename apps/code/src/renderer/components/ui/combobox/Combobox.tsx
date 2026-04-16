@@ -1,5 +1,7 @@
-import { CaretDown, Check, MagnifyingGlass } from "@phosphor-icons/react";
-import { Popover } from "@radix-ui/themes";
+import { Check, MagnifyingGlass } from "@phosphor-icons/react";
+import { ChevronDownIcon } from "@radix-ui/react-icons";
+import { Button, Flex, Popover } from "@radix-ui/themes";
+import type { Responsive } from "@radix-ui/themes/dist/esm/props/prop-def.js";
 import { Command as CmdkCommand } from "cmdk";
 import React, {
   createContext,
@@ -12,14 +14,9 @@ import React, {
 } from "react";
 import { Tooltip } from "../Tooltip";
 import "./Combobox.css";
+import { useComboboxFilter } from "./useComboboxFilter";
 
 type ComboboxSize = "1" | "2" | "3";
-type ComboboxTriggerVariant =
-  | "classic"
-  | "surface"
-  | "soft"
-  | "ghost"
-  | "outline";
 type ComboboxContentVariant = "solid" | "soft";
 
 interface ComboboxContextValue {
@@ -43,6 +40,12 @@ function useComboboxContext() {
   }
   return context;
 }
+
+interface FilterContextValue {
+  onSearchChange: (value: string) => void;
+}
+
+const FilterContext = createContext<FilterContextValue | null>(null);
 
 interface ComboboxRootProps {
   children: React.ReactNode;
@@ -143,7 +146,7 @@ function ComboboxRoot({
 interface ComboboxTriggerProps {
   children?: React.ReactNode;
   className?: string;
-  variant?: ComboboxTriggerVariant;
+  variant?: "outline" | "ghost" | "surface" | "soft" | "classic";
   color?: string;
   placeholder?: string;
   style?: React.CSSProperties;
@@ -152,7 +155,7 @@ interface ComboboxTriggerProps {
 function ComboboxTrigger({
   children,
   className = "",
-  variant = "surface",
+  variant = "outline",
   placeholder = "Select...",
   style,
 }: ComboboxTriggerProps) {
@@ -160,39 +163,67 @@ function ComboboxTrigger({
 
   const displayValue =
     children ?? (getItemLabel(value) || value || placeholder);
-  const hasPlaceholder = !children && !value;
 
   return (
     <Popover.Trigger>
-      <button
-        type="button"
-        className={`combobox-trigger size-${size} variant-${variant} ${className}`}
-        data-state={open ? "open" : "closed"}
-        data-placeholder={hasPlaceholder ? "" : undefined}
+      <Button
+        color="gray"
+        variant={variant}
+        size={size as Responsive<"1" | "2" | "3">}
         disabled={disabled}
+        className={className}
+        data-state={open ? "open" : "closed"}
         style={style}
       >
-        <span className="combobox-trigger-inner">{displayValue}</span>
-        <span className="combobox-trigger-icon">
-          <CaretDown weight="bold" />
-        </span>
-      </button>
+        <Flex justify="between" align="center" gap="2">
+          <Flex align="center" gap="2" style={{ minWidth: 0 }}>
+            {displayValue}
+          </Flex>
+          {!disabled && <ChevronDownIcon style={{ flexShrink: 0 }} />}
+        </Flex>
+      </Button>
     </Popover.Trigger>
   );
 }
 
-interface ComboboxContentProps {
-  children: React.ReactNode;
+interface FilterResult<T> {
+  filtered: T[];
+  hasMore: boolean;
+  moreCount: number;
+}
+
+interface ComboboxContentBaseProps {
   className?: string;
   variant?: ComboboxContentVariant;
   side?: "top" | "right" | "bottom" | "left";
   sideOffset?: number;
   align?: "start" | "center" | "end";
   style?: React.CSSProperties;
-  shouldFilter?: boolean;
 }
 
-function ComboboxContent({
+interface ComboboxContentStaticProps extends ComboboxContentBaseProps {
+  items?: undefined;
+  shouldFilter?: boolean;
+  children: React.ReactNode;
+}
+
+interface ComboboxContentFilteredProps<T> extends ComboboxContentBaseProps {
+  /** Items to filter. Activates built-in fuzzy filtering (bypasses cmdk). */
+  items: T[];
+  /** Extract the searchable string from each item. Defaults to `String(item)`. */
+  getValue?: (item: T) => string;
+  /** Maximum items to render. Defaults to 50. */
+  limit?: number;
+  /** Values pinned to the top regardless of score. */
+  pinned?: string[];
+  children: (result: FilterResult<T>) => React.ReactNode;
+}
+
+type ComboboxContentProps<T = never> =
+  | ComboboxContentStaticProps
+  | ComboboxContentFilteredProps<T>;
+
+function ComboboxContent<T>({
   children,
   className = "",
   variant = "soft",
@@ -200,15 +231,36 @@ function ComboboxContent({
   sideOffset = 4,
   align = "start",
   style,
-  shouldFilter = true,
-}: ComboboxContentProps) {
-  const { size, onOpenChange } = useComboboxContext();
+  ...rest
+}: ComboboxContentProps<T>) {
+  const { size, open, onOpenChange } = useComboboxContext();
 
-  const hasInput = React.Children.toArray(children).some(
+  const hasItems = "items" in rest && rest.items !== undefined;
+  const filterItems = hasItems ? rest.items : ([] as T[]);
+  const getValue = hasItems ? rest.getValue : undefined;
+  const limit = hasItems ? rest.limit : undefined;
+  const pinned = hasItems ? rest.pinned : undefined;
+  const shouldFilter = hasItems
+    ? false
+    : "shouldFilter" in rest
+      ? (rest.shouldFilter ?? true)
+      : true;
+
+  const filter = useComboboxFilter(
+    filterItems,
+    { limit, pinned, open },
+    getValue,
+  );
+
+  const resolvedChildren = hasItems
+    ? (children as (result: FilterResult<T>) => React.ReactNode)(filter)
+    : (children as React.ReactNode);
+
+  const hasInput = React.Children.toArray(resolvedChildren).some(
     (child) => React.isValidElement(child) && child.type === ComboboxInput,
   );
 
-  return (
+  const content = (
     <Popover.Content
       className={`combobox-content size-${size} variant-${variant} ${className}`}
       side={side}
@@ -231,13 +283,13 @@ function ComboboxContent({
     >
       <CmdkCommand shouldFilter={shouldFilter} loop>
         {hasInput &&
-          React.Children.map(children, (child) =>
+          React.Children.map(resolvedChildren, (child) =>
             React.isValidElement(child) && child.type === ComboboxInput
               ? child
               : null,
           )}
         <CmdkCommand.List>
-          {React.Children.map(children, (child) =>
+          {React.Children.map(resolvedChildren, (child) =>
             React.isValidElement(child) &&
             child.type !== ComboboxInput &&
             child.type !== ComboboxFooter
@@ -245,7 +297,7 @@ function ComboboxContent({
               : null,
           )}
         </CmdkCommand.List>
-        {React.Children.map(children, (child) =>
+        {React.Children.map(resolvedChildren, (child) =>
           React.isValidElement(child) && child.type === ComboboxFooter
             ? child
             : null,
@@ -253,6 +305,16 @@ function ComboboxContent({
       </CmdkCommand>
     </Popover.Content>
   );
+
+  if (hasItems) {
+    return (
+      <FilterContext.Provider value={{ onSearchChange: filter.onSearchChange }}>
+        {content}
+      </FilterContext.Provider>
+    );
+  }
+
+  return content;
 }
 
 interface ComboboxInputProps {
@@ -266,6 +328,9 @@ const ComboboxInput = React.forwardRef<
   React.ElementRef<typeof CmdkCommand.Input>,
   ComboboxInputProps
 >(({ placeholder = "Search...", className, value, onValueChange }, ref) => {
+  const filterCtx = useContext(FilterContext);
+  const handleValueChange = onValueChange ?? filterCtx?.onSearchChange;
+
   return (
     <div className="combobox-input-wrapper">
       <MagnifyingGlass
@@ -278,7 +343,7 @@ const ComboboxInput = React.forwardRef<
         className={className}
         placeholder={placeholder}
         value={value}
-        onValueChange={onValueChange}
+        onValueChange={handleValueChange}
         autoFocus
       />
     </div>

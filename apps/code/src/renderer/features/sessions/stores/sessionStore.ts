@@ -5,7 +5,7 @@ import type {
   SessionConfigSelectOption,
   SessionConfigSelectOptions,
 } from "@agentclientprotocol/sdk";
-import type { ExecutionMode } from "@shared/types";
+import type { ExecutionMode, TaskRunStatus } from "@shared/types";
 import type { AcpMessage } from "@shared/types/session-events";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
@@ -22,12 +22,7 @@ export interface QueuedMessage {
   queuedAt: number;
 }
 
-export type TaskRunStatus =
-  | "started"
-  | "in_progress"
-  | "completed"
-  | "failed"
-  | "cancelled";
+export type { TaskRunStatus };
 
 export type OptimisticItem = {
   type: "user_message";
@@ -47,6 +42,7 @@ export interface AgentSession {
   errorTitle?: string;
   errorMessage?: string;
   isPromptPending: boolean;
+  isCompacting: boolean;
   promptStartedAt: number | null;
   logUrl?: string;
   processedLineCount?: number;
@@ -80,6 +76,8 @@ export interface AgentSession {
   contextUsed?: number;
   /** Context window total size in tokens (from usage_update) */
   contextSize?: number;
+  /** Pre-computed conversation summary for commit/PR generation context */
+  conversationSummary?: string;
 }
 
 // --- Config Option Helpers ---

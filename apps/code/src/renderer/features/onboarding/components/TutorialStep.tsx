@@ -85,7 +85,7 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
   }, []);
 
   // GitHub repos
-  const { githubIntegration, repositories, isLoadingRepos } =
+  const { repositories, getIntegrationIdForRepo, isLoadingRepos } =
     useRepositoryIntegration();
   const [selectedRepository, setSelectedRepository] = useState<string | null>(
     null,
@@ -98,8 +98,17 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
   >("local");
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
 
-  const { data: cloudBranchData, isPending: cloudBranchesLoading } =
-    useGithubBranches(githubIntegration?.id, selectedRepository);
+  const selectedIntegrationId = selectedRepository
+    ? getIntegrationIdForRepo(selectedRepository)
+    : undefined;
+
+  const {
+    data: cloudBranchData,
+    isPending: cloudBranchesLoading,
+    isFetchingMore: cloudBranchesFetchingMore,
+    pauseLoadingMore: pauseCloudBranchesLoading,
+    resumeLoadingMore: resumeCloudBranchesLoading,
+  } = useGithubBranches(selectedIntegrationId, selectedRepository);
   const cloudBranches = cloudBranchData?.branches;
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
@@ -123,7 +132,7 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
     editorRef,
     selectedDirectory,
     selectedRepository,
-    githubIntegrationId: githubIntegration?.id,
+    githubIntegrationId: selectedIntegrationId,
     workspaceMode,
     branch: selectedBranch,
     editorIsEmpty,
@@ -355,6 +364,9 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
                   onBranchSelect={setSelectedBranch}
                   cloudBranches={cloudBranches}
                   cloudBranchesLoading={cloudBranchesLoading}
+                  cloudBranchesFetchingMore={cloudBranchesFetchingMore}
+                  onCloudPickerOpen={resumeCloudBranchesLoading}
+                  onCloudBranchCommit={pauseCloudBranchesLoading}
                 />
               </TourHighlight>
             </Flex>

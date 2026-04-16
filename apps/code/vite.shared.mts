@@ -14,10 +14,10 @@ export function createPosthogPlugin(
   }
   return posthog({
     personalApiKey: env.POSTHOG_SOURCEMAP_API_KEY,
-    envId: env.POSTHOG_ENV_ID,
+    projectId: env.POSTHOG_ENV_ID,
     host: env.POSTHOG_HOST,
     sourcemaps: {
-      project,
+      releaseName: project,
       deleteAfterUpload: true,
     },
   });

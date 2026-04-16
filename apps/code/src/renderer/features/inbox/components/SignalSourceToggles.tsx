@@ -2,12 +2,15 @@ import {
   ArrowSquareOutIcon,
   BrainIcon,
   BugIcon,
+  ChatsIcon,
+  CircleNotchIcon,
   GithubLogoIcon,
   KanbanIcon,
   TicketIcon,
   VideoIcon,
 } from "@phosphor-icons/react";
 import {
+  Badge,
   Box,
   Button,
   Flex,
@@ -15,8 +18,12 @@ import {
   Spinner,
   Switch,
   Text,
+  Tooltip,
 } from "@radix-ui/themes";
-import type { Evaluation } from "@renderer/api/posthogClient";
+import type {
+  Evaluation,
+  SignalSourceConfig,
+} from "@renderer/api/posthogClient";
 import { memo, useCallback } from "react";
 
 export interface SignalSourceValues {
@@ -25,11 +32,13 @@ export interface SignalSourceValues {
   github: boolean;
   linear: boolean;
   zendesk: boolean;
+  conversations: boolean;
 }
 
 interface SignalSourceToggleCardProps {
   icon: React.ReactNode;
   label: string;
+  labelSuffix?: React.ReactNode;
   description: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
@@ -37,11 +46,13 @@ interface SignalSourceToggleCardProps {
   requiresSetup?: boolean;
   onSetup?: () => void;
   loading?: boolean;
+  statusSection?: React.ReactNode;
 }
 
 const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
   icon,
   label,
+  labelSuffix,
   description,
   checked,
   onCheckedChange,
@@ -49,6 +60,7 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
   requiresSetup,
   onSetup,
   loading,
+  statusSection,
 }: SignalSourceToggleCardProps) {
   return (
     <Box
@@ -71,9 +83,16 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
         <Flex align="center" gap="3">
           <Box style={{ color: "var(--gray-11)", flexShrink: 0 }}>{icon}</Box>
           <Flex direction="column" gap="1">
-            <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
-              {label}
-            </Text>
+            <Flex align="center" gap="2">
+              <Text
+                size="2"
+                weight="medium"
+                style={{ color: "var(--gray-12)" }}
+              >
+                {label}
+              </Text>
+              {labelSuffix}
+            </Flex>
             <Text size="1" style={{ color: "var(--gray-11)" }}>
               {description}
             </Text>
@@ -84,13 +103,12 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
         ) : requiresSetup ? (
           <Button
             size="1"
-            variant="soft"
             onClick={(e) => {
               e.stopPropagation();
               onSetup?.();
             }}
           >
-            Connect
+            Enable
           </Button>
         ) : (
           <Switch
@@ -101,6 +119,7 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
           />
         )}
       </Flex>
+      {statusSection && <Box style={{ marginLeft: 32 }}>{statusSection}</Box>}
     </Box>
   );
 });
@@ -167,9 +186,25 @@ export const EvaluationsSection = memo(function EvaluationsSection({
             <BrainIcon size={20} />
           </Box>
           <Flex direction="column" gap="1" style={{ flex: 1, minWidth: 0 }}>
-            <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
-              LLM evaluations
-            </Text>
+            <Flex align="center" gap="2">
+              <Text
+                size="2"
+                weight="medium"
+                style={{ color: "var(--gray-12)" }}
+              >
+                PostHog LLM Analytics
+              </Text>
+              <Tooltip content="This is only visible to staff users of PostHog">
+                <Badge
+                  color="blue"
+                  size="1"
+                  variant="surface"
+                  className="!py-0 !text-[9px] !leading-tight uppercase"
+                >
+                  Internal
+                </Badge>
+              </Tooltip>
+            </Flex>
             <Text size="1" style={{ color: "var(--gray-11)" }}>
               Ongoing evaluation of how your AI features are performing based on
               defined criteria
@@ -210,6 +245,30 @@ export const EvaluationsSection = memo(function EvaluationsSection({
   );
 });
 
+function SourceRunningIndicator({
+  status,
+  message,
+}: {
+  status: SignalSourceConfig["status"];
+  message: string;
+}) {
+  if (status !== "running") {
+    return null;
+  }
+  return (
+    <Flex align="center" gap="2" mt="2">
+      <CircleNotchIcon
+        size={14}
+        className="animate-spin"
+        style={{ color: "var(--accent-11)" }}
+      />
+      <Text size="1" style={{ color: "var(--accent-11)" }}>
+        {message}
+      </Text>
+    </Flex>
+  );
+}
+
 interface SignalSourceTogglesProps {
   value: SignalSourceValues;
   onToggle: (source: keyof SignalSourceValues, enabled: boolean) => void;
@@ -220,6 +279,7 @@ interface SignalSourceTogglesProps {
       { requiresSetup: boolean; loading: boolean }
     >
   >;
+  sessionAnalysisStatus?: SignalSourceConfig["status"];
   onSetup?: (source: keyof SignalSourceValues) => void;
   evaluations?: Evaluation[];
   evaluationsUrl?: string;
@@ -231,6 +291,7 @@ export function SignalSourceToggles({
   onToggle,
   disabled,
   sourceStates,
+  sessionAnalysisStatus,
   onSetup,
   evaluations,
   evaluationsUrl,
@@ -256,6 +317,10 @@ export function SignalSourceToggles({
     (checked: boolean) => onToggle("zendesk", checked),
     [onToggle],
   );
+  const toggleConversations = useCallback(
+    (checked: boolean) => onToggle("conversations", checked),
+    [onToggle],
+  );
   const setupGithub = useCallback(() => onSetup?.("github"), [onSetup]);
   const setupLinear = useCallback(() => onSetup?.("linear"), [onSetup]);
   const setupZendesk = useCallback(() => onSetup?.("zendesk"), [onSetup]);
@@ -263,20 +328,46 @@ export function SignalSourceToggles({
   return (
     <Flex direction="column" gap="2">
       <SignalSourceToggleCard
-        icon={<VideoIcon size={20} />}
-        label="PostHog Session Replay"
-        description="Analyze session recordings and event data for UX issues"
-        checked={value.session_replay}
-        onCheckedChange={toggleSessionReplay}
-        disabled={disabled}
-      />
-      <SignalSourceToggleCard
         icon={<BugIcon size={20} />}
         label="PostHog Error Tracking"
         description="Surface new issues, reopenings, and volume spikes"
         checked={value.error_tracking}
         onCheckedChange={toggleErrorTracking}
         disabled={disabled}
+      />
+      <SignalSourceToggleCard
+        icon={<ChatsIcon size={20} />}
+        label="PostHog Conversations"
+        description="Turn support conversations into signals for the inbox"
+        checked={value.conversations}
+        onCheckedChange={toggleConversations}
+        disabled={disabled}
+      />
+      <SignalSourceToggleCard
+        icon={<VideoIcon size={20} />}
+        label="PostHog Session Replay"
+        labelSuffix={
+          <Badge
+            color="orange"
+            size="1"
+            variant="surface"
+            className="!py-0 !text-[9px] !leading-tight uppercase"
+          >
+            Alpha
+          </Badge>
+        }
+        description="Analyze session recordings and event data for UX issues"
+        checked={value.session_replay}
+        onCheckedChange={toggleSessionReplay}
+        disabled={disabled}
+        statusSection={
+          value.session_replay ? (
+            <SourceRunningIndicator
+              status={sessionAnalysisStatus ?? null}
+              message="Session analysis run in progress now…"
+            />
+          ) : undefined
+        }
       />
       {evaluations && evaluationsUrl && onToggleEvaluation && (
         <EvaluationsSection

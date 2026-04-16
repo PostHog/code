@@ -10,6 +10,8 @@ minimumReleaseAge: 1440
 
 minimumReleaseAgeExclude:
   - '@agentclientprotocol/sdk'
+  - '@posthog/quill'
+  - '@posthog/quill-tokens'
 
 onlyBuiltDependencies:
   - '@parcel/watcher'
@@ -21,6 +23,7 @@ onlyBuiltDependencies:
   - fs-xattr
   - macos-alias
   - node-pty
+  - tree-sitter-cli
 
 patchedDependencies:
   node-pty: patches/node-pty.patch

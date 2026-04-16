@@ -5,10 +5,6 @@
  * - Custom notification methods are prefixed with `_posthog/`
  * - Custom data can be attached via `_meta` fields
  *
- * Note: When using `extNotification()` from the ACP SDK, it automatically
- * adds an extra underscore prefix (e.g., `_posthog/tree_snapshot` becomes
- * `__posthog/tree_snapshot` in the log). Code that reads logs should handle both.
- *
  * See: https://agentclientprotocol.com/docs/extensibility
  */
 
@@ -64,4 +60,25 @@ export const POSTHOG_NOTIFICATIONS = {
 
   /** Marks a boundary for log compaction */
   COMPACT_BOUNDARY: "_posthog/compact_boundary",
+
+  /** Token usage update for a session turn */
+  USAGE_UPDATE: "_posthog/usage_update",
+
+  /** Response to a relayed permission request (plan approval, question) */
+  PERMISSION_RESPONSE: "_posthog/permission_response",
 } as const;
+
+type NotificationMethod =
+  (typeof POSTHOG_NOTIFICATIONS)[keyof typeof POSTHOG_NOTIFICATIONS];
+
+/**
+ * Check if an ACP method matches a PostHog notification, handling the
+ * possible `__posthog/` double-prefix from extNotification().
+ */
+export function isNotification(
+  method: string | undefined,
+  notification: NotificationMethod,
+): boolean {
+  if (!method) return false;
+  return method === notification || method === `_${notification}`;
+}

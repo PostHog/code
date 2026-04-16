@@ -92,6 +92,11 @@ export function useWorkspace(taskId: string | undefined): Workspace | null {
   }, [allWorkspaces, taskId]);
 }
 
+export function useIsWorkspaceCloudRun(taskId: string | undefined): boolean {
+  const workspace = useWorkspace(taskId);
+  return workspace?.mode === "cloud";
+}
+
 export function useWorkspaceLoaded(): boolean {
   const { isFetched } = useWorkspacesQuery();
   return isFetched;

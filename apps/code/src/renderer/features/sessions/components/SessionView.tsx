@@ -7,7 +7,6 @@ import {
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import {
   cycleModeOption,
-  flattenSelectOptions,
   useModeConfigOptionForTask,
   usePendingPermissionsForTask,
 } from "@features/sessions/stores/sessionStore";
@@ -21,6 +20,7 @@ import {
   isJsonRpcNotification,
   isJsonRpcResponse,
 } from "@shared/types/session-events";
+import { getFilePath } from "@utils/getFilePath";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { getSessionService } from "../service/service";
@@ -102,28 +102,17 @@ export function SessionView({
   const currentModeId = modeOption?.currentValue;
 
   useEffect(() => {
-    if (
-      !allowBypassPermissions &&
-      (currentModeId === "bypassPermissions" ||
-        currentModeId === "full-access") &&
-      taskId &&
-      modeOption
-    ) {
-      const options = flattenSelectOptions(modeOption.options);
-      const safeOption =
-        options.find(
-          (opt) =>
-            opt.value !== "bypassPermissions" && opt.value !== "full-access",
-        ) ?? options[0];
-      if (safeOption) {
-        getSessionService().setSessionConfigOptionByCategory(
-          taskId,
-          "mode",
-          safeOption.value,
-        );
-      }
+    if (allowBypassPermissions) return;
+    const isBypass =
+      currentModeId === "bypassPermissions" || currentModeId === "full-access";
+    if (isBypass && taskId) {
+      getSessionService().setSessionConfigOptionByCategory(
+        taskId,
+        "mode",
+        "default",
+      );
     }
-  }, [allowBypassPermissions, currentModeId, taskId, modeOption]);
+  }, [allowBypassPermissions, currentModeId, taskId]);
 
   const handleModeChange = useCallback(() => {
     if (!taskId) return;
@@ -246,7 +235,9 @@ export function SessionView({
       const selectedOption = firstPendingPermission.options.find(
         (o) => o.optionId === optionId,
       );
-      if (selectedOption?.kind === "allow_always") {
+      const isModeSwitch =
+        firstPendingPermission.toolCall?.kind === "switch_mode";
+      if (selectedOption?.kind === "allow_always" && !isModeSwitch) {
         getSessionService().setSessionConfigOptionByCategory(
           taskId,
           "mode",
@@ -338,7 +329,7 @@ export function SessionView({
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const filePath = (file as File & { path?: string }).path;
+      const filePath = getFilePath(file);
       if (filePath) {
         editorRef.current?.addAttachment({
           id: filePath,

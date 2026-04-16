@@ -1,6 +1,6 @@
 import { Cloud as CloudIcon } from "@phosphor-icons/react";
 import { Flex, Text } from "@radix-ui/themes";
-import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
+import { useIsWorkspaceCloudRun } from "@renderer/features/workspace/hooks/useWorkspace";
 import type { Task } from "@shared/types";
 import type React from "react";
 import { useMemo } from "react";
@@ -40,16 +40,18 @@ export const LeafNodeRenderer: React.FC<LeafNodeRendererProps> = ({
   onAddTerminal,
   onSplitPanel,
 }) => {
-  const tabs = useTabInjection(
-    node.content.tabs,
-    node.id,
-    taskId,
-    task,
-    closeTab,
+  const isCloud = useIsWorkspaceCloudRun(taskId);
+  const inputTabs = useMemo(
+    () =>
+      isCloud
+        ? node.content.tabs.filter((t) => t.data.type !== "terminal")
+        : node.content.tabs,
+    [node.content.tabs, isCloud],
   );
-
-  const workspace = useWorkspace(taskId);
-  const isCloud = workspace?.mode === "cloud";
+  const tabs = useTabInjection(inputTabs, node.id, taskId, task, closeTab);
+  const activeTabId = tabs.some((t) => t.id === node.content.activeTabId)
+    ? node.content.activeTabId
+    : (tabs[0]?.id ?? node.content.activeTabId);
 
   const cloudEmptyState = useMemo(
     () =>
@@ -74,6 +76,7 @@ export const LeafNodeRenderer: React.FC<LeafNodeRendererProps> = ({
   const contentWithComponents = {
     ...node.content,
     tabs,
+    activeTabId,
   };
 
   return (
@@ -87,7 +90,7 @@ export const LeafNodeRenderer: React.FC<LeafNodeRendererProps> = ({
       onPanelFocus={onPanelFocus}
       draggingTabId={draggingTabId}
       draggingTabPanelId={draggingTabPanelId}
-      onAddTerminal={() => onAddTerminal(node.id)}
+      onAddTerminal={isCloud ? undefined : () => onAddTerminal(node.id)}
       onSplitPanel={(direction) => onSplitPanel(node.id, direction)}
       emptyState={cloudEmptyState}
     />

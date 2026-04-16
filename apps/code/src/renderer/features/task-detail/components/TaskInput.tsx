@@ -29,6 +29,7 @@ import { useAuthStore } from "@renderer/features/auth/stores/authStore";
 import { useTRPC } from "@renderer/trpc/client";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
+import { getFilePath } from "@utils/getFilePath";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { usePreviewConfig } from "../hooks/usePreviewConfig";
@@ -109,7 +110,7 @@ export function TaskInput({
   const setAdapter = (newAdapter: AgentAdapter) =>
     setLastUsedAdapter(newAdapter);
 
-  const { githubIntegration, repositories, isLoadingRepos } =
+  const { repositories, getIntegrationIdForRepo, isLoadingRepos } =
     useRepositoryIntegration();
   const [selectedRepository, setSelectedRepository] = useState<string | null>(
     () => lastUsedCloudRepository?.toLowerCase() ?? null,
@@ -122,8 +123,17 @@ export function TaskInput({
   const { currentBranch, branchLoading, defaultBranch } =
     useGitQueries(selectedDirectory);
 
-  const { data: cloudBranchData, isPending: cloudBranchesLoading } =
-    useGithubBranches(githubIntegration?.id, selectedCloudRepository);
+  const selectedIntegrationId = selectedCloudRepository
+    ? getIntegrationIdForRepo(selectedCloudRepository)
+    : undefined;
+
+  const {
+    data: cloudBranchData,
+    isPending: cloudBranchesLoading,
+    isFetchingMore: cloudBranchesFetchingMore,
+    pauseLoadingMore: pauseCloudBranchesLoading,
+    resumeLoadingMore: resumeCloudBranchesLoading,
+  } = useGithubBranches(selectedIntegrationId, selectedCloudRepository);
   const cloudBranches = cloudBranchData?.branches;
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
@@ -191,12 +201,7 @@ export function TaskInput({
   }, [lastUsedCloudRepository, selectedRepository]);
 
   useEffect(() => {
-    if (
-      isLoadingRepos ||
-      !githubIntegration ||
-      !selectedRepository ||
-      selectedCloudRepository
-    ) {
+    if (isLoadingRepos || !selectedRepository || selectedCloudRepository) {
       return;
     }
 
@@ -205,7 +210,6 @@ export function TaskInput({
       setLastUsedCloudRepository(null);
     }
   }, [
-    githubIntegration,
     isLoadingRepos,
     lastUsedCloudRepository,
     selectedCloudRepository,
@@ -251,8 +255,11 @@ export function TaskInput({
   // Defaults ensure values are always passed even before the preview config loads.
   const currentModel =
     modelOption?.type === "select" ? modelOption.currentValue : undefined;
+  const adapterDefault = adapter === "codex" ? "auto" : "plan";
   const modeFallback =
-    defaultInitialTaskMode === "last_used" ? lastUsedInitialTaskMode : "plan";
+    defaultInitialTaskMode === "last_used"
+      ? (lastUsedInitialTaskMode ?? adapterDefault)
+      : adapterDefault;
   const currentExecutionMode =
     getCurrentModeFromConfigOptions(modeOption ? [modeOption] : undefined) ??
     modeFallback;
@@ -268,7 +275,7 @@ export function TaskInput({
     editorRef,
     selectedDirectory,
     selectedRepository: selectedCloudRepository,
-    githubIntegrationId: githubIntegration?.id,
+    githubIntegrationId: selectedIntegrationId,
     workspaceMode: effectiveWorkspaceMode,
     branch: branchForTaskCreation,
     editorIsEmpty,
@@ -346,7 +353,7 @@ export function TaskInput({
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const filePath = (file as File & { path?: string }).path;
+      const filePath = getFilePath(file);
       if (filePath) {
         editorRef.current?.addAttachment({
           id: filePath,
@@ -472,6 +479,9 @@ export function TaskInput({
                 onBranchSelect={setSelectedBranch}
                 cloudBranches={cloudBranches}
                 cloudBranchesLoading={cloudBranchesLoading}
+                cloudBranchesFetchingMore={cloudBranchesFetchingMore}
+                onCloudPickerOpen={resumeCloudBranchesLoading}
+                onCloudBranchCommit={pauseCloudBranchesLoading}
               />
               {workspaceMode === "worktree" && (
                 <EnvironmentSelector

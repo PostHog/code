@@ -28,7 +28,7 @@ import { CommitSaga } from "@posthog/git/sagas/commit";
 import { DiscardFileChangesSaga } from "@posthog/git/sagas/discard";
 import { PullSaga } from "@posthog/git/sagas/pull";
 import { PushSaga } from "@posthog/git/sagas/push";
-import { parseGitHubUrl } from "@posthog/git/utils";
+import { parseGitHubUrl, parsePrUrl } from "@posthog/git/utils";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
@@ -46,6 +46,7 @@ import type {
   DiscardFileChangesOutput,
   GetCommitConventionsOutput,
   GetPrTemplateOutput,
+  GhAuthTokenOutput,
   GhStatusOutput,
   GitCommitInfo,
   GitFileStatus,
@@ -54,11 +55,16 @@ import type {
   GitStateSnapshot,
   GitSyncStatus,
   OpenPrOutput,
+  PrActionType,
+  PrDetailsByUrlOutput,
+  PrReviewComment,
   PrStatusOutput,
   PublishOutput,
   PullOutput,
   PushOutput,
+  ReplyToPrCommentOutput,
   SyncOutput,
+  UpdatePrByUrlOutput,
 } from "./schemas";
 
 const fsPromises = fs.promises;
@@ -77,6 +83,23 @@ const log = logger.scope("git-service");
 
 const FETCH_THROTTLE_MS = 5 * 60 * 1000;
 const MAX_DIFF_LENGTH = 8000;
+
+/**
+ * Wraps a GitHub API per-file patch (hunk content only) with
+ * the `diff --git` / `---` / `+++` header so that unified-diff
+ * parsers like `@pierre/diffs` can process it correctly.
+ */
+function toUnifiedDiffPatch(
+  rawPatch: string,
+  filename: string,
+  previousFilename: string | undefined,
+  status: ChangedFile["status"],
+): string {
+  const oldPath = previousFilename ?? filename;
+  const fromPath = status === "added" ? "/dev/null" : `a/${oldPath}`;
+  const toPath = status === "deleted" ? "/dev/null" : `b/${filename}`;
+  return `diff --git a/${oldPath} b/${filename}\n--- ${fromPath}\n+++ ${toPath}\n${rawPatch}`;
+}
 
 @injectable()
 export class GitService extends TypedEventEmitter<GitServiceEvents> {
@@ -514,6 +537,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     draft?: boolean;
     stagedOnly?: boolean;
     taskId?: string;
+    conversationContext?: string;
   }): Promise<CreatePrOutput> {
     const { directoryPath, flowId } = input;
 
@@ -536,12 +560,14 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
         createBranch: (dir, name) => this.createBranch(dir, name),
         checkoutBranch: (dir, name) => this.checkoutBranch(dir, name),
         getChangedFilesHead: (dir) => this.getChangedFilesHead(dir),
-        generateCommitMessage: (dir) => this.generateCommitMessage(dir),
+        generateCommitMessage: (dir) =>
+          this.generateCommitMessage(dir, input.conversationContext),
         commit: (dir, msg, opts) => this.commit(dir, msg, opts),
         getSyncStatus: (dir) => this.getGitSyncStatus(dir),
         push: (dir) => this.push(dir),
         publish: (dir) => this.publish(dir),
-        generatePrTitleAndBody: (dir) => this.generatePrTitleAndBody(dir),
+        generatePrTitleAndBody: (dir) =>
+          this.generatePrTitleAndBody(dir, input.conversationContext),
         createPr: (dir, title, body, draft) =>
           this.createPrViaGh(dir, title, body, draft),
         onProgress: emitProgress,
@@ -686,6 +712,33 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     };
   }
 
+  public async getGhAuthToken(): Promise<GhAuthTokenOutput> {
+    const result = await execGh(["auth", "token"]);
+    if (result.exitCode !== 0) {
+      return {
+        success: false,
+        token: null,
+        error:
+          result.stderr || result.error || "Failed to read GitHub auth token",
+      };
+    }
+
+    const token = result.stdout.trim();
+    if (!token) {
+      return {
+        success: false,
+        token: null,
+        error: "GitHub auth token is empty",
+      };
+    }
+
+    return {
+      success: true,
+      token,
+      error: null,
+    };
+  }
+
   public async getPrStatus(directoryPath: string): Promise<PrStatusOutput> {
     const base: PrStatusOutput = {
       hasRemote: false,
@@ -817,10 +870,10 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
   }
 
   public async getPrChangedFiles(prUrl: string): Promise<ChangedFile[]> {
-    const match = prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
-    if (!match) return [];
+    const pr = parsePrUrl(prUrl);
+    if (!pr) return [];
 
-    const [, owner, repo, number] = match;
+    const { owner, repo, number } = pr;
 
     try {
       const result = await execGh([
@@ -843,6 +896,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
           previous_filename?: string;
           additions: number;
           deletions: number;
+          patch?: string;
         }>
       >;
       const files = pages.flat();
@@ -870,11 +924,156 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
           originalPath: f.previous_filename,
           linesAdded: f.additions,
           linesRemoved: f.deletions,
+          patch: f.patch
+            ? toUnifiedDiffPatch(
+                f.patch,
+                f.filename,
+                f.previous_filename,
+                status,
+              )
+            : undefined,
         };
       });
     } catch (error) {
       log.warn("Failed to fetch PR changed files", { prUrl, error });
       throw error;
+    }
+  }
+
+  public async getPrDetailsByUrl(
+    prUrl: string,
+  ): Promise<PrDetailsByUrlOutput | null> {
+    const pr = parsePrUrl(prUrl);
+    if (!pr) return null;
+
+    try {
+      const result = await execGh([
+        "api",
+        `repos/${pr.owner}/${pr.repo}/pulls/${pr.number}`,
+        "--jq",
+        "{state,merged,draft}",
+      ]);
+
+      if (result.exitCode !== 0) {
+        log.warn("Failed to fetch PR details", {
+          prUrl,
+          error: result.stderr || result.error,
+        });
+        return null;
+      }
+
+      const data = JSON.parse(result.stdout) as {
+        state: string;
+        merged: boolean;
+        draft: boolean;
+      };
+
+      return data;
+    } catch (error) {
+      log.warn("Failed to fetch PR details", { prUrl, error });
+      return null;
+    }
+  }
+
+  public async updatePrByUrl(
+    prUrl: string,
+    action: PrActionType,
+  ): Promise<UpdatePrByUrlOutput> {
+    const pr = parsePrUrl(prUrl);
+    if (!pr) {
+      return { success: false, message: "Invalid PR URL" };
+    }
+
+    try {
+      const args =
+        action === "draft"
+          ? ["pr", "ready", "--undo", String(pr.number)]
+          : ["pr", action, String(pr.number)];
+
+      const result = await execGh([
+        ...args,
+        "--repo",
+        `${pr.owner}/${pr.repo}`,
+      ]);
+
+      if (result.exitCode !== 0) {
+        const errorMsg = result.stderr || result.error || "Unknown error";
+        log.warn("Failed to update PR", { prUrl, action, error: errorMsg });
+        return { success: false, message: errorMsg };
+      }
+
+      return { success: true, message: result.stdout };
+    } catch (error) {
+      log.warn("Failed to update PR", { prUrl, action, error });
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  public async getPrReviewComments(prUrl: string): Promise<PrReviewComment[]> {
+    const pr = parsePrUrl(prUrl);
+    if (!pr) return [];
+
+    const { owner, repo, number } = pr;
+
+    try {
+      const result = await execGh([
+        "api",
+        `repos/${owner}/${repo}/pulls/${number}/comments`,
+        "--paginate",
+        "--slurp",
+      ]);
+
+      if (result.exitCode !== 0) {
+        throw new Error(
+          `Failed to fetch PR review comments: ${result.stderr || result.error || "Unknown error"}`,
+        );
+      }
+
+      const pages = JSON.parse(result.stdout) as PrReviewComment[][];
+      return pages.flat();
+    } catch (error) {
+      log.warn("Failed to fetch PR review comments", { prUrl, error });
+      throw error;
+    }
+  }
+
+  public async replyToPrComment(
+    prUrl: string,
+    commentId: number,
+    body: string,
+  ): Promise<ReplyToPrCommentOutput> {
+    const pr = parsePrUrl(prUrl);
+    if (!pr) {
+      return { success: false, comment: null };
+    }
+
+    try {
+      const result = await execGh([
+        "api",
+        `repos/${pr.owner}/${pr.repo}/pulls/${pr.number}/comments/${commentId}/replies`,
+        "-X",
+        "POST",
+        "-f",
+        `body=${body}`,
+      ]);
+
+      if (result.exitCode !== 0) {
+        log.warn("Failed to reply to PR comment", {
+          prUrl,
+          commentId,
+          error: result.stderr || result.error,
+        });
+        return { success: false, comment: null };
+      }
+
+      const data = JSON.parse(result.stdout) as PrReviewComment;
+      return { success: true, comment: data };
+    } catch (error) {
+      log.warn("Failed to reply to PR comment", { prUrl, commentId, error });
+      return { success: false, comment: null };
     }
   }
 
@@ -903,8 +1102,6 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       const result = await execGh([
         "api",
         `repos/${owner}/${repoName}/compare/${defaultBranch}...${branch}`,
-        "--jq",
-        ".files",
       ]);
 
       if (result.exitCode !== 0) {
@@ -913,13 +1110,17 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
         );
       }
 
-      const files = JSON.parse(result.stdout) as Array<{
-        filename: string;
-        status: string;
-        previous_filename?: string;
-        additions: number;
-        deletions: number;
-      }> | null;
+      const response = JSON.parse(result.stdout) as {
+        files?: Array<{
+          filename: string;
+          status: string;
+          previous_filename?: string;
+          additions: number;
+          deletions: number;
+          patch?: string;
+        }>;
+      };
+      const files = response.files;
 
       if (!files) return [];
 
@@ -946,6 +1147,14 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
           originalPath: f.previous_filename,
           linesAdded: f.additions,
           linesRemoved: f.deletions,
+          patch: f.patch
+            ? toUnifiedDiffPatch(
+                f.patch,
+                f.filename,
+                f.previous_filename,
+                status,
+              )
+            : undefined,
         };
       });
     } catch (error) {
@@ -960,6 +1169,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
 
   public async generateCommitMessage(
     directoryPath: string,
+    conversationContext?: string,
   ): Promise<{ message: string }> {
     const [stagedDiff, unstagedDiff, conventions, changedFiles] =
       await Promise.all([
@@ -1001,7 +1211,12 @@ Rules:
 - Use imperative mood ("Add feature" not "Added feature")
 - Be specific about what changed
 - If using conventional commits, include the appropriate prefix
+- If conversation context is provided, use it to understand WHY the changes were made and reflect that intent
 - Do not include any explanation, just output the commit message`;
+
+    const contextSection = conversationContext
+      ? `\n\nConversation context (why these changes were made):\n${conversationContext}`
+      : "";
 
     const userMessage = `Generate a commit message for these changes:
 
@@ -1009,12 +1224,13 @@ Changed files:
 ${filesSummary}
 
 Diff:
-${truncatedDiff}`;
+${truncatedDiff}${contextSection}`;
 
     log.debug("Generating commit message", {
       fileCount: changedFiles.length,
       diffLength: diff.length,
       conventionalCommits: conventions.conventionalCommits,
+      hasConversationContext: !!conversationContext,
     });
 
     const response = await this.llmGateway.prompt(
@@ -1027,6 +1243,7 @@ ${truncatedDiff}`;
 
   public async generatePrTitleAndBody(
     directoryPath: string,
+    conversationContext?: string,
   ): Promise<{ title: string; body: string }> {
     await this.fetchIfStale(directoryPath);
 
@@ -1037,12 +1254,14 @@ ${truncatedDiff}`;
     ]);
 
     const head = currentBranch ?? undefined;
-    const [branchDiff, stagedDiff, unstagedDiff, commits] = await Promise.all([
-      getDiffAgainstRemote(directoryPath, defaultBranch),
-      getStagedDiff(directoryPath),
-      getUnstagedDiff(directoryPath),
-      getCommitsBetweenBranches(directoryPath, defaultBranch, head, 30),
-    ]);
+    const [branchDiff, stagedDiff, unstagedDiff, commits, conventions] =
+      await Promise.all([
+        getDiffAgainstRemote(directoryPath, defaultBranch),
+        getStagedDiff(directoryPath),
+        getUnstagedDiff(directoryPath),
+        getCommitsBetweenBranches(directoryPath, defaultBranch, head, 30),
+        getCommitConventions(directoryPath),
+      ]);
 
     const uncommittedDiff = [stagedDiff, unstagedDiff]
       .filter(Boolean)
@@ -1066,6 +1285,12 @@ ${truncatedDiff}`;
         )}`
       : "";
 
+    const conventionHint = conventions.conventionalCommits
+      ? `- Use conventional commit format for the title (e.g., "feat(scope): description"). Common prefixes: ${
+          conventions.commonPrefixes.join(", ") || "feat, fix, docs, chore"
+        }.`
+      : "";
+
     const system = `You are a PR description generator. Generate a title and detailed description for a pull request.
 
 Output format (use exactly this format):
@@ -1078,16 +1303,22 @@ Rules for the title:
 - Short and descriptive (max 72 chars)
 - Use imperative mood ("Add feature" not "Added feature")
 - Be specific about what the PR accomplishes
+${conventionHint}
 
 Rules for the body:
 - Start with a TL;DR section (1-2 sentences summarizing the change)
 - Include a "What changed?" section with bullet points describing the key changes
+- If conversation context is provided, use it to explain WHY the changes were made in the TL;DR
 - Be thorough but concise
 - Use markdown formatting
 - Only describe changes that are actually in the diff — do not invent or assume changes
 ${templateHint}
 
 Do not include any explanation outside the TITLE and BODY sections.`;
+
+    const contextSection = conversationContext
+      ? `\n\nConversation context (why these changes were made):\n${conversationContext}`
+      : "";
 
     const userMessage = `Generate a PR title and description for these changes:
 
@@ -1097,12 +1328,14 @@ Commits in this PR:
 ${commitsSummary || "(no commits yet - changes are uncommitted)"}
 
 Diff:
-${truncatedDiff || "(no diff available)"}`;
+${truncatedDiff || "(no diff available)"}${contextSection}`;
 
     log.debug("Generating PR title and body", {
       commitCount: commits.length,
       diffLength: fullDiff.length,
       hasTemplate: !!prTemplate.template,
+      hasConversationContext: !!conversationContext,
+      conventionalCommits: conventions.conventionalCommits,
     });
 
     const response = await this.llmGateway.prompt(

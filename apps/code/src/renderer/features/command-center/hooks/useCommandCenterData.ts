@@ -87,7 +87,7 @@ export function useCommandCenterData(): {
   }, [storeCells, taskMap, sessionByTaskId]);
 
   const summary = useMemo(() => {
-    const populated = cells.filter((c) => c.taskId);
+    const populated = cells.filter((c) => c.taskId && c.task);
     return {
       total: populated.length,
       running: populated.filter((c) => c.status === "running").length,

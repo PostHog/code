@@ -36,7 +36,7 @@ export type FilterMatchMode = "all" | "any";
 export const TASK_STATUS_ORDER: string[] = [
   "failed",
   "in_progress",
-  "started",
+  "queued",
   "completed",
   "backlog",
 ];

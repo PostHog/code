@@ -8,6 +8,11 @@ import {
   getAuthenticatedClient,
 } from "@features/auth/hooks/authClient";
 import { fetchAuthState } from "@features/auth/hooks/authQueries";
+import {
+  buildCloudPromptBlocks,
+  buildCloudTaskDescription,
+  serializeCloudPrompt,
+} from "@features/editor/utils/cloud-prompt";
 import { useSessionAdapterStore } from "@features/sessions/stores/sessionAdapterStore";
 import {
   getPersistedConfigOptions,
@@ -18,6 +23,7 @@ import {
 import type {
   Adapter,
   AgentSession,
+  PermissionRequest,
 } from "@features/sessions/stores/sessionStore";
 import {
   getConfigOptionByCategory,
@@ -26,21 +32,29 @@ import {
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { taskViewedApi } from "@features/sidebar/hooks/useTaskViewed";
+import { isNotification, POSTHOG_NOTIFICATIONS } from "@posthog/agent";
+import { getAvailableModes } from "@posthog/agent/execution-mode";
 import { DEFAULT_GATEWAY_MODEL } from "@posthog/agent/gateway-models";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpcClient } from "@renderer/trpc/client";
+import { getGhUserTokenOrThrow } from "@renderer/utils/github";
 import { toast } from "@renderer/utils/toast";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import {
+  type CloudTaskPermissionRequestUpdate,
   type CloudTaskUpdatePayload,
   type EffortLevel,
   type ExecutionMode,
   effortLevelSchema,
+  isTerminalStatus,
   type Task,
+  type TaskRun,
 } from "@shared/types";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
+import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
 import type { AcpMessage, StoredLogEntry } from "@shared/types/session-events";
 import { isJsonRpcRequest } from "@shared/types/session-events";
+import { getBackoffDelay } from "@shared/utils/backoff";
 import { buildPermissionToolMetadata, track } from "@utils/analytics";
 import { logger } from "@utils/logger";
 import {
@@ -60,6 +74,39 @@ import {
 } from "@utils/session";
 
 const log = logger.scope("session-service");
+const LOCAL_SESSION_RECONNECT_ATTEMPTS = 3;
+const LOCAL_SESSION_RECONNECT_BACKOFF = {
+  initialDelayMs: 1_000,
+  maxDelayMs: 5_000,
+};
+const LOCAL_SESSION_RECOVERY_MESSAGE =
+  "Lost connection to the agent. Reconnecting…";
+const LOCAL_SESSION_RECOVERY_FAILED_MESSAGE =
+  "Connecting to to the agent has been lost. Retry, or start a new session.";
+
+/**
+ * Build default configOptions for cloud sessions so the mode switcher
+ * is available in the UI even without a local agent connection.
+ */
+function buildCloudDefaultConfigOptions(
+  initialMode = "plan",
+): SessionConfigOption[] {
+  const modes = getAvailableModes();
+  return [
+    {
+      id: "mode",
+      name: "Approval Preset",
+      type: "select",
+      currentValue: initialMode,
+      options: modes.map((mode) => ({
+        value: mode.id,
+        name: mode.name,
+      })),
+      category: "mode" as SessionConfigOption["category"],
+      description: "Choose an approval and sandboxing preset for your session",
+    },
+  ];
+}
 
 interface AuthCredentials {
   apiHost: string;
@@ -105,6 +152,9 @@ export function resetSessionService(): void {
 
 export class SessionService {
   private connectingTasks = new Map<string, Promise<void>>();
+  private localRepoPaths = new Map<string, string>();
+  private localRecoveryAttempts = new Map<string, Promise<boolean>>();
+  private nextCloudTaskWatchToken = 0;
   private subscriptions = new Map<
     string,
     {
@@ -117,10 +167,15 @@ export class SessionService {
     string,
     {
       runId: string;
+      apiHost: string;
+      teamId: number;
+      startToken: number;
       subscription: { unsubscribe: () => void };
       onStatusChange?: () => void;
     }
   >();
+  /** Maps toolCallId → cloud requestId for routing permission responses */
+  private cloudPermissionRequestIds = new Map<string, string>();
   private idleKilledSubscription: { unsubscribe: () => void } | null = null;
 
   constructor() {
@@ -144,6 +199,7 @@ export class SessionService {
   async connectToTask(params: ConnectParams): Promise<void> {
     const { task } = params;
     const taskId = task.id;
+    this.localRepoPaths.set(taskId, params.repoPath);
 
     log.info("Connecting to task", { taskId });
 
@@ -189,6 +245,14 @@ export class SessionService {
     } = params;
     const { id: taskId, latest_run: latestRun } = task;
     const taskTitle = task.title || task.description || "Task";
+
+    if (latestRun?.environment === "cloud") {
+      log.info("Skipping local session connect for cloud run", {
+        taskId,
+        taskRunId: latestRun.id,
+      });
+      return;
+    }
 
     try {
       const auth = await this.getAuthCredentials();
@@ -330,7 +394,7 @@ export class SessionService {
       sessionId?: string;
       adapter?: Adapter;
     },
-  ): Promise<void> {
+  ): Promise<boolean> {
     const { rawEntries, sessionId, adapter } =
       prefetchedLogs ?? (await this.fetchSessionLogs(logUrl, taskRunId));
     const events = convertStoredEntriesToEvents(rawEntries);
@@ -446,6 +510,7 @@ export class SessionService {
             ),
           );
         }
+        return true;
       } else {
         log.warn("Reconnect returned null", { taskId, taskRunId });
         this.setErrorSession(
@@ -454,6 +519,7 @@ export class SessionService {
           taskTitle,
           "Session could not be resumed. Please retry or start a new session.",
         );
+        return false;
       }
     } catch (error) {
       const errorMessage =
@@ -466,10 +532,13 @@ export class SessionService {
         errorMessage ||
           "Failed to reconnect. Please retry or start a new session.",
       );
+      return false;
     }
   }
 
   private async teardownSession(taskRunId: string): Promise<void> {
+    const session = this.getSessionByRunId(taskRunId);
+
     try {
       await trpcClient.agent.cancel.mutate({ sessionId: taskRunId });
     } catch (error) {
@@ -481,6 +550,10 @@ export class SessionService {
 
     this.unsubscribeFromChannel(taskRunId);
     sessionStoreSetters.removeSession(taskRunId);
+    if (session) {
+      this.localRepoPaths.delete(session.taskId);
+      this.localRecoveryAttempts.delete(session.taskId);
+    }
     useSessionAdapterStore.getState().removeAdapter(taskRunId);
     removePersistedConfigOptions(taskRunId);
   }
@@ -499,6 +572,7 @@ export class SessionService {
       errorMessage:
         "Session disconnected due to inactivity. Click Retry to reconnect.",
       isPromptPending: false,
+      isCompacting: false,
       promptStartedAt: null,
     });
   }
@@ -529,6 +603,133 @@ export class SessionService {
       session.initialPrompt = existing.initialPrompt;
     }
     sessionStoreSetters.setSession(session);
+  }
+
+  private async tryAutoRecoverLocalSession(
+    taskId: string,
+    taskRunId: string,
+    reason: string,
+  ): Promise<boolean> {
+    const existingRecovery = this.localRecoveryAttempts.get(taskId);
+    if (existingRecovery) {
+      return existingRecovery;
+    }
+
+    const recoveryPromise = this.runAutoRecoverLocalSession(
+      taskId,
+      taskRunId,
+      reason,
+    ).finally(() => {
+      this.localRecoveryAttempts.delete(taskId);
+    });
+
+    this.localRecoveryAttempts.set(taskId, recoveryPromise);
+    return recoveryPromise;
+  }
+
+  private async runAutoRecoverLocalSession(
+    taskId: string,
+    taskRunId: string,
+    reason: string,
+  ): Promise<boolean> {
+    const repoPath = this.localRepoPaths.get(taskId);
+    const session = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (!repoPath || !session || session.isCloud) {
+      return false;
+    }
+
+    log.warn("Attempting automatic local session recovery", {
+      taskId,
+      taskRunId,
+      reason,
+    });
+
+    sessionStoreSetters.updateSession(taskRunId, {
+      status: "disconnected",
+      errorTitle: undefined,
+      errorMessage: LOCAL_SESSION_RECOVERY_MESSAGE,
+      isPromptPending: false,
+      isCompacting: false,
+      promptStartedAt: null,
+    });
+
+    for (
+      let attempt = 0;
+      attempt < LOCAL_SESSION_RECONNECT_ATTEMPTS;
+      attempt++
+    ) {
+      const currentSession = sessionStoreSetters.getSessionByTaskId(taskId);
+      if (!currentSession || currentSession.taskRunId !== taskRunId) {
+        return false;
+      }
+
+      if (attempt > 0) {
+        const delay = getBackoffDelay(
+          attempt - 1,
+          LOCAL_SESSION_RECONNECT_BACKOFF,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+
+      const recovered = await this.reconnectInPlace(taskId, repoPath);
+      if (recovered) {
+        log.info("Automatic local session recovery succeeded", {
+          taskId,
+          taskRunId,
+          attempt: attempt + 1,
+        });
+        return true;
+      }
+    }
+
+    const latestSession = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (latestSession?.taskRunId === taskRunId) {
+      this.setErrorSession(
+        taskId,
+        taskRunId,
+        latestSession.taskTitle,
+        LOCAL_SESSION_RECOVERY_FAILED_MESSAGE,
+        "Connection lost",
+      );
+    }
+
+    log.warn("Automatic local session recovery exhausted", {
+      taskId,
+      taskRunId,
+    });
+
+    return false;
+  }
+
+  private startAutoRecoverLocalSession(
+    taskId: string,
+    taskRunId: string,
+    taskTitle: string,
+    reason: string,
+    fallbackMessage: string,
+  ): void {
+    void this.tryAutoRecoverLocalSession(taskId, taskRunId, reason).then(
+      (recovered) => {
+        if (recovered) {
+          return;
+        }
+
+        const latestSession = sessionStoreSetters.getSessionByTaskId(taskId);
+        if (!latestSession || latestSession.taskRunId !== taskRunId) {
+          return;
+        }
+
+        if (latestSession.status !== "error") {
+          this.setErrorSession(
+            taskId,
+            taskRunId,
+            taskTitle,
+            fallbackMessage,
+            "Connection lost",
+          );
+        }
+      },
+    );
   }
 
   private async createNewLocalSession(
@@ -654,11 +855,23 @@ export class SessionService {
         },
         onError: (err) => {
           log.error("Session subscription error", { taskRunId, error: err });
-          sessionStoreSetters.updateSession(taskRunId, {
-            status: "error",
-            errorMessage:
-              "Lost connection to the agent. Please restart the task.",
-          });
+          const session = this.getSessionByRunId(taskRunId);
+          if (!session || session.isCloud) {
+            sessionStoreSetters.updateSession(taskRunId, {
+              status: "error",
+              errorMessage:
+                "Lost connection to the agent. Please restart the task.",
+            });
+            return;
+          }
+
+          this.startAutoRecoverLocalSession(
+            session.taskId,
+            taskRunId,
+            session.taskTitle,
+            "subscription_error",
+            "Lost connection to the agent. Please retry or start a new session.",
+          );
         },
       },
     );
@@ -714,6 +927,9 @@ export class SessionService {
     }
 
     this.connectingTasks.clear();
+    this.localRepoPaths.clear();
+    this.localRecoveryAttempts.clear();
+    this.cloudPermissionRequestIds.clear();
     this.idleKilledSubscription?.unsubscribe();
     this.idleKilledSubscription = null;
   }
@@ -754,6 +970,14 @@ export class SessionService {
       isJsonRpcRequest(acpMsg.message) &&
       acpMsg.message.method === "session/prompt";
 
+    // Once the agent starts responding, clear initialPrompt so that
+    // retry reconnects to this session instead of creating a new one.
+    if (!isUserPromptEcho && session.initialPrompt?.length) {
+      sessionStoreSetters.updateSession(taskRunId, {
+        initialPrompt: undefined,
+      });
+    }
+
     if (isUserPromptEcho) {
       sessionStoreSetters.replaceOptimisticWithEvent(taskRunId, acpMsg);
     } else {
@@ -771,8 +995,7 @@ export class SessionService {
       "stopReason" in msg.result
     ) {
       const stopReason = (msg.result as { stopReason?: string }).stopReason;
-      const hasQueuedMessages =
-        session.messageQueue.length > 0 && session.status === "connected";
+      const hasQueuedMessages = this.drainQueuedMessages(taskRunId, session);
 
       // Only notify when queue is empty - queued messages will start a new turn
       if (stopReason && !hasQueuedMessages) {
@@ -780,18 +1003,6 @@ export class SessionService {
       }
 
       taskViewedApi.markActivity(session.taskId);
-
-      // Process queued messages after turn completes - send all as one prompt
-      if (hasQueuedMessages) {
-        setTimeout(() => {
-          this.sendQueuedMessages(session.taskId).catch((err) => {
-            log.error("Failed to send queued messages", {
-              taskId: session.taskId,
-              error: err,
-            });
-          });
-        }, 0);
-      }
     }
 
     if ("method" in msg && msg.method === "session/update" && "params" in msg) {
@@ -834,10 +1045,10 @@ export class SessionService {
       }
     }
 
-    // Handle _posthog/sdk_session notifications for adapter info
+    // Handle SDK_SESSION notifications for adapter info
     if (
       "method" in msg &&
-      msg.method === "_posthog/sdk_session" &&
+      isNotification(msg.method, POSTHOG_NOTIFICATIONS.SDK_SESSION) &&
       "params" in msg
     ) {
       const params = msg.params as {
@@ -854,6 +1065,54 @@ export class SessionService {
         });
       }
     }
+
+    if (
+      "method" in msg &&
+      "params" in msg &&
+      isNotification(msg.method, POSTHOG_NOTIFICATIONS.STATUS)
+    ) {
+      const params = msg.params as { status?: string; isComplete?: boolean };
+      if (params?.status === "compacting") {
+        sessionStoreSetters.updateSession(taskRunId, {
+          isCompacting: !params.isComplete,
+        });
+      }
+    }
+
+    if (
+      "method" in msg &&
+      isNotification(msg.method, POSTHOG_NOTIFICATIONS.COMPACT_BOUNDARY)
+    ) {
+      sessionStoreSetters.updateSession(taskRunId, {
+        isCompacting: false,
+      });
+
+      this.drainQueuedMessages(taskRunId, session);
+    }
+  }
+
+  private drainQueuedMessages(
+    taskRunId: string,
+    session: AgentSession,
+  ): boolean {
+    const freshSession = sessionStoreSetters.getSessions()[taskRunId];
+    const hasQueuedMessages =
+      freshSession &&
+      freshSession.messageQueue.length > 0 &&
+      freshSession.status === "connected";
+
+    if (hasQueuedMessages) {
+      setTimeout(() => {
+        this.sendQueuedMessages(session.taskId).catch((err) => {
+          log.error("Failed to send queued messages", {
+            taskId: session.taskId,
+            error: err,
+          });
+        });
+      }, 0);
+    }
+
+    return hasQueuedMessages;
   }
 
   private handlePermissionRequest(
@@ -881,6 +1140,42 @@ export class SessionService {
     // Add receivedAt to create PermissionRequest
     newPermissions.set(payload.toolCall.toolCallId, {
       ...payload,
+      receivedAt: Date.now(),
+    });
+
+    sessionStoreSetters.setPendingPermissions(taskRunId, newPermissions);
+    taskViewedApi.markActivity(session.taskId);
+    notifyPermissionRequest(session.taskTitle, session.taskId);
+  }
+
+  private handleCloudPermissionRequest(
+    taskRunId: string,
+    update: CloudTaskPermissionRequestUpdate,
+  ): void {
+    log.info("Cloud permission request received", {
+      taskRunId,
+      requestId: update.requestId,
+      toolCallId: update.toolCall.toolCallId,
+      title: update.toolCall.title,
+    });
+
+    const session = sessionStoreSetters.getSessions()[taskRunId];
+    if (!session) {
+      log.warn("Session not found for cloud permission request", { taskRunId });
+      return;
+    }
+
+    // Store the cloud requestId so we can route the response back
+    this.cloudPermissionRequestIds.set(
+      update.toolCall.toolCallId,
+      update.requestId,
+    );
+
+    const newPermissions = new Map(session.pendingPermissions);
+    newPermissions.set(update.toolCall.toolCallId, {
+      toolCall: update.toolCall as PermissionRequest["toolCall"],
+      options: update.options as PermissionRequest["options"],
+      taskRunId,
       receivedAt: Date.now(),
     });
 
@@ -927,12 +1222,13 @@ export class SessionService {
       throw new Error(`Session is not ready (status: ${session.status})`);
     }
 
-    if (session.isPromptPending) {
+    if (session.isPromptPending || session.isCompacting) {
       const promptText = extractPromptText(prompt);
       sessionStoreSetters.enqueueMessage(taskId, promptText);
       log.info("Message queued", {
         taskId,
         queueLength: session.messageQueue.length + 1,
+        reason: session.isCompacting ? "compacting" : "prompt_pending",
       });
       return { stopReason: "queued" };
     }
@@ -1048,22 +1344,23 @@ export class SessionService {
       sessionStoreSetters.clearOptimisticItems(session.taskRunId);
 
       if (isFatalSessionError(errorMessage, errorDetails)) {
-        log.error("Fatal prompt error, setting session to error state", {
+        log.error("Fatal prompt error, attempting recovery", {
           taskRunId: session.taskRunId,
           errorMessage,
           errorDetails,
         });
-        sessionStoreSetters.updateSession(session.taskRunId, {
-          status: "error",
-          errorMessage:
-            errorDetails ||
+        this.startAutoRecoverLocalSession(
+          session.taskId,
+          session.taskRunId,
+          session.taskTitle,
+          errorDetails || errorMessage,
+          errorDetails ||
             "Session connection lost. Please retry or start a new session.",
-          isPromptPending: false,
-          promptStartedAt: null,
-        });
+        );
       } else {
         sessionStoreSetters.updateSession(session.taskRunId, {
           isPromptPending: false,
+          isCompacting: false,
           promptStartedAt: null,
         });
       }
@@ -1115,23 +1412,41 @@ export class SessionService {
 
   // --- Cloud Commands ---
 
+  private async prepareCloudPrompt(
+    prompt: string | ContentBlock[],
+  ): Promise<{ blocks: ContentBlock[]; promptText: string }> {
+    const blocks =
+      typeof prompt === "string"
+        ? await buildCloudPromptBlocks(prompt)
+        : prompt;
+
+    if (blocks.length === 0) {
+      throw new Error("Cloud prompt cannot be empty");
+    }
+
+    const promptText =
+      extractPromptText(blocks).trim() ||
+      (typeof prompt === "string" ? buildCloudTaskDescription(prompt) : "");
+
+    return { blocks, promptText };
+  }
+
   private async sendCloudPrompt(
     session: AgentSession,
     prompt: string | ContentBlock[],
     options?: { skipQueueGuard?: boolean },
   ): Promise<{ stopReason: string }> {
-    const promptText = extractPromptText(prompt);
-    if (!promptText.trim()) {
+    const rawPromptText = extractPromptText(prompt);
+    if (!rawPromptText.trim()) {
       return { stopReason: "empty" };
     }
 
-    const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
-    if (session.cloudStatus && terminalStatuses.has(session.cloudStatus)) {
-      return this.resumeCloudRun(session, promptText);
+    if (isTerminalStatus(session.cloudStatus)) {
+      return this.resumeCloudRun(session, rawPromptText);
     }
 
     if (!options?.skipQueueGuard && session.isPromptPending) {
-      sessionStoreSetters.enqueueMessage(session.taskId, promptText);
+      sessionStoreSetters.enqueueMessage(session.taskId, rawPromptText);
       log.info("Cloud message queued", {
         taskId: session.taskId,
         queueLength: session.messageQueue.length + 1,
@@ -1143,6 +1458,8 @@ export class SessionService {
     if (!auth) {
       throw new Error("Authentication required for cloud commands");
     }
+
+    const { blocks, promptText } = await this.prepareCloudPrompt(prompt);
 
     sessionStoreSetters.updateSession(session.taskRunId, {
       isPromptPending: true,
@@ -1162,7 +1479,11 @@ export class SessionService {
         apiHost: auth.apiHost,
         teamId: auth.teamId,
         method: "user_message",
-        params: { content: promptText },
+        params: {
+          // The live /command API still validates user_message content as a
+          // string, so structured prompts must go through the serialized form.
+          content: serializeCloudPrompt(blocks),
+        },
       });
 
       sessionStoreSetters.updateSession(session.taskRunId, {
@@ -1268,12 +1589,47 @@ export class SessionService {
 
   private async resumeCloudRun(
     session: AgentSession,
-    promptText: string,
+    prompt: string | ContentBlock[],
   ): Promise<{ stopReason: string }> {
     const client = await getAuthenticatedClient();
     if (!client) {
       throw new Error("Authentication required for cloud commands");
     }
+    const auth = await this.getCloudCommandAuth();
+    if (!auth) {
+      throw new Error("Authentication required for cloud commands");
+    }
+
+    const { blocks, promptText } = await this.prepareCloudPrompt(prompt);
+
+    const [previousRun, task] = await Promise.all([
+      client.getTaskRun(session.taskId, session.taskRunId),
+      client.getTask(session.taskId),
+    ]);
+    const hasGitHubRepo = !!task.repository && !!task.github_integration;
+    const previousState = previousRun.state as Record<string, unknown>;
+    const previousOutput = (previousRun.output ?? {}) as Record<
+      string,
+      unknown
+    >;
+    // Prefer the actual working branch the agent last pushed to (synced by
+    // agent-server after each turn), then the run-level branch field, then
+    // the original base branch from state. This preserves unmerged work when
+    // the snapshot has expired and the sandbox is rebuilt from scratch.
+    const previousBaseBranch =
+      (typeof previousOutput.head_branch === "string"
+        ? previousOutput.head_branch
+        : null) ??
+      previousRun.branch ??
+      (typeof previousState.pr_base_branch === "string"
+        ? previousState.pr_base_branch
+        : null) ??
+      session.cloudBranch;
+    const prAuthorshipMode = this.getCloudPrAuthorshipMode(previousState);
+    const githubUserToken =
+      prAuthorshipMode === "user" && hasGitHubRepo
+        ? await getGhUserTokenOrThrow()
+        : undefined;
 
     log.info("Creating resume run for terminal cloud task", {
       taskId: session.taskId,
@@ -1281,15 +1637,27 @@ export class SessionService {
       previousStatus: session.cloudStatus,
     });
 
+    const runtimeOptions = this.getCloudRuntimeOptions(session, previousRun);
+
     // Create a new run WITH resume context — backend validates the previous run,
     // derives snapshot_external_id server-side, and passes everything as extra_state.
     // The agent will load conversation history and restore the sandbox snapshot.
     const updatedTask = await client.runTaskInCloud(
       session.taskId,
-      session.cloudBranch,
+      previousBaseBranch,
       {
+        adapter: runtimeOptions.adapter,
+        model: runtimeOptions.model,
+        reasoningLevel: runtimeOptions.reasoningLevel,
         resumeFromRunId: session.taskRunId,
-        pendingUserMessage: promptText,
+        pendingUserMessage: serializeCloudPrompt(blocks),
+        prAuthorshipMode,
+        runSource: this.getCloudRunSource(previousState),
+        signalReportId:
+          typeof previousState.signal_report_id === "string"
+            ? previousState.signal_report_id
+            : undefined,
+        githubUserToken,
       },
     );
     const newRun = updatedTask.latest_run;
@@ -1322,7 +1690,7 @@ export class SessionService {
     // in run state (pending_user_message), NOT via user_message command.
 
     // Start the watcher immediately so we don't miss status updates.
-    this.watchCloudTask(session.taskId, newRun.id);
+    this.watchCloudTask(session.taskId, newRun.id, auth.apiHost, auth.teamId);
 
     // Invalidate task queries so the UI picks up the new run metadata
     queryClient.invalidateQueries({ queryKey: ["tasks"] });
@@ -1338,8 +1706,7 @@ export class SessionService {
   }
 
   private async cancelCloudPrompt(session: AgentSession): Promise<boolean> {
-    const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
-    if (session.cloudStatus && terminalStatuses.has(session.cloudStatus)) {
+    if (isTerminalStatus(session.cloudStatus)) {
       log.info("Skipping cancel for terminal cloud run", {
         taskId: session.taskId,
         status: session.cloudStatus,
@@ -1399,6 +1766,29 @@ export class SessionService {
     };
   }
 
+  /**
+   * Send a command to the cloud agent server via the backend proxy.
+   * Handles auth lookup and throws if credentials are unavailable.
+   */
+  private async sendCloudCommand(
+    session: AgentSession,
+    method: "permission_response" | "set_config_option",
+    params: Record<string, unknown>,
+  ): Promise<void> {
+    const auth = await this.getCloudCommandAuth();
+    if (!auth) {
+      throw new Error("No cloud auth credentials available");
+    }
+    await trpcClient.cloudTask.sendCommand.mutate({
+      taskId: session.taskId,
+      runId: session.taskRunId,
+      apiHost: auth.apiHost,
+      teamId: auth.teamId,
+      method,
+      params,
+    });
+  }
+
   // --- Permissions ---
 
   private resolvePermission(session: AgentSession, toolCallId: string): void {
@@ -1441,21 +1831,33 @@ export class SessionService {
       ...buildPermissionToolMetadata(permission, optionId, customInput),
     });
 
+    const cloudRequestId = this.cloudPermissionRequestIds.get(toolCallId);
     this.resolvePermission(session, toolCallId);
 
     try {
-      await trpcClient.agent.respondToPermission.mutate({
-        taskRunId: session.taskRunId,
-        toolCallId,
-        optionId,
-        customInput,
-        answers,
-      });
+      if (session.isCloud && cloudRequestId) {
+        this.cloudPermissionRequestIds.delete(toolCallId);
+        await this.sendCloudCommand(session, "permission_response", {
+          requestId: cloudRequestId,
+          optionId,
+          customInput,
+          answers,
+        });
+      } else {
+        await trpcClient.agent.respondToPermission.mutate({
+          taskRunId: session.taskRunId,
+          toolCallId,
+          optionId,
+          customInput,
+          answers,
+        });
+      }
 
       log.info("Permission response sent", {
         taskId,
         toolCallId,
         optionId,
+        isCloud: !!cloudRequestId,
         hasCustomInput: !!customInput,
       });
     } catch (error) {
@@ -1484,15 +1886,29 @@ export class SessionService {
       ...buildPermissionToolMetadata(permission),
     });
 
+    const cloudRequestId = this.cloudPermissionRequestIds.get(toolCallId);
     this.resolvePermission(session, toolCallId);
 
     try {
-      await trpcClient.agent.cancelPermission.mutate({
-        taskRunId: session.taskRunId,
-        toolCallId,
-      });
+      if (session.isCloud && cloudRequestId) {
+        this.cloudPermissionRequestIds.delete(toolCallId);
+        await this.sendCloudCommand(session, "permission_response", {
+          requestId: cloudRequestId,
+          optionId: "reject_with_feedback",
+          customInput: "User cancelled the permission request.",
+        });
+      } else {
+        await trpcClient.agent.cancelPermission.mutate({
+          taskRunId: session.taskRunId,
+          toolCallId,
+        });
+      }
 
-      log.info("Permission cancelled", { taskId, toolCallId });
+      log.info("Permission cancelled", {
+        taskId,
+        toolCallId,
+        isCloud: !!cloudRequestId,
+      });
     } catch (error) {
       log.error("Failed to cancel permission", {
         taskId,
@@ -1543,11 +1959,18 @@ export class SessionService {
     updatePersistedConfigOptionValue(session.taskRunId, configId, value);
 
     try {
-      await trpcClient.agent.setConfigOption.mutate({
-        sessionId: session.taskRunId,
-        configId,
-        value,
-      });
+      if (session.isCloud) {
+        await this.sendCloudCommand(session, "set_config_option", {
+          configId,
+          value,
+        });
+      } else {
+        await trpcClient.agent.setConfigOption.mutate({
+          sessionId: session.taskRunId,
+          configId,
+          value,
+        });
+      }
     } catch (error) {
       // Rollback on error
       const rolledBackOptions = configOptions.map((opt) =>
@@ -1691,6 +2114,7 @@ export class SessionService {
    * to an empty session.
    */
   async clearSessionError(taskId: string, repoPath: string): Promise<void> {
+    this.localRepoPaths.set(taskId, repoPath);
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (session?.initialPrompt?.length) {
       const { taskTitle, initialPrompt } = session;
@@ -1719,6 +2143,7 @@ export class SessionService {
    * session instead of attempting to resume the stale one.
    */
   async resetSession(taskId: string, repoPath: string): Promise<void> {
+    this.localRepoPaths.set(taskId, repoPath);
     await this.reconnectInPlace(taskId, repoPath, null);
   }
 
@@ -1736,9 +2161,10 @@ export class SessionService {
     taskId: string,
     repoPath: string,
     overrideSessionId?: string | null,
-  ): Promise<void> {
+  ): Promise<boolean> {
+    this.localRepoPaths.set(taskId, repoPath);
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
-    if (!session) return;
+    if (!session) return false;
 
     const { taskRunId, taskTitle, logUrl } = session;
 
@@ -1764,7 +2190,7 @@ export class SessionService {
         ? undefined
         : (overrideSessionId ?? prefetchedLogs.sessionId);
 
-    await this.reconnectToLocalSession(
+    return this.reconnectToLocalSession(
       taskId,
       taskRunId,
       taskTitle,
@@ -1778,35 +2204,40 @@ export class SessionService {
   /**
    * Start watching a cloud task via main-process CloudTaskService.
    *
-   * The watcher stays alive across navigation. On navigate-away the caller
-   * invokes the returned cleanup which only toggles viewing off (background
-   * status polling continues at 60s). On navigate-back this method detects
-   * the existing watcher, toggles viewing back on, and returns a new cleanup.
-   *
-   * A fresh watcher is created only on first visit or when the runId changes
-   * (new run started). Terminal status triggers full teardown from within
-   * handleCloudTaskUpdate via stopCloudTaskWatch().
+   * The watcher stays alive across navigation. A fresh watcher is created only
+   * on first visit or when the runId changes (new run started). Terminal
+   * status triggers full teardown from within handleCloudTaskUpdate via
+   * stopCloudTaskWatch().
    */
   watchCloudTask(
     taskId: string,
     runId: string,
+    apiHost: string,
+    teamId: number,
     onStatusChange?: () => void,
-    viewing?: boolean,
+    logUrl?: string,
+    initialMode?: string,
   ): () => void {
     const taskRunId = runId;
+    const startToken = ++this.nextCloudTaskWatchToken;
     const existingWatcher = this.cloudTaskWatchers.get(taskId);
 
-    // Resuming same run — just toggle viewing back on
-    if (existingWatcher && existingWatcher.runId === runId) {
+    // Resuming same run — reuse the existing watcher.
+    if (
+      existingWatcher &&
+      existingWatcher.runId === runId &&
+      existingWatcher.apiHost === apiHost &&
+      existingWatcher.teamId === teamId
+    ) {
       existingWatcher.onStatusChange = onStatusChange;
-      trpcClient.cloudTask.setViewing
-        .mutate({ taskId, runId, viewing: viewing ?? true })
-        .catch(() => {});
-      return () => {
-        trpcClient.cloudTask.setViewing
-          .mutate({ taskId, runId, viewing: false })
-          .catch(() => {});
-      };
+      // Ensure configOptions is populated on revisit
+      const existing = sessionStoreSetters.getSessionByTaskId(taskId);
+      if (existing && !existing.configOptions?.length) {
+        sessionStoreSetters.updateSession(existing.taskRunId, {
+          configOptions: buildCloudDefaultConfigOptions(initialMode),
+        });
+      }
+      return () => {};
     }
 
     // Different run — full cleanup of old watcher first
@@ -1816,38 +2247,48 @@ export class SessionService {
 
     // Create session in the store
     const existing = sessionStoreSetters.getSessionByTaskId(taskId);
-    if (!existing || existing.taskRunId !== taskRunId) {
+    // A same-run session with history but no processedLineCount came from a
+    // non-cloud hydration path. Reset it so the cloud snapshot becomes the
+    // single source of truth instead of being appended on top.
+    const shouldResetExistingSession =
+      existing?.taskRunId === taskRunId &&
+      existing.events.length > 0 &&
+      existing.processedLineCount === undefined;
+    const shouldHydrateSession =
+      !existing ||
+      existing.taskRunId !== taskRunId ||
+      shouldResetExistingSession ||
+      existing.events.length === 0;
+
+    if (
+      !existing ||
+      existing.taskRunId !== taskRunId ||
+      shouldResetExistingSession
+    ) {
       const taskTitle = existing?.taskTitle ?? "Cloud Task";
       const session = this.createBaseSession(taskRunId, taskId, taskTitle);
       session.status = "disconnected";
       session.isCloud = true;
+      session.configOptions = buildCloudDefaultConfigOptions(initialMode);
       sessionStoreSetters.setSession(session);
-    } else if (!existing.isCloud) {
-      sessionStoreSetters.updateSession(existing.taskRunId, {
-        isCloud: true,
-      });
+    } else {
+      // Ensure cloud flag and configOptions are set on existing sessions
+      const updates: Partial<AgentSession> = {};
+      if (!existing.isCloud) updates.isCloud = true;
+      if (!existing.configOptions?.length) {
+        updates.configOptions = buildCloudDefaultConfigOptions(initialMode);
+      }
+      if (Object.keys(updates).length > 0) {
+        sessionStoreSetters.updateSession(existing.taskRunId, updates);
+      }
     }
 
-    void fetchAuthState()
-      .then((authState) => {
-        if (!authState.projectId || !authState.cloudRegion) {
-          log.warn("No auth for cloud task watcher", { taskId });
-          return;
-        }
+    if (shouldHydrateSession) {
+      this.hydrateCloudTaskSessionFromLogs(taskId, taskRunId, logUrl);
+    }
 
-        return trpcClient.cloudTask.watch.mutate({
-          taskId,
-          runId,
-          apiHost: getCloudUrlFromRegion(authState.cloudRegion),
-          teamId: authState.projectId,
-          viewing,
-        });
-      })
-      .catch((err: unknown) =>
-        log.warn("Failed to start cloud task watcher", { taskId, err }),
-      );
-
-    // Subscribe to updates
+    // Subscribe before starting the main-process watcher so the first replayed
+    // SSE/log burst cannot race ahead of the renderer subscription.
     const subscription = trpcClient.cloudTask.onUpdate.subscribe(
       { taskId, runId },
       {
@@ -1855,7 +2296,9 @@ export class SessionService {
           this.handleCloudTaskUpdate(taskRunId, update);
           const watcher = this.cloudTaskWatchers.get(taskId);
           if (
-            (update.kind === "status" || update.kind === "snapshot") &&
+            (update.kind === "status" ||
+              update.kind === "snapshot" ||
+              update.kind === "error") &&
             watcher?.onStatusChange
           ) {
             watcher.onStatusChange();
@@ -1868,15 +2311,90 @@ export class SessionService {
 
     this.cloudTaskWatchers.set(taskId, {
       runId,
+      apiHost,
+      teamId,
+      startToken,
       subscription,
       onStatusChange,
     });
 
-    return () => {
-      trpcClient.cloudTask.setViewing
-        .mutate({ taskId, runId, viewing: false })
-        .catch(() => {});
-    };
+    // Start main-process watcher after the subscription is attached.
+    void (async () => {
+      try {
+        if (!this.isCurrentCloudTaskWatcher(taskId, runId, startToken)) {
+          return;
+        }
+
+        await trpcClient.cloudTask.watch.mutate({
+          taskId,
+          runId,
+          apiHost,
+          teamId,
+        });
+
+        // If the local watcher was torn down while the watch request was in
+        // flight, send a compensating unwatch after the start request lands.
+        if (!this.isCurrentCloudTaskWatcher(taskId, runId, startToken)) {
+          await trpcClient.cloudTask.unwatch.mutate({ taskId, runId });
+        }
+      } catch (err: unknown) {
+        if (!this.isCurrentCloudTaskWatcher(taskId, runId, startToken)) {
+          return;
+        }
+        log.warn("Failed to start cloud task watcher", { taskId, err });
+      }
+    })();
+
+    return () => {};
+  }
+
+  private hydrateCloudTaskSessionFromLogs(
+    taskId: string,
+    taskRunId: string,
+    logUrl?: string,
+  ): void {
+    void (async () => {
+      const { rawEntries } = await this.fetchSessionLogs(logUrl, taskRunId);
+      if (rawEntries.length === 0) {
+        return;
+      }
+
+      const session = sessionStoreSetters.getSessionByTaskId(taskId);
+      if (!session || session.taskRunId !== taskRunId) {
+        return;
+      }
+
+      // If live updates already populated a processed count, don't overwrite
+      // that newer state with the persisted baseline fetched during startup.
+      if (
+        session.processedLineCount !== undefined &&
+        session.processedLineCount > 0
+      ) {
+        return;
+      }
+
+      sessionStoreSetters.updateSession(taskRunId, {
+        events: convertStoredEntriesToEvents(rawEntries),
+        isCloud: true,
+        logUrl: logUrl ?? session.logUrl,
+        processedLineCount: rawEntries.length,
+      });
+    })().catch((err: unknown) => {
+      log.warn("Failed to hydrate cloud task session from logs", {
+        taskId,
+        taskRunId,
+        err,
+      });
+    });
+  }
+
+  private isCurrentCloudTaskWatcher(
+    taskId: string,
+    runId: string,
+    startToken: number,
+  ): boolean {
+    const watcher = this.cloudTaskWatchers.get(taskId);
+    return watcher?.runId === runId && watcher.startToken === startToken;
   }
 
   /**
@@ -1896,6 +2414,37 @@ export class SessionService {
       );
   }
 
+  async retryCloudTaskWatch(taskId: string): Promise<void> {
+    const session = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (!session?.isCloud) {
+      throw new Error("No active cloud session for task");
+    }
+
+    const previousErrorTitle = session.errorTitle;
+    const previousErrorMessage = session.errorMessage;
+
+    sessionStoreSetters.updateSession(session.taskRunId, {
+      status: "disconnected",
+      errorTitle: undefined,
+      errorMessage: undefined,
+      isPromptPending: false,
+    });
+
+    try {
+      await trpcClient.cloudTask.retry.mutate({
+        taskId,
+        runId: session.taskRunId,
+      });
+    } catch (error) {
+      sessionStoreSetters.updateSession(session.taskRunId, {
+        status: "error",
+        errorTitle: previousErrorTitle,
+        errorMessage: previousErrorMessage,
+      });
+      throw error;
+    }
+  }
+
   public updateSessionTaskTitle(taskId: string, taskTitle: string): void {
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) return;
@@ -1909,12 +2458,31 @@ export class SessionService {
     taskRunId: string,
     update: CloudTaskUpdatePayload,
   ): void {
+    if (update.kind === "error") {
+      sessionStoreSetters.updateSession(taskRunId, {
+        status: "error",
+        errorTitle: update.errorTitle,
+        errorMessage:
+          update.errorMessage ??
+          "Lost connection to the cloud run. Retry to reconnect.",
+        isPromptPending: false,
+      });
+      return;
+    }
+
+    if (update.kind === "permission_request") {
+      this.handleCloudPermissionRequest(taskRunId, update);
+      return;
+    }
+
     // Append new log entries with dedup guard
-    if (update.newEntries && update.newEntries.length > 0) {
+    if (
+      (update.kind === "logs" || update.kind === "snapshot") &&
+      update.newEntries.length > 0
+    ) {
       const session = sessionStoreSetters.getSessions()[taskRunId];
       const currentCount = session?.processedLineCount ?? 0;
-      const expectedCount =
-        update.totalEntryCount ?? currentCount + update.newEntries.length;
+      const expectedCount = update.totalEntryCount;
       const delta = expectedCount - currentCount;
 
       if (delta <= 0) {
@@ -1953,7 +2521,7 @@ export class SessionService {
       }
     }
 
-    // Flush queued messages when a cloud turn completes (detected via log polling)
+    // Flush queued messages when a cloud turn completes (detected via live log updates)
     const sessionAfterLogs = sessionStoreSetters.getSessions()[taskRunId];
     if (
       sessionAfterLogs &&
@@ -1990,13 +2558,13 @@ export class SessionService {
           });
           this.sendQueuedCloudMessages(session.taskId).catch(() => {
             // Retries exhausted — message was re-enqueued by
-            // sendQueuedCloudMessages, poll-based flush will keep trying
+            // sendQueuedCloudMessages, future stream-based completion detection
+            // will keep trying
           });
         }
       }
 
-      const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
-      if (update.status && terminalStatuses.has(update.status)) {
+      if (isTerminalStatus(update.status)) {
         // Clean up any pending resume messages that couldn't be sent
         const session = sessionStoreSetters.getSessions()[taskRunId];
         if (
@@ -2011,6 +2579,20 @@ export class SessionService {
         this.stopCloudTaskWatch(update.taskId);
       }
     }
+  }
+
+  private getCloudPrAuthorshipMode(
+    state: Record<string, unknown>,
+  ): PrAuthorshipMode {
+    const explicitMode = state.pr_authorship_mode;
+    if (explicitMode === "user" || explicitMode === "bot") {
+      return explicitMode;
+    }
+    return state.run_source === "signal_report" ? "bot" : "user";
+  }
+
+  private getCloudRunSource(state: Record<string, unknown>): CloudRunSource {
+    return state.run_source === "signal_report" ? "signal_report" : "manual";
   }
 
   /**
@@ -2058,6 +2640,36 @@ export class SessionService {
 
     if (!apiHost || !projectId || !client) return null;
     return { apiHost, projectId, client };
+  }
+
+  private getCloudRuntimeOptions(
+    session: AgentSession,
+    previousRun?: TaskRun,
+  ): {
+    adapter?: Adapter;
+    model?: string;
+    reasoningLevel?: string;
+  } {
+    const modelOption = getConfigOptionByCategory(
+      session.configOptions,
+      "model",
+    );
+    const thoughtLevelOption = getConfigOptionByCategory(
+      session.configOptions,
+      "thought_level",
+    );
+
+    return {
+      adapter: session.adapter ?? previousRun?.runtime_adapter ?? undefined,
+      model:
+        typeof modelOption?.currentValue === "string"
+          ? modelOption.currentValue
+          : (previousRun?.model ?? undefined),
+      reasoningLevel:
+        typeof thoughtLevelOption?.currentValue === "string"
+          ? thoughtLevelOption.currentValue
+          : (previousRun?.reasoning_effort ?? undefined),
+    };
   }
 
   private parseLogContent(content: string): {
@@ -2156,12 +2768,18 @@ export class SessionService {
       startedAt: Date.now(),
       status: "connecting",
       isPromptPending: false,
+      isCompacting: false,
       promptStartedAt: null,
       pendingPermissions: new Map(),
       pausedDurationMs: 0,
       messageQueue: [],
       optimisticItems: [],
     };
+  }
+
+  private getSessionByRunId(taskRunId: string): AgentSession | undefined {
+    const sessions = sessionStoreSetters.getSessions();
+    return sessions[taskRunId];
   }
 
   private async appendAndPersist(

@@ -11,6 +11,7 @@ interface DiffViewerStoreState {
   loadFullFiles: boolean;
   wordDiffs: boolean;
   hideWhitespaceChanges: boolean;
+  showReviewComments: boolean;
 }
 
 interface DiffViewerStoreActions {
@@ -20,6 +21,7 @@ interface DiffViewerStoreActions {
   toggleLoadFullFiles: () => void;
   toggleWordDiffs: () => void;
   toggleHideWhitespaceChanges: () => void;
+  toggleShowReviewComments: () => void;
 }
 
 type DiffViewerStore = DiffViewerStoreState & DiffViewerStoreActions;
@@ -32,6 +34,7 @@ export const useDiffViewerStore = create<DiffViewerStore>()(
       loadFullFiles: false,
       wordDiffs: true,
       hideWhitespaceChanges: false,
+      showReviewComments: true,
       setViewMode: (mode) =>
         set((state) => {
           if (state.viewMode === mode) {
@@ -64,6 +67,8 @@ export const useDiffViewerStore = create<DiffViewerStore>()(
       toggleWordDiffs: () => set((s) => ({ wordDiffs: !s.wordDiffs })),
       toggleHideWhitespaceChanges: () =>
         set((s) => ({ hideWhitespaceChanges: !s.hideWhitespaceChanges })),
+      toggleShowReviewComments: () =>
+        set((s) => ({ showReviewComments: !s.showReviewComments })),
     }),
     {
       name: "diff-viewer-storage",

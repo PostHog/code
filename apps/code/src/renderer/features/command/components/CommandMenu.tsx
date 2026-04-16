@@ -1,7 +1,7 @@
+import { useReviewNavigationStore } from "@features/code-review/stores/reviewNavigationStore";
 import { Command } from "@features/command/components/Command";
 import { CommandKeyHints } from "@features/command/components/CommandKeyHints";
 import { useFolders } from "@features/folders/hooks/useFolders";
-import { useRightSidebarStore } from "@features/right-sidebar";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useSidebarStore } from "@features/sidebar/stores/sidebarStore";
 import {
@@ -35,7 +35,21 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
   const { folders } = useFolders();
   const { theme, cycleTheme } = useThemeStore();
   const toggleLeftSidebar = useSidebarStore((state) => state.toggle);
-  const toggleRightSidebar = useRightSidebarStore((state) => state.toggle);
+  const view = useNavigationStore((state) => state.view);
+  const setReviewMode = useReviewNavigationStore(
+    (state) => state.setReviewMode,
+  );
+  const getReviewMode = useReviewNavigationStore(
+    (state) => state.getReviewMode,
+  );
+  const openReviewPanel = useCallback(() => {
+    const taskId = view.type === "task-detail" ? view.data?.id : undefined;
+    if (!taskId) return;
+    const mode = getReviewMode(taskId);
+    if (mode === "closed") {
+      setReviewMode(taskId, "split");
+    }
+  }, [view, getReviewMode, setReviewMode]);
   const commandRef = useRef<HTMLDivElement>(null);
 
   const close = useCallback(() => onOpenChange(false), [onOpenChange]);
@@ -170,14 +184,11 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
                 <Text size="1">Toggle left sidebar</Text>
               </Command.Item>
               <Command.Item
-                value="Toggle right sidebar"
-                onSelect={runAndClose(
-                  toggleRightSidebar,
-                  "toggle-right-sidebar",
-                )}
+                value="Open review panel"
+                onSelect={runAndClose(openReviewPanel, "open-review-panel")}
               >
                 <ViewVerticalIcon className="mr-3 h-3 w-3 rotate-180 text-gray-11" />
-                <Text size="1">Toggle right sidebar</Text>
+                <Text size="1">Open review panel</Text>
               </Command.Item>
               <Command.Item
                 value="Create new task"

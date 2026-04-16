@@ -1,9 +1,15 @@
+import type {
+  ContentBlock,
+  RequestPermissionRequest,
+  RequestPermissionResponse,
+} from "@agentclientprotocol/sdk";
 import {
   ClientSideConnection,
   ndJsonStream,
   PROTOCOL_VERSION,
 } from "@agentclientprotocol/sdk";
 import { type ServerType, serve } from "@hono/node-server";
+import { getCurrentBranch } from "@posthog/git/queries";
 import { Hono } from "hono";
 import packageJson from "../../package.json" with { type: "json" };
 import { POSTHOG_NOTIFICATIONS } from "../acp-extensions";
@@ -12,6 +18,8 @@ import {
   type InProcessAcpConnection,
 } from "../adapters/acp-connection";
 import { selectRecentTurns } from "../adapters/claude/session/jsonl-hydration";
+import type { CodeExecutionMode } from "../execution-mode";
+import { DEFAULT_CODEX_MODEL } from "../gateway-models";
 import { PostHogAPIClient } from "../posthog-api";
 import {
   type ConversationTurn,
@@ -30,6 +38,11 @@ import type {
 import { AsyncMutex } from "../utils/async-mutex";
 import { getLlmGatewayUrl } from "../utils/gateway";
 import { Logger } from "../utils/logger";
+import {
+  deserializeCloudPrompt,
+  normalizeCloudPromptContent,
+  promptBlocksToText,
+} from "./cloud-prompt";
 import { type JwtPayload, JwtValidationError, validateJwt } from "./jwt";
 import { jsonRpcRequestSchema, validateCommandParams } from "./schemas";
 import type { AgentServerConfig } from "./types";
@@ -150,6 +163,24 @@ interface ActiveSession {
   sseController: SseController | null;
   deviceInfo: DeviceInfo;
   logWriter: SessionLogWriter;
+  /** Current permission mode, tracked for relay decisions */
+  permissionMode: CodeExecutionMode;
+  /** Whether a desktop client has ever connected via SSE during this session */
+  hasDesktopConnected: boolean;
+}
+
+function getTaskRunStateString(
+  taskRun: TaskRun | null,
+  key: string,
+): string | null {
+  const state = taskRun?.state;
+
+  if (!state || typeof state !== "object") {
+    return null;
+  }
+
+  const value = (state as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : null;
 }
 
 export class AgentServer {
@@ -161,6 +192,7 @@ export class AgentServer {
   private posthogAPI: PostHogAPIClient;
   private questionRelayedToSlack = false;
   private detectedPrUrl: string | null = null;
+  private lastReportedBranch: string | null = null;
   private resumeState: ResumeState | null = null;
   // Guards against concurrent session initialization. autoInitializeSession() and
   // the GET /events SSE handler can both call initializeSession() — the SSE connection
@@ -168,6 +200,15 @@ export class AgentServer {
   // causing a second session to be created and duplicate Slack messages to be sent.
   private initializationPromise: Promise<void> | null = null;
   private pendingEvents: Record<string, unknown>[] = [];
+  private pendingPermissions = new Map<
+    string,
+    {
+      resolve: (response: {
+        outcome: { outcome: "selected"; optionId: string };
+        _meta?: Record<string, unknown>;
+      }) => void;
+    }
+  >();
 
   private detachSseController(controller: SseController): void {
     if (this.session?.sseController === controller) {
@@ -216,8 +257,16 @@ export class AgentServer {
     this.app = this.createApp();
   }
 
+  private getRuntimeAdapter(): "claude" | "codex" {
+    return this.config.runtimeAdapter ?? "claude";
+  }
+
   private getEffectiveMode(payload: JwtPayload): AgentMode {
     return payload.mode ?? this.config.mode;
+  }
+
+  private getSessionPermissionMode(): CodeExecutionMode {
+    return this.session?.permissionMode ?? "default";
   }
 
   private createApp(): Hono {
@@ -273,6 +322,7 @@ export class AgentServer {
             await this.initializeSession(payload, sseController);
           } else {
             this.session.sseController = sseController;
+            this.session.hasDesktopConnected = true;
             this.replayPendingEvents();
           }
 
@@ -487,26 +537,25 @@ export class AgentServer {
     switch (method) {
       case POSTHOG_NOTIFICATIONS.USER_MESSAGE:
       case "user_message": {
-        const content = params.content as string;
+        const prompt = normalizeCloudPromptContent(
+          params.content as string | ContentBlock[],
+        );
+        const promptPreview = promptBlocksToText(prompt);
 
         this.logger.info(
-          `Processing user message (detectedPrUrl=${this.detectedPrUrl ?? "none"}): ${content.substring(0, 100)}...`,
+          `Processing user message (detectedPrUrl=${this.detectedPrUrl ?? "none"}): ${promptPreview.substring(0, 100)}...`,
         );
 
         this.session.logWriter.resetTurnMessages(this.session.payload.run_id);
 
         const result = await this.session.clientConnection.prompt({
           sessionId: this.session.acpSessionId,
-          prompt: [{ type: "text", text: content }],
+          prompt,
           ...(this.detectedPrUrl && {
             _meta: {
-              prContext:
-                `IMPORTANT — OVERRIDE PREVIOUS INSTRUCTIONS ABOUT CREATING BRANCHES/PRs.\n` +
-                `You already have an open pull request: ${this.detectedPrUrl}\n` +
-                `You MUST:\n` +
-                `1. Check out the existing PR branch with \`gh pr checkout ${this.detectedPrUrl}\`\n` +
-                `2. Make changes, commit, and push to that branch\n` +
-                `You MUST NOT create a new branch, close the existing PR, or create a new PR.`,
+              // Keep the live-session PR override aligned with the startup
+              // prompt policy so non-Slack runs remain review-first.
+              prContext: this.buildDetectedPrContext(this.detectedPrUrl),
             },
           }),
         });
@@ -514,6 +563,10 @@ export class AgentServer {
         this.logger.info("User message completed", {
           stopReason: result.stopReason,
         });
+
+        if (result.stopReason === "end_turn") {
+          void this.syncCloudBranchMetadata(this.session.payload);
+        }
 
         this.broadcastTurnComplete(result.stopReason);
 
@@ -562,6 +615,51 @@ export class AgentServer {
         this.logger.info("Close requested");
         await this.cleanupSession();
         return { closed: true };
+      }
+
+      case "posthog/set_config_option":
+      case "set_config_option": {
+        const configId = params.configId as string;
+        const value = params.value as string;
+
+        this.logger.info("Set config option requested", { configId, value });
+
+        const result =
+          await this.session.clientConnection.setSessionConfigOption({
+            sessionId: this.session.acpSessionId,
+            configId,
+            value,
+          });
+
+        return {
+          configOptions: result.configOptions,
+        };
+      }
+
+      case POSTHOG_NOTIFICATIONS.PERMISSION_RESPONSE:
+      case "permission_response": {
+        const requestId = params.requestId as string;
+        const optionId = params.optionId as string;
+        const customInput = params.customInput as string | undefined;
+        const answers = params.answers as Record<string, string> | undefined;
+
+        this.logger.info("Permission response received", {
+          requestId,
+          optionId,
+        });
+
+        const resolved = this.resolvePermission(
+          requestId,
+          optionId,
+          customInput,
+          answers,
+        );
+        if (!resolved) {
+          throw new Error(
+            `No pending permission request found for id: ${requestId}`,
+          );
+        }
+        return { resolved: true };
       }
 
       default:
@@ -623,6 +721,39 @@ export class AgentServer {
 
     this.configureEnvironment();
 
+    const [preTaskRun, preTask] = await Promise.all([
+      this.posthogAPI
+        .getTaskRun(payload.task_id, payload.run_id)
+        .catch((err) => {
+          this.logger.warn("Failed to fetch task run for session context", {
+            taskId: payload.task_id,
+            runId: payload.run_id,
+            error: err,
+          });
+          return null;
+        }),
+      this.posthogAPI.getTask(payload.task_id).catch((err) => {
+        this.logger.warn("Failed to fetch task for session context", {
+          taskId: payload.task_id,
+          error: err,
+        });
+        return null;
+      }),
+    ]);
+
+    const prUrl = getTaskRunStateString(preTaskRun, "slack_notified_pr_url");
+
+    if (prUrl) {
+      this.detectedPrUrl = prUrl;
+    }
+
+    const runtimeAdapter = this.getRuntimeAdapter();
+    const sessionSystemPrompt = this.buildSessionSystemPrompt(prUrl);
+    const codexInstructions =
+      runtimeAdapter === "codex"
+        ? this.buildCodexInstructions(sessionSystemPrompt)
+        : undefined;
+
     const posthogAPI = new PostHogAPIClient({
       apiUrl: this.config.apiUrl,
       projectId: this.config.projectId,
@@ -646,10 +777,32 @@ export class AgentServer {
     });
 
     const acpConnection = createAcpConnection({
+      adapter: runtimeAdapter,
       taskRunId: payload.run_id,
       taskId: payload.task_id,
       deviceType: deviceInfo.type,
       logWriter,
+      logger: this.logger,
+      codexOptions:
+        runtimeAdapter === "codex"
+          ? {
+              cwd: this.config.repositoryPath ?? "/tmp/workspace",
+              apiBaseUrl: process.env.OPENAI_BASE_URL,
+              apiKey: this.config.apiKey,
+              model: this.config.model ?? DEFAULT_CODEX_MODEL,
+              reasoningEffort: this.config.reasoningEffort,
+              instructions: codexInstructions,
+            }
+          : undefined,
+      onStructuredOutput: async (output) => {
+        await this.posthogAPI.setTaskRunOutput(
+          payload.task_id,
+          payload.run_id,
+          {
+            output,
+          },
+        );
+      },
     });
 
     // Tap both streams to broadcast all ACP messages via SSE (mimics local transport)
@@ -685,42 +838,34 @@ export class AgentServer {
       clientCapabilities: {},
     });
 
-    let preTaskRun: TaskRun | null = null;
-    try {
-      preTaskRun = await this.posthogAPI.getTaskRun(
-        payload.task_id,
-        payload.run_id,
-      );
-    } catch {
-      this.logger.warn("Failed to fetch task run for session context", {
-        taskId: payload.task_id,
-        runId: payload.run_id,
-      });
-    }
-
-    const prUrl =
-      typeof (preTaskRun?.state as Record<string, unknown>)
-        ?.slack_notified_pr_url === "string"
-        ? ((preTaskRun?.state as Record<string, unknown>)
-            .slack_notified_pr_url as string)
-        : null;
-
-    if (prUrl) {
-      this.detectedPrUrl = prUrl;
-    }
-
+    const runState = preTaskRun?.state as Record<string, unknown> | undefined;
+    // Cloud runs default to bypassPermissions (auto-approve everything).
+    // Only PostHog Code sets initial_permission_mode explicitly (e.g., "plan").
+    const initialPermissionMode: CodeExecutionMode =
+      typeof runState?.initial_permission_mode === "string"
+        ? (runState.initial_permission_mode as CodeExecutionMode)
+        : "bypassPermissions";
     const sessionResponse = await clientConnection.newSession({
       cwd: this.config.repositoryPath ?? "/tmp/workspace",
       mcpServers: this.config.mcpServers ?? [],
       _meta: {
         sessionId: payload.run_id,
         taskRunId: payload.run_id,
-        systemPrompt: this.buildSessionSystemPrompt(prUrl),
+        systemPrompt: sessionSystemPrompt,
+        ...(this.config.model && { model: this.config.model }),
         allowedDomains: this.config.allowedDomains,
+        jsonSchema: preTask?.json_schema ?? null,
+        permissionMode: initialPermissionMode,
         ...(this.config.claudeCode?.plugins?.length && {
           claudeCode: {
             options: {
-              plugins: this.config.claudeCode.plugins,
+              ...(this.config.claudeCode?.plugins?.length && {
+                plugins: this.config.claudeCode.plugins,
+              }),
+              ...(runtimeAdapter === "claude" &&
+                this.config.reasoningEffort && {
+                  effort: this.config.reasoningEffort,
+                }),
             },
           },
         }),
@@ -742,6 +887,8 @@ export class AgentServer {
       sseController,
       deviceInfo,
       logWriter,
+      permissionMode: initialPermissionMode,
+      hasDesktopConnected: sseController !== null,
     };
 
     this.logger = new Logger({
@@ -759,6 +906,7 @@ export class AgentServer {
     this.logger.info(
       `Agent version: ${this.config.version ?? packageJson.version}`,
     );
+    this.logger.info(`Initial permission mode: ${initialPermissionMode}`);
 
     // Signal in_progress so the UI can start polling for updates
     this.posthogAPI
@@ -837,29 +985,42 @@ export class AgentServer {
       const initialPromptOverride = taskRun
         ? this.getInitialPromptOverride(taskRun)
         : null;
-      const initialPrompt = initialPromptOverride ?? task.description;
+      const pendingUserPrompt = this.getPendingUserPrompt(taskRun);
+      let initialPrompt: ContentBlock[] = [];
+      if (pendingUserPrompt?.length) {
+        initialPrompt = pendingUserPrompt;
+      } else if (initialPromptOverride) {
+        initialPrompt = [{ type: "text", text: initialPromptOverride }];
+      } else if (task.description) {
+        initialPrompt = [{ type: "text", text: task.description }];
+      }
 
-      if (!initialPrompt) {
+      if (initialPrompt.length === 0) {
         this.logger.warn("Task has no description, skipping initial message");
         return;
       }
 
       this.logger.info("Sending initial task message", {
         taskId: payload.task_id,
-        descriptionLength: initialPrompt.length,
+        descriptionLength: promptBlocksToText(initialPrompt).length,
         usedInitialPromptOverride: !!initialPromptOverride,
+        usedPendingUserMessage: !!pendingUserPrompt?.length,
       });
 
       this.session.logWriter.resetTurnMessages(payload.run_id);
 
       const result = await this.session.clientConnection.prompt({
         sessionId: this.session.acpSessionId,
-        prompt: [{ type: "text", text: initialPrompt }],
+        prompt: initialPrompt,
       });
 
       this.logger.info("Initial task message completed", {
         stopReason: result.stopReason,
       });
+
+      if (result.stopReason === "end_turn") {
+        void this.syncCloudBranchMetadata(payload);
+      }
 
       this.broadcastTurnComplete(result.stopReason);
 
@@ -886,38 +1047,49 @@ export class AgentServer {
         this.resumeState.conversation,
       );
 
-      // Read the pending user message from TaskRun state (set by the workflow
+      // Read the pending user prompt from TaskRun state (set by the workflow
       // when the user sends a follow-up message that triggers a resume).
-      const pendingUserMessage = this.getPendingUserMessage(taskRun);
+      const pendingUserPrompt = this.getPendingUserPrompt(taskRun);
 
       const sandboxContext = this.resumeState.snapshotApplied
         ? `The workspace environment (all files, packages, and code changes) has been fully restored from where you left off.`
         : `The workspace files from the previous session were not restored (the file snapshot may have expired), so you are starting with a fresh environment. Your conversation history is fully preserved below.`;
 
-      let resumePrompt: string;
-      if (pendingUserMessage) {
-        // Include the pending message as the user's new question so the agent
-        // responds to it directly instead of the generic resume context.
-        resumePrompt =
-          `You are resuming a previous conversation. ${sandboxContext}\n\n` +
-          `Here is the conversation history from the previous session:\n\n` +
-          `${conversationSummary}\n\n` +
-          `The user has sent a new message:\n\n` +
-          `${pendingUserMessage}\n\n` +
-          `Respond to the user's new message above. You have full context from the previous session.`;
+      let resumePromptBlocks: ContentBlock[];
+      if (pendingUserPrompt?.length) {
+        resumePromptBlocks = [
+          {
+            type: "text",
+            text:
+              `You are resuming a previous conversation. ${sandboxContext}\n\n` +
+              `Here is the conversation history from the previous session:\n\n` +
+              `${conversationSummary}\n\n` +
+              `The user has sent a new message:\n\n`,
+          },
+          ...pendingUserPrompt,
+          {
+            type: "text",
+            text: "\n\nRespond to the user's new message above. You have full context from the previous session.",
+          },
+        ];
       } else {
-        resumePrompt =
-          `You are resuming a previous conversation. ${sandboxContext}\n\n` +
-          `Here is the conversation history from the previous session:\n\n` +
-          `${conversationSummary}\n\n` +
-          `Continue from where you left off. The user is waiting for your response.`;
+        resumePromptBlocks = [
+          {
+            type: "text",
+            text:
+              `You are resuming a previous conversation. ${sandboxContext}\n\n` +
+              `Here is the conversation history from the previous session:\n\n` +
+              `${conversationSummary}\n\n` +
+              `Continue from where you left off. The user is waiting for your response.`,
+          },
+        ];
       }
 
       this.logger.info("Sending resume message", {
         taskId: payload.task_id,
         conversationTurns: this.resumeState.conversation.length,
-        promptLength: resumePrompt.length,
-        hasPendingUserMessage: !!pendingUserMessage,
+        promptLength: promptBlocksToText(resumePromptBlocks).length,
+        hasPendingUserMessage: !!pendingUserPrompt?.length,
         snapshotApplied: this.resumeState.snapshotApplied,
       });
 
@@ -928,12 +1100,16 @@ export class AgentServer {
 
       const result = await this.session.clientConnection.prompt({
         sessionId: this.session.acpSessionId,
-        prompt: [{ type: "text", text: resumePrompt }],
+        prompt: resumePromptBlocks,
       });
 
       this.logger.info("Resume message completed", {
         stopReason: result.stopReason,
       });
+
+      if (result.stopReason === "end_turn") {
+        void this.syncCloudBranchMetadata(payload);
+      }
 
       this.broadcastTurnComplete(result.stopReason);
 
@@ -1013,7 +1189,7 @@ export class AgentServer {
     return trimmed.length > 0 ? trimmed : null;
   }
 
-  private getPendingUserMessage(taskRun: TaskRun | null): string | null {
+  private getPendingUserPrompt(taskRun: TaskRun | null): ContentBlock[] | null {
     if (!taskRun) return null;
     const state = taskRun.state as Record<string, unknown> | undefined;
     const message = state?.pending_user_message;
@@ -1021,8 +1197,8 @@ export class AgentServer {
       return null;
     }
 
-    const trimmed = message.trim();
-    return trimmed.length > 0 ? trimmed : null;
+    const prompt = deserializeCloudPrompt(message);
+    return prompt.length > 0 ? prompt : null;
   }
 
   private getResumeRunId(taskRun: TaskRun | null): string | null {
@@ -1061,13 +1237,61 @@ export class AgentServer {
     return { append: cloudAppend };
   }
 
+  private buildCodexInstructions(
+    systemPrompt: string | { append: string },
+  ): string {
+    return typeof systemPrompt === "string"
+      ? systemPrompt
+      : systemPrompt.append;
+  }
+
+  private getCloudInteractionOrigin(): string | undefined {
+    return (
+      process.env.POSTHOG_CODE_INTERACTION_ORIGIN ??
+      process.env.CODE_INTERACTION_ORIGIN ??
+      process.env.TWIG_INTERACTION_ORIGIN
+    );
+  }
+
+  /**
+   * Slack-origin cloud runs auto-publish by default. Every other origin is
+   * review-first unless the user explicitly asks, and createPr=false always
+   * disables publishing.
+   */
+  private shouldAutoPublishCloudChanges(): boolean {
+    return (
+      this.getCloudInteractionOrigin() === "slack" &&
+      this.config.createPr !== false
+    );
+  }
+
+  private buildDetectedPrContext(prUrl: string): string {
+    if (!this.shouldAutoPublishCloudChanges()) {
+      return (
+        `An open pull request already exists: ${prUrl}\n` +
+        `Use that PR as context if it is helpful, but stop with local changes ready for review.\n` +
+        `Do NOT create commits, push to the PR branch, update the pull request, create a new branch, or create a new pull request unless the user explicitly asks.`
+      );
+    }
+
+    return (
+      `IMPORTANT — OVERRIDE PREVIOUS INSTRUCTIONS ABOUT CREATING BRANCHES/PRs.\n` +
+      `You already have an open pull request: ${prUrl}\n` +
+      `You MUST:\n` +
+      `1. Check out the existing PR branch with \`gh pr checkout ${prUrl}\`\n` +
+      `2. Make changes, commit, and push to that branch\n` +
+      `You MUST NOT create a new branch, close the existing PR, or create a new PR.`
+    );
+  }
+
   private buildCloudSystemPrompt(prUrl?: string | null): string {
     const taskId = this.config.taskId;
+    const shouldAutoCreatePr = this.shouldAutoPublishCloudChanges();
     const attributionInstructions = `
 ## Attribution
 Do NOT use Claude Code's default attribution (no "Co-Authored-By" trailers, no "Generated with [Claude Code]" lines).
 
-Instead, add the following trailers to EVERY commit message (after a blank line at the end):
+If you create a commit, add the following trailers to the commit message (after a blank line at the end):
   Generated-By: PostHog Code
   Task-Id: ${taskId}
 
@@ -1083,6 +1307,21 @@ EOF
 \`\`\``;
 
     if (prUrl) {
+      if (!shouldAutoCreatePr) {
+        return `
+# Cloud Task Execution
+
+This task already has an open pull request: ${prUrl}
+
+Do the requested work, but stop with local changes ready for review.
+
+Important:
+- Do NOT create new commits, push to the branch, or update the pull request unless the user explicitly asks.
+- Do NOT create a new branch or a new pull request.
+${attributionInstructions}
+`;
+      }
+
       return `
 # Cloud Task Execution
 
@@ -1120,6 +1359,18 @@ Important:
 `;
     }
 
+    if (!shouldAutoCreatePr) {
+      return `
+# Cloud Task Execution
+
+Do the requested work, but stop with local changes ready for review.
+
+Important:
+- Do NOT create a branch, commit, push, or open a pull request unless the user explicitly asks.
+${attributionInstructions}
+`;
+    }
+
     return `
 # Cloud Task Execution
 
@@ -1137,6 +1388,44 @@ Important:
 - Always create the PR as a draft. Do not ask for confirmation.
 ${attributionInstructions}
 `;
+  }
+
+  private async getCurrentGitBranch(): Promise<string | null> {
+    if (!this.config.repositoryPath) {
+      return null;
+    }
+
+    try {
+      return await getCurrentBranch(this.config.repositoryPath);
+    } catch (error) {
+      this.logger.warn("Failed to determine current git branch", {
+        repositoryPath: this.config.repositoryPath,
+        error,
+      });
+      return null;
+    }
+  }
+
+  private async syncCloudBranchMetadata(payload: JwtPayload): Promise<void> {
+    const branchName = await this.getCurrentGitBranch();
+    if (!branchName || branchName === this.lastReportedBranch) {
+      return;
+    }
+
+    try {
+      await this.posthogAPI.updateTaskRun(payload.task_id, payload.run_id, {
+        branch: branchName,
+        output: { head_branch: branchName },
+      });
+      this.lastReportedBranch = branchName;
+    } catch (error) {
+      this.logger.warn("Failed to attach current branch to task run", {
+        taskId: payload.task_id,
+        runId: payload.run_id,
+        branchName,
+        error,
+      });
+    }
   }
 
   private async signalTaskComplete(
@@ -1206,25 +1495,68 @@ ${attributionInstructions}
     });
   }
 
+  private buildSlackQuestionRelayResponse(
+    payload: JwtPayload,
+    toolMeta: Record<string, unknown> | null | undefined,
+  ): RequestPermissionResponse {
+    this.relaySlackQuestion(payload, toolMeta);
+    return {
+      outcome: { outcome: "cancelled" as const },
+      _meta: {
+        message:
+          "This question has been relayed to the Slack thread where this task originated. " +
+          "The user will reply there. Do NOT re-ask the question or pick an answer yourself. " +
+          "Simply let the user know you are waiting for their reply.",
+      },
+    };
+  }
+
+  private shouldBlockPublishPermission(
+    params: RequestPermissionRequest,
+  ): boolean {
+    if (this.config.createPr !== false) {
+      return false;
+    }
+
+    const meta =
+      params.toolCall?._meta &&
+      typeof params.toolCall._meta === "object" &&
+      !Array.isArray(params.toolCall._meta)
+        ? (params.toolCall._meta as Record<string, unknown>)
+        : null;
+    const rawInput =
+      params.toolCall?.rawInput &&
+      typeof params.toolCall.rawInput === "object" &&
+      !Array.isArray(params.toolCall.rawInput)
+        ? (params.toolCall.rawInput as Record<string, unknown>)
+        : null;
+    const toolName = typeof meta?.toolName === "string" ? meta.toolName : null;
+    const command =
+      typeof rawInput?.command === "string" ? rawInput.command : null;
+
+    return Boolean(
+      toolName &&
+        (toolName === "Bash" || toolName.includes("bash")) &&
+        command &&
+        /\bgit\s+push\b|\bgh\s+pr\s+(create|edit|ready|merge)\b/.test(command),
+    );
+  }
+
   private createCloudClient(payload: JwtPayload) {
     const mode = this.getEffectiveMode(payload);
     const interactionOrigin =
+      process.env.POSTHOG_CODE_INTERACTION_ORIGIN ??
       process.env.CODE_INTERACTION_ORIGIN ??
       process.env.TWIG_INTERACTION_ORIGIN;
 
     return {
-      requestPermission: async (params: {
-        options: Array<{ kind: string; optionId: string; name?: string }>;
-        toolCall?: {
-          _meta?: Record<string, unknown> | null;
-        };
-      }) => {
-        // Background mode: always auto-approve permissions
-        // Interactive mode: also auto-approve for now (user can monitor via SSE)
-        // Future: interactive mode could pause and wait for user approval via SSE
+      requestPermission: async (
+        params: RequestPermissionRequest,
+      ): Promise<RequestPermissionResponse> => {
         this.logger.debug("Permission request", {
           mode,
           interactionOrigin,
+          kind: params.toolCall?.kind,
           options: params.options,
         });
 
@@ -1234,20 +1566,48 @@ ${attributionInstructions}
         const selectedOptionId =
           allowOption?.optionId ?? params.options[0].optionId;
 
+        const codeToolKind = params.toolCall?._meta?.codeToolKind;
+        const isPlanApproval = params.toolCall?.kind === "switch_mode";
+
+        // Relay questions to Slack when interaction originated there
         if (interactionOrigin === "slack") {
-          const codeToolKind = params.toolCall?._meta?.codeToolKind;
           if (codeToolKind === "question") {
-            this.relaySlackQuestion(payload, params.toolCall?._meta);
-            return {
-              outcome: { outcome: "cancelled" as const },
-              _meta: {
-                message:
-                  "This question has been relayed to the Slack thread where this task originated. " +
-                  "The user will reply there. Do NOT re-ask the question or pick an answer yourself. " +
-                  "Simply let the user know you are waiting for their reply.",
-              },
-            };
+            return this.buildSlackQuestionRelayResponse(
+              payload,
+              params.toolCall?._meta,
+            );
           }
+        }
+
+        // Relay permission requests to the desktop app when:
+        // - Questions: always relay (need human answers regardless of mode)
+        // - Plan approvals: always relay
+        // - Edit/bash in "default" mode: relay for manual approval
+        // Other modes auto-approve. No client connected → auto-approve.
+        {
+          const isQuestion = codeToolKind === "question";
+          const sessionPermissionMode = this.getSessionPermissionMode();
+          const needsRelay =
+            isQuestion || isPlanApproval || sessionPermissionMode === "default";
+
+          if (needsRelay && this.session?.hasDesktopConnected) {
+            this.logger.info("Relaying permission to connected client", {
+              kind: params.toolCall?.kind,
+              isQuestion,
+              sessionPermissionMode,
+            });
+            return this.relayPermissionToClient(params);
+          }
+        }
+
+        if (this.shouldBlockPublishPermission(params)) {
+          return {
+            outcome: { outcome: "cancelled" },
+            _meta: {
+              message:
+                "This run is configured to stop before publishing. Do not push commits or create/update pull requests unless the user explicitly asks.",
+            },
+          };
         }
 
         return {
@@ -1267,6 +1627,19 @@ ${attributionInstructions}
         sessionId: string;
         update?: Record<string, unknown>;
       }) => {
+        // Track permission mode changes for relay decisions
+        if (
+          params.update?.sessionUpdate === "current_mode_update" &&
+          typeof params.update?.currentModeId === "string" &&
+          this.session
+        ) {
+          this.session.permissionMode = params.update
+            .currentModeId as CodeExecutionMode;
+          this.logger.info("Permission mode updated", {
+            mode: params.update.currentModeId,
+          });
+        }
+
         // session/update notifications flow through the tapped stream (like local transport)
         // Only handle tree state capture for file changes here
         if (params.update?.sessionUpdate === "tool_call_update") {
@@ -1516,6 +1889,16 @@ ${attributionInstructions}
       this.logger.error("Failed to flush session logs", error);
     }
 
+    // Drain pending permissions before ACP cleanup to avoid deadlocks —
+    // cleanup may await operations that are blocked on a permission response.
+    for (const [, pending] of this.pendingPermissions) {
+      pending.resolve({
+        outcome: { outcome: "selected", optionId: "reject" },
+        _meta: { customInput: "Session is shutting down." },
+      });
+    }
+    this.pendingPermissions.clear();
+
     try {
       await this.session.acpConnection.cleanup();
     } catch (error) {
@@ -1527,6 +1910,7 @@ ${attributionInstructions}
     }
 
     this.pendingEvents = [];
+    this.lastReportedBranch = null;
     this.session = null;
   }
 
@@ -1607,5 +1991,56 @@ ${attributionInstructions}
     } catch {
       this.detachSseController(controller);
     }
+  }
+
+  /**
+   * Relay a permission request (e.g., plan approval) to the connected desktop
+   * app via SSE and wait for a response via the `/command` endpoint.
+   *
+   * The promise waits indefinitely — if SSE is disconnected, the event is
+   * buffered by broadcastEvent and replayed when the client reconnects. Session
+   * cleanup force-resolves all pending permissions, so there is no leak.
+   */
+  private relayPermissionToClient(params: {
+    options: Array<{ kind: string; optionId: string; name?: string }>;
+    toolCall?: Record<string, unknown> | null;
+  }): Promise<{
+    outcome: { outcome: "selected"; optionId: string };
+    _meta?: Record<string, unknown>;
+  }> {
+    const requestId = crypto.randomUUID();
+
+    this.broadcastEvent({
+      type: "permission_request",
+      requestId,
+      options: params.options,
+      toolCall: params.toolCall,
+    });
+
+    return new Promise((resolve) => {
+      this.pendingPermissions.set(requestId, { resolve });
+    });
+  }
+
+  private resolvePermission(
+    requestId: string,
+    optionId: string,
+    customInput?: string,
+    answers?: Record<string, string>,
+  ): boolean {
+    const pending = this.pendingPermissions.get(requestId);
+    if (!pending) return false;
+
+    this.pendingPermissions.delete(requestId);
+
+    const meta: Record<string, unknown> = {};
+    if (customInput) meta.customInput = customInput;
+    if (answers) meta.answers = answers;
+
+    pending.resolve({
+      outcome: { outcome: "selected" as const, optionId },
+      ...(Object.keys(meta).length > 0 ? { _meta: meta } : {}),
+    });
+    return true;
   }
 }

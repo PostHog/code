@@ -44,6 +44,7 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { v7 as uuidv7 } from "uuid";
 import packageJson from "../../../package.json" with { type: "json" };
+import { POSTHOG_NOTIFICATIONS } from "../../acp-extensions";
 import { unreachable, withTimeout } from "../../utils/common";
 import { Logger } from "../../utils/logger";
 import { Pushable } from "../../utils/streams";
@@ -108,6 +109,7 @@ export interface ClaudeAcpAgentOptions {
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
   onProcessExited?: (pid: number) => void;
   onMcpServersReady?: (serverNames: string[]) => void;
+  onStructuredOutput?: (output: Record<string, unknown>) => Promise<void>;
 }
 
 export class ClaudeAcpAgent extends BaseAcpAgent {
@@ -370,8 +372,18 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         switch (message.type) {
           case "system":
             if (message.subtype === "compact_boundary") {
+              // Send used:0 immediately so the client doesn't keep showing
+              // the stale pre-compaction context size until the next turn.
               lastAssistantTotalUsage = 0;
               promptReplayed = true;
+              await this.client.sessionUpdate({
+                sessionId: params.sessionId,
+                update: {
+                  sessionUpdate: "usage_update",
+                  used: 0,
+                  size: lastContextWindowSize,
+                },
+              });
             }
             if (message.subtype === "local_command_output") {
               promptReplayed = true;
@@ -442,16 +454,19 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
               });
             }
 
-            await this.client.extNotification("_posthog/usage_update", {
-              sessionId: params.sessionId,
-              used: {
-                inputTokens: message.usage.input_tokens,
-                outputTokens: message.usage.output_tokens,
-                cachedReadTokens: message.usage.cache_read_input_tokens,
-                cachedWriteTokens: message.usage.cache_creation_input_tokens,
+            await this.client.extNotification(
+              POSTHOG_NOTIFICATIONS.USAGE_UPDATE,
+              {
+                sessionId: params.sessionId,
+                used: {
+                  inputTokens: message.usage.input_tokens,
+                  outputTokens: message.usage.output_tokens,
+                  cachedReadTokens: message.usage.cache_read_input_tokens,
+                  cachedWriteTokens: message.usage.cache_creation_input_tokens,
+                },
+                cost: message.total_cost_usd,
               },
-              cost: message.total_cost_usd,
-            });
+            );
 
             const usage: Usage = {
               inputTokens: this.session.accumulatedUsage.inputTokens,
@@ -468,6 +483,17 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
             const result = handleResultMessage(message);
             if (result.error) throw result.error;
+
+            // Deliver structured output from SDK's native outputFormat
+            if (
+              message.subtype === "success" &&
+              message.structured_output != null &&
+              this.options?.onStructuredOutput
+            ) {
+              await this.options.onStructuredOutput(
+                message.structured_output as Record<string, unknown>,
+              );
+            }
 
             // For local-only commands, forward the result text to the client
             if (
@@ -526,6 +552,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
             }
 
             // Store latest assistant usage (excluding subagents)
+            // Sum all token types as a proxy for post-turn context occupancy:
+            // current turn's output will become next turn's input.
+            // Note: per the Anthropic API, input_tokens excludes cache tokens —
+            // cache_read and cache_creation are reported separately, so summing
+            // all four fields is not double-counting.
             if (
               "usage" in message.message &&
               message.parent_tool_use_id === null
@@ -540,6 +571,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
               };
               lastAssistantTotalUsage =
                 usage.input_tokens +
+                usage.output_tokens +
                 usage.cache_read_input_tokens +
                 usage.cache_creation_input_tokens;
 
@@ -805,6 +837,12 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       : {};
     const systemPrompt = buildSystemPrompt(meta?.systemPrompt);
 
+    // Configure structured output via SDK's native outputFormat
+    const outputFormat =
+      meta?.jsonSchema && this.options?.onStructuredOutput
+        ? { type: "json_schema" as const, schema: meta.jsonSchema }
+        : undefined;
+
     this.logger.info(isResume ? "Resuming session" : "Creating new session", {
       sessionId,
       taskId,
@@ -834,6 +872,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         ...(meta?.additionalRoots ?? []),
       ],
       disableBuiltInTools: meta?.disableBuiltInTools,
+      outputFormat,
       settingsManager,
       onModeChange: this.createOnModeChange(),
       onProcessSpawned: this.options?.onProcessSpawned,
@@ -927,7 +966,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       ),
       ...(meta?.taskRunId
         ? [
-            this.client.extNotification("_posthog/sdk_session", {
+            this.client.extNotification(POSTHOG_NOTIFICATIONS.SDK_SESSION, {
               taskRunId: meta.taskRunId,
               sessionId,
               adapter: "claude",

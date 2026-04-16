@@ -5,9 +5,6 @@ import { ChangesPanel } from "@features/task-detail/components/ChangesPanel";
 import { FileTreePanel } from "@features/task-detail/components/FileTreePanel";
 import { TaskLogsPanel } from "@features/task-detail/components/TaskLogsPanel";
 import { TaskShellPanel } from "@features/task-detail/components/TaskShellPanel";
-import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
-import { CloudReviewPage } from "@renderer/features/code-review/components/CloudReviewPage";
-import { ReviewPage } from "@renderer/features/code-review/components/ReviewPage";
 import type { Task } from "@shared/types";
 
 interface TabContentRendererProps {
@@ -21,7 +18,6 @@ export function TabContentRenderer({
   taskId,
   task,
 }: TabContentRendererProps) {
-  const workspace = useWorkspace(taskId);
   const { data } = tab;
 
   switch (data.type) {
@@ -41,16 +37,6 @@ export function TabContentRenderer({
           absolutePath={data.absolutePath}
         />
       );
-
-    case "review": {
-      const isCloud =
-        workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
-      return isCloud ? (
-        <CloudReviewPage taskId={taskId} task={task} />
-      ) : (
-        <ReviewPage taskId={taskId} />
-      );
-    }
 
     case "action":
       return (

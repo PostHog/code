@@ -172,13 +172,13 @@ describe("Question relay", () => {
       { kind: "allow_once", optionId: "allow", name: "Allow" },
     ];
 
-    describe("with CODE_INTERACTION_ORIGIN=slack", () => {
+    describe("with POSTHOG_CODE_INTERACTION_ORIGIN=slack", () => {
       beforeEach(() => {
-        process.env.CODE_INTERACTION_ORIGIN = "slack";
+        process.env.POSTHOG_CODE_INTERACTION_ORIGIN = "slack";
       });
 
       afterEach(() => {
-        delete process.env.CODE_INTERACTION_ORIGIN;
+        delete process.env.POSTHOG_CODE_INTERACTION_ORIGIN;
       });
 
       it("returns cancelled with relay message for question tool", async () => {
@@ -220,9 +220,9 @@ describe("Question relay", () => {
       });
     });
 
-    describe("without CODE_INTERACTION_ORIGIN", () => {
+    describe("without POSTHOG_CODE_INTERACTION_ORIGIN", () => {
       beforeEach(() => {
-        delete process.env.CODE_INTERACTION_ORIGIN;
+        delete process.env.POSTHOG_CODE_INTERACTION_ORIGIN;
       });
 
       it("auto-approves question tools (no Slack relay)", async () => {
@@ -301,6 +301,35 @@ describe("Question relay", () => {
         expect(appendRawLine).toHaveBeenCalledTimes(2);
       });
     });
+
+    describe("with createPr disabled", () => {
+      it("cancels publish commands", async () => {
+        server = new AgentServer({
+          port,
+          jwtPublicKey: "unused-in-unit-tests",
+          repositoryPath: repo.path,
+          apiUrl: "http://localhost:8000",
+          apiKey: "test-api-key",
+          projectId: 1,
+          mode: "interactive",
+          taskId: "test-task-id",
+          runId: "test-run-id",
+          createPr: false,
+        }) as unknown as TestableAgentServer;
+
+        const client = server.createCloudClient(TEST_PAYLOAD);
+        const result = await client.requestPermission({
+          options: ALLOW_OPTIONS,
+          toolCall: {
+            rawInput: { command: "git push origin my-branch" },
+            _meta: { toolName: "Bash" },
+          },
+        });
+
+        expect(result.outcome.outcome).toBe("cancelled");
+        expect(result._meta?.message).toContain("stop before publishing");
+      });
+    });
   });
 
   describe("relayAgentResponse duplicate suppression", () => {
@@ -371,6 +400,53 @@ describe("Question relay", () => {
   });
 
   describe("sendInitialTaskMessage prompt source", () => {
+    it("uses pending user prompt blocks when present", async () => {
+      vi.spyOn(server.posthogAPI, "getTask").mockResolvedValue({
+        id: "test-task-id",
+        title: "t",
+        description: "original task description",
+      } as unknown as Task);
+      vi.spyOn(server.posthogAPI, "getTaskRun").mockResolvedValue({
+        id: "test-run-id",
+        task: "test-task-id",
+        state: {
+          pending_user_message:
+            '__twig_cloud_prompt_v1__:{"blocks":[{"type":"text","text":"read this attachment"},{"type":"resource","resource":{"uri":"attachment://test.txt","text":"hello from file","mimeType":"text/plain"}}]}',
+        },
+      } as unknown as TaskRun);
+
+      const promptSpy = vi.fn().mockResolvedValue({ stopReason: "max_tokens" });
+      server.session = {
+        payload: TEST_PAYLOAD,
+        acpSessionId: "acp-session",
+        clientConnection: { prompt: promptSpy },
+        logWriter: {
+          flushAll: vi.fn().mockResolvedValue(undefined),
+          getFullAgentResponse: vi.fn().mockReturnValue(null),
+          resetTurnMessages: vi.fn(),
+          flush: vi.fn().mockResolvedValue(undefined),
+          isRegistered: vi.fn().mockReturnValue(true),
+        },
+      };
+
+      await server.sendInitialTaskMessage(TEST_PAYLOAD);
+
+      expect(promptSpy).toHaveBeenCalledWith({
+        sessionId: "acp-session",
+        prompt: [
+          { type: "text", text: "read this attachment" },
+          {
+            type: "resource",
+            resource: {
+              uri: "attachment://test.txt",
+              text: "hello from file",
+              mimeType: "text/plain",
+            },
+          },
+        ],
+      });
+    });
+
     it("uses run state initial_prompt_override when present", async () => {
       vi.spyOn(server.posthogAPI, "getTask").mockResolvedValue({
         id: "test-task-id",

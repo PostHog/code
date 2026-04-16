@@ -50,6 +50,7 @@ export const startSessionInput = z.object({
   customInstructions: z.string().max(2000).optional(),
   effort: effortLevelSchema.optional(),
   model: z.string().optional(),
+  jsonSchema: z.record(z.string(), z.unknown()).nullish(),
 });
 
 export type StartSessionInput = z.infer<typeof startSessionInput>;
@@ -173,6 +174,7 @@ export const reconnectSessionInput = z.object({
   permissionMode: z.string().optional(),
   customInstructions: z.string().max(2000).optional(),
   effort: effortLevelSchema.optional(),
+  jsonSchema: z.record(z.string(), z.unknown()).nullish(),
 });
 
 export type ReconnectSessionInput = z.infer<typeof reconnectSessionInput>;

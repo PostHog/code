@@ -82,6 +82,8 @@ export default defineConfig([
       "src/adapters/claude/conversion/tool-use-to-acp.ts",
       "src/adapters/claude/session/jsonl-hydration.ts",
       "src/adapters/claude/session/models.ts",
+      "src/adapters/codex/models.ts",
+      "src/adapters/reasoning-effort.ts",
       "src/execution-mode.ts",
       "src/server/agent-server.ts",
     ],

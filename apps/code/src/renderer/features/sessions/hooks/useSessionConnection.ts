@@ -1,6 +1,7 @@
-import { useTaskViewed } from "@features/sidebar/hooks/useTaskViewed";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { trpcClient } from "@renderer/trpc/client";
+import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type { Task } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
@@ -12,6 +13,7 @@ import { useChatTitleGenerator } from "./useChatTitleGenerator";
 const log = logger.scope("session-connection");
 
 const connectingTasks = new Set<string>();
+const activityRecorded = new Set<string>();
 
 interface UseSessionConnectionOptions {
   taskId: string;
@@ -31,22 +33,28 @@ export function useSessionConnection({
   isSuspended,
 }: UseSessionConnectionOptions) {
   const queryClient = useQueryClient();
-  const { markActivity } = useTaskViewed();
   const { isOnline } = useConnectivity();
+  const cloudAuthState = useAuthStateValue((state) => state);
 
   useChatTitleGenerator(taskId);
 
   useEffect(() => {
     const taskRunId = session?.taskRunId;
     if (!taskRunId) return;
-    trpcClient.agent.recordActivity.mutate({ taskRunId }).catch(() => {});
+    if (!activityRecorded.has(taskRunId)) {
+      activityRecorded.add(taskRunId);
+      trpcClient.agent.recordActivity.mutate({ taskRunId }).catch(() => {});
+    }
     const heartbeat = setInterval(
       () => {
         trpcClient.agent.recordActivity.mutate({ taskRunId }).catch(() => {});
       },
       5 * 60 * 1000,
     );
-    return () => clearInterval(heartbeat);
+    return () => {
+      clearInterval(heartbeat);
+      activityRecorded.delete(taskRunId);
+    };
   }, [session?.taskRunId]);
 
   useEffect(() => {
@@ -59,17 +67,39 @@ export function useSessionConnection({
 
   useEffect(() => {
     if (!isCloud || !task.latest_run?.id) return;
+    if (cloudAuthState.status !== "authenticated") return;
+    if (!cloudAuthState.bootstrapComplete) return;
+    if (!cloudAuthState.projectId || !cloudAuthState.cloudRegion) return;
+
     const runId = task.latest_run.id;
+    const initialMode =
+      typeof task.latest_run.state?.initial_permission_mode === "string"
+        ? task.latest_run.state.initial_permission_mode
+        : undefined;
     const cleanup = getSessionService().watchCloudTask(
       task.id,
       runId,
+      getCloudUrlFromRegion(cloudAuthState.cloudRegion),
+      cloudAuthState.projectId,
       () => {
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
       },
-      true,
+      task.latest_run?.log_url,
+      initialMode,
     );
     return cleanup;
-  }, [isCloud, task.id, task.latest_run?.id, queryClient]);
+  }, [
+    cloudAuthState.bootstrapComplete,
+    cloudAuthState.cloudRegion,
+    cloudAuthState.projectId,
+    cloudAuthState.status,
+    isCloud,
+    queryClient,
+    task.id,
+    task.latest_run?.id,
+    task.latest_run?.log_url,
+    task.latest_run?.state?.initial_permission_mode,
+  ]);
 
   useEffect(() => {
     if (!repoPath) return;
@@ -98,8 +128,6 @@ export function useSessionConnection({
       sessionStatus: session?.status ?? "none",
     });
 
-    markActivity(task.id);
-
     getSessionService()
       .connectToTask({
         task,
@@ -112,16 +140,7 @@ export function useSessionConnection({
     return () => {
       connectingTasks.delete(taskId);
     };
-  }, [
-    task,
-    taskId,
-    repoPath,
-    session,
-    markActivity,
-    isOnline,
-    isCloud,
-    isSuspended,
-  ]);
+  }, [task, taskId, repoPath, session, isOnline, isCloud, isSuspended]);
 
   const cannotConnect = !repoPath && !isCloud;
   useEffect(() => {

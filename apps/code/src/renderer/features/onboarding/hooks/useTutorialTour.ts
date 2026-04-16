@@ -75,6 +75,10 @@ export function useTutorialTour() {
       zendesk:
         configs?.some((c) => c.source_product === "zendesk" && c.enabled) ??
         false,
+      conversations:
+        configs?.some(
+          (c) => c.source_product === "conversations" && c.enabled,
+        ) ?? false,
       error_tracking:
         configs?.some(
           (c) => c.source_product === "error_tracking" && c.enabled,

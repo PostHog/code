@@ -24,6 +24,7 @@ const SOURCE_TYPE_MAP: Record<
   github: "issue",
   linear: "issue",
   zendesk: "ticket",
+  conversations: "ticket",
 };
 
 const ERROR_TRACKING_SOURCE_TYPES: SourceType[] = [
@@ -38,6 +39,7 @@ const SOURCE_LABELS: Record<keyof SignalSourceValues, string> = {
   github: "GitHub Issues",
   linear: "Linear Issues",
   zendesk: "Zendesk Tickets",
+  conversations: "PostHog Conversations",
 };
 
 const DATA_WAREHOUSE_SOURCES: Record<
@@ -55,6 +57,7 @@ const ALL_SOURCE_PRODUCTS: (keyof SignalSourceValues)[] = [
   "github",
   "linear",
   "zendesk",
+  "conversations",
 ];
 
 function computeValues(
@@ -66,6 +69,7 @@ function computeValues(
     github: false,
     linear: false,
     zendesk: false,
+    conversations: false,
   };
   if (!configs?.length) return result;
   for (const product of ALL_SOURCE_PRODUCTS) {
@@ -129,6 +133,15 @@ export function useSignalSourceManager() {
     () => computeValues(configs),
     [configs],
   );
+
+  const sessionAnalysisStatus = useMemo(() => {
+    const config = configs?.find(
+      (c) =>
+        c.source_product === "session_replay" &&
+        c.source_type === "session_analysis_cluster",
+    );
+    return config?.status ?? null;
+  }, [configs]);
 
   // Merge: optimistic overrides take precedence over server values.
   const displayValues = useMemo<SignalSourceValues>(() => {
@@ -396,6 +409,7 @@ export function useSignalSourceManager() {
   return {
     displayValues,
     sourceStates,
+    sessionAnalysisStatus,
     setupSource,
     isLoading,
     handleToggle,

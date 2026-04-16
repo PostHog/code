@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
+  "id": "b530fcd1-77cc-4df0-ad3c-148ee9d5c46b",
   "prevId": "c5ddb764-2a46-47c0-82b7-59658c60d306",
   "tables": {
     "archives": {
@@ -370,8 +370,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "label": {
-          "name": "label",
+        "linked_branch": {
+          "name": "linked_branch",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -416,10 +416,10 @@
         }
       },
       "indexes": {
-        "workspaces_task_id_idx": {
-          "name": "workspaces_task_id_idx",
+        "workspaces_taskId_unique": {
+          "name": "workspaces_taskId_unique",
           "columns": ["task_id"],
-          "isUnique": false
+          "isUnique": true
         },
         "workspaces_repository_id_idx": {
           "name": "workspaces_repository_id_idx",

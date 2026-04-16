@@ -6,16 +6,21 @@ import {
   INBOX_REFETCH_INTERVAL_MS,
 } from "@features/inbox/utils/inboxConstants";
 import { getSessionService } from "@features/sessions/service/service";
-import { useArchiveTask } from "@features/tasks/hooks/useArchiveTask";
+import {
+  archiveTaskImperative,
+  useArchiveTask,
+} from "@features/tasks/hooks/useArchiveTask";
 import { useTasks, useUpdateTask } from "@features/tasks/hooks/useTasks";
 import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
 import { useTaskContextMenu } from "@hooks/useTaskContextMenu";
+import { ScrollArea, Separator } from "@posthog/quill";
 import { Box, Flex } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useRendererWindowFocusStore } from "@stores/rendererWindowFocusStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
+import { toast } from "@utils/toast";
 import { memo, useCallback, useEffect, useRef } from "react";
 import { usePinnedTasks } from "../hooks/usePinnedTasks";
 import { useSidebarData } from "../hooks/useSidebarData";
@@ -60,12 +65,21 @@ function SidebarMenuComponent() {
   );
   const inboxResults = inboxProbe?.results ?? [];
   const inboxSignalCount = inboxResults.filter(
-    (r) => r.status === "ready",
+    (r) =>
+      r.status === "ready" &&
+      r.is_suggested_reviewer &&
+      r.actionability === "immediately_actionable",
   ).length;
 
+  const taskMap = new Map<string, Task>();
+  for (const task of allTasks) {
+    taskMap.set(task.id, task);
+  }
+
   const commandCenterCells = useCommandCenterStore((s) => s.cells);
+  const assignTaskToCommandCenter = useCommandCenterStore((s) => s.assignTask);
   const commandCenterActiveCount = commandCenterCells.filter(
-    (taskId) => taskId != null,
+    (taskId) => taskId != null && taskMap.has(taskId),
   ).length;
 
   const previousTaskIdRef = useRef<string | null>(null);
@@ -87,11 +101,6 @@ function SidebarMenuComponent() {
 
     previousTaskIdRef.current = currentTaskId;
   }, [view, markAsViewed]);
-
-  const taskMap = new Map<string, Task>();
-  for (const task of allTasks) {
-    taskMap.set(task.id, task);
-  }
 
   const handleNewTaskClick = () => {
     navigateToTaskInput();
@@ -116,6 +125,11 @@ function SidebarMenuComponent() {
     }
   };
 
+  const allSidebarTasks = [
+    ...sidebarData.pinnedTasks,
+    ...sidebarData.flatTasks,
+  ];
+
   const handleTaskContextMenu = (
     taskId: string,
     e: React.MouseEvent,
@@ -124,11 +138,33 @@ function SidebarMenuComponent() {
     const task = taskMap.get(taskId);
     if (task) {
       const workspace = workspaces[taskId];
-      const effectivePath = workspace?.worktreePath ?? workspace?.folderPath;
+      const taskData = allSidebarTasks.find((t) => t.id === taskId);
+      const isInCommandCenter = commandCenterCells.some(
+        (id) => id === taskId && taskMap.has(id),
+      );
+      const hasEmptyCommandCenterCell = commandCenterCells.some(
+        (id) => id == null || !taskMap.has(id),
+      );
+
       showContextMenu(task, e, {
-        worktreePath: effectivePath ?? undefined,
+        worktreePath: workspace?.worktreePath ?? undefined,
+        folderPath: workspace?.folderPath ?? undefined,
         isPinned,
+        isSuspended: taskData?.isSuspended,
+        isInCommandCenter,
+        hasEmptyCommandCenterCell,
         onTogglePin: () => togglePin(taskId),
+        onArchivePrior: handleArchivePrior,
+        onAddToCommandCenter: () => {
+          const cells = useCommandCenterStore.getState().cells;
+          const idx = cells.findIndex((id) => id == null || !taskMap.has(id));
+          if (idx !== -1) {
+            assignTaskToCommandCenter(idx, taskId);
+            navigateToCommandCenter();
+          } else {
+            toast.info("Command center is full");
+          }
+        },
       });
     }
   };
@@ -139,6 +175,55 @@ function SidebarMenuComponent() {
 
   const updateTask = useUpdateTask();
   const queryClient = useQueryClient();
+
+  const handleArchivePrior = useCallback(
+    async (taskId: string) => {
+      const allVisible = [...sidebarData.pinnedTasks, ...sidebarData.flatTasks];
+      const clickedTask = allVisible.find((t) => t.id === taskId);
+      if (!clickedTask) return;
+
+      const sortKey = "createdAt" as const;
+      const threshold = clickedTask[sortKey];
+      const priorTaskIds = allVisible
+        .filter((t) => t.id !== taskId && t[sortKey] < threshold)
+        .map((t) => t.id);
+
+      if (priorTaskIds.length === 0) {
+        toast.info("No older tasks to archive");
+        return;
+      }
+
+      const nav = useNavigationStore.getState();
+      const priorSet = new Set(priorTaskIds);
+      if (
+        nav.view.type === "task-detail" &&
+        nav.view.data &&
+        priorSet.has(nav.view.data.id)
+      ) {
+        nav.navigateToTaskInput();
+      }
+
+      let done = 0;
+      let failed = 0;
+      for (const id of priorTaskIds) {
+        try {
+          await archiveTaskImperative(id, queryClient, {
+            skipNavigate: true,
+          });
+          done++;
+        } catch {
+          failed++;
+        }
+      }
+
+      if (failed === 0) {
+        toast.success(`${done} ${done === 1 ? "task" : "tasks"} archived`);
+      } else {
+        toast.error(`${done} archived, ${failed} failed`);
+      }
+    },
+    [sidebarData.pinnedTasks, sidebarData.flatTasks, queryClient],
+  );
   const log = logger.scope("sidebar-menu");
 
   const handleTaskDoubleClick = useCallback(
@@ -186,22 +271,17 @@ function SidebarMenuComponent() {
 
   return (
     <Box height="100%" position="relative">
-      <Box
-        style={{
-          height: "100%",
-          overflowY: "auto",
-          overflowX: "hidden",
-        }}
-      >
-        <Flex direction="column" py="2">
+      <ScrollArea className="h-full overflow-y-auto overflow-x-hidden">
+        <Flex direction="column" py="2" px="2" gap="1px">
           <Box mb="2">
             <NewTaskItem
               isActive={sidebarData.isHomeActive}
               onClick={handleNewTaskClick}
+              variant="primary"
             />
           </Box>
 
-          <Box mb="1">
+          <Box>
             <InboxItem
               isActive={sidebarData.isInboxActive}
               onClick={handleInboxClick}
@@ -209,7 +289,7 @@ function SidebarMenuComponent() {
             />
           </Box>
 
-          <Box mb="1">
+          <Box>
             <SkillsItem
               isActive={sidebarData.isSkillsActive}
               onClick={handleSkillsClick}
@@ -224,11 +304,14 @@ function SidebarMenuComponent() {
             />
           </Box>
 
+          <Separator className="mx-2 my-2" />
+
           {sidebarData.isLoading ? (
             <SidebarItem
               depth={0}
               icon={<DotsCircleSpinner size={12} className="text-gray-10" />}
               label="Loading tasks..."
+              disabled
             />
           ) : (
             <TaskListView
@@ -248,7 +331,7 @@ function SidebarMenuComponent() {
             />
           )}
         </Flex>
-      </Box>
+      </ScrollArea>
     </Box>
   );
 }

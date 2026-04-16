@@ -3,18 +3,23 @@ import type { DragDropEvents } from "@dnd-kit/react";
 import { DragDropProvider } from "@dnd-kit/react";
 import { useFolders } from "@features/folders/hooks/useFolders";
 import {
-  ArrowsClockwise,
-  CalendarPlus,
-  Check,
-  Clock,
   FolderOpenIcon,
   FolderSimple,
   FunnelSimple as FunnelSimpleIcon,
-  User,
-  Users,
 } from "@phosphor-icons/react";
-import { Box, Flex, Popover, Text } from "@radix-ui/themes";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  MenuLabel,
+} from "@posthog/quill";
+import { Flex, Text } from "@radix-ui/themes";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
+import { normalizeRepoKey } from "@shared/utils/repo";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useCallback, useEffect } from "react";
 import type { TaskData, TaskGroup } from "../hooks/useSidebarData";
@@ -51,12 +56,13 @@ function SectionLabel({
   endContent?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between px-2 py-1">
-      <span className="font-medium text-[11px] text-gray-10 uppercase tracking-wide">
-        {label}
-      </span>
-      {endContent}
-    </div>
+    <MenuLabel
+      className="flex items-center justify-between py-0 pr-0"
+      htmlFor="null"
+    >
+      {label}
+      {endContent ? <span>{endContent}</span> : null}
+    </MenuLabel>
   );
 }
 
@@ -128,154 +134,67 @@ function TaskFilterMenu() {
   const setSortMode = useSidebarStore((state) => state.setSortMode);
   const setShowAllUsers = useSidebarStore((state) => state.setShowAllUsers);
 
-  const itemClassName =
-    "flex w-full items-center justify-between rounded-sm px-1 py-1 text-left text-[13px] text-gray-12 transition-colors hover:bg-gray-3";
-
   return (
-    <Popover.Root>
-      <Popover.Trigger>
-        <button
-          type="button"
-          aria-label="Filter tasks"
-          className="flex h-6 w-6 items-center justify-center rounded-sm text-gray-10 transition-colors hover:bg-gray-3 hover:text-gray-12"
-        >
-          <FunnelSimpleIcon size={14} />
-        </button>
-      </Popover.Trigger>
-      <Popover.Content
-        align="end"
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button type="button" aria-label="Filter tasks" size="icon-sm">
+            <FunnelSimpleIcon size={14} />
+          </Button>
+        }
+      />
+      <DropdownMenuContent
+        align="start"
         side="bottom"
         sideOffset={6}
-        style={{ padding: 8, minWidth: 220 }}
+        className="min-w-xs"
       >
-        <Flex direction="column" gap="1">
-          <Box>
-            <Text
-              size="1"
-              className="text-gray-10"
-              weight="medium"
-              style={{ paddingLeft: "1px" }}
+        <MenuLabel>Organize</MenuLabel>
+        <DropdownMenuRadioGroup
+          value={organizeMode}
+          onValueChange={(value) =>
+            setOrganizeMode(value as typeof organizeMode)
+          }
+        >
+          <DropdownMenuRadioItem value="by-project">
+            By project
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="chronological">
+            Chronological list
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+
+        <DropdownMenuSeparator />
+
+        <MenuLabel>Sort by</MenuLabel>
+        <DropdownMenuRadioGroup
+          value={sortMode}
+          onValueChange={(value) => setSortMode(value as typeof sortMode)}
+        >
+          <DropdownMenuRadioItem value="created">Created</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="updated">Updated</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+
+        {import.meta.env.DEV && (
+          <>
+            <DropdownMenuSeparator />
+
+            <MenuLabel>Show</MenuLabel>
+            <DropdownMenuRadioGroup
+              value={showAllUsers ? "all" : "mine"}
+              onValueChange={(value) => setShowAllUsers(value === "all")}
             >
-              Organize
-            </Text>
-            <Box mt="1">
-              <button
-                type="button"
-                className={itemClassName}
-                onClick={() => setOrganizeMode("by-project")}
-              >
-                <span className="flex items-center gap-1 text-gray-12">
-                  <FolderSimple size={14} className="text-gray-12" />
-                  <span>By project</span>
-                </span>
-                {organizeMode === "by-project" && (
-                  <Check size={12} className="text-gray-12" />
-                )}
-              </button>
-              <button
-                type="button"
-                className={itemClassName}
-                onClick={() => setOrganizeMode("chronological")}
-              >
-                <span className="flex items-center gap-1 text-gray-12">
-                  <Clock size={14} className="text-gray-12" />
-                  <span>Chronological list</span>
-                </span>
-                {organizeMode === "chronological" && (
-                  <Check size={12} className="text-gray-12" />
-                )}
-              </button>
-            </Box>
-          </Box>
-
-          <div className="my-0.25 border-gray-6 border-t" />
-
-          <Box>
-            <Text
-              size="1"
-              className="text-gray-10"
-              weight="medium"
-              style={{ paddingLeft: "1px" }}
-            >
-              Sort by
-            </Text>
-            <Box mt="1">
-              <button
-                type="button"
-                className={itemClassName}
-                onClick={() => setSortMode("created")}
-              >
-                <span className="flex items-center gap-1 text-gray-12">
-                  <CalendarPlus size={14} className="text-gray-12" />
-                  <span>Created</span>
-                </span>
-                {sortMode === "created" && (
-                  <Check size={12} className="text-gray-12" />
-                )}
-              </button>
-              <button
-                type="button"
-                className={itemClassName}
-                onClick={() => setSortMode("updated")}
-              >
-                <span className="flex items-center gap-1 text-gray-12">
-                  <ArrowsClockwise size={14} className="text-gray-12" />
-                  <span>Updated</span>
-                </span>
-                {sortMode === "updated" && (
-                  <Check size={12} className="text-gray-12" />
-                )}
-              </button>
-            </Box>
-          </Box>
-
-          {import.meta.env.DEV && (
-            <>
-              <div className="my-0.25 border-gray-6 border-t" />
-
-              <Box>
-                <Text
-                  size="1"
-                  className="text-gray-10"
-                  weight="medium"
-                  style={{ paddingLeft: "1px" }}
-                >
-                  Show
-                </Text>
-                <Box mt="1">
-                  <button
-                    type="button"
-                    className={itemClassName}
-                    onClick={() => setShowAllUsers(false)}
-                  >
-                    <span className="flex items-center gap-1 text-gray-12">
-                      <User size={14} className="text-gray-12" />
-                      <span>My tasks</span>
-                    </span>
-                    {!showAllUsers && (
-                      <Check size={12} className="text-gray-12" />
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    className={itemClassName}
-                    onClick={() => setShowAllUsers(true)}
-                  >
-                    <span className="flex items-center gap-1 text-gray-12">
-                      <Users size={14} className="text-gray-12" />
-                      <span>All tasks</span>
-                    </span>
-                    {showAllUsers && (
-                      <Check size={12} className="text-gray-12" />
-                    )}
-                  </button>
-                </Box>
-              </Box>
-            </>
-          )}
-        </Flex>
-      </Popover.Content>
-    </Popover.Root>
+              <DropdownMenuRadioItem value="mine">
+                My tasks
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="all">
+                All tasks
+              </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -352,15 +271,27 @@ export function TaskListView({
               timestamp={task[timestampKey]}
             />
           ))}
-          {(flatTasks.length > 0 || groupedTasks.length > 0) && (
-            <div className="mx-2 my-2 border-gray-6 border-t" />
-          )}
         </>
       )}
 
       <SectionLabel label="Tasks" endContent={<TaskFilterMenu />} />
 
-      {organizeMode === "by-project" ? (
+      {pinnedTasks.length === 0 &&
+      flatTasks.length === 0 &&
+      groupedTasks.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+          <Text size="2" className="text-gray-11">
+            No tasks yet
+          </Text>
+          <button
+            type="button"
+            className="rounded-md bg-gray-3 px-3 py-1.5 text-[13px] text-gray-12 transition-colors hover:bg-gray-4"
+            onClick={() => navigateToTaskInput()}
+          >
+            New task
+          </button>
+        </div>
+      ) : organizeMode === "by-project" ? (
         <DragDropProvider
           onDragOver={handleDragOver}
           sensors={[
@@ -379,7 +310,9 @@ export function TaskListView({
               const isExpanded = !collapsedSections.has(group.id);
               const folder = folders.find(
                 (f) =>
-                  f.remoteUrl?.toLowerCase() === group.id.toLowerCase() ||
+                  (f.remoteUrl &&
+                    normalizeRepoKey(f.remoteUrl).toLowerCase() ===
+                      normalizeRepoKey(group.id).toLowerCase()) ||
                   f.path === group.id,
               );
               const groupFolderId =
@@ -388,7 +321,7 @@ export function TaskListView({
                 <DraggableFolder key={group.id} id={group.id} index={index}>
                   <SidebarSection
                     id={group.id}
-                    label={group.name}
+                    label={folder?.name ?? group.name}
                     icon={
                       isExpanded ? (
                         <FolderOpenIcon size={14} className="text-gray-10" />
@@ -407,7 +340,7 @@ export function TaskListView({
                         navigateToTaskInput();
                       }
                     }}
-                    newTaskTooltip={`Start new task in ${group.name}`}
+                    newTaskTooltip={`Start new task in ${folder?.name ?? group.name}`}
                   >
                     {group.tasks.map((task) => (
                       <TaskRow
@@ -437,7 +370,7 @@ export function TaskListView({
           </Flex>
         </DragDropProvider>
       ) : (
-        <Flex direction="column">
+        <Flex direction="column" gap="1px">
           {flatTasks.map((task) => (
             <TaskRow
               key={task.id}

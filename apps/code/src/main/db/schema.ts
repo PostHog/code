@@ -28,6 +28,7 @@ export const workspaces = sqliteTable(
     }),
     mode: text({ enum: ["cloud", "local", "worktree"] }).notNull(),
     label: text(),
+    linkedBranch: text(),
     pinnedAt: text(),
     lastViewedAt: text(),
     lastActivityAt: text(),

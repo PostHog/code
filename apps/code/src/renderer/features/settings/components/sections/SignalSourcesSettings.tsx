@@ -1,12 +1,14 @@
 import { DataSourceSetup } from "@features/inbox/components/DataSourceSetup";
 import { SignalSourceToggles } from "@features/inbox/components/SignalSourceToggles";
 import { useSignalSourceManager } from "@features/inbox/hooks/useSignalSourceManager";
+import { useMeQuery } from "@hooks/useMeQuery";
 import { Flex, Text } from "@radix-ui/themes";
 
 export function SignalSourcesSettings() {
   const {
     displayValues,
     sourceStates,
+    sessionAnalysisStatus,
     setupSource,
     isLoading,
     handleToggle,
@@ -17,6 +19,8 @@ export function SignalSourcesSettings() {
     evaluationsUrl,
     handleToggleEvaluation,
   } = useSignalSourceManager();
+  const { data: me } = useMeQuery();
+  const isStaff = me?.is_staff ?? false;
 
   if (isLoading) {
     return (
@@ -44,11 +48,14 @@ export function SignalSourcesSettings() {
           value={displayValues}
           onToggle={(source, enabled) => void handleToggle(source, enabled)}
           sourceStates={sourceStates}
+          sessionAnalysisStatus={sessionAnalysisStatus}
           onSetup={handleSetup}
-          evaluations={evaluations}
-          evaluationsUrl={evaluationsUrl}
-          onToggleEvaluation={(id, enabled) =>
-            void handleToggleEvaluation(id, enabled)
+          evaluations={isStaff ? evaluations : undefined}
+          evaluationsUrl={isStaff ? evaluationsUrl : undefined}
+          onToggleEvaluation={
+            isStaff
+              ? (id, enabled) => void handleToggleEvaluation(id, enabled)
+              : undefined
           }
         />
       )}
