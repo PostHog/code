@@ -87,13 +87,13 @@ function useSeatSync(
   billingEnabled: boolean,
 ): void {
   useEffect(() => {
-    if (!authIdentity) {
+    if (!authIdentity || !billingEnabled) {
       useSeatStore.getState().reset();
       return;
     }
 
     void useSeatStore.getState().fetchSeat({
-      autoProvision: billingEnabled,
+      autoProvision: true,
     });
   }, [authIdentity, billingEnabled]);
 }

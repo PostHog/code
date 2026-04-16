@@ -1,5 +1,5 @@
 import { isSupportedReasoningEffort } from "@posthog/agent/adapters/reasoning-effort";
-import { type PermissionMode } from "@posthog/agent/execution-mode";
+import type { PermissionMode } from "@posthog/agent/execution-mode";
 import type {
   ActionabilityJudgmentArtefact,
   AvailableSuggestedReviewer,
@@ -1746,6 +1746,11 @@ export class PostHogAPIClient {
 
   async createSeat(planKey: string): Promise<SeatData> {
     try {
+      const user = await this.getCurrentUser();
+      const distinctId = user.distinct_id;
+      if (!distinctId) {
+        throw new Error("Cannot create seat: user has no distinct_id");
+      }
       const url = new URL(`${this.api.baseUrl}/api/seats/`);
       const response = await this.api.fetcher.fetch({
         method: "post",
@@ -1755,6 +1760,7 @@ export class PostHogAPIClient {
           body: JSON.stringify({
             product_key: SEAT_PRODUCT_KEY,
             plan_key: planKey,
+            user_distinct_id: distinctId,
           }),
         },
       });
