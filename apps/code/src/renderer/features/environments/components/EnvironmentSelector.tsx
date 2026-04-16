@@ -1,27 +1,36 @@
-import { Combobox } from "@components/ui/combobox/Combobox";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { HardDrives, Plus } from "@phosphor-icons/react";
-import { Flex, Tooltip } from "@radix-ui/themes";
+import {
+  Button,
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+} from "@posthog/quill";
 import { useTRPC } from "@renderer/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface EnvironmentSelectorProps {
   repoPath: string | null;
   value: string | null;
   onChange: (environmentId: string | null) => void;
   disabled?: boolean;
-  variant?: "outline" | "ghost";
 }
+
+const NONE_VALUE = "__none__";
 
 export function EnvironmentSelector({
   repoPath,
   value,
   onChange,
   disabled = false,
-  variant = "outline",
 }: EnvironmentSelectorProps) {
   const [open, setOpen] = useState(false);
+  const anchorRef = useRef<HTMLDivElement>(null);
   const trpc = useTRPC();
 
   const { data: environments = [] } = useQuery({
@@ -38,9 +47,7 @@ export function EnvironmentSelector({
   const selectedEnvironment = environments.find((env) => env.id === value);
   const displayText = selectedEnvironment?.name ?? "No environment";
 
-  const NONE_VALUE = "__none__";
-
-  const handleChange = (newValue: string) => {
+  const handleChange = (newValue: string | null) => {
     onChange(newValue === NONE_VALUE ? null : newValue || null);
     setOpen(false);
   };
@@ -52,64 +59,84 @@ export function EnvironmentSelector({
       .open("environments", { repoPath: repoPath ?? undefined });
   };
 
-  const triggerContent = (
-    <Flex align="center" gap="1" style={{ minWidth: 0 }}>
-      <HardDrives size={16} weight="regular" style={{ flexShrink: 0 }} />
-      <span className="combobox-trigger-text">{displayText}</span>
-    </Flex>
-  );
+  const isDisabled = disabled || !repoPath;
+
+  const allItems = [NONE_VALUE, ...environments.map((env) => env.id)];
 
   return (
-    <Tooltip content={displayText} delayDuration={300}>
-      <Combobox.Root
-        value={value ?? ""}
-        onValueChange={handleChange}
-        open={open}
-        onOpenChange={setOpen}
-        size="1"
-        disabled={disabled || !repoPath}
+    <Combobox
+      items={allItems}
+      value={value ?? NONE_VALUE}
+      onValueChange={(v) => handleChange(v as string | null)}
+      open={open}
+      onOpenChange={setOpen}
+      disabled={isDisabled}
+    >
+      <div ref={anchorRef} className="inline-flex">
+        <ComboboxTrigger
+          render={
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isDisabled}
+              aria-label="Environment"
+              title={displayText}
+            >
+              <HardDrives size={14} weight="regular" className="shrink-0" />
+              <span className="min-w-0 truncate">{displayText}</span>
+            </Button>
+          }
+        />
+      </div>
+      <ComboboxContent
+        anchor={anchorRef}
+        side="bottom"
+        sideOffset={6}
+        className="min-w-[220px]"
       >
-        <Combobox.Trigger variant={variant} placeholder="No environment">
-          {triggerContent}
-        </Combobox.Trigger>
+        <ComboboxInput placeholder="Search environments..." />
+        <ComboboxEmpty>No environments found.</ComboboxEmpty>
 
-        <Combobox.Content>
-          <Combobox.Input placeholder="Search environments" />
-          <Combobox.Empty>No environments found.</Combobox.Empty>
-
-          <Combobox.Group heading="Environments">
-            <Combobox.Item key={NONE_VALUE} value={NONE_VALUE}>
-              No environment
-            </Combobox.Item>
-            {environments.map((env) => (
-              <Combobox.Item
+        <ComboboxList className="max-h-[min(14rem,calc(var(--available-height,14rem)-5rem))]">
+          {(itemValue: string) => {
+            if (itemValue === NONE_VALUE) {
+              return (
+                <ComboboxItem
+                  key={NONE_VALUE}
+                  value={NONE_VALUE}
+                  title="No environment"
+                  className="relative"
+                >
+                  No environment
+                </ComboboxItem>
+              );
+            }
+            const env = environments.find((e) => e.id === itemValue);
+            if (!env) return null;
+            return (
+              <ComboboxItem
                 key={env.id}
                 value={env.id}
-                icon={<HardDrives size={11} weight="regular" />}
+                title={env.name}
+                className="relative"
               >
                 {env.name}
-              </Combobox.Item>
-            ))}
-          </Combobox.Group>
+              </ComboboxItem>
+            );
+          }}
+        </ComboboxList>
 
-          <Combobox.Footer>
-            <button
-              type="button"
-              className="combobox-footer-button"
-              onClick={handleOpenSettings}
-            >
-              <Flex
-                align="center"
-                gap="2"
-                style={{ color: "var(--accent-11)" }}
-              >
-                <Plus size={11} weight="bold" />
-                <span>Create local environment</span>
-              </Flex>
-            </button>
-          </Combobox.Footer>
-        </Combobox.Content>
-      </Combobox.Root>
-    </Tooltip>
+        <div className="border-border/50 border-t p-1">
+          <button
+            type="button"
+            className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-accent-foreground text-xs outline-none transition-colors hover:bg-fill-hover"
+            onClick={handleOpenSettings}
+          >
+            <Plus size={11} weight="bold" />
+            Create local environment
+          </button>
+        </div>
+      </ComboboxContent>
+    </Combobox>
   );
 }
