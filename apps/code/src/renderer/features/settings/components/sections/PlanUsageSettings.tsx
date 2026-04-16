@@ -387,7 +387,7 @@ function UsageMeter({ label, bucket, color }: UsageMeterProps) {
           {label}
         </Text>
         <Text size="2" weight="medium">
-          {Math.round(percentage)}%
+          {percentage.toFixed(2)}%
         </Text>
       </Flex>
       <Progress
