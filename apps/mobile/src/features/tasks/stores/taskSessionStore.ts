@@ -1,4 +1,5 @@
 import * as Haptics from "expo-haptics";
+import { AppState } from "react-native";
 import { create } from "zustand";
 import { usePreferencesStore } from "@/features/preferences/stores/preferencesStore";
 import { logger } from "@/lib/logger";
@@ -66,7 +67,6 @@ const CLOUD_POLLING_INTERVAL_MS = 500;
 export interface TaskSession {
   taskRunId: string;
   taskId: string;
-  taskTitle?: string;
   events: SessionEvent[];
   status: "connecting" | "connected" | "disconnected" | "error";
   isPromptPending: boolean;
@@ -175,7 +175,6 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
             [newRunId]: {
               taskRunId: newRunId,
               taskId,
-              taskTitle: task.title,
               events: [],
               status: "connected",
               isPromptPending: true,
@@ -234,7 +233,6 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
           [latestRunId]: {
             taskRunId: latestRunId,
             taskId,
-            taskTitle: task.title,
             events: historicalEvents,
             status: "connected",
             isPromptPending,
@@ -886,3 +884,25 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
     });
   },
 }));
+
+// When the app returns from background, iOS resumes JS execution but
+// in-flight fetches may have been killed. Clear the pollInFlight guards
+// and restart polling for all active sessions to catch up immediately.
+AppState.addEventListener("change", (nextState) => {
+  if (nextState === "active") {
+    pollInFlight.clear();
+    pollInFlightSince.clear();
+    for (const [taskRunId, interval] of cloudPollers) {
+      clearInterval(interval);
+      cloudPollers.delete(taskRunId);
+    }
+    const sessions = useTaskSessionStore.getState().sessions;
+    for (const session of Object.values(sessions)) {
+      if (session.status === "connected" && !session.terminalStatus) {
+        useTaskSessionStore
+          .getState()
+          ._startCloudPolling(session.taskRunId, session.logUrl);
+      }
+    }
+  }
+});
