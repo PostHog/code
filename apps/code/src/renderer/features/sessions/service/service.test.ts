@@ -16,6 +16,9 @@ const mockTrpcAgent = vi.hoisted(() => ({
   cancelPermission: { mutate: vi.fn() },
   onSessionEvent: { subscribe: vi.fn() },
   onPermissionRequest: { subscribe: vi.fn() },
+  onPermissionResolved: {
+    subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })),
+  },
   onSessionIdleKilled: { subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })) },
   resetAll: { mutate: vi.fn().mockResolvedValue(undefined) },
 }));

@@ -51,6 +51,10 @@ import type { ProcessTrackingService } from "../process-tracking/service";
 import type { SleepService } from "../sleep/service";
 import type { AgentAuthAdapter } from "./auth-adapter";
 import { discoverExternalPlugins } from "./discover-plugins";
+import type {
+  IncomingCommandPayload,
+  LocalCommandReceiver,
+} from "./local-command-receiver";
 import {
   AgentServiceEvent,
   type AgentServiceEvents,
@@ -257,6 +261,8 @@ interface SessionConfig {
   model?: string;
   /** JSON Schema for structured task output — when set, the agent gets a create_output tool */
   jsonSchema?: Record<string, unknown> | null;
+  /** Whether this session runs locally on the desktop or in a cloud sandbox */
+  runMode?: "local" | "cloud";
 }
 
 interface ManagedSession {
@@ -313,6 +319,15 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
 
   private sessions = new Map<string, ManagedSession>();
   private pendingPermissions = new Map<string, PendingPermission>();
+  // Configs held for lazy-spawn when a mobile command arrives on a task run
+  // whose session isn't currently active. Populated by the renderer via
+  // ensureBackgroundSubscription for each active local task run, so the
+  // desktop can wake up on mobile activity without the chat being open.
+  private backgroundSubscriptionConfigs = new Map<string, SessionConfig>();
+  // Tracks in-flight getOrCreateSession calls per taskRunId so concurrent
+  // callers (e.g. renderer.reconnect racing an incoming mobile command)
+  // piggyback on the same attempt instead of killing each other's agents.
+  private creatingSessions = new Map<string, Promise<ManagedSession | null>>();
   private mockNodeReady = false;
   private idleTimeouts = new Map<
     string,
@@ -324,6 +339,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private posthogPluginService: PosthogPluginService;
   private agentAuthAdapter: AgentAuthAdapter;
   private mcpAppsService: McpAppsService;
+  private localCommandReceiver: LocalCommandReceiver;
 
   constructor(
     @inject(MAIN_TOKENS.ProcessTrackingService)
@@ -338,6 +354,8 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     agentAuthAdapter: AgentAuthAdapter,
     @inject(MAIN_TOKENS.McpAppsService)
     mcpAppsService: McpAppsService,
+    @inject(MAIN_TOKENS.LocalCommandReceiver)
+    localCommandReceiver: LocalCommandReceiver,
   ) {
     super();
     this.processTracking = processTracking;
@@ -346,6 +364,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     this.posthogPluginService = posthogPluginService;
     this.agentAuthAdapter = agentAuthAdapter;
     this.mcpAppsService = mcpAppsService;
+    this.localCommandReceiver = localCommandReceiver;
 
     powerMonitor.on("resume", () => this.checkIdleDeadlines());
   }
@@ -390,6 +409,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     });
 
     this.pendingPermissions.delete(key);
+    this.emit(AgentServiceEvent.PermissionResolved, { taskRunId, toolCallId });
     this.recordActivity(taskRunId);
   }
 
@@ -418,6 +438,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     });
 
     this.pendingPermissions.delete(key);
+    this.emit(AgentServiceEvent.PermissionResolved, { taskRunId, toolCallId });
     this.recordActivity(taskRunId);
   }
 
@@ -549,7 +570,27 @@ When creating pull requests, add the following footer at the end of the PR descr
   private async getOrCreateSession(
     config: SessionConfig,
     isReconnect: boolean,
-    isRetry = false,
+  ): Promise<ManagedSession | null> {
+    const { taskRunId } = config;
+    const existing = this.sessions.get(taskRunId);
+    if (existing) return existing;
+    const inFlight = this.creatingSessions.get(taskRunId);
+    if (inFlight) return inFlight;
+
+    const promise = this.createSessionWork(config, isReconnect);
+    this.creatingSessions.set(taskRunId, promise);
+    try {
+      return await promise;
+    } finally {
+      if (this.creatingSessions.get(taskRunId) === promise) {
+        this.creatingSessions.delete(taskRunId);
+      }
+    }
+  }
+
+  private async createSessionWork(
+    config: SessionConfig,
+    isReconnect: boolean,
   ): Promise<ManagedSession | null> {
     const {
       taskId,
@@ -569,295 +610,331 @@ When creating pull requests, add the following footer at the end of the PR descr
     // Preview config doesn't need a real repo — use a temp directory
     const repoPath = taskId === "__preview__" ? tmpdir() : rawRepoPath;
 
-    if (!isRetry) {
-      const existing = this.sessions.get(taskRunId);
-      if (existing) {
-        return existing;
-      }
+    // Mutable state for the retry/fallback loop. isReconnect is reassigned
+    // when we fall back to a fresh session after a failed reconnect; isRetry
+    // flips to true after an auth retry so we don't kill/clean up twice.
+    let isRetry = false;
 
-      for (const proc of this.processTracking.getByTaskId(taskId)) {
-        if (
-          (proc.category === "agent" || proc.category === "child") &&
-          proc.metadata?.taskRunId === taskRunId
-        ) {
-          this.processTracking.kill(proc.pid);
+    // Loop handles two recoverable failure modes:
+    //   - auth error → retry once with isRetry=true (skips kill/cleanup).
+    //   - reconnect failed for a non-auth reason → fall back to a fresh
+    //     session (isReconnect=false, isRetry=false → re-runs kill/cleanup).
+    // Any other failure exits the loop.
+    while (true) {
+      if (!isRetry) {
+        for (const proc of this.processTracking.getByTaskId(taskId)) {
+          if (
+            (proc.category === "agent" || proc.category === "child") &&
+            proc.metadata?.taskRunId === taskRunId
+          ) {
+            this.processTracking.kill(proc.pid);
+          }
         }
+
+        // Clean up any prior session for this taskRunId before creating a new one
+        await this.cleanupSession(taskRunId);
       }
 
-      // Clean up any prior session for this taskRunId before creating a new one
-      await this.cleanupSession(taskRunId);
-    }
-
-    const channel = `agent-event:${taskRunId}`;
-    const mockNodeDir = this.setupMockNodeEnvironment();
-    const proxyUrl = await this.agentAuthAdapter.ensureGatewayProxy(
-      credentials.apiHost,
-    );
-    await this.agentAuthAdapter.configureProcessEnv({
-      credentials,
-      mockNodeDir,
-      proxyUrl,
-      claudeCliPath: getClaudeCliPath(),
-    });
-
-    const isPreview = taskId === "__preview__";
-
-    const agent = new Agent({
-      posthog: {
-        ...this.agentAuthAdapter.createPosthogConfig(credentials),
-        userAgent: `posthog/desktop.hog.dev; version: ${app.getVersion()}`,
-      },
-      skipLogPersistence: isPreview,
-      localCachePath: join(app.getPath("home"), ".posthog-code"),
-      debug: isDevBuild(),
-      onLog: onAgentLog,
-    });
-
-    try {
-      const systemPrompt = this.buildSystemPrompt(
+      const channel = `agent-event:${taskRunId}`;
+      const mockNodeDir = this.setupMockNodeEnvironment();
+      const proxyUrl = await this.agentAuthAdapter.ensureGatewayProxy(
+        credentials.apiHost,
+      );
+      await this.agentAuthAdapter.configureProcessEnv({
         credentials,
-        taskId,
-        customInstructions,
-      );
-
-      const acpConnection = await agent.run(taskId, taskRunId, {
-        adapter,
-        gatewayUrl: proxyUrl,
-        codexBinaryPath: adapter === "codex" ? getCodexBinaryPath() : undefined,
-        model,
-        instructions: adapter === "codex" ? systemPrompt.append : undefined,
-        onStructuredOutput: jsonSchema
-          ? async (output) => {
-              const posthogAPI = agent.getPosthogAPI();
-              if (posthogAPI) {
-                await posthogAPI.updateTaskRun(taskId, taskRunId, { output });
-              }
-            }
-          : undefined,
-        processCallbacks: {
-          onProcessSpawned: (info) => {
-            this.processTracking.register(
-              info.pid,
-              "agent",
-              `agent:${taskRunId}`,
-              {
-                taskRunId,
-                taskId,
-                command: info.command,
-              },
-              taskId,
-            );
-          },
-          onProcessExited: (pid) => {
-            this.processTracking.unregister(pid, "agent-exited");
-          },
-          onMcpServersReady: (serverNames) => {
-            this.mcpAppsService.handleDiscovery(serverNames).catch((err) => {
-              log.warn("MCP Apps discovery failed", {
-                error: err instanceof Error ? err.message : String(err),
-              });
-            });
-          },
-        },
-      });
-      const { clientStreams } = acpConnection;
-
-      const connection = this.createClientConnection(
-        taskRunId,
-        channel,
-        clientStreams,
-      );
-
-      await connection.initialize({
-        protocolVersion: PROTOCOL_VERSION,
-        clientCapabilities: {
-          fs: {
-            readTextFile: true,
-            writeTextFile: true,
-          },
-          terminal: true,
-        },
+        mockNodeDir,
+        proxyUrl,
+        claudeCliPath: getClaudeCliPath(),
       });
 
-      const mcpServers =
-        await this.agentAuthAdapter.buildMcpServers(credentials);
+      const isPreview = taskId === "__preview__";
 
-      // Store server configs for lazy MCP connections — actual connections
-      // are created on-demand when UI resources are first requested.
-      this.mcpAppsService.setServerConfigs(
-        mcpServers.map((s) => ({
-          name: s.name,
-          url: s.url,
-          headers: Object.fromEntries(s.headers.map((h) => [h.name, h.value])),
-        })),
-      );
+      const agent = new Agent({
+        posthog: {
+          ...this.agentAuthAdapter.createPosthogConfig(credentials),
+          userAgent: `posthog/desktop.hog.dev; version: ${app.getVersion()}`,
+        },
+        skipLogPersistence: isPreview,
+        localCachePath: join(app.getPath("home"), ".posthog-code"),
+        debug: isDevBuild(),
+        onLog: onAgentLog,
+      });
 
-      let externalPlugins: Awaited<ReturnType<typeof discoverExternalPlugins>> =
-        [];
       try {
-        externalPlugins = await discoverExternalPlugins({
-          userDataDir: app.getPath("userData"),
-          repoPath,
-        });
-      } catch (err) {
-        log.warn("Failed to discover external plugins", {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-      const plugins = [
-        {
-          type: "local" as const,
-          path: this.posthogPluginService.getPluginPath(),
-        },
-        ...externalPlugins,
-      ];
-      const claudeCodeOptions = buildClaudeCodeOptions({
-        additionalDirectories,
-        effort,
-        plugins,
-      });
+        const systemPrompt = this.buildSystemPrompt(
+          credentials,
+          taskId,
+          customInstructions,
+        );
 
-      let configOptions: SessionConfigOption[] | undefined;
-      let agentSessionId: string;
-
-      // Claude-specific: hydrate session JSONL from PostHog before resuming.
-      // If hydration finds no conversation to restore, skip the resume and
-      // fall through to creating a new session. This avoids a doomed
-      // unstable_resumeSession that would fail with "Resource not found"
-      if (isReconnect && config.sessionId) {
-        const existingSessionId = config.sessionId;
-
-        if (adapter !== "codex") {
-          const posthogAPI = agent.getPosthogAPI();
-          if (posthogAPI) {
-            const hasSession = await hydrateSessionJsonl({
-              sessionId: existingSessionId,
-              cwd: repoPath,
-              taskId,
-              runId: taskRunId,
-              permissionMode: config.permissionMode,
-              posthogAPI,
-              log,
-            });
-            if (!hasSession) {
-              log.info(
-                "No session JSONL to resume, creating new session instead",
-                { taskId, taskRunId },
+        const acpConnection = await agent.run(taskId, taskRunId, {
+          adapter,
+          gatewayUrl: proxyUrl,
+          codexBinaryPath:
+            adapter === "codex" ? getCodexBinaryPath() : undefined,
+          model,
+          instructions: adapter === "codex" ? systemPrompt.append : undefined,
+          onStructuredOutput: jsonSchema
+            ? async (output) => {
+                const posthogAPI = agent.getPosthogAPI();
+                if (posthogAPI) {
+                  await posthogAPI.updateTaskRun(taskId, taskRunId, { output });
+                }
+              }
+            : undefined,
+          processCallbacks: {
+            onProcessSpawned: (info) => {
+              this.processTracking.register(
+                info.pid,
+                "agent",
+                `agent:${taskRunId}`,
+                {
+                  taskRunId,
+                  taskId,
+                  command: info.command,
+                },
+                taskId,
               );
-              config.sessionId = undefined;
+            },
+            onProcessExited: (pid) => {
+              this.processTracking.unregister(pid, "agent-exited");
+            },
+            onMcpServersReady: (serverNames) => {
+              this.mcpAppsService.handleDiscovery(serverNames).catch((err) => {
+                log.warn("MCP Apps discovery failed", {
+                  error: err instanceof Error ? err.message : String(err),
+                });
+              });
+            },
+          },
+        });
+        const { clientStreams } = acpConnection;
+
+        const connection = this.createClientConnection(
+          taskRunId,
+          channel,
+          clientStreams,
+        );
+
+        await connection.initialize({
+          protocolVersion: PROTOCOL_VERSION,
+          clientCapabilities: {
+            fs: {
+              readTextFile: true,
+              writeTextFile: true,
+            },
+            terminal: true,
+          },
+        });
+
+        const mcpServers =
+          await this.agentAuthAdapter.buildMcpServers(credentials);
+
+        // Store server configs for lazy MCP connections — actual connections
+        // are created on-demand when UI resources are first requested.
+        this.mcpAppsService.setServerConfigs(
+          mcpServers.map((s) => ({
+            name: s.name,
+            url: s.url,
+            headers: Object.fromEntries(
+              s.headers.map((h) => [h.name, h.value]),
+            ),
+          })),
+        );
+
+        let externalPlugins: Awaited<
+          ReturnType<typeof discoverExternalPlugins>
+        > = [];
+        try {
+          externalPlugins = await discoverExternalPlugins({
+            userDataDir: app.getPath("userData"),
+            repoPath,
+          });
+        } catch (err) {
+          log.warn("Failed to discover external plugins", {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+        const plugins = [
+          {
+            type: "local" as const,
+            path: this.posthogPluginService.getPluginPath(),
+          },
+          ...externalPlugins,
+        ];
+        const claudeCodeOptions = buildClaudeCodeOptions({
+          additionalDirectories,
+          effort,
+          plugins,
+        });
+
+        let configOptions: SessionConfigOption[] | undefined;
+        let agentSessionId: string;
+
+        // Claude-specific: hydrate session JSONL from PostHog before resuming.
+        // If hydration finds no conversation to restore, skip the resume and
+        // fall through to creating a new session. This avoids a doomed
+        // unstable_resumeSession that would fail with "Resource not found"
+        if (isReconnect && config.sessionId) {
+          const existingSessionId = config.sessionId;
+
+          if (adapter !== "codex") {
+            const posthogAPI = agent.getPosthogAPI();
+            if (posthogAPI) {
+              const hasSession = await hydrateSessionJsonl({
+                sessionId: existingSessionId,
+                cwd: repoPath,
+                taskId,
+                runId: taskRunId,
+                permissionMode: config.permissionMode,
+                posthogAPI,
+                log,
+              });
+              if (!hasSession) {
+                log.info(
+                  "No session JSONL to resume, creating new session instead",
+                  { taskId, taskRunId },
+                );
+                config.sessionId = undefined;
+              }
             }
           }
         }
-      }
 
-      if (isReconnect && config.sessionId) {
-        const existingSessionId = config.sessionId;
+        if (isReconnect && config.sessionId) {
+          const existingSessionId = config.sessionId;
 
-        // Both adapters implement unstable_resumeSession:
-        // - Claude: delegates to SDK's resumeSession with JSONL hydration
-        // - Codex: delegates to codex-acp's loadSession internally
-        const resumeResponse = await connection.unstable_resumeSession({
-          sessionId: existingSessionId,
-          cwd: repoPath,
-          mcpServers,
-          _meta: {
-            ...(logUrl && {
-              persistence: { taskId, runId: taskRunId, logUrl },
-            }),
-            taskRunId,
+          // Both adapters implement unstable_resumeSession:
+          // - Claude: delegates to SDK's resumeSession with JSONL hydration
+          // - Codex: delegates to codex-acp's loadSession internally
+          const resumeResponse = await connection.unstable_resumeSession({
             sessionId: existingSessionId,
-            systemPrompt,
-            ...(permissionMode && { permissionMode }),
-            ...(model != null && { model }),
-            ...(jsonSchema && { jsonSchema }),
-            claudeCode: {
-              options: claudeCodeOptions,
+            cwd: repoPath,
+            mcpServers,
+            _meta: {
+              ...(logUrl && {
+                persistence: { taskId, runId: taskRunId, logUrl },
+              }),
+              taskRunId,
+              sessionId: existingSessionId,
+              systemPrompt,
+              ...(permissionMode && { permissionMode }),
+              ...(model != null && { model }),
+              ...(jsonSchema && { jsonSchema }),
+              claudeCode: {
+                options: claudeCodeOptions,
+              },
             },
-          },
-        });
-        configOptions = resumeResponse?.configOptions ?? undefined;
-        agentSessionId = existingSessionId;
-      } else {
-        if (isReconnect) {
-          log.info("No sessionId for reconnect, creating new session", {
-            taskId,
+          });
+          configOptions = resumeResponse?.configOptions ?? undefined;
+          agentSessionId = existingSessionId;
+        } else {
+          if (isReconnect) {
+            log.info("No sessionId for reconnect, creating new session", {
+              taskId,
+              taskRunId,
+            });
+          }
+          const newSessionResponse = await connection.newSession({
+            cwd: repoPath,
+            mcpServers,
+            _meta: {
+              taskRunId,
+              systemPrompt,
+              ...(permissionMode && { permissionMode }),
+              ...(model != null && { model }),
+              ...(jsonSchema && { jsonSchema }),
+              claudeCode: {
+                options: claudeCodeOptions,
+              },
+            },
+          });
+          configOptions = newSessionResponse.configOptions ?? undefined;
+          agentSessionId = newSessionResponse.sessionId;
+        }
+
+        config.sessionId = agentSessionId;
+
+        const session: ManagedSession = {
+          taskRunId,
+          taskId,
+          repoPath,
+          agent,
+          clientSideConnection: connection,
+          channel,
+          createdAt: Date.now(),
+          lastActivityAt: Date.now(),
+          config,
+          promptPending: false,
+          configOptions,
+          inFlightMcpToolCalls: new Map(),
+        };
+
+        this.sessions.set(taskRunId, session);
+        this.recordActivity(taskRunId);
+
+        if (config.runMode === "local") {
+          this.ensureBackgroundSubscription(config);
+          // Flip the backend task run out of "not_started" so the mobile UI
+          // (which gates connect/compose state on backend status) recognizes
+          // the session as live. Local tasks never go through the Temporal
+          // workflow that does this for cloud runs, so the desktop has to
+          // report status itself. Fire-and-forget.
+          const posthogAPI = agent.getPosthogAPI();
+          if (posthogAPI) {
+            posthogAPI
+              .updateTaskRun(taskId, taskRunId, { status: "in_progress" })
+              .catch((err) => {
+                log.warn("Failed to update task run status to in_progress", {
+                  taskRunId,
+                  error: err instanceof Error ? err.message : String(err),
+                });
+              });
+          }
+        }
+
+        if (isRetry) {
+          log.info("Session created after auth retry", { taskRunId });
+        }
+        return session;
+      } catch (err) {
+        try {
+          await agent.cleanup();
+        } catch {
+          log.debug("Agent cleanup failed during error handling", {
             taskRunId,
           });
         }
-        const newSessionResponse = await connection.newSession({
-          cwd: repoPath,
-          mcpServers,
-          _meta: {
-            taskRunId,
-            systemPrompt,
-            ...(permissionMode && { permissionMode }),
-            ...(model != null && { model }),
-            ...(jsonSchema && { jsonSchema }),
-            claudeCode: {
-              options: claudeCodeOptions,
-            },
-          },
-        });
-        configOptions = newSessionResponse.configOptions ?? undefined;
-        agentSessionId = newSessionResponse.sessionId;
-      }
 
-      config.sessionId = agentSessionId;
-
-      const session: ManagedSession = {
-        taskRunId,
-        taskId,
-        repoPath,
-        agent,
-        clientSideConnection: connection,
-        channel,
-        createdAt: Date.now(),
-        lastActivityAt: Date.now(),
-        config,
-        promptPending: false,
-        configOptions,
-        inFlightMcpToolCalls: new Map(),
-      };
-
-      this.sessions.set(taskRunId, session);
-      this.recordActivity(taskRunId);
-
-      if (isRetry) {
-        log.info("Session created after auth retry", { taskRunId });
-      }
-      return session;
-    } catch (err) {
-      try {
-        await agent.cleanup();
-      } catch {
-        log.debug("Agent cleanup failed during error handling", { taskRunId });
-      }
-
-      if (!isRetry && isAuthError(err)) {
-        log.warn(
-          `Auth error during ${isReconnect ? "reconnect" : "create"}, retrying`,
-          { taskRunId },
+        if (!isRetry && isAuthError(err)) {
+          log.warn(
+            `Auth error during ${isReconnect ? "reconnect" : "create"}, retrying`,
+            { taskRunId },
+          );
+          isRetry = true;
+          continue;
+        }
+        log.error(
+          `Failed to ${isReconnect ? "reconnect" : "create"} session${
+            isRetry ? " after retry" : ""
+          }`,
+          err,
         );
-        return this.getOrCreateSession(config, isReconnect, true);
+        // Non-auth reconnect failure on first attempt: fall back to a fresh session.
+        // If this was already an auth retry (isRetry=true), we've exhausted retries
+        // and return null to avoid infinite loops.
+        if (isReconnect && !isRetry) {
+          log.warn("Reconnect failed, falling back to new session", {
+            taskRunId,
+          });
+          config.sessionId = undefined;
+          isReconnect = false;
+          isRetry = false;
+          continue;
+        }
+        if (isReconnect) return null;
+        throw err;
       }
-      log.error(
-        `Failed to ${isReconnect ? "reconnect" : "create"} session${
-          isRetry ? " after retry" : ""
-        }`,
-        err,
-      );
-      // Non-auth reconnect failure on first attempt: fall back to a fresh session.
-      // If this was already an auth retry (isRetry=true), we've exhausted retries
-      // and return null to avoid infinite loops.
-      if (isReconnect && !isRetry) {
-        log.warn("Reconnect failed, falling back to new session", {
-          taskRunId,
-        });
-        config.sessionId = undefined;
-        return this.getOrCreateSession(config, false, false);
-      }
-      if (isReconnect) return null;
-      throw err;
     }
   }
 
@@ -1161,7 +1238,159 @@ For git operations while detached:
     session.inFlightMcpToolCalls.clear();
   }
 
+  /**
+   * Subscribe to a task run's SSE stream so mobile-originated /command/
+   * calls reach the desktop — including when no agent session is currently
+   * running. If a command arrives with no session, the stored config is
+   * used to lazy-spawn via getOrCreateSession(isReconnect=true) before
+   * dispatching. Idempotent; safe to call repeatedly.
+   *
+   * Called from (a) session creation (with the SessionConfig we just built)
+   * and (b) the renderer for every active local task, so "old" idle
+   * conversations still wake on mobile activity.
+   */
+  public ensureBackgroundSubscription(
+    input: SessionConfig | ReconnectSessionInput,
+  ): void {
+    const config: SessionConfig =
+      "credentials" in input ? input : this.toSessionConfig(input);
+    if (config.runMode !== "local") return;
+    this.backgroundSubscriptionConfigs.set(config.taskRunId, config);
+    this.localCommandReceiver.subscribe({
+      taskId: config.taskId,
+      taskRunId: config.taskRunId,
+      projectId: config.credentials.projectId,
+      apiHost: config.credentials.apiHost,
+      onCommand: (payload) =>
+        this.dispatchIncomingCommand(config.taskRunId, payload),
+    });
+  }
+
+  /**
+   * Stop watching a task run for mobile commands. Call when the task is
+   * terminal (completed/failed/cancelled) — otherwise we keep listening
+   * so mobile messages can always wake the desktop.
+   */
+  public removeBackgroundSubscription(taskRunId: string): void {
+    this.backgroundSubscriptionConfigs.delete(taskRunId);
+    this.localCommandReceiver.unsubscribe(taskRunId);
+  }
+
+  private async dispatchIncomingCommand(
+    taskRunId: string,
+    payload: IncomingCommandPayload,
+  ): Promise<void> {
+    log.debug("Local command received", {
+      taskRunId,
+      method: payload.method,
+    });
+
+    // permission_response must route directly to the pending promise —
+    // treating it as a new prompt would leave the agent blocked inside
+    // its current turn while a second turn queues behind it and never runs.
+    if (payload.method === "permission_response") {
+      const params = payload.params ?? {};
+      const toolCallId =
+        typeof params.toolCallId === "string" ? params.toolCallId : undefined;
+      const optionId =
+        typeof params.optionId === "string" ? params.optionId : undefined;
+      const customInput =
+        typeof params.customInput === "string" ? params.customInput : undefined;
+      const rawAnswers = params.answers;
+      const answers =
+        rawAnswers && typeof rawAnswers === "object"
+          ? (rawAnswers as Record<string, string>)
+          : undefined;
+      if (!toolCallId || !optionId) {
+        log.warn("Invalid permission_response from external client", {
+          taskRunId,
+          hasToolCallId: !!toolCallId,
+          hasOptionId: !!optionId,
+        });
+        return;
+      }
+      try {
+        this.respondToPermission(
+          taskRunId,
+          toolCallId,
+          optionId,
+          customInput,
+          answers,
+        );
+      } catch (err) {
+        log.error("Failed to apply external permission_response", {
+          taskRunId,
+          toolCallId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
+    if (payload.method !== "user_message") {
+      log.debug("Ignoring non-user_message local command", {
+        method: payload.method,
+        taskRunId,
+      });
+      return;
+    }
+    const content = payload.params?.content;
+    if (typeof content !== "string" || content.length === 0) {
+      log.warn("Local command missing content", { taskRunId });
+      return;
+    }
+
+    // Fire-and-forget the prompt dispatch. Awaiting here would block the
+    // LocalCommandReceiver's SSE reader on the agent's turn — which can
+    // park on a requestPermission, leaving the follow-up permission_response
+    // stranded in Redis behind this user_message. Claude SDK has
+    // `promptQueueing: true`, so back-to-back session/prompt calls are
+    // processed in order at the SDK level.
+
+    void this.deliverUserMessage(taskRunId, content);
+  }
+
+  private async deliverUserMessage(
+    taskRunId: string,
+    content: string,
+  ): Promise<void> {
+    try {
+      if (!this.sessions.has(taskRunId)) {
+        const config = this.backgroundSubscriptionConfigs.get(taskRunId);
+        if (!config) {
+          log.warn(
+            "Incoming user_message with no session and no stored config",
+            { taskRunId },
+          );
+          return;
+        }
+        log.info("Lazy-spawning session to deliver mobile command", {
+          taskRunId,
+          hasSessionId: !!config.sessionId,
+        });
+        const session = await this.getOrCreateSession(config, true);
+        if (!session) {
+          log.error("Lazy-spawn failed; dropping mobile command", {
+            taskRunId,
+          });
+          return;
+        }
+      }
+      await this.prompt(taskRunId, [{ type: "text", text: content }]);
+    } catch (err) {
+      log.error("Failed to deliver local command to session", {
+        taskRunId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   private async cleanupSession(taskRunId: string): Promise<void> {
+    // The LCR subscription outlives the agent session so a later mobile
+    // command can wake up a fresh session via lazy-spawn. Only
+    // removeBackgroundSubscription (called when the task goes terminal)
+    // tears down the SSE connection.
+
     const session = this.sessions.get(taskRunId);
     if (session) {
       this.cancelInFlightMcpToolCalls(session);
@@ -1484,6 +1713,7 @@ For git operations while detached:
       effort: "effort" in params ? params.effort : undefined,
       model: "model" in params ? params.model : undefined,
       jsonSchema: "jsonSchema" in params ? params.jsonSchema : undefined,
+      runMode: "runMode" in params ? params.runMode : undefined,
     };
   }
 

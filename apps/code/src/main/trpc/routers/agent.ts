@@ -62,6 +62,21 @@ export const agentRouter = router({
     .output(sessionResponseSchema.nullable())
     .mutation(({ input }) => getService().reconnectSession(input)),
 
+  // Register a task run for background mobile-command pickup. Idempotent.
+  // When a mobile command arrives and no session is active, the main process
+  // uses the stored config to lazy-spawn via reconnect before dispatching.
+  ensureBackgroundSubscription: publicProcedure
+    .input(reconnectSessionInput)
+    .mutation(({ input }) => {
+      getService().ensureBackgroundSubscription(input);
+    }),
+
+  removeBackgroundSubscription: publicProcedure
+    .input(cancelSessionInput)
+    .mutation(({ input }) => {
+      getService().removeBackgroundSubscription(input.sessionId);
+    }),
+
   setConfigOption: publicProcedure
     .input(setConfigOptionInput)
     .mutation(({ input }) =>
@@ -97,6 +112,26 @@ export const agentRouter = router({
       const iterable = service.toIterable(AgentServiceEvent.PermissionRequest, {
         signal: opts.signal,
       });
+
+      for await (const event of iterable) {
+        if (event.taskRunId === targetTaskRunId) {
+          yield event;
+        }
+      }
+    }),
+
+  // Permission resolved subscription - yields when a pending permission gets
+  // answered through a path other than the local UI (e.g. a mobile client).
+  // The renderer uses this to clear its mirror of pendingPermissions.
+  onPermissionResolved: publicProcedure
+    .input(subscribeSessionInput)
+    .subscription(async function* (opts) {
+      const service = getService();
+      const targetTaskRunId = opts.input.taskRunId;
+      const iterable = service.toIterable(
+        AgentServiceEvent.PermissionResolved,
+        { signal: opts.signal },
+      );
 
       for await (const event of iterable) {
         if (event.taskRunId === targetTaskRunId) {

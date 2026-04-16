@@ -599,6 +599,38 @@ export class AgentServer {
         };
       }
 
+      case "permission_response": {
+        // Cloud questions are not a blocking permission wait (the cloud
+        // permission handler returns "cancelled" with a wait hint so
+        // Claude ends its turn, then resumes on the next user_message).
+        // So a mobile permission_response for a cloud run is effectively
+        // a follow-up prompt — forward it through the user_message path
+        // using the user's answer as prompt text.
+        const customInput =
+          typeof params.customInput === "string" ? params.customInput : "";
+        const rawAnswers = params.answers;
+        const answerValues =
+          rawAnswers &&
+          typeof rawAnswers === "object" &&
+          !Array.isArray(rawAnswers)
+            ? Object.values(rawAnswers as Record<string, unknown>).filter(
+                (v): v is string => typeof v === "string",
+              )
+            : [];
+        const answerText = customInput || answerValues.join(", ");
+
+        if (!answerText) {
+          this.logger.warn("permission_response missing answer content", {
+            toolCallId: params.toolCallId,
+          });
+          return { stopReason: "cancelled" };
+        }
+
+        return await this.executeCommand("user_message", {
+          content: answerText,
+        });
+      }
+
       case POSTHOG_NOTIFICATIONS.CANCEL:
       case "cancel": {
         this.logger.info("Cancel requested", {
@@ -636,8 +668,7 @@ export class AgentServer {
         };
       }
 
-      case POSTHOG_NOTIFICATIONS.PERMISSION_RESPONSE:
-      case "permission_response": {
+      case POSTHOG_NOTIFICATIONS.PERMISSION_RESPONSE: {
         const requestId = params.requestId as string;
         const optionId = params.optionId as string;
         const customInput = params.customInput as string | undefined;
@@ -1579,6 +1610,88 @@ ${attributionInstructions}
           }
         }
 
+        // Interactive sessions (mobile/web): don't auto-approve questions.
+        // Log the question as in-progress so the client renders it interactively,
+        // then return cancelled with a wait message so the agent waits for the
+        // user's reply (same pattern as the Slack relay above).
+        if (
+          mode === "interactive" &&
+          codeToolKind === "question" &&
+          interactionOrigin !== "slack" &&
+          params.toolCall?._meta
+        ) {
+          const questionMeta = params.toolCall._meta;
+          const toolCallId = `question-${Date.now()}`;
+
+          const questionNotification = {
+            jsonrpc: "2.0",
+            method: "session/update",
+            params: {
+              update: {
+                sessionUpdate: "tool_call",
+                title: "AskUserQuestion",
+                toolCallId,
+                status: "in_progress",
+                rawInput: questionMeta,
+              },
+            },
+          };
+
+          this.broadcastEvent({
+            type: "notification",
+            timestamp: new Date().toISOString(),
+            notification: questionNotification,
+          });
+
+          this.session?.logWriter.appendRawLine(
+            payload.run_id,
+            JSON.stringify(questionNotification),
+          );
+
+          return {
+            outcome: { outcome: "cancelled" as const },
+            _meta: {
+              message:
+                "This question has been sent to the user's device. " +
+                "The user will reply with their selection. Do NOT re-ask the question or pick an answer yourself. " +
+                "Wait for the user's reply.",
+            },
+          };
+        }
+
+        // Background mode or non-question permissions: log as completed and auto-approve
+        if (codeToolKind === "question" && params.toolCall?._meta) {
+          const questionMeta = params.toolCall._meta;
+          const toolCallId = `question-${Date.now()}`;
+          const selectedOption = allowOption?.name ?? "Auto-approved";
+
+          const questionNotification = {
+            jsonrpc: "2.0",
+            method: "session/update",
+            params: {
+              update: {
+                sessionUpdate: "tool_call",
+                title: "AskUserQuestion",
+                toolCallId,
+                status: "completed",
+                rawInput: questionMeta,
+                rawOutput: { answer: selectedOption },
+              },
+            },
+          };
+
+          this.broadcastEvent({
+            type: "notification",
+            timestamp: new Date().toISOString(),
+            notification: questionNotification,
+          });
+
+          this.session?.logWriter.appendRawLine(
+            payload.run_id,
+            JSON.stringify(questionNotification),
+          );
+        }
+
         // Relay permission requests to the desktop app when:
         // - Questions: always relay (need human answers regardless of mode)
         // - Plan approvals: always relay
@@ -1953,18 +2066,27 @@ ${attributionInstructions}
 
   private broadcastTurnComplete(stopReason: string): void {
     if (!this.session) return;
+    const notification = {
+      jsonrpc: "2.0" as const,
+      method: POSTHOG_NOTIFICATIONS.TURN_COMPLETE,
+      params: {
+        sessionId: this.session.acpSessionId,
+        stopReason,
+      },
+    };
+
     this.broadcastEvent({
       type: "notification",
       timestamp: new Date().toISOString(),
-      notification: {
-        jsonrpc: "2.0",
-        method: POSTHOG_NOTIFICATIONS.TURN_COMPLETE,
-        params: {
-          sessionId: this.session.acpSessionId,
-          stopReason,
-        },
-      },
+      notification,
     });
+
+    // Persist to S3 log so mobile clients (which poll S3) can detect
+    // turn completion and trigger "your turn" indicators / sounds.
+    this.session.logWriter.appendRawLine(
+      this.session.payload.run_id,
+      JSON.stringify(notification),
+    );
   }
 
   private broadcastEvent(event: Record<string, unknown>): void {
