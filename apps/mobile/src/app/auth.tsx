@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { QrScanModal, type QrScanResult } from "@/components/QrScanModal";
 import { type CloudRegion, useAuthStore } from "@/features/auth";
 import { useThemeColors } from "@/lib/theme";
 
@@ -37,8 +38,29 @@ export default function AuthScreen() {
   const [error, setError] = useState<string | null>(null);
   const [devToken, setDevToken] = useState("");
   const [devProjectId, setDevProjectId] = useState("");
+  const [scannerVisible, setScannerVisible] = useState(false);
 
   const { loginWithOAuth, loginWithPersonalApiKey } = useAuthStore();
+
+  const handleQrScan = async (result: QrScanResult) => {
+    setScannerVisible(false);
+    setDevToken(result.apiKey);
+    setDevProjectId(String(result.projectId));
+    setIsLoading(true);
+    setError(null);
+    try {
+      await loginWithPersonalApiKey({
+        token: result.apiKey,
+        projectId: result.projectId,
+        region: selectedRegion,
+      });
+      router.replace("/(tabs)");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to sign in");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleDevSignIn = async () => {
     setIsLoading(true);
@@ -207,10 +229,27 @@ export default function AuthScreen() {
                   Dev sign in
                 </Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                className="items-center rounded-md border border-gray-7 py-3"
+                onPress={() => {
+                  setError(null);
+                  setScannerVisible(true);
+                }}
+                disabled={isLoading}
+              >
+                <Text className="font-medium text-gray-12 text-sm">
+                  Scan QR code
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
       </ScrollView>
+      <QrScanModal
+        visible={scannerVisible}
+        onClose={() => setScannerVisible(false)}
+        onScan={handleQrScan}
+      />
     </SafeAreaView>
   );
 }

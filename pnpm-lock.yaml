@@ -533,6 +533,9 @@ importers:
       expo-av:
         specifier: ~16.0.8
         version: 16.0.8(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.11)(react@19.1.0))(react@19.1.0)
+      expo-camera:
+        specifier: ^55.0.15
+        version: 55.0.15(@types/emscripten@1.41.5)(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.11)(react@19.1.0))(react@19.1.0)
       expo-clipboard:
         specifier: ^55.0.13
         version: 55.0.13(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.11)(react@19.1.0))(react@19.1.0)
@@ -5163,6 +5166,9 @@ packages:
   '@types/earcut@3.0.0':
     resolution: {integrity: sha512-k/9fOUGO39yd2sCjrbAJvGDEQvRwRnQIZlBz43roGwUZo5SHAmyVvSFyaVVZkicRVCaDXPKlbxrUcBuJoSWunQ==}
 
+  '@types/emscripten@1.41.5':
+    resolution: {integrity: sha512-cMQm7pxu6BxtHyqJ7mQZ2kXWV5SLmugybFdHCBbJ5eHzOo6VhBckEgAT3//rP5FwPHNPeEiq4SmQ5ucBwsOo4Q==}
+
   '@types/eslint-scope@3.7.7':
     resolution: {integrity: sha512-MzMFlSLBqNF2gcHWO0G1vP/YQyfvrxZ0bF+u7mzUdZ1/xK4A4sru+nraZz5i3iEIk1l1uyicaDVTB4QbbEkAYg==}
 
@@ -5761,6 +5767,9 @@ packages:
   balanced-match@4.0.4:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
     engines: {node: 18 || 20 || >=22}
+
+  barcode-detector@3.1.2:
+    resolution: {integrity: sha512-Q5kjXpVH5I3ItykNzbWmfWnNryFN1ZTWp10k9/PKJuS0RnoKR7jTrHEJODR4fn04bRomq7TJwie/Dr9fj/GoGQ==}
 
   base32-encode@1.2.0:
     resolution: {integrity: sha512-cHFU8XeRyx0GgmoWi5qHMCVRiqU6J3MHWxVgun7jggCBUpVzm1Ir7M9dYr2whjSNc3tFeXfQ/oZjQu/4u55h9A==}
@@ -6882,6 +6891,17 @@ packages:
 
   expo-av@16.0.8:
     resolution: {integrity: sha512-cmVPftGR/ca7XBgs7R6ky36lF3OC0/MM/lpgX/yXqfv0jASTsh7AYX9JxHCwFmF+Z6JEB1vne9FDx4GiLcGreQ==}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
+      react-native-web: '*'
+    peerDependenciesMeta:
+      react-native-web:
+        optional: true
+
+  expo-camera@55.0.15:
+    resolution: {integrity: sha512-WRVsZf+2p7EsxudwyiUMYijJS8M98t/BVP6yG7N+08JSUotkGjmZcemom1gM36uy27P8QsSVP0hD+FravmQiBA==}
     peerDependencies:
       expo: '*'
       react: '*'
@@ -11079,6 +11099,10 @@ packages:
     resolution: {integrity: sha512-AXSAQJu79WGc79/3e9/CR77I/KQgeY1AhNvcShIH4PTcGYyC4xv6H4R4AUOwkPS5799KlVDAu8zExeCrkGquiA==}
     engines: {node: '>=20'}
 
+  type-fest@5.5.0:
+    resolution: {integrity: sha512-PlBfpQwiUvGViBNX84Yxwjsdhd1TUlXr6zjX7eoirtCPIr08NAmxwa+fcYBTeRQxHo9YC9wwF3m9i700sHma8g==}
+    engines: {node: '>=20'}
+
   type-is@2.0.1:
     resolution: {integrity: sha512-OZs6gsjF4vMp32qrCbiVSkrFmXtG/AZhY3t0iAMrMBiAZyV9oALtXO8hsrHbMXF9x6L3grlFuwW2oAz7cav+Gw==}
     engines: {node: '>= 0.6'}
@@ -11765,6 +11789,11 @@ packages:
 
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
+
+  zxing-wasm@3.0.2:
+    resolution: {integrity: sha512-2YMAriaYHX9wrBY2k7H0epSo+dyCaCZg/vOtt+nEDXM9ul480gkXz/9SkwpOeHcD2H5qqDG8lWDSBwpTcZpa6w==}
+    peerDependencies:
+      '@types/emscripten': '>=1.39.6'
 
 snapshots:
 
@@ -16827,6 +16856,8 @@ snapshots:
 
   '@types/earcut@3.0.0': {}
 
+  '@types/emscripten@1.41.5': {}
+
   '@types/eslint-scope@3.7.7':
     dependencies:
       '@types/eslint': 9.6.1
@@ -17553,6 +17584,12 @@ snapshots:
   balanced-match@1.0.2: {}
 
   balanced-match@4.0.4: {}
+
+  barcode-detector@3.1.2(@types/emscripten@1.41.5):
+    dependencies:
+      zxing-wasm: 3.0.2(@types/emscripten@1.41.5)
+    transitivePeerDependencies:
+      - '@types/emscripten'
 
   base32-encode@1.2.0:
     dependencies:
@@ -18686,6 +18723,15 @@ snapshots:
       expo: 54.0.33(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(graphql@16.12.0)(react-native-webview@13.16.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.11)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.11)(react@19.1.0))(react@19.1.0)
       react: 19.1.0
       react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.2.11)(react@19.1.0)
+
+  expo-camera@55.0.15(@types/emscripten@1.41.5)(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.11)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      barcode-detector: 3.1.2(@types/emscripten@1.41.5)
+      expo: 54.0.33(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(graphql@16.12.0)(react-native-webview@13.16.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.11)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.11)(react@19.1.0))(react@19.1.0)
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.2.11)(react@19.1.0)
+    transitivePeerDependencies:
+      - '@types/emscripten'
 
   expo-clipboard@55.0.13(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.11)(react@19.1.0))(react@19.1.0):
     dependencies:
@@ -23636,6 +23682,10 @@ snapshots:
     dependencies:
       tagged-tag: 1.0.0
 
+  type-fest@5.5.0:
+    dependencies:
+      tagged-tag: 1.0.0
+
   type-is@2.0.1:
     dependencies:
       content-type: 1.0.5
@@ -24319,3 +24369,8 @@ snapshots:
       react: 19.1.0
 
   zwitch@2.0.4: {}
+
+  zxing-wasm@3.0.2(@types/emscripten@1.41.5):
+    dependencies:
+      '@types/emscripten': 1.41.5
+      type-fest: 5.5.0
