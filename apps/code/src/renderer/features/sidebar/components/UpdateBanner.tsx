@@ -57,7 +57,7 @@ export function UpdateBanner() {
                     </motion.div>
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="font-medium">
-                        {version ? `v${version} ready` : "Update ready"}
+                        {version ? `${version} ready` : "Update ready"}
                       </span>
                       <span className="text-[11px] text-[var(--green-a11)]">
                         Restart to apply
