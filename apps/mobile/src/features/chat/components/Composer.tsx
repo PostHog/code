@@ -18,7 +18,6 @@ interface ComposerProps {
   disabled?: boolean;
   placeholder?: string;
   isUserTurn?: boolean;
-  queuedCount?: number;
 }
 
 function PulsingBorder({ active, color }: { active: boolean; color: string }) {
@@ -80,7 +79,6 @@ export function Composer({
   disabled = false,
   placeholder = "Ask a question",
   isUserTurn = false,
-  queuedCount = 0,
 }: ComposerProps) {
   const themeColors = useThemeColors();
   const [message, setMessage] = useState("");
@@ -115,12 +113,7 @@ export function Composer({
   };
 
   const canSend = message.trim().length > 0 && !disabled && !isRecording;
-  const effectivePlaceholder =
-    queuedCount > 0
-      ? `${queuedCount} message${queuedCount > 1 ? "s" : ""} queued...`
-      : !isUserTurn && !disabled
-        ? "Message will be queued..."
-        : placeholder;
+  const effectivePlaceholder = placeholder;
 
   if (Platform.OS === "ios") {
     return (

@@ -85,9 +85,6 @@ export interface TaskSession {
   // True after a user prompt is sent, cleared when the first piece of
   // agent output (tool call, message, etc.) arrives from polling.
   awaitingAgentOutput?: boolean;
-  // Messages queued while the agent is working. Auto-sent when control
-  // returns (isPromptPending flips to false).
-  messageQueue?: string[];
 }
 
 interface TaskSessionStore {
@@ -291,24 +288,9 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
       throw new Error("No active session for task");
     }
 
-    // If the agent is still working, queue the message for later.
-    if (session.isPromptPending) {
-      logger.debug("Agent busy, queuing message", { taskId });
-      set((state) => {
-        const current = state.sessions[session.taskRunId];
-        if (!current) return state;
-        return {
-          sessions: {
-            ...state.sessions,
-            [session.taskRunId]: {
-              ...current,
-              messageQueue: [...(current.messageQueue ?? []), prompt],
-            },
-          },
-        };
-      });
-      return;
-    }
+    // Mobile is a dumb relay for local runs — always push the message to
+    // the backend and let the desktop decide whether/when to process it.
+    // No local gating, no client-side queueing.
 
     // Local echo for immediate UX feedback — polling will re-surface the
     // canonical copy once the agent writes it to the log; any duplicate is
@@ -576,7 +558,6 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
                       terminalStatus: run.status as "failed" | "completed",
                       lastError: run.error_message,
                       awaitingPing: false,
-                      messageQueue: undefined,
                     },
                   },
                 };
@@ -861,49 +842,3 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
     });
   },
 }));
-
-// Watch for isPromptPending transitions (true → false) and auto-send the
-// next queued message. Uses setTimeout so state is fully settled before
-// sendPrompt re-enters the store.
-const drainInFlight = new Set<string>();
-useTaskSessionStore.subscribe((state, prev) => {
-  for (const [runId, session] of Object.entries(state.sessions)) {
-    const prevSession = prev.sessions[runId];
-    if (
-      prevSession?.isPromptPending &&
-      !session.isPromptPending &&
-      !session.terminalStatus &&
-      session.messageQueue?.length &&
-      !drainInFlight.has(runId)
-    ) {
-      drainInFlight.add(runId);
-      setTimeout(async () => {
-        try {
-          const current = useTaskSessionStore.getState().sessions[runId];
-          if (!current?.messageQueue?.length) return;
-
-          const [next, ...rest] = current.messageQueue;
-          useTaskSessionStore.setState((s) => {
-            const sess = s.sessions[runId];
-            if (!sess) return s;
-            return {
-              sessions: {
-                ...s.sessions,
-                [runId]: {
-                  ...sess,
-                  messageQueue: rest.length > 0 ? rest : undefined,
-                },
-              },
-            };
-          });
-
-          await useTaskSessionStore.getState().sendPrompt(current.taskId, next);
-        } catch (err) {
-          logger.warn("Failed to send queued message", { runId, error: err });
-        } finally {
-          drainInFlight.delete(runId);
-        }
-      }, 50);
-    }
-  }
-});

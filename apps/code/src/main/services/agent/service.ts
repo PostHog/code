@@ -1340,25 +1340,41 @@ For git operations while detached:
       return;
     }
 
-    if (!this.sessions.has(taskRunId)) {
-      const config = this.backgroundSubscriptionConfigs.get(taskRunId);
-      if (!config) {
-        log.warn("Incoming user_message with no session and no stored config", {
+    // Fire-and-forget the prompt dispatch. Awaiting here would block the
+    // LocalCommandReceiver's SSE reader on the agent's turn — which can
+    // park on a requestPermission, leaving the follow-up permission_response
+    // stranded in Redis behind this user_message. Claude SDK has
+    // `promptQueueing: true`, so back-to-back session/prompt calls are
+    // processed in order at the SDK level.
+
+    void this.deliverUserMessage(taskRunId, content);
+  }
+
+  private async deliverUserMessage(
+    taskRunId: string,
+    content: string,
+  ): Promise<void> {
+    try {
+      if (!this.sessions.has(taskRunId)) {
+        const config = this.backgroundSubscriptionConfigs.get(taskRunId);
+        if (!config) {
+          log.warn(
+            "Incoming user_message with no session and no stored config",
+            { taskRunId },
+          );
+          return;
+        }
+        log.info("Lazy-spawning session to deliver mobile command", {
           taskRunId,
         });
-        return;
+        const session = await this.getOrCreateSession(config, true);
+        if (!session) {
+          log.error("Lazy-spawn failed; dropping mobile command", {
+            taskRunId,
+          });
+          return;
+        }
       }
-      log.info("Lazy-spawning session to deliver mobile command", {
-        taskRunId,
-      });
-      const session = await this.getOrCreateSession(config, true);
-      if (!session) {
-        log.error("Lazy-spawn failed; dropping mobile command", { taskRunId });
-        return;
-      }
-    }
-
-    try {
       await this.prompt(taskRunId, [{ type: "text", text: content }]);
     } catch (err) {
       log.error("Failed to deliver local command to session", {

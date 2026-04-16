@@ -296,7 +296,6 @@ export default function TaskDetailScreen() {
             <Composer
               onSend={handleSendPrompt}
               isUserTurn={!(session?.isPromptPending ?? true)}
-              queuedCount={session?.messageQueue?.length ?? 0}
             />
           </Animated.View>
         )}
