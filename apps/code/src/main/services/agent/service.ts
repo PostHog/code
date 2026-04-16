@@ -44,6 +44,8 @@ import { MAIN_TOKENS } from "../../di/tokens";
 import { isDevBuild } from "../../utils/env";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import { AuthServiceEvent } from "../auth/schemas";
+import type { AuthService } from "../auth/service";
 import type { FsService } from "../fs/service";
 import type { McpAppsService } from "../mcp-apps/service";
 import type { PosthogPluginService } from "../posthog-plugin/service";
@@ -322,6 +324,7 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private posthogPluginService: PosthogPluginService;
   private agentAuthAdapter: AgentAuthAdapter;
   private mcpAppsService: McpAppsService;
+  private authService: AuthService;
 
   constructor(
     @inject(MAIN_TOKENS.ProcessTrackingService)
@@ -336,6 +339,8 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     agentAuthAdapter: AgentAuthAdapter,
     @inject(MAIN_TOKENS.McpAppsService)
     mcpAppsService: McpAppsService,
+    @inject(MAIN_TOKENS.AuthService)
+    authService: AuthService,
   ) {
     super();
     this.processTracking = processTracking;
@@ -344,8 +349,16 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     this.posthogPluginService = posthogPluginService;
     this.agentAuthAdapter = agentAuthAdapter;
     this.mcpAppsService = mcpAppsService;
+    this.authService = authService;
 
     powerMonitor.on("resume", () => this.checkIdleDeadlines());
+
+    this.authService.setRefreshBlocker(() => this.hasActiveSessions());
+    this.authService.on(AuthServiceEvent.StateChanged, (state) => {
+      if (state.status === "authenticated") {
+        this.refreshMcpForActiveSessions();
+      }
+    });
   }
 
   /**
@@ -884,6 +897,7 @@ When creating pull requests, add the following footer at the end of the PR descr
       this.sleepService.release(sessionId);
 
       if (!this.hasActiveSessions()) {
+        this.authService.flushPendingRefresh();
         this.emit(AgentServiceEvent.SessionsIdle, undefined);
       }
     }
@@ -1072,6 +1086,25 @@ For git operations while detached:
 - Pull: \`git fetch origin ${context.branchName} && git merge FETCH_HEAD\``;
     }
     return `Your worktree is back on branch \`${context.branchName}\`. Normal git commands work again.`;
+  }
+
+  private async refreshMcpForActiveSessions(): Promise<void> {
+    for (const [taskRunId, session] of this.sessions) {
+      try {
+        const mcpServers = await this.agentAuthAdapter.buildMcpServers(
+          session.config.credentials,
+        );
+        await session.clientSideConnection.extNotification(
+          POSTHOG_NOTIFICATIONS.REFRESH_MCP,
+          { mcpServers },
+        );
+      } catch (err) {
+        log.warn("Failed to push MCP refresh", {
+          taskRunId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
   }
 
   @preDestroy()

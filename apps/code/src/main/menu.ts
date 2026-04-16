@@ -138,13 +138,13 @@ function buildFileMenu(): MenuItemConstructorOptions {
             click: () => {
               container
                 .get<AuthService>(MAIN_TOKENS.AuthService)
-                .refreshAccessToken()
+                .scheduleRefresh()
                 .then(() => {
                   dialog.showMessageBox({
                     type: "info",
-                    title: "OAuth Token Refreshed",
+                    title: "OAuth Token Refresh",
                     message:
-                      "A fresh access token was fetched from PostHog.\nThe background refresh timer has been re-armed.",
+                      "Token refresh scheduled.\nIt will execute when all active agent turns complete.",
                   });
                 })
                 .catch((err: Error) => {

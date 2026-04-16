@@ -44,7 +44,7 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { v7 as uuidv7 } from "uuid";
 import packageJson from "../../../package.json" with { type: "json" };
-import { POSTHOG_NOTIFICATIONS } from "../../acp-extensions";
+import { isNotification, POSTHOG_NOTIFICATIONS } from "../../acp-extensions";
 import { unreachable, withTimeout } from "../../utils/common";
 import { Logger } from "../../utils/logger";
 import { Pushable } from "../../utils/streams";
@@ -640,6 +640,26 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     await this.session.query.interrupt();
   }
 
+  async extNotification(
+    method: string,
+    params: Record<string, unknown>,
+  ): Promise<void> {
+    if (isNotification(method, POSTHOG_NOTIFICATIONS.REFRESH_MCP)) {
+      const mcpServers = parseMcpServers(
+        params as Pick<NewSessionRequest, "mcpServers">,
+      );
+      this.logger.info("Refreshing MCP servers", {
+        serverCount: Object.keys(mcpServers).length,
+      });
+      const result = await this.session.query.setMcpServers(mcpServers);
+      this.logger.info("MCP servers refreshed", {
+        added: result.added,
+        removed: result.removed,
+        errors: result.errors,
+      });
+    }
+  }
+
   async unstable_setSessionModel(
     params: SetSessionModelRequest,
   ): Promise<SetSessionModelResponse | undefined> {
@@ -837,7 +857,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       CODE_EXECUTION_MODES.includes(meta.permissionMode as CodeExecutionMode)
         ? (meta.permissionMode as CodeExecutionMode)
         : "default";
-
+    this.logger.info("mcpServers", { mcpServers });
     const options = buildSessionOptions({
       cwd,
       mcpServers,

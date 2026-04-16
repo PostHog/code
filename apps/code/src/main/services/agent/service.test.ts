@@ -176,6 +176,12 @@ function createMockDependencies() {
       notifyToolResult: vi.fn(),
       notifyToolCancelled: vi.fn(),
     },
+    authService: {
+      on: vi.fn(),
+      off: vi.fn(),
+      setRefreshBlocker: vi.fn(),
+      flushPendingRefresh: vi.fn().mockResolvedValue(undefined),
+    },
   };
 }
 
@@ -201,6 +207,7 @@ describe("AgentService", () => {
       deps.posthogPluginService as never,
       deps.agentAuthAdapter as never,
       deps.mcpAppsService as never,
+      deps.authService as never,
     );
   });
 

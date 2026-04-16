@@ -80,6 +80,8 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
   private initializePromise: Promise<void> | null = null;
   private refreshPromise: Promise<InMemorySession> | null = null;
   private refreshTimeoutId: NodeJS.Timeout | null = null;
+  private isRefreshBlocked: (() => boolean) | null = null;
+  private pendingRefresh = false;
   constructor(
     @inject(MAIN_TOKENS.AuthPreferenceRepository)
     private readonly authPreferenceRepository: IAuthPreferenceRepository,
@@ -136,6 +138,26 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       accessToken: session.accessToken,
       apiHost: getCloudUrlFromRegion(session.cloudRegion),
     };
+  }
+  /** Register a callback that returns true when proactive token refreshes should be deferred. */
+  setRefreshBlocker(fn: () => boolean): void {
+    this.isRefreshBlocked = fn;
+  }
+  /** Request a token refresh, deferring if a blocker is active. */
+  async scheduleRefresh(): Promise<void> {
+    if (this.isRefreshBlocked?.()) {
+      this.pendingRefresh = true;
+      return;
+    }
+    await this.refreshAccessToken();
+  }
+  /** Execute a deferred refresh if one is pending. Called by the blocker owner when it becomes unblocked. */
+  async flushPendingRefresh(): Promise<void> {
+    if (!this.pendingRefresh) return;
+    this.pendingRefresh = false;
+    await this.refreshAccessToken().catch((error) => {
+      log.warn("Deferred token refresh failed", { error });
+    });
   }
   async invalidateAccessTokenForTest(): Promise<void> {
     await this.initialize();
@@ -486,6 +508,10 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
 
     const fire = () => {
       this.refreshTimeoutId = null;
+      if (this.isRefreshBlocked?.()) {
+        this.pendingRefresh = true;
+        return;
+      }
       this.refreshAccessToken().catch((error) => {
         log.warn("Proactive token refresh failed", { error });
       });
