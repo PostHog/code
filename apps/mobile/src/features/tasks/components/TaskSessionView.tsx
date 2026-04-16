@@ -59,6 +59,7 @@ interface ParsedMessage {
   id: string;
   type: "user" | "agent" | "thought" | "tool" | "connecting" | "thinking";
   content: string;
+  ts?: number;
   toolData?: ToolData;
   children?: ParsedMessage[];
 }
@@ -181,6 +182,7 @@ interface EventProcessorState {
   messages: ParsedMessage[];
   plan: PlanEntry[] | null;
   pendingAgentText: string;
+  pendingAgentTs?: number;
   pendingThoughtText: string;
   lastAgentMsgIdx: number | null;
   agentMessageCount: number;
@@ -235,10 +237,12 @@ function processNewEvents(
       id: `agent-${state.agentMessageCount++}`,
       type: "agent",
       content: state.pendingAgentText,
+      ts: state.pendingAgentTs,
     };
     state.messages.push(msg);
     state.lastAgentMsgIdx = state.messages.length - 1;
     state.pendingAgentText = "";
+    state.pendingAgentTs = undefined;
   };
 
   const flushThoughtText = () => {
@@ -278,11 +282,13 @@ function processNewEvents(
           id: `user-${state.userMessageCount++}`,
           type: "user",
           content: parsed.content ?? "",
+          ts: event.ts,
         });
         state.lastAgentMsgIdx = null;
         break;
       case "agent":
         flushThoughtText();
+        if (!state.pendingAgentTs) state.pendingAgentTs = event.ts;
         state.pendingAgentText += parsed.content ?? "";
         break;
       case "agent_complete":
@@ -293,9 +299,14 @@ function processNewEvents(
           state.messages[state.lastAgentMsgIdx]?.type === "agent"
         ) {
           state.messages[state.lastAgentMsgIdx].content = parsed.content ?? "";
+          if (!state.messages[state.lastAgentMsgIdx].ts) {
+            state.messages[state.lastAgentMsgIdx].ts = event.ts;
+          }
           state.pendingAgentText = "";
+          state.pendingAgentTs = undefined;
         } else {
           state.pendingAgentText = parsed.content ?? "";
+          if (!state.pendingAgentTs) state.pendingAgentTs = event.ts;
         }
         break;
       case "thought":
@@ -705,10 +716,14 @@ export function TaskSessionView({
     ({ item }: { item: ParsedMessage }) => {
       switch (item.type) {
         case "user":
-          return <HumanMessage content={item.content} />;
+          return <HumanMessage content={item.content} timestamp={item.ts} />;
         case "agent":
           return (
-            <AgentMessage content={item.content} onOpenTask={onOpenTask} />
+            <AgentMessage
+              content={item.content}
+              onOpenTask={onOpenTask}
+              timestamp={item.ts}
+            />
           );
         case "thought":
           return <CollapsedThought content={item.content} />;

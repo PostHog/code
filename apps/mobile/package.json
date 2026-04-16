@@ -50,6 +50,7 @@
     "expo-status-bar": "~3.0.9",
     "expo-system-ui": "~6.0.9",
     "expo-web-browser": "^15.0.10",
+    "highlight.js": "^11.11.1",
     "nativewind": "^4.2.1",
     "phosphor-react-native": "^3.0.2",
     "posthog-react-native": "^4.18.0",
