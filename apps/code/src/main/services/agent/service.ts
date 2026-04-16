@@ -1366,6 +1366,7 @@ For git operations while detached:
         }
         log.info("Lazy-spawning session to deliver mobile command", {
           taskRunId,
+          hasSessionId: !!config.sessionId,
         });
         const session = await this.getOrCreateSession(config, true);
         if (!session) {

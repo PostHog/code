@@ -1,4 +1,5 @@
 import { useAuthState } from "@features/auth/hooks/authQueries";
+import { fetchSessionLogs } from "@features/sessions/utils/parseSessionLogs";
 import { useTasks } from "@features/tasks/hooks/useTasks";
 import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
 import { trpcClient } from "@renderer/trpc/client";
@@ -61,23 +62,38 @@ export function useBackgroundSubscriptions() {
     for (const [taskRunId, input] of desired) {
       if (enrolled.current.has(taskRunId)) continue;
       enrolled.current.add(taskRunId);
-      trpcClient.agent.ensureBackgroundSubscription
-        .mutate({
-          taskId: input.taskId,
-          taskRunId,
-          repoPath: input.repoPath,
-          apiHost,
-          projectId,
-          logUrl: input.logUrl,
-          runMode: "local",
-        })
-        .catch((err) => {
+
+      // Same prep the renderer does when the user opens a task on desktop:
+      // fetch the S3 log and extract sessionId/adapter so the main process
+      // can resume the Claude session (with history) on lazy-spawn.
+      void (async () => {
+        try {
+          let sessionId: string | undefined;
+          let adapter: "claude" | "codex" | undefined;
+          if (input.logUrl) {
+            const parsed = await fetchSessionLogs(input.logUrl);
+            sessionId = parsed.sessionId;
+            adapter = parsed.adapter;
+          }
+          await trpcClient.agent.ensureBackgroundSubscription.mutate({
+            taskId: input.taskId,
+            taskRunId,
+            repoPath: input.repoPath,
+            apiHost,
+            projectId,
+            logUrl: input.logUrl,
+            sessionId,
+            adapter,
+            runMode: "local",
+          });
+        } catch (err) {
           enrolled.current.delete(taskRunId);
           log.warn("Failed to enroll background subscription", {
             taskRunId,
             error: err instanceof Error ? err.message : String(err),
           });
-        });
+        }
+      })();
     }
 
     for (const taskRunId of Array.from(enrolled.current)) {
