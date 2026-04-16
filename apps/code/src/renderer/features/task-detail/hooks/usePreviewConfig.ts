@@ -1,6 +1,11 @@
 import type { SessionConfigOption } from "@agentclientprotocol/sdk";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
+import {
+  filterModeConfigOptions,
+  getDefaultPermissionMode,
+  sanitizeSelectablePermissionMode,
+} from "@features/settings/utils/permissionModes";
 import { getReasoningEffortOptions } from "@posthog/agent/adapters/reasoning-effort";
 import { trpcClient } from "@renderer/trpc/client";
 import { getCloudUrlFromRegion } from "@shared/constants/oauth";
@@ -59,14 +64,21 @@ export function usePreviewConfig(
       .then((options) => {
         if (abort.signal.aborted) return;
 
-        const { defaultInitialTaskMode, lastUsedInitialTaskMode } =
+        const {
+          allowBypassPermissions,
+          defaultInitialTaskMode,
+          lastUsedInitialTaskMode,
+        } =
           useSettingsStore.getState();
+        const filteredOptions =
+          filterModeConfigOptions(options, adapter, allowBypassPermissions) ??
+          options;
 
         // Use the mode option's existing currentValue (set by the server
         // based on the adapter) when the user hasn't chosen a preference,
         // or when their last-used mode doesn't match the current adapter's
         // available modes.
-        const modeOpt = options.find((o) => o.id === "mode");
+        const modeOpt = filteredOptions.find((o) => o.id === "mode");
         const serverDefault = modeOpt?.currentValue;
         const availableValues: string[] =
           modeOpt?.type === "select"
@@ -92,11 +104,17 @@ export function usePreviewConfig(
         ) {
           initialMode = lastUsedInitialTaskMode;
         } else {
-          initialMode =
-            typeof serverDefault === "string" ? serverDefault : "plan";
+          const selectableServerDefault = sanitizeSelectablePermissionMode(
+            typeof serverDefault === "string" ? serverDefault : undefined,
+            adapter,
+            allowBypassPermissions,
+          );
+          initialMode = availableValues.includes(selectableServerDefault)
+            ? selectableServerDefault
+            : getDefaultPermissionMode(adapter);
         }
 
-        const withMode = options.map((opt) =>
+        const withMode = filteredOptions.map((opt) =>
           opt.id === "mode"
             ? ({ ...opt, currentValue: initialMode } as SessionConfigOption)
             : opt,

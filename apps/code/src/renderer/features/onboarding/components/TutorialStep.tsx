@@ -10,7 +10,6 @@ import {
   cycleModeOption,
   getCurrentModeFromConfigOptions,
 } from "@features/sessions/stores/sessionStore";
-import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { TaskInputEditor } from "@features/task-detail/components/TaskInputEditor";
 import { WorkspaceModeSelect } from "@features/task-detail/components/WorkspaceModeSelect";
 import { usePreviewConfig } from "@features/task-detail/hooks/usePreviewConfig";
@@ -59,7 +58,6 @@ interface TutorialStepProps {
 }
 
 export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
-  const { allowBypassPermissions } = useSettingsStore();
   const completeOnboarding = useOnboardingStore(
     (state) => state.completeOnboarding,
   );
@@ -204,11 +202,11 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
 
   // Shift+tab mode cycling (only active during explain-mode step)
   const handleCycleMode = useCallback(() => {
-    const nextValue = cycleModeOption(modeOption, allowBypassPermissions);
+    const nextValue = cycleModeOption(modeOption);
     if (nextValue && modeOption) {
       setConfigOption(modeOption.id, nextValue);
     }
-  }, [modeOption, allowBypassPermissions, setConfigOption]);
+  }, [modeOption, setConfigOption]);
 
   useHotkeys(
     "shift+tab",

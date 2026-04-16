@@ -4,7 +4,7 @@
  */
 
 import type { SessionConfigOption } from "@agentclientprotocol/sdk";
-import type { CodeExecutionMode } from "../../execution-mode";
+import type { PermissionMode } from "../../execution-mode";
 
 export interface CodexUsage {
   inputTokens: number;
@@ -22,7 +22,7 @@ export interface CodexSessionState {
   accumulatedUsage: CodexUsage;
   contextSize?: number;
   contextUsed?: number;
-  permissionMode: CodeExecutionMode;
+  permissionMode: PermissionMode;
   taskRunId?: string;
   taskId?: string;
 }
@@ -35,13 +35,13 @@ export function createSessionState(
     taskId?: string;
     modeId?: string;
     modelId?: string;
-    permissionMode?: CodeExecutionMode;
+    permissionMode?: PermissionMode;
   },
 ): CodexSessionState {
   return {
     sessionId,
     cwd,
-    modeId: opts?.modeId ?? "default",
+    modeId: opts?.modeId ?? "auto",
     modelId: opts?.modelId,
     configOptions: [],
     accumulatedUsage: {
@@ -50,7 +50,7 @@ export function createSessionState(
       cachedReadTokens: 0,
       cachedWriteTokens: 0,
     },
-    permissionMode: opts?.permissionMode ?? "default",
+    permissionMode: opts?.permissionMode ?? "auto",
     taskRunId: opts?.taskRunId,
     taskId: opts?.taskId,
   };

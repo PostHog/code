@@ -81,14 +81,15 @@ export function ClaudeCodeSettings() {
     (checked: boolean) => {
       if (checked) {
         setShowBypassWarning(true);
-      } else {
-        track(ANALYTICS_EVENTS.SETTING_CHANGED, {
-          setting_name: "allow_bypass_permissions",
-          new_value: false,
-          old_value: true,
-        });
-        setAllowBypassPermissions(false);
+        return;
       }
+
+      track(ANALYTICS_EVENTS.SETTING_CHANGED, {
+        setting_name: "allow_bypass_permissions",
+        new_value: false,
+        old_value: true,
+      });
+      setAllowBypassPermissions(false);
     },
     [setAllowBypassPermissions],
   );
@@ -195,9 +196,9 @@ export function ClaudeCodeSettings() {
             <Warning weight="fill" />
           </Callout.Icon>
           <Callout.Text>
-            Auto-accept is enabled. All actions (shell commands, file edits, web
-            requests) run without approval. Use shift+tab to cycle to this mode
-            per session.
+            Auto-accept is enabled. All actions (shell commands, file edits,
+            web requests) run without approval. Use shift+tab to cycle to this
+            mode per session.
           </Callout.Text>
         </Callout.Root>
       )}

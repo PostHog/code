@@ -18,7 +18,7 @@ import {
   type InProcessAcpConnection,
 } from "../adapters/acp-connection";
 import { selectRecentTurns } from "../adapters/claude/session/jsonl-hydration";
-import type { CodeExecutionMode } from "../execution-mode";
+import type { PermissionMode } from "../execution-mode";
 import { DEFAULT_CODEX_MODEL } from "../gateway-models";
 import { PostHogAPIClient } from "../posthog-api";
 import {
@@ -164,7 +164,7 @@ interface ActiveSession {
   deviceInfo: DeviceInfo;
   logWriter: SessionLogWriter;
   /** Current permission mode, tracked for relay decisions */
-  permissionMode: CodeExecutionMode;
+  permissionMode: PermissionMode;
   /** Whether a desktop client has ever connected via SSE during this session */
   hasDesktopConnected: boolean;
 }
@@ -265,8 +265,16 @@ export class AgentServer {
     return payload.mode ?? this.config.mode;
   }
 
-  private getSessionPermissionMode(): CodeExecutionMode {
-    return this.session?.permissionMode ?? "default";
+  private getSessionPermissionMode(): PermissionMode {
+    if (this.session?.permissionMode) {
+      return this.session.permissionMode;
+    }
+
+    return this.getRuntimeAdapter() === "codex" ? "auto" : "default";
+  }
+
+  private shouldRelayPermissionToClient(mode: PermissionMode): boolean {
+    return mode === "default" || mode === "auto";
   }
 
   private createApp(): Hono {
@@ -839,12 +847,15 @@ export class AgentServer {
     });
 
     const runState = preTaskRun?.state as Record<string, unknown> | undefined;
-    // Cloud runs default to bypassPermissions (auto-approve everything).
-    // Only PostHog Code sets initial_permission_mode explicitly (e.g., "plan").
-    const initialPermissionMode: CodeExecutionMode =
+    // Preserve native Codex modes for cloud runs so they behave the same as
+    // local sessions. Claude keeps the historical auto-approved default when
+    // PostHog Code has not explicitly selected a mode.
+    const initialPermissionMode: PermissionMode =
       typeof runState?.initial_permission_mode === "string"
-        ? (runState.initial_permission_mode as CodeExecutionMode)
-        : "bypassPermissions";
+        ? (runState.initial_permission_mode as PermissionMode)
+        : runtimeAdapter === "codex"
+          ? "auto"
+          : "bypassPermissions";
     const sessionResponse = await clientConnection.newSession({
       cwd: this.config.repositoryPath ?? "/tmp/workspace",
       mcpServers: this.config.mcpServers ?? [],
@@ -1588,7 +1599,9 @@ ${attributionInstructions}
           const isQuestion = codeToolKind === "question";
           const sessionPermissionMode = this.getSessionPermissionMode();
           const needsRelay =
-            isQuestion || isPlanApproval || sessionPermissionMode === "default";
+            isQuestion ||
+            isPlanApproval ||
+            this.shouldRelayPermissionToClient(sessionPermissionMode);
 
           if (needsRelay && this.session?.hasDesktopConnected) {
             this.logger.info("Relaying permission to connected client", {
@@ -1634,7 +1647,7 @@ ${attributionInstructions}
           this.session
         ) {
           this.session.permissionMode = params.update
-            .currentModeId as CodeExecutionMode;
+            .currentModeId as PermissionMode;
           this.logger.info("Permission mode updated", {
             mode: params.update.currentModeId,
           });

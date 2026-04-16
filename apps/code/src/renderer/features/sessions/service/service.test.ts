@@ -172,9 +172,14 @@ vi.mock("@renderer/stores/connectivityStore", () => ({
   getIsOnline: () => mockGetIsOnline(),
 }));
 
+const mockSettingsState = vi.hoisted(() => ({
+  customInstructions: "",
+  allowBypassPermissions: false,
+}));
+
 vi.mock("@features/settings/stores/settingsStore", () => ({
   useSettingsStore: {
-    getState: () => ({ customInstructions: "" }),
+    getState: () => mockSettingsState,
   },
 }));
 
@@ -282,6 +287,8 @@ describe("SessionService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetSessionService();
+    mockSettingsState.customInstructions = "";
+    mockSettingsState.allowBypassPermissions = false;
     mockGetIsOnline.mockReturnValue(true);
     mockGetConfigOptionByCategory.mockReturnValue(undefined);
     mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(undefined);
@@ -516,6 +523,72 @@ describe("SessionService", () => {
   });
 
   describe("watchCloudTask", () => {
+    it("hides full access for codex runs when unsafe modes are disabled", () => {
+      const service = getSessionService();
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+        undefined,
+        undefined,
+        "full-access",
+        "codex",
+      );
+
+      expect(mockSessionStoreSetters.setSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskRunId: "run-123",
+          taskId: "task-123",
+          adapter: "codex",
+          isCloud: true,
+          configOptions: [
+            expect.objectContaining({
+              id: "mode",
+              currentValue: "full-access",
+              options: [
+                expect.objectContaining({ value: "read-only" }),
+                expect.objectContaining({ value: "auto" }),
+              ],
+            }),
+          ],
+        }),
+      );
+    });
+
+    it("builds codex cloud mode options with full access when unsafe modes are enabled", () => {
+      mockSettingsState.allowBypassPermissions = true;
+      const service = getSessionService();
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+        undefined,
+        undefined,
+        "full-access",
+        "codex",
+      );
+
+      expect(mockSessionStoreSetters.setSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          configOptions: [
+            expect.objectContaining({
+              id: "mode",
+              currentValue: "full-access",
+              options: [
+                expect.objectContaining({ value: "read-only" }),
+                expect.objectContaining({ value: "auto" }),
+                expect.objectContaining({ value: "full-access" }),
+              ],
+            }),
+          ],
+        }),
+      );
+    });
+
     it("resets a same-run preloaded session before the first cloud snapshot", () => {
       const service = getSessionService();
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
