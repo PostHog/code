@@ -137,8 +137,6 @@ describe("authStore", () => {
       needsScopeReauth: false,
       hasCodeAccess: null,
       hasCompletedOnboarding: false,
-      selectedPlan: null,
-      selectedOrgId: null,
     });
   });
 
