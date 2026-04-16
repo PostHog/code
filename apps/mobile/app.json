@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "PostHog AI",
+    "name": "PostHog Code",
     "slug": "posthog",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,7 +16,7 @@
     "ios": {
       "icon": "./assets/posthog.icon",
       "supportsTablet": true,
-      "bundleIdentifier": "com.posthog.mobile",
+      "bundleIdentifier": "com.posthog.code",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Allow PostHog to use your microphone for voice-to-text input",
         "NSSpeechRecognitionUsageDescription": "Allow PostHog to transcribe your voice input on-device",

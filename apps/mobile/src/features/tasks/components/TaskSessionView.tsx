@@ -1,4 +1,10 @@
-import { ArrowDown, Brain, CaretRight, CloudArrowDown, Robot } from "phosphor-react-native";
+import {
+  ArrowDown,
+  Brain,
+  CaretRight,
+  CloudArrowDown,
+  Robot,
+} from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,

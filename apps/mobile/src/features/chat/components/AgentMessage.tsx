@@ -1,6 +1,8 @@
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
 import { Brain } from "phosphor-react-native";
-import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { Alert, Pressable, Text, View } from "react-native";
 import { useThemeColors } from "@/lib/theme";
 import { usePeriodicRerender } from "../hooks/usePeriodicRerender";
 import type { AssistantToolCall } from "../types";
@@ -74,6 +76,14 @@ export function AgentMessage({
   const hasContent = !!content;
   const isComplete = !isLoading && hasContent;
 
+  const handleLongPress = useCallback(() => {
+    if (!content) return;
+    Clipboard.setStringAsync(content).then(() => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Copied", "Message copied to clipboard.");
+    });
+  }, [content]);
+
   return (
     <View className="py-2">
       {toolCalls && toolCalls.length > 0 && (
@@ -105,11 +115,13 @@ export function AgentMessage({
         </View>
       )}
 
-      {/* Show final content */}
+      {/* Show final content — long-press to copy */}
       {content && (
-        <View className="max-w-[95%] px-4 py-1">
-          <MarkdownText content={content} />
-        </View>
+        <Pressable onLongPress={handleLongPress} delayLongPress={400}>
+          <View className="max-w-[95%] px-4 py-1">
+            <MarkdownText content={content} />
+          </View>
+        </Pressable>
       )}
     </View>
   );

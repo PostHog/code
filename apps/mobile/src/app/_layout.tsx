@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { useAuthStore } from "@/features/auth";
 import { usePreferencesStore } from "@/features/preferences/stores/preferencesStore";
 import {
@@ -115,6 +116,7 @@ export default function RootLayout() {
           <QueryClientProvider client={queryClient}>
             <View style={themeVars} className="flex-1">
               <RootLayoutNav />
+              <OfflineBanner />
             </View>
             <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
           </QueryClientProvider>

@@ -1,7 +1,7 @@
 import { Text } from "@components/text";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -113,6 +113,10 @@ export default function TaskDetailScreen() {
       if (!taskId) return;
       sendPrompt(taskId, text).catch((err) => {
         console.error("Failed to send prompt:", err);
+        Alert.alert(
+          "Failed to send",
+          "Your message could not be delivered. Please try again.",
+        );
       });
     },
     [taskId, sendPrompt],
@@ -134,6 +138,10 @@ export default function TaskDetailScreen() {
     } catch (err) {
       console.error("Failed to retry task:", err);
       setRetrying(false);
+      Alert.alert(
+        "Retry failed",
+        "Could not restart the task. Please try again.",
+      );
     }
   }, [taskId, task, disconnectFromTask, connectToTask]);
 
@@ -150,6 +158,10 @@ export default function TaskDetailScreen() {
       if (!taskId) return;
       sendPermissionResponse(taskId, args).catch((err) => {
         console.error("Failed to send permission response:", err);
+        Alert.alert(
+          "Failed to respond",
+          "Your permission response could not be sent. Please try again.",
+        );
       });
     },
     [taskId, sendPermissionResponse],
@@ -247,7 +259,9 @@ export default function TaskDetailScreen() {
             switching from loading spinner to rendered content. */}
         <TaskSessionView
           events={session?.events ?? []}
-          isConnecting={retrying || (!!session?.awaitingAgentOutput && !hasAnyAgentOutput)}
+          isConnecting={
+            retrying || (!!session?.awaitingAgentOutput && !hasAnyAgentOutput)
+          }
           isThinking={!!session?.awaitingAgentOutput && hasAnyAgentOutput}
           terminalStatus={retrying ? undefined : session?.terminalStatus}
           lastError={retrying ? undefined : session?.lastError}
