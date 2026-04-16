@@ -230,9 +230,7 @@ export function TaskList({ onTaskPress, onCreateTask }: TaskListProps) {
                 size={14}
                 color={themeColors.gray[9]}
                 style={{
-                  transform: [
-                    { rotate: item.expanded ? "90deg" : "0deg" },
-                  ],
+                  transform: [{ rotate: item.expanded ? "90deg" : "0deg" }],
                 }}
               />
               <Text className="flex-1 font-medium text-gray-9 text-xs">

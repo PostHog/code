@@ -543,7 +543,7 @@ describe("AgentService", () => {
       expect(promptSpy).not.toHaveBeenCalled();
     });
 
-    it("unsubscribes on session cleanup", async () => {
+    it("keeps the subscription alive after session cleanup so mobile can wake a new session", async () => {
       await service.startSession({
         ...baseSessionParams,
         runMode: "local",
@@ -554,6 +554,17 @@ describe("AgentService", () => {
           cleanupSession: (id: string) => Promise<void>;
         }
       ).cleanupSession("run-1");
+
+      expect(deps.localCommandReceiver.unsubscribe).not.toHaveBeenCalled();
+    });
+
+    it("removeBackgroundSubscription tears down the SSE subscription", async () => {
+      await service.startSession({
+        ...baseSessionParams,
+        runMode: "local",
+      });
+
+      service.removeBackgroundSubscription("run-1");
 
       expect(deps.localCommandReceiver.unsubscribe).toHaveBeenCalledWith(
         "run-1",

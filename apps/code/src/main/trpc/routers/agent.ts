@@ -62,6 +62,21 @@ export const agentRouter = router({
     .output(sessionResponseSchema.nullable())
     .mutation(({ input }) => getService().reconnectSession(input)),
 
+  // Register a task run for background mobile-command pickup. Idempotent.
+  // When a mobile command arrives and no session is active, the main process
+  // uses the stored config to lazy-spawn via reconnect before dispatching.
+  ensureBackgroundSubscription: publicProcedure
+    .input(reconnectSessionInput)
+    .mutation(({ input }) => {
+      getService().ensureBackgroundSubscription(input);
+    }),
+
+  removeBackgroundSubscription: publicProcedure
+    .input(cancelSessionInput)
+    .mutation(({ input }) => {
+      getService().removeBackgroundSubscription(input.sessionId);
+    }),
+
   setConfigOption: publicProcedure
     .input(setConfigOptionInput)
     .mutation(({ input }) =>

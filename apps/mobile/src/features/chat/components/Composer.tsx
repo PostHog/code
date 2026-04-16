@@ -21,13 +21,7 @@ interface ComposerProps {
   queuedCount?: number;
 }
 
-function PulsingBorder({
-  active,
-  color,
-}: {
-  active: boolean;
-  color: string;
-}) {
+function PulsingBorder({ active, color }: { active: boolean; color: string }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
 
@@ -121,11 +115,12 @@ export function Composer({
   };
 
   const canSend = message.trim().length > 0 && !disabled && !isRecording;
-  const effectivePlaceholder = queuedCount > 0
-    ? `${queuedCount} message${queuedCount > 1 ? "s" : ""} queued...`
-    : !isUserTurn && !disabled
-      ? "Message will be queued..."
-      : placeholder;
+  const effectivePlaceholder =
+    queuedCount > 0
+      ? `${queuedCount} message${queuedCount > 1 ? "s" : ""} queued...`
+      : !isUserTurn && !disabled
+        ? "Message will be queued..."
+        : placeholder;
 
   if (Platform.OS === "ios") {
     return (
@@ -158,10 +153,7 @@ export function Composer({
         >
           {/* Input field with pulsing border when it's the user's turn */}
           <View style={{ flex: 1, position: "relative" }}>
-            <PulsingBorder
-              active={isUserTurn}
-              color={themeColors.accent[9]}
-            />
+            <PulsingBorder active={isUserTurn} color={themeColors.accent[9]} />
             <GlassView
               style={{
                 flex: 1,

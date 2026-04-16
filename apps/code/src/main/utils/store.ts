@@ -18,6 +18,13 @@ interface RendererStoreSchema {
   [key: string]: string;
 }
 
+interface LocalCommandCursorSchema {
+  // taskRunId → last SSE event ID processed from the task-run stream.
+  // Used by LocalCommandReceiver to resume without replay across reconnects
+  // and app restarts, so mobile-originated commands aren't double-delivered.
+  cursors: Record<string, string>;
+}
+
 export interface WindowStateSchema {
   x: number | undefined;
   y: number | undefined;
@@ -29,6 +36,12 @@ export interface WindowStateSchema {
 export const rendererStore = new Store<RendererStoreSchema>({
   name: "renderer-storage",
   cwd: app.getPath("userData"),
+});
+
+export const localCommandCursorStore = new Store<LocalCommandCursorSchema>({
+  name: "local-command-cursor",
+  cwd: app.getPath("userData"),
+  defaults: { cursors: {} },
 });
 
 export const focusStore = new Store<FocusStoreSchema>({

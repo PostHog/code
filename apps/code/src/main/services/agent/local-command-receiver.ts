@@ -1,15 +1,12 @@
 import { inject, injectable, preDestroy } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
+import { localCommandCursorStore } from "../../utils/store";
 import type { AuthService } from "../auth/service";
 
 const log = logger.scope("local-command-receiver");
 const INITIAL_RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
-// After this many consecutive failures, assume Last-Event-ID is stale (event
-// trimmed from the backend buffer) and fall back to a fresh connect with
-// start=latest. Accepts that we may drop commands issued during the outage.
-const STALE_EVENT_ID_THRESHOLD = 3;
 
 /**
  * JSON-RPC envelope carried inside an `incoming_command` SSE event. The
@@ -94,7 +91,12 @@ export class LocalCommandReceiver {
     params: SubscribeParams,
     controller: AbortController,
   ): Promise<void> {
-    let lastEventId: string | undefined;
+    // Seed from persisted cursor so we resume without replay across reconnects
+    // AND across app restarts. On first-ever subscribe the cursor is undefined;
+    // we send no start param and no Last-Event-ID, which lets the backend read
+    // from the beginning of the stream. That is intentional — it catches
+    // mobile-originated commands published while this desktop was offline.
+    let lastEventId = this.loadCursor(params.taskRunId);
     let consecutiveFailures = 0;
 
     while (!controller.signal.aborted) {
@@ -104,11 +106,6 @@ export class LocalCommandReceiver {
         const url = new URL(
           `${params.apiHost}/api/projects/${params.projectId}/tasks/${params.taskId}/runs/${params.taskRunId}/stream/`,
         );
-        if (!lastEventId) {
-          // Fresh connect: only care about events published from now on.
-          // On reconnect we use Last-Event-ID instead (see headers below).
-          url.searchParams.set("start", "latest");
-        }
 
         const headers: Record<string, string> = {
           Authorization: `Bearer ${accessToken}`,
@@ -134,6 +131,7 @@ export class LocalCommandReceiver {
           params.onCommand,
           controller.signal,
           lastEventId,
+          params.taskRunId,
         );
         log.info("SSE stream ended cleanly", {
           taskRunId: params.taskRunId,
@@ -141,19 +139,6 @@ export class LocalCommandReceiver {
       } catch (err) {
         if (controller.signal.aborted) return;
         if (!streamOpened) consecutiveFailures++;
-        if (
-          consecutiveFailures >= STALE_EVENT_ID_THRESHOLD &&
-          lastEventId !== undefined
-        ) {
-          log.warn(
-            "Dropping possibly-stale Last-Event-ID after repeated failures",
-            {
-              taskRunId: params.taskRunId,
-              consecutiveFailures,
-            },
-          );
-          lastEventId = undefined;
-        }
         log.warn("SSE disconnected, will reconnect", {
           taskRunId: params.taskRunId,
           consecutiveFailures,
@@ -169,11 +154,23 @@ export class LocalCommandReceiver {
     }
   }
 
+  private loadCursor(taskRunId: string): string | undefined {
+    const cursors = localCommandCursorStore.get("cursors");
+    return cursors[taskRunId];
+  }
+
+  private saveCursor(taskRunId: string, eventId: string): void {
+    const cursors = localCommandCursorStore.get("cursors");
+    cursors[taskRunId] = eventId;
+    localCommandCursorStore.set("cursors", cursors);
+  }
+
   private async readEventStream(
     body: ReadableStream<Uint8Array> | null,
     onCommand: SubscribeParams["onCommand"],
     signal: AbortSignal,
     seedLastEventId: string | undefined,
+    taskRunId: string,
   ): Promise<string | undefined> {
     if (!body) throw new Error("Missing SSE response body");
     const reader = body.getReader();
@@ -233,7 +230,10 @@ export class LocalCommandReceiver {
             }
           }
 
-          if (eventId) lastEventId = eventId;
+          if (eventId) {
+            lastEventId = eventId;
+            this.saveCursor(taskRunId, eventId);
+          }
         }
       }
       return lastEventId;
