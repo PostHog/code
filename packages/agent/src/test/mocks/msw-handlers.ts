@@ -27,7 +27,7 @@ export function createPostHogHandlers(options: PostHogHandlersOptions = {}) {
         object: "list",
         data: [
           {
-            id: "claude-opus-4-6",
+            id: "claude-opus-4-7",
             owned_by: "anthropic",
             context_window: 200000,
             supports_streaming: true,

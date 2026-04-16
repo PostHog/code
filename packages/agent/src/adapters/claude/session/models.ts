@@ -3,6 +3,7 @@ export const DEFAULT_MODEL = "opus";
 const GATEWAY_TO_SDK_MODEL: Record<string, string> = {
   "claude-opus-4-5": "opus",
   "claude-opus-4-6": "opus",
+  "claude-opus-4-7": "opus",
   "claude-sonnet-4-5": "sonnet",
   "claude-sonnet-4-6": "sonnet",
   "claude-haiku-4-5": "haiku",
@@ -14,6 +15,7 @@ export function toSdkModelId(modelId: string): string {
 
 const MODELS_WITH_1M_CONTEXT = new Set([
   "claude-opus-4-6",
+  "claude-opus-4-7",
   "claude-sonnet-4-6",
 ]);
 
@@ -24,10 +26,11 @@ export function supports1MContext(modelId: string): boolean {
 const MODELS_WITH_EFFORT = new Set([
   "claude-opus-4-5",
   "claude-opus-4-6",
+  "claude-opus-4-7",
   "claude-sonnet-4-6",
 ]);
 
-const MODELS_WITH_MAX_EFFORT = new Set(["claude-opus-4-6"]);
+const MODELS_WITH_MAX_EFFORT = new Set(["claude-opus-4-6", "claude-opus-4-7"]);
 
 export function supportsEffort(modelId: string): boolean {
   return MODELS_WITH_EFFORT.has(modelId);
