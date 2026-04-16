@@ -296,6 +296,12 @@ describe("SessionService", () => {
       hasCodeAccess: true,
       needsScopeReauth: false,
     });
+    mockTrpcAgent.onSessionEvent.subscribe.mockReturnValue({
+      unsubscribe: vi.fn(),
+    });
+    mockTrpcAgent.onPermissionRequest.subscribe.mockReturnValue({
+      unsubscribe: vi.fn(),
+    });
     mockTrpcCloudTask.onUpdate.subscribe.mockReturnValue({
       unsubscribe: vi.fn(),
     });
@@ -1024,29 +1030,56 @@ describe("SessionService", () => {
       );
     });
 
-    it("sets session to error state on fatal error", async () => {
+    it("attempts automatic recovery on fatal error", async () => {
       const service = getSessionService();
-      const mockSession = createMockSession();
+      const mockSession = createMockSession({
+        logUrl: "https://logs.example.com/run-123",
+      });
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(mockSession);
       mockSessionStoreSetters.getSessions.mockReturnValue({
         "run-123": { ...mockSession, isPromptPending: false },
       });
+      mockTrpcWorkspace.verify.query.mockResolvedValue({ exists: true });
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue("");
+      mockTrpcAgent.reconnect.mutate.mockResolvedValue({
+        sessionId: "run-123",
+        channel: "agent-event:run-123",
+        configOptions: [],
+      });
+
+      await service.connectToTask({
+        task: createMockTask({
+          latest_run: {
+            id: "run-123",
+            task: "task-123",
+            team: 123,
+            environment: "local",
+            status: "in_progress",
+            log_url: "https://logs.example.com/run-123",
+            error_message: null,
+            output: null,
+            state: {},
+            branch: null,
+            created_at: "2024-01-01T00:00:00Z",
+            updated_at: "2024-01-01T00:00:00Z",
+            completed_at: null,
+          },
+        }),
+        repoPath: "/repo",
+      });
+
       mockTrpcAgent.prompt.mutate.mockRejectedValue(
         new Error("Internal error: process exited"),
       );
 
       await expect(service.sendPrompt("task-123", "Hello")).rejects.toThrow();
-
-      // Check that one of the updateSession calls set status to error
-      const updateCalls = mockSessionStoreSetters.updateSession.mock.calls as [
-        string,
-        { status?: string },
-      ][];
-      const errorCall = updateCalls.find(
-        ([, updates]) => updates.status === "error",
+      expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+        "run-123",
+        expect.objectContaining({
+          status: "disconnected",
+          errorMessage: expect.stringContaining("Reconnecting"),
+        }),
       );
-      expect(errorCall).toBeDefined();
-      expect(errorCall?.[0]).toBe("run-123");
     });
   });
 
@@ -1361,6 +1394,92 @@ describe("SessionService", () => {
       await expect(
         service.clearSessionError("task-123", "/repo"),
       ).resolves.not.toThrow();
+    });
+  });
+
+  describe("automatic local recovery", () => {
+    it("reconnects automatically after a subscription error", async () => {
+      vi.useFakeTimers();
+      const service = getSessionService();
+      const mockSession = createMockSession({
+        status: "connected",
+        logUrl: "https://logs.example.com/run-123",
+      });
+
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(mockSession);
+      mockSessionStoreSetters.getSessions.mockReturnValue({
+        "run-123": mockSession,
+      });
+      mockTrpcWorkspace.verify.query.mockResolvedValue({ exists: true });
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue("");
+      mockTrpcAgent.reconnect.mutate.mockResolvedValue({
+        sessionId: "run-123",
+        channel: "agent-event:run-123",
+        configOptions: [],
+      });
+
+      await service.clearSessionError("task-123", "/repo");
+
+      const onError = mockTrpcAgent.onSessionEvent.subscribe.mock.calls[0]?.[1]
+        ?.onError as ((error: Error) => void) | undefined;
+      expect(onError).toBeDefined();
+
+      onError?.(new Error("connection dropped"));
+      await vi.runAllTimersAsync();
+
+      expect(mockTrpcAgent.reconnect.mutate).toHaveBeenCalledTimes(2);
+      expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+        "run-123",
+        expect.objectContaining({
+          status: "disconnected",
+          errorMessage: expect.stringContaining("Reconnecting"),
+        }),
+      );
+
+      vi.useRealTimers();
+    });
+
+    it("shows the error screen only after automatic reconnect attempts fail", async () => {
+      vi.useFakeTimers();
+      const service = getSessionService();
+      const mockSession = createMockSession({
+        status: "connected",
+        logUrl: "https://logs.example.com/run-123",
+      });
+
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(mockSession);
+      mockSessionStoreSetters.getSessions.mockReturnValue({
+        "run-123": mockSession,
+      });
+      mockTrpcWorkspace.verify.query.mockResolvedValue({ exists: true });
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue("");
+      mockTrpcAgent.reconnect.mutate
+        .mockResolvedValueOnce({
+          sessionId: "run-123",
+          channel: "agent-event:run-123",
+          configOptions: [],
+        })
+        .mockResolvedValue(null);
+
+      await service.clearSessionError("task-123", "/repo");
+
+      const onError = mockTrpcAgent.onSessionEvent.subscribe.mock.calls[0]?.[1]
+        ?.onError as ((error: Error) => void) | undefined;
+      expect(onError).toBeDefined();
+
+      onError?.(new Error("connection dropped"));
+      await vi.runAllTimersAsync();
+
+      expect(mockTrpcAgent.reconnect.mutate).toHaveBeenCalledTimes(4);
+      expect(mockSessionStoreSetters.setSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "error",
+          errorTitle: "Connection lost",
+          errorMessage: expect.any(String),
+        }),
+      );
+
+      vi.useRealTimers();
     });
   });
 });

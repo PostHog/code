@@ -54,6 +54,7 @@ import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
 import type { AcpMessage, StoredLogEntry } from "@shared/types/session-events";
 import { isJsonRpcRequest } from "@shared/types/session-events";
+import { getBackoffDelay } from "@shared/utils/backoff";
 import { buildPermissionToolMetadata, track } from "@utils/analytics";
 import { logger } from "@utils/logger";
 import {
@@ -73,6 +74,15 @@ import {
 } from "@utils/session";
 
 const log = logger.scope("session-service");
+const LOCAL_SESSION_RECONNECT_ATTEMPTS = 3;
+const LOCAL_SESSION_RECONNECT_BACKOFF = {
+  initialDelayMs: 1_000,
+  maxDelayMs: 5_000,
+};
+const LOCAL_SESSION_RECOVERY_MESSAGE =
+  "Lost connection to the agent. Reconnecting…";
+const LOCAL_SESSION_RECOVERY_FAILED_MESSAGE =
+  "Connecting to to the agent has been lost. Retry, or start a new session.";
 
 /**
  * Build default configOptions for cloud sessions so the mode switcher
@@ -140,6 +150,8 @@ export function resetSessionService(): void {
 
 export class SessionService {
   private connectingTasks = new Map<string, Promise<void>>();
+  private localRepoPaths = new Map<string, string>();
+  private localRecoveryAttempts = new Map<string, Promise<boolean>>();
   private nextCloudTaskWatchToken = 0;
   private subscriptions = new Map<
     string,
@@ -185,6 +197,7 @@ export class SessionService {
   async connectToTask(params: ConnectParams): Promise<void> {
     const { task } = params;
     const taskId = task.id;
+    this.localRepoPaths.set(taskId, params.repoPath);
 
     log.info("Connecting to task", { taskId });
 
@@ -377,7 +390,7 @@ export class SessionService {
       sessionId?: string;
       adapter?: Adapter;
     },
-  ): Promise<void> {
+  ): Promise<boolean> {
     const { rawEntries, sessionId, adapter } =
       prefetchedLogs ?? (await this.fetchSessionLogs(logUrl, taskRunId));
     const events = convertStoredEntriesToEvents(rawEntries);
@@ -493,6 +506,7 @@ export class SessionService {
             ),
           );
         }
+        return true;
       } else {
         log.warn("Reconnect returned null", { taskId, taskRunId });
         this.setErrorSession(
@@ -501,6 +515,7 @@ export class SessionService {
           taskTitle,
           "Session could not be resumed. Please retry or start a new session.",
         );
+        return false;
       }
     } catch (error) {
       const errorMessage =
@@ -513,10 +528,13 @@ export class SessionService {
         errorMessage ||
           "Failed to reconnect. Please retry or start a new session.",
       );
+      return false;
     }
   }
 
   private async teardownSession(taskRunId: string): Promise<void> {
+    const session = this.getSessionByRunId(taskRunId);
+
     try {
       await trpcClient.agent.cancel.mutate({ sessionId: taskRunId });
     } catch (error) {
@@ -528,6 +546,10 @@ export class SessionService {
 
     this.unsubscribeFromChannel(taskRunId);
     sessionStoreSetters.removeSession(taskRunId);
+    if (session) {
+      this.localRepoPaths.delete(session.taskId);
+      this.localRecoveryAttempts.delete(session.taskId);
+    }
     useSessionAdapterStore.getState().removeAdapter(taskRunId);
     removePersistedConfigOptions(taskRunId);
   }
@@ -577,6 +599,133 @@ export class SessionService {
       session.initialPrompt = existing.initialPrompt;
     }
     sessionStoreSetters.setSession(session);
+  }
+
+  private async tryAutoRecoverLocalSession(
+    taskId: string,
+    taskRunId: string,
+    reason: string,
+  ): Promise<boolean> {
+    const existingRecovery = this.localRecoveryAttempts.get(taskId);
+    if (existingRecovery) {
+      return existingRecovery;
+    }
+
+    const recoveryPromise = this.runAutoRecoverLocalSession(
+      taskId,
+      taskRunId,
+      reason,
+    ).finally(() => {
+      this.localRecoveryAttempts.delete(taskId);
+    });
+
+    this.localRecoveryAttempts.set(taskId, recoveryPromise);
+    return recoveryPromise;
+  }
+
+  private async runAutoRecoverLocalSession(
+    taskId: string,
+    taskRunId: string,
+    reason: string,
+  ): Promise<boolean> {
+    const repoPath = this.localRepoPaths.get(taskId);
+    const session = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (!repoPath || !session || session.isCloud) {
+      return false;
+    }
+
+    log.warn("Attempting automatic local session recovery", {
+      taskId,
+      taskRunId,
+      reason,
+    });
+
+    sessionStoreSetters.updateSession(taskRunId, {
+      status: "disconnected",
+      errorTitle: undefined,
+      errorMessage: LOCAL_SESSION_RECOVERY_MESSAGE,
+      isPromptPending: false,
+      isCompacting: false,
+      promptStartedAt: null,
+    });
+
+    for (
+      let attempt = 0;
+      attempt < LOCAL_SESSION_RECONNECT_ATTEMPTS;
+      attempt++
+    ) {
+      const currentSession = sessionStoreSetters.getSessionByTaskId(taskId);
+      if (!currentSession || currentSession.taskRunId !== taskRunId) {
+        return false;
+      }
+
+      if (attempt > 0) {
+        const delay = getBackoffDelay(
+          attempt - 1,
+          LOCAL_SESSION_RECONNECT_BACKOFF,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+
+      const recovered = await this.reconnectInPlace(taskId, repoPath);
+      if (recovered) {
+        log.info("Automatic local session recovery succeeded", {
+          taskId,
+          taskRunId,
+          attempt: attempt + 1,
+        });
+        return true;
+      }
+    }
+
+    const latestSession = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (latestSession?.taskRunId === taskRunId) {
+      this.setErrorSession(
+        taskId,
+        taskRunId,
+        latestSession.taskTitle,
+        LOCAL_SESSION_RECOVERY_FAILED_MESSAGE,
+        "Connection lost",
+      );
+    }
+
+    log.warn("Automatic local session recovery exhausted", {
+      taskId,
+      taskRunId,
+    });
+
+    return false;
+  }
+
+  private startAutoRecoverLocalSession(
+    taskId: string,
+    taskRunId: string,
+    taskTitle: string,
+    reason: string,
+    fallbackMessage: string,
+  ): void {
+    void this.tryAutoRecoverLocalSession(taskId, taskRunId, reason).then(
+      (recovered) => {
+        if (recovered) {
+          return;
+        }
+
+        const latestSession = sessionStoreSetters.getSessionByTaskId(taskId);
+        if (!latestSession || latestSession.taskRunId !== taskRunId) {
+          return;
+        }
+
+        if (latestSession.status !== "error") {
+          this.setErrorSession(
+            taskId,
+            taskRunId,
+            taskTitle,
+            fallbackMessage,
+            "Connection lost",
+          );
+        }
+      },
+    );
   }
 
   private async createNewLocalSession(
@@ -700,11 +849,23 @@ export class SessionService {
         },
         onError: (err) => {
           log.error("Session subscription error", { taskRunId, error: err });
-          sessionStoreSetters.updateSession(taskRunId, {
-            status: "error",
-            errorMessage:
-              "Lost connection to the agent. Please restart the task.",
-          });
+          const session = this.getSessionByRunId(taskRunId);
+          if (!session || session.isCloud) {
+            sessionStoreSetters.updateSession(taskRunId, {
+              status: "error",
+              errorMessage:
+                "Lost connection to the agent. Please restart the task.",
+            });
+            return;
+          }
+
+          this.startAutoRecoverLocalSession(
+            session.taskId,
+            taskRunId,
+            session.taskTitle,
+            "subscription_error",
+            "Lost connection to the agent. Please retry or start a new session.",
+          );
         },
       },
     );
@@ -760,6 +921,8 @@ export class SessionService {
     }
 
     this.connectingTasks.clear();
+    this.localRepoPaths.clear();
+    this.localRecoveryAttempts.clear();
     this.cloudPermissionRequestIds.clear();
     this.idleKilledSubscription?.unsubscribe();
     this.idleKilledSubscription = null;
@@ -1175,21 +1338,19 @@ export class SessionService {
       sessionStoreSetters.clearOptimisticItems(session.taskRunId);
 
       if (isFatalSessionError(errorMessage, errorDetails)) {
-        log.error("Fatal prompt error, setting session to error state", {
+        log.error("Fatal prompt error, attempting recovery", {
           taskRunId: session.taskRunId,
           errorMessage,
           errorDetails,
         });
-        sessionStoreSetters.updateSession(session.taskRunId, {
-          status: "error",
-          errorMessage:
-            errorDetails ||
+        this.startAutoRecoverLocalSession(
+          session.taskId,
+          session.taskRunId,
+          session.taskTitle,
+          errorDetails || errorMessage,
+          errorDetails ||
             "Session connection lost. Please retry or start a new session.",
-          isPromptPending: false,
-          isCompacting: false,
-          promptStartedAt: null,
-          initialPrompt: undefined,
-        });
+        );
       } else {
         sessionStoreSetters.updateSession(session.taskRunId, {
           isPromptPending: false,
@@ -1947,6 +2108,7 @@ export class SessionService {
    * to an empty session.
    */
   async clearSessionError(taskId: string, repoPath: string): Promise<void> {
+    this.localRepoPaths.set(taskId, repoPath);
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (session?.initialPrompt?.length) {
       const { taskTitle, initialPrompt } = session;
@@ -1975,6 +2137,7 @@ export class SessionService {
    * session instead of attempting to resume the stale one.
    */
   async resetSession(taskId: string, repoPath: string): Promise<void> {
+    this.localRepoPaths.set(taskId, repoPath);
     await this.reconnectInPlace(taskId, repoPath, null);
   }
 
@@ -1992,9 +2155,10 @@ export class SessionService {
     taskId: string,
     repoPath: string,
     overrideSessionId?: string | null,
-  ): Promise<void> {
+  ): Promise<boolean> {
+    this.localRepoPaths.set(taskId, repoPath);
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
-    if (!session) return;
+    if (!session) return false;
 
     const { taskRunId, taskTitle, logUrl } = session;
 
@@ -2020,7 +2184,7 @@ export class SessionService {
         ? undefined
         : (overrideSessionId ?? prefetchedLogs.sessionId);
 
-    await this.reconnectToLocalSession(
+    return this.reconnectToLocalSession(
       taskId,
       taskRunId,
       taskTitle,
@@ -2605,6 +2769,11 @@ export class SessionService {
       messageQueue: [],
       optimisticItems: [],
     };
+  }
+
+  private getSessionByRunId(taskRunId: string): AgentSession | undefined {
+    const sessions = sessionStoreSetters.getSessions();
+    return sessions[taskRunId];
   }
 
   private async appendAndPersist(
