@@ -41,13 +41,9 @@ export function ModelSelector({
   const handleChange = (value: string) => {
     onModelChange?.(value);
 
-    if (taskId && session?.status === "connected") {
-      getSessionService().setSessionConfigOption(
-        taskId,
-        selectOption.id,
-        value,
-      );
-    }
+    if (!taskId || !session) return;
+    if (session.status !== "connected" && !session.isCloud) return;
+    getSessionService().setSessionConfigOption(taskId, selectOption.id, value);
   };
 
   const currentValue = selectOption.currentValue;

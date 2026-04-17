@@ -78,6 +78,7 @@ export function useSessionConnection({
         : undefined;
     const adapter =
       task.latest_run.runtime_adapter === "codex" ? "codex" : "claude";
+    const initialModel = task.latest_run.model ?? undefined;
     const cleanup = getSessionService().watchCloudTask(
       task.id,
       runId,
@@ -89,6 +90,7 @@ export function useSessionConnection({
       task.latest_run?.log_url,
       initialMode,
       adapter,
+      initialModel,
     );
     return cleanup;
   }, [
@@ -101,6 +103,7 @@ export function useSessionConnection({
     task.id,
     task.latest_run?.id,
     task.latest_run?.log_url,
+    task.latest_run?.model,
     task.latest_run?.runtime_adapter,
     task.latest_run?.state?.initial_permission_mode,
   ]);

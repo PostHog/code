@@ -26,6 +26,7 @@ import type {
   PermissionRequest,
 } from "@features/sessions/stores/sessionStore";
 import {
+  flattenSelectOptions,
   getConfigOptionByCategory,
   mergeConfigOptions,
   sessionStoreSetters,
@@ -90,10 +91,15 @@ const LOCAL_SESSION_RECOVERY_FAILED_MESSAGE =
 /**
  * Build default configOptions for cloud sessions so the mode switcher
  * is available in the UI even without a local agent connection.
+ *
+ * The `extra` options (model, thought_level) come from the preview-config
+ * trpc query, which is async. Callers populate them by calling
+ * `fetchAndApplyCloudPreviewOptions` after the session exists in the store.
  */
 function buildCloudDefaultConfigOptions(
   initialMode: string | undefined,
   adapter: Adapter = "claude",
+  extra: SessionConfigOption[] = [],
 ): SessionConfigOption[] {
   const modes =
     adapter === "codex" ? getAvailableCodexModes() : getAvailableModes();
@@ -116,6 +122,7 @@ function buildCloudDefaultConfigOptions(
       category: "mode" as SessionConfigOption["category"],
       description: "Choose an approval and sandboxing preset for your session",
     },
+    ...extra,
   ];
 }
 
@@ -186,6 +193,14 @@ export class SessionService {
   /** Maps toolCallId → cloud requestId for routing permission responses */
   private cloudPermissionRequestIds = new Map<string, string>();
   private idleKilledSubscription: { unsubscribe: () => void } | null = null;
+  /**
+   * Cached preview-config-options responses keyed by `${apiHost}::${adapter}`.
+   * Shared across cloud sessions so switching model/adapter reuses the list.
+   */
+  private previewConfigOptionsCache = new Map<
+    string,
+    Promise<SessionConfigOption[]>
+  >();
 
   constructor() {
     this.idleKilledSubscription =
@@ -1698,6 +1713,12 @@ export class SessionService {
       typeof newRun.state?.initial_permission_mode === "string"
         ? newRun.state.initial_permission_mode
         : undefined;
+    const priorModel = getConfigOptionByCategory(
+      session.configOptions,
+      "model",
+    )?.currentValue;
+    const initialModel =
+      newRun.model ?? (typeof priorModel === "string" ? priorModel : undefined);
     this.watchCloudTask(
       session.taskId,
       newRun.id,
@@ -1707,6 +1728,7 @@ export class SessionService {
       newRun.log_url,
       initialMode,
       newRun.runtime_adapter ?? session.adapter ?? "claude",
+      initialModel,
     );
 
     // Invalidate task queries so the UI picks up the new run metadata
@@ -2219,6 +2241,70 @@ export class SessionService {
   }
 
   /**
+   * Fetch model/effort options from the main-process preview-config endpoint
+   * and merge them into the cloud session's configOptions. Cached per
+   * (apiHost, adapter) so repeated visits don't refetch.
+   *
+   * Runs fire-and-forget: the session stays usable with just the `mode` option
+   * if the fetch fails or is still in flight.
+   */
+  private async fetchAndApplyCloudPreviewOptions(
+    taskRunId: string,
+    apiHost: string,
+    adapter: Adapter,
+    initialModel?: string,
+  ): Promise<void> {
+    const cacheKey = `${apiHost}::${adapter}`;
+    let pending = this.previewConfigOptionsCache.get(cacheKey);
+    if (!pending) {
+      pending = trpcClient.agent.getPreviewConfigOptions
+        .query({ apiHost, adapter })
+        .catch((err: unknown) => {
+          log.warn("Failed to fetch preview config options for cloud session", {
+            apiHost,
+            adapter,
+            error: err,
+          });
+          this.previewConfigOptionsCache.delete(cacheKey);
+          return [] as SessionConfigOption[];
+        });
+      this.previewConfigOptionsCache.set(cacheKey, pending);
+    }
+
+    const previewOptions = await pending;
+    const extras = previewOptions
+      .filter(
+        (opt) => opt.category === "model" || opt.category === "thought_level",
+      )
+      .map((opt) => {
+        if (
+          opt.category === "model" &&
+          opt.type === "select" &&
+          typeof initialModel === "string"
+        ) {
+          const flat = flattenSelectOptions(opt.options);
+          if (flat.some((o) => o.value === initialModel)) {
+            return { ...opt, currentValue: initialModel };
+          }
+        }
+        return opt;
+      });
+
+    if (extras.length === 0) return;
+
+    const session = sessionStoreSetters.getSessions()[taskRunId];
+    if (!session) return;
+
+    const existingOptions = session.configOptions ?? [];
+    const existingIds = new Set(existingOptions.map((o) => o.id));
+    const newExtras = extras.filter((o) => !existingIds.has(o.id));
+    if (newExtras.length === 0) return;
+    const merged = [...existingOptions, ...newExtras];
+
+    sessionStoreSetters.updateSession(taskRunId, { configOptions: merged });
+  }
+
+  /**
    * Start watching a cloud task via main-process CloudTaskService.
    *
    * The watcher stays alive across navigation. A fresh watcher is created only
@@ -2235,6 +2321,7 @@ export class SessionService {
     logUrl?: string,
     initialMode?: string,
     adapter: Adapter = "claude",
+    initialModel?: string,
   ): () => void {
     const taskRunId = runId;
     const startToken = ++this.nextCloudTaskWatchToken;
@@ -2265,6 +2352,12 @@ export class SessionService {
             configOptions: buildCloudDefaultConfigOptions(currentMode, adapter),
           });
         }
+        void this.fetchAndApplyCloudPreviewOptions(
+          existing.taskRunId,
+          apiHost,
+          adapter,
+          initialModel,
+        );
       }
       return () => {};
     }
@@ -2325,6 +2418,13 @@ export class SessionService {
         sessionStoreSetters.updateSession(existing.taskRunId, updates);
       }
     }
+
+    void this.fetchAndApplyCloudPreviewOptions(
+      taskRunId,
+      apiHost,
+      adapter,
+      initialModel,
+    );
 
     if (shouldHydrateSession) {
       this.hydrateCloudTaskSessionFromLogs(taskId, taskRunId, logUrl);

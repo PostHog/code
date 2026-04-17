@@ -18,6 +18,7 @@ const mockTrpcAgent = vi.hoisted(() => ({
   onPermissionRequest: { subscribe: vi.fn() },
   onSessionIdleKilled: { subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })) },
   resetAll: { mutate: vi.fn().mockResolvedValue(undefined) },
+  getPreviewConfigOptions: { query: vi.fn().mockResolvedValue([]) },
 }));
 
 const mockTrpcWorkspace = vi.hoisted(() => ({
@@ -78,6 +79,18 @@ vi.mock("@features/sessions/stores/sessionStore", () => ({
   sessionStoreSetters: mockSessionStoreSetters,
   getConfigOptionByCategory: mockGetConfigOptionByCategory,
   mergeConfigOptions: vi.fn((live: unknown[], _persisted: unknown[]) => live),
+  flattenSelectOptions: vi.fn(
+    (options: Array<{ options?: unknown[] }> | undefined) => {
+      if (!options?.length) return [];
+      const first = options[0] as { options?: unknown[] };
+      if (first && Array.isArray(first.options)) {
+        return options.flatMap(
+          (group) => (group as { options: unknown[] }).options,
+        );
+      }
+      return options;
+    },
+  ),
 }));
 
 const mockAuthenticatedClient = vi.hoisted(() => ({
@@ -748,6 +761,100 @@ describe("SessionService", () => {
       });
     });
 
+    it("merges model and effort options fetched from preview-config into the cloud session", async () => {
+      const service = getSessionService();
+
+      const sessionAfterInit = createMockSession({
+        taskRunId: "run-model-123",
+        taskId: "task-model-123",
+        isCloud: true,
+        configOptions: [
+          {
+            id: "mode",
+            name: "Approval Preset",
+            type: "select",
+            category: "mode",
+            currentValue: "plan",
+            options: [],
+          },
+        ],
+      });
+      mockSessionStoreSetters.getSessions.mockReturnValue({
+        "run-model-123": sessionAfterInit,
+      });
+
+      mockTrpcAgent.getPreviewConfigOptions.query.mockResolvedValueOnce([
+        {
+          id: "mode",
+          name: "Approval Preset",
+          type: "select",
+          category: "mode",
+          currentValue: "plan",
+          options: [],
+        },
+        {
+          id: "model",
+          name: "Model",
+          type: "select",
+          category: "model",
+          currentValue: "claude-opus-4-7",
+          options: [
+            { value: "claude-opus-4-7", name: "Opus 4.7" },
+            { value: "claude-sonnet-4-6", name: "Sonnet 4.6" },
+          ],
+        },
+        {
+          id: "effort",
+          name: "Effort",
+          type: "select",
+          category: "thought_level",
+          currentValue: "high",
+          options: [],
+        },
+      ]);
+
+      service.watchCloudTask(
+        "task-model-123",
+        "run-model-123",
+        "https://api.example.com",
+        7,
+        undefined,
+        undefined,
+        undefined,
+        "claude",
+        "claude-sonnet-4-6",
+      );
+
+      await vi.waitFor(() => {
+        expect(
+          mockTrpcAgent.getPreviewConfigOptions.query,
+        ).toHaveBeenCalledWith({
+          apiHost: "https://api.example.com",
+          adapter: "claude",
+        });
+      });
+
+      await vi.waitFor(() => {
+        const calls = mockSessionStoreSetters.updateSession.mock.calls as Array<
+          [string, { configOptions?: Array<{ id: string }> }]
+        >;
+        const modelUpdate = calls.find(
+          ([runId, patch]) =>
+            runId === "run-model-123" &&
+            patch.configOptions?.some((o) => o.id === "model"),
+        );
+        expect(modelUpdate).toBeTruthy();
+        const ids = modelUpdate?.[1].configOptions?.map((o) => o.id);
+        expect(ids).toEqual(
+          expect.arrayContaining(["mode", "model", "effort"]),
+        );
+        const modelOpt = modelUpdate?.[1].configOptions?.find(
+          (o) => o.id === "model",
+        ) as { currentValue?: string } | undefined;
+        expect(modelOpt?.currentValue).toBe("claude-sonnet-4-6");
+      });
+    });
+
     it("retries an errored cloud watcher in place", async () => {
       const service = getSessionService();
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue({
@@ -1345,6 +1452,58 @@ describe("SessionService", () => {
       expect(
         mockSessionConfigStore.updatePersistedConfigOptionValue,
       ).toHaveBeenLastCalledWith("run-123", "mode", "default");
+    });
+
+    it("routes cloud sessions through sendCommand with set_config_option", async () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({
+          isCloud: true,
+          cloudStatus: "in_progress",
+          configOptions: [
+            {
+              id: "model",
+              name: "Model",
+              type: "select",
+              category: "model",
+              currentValue: "claude-opus-4-7",
+              options: [],
+            },
+          ],
+        }),
+      );
+      mockTrpcCloudTask.sendCommand.mutate.mockResolvedValue({
+        success: true,
+      });
+
+      await service.setSessionConfigOption(
+        "task-123",
+        "model",
+        "claude-sonnet-4-6",
+      );
+
+      expect(mockTrpcAgent.setConfigOption.mutate).not.toHaveBeenCalled();
+      expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: "set_config_option",
+          params: { configId: "model", value: "claude-sonnet-4-6" },
+        }),
+      );
+      expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+        "run-123",
+        {
+          configOptions: [
+            {
+              id: "model",
+              name: "Model",
+              type: "select",
+              category: "model",
+              currentValue: "claude-sonnet-4-6",
+              options: [],
+            },
+          ],
+        },
+      );
     });
   });
 
