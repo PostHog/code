@@ -1,7 +1,7 @@
+import { DiffStatsBadge } from "@features/code-review/components/DiffStatsBadge";
 import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
 import { CloudGitInteractionHeader } from "@features/git-interaction/components/CloudGitInteractionHeader";
 import { GitInteractionHeader } from "@features/git-interaction/components/GitInteractionHeader";
-import { DiffStatsIndicator } from "@features/message-editor/components/DiffStatsIndicator";
 import { SidebarTrigger } from "@features/sidebar/components/SidebarTrigger";
 import { useSidebarStore } from "@features/sidebar/stores/sidebarStore";
 import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
@@ -129,14 +129,8 @@ export function HeaderRow() {
                 />
               </div>
             )}
-          <DiffStatsIndicator
-            repoPath={
-              activeWorkspace?.worktreePath ??
-              activeWorkspace?.folderPath ??
-              null
-            }
-            taskId={view.data.id}
-          />
+          <DiffStatsBadge task={view.data} />
+
           {isCloudTask ? (
             <CloudGitInteractionHeader taskId={view.data.id} />
           ) : (
