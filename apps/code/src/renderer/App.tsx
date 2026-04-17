@@ -143,6 +143,9 @@ function App() {
     if (!wasInMainApp.current && isInMainApp && isDarkMode) {
       setShowTransition(true);
     }
+    if (!isAuthenticated) {
+      setShowTransition(false);
+    }
     wasInMainApp.current = isInMainApp;
   }, [isAuthenticated, hasCompletedOnboarding, isDarkMode]);
 
@@ -214,9 +217,15 @@ function App() {
     );
   };
 
+  const content = renderContent();
+
   return (
     <ErrorBoundary name="App">
-      <AnimatePresence mode="wait">{renderContent()}</AnimatePresence>
+      {isAuthenticated ? (
+        <AnimatePresence mode="wait">{content}</AnimatePresence>
+      ) : (
+        content
+      )}
       <LoginTransition
         isAnimating={showTransition}
         isDarkMode={isDarkMode}

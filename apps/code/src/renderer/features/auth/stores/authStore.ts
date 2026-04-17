@@ -243,9 +243,6 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
     sessionResetCallback?.();
     useSeatStore.getState().reset();
     useSettingsDialogStore.getState().close();
-    clearAuthenticatedRendererState({ clearAllQueries: true });
-    await trpcClient.auth.logout.mutate();
-    useNavigationStore.getState().navigateToTaskInput();
 
     set((state) => ({
       ...state,
@@ -263,5 +260,9 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
     inFlightAuthSync = null;
     inFlightAuthSyncKey = null;
     lastCompletedAuthSyncKey = null;
+
+    clearAuthenticatedRendererState({ clearAllQueries: true });
+    useNavigationStore.getState().navigateToTaskInput();
+    await trpcClient.auth.logout.mutate();
   },
 }));
