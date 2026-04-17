@@ -170,7 +170,7 @@ export function BranchSelector({
         sideOffset={6}
         className="min-w-[240px]"
       >
-        <ComboboxInput placeholder="Search branches..." />
+        <ComboboxInput placeholder="Search branches..." showTrigger={false} />
 
         {isCloudMode && cloudBranchesFetchingMore && (
           <div className="flex items-center gap-1 px-2 py-1.5 text-muted-foreground text-xs">

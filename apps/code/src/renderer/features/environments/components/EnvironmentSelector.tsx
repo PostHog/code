@@ -94,7 +94,10 @@ export function EnvironmentSelector({
         sideOffset={6}
         className="min-w-[220px]"
       >
-        <ComboboxInput placeholder="Search environments..." />
+        <ComboboxInput
+          placeholder="Search environments..."
+          showTrigger={false}
+        />
         <ComboboxEmpty>No environments found.</ComboboxEmpty>
 
         <ComboboxList className="max-h-[min(14rem,calc(var(--available-height,14rem)-5rem))]">
