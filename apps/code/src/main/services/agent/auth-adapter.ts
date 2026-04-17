@@ -57,12 +57,7 @@ export class AgentAuthAdapter {
     // Warm the token so authenticatedFetch() has something cached, but do not
     // bake it into the MCP config — the proxy injects a fresh one on every
     // forwarded request.
-    const sessionStartToken = await this.getValidToken();
-    log.info("buildMcpServers — session-start token", {
-      tokenPrefix: sessionStartToken.slice(0, 16),
-      tokenSuffix: sessionStartToken.slice(-8),
-      tokenLength: sessionStartToken.length,
-    });
+    await this.getValidToken();
 
     await this.mcpProxy.start();
     const proxiedPosthogUrl = this.mcpProxy.register("posthog", mcpUrl);

@@ -44,7 +44,6 @@ import { MAIN_TOKENS } from "../../di/tokens";
 import { isDevBuild } from "../../utils/env";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
-import type { AuthService } from "../auth/service";
 import type { FsService } from "../fs/service";
 import type { McpAppsService } from "../mcp-apps/service";
 import type { PosthogPluginService } from "../posthog-plugin/service";
@@ -323,7 +322,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private posthogPluginService: PosthogPluginService;
   private agentAuthAdapter: AgentAuthAdapter;
   private mcpAppsService: McpAppsService;
-  private authService: AuthService;
 
   constructor(
     @inject(MAIN_TOKENS.ProcessTrackingService)
@@ -338,8 +336,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     agentAuthAdapter: AgentAuthAdapter,
     @inject(MAIN_TOKENS.McpAppsService)
     mcpAppsService: McpAppsService,
-    @inject(MAIN_TOKENS.AuthService)
-    authService: AuthService,
   ) {
     super();
     this.processTracking = processTracking;
@@ -348,11 +344,8 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     this.posthogPluginService = posthogPluginService;
     this.agentAuthAdapter = agentAuthAdapter;
     this.mcpAppsService = mcpAppsService;
-    this.authService = authService;
 
     powerMonitor.on("resume", () => this.checkIdleDeadlines());
-
-    this.authService.setRefreshBlocker(() => this.hasActiveSessions());
   }
 
   /**
@@ -891,7 +884,6 @@ When creating pull requests, add the following footer at the end of the PR descr
       this.sleepService.release(sessionId);
 
       if (!this.hasActiveSessions()) {
-        this.authService.flushPendingRefresh();
         this.emit(AgentServiceEvent.SessionsIdle, undefined);
       }
     }
@@ -1349,14 +1341,6 @@ For git operations while detached:
           update.status === "failed"
         ) {
           session?.inFlightMcpToolCalls.delete(update.toolCallId);
-          if (update.status === "failed") {
-            log.warn("MCP tool failed — raw update", {
-              toolName,
-              toolCallId: update.toolCallId,
-              rawOutput: JSON.stringify(update.rawOutput),
-              content: JSON.stringify(update.content),
-            });
-          }
           service.mcpAppsService.notifyToolResult(
             toolName,
             update.toolCallId,

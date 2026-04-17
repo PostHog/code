@@ -134,29 +134,6 @@ function buildFileMenu(): MenuItemConstructorOptions {
             },
           },
           {
-            label: "Schedule refresh of OAuth token",
-            click: () => {
-              container
-                .get<AuthService>(MAIN_TOKENS.AuthService)
-                .scheduleRefresh()
-                .then(() => {
-                  dialog.showMessageBox({
-                    type: "info",
-                    title: "OAuth Token Refresh",
-                    message:
-                      "Token refresh scheduled.\nIt will execute when all active agent turns complete.",
-                  });
-                })
-                .catch((err: Error) => {
-                  dialog.showMessageBox({
-                    type: "error",
-                    title: "OAuth Token Refresh Failed",
-                    message: err.message,
-                  });
-                });
-            },
-          },
-          {
             label: "Force refresh of OAuth token",
             click: () => {
               container

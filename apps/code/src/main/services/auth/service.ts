@@ -31,12 +31,6 @@ import {
 
 const log = logger.scope("auth-service");
 const TOKEN_EXPIRY_SKEW_MS = 60_000;
-// Proactively refresh 30 min before expiry. The lazy skew check in
-// ensureValidSession() isn't enough on its own: long-running agent turns can
-// hold a token reference for many minutes, and the PostHog MCP server needs a
-// valid bearer on *every* turn. A background refresh keeps the in-memory token
-// fresh even when nothing else in the app happens to call getValidAccessToken().
-const TOKEN_REFRESH_BUFFER_MS = 30 * 60 * 1000;
 type FetchLike = (
   input: string | Request,
   init?: RequestInit,
@@ -79,9 +73,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
   private session: InMemorySession | null = null;
   private initializePromise: Promise<void> | null = null;
   private refreshPromise: Promise<InMemorySession> | null = null;
-  private refreshTimeoutId: NodeJS.Timeout | null = null;
-  private isRefreshBlocked: (() => boolean) | null = null;
-  private pendingRefresh = false;
   constructor(
     @inject(MAIN_TOKENS.AuthPreferenceRepository)
     private readonly authPreferenceRepository: IAuthPreferenceRepository,
@@ -138,26 +129,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       accessToken: session.accessToken,
       apiHost: getCloudUrlFromRegion(session.cloudRegion),
     };
-  }
-  /** Register a callback that returns true when proactive token refreshes should be deferred. */
-  setRefreshBlocker(fn: () => boolean): void {
-    this.isRefreshBlocked = fn;
-  }
-  /** Request a token refresh, deferring if a blocker is active. */
-  async scheduleRefresh(): Promise<void> {
-    if (this.isRefreshBlocked?.()) {
-      this.pendingRefresh = true;
-      return;
-    }
-    await this.refreshAccessToken();
-  }
-  /** Execute a deferred refresh if one is pending. Called by the blocker owner when it becomes unblocked. */
-  async flushPendingRefresh(): Promise<void> {
-    if (!this.pendingRefresh) return;
-    this.pendingRefresh = false;
-    await this.refreshAccessToken().catch((error) => {
-      log.warn("Deferred token refresh failed", { error });
-    });
   }
   async invalidateAccessTokenForTest(): Promise<void> {
     await this.initialize();
@@ -250,10 +221,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
   async logout(): Promise<AuthState> {
     const { cloudRegion, projectId } = this.state;
 
-    if (this.refreshTimeoutId) {
-      clearTimeout(this.refreshTimeoutId);
-      this.refreshTimeoutId = null;
-    }
     this.authSessionRepository.clearCurrent();
     this.session = null;
     this.setAnonymousState({ cloudRegion, projectId });
@@ -490,37 +457,7 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       availableOrgIds: session.availableOrgIds,
       needsScopeReauth: false,
     });
-    this.scheduleTokenRefresh();
     await this.updateCodeAccessFromSession();
-  }
-  private scheduleTokenRefresh(): void {
-    if (this.refreshTimeoutId) {
-      clearTimeout(this.refreshTimeoutId);
-      this.refreshTimeoutId = null;
-    }
-
-    if (!this.session) {
-      return;
-    }
-
-    const timeUntilRefresh =
-      this.session.accessTokenExpiresAt - Date.now() - TOKEN_REFRESH_BUFFER_MS;
-
-    const fire = () => {
-      this.refreshTimeoutId = null;
-      if (this.isRefreshBlocked?.()) {
-        this.pendingRefresh = true;
-        return;
-      }
-      this.refreshAccessToken().catch((error) => {
-        log.warn("Proactive token refresh failed", { error });
-      });
-    };
-
-    // Always schedule via setTimeout — never call fire() synchronously.
-    // A synchronous call during syncAuthenticatedSession() would cascade:
-    // fire → refreshAccessToken → syncAuthenticatedSession → scheduleTokenRefresh → fire …
-    this.refreshTimeoutId = setTimeout(fire, Math.max(timeUntilRefresh, 0));
   }
   private persistSession(input: {
     refreshToken: string;
@@ -661,10 +598,6 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
   }
   @preDestroy()
   shutdown(): void {
-    if (this.refreshTimeoutId) {
-      clearTimeout(this.refreshTimeoutId);
-      this.refreshTimeoutId = null;
-    }
     this.connectivityUnsubscribe?.();
     this.connectivityUnsubscribe = null;
     powerMonitor.off("resume", this.handleResume);
