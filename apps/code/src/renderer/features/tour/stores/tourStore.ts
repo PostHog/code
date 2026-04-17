@@ -26,7 +26,9 @@ export const useTourStore = create<TourStore>()(
       activeStepIndex: 0,
 
       startTour: (tourId) => {
-        if (get().completedTourIds.includes(tourId)) return;
+        const { completedTourIds, activeTourId } = get();
+        if (completedTourIds.includes(tourId) || activeTourId === tourId)
+          return;
         set({ activeTourId: tourId, activeStepIndex: 0 });
       },
 
@@ -41,19 +43,21 @@ export const useTourStore = create<TourStore>()(
         if (!currentStep || currentStep.id !== stepId) return;
 
         if (activeStepIndex >= tour.steps.length - 1) {
-          set((state) => ({
-            completedTourIds: [...state.completedTourIds, activeTourId],
-            activeTourId: null,
-            activeStepIndex: 0,
-          }));
+          set((state) => {
+            if (!state.activeTourId) return state;
+            return {
+              completedTourIds: [...state.completedTourIds, state.activeTourId],
+              activeTourId: null,
+              activeStepIndex: 0,
+            };
+          });
         } else {
           set({ activeStepIndex: activeStepIndex + 1 });
         }
       },
 
       completeTour: (tourId) => {
-        const { activeTourId, completedTourIds } = get();
-        if (activeTourId !== tourId) return;
+        const { completedTourIds } = get();
         if (completedTourIds.includes(tourId)) return;
         set({
           completedTourIds: [...completedTourIds, tourId],
