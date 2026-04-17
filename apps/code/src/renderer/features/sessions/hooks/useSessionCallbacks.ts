@@ -1,5 +1,6 @@
 import { tryExecuteCodeCommand } from "@features/message-editor/commands";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
+import { xmlToContent } from "@features/message-editor/utils/content";
 import { useTaskViewed } from "@features/sidebar/hooks/useTaskViewed";
 import { trpcClient } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
@@ -78,9 +79,7 @@ export function useSessionCallbacks({
     log.info("Prompt cancelled", { success: result });
 
     if (queuedContent) {
-      setPendingContent(taskId, {
-        segments: [{ type: "text", text: queuedContent }],
-      });
+      setPendingContent(taskId, xmlToContent(queuedContent));
     }
     requestFocus(taskId);
   }, [taskId, setPendingContent, requestFocus]);
