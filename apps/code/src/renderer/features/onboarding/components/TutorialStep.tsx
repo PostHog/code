@@ -40,7 +40,7 @@ const HEDGEHOG_MESSAGES: Record<string, string> = {
   "select-worktree":
     "Great choice! Now pick Worktree from the workspace mode dropdown — it creates a copy of your project to work in parallel.",
   "select-model":
-    "Now pick your AI model — try selecting Claude Opus 4.6 for the most capable option!",
+    "Now pick your AI model — try selecting Claude Opus 4.7 for the most capable option!",
   "explain-mode":
     "Press Shift+Tab to cycle through execution modes like Plan, Code, and more.",
   "auto-fill-prompt":
