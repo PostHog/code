@@ -20,7 +20,11 @@ import type { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { trpcClient } from "@renderer/trpc";
 import { generateTitleAndSummary } from "@renderer/utils/generateTitle";
 import { getTaskRepository } from "@renderer/utils/repository";
-import type { ExecutionMode, Task } from "@shared/types";
+import {
+  type ExecutionMode,
+  SIGNAL_REPORT_TASK_IMPLEMENTATION_RELATIONSHIP,
+  type Task,
+} from "@shared/types";
 import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
 import { getGhUserTokenOrThrow } from "@utils/github";
 import { logger } from "@utils/logger";
@@ -436,6 +440,9 @@ export class TaskCreationSaga extends Saga<
               : undefined,
           origin_product: input.signalReportId ? "signal_report" : undefined,
           signal_report: input.signalReportId ?? undefined,
+          signal_report_task_relationship: input.signalReportId
+            ? SIGNAL_REPORT_TASK_IMPLEMENTATION_RELATIONSHIP
+            : undefined,
         });
         return result as unknown as Task;
       },

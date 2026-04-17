@@ -17,6 +17,7 @@ import type {
   SignalReportsQueryParams,
   SignalReportsResponse,
   SignalReportTask,
+  SignalReportTaskRelationship,
   SignalTeamConfig,
   SignalUserAutonomyConfig,
   SuggestedReviewersArtefact,
@@ -657,6 +658,8 @@ export class PostHogAPIClient {
         >
       > & {
         github_integration?: number | null;
+        /** POST-only: `SignalReportTask.relationship` to create when linking to `signal_report`. */
+        signal_report_task_relationship?: SignalReportTaskRelationship;
       },
   ) {
     const teamId = await this.getTeamId();

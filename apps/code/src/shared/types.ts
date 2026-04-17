@@ -458,9 +458,23 @@ export interface SignalReportsQueryParams {
   suggested_reviewers?: string;
 }
 
+/** Values match `SignalReportTask.Relationship` on the PostHog API. */
+export const SIGNAL_REPORT_TASK_RELATIONSHIPS = [
+  "repo_selection",
+  "research",
+  "implementation",
+] as const;
+
+export type SignalReportTaskRelationship =
+  (typeof SIGNAL_REPORT_TASK_RELATIONSHIPS)[number];
+
+/** Inbox / cloud PR tasks must use this when creating the `SignalReportTask` link. */
+export const SIGNAL_REPORT_TASK_IMPLEMENTATION_RELATIONSHIP: SignalReportTaskRelationship =
+  "implementation";
+
 export interface SignalReportTask {
   id: string;
-  relationship: "repo_selection" | "research" | "implementation";
+  relationship: SignalReportTaskRelationship;
   task_id: string;
   created_at: string;
 }
