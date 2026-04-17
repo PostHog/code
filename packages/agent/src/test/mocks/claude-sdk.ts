@@ -101,6 +101,10 @@ export function createMockQuery(
     toggleMcpServer: vi.fn().mockResolvedValue(undefined),
     supportedAgents: vi.fn().mockResolvedValue([]),
     stopTask: vi.fn().mockResolvedValue(undefined),
+    applyFlagSettings: vi.fn().mockResolvedValue(undefined),
+    getContextUsage: vi.fn().mockResolvedValue({}),
+    reloadPlugins: vi.fn().mockResolvedValue(undefined),
+    seedReadState: vi.fn().mockResolvedValue(undefined),
     [Symbol.asyncDispose]: vi.fn().mockResolvedValue(undefined),
     _abortController: abortController,
     _mockHelpers: {
