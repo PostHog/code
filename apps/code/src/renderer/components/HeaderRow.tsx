@@ -1,7 +1,6 @@
-import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
+import { DiffStatsBadge } from "@features/code-review/components/DiffStatsBadge";
 import { CloudGitInteractionHeader } from "@features/git-interaction/components/CloudGitInteractionHeader";
 import { GitInteractionHeader } from "@features/git-interaction/components/GitInteractionHeader";
-import { DiffStatsIndicator } from "@features/message-editor/components/DiffStatsIndicator";
 import { SidebarTrigger } from "@features/sidebar/components/SidebarTrigger";
 import { useSidebarStore } from "@features/sidebar/stores/sidebarStore";
 import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
@@ -27,7 +26,6 @@ export function HeaderRow() {
   const activeTaskId = view.type === "task-detail" ? view.data?.id : undefined;
   const activeWorkspace = useWorkspace(activeTaskId);
   const isCloudTask = activeWorkspace?.mode === "cloud";
-  const showTaskSection = view.type === "task-detail";
 
   const handleLeftSidebarMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -85,63 +83,31 @@ export function HeaderRow() {
           align="center"
           justify="between"
           px="3"
-          style={{
-            height: "100%",
-            overflow: "hidden",
-            minWidth: 0,
-            flex: "1 1 0px",
-          }}
+          flexGrow="1"
+          style={{ height: "100%", overflow: "hidden" }}
         >
           {content}
         </Flex>
       )}
 
-      {showTaskSection && view.type === "task-detail" && view.data && (
+      {view.type === "task-detail" && view.data && (
         <Flex
           align="center"
-          justify="end"
-          gap="2"
-          pr="1"
-          pl="2"
+          gap="3"
+          pr="3"
           style={{
             height: "100%",
-            borderLeft: "1px solid var(--gray-6)",
             flexShrink: 0,
-            maxWidth: "50%",
-            overflow: "hidden",
           }}
         >
-          {activeWorkspace &&
-            (activeWorkspace.branchName || activeWorkspace.baseBranch) && (
-              <div className="no-drag flex h-full min-w-0 items-center">
-                <BranchSelector
-                  repoPath={
-                    activeWorkspace.worktreePath ??
-                    activeWorkspace.folderPath ??
-                    null
-                  }
-                  currentBranch={
-                    activeWorkspace.branchName ??
-                    activeWorkspace.baseBranch ??
-                    null
-                  }
-                  taskId={view.data.id}
-                />
-              </div>
+          <div className="no-drag">
+            {isCloudTask ? (
+              <CloudGitInteractionHeader taskId={view.data.id} />
+            ) : (
+              <GitInteractionHeader taskId={view.data.id} />
             )}
-          <DiffStatsIndicator
-            repoPath={
-              activeWorkspace?.worktreePath ??
-              activeWorkspace?.folderPath ??
-              null
-            }
-            taskId={view.data.id}
-          />
-          {isCloudTask ? (
-            <CloudGitInteractionHeader taskId={view.data.id} />
-          ) : (
-            <GitInteractionHeader taskId={view.data.id} />
-          )}
+          </div>
+          <DiffStatsBadge task={view.data} />
         </Flex>
       )}
     </Flex>
