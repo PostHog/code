@@ -83,8 +83,12 @@ export function HeaderRow() {
           align="center"
           justify="between"
           px="3"
-          flexGrow="1"
-          style={{ height: "100%", overflow: "hidden" }}
+          style={{
+            height: "100%",
+            overflow: "hidden",
+            minWidth: 0,
+            flex: "1 1 0px",
+          }}
         >
           {content}
         </Flex>
