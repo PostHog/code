@@ -15,8 +15,8 @@ const PRIORITY_OPTIONS: { value: SignalReportPriority; label: string }[] = [
 const NEVER_VALUE = "__never__";
 
 const USER_PRIORITY_OPTIONS: { value: string; label: string }[] = [
-  ...PRIORITY_OPTIONS,
   { value: NEVER_VALUE, label: "Never — opt out of auto-assigned tasks" },
+  ...PRIORITY_OPTIONS,
 ];
 
 export function SignalSourcesSettings() {
