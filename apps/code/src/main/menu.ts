@@ -134,7 +134,7 @@ function buildFileMenu(): MenuItemConstructorOptions {
             },
           },
           {
-            label: "Refresh OAuth token",
+            label: "Schedule refresh of OAuth token",
             click: () => {
               container
                 .get<AuthService>(MAIN_TOKENS.AuthService)
@@ -145,6 +145,28 @@ function buildFileMenu(): MenuItemConstructorOptions {
                     title: "OAuth Token Refresh",
                     message:
                       "Token refresh scheduled.\nIt will execute when all active agent turns complete.",
+                  });
+                })
+                .catch((err: Error) => {
+                  dialog.showMessageBox({
+                    type: "error",
+                    title: "OAuth Token Refresh Failed",
+                    message: err.message,
+                  });
+                });
+            },
+          },
+          {
+            label: "Force refresh of OAuth token",
+            click: () => {
+              container
+                .get<AuthService>(MAIN_TOKENS.AuthService)
+                .refreshAccessToken()
+                .then(() => {
+                  dialog.showMessageBox({
+                    type: "info",
+                    title: "OAuth Token Refreshed",
+                    message: "Access token refreshed successfully.",
                   });
                 })
                 .catch((err: Error) => {

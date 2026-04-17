@@ -44,7 +44,6 @@ import { MAIN_TOKENS } from "../../di/tokens";
 import { isDevBuild } from "../../utils/env";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
-import { AuthServiceEvent } from "../auth/schemas";
 import type { AuthService } from "../auth/service";
 import type { FsService } from "../fs/service";
 import type { McpAppsService } from "../mcp-apps/service";
@@ -325,7 +324,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   private agentAuthAdapter: AgentAuthAdapter;
   private mcpAppsService: McpAppsService;
   private authService: AuthService;
-  private mcpRefreshDebounce: NodeJS.Timeout | null = null;
 
   constructor(
     @inject(MAIN_TOKENS.ProcessTrackingService)
@@ -355,11 +353,6 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     powerMonitor.on("resume", () => this.checkIdleDeadlines());
 
     this.authService.setRefreshBlocker(() => this.hasActiveSessions());
-    this.authService.on(AuthServiceEvent.StateChanged, (state) => {
-      if (state.status === "authenticated") {
-        this.scheduleRefreshMcp();
-      }
-    });
   }
 
   /**
@@ -1089,53 +1082,10 @@ For git operations while detached:
     return `Your worktree is back on branch \`${context.branchName}\`. Normal git commands work again.`;
   }
 
-  /** Debounce rapid StateChanged events into a single MCP refresh. */
-  private scheduleRefreshMcp(): void {
-    if (this.mcpRefreshDebounce) {
-      clearTimeout(this.mcpRefreshDebounce);
-    }
-    this.mcpRefreshDebounce = setTimeout(() => {
-      this.mcpRefreshDebounce = null;
-      this.refreshMcpForActiveSessions();
-    }, 500);
-  }
-
-  private async refreshMcpForActiveSessions(): Promise<void> {
-    for (const [taskRunId, session] of this.sessions) {
-      try {
-        const mcpServers = await this.agentAuthAdapter.buildMcpServers(
-          session.config.credentials,
-        );
-        log.info("Refreshing MCP servers for session", {
-          taskRunId,
-          serverCount: mcpServers.length,
-          servers: mcpServers.map((s) => ({
-            name: s.name,
-            url: s.url,
-            headerCount: s.headers.length,
-          })),
-        });
-        await session.clientSideConnection.extNotification(
-          POSTHOG_NOTIFICATIONS.REFRESH_MCP,
-          { mcpServers },
-        );
-      } catch (err) {
-        log.warn("Failed to push MCP refresh", {
-          taskRunId,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
-  }
-
   @preDestroy()
   async cleanupAll(): Promise<void> {
     for (const { handle } of this.idleTimeouts.values()) clearTimeout(handle);
     this.idleTimeouts.clear();
-    if (this.mcpRefreshDebounce) {
-      clearTimeout(this.mcpRefreshDebounce);
-      this.mcpRefreshDebounce = null;
-    }
     const sessionIds = Array.from(this.sessions.keys());
     log.info("Cleaning up all agent sessions", {
       sessionCount: sessionIds.length,
@@ -1399,6 +1349,14 @@ For git operations while detached:
           update.status === "failed"
         ) {
           session?.inFlightMcpToolCalls.delete(update.toolCallId);
+          if (update.status === "failed") {
+            log.warn("MCP tool failed — raw update", {
+              toolName,
+              toolCallId: update.toolCallId,
+              rawOutput: JSON.stringify(update.rawOutput),
+              content: JSON.stringify(update.content),
+            });
+          }
           service.mcpAppsService.notifyToolResult(
             toolName,
             update.toolCallId,

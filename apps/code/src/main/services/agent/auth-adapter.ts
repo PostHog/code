@@ -5,6 +5,7 @@ import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
 import type { AuthService } from "../auth/service";
 import type { AuthProxyService } from "../auth-proxy/service";
+import type { McpProxyService } from "../mcp-proxy/service";
 import type { Credentials } from "./schemas";
 
 const log = logger.scope("agent-auth-adapter");
@@ -37,6 +38,8 @@ export class AgentAuthAdapter {
     private readonly authService: AuthService,
     @inject(MAIN_TOKENS.AuthProxyService)
     private readonly authProxy: AuthProxyService,
+    @inject(MAIN_TOKENS.McpProxyService)
+    private readonly mcpProxy: McpProxyService,
   ) {}
 
   createPosthogConfig(credentials: Credentials): AgentPosthogConfig {
@@ -51,14 +54,24 @@ export class AgentAuthAdapter {
   async buildMcpServers(credentials: Credentials): Promise<AcpMcpServer[]> {
     const servers: AcpMcpServer[] = [];
     const mcpUrl = this.getPostHogMcpUrl(credentials.apiHost);
-    const token = await this.getValidToken();
+    // Warm the token so authenticatedFetch() has something cached, but do not
+    // bake it into the MCP config — the proxy injects a fresh one on every
+    // forwarded request.
+    const sessionStartToken = await this.getValidToken();
+    log.info("buildMcpServers — session-start token", {
+      tokenPrefix: sessionStartToken.slice(0, 16),
+      tokenSuffix: sessionStartToken.slice(-8),
+      tokenLength: sessionStartToken.length,
+    });
+
+    await this.mcpProxy.start();
+    const proxiedPosthogUrl = this.mcpProxy.register("posthog", mcpUrl);
 
     servers.push({
       name: "posthog",
       type: "http",
-      url: mcpUrl,
+      url: proxiedPosthogUrl,
       headers: [
-        { name: "Authorization", value: `Bearer ${token}` },
         {
           name: "x-posthog-project-id",
           value: String(credentials.projectId),
@@ -72,10 +85,12 @@ export class AgentAuthAdapter {
     for (const installation of installations) {
       if (installation.url === mcpUrl) continue;
 
+      const name =
+        installation.name || installation.display_name || installation.url;
+
       if (installation.auth_type === "none") {
         servers.push({
-          name:
-            installation.name || installation.display_name || installation.url,
+          name,
           type: "http",
           url: installation.url,
           headers: [],
@@ -83,12 +98,15 @@ export class AgentAuthAdapter {
         continue;
       }
 
+      const proxiedUrl = this.mcpProxy.register(
+        `installation-${installation.id}`,
+        installation.proxy_url,
+      );
       servers.push({
-        name:
-          installation.name || installation.display_name || installation.url,
+        name,
         type: "http",
-        url: installation.proxy_url,
-        headers: [{ name: "Authorization", value: `Bearer ${token}` }],
+        url: proxiedUrl,
+        headers: [],
       });
     }
 
