@@ -1265,13 +1265,14 @@ export class AgentServer {
   }
 
   /**
-   * Slack-origin cloud runs auto-publish by default. Every other origin is
+   * Automated-origin cloud runs auto-publish by default. Every other origin is
    * review-first unless the user explicitly asks, and createPr=false always
    * disables publishing.
    */
   private shouldAutoPublishCloudChanges(): boolean {
+    const origin = this.getCloudInteractionOrigin();
     return (
-      this.getCloudInteractionOrigin() === "slack" &&
+      (origin === "slack" || origin === "signal_report") &&
       this.config.createPr !== false
     );
   }
