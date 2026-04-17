@@ -5,6 +5,7 @@ import {
 } from "@renderer/api/posthogClient";
 import type { SeatData } from "@shared/types/seat";
 import { PLAN_FREE, PLAN_PRO } from "@shared/types/seat";
+import { isFeatureFlagEnabled } from "@utils/analytics";
 import { logger } from "@utils/logger";
 import { getPostHogUrl } from "@utils/urls";
 import { create } from "zustand";
@@ -29,6 +30,14 @@ interface SeatStoreActions {
 }
 
 type SeatStore = SeatStoreState & SeatStoreActions;
+
+const BILLING_FLAG = "posthog-code-billing";
+
+function assertBillingEnabled(): void {
+  if (!isFeatureFlagEnabled(BILLING_FLAG)) {
+    throw new Error("Billing is not enabled");
+  }
+}
 
 async function getClient() {
   const client = await getAuthenticatedClient();
@@ -79,6 +88,7 @@ export const useSeatStore = create<SeatStore>()((set) => ({
   fetchSeat: async (options?: { autoProvision?: boolean }) => {
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
+      assertBillingEnabled();
       const client = await getClient();
       let seat = await client.getMySeat();
       if (!seat && options?.autoProvision) {
@@ -95,6 +105,7 @@ export const useSeatStore = create<SeatStore>()((set) => ({
     log.info("Provisioning free seat");
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
+      assertBillingEnabled();
       const client = await getClient();
       const existing = await client.getMySeat();
       if (existing) {
@@ -117,6 +128,7 @@ export const useSeatStore = create<SeatStore>()((set) => ({
   upgradeToPro: async () => {
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
+      assertBillingEnabled();
       const client = await getClient();
       const existing = await client.getMySeat();
       if (existing) {
@@ -138,6 +150,7 @@ export const useSeatStore = create<SeatStore>()((set) => ({
   cancelSeat: async () => {
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
+      assertBillingEnabled();
       const client = await getClient();
       await client.cancelSeat();
       const seat = await client.getMySeat();
@@ -150,6 +163,7 @@ export const useSeatStore = create<SeatStore>()((set) => ({
   reactivateSeat: async () => {
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
+      assertBillingEnabled();
       const client = await getClient();
       const seat = await client.reactivateSeat();
       set({ seat, isLoading: false });
