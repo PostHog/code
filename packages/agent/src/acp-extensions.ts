@@ -66,6 +66,12 @@ export const POSTHOG_NOTIFICATIONS = {
 
   /** Response to a relayed permission request (plan approval, question) */
   PERMISSION_RESPONSE: "_posthog/permission_response",
+
+  /** Streamed stdout/stderr chunk from an inline `!command` execution */
+  SHELL_OUTPUT: "_posthog/shell_output",
+
+  /** Terminal event for an inline `!command` execution (exit code + signal) */
+  SHELL_EXIT: "_posthog/shell_exit",
 } as const;
 
 type NotificationMethod =

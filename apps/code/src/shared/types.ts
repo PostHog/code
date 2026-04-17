@@ -171,12 +171,28 @@ export interface CloudTaskPermissionRequestUpdate extends CloudTaskUpdateBase {
   options: CloudPermissionOption[];
 }
 
+export interface CloudTaskShellOutputUpdate extends CloudTaskUpdateBase {
+  kind: "shell_output";
+  executionId: string;
+  stream: "stdout" | "stderr";
+  chunk: string;
+}
+
+export interface CloudTaskShellExitUpdate extends CloudTaskUpdateBase {
+  kind: "shell_exit";
+  executionId: string;
+  exitCode: number | null;
+  signal: string | null;
+}
+
 export type CloudTaskUpdatePayload =
   | CloudTaskLogsUpdate
   | CloudTaskStatusUpdate
   | CloudTaskSnapshotUpdate
   | CloudTaskErrorUpdate
-  | CloudTaskPermissionRequestUpdate;
+  | CloudTaskPermissionRequestUpdate
+  | CloudTaskShellOutputUpdate
+  | CloudTaskShellExitUpdate;
 
 // Mention types for editors
 type MentionType =

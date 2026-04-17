@@ -56,6 +56,7 @@ export const sendCommandInput = z.object({
     "close",
     "permission_response",
     "set_config_option",
+    "shell_execute",
   ]),
   params: z.record(z.string(), z.unknown()).optional(),
 });

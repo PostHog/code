@@ -185,6 +185,19 @@ export class SessionService {
   >();
   /** Maps toolCallId → cloud requestId for routing permission responses */
   private cloudPermissionRequestIds = new Map<string, string>();
+  private pendingCloudShells = new Map<
+    string,
+    {
+      taskRunId: string;
+      stdout: string;
+      stderr: string;
+      resolve: (result: {
+        stdout: string;
+        stderr: string;
+        exitCode: number;
+      }) => void;
+    }
+  >();
   private idleKilledSubscription: { unsubscribe: () => void } | null = null;
 
   constructor() {
@@ -555,6 +568,7 @@ export class SessionService {
     }
 
     this.unsubscribeFromChannel(taskRunId);
+    this.rejectPendingCloudShells(taskRunId, "Session ended");
     sessionStoreSetters.removeSession(taskRunId);
     if (session) {
       this.localRepoPaths.delete(session.taskId);
@@ -562,6 +576,18 @@ export class SessionService {
     }
     useSessionAdapterStore.getState().removeAdapter(taskRunId);
     removePersistedConfigOptions(taskRunId);
+  }
+
+  private rejectPendingCloudShells(taskRunId: string, reason: string): void {
+    for (const [executionId, pending] of this.pendingCloudShells) {
+      if (pending.taskRunId !== taskRunId) continue;
+      this.pendingCloudShells.delete(executionId);
+      pending.resolve({
+        stdout: pending.stdout,
+        stderr: pending.stderr || reason,
+        exitCode: -1,
+      });
+    }
   }
 
   /**
@@ -1789,14 +1815,14 @@ export class SessionService {
    */
   private async sendCloudCommand(
     session: AgentSession,
-    method: "permission_response" | "set_config_option",
+    method: "permission_response" | "set_config_option" | "shell_execute",
     params: Record<string, unknown>,
-  ): Promise<void> {
+  ) {
     const auth = await this.getCloudCommandAuth();
     if (!auth) {
       throw new Error("No cloud auth credentials available");
     }
-    await trpcClient.cloudTask.sendCommand.mutate({
+    return trpcClient.cloudTask.sendCommand.mutate({
       taskId: session.taskId,
       runId: session.taskRunId,
       apiHost: auth.apiHost,
@@ -2044,6 +2070,50 @@ export class SessionService {
     }
 
     await this.setSessionConfigOption(taskId, configOption.id, value);
+  }
+
+  async executeCloudShellCommand(
+    taskId: string,
+    command: string,
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    const session = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (!session) {
+      throw new Error("No active session for task");
+    }
+
+    // Pre-register the pending listener before the RPC round-trip — fast
+    // commands (`echo`) emit `shell_exit` on SSE before the HTTP response
+    // returns, so the exit event would otherwise have nowhere to land.
+    const executionId = crypto.randomUUID();
+    log.info("Starting cloud shell execute", { taskId, executionId, command });
+    const resultPromise = new Promise<{
+      stdout: string;
+      stderr: string;
+      exitCode: number;
+    }>((resolve) => {
+      this.pendingCloudShells.set(executionId, {
+        taskRunId: session.taskRunId,
+        stdout: "",
+        stderr: "",
+        resolve,
+      });
+    });
+
+    try {
+      const response = await this.sendCloudCommand(session, "shell_execute", {
+        command,
+        executionId,
+      });
+      if (!response.success) {
+        this.pendingCloudShells.delete(executionId);
+        throw new Error(response.error ?? "Failed to start shell execution");
+      }
+    } catch (err) {
+      this.pendingCloudShells.delete(executionId);
+      throw err;
+    }
+
+    return resultPromise;
   }
 
   /**
@@ -2515,6 +2585,43 @@ export class SessionService {
 
     if (update.kind === "permission_request") {
       this.handleCloudPermissionRequest(taskRunId, update);
+      return;
+    }
+
+    if (update.kind === "shell_output") {
+      const pending = this.pendingCloudShells.get(update.executionId);
+      log.info("Cloud shell output", {
+        executionId: update.executionId,
+        stream: update.stream,
+        chunkLen: update.chunk.length,
+        hasPending: !!pending,
+      });
+      if (pending) {
+        if (update.stream === "stdout") {
+          pending.stdout += update.chunk;
+        } else {
+          pending.stderr += update.chunk;
+        }
+      }
+      return;
+    }
+
+    if (update.kind === "shell_exit") {
+      const pending = this.pendingCloudShells.get(update.executionId);
+      log.info("Cloud shell exit", {
+        executionId: update.executionId,
+        exitCode: update.exitCode,
+        signal: update.signal,
+        hasPending: !!pending,
+      });
+      if (pending) {
+        this.pendingCloudShells.delete(update.executionId);
+        pending.resolve({
+          stdout: pending.stdout,
+          stderr: pending.stderr,
+          exitCode: update.exitCode ?? (update.signal ? 1 : 0),
+        });
+      }
       return;
     }
 

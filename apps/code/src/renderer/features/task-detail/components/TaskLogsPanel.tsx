@@ -127,7 +127,7 @@ export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
               isPromptPending={isPromptPending}
               promptStartedAt={promptStartedAt}
               onSendPrompt={handleSendPrompt}
-              onBashCommand={isCloud ? undefined : handleBashCommand}
+              onBashCommand={handleBashCommand}
               onCancelPrompt={handleCancelPrompt}
               repoPath={repoPath}
               cloudBranch={cloudBranch}

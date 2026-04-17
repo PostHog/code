@@ -60,6 +60,19 @@ export const setConfigOptionParamsSchema = z.object({
   value: z.string().min(1, "value is required"),
 });
 
+export const shellExecuteParamsSchema = z.object({
+  command: z.string().min(1, "command is required"),
+  cwd: z.string().optional(),
+  timeoutMs: z.number().int().positive().max(600_000).optional(),
+  /**
+   * Caller-provided identifier used to tag streamed output events. Lets the
+   * renderer register a pending listener before the HTTP response returns —
+   * otherwise fast commands (`echo`) emit `shell_exit` faster than the RPC
+   * round-trip and the exit notification is lost.
+   */
+  executionId: z.string().min(1).max(128).optional(),
+});
+
 export const commandParamsSchemas = {
   user_message: userMessageParamsSchema,
   "posthog/user_message": userMessageParamsSchema,
@@ -71,6 +84,8 @@ export const commandParamsSchemas = {
   "posthog/permission_response": permissionResponseParamsSchema,
   set_config_option: setConfigOptionParamsSchema,
   "posthog/set_config_option": setConfigOptionParamsSchema,
+  shell_execute: shellExecuteParamsSchema,
+  "posthog/shell_execute": shellExecuteParamsSchema,
 } as const;
 
 export type CommandMethod = keyof typeof commandParamsSchemas;
