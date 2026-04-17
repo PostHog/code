@@ -5,6 +5,11 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
 } from "@posthog/quill";
 import { useTRPC } from "@renderer/trpc/client";
 import { useQuery } from "@tanstack/react-query";
@@ -13,11 +18,9 @@ import type { MentionChip } from "../utils/content";
 
 interface IssuePickerProps {
   repoPath: string;
-  /** Controlled open state — AttachmentMenu toggles this after "Add issue" click. */
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (chip: MentionChip) => void;
-  /** DOM anchor the combobox popup positions against (usually the paperclip button). */
   anchor: React.RefObject<HTMLElement | null>;
 }
 
@@ -52,7 +55,6 @@ export function IssuePicker({
     };
   }, [query]);
 
-  // Reset search when the popover closes.
   useEffect(() => {
     if (!open) {
       setQuery("");
@@ -88,7 +90,6 @@ export function IssuePicker({
       inputValue={query}
       onInputValueChange={(value) => setQuery(value ?? "")}
       onValueChange={(value) => handleValueChange(value as Issue | null)}
-      // Server-side filter — disable base-ui's client-side matching.
       filter={null}
     >
       <ComboboxContent
@@ -96,35 +97,41 @@ export function IssuePicker({
         side="top"
         align="start"
         sideOffset={6}
-        className="flex min-w-[360px] flex-col gap-0 p-0"
+        className="min-w-[400px] p-0"
       >
         <ComboboxInput
           autoFocus
+          showTrigger={false}
           placeholder="Search issues..."
-          className="rounded-none border-0 border-border/50 border-b shadow-none"
         />
         <ComboboxEmpty>No issues found.</ComboboxEmpty>
         <ComboboxList>
           {(issue: Issue) => (
-            <ComboboxItem key={issue.number} value={issue}>
-              <span className="flex flex-col items-start gap-0.5">
-                <span className="flex items-center gap-2">
+            <ComboboxItem
+              key={issue.number}
+              value={issue}
+              className="relative h-auto"
+            >
+              <Item size="xs" className="border-0 p-0">
+                <ItemMedia variant="icon" className="mt-1 self-start">
                   <span
-                    className="h-2 w-2 shrink-0 rounded-full"
+                    className="inline-block h-2.5 w-2.5 rounded-full"
                     style={{
                       background:
                         issue.state === "OPEN" ? "#238636" : "#AB7DF8",
                     }}
                   />
-                  <span className="truncate">
+                </ItemMedia>
+                <ItemContent variant="menuItem">
+                  <ItemTitle className="whitespace-normal text-left">
                     #{issue.number} - {issue.title}
-                  </span>
-                </span>
-                <span className="text-[10px] text-muted-foreground">
-                  {issue.repo}
-                  {issue.labels.length > 0 && ` · ${issue.labels.join(", ")}`}
-                </span>
-              </span>
+                  </ItemTitle>
+                  <ItemDescription className="text-left">
+                    {issue.repo}
+                    {issue.labels.length > 0 && ` · ${issue.labels.join(", ")}`}
+                  </ItemDescription>
+                </ItemContent>
+              </Item>
             </ComboboxItem>
           )}
         </ComboboxList>
