@@ -1,3 +1,4 @@
+import { useRestoreTask } from "@features/suspension/hooks/useRestoreTask";
 import { useSuspendTask } from "@features/suspension/hooks/useSuspendTask";
 import { useArchiveTask } from "@features/tasks/hooks/useArchiveTask";
 import { useDeleteTask } from "@features/tasks/hooks/useTasks";
@@ -7,7 +8,6 @@ import type { Task } from "@shared/types";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
 import { logger } from "@utils/logger";
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
 
 const log = logger.scope("context-menu");
 
@@ -16,6 +16,7 @@ export function useTaskContextMenu() {
   const { deleteWithConfirm } = useDeleteTask();
   const { archiveTask } = useArchiveTask();
   const { suspendTask } = useSuspendTask();
+  const { restoreTask } = useRestoreTask();
 
   const showContextMenu = useCallback(
     async (
@@ -23,20 +24,40 @@ export function useTaskContextMenu() {
       event: React.MouseEvent,
       options?: {
         worktreePath?: string;
+        folderPath?: string;
         isPinned?: boolean;
+        isSuspended?: boolean;
+        isInCommandCenter?: boolean;
+        hasEmptyCommandCenterCell?: boolean;
         onTogglePin?: () => void;
+        onArchivePrior?: (taskId: string) => void;
+        onAddToCommandCenter?: () => void;
       },
     ) => {
       event.preventDefault();
       event.stopPropagation();
 
-      const { worktreePath, isPinned, onTogglePin } = options ?? {};
+      const {
+        worktreePath,
+        folderPath,
+        isPinned,
+        isSuspended,
+        isInCommandCenter,
+        hasEmptyCommandCenterCell,
+        onTogglePin,
+        onArchivePrior,
+        onAddToCommandCenter,
+      } = options ?? {};
 
       try {
         const result = await trpcClient.contextMenu.showTaskContextMenu.mutate({
           taskTitle: task.title,
           worktreePath,
+          folderPath,
           isPinned,
+          isSuspended,
+          isInCommandCenter,
+          hasEmptyCommandCenterCell,
         });
 
         if (!result.action) return;
@@ -48,15 +69,18 @@ export function useTaskContextMenu() {
           case "pin":
             onTogglePin?.();
             break;
-          case "copy-task-id":
-            navigator.clipboard.writeText(task.id);
-            toast.success("Task ID copied");
-            break;
           case "suspend":
-            await suspendTask({ taskId: task.id, reason: "manual" });
+            if (isSuspended) {
+              await restoreTask(task.id);
+            } else {
+              await suspendTask({ taskId: task.id, reason: "manual" });
+            }
             break;
           case "archive":
             await archiveTask({ taskId: task.id });
+            break;
+          case "archive-prior":
+            await onArchivePrior?.(task.id);
             break;
           case "delete":
             await deleteWithConfirm({
@@ -65,12 +89,16 @@ export function useTaskContextMenu() {
               hasWorktree: !!worktreePath,
             });
             break;
-          case "external-app":
-            if (worktreePath) {
+          case "add-to-command-center":
+            onAddToCommandCenter?.();
+            break;
+          case "external-app": {
+            const effectivePath = worktreePath ?? folderPath;
+            if (effectivePath) {
               const workspace = await workspaceApi.get(task.id);
               await handleExternalAppAction(
                 result.action.action,
-                worktreePath,
+                effectivePath,
                 task.title,
                 {
                   workspace,
@@ -79,12 +107,13 @@ export function useTaskContextMenu() {
               );
             }
             break;
+          }
         }
       } catch (error) {
         log.error("Failed to show context menu", error);
       }
     },
-    [deleteWithConfirm, archiveTask, suspendTask],
+    [deleteWithConfirm, archiveTask, suspendTask, restoreTask],
   );
 
   return {

@@ -22,10 +22,6 @@ export class PostHogDetector {
     this.pm.updateConfig(config);
   }
 
-  async initialize(wasmDir: string): Promise<void> {
-    return this.pm.initialize(wasmDir);
-  }
-
   isSupported(langId: string): boolean {
     return this.pm.isSupported(langId);
   }

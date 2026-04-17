@@ -1,9 +1,5 @@
-import {
-  inboxStatusBgCss,
-  inboxStatusBorderCss,
-  inboxStatusLabel,
-  inboxStatusTextCss,
-} from "@features/inbox/utils/inboxSort";
+import { Badge } from "@components/ui/Badge";
+import { inboxStatusLabel } from "@features/inbox/utils/inboxSort";
 import { Tooltip } from "@radix-ui/themes";
 import type { SignalReportStatus } from "@shared/types";
 
@@ -20,6 +16,25 @@ const STATUS_TOOLTIPS: Record<string, string> = {
   deleted: "This report has been deleted.",
 };
 
+type BadgeColor = "green" | "violet" | "amber" | "cyan" | "gray" | "red";
+
+function inboxStatusBadgeColor(status: SignalReportStatus): BadgeColor {
+  switch (status) {
+    case "ready":
+      return "green";
+    case "pending_input":
+      return "violet";
+    case "in_progress":
+      return "amber";
+    case "candidate":
+      return "cyan";
+    case "failed":
+      return "red";
+    default:
+      return "gray";
+  }
+}
+
 interface SignalReportStatusBadgeProps {
   status: SignalReportStatus;
 }
@@ -28,24 +43,14 @@ export function SignalReportStatusBadge({
   status,
 }: SignalReportStatusBadgeProps) {
   const label = inboxStatusLabel(status);
-  const textColor = inboxStatusTextCss(status);
   const tooltip = STATUS_TOOLTIPS[status] ?? status;
-
-  const bgColor = inboxStatusBgCss(status);
-  const borderColor = inboxStatusBorderCss(status);
+  const color = inboxStatusBadgeColor(status);
 
   return (
     <Tooltip content={tooltip}>
-      <span
-        className="shrink-0 cursor-help rounded-sm px-1 py-px text-[9px] uppercase tracking-wider"
-        style={{
-          color: textColor,
-          backgroundColor: bgColor,
-          border: `1px solid ${borderColor}`,
-        }}
-      >
+      <Badge color={color} className="cursor-help">
         {label}
-      </span>
+      </Badge>
     </Tooltip>
   );
 }

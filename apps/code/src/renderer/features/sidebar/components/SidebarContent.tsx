@@ -5,6 +5,7 @@ import { useNavigationStore } from "@stores/navigationStore";
 import type React from "react";
 import { ProjectSwitcher } from "./ProjectSwitcher";
 import { SidebarMenu } from "./SidebarMenu";
+import { UpdateBanner } from "./UpdateBanner";
 
 export const SidebarContent: React.FC = () => {
   const archivedTaskIds = useArchivedTaskIds();
@@ -17,6 +18,7 @@ export const SidebarContent: React.FC = () => {
       <Box flexGrow="1" overflow="hidden">
         <SidebarMenu />
       </Box>
+      <UpdateBanner />
       {archivedTaskIds.size > 0 && (
         <Box className="shrink-0 border-gray-6 border-t">
           <button
@@ -31,7 +33,7 @@ export const SidebarContent: React.FC = () => {
           </button>
         </Box>
       )}
-      <Box className="shrink-0 border-gray-6 border-t">
+      <Box p="2" className="shrink-0 border-gray-6 border-t">
         <ProjectSwitcher />
       </Box>
     </Flex>

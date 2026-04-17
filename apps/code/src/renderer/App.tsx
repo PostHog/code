@@ -2,7 +2,6 @@ import { ErrorBoundary } from "@components/ErrorBoundary";
 import { LoginTransition } from "@components/LoginTransition";
 import { MainLayout } from "@components/MainLayout";
 import { ScopeReauthPrompt } from "@components/ScopeReauthPrompt";
-import { UpdatePrompt } from "@components/UpdatePrompt";
 import { AuthScreen } from "@features/auth/components/AuthScreen";
 import { InviteCodeScreen } from "@features/auth/components/InviteCodeScreen";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
@@ -13,6 +12,7 @@ import { Flex, Spinner, Text } from "@radix-ui/themes";
 import { initializeConnectivityStore } from "@renderer/stores/connectivityStore";
 import { useFocusStore } from "@renderer/stores/focusStore";
 import { useThemeStore } from "@renderer/stores/themeStore";
+import { initializeUpdateStore } from "@renderer/stores/updateStore";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useQueryClient } from "@tanstack/react-query";
@@ -47,6 +47,11 @@ function App() {
   // Initialize connectivity monitoring
   useEffect(() => {
     return initializeConnectivityStore();
+  }, []);
+
+  // Initialize update store
+  useEffect(() => {
+    return initializeUpdateStore();
   }, []);
 
   // Dev-only inbox demo command for local QA from the renderer console.
@@ -138,6 +143,9 @@ function App() {
     if (!wasInMainApp.current && isInMainApp && isDarkMode) {
       setShowTransition(true);
     }
+    if (!isAuthenticated) {
+      setShowTransition(false);
+    }
     wasInMainApp.current = isInMainApp;
   }, [isAuthenticated, hasCompletedOnboarding, isDarkMode]);
 
@@ -209,16 +217,21 @@ function App() {
     );
   };
 
+  const content = renderContent();
+
   return (
     <ErrorBoundary name="App">
-      <AnimatePresence mode="wait">{renderContent()}</AnimatePresence>
+      {isAuthenticated ? (
+        <AnimatePresence mode="wait">{content}</AnimatePresence>
+      ) : (
+        content
+      )}
       <LoginTransition
         isAnimating={showTransition}
         isDarkMode={isDarkMode}
         onComplete={handleTransitionComplete}
       />
       <ScopeReauthPrompt />
-      <UpdatePrompt />
       <Toaster position="bottom-right" />
     </ErrorBoundary>
   );

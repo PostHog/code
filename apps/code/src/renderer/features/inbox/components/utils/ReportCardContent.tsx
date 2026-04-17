@@ -1,9 +1,9 @@
+import { Badge } from "@components/ui/Badge";
 import { SignalReportActionabilityBadge } from "@features/inbox/components/utils/SignalReportActionabilityBadge";
 import { SignalReportPriorityBadge } from "@features/inbox/components/utils/SignalReportPriorityBadge";
 import { SignalReportStatusBadge } from "@features/inbox/components/utils/SignalReportStatusBadge";
 import { SignalReportSummaryMarkdown } from "@features/inbox/components/utils/SignalReportSummaryMarkdown";
-import { SOURCE_PRODUCT_META } from "@features/inbox/components/utils/source-product-icons";
-import { EyeIcon, LightningIcon, UsersIcon } from "@phosphor-icons/react";
+import { EyeIcon, LightningIcon } from "@phosphor-icons/react";
 import { Flex, Text, Tooltip } from "@radix-ui/themes";
 import type { SignalReport } from "@shared/types";
 
@@ -24,25 +24,9 @@ export function ReportCardContent({
     { month: "short", day: "numeric" },
   );
 
-  const firstProduct = (report.source_products ?? [])[0];
-  const sourceProductMeta = firstProduct
-    ? SOURCE_PRODUCT_META[firstProduct]
-    : null;
-
   return (
     <Flex direction="column" gap="1">
       <Flex align="start" gapX="2" className="min-w-0">
-        {sourceProductMeta && (
-          <Tooltip content={sourceProductMeta.label}>
-            <span
-              style={{ color: sourceProductMeta.color }}
-              className="shrink-0 pt-1"
-            >
-              <sourceProductMeta.Icon size={12} />
-            </span>
-          </Tooltip>
-        )}
-
         <Flex align="center" gapX="2" wrap="wrap" className="min-w-0 flex-1">
           <Text
             size="1"
@@ -51,23 +35,16 @@ export function ReportCardContent({
           >
             {report.title ?? "Untitled signal"}
           </Text>
-          <SignalReportStatusBadge status={report.status} />
+          {!isReady && <SignalReportStatusBadge status={report.status} />}
           <SignalReportPriorityBadge priority={report.priority} />
           <SignalReportActionabilityBadge
             actionability={report.actionability}
           />
           {report.is_suggested_reviewer && (
             <Tooltip content="You are a suggested reviewer">
-              <span
-                className="inline-flex shrink-0 items-center rounded-sm px-1 py-px"
-                style={{
-                  color: "var(--blue-11)",
-                  backgroundColor: "var(--blue-3)",
-                  border: "1px solid var(--blue-6)",
-                }}
-              >
-                <EyeIcon size={10} weight="bold" />
-              </span>
+              <Badge color="amber" style={{ height: "var(--line-height-1)" }}>
+                <EyeIcon size={10} weight="bold" className="shrink-0" />
+              </Badge>
             </Tooltip>
           )}
         </Flex>
@@ -97,16 +74,6 @@ export function ReportCardContent({
               {report.signal_count !== 1 ? "s" : ""}
             </Text>
           </Flex>
-          {report.relevant_user_count != null &&
-            report.relevant_user_count > 0 && (
-              <Flex align="center" gapX="1">
-                <UsersIcon size={11} />
-                <Text size="1" className="text-[11px]">
-                  {report.relevant_user_count} user
-                  {report.relevant_user_count !== 1 ? "s" : ""}
-                </Text>
-              </Flex>
-            )}
           <Text size="1" className="text-[11px]">
             {updatedAtLabel}
           </Text>

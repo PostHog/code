@@ -20,6 +20,30 @@ export function createPostHogHandlers(options: PostHogHandlersOptions = {}) {
   } = options;
 
   return [
+    // GET local LLM gateway models - session initialization fetches these in the
+    // background for command/model metadata.
+    http.get("http://localhost:3308/:product/v1/models", () => {
+      return HttpResponse.json({
+        object: "list",
+        data: [
+          {
+            id: "claude-opus-4-7",
+            owned_by: "anthropic",
+            context_window: 200000,
+            supports_streaming: true,
+            supports_vision: true,
+          },
+          {
+            id: "gpt-5.4",
+            owned_by: "openai",
+            context_window: 200000,
+            supports_streaming: true,
+            supports_vision: true,
+          },
+        ],
+      });
+    }),
+
     // POST /append_log/ - Agent log entries
     http.post(
       `${baseUrl}/api/projects/:projectId/tasks/:taskId/runs/:runId/append_log/`,

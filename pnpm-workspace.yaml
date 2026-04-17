@@ -10,6 +10,9 @@ minimumReleaseAge: 1440
 
 minimumReleaseAgeExclude:
   - '@agentclientprotocol/sdk'
+  - '@anthropic-ai/claude-agent-sdk'
+  - '@posthog/quill'
+  - '@posthog/quill-tokens'
 
 onlyBuiltDependencies:
   - '@parcel/watcher'

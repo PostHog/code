@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
+import { trackAppEvent } from "@main/services/posthog-analytics";
 import { createGitClient } from "@posthog/git/client";
 import {
   getCurrentBranch,
@@ -22,6 +23,7 @@ import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 import { deriveWorktreePath } from "../../utils/worktree-helpers";
+import { AgentServiceEvent } from "../agent/schemas";
 import type { AgentService } from "../agent/service";
 import { FileWatcherEvent } from "../file-watcher/schemas";
 import type { FileWatcherService } from "../file-watcher/service";
@@ -237,6 +239,11 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       this.handleFocusBranchRenamed.bind(this),
     );
 
+    this.agentService.on(
+      AgentServiceEvent.AgentFileActivity,
+      this.handleAgentFileActivity.bind(this),
+    );
+
     log.info("Branch watcher initialized");
   }
 
@@ -310,27 +317,75 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     }
   }
 
+  private async handleAgentFileActivity({
+    taskId,
+    branchName,
+  }: {
+    taskId: string;
+    branchName: string | null;
+  }): Promise<void> {
+    if (!branchName) return;
+
+    const dbRow = this.workspaceRepo.findByTaskId(taskId);
+    if (!dbRow || dbRow.mode !== "local") return;
+    if (!dbRow.repositoryId) return;
+
+    const folderPath = this.getFolderPath(dbRow.repositoryId);
+    if (!folderPath) return;
+
+    try {
+      const defaultBranch = await getDefaultBranch(folderPath);
+      if (branchName === defaultBranch) return;
+    } catch (error) {
+      log.warn("Failed to determine default branch, skipping branch link", {
+        taskId,
+        branchName,
+        error,
+      });
+      trackAppEvent("branch_link_default_branch_unknown", {
+        taskId,
+        branchName,
+      });
+      return;
+    }
+
+    const currentLinked = dbRow.linkedBranch ?? null;
+    if (currentLinked === branchName) return;
+
+    this.linkBranch(taskId, branchName, "agent");
+  }
+
   private updateAssociationBranchName(
     _taskId: string,
     _branchName: string,
   ): void {}
 
-  public linkBranch(taskId: string, branchName: string): void {
+  public linkBranch(
+    taskId: string,
+    branchName: string,
+    source?: "agent" | "user",
+  ): void {
     this.workspaceRepo.updateLinkedBranch(taskId, branchName);
     this.emit(WorkspaceServiceEvent.LinkedBranchChanged, {
       taskId,
       branchName,
     });
-    log.info("Linked branch to task", { taskId, branchName });
+    trackAppEvent("branch_linked", {
+      source: source ?? "unknown",
+    });
+    log.info("Linked branch to task", { taskId, branchName, source });
   }
 
-  public unlinkBranch(taskId: string): void {
+  public unlinkBranch(taskId: string, source?: "agent" | "user"): void {
     this.workspaceRepo.updateLinkedBranch(taskId, null);
     this.emit(WorkspaceServiceEvent.LinkedBranchChanged, {
       taskId,
       branchName: null,
     });
-    log.info("Unlinked branch from task", { taskId });
+    trackAppEvent("branch_unlinked", {
+      source: source ?? "unknown",
+    });
+    log.info("Unlinked branch from task", { taskId, source });
   }
 
   private async getLocalWorktreePathIfExists(

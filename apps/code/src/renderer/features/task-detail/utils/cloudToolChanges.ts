@@ -1,3 +1,4 @@
+import { getReadToolContent } from "@features/sessions/components/session-update/toolCallUtils";
 import type {
   ToolCallContent,
   ToolCallLocation,
@@ -282,4 +283,61 @@ export function extractCloudToolChangedFiles(
   }
 
   return [...filesByPath.values()];
+}
+
+export interface CloudFileContent {
+  content: string | null;
+  /** Whether the agent read, wrote, or deleted this file during the session. */
+  touched: boolean;
+}
+
+/**
+ * Combines read tool results and write/edit diffs to reconstruct the latest
+ * known content for a file from a cloud session's tool calls.
+ */
+export function extractCloudFileContent(
+  toolCalls: Map<string, ParsedToolCall>,
+  filePath: string,
+): CloudFileContent {
+  let latestContent: string | null = null;
+  let touched = false;
+
+  for (const toolCall of toolCalls.values()) {
+    if (toolCall.status === "failed") continue;
+
+    const kind = inferKind(toolCall.kind, toolCall.title);
+    const locationPath = toolCall.locations?.[0]?.path;
+
+    if (kind === "read" && pathsMatch(locationPath, filePath)) {
+      const text = getReadToolContent(toolCall.content);
+      if (text != null) {
+        latestContent = text;
+        touched = true;
+      }
+    } else if (kind === "delete" && pathsMatch(locationPath, filePath)) {
+      latestContent = null;
+      touched = true;
+    } else if (kind === "move") {
+      const destinationPath = toolCall.locations?.[1]?.path;
+      if (
+        pathsMatch(locationPath, filePath) ||
+        pathsMatch(destinationPath, filePath)
+      ) {
+        const diff = getDiffContent(toolCall.content);
+        if (diff?.newText != null) {
+          latestContent = diff.newText;
+        }
+        touched = true;
+      }
+    } else if (kind && ["write", "edit"].includes(kind)) {
+      const diff = getDiffContent(toolCall.content);
+      const diffPath = diff?.path ?? locationPath;
+      if (pathsMatch(diffPath, filePath) && diff?.newText != null) {
+        latestContent = diff.newText;
+        touched = true;
+      }
+    }
+  }
+
+  return { content: latestContent, touched };
 }

@@ -6,6 +6,7 @@ const mockWorkspaceDelete = vi.hoisted(() => vi.fn());
 const mockGetTaskDirectory = vi.hoisted(() => vi.fn());
 const mockReadAbsoluteFile = vi.hoisted(() => vi.fn());
 const mockReadFileAsBase64 = vi.hoisted(() => vi.fn());
+const mockGetCachedTask = vi.hoisted(() => vi.fn());
 
 vi.mock("@renderer/trpc", () => ({
   trpcClient: {
@@ -52,14 +53,16 @@ vi.mock("@features/sessions/service/service", () => ({
   }),
 }));
 
+const mockGenerateTitleAndSummary = vi.hoisted(() => vi.fn());
 vi.mock("@renderer/utils/generateTitle", () => ({
-  generateTitleAndSummary: vi.fn(async () => null),
+  generateTitleAndSummary: mockGenerateTitleAndSummary,
 }));
 
 vi.mock("@utils/queryClient", () => ({
   queryClient: {
     setQueriesData: vi.fn(),
   },
+  getCachedTask: mockGetCachedTask,
 }));
 
 vi.mock("@utils/logger", () => ({
@@ -140,6 +143,9 @@ describe("TaskCreationSaga", () => {
       repository: "posthog/posthog",
       workspaceMode: "cloud",
       branch: "release/remembered-branch",
+      adapter: "codex",
+      model: "gpt-5.4",
+      reasoningLevel: "high",
     });
 
     expect(result.success).toBe(true);
@@ -151,12 +157,16 @@ describe("TaskCreationSaga", () => {
       "task-123",
       "release/remembered-branch",
       {
+        adapter: "codex",
+        model: "gpt-5.4",
+        reasoningLevel: "high",
         pendingUserMessage: "Ship the fix",
         sandboxEnvironmentId: undefined,
         prAuthorshipMode: "bot",
         runSource: "manual",
         signalReportId: undefined,
         githubUserToken: undefined,
+        initialPermissionMode: "auto",
       },
     );
     expect(sendRunCommandMock).not.toHaveBeenCalled();
@@ -170,6 +180,79 @@ describe("TaskCreationSaga", () => {
     expect(runTaskInCloudMock.mock.invocationCallOrder[0]).toBeLessThan(
       onTaskReady.mock.invocationCallOrder[0],
     );
+  });
+
+  it("skips auto-title when task has been manually renamed", async () => {
+    const createdTask = createTask();
+    const startedTask = createTask({ latest_run: createRun() });
+    const createTaskMock = vi.fn().mockResolvedValue(createdTask);
+    const runTaskInCloudMock = vi.fn().mockResolvedValue(startedTask);
+    const updateTaskMock = vi.fn();
+
+    mockGenerateTitleAndSummary.mockResolvedValue({ title: "Auto title" });
+    mockGetCachedTask.mockReturnValue({
+      id: "task-123",
+      title_manually_set: true,
+    });
+
+    const saga = new TaskCreationSaga({
+      posthogClient: {
+        createTask: createTaskMock,
+        deleteTask: vi.fn(),
+        getTask: vi.fn(),
+        runTaskInCloud: runTaskInCloudMock,
+        sendRunCommand: vi.fn(),
+        updateTask: updateTaskMock,
+      } as never,
+    });
+
+    await saga.run({
+      content: "Ship the fix",
+      repository: "posthog/posthog",
+      workspaceMode: "cloud",
+      branch: "main",
+    });
+
+    await vi.waitFor(() => {
+      expect(mockGenerateTitleAndSummary).toHaveBeenCalled();
+    });
+
+    expect(updateTaskMock).not.toHaveBeenCalled();
+  });
+
+  it("applies auto-title when task has not been manually renamed", async () => {
+    const createdTask = createTask();
+    const startedTask = createTask({ latest_run: createRun() });
+    const createTaskMock = vi.fn().mockResolvedValue(createdTask);
+    const runTaskInCloudMock = vi.fn().mockResolvedValue(startedTask);
+    const updateTaskMock = vi.fn().mockResolvedValue(undefined);
+
+    mockGenerateTitleAndSummary.mockResolvedValue({ title: "Auto title" });
+    mockGetCachedTask.mockReturnValue(undefined);
+
+    const saga = new TaskCreationSaga({
+      posthogClient: {
+        createTask: createTaskMock,
+        deleteTask: vi.fn(),
+        getTask: vi.fn(),
+        runTaskInCloud: runTaskInCloudMock,
+        sendRunCommand: vi.fn(),
+        updateTask: updateTaskMock,
+      } as never,
+    });
+
+    await saga.run({
+      content: "Ship the fix",
+      repository: "posthog/posthog",
+      workspaceMode: "cloud",
+      branch: "main",
+    });
+
+    await vi.waitFor(() => {
+      expect(updateTaskMock).toHaveBeenCalledWith("task-123", {
+        title: "Auto title",
+      });
+    });
   });
 
   it("sends initial cloud prompts with attachments as pending user messages", async () => {
@@ -201,6 +284,9 @@ describe("TaskCreationSaga", () => {
       repository: "posthog/posthog",
       workspaceMode: "cloud",
       branch: "release/remembered-branch",
+      adapter: "codex",
+      model: "gpt-5.4",
+      reasoningLevel: "medium",
     });
 
     expect(result.success).toBe(true);
@@ -217,6 +303,9 @@ describe("TaskCreationSaga", () => {
       "task-123",
       "release/remembered-branch",
       expect.objectContaining({
+        adapter: "codex",
+        model: "gpt-5.4",
+        reasoningLevel: "medium",
         pendingUserMessage: expect.stringContaining(
           "__twig_cloud_prompt_v1__:",
         ),

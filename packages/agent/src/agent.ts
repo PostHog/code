@@ -122,6 +122,7 @@ export class Agent {
       deviceType: "local",
       logger: this.logger,
       processCallbacks: options.processCallbacks,
+      onStructuredOutput: options.onStructuredOutput,
       allowedModelIds,
       codexOptions:
         options.adapter === "codex" && gatewayConfig

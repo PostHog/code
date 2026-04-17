@@ -8,7 +8,7 @@ import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore"
 import { resetSessionService } from "@features/sessions/service/service";
 import { trpcClient } from "@renderer/trpc/client";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
-import type { CloudRegion } from "@shared/types/oauth";
+import type { CloudRegion } from "@shared/types/regions";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useMutation } from "@tanstack/react-query";
 import { track } from "@utils/analytics";
@@ -76,16 +76,17 @@ export function useLogoutMutation() {
 
       track(ANALYTICS_EVENTS.USER_LOGGED_OUT);
       resetSessionService();
-      clearAuthScopedQueries();
 
-      const state = await trpcClient.auth.logout.mutate();
-      return { state, previousState };
+      return { previousState };
     },
     onSuccess: async ({ previousState }) => {
-      await refreshAuthStateQuery();
+      clearAuthScopedQueries();
       useAuthUiStateStore.getState().setStaleRegion(previousState.cloudRegion);
       useNavigationStore.getState().navigateToTaskInput();
       useOnboardingStore.getState().resetSelections();
+
+      await trpcClient.auth.logout.mutate();
+      await refreshAuthStateQuery();
     },
   });
 }

@@ -11,6 +11,7 @@ import { useMemo } from "react";
 import { useReviewDiffs } from "../hooks/useReviewDiffs";
 import type { DiffOptions } from "../types";
 import { InteractiveFileDiff } from "./InteractiveFileDiff";
+import { LazyDiff } from "./LazyDiff";
 import {
   DeferredDiffPlaceholder,
   type DeferredReason,
@@ -108,14 +109,16 @@ export function ReviewPage({ task }: ReviewPageProps) {
         const isCollapsed = collapsedFiles.has(key);
         return (
           <div key={key} data-file-path={key}>
-            <UntrackedFileDiff
-              file={file}
-              repoPath={repoPath}
-              options={diffOptions}
-              collapsed={isCollapsed}
-              onToggle={() => toggleFile(key)}
-              taskId={taskId}
-            />
+            <LazyDiff>
+              <UntrackedFileDiff
+                file={file}
+                repoPath={repoPath}
+                options={diffOptions}
+                collapsed={isCollapsed}
+                onToggle={() => toggleFile(key)}
+                taskId={taskId}
+              />
+            </LazyDiff>
           </div>
         );
       })}
@@ -183,22 +186,24 @@ function FileDiffList({
 
     return (
       <div key={key} data-file-path={key}>
-        <InteractiveFileDiff
-          fileDiff={fileDiff}
-          repoPath={repoPath}
-          options={{ ...diffOptions, collapsed: isCollapsed }}
-          taskId={taskId}
-          renderCustomHeader={(fd) => (
-            <DiffFileHeader
-              fileDiff={fd}
-              collapsed={isCollapsed}
-              onToggle={() => toggleFile(key)}
-              onOpenFile={() =>
-                openFile(taskId, `${repoPath}/${filePath}`, false)
-              }
-            />
-          )}
-        />
+        <LazyDiff>
+          <InteractiveFileDiff
+            fileDiff={fileDiff}
+            repoPath={repoPath}
+            options={{ ...diffOptions, collapsed: isCollapsed }}
+            taskId={taskId}
+            renderCustomHeader={(fd) => (
+              <DiffFileHeader
+                fileDiff={fd}
+                collapsed={isCollapsed}
+                onToggle={() => toggleFile(key)}
+                onOpenFile={() =>
+                  openFile(taskId, `${repoPath}/${filePath}`, false)
+                }
+              />
+            )}
+          />
+        </LazyDiff>
       </div>
     );
   });

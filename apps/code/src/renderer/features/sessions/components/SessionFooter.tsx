@@ -1,5 +1,5 @@
 import type { ContextUsage } from "@features/sessions/hooks/useContextUsage";
-import { Pause } from "@phosphor-icons/react";
+import { Brain, Pause } from "@phosphor-icons/react";
 import { Box, Flex, Text } from "@radix-ui/themes";
 
 import { ContextUsageIndicator } from "./ContextUsageIndicator";
@@ -71,36 +71,28 @@ export function SessionFooter({
   const wasCancelled =
     lastStopReason === "cancelled" || lastStopReason === "refusal";
 
-  if (
+  const showDuration =
     lastGenerationDuration !== null &&
     lastGenerationDuration > 0 &&
-    !wasCancelled
-  ) {
-    return (
-      <Box className="pb-1">
-        <Flex align="center" justify="between" gap="2">
-          <Text
-            size="1"
-            color="gray"
-            style={{ fontVariantNumeric: "tabular-nums" }}
-          >
-            Generated in {formatDuration(lastGenerationDuration)}
-          </Text>
-          <ContextUsageIndicator usage={usage ?? null} />
-        </Flex>
-      </Box>
-    );
-  }
+    !wasCancelled;
 
-  if (usage) {
-    return (
-      <Box className="pb-1">
-        <Flex justify="end">
-          <ContextUsageIndicator usage={usage} />
-        </Flex>
-      </Box>
-    );
-  }
-
-  return null;
+  return (
+    <Box className="pb-1">
+      <Flex align="center" justify="between" gap="2">
+        {showDuration && (
+          <Flex align="center" gap="2" className="select-none text-gray-10">
+            <Brain size={12} />
+            <Text
+              size="1"
+              color="gray"
+              style={{ fontVariantNumeric: "tabular-nums" }}
+            >
+              Generated in {formatDuration(lastGenerationDuration)}
+            </Text>
+          </Flex>
+        )}
+        <ContextUsageIndicator usage={usage ?? null} />
+      </Flex>
+    </Box>
+  );
 }

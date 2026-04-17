@@ -173,6 +173,13 @@ const config: ForgeConfig = {
     new MakerDMG({
       icon: "./build/app-icon.icns",
       format: "ULFO",
+      background: "./build/dmg-background.png",
+      iconSize: 80,
+      window: { size: { width: 540, height: 380 } },
+      contents: (opts) => [
+        { x: 135, y: 225, type: "file", path: opts.appPath },
+        { x: 405, y: 225, type: "link", path: "/Applications" },
+      ],
       ...(shouldSignMacApp && appleCodesignIdentity
         ? {
             "code-sign": {

@@ -3,4 +3,4 @@ export const INBOX_PIPELINE_STATUS_FILTER =
   "potential,candidate,in_progress,ready,pending_input";
 
 /** Polling interval for inbox queries while the Electron window is focused. */
-export const INBOX_REFETCH_INTERVAL_MS = 2800;
+export const INBOX_REFETCH_INTERVAL_MS = 3000;

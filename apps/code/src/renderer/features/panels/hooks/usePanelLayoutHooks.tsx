@@ -87,7 +87,11 @@ export function useTabInjection(
         let updatedData = tab.data;
         if (tab.data.type === "file") {
           const rp = tab.data.relativePath;
-          const absolutePath = isAbsolutePath(rp) ? rp : `${repoPath}/${rp}`;
+          const absolutePath = isAbsolutePath(rp)
+            ? rp
+            : repoPath
+              ? `${repoPath}/${rp}`
+              : rp;
           updatedData = {
             ...tab.data,
             absolutePath,

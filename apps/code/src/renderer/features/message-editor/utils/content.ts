@@ -1,4 +1,4 @@
-import { escapeXmlAttr } from "@utils/xml";
+import { escapeXmlAttr, unescapeXmlAttr } from "@utils/xml";
 
 export interface MentionChip {
   type:
@@ -78,6 +78,81 @@ export function contentToXml(content: EditorContent): string {
   }
 
   return parts.join("");
+}
+
+const CHIP_TAG_REGEX =
+  /<(file|error|experiment|insight|feature_flag|github_issue)\b([^>]*?)\s*\/>/g;
+const ATTR_REGEX = /(\w+)="([^"]*)"/g;
+
+function deriveFileLabel(filePath: string): string {
+  const segments = filePath.split("/").filter(Boolean);
+  const fileName = segments.pop() ?? filePath;
+  const parentDir = segments.pop();
+  return parentDir ? `${parentDir}/${fileName}` : fileName;
+}
+
+function parseAttrs(raw: string): Record<string, string> {
+  const attrs: Record<string, string> = {};
+  for (const match of raw.matchAll(ATTR_REGEX)) {
+    attrs[match[1]] = unescapeXmlAttr(match[2]);
+  }
+  return attrs;
+}
+
+function chipFromTag(tag: string, rawAttrs: string): MentionChip | null {
+  const attrs = parseAttrs(rawAttrs);
+  switch (tag) {
+    case "file": {
+      const path = attrs.path;
+      if (!path) return null;
+      return { type: "file", id: path, label: deriveFileLabel(path) };
+    }
+    case "error":
+    case "experiment":
+    case "insight":
+    case "feature_flag": {
+      const id = attrs.id;
+      if (!id) return null;
+      return { type: tag, id, label: id };
+    }
+    case "github_issue": {
+      const number = attrs.number ?? "";
+      const title = attrs.title ?? "";
+      const url = attrs.url ?? "";
+      if (!number && !url) return null;
+      const label = title ? `#${number} - ${title}` : `#${number}`;
+      return { type: "github_issue", id: url, label };
+    }
+    default:
+      return null;
+  }
+}
+
+export function xmlToContent(xml: string): EditorContent {
+  const segments: EditorContent["segments"] = [];
+  let lastIndex = 0;
+
+  for (const match of xml.matchAll(CHIP_TAG_REGEX)) {
+    const matchIndex = match.index ?? 0;
+    const chip = chipFromTag(match[1], match[2] ?? "");
+    if (!chip) continue;
+
+    if (matchIndex > lastIndex) {
+      segments.push({ type: "text", text: xml.slice(lastIndex, matchIndex) });
+    }
+    segments.push({ type: "chip", chip });
+    lastIndex = matchIndex + match[0].length;
+  }
+
+  if (lastIndex < xml.length) {
+    segments.push({ type: "text", text: xml.slice(lastIndex) });
+  }
+
+  if (segments.length === 0) {
+    segments.push({ type: "text", text: xml });
+  }
+
+  return { segments };
 }
 
 export function isContentEmpty(

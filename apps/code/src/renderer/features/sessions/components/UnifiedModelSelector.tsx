@@ -5,6 +5,7 @@ import type {
 import type { AgentAdapter } from "@features/settings/stores/settingsStore";
 import {
   ArrowsClockwise,
+  CaretDown,
   Check,
   Cpu,
   Robot,
@@ -71,10 +72,10 @@ export function UnifiedModelSelector({
     fontSize: "var(--font-size-1)",
     color: "var(--gray-11)",
     padding: "4px 8px",
-    marginLeft: "4px",
     height: "auto",
     minHeight: "unset",
     gap: "6px",
+    userSelect: "none" as const,
   };
 
   if (isConnecting) {
@@ -123,6 +124,11 @@ export function UnifiedModelSelector({
             {ADAPTER_ICONS[adapter]}
           </Flex>
           <Text size="1">{currentLabel ?? "Model"}</Text>
+          <CaretDown
+            size={10}
+            weight="bold"
+            style={{ color: "var(--gray-9)", flexShrink: 0 }}
+          />
         </Button>
       </DropdownMenu.Trigger>
 

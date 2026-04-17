@@ -1,3 +1,4 @@
+import type { CloudTaskPermissionRequestUpdate } from "@shared/types";
 import type { StoredLogEntry } from "@shared/types/session-events";
 import { net } from "electron";
 import { inject, injectable, preDestroy } from "inversify";
@@ -119,6 +120,24 @@ function isSseErrorEvent(data: unknown): data is SseErrorEventData {
     data !== null &&
     "error" in data &&
     typeof (data as SseErrorEventData).error === "string"
+  );
+}
+
+interface PermissionRequestEventData {
+  type: "permission_request";
+  requestId: string;
+  toolCall: CloudTaskPermissionRequestUpdate["toolCall"];
+  options: CloudTaskPermissionRequestUpdate["options"];
+}
+
+function isPermissionRequestEvent(
+  data: unknown,
+): data is PermissionRequestEventData {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    (data as { type?: string }).type === "permission_request" &&
+    typeof (data as { requestId?: string }).requestId === "string"
   );
 }
 
@@ -679,6 +698,18 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
           });
         }
       }
+      return;
+    }
+
+    if (isPermissionRequestEvent(event.data)) {
+      this.emit(CloudTaskEvent.Update, {
+        taskId: watcher.taskId,
+        runId: watcher.runId,
+        kind: "permission_request" as const,
+        requestId: event.data.requestId,
+        toolCall: event.data.toolCall,
+        options: event.data.options,
+      });
       return;
     }
 

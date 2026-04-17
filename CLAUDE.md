@@ -14,8 +14,8 @@
 ## Commands
 
 - `pnpm install` - Install all dependencies
-- `pnpm dev` - Run both agent (watch) and code app via mprocs
-- `pnpm dev:ph` - Run both agent (watch) and code app via phrocs
+- `pnpm dev` - Run both agent (watch) and code app via phrocs
+- `pnpm dev:mprocs` - Run both agent (watch) and code app via mprocs
 - `pnpm dev:agent` - Run agent package in watch mode only
 - `pnpm dev:code` - Run code desktop app only
 - `pnpm build` - Build all packages (turbo)

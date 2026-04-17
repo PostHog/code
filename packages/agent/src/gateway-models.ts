@@ -15,7 +15,7 @@ export interface FetchGatewayModelsOptions {
   gatewayUrl: string;
 }
 
-export const DEFAULT_GATEWAY_MODEL = "claude-opus-4-6";
+export const DEFAULT_GATEWAY_MODEL = "claude-opus-4-7";
 
 export const DEFAULT_CODEX_MODEL = "gpt-5.4";
 

@@ -81,14 +81,15 @@ export function ClaudeCodeSettings() {
     (checked: boolean) => {
       if (checked) {
         setShowBypassWarning(true);
-      } else {
-        track(ANALYTICS_EVENTS.SETTING_CHANGED, {
-          setting_name: "allow_bypass_permissions",
-          new_value: false,
-          old_value: true,
-        });
-        setAllowBypassPermissions(false);
+        return;
       }
+
+      track(ANALYTICS_EVENTS.SETTING_CHANGED, {
+        setting_name: "allow_bypass_permissions",
+        new_value: false,
+        old_value: true,
+      });
+      setAllowBypassPermissions(false);
     },
     [setAllowBypassPermissions],
   );
@@ -178,7 +179,7 @@ export function ClaudeCodeSettings() {
       <PermissionsSettings />
 
       <SettingRow
-        label="Auto-accept permissions"
+        label="Bypass permissions"
         description="Skip all permission prompts. Claude will run bash commands, edit files, browse the web and use any tool without asking first"
         noBorder
       >
@@ -195,7 +196,7 @@ export function ClaudeCodeSettings() {
             <Warning weight="fill" />
           </Callout.Icon>
           <Callout.Text>
-            Auto-accept is enabled. All actions (shell commands, file edits, web
+            Bypass is enabled. All actions (shell commands, file edits, web
             requests) run without approval. Use shift+tab to cycle to this mode
             per session.
           </Callout.Text>
@@ -211,16 +212,16 @@ export function ClaudeCodeSettings() {
             <Flex align="center" gap="2">
               <Warning size={20} weight="fill" color="var(--red-9)" />
               <Text color="red" weight="bold">
-                Enable auto-accept permissions
+                Enable bypass permissions
               </Text>
             </Flex>
           </AlertDialog.Title>
           <AlertDialog.Description size="2">
             <Flex direction="column" gap="3">
               <Text color="red" weight="medium">
-                With auto-accept enabled, Claude will execute every action
-                without asking — including shell commands, file edits, web
-                requests and any installed MCP tools.
+                With bypass enabled, Claude will execute every action without
+                asking -- including shell commands, file edits, web requests and
+                any installed MCP tools.
               </Text>
               <Text>
                 This mode is intended for sandboxed environments (containers or
@@ -228,7 +229,7 @@ export function ClaudeCodeSettings() {
               </Text>
               <Text weight="medium">
                 By proceeding, you accept all responsibility for actions taken
-                while auto-accept is enabled.
+                while bypass is enabled.
               </Text>
             </Flex>
           </AlertDialog.Description>

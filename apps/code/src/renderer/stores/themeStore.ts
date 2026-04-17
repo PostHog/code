@@ -80,3 +80,13 @@ mediaQuery.addEventListener("change", () => {
     useThemeStore.setState({ isDarkMode: mediaQuery.matches });
   }
 });
+
+// Sync the .dark class on <html> so CSS that uses .dark selector (e.g. quill
+// color tokens) switches correctly. Radix Themes uses its own `appearance` prop
+// and doesn't toggle this class.
+function syncDarkClass(isDarkMode: boolean) {
+  document.documentElement.classList.toggle("dark", isDarkMode);
+}
+
+syncDarkClass(useThemeStore.getState().isDarkMode);
+useThemeStore.subscribe((state) => syncDarkClass(state.isDarkMode));

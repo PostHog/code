@@ -24,7 +24,7 @@ import type { ExecutionMode, Task } from "@shared/types";
 import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
 import { getGhUserTokenOrThrow } from "@utils/github";
 import { logger } from "@utils/logger";
-import { queryClient } from "@utils/queryClient";
+import { getCachedTask, queryClient } from "@utils/queryClient";
 
 const log = logger.scope("task-creation-saga");
 
@@ -38,6 +38,11 @@ async function generateTaskTitle(
   const result = await generateTitleAndSummary(description);
   if (!result?.title) return;
   const { title } = result;
+
+  if (getCachedTask(taskId)?.title_manually_set) {
+    log.debug("Skipping auto-title, user renamed task", { taskId });
+    return;
+  }
 
   try {
     await posthogClient.updateTask(taskId, { title });
@@ -292,6 +297,9 @@ export class TaskCreationSaga extends Saga<
           }
 
           return this.deps.posthogClient.runTaskInCloud(task.id, branch, {
+            adapter: input.adapter,
+            model: input.model,
+            reasoningLevel: input.reasoningLevel,
             pendingUserMessage: initialCloudPrompt
               ? serializeCloudPrompt(initialCloudPrompt)
               : undefined,
@@ -300,6 +308,9 @@ export class TaskCreationSaga extends Saga<
             runSource: input.cloudRunSource ?? "manual",
             signalReportId: input.signalReportId,
             githubUserToken,
+            initialPermissionMode:
+              input.executionMode ??
+              (input.adapter === "codex" ? "auto" : "plan"),
           });
         },
         rollback: async () => {

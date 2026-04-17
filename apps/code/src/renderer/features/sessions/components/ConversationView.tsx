@@ -73,6 +73,15 @@ export function ConversationView({
   }
   const firstUserMessageId = firstUserMessageIdRef.current;
 
+  const [initialItemIds] = useState(
+    () =>
+      new Set(
+        conversationItems
+          .filter((i) => i.type === "user_message")
+          .map((i) => i.id),
+      ),
+  );
+
   const pendingPermissions = usePendingPermissionsForTask(taskId ?? "");
   const pendingPermissionsCount = pendingPermissions.size;
   const queuedMessages = useQueuedMessagesForTask(taskId);
@@ -148,6 +157,7 @@ export function ConversationView({
               content={item.content}
               attachments={item.attachments}
               timestamp={item.timestamp}
+              animate={!initialItemIds.has(item.id)}
               sourceUrl={
                 slackThreadUrl && item.id === firstUserMessageId
                   ? slackThreadUrl
@@ -194,7 +204,7 @@ export function ConversationView({
           );
       }
     },
-    [repoPath, taskId, slackThreadUrl, firstUserMessageId],
+    [repoPath, taskId, slackThreadUrl, firstUserMessageId, initialItemIds],
   );
 
   const getItemKey = useCallback((item: ConversationItem) => item.id, []);

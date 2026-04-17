@@ -1,8 +1,8 @@
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { trpcClient } from "@renderer/trpc/client";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type { Task } from "@shared/types";
+import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { useEffect } from "react";
@@ -72,6 +72,12 @@ export function useSessionConnection({
     if (!cloudAuthState.projectId || !cloudAuthState.cloudRegion) return;
 
     const runId = task.latest_run.id;
+    const initialMode =
+      typeof task.latest_run.state?.initial_permission_mode === "string"
+        ? task.latest_run.state.initial_permission_mode
+        : undefined;
+    const adapter =
+      task.latest_run.runtime_adapter === "codex" ? "codex" : "claude";
     const cleanup = getSessionService().watchCloudTask(
       task.id,
       runId,
@@ -80,6 +86,9 @@ export function useSessionConnection({
       () => {
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
       },
+      task.latest_run?.log_url,
+      initialMode,
+      adapter,
     );
     return cleanup;
   }, [
@@ -91,6 +100,9 @@ export function useSessionConnection({
     queryClient,
     task.id,
     task.latest_run?.id,
+    task.latest_run?.log_url,
+    task.latest_run?.runtime_adapter,
+    task.latest_run?.state?.initial_permission_mode,
   ]);
 
   useEffect(() => {

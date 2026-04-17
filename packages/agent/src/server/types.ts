@@ -18,9 +18,13 @@ export interface AgentServerConfig {
   mode: AgentMode;
   taskId: string;
   runId: string;
+  createPr?: boolean;
   version?: string;
   mcpServers?: RemoteMcpServer[];
   baseBranch?: string;
   claudeCode?: ClaudeCodeConfig;
   allowedDomains?: string[];
+  runtimeAdapter?: "claude" | "codex";
+  model?: string;
+  reasoningEffort?: "low" | "medium" | "high" | "max";
 }

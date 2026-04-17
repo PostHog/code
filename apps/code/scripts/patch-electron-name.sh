@@ -10,10 +10,10 @@ if [ ! -f "$PLIST_FILE" ]; then
   exit 0
 fi
 
-if /usr/libexec/PlistBuddy -c "Print :CFBundleName" "$PLIST_FILE" | grep -q "Array (Development)"; then
+if /usr/libexec/PlistBuddy -c "Print :CFBundleName" "$PLIST_FILE" | grep -q "PostHog Code (Development)"; then
   exit 0
 fi
 
-/usr/libexec/PlistBuddy -c "Set :CFBundleName 'Array (Development)'" "$PLIST_FILE"
-/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 'Array (Development)'" "$PLIST_FILE"
+/usr/libexec/PlistBuddy -c "Set :CFBundleName 'PostHog Code (Development)'" "$PLIST_FILE"
+/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 'PostHog Code (Development)'" "$PLIST_FILE"
 /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier 'com.posthog.array.dev'" "$PLIST_FILE"

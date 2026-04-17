@@ -11,7 +11,6 @@ import {
   usePendingPermissionsForTask,
 } from "@features/sessions/stores/sessionStore";
 import type { Plan } from "@features/sessions/types";
-import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
 import { Pause, Spinner, Warning } from "@phosphor-icons/react";
 import { Box, Button, ContextMenu, Flex, Text } from "@radix-ui/themes";
@@ -20,6 +19,7 @@ import {
   isJsonRpcNotification,
   isJsonRpcResponse,
 } from "@shared/types/session-events";
+import { getFilePath } from "@utils/getFilePath";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { getSessionService } from "../service/service";
@@ -43,11 +43,6 @@ interface SessionViewProps {
   onCancelPrompt: () => void;
   repoPath?: string | null;
   cloudBranch?: string | null;
-  cloudDiffStats?: {
-    filesChanged: number;
-    linesAdded: number;
-    linesRemoved: number;
-  } | null;
   isSuspended?: boolean;
   onRestoreWorktree?: () => void;
   isRestoring?: boolean;
@@ -78,7 +73,6 @@ export function SessionView({
   onCancelPrompt,
   repoPath,
   cloudBranch,
-  cloudDiffStats,
   isSuspended = false,
   onRestoreWorktree,
   isRestoring = false,
@@ -97,25 +91,10 @@ export function SessionView({
   const { setShowRawLogs } = useSessionViewActions();
   const pendingPermissions = usePendingPermissionsForTask(taskId);
   const modeOption = useModeConfigOptionForTask(taskId);
-  const { allowBypassPermissions } = useSettingsStore();
-  const currentModeId = modeOption?.currentValue;
-
-  useEffect(() => {
-    if (allowBypassPermissions) return;
-    const isBypass =
-      currentModeId === "bypassPermissions" || currentModeId === "full-access";
-    if (isBypass && taskId) {
-      getSessionService().setSessionConfigOptionByCategory(
-        taskId,
-        "mode",
-        "default",
-      );
-    }
-  }, [allowBypassPermissions, currentModeId, taskId]);
 
   const handleModeChange = useCallback(() => {
     if (!taskId) return;
-    const nextMode = cycleModeOption(modeOption, allowBypassPermissions);
+    const nextMode = cycleModeOption(modeOption);
     if (nextMode) {
       getSessionService().setSessionConfigOptionByCategory(
         taskId,
@@ -123,26 +102,36 @@ export function SessionView({
         nextMode,
       );
     }
-  }, [taskId, allowBypassPermissions, modeOption]);
+  }, [taskId, modeOption]);
 
   const sessionId = taskId ?? "default";
   const setContext = useDraftStore((s) => s.actions.setContext);
   const requestFocus = useDraftStore((s) => s.actions.requestFocus);
-  setContext(sessionId, {
+
+  useEffect(() => {
+    setContext(sessionId, {
+      taskId,
+      repoPath,
+      cloudBranch,
+      disabled: !isRunning,
+      isLoading: !!isPromptPending,
+    });
+  }, [
+    setContext,
+    sessionId,
     taskId,
     repoPath,
     cloudBranch,
-    cloudDiffStats,
-    disabled: !isRunning,
-    isLoading: !!isPromptPending,
-  });
+    isRunning,
+    isPromptPending,
+  ]);
 
   useHotkeys(
     "shift+tab",
     (e) => {
       e.preventDefault();
       if (!taskId) return;
-      const nextMode = cycleModeOption(modeOption, allowBypassPermissions);
+      const nextMode = cycleModeOption(modeOption);
       if (nextMode) {
         getSessionService().setSessionConfigOptionByCategory(
           taskId,
@@ -156,14 +145,7 @@ export function SessionView({
       enableOnContentEditable: true,
       enabled: isRunning && !!modeOption && isActiveSession,
     },
-    [
-      taskId,
-      currentModeId,
-      isRunning,
-      modeOption,
-      allowBypassPermissions,
-      isActiveSession,
-    ],
+    [taskId, isRunning, modeOption, isActiveSession],
   );
 
   const latestPlan = useMemo((): Plan | null => {
@@ -328,7 +310,7 @@ export function SessionView({
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const filePath = (file as File & { path?: string }).path;
+      const filePath = getFilePath(file);
       if (filePath) {
         editorRef.current?.addAttachment({
           id: filePath,

@@ -10,6 +10,7 @@ import { useMemo } from "react";
 import type { DiffOptions } from "../types";
 import type { PrCommentThread } from "../utils/prCommentAnnotations";
 import { InteractiveFileDiff } from "./InteractiveFileDiff";
+import { LazyDiff } from "./LazyDiff";
 import {
   DeferredDiffPlaceholder,
   DiffFileHeader,
@@ -102,15 +103,17 @@ export function CloudReviewPage({ task }: CloudReviewPageProps) {
 
         return (
           <div key={file.path} data-file-path={file.path}>
-            <CloudFileDiff
-              file={file}
-              taskId={taskId}
-              prUrl={prUrl}
-              options={diffOptions}
-              collapsed={isCollapsed}
-              onToggle={() => toggleFile(file.path)}
-              commentThreads={showReviewComments ? commentThreads : undefined}
-            />
+            <LazyDiff>
+              <CloudFileDiff
+                file={file}
+                taskId={taskId}
+                prUrl={prUrl}
+                options={diffOptions}
+                collapsed={isCollapsed}
+                onToggle={() => toggleFile(file.path)}
+                commentThreads={showReviewComments ? commentThreads : undefined}
+              />
+            </LazyDiff>
           </div>
         );
       })}

@@ -104,25 +104,59 @@ export class ContextMenuService {
   async showTaskContextMenu(
     input: TaskContextMenuInput,
   ): Promise<TaskContextMenuResult> {
-    const { worktreePath, isPinned } = input;
+    const {
+      worktreePath,
+      folderPath,
+      isPinned,
+      isSuspended,
+      isInCommandCenter,
+      hasEmptyCommandCenterCell,
+    } = input;
     const { apps, lastUsedAppId } = await this.getExternalAppsData();
+    const hasPath = worktreePath || folderPath;
 
     return this.showMenu<TaskAction>([
-      this.item("Rename", { type: "rename" }),
       this.item(isPinned ? "Unpin" : "Pin", { type: "pin" }),
-      this.item("Copy Task ID", { type: "copy-task-id" }),
-      this.separator(),
-      ...(worktreePath
-        ? [this.item("Suspend", { type: "suspend" as const })]
-        : []),
-      this.item("Archive", { type: "archive" }),
-      this.item("Delete", { type: "delete" }),
+      this.item("Rename", { type: "rename" }),
       ...(worktreePath
         ? [
             this.separator(),
+            this.item(isSuspended ? "Unsuspend" : "Suspend", {
+              type: "suspend" as const,
+            }),
+          ]
+        : []),
+      ...(hasPath
+        ? [
+            ...(worktreePath ? [] : [this.separator()]),
             ...this.externalAppItems<TaskAction>(apps, lastUsedAppId),
           ]
         : []),
+      ...(!isInCommandCenter
+        ? [
+            this.separator(),
+            this.item(
+              "Add to Command Center",
+              { type: "add-to-command-center" as const },
+              { enabled: hasEmptyCommandCenterCell ?? true },
+            ),
+          ]
+        : []),
+      this.separator(),
+      this.item("Archive", { type: "archive" }),
+      this.item(
+        "Archive prior tasks",
+        { type: "archive-prior" },
+        {
+          confirm: {
+            title: "Archive Prior Tasks",
+            message: "Archive all tasks older than this one?",
+            detail:
+              "This will archive every task created before this one. You can unarchive them later.",
+            confirmLabel: "Archive",
+          },
+        },
+      ),
     ]);
   }
 
@@ -238,11 +272,6 @@ export class ContextMenuService {
     const lastUsedApp = apps.find((app) => app.id === lastUsedAppId) || apps[0];
     const openIn = (appId: string): T =>
       ({ type: "external-app", action: { type: "open-in-app", appId } }) as T;
-    const copyPath: T = {
-      type: "external-app",
-      action: { type: "copy-path" },
-    } as T;
-
     return [
       this.item(`Open in ${lastUsedApp.name}`, openIn(lastUsedApp.id)),
       {
@@ -258,7 +287,6 @@ export class ContextMenuService {
           action: openIn(app.id),
         })),
       },
-      this.item("Copy Path", copyPath, { accelerator: "CmdOrCtrl+Shift+C" }),
     ];
   }
 

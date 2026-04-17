@@ -1,4 +1,4 @@
-import type { CloudRegion } from "@shared/types/oauth";
+import type { CloudRegion } from "@shared/types/regions";
 import { create } from "zustand";
 
 interface AuthUiStateStoreState {

@@ -60,6 +60,7 @@ export async function buildWorkspaceEnv(
   const portAllocation = allocateWorkspacePorts(context.taskId);
 
   return {
+    POSTHOG_CODE: "1",
     POSTHOG_CODE_WORKSPACE_NAME: workspaceName,
     POSTHOG_CODE_WORKSPACE_PATH: workspacePath,
     POSTHOG_CODE_ROOT_PATH: rootPath,

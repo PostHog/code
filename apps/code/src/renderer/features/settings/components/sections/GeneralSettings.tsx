@@ -8,6 +8,7 @@ import {
   type SendMessagesWith,
   useSettingsStore,
 } from "@features/settings/stores/settingsStore";
+import { ArrowSquareOut } from "@phosphor-icons/react";
 import {
   Button,
   Flex,
@@ -18,18 +19,22 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { useTRPC } from "@renderer/trpc";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { ThemePreference } from "@stores/themeStore";
 import { useThemeStore } from "@stores/themeStore";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { track } from "@utils/analytics";
 import { playCompletionSound } from "@utils/sounds";
+import { getPostHogUrl } from "@utils/urls";
 import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
 
 export function GeneralSettings() {
   const trpcReact = useTRPC();
+  const isAuthenticated = useAuthStateValue(
+    (state) => state.status === "authenticated",
+  );
+
   // Appearance state
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
@@ -208,10 +213,28 @@ export function GeneralSettings() {
     [hedgehogMode, setHedgehogMode],
   );
 
+  const accountUrl = getPostHogUrl("/settings/user");
+
   return (
     <Flex direction="column">
+      {isAuthenticated && (
+        <SettingRow
+          label="Manage Account"
+          description="Manage your account and billing on PostHog"
+        >
+          <Button
+            size="1"
+            variant="outline"
+            onClick={() => window.open(accountUrl, "_blank")}
+          >
+            Manage
+            <ArrowSquareOut size={12} />
+          </Button>
+        </SettingRow>
+      )}
+
       {/* Appearance */}
-      <Text size="2" weight="medium" className="mt-1 mb-2">
+      <Text size="2" weight="medium" className="mb-2 pt-4">
         Appearance
       </Text>
 
@@ -486,13 +509,11 @@ export function GeneralSettings() {
 }
 
 function HedgehogDescription() {
-  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
   const projectId = useAuthStateValue((state) => state.projectId);
 
-  const customizeUrl =
-    cloudRegion && projectId
-      ? `${getCloudUrlFromRegion(cloudRegion)}/project/${projectId}/settings/user-customization`
-      : null;
+  const customizeUrl = projectId
+    ? getPostHogUrl(`/project/${projectId}/settings/user-customization`)
+    : null;
 
   return (
     <Flex direction="column" gap="1">

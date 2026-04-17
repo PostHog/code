@@ -10,7 +10,6 @@ import {
   cycleModeOption,
   getCurrentModeFromConfigOptions,
 } from "@features/sessions/stores/sessionStore";
-import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { TaskInputEditor } from "@features/task-detail/components/TaskInputEditor";
 import { WorkspaceModeSelect } from "@features/task-detail/components/WorkspaceModeSelect";
 import { usePreviewConfig } from "@features/task-detail/hooks/usePreviewConfig";
@@ -41,7 +40,7 @@ const HEDGEHOG_MESSAGES: Record<string, string> = {
   "select-worktree":
     "Great choice! Now pick Worktree from the workspace mode dropdown — it creates a copy of your project to work in parallel.",
   "select-model":
-    "Now pick your AI model — try selecting Claude Opus 4.6 for the most capable option!",
+    "Now pick your AI model — try selecting Claude Opus 4.7 for the most capable option!",
   "explain-mode":
     "Press Shift+Tab to cycle through execution modes like Plan, Code, and more.",
   "auto-fill-prompt":
@@ -59,7 +58,6 @@ interface TutorialStepProps {
 }
 
 export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
-  const { allowBypassPermissions } = useSettingsStore();
   const completeOnboarding = useOnboardingStore(
     (state) => state.completeOnboarding,
   );
@@ -102,8 +100,13 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
     ? getIntegrationIdForRepo(selectedRepository)
     : undefined;
 
-  const { data: cloudBranchData, isPending: cloudBranchesLoading } =
-    useGithubBranches(selectedIntegrationId, selectedRepository);
+  const {
+    data: cloudBranchData,
+    isPending: cloudBranchesLoading,
+    isFetchingMore: cloudBranchesFetchingMore,
+    pauseLoadingMore: pauseCloudBranchesLoading,
+    resumeLoadingMore: resumeCloudBranchesLoading,
+  } = useGithubBranches(selectedIntegrationId, selectedRepository);
   const cloudBranches = cloudBranchData?.branches;
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
@@ -199,11 +202,11 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
 
   // Shift+tab mode cycling (only active during explain-mode step)
   const handleCycleMode = useCallback(() => {
-    const nextValue = cycleModeOption(modeOption, allowBypassPermissions);
+    const nextValue = cycleModeOption(modeOption);
     if (nextValue && modeOption) {
       setConfigOption(modeOption.id, nextValue);
     }
-  }, [modeOption, allowBypassPermissions, setConfigOption]);
+  }, [modeOption, setConfigOption]);
 
   useHotkeys(
     "shift+tab",
@@ -359,6 +362,9 @@ export function TutorialStep({ onComplete, onBack }: TutorialStepProps) {
                   onBranchSelect={setSelectedBranch}
                   cloudBranches={cloudBranches}
                   cloudBranchesLoading={cloudBranchesLoading}
+                  cloudBranchesFetchingMore={cloudBranchesFetchingMore}
+                  onCloudPickerOpen={resumeCloudBranchesLoading}
+                  onCloudBranchCommit={pauseCloudBranchesLoading}
                 />
               </TourHighlight>
             </Flex>

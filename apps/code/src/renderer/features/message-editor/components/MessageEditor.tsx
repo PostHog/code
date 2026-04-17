@@ -5,7 +5,7 @@ import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
 import { getUserPromptsForTask } from "@features/sessions/stores/sessionStore";
 import { useIsWorkspaceCloudRun } from "@features/workspace/hooks/useWorkspace";
 import { useConnectivity } from "@hooks/useConnectivity";
-import { ArrowUp, Circle, Stop } from "@phosphor-icons/react";
+import { ArrowUp, Stop } from "@phosphor-icons/react";
 import { Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { EditorContent } from "@tiptap/react";
 import { hasOpenOverlay } from "@utils/overlay";
@@ -15,7 +15,6 @@ import { useDraftStore } from "../stores/draftStore";
 import { useTiptapEditor } from "../tiptap/useTiptapEditor";
 import type { EditorHandle } from "../types";
 import { AttachmentsBar } from "./AttachmentsBar";
-import { DiffStatsIndicator } from "./DiffStatsIndicator";
 import { EditorToolbar } from "./EditorToolbar";
 import { ModeIndicatorInput } from "./ModeIndicatorInput";
 
@@ -26,11 +25,6 @@ interface ModeAndBranchRowProps {
   onModeChange?: () => void;
   repoPath?: string | null;
   cloudBranch?: string | null;
-  cloudDiffStats?: {
-    filesChanged: number;
-    linesAdded: number;
-    linesRemoved: number;
-  } | null;
   disabled?: boolean;
   isBashMode?: boolean;
   isCloud?: boolean;
@@ -42,25 +36,16 @@ function ModeAndBranchRow({
   onModeChange,
   repoPath,
   cloudBranch,
-  cloudDiffStats,
   disabled,
   isBashMode,
   isCloud,
   taskId,
 }: ModeAndBranchRowProps) {
-  const { currentBranch: gitBranch, diffStats } = useGitQueries(
-    repoPath ?? undefined,
-  );
+  const { currentBranch: gitBranch } = useGitQueries(repoPath ?? undefined);
   const currentBranch = cloudBranch ?? gitBranch;
 
   const showModeIndicator = !!onModeChange;
   const showBranchSelector = !!currentBranch;
-  const effectiveDiffStats = cloudDiffStats ?? diffStats;
-  const showDiffStats =
-    effectiveDiffStats &&
-    (effectiveDiffStats.filesChanged > 0 ||
-      effectiveDiffStats.linesAdded > 0 ||
-      effectiveDiffStats.linesRemoved > 0);
 
   if (!showModeIndicator && !showBranchSelector && !isBashMode) {
     return null;
@@ -103,20 +88,6 @@ function ModeAndBranchRow({
         wrap="nowrap"
         style={{ minWidth: 0, overflow: "hidden" }}
       >
-        <DiffStatsIndicator
-          repoPath={repoPath}
-          overrideStats={cloudDiffStats}
-          taskId={taskId}
-        />
-        {showBranchSelector && showDiffStats && (
-          <Flex
-            align="center"
-            justify="center"
-            style={{ height: 16, marginRight: -8, flexShrink: 0 }}
-          >
-            <Circle size={4} weight="fill" color="var(--gray-9)" />
-          </Flex>
-        )}
         {showBranchSelector && (
           <Flex style={{ maxWidth: 200, minWidth: 0 }}>
             <BranchSelector
@@ -178,7 +149,6 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
     const isLoading = context?.isLoading ?? false;
     const repoPath = context?.repoPath;
     const cloudBranch = context?.cloudBranch;
-    const cloudDiffStats = context?.cloudDiffStats;
     const isSubmitDisabled = disabled || !isOnline;
 
     const getPromptHistory = useCallback(
@@ -361,7 +331,6 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
           onModeChange={onModeChange}
           repoPath={repoPath}
           cloudBranch={cloudBranch}
-          cloudDiffStats={cloudDiffStats}
           disabled={disabled}
           isBashMode={isBashMode}
           isCloud={isCloud}

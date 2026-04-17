@@ -499,6 +499,25 @@ const RB_QUERIES: QueryStrings = {
   `,
 };
 
+// ── File extension → language ID mapping ──
+
+export const EXT_TO_LANG_ID: Record<string, string> = {
+  ".js": "javascript",
+  ".mjs": "javascript",
+  ".cjs": "javascript",
+  ".jsx": "javascriptreact",
+  ".ts": "typescript",
+  ".mts": "typescript",
+  ".cts": "typescript",
+  ".tsx": "typescriptreact",
+  ".py": "python",
+  ".pyw": "python",
+  ".go": "go",
+  ".rb": "ruby",
+  ".rake": "ruby",
+  ".gemspec": "ruby",
+};
+
 // ── Language → family mapping ──
 
 export const LANG_FAMILIES: Record<string, LangFamily> = {

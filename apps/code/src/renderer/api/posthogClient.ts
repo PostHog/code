@@ -1,3 +1,5 @@
+import { isSupportedReasoningEffort } from "@posthog/agent/adapters/reasoning-effort";
+import type { PermissionMode } from "@posthog/agent/execution-mode";
 import type {
   ActionabilityJudgmentArtefact,
   AvailableSuggestedReviewer,
@@ -14,15 +16,36 @@ import type {
   SignalReportStatus,
   SignalReportsQueryParams,
   SignalReportsResponse,
+  SignalReportTask,
+  SignalTeamConfig,
+  SignalUserAutonomyConfig,
   SuggestedReviewersArtefact,
   Task,
   TaskRun,
 } from "@shared/types";
 import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
+import type { SeatData } from "@shared/types/seat";
+import { SEAT_PRODUCT_KEY } from "@shared/types/seat";
 import type { StoredLogEntry } from "@shared/types/session-events";
 import { logger } from "@utils/logger";
 import { buildApiFetcher } from "./fetcher";
 import { createApiClient, type Schemas } from "./generated";
+
+export class SeatSubscriptionRequiredError extends Error {
+  redirectUrl: string;
+  constructor(redirectUrl: string) {
+    super("Billing subscription required");
+    this.name = "SeatSubscriptionRequiredError";
+    this.redirectUrl = redirectUrl;
+  }
+}
+
+export class SeatPaymentFailedError extends Error {
+  constructor(message?: string) {
+    super(message ?? "Payment failed");
+    this.name = "SeatPaymentFailedError";
+  }
+}
 
 const log = logger.scope("posthog-client");
 
@@ -40,6 +63,7 @@ export interface SignalSourceConfig {
     | "github"
     | "linear"
     | "zendesk"
+    | "conversations"
     | "error_tracking";
   source_type:
     | "session_analysis_cluster"
@@ -53,6 +77,7 @@ export interface SignalSourceConfig {
   config: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+  status: "running" | "completed" | "failed" | null;
 }
 
 export interface ExternalDataSourceSchema {
@@ -71,6 +96,8 @@ export interface ExternalDataSource {
   // but the actual API returns an array of schema objects
   schemas?: ExternalDataSourceSchema[] | string;
 }
+
+type CloudRuntimeAdapter = "claude" | "codex";
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -382,6 +409,13 @@ export class PostHogAPIClient {
     return data;
   }
 
+  async getGithubLogin(): Promise<string | null> {
+    const data = (await this.api.get("/api/users/{uuid}/github_login/", {
+      path: { uuid: "@me" },
+    })) as { github_login: string | null };
+    return data.github_login;
+  }
+
   async switchOrganization(orgId: string): Promise<void> {
     await this.api.patch("/api/users/{uuid}/", {
       path: { uuid: "@me" },
@@ -400,7 +434,7 @@ export class PostHogAPIClient {
   async listSignalSourceConfigs(
     projectId: number,
   ): Promise<SignalSourceConfig[]> {
-    const urlPath = `/api/projects/${projectId}/signal_source_configs/`;
+    const urlPath = `/api/projects/${projectId}/signals/source_configs/`;
     const url = new URL(`${this.api.baseUrl}${urlPath}`);
     const response = await this.api.fetcher.fetch({
       method: "get",
@@ -427,7 +461,7 @@ export class PostHogAPIClient {
       config?: Record<string, unknown>;
     },
   ): Promise<SignalSourceConfig> {
-    const urlPath = `/api/projects/${projectId}/signal_source_configs/`;
+    const urlPath = `/api/projects/${projectId}/signals/source_configs/`;
     const url = new URL(`${this.api.baseUrl}${urlPath}`);
     const response = await this.api.fetcher.fetch({
       method: "post",
@@ -454,7 +488,7 @@ export class PostHogAPIClient {
     configId: string,
     updates: { enabled: boolean },
   ): Promise<SignalSourceConfig> {
-    const urlPath = `/api/projects/${projectId}/signal_source_configs/${configId}/`;
+    const urlPath = `/api/projects/${projectId}/signals/source_configs/${configId}/`;
     const url = new URL(`${this.api.baseUrl}${urlPath}`);
     const response = await this.api.fetcher.fetch({
       method: "patch",
@@ -730,6 +764,9 @@ export class PostHogAPIClient {
     taskId: string,
     branch?: string | null,
     options?: {
+      adapter?: CloudRuntimeAdapter;
+      model?: string;
+      reasoningLevel?: string;
       resumeFromRunId?: string;
       pendingUserMessage?: string;
       sandboxEnvironmentId?: string;
@@ -737,12 +774,38 @@ export class PostHogAPIClient {
       runSource?: CloudRunSource;
       signalReportId?: string;
       githubUserToken?: string;
+      initialPermissionMode?: PermissionMode;
     },
   ): Promise<Task> {
     const teamId = await this.getTeamId();
     const body: Record<string, unknown> = { mode: "interactive" };
     if (branch) {
       body.branch = branch;
+    }
+    if (options?.adapter) {
+      body.runtime_adapter = options.adapter;
+      if (options.model) {
+        body.model = options.model;
+      }
+      if (options.reasoningLevel) {
+        if (!options.model) {
+          throw new Error(
+            "A cloud reasoning level requires a model to be selected.",
+          );
+        }
+        if (
+          !isSupportedReasoningEffort(
+            options.adapter,
+            options.model,
+            options.reasoningLevel,
+          )
+        ) {
+          throw new Error(
+            `Reasoning effort '${options.reasoningLevel}' is not supported for ${options.adapter} model '${options.model}'.`,
+          );
+        }
+        body.reasoning_effort = options.reasoningLevel;
+      }
     }
     if (options?.resumeFromRunId) {
       body.resume_from_run_id = options.resumeFromRunId;
@@ -764,6 +827,9 @@ export class PostHogAPIClient {
     }
     if (options?.githubUserToken) {
       body.github_user_token = options.githubUserToken;
+    }
+    if (options?.initialPermissionMode) {
+      body.initial_permission_mode = options.initialPermissionMode;
     }
 
     const data = await this.api.post(
@@ -995,6 +1061,43 @@ export class PostHogAPIClient {
     };
   }
 
+  async getGithubBranchesPage(
+    integrationId: string | number,
+    repo: string,
+    offset: number,
+    limit: number,
+  ): Promise<{
+    branches: string[];
+    defaultBranch: string | null;
+    hasMore: boolean;
+  }> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/environments/${teamId}/integrations/${integrationId}/github_branches/`,
+    );
+    url.searchParams.set("repo", repo);
+    url.searchParams.set("offset", String(offset));
+    url.searchParams.set("limit", String(limit));
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: `/api/environments/${teamId}/integrations/${integrationId}/github_branches/`,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch GitHub branches: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return {
+      branches: data.branches ?? data.results ?? data ?? [],
+      defaultBranch: data.default_branch ?? null,
+      hasMore: data.has_more ?? false,
+    };
+  }
+
   async getGithubRepositories(
     integrationId: string | number,
   ): Promise<string[]> {
@@ -1041,10 +1144,10 @@ export class PostHogAPIClient {
   }
 
   async getUsers() {
-    const data = await this.api.get("/api/users/", {
+    const data = (await this.api.get("/api/users/", {
       query: { limit: 1000 },
-    });
-    return data.results ?? [];
+    })) as unknown as { results: Schemas.User[] } | Schemas.User[];
+    return Array.isArray(data) ? data : (data.results ?? []);
   }
 
   async updateTeam(updates: {
@@ -1093,45 +1196,12 @@ export class PostHogAPIClient {
     return await response.json();
   }
 
-  /**
-   * Get billing information for a specific organization.
-   */
-  async getOrgBilling(orgId: string): Promise<{
-    has_active_subscription: boolean;
-    customer_id: string | null;
-  }> {
-    const url = new URL(
-      `${this.api.baseUrl}/api/organizations/${orgId}/billing/`,
-    );
-    const response = await this.api.fetcher.fetch({
-      method: "get",
-      url,
-      path: `/api/organizations/${orgId}/billing/`,
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch organization billing: ${response.statusText}`,
-      );
-    }
-
-    const data = await response.json();
-    return {
-      has_active_subscription:
-        typeof data.has_active_subscription === "boolean"
-          ? data.has_active_subscription
-          : false,
-      customer_id:
-        typeof data.customer_id === "string" ? data.customer_id : null,
-    };
-  }
-
   async getSignalReports(
     params?: SignalReportsQueryParams,
   ): Promise<SignalReportsResponse> {
     const teamId = await this.getTeamId();
     const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/`,
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/`,
     );
 
     if (params?.limit != null) {
@@ -1156,7 +1226,7 @@ export class PostHogAPIClient {
     const response = await this.api.fetcher.fetch({
       method: "get",
       url,
-      path: `/api/projects/${teamId}/signal_reports/`,
+      path: `/api/projects/${teamId}/signals/reports/`,
     });
 
     if (!response.ok) {
@@ -1173,9 +1243,9 @@ export class PostHogAPIClient {
   async getSignalProcessingState(): Promise<SignalProcessingStateResponse> {
     const teamId = await this.getTeamId();
     const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signal_processing/`,
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/processing/`,
     );
-    const path = `/api/projects/${teamId}/signal_processing/`;
+    const path = `/api/projects/${teamId}/signals/processing/`;
 
     const response = await this.api.fetcher.fetch({
       method: "get",
@@ -1201,9 +1271,9 @@ export class PostHogAPIClient {
   ): Promise<AvailableSuggestedReviewersResponse> {
     const teamId = await this.getTeamId();
     const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/available_reviewers/`,
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/available_reviewers/`,
     );
-    const path = `/api/projects/${teamId}/signal_reports/available_reviewers/`;
+    const path = `/api/projects/${teamId}/signals/reports/available_reviewers/`;
 
     if (query?.trim()) {
       url.searchParams.set("query", query.trim());
@@ -1230,12 +1300,12 @@ export class PostHogAPIClient {
     try {
       const teamId = await this.getTeamId();
       const url = new URL(
-        `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/signals/`,
+        `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/${reportId}/signals/`,
       );
       const response = await this.api.fetcher.fetch({
         method: "get",
         url,
-        path: `/api/projects/${teamId}/signal_reports/${reportId}/signals/`,
+        path: `/api/projects/${teamId}/signals/reports/${reportId}/signals/`,
       });
 
       if (!response.ok) {
@@ -1262,9 +1332,9 @@ export class PostHogAPIClient {
   ): Promise<SignalReportArtefactsResponse> {
     const teamId = await this.getTeamId();
     const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/artefacts/`,
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/${reportId}/artefacts/`,
     );
-    const path = `/api/projects/${teamId}/signal_reports/${reportId}/artefacts/`;
+    const path = `/api/projects/${teamId}/signals/reports/${reportId}/artefacts/`;
 
     try {
       const response = await this.api.fetcher.fetch({
@@ -1329,9 +1399,9 @@ export class PostHogAPIClient {
   ): Promise<SignalReport> {
     const teamId = await this.getTeamId();
     const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/state/`,
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/${reportId}/state/`,
     );
-    const path = `/api/projects/${teamId}/signal_reports/${reportId}/state/`;
+    const path = `/api/projects/${teamId}/signals/reports/${reportId}/state/`;
 
     const response = await this.api.fetcher.fetch({
       method: "post",
@@ -1356,9 +1426,9 @@ export class PostHogAPIClient {
   }> {
     const teamId = await this.getTeamId();
     const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/`,
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/${reportId}/`,
     );
-    const path = `/api/projects/${teamId}/signal_reports/${reportId}/`;
+    const path = `/api/projects/${teamId}/signals/reports/${reportId}/`;
 
     const response = await this.api.fetcher.fetch({
       method: "delete",
@@ -1383,9 +1453,9 @@ export class PostHogAPIClient {
   }> {
     const teamId = await this.getTeamId();
     const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signal_reports/${reportId}/reingest/`,
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/${reportId}/reingest/`,
     );
-    const path = `/api/projects/${teamId}/signal_reports/${reportId}/reingest/`;
+    const path = `/api/projects/${teamId}/signals/reports/${reportId}/reingest/`;
 
     const response = await this.api.fetcher.fetch({
       method: "post",
@@ -1402,6 +1472,137 @@ export class PostHogAPIClient {
       status: "reingestion_started" | "already_running";
       report_id: string;
     };
+  }
+
+  async getSignalReportTasks(
+    reportId: string,
+    options?: { relationship?: SignalReportTask["relationship"] },
+  ): Promise<SignalReportTask[]> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/${reportId}/tasks/`,
+    );
+    if (options?.relationship) {
+      url.searchParams.set("relationship", options.relationship);
+    }
+    const path = `/api/projects/${teamId}/signals/reports/${reportId}/tasks/`;
+
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch signal report tasks: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return data.results ?? [];
+  }
+
+  async getSignalTeamConfig(): Promise<SignalTeamConfig> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/config/`,
+    );
+    const path = `/api/projects/${teamId}/signals/config/`;
+
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch signal team config: ${response.statusText}`,
+      );
+    }
+
+    return (await response.json()) as SignalTeamConfig;
+  }
+
+  async updateSignalTeamConfig(updates: {
+    default_autostart_priority: string;
+  }): Promise<SignalTeamConfig> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/config/`,
+    );
+    const path = `/api/projects/${teamId}/signals/config/`;
+
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path,
+      overrides: {
+        body: JSON.stringify(updates),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to update signal team config: ${response.statusText}`,
+      );
+    }
+
+    return (await response.json()) as SignalTeamConfig;
+  }
+
+  async getSignalUserAutonomyConfig(): Promise<SignalUserAutonomyConfig | null> {
+    const url = new URL(`${this.api.baseUrl}/api/users/@me/signal_autonomy/`);
+    const path = "/api/users/@me/signal_autonomy/";
+
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path,
+    });
+
+    return (await response.json()) as SignalUserAutonomyConfig;
+  }
+
+  async updateSignalUserAutonomyConfig(updates: {
+    autostart_priority: string | null;
+  }): Promise<SignalUserAutonomyConfig> {
+    const url = new URL(`${this.api.baseUrl}/api/users/@me/signal_autonomy/`);
+    const path = "/api/users/@me/signal_autonomy/";
+
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path,
+      overrides: {
+        body: JSON.stringify(updates),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to update signal user autonomy config: ${response.statusText}`,
+      );
+    }
+    return (await response.json()) as SignalUserAutonomyConfig;
+  }
+
+  async deleteSignalUserAutonomyConfig(): Promise<void> {
+    const url = new URL(`${this.api.baseUrl}/api/users/@me/signal_autonomy/`);
+    const path = "/api/users/@me/signal_autonomy/";
+
+    const response = await this.api.fetcher.fetch({
+      method: "delete",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to delete signal user autonomy config: ${response.statusText}`,
+      );
+    }
   }
 
   async getMcpServers(): Promise<McpRecommendedServer[]> {
@@ -1523,6 +1724,145 @@ export class PostHogAPIClient {
     if (!response.ok && response.status !== 204) {
       throw new Error(`Failed to uninstall MCP server: ${response.statusText}`);
     }
+  }
+
+  async getMySeat(): Promise<SeatData | null> {
+    try {
+      const url = new URL(`${this.api.baseUrl}/api/seats/me/`);
+      url.searchParams.set("product_key", SEAT_PRODUCT_KEY);
+      const response = await this.api.fetcher.fetch({
+        method: "get",
+        url,
+        path: "/api/seats/me/",
+      });
+      return (await response.json()) as SeatData;
+    } catch (error) {
+      if (this.isFetcherStatusError(error, 404)) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async createSeat(planKey: string): Promise<SeatData> {
+    try {
+      const user = await this.getCurrentUser();
+      const distinctId = user.distinct_id;
+      if (!distinctId) {
+        throw new Error("Cannot create seat: user has no distinct_id");
+      }
+      const url = new URL(`${this.api.baseUrl}/api/seats/`);
+      const response = await this.api.fetcher.fetch({
+        method: "post",
+        url,
+        path: "/api/seats/",
+        overrides: {
+          body: JSON.stringify({
+            product_key: SEAT_PRODUCT_KEY,
+            plan_key: planKey,
+            user_distinct_id: distinctId,
+          }),
+        },
+      });
+      return (await response.json()) as SeatData;
+    } catch (error) {
+      this.throwSeatError(error);
+    }
+  }
+
+  async upgradeSeat(planKey: string): Promise<SeatData> {
+    try {
+      const url = new URL(`${this.api.baseUrl}/api/seats/me/`);
+      const response = await this.api.fetcher.fetch({
+        method: "patch",
+        url,
+        path: "/api/seats/me/",
+        overrides: {
+          body: JSON.stringify({
+            product_key: SEAT_PRODUCT_KEY,
+            plan_key: planKey,
+          }),
+        },
+      });
+      return (await response.json()) as SeatData;
+    } catch (error) {
+      this.throwSeatError(error);
+    }
+  }
+
+  async cancelSeat(): Promise<void> {
+    try {
+      const url = new URL(`${this.api.baseUrl}/api/seats/me/`);
+      url.searchParams.set("product_key", SEAT_PRODUCT_KEY);
+      await this.api.fetcher.fetch({
+        method: "delete",
+        url,
+        path: "/api/seats/me/",
+      });
+    } catch (error) {
+      if (this.isFetcherStatusError(error, 204)) {
+        return;
+      }
+      this.throwSeatError(error);
+    }
+  }
+
+  async reactivateSeat(): Promise<SeatData> {
+    try {
+      const url = new URL(`${this.api.baseUrl}/api/seats/me/reactivate/`);
+      const response = await this.api.fetcher.fetch({
+        method: "post",
+        url,
+        path: "/api/seats/me/reactivate/",
+        overrides: {
+          body: JSON.stringify({ product_key: SEAT_PRODUCT_KEY }),
+        },
+      });
+      return (await response.json()) as SeatData;
+    } catch (error) {
+      this.throwSeatError(error);
+    }
+  }
+
+  private isFetcherStatusError(error: unknown, status: number): boolean {
+    return error instanceof Error && error.message.includes(`[${status}]`);
+  }
+
+  private parseFetcherError(error: unknown): {
+    status: number;
+    body: Record<string, unknown>;
+  } | null {
+    if (!(error instanceof Error)) return null;
+    const match = error.message.match(/\[(\d+)\]\s*(.*)/);
+    if (!match) return null;
+    try {
+      return {
+        status: Number.parseInt(match[1], 10),
+        body: JSON.parse(match[2]) as Record<string, unknown>,
+      };
+    } catch {
+      return { status: Number.parseInt(match[1], 10), body: {} };
+    }
+  }
+
+  private throwSeatError(error: unknown): never {
+    const parsed = this.parseFetcherError(error);
+
+    if (parsed) {
+      if (
+        parsed.status === 400 &&
+        typeof parsed.body.redirect_url === "string"
+      ) {
+        throw new SeatSubscriptionRequiredError(parsed.body.redirect_url);
+      }
+      if (parsed.status === 402) {
+        const message =
+          typeof parsed.body.error === "string" ? parsed.body.error : undefined;
+        throw new SeatPaymentFailedError(message);
+      }
+    }
+
+    throw error;
   }
 
   /**

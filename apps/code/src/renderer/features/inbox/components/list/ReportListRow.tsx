@@ -1,5 +1,4 @@
 import { ReportCardContent } from "@features/inbox/components/utils/ReportCardContent";
-import { SOURCE_PRODUCT_META } from "@features/inbox/components/utils/source-product-icons";
 import { FileTextIcon } from "@phosphor-icons/react";
 import { Checkbox, Flex } from "@radix-ui/themes";
 import type { SignalReport } from "@shared/types";
@@ -40,13 +39,8 @@ export function ReportListRow({
   const rowBgClass = isSelected
     ? "bg-gray-3"
     : report.is_suggested_reviewer
-      ? "bg-blue-2"
+      ? "bg-amber-2"
       : "";
-
-  const firstProduct = (report.source_products ?? [])[0];
-  const sourceProductMeta = firstProduct
-    ? SOURCE_PRODUCT_META[firstProduct]
-    : null;
 
   return (
     <motion.div
@@ -107,10 +101,6 @@ export function ReportListRow({
                   : "Select report for bulk actions"
               }
             />
-          ) : sourceProductMeta ? (
-            <span style={{ color: sourceProductMeta.color }}>
-              <sourceProductMeta.Icon size={14} />
-            </span>
           ) : (
             <span className="text-gray-8">
               <FileTextIcon size={14} />

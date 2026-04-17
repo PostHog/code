@@ -14,7 +14,6 @@ function makeReport(overrides: Partial<SignalReport> = {}): SignalReport {
     status: "ready",
     total_weight: 50,
     signal_count: 10,
-    relevant_user_count: 5,
     created_at: "2025-01-01T00:00:00Z",
     updated_at: "2025-01-02T00:00:00Z",
     artefact_count: 3,

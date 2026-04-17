@@ -29,6 +29,7 @@ import { useRendererWindowFocusStore } from "@stores/rendererWindowFocusStore";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { MultiSelectStack } from "./detail/MultiSelectStack";
 import { ReportDetailPane } from "./detail/ReportDetailPane";
+import { GitHubConnectionBanner } from "./list/GitHubConnectionBanner";
 import { ReportListPane } from "./list/ReportListPane";
 import { SignalsToolbar } from "./list/SignalsToolbar";
 
@@ -480,6 +481,7 @@ export function InboxSignalsTab() {
                     reports={reports}
                     effectiveBulkIds={selectedReportIds}
                     onToggleSelectAll={handleToggleSelectAll}
+                    onConfigureSources={() => setSourcesDialogOpen(true)}
                   />
                 </Box>
                 <ReportListPane
@@ -501,6 +503,8 @@ export function InboxSignalsTab() {
                 />
               </Flex>
             </ScrollArea>
+
+            <GitHubConnectionBanner />
 
             {/* Resize handle */}
             <Box
@@ -555,6 +559,7 @@ export function InboxSignalsTab() {
               pipelinePausedUntil={signalProcessingState?.paused_until}
               searchDisabledReason={searchDisabledReason}
               hideFilters
+              onConfigureSources={() => setSourcesDialogOpen(true)}
             />
             <SkeletonBackdrop />
           </Flex>

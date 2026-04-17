@@ -172,13 +172,13 @@ describe("Question relay", () => {
       { kind: "allow_once", optionId: "allow", name: "Allow" },
     ];
 
-    describe("with CODE_INTERACTION_ORIGIN=slack", () => {
+    describe("with POSTHOG_CODE_INTERACTION_ORIGIN=slack", () => {
       beforeEach(() => {
-        process.env.CODE_INTERACTION_ORIGIN = "slack";
+        process.env.POSTHOG_CODE_INTERACTION_ORIGIN = "slack";
       });
 
       afterEach(() => {
-        delete process.env.CODE_INTERACTION_ORIGIN;
+        delete process.env.POSTHOG_CODE_INTERACTION_ORIGIN;
       });
 
       it("returns cancelled with relay message for question tool", async () => {
@@ -220,9 +220,9 @@ describe("Question relay", () => {
       });
     });
 
-    describe("without CODE_INTERACTION_ORIGIN", () => {
+    describe("without POSTHOG_CODE_INTERACTION_ORIGIN", () => {
       beforeEach(() => {
-        delete process.env.CODE_INTERACTION_ORIGIN;
+        delete process.env.POSTHOG_CODE_INTERACTION_ORIGIN;
       });
 
       it("auto-approves question tools (no Slack relay)", async () => {
@@ -299,6 +299,35 @@ describe("Question relay", () => {
         expect(secondResult.outcome.outcome).toBe("selected");
         expect(brokenSseController.send).toHaveBeenCalledTimes(1);
         expect(appendRawLine).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    describe("with createPr disabled", () => {
+      it("cancels publish commands", async () => {
+        server = new AgentServer({
+          port,
+          jwtPublicKey: "unused-in-unit-tests",
+          repositoryPath: repo.path,
+          apiUrl: "http://localhost:8000",
+          apiKey: "test-api-key",
+          projectId: 1,
+          mode: "interactive",
+          taskId: "test-task-id",
+          runId: "test-run-id",
+          createPr: false,
+        }) as unknown as TestableAgentServer;
+
+        const client = server.createCloudClient(TEST_PAYLOAD);
+        const result = await client.requestPermission({
+          options: ALLOW_OPTIONS,
+          toolCall: {
+            rawInput: { command: "git push origin my-branch" },
+            _meta: { toolName: "Bash" },
+          },
+        });
+
+        expect(result.outcome.outcome).toBe("cancelled");
+        expect(result._meta?.message).toContain("stop before publishing");
       });
     });
   });

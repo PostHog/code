@@ -1,15 +1,20 @@
-import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
+import {
+  getGatewayUsageUrl,
+  getLlmGatewayUrl,
+} from "@posthog/agent/posthog-api";
 import { net } from "electron";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
 import type { AuthService } from "../auth/service";
-import type {
-  AnthropicErrorResponse,
-  AnthropicMessagesRequest,
-  AnthropicMessagesResponse,
-  LlmMessage,
-  PromptOutput,
+import {
+  type AnthropicErrorResponse,
+  type AnthropicMessagesRequest,
+  type AnthropicMessagesResponse,
+  type LlmMessage,
+  type PromptOutput,
+  type UsageOutput,
+  usageOutput,
 } from "./schemas";
 
 const log = logger.scope("llm-gateway");
@@ -133,5 +138,28 @@ export class LlmGatewayService {
         outputTokens: data.usage.output_tokens,
       },
     };
+  }
+
+  async fetchUsage(): Promise<UsageOutput> {
+    const auth = await this.authService.getValidAccessToken();
+    const usageUrl = getGatewayUsageUrl(auth.apiHost);
+
+    log.debug("Fetching usage from gateway", { url: usageUrl });
+
+    const response = await this.authService.authenticatedFetch(
+      net.fetch,
+      usageUrl,
+    );
+
+    if (!response.ok) {
+      throw new LlmGatewayError(
+        `Failed to fetch usage: HTTP ${response.status}`,
+        "usage_error",
+        undefined,
+        response.status,
+      );
+    }
+
+    return usageOutput.parse(await response.json());
   }
 }

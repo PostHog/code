@@ -24,6 +24,8 @@ export type AcpConnectionConfig = {
   processCallbacks?: ProcessSpawnedCallback;
   codexOptions?: CodexProcessOptions;
   allowedModelIds?: Set<string>;
+  /** Callback invoked when the agent calls the create_output tool for structured output */
+  onStructuredOutput?: (output: Record<string, unknown>) => Promise<void>;
 };
 
 export type AcpConnection = {
@@ -97,7 +99,10 @@ function createClaudeConnection(config: AcpConnectionConfig): AcpConnection {
 
   let agent: ClaudeAcpAgent | null = null;
   const agentConnection = new AgentSideConnection((client) => {
-    agent = new ClaudeAcpAgent(client, config.processCallbacks);
+    agent = new ClaudeAcpAgent(client, {
+      ...config.processCallbacks,
+      onStructuredOutput: config.onStructuredOutput,
+    });
     logger.info(`Created ${agent.adapterName} agent`);
     return agent;
   }, agentStream);

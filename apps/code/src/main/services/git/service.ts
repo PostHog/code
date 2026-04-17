@@ -1254,12 +1254,14 @@ ${truncatedDiff}${contextSection}`;
     ]);
 
     const head = currentBranch ?? undefined;
-    const [branchDiff, stagedDiff, unstagedDiff, commits] = await Promise.all([
-      getDiffAgainstRemote(directoryPath, defaultBranch),
-      getStagedDiff(directoryPath),
-      getUnstagedDiff(directoryPath),
-      getCommitsBetweenBranches(directoryPath, defaultBranch, head, 30),
-    ]);
+    const [branchDiff, stagedDiff, unstagedDiff, commits, conventions] =
+      await Promise.all([
+        getDiffAgainstRemote(directoryPath, defaultBranch),
+        getStagedDiff(directoryPath),
+        getUnstagedDiff(directoryPath),
+        getCommitsBetweenBranches(directoryPath, defaultBranch, head, 30),
+        getCommitConventions(directoryPath),
+      ]);
 
     const uncommittedDiff = [stagedDiff, unstagedDiff]
       .filter(Boolean)
@@ -1283,6 +1285,12 @@ ${truncatedDiff}${contextSection}`;
         )}`
       : "";
 
+    const conventionHint = conventions.conventionalCommits
+      ? `- Use conventional commit format for the title (e.g., "feat(scope): description"). Common prefixes: ${
+          conventions.commonPrefixes.join(", ") || "feat, fix, docs, chore"
+        }.`
+      : "";
+
     const system = `You are a PR description generator. Generate a title and detailed description for a pull request.
 
 Output format (use exactly this format):
@@ -1295,6 +1303,7 @@ Rules for the title:
 - Short and descriptive (max 72 chars)
 - Use imperative mood ("Add feature" not "Added feature")
 - Be specific about what the PR accomplishes
+${conventionHint}
 
 Rules for the body:
 - Start with a TL;DR section (1-2 sentences summarizing the change)
@@ -1326,6 +1335,7 @@ ${truncatedDiff || "(no diff available)"}${contextSection}`;
       diffLength: fullDiff.length,
       hasTemplate: !!prTemplate.template,
       hasConversationContext: !!conversationContext,
+      conventionalCommits: conventions.conventionalCommits,
     });
 
     const response = await this.llmGateway.prompt(

@@ -1,4 +1,8 @@
-import type { ContentBlock } from "@agentclientprotocol/sdk";
+import type {
+  ContentBlock,
+  RequestPermissionRequest,
+  RequestPermissionResponse,
+} from "@agentclientprotocol/sdk";
 import {
   ClientSideConnection,
   ndJsonStream,
@@ -14,6 +18,8 @@ import {
   type InProcessAcpConnection,
 } from "../adapters/acp-connection";
 import { selectRecentTurns } from "../adapters/claude/session/jsonl-hydration";
+import type { PermissionMode } from "../execution-mode";
+import { DEFAULT_CODEX_MODEL } from "../gateway-models";
 import { PostHogAPIClient } from "../posthog-api";
 import {
   type ConversationTurn,
@@ -157,6 +163,24 @@ interface ActiveSession {
   sseController: SseController | null;
   deviceInfo: DeviceInfo;
   logWriter: SessionLogWriter;
+  /** Current permission mode, tracked for relay decisions */
+  permissionMode: PermissionMode;
+  /** Whether a desktop client has ever connected via SSE during this session */
+  hasDesktopConnected: boolean;
+}
+
+function getTaskRunStateString(
+  taskRun: TaskRun | null,
+  key: string,
+): string | null {
+  const state = taskRun?.state;
+
+  if (!state || typeof state !== "object") {
+    return null;
+  }
+
+  const value = (state as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : null;
 }
 
 export class AgentServer {
@@ -176,6 +200,15 @@ export class AgentServer {
   // causing a second session to be created and duplicate Slack messages to be sent.
   private initializationPromise: Promise<void> | null = null;
   private pendingEvents: Record<string, unknown>[] = [];
+  private pendingPermissions = new Map<
+    string,
+    {
+      resolve: (response: {
+        outcome: { outcome: "selected"; optionId: string };
+        _meta?: Record<string, unknown>;
+      }) => void;
+    }
+  >();
 
   private detachSseController(controller: SseController): void {
     if (this.session?.sseController === controller) {
@@ -224,8 +257,24 @@ export class AgentServer {
     this.app = this.createApp();
   }
 
+  private getRuntimeAdapter(): "claude" | "codex" {
+    return this.config.runtimeAdapter ?? "claude";
+  }
+
   private getEffectiveMode(payload: JwtPayload): AgentMode {
     return payload.mode ?? this.config.mode;
+  }
+
+  private getSessionPermissionMode(): PermissionMode {
+    if (this.session?.permissionMode) {
+      return this.session.permissionMode;
+    }
+
+    return this.getRuntimeAdapter() === "codex" ? "auto" : "default";
+  }
+
+  private shouldRelayPermissionToClient(mode: PermissionMode): boolean {
+    return mode === "default" || mode === "auto";
   }
 
   private createApp(): Hono {
@@ -281,6 +330,7 @@ export class AgentServer {
             await this.initializeSession(payload, sseController);
           } else {
             this.session.sseController = sseController;
+            this.session.hasDesktopConnected = true;
             this.replayPendingEvents();
           }
 
@@ -511,13 +561,9 @@ export class AgentServer {
           prompt,
           ...(this.detectedPrUrl && {
             _meta: {
-              prContext:
-                `IMPORTANT — OVERRIDE PREVIOUS INSTRUCTIONS ABOUT CREATING BRANCHES/PRs.\n` +
-                `You already have an open pull request: ${this.detectedPrUrl}\n` +
-                `You MUST:\n` +
-                `1. Check out the existing PR branch with \`gh pr checkout ${this.detectedPrUrl}\`\n` +
-                `2. Make changes, commit, and push to that branch\n` +
-                `You MUST NOT create a new branch, close the existing PR, or create a new PR.`,
+              // Keep the live-session PR override aligned with the startup
+              // prompt policy so non-Slack runs remain review-first.
+              prContext: this.buildDetectedPrContext(this.detectedPrUrl),
             },
           }),
         });
@@ -579,6 +625,51 @@ export class AgentServer {
         return { closed: true };
       }
 
+      case "posthog/set_config_option":
+      case "set_config_option": {
+        const configId = params.configId as string;
+        const value = params.value as string;
+
+        this.logger.info("Set config option requested", { configId, value });
+
+        const result =
+          await this.session.clientConnection.setSessionConfigOption({
+            sessionId: this.session.acpSessionId,
+            configId,
+            value,
+          });
+
+        return {
+          configOptions: result.configOptions,
+        };
+      }
+
+      case POSTHOG_NOTIFICATIONS.PERMISSION_RESPONSE:
+      case "permission_response": {
+        const requestId = params.requestId as string;
+        const optionId = params.optionId as string;
+        const customInput = params.customInput as string | undefined;
+        const answers = params.answers as Record<string, string> | undefined;
+
+        this.logger.info("Permission response received", {
+          requestId,
+          optionId,
+        });
+
+        const resolved = this.resolvePermission(
+          requestId,
+          optionId,
+          customInput,
+          answers,
+        );
+        if (!resolved) {
+          throw new Error(
+            `No pending permission request found for id: ${requestId}`,
+          );
+        }
+        return { resolved: true };
+      }
+
       default:
         throw new Error(`Unknown method: ${method}`);
     }
@@ -638,6 +729,39 @@ export class AgentServer {
 
     this.configureEnvironment();
 
+    const [preTaskRun, preTask] = await Promise.all([
+      this.posthogAPI
+        .getTaskRun(payload.task_id, payload.run_id)
+        .catch((err) => {
+          this.logger.warn("Failed to fetch task run for session context", {
+            taskId: payload.task_id,
+            runId: payload.run_id,
+            error: err,
+          });
+          return null;
+        }),
+      this.posthogAPI.getTask(payload.task_id).catch((err) => {
+        this.logger.warn("Failed to fetch task for session context", {
+          taskId: payload.task_id,
+          error: err,
+        });
+        return null;
+      }),
+    ]);
+
+    const prUrl = getTaskRunStateString(preTaskRun, "slack_notified_pr_url");
+
+    if (prUrl) {
+      this.detectedPrUrl = prUrl;
+    }
+
+    const runtimeAdapter = this.getRuntimeAdapter();
+    const sessionSystemPrompt = this.buildSessionSystemPrompt(prUrl);
+    const codexInstructions =
+      runtimeAdapter === "codex"
+        ? this.buildCodexInstructions(sessionSystemPrompt)
+        : undefined;
+
     const posthogAPI = new PostHogAPIClient({
       apiUrl: this.config.apiUrl,
       projectId: this.config.projectId,
@@ -661,10 +785,32 @@ export class AgentServer {
     });
 
     const acpConnection = createAcpConnection({
+      adapter: runtimeAdapter,
       taskRunId: payload.run_id,
       taskId: payload.task_id,
       deviceType: deviceInfo.type,
       logWriter,
+      logger: this.logger,
+      codexOptions:
+        runtimeAdapter === "codex"
+          ? {
+              cwd: this.config.repositoryPath ?? "/tmp/workspace",
+              apiBaseUrl: process.env.OPENAI_BASE_URL,
+              apiKey: this.config.apiKey,
+              model: this.config.model ?? DEFAULT_CODEX_MODEL,
+              reasoningEffort: this.config.reasoningEffort,
+              instructions: codexInstructions,
+            }
+          : undefined,
+      onStructuredOutput: async (output) => {
+        await this.posthogAPI.setTaskRunOutput(
+          payload.task_id,
+          payload.run_id,
+          {
+            output,
+          },
+        );
+      },
     });
 
     // Tap both streams to broadcast all ACP messages via SSE (mimics local transport)
@@ -700,42 +846,37 @@ export class AgentServer {
       clientCapabilities: {},
     });
 
-    let preTaskRun: TaskRun | null = null;
-    try {
-      preTaskRun = await this.posthogAPI.getTaskRun(
-        payload.task_id,
-        payload.run_id,
-      );
-    } catch {
-      this.logger.warn("Failed to fetch task run for session context", {
-        taskId: payload.task_id,
-        runId: payload.run_id,
-      });
-    }
-
-    const prUrl =
-      typeof (preTaskRun?.state as Record<string, unknown>)
-        ?.slack_notified_pr_url === "string"
-        ? ((preTaskRun?.state as Record<string, unknown>)
-            .slack_notified_pr_url as string)
-        : null;
-
-    if (prUrl) {
-      this.detectedPrUrl = prUrl;
-    }
-
+    const runState = preTaskRun?.state as Record<string, unknown> | undefined;
+    // Preserve native Codex modes for cloud runs so they behave the same as
+    // local sessions. Claude keeps the historical auto-approved default when
+    // PostHog Code has not explicitly selected a mode.
+    const initialPermissionMode: PermissionMode =
+      typeof runState?.initial_permission_mode === "string"
+        ? (runState.initial_permission_mode as PermissionMode)
+        : runtimeAdapter === "codex"
+          ? "auto"
+          : "bypassPermissions";
     const sessionResponse = await clientConnection.newSession({
       cwd: this.config.repositoryPath ?? "/tmp/workspace",
       mcpServers: this.config.mcpServers ?? [],
       _meta: {
         sessionId: payload.run_id,
         taskRunId: payload.run_id,
-        systemPrompt: this.buildSessionSystemPrompt(prUrl),
+        systemPrompt: sessionSystemPrompt,
+        ...(this.config.model && { model: this.config.model }),
         allowedDomains: this.config.allowedDomains,
+        jsonSchema: preTask?.json_schema ?? null,
+        permissionMode: initialPermissionMode,
         ...(this.config.claudeCode?.plugins?.length && {
           claudeCode: {
             options: {
-              plugins: this.config.claudeCode.plugins,
+              ...(this.config.claudeCode?.plugins?.length && {
+                plugins: this.config.claudeCode.plugins,
+              }),
+              ...(runtimeAdapter === "claude" &&
+                this.config.reasoningEffort && {
+                  effort: this.config.reasoningEffort,
+                }),
             },
           },
         }),
@@ -757,6 +898,8 @@ export class AgentServer {
       sseController,
       deviceInfo,
       logWriter,
+      permissionMode: initialPermissionMode,
+      hasDesktopConnected: sseController !== null,
     };
 
     this.logger = new Logger({
@@ -774,6 +917,7 @@ export class AgentServer {
     this.logger.info(
       `Agent version: ${this.config.version ?? packageJson.version}`,
     );
+    this.logger.info(`Initial permission mode: ${initialPermissionMode}`);
 
     // Signal in_progress so the UI can start polling for updates
     this.posthogAPI
@@ -1104,13 +1248,62 @@ export class AgentServer {
     return { append: cloudAppend };
   }
 
+  private buildCodexInstructions(
+    systemPrompt: string | { append: string },
+  ): string {
+    return typeof systemPrompt === "string"
+      ? systemPrompt
+      : systemPrompt.append;
+  }
+
+  private getCloudInteractionOrigin(): string | undefined {
+    return (
+      process.env.POSTHOG_CODE_INTERACTION_ORIGIN ??
+      process.env.CODE_INTERACTION_ORIGIN ??
+      process.env.TWIG_INTERACTION_ORIGIN
+    );
+  }
+
+  /**
+   * Automated-origin cloud runs auto-publish by default. Every other origin is
+   * review-first unless the user explicitly asks, and createPr=false always
+   * disables publishing.
+   */
+  private shouldAutoPublishCloudChanges(): boolean {
+    const origin = this.getCloudInteractionOrigin();
+    return (
+      (origin === "slack" || origin === "signal_report") &&
+      this.config.createPr !== false
+    );
+  }
+
+  private buildDetectedPrContext(prUrl: string): string {
+    if (!this.shouldAutoPublishCloudChanges()) {
+      return (
+        `An open pull request already exists: ${prUrl}\n` +
+        `Use that PR as context if it is helpful, but stop with local changes ready for review.\n` +
+        `Do NOT create commits, push to the PR branch, update the pull request, create a new branch, or create a new pull request unless the user explicitly asks.`
+      );
+    }
+
+    return (
+      `IMPORTANT — OVERRIDE PREVIOUS INSTRUCTIONS ABOUT CREATING BRANCHES/PRs.\n` +
+      `You already have an open pull request: ${prUrl}\n` +
+      `You MUST:\n` +
+      `1. Check out the existing PR branch with \`gh pr checkout ${prUrl}\`\n` +
+      `2. Make changes, commit, and push to that branch\n` +
+      `You MUST NOT create a new branch, close the existing PR, or create a new PR.`
+    );
+  }
+
   private buildCloudSystemPrompt(prUrl?: string | null): string {
     const taskId = this.config.taskId;
+    const shouldAutoCreatePr = this.shouldAutoPublishCloudChanges();
     const attributionInstructions = `
 ## Attribution
 Do NOT use Claude Code's default attribution (no "Co-Authored-By" trailers, no "Generated with [Claude Code]" lines).
 
-Instead, add the following trailers to EVERY commit message (after a blank line at the end):
+If you create a commit, add the following trailers to the commit message (after a blank line at the end):
   Generated-By: PostHog Code
   Task-Id: ${taskId}
 
@@ -1126,6 +1319,21 @@ EOF
 \`\`\``;
 
     if (prUrl) {
+      if (!shouldAutoCreatePr) {
+        return `
+# Cloud Task Execution
+
+This task already has an open pull request: ${prUrl}
+
+Do the requested work, but stop with local changes ready for review.
+
+Important:
+- Do NOT create new commits, push to the branch, or update the pull request unless the user explicitly asks.
+- Do NOT create a new branch or a new pull request.
+${attributionInstructions}
+`;
+      }
+
       return `
 # Cloud Task Execution
 
@@ -1160,6 +1368,18 @@ When the user asks for code changes or software engineering tasks:
 Important:
 - Do NOT create branches, commits, or pull requests in this mode.
 - Prefer using MCP tools to answer questions with real data over giving generic advice.
+`;
+    }
+
+    if (!shouldAutoCreatePr) {
+      return `
+# Cloud Task Execution
+
+Do the requested work, but stop with local changes ready for review.
+
+Important:
+- Do NOT create a branch, commit, push, or open a pull request unless the user explicitly asks.
+${attributionInstructions}
 `;
     }
 
@@ -1287,25 +1507,68 @@ ${attributionInstructions}
     });
   }
 
+  private buildSlackQuestionRelayResponse(
+    payload: JwtPayload,
+    toolMeta: Record<string, unknown> | null | undefined,
+  ): RequestPermissionResponse {
+    this.relaySlackQuestion(payload, toolMeta);
+    return {
+      outcome: { outcome: "cancelled" as const },
+      _meta: {
+        message:
+          "This question has been relayed to the Slack thread where this task originated. " +
+          "The user will reply there. Do NOT re-ask the question or pick an answer yourself. " +
+          "Simply let the user know you are waiting for their reply.",
+      },
+    };
+  }
+
+  private shouldBlockPublishPermission(
+    params: RequestPermissionRequest,
+  ): boolean {
+    if (this.config.createPr !== false) {
+      return false;
+    }
+
+    const meta =
+      params.toolCall?._meta &&
+      typeof params.toolCall._meta === "object" &&
+      !Array.isArray(params.toolCall._meta)
+        ? (params.toolCall._meta as Record<string, unknown>)
+        : null;
+    const rawInput =
+      params.toolCall?.rawInput &&
+      typeof params.toolCall.rawInput === "object" &&
+      !Array.isArray(params.toolCall.rawInput)
+        ? (params.toolCall.rawInput as Record<string, unknown>)
+        : null;
+    const toolName = typeof meta?.toolName === "string" ? meta.toolName : null;
+    const command =
+      typeof rawInput?.command === "string" ? rawInput.command : null;
+
+    return Boolean(
+      toolName &&
+        (toolName === "Bash" || toolName.includes("bash")) &&
+        command &&
+        /\bgit\s+push\b|\bgh\s+pr\s+(create|edit|ready|merge)\b/.test(command),
+    );
+  }
+
   private createCloudClient(payload: JwtPayload) {
     const mode = this.getEffectiveMode(payload);
     const interactionOrigin =
+      process.env.POSTHOG_CODE_INTERACTION_ORIGIN ??
       process.env.CODE_INTERACTION_ORIGIN ??
       process.env.TWIG_INTERACTION_ORIGIN;
 
     return {
-      requestPermission: async (params: {
-        options: Array<{ kind: string; optionId: string; name?: string }>;
-        toolCall?: {
-          _meta?: Record<string, unknown> | null;
-        };
-      }) => {
-        // Background mode: always auto-approve permissions
-        // Interactive mode: also auto-approve for now (user can monitor via SSE)
-        // Future: interactive mode could pause and wait for user approval via SSE
+      requestPermission: async (
+        params: RequestPermissionRequest,
+      ): Promise<RequestPermissionResponse> => {
         this.logger.debug("Permission request", {
           mode,
           interactionOrigin,
+          kind: params.toolCall?.kind,
           options: params.options,
         });
 
@@ -1315,20 +1578,50 @@ ${attributionInstructions}
         const selectedOptionId =
           allowOption?.optionId ?? params.options[0].optionId;
 
+        const codeToolKind = params.toolCall?._meta?.codeToolKind;
+        const isPlanApproval = params.toolCall?.kind === "switch_mode";
+
+        // Relay questions to Slack when interaction originated there
         if (interactionOrigin === "slack") {
-          const codeToolKind = params.toolCall?._meta?.codeToolKind;
           if (codeToolKind === "question") {
-            this.relaySlackQuestion(payload, params.toolCall?._meta);
-            return {
-              outcome: { outcome: "cancelled" as const },
-              _meta: {
-                message:
-                  "This question has been relayed to the Slack thread where this task originated. " +
-                  "The user will reply there. Do NOT re-ask the question or pick an answer yourself. " +
-                  "Simply let the user know you are waiting for their reply.",
-              },
-            };
+            return this.buildSlackQuestionRelayResponse(
+              payload,
+              params.toolCall?._meta,
+            );
           }
+        }
+
+        // Relay permission requests to the desktop app when:
+        // - Questions: always relay (need human answers regardless of mode)
+        // - Plan approvals: always relay
+        // - Edit/bash in "default" mode: relay for manual approval
+        // Other modes auto-approve. No client connected → auto-approve.
+        {
+          const isQuestion = codeToolKind === "question";
+          const sessionPermissionMode = this.getSessionPermissionMode();
+          const needsRelay =
+            isQuestion ||
+            isPlanApproval ||
+            this.shouldRelayPermissionToClient(sessionPermissionMode);
+
+          if (needsRelay && this.session?.hasDesktopConnected) {
+            this.logger.info("Relaying permission to connected client", {
+              kind: params.toolCall?.kind,
+              isQuestion,
+              sessionPermissionMode,
+            });
+            return this.relayPermissionToClient(params);
+          }
+        }
+
+        if (this.shouldBlockPublishPermission(params)) {
+          return {
+            outcome: { outcome: "cancelled" },
+            _meta: {
+              message:
+                "This run is configured to stop before publishing. Do not push commits or create/update pull requests unless the user explicitly asks.",
+            },
+          };
         }
 
         return {
@@ -1348,6 +1641,19 @@ ${attributionInstructions}
         sessionId: string;
         update?: Record<string, unknown>;
       }) => {
+        // Track permission mode changes for relay decisions
+        if (
+          params.update?.sessionUpdate === "current_mode_update" &&
+          typeof params.update?.currentModeId === "string" &&
+          this.session
+        ) {
+          this.session.permissionMode = params.update
+            .currentModeId as PermissionMode;
+          this.logger.info("Permission mode updated", {
+            mode: params.update.currentModeId,
+          });
+        }
+
         // session/update notifications flow through the tapped stream (like local transport)
         // Only handle tree state capture for file changes here
         if (params.update?.sessionUpdate === "tool_call_update") {
@@ -1597,6 +1903,16 @@ ${attributionInstructions}
       this.logger.error("Failed to flush session logs", error);
     }
 
+    // Drain pending permissions before ACP cleanup to avoid deadlocks —
+    // cleanup may await operations that are blocked on a permission response.
+    for (const [, pending] of this.pendingPermissions) {
+      pending.resolve({
+        outcome: { outcome: "selected", optionId: "reject" },
+        _meta: { customInput: "Session is shutting down." },
+      });
+    }
+    this.pendingPermissions.clear();
+
     try {
       await this.session.acpConnection.cleanup();
     } catch (error) {
@@ -1689,5 +2005,56 @@ ${attributionInstructions}
     } catch {
       this.detachSseController(controller);
     }
+  }
+
+  /**
+   * Relay a permission request (e.g., plan approval) to the connected desktop
+   * app via SSE and wait for a response via the `/command` endpoint.
+   *
+   * The promise waits indefinitely — if SSE is disconnected, the event is
+   * buffered by broadcastEvent and replayed when the client reconnects. Session
+   * cleanup force-resolves all pending permissions, so there is no leak.
+   */
+  private relayPermissionToClient(params: {
+    options: Array<{ kind: string; optionId: string; name?: string }>;
+    toolCall?: Record<string, unknown> | null;
+  }): Promise<{
+    outcome: { outcome: "selected"; optionId: string };
+    _meta?: Record<string, unknown>;
+  }> {
+    const requestId = crypto.randomUUID();
+
+    this.broadcastEvent({
+      type: "permission_request",
+      requestId,
+      options: params.options,
+      toolCall: params.toolCall,
+    });
+
+    return new Promise((resolve) => {
+      this.pendingPermissions.set(requestId, { resolve });
+    });
+  }
+
+  private resolvePermission(
+    requestId: string,
+    optionId: string,
+    customInput?: string,
+    answers?: Record<string, string>,
+  ): boolean {
+    const pending = this.pendingPermissions.get(requestId);
+    if (!pending) return false;
+
+    this.pendingPermissions.delete(requestId);
+
+    const meta: Record<string, unknown> = {};
+    if (customInput) meta.customInput = customInput;
+    if (answers) meta.answers = answers;
+
+    pending.resolve({
+      outcome: { outcome: "selected" as const, optionId },
+      ...(Object.keys(meta).length > 0 ? { _meta: meta } : {}),
+    });
+    return true;
   }
 }

@@ -36,8 +36,11 @@ import {
 import packageJson from "../../../package.json" with { type: "json" };
 import { POSTHOG_NOTIFICATIONS } from "../../acp-extensions";
 import {
-  CODE_EXECUTION_MODES,
   type CodeExecutionMode,
+  type CodexNativeMode,
+  isCodeExecutionMode,
+  isCodexNativeMode,
+  type PermissionMode,
 } from "../../execution-mode";
 import type { ProcessSpawnedCallback } from "../../types";
 import { Logger } from "../../utils/logger";
@@ -83,19 +86,40 @@ type CodexSession = BaseSession & {
   settingsManager: CodexSettingsManager;
 };
 
-function toCodeExecutionMode(mode?: string): CodeExecutionMode {
-  if (mode && (CODE_EXECUTION_MODES as readonly string[]).includes(mode)) {
-    return mode as CodeExecutionMode;
+function toCodexPermissionMode(mode?: string): PermissionMode {
+  if (mode && (isCodexNativeMode(mode) || isCodeExecutionMode(mode))) {
+    return mode;
   }
-  return "default";
+  return "auto";
 }
 
-const CODEX_NATIVE_MODE: Record<CodeExecutionMode, string> = {
-  default: "default",
-  acceptEdits: "default",
-  plan: "plan",
-  bypassPermissions: "default",
+const CODEX_NATIVE_MODE: Record<CodeExecutionMode, CodexNativeMode> = {
+  default: "auto",
+  acceptEdits: "auto",
+  plan: "read-only",
+  bypassPermissions: "full-access",
 };
+
+function toCodexNativeMode(mode?: string): CodexNativeMode {
+  if (mode && isCodexNativeMode(mode)) {
+    return mode;
+  }
+  if (mode && isCodeExecutionMode(mode)) {
+    return CODEX_NATIVE_MODE[mode];
+  }
+  return "auto";
+}
+
+function getCurrentPermissionMode(
+  currentModeId?: string,
+  fallbackMode?: string,
+): PermissionMode {
+  if (currentModeId && isCodexNativeMode(currentModeId)) {
+    return currentModeId;
+  }
+
+  return toCodexPermissionMode(fallbackMode);
+}
 
 export class CodexAcpAgent extends BaseAcpAgent {
   readonly adapterName = "codex";
@@ -179,6 +203,7 @@ export class CodexAcpAgent extends BaseAcpAgent {
 
   async newSession(params: NewSessionRequest): Promise<NewSessionResponse> {
     const meta = params._meta as NewSessionMeta | undefined;
+    const requestedPermissionMode = toCodexPermissionMode(meta?.permissionMode);
 
     const response = await this.codexConnection.newSession(params);
 
@@ -186,12 +211,18 @@ export class CodexAcpAgent extends BaseAcpAgent {
     this.sessionState = createSessionState(response.sessionId, params.cwd, {
       taskRunId: meta?.taskRunId,
       taskId: meta?.taskId ?? meta?.persistence?.taskId,
-      modeId: response.modes?.currentModeId ?? "default",
+      modeId: response.modes?.currentModeId ?? "auto",
       modelId: response.models?.currentModelId,
-      permissionMode: toCodeExecutionMode(meta?.permissionMode),
+      permissionMode: requestedPermissionMode,
     });
     this.sessionId = response.sessionId;
     this.sessionState.configOptions = response.configOptions ?? [];
+
+    await this.applyInitialPermissionMode(
+      response.sessionId,
+      meta?.permissionMode,
+      response.modes?.currentModeId,
+    );
 
     // Emit _posthog/sdk_session so the app can track the session
     if (meta?.taskRunId) {
@@ -213,9 +244,14 @@ export class CodexAcpAgent extends BaseAcpAgent {
   async loadSession(params: LoadSessionRequest): Promise<LoadSessionResponse> {
     const response = await this.codexConnection.loadSession(params);
     const meta = params._meta as NewSessionMeta | undefined;
+    const currentPermissionMode = getCurrentPermissionMode(
+      response.modes?.currentModeId,
+      meta?.permissionMode,
+    );
 
     this.sessionState = createSessionState(params.sessionId, params.cwd, {
-      permissionMode: toCodeExecutionMode(meta?.permissionMode),
+      modeId: response.modes?.currentModeId ?? "auto",
+      permissionMode: currentPermissionMode,
     });
     this.sessionId = params.sessionId;
     this.sessionState.configOptions = response.configOptions ?? [];
@@ -234,10 +270,15 @@ export class CodexAcpAgent extends BaseAcpAgent {
     });
 
     const meta = params._meta as NewSessionMeta | undefined;
+    const currentPermissionMode = getCurrentPermissionMode(
+      loadResponse.modes?.currentModeId,
+      meta?.permissionMode,
+    );
     this.sessionState = createSessionState(params.sessionId, params.cwd, {
       taskRunId: meta?.taskRunId,
       taskId: meta?.taskId ?? meta?.persistence?.taskId,
-      permissionMode: toCodeExecutionMode(meta?.permissionMode),
+      modeId: loadResponse.modes?.currentModeId ?? "auto",
+      permissionMode: currentPermissionMode,
     });
     this.sessionId = params.sessionId;
     this.sessionState.configOptions = loadResponse.configOptions ?? [];
@@ -268,15 +309,47 @@ export class CodexAcpAgent extends BaseAcpAgent {
     });
 
     const meta = params._meta as NewSessionMeta | undefined;
+    const requestedPermissionMode = toCodexPermissionMode(meta?.permissionMode);
     this.sessionState = createSessionState(newResponse.sessionId, params.cwd, {
       taskRunId: meta?.taskRunId,
       taskId: meta?.taskId ?? meta?.persistence?.taskId,
-      permissionMode: toCodeExecutionMode(meta?.permissionMode),
+      modeId: newResponse.modes?.currentModeId ?? "auto",
+      permissionMode: requestedPermissionMode,
     });
     this.sessionId = newResponse.sessionId;
     this.sessionState.configOptions = newResponse.configOptions ?? [];
 
+    await this.applyInitialPermissionMode(
+      newResponse.sessionId,
+      meta?.permissionMode,
+      newResponse.modes?.currentModeId,
+    );
+
     return newResponse;
+  }
+
+  private async applyInitialPermissionMode(
+    sessionId: string,
+    permissionMode?: string,
+    currentModeId?: string,
+  ): Promise<void> {
+    if (!permissionMode) {
+      return;
+    }
+
+    const nativeMode = toCodexNativeMode(permissionMode);
+    if (nativeMode === currentModeId) {
+      this.sessionState.modeId = nativeMode;
+      this.sessionState.permissionMode = toCodexPermissionMode(permissionMode);
+      return;
+    }
+
+    await this.codexConnection.setSessionMode({
+      sessionId,
+      modeId: nativeMode,
+    });
+    this.sessionState.modeId = nativeMode;
+    this.sessionState.permissionMode = toCodexPermissionMode(permissionMode);
   }
 
   async listSessions(
@@ -347,8 +420,8 @@ export class CodexAcpAgent extends BaseAcpAgent {
   async setSessionMode(
     params: SetSessionModeRequest,
   ): Promise<SetSessionModeResponse> {
-    const requestedMode = toCodeExecutionMode(params.modeId);
-    const nativeMode = CODEX_NATIVE_MODE[requestedMode];
+    const requestedMode = toCodexPermissionMode(params.modeId);
+    const nativeMode = toCodexNativeMode(params.modeId);
 
     const response = await this.codexConnection.setSessionMode({
       ...params,

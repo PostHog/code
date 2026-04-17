@@ -1,8 +1,10 @@
+import { useSeatStore } from "@features/billing/stores/seatStore";
+import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { trpcClient } from "@renderer/trpc/client";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
-import type { CloudRegion } from "@shared/types/oauth";
+import type { CloudRegion } from "@shared/types/regions";
+import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { useNavigationStore } from "@stores/navigationStore";
 import { identifyUser, resetUser, track } from "@utils/analytics";
 import { logger } from "@utils/logger";
@@ -11,8 +13,6 @@ import { create } from "zustand";
 
 const log = logger.scope("auth-store");
 
-let initializePromise: Promise<boolean> | null = null;
-let authStateSubscription: { unsubscribe: () => void } | null = null;
 let sessionResetCallback: (() => void) | null = null;
 let inFlightAuthSync: Promise<void> | null = null;
 let inFlightAuthSyncKey: string | null = null;
@@ -23,8 +23,6 @@ export function setSessionResetCallback(callback: () => void) {
 }
 
 export function resetAuthStoreModuleStateForTest(): void {
-  initializePromise = null;
-  authStateSubscription = null;
   sessionResetCallback = null;
   inFlightAuthSync = null;
   inFlightAuthSyncKey = null;
@@ -43,17 +41,11 @@ interface AuthStoreState {
   needsScopeReauth: boolean;
   hasCodeAccess: boolean | null;
   hasCompletedOnboarding: boolean;
-  selectedPlan: "free" | "pro" | null;
-  selectedOrgId: string | null;
   checkCodeAccess: () => Promise<void>;
   redeemInviteCode: (code: string) => Promise<void>;
   loginWithOAuth: (region: CloudRegion) => Promise<void>;
   signupWithOAuth: (region: CloudRegion) => Promise<void>;
-  initializeOAuth: () => Promise<boolean>;
   selectProject: (projectId: number) => Promise<void>;
-  completeOnboarding: () => void;
-  selectPlan: (plan: "free" | "pro") => void;
-  selectOrg: (orgId: string) => void;
   logout: () => Promise<void>;
 }
 
@@ -197,22 +189,7 @@ async function syncAuthState(): Promise<void> {
   await inFlightAuthSync;
 }
 
-function ensureAuthSubscription(): void {
-  if (authStateSubscription) {
-    return;
-  }
-
-  authStateSubscription = trpcClient.auth.onStateChanged.subscribe(undefined, {
-    onData: () => {
-      void syncAuthState();
-    },
-    onError: (error) => {
-      log.error("Auth state subscription error", { error });
-    },
-  });
-}
-
-export const useAuthStore = create<AuthStoreState>((set, get) => ({
+export const useAuthStore = create<AuthStoreState>((set) => ({
   cloudRegion: null,
   staleCloudRegion: null,
 
@@ -226,8 +203,6 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
   hasCodeAccess: null,
 
   hasCompletedOnboarding: false,
-  selectedPlan: null,
-  selectedOrgId: null,
 
   checkCodeAccess: async () => {
     await syncAuthState();
@@ -256,22 +231,6 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     });
   },
 
-  initializeOAuth: async () => {
-    if (initializePromise) {
-      return initializePromise;
-    }
-
-    initializePromise = (async () => {
-      ensureAuthSubscription();
-      await syncAuthState();
-      return get().isAuthenticated || get().needsScopeReauth;
-    })().finally(() => {
-      initializePromise = null;
-    });
-
-    return initializePromise;
-  },
-
   selectProject: async (projectId: number) => {
     sessionResetCallback?.();
     await trpcClient.auth.selectProject.mutate({ projectId });
@@ -279,24 +238,11 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
     useNavigationStore.getState().navigateToTaskInput();
   },
 
-  completeOnboarding: () => {
-    set({ hasCompletedOnboarding: true });
-  },
-
-  selectPlan: (plan: "free" | "pro") => {
-    set({ selectedPlan: plan });
-  },
-
-  selectOrg: (orgId: string) => {
-    set({ selectedOrgId: orgId });
-  },
-
   logout: async () => {
     track(ANALYTICS_EVENTS.USER_LOGGED_OUT);
     sessionResetCallback?.();
-    clearAuthenticatedRendererState({ clearAllQueries: true });
-    await trpcClient.auth.logout.mutate();
-    useNavigationStore.getState().navigateToTaskInput();
+    useSeatStore.getState().reset();
+    useSettingsDialogStore.getState().close();
 
     set((state) => ({
       ...state,
@@ -310,11 +256,13 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
       needsProjectSelection: false,
       needsScopeReauth: false,
       hasCodeAccess: null,
-      selectedPlan: null,
-      selectedOrgId: null,
     }));
     inFlightAuthSync = null;
     inFlightAuthSyncKey = null;
     lastCompletedAuthSyncKey = null;
+
+    clearAuthenticatedRendererState({ clearAllQueries: true });
+    useNavigationStore.getState().navigateToTaskInput();
+    await trpcClient.auth.logout.mutate();
   },
 }));

@@ -4,6 +4,7 @@ import { toast } from "@renderer/utils/toast";
 import { useSettingsStore } from "@stores/settingsStore";
 import type { EditorView } from "@tiptap/pm/view";
 import { useEditor } from "@tiptap/react";
+import { getFilePath } from "@utils/getFilePath";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePromptHistoryStore } from "../stores/promptHistoryStore";
@@ -38,7 +39,7 @@ export interface UseTiptapEditorOptions {
 }
 
 const EDITOR_CLASS =
-  "cli-editor min-h-[1.5em] w-full break-words border-none bg-transparent pr-2 text-[13px] text-[var(--gray-12)] outline-none [overflow-wrap:break-word] [white-space:pre-wrap] [word-break:break-word]";
+  "cli-editor min-h-[1.5em] w-full break-words border-none bg-transparent pr-2 text-[14px] text-[var(--gray-12)] outline-none [overflow-wrap:break-word] [white-space:pre-wrap] [word-break:break-word]";
 
 async function pasteTextAsFile(
   view: EditorView,
@@ -270,8 +271,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
           const newAttachments: FileAttachment[] = [];
           for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            // In Electron, File objects have a 'path' property
-            const path = (file as unknown as { path?: string }).path;
+            const path = getFilePath(file);
             if (path) {
               newAttachments.push({ id: path, label: file.name });
             }
