@@ -1,7 +1,7 @@
 import { useOAuthFlow } from "@features/auth/hooks/useOAuthFlow";
 import { Callout, Flex, Spinner } from "@radix-ui/themes";
 import posthogIcon from "@renderer/assets/images/posthog-icon.svg";
-import { REGION_LABELS } from "@shared/constants/oauth";
+import { REGION_LABELS } from "@shared/types/regions";
 import { RegionSelect } from "./RegionSelect";
 
 export function OAuthControls() {

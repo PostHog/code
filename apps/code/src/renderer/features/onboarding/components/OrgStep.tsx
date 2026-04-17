@@ -3,15 +3,7 @@ import { authKeys, useCurrentUser } from "@features/auth/hooks/authQueries";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { useOrganizations } from "@hooks/useOrganizations";
 import { ArrowLeft, ArrowRight, CheckCircle } from "@phosphor-icons/react";
-import {
-  Badge,
-  Box,
-  Button,
-  Callout,
-  Flex,
-  Skeleton,
-  Text,
-} from "@radix-ui/themes";
+import { Box, Button, Callout, Flex, Skeleton, Text } from "@radix-ui/themes";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
@@ -43,8 +35,7 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
     },
   });
 
-  const { orgsWithBilling, effectiveSelectedOrgId, isLoading, error } =
-    useOrganizations();
+  const { orgs, effectiveSelectedOrgId, isLoading, error } = useOrganizations();
 
   const currentUserOrgId = currentUser?.organization?.id;
 
@@ -156,11 +147,10 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
                 transition={{ duration: 0.2 }}
               >
                 <Flex direction="column" gap="3">
-                  {orgsWithBilling.map((org) => (
+                  {orgs.map((org) => (
                     <OrgCard
                       key={org.id}
                       name={org.name}
-                      hasActiveBilling={org.has_active_subscription}
                       isSelected={effectiveSelectedOrgId === org.id}
                       onSelect={() => handleSelect(org.id)}
                     />
@@ -196,17 +186,11 @@ export function OrgStep({ onNext, onBack }: OrgStepProps) {
 
 interface OrgCardProps {
   name: string;
-  hasActiveBilling: boolean;
   isSelected: boolean;
   onSelect: () => void;
 }
 
-function OrgCard({
-  name,
-  hasActiveBilling,
-  isSelected,
-  onSelect,
-}: OrgCardProps) {
+function OrgCard({ name, isSelected, onSelect }: OrgCardProps) {
   return (
     <Flex
       align="center"
@@ -233,12 +217,6 @@ function OrgCard({
         >
           {name}
         </Text>
-        {hasActiveBilling && (
-          <Badge color="green" size="1" variant="soft">
-            <CheckCircle size={10} weight="fill" />
-            Billing active
-          </Badge>
-        )}
       </Flex>
 
       <Box

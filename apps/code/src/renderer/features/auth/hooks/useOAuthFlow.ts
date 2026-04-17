@@ -1,6 +1,6 @@
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { trpcClient } from "@renderer/trpc/client";
-import type { CloudRegion } from "@shared/types/oauth";
+import type { CloudRegion } from "@shared/types/regions";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
