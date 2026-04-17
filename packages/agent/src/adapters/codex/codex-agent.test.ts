@@ -107,6 +107,48 @@ describe("CodexAcpAgent", () => {
     ).toBe("read-only");
   });
 
+  it("propagates taskRunId and fires SDK_SESSION when loading a cloud session", async () => {
+    const { agent, client } = createAgent();
+    mockCodexConnection.loadSession.mockResolvedValue({
+      modes: { currentModeId: "auto", availableModes: [] },
+      configOptions: [],
+    } satisfies Partial<LoadSessionResponse>);
+
+    await agent.loadSession({
+      sessionId: "session-1",
+      cwd: process.cwd(),
+      _meta: { taskRunId: "run-1", taskId: "task-1" },
+    } as never);
+
+    expect(
+      (agent as unknown as { sessionState: { taskRunId?: string } })
+        .sessionState.taskRunId,
+    ).toBe("run-1");
+    expect(client.extNotification).toHaveBeenCalledWith(
+      "_posthog/sdk_session",
+      {
+        taskRunId: "run-1",
+        sessionId: "session-1",
+        adapter: "codex",
+      },
+    );
+  });
+
+  it("does not emit SDK_SESSION on loadSession when taskRunId is absent", async () => {
+    const { agent, client } = createAgent();
+    mockCodexConnection.loadSession.mockResolvedValue({
+      modes: { currentModeId: "auto", availableModes: [] },
+      configOptions: [],
+    } satisfies Partial<LoadSessionResponse>);
+
+    await agent.loadSession({
+      sessionId: "session-1",
+      cwd: process.cwd(),
+    } as never);
+
+    expect(client.extNotification).not.toHaveBeenCalled();
+  });
+
   it("preserves the live session mode when loading an existing session", async () => {
     const { agent } = createAgent();
     mockCodexConnection.loadSession.mockResolvedValue({
