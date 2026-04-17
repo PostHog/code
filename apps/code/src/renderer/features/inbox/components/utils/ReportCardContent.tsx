@@ -1,9 +1,10 @@
+import { Badge } from "@components/ui/Badge";
 import { SignalReportActionabilityBadge } from "@features/inbox/components/utils/SignalReportActionabilityBadge";
 import { SignalReportPriorityBadge } from "@features/inbox/components/utils/SignalReportPriorityBadge";
 import { SignalReportStatusBadge } from "@features/inbox/components/utils/SignalReportStatusBadge";
 import { SignalReportSummaryMarkdown } from "@features/inbox/components/utils/SignalReportSummaryMarkdown";
 import { EyeIcon, LightningIcon } from "@phosphor-icons/react";
-import { Badge, Flex, Text, Tooltip } from "@radix-ui/themes";
+import { Flex, Text, Tooltip } from "@radix-ui/themes";
 import type { SignalReport } from "@shared/types";
 
 interface ReportCardContentProps {
@@ -41,13 +42,7 @@ export function ReportCardContent({
           />
           {report.is_suggested_reviewer && (
             <Tooltip content="You are a suggested reviewer">
-              <Badge
-                color="amber"
-                size="1"
-                variant="surface"
-                className="!py-0.5 !text-[9px] !leading-tight uppercase"
-                style={{ height: "var(--line-height-1)" }}
-              >
+              <Badge color="amber" style={{ height: "var(--line-height-1)" }}>
                 <EyeIcon size={10} weight="bold" className="shrink-0" />
               </Badge>
             </Tooltip>

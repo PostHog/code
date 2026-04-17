@@ -1,3 +1,4 @@
+import { Badge } from "@components/ui/Badge";
 import {
   ArrowSquareOutIcon,
   BrainIcon,
@@ -10,7 +11,6 @@ import {
   VideoIcon,
 } from "@phosphor-icons/react";
 import {
-  Badge,
   Box,
   Button,
   Flex,
@@ -221,14 +221,7 @@ export const EvaluationsSection = memo(function EvaluationsSection({
                 PostHog LLM Analytics
               </Text>
               <Tooltip content="This is only visible to staff users of PostHog">
-                <Badge
-                  color="blue"
-                  size="1"
-                  variant="surface"
-                  className="!py-0.5 !text-[9px] !leading-tight uppercase"
-                >
-                  Internal
-                </Badge>
+                <Badge color="blue">Internal</Badge>
               </Tooltip>
             </Flex>
             <Text size="1" style={{ color: "var(--gray-11)" }}>
@@ -373,16 +366,7 @@ export function SignalSourceToggles({
       <SignalSourceToggleCard
         icon={<VideoIcon size={20} />}
         label="PostHog Session Replay"
-        labelSuffix={
-          <Badge
-            color="orange"
-            size="1"
-            variant="surface"
-            className="!py-0.5 !text-[9px] !leading-tight uppercase"
-          >
-            Alpha
-          </Badge>
-        }
+        labelSuffix={<Badge color="orange">Alpha</Badge>}
         description="Analyze session recordings and event data for UX issues"
         checked={value.session_replay}
         onCheckedChange={toggleSessionReplay}

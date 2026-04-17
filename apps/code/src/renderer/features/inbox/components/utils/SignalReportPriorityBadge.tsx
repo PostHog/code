@@ -1,4 +1,4 @@
-import { Badge } from "@radix-ui/themes";
+import { Badge } from "@components/ui/Badge";
 import type { SignalReportPriority } from "@shared/types";
 import type { ReactNode } from "react";
 
@@ -23,14 +23,5 @@ export function SignalReportPriorityBadge({
     return null;
   }
 
-  return (
-    <Badge
-      color={PRIORITY_COLOR[priority]}
-      size="1"
-      variant="surface"
-      className="!py-0.5 !text-[9px] !leading-tight uppercase"
-    >
-      {priority}
-    </Badge>
-  );
+  return <Badge color={PRIORITY_COLOR[priority]}>{priority}</Badge>;
 }

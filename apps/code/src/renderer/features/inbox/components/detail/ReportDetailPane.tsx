@@ -1,3 +1,4 @@
+import { Badge } from "@components/ui/Badge";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import {
   useInboxReportArtefacts,
@@ -24,7 +25,6 @@ import {
 } from "@phosphor-icons/react";
 import {
   AlertDialog,
-  Badge,
   Box,
   Button,
   Flex,
@@ -483,12 +483,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
                       </Text>
                       {isMe && (
                         <Tooltip content="You are a suggested reviewer">
-                          <Badge
-                            color="amber"
-                            size="1"
-                            variant="surface"
-                            className="!py-1 !text-[8px] !leading-tight"
-                          >
+                          <Badge color="amber" className="!py-1 !text-[8px]">
                             <EyeIcon
                               size={8}
                               weight="bold"
