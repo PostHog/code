@@ -209,6 +209,92 @@ describe("CodexAcpAgent", () => {
     });
   });
 
+  it("serializes concurrent prompts so usage accumulators are not wiped mid-turn", async () => {
+    const { agent } = createAgent();
+    mockCodexConnection.newSession.mockResolvedValue({
+      sessionId: "session-1",
+      modes: { currentModeId: "auto", availableModes: [] },
+      configOptions: [],
+    } satisfies Partial<NewSessionResponse>);
+    await agent.newSession({
+      cwd: process.cwd(),
+      _meta: { taskRunId: "run-1" },
+    } as never);
+
+    const callOrder: string[] = [];
+    let releaseA: () => void;
+    const aStarted = new Promise<void>((resolve) => {
+      releaseA = resolve;
+    });
+    let allowAResolve: () => void;
+    const aHold = new Promise<void>((resolve) => {
+      allowAResolve = resolve;
+    });
+
+    mockCodexConnection.prompt.mockImplementationOnce(async () => {
+      callOrder.push("A:start");
+      releaseA();
+      await aHold;
+      callOrder.push("A:end");
+      return { stopReason: "end_turn" };
+    });
+    mockCodexConnection.prompt.mockImplementationOnce(async () => {
+      callOrder.push("B:start");
+      return { stopReason: "end_turn" };
+    });
+
+    const promptA = agent.prompt({
+      sessionId: "session-1",
+      prompt: [{ type: "text", text: "A" }],
+    } as never);
+
+    await aStarted;
+
+    const promptB = agent.prompt({
+      sessionId: "session-1",
+      prompt: [{ type: "text", text: "B" }],
+    } as never);
+
+    // B must not have started while A is still in-flight.
+    expect(callOrder).toEqual(["A:start"]);
+
+    allowAResolve!();
+    await Promise.all([promptA, promptB]);
+
+    expect(callOrder).toEqual(["A:start", "A:end", "B:start"]);
+  });
+
+  it("does not let a failing prompt block subsequent prompts", async () => {
+    const { agent } = createAgent();
+    mockCodexConnection.newSession.mockResolvedValue({
+      sessionId: "session-1",
+      modes: { currentModeId: "auto", availableModes: [] },
+      configOptions: [],
+    } satisfies Partial<NewSessionResponse>);
+    await agent.newSession({
+      cwd: process.cwd(),
+    } as never);
+
+    mockCodexConnection.prompt.mockRejectedValueOnce(new Error("boom"));
+    mockCodexConnection.prompt.mockResolvedValueOnce({
+      stopReason: "end_turn",
+    });
+
+    await expect(
+      agent.prompt({
+        sessionId: "session-1",
+        prompt: [{ type: "text", text: "A" }],
+      } as never),
+    ).rejects.toThrow("boom");
+
+    await expect(
+      agent.prompt({
+        sessionId: "session-1",
+        prompt: [{ type: "text", text: "B" }],
+      } as never),
+    ).resolves.toEqual({ stopReason: "end_turn" });
+  });
+
   it("broadcasts user prompt as user_message_chunk before delegating to codex-acp", async () => {
     const { agent, client } = createAgent();
     // Seed an active session so prompt() has the state it expects.

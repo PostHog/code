@@ -145,6 +145,17 @@ export class CodexAcpAgent extends BaseAcpAgent {
   private codexProcess: CodexProcess;
   private codexConnection: ClientSideConnection;
   private sessionState: CodexSessionState;
+  /**
+   * FIFO serializer for prompt() calls. codex-acp and codex-rs themselves
+   * serialize submissions at the conversation level, but our adapter
+   * accumulates per-turn usage into sessionState.accumulatedUsage via the
+   * codex-client sessionUpdate handler. If two prompts ran concurrently on
+   * the JS side, the second's resetUsage() would wipe out the first's
+   * in-flight counters and both TURN_COMPLETE notifications would report
+   * garbled totals. Serializing on the JS side keeps the accumulator
+   * single-owner.
+   */
+  private promptMutex: Promise<unknown> = Promise.resolve();
 
   constructor(client: AgentSideConnection, options: CodexAcpAgentOptions) {
     super(client);
@@ -397,6 +408,13 @@ export class CodexAcpAgent extends BaseAcpAgent {
   }
 
   async prompt(params: PromptRequest): Promise<PromptResponse> {
+    const previous = this.promptMutex;
+    const next = previous.catch(() => {}).then(() => this.runPrompt(params));
+    this.promptMutex = next;
+    return next;
+  }
+
+  private async runPrompt(params: PromptRequest): Promise<PromptResponse> {
     this.session.cancelled = false;
     this.session.interruptReason = undefined;
     resetUsage(this.sessionState);
