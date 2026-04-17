@@ -7,6 +7,7 @@ import {
   useSessionForTask,
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
+import { SkillButtonActionMessage } from "@features/skill-buttons/components/SkillButtonActionMessage";
 import { ArrowDown, XCircle } from "@phosphor-icons/react";
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import type { AcpMessage } from "@shared/types/session-events";
@@ -167,6 +168,8 @@ export function ConversationView({
           );
         case "git_action":
           return <GitActionMessage actionType={item.actionType} />;
+        case "skill_button_action":
+          return <SkillButtonActionMessage buttonId={item.buttonId} />;
         case "session_update":
           return (
             <SessionUpdateRow

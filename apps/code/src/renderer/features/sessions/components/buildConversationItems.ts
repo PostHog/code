@@ -4,6 +4,10 @@ import type {
 } from "@agentclientprotocol/sdk";
 import type { QueuedMessage } from "@features/sessions/stores/sessionStore";
 import type { SessionUpdate, ToolCall } from "@features/sessions/types";
+import {
+  extractSkillButtonId,
+  type SkillButtonId,
+} from "@features/skill-buttons/prompts";
 import { isNotification, POSTHOG_NOTIFICATIONS } from "@posthog/agent";
 import {
   type AcpMessage,
@@ -34,6 +38,7 @@ export type ConversationItem =
       attachments?: UserMessageAttachment[];
     }
   | { type: "git_action"; id: string; actionType: GitActionType }
+  | { type: "skill_button_action"; id: string; buttonId: SkillButtonId }
   | {
       type: "session_update";
       id: string;
@@ -215,6 +220,7 @@ function handlePromptRequest(
   const turnId = `turn-${ts}-${msg.id}`;
   const toolCalls = new Map<string, ToolCall>();
   const gitAction = parseGitActionMessage(userContent);
+  const skillButtonId = extractSkillButtonId(userPrompt.blocks);
 
   const childItems = new Map<string, ConversationItem[]>();
   const context: TurnContext = {
@@ -242,6 +248,12 @@ function handlePromptRequest(
       type: "git_action",
       id: `${turnId}-git-action`,
       actionType: gitAction.actionType,
+    });
+  } else if (skillButtonId) {
+    b.items.push({
+      type: "skill_button_action",
+      id: `${turnId}-skill-action`,
+      buttonId: skillButtonId,
     });
   } else {
     b.items.push({
@@ -421,16 +433,17 @@ function ensureImplicitTurn(b: ItemBuilder, ts: number) {
 function extractUserPrompt(params: unknown): {
   content: string;
   attachments: UserMessageAttachment[];
+  blocks: ContentBlock[];
 } {
   const p = params as { prompt?: ContentBlock[] };
   if (!p?.prompt?.length) {
-    return { content: "", attachments: [] };
+    return { content: "", attachments: [], blocks: [] };
   }
 
   const { text, attachments } = extractPromptDisplayContent(p.prompt, {
     filterHidden: true,
   });
-  return { content: text, attachments };
+  return { content: text, attachments, blocks: p.prompt };
 }
 
 function getParentToolCallId(update: SessionUpdate): string | undefined {

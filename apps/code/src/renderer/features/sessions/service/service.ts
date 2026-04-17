@@ -32,6 +32,7 @@ import {
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { taskViewedApi } from "@features/sidebar/hooks/useTaskViewed";
+import { extractSkillButtonId } from "@features/skill-buttons/prompts";
 import { isNotification, POSTHOG_NOTIFICATIONS } from "@posthog/agent";
 import {
   getAvailableCodexModes,
@@ -1323,11 +1324,19 @@ export class SessionService {
       pausedDurationMs: 0,
     });
 
-    sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
-      type: "user_message",
-      content: promptText,
-      timestamp: Date.now(),
-    });
+    const skillButtonId = extractSkillButtonId(blocks);
+    if (skillButtonId) {
+      sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
+        type: "skill_button_action",
+        buttonId: skillButtonId,
+      });
+    } else {
+      sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
+        type: "user_message",
+        content: promptText,
+        timestamp: Date.now(),
+      });
+    }
 
     try {
       const result = await trpcClient.agent.prompt.mutate({
