@@ -1,3 +1,4 @@
+import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
 import { CloudGitInteractionHeader } from "@features/git-interaction/components/CloudGitInteractionHeader";
 import { GitInteractionHeader } from "@features/git-interaction/components/GitInteractionHeader";
 import { DiffStatsIndicator } from "@features/message-editor/components/DiffStatsIndicator";
@@ -107,6 +108,15 @@ export function HeaderRow() {
             borderLeft: "1px solid var(--gray-6)",
           }}
         >
+          {activeWorkspace?.baseBranch && (
+            <div className="no-drag min-w-0 max-w-[200px]">
+              <BranchSelector
+                repoPath={activeWorkspace?.folderPath ?? null}
+                currentBranch={activeWorkspace.baseBranch}
+                taskId={view.data.id}
+              />
+            </div>
+          )}
           <DiffStatsIndicator
             repoPath={
               activeWorkspace?.worktreePath ??

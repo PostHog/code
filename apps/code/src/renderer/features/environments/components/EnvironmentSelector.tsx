@@ -1,5 +1,5 @@
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
-import { HardDrives, Plus } from "@phosphor-icons/react";
+import { CaretDown, HardDrives, Plus } from "@phosphor-icons/react";
 import {
   Button,
   Combobox,
@@ -84,6 +84,11 @@ export function EnvironmentSelector({
             >
               <HardDrives size={14} weight="regular" className="shrink-0" />
               <span className="min-w-0 truncate">{displayText}</span>
+              <CaretDown
+                size={10}
+                weight="bold"
+                className="text-muted-foreground"
+              />
             </Button>
           }
         />

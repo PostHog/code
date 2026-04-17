@@ -1,7 +1,7 @@
 import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
 import { getSuggestedBranchName } from "@features/git-interaction/utils/getSuggestedBranchName";
 import { invalidateGitBranchQueries } from "@features/git-interaction/utils/gitCacheKeys";
-import { GitBranch, Plus, Spinner } from "@phosphor-icons/react";
+import { CaretDown, GitBranch, Plus, Spinner } from "@phosphor-icons/react";
 import {
   Button,
   Combobox,
@@ -52,7 +52,7 @@ export function BranchSelector({
   taskId,
 }: BranchSelectorProps) {
   const [open, setOpen] = useState(false);
-  const anchorRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<HTMLButtonElement>(null);
   const trpc = useTRPC();
   const { actions } = useGitInteractionStore();
 
@@ -143,27 +143,30 @@ export function BranchSelector({
       onOpenChange={(nextOpen) => handleOpenChange(nextOpen)}
       disabled={isDisabled}
     >
-      {/* Anchor wrapper — ComboboxContent positions relative to this */}
-      <div ref={anchorRef} className="inline-flex">
-        <ComboboxTrigger
-          render={
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isDisabled}
-              aria-label="Branch"
-              title={displayedBranch ?? undefined}
-            >
-              {showSpinner ? (
-                <Spinner size={14} className="shrink-0 animate-spin" />
-              ) : (
-                <GitBranch size={14} weight="regular" className="shrink-0" />
-              )}
-              <span className="min-w-0 truncate">{displayText}</span>
-            </Button>
-          }
-        />
-      </div>
+      <ComboboxTrigger
+        render={
+          <Button
+            ref={anchorRef}
+            variant="outline"
+            size="sm"
+            disabled={isDisabled}
+            aria-label="Branch"
+            title={displayedBranch ?? undefined}
+          >
+            {showSpinner ? (
+              <Spinner size={14} className="shrink-0 animate-spin" />
+            ) : (
+              <GitBranch size={14} weight="regular" className="shrink-0" />
+            )}
+            <span className="min-w-0 truncate">{displayText}</span>
+            <CaretDown
+              size={10}
+              weight="bold"
+              className="text-muted-foreground"
+            />
+          </Button>
+        }
+      />
       <ComboboxContent
         anchor={anchorRef}
         side="bottom"

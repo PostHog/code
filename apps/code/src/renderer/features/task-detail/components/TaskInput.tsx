@@ -26,6 +26,7 @@ import {
   useGithubBranches,
   useRepositoryIntegration,
 } from "@hooks/useIntegrations";
+import { ButtonGroup } from "@posthog/quill";
 import { Flex, Text } from "@radix-ui/themes";
 import { useAuthStore } from "@renderer/features/auth/stores/authStore";
 import { useDraftStore } from "@renderer/features/message-editor/stores/draftStore";
@@ -463,54 +464,12 @@ export function TaskInput({
             align="center"
             style={{ minWidth: 0, overflow: "hidden" }}
           >
-            {workspaceMode === "cloud" ? (
-              <GitHubRepoPicker
-                value={selectedRepository}
-                onChange={handleRepositorySelect}
-                repositories={repositories}
-                isLoading={isLoadingRepos}
-                placeholder="Select repository..."
-                size="1"
-                disabled={isCreatingTask}
-              />
-            ) : (
-              <FolderPicker
-                value={selectedDirectory}
-                onChange={setSelectedDirectory}
-                placeholder="Select repository..."
-                size="1"
-              />
-            )}
             <WorkspaceModeSelect
               value={workspaceMode}
               onChange={setWorkspaceMode}
               selectedCloudEnvironmentId={selectedCloudEnvId}
               onCloudEnvironmentChange={setSelectedCloudEnvId}
               size="1"
-            />
-            <BranchSelector
-              repoPath={
-                workspaceMode === "cloud"
-                  ? selectedCloudRepository
-                  : selectedDirectory
-              }
-              currentBranch={currentBranch}
-              defaultBranch={
-                workspaceMode === "cloud" ? cloudDefaultBranch : defaultBranch
-              }
-              disabled={
-                isCreatingTask ||
-                (workspaceMode === "cloud" && !selectedCloudRepository)
-              }
-              loading={branchLoading}
-              workspaceMode={workspaceMode}
-              selectedBranch={selectedBranch}
-              onBranchSelect={setSelectedBranch}
-              cloudBranches={cloudBranches}
-              cloudBranchesLoading={cloudBranchesLoading}
-              cloudBranchesFetchingMore={cloudBranchesFetchingMore}
-              onCloudPickerOpen={resumeCloudBranchesLoading}
-              onCloudBranchCommit={pauseCloudBranchesLoading}
             />
             {workspaceMode === "worktree" && (
               <EnvironmentSelector
@@ -520,6 +479,50 @@ export function TaskInput({
                 disabled={isCreatingTask}
               />
             )}
+            <ButtonGroup>
+              {workspaceMode === "cloud" ? (
+                <GitHubRepoPicker
+                  value={selectedRepository}
+                  onChange={handleRepositorySelect}
+                  repositories={repositories}
+                  isLoading={isLoadingRepos}
+                  placeholder="Select repository..."
+                  size="1"
+                  disabled={isCreatingTask}
+                />
+              ) : (
+                <FolderPicker
+                  value={selectedDirectory}
+                  onChange={setSelectedDirectory}
+                  placeholder="Select repository..."
+                  size="1"
+                />
+              )}
+              <BranchSelector
+                repoPath={
+                  workspaceMode === "cloud"
+                    ? selectedCloudRepository
+                    : selectedDirectory
+                }
+                currentBranch={currentBranch}
+                defaultBranch={
+                  workspaceMode === "cloud" ? cloudDefaultBranch : defaultBranch
+                }
+                disabled={
+                  isCreatingTask ||
+                  (workspaceMode === "cloud" && !selectedCloudRepository)
+                }
+                loading={branchLoading}
+                workspaceMode={workspaceMode}
+                selectedBranch={selectedBranch}
+                onBranchSelect={setSelectedBranch}
+                cloudBranches={cloudBranches}
+                cloudBranchesLoading={cloudBranchesLoading}
+                cloudBranchesFetchingMore={cloudBranchesFetchingMore}
+                onCloudPickerOpen={resumeCloudBranchesLoading}
+                onCloudBranchCommit={pauseCloudBranchesLoading}
+              />
+            </ButtonGroup>
             {cloudRegion === "dev" && (
               <Flex align="center" gap="1" className="shrink-0">
                 <span
