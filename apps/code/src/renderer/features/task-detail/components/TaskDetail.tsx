@@ -18,7 +18,7 @@ import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { useBlurOnEscape } from "@hooks/useBlurOnEscape";
 import { useFileWatcher } from "@hooks/useFileWatcher";
 import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
-import { Box, Flex, Text } from "@radix-ui/themes";
+import { Box, Flex, Text, Tooltip } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
@@ -139,15 +139,17 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
             onCancel={handleTitleEditCancel}
           />
         ) : (
-          <Text
-            size="1"
-            weight="medium"
-            truncate
-            className="no-drag min-w-0"
-            onDoubleClick={() => setIsEditingTitle(true)}
-          >
-            {task.title}
-          </Text>
+          <Tooltip content={task.title} side="bottom" delayDuration={300}>
+            <Text
+              size="1"
+              weight="medium"
+              truncate
+              className="no-drag min-w-0"
+              onDoubleClick={() => setIsEditingTitle(true)}
+            >
+              {task.title}
+            </Text>
+          </Tooltip>
         )}
         {openTargetPath && (
           <Flex align="center" gap="2" className="shrink-0">
