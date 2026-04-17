@@ -1,5 +1,5 @@
 import { isSupportedReasoningEffort } from "@posthog/agent/adapters/reasoning-effort";
-import { type PermissionMode } from "@posthog/agent/execution-mode";
+import type { PermissionMode } from "@posthog/agent/execution-mode";
 import type {
   ActionabilityJudgmentArtefact,
   AvailableSuggestedReviewer,
@@ -24,10 +24,28 @@ import type {
   TaskRun,
 } from "@shared/types";
 import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
+import type { SeatData } from "@shared/types/seat";
+import { SEAT_PRODUCT_KEY } from "@shared/types/seat";
 import type { StoredLogEntry } from "@shared/types/session-events";
 import { logger } from "@utils/logger";
 import { buildApiFetcher } from "./fetcher";
 import { createApiClient, type Schemas } from "./generated";
+
+export class SeatSubscriptionRequiredError extends Error {
+  redirectUrl: string;
+  constructor(redirectUrl: string) {
+    super("Billing subscription required");
+    this.name = "SeatSubscriptionRequiredError";
+    this.redirectUrl = redirectUrl;
+  }
+}
+
+export class SeatPaymentFailedError extends Error {
+  constructor(message?: string) {
+    super(message ?? "Payment failed");
+    this.name = "SeatPaymentFailedError";
+  }
+}
 
 const log = logger.scope("posthog-client");
 
@@ -1178,39 +1196,6 @@ export class PostHogAPIClient {
     return await response.json();
   }
 
-  /**
-   * Get billing information for a specific organization.
-   */
-  async getOrgBilling(orgId: string): Promise<{
-    has_active_subscription: boolean;
-    customer_id: string | null;
-  }> {
-    const url = new URL(
-      `${this.api.baseUrl}/api/organizations/${orgId}/billing/`,
-    );
-    const response = await this.api.fetcher.fetch({
-      method: "get",
-      url,
-      path: `/api/organizations/${orgId}/billing/`,
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch organization billing: ${response.statusText}`,
-      );
-    }
-
-    const data = await response.json();
-    return {
-      has_active_subscription:
-        typeof data.has_active_subscription === "boolean"
-          ? data.has_active_subscription
-          : false,
-      customer_id:
-        typeof data.customer_id === "string" ? data.customer_id : null,
-    };
-  }
-
   async getSignalReports(
     params?: SignalReportsQueryParams,
   ): Promise<SignalReportsResponse> {
@@ -1739,6 +1724,145 @@ export class PostHogAPIClient {
     if (!response.ok && response.status !== 204) {
       throw new Error(`Failed to uninstall MCP server: ${response.statusText}`);
     }
+  }
+
+  async getMySeat(): Promise<SeatData | null> {
+    try {
+      const url = new URL(`${this.api.baseUrl}/api/seats/me/`);
+      url.searchParams.set("product_key", SEAT_PRODUCT_KEY);
+      const response = await this.api.fetcher.fetch({
+        method: "get",
+        url,
+        path: "/api/seats/me/",
+      });
+      return (await response.json()) as SeatData;
+    } catch (error) {
+      if (this.isFetcherStatusError(error, 404)) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async createSeat(planKey: string): Promise<SeatData> {
+    try {
+      const user = await this.getCurrentUser();
+      const distinctId = user.distinct_id;
+      if (!distinctId) {
+        throw new Error("Cannot create seat: user has no distinct_id");
+      }
+      const url = new URL(`${this.api.baseUrl}/api/seats/`);
+      const response = await this.api.fetcher.fetch({
+        method: "post",
+        url,
+        path: "/api/seats/",
+        overrides: {
+          body: JSON.stringify({
+            product_key: SEAT_PRODUCT_KEY,
+            plan_key: planKey,
+            user_distinct_id: distinctId,
+          }),
+        },
+      });
+      return (await response.json()) as SeatData;
+    } catch (error) {
+      this.throwSeatError(error);
+    }
+  }
+
+  async upgradeSeat(planKey: string): Promise<SeatData> {
+    try {
+      const url = new URL(`${this.api.baseUrl}/api/seats/me/`);
+      const response = await this.api.fetcher.fetch({
+        method: "patch",
+        url,
+        path: "/api/seats/me/",
+        overrides: {
+          body: JSON.stringify({
+            product_key: SEAT_PRODUCT_KEY,
+            plan_key: planKey,
+          }),
+        },
+      });
+      return (await response.json()) as SeatData;
+    } catch (error) {
+      this.throwSeatError(error);
+    }
+  }
+
+  async cancelSeat(): Promise<void> {
+    try {
+      const url = new URL(`${this.api.baseUrl}/api/seats/me/`);
+      url.searchParams.set("product_key", SEAT_PRODUCT_KEY);
+      await this.api.fetcher.fetch({
+        method: "delete",
+        url,
+        path: "/api/seats/me/",
+      });
+    } catch (error) {
+      if (this.isFetcherStatusError(error, 204)) {
+        return;
+      }
+      this.throwSeatError(error);
+    }
+  }
+
+  async reactivateSeat(): Promise<SeatData> {
+    try {
+      const url = new URL(`${this.api.baseUrl}/api/seats/me/reactivate/`);
+      const response = await this.api.fetcher.fetch({
+        method: "post",
+        url,
+        path: "/api/seats/me/reactivate/",
+        overrides: {
+          body: JSON.stringify({ product_key: SEAT_PRODUCT_KEY }),
+        },
+      });
+      return (await response.json()) as SeatData;
+    } catch (error) {
+      this.throwSeatError(error);
+    }
+  }
+
+  private isFetcherStatusError(error: unknown, status: number): boolean {
+    return error instanceof Error && error.message.includes(`[${status}]`);
+  }
+
+  private parseFetcherError(error: unknown): {
+    status: number;
+    body: Record<string, unknown>;
+  } | null {
+    if (!(error instanceof Error)) return null;
+    const match = error.message.match(/\[(\d+)\]\s*(.*)/);
+    if (!match) return null;
+    try {
+      return {
+        status: Number.parseInt(match[1], 10),
+        body: JSON.parse(match[2]) as Record<string, unknown>,
+      };
+    } catch {
+      return { status: Number.parseInt(match[1], 10), body: {} };
+    }
+  }
+
+  private throwSeatError(error: unknown): never {
+    const parsed = this.parseFetcherError(error);
+
+    if (parsed) {
+      if (
+        parsed.status === 400 &&
+        typeof parsed.body.redirect_url === "string"
+      ) {
+        throw new SeatSubscriptionRequiredError(parsed.body.redirect_url);
+      }
+      if (parsed.status === 402) {
+        const message =
+          typeof parsed.body.error === "string" ? parsed.body.error : undefined;
+        throw new SeatPaymentFailedError(message);
+      }
+    }
+
+    throw error;
   }
 
   /**

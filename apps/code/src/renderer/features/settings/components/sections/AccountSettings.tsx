@@ -4,24 +4,23 @@ import {
   useAuthStateValue,
   useCurrentUser,
 } from "@features/auth/hooks/authQueries";
-import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
-import { SettingRow } from "@features/settings/components/SettingRow";
+import { useSeat } from "@hooks/useSeat";
 import { SignOut } from "@phosphor-icons/react";
 import { Avatar, Badge, Button, Flex, Spinner, Text } from "@radix-ui/themes";
-import { REGION_LABELS } from "@shared/constants/oauth";
+import { REGION_LABELS } from "@shared/types/regions";
 
 export function AccountSettings() {
   const isAuthenticated = useAuthStateValue(
     (state) => state.status === "authenticated",
   );
   const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
-  const selectedPlan = useOnboardingStore((state) => state.selectedPlan);
   const logoutMutation = useLogoutMutation();
   const client = useOptionalAuthenticatedClient();
   const { data: user, isLoading } = useCurrentUser({
     client,
     enabled: isAuthenticated,
   });
+  const { seat, isPro, planLabel } = useSeat();
 
   const handleLogout = () => {
     logoutMutation.mutate();
@@ -53,12 +52,7 @@ export function AccountSettings() {
 
   return (
     <Flex direction="column">
-      <Flex
-        align="center"
-        gap="4"
-        py="4"
-        style={{ borderBottom: "1px solid var(--gray-5)" }}
-      >
+      <Flex align="center" gap="4" py="4">
         <Avatar size="4" fallback={initials} radius="full" color="amber" />
         <Flex direction="column" gap="1" style={{ flex: 1 }}>
           <Text size="3" weight="medium">
@@ -75,13 +69,9 @@ export function AccountSettings() {
                 {REGION_LABELS[cloudRegion]}
               </Badge>
             )}
-            {selectedPlan && (
-              <Badge
-                size="1"
-                variant="soft"
-                color={selectedPlan === "pro" ? "orange" : "gray"}
-              >
-                {selectedPlan === "pro" ? "Pro" : "Free"}
+            {seat && (
+              <Badge size="1" variant="soft" color={isPro ? "orange" : "gray"}>
+                {planLabel}
               </Badge>
             )}
           </Flex>
@@ -97,20 +87,6 @@ export function AccountSettings() {
           Sign out
         </Button>
       </Flex>
-
-      <SettingRow
-        label="Plan"
-        description="Your current subscription plan"
-        noBorder
-      >
-        <Badge
-          size="2"
-          variant="soft"
-          color={selectedPlan === "pro" ? "orange" : "gray"}
-        >
-          {selectedPlan === "pro" ? "Pro — $200/mo" : "Free"}
-        </Badge>
-      </SettingRow>
     </Flex>
   );
 }

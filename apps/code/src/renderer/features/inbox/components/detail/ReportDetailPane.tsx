@@ -33,7 +33,6 @@ import {
   Text,
   Tooltip,
 } from "@radix-ui/themes";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type {
   ActionabilityJudgmentArtefact,
   ActionabilityJudgmentContent,
@@ -45,6 +44,7 @@ import type {
   SuggestedReviewer,
   SuggestedReviewersArtefact,
 } from "@shared/types";
+import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { useNavigationStore } from "@stores/navigationStore";
 import {
   type ReactNode,

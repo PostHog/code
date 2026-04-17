@@ -1,6 +1,10 @@
 import { container } from "../../di/container";
 import { MAIN_TOKENS } from "../../di/tokens";
-import { promptInput, promptOutput } from "../../services/llm-gateway/schemas";
+import {
+  promptInput,
+  promptOutput,
+  usageOutput,
+} from "../../services/llm-gateway/schemas";
 import type { LlmGatewayService } from "../../services/llm-gateway/service";
 import { publicProcedure, router } from "../trpc";
 
@@ -18,4 +22,8 @@ export const llmGatewayRouter = router({
         model: input.model,
       }),
     ),
+
+  usage: publicProcedure
+    .output(usageOutput)
+    .query(() => getService().fetchUsage()),
 });

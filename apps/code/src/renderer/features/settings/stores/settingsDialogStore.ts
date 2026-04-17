@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 export type SettingsCategory =
   | "general"
-  | "account"
+  | "plan-usage"
   | "workspaces"
   | "worktrees"
   | "environments"

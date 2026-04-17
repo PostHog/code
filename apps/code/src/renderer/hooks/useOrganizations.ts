@@ -5,49 +5,24 @@ import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { useMemo } from "react";
 
-export interface OrgWithBilling {
+export interface OrgInfo {
   id: string;
   name: string;
   slug: string;
-  has_active_subscription: boolean;
-  customer_id: string | null;
 }
 
 const organizationKeys = {
   all: ["organizations"] as const,
-  withBilling: () => [...organizationKeys.all, "withBilling"] as const,
+  list: () => [...organizationKeys.all, "list"] as const,
 };
 
-async function fetchOrgsWithBilling(
-  client: PostHogAPIClient,
-): Promise<OrgWithBilling[]> {
-  // Get orgs from the @me endpoint (currentUser.organizations)
-  // instead of /api/organizations/ which requires higher privileges
+async function fetchOrgs(client: PostHogAPIClient): Promise<OrgInfo[]> {
   const user = await client.getCurrentUser();
-  const orgs: Array<{ id: string; name: string; slug: string }> = (
-    user.organizations ?? []
-  ).map((org: { id: string; name: string; slug: string }) => ({
-    id: org.id,
-    name: org.name,
-    slug: org.slug,
-  }));
-
-  return Promise.all(
-    orgs.map(async (org) => {
-      try {
-        const billing = await client.getOrgBilling(org.id);
-        return {
-          ...org,
-          has_active_subscription: billing.has_active_subscription,
-          customer_id: billing.customer_id,
-        };
-      } catch {
-        return {
-          ...org,
-          has_active_subscription: false,
-          customer_id: null,
-        };
-      }
+  return (user.organizations ?? []).map(
+    (org: { id: string; name: string; slug: string }) => ({
+      id: org.id,
+      name: org.name,
+      slug: org.slug,
     }),
   );
 }
@@ -58,42 +33,33 @@ export function useOrganizations() {
   const { data: currentUser } = useCurrentUser({ client });
 
   const {
-    data: orgsWithBilling,
+    data: orgs,
     isLoading,
     error,
   } = useAuthenticatedQuery(
-    organizationKeys.withBilling(),
-    (client) => fetchOrgsWithBilling(client),
+    organizationKeys.list(),
+    (client) => fetchOrgs(client),
     { staleTime: 5 * 60 * 1000 },
   );
 
   const effectiveSelectedOrgId = useMemo(() => {
     if (selectedOrgId) return selectedOrgId;
-    if (!orgsWithBilling?.length) return null;
+    if (!orgs?.length) return null;
 
-    // Default to the user's currently active org in PostHog
     const userCurrentOrgId = currentUser?.organization?.id;
-    if (
-      userCurrentOrgId &&
-      orgsWithBilling.some((org) => org.id === userCurrentOrgId)
-    ) {
+    if (userCurrentOrgId && orgs.some((org) => org.id === userCurrentOrgId)) {
       return userCurrentOrgId;
     }
 
-    const withBilling = orgsWithBilling.find(
-      (org) => org.has_active_subscription,
-    );
-    return (withBilling ?? orgsWithBilling[0]).id;
-  }, [currentUser?.organization?.id, orgsWithBilling, selectedOrgId]);
+    return orgs[0].id;
+  }, [currentUser?.organization?.id, orgs, selectedOrgId]);
 
   const sortedOrgs = useMemo(() => {
-    return [...(orgsWithBilling ?? [])].sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
-  }, [orgsWithBilling]);
+    return [...(orgs ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+  }, [orgs]);
 
   return {
-    orgsWithBilling: sortedOrgs,
+    orgs: sortedOrgs,
     effectiveSelectedOrgId,
     isLoading,
     error,

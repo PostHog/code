@@ -1,6 +1,6 @@
 import { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { trpcClient } from "@renderer/trpc/client";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { useMemo } from "react";
 import {
   type AuthState,

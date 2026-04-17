@@ -1,29 +1,11 @@
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
-import { useFeatureFlag } from "@hooks/useFeatureFlag";
-import { useEffect, useMemo } from "react";
 import { ONBOARDING_STEPS, type OnboardingStep } from "../types";
 
 export function useOnboardingFlow() {
   const currentStep = useOnboardingStore((state) => state.currentStep);
   const setCurrentStep = useOnboardingStore((state) => state.setCurrentStep);
-  const billingEnabled = useFeatureFlag("twig-billing", false);
 
-  // Show billing onboarding steps only when billing is enabled
-  const activeSteps = useMemo(() => {
-    if (billingEnabled) {
-      return ONBOARDING_STEPS;
-    }
-    return ONBOARDING_STEPS.filter(
-      (step) => step !== "billing" && step !== "org-billing",
-    );
-  }, [billingEnabled]);
-
-  // Reset to first step if current step is no longer in active steps
-  useEffect(() => {
-    if (!activeSteps.includes(currentStep)) {
-      setCurrentStep(activeSteps[0]);
-    }
-  }, [activeSteps, currentStep, setCurrentStep]);
+  const activeSteps = ONBOARDING_STEPS;
 
   const currentIndex = activeSteps.indexOf(currentStep);
   const isFirstStep = currentIndex === 0;

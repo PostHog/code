@@ -7,8 +7,8 @@ import {
   InfoIcon,
 } from "@phosphor-icons/react";
 import { trpcClient } from "@renderer/trpc/client";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
-import type { CloudRegion } from "@shared/types/oauth";
+import type { CloudRegion } from "@shared/types/regions";
+import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { queryClient } from "@utils/queryClient";
 import { useEffect, useRef } from "react";
 

@@ -1,4 +1,4 @@
-import type { CloudRegion } from "../types/oauth";
+import type { CloudRegion } from "@shared/types/regions";
 
 export const POSTHOG_US_CLIENT_ID = "HCWoE0aRFMYxIxFNTTwkOORn5LBjOt2GVDzwSw5W";
 export const POSTHOG_EU_CLIENT_ID = "AIvijgMS0dxKEmr5z6odvRd8Pkh5vts3nPTzgzU9";
@@ -9,26 +9,9 @@ export const OAUTH_SCOPES = ["*"];
 
 export const OAUTH_SCOPE_VERSION = 4;
 
-export const REGION_LABELS: Record<CloudRegion, string> = {
-  us: "🇺🇸 US Cloud",
-  eu: "🇪🇺 EU Cloud",
-  dev: "🛠️ Development",
-};
-
 // Token refresh settings
 export const TOKEN_REFRESH_BUFFER_MS = 30 * 60 * 1000; // 30 minutes before expiry
 export const TOKEN_REFRESH_FORCE_MS = 60 * 1000; // Force refresh when <1 min to expiry, even with active sessions
-
-export function getCloudUrlFromRegion(region: CloudRegion): string {
-  switch (region) {
-    case "us":
-      return "https://us.posthog.com";
-    case "eu":
-      return "https://eu.posthog.com";
-    case "dev":
-      return "http://localhost:8010";
-  }
-}
 
 export function getOauthClientIdFromRegion(region: CloudRegion): string {
   switch (region) {

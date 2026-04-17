@@ -2,10 +2,10 @@ import * as crypto from "node:crypto";
 import * as http from "node:http";
 import type { Socket } from "node:net";
 import {
-  getCloudUrlFromRegion,
   getOauthClientIdFromRegion,
   OAUTH_SCOPES,
 } from "@shared/constants/oauth";
+import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { shell } from "electron";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";

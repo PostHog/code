@@ -7,9 +7,8 @@ import { Button, Flex, Theme } from "@radix-ui/themes";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 
 import { useOnboardingFlow } from "../hooks/useOnboardingFlow";
-import { BillingStep } from "./BillingStep";
 import { GitIntegrationStep } from "./GitIntegrationStep";
-import { OrgBillingStep } from "./OrgBillingStep";
+import { OrgStep } from "./OrgStep";
 import { SignalsStep } from "./SignalsStep";
 import { StepIndicator } from "./StepIndicator";
 import { TutorialStep } from "./TutorialStep";
@@ -98,29 +97,16 @@ export function OnboardingFlow() {
                       </motion.div>
                     )}
 
-                    {currentStep === "billing" && (
+                    {currentStep === "org" && (
                       <motion.div
-                        key="billing"
+                        key="org"
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         transition={{ duration: 0.3 }}
                         style={{ width: "100%", flex: 1, minHeight: 0 }}
                       >
-                        <BillingStep onNext={next} onBack={back} />
-                      </motion.div>
-                    )}
-
-                    {currentStep === "org-billing" && (
-                      <motion.div
-                        key="org-billing"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.3 }}
-                        style={{ width: "100%", flex: 1, minHeight: 0 }}
-                      >
-                        <OrgBillingStep onNext={next} onBack={back} />
+                        <OrgStep onNext={next} onBack={back} />
                       </motion.div>
                     )}
 

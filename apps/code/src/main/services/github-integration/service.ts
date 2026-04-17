@@ -1,4 +1,4 @@
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { shell } from "electron";
 import { injectable } from "inversify";
 import { logger } from "../../utils/logger";

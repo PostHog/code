@@ -1,8 +1,8 @@
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { trpcClient } from "@renderer/trpc/client";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
 import type { Task } from "@shared/types";
+import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { useEffect } from "react";

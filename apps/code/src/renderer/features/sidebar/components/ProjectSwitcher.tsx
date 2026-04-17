@@ -20,7 +20,7 @@ import {
 } from "@phosphor-icons/react";
 import { Box, Dialog, Flex, Text } from "@radix-ui/themes";
 import { trpcClient } from "@renderer/trpc/client";
-import { getCloudUrlFromRegion } from "@shared/constants/oauth";
+import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { isMac } from "@utils/platform";
 import { useState } from "react";
 import "./ProjectSwitcher.css";

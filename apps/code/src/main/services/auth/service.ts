@@ -1,9 +1,7 @@
-import {
-  getCloudUrlFromRegion,
-  OAUTH_SCOPE_VERSION,
-} from "@shared/constants/oauth";
-import type { CloudRegion } from "@shared/types/oauth";
+import { OAUTH_SCOPE_VERSION } from "@shared/constants/oauth";
+import type { CloudRegion } from "@shared/types/regions";
 import { type BackoffOptions, sleepWithBackoff } from "@shared/utils/backoff";
+import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { powerMonitor } from "electron";
 import { inject, injectable, postConstruct, preDestroy } from "inversify";
 import type { IAuthPreferenceRepository } from "../../db/repositories/auth-preference-repository";

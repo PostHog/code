@@ -1,5 +1,6 @@
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { SettingRow } from "@features/settings/components/SettingRow";
+import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { Button, Flex, Switch } from "@radix-ui/themes";
@@ -22,7 +23,10 @@ export function AdvancedSettings() {
         <Button
           variant="soft"
           size="1"
-          onClick={() => useOnboardingStore.getState().resetOnboarding()}
+          onClick={() => {
+            useSettingsDialogStore.getState().close();
+            useOnboardingStore.getState().resetOnboarding();
+          }}
         >
           Reset
         </Button>

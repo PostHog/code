@@ -1,6 +1,6 @@
 import { Flex, Select, Text } from "@radix-ui/themes";
 import { IS_DEV } from "@shared/constants/environment";
-import type { CloudRegion } from "@shared/types/oauth";
+import type { CloudRegion } from "@shared/types/regions";
 import { useState } from "react";
 
 interface RegionSelectProps {
