@@ -5,6 +5,7 @@ import {
   TicketIcon,
 } from "@phosphor-icons/react";
 import { Box, Button, Flex, Spinner, Switch, Text } from "@radix-ui/themes";
+import type { SignalSourceConfig } from "@renderer/api/posthogClient";
 import { memo, useCallback } from "react";
 
 export interface SignalSourceValues {
