@@ -118,7 +118,7 @@ export function ModeSelector({
         align="start"
         side="top"
         sideOffset={6}
-        className="min-w-[200px]"
+        className={allowBypassPermissions ? "min-w-[220px]" : "min-w-[200px]"}
       >
         <MenuLabel>Mode</MenuLabel>
         <DropdownMenuRadioGroup value={currentValue} onValueChange={onChange}>
