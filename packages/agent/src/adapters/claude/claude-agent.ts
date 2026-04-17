@@ -682,16 +682,31 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     method: string,
     params: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
-    if (isMethod(method, POSTHOG_METHODS.REFRESH_SESSION)) {
-      if (params.mcpServers !== undefined) {
-        const mcpServers = parseMcpServers(
-          params as Pick<NewSessionRequest, "mcpServers">,
-        );
-        await this.refreshSession(mcpServers);
-      }
-      return { refreshed: true };
+    if (!isMethod(method, POSTHOG_METHODS.REFRESH_SESSION)) {
+      throw RequestError.methodNotFound(method);
     }
-    throw RequestError.methodNotFound(method);
+
+    // Trust boundary: refresh is only safe when the caller is trusted infra
+    // (e.g. the sandbox agent-server). Do not route this method from
+    // untrusted clients — parseMcpServers does no URL/command validation.
+    if (params.mcpServers === undefined) {
+      throw new RequestError(
+        -32602,
+        "refresh_session requires at least one refreshable field (e.g. mcpServers)",
+      );
+    }
+    if (!Array.isArray(params.mcpServers)) {
+      throw new RequestError(
+        -32602,
+        "refresh_session: mcpServers must be an array",
+      );
+    }
+
+    const mcpServers = parseMcpServers(
+      params as Pick<NewSessionRequest, "mcpServers">,
+    );
+    await this.refreshSession(mcpServers);
+    return { refreshed: true };
   }
 
   private async refreshSession(
@@ -704,24 +719,38 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         "Cannot refresh session while a prompt turn is in flight",
       );
     }
+    if (prev.modelId && !supportsMcpInjection(prev.modelId)) {
+      throw new RequestError(
+        -32002,
+        `Model ${prev.modelId} does not support MCP injection; cannot refresh`,
+      );
+    }
 
     this.logger.info("Refreshing session with fresh MCP servers", {
       serverCount: Object.keys(mcpServers).length,
       sessionId: this.sessionId,
     });
 
+    // Abort FIRST so any stuck in-flight HTTP request unblocks — otherwise
+    // interrupt() can deadlock waiting on an API call that never returns.
+    // We allocate a fresh controller for the new Query below so aborting
+    // the old one doesn't poison it.
+    prev.abortController.abort();
     await prev.query.interrupt();
     prev.input.end();
 
-    // Reuse every option from the running session; swap mcpServers and
-    // re-root identity on `resume` instead of `sessionId`.
+    // Reuse every option from the running session; swap mcpServers, re-root
+    // identity on `resume` instead of `sessionId`, and give the new Query a
+    // fresh AbortController.
+    const newAbortController = new AbortController();
+    const { sessionId: _drop, ...rest } = prev.queryOptions;
     const newOptions: Options = {
-      ...prev.queryOptions,
+      ...rest,
       mcpServers,
       resume: this.sessionId,
       forkSession: false,
+      abortController: newAbortController,
     };
-    delete (newOptions as { sessionId?: string }).sessionId;
 
     const newInput = new Pushable<SDKUserMessage>();
     const newQuery = query({ prompt: newInput, options: newOptions });
@@ -729,6 +758,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     prev.query = newQuery;
     prev.input = newInput;
     prev.queryOptions = newOptions;
+    prev.abortController = newAbortController;
 
     const result = await withTimeout(
       newQuery.initializationResult(),
