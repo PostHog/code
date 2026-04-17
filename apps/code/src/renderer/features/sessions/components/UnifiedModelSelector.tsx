@@ -111,12 +111,7 @@ export function UnifiedModelSelector({
         sideOffset={6}
         className="min-w-[220px]"
       >
-        <MenuLabel>
-          <span className="flex items-center gap-1">
-            {ADAPTER_ICONS[adapter]}
-            {ADAPTER_LABELS[adapter]}
-          </span>
-        </MenuLabel>
+        <MenuLabel>{ADAPTER_LABELS[adapter]}</MenuLabel>
         <DropdownMenuRadioGroup
           value={currentValue ?? ""}
           onValueChange={(value) => onModelChange?.(value)}

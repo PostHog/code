@@ -106,17 +106,29 @@ export function HeaderRow() {
           style={{
             height: "100%",
             borderLeft: "1px solid var(--gray-6)",
+            flexShrink: 0,
+            maxWidth: "50%",
+            overflow: "hidden",
           }}
         >
-          {activeWorkspace?.baseBranch && (
-            <div className="no-drag min-w-0 max-w-[200px]">
-              <BranchSelector
-                repoPath={activeWorkspace?.folderPath ?? null}
-                currentBranch={activeWorkspace.baseBranch}
-                taskId={view.data.id}
-              />
-            </div>
-          )}
+          {activeWorkspace &&
+            (activeWorkspace.branchName || activeWorkspace.baseBranch) && (
+              <div className="no-drag flex h-full min-w-0 items-center">
+                <BranchSelector
+                  repoPath={
+                    activeWorkspace.worktreePath ??
+                    activeWorkspace.folderPath ??
+                    null
+                  }
+                  currentBranch={
+                    activeWorkspace.branchName ??
+                    activeWorkspace.baseBranch ??
+                    null
+                  }
+                  taskId={view.data.id}
+                />
+              </div>
+            )}
           <DiffStatsIndicator
             repoPath={
               activeWorkspace?.worktreePath ??
