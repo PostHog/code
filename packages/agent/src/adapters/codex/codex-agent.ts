@@ -93,6 +93,24 @@ function toCodexPermissionMode(mode?: string): PermissionMode {
   return "auto";
 }
 
+/**
+ * Prepend `_meta.prContext` (set by the agent-server on Slack-originated
+ * follow-up runs) to the prompt as a text block, mirroring Claude's
+ * `promptToClaude` behavior. Without this, codex cloud runs lose the
+ * PR-review context that follow-up flows rely on.
+ */
+function prependPrContext(params: PromptRequest): PromptRequest {
+  const prContext = (params._meta as Record<string, unknown> | undefined)
+    ?.prContext;
+  if (typeof prContext !== "string" || prContext.length === 0) {
+    return params;
+  }
+  return {
+    ...params,
+    prompt: [{ type: "text", text: prContext }, ...params.prompt],
+  };
+}
+
 const CODEX_NATIVE_MODE: Record<CodeExecutionMode, CodexNativeMode> = {
   default: "auto",
   acceptEdits: "auto",
@@ -373,9 +391,13 @@ export class CodexAcpAgent extends BaseAcpAgent {
     // channel, so without this broadcast the tapped stream (persisted to S3
     // and rendered by the PostHog web UI) never sees a user turn and only
     // the assistant reply shows up. Mirrors ClaudeAcpAgent.broadcastUserMessage.
+    // The original params (no _meta.prContext prefix) is broadcast so the
+    // injected PR context is not rendered as a user message.
     await this.broadcastUserMessage(params);
 
-    const response = await this.codexConnection.prompt(params);
+    const response = await this.codexConnection.prompt(
+      prependPrContext(params),
+    );
 
     // Usage is already accumulated via sessionUpdate notifications in
     // codex-client.ts. Do NOT also add response.usage here or tokens

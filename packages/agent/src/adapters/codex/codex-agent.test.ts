@@ -127,6 +127,46 @@ describe("CodexAcpAgent", () => {
     ).toBe("read-only");
   });
 
+  it("prepends _meta.prContext to the forwarded prompt but not to the broadcast", async () => {
+    const { agent, client } = createAgent();
+    mockCodexConnection.newSession.mockResolvedValue({
+      sessionId: "session-1",
+      modes: { currentModeId: "auto", availableModes: [] },
+      configOptions: [],
+    } satisfies Partial<NewSessionResponse>);
+    await agent.newSession({
+      cwd: process.cwd(),
+    } as never);
+
+    mockCodexConnection.prompt.mockResolvedValue({ stopReason: "end_turn" });
+
+    await agent.prompt({
+      sessionId: "session-1",
+      prompt: [{ type: "text", text: "ship the fix" }],
+      _meta: { prContext: "PR #123 is open; review before editing." },
+    } as never);
+
+    // codex-acp receives the PR context prepended as a text block.
+    expect(mockCodexConnection.prompt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: [
+          { type: "text", text: "PR #123 is open; review before editing." },
+          { type: "text", text: "ship the fix" },
+        ],
+      }),
+    );
+    // The broadcast shows only the real user turn — the prContext prefix
+    // is internal routing and should not render as a user message.
+    expect(client.sessionUpdate).toHaveBeenCalledTimes(1);
+    expect(client.sessionUpdate).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      update: {
+        sessionUpdate: "user_message_chunk",
+        content: { type: "text", text: "ship the fix" },
+      },
+    });
+  });
+
   it("broadcasts user prompt as user_message_chunk before delegating to codex-acp", async () => {
     const { agent, client } = createAgent();
     // Seed an active session so prompt() has the state it expects.
