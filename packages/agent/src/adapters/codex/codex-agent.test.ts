@@ -60,20 +60,32 @@ describe("CodexAcpAgent", () => {
     vi.clearAllMocks();
   });
 
-  function createAgent(): CodexAcpAgent {
+  function createAgent(overrides: Partial<AgentSideConnection> = {}): {
+    agent: CodexAcpAgent;
+    client: AgentSideConnection & {
+      extNotification: ReturnType<typeof vi.fn>;
+      sessionUpdate: ReturnType<typeof vi.fn>;
+    };
+  } {
     const client = {
       extNotification: vi.fn(),
-    } as unknown as AgentSideConnection;
+      sessionUpdate: vi.fn(),
+      ...overrides,
+    } as unknown as AgentSideConnection & {
+      extNotification: ReturnType<typeof vi.fn>;
+      sessionUpdate: ReturnType<typeof vi.fn>;
+    };
 
-    return new CodexAcpAgent(client, {
+    const agent = new CodexAcpAgent(client, {
       codexProcessOptions: {
         cwd: process.cwd(),
       },
     });
+    return { agent, client };
   }
 
   it("applies the requested initial mode for a new session", async () => {
-    const agent = createAgent();
+    const { agent } = createAgent();
     mockCodexConnection.newSession.mockResolvedValue({
       sessionId: "session-1",
       modes: { currentModeId: "auto", availableModes: [] },
@@ -96,7 +108,7 @@ describe("CodexAcpAgent", () => {
   });
 
   it("preserves the live session mode when loading an existing session", async () => {
-    const agent = createAgent();
+    const { agent } = createAgent();
     mockCodexConnection.loadSession.mockResolvedValue({
       modes: { currentModeId: "read-only", availableModes: [] },
       configOptions: [],
@@ -113,5 +125,54 @@ describe("CodexAcpAgent", () => {
       (agent as unknown as { sessionState: { permissionMode: string } })
         .sessionState.permissionMode,
     ).toBe("read-only");
+  });
+
+  it("broadcasts user prompt as user_message_chunk before delegating to codex-acp", async () => {
+    const { agent, client } = createAgent();
+    // Seed an active session so prompt() has the state it expects.
+    mockCodexConnection.newSession.mockResolvedValue({
+      sessionId: "session-1",
+      modes: { currentModeId: "auto", availableModes: [] },
+      configOptions: [],
+    } satisfies Partial<NewSessionResponse>);
+    await agent.newSession({
+      cwd: process.cwd(),
+    } as never);
+
+    const callOrder: string[] = [];
+    client.sessionUpdate.mockImplementation(async () => {
+      callOrder.push("sessionUpdate");
+    });
+    mockCodexConnection.prompt.mockImplementation(async () => {
+      callOrder.push("prompt");
+      return { stopReason: "end_turn" };
+    });
+
+    await agent.prompt({
+      sessionId: "session-1",
+      prompt: [
+        { type: "text", text: "first chunk" },
+        { type: "text", text: "second chunk" },
+      ],
+    } as never);
+
+    expect(client.sessionUpdate).toHaveBeenCalledTimes(2);
+    expect(client.sessionUpdate).toHaveBeenNthCalledWith(1, {
+      sessionId: "session-1",
+      update: {
+        sessionUpdate: "user_message_chunk",
+        content: { type: "text", text: "first chunk" },
+      },
+    });
+    expect(client.sessionUpdate).toHaveBeenNthCalledWith(2, {
+      sessionId: "session-1",
+      update: {
+        sessionUpdate: "user_message_chunk",
+        content: { type: "text", text: "second chunk" },
+      },
+    });
+    // Broadcast must land before the prompt reaches codex-acp so the user
+    // turn is persisted even if the underlying prompt fails.
+    expect(callOrder).toEqual(["sessionUpdate", "sessionUpdate", "prompt"]);
   });
 });
