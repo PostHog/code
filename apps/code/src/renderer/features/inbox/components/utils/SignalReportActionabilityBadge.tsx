@@ -32,7 +32,7 @@ export function SignalReportActionabilityBadge({
       color={s.color}
       size="1"
       variant="surface"
-      className="!py-0 !text-[9px] !leading-tight uppercase"
+      className="!py-0.5 !text-[9px] !leading-tight uppercase"
     >
       {s.label}
     </Badge>

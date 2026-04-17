@@ -51,7 +51,7 @@ export function SignalReportStatusBadge({
         color={color}
         size="1"
         variant="surface"
-        className="!py-0 !text-[9px] !leading-tight cursor-help uppercase"
+        className="!py-0.5 !text-[9px] !leading-tight cursor-help uppercase"
       >
         {label}
       </Badge>

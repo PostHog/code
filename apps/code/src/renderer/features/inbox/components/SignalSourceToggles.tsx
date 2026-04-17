@@ -225,7 +225,7 @@ export const EvaluationsSection = memo(function EvaluationsSection({
                   color="blue"
                   size="1"
                   variant="surface"
-                  className="!py-0 !text-[9px] !leading-tight uppercase"
+                  className="!py-0.5 !text-[9px] !leading-tight uppercase"
                 >
                   Internal
                 </Badge>
@@ -378,7 +378,7 @@ export function SignalSourceToggles({
             color="orange"
             size="1"
             variant="surface"
-            className="!py-0 !text-[9px] !leading-tight uppercase"
+            className="!py-0.5 !text-[9px] !leading-tight uppercase"
           >
             Alpha
           </Badge>
