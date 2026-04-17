@@ -657,6 +657,9 @@ importers:
       '@opentelemetry/semantic-conventions':
         specifier: ^1.28.0
         version: 1.39.0
+      '@posthog/enricher':
+        specifier: workspace:*
+        version: link:../enricher
       '@types/jsonwebtoken':
         specifier: ^9.0.10
         version: 9.0.10

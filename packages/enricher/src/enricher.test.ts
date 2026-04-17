@@ -282,6 +282,64 @@ describeWithGrammars("PostHogEnricher", () => {
       expect(annotated).toContain("# [PostHog]");
     });
 
+    test("toInlineComments appends to the same line and preserves line count", async () => {
+      const code = [
+        `posthog.capture('purchase');`,
+        `posthog.getFeatureFlag('my-flag');`,
+      ].join("\n");
+
+      const result = await enricher.parse(code, "javascript");
+      mockApiResponses({
+        flags: [makeFlag("my-flag")],
+        eventDefs: [makeEventDef("purchase", { verified: true })],
+      });
+      const enriched = await result.enrichFromApi(API_CONFIG);
+
+      const annotated = enriched.toInlineComments();
+      const lines = annotated.split("\n");
+
+      expect(lines).toHaveLength(2);
+      expect(lines[0]).toMatch(/^posthog\.capture\('purchase'\);.*\[PostHog\]/);
+      expect(lines[0]).toContain(`Event: "purchase"`);
+      expect(lines[1]).toMatch(
+        /^posthog\.getFeatureFlag\('my-flag'\);.*\[PostHog\]/,
+      );
+      expect(lines[1]).toContain(`Flag: "my-flag"`);
+    });
+
+    test("toInlineComments uses # for Python", async () => {
+      const code = `posthog.get_feature_flag('my-flag')`;
+      const result = await enricher.parse(code, "python");
+
+      mockApiResponses({ flags: [makeFlag("my-flag")] });
+      const enriched = await result.enrichFromApi(API_CONFIG);
+
+      const annotated = enriched.toInlineComments();
+      expect(annotated).toContain("# [PostHog]");
+      expect(annotated.split("\n")).toHaveLength(1);
+    });
+
+    test("toInlineComments combines multiple calls on the same line", async () => {
+      const code = `posthog.capture('a'); posthog.capture('b');`;
+      const result = await enricher.parse(code, "javascript");
+
+      mockApiResponses({
+        eventDefs: [
+          makeEventDef("a", { verified: true }),
+          makeEventDef("b", { verified: true }),
+        ],
+      });
+      const enriched = await result.enrichFromApi(API_CONFIG);
+
+      const annotated = enriched.toInlineComments();
+      const lines = annotated.split("\n");
+
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toContain(`Event: "a"`);
+      expect(lines[0]).toContain(`Event: "b"`);
+      expect(lines[0]).toContain(" | ");
+    });
+
     test("enrichedEvents surfaces stats, lastSeenAt, and tags", async () => {
       const code = `posthog.capture('purchase');`;
       const result = await enricher.parse(code, "javascript");
@@ -431,7 +489,7 @@ describeWithGrammars("PostHogEnricher", () => {
       vi.unstubAllGlobals();
     });
 
-    test("rejects on 401 unauthorized", async () => {
+    test("tolerates 401 unauthorized by returning empty enrichment", async () => {
       const code = `posthog.getFeatureFlag('my-flag');`;
       const result = await enricher.parse(code, "javascript");
 
@@ -440,12 +498,11 @@ describeWithGrammars("PostHogEnricher", () => {
         vi.fn(async () => new Response("Unauthorized", { status: 401 })),
       );
 
-      await expect(result.enrichFromApi(API_CONFIG)).rejects.toThrow(
-        /PostHog API error: 401/,
-      );
+      const enriched = await result.enrichFromApi(API_CONFIG);
+      expect(enriched.flags[0].flag).toBeUndefined();
     });
 
-    test("rejects on 500 server error", async () => {
+    test("tolerates 500 server error by returning empty enrichment", async () => {
       const code = `posthog.getFeatureFlag('my-flag');`;
       const result = await enricher.parse(code, "javascript");
 
@@ -456,12 +513,11 @@ describeWithGrammars("PostHogEnricher", () => {
         ),
       );
 
-      await expect(result.enrichFromApi(API_CONFIG)).rejects.toThrow(
-        /PostHog API error: 500/,
-      );
+      const enriched = await result.enrichFromApi(API_CONFIG);
+      expect(enriched.flags[0].flag).toBeUndefined();
     });
 
-    test("rejects on network failure", async () => {
+    test("tolerates network failure by returning empty enrichment", async () => {
       const code = `posthog.getFeatureFlag('my-flag');`;
       const result = await enricher.parse(code, "javascript");
 
@@ -472,12 +528,11 @@ describeWithGrammars("PostHogEnricher", () => {
         }),
       );
 
-      await expect(result.enrichFromApi(API_CONFIG)).rejects.toThrow(
-        "fetch failed",
-      );
+      const enriched = await result.enrichFromApi(API_CONFIG);
+      expect(enriched.flags[0].flag).toBeUndefined();
     });
 
-    test("rejects on malformed JSON response", async () => {
+    test("tolerates malformed JSON response by returning empty enrichment", async () => {
       const code = `posthog.getFeatureFlag('my-flag');`;
       const result = await enricher.parse(code, "javascript");
 
@@ -492,7 +547,8 @@ describeWithGrammars("PostHogEnricher", () => {
         ),
       );
 
-      await expect(result.enrichFromApi(API_CONFIG)).rejects.toThrow();
+      const enriched = await result.enrichFromApi(API_CONFIG);
+      expect(enriched.flags[0].flag).toBeUndefined();
     });
   });
 });

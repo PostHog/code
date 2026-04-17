@@ -19,6 +19,8 @@ export class Agent {
   private acpConnection?: InProcessAcpConnection;
   private taskRunId?: string;
   private sessionLogWriter?: SessionLogWriter;
+  private posthogApiConfig?: AgentConfig["posthog"];
+  private enricherEnabled: boolean;
 
   constructor(config: AgentConfig) {
     this.logger = new Logger({
@@ -29,7 +31,9 @@ export class Agent {
 
     if (config.posthog) {
       this.posthogAPI = new PostHogAPIClient(config.posthog);
+      this.posthogApiConfig = config.posthog;
     }
+    this.enricherEnabled = config.enricher?.enabled !== false;
 
     if (config.posthog && !config.skipLogPersistence) {
       this.sessionLogWriter = new SessionLogWriter({
@@ -121,6 +125,8 @@ export class Agent {
       processCallbacks: options.processCallbacks,
       onStructuredOutput: options.onStructuredOutput,
       allowedModelIds,
+      posthogApiConfig: this.posthogApiConfig,
+      enricherEnabled: this.enricherEnabled,
       codexOptions:
         options.adapter === "codex" && gatewayConfig
           ? {

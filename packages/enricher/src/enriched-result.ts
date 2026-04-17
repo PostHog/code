@@ -1,4 +1,4 @@
-import { formatComments } from "./comment-formatter.js";
+import { formatComments, formatInlineComments } from "./comment-formatter.js";
 import {
   classifyFlagType,
   extractRollout,
@@ -155,6 +155,26 @@ export class EnrichedResult {
     }
 
     return formatComments(
+      this.parsed.source,
+      this.parsed.languageId,
+      this.toList(),
+      flagLookup,
+      eventLookup,
+    );
+  }
+
+  toInlineComments(): string {
+    const flagLookup = new Map<string, EnrichedFlag>();
+    for (const f of this.flags) {
+      flagLookup.set(f.flagKey, f);
+    }
+
+    const eventLookup = new Map<string, EnrichedEvent>();
+    for (const e of this.events) {
+      eventLookup.set(e.eventName, e);
+    }
+
+    return formatInlineComments(
       this.parsed.source,
       this.parsed.languageId,
       this.toList(),
