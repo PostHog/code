@@ -68,17 +68,48 @@ export const POSTHOG_NOTIFICATIONS = {
   PERMISSION_RESPONSE: "_posthog/permission_response",
 } as const;
 
-type NotificationMethod =
+/**
+ * Custom request methods for PostHog-specific operations that need a response
+ * (request/response, not fire-and-forget). Used with
+ * ClientSideConnection.extMethod() on the sender and Agent.extMethod() on the
+ * receiver.
+ */
+export const POSTHOG_METHODS = {
+  /**
+   * Client requests a session refresh between turns. Payload may include
+   * `mcpServers` to trigger a resume-with-new-options reinit; future fields
+   * can extend this without adding new methods. Returns once the refresh has
+   * completed so the caller can safely send the next prompt.
+   */
+  REFRESH_SESSION: "_posthog/refresh_session",
+} as const;
+
+type PosthogNotification =
   (typeof POSTHOG_NOTIFICATIONS)[keyof typeof POSTHOG_NOTIFICATIONS];
 
+type PosthogMethod = (typeof POSTHOG_METHODS)[keyof typeof POSTHOG_METHODS];
+
 /**
- * Check if an ACP method matches a PostHog notification, handling the
- * possible `__posthog/` double-prefix from extNotification().
+ * Does `method` match `expected`? Shared by notification and method matchers.
+ * Handles the `__posthog/` double-prefix that extNotification() can produce.
  */
+function matchesExt(method: string | undefined, expected: string): boolean {
+  if (!method) return false;
+  return method === expected || method === `_${expected}`;
+}
+
+/** Dispatcher check for incoming `extNotification` calls on the agent side. */
 export function isNotification(
   method: string | undefined,
-  notification: NotificationMethod,
+  expected: PosthogNotification,
 ): boolean {
-  if (!method) return false;
-  return method === notification || method === `_${notification}`;
+  return matchesExt(method, expected);
+}
+
+/** Dispatcher check for incoming `extMethod` calls on the agent side. */
+export function isMethod(
+  method: string | undefined,
+  expected: PosthogMethod,
+): boolean {
+  return matchesExt(method, expected);
 }

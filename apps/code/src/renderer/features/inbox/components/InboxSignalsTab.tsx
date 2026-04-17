@@ -22,6 +22,7 @@ import {
   filterReportsBySearch,
 } from "@features/inbox/utils/filterReports";
 import { INBOX_REFETCH_INTERVAL_MS } from "@features/inbox/utils/inboxConstants";
+import { useRepositoryIntegration } from "@hooks/useIntegrations";
 import { Box, Flex, ScrollArea } from "@radix-ui/themes";
 import type { SignalReportsQueryParams } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
@@ -47,6 +48,9 @@ export function InboxSignalsTab() {
   const suggestedReviewerFilter = useInboxSignalsFilterStore(
     (s) => s.suggestedReviewerFilter,
   );
+
+  // ── GitHub integration ───────────────────────────────────────────────
+  const { hasGithubIntegration } = useRepositoryIntegration();
 
   // ── Signal source configs ───────────────────────────────────────────────
   const { data: signalSourceConfigs } = useSignalSourceConfigs();
@@ -475,6 +479,7 @@ export function InboxSignalsTab() {
                     filteredCount={reports.length}
                     isSearchActive={!!searchQuery.trim()}
                     livePolling={inboxPollingActive}
+                    isFetching={isFetching}
                     readyCount={readyCount}
                     processingCount={processingCount}
                     pipelinePausedUntil={signalProcessingState?.paused_until}
@@ -576,7 +581,7 @@ export function InboxSignalsTab() {
             }}
           >
             <Box style={{ pointerEvents: "auto" }}>
-              {!hasSignalSources ? (
+              {!hasSignalSources || !hasGithubIntegration ? (
                 <WelcomePane onEnableInbox={() => setSourcesDialogOpen(true)} />
               ) : (
                 <WarmingUpPane
@@ -594,6 +599,7 @@ export function InboxSignalsTab() {
         open={sourcesDialogOpen}
         onOpenChange={setSourcesDialogOpen}
         hasSignalSources={hasSignalSources}
+        hasGithubIntegration={hasGithubIntegration}
       />
     </>
   );

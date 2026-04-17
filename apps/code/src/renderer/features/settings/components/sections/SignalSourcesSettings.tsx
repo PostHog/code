@@ -1,7 +1,10 @@
 import { DataSourceSetup } from "@features/inbox/components/DataSourceSetup";
 import { SignalSourceToggles } from "@features/inbox/components/SignalSourceToggles";
 import { useSignalSourceManager } from "@features/inbox/hooks/useSignalSourceManager";
-import { Box, Flex, Select, Text } from "@radix-ui/themes";
+import { GitHubIntegrationSection } from "@features/settings/components/sections/GitHubIntegrationSection";
+import { useRepositoryIntegration } from "@hooks/useIntegrations";
+import { useMeQuery } from "@hooks/useMeQuery";
+import { Box, Flex, Select, Text, Tooltip } from "@radix-ui/themes";
 import type { SignalReportPriority } from "@shared/types";
 
 const PRIORITY_OPTIONS: { value: SignalReportPriority; label: string }[] = [
@@ -36,6 +39,10 @@ export function SignalSourcesSettings() {
     handleUpdateUserAutonomyPriority,
   } = useSignalSourceManager();
 
+  const { hasGithubIntegration } = useRepositoryIntegration();
+  const { data: me } = useMeQuery();
+  const isStaff = me?.is_staff ?? false;
+
   if (isLoading) {
     return (
       <Text size="1" color="gray">
@@ -54,68 +61,78 @@ export function SignalSourcesSettings() {
         Choose which sources to enable for this project.
       </Text>
 
-      {setupSource ? (
-        <DataSourceSetup
-          source={setupSource}
-          onComplete={() => void handleSetupComplete()}
-          onCancel={handleSetupCancel}
-        />
-      ) : (
-        <>
-          <SignalSourceToggles
-            value={displayValues}
-            onToggle={(source, enabled) => void handleToggle(source, enabled)}
-            sourceStates={sourceStates}
-            onSetup={handleSetup}
-            evaluations={evaluations}
-            evaluationsUrl={evaluationsUrl}
-            onToggleEvaluation={(id, enabled) =>
-              void handleToggleEvaluation(id, enabled)
-            }
-          />
+      <GitHubIntegrationSection hasGithubIntegration={hasGithubIntegration} />
 
+      <Tooltip
+        content="Connect code access to configure signal sources"
+        hidden={hasGithubIntegration}
+      >
+        <Box>
           <Box
-            p="4"
-            style={{
-              backgroundColor: "var(--color-panel-solid)",
-              border: "1px solid var(--gray-4)",
-              borderRadius: "var(--radius-3)",
-            }}
+            style={
+              !hasGithubIntegration
+                ? { opacity: 0.45, pointerEvents: "none" }
+                : undefined
+            }
           >
-            <Flex direction="column" gap="2">
-              <Text
-                size="2"
-                weight="medium"
-                style={{ color: "var(--gray-12)" }}
-              >
-                Your auto-start threshold
-              </Text>
-              <Text size="1" style={{ color: "var(--gray-11)" }}>
-                Automatically start tasks assigned to you for reports at or
-                above this priority. Choose &quot;Never&quot; to opt out
-                entirely.
-              </Text>
-              <Select.Root
-                value={userPriorityValue}
-                onValueChange={(value) =>
-                  void handleUpdateUserAutonomyPriority(
-                    value === NEVER_VALUE ? null : value,
-                  )
+            {setupSource ? (
+              <DataSourceSetup
+                source={setupSource}
+                onComplete={() => void handleSetupComplete()}
+                onCancel={handleSetupCancel}
+              />
+            ) : (
+              <SignalSourceToggles
+                value={displayValues}
+                onToggle={(source, enabled) =>
+                  void handleToggle(source, enabled)
                 }
-              >
-                <Select.Trigger style={{ maxWidth: 300 }} />
-                <Select.Content>
-                  {USER_PRIORITY_OPTIONS.map((opt) => (
-                    <Select.Item key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
-            </Flex>
+                disabled={!hasGithubIntegration}
+                sourceStates={sourceStates}
+                onSetup={handleSetup}
+                evaluations={isStaff ? evaluations : undefined}
+                evaluationsUrl={isStaff ? evaluationsUrl : undefined}
+                onToggleEvaluation={
+                  isStaff
+                    ? (id, enabled) => void handleToggleEvaluation(id, enabled)
+                    : undefined
+                }
+              />
+            )}
           </Box>
-        </>
-      )}
+        </Box>
+      </Tooltip>
+      <Flex
+        direction="column"
+        gap="2"
+        pt="4"
+        style={{ borderTop: "1px dashed var(--gray-5)" }}
+      >
+        <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
+          Your PR auto-start threshold
+        </Text>
+        <Text size="1" style={{ color: "var(--gray-11)" }}>
+          Automatically start tasks assigned to you for reports at or above this
+          priority. Choose &quot;Never&quot; to opt out entirely.
+        </Text>
+        <Select.Root
+          value={userPriorityValue}
+          onValueChange={(value) =>
+            void handleUpdateUserAutonomyPriority(
+              value === NEVER_VALUE ? null : value,
+            )
+          }
+        >
+          <Select.Trigger style={{ maxWidth: 300 }} />
+          <Select.Content>
+            {USER_PRIORITY_OPTIONS.map((opt) => (
+              <Select.Item key={opt.value} value={opt.value}>
+                {opt.label}
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Root>
+      </Flex>
     </Flex>
   );
 }

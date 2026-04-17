@@ -12,6 +12,7 @@ function makeReviewer(
     uuid: "reviewer-1",
     name: "Alice Jones",
     email: "alice@example.com",
+    github_login: "alicejones",
     ...overrides,
   };
 }

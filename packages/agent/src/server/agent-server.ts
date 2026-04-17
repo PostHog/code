@@ -693,6 +693,7 @@ export class AgentServer {
       // After waiting, just attach the SSE controller if needed
       if (this.session && sseController) {
         this.session.sseController = sseController;
+        this.session.hasDesktopConnected = true;
         this.replayPendingEvents();
       }
       return;
@@ -1592,22 +1593,27 @@ ${attributionInstructions}
         }
 
         // Relay permission requests to the desktop app when:
-        // - Questions: always relay (need human answers regardless of mode)
-        // - Plan approvals: always relay
+        // - Plan approvals: always relay because they gate autonomy changes
+        //   that require human confirmation (buffered until desktop connects)
+        // - Questions: relay when desktop is connected
         // - Edit/bash in "default" mode: relay for manual approval
-        // Other modes auto-approve. No client connected → auto-approve.
+        // Other modes auto-approve. No client connected → auto-approve
+        // (except plan approvals, which wait for a desktop).
         {
           const isQuestion = codeToolKind === "question";
           const sessionPermissionMode = this.getSessionPermissionMode();
-          const needsRelay =
+          const needsDesktopApproval =
             isQuestion ||
-            isPlanApproval ||
             this.shouldRelayPermissionToClient(sessionPermissionMode);
 
-          if (needsRelay && this.session?.hasDesktopConnected) {
-            this.logger.info("Relaying permission to connected client", {
+          if (
+            isPlanApproval ||
+            (needsDesktopApproval && this.session?.hasDesktopConnected)
+          ) {
+            this.logger.info("Relaying permission request", {
               kind: params.toolCall?.kind,
               isQuestion,
+              hasDesktopConnected: this.session?.hasDesktopConnected ?? false,
               sessionPermissionMode,
             });
             return this.relayPermissionToClient(params);

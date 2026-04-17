@@ -32,6 +32,7 @@ import { LinearIntegrationService } from "../services/linear-integration/service
 import { LlmGatewayService } from "../services/llm-gateway/service";
 import { McpAppsService } from "../services/mcp-apps/service";
 import { McpCallbackService } from "../services/mcp-callback/service";
+import { McpProxyService } from "../services/mcp-proxy/service";
 import { NotificationService } from "../services/notification/service";
 import { OAuthService } from "../services/oauth/service";
 import { PosthogPluginService } from "../services/posthog-plugin/service";
@@ -66,6 +67,7 @@ container.bind(MAIN_TOKENS.AgentAuthAdapter).to(AgentAuthAdapter);
 container.bind(MAIN_TOKENS.AgentService).to(AgentService);
 container.bind(MAIN_TOKENS.AuthService).to(AuthService);
 container.bind(MAIN_TOKENS.AuthProxyService).to(AuthProxyService);
+container.bind(MAIN_TOKENS.McpProxyService).to(McpProxyService);
 container.bind(MAIN_TOKENS.ArchiveService).to(ArchiveService);
 container.bind(MAIN_TOKENS.SuspensionService).to(SuspensionService);
 container.bind(MAIN_TOKENS.AppLifecycleService).to(AppLifecycleService);

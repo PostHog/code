@@ -331,6 +331,7 @@ function normalizeAvailableSuggestedReviewer(
     uuid: normalizedUuid,
     name: optionalString(value.name) ?? "",
     email: optionalString(value.email) ?? "",
+    github_login: optionalString(value.github_login) ?? "",
   };
 }
 

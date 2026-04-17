@@ -11,6 +11,7 @@ export interface SuggestedReviewerFilterOption {
   uuid: string;
   name: string;
   email: string;
+  github_login: string;
   isMe: boolean;
   showSeparatorBelow: boolean;
 }
@@ -71,6 +72,7 @@ export function buildSuggestedReviewerFilterOptions(
       uuid,
       name: normalizeString(reviewer.name),
       email: normalizeString(reviewer.email),
+      github_login: normalizeString(reviewer.github_login),
       isMe: false,
       showSeparatorBelow: false,
     });
@@ -83,6 +85,7 @@ export function buildSuggestedReviewerFilterOptions(
       uuid: currentUserUuid,
       name: buildCurrentUserName(currentUser) || existing?.name || "",
       email: normalizeString(currentUser?.email) || existing?.email || "",
+      github_login: existing?.github_login || "",
       isMe: true,
       showSeparatorBelow: true,
     });

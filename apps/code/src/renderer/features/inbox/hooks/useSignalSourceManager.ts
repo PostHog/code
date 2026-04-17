@@ -151,7 +151,7 @@ export function useSignalSourceManager() {
         {
           requiresSetup: boolean;
           loading: boolean;
-          syncStatus?: string | null;
+          syncStatus?: SignalSourceConfig["status"];
         }
       >
     > = {};

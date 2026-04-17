@@ -295,10 +295,13 @@ interface SignalSourceTogglesProps {
   sourceStates?: Partial<
     Record<
       keyof SignalSourceValues,
-      { requiresSetup: boolean; loading: boolean; syncStatus?: string | null }
+      {
+        requiresSetup: boolean;
+        loading: boolean;
+        syncStatus?: SignalSourceConfig["status"];
+      }
     >
   >;
-  sessionAnalysisStatus?: SignalSourceConfig["status"];
   onSetup?: (source: keyof SignalSourceValues) => void;
   evaluations?: Evaluation[];
   evaluationsUrl?: string;
@@ -310,7 +313,6 @@ export function SignalSourceToggles({
   onToggle,
   disabled,
   sourceStates,
-  sessionAnalysisStatus,
   onSetup,
   evaluations,
   evaluationsUrl,
@@ -374,7 +376,7 @@ export function SignalSourceToggles({
         statusSection={
           value.session_replay ? (
             <SourceRunningIndicator
-              status={sessionAnalysisStatus ?? null}
+              status={sourceStates?.session_replay?.syncStatus ?? null}
               message="Session analysis run in progress now…"
             />
           ) : undefined
