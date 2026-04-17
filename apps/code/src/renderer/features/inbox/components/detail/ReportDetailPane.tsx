@@ -1,5 +1,4 @@
 import { Badge } from "@components/ui/Badge";
-import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
 import {
   useInboxReportArtefacts,
@@ -39,7 +38,6 @@ import type {
   SuggestedReviewer,
   SuggestedReviewersArtefact,
 } from "@shared/types";
-import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { useNavigationStore } from "@stores/navigationStore";
 import {
   type ReactNode,
@@ -126,14 +124,7 @@ interface ReportDetailPaneProps {
 }
 
 export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
-  // ── Auth / URLs ─────────────────────────────────────────────────────────
-  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
-  const projectId = useAuthStateValue((state) => state.projectId);
   const { data: me } = useMeQuery();
-  const replayBaseUrl =
-    cloudRegion && projectId
-      ? `${getCloudUrlFromRegion(cloudRegion)}/project/${projectId}/replay`
-      : null;
 
   // ── Report data ─────────────────────────────────────────────────────────
   const artefactsQuery = useInboxReportArtefacts(report.id, {

@@ -108,6 +108,8 @@ interface SessionProblemExtra {
   distinct_id?: string;
   session_start_time?: string;
   session_end_time?: string;
+  session_duration?: number;
+  session_active_seconds?: number;
   exported_asset_id?: number;
 }
 
@@ -515,6 +517,16 @@ const PROBLEM_TYPE_LABELS: Record<
   failure: { label: "Failure", color: "red" },
 };
 
+function formatSessionDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  if (mins < 60) return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  const remainMins = mins % 60;
+  return remainMins > 0 ? `${hrs}h ${remainMins}m` : `${hrs}h`;
+}
+
 function SessionProblemSignalCard({
   signal,
   extra,
@@ -538,6 +550,11 @@ function SessionProblemSignalCard({
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
       <SignalCardHeader signal={signal} verified={verified} />
+      {extra.segment_title && (
+        <Text size="1" weight="medium" mt="1" className="text-gray-11" as="p">
+          {extra.segment_title}
+        </Text>
+      )}
       <CollapsibleBody body={signal.content} />
 
       {extra.session_id && (
@@ -578,6 +595,25 @@ function SessionProblemSignalCard({
             </span>
           </>
         )}
+        {extra.session_duration != null && (
+          <>
+            <span>·</span>
+            <span>{formatSessionDuration(extra.session_duration)} session</span>
+          </>
+        )}
+        {extra.session_active_seconds != null &&
+          extra.session_duration != null &&
+          extra.session_duration > 0 && (
+            <>
+              <span>·</span>
+              <span>
+                {Math.round(
+                  (extra.session_active_seconds / extra.session_duration) * 100,
+                )}
+                % active
+              </span>
+            </>
+          )}
       </Flex>
       <CodePathsCollapsible paths={codePaths ?? []} />
       <DataQueriedCollapsible text={dataQueried ?? ""} />
