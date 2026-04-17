@@ -837,6 +837,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       CODE_EXECUTION_MODES.includes(meta.permissionMode as CodeExecutionMode)
         ? (meta.permissionMode as CodeExecutionMode)
         : "default";
+
     const options = buildSessionOptions({
       cwd,
       mcpServers,

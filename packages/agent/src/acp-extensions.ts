@@ -63,9 +63,6 @@ export const POSTHOG_NOTIFICATIONS = {
 
   /** Token usage update for a session turn */
   USAGE_UPDATE: "_posthog/usage_update",
-
-  /** Client requests MCP server reconnection with updated credentials */
-  REFRESH_MCP: "_posthog/refresh_mcp",
 } as const;
 
 type NotificationMethod =

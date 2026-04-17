@@ -1,5 +1,5 @@
 import http from "node:http";
-import { inject, injectable } from "inversify";
+import { inject, injectable, preDestroy } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
 import type { AuthService } from "../auth/service";
@@ -12,11 +12,16 @@ const log = logger.scope("mcp-proxy");
  * request. MCP transports bake their headers at construction time, so without
  * this proxy we would either need to tear the transport down on every token
  * rotation (expensive, racy) or leave it serving stale tokens.
+ *
+ * The proxy only listens on 127.0.0.1 and strips inbound Authorization headers
+ * before forwarding, but any local process can still use it to issue requests
+ * on the user's behalf — acceptable for a single-user desktop app.
  */
 @injectable()
 export class McpProxyService {
   private server: http.Server | null = null;
   private port: number | null = null;
+  private startPromise: Promise<void> | null = null;
   private targets = new Map<string, string>();
 
   constructor(
@@ -25,15 +30,24 @@ export class McpProxyService {
   ) {}
 
   async start(): Promise<void> {
-    if (this.server) return;
+    if (this.server && this.port) return;
+    if (this.startPromise) return this.startPromise;
+    this.startPromise = this.doStart().catch((err) => {
+      this.startPromise = null;
+      throw err;
+    });
+    return this.startPromise;
+  }
 
-    this.server = http.createServer((req, res) => {
+  private async doStart(): Promise<void> {
+    const server = http.createServer((req, res) => {
       this.handleRequest(req, res);
     });
+    this.server = server;
 
-    return new Promise<void>((resolve, reject) => {
-      this.server?.listen(0, "127.0.0.1", () => {
-        const addr = this.server?.address();
+    await new Promise<void>((resolve, reject) => {
+      server.listen(0, "127.0.0.1", () => {
+        const addr = server.address();
         if (typeof addr === "object" && addr) {
           this.port = addr.port;
           log.info("MCP proxy started", { port: this.port });
@@ -43,7 +57,7 @@ export class McpProxyService {
         }
       });
 
-      this.server?.on("error", (err) => {
+      server.on("error", (err) => {
         log.error("MCP proxy server error", err);
         reject(err);
       });
@@ -63,37 +77,43 @@ export class McpProxyService {
     return `http://127.0.0.1:${this.port}/${encodeURIComponent(id)}`;
   }
 
+  @preDestroy()
   async stop(): Promise<void> {
     if (!this.server) return;
-    return new Promise<void>((resolve) => {
-      this.server?.close(() => {
+    const server = this.server;
+    await new Promise<void>((resolve) => {
+      server.close(() => {
         log.info("MCP proxy stopped");
-        this.server = null;
-        this.port = null;
-        this.targets.clear();
         resolve();
       });
     });
+    this.server = null;
+    this.port = null;
+    this.startPromise = null;
+    this.targets.clear();
   }
 
   private handleRequest(
     req: http.IncomingMessage,
     res: http.ServerResponse,
   ): void {
-    const incoming = req.url ?? "/";
-    const [, rawId, ...rest] = incoming.split("/");
+    const incoming = new URL(req.url ?? "/", "http://placeholder");
+    const segments = incoming.pathname.split("/").filter(Boolean);
+    const [rawId, ...rest] = segments;
     const id = rawId ? decodeURIComponent(rawId) : "";
     const target = this.targets.get(id);
 
     if (!target) {
-      log.warn("Unknown MCP proxy target", { id, url: incoming });
+      log.warn("Unknown MCP proxy target", { id, url: req.url });
       res.writeHead(404);
       res.end("Unknown target");
       return;
     }
 
     const suffix = rest.join("/");
-    const targetUrl = suffix ? `${target}/${suffix}` : target;
+    const targetBase = target.replace(/\/+$/, "");
+    const targetUrl =
+      (suffix ? `${targetBase}/${suffix}` : targetBase) + incoming.search;
 
     const strippedAuthHeaders = new Set([
       "authorization",
@@ -137,31 +157,11 @@ export class McpProxyService {
     res: http.ServerResponse,
   ): Promise<void> {
     try {
-      const preToken = await this.authService.getValidAccessToken();
-      log.info("MCP proxy BEFORE request", {
-        id,
-        url,
-        tokenPrefix: preToken.accessToken.slice(0, 16),
-        tokenSuffix: preToken.accessToken.slice(-8),
-        tokenLength: preToken.accessToken.length,
-      });
-
       let response = await this.authService.authenticatedFetch(
         fetch,
         url,
         options,
       );
-
-      const postToken = await this.authService.getValidAccessToken();
-      log.info("MCP proxy AFTER request", {
-        id,
-        url,
-        tokenPrefix: postToken.accessToken.slice(0, 16),
-        tokenSuffix: postToken.accessToken.slice(-8),
-        tokenLength: postToken.accessToken.length,
-        tokenChangedDuringRequest:
-          preToken.accessToken !== postToken.accessToken,
-      });
 
       // MCP servers return HTTP 200 with auth failures encoded in the JSON-RPC
       // body, so authenticatedFetch's 401/403 retry never kicks in. Detect the
@@ -190,7 +190,6 @@ export class McpProxyService {
             this.writeBufferedResponse(response, retryBuf, res);
             return;
           }
-          // Fall through to streaming path below for SSE retry responses.
           this.writeStreamingResponse(response, res);
           return;
         }
@@ -270,6 +269,9 @@ export class McpProxyService {
       return;
     }
     const reader = response.body.getReader();
+    res.on("close", () => {
+      void reader.cancel().catch(() => {});
+    });
     const pump = async (): Promise<void> => {
       const { done, value } = await reader.read();
       if (done) {
