@@ -89,10 +89,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
                   >
                     Teach your agents what matters
                   </Text>
-                  <Text
-                    size="2"
-                    style={{ color: "var(--gray-12)", opacity: 0.7 }}
-                  >
+                  <Text size="2" style={{ color: "var(--gray-11)" }}>
                     Signals watch your product data around the clock and surface
                     the highest-impact work straight to your Inbox.
                   </Text>

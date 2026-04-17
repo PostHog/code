@@ -203,16 +203,21 @@ export function GitIntegrationStep({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <Text
-                  size="6"
-                  weight="bold"
-                  style={{
-                    color: "var(--gray-12)",
-                    lineHeight: 1.3,
-                  }}
-                >
-                  Give your agents access to code
-                </Text>
+                <Flex direction="column" gap="2">
+                  <Text
+                    size="6"
+                    weight="bold"
+                    style={{
+                      color: "var(--gray-12)",
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    Give your agents access to code
+                  </Text>
+                  <Text size="2" style={{ color: "var(--gray-11)" }}>
+                    Point to a local codebase and optionally connect GitHub.
+                  </Text>
+                </Flex>
               </motion.div>
 
               {/* Local folder picker */}

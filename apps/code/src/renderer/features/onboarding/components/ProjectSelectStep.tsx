@@ -122,13 +122,19 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                       transition={{ duration: 0.2 }}
                     >
                       <Flex direction="column" gap="3">
-                        <Text
-                          size="6"
-                          weight="bold"
-                          style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
-                        >
-                          Pick your home base
-                        </Text>
+                        <Flex direction="column" gap="2">
+                          <Text
+                            size="6"
+                            weight="bold"
+                            style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+                          >
+                            Pick your home base
+                          </Text>
+                          <Text size="2" style={{ color: "var(--gray-11)" }}>
+                            Choose the organization and project you want to work
+                            in.
+                          </Text>
+                        </Flex>
                         {!isLoading && !isSwitchingOrg && (
                           <Flex
                             align="center"
@@ -160,13 +166,18 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                       transition={{ duration: 0.2 }}
                     >
                       <Flex direction="column" gap="4">
-                        <Text
-                          size="6"
-                          weight="bold"
-                          style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
-                        >
-                          Sign in to PostHog
-                        </Text>
+                        <Flex direction="column" gap="2">
+                          <Text
+                            size="6"
+                            weight="bold"
+                            style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+                          >
+                            Sign in to PostHog
+                          </Text>
+                          <Text size="2" style={{ color: "var(--gray-11)" }}>
+                            Connect your account to get started.
+                          </Text>
+                        </Flex>
                         <OAuthControls />
                         <OnboardingHogTip
                           hogSrc={happyHog}

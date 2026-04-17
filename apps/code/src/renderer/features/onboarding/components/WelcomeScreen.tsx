@@ -120,7 +120,7 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
               >
                 Welcome to PostHog Code
               </Text>
-              <Text size="3" style={{ opacity: 0.5 }}>
+              <Text size="2" style={{ color: "var(--gray-11)" }}>
                 Your product workbench.
               </Text>
             </Flex>
