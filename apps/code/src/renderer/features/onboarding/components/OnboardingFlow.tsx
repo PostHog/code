@@ -18,7 +18,6 @@ import { useOnboardingFlow } from "../hooks/useOnboardingFlow";
 import { usePrefetchSignalData } from "../hooks/usePrefetchSignalData";
 import { CliInstallStep } from "./CliInstallStep";
 import { GitIntegrationStep } from "./GitIntegrationStep";
-import { OrgStep } from "./OrgStep";
 import { ProjectSelectStep } from "./ProjectSelectStep";
 import { SignalsStep } from "./SignalsStep";
 import { StepIndicator } from "./StepIndicator";
@@ -141,21 +140,6 @@ export function OnboardingFlow() {
                     style={{ width: "100%", flex: 1, minHeight: 0 }}
                   >
                     <ProjectSelectStep onNext={next} onBack={back} />
-                  </motion.div>
-                )}
-
-                {currentStep === "org" && (
-                  <motion.div
-                    key="org"
-                    custom={direction}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    variants={stepVariants}
-                    transition={{ duration: 0.3 }}
-                    style={{ width: "100%", flex: 1, minHeight: 0 }}
-                  >
-                    <OrgStep onNext={next} onBack={back} />
                   </motion.div>
                 )}
 
