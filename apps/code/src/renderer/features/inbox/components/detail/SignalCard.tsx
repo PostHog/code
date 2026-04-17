@@ -99,14 +99,6 @@ interface LlmEvalExtra {
   provider?: string;
 }
 
-interface SessionProblemEventEntry {
-  event: string;
-  timestamp: string;
-  current_url?: string;
-  event_type?: string;
-  interaction_text?: string;
-}
-
 interface SessionProblemExtra {
   session_id?: string;
   segment_title?: string;
@@ -117,7 +109,6 @@ interface SessionProblemExtra {
   session_start_time?: string;
   session_end_time?: string;
   exported_asset_id?: number;
-  event_history?: SessionProblemEventEntry[];
 }
 
 interface ErrorTrackingExtra {
@@ -524,80 +515,6 @@ const PROBLEM_TYPE_LABELS: Record<
   failure: { label: "Failure", color: "red" },
 };
 
-// Human-readable labels for common PostHog dollar-prefixed event names
-const EVENT_DISPLAY_NAMES: Record<string, string> = {
-  $pageview: "Pageview",
-  $autocapture: "Autocapture",
-  $exception: "Exception",
-  $rageclick: "Rageclick",
-  $dead_click: "Dead click",
-  $screen: "Screen",
-  $csp_violation: "CSP violation",
-  $pageleave: "Pageleave",
-};
-
-function eventDisplayName(raw: string): string {
-  return EVENT_DISPLAY_NAMES[raw] ?? raw;
-}
-
-function EventHistoryTable({ events }: { events: SessionProblemEventEntry[] }) {
-  return (
-    <Box className="min-w-0 flex-1">
-      <Text
-        size="1"
-        weight="medium"
-        className="mb-1 block text-[11px]"
-        style={{ color: "var(--gray-10)" }}
-      >
-        Events around the problem
-      </Text>
-      <Box className="max-h-[180px] overflow-y-auto rounded border border-gray-5 bg-gray-2">
-        <table className="w-full text-[11px]">
-          <tbody>
-            {events.map((entry) => (
-              <tr
-                key={entry.timestamp}
-                className="border-gray-4 border-b last:border-b-0"
-              >
-                <td
-                  className="whitespace-nowrap px-1.5 py-1 align-top font-mono"
-                  style={{ color: "var(--gray-9)" }}
-                >
-                  {entry.timestamp}
-                </td>
-                <td className="px-1.5 py-1 align-top">
-                  <span style={{ color: "var(--gray-12)" }}>
-                    {eventDisplayName(entry.event)}
-                  </span>
-                  {entry.event_type ? (
-                    <span className="ml-1" style={{ color: "var(--gray-9)" }}>
-                      [{entry.event_type}]
-                    </span>
-                  ) : null}
-                  {entry.interaction_text ? (
-                    <span className="ml-1" style={{ color: "var(--gray-11)" }}>
-                      &quot;{entry.interaction_text}&quot;
-                    </span>
-                  ) : null}
-                </td>
-                {entry.current_url ? (
-                  <td
-                    className="max-w-[200px] truncate px-1.5 py-1 align-top"
-                    style={{ color: "var(--gray-9)" }}
-                    title={entry.current_url}
-                  >
-                    {entry.current_url}
-                  </td>
-                ) : null}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Box>
-    </Box>
-  );
-}
-
 function SessionProblemSignalCard({
   signal,
   extra,
@@ -617,7 +534,6 @@ function SessionProblemSignalCard({
         color: "orange" as const,
       })
     : null;
-  const hasEventHistory = extra.event_history && extra.event_history.length > 0;
 
   return (
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
@@ -629,11 +545,6 @@ function SessionProblemSignalCard({
           exportedAssetId={extra.exported_asset_id}
           sessionId={extra.session_id}
         />
-      )}
-      {hasEventHistory && (
-        <Box mt="2">
-          <EventHistoryTable events={extra.event_history ?? []} />
-        </Box>
       )}
 
       <Flex
