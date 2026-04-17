@@ -38,13 +38,19 @@ import {
   type CanUseTool,
   getSessionMessages,
   listSessions,
+  type McpServerConfig,
+  type Options,
   type Query,
   query,
   type SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import { v7 as uuidv7 } from "uuid";
 import packageJson from "../../../package.json" with { type: "json" };
-import { POSTHOG_NOTIFICATIONS } from "../../acp-extensions";
+import {
+  isMethod,
+  POSTHOG_METHODS,
+  POSTHOG_NOTIFICATIONS,
+} from "../../acp-extensions";
 import { unreachable, withTimeout } from "../../utils/common";
 import { Logger } from "../../utils/logger";
 import { Pushable } from "../../utils/streams";
@@ -650,6 +656,90 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     }
     this.session.pendingMessages.clear();
     await this.session.query.interrupt();
+  }
+
+  /**
+   * Refresh the session between turns. Currently the only refreshable field
+   * is `mcpServers` — a resume-with-new-options reinit that bakes the servers
+   * into query() options (preserving conversation history via resume).
+   *
+   * This is an `extMethod` (request/response), not `extNotification`, so the
+   * caller can await completion before sending the next prompt. The sandbox
+   * agent-server uses this on pre-prompt TTL checks.
+   *
+   * Why resume+rebuild instead of query.setMcpServers()?
+   * setMcpServers() does NOT always overwrite servers installed by local/plugin
+   * config — it can non-deterministically surface either the config-provided
+   * server or the plugin-installed one. In the sandbox, repos may have Claude
+   * plugins with their own MCPs, and we want the CLI-supplied set to fully win.
+   * Passing mcpServers via query() options (as a "managed"/static set) has that
+   * overwrite guarantee, so we tear down the current Query and construct a new
+   * one with resume.
+   *
+   * Caller contract: only call REFRESH_SESSION between turns (no prompt in flight).
+   */
+  async extMethod(
+    method: string,
+    params: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    if (isMethod(method, POSTHOG_METHODS.REFRESH_SESSION)) {
+      if (params.mcpServers !== undefined) {
+        const mcpServers = parseMcpServers(
+          params as Pick<NewSessionRequest, "mcpServers">,
+        );
+        await this.refreshSession(mcpServers);
+      }
+      return { refreshed: true };
+    }
+    throw RequestError.methodNotFound(method);
+  }
+
+  private async refreshSession(
+    mcpServers: Record<string, McpServerConfig>,
+  ): Promise<void> {
+    const prev = this.session;
+    if (prev.promptRunning) {
+      throw new RequestError(
+        -32002,
+        "Cannot refresh session while a prompt turn is in flight",
+      );
+    }
+
+    this.logger.info("Refreshing session with fresh MCP servers", {
+      serverCount: Object.keys(mcpServers).length,
+      sessionId: this.sessionId,
+    });
+
+    await prev.query.interrupt();
+    prev.input.end();
+
+    // Reuse every option from the running session; swap mcpServers and
+    // re-root identity on `resume` instead of `sessionId`.
+    const newOptions: Options = {
+      ...prev.queryOptions,
+      mcpServers,
+      resume: this.sessionId,
+      forkSession: false,
+    };
+    delete (newOptions as { sessionId?: string }).sessionId;
+
+    const newInput = new Pushable<SDKUserMessage>();
+    const newQuery = query({ prompt: newInput, options: newOptions });
+
+    prev.query = newQuery;
+    prev.input = newInput;
+    prev.queryOptions = newOptions;
+
+    const result = await withTimeout(
+      newQuery.initializationResult(),
+      SESSION_VALIDATION_TIMEOUT_MS,
+    );
+    if (result.result === "timeout") {
+      throw new Error(`Session refresh timed out for ${this.sessionId}`);
+    }
+
+    // Re-fetch MCP tool metadata + slash commands — the server list changed.
+    this.deferBackgroundFetches(newQuery);
   }
 
   async unstable_setSessionModel(
