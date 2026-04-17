@@ -50,6 +50,14 @@ function createDependencies() {
     authProxy: {
       start: vi.fn().mockResolvedValue("http://127.0.0.1:9999"),
     },
+    mcpProxy: {
+      start: vi.fn().mockResolvedValue(undefined),
+      register: vi
+        .fn()
+        .mockImplementation(
+          (id: string) => `http://127.0.0.1:9998/${encodeURIComponent(id)}`,
+        ),
+    },
   };
 }
 
@@ -68,6 +76,7 @@ describe("AgentAuthAdapter", () => {
     adapter = new AgentAuthAdapter(
       deps.authService as never,
       deps.authProxy as never,
+      deps.mcpProxy as never,
     );
   });
 
@@ -75,20 +84,21 @@ describe("AgentAuthAdapter", () => {
     vi.restoreAllMocks();
   });
 
-  it("builds the default PostHog MCP server", async () => {
+  it("builds the default PostHog MCP server routed through the local proxy", async () => {
     const servers = await adapter.buildMcpServers(baseCredentials);
 
+    expect(deps.mcpProxy.register).toHaveBeenCalledWith(
+      "posthog",
+      "https://mcp.posthog.com/mcp",
+    );
     expect(servers).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           name: "posthog",
           type: "http",
-          url: "https://mcp.posthog.com/mcp",
-          headers: expect.arrayContaining([
-            {
-              name: "Authorization",
-              value: "Bearer test-access-token",
-            },
+          url: "http://127.0.0.1:9998/posthog",
+          headers: expect.not.arrayContaining([
+            expect.objectContaining({ name: "Authorization" }),
           ]),
         }),
       ]),
@@ -152,14 +162,16 @@ describe("AgentAuthAdapter", () => {
 
     const servers = await adapter.buildMcpServers(baseCredentials);
 
+    expect(deps.mcpProxy.register).toHaveBeenCalledWith(
+      "installation-inst-2",
+      "https://proxy.posthog.com/inst-2/",
+    );
     expect(servers).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           name: "secure-server",
-          url: "https://proxy.posthog.com/inst-2/",
-          headers: [
-            { name: "Authorization", value: "Bearer test-access-token" },
-          ],
+          url: "http://127.0.0.1:9998/installation-inst-2",
+          headers: [],
         }),
       ]),
     );
