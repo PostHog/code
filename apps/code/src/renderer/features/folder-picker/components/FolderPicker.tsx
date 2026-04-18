@@ -97,7 +97,7 @@ export function FolderPicker({
             key={folder.id}
             onClick={() => handleSelect(folder.path)}
           >
-            <GitBranch size={12} className="mr-2 shrink-0" />
+            <GitBranch size={12} />
             <span className="whitespace-nowrap">{folder.name}</span>
           </DropdownMenuItem>
         ))}
@@ -105,7 +105,7 @@ export function FolderPicker({
         <DropdownMenuSeparator />
 
         <DropdownMenuItem onClick={handleOpenFilePicker}>
-          <FolderOpen size={12} className="mr-2 shrink-0" />
+          <FolderOpen size={12} />
           <span className="whitespace-nowrap">Open folder...</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

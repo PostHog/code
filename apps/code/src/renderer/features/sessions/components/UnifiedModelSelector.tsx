@@ -141,7 +141,7 @@ export function UnifiedModelSelector({
         <DropdownMenuSeparator />
 
         <DropdownMenuItem onClick={() => onAdapterChange(otherAdapter)}>
-          <ArrowsClockwise size={12} weight="bold" className="mr-2" />
+          <ArrowsClockwise size={12} weight="bold" />
           Switch to {ADAPTER_LABELS[otherAdapter]}
         </DropdownMenuItem>
       </DropdownMenuContent>

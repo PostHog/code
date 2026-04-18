@@ -170,8 +170,8 @@ importers:
         specifier: ^0.0.48
         version: 0.0.48(prop-types@15.8.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@posthog/quill':
-        specifier: 0.1.0-alpha.6
-        version: 0.1.0-alpha.6(@types/react-dom@19.2.3(@types/react@19.2.11))(@types/react@19.2.11)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(tailwindcss@4.2.2)
+        specifier: 0.1.0-alpha.7
+        version: 0.1.0-alpha.7(@types/react-dom@19.2.3(@types/react@19.2.11))(@types/react@19.2.11)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(tailwindcss@4.2.2)
       '@posthog/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -3596,8 +3596,8 @@ packages:
   '@posthog/plugin-utils@1.0.1':
     resolution: {integrity: sha512-+x3LFZlUVPNUPQBx9kvRV/hXd1j3JcYf9iYClJCORjuuA0RV5FICUZMMFbwsSOPuKoW9rQAaW3zFoQMYEfM+YA==}
 
-  '@posthog/quill@0.1.0-alpha.6':
-    resolution: {integrity: sha512-93GbwWEwTbJBC8If860r7QYFIVV2AF5786hAm38gJzKhM5Xb1WPF5JyW3MiZWqGCWW+KfS8Lj91mL43+nmiZcg==}
+  '@posthog/quill@0.1.0-alpha.7':
+    resolution: {integrity: sha512-meJd4gEUchZHx71GJ3NdZ7j/NxIAai5Srda6IQP3pJEMpY3VddwHn+r/xUG42eHt88vBbZsnlCwvyLYXhla5eQ==}
     engines: {node: '>=20'}
     peerDependencies:
       react: ^19.0.0
@@ -15153,7 +15153,7 @@ snapshots:
     dependencies:
       cross-spawn: 7.0.6
 
-  '@posthog/quill@0.1.0-alpha.6(@types/react-dom@19.2.3(@types/react@19.2.11))(@types/react@19.2.11)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(tailwindcss@4.2.2)':
+  '@posthog/quill@0.1.0-alpha.7(@types/react-dom@19.2.3(@types/react@19.2.11))(@types/react@19.2.11)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(tailwindcss@4.2.2)':
     dependencies:
       '@base-ui/react': 1.3.0(@types/react@19.2.11)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       class-variance-authority: 0.7.1
@@ -21693,7 +21693,7 @@ snapshots:
   path-scurry@1.11.1:
     dependencies:
       lru-cache: 10.4.3
-      minipass: 7.1.2
+      minipass: 7.1.3
 
   path-scurry@2.0.1:
     dependencies:
