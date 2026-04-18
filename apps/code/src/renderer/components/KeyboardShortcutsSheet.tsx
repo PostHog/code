@@ -1,13 +1,58 @@
-import { Box, Dialog, Flex, Kbd, Text } from "@radix-ui/themes";
+import { Box, Dialog, Flex, Text } from "@radix-ui/themes";
 import {
   CATEGORY_LABELS,
-  formatHotkey,
+  formatHotkeyParts,
   getShortcutsByCategory,
   type ShortcutCategory,
 } from "@renderer/constants/keyboard-shortcuts";
-import { isMac } from "@utils/platform";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+
+function Keycap({ label, size = "md" }: { label: string; size?: "sm" | "md" }) {
+  const [pressed, setPressed] = useState(false);
+  const isSmall = size === "sm";
+  const minW = isSmall ? "22px" : "28px";
+  const h = isSmall ? "22px" : "28px";
+  const fontSize = isSmall ? "11px" : "13px";
+  const shadowSize = isSmall ? "2px" : "3px";
+
+  return (
+    <span
+      role="presentation"
+      onMouseDown={() => setPressed(true)}
+      onMouseUp={() => setPressed(false)}
+      onMouseLeave={() => setPressed(false)}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minWidth: minW,
+        height: h,
+        padding: "0 6px",
+        fontSize,
+        fontFamily: "system-ui, -apple-system, sans-serif",
+        fontWeight: 500,
+        lineHeight: 1,
+        color: "var(--gray-11)",
+        backgroundColor: "var(--gray-3)",
+        border: "1px solid var(--gray-5)",
+        borderBottomWidth: pressed ? "1px" : shadowSize,
+        borderBottomColor: "var(--gray-7)",
+        borderRadius: "6px",
+        transform: pressed
+          ? `translateY(${isSmall ? "1px" : "2px"})`
+          : "translateY(0)",
+        transition:
+          "transform 80ms ease-out, border-bottom-width 80ms ease-out",
+        userSelect: "none",
+        boxSizing: "border-box",
+        cursor: "pointer",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
 
 interface KeyboardShortcutsSheetProps {
   open: boolean;
@@ -32,34 +77,58 @@ export function KeyboardShortcutsSheet({
         style={{ maxHeight: "80vh", overflow: "hidden" }}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        <Dialog.Title size="4" mb="4">
-          Keyboard Shortcuts
-        </Dialog.Title>
+        <Flex
+          align="start"
+          justify="between"
+          style={{ position: "relative" }}
+        >
+          <ShortcutsHeader />
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            style={{
+              all: "unset",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            <Keycap label="Esc" size="sm" />
+          </button>
+        </Flex>
 
         <Box
           style={{
             overflowY: "auto",
-            maxHeight: "calc(80vh - 100px)",
+            maxHeight: "calc(80vh - 120px)",
             paddingRight: "8px",
           }}
         >
           <KeyboardShortcutsList />
         </Box>
-
-        <Flex justify="end" mt="4">
-          <Dialog.Close>
-            <Text
-              size="1"
-              color="gray"
-              style={{ cursor: "pointer" }}
-              onClick={() => onOpenChange(false)}
-            >
-              Press <Kbd size="1">Esc</Kbd> to close
-            </Text>
-          </Dialog.Close>
-        </Flex>
       </Dialog.Content>
     </Dialog.Root>
+  );
+}
+
+function ShortcutsHeader() {
+  const triggerParts = formatHotkeyParts("mod+/");
+
+  return (
+    <Box mb="4">
+      <Flex align="center" gap="3" mb="1">
+        <Dialog.Title size="6" mb="0" style={{ lineHeight: 1.2 }}>
+          Keyboard Combos
+        </Dialog.Title>
+        <Flex gap="1" align="center">
+          {triggerParts.map((part) => (
+            <Keycap key={part} label={part} />
+          ))}
+        </Flex>
+      </Flex>
+      <Text size="2" color="gray">
+        Your cheat codes for shipping faster
+      </Text>
+    </Box>
   );
 }
 
@@ -121,14 +190,7 @@ export function KeyboardShortcutsList() {
                       index % 2 === 0 ? "var(--gray-2)" : "var(--gray-1)",
                   }}
                 >
-                  <Flex direction="column" gap="1">
-                    <Text size="2">{shortcut.description}</Text>
-                    {shortcut.context && (
-                      <Text size="1" color="gray">
-                        {shortcut.context}
-                      </Text>
-                    )}
-                  </Flex>
+                  <Text size="2">{shortcut.description}</Text>
                   <ShortcutKeys
                     keys={shortcut.keys}
                     alternateKeys={shortcut.alternateKeys}
@@ -144,23 +206,12 @@ export function KeyboardShortcutsList() {
 }
 
 function SingleShortcutKeys({ keys }: { keys: string }) {
-  const formatted = formatHotkey(keys);
+  const parts = formatHotkeyParts(keys);
 
-  if (isMac) {
-    return (
-      <Kbd size="2" style={{ fontFamily: "system-ui" }}>
-        {formatted}
-      </Kbd>
-    );
-  }
-
-  const keyParts = formatted.split("+");
   return (
     <Flex gap="1" align="center">
-      {keyParts.map((part) => (
-        <Kbd key={part} size="2">
-          {part}
-        </Kbd>
+      {parts.map((part) => (
+        <Keycap key={part} label={part} />
       ))}
     </Flex>
   );

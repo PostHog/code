@@ -48,14 +48,7 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
     description: "Open command menu",
     category: "general",
   },
-  {
-    id: "toggle-focus",
-    keys: SHORTCUTS.TOGGLE_FOCUS,
-    description: "Toggle focus mode",
-    category: "general",
-    context: "Worktree task",
-  },
-  {
+{
     id: "settings",
     keys: SHORTCUTS.SETTINGS,
     description: "Open settings",
@@ -219,31 +212,39 @@ export function getShortcutsByCategory(): Record<
   return grouped;
 }
 
-export function formatHotkey(keys: string): string {
-  // Get only the first hotkey if multiple are defined (e.g., "mod+1,mod+2,mod+3")
-  // But handle edge case where comma is the actual key (e.g., "mod+,")
-  let hotkey = keys;
-  if (keys.includes(",") && !keys.endsWith(",")) {
-    hotkey = keys.split(",")[0];
-  }
+function formatKey(key: string): string {
+  const k = key.trim().toLowerCase();
+  if (k === "mod") return isMac ? "⌘" : "Ctrl";
+  if (k === "shift") return isMac ? "⇧" : "Shift";
+  if (k === "alt") return isMac ? "⌥" : "Alt";
+  if (k === "ctrl") return isMac ? "⌃" : "Ctrl";
+  if (k === "enter") return isMac ? "↩" : "Enter";
+  if (k === "escape" || k === "esc") return "Esc";
+  if (k === "up" || k === "arrowup") return "↑";
+  if (k === "down" || k === "arrowdown") return "↓";
+  if (k === ",") return ",";
+  if (k === "[") return "[";
+  if (k === "]") return "]";
+  if (k === "tab") return "Tab";
+  return k.toUpperCase();
+}
 
+function extractHotkey(keys: string): string {
+  if (keys.includes(",") && !keys.endsWith(",")) {
+    return keys.split(",")[0];
+  }
+  return keys;
+}
+
+export function formatHotkey(keys: string): string {
+  const hotkey = extractHotkey(keys);
   return hotkey
     .split("+")
-    .map((key) => {
-      const k = key.trim().toLowerCase();
-      if (k === "mod") return isMac ? "⌘" : "Ctrl";
-      if (k === "shift") return isMac ? "⇧" : "Shift";
-      if (k === "alt") return isMac ? "⌥" : "Alt";
-      if (k === "ctrl") return isMac ? "⌃" : "Ctrl";
-      if (k === "enter") return isMac ? "↩" : "Enter";
-      if (k === "escape" || k === "esc") return "Esc";
-      if (k === "up" || k === "arrowup") return "↑";
-      if (k === "down" || k === "arrowdown") return "↓";
-      if (k === ",") return ",";
-      if (k === "[") return "[";
-      if (k === "]") return "]";
-      if (k === "tab") return "Tab";
-      return k.toUpperCase();
-    })
+    .map(formatKey)
     .join(isMac ? "" : "+");
+}
+
+export function formatHotkeyParts(keys: string): string[] {
+  const hotkey = extractHotkey(keys);
+  return hotkey.split("+").map(formatKey);
 }
