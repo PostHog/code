@@ -10,6 +10,7 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  ComboboxListFooter,
   ComboboxTrigger,
 } from "@posthog/quill";
 import { useTRPC } from "@renderer/trpc";
@@ -83,6 +84,8 @@ export function BranchSelector({
     ...(isCloudMode ? (cloudBranches ?? []) : localBranches),
     ...MOCK_BRANCHES,
   ];
+  const CREATE_BRANCH_ACTION = "__create_branch__";
+  const allItems = isCloudMode ? branches : [...branches, CREATE_BRANCH_ACTION];
   const effectiveLoading = loading || (isCloudMode && cloudBranchesLoading);
   const cloudStillLoading =
     isCloudMode && cloudBranchesLoading && branches.length === 0;
@@ -136,7 +139,7 @@ export function BranchSelector({
 
   return (
     <Combobox
-      items={branches}
+      items={allItems}
       value={displayedBranch}
       onValueChange={(v) => handleBranchChange(v as string | null)}
       open={open}
@@ -185,37 +188,36 @@ export function BranchSelector({
         <ComboboxEmpty>No branches found.</ComboboxEmpty>
 
         <ComboboxList className="max-h-[min(14rem,calc(var(--available-height,14rem)-5rem))] pe-2">
-          {(branch: string) => (
-            <ComboboxItem
-              key={branch}
-              value={branch}
-              title={branch}
-              className="relative"
-            >
-              {branch}
-            </ComboboxItem>
-          )}
+          {(item: string) =>
+            item === CREATE_BRANCH_ACTION ? (
+              <ComboboxListFooter key="footer">
+                <ComboboxItem
+                  value={CREATE_BRANCH_ACTION}
+                  onClick={() => {
+                    setOpen(false);
+                    actions.openBranch(
+                      taskId
+                        ? getSuggestedBranchName(taskId, repoPath ?? undefined)
+                        : undefined,
+                    );
+                  }}
+                >
+                  <Plus size={11} weight="bold" />
+                  Create new branch
+                </ComboboxItem>
+              </ComboboxListFooter>
+            ) : (
+              <ComboboxItem
+                key={item}
+                value={item}
+                title={item}
+                className="relative"
+              >
+                {item}
+              </ComboboxItem>
+            )
+          }
         </ComboboxList>
-
-        {!isCloudMode && (
-          <div className="border-border/50 border-t p-1">
-            <button
-              type="button"
-              className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-accent-foreground text-xs outline-none transition-colors hover:bg-fill-hover"
-              onClick={() => {
-                setOpen(false);
-                actions.openBranch(
-                  taskId
-                    ? getSuggestedBranchName(taskId, repoPath ?? undefined)
-                    : undefined,
-                );
-              }}
-            >
-              <Plus size={11} weight="bold" />
-              Create new branch
-            </button>
-          </div>
-        )}
       </ComboboxContent>
     </Combobox>
   );

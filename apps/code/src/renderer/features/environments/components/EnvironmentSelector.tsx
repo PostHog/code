@@ -8,6 +8,7 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  ComboboxListFooter,
   ComboboxTrigger,
 } from "@posthog/quill";
 import { useTRPC } from "@renderer/trpc/client";
@@ -61,7 +62,12 @@ export function EnvironmentSelector({
 
   const isDisabled = disabled || !repoPath;
 
-  const allItems = [NONE_VALUE, ...environments.map((env) => env.id)];
+  const CREATE_ENV_ACTION = "__create_env__";
+  const allItems = [
+    NONE_VALUE,
+    ...environments.map((env) => env.id),
+    CREATE_ENV_ACTION,
+  ];
 
   return (
     <Combobox
@@ -107,6 +113,19 @@ export function EnvironmentSelector({
 
         <ComboboxList className="max-h-[min(14rem,calc(var(--available-height,14rem)-5rem))]">
           {(itemValue: string) => {
+            if (itemValue === CREATE_ENV_ACTION) {
+              return (
+                <ComboboxListFooter key="footer">
+                  <ComboboxItem
+                    value={CREATE_ENV_ACTION}
+                    onClick={handleOpenSettings}
+                  >
+                    <Plus size={11} weight="bold" />
+                    Create local environment
+                  </ComboboxItem>
+                </ComboboxListFooter>
+              );
+            }
             if (itemValue === NONE_VALUE) {
               return (
                 <ComboboxItem
@@ -133,17 +152,6 @@ export function EnvironmentSelector({
             );
           }}
         </ComboboxList>
-
-        <div className="border-border/50 border-t p-1">
-          <button
-            type="button"
-            className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-accent-foreground text-xs outline-none transition-colors hover:bg-fill-hover"
-            onClick={handleOpenSettings}
-          >
-            <Plus size={11} weight="bold" />
-            Create local environment
-          </button>
-        </div>
       </ComboboxContent>
     </Combobox>
   );
