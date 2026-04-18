@@ -1,6 +1,7 @@
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { trpcClient } from "@renderer/trpc/client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ONBOARDING_STEPS, type OnboardingStep } from "../types";
 
 export interface DetectedRepo {
@@ -46,7 +47,14 @@ export function useOnboardingFlow() {
     }
   }, []);
 
-  const activeSteps = ONBOARDING_STEPS;
+  const hasCodeAccess = useAuthStateValue((state) => state.hasCodeAccess);
+
+  const activeSteps = useMemo(() => {
+    if (hasCodeAccess !== false) {
+      return ONBOARDING_STEPS.filter((s) => s !== "invite-code");
+    }
+    return ONBOARDING_STEPS;
+  }, [hasCodeAccess]);
 
   useEffect(() => {
     if (!activeSteps.includes(currentStep)) {
