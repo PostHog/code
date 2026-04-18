@@ -1,87 +1,63 @@
-import { DraggableTitleBar } from "@components/DraggableTitleBar";
-import { ZenHedgehog } from "@components/ZenHedgehog";
-import { Flex, Theme } from "@radix-ui/themes";
-import codeLogo from "@renderer/assets/images/code.svg";
-import { useThemeStore } from "@stores/themeStore";
+import { FullScreenLayout } from "@components/FullScreenLayout";
+import { OnboardingHogTip } from "@features/onboarding/components/OnboardingHogTip";
+import { Flex, Text } from "@radix-ui/themes";
+import happyHog from "@renderer/assets/images/hedgehogs/happy-hog.png";
 import { OAuthControls } from "./OAuthControls";
 
 export function AuthScreen() {
-  const isDarkMode = useThemeStore((state) => state.isDarkMode);
-
   return (
-    <Theme
-      appearance={isDarkMode ? "dark" : "light"}
-      accentColor={isDarkMode ? "yellow" : "orange"}
-      radius="medium"
-    >
-      <Flex height="100vh" style={{ position: "relative", overflow: "hidden" }}>
-        <DraggableTitleBar />
-
-        {/* Background */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            backgroundColor: "var(--color-background)",
-          }}
-        />
-
-        {/* Right panel — zen hedgehog */}
+    <FullScreenLayout>
+      <Flex align="center" justify="center" height="100%" px="8">
         <Flex
+          direction="column"
           align="center"
-          justify="center"
           style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            bottom: 0,
-            width: "50%",
-            backgroundColor: "var(--color-background)",
+            width: "100%",
+            maxWidth: 480,
+            height: "100%",
+            paddingTop: 24,
+            paddingBottom: 40,
           }}
         >
-          <ZenHedgehog />
-        </Flex>
-
-        {/* Left side with card */}
-        <Flex
-          width="50%"
-          align="center"
-          justify="center"
-          style={{ position: "relative", zIndex: 1 }}
-        >
-          {/* Auth card */}
           <Flex
             direction="column"
-            gap="5"
-            style={{
-              position: "relative",
-              width: "360px",
-              padding: "32px",
-              backgroundColor: "var(--color-panel-solid)",
-              borderRadius: "16px",
-              border: "1px solid var(--gray-4)",
-              boxShadow:
-                "0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
-            }}
+            justify="center"
+            align="center"
+            style={{ flex: 1, minHeight: 0, width: "100%" }}
           >
-            {/* Logo */}
-            <img
-              src={codeLogo}
-              alt="PostHog"
-              style={{
-                height: "30px",
-                objectFit: "contain",
-                alignSelf: "center",
-              }}
-            />
-
-            <OAuthControls />
+            <Flex
+              direction="column"
+              align="start"
+              gap="6"
+              style={{ width: "100%" }}
+            >
+              <Flex direction="column" gap="5" style={{ width: "100%" }}>
+                <Flex direction="column" gap="3" style={{ width: "100%" }}>
+                  <Flex direction="column" gap="4">
+                    <Flex direction="column" gap="2">
+                      <Text
+                        size="6"
+                        weight="bold"
+                        style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+                      >
+                        Sign in to PostHog
+                      </Text>
+                      <Text size="2" style={{ color: "var(--gray-11)" }}>
+                        Connect your PostHog account to continue.
+                      </Text>
+                    </Flex>
+                    <OAuthControls />
+                    <OnboardingHogTip
+                      hogSrc={happyHog}
+                      message="Welcome back. Let's get shipping."
+                    />
+                  </Flex>
+                </Flex>
+              </Flex>
+            </Flex>
           </Flex>
         </Flex>
-
-        {/* Right side - shows background */}
-        <div style={{ width: "50%" }} />
       </Flex>
-    </Theme>
+    </FullScreenLayout>
   );
 }

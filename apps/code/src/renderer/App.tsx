@@ -3,6 +3,7 @@ import { LoginTransition } from "@components/LoginTransition";
 import { MainLayout } from "@components/MainLayout";
 import { ScopeReauthPrompt } from "@components/ScopeReauthPrompt";
 import { AuthScreen } from "@features/auth/components/AuthScreen";
+import { InviteCodeScreen } from "@features/auth/components/InviteCodeScreen";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useAuthSession } from "@features/auth/hooks/useAuthSession";
 import { OnboardingFlow } from "@features/onboarding/components/OnboardingFlow";
@@ -136,14 +137,8 @@ function App() {
     }),
   );
 
-  // If authenticated but no access, force back into onboarding at the invite-code step
-  useEffect(() => {
-    if (isAuthenticated && hasCodeAccess === false && hasCompletedOnboarding) {
-      const store = useOnboardingStore.getState();
-      store.resetOnboarding();
-      store.setCurrentStep("invite-code");
-    }
-  }, [isAuthenticated, hasCodeAccess, hasCompletedOnboarding]);
+  const needsInviteCode =
+    isAuthenticated && hasCodeAccess === false && hasCompletedOnboarding;
 
   // Handle transition into main app — only show the dark overlay if dark mode is active
   useEffect(() => {
@@ -186,6 +181,14 @@ function App() {
       return (
         <motion.div key="auth" initial={{ opacity: 1 }}>
           <AuthScreen />
+        </motion.div>
+      );
+    }
+
+    if (needsInviteCode) {
+      return (
+        <motion.div key="invite-code" initial={{ opacity: 1 }}>
+          <InviteCodeScreen />
         </motion.div>
       );
     }
