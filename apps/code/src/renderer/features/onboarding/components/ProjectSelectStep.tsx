@@ -128,7 +128,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                             weight="bold"
                             style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
                           >
-                            Pick your home base
+                            Pick your PostHog home base
                           </Text>
                           <Text size="2" style={{ color: "var(--gray-11)" }}>
                             Choose the organization and project you want to work
