@@ -87,11 +87,11 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
                     weight="bold"
                     style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
                   >
-                    Teach your agents what matters
+                    Set up your Inbox
                   </Text>
                   <Text size="2" style={{ color: "var(--gray-11)" }}>
-                    Signals watch your product data around the clock and surface
-                    the highest-impact work straight to your Inbox.
+                    Your Inbox turns activity across your tools into actionable
+                    tasks.
                   </Text>
                 </Flex>
               </motion.div>

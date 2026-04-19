@@ -121,41 +121,18 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <Flex direction="column" gap="3">
-                        <Flex direction="column" gap="2">
-                          <Text
-                            size="6"
-                            weight="bold"
-                            style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
-                          >
-                            Pick your PostHog home base
-                          </Text>
-                          <Text size="2" style={{ color: "var(--gray-11)" }}>
-                            Choose the organization and project you want to work
-                            in.
-                          </Text>
-                        </Flex>
-                        {!isLoading && !isSwitchingOrg && (
-                          <Flex
-                            align="center"
-                            gap="2"
-                            style={{
-                              padding: "8px 12px",
-                              backgroundColor: "var(--green-a2)",
-                              border: "1px solid var(--green-a5)",
-                              borderRadius: 8,
-                            }}
-                          >
-                            <CheckCircle
-                              size={16}
-                              weight="fill"
-                              style={{ color: "var(--green-9)" }}
-                            />
-                            <Text size="2" style={{ color: "var(--green-11)" }}>
-                              Signed in as {currentUser?.email}
-                            </Text>
-                          </Flex>
-                        )}
+                      <Flex direction="column" gap="2">
+                        <Text
+                          size="6"
+                          weight="bold"
+                          style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+                        >
+                          Pick your PostHog home base
+                        </Text>
+                        <Text size="2" style={{ color: "var(--gray-11)" }}>
+                          Choose the organization and project you want to work
+                          in.
+                        </Text>
                       </Flex>
                     </motion.div>
                   ) : (
@@ -410,6 +387,30 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                     </Popover.Root>
                   </Flex>
                 </motion.div>
+              )}
+
+              {/* Signed in confirmation */}
+              {isAuthenticated && !isLoading && !isSwitchingOrg && (
+                <Flex
+                  align="center"
+                  gap="2"
+                  style={{
+                    padding: "8px 12px",
+                    backgroundColor: "var(--green-a2)",
+                    border: "1px solid var(--green-a5)",
+                    borderRadius: 8,
+                    alignSelf: "flex-start",
+                  }}
+                >
+                  <CheckCircle
+                    size={16}
+                    weight="fill"
+                    style={{ color: "var(--green-9)" }}
+                  />
+                  <Text size="2" style={{ color: "var(--green-11)" }}>
+                    Signed in as {currentUser?.email}
+                  </Text>
+                </Flex>
               )}
             </Flex>
 
