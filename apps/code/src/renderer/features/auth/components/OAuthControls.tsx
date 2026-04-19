@@ -7,7 +7,6 @@ import { RegionSelect } from "./RegionSelect";
 export function OAuthControls() {
   const {
     region,
-    authMode,
     handleAuth,
     handleRegionChange,
     handleCancel,
@@ -62,11 +61,7 @@ export function OAuthControls() {
             style={{ width: "20px", height: "20px" }}
           />
         )}
-        {isPending
-          ? "Cancel"
-          : authMode === "login"
-            ? "Sign in with PostHog"
-            : "Sign up with PostHog"}
+        {isPending ? "Cancel" : "Sign in / sign up with PostHog"}
       </button>
 
       <Flex direction="column" gap="2" align="center">

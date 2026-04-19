@@ -1,8 +1,7 @@
 import { FullScreenLayout } from "@components/FullScreenLayout";
-import { OnboardingHogTip } from "@features/onboarding/components/OnboardingHogTip";
-import { Flex, Text } from "@radix-ui/themes";
+import { Flex } from "@radix-ui/themes";
 import happyHog from "@renderer/assets/images/hedgehogs/happy-hog.png";
-import { OAuthControls } from "./OAuthControls";
+import { SignInCard } from "./SignInCard";
 
 export function AuthScreen() {
   return (
@@ -32,27 +31,11 @@ export function AuthScreen() {
               style={{ width: "100%" }}
             >
               <Flex direction="column" gap="5" style={{ width: "100%" }}>
-                <Flex direction="column" gap="3" style={{ width: "100%" }}>
-                  <Flex direction="column" gap="4">
-                    <Flex direction="column" gap="2">
-                      <Text
-                        size="6"
-                        weight="bold"
-                        style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
-                      >
-                        Sign in to PostHog
-                      </Text>
-                      <Text size="2" style={{ color: "var(--gray-11)" }}>
-                        Connect your PostHog account to continue.
-                      </Text>
-                    </Flex>
-                    <OAuthControls />
-                    <OnboardingHogTip
-                      hogSrc={happyHog}
-                      message="Welcome back. Let's get shipping."
-                    />
-                  </Flex>
-                </Flex>
+                <SignInCard
+                  hogSrc={happyHog}
+                  hogMessage="Welcome back. Let's get shipping."
+                  subtitle="Connect your PostHog account to continue."
+                />
               </Flex>
             </Flex>
           </Flex>

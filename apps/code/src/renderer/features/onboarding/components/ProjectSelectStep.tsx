@@ -1,4 +1,4 @@
-import { OAuthControls } from "@features/auth/components/OAuthControls";
+import { SignInCard } from "@features/auth/components/SignInCard";
 import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useSelectProjectMutation } from "@features/auth/hooks/authMutations";
 import {
@@ -165,25 +165,11 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                       exit={{ opacity: 0, y: -4 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <Flex direction="column" gap="4">
-                        <Flex direction="column" gap="2">
-                          <Text
-                            size="6"
-                            weight="bold"
-                            style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
-                          >
-                            Sign in to PostHog
-                          </Text>
-                          <Text size="2" style={{ color: "var(--gray-11)" }}>
-                            Connect your account to get started.
-                          </Text>
-                        </Flex>
-                        <OAuthControls />
-                        <OnboardingHogTip
-                          hogSrc={happyHog}
-                          message="I don't bite. Just need to know who I'm working with."
-                        />
-                      </Flex>
+                      <SignInCard
+                        hogSrc={happyHog}
+                        hogMessage="I don't bite. Just need to know who I'm working with."
+                        subtitle="Connect your account to get started."
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
