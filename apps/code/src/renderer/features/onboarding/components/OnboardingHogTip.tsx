@@ -82,15 +82,16 @@ export function OnboardingHogTip({
             backgroundColor: "var(--color-panel-solid)",
             border: "1px solid var(--gray-a4)",
             borderRadius: "var(--radius-3)",
-            padding: "6px 12px",
+            padding: "8px 12px",
           }}
         >
           {/* Border tail */}
           <div
             style={{
               position: "absolute",
-              top: 14,
+              top: "50%",
               left: -8,
+              transform: "translateY(-50%)",
               width: 0,
               height: 0,
               borderTop: "8px solid transparent",
@@ -102,8 +103,9 @@ export function OnboardingHogTip({
           <div
             style={{
               position: "absolute",
-              top: 15,
+              top: "50%",
               left: -7,
+              transform: "translateY(-50%)",
               width: 0,
               height: 0,
               borderTop: "7px solid transparent",

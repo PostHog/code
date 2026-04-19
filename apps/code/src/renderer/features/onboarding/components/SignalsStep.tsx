@@ -87,11 +87,11 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
                     weight="bold"
                     style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
                   >
-                    Set up your Inbox
+                    Set up your Signals Inbox
                   </Text>
                   <Text size="2" style={{ color: "var(--gray-11)" }}>
-                    Your Inbox turns activity across your tools into actionable
-                    tasks.
+                    Choose which sources to monitor for this project. Signals
+                    will analyze activity and prioritize what needs attention.
                   </Text>
                 </Flex>
               </motion.div>
