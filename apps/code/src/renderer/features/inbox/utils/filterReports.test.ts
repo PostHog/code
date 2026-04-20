@@ -115,12 +115,12 @@ describe("buildSignalReportListOrdering", () => {
     );
   });
 
-  it("priority sort orders actionable ready before not_actionable then by priority", () => {
+  it("priority sort uses the same status + reviewer + field chain", () => {
     expect(buildSignalReportListOrdering("priority", "desc")).toBe(
-      "status,actionability_ready_rank,-is_suggested_reviewer,-priority",
+      "status,-is_suggested_reviewer,-priority",
     );
     expect(buildSignalReportListOrdering("priority", "asc")).toBe(
-      "status,actionability_ready_rank,-is_suggested_reviewer,priority",
+      "status,-is_suggested_reviewer,priority",
     );
   });
 });

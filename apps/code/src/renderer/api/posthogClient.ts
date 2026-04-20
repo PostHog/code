@@ -155,10 +155,7 @@ function normalizeActionabilityJudgmentArtefact(
   const contentValue = isObjectRecord(value.content) ? value.content : null;
   if (!contentValue) return null;
 
-  // Support both agentic ("actionability") and legacy ("choice") field names
-  const actionability =
-    optionalString(contentValue.actionability) ??
-    optionalString(contentValue.choice);
+  const actionability = optionalString(contentValue.actionability);
   if (!actionability || !ACTIONABILITY_VALUES.has(actionability)) return null;
 
   return {
