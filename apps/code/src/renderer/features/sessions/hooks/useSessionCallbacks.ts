@@ -85,22 +85,18 @@ export function useSessionCallbacks({
       : queuedMessages.map((message) => message.content).join("\n\n");
 
     if (queuedPrompt) {
-      const pendingContent =
-        sessionRef.current?.isCloud
-          ? promptToQueuedEditorContent(queuedPrompt)
-          : {
-              segments: [
-                {
-                  type: "text" as const,
-                  text: typeof queuedPrompt === "string" ? queuedPrompt : "",
-                },
-              ],
-            };
+      const pendingContent = sessionRef.current?.isCloud
+        ? promptToQueuedEditorContent(queuedPrompt)
+        : {
+            segments: [
+              {
+                type: "text" as const,
+                text: typeof queuedPrompt === "string" ? queuedPrompt : "",
+              },
+            ],
+          };
 
-      setPendingContent(
-        taskId,
-        pendingContent,
-      );
+      setPendingContent(taskId, pendingContent);
     }
     requestFocus(taskId);
   }, [taskId, setPendingContent, requestFocus]);

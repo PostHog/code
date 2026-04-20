@@ -51,7 +51,11 @@ export async function persistGenericFile(file: File): Promise<PersistedFile> {
     originalName: file.name,
   });
 
-  return { path: result.path, name: result.name, mimeType: file.type || undefined };
+  return {
+    path: result.path,
+    name: result.name,
+    mimeType: file.type || undefined,
+  };
 }
 
 export async function persistBrowserFile(

@@ -344,9 +344,7 @@ describe("SessionService", () => {
       unsubscribe: vi.fn(),
     });
     mockTrpcFs.readFileAsBase64.query.mockResolvedValue(null);
-    mockAuthenticatedClient.prepareTaskRunArtifactUploads.mockResolvedValue(
-      [],
-    );
+    mockAuthenticatedClient.prepareTaskRunArtifactUploads.mockResolvedValue([]);
     mockAuthenticatedClient.finalizeTaskRunArtifactUploads.mockResolvedValue(
       [],
     );
@@ -1292,34 +1290,38 @@ describe("SessionService", () => {
       });
       mockAuthenticatedClient.getTask.mockResolvedValue(createMockTask());
       mockTrpcFs.readFileAsBase64.query.mockResolvedValue("aGVsbG8=");
-      mockAuthenticatedClient.prepareTaskStagedArtifactUploads.mockResolvedValue([
-        {
-          id: "artifact-1",
-          name: "test.txt",
-          type: "user_attachment",
-          source: "posthog_code",
-          size: 5,
-          content_type: "text/plain",
-          storage_path: "tasks/artifacts/test.txt",
-          expires_in: 3600,
-          presigned_post: {
-            url: "https://uploads.example.com",
-            fields: { key: "tasks/artifacts/test.txt" },
+      mockAuthenticatedClient.prepareTaskStagedArtifactUploads.mockResolvedValue(
+        [
+          {
+            id: "artifact-1",
+            name: "test.txt",
+            type: "user_attachment",
+            source: "posthog_code",
+            size: 5,
+            content_type: "text/plain",
+            storage_path: "tasks/artifacts/test.txt",
+            expires_in: 3600,
+            presigned_post: {
+              url: "https://uploads.example.com",
+              fields: { key: "tasks/artifacts/test.txt" },
+            },
           },
-        },
-      ]);
-      mockAuthenticatedClient.finalizeTaskStagedArtifactUploads.mockResolvedValue([
-        {
-          id: "artifact-1",
-          name: "test.txt",
-          type: "user_attachment",
-          source: "posthog_code",
-          size: 5,
-          content_type: "text/plain",
-          storage_path: "tasks/artifacts/test.txt",
-          uploaded_at: "2026-04-16T00:00:00Z",
-        },
-      ]);
+        ],
+      );
+      mockAuthenticatedClient.finalizeTaskStagedArtifactUploads.mockResolvedValue(
+        [
+          {
+            id: "artifact-1",
+            name: "test.txt",
+            type: "user_attachment",
+            source: "posthog_code",
+            size: 5,
+            content_type: "text/plain",
+            storage_path: "tasks/artifacts/test.txt",
+            uploaded_at: "2026-04-16T00:00:00Z",
+          },
+        ],
+      );
       mockAuthenticatedClient.runTaskInCloud.mockResolvedValue(
         createMockTask({
           latest_run: {
