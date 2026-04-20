@@ -448,7 +448,7 @@ export function ReviewShell({
         <Flex style={{ flex: 1, minHeight: 0 }}>
           <div
             ref={scrollContainerRef}
-            className="scrollbar-hide flex-1 space-y-2 overflow-auto"
+            className="scrollbar-overlay-y flex-1 space-y-2 overflow-auto"
             id="review-shell-diff-container"
             style={{ minWidth: 0 }}
           >
