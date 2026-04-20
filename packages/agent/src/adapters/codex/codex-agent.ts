@@ -369,6 +369,12 @@ export class CodexAcpAgent extends BaseAcpAgent {
     this.session.interruptReason = undefined;
     resetUsage(this.sessionState);
 
+    // codex-acp does not echo the user prompt back on the agent→client
+    // channel, so without this broadcast the tapped stream (persisted to S3
+    // and rendered by the PostHog web UI) never sees a user turn and only
+    // the assistant reply shows up. Mirrors ClaudeAcpAgent.broadcastUserMessage.
+    await this.broadcastUserMessage(params);
+
     const response = await this.codexConnection.prompt(params);
 
     // Usage is already accumulated via sessionUpdate notifications in
@@ -415,6 +421,20 @@ export class CodexAcpAgent extends BaseAcpAgent {
     await this.codexConnection.cancel({
       sessionId: this.sessionId,
     });
+  }
+
+  private async broadcastUserMessage(params: PromptRequest): Promise<void> {
+    for (const chunk of params.prompt) {
+      const notification = {
+        sessionId: params.sessionId,
+        update: {
+          sessionUpdate: "user_message_chunk" as const,
+          content: chunk,
+        },
+      };
+      await this.client.sessionUpdate(notification);
+      this.appendNotification(params.sessionId, notification);
+    }
   }
 
   async setSessionMode(
