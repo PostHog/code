@@ -7,9 +7,12 @@ import {
   InfoIcon,
 } from "@phosphor-icons/react";
 import { Box, Button, Flex, Spinner, Text, Tooltip } from "@radix-ui/themes";
+import { useGitHubIntegrationCallback } from "@renderer/features/integrations/hooks/useGitHubIntegrationCallback";
 import { trpcClient } from "@renderer/trpc/client";
+import { IS_DEV } from "@shared/constants/environment";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 const POLL_INTERVAL_MS = 3_000;
 const POLL_TIMEOUT_MS = 300_000; // 5 minutes
@@ -26,6 +29,12 @@ export function GitHubIntegrationSection({
   const [connecting, setConnecting] = useState(false);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const invalidateIntegrations = useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: ["integrations", "list"],
+    });
+  }, [queryClient]);
 
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
@@ -47,6 +56,23 @@ export function GitHubIntegrationSection({
     }
   }, [hasGithubIntegration, connecting, stopPolling]);
 
+  useGitHubIntegrationCallback({
+    onSuccess: () => {
+      stopPolling();
+      setConnecting(false);
+      invalidateIntegrations();
+    },
+    onError: (message) => {
+      stopPolling();
+      setConnecting(false);
+      toast.error(message);
+    },
+    onTimedOut: () => {
+      stopPolling();
+      setConnecting(false);
+    },
+  });
+
   const handleConnect = useCallback(async () => {
     if (!cloudRegion || !projectId) return;
     setConnecting(true);
@@ -56,11 +82,11 @@ export function GitHubIntegrationSection({
         projectId,
       });
 
-      pollTimerRef.current = setInterval(() => {
-        void queryClient.invalidateQueries({
-          queryKey: ["integrations"],
-        });
-      }, POLL_INTERVAL_MS);
+      if (IS_DEV) {
+        pollTimerRef.current = setInterval(() => {
+          invalidateIntegrations();
+        }, POLL_INTERVAL_MS);
+      }
 
       pollTimeoutRef.current = setTimeout(() => {
         stopPolling();
@@ -69,7 +95,7 @@ export function GitHubIntegrationSection({
     } catch {
       setConnecting(false);
     }
-  }, [cloudRegion, projectId, queryClient, stopPolling]);
+  }, [cloudRegion, projectId, invalidateIntegrations, stopPolling]);
 
   return (
     <Flex

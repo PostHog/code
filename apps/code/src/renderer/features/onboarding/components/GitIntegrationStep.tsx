@@ -9,12 +9,15 @@ import {
   CheckCircle,
   GitBranch,
 } from "@phosphor-icons/react";
-import { Box, Button, Flex, Skeleton, Text } from "@radix-ui/themes";
+import { Box, Button, Callout, Flex, Skeleton, Text } from "@radix-ui/themes";
 import codeLogo from "@renderer/assets/images/code.svg";
 import { trpcClient } from "@renderer/trpc/client";
+import { IS_DEV } from "@shared/constants/environment";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { useGitHubIntegrationCallback } from "../../integrations/hooks/useGitHubIntegrationCallback";
 import { useProjectsWithIntegrations } from "../hooks/useProjectsWithIntegrations";
 import { ProjectSelect } from "./ProjectSelect";
 
@@ -36,7 +39,8 @@ export function GitIntegrationStep({
   const selectProjectMutation = useSelectProjectMutation();
 
   const queryClient = useQueryClient();
-  const { projects, isLoading, isFetching } = useProjectsWithIntegrations();
+  const { projects, projectsWithGithub, isLoading, isFetching } =
+    useProjectsWithIntegrations();
 
   const isConnecting = useOnboardingStore((state) => state.isConnectingGithub);
   const setConnectingGithub = useOnboardingStore(
@@ -50,6 +54,7 @@ export function GitIntegrationStep({
   );
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
 
   // Determine which project to show:
   // 1. If user manually selected one, use that
@@ -69,6 +74,23 @@ export function GitIntegrationStep({
 
   const hasGitIntegration = selectedProject?.hasGithubIntegration ?? false;
 
+  const connectedAccountName = useMemo(() => {
+    const github = selectedProject?.integrations.find(
+      (i) => i.kind === "github",
+    );
+    const name = github?.config?.account?.name;
+    return typeof name === "string" && name.length > 0 ? name : null;
+  }, [selectedProject]);
+
+  // Surface a banner when the selected project has no integration but some
+  // other project does — a common onboarding edge case where the GitHub App is
+  // already installed for a different PostHog project/org.
+  const alternativeConnectedProject = useMemo(() => {
+    if (hasGitIntegration) return null;
+    if (!projectsWithGithub.length) return null;
+    return projectsWithGithub.find((p) => p.id !== selectedProjectId) ?? null;
+  }, [hasGitIntegration, projectsWithGithub, selectedProjectId]);
+
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
@@ -85,15 +107,50 @@ export function GitIntegrationStep({
     if (hasGitIntegration && isConnecting) {
       stopPolling();
       setConnectingGithub(false);
+      setTimedOut(false);
     }
   }, [hasGitIntegration, isConnecting, setConnectingGithub, stopPolling]);
 
   // Cleanup on unmount
   useEffect(() => stopPolling, [stopPolling]);
 
+  const invalidateProject = useCallback(
+    (projectId: number | null) => {
+      if (projectId === null) {
+        void queryClient.invalidateQueries({ queryKey: ["integrations"] });
+        return;
+      }
+      void queryClient.invalidateQueries({
+        queryKey: ["integrations", projectId],
+      });
+    },
+    [queryClient],
+  );
+
+  useGitHubIntegrationCallback({
+    onSuccess: (projectId) => {
+      stopPolling();
+      setTimedOut(false);
+      setConnectingGithub(false);
+      invalidateProject(projectId ?? selectedProjectId);
+    },
+    onError: (message) => {
+      stopPolling();
+      setTimedOut(false);
+      setConnectingGithub(false);
+      toast.error(message);
+    },
+    onTimedOut: () => {
+      stopPolling();
+      setConnectingGithub(false);
+      setTimedOut(true);
+    },
+  });
+
   const handleConnectGitHub = async () => {
     if (!cloudRegion || !selectedProjectId || !client) return;
     stopPolling();
+    setTimedOut(false);
     setConnectingGithub(true);
     try {
       await trpcClient.githubIntegration.startFlow.mutate({
@@ -101,15 +158,21 @@ export function GitIntegrationStep({
         projectId: selectedProjectId,
       });
 
-      // Start polling for the new integration
-      pollTimerRef.current = setInterval(async () => {
-        queryClient.invalidateQueries({ queryKey: ["integrations"] });
-      }, POLL_INTERVAL_MS);
+      // Dev-only fallback: DeepLinkService skips protocol registration in dev
+      // (see registerProtocol), so the browser can't deep-link back.
+      if (IS_DEV) {
+        pollTimerRef.current = setInterval(() => {
+          void queryClient.invalidateQueries({
+            queryKey: ["integrations", selectedProjectId],
+          });
+        }, POLL_INTERVAL_MS);
+      }
 
-      // Timeout after 5 minutes
+      // Safety timeout in case the subscription drops or the user abandons the browser.
       pollTimeoutRef.current = setTimeout(() => {
         stopPolling();
         setConnectingGithub(false);
+        setTimedOut(true);
       }, POLL_TIMEOUT_MS);
     } catch {
       setConnectingGithub(false);
@@ -117,7 +180,7 @@ export function GitIntegrationStep({
   };
 
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["integrations"] });
+    invalidateProject(selectedProjectId);
   };
 
   const handleContinue = () => {
@@ -193,6 +256,29 @@ export function GitIntegrationStep({
                 </Flex>
               )}
             </Flex>
+
+            {alternativeConnectedProject && selectedProject && (
+              <Callout.Root color="blue" variant="soft">
+                <Callout.Text>
+                  GitHub is already connected on{" "}
+                  <Text weight="bold">{alternativeConnectedProject.name}</Text>{" "}
+                  ({alternativeConnectedProject.organization.name}). Switch to
+                  that project, or click Connect to install a new integration on{" "}
+                  <Text weight="bold">{selectedProject.name}</Text>.
+                </Callout.Text>
+                <Flex mt="2">
+                  <Button
+                    size="1"
+                    variant="soft"
+                    onClick={() =>
+                      setSelectedProjectId(alternativeConnectedProject.id)
+                    }
+                  >
+                    Switch to {alternativeConnectedProject.name}
+                  </Button>
+                </Flex>
+              </Callout.Root>
+            )}
 
             {/* Consistent status box - same height regardless of connection state */}
             <Box
@@ -297,7 +383,9 @@ export function GitIntegrationStep({
                             opacity: 0.7,
                           }}
                         >
-                          Your GitHub integration is active and ready to use.
+                          {connectedAccountName
+                            ? `Linked to ${connectedAccountName}.`
+                            : "Your GitHub integration is active and ready to use."}
                         </Text>
                       </motion.div>
                     ) : (
@@ -372,14 +460,18 @@ export function GitIntegrationStep({
                       </Button>
                       <Text
                         size="1"
+                        align="center"
                         style={{
                           color: "var(--gray-12)",
                           opacity: 0.5,
+                          maxWidth: 360,
                         }}
                       >
-                        {isConnecting
-                          ? "Waiting for authorization\u2026 Click again if the browser tab was closed."
-                          : "Opens GitHub to authorize the PostHog app"}
+                        {timedOut
+                          ? "We didn't hear back from GitHub. If the browser tab was closed, click Connect again."
+                          : isConnecting
+                            ? "Waiting for GitHub\u2026 You'll return here automatically once the install completes."
+                            : "Opens GitHub to authorize the PostHog app"}
                       </Text>
                       <Button
                         size="1"
