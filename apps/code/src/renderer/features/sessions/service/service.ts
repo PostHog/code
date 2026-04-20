@@ -128,6 +128,8 @@ interface AuthCredentials {
 export interface ConnectParams {
   task: Task;
   repoPath: string;
+  /** Additional repo paths for multi-repo tasks (passed as additionalDirectories to agent). */
+  additionalRepoPaths?: string[];
   initialPrompt?: ContentBlock[];
   executionMode?: ExecutionMode;
   adapter?: "claude" | "codex";
@@ -245,6 +247,7 @@ export class SessionService {
     const {
       task,
       repoPath,
+      additionalRepoPaths,
       initialPrompt,
       executionMode,
       adapter,
@@ -357,6 +360,7 @@ export class SessionService {
           adapter,
           model,
           reasoningLevel,
+          additionalRepoPaths,
         );
       }
     } catch (error) {
@@ -748,6 +752,7 @@ export class SessionService {
     adapter?: "claude" | "codex",
     model?: string,
     reasoningLevel?: string,
+    additionalRepoPaths?: string[],
   ): Promise<void> {
     const { client } = auth;
     if (!client) {
@@ -775,6 +780,7 @@ export class SessionService {
         ? (reasoningLevel as EffortLevel)
         : undefined,
       model: preferredModel,
+      additionalDirectories: additionalRepoPaths,
     });
 
     const session = this.createBaseSession(taskRun.id, taskId, taskTitle);

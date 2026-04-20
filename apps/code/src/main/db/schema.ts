@@ -22,11 +22,12 @@ export const workspaces = sqliteTable(
   "workspaces",
   {
     id: id(),
-    taskId: text().notNull().unique(),
+    taskId: text().notNull(),
     repositoryId: text().references(() => repositories.id, {
       onDelete: "set null",
     }),
     mode: text({ enum: ["cloud", "local", "worktree"] }).notNull(),
+    label: text(),
     linkedBranch: text(),
     pinnedAt: text(),
     lastViewedAt: text(),
@@ -34,7 +35,10 @@ export const workspaces = sqliteTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("workspaces_repository_id_idx").on(t.repositoryId)],
+  (t) => [
+    index("workspaces_task_id_idx").on(t.taskId),
+    index("workspaces_repository_id_idx").on(t.repositoryId),
+  ],
 );
 
 export const worktrees = sqliteTable("worktrees", {

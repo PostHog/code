@@ -8,6 +8,12 @@ export interface WorkspaceEnvContext {
   worktreePath: string | null;
   worktreeName: string | null;
   mode: WorkspaceMode;
+  label?: string | null;
+}
+
+export interface MultiRepoEnvContext {
+  taskId: string;
+  workspaces: WorkspaceEnvContext[];
 }
 
 const PORT_BASE = 50000;
@@ -71,4 +77,44 @@ export async function buildWorkspaceEnv(
     POSTHOG_CODE_WORKSPACE_PORTS_START: String(portAllocation.start),
     POSTHOG_CODE_WORKSPACE_PORTS_END: String(portAllocation.end),
   };
+}
+
+/**
+ * Build env vars for multi-repo tasks. Includes indexed per-repo vars
+ * (POSTHOG_CODE_REPO_0_*, POSTHOG_CODE_REPO_1_*, etc.) alongside the
+ * legacy single-repo vars from the first workspace.
+ */
+export async function buildMultiRepoWorkspaceEnv(
+  context: MultiRepoEnvContext,
+): Promise<Record<string, string>> {
+  const nonCloudWorkspaces = context.workspaces.filter(
+    (ws) => ws.mode !== "cloud",
+  );
+  if (nonCloudWorkspaces.length === 0) return {};
+
+  // Legacy vars from first workspace
+  const legacyEnv = await buildWorkspaceEnv(nonCloudWorkspaces[0]);
+
+  // Indexed per-repo vars
+  const repoEnv: Record<string, string> = {
+    POSTHOG_CODE_REPO_COUNT: String(nonCloudWorkspaces.length),
+  };
+
+  for (let i = 0; i < nonCloudWorkspaces.length; i++) {
+    const ws = nonCloudWorkspaces[i];
+    const prefix = `POSTHOG_CODE_REPO_${i}`;
+    const wsPath = ws.worktreePath ?? ws.folderPath;
+    const wsName = ws.label ?? ws.worktreeName ?? path.basename(ws.folderPath);
+
+    repoEnv[`${prefix}_NAME`] = wsName;
+    repoEnv[`${prefix}_PATH`] = wsPath;
+
+    try {
+      repoEnv[`${prefix}_BRANCH`] = (await getCurrentBranch(wsPath)) ?? "";
+    } catch {
+      repoEnv[`${prefix}_BRANCH`] = "";
+    }
+  }
+
+  return { ...legacyEnv, ...repoEnv };
 }

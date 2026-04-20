@@ -27,6 +27,11 @@ interface UserBasic {
   is_email_verified?: boolean | null;
 }
 
+export interface TaskRepositoryConfig {
+  repository: string; // Format: "organization/repository" (e.g., "posthog/posthog-js")
+  github_integration?: number | null;
+}
+
 export interface Task {
   id: string;
   task_number: number | null;
@@ -38,7 +43,10 @@ export interface Task {
   updated_at: string;
   created_by?: UserBasic | null;
   origin_product: string;
-  repository?: string | null; // Format: "organization/repository" (e.g., "posthog/posthog-js")
+  /** @deprecated Use `repositories` instead. Kept for backward compat with API. */
+  repository?: string | null;
+  /** All repositories associated with this task. */
+  repositories?: TaskRepositoryConfig[];
   github_integration?: number | null;
   json_schema?: Record<string, unknown> | null;
   signal_report?: string | null;

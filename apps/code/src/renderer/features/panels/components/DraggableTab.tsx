@@ -95,13 +95,15 @@ export const DraggableTab: React.FC<DraggableTabProps> = ({
           if (filePath) {
             const repoPath =
               tabData.type === "file" ? tabData.repoPath : undefined;
-            const workspaces = await workspaceApi.getAll();
+            const allWorkspaces = await workspaceApi.getAll();
             const workspace = repoPath
-              ? (Object.values(workspaces).find(
-                  (ws) =>
-                    ws?.worktreePath === repoPath ||
-                    ws?.folderPath === repoPath,
-                ) ?? null)
+              ? (Object.values(allWorkspaces)
+                  .flat()
+                  .find(
+                    (ws) =>
+                      ws?.worktreePath === repoPath ||
+                      ws?.folderPath === repoPath,
+                  ) ?? null)
               : null;
 
             await handleExternalAppAction(

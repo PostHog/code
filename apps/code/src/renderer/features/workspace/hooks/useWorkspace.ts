@@ -36,20 +36,60 @@ function useInvalidateWorkspaceCaches() {
   );
 }
 
-export function useWorkspaces(): {
-  data: Record<string, Workspace> | undefined;
+/**
+ * Returns all workspaces grouped by task ID.
+ * Each task may have multiple workspaces (one per repo in multi-repo setups).
+ */
+export function useAllWorkspaces(): {
+  data: Record<string, Workspace[]> | undefined;
   isFetched: boolean;
 } {
   const query = useWorkspacesQuery();
   return { data: query.data, isFetched: query.isFetched };
 }
 
-export function useWorkspace(taskId: string | undefined): Workspace | null {
-  const { data: workspaces } = useWorkspacesQuery();
+/**
+ * Returns the first workspace per task for backward-compatible consumers
+ * that expect a single workspace per task.
+ */
+export function useWorkspaces(): {
+  data: Record<string, Workspace> | undefined;
+  isFetched: boolean;
+} {
+  const query = useWorkspacesQuery();
+  const data = useMemo(() => {
+    if (!query.data) return undefined;
+    const result: Record<string, Workspace> = {};
+    for (const [taskId, workspaceArr] of Object.entries(query.data)) {
+      if (workspaceArr.length > 0) {
+        result[taskId] = workspaceArr[0];
+      }
+    }
+    return result;
+  }, [query.data]);
+  return { data, isFetched: query.isFetched };
+}
+
+/**
+ * Returns all workspaces for a specific task.
+ */
+export function useTaskWorkspaces(taskId: string | undefined): Workspace[] {
+  const { data: allWorkspaces } = useWorkspacesQuery();
   return useMemo(
-    () => workspaces?.[taskId ?? ""] ?? null,
-    [workspaces, taskId],
+    () => allWorkspaces?.[taskId ?? ""] ?? [],
+    [allWorkspaces, taskId],
   );
+}
+
+/**
+ * Returns the first workspace for a task (backward compatible).
+ */
+export function useWorkspace(taskId: string | undefined): Workspace | null {
+  const { data: allWorkspaces } = useWorkspacesQuery();
+  return useMemo(() => {
+    const arr = allWorkspaces?.[taskId ?? ""];
+    return arr?.[0] ?? null;
+  }, [allWorkspaces, taskId]);
 }
 
 export function useIsWorkspaceCloudRun(taskId: string | undefined): boolean {
@@ -123,8 +163,8 @@ export function useEnsureWorkspace(): {
       const existing = queryClient.getQueryData(
         trpcReact.workspace.getAll.queryKey(),
       )?.[taskId];
-      if (existing) {
-        return existing;
+      if (existing && existing.length > 0) {
+        return existing[0];
       }
 
       const result = await createMutation.mutateAsync({
@@ -136,16 +176,15 @@ export function useEnsureWorkspace(): {
         branch: branch ?? undefined,
       });
 
-      if (!result) {
+      if (!result || result.length === 0) {
         throw new Error("Failed to create workspace");
       }
 
       await invalidateCaches(repoPath);
-      return (
-        queryClient.getQueryData(trpcReact.workspace.getAll.queryKey())?.[
-          taskId
-        ] ?? null
-      );
+      const cached = queryClient.getQueryData(
+        trpcReact.workspace.getAll.queryKey(),
+      )?.[taskId];
+      return cached?.[0] ?? null;
     },
     [createMutation, queryClient, trpcReact, invalidateCaches],
   );
@@ -157,13 +196,21 @@ export function useEnsureWorkspace(): {
 }
 
 export const workspaceApi = {
-  async getAll(): Promise<Record<string, Workspace>> {
+  async getAll(): Promise<Record<string, Workspace[]>> {
     return (await trpcClient.workspace.getAll.query()) ?? {};
   },
 
+  /** Returns the first workspace for a task, or null. */
   async get(taskId: string): Promise<Workspace | null> {
     const workspaces = await trpcClient.workspace.getAll.query();
-    return workspaces?.[taskId] ?? null;
+    const arr = workspaces?.[taskId];
+    return arr?.[0] ?? null;
+  },
+
+  /** Returns all workspaces for a task. */
+  async getTaskWorkspaces(taskId: string): Promise<Workspace[]> {
+    const workspaces = await trpcClient.workspace.getAll.query();
+    return workspaces?.[taskId] ?? [];
   },
 
   async create(options: {
@@ -173,6 +220,7 @@ export const workspaceApi = {
     folderPath: string;
     mode: WorkspaceMode;
     branch?: string;
+    label?: string;
   }) {
     return trpcClient.workspace.create.mutate(options);
   },

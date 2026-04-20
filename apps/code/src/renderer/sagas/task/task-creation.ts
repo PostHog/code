@@ -67,6 +67,13 @@ const sagaLogger: SagaLogger = {
   warn: (message, data) => log.warn(message, data),
 };
 
+export interface AdditionalRepoInput {
+  repoPath: string;
+  mode: WorkspaceMode;
+  branch?: string | null;
+  label?: string;
+}
+
 export interface TaskCreationInput {
   // For opening existing task
   taskId?: string;
@@ -88,6 +95,8 @@ export interface TaskCreationInput {
   cloudPrAuthorshipMode?: PrAuthorshipMode;
   cloudRunSource?: CloudRunSource;
   signalReportId?: string;
+  /** Additional repos for multi-repo tasks. */
+  additionalRepos?: AdditionalRepoInput[];
 }
 
 export interface TaskCreationOutput {
@@ -186,7 +195,35 @@ export class TaskCreationSaga extends Saga<
             this.resolveFolder(repoPath),
           );
 
-      const workspaceInfo = await this.step({
+      // Resolve additional repo folders in parallel
+      let additionalRepoConfigs:
+        | {
+            mainRepoPath: string;
+            folderId: string;
+            folderPath: string;
+            mode: WorkspaceMode;
+            branch?: string;
+            label?: string;
+          }[]
+        | undefined;
+      if (input.additionalRepos && input.additionalRepos.length > 0) {
+        const resolvedFolders = await Promise.all(
+          input.additionalRepos.map(async (repo) => ({
+            folder: await this.resolveFolder(repo.repoPath),
+            repo,
+          })),
+        );
+        additionalRepoConfigs = resolvedFolders.map(({ folder: f, repo }) => ({
+          mainRepoPath: repo.repoPath,
+          folderId: f.id,
+          folderPath: repo.repoPath,
+          mode: (repo.mode ?? workspaceMode) as WorkspaceMode,
+          branch: repo.branch ?? undefined,
+          label: repo.label ?? repo.repoPath.split("/").pop(),
+        }));
+      }
+
+      const workspaceInfos = await this.step({
         name: "workspace_creation",
         execute: async () => {
           return trpcClient.workspace.create.mutate({
@@ -196,6 +233,10 @@ export class TaskCreationSaga extends Saga<
             folderPath: repoPath,
             mode: workspaceMode,
             branch: branch ?? undefined,
+            label: additionalRepoConfigs
+              ? repoPath.split("/").pop()
+              : undefined,
+            additionalRepos: additionalRepoConfigs,
           });
         },
         rollback: async () => {
@@ -207,19 +248,23 @@ export class TaskCreationSaga extends Saga<
         },
       });
 
-      workspace = {
-        taskId: task.id,
-        folderId: folder.id,
-        folderPath: repoPath,
-        mode: workspaceMode,
-        worktreePath: workspaceInfo.worktree?.worktreePath ?? null,
-        worktreeName: workspaceInfo.worktree?.worktreeName ?? null,
-        branchName: workspaceInfo.worktree?.branchName ?? null,
-        baseBranch: workspaceInfo.worktree?.baseBranch ?? null,
-        linkedBranch: workspaceInfo.linkedBranch ?? null,
-        createdAt:
-          workspaceInfo.worktree?.createdAt ?? new Date().toISOString(),
-      };
+      // Use first workspace info for backward compat (single-repo tasks)
+      const workspaceInfo = workspaceInfos[0];
+      workspace = workspaceInfo
+        ? {
+            taskId: task.id,
+            folderId: folder.id,
+            folderPath: repoPath,
+            mode: workspaceMode,
+            worktreePath: workspaceInfo.worktree?.worktreePath ?? null,
+            worktreeName: workspaceInfo.worktree?.worktreeName ?? null,
+            branchName: workspaceInfo.worktree?.branchName ?? null,
+            baseBranch: workspaceInfo.worktree?.baseBranch ?? null,
+            linkedBranch: workspaceInfo.linkedBranch ?? null,
+            createdAt:
+              workspaceInfo.worktree?.createdAt ?? new Date().toISOString(),
+          }
+        : null;
     } else if (workspaceMode === "cloud") {
       await this.step({
         name: "cloud_workspace_creation",
@@ -248,7 +293,7 @@ export class TaskCreationSaga extends Saga<
         taskId: task.id,
         folderId: "",
         folderPath: "",
-        mode: "cloud",
+        mode: "cloud" as const,
         worktreePath: null,
         worktreeName: null,
         branchName: null,
@@ -345,15 +390,28 @@ export class TaskCreationSaga extends Saga<
             )
           : undefined;
 
+      // Resolve additional repo paths from multi-repo workspaces
+      let additionalRepoPaths: string[] | undefined;
+      if (!input.taskId) {
+        // New task: resolve from workspace creation results
+        const allWorkspaces = await trpcClient.workspace.getInfo.query({
+          taskId: task.id,
+        });
+        if (allWorkspaces.length > 1) {
+          additionalRepoPaths = allWorkspaces
+            .slice(1)
+            .map((ws) => ws.worktree?.worktreePath)
+            .filter((p): p is string => !!p);
+        }
+      }
+
       await this.step({
         name: "agent_session",
         execute: async () => {
-          // Fire-and-forget for both open and create paths.
-          // The UI handles "connecting" state with a spinner (TaskLogsPanel),
-          // so we don't need to block the saga on the full reconnect chain.
           const connectParams: ConnectParams = {
             task,
             repoPath: agentCwd ?? "",
+            additionalRepoPaths,
           };
           if (initialPrompt) connectParams.initialPrompt = initialPrompt;
           if (input.executionMode)
@@ -433,12 +491,37 @@ export class TaskCreationSaga extends Saga<
       }
     }
 
+    // Detect additional repos for multi-repo tasks
+    const additionalRepoNames: string[] = [];
+    if (input.additionalRepos) {
+      for (const repo of input.additionalRepos) {
+        const detected = await trpcClient.git.detectRepo.query({
+          directoryPath: repo.repoPath,
+        });
+        if (detected) {
+          additionalRepoNames.push(
+            `${detected.organization}/${detected.repository}`,
+          );
+        }
+      }
+    }
+
+    // Use repositories array when we have multiple repos
+    const hasMultipleRepos = repository && additionalRepoNames.length > 0;
+
     return this.step({
       name: "task_creation",
       execute: async () => {
         const result = await this.deps.posthogClient.createTask({
           description: input.taskDescription ?? input.content ?? "",
-          repository: repository ?? undefined,
+          // Send repositories array for multi-repo, legacy field for single-repo
+          repositories: hasMultipleRepos
+            ? [
+                { repository: repository! },
+                ...additionalRepoNames.map((r) => ({ repository: r })),
+              ]
+            : undefined,
+          repository: hasMultipleRepos ? undefined : (repository ?? undefined),
           github_integration:
             input.workspaceMode === "cloud"
               ? input.githubIntegrationId

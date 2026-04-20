@@ -129,9 +129,10 @@ export class SuspensionService extends TypedEventEmitter<SuspensionServiceEvents
   }
 
   isSuspended(taskId: string): boolean {
-    const workspace = this.workspaceRepo.findByTaskId(taskId);
-    if (!workspace) return false;
-    return this.suspensionRepo.findByWorkspaceId(workspace.id) !== null;
+    const allWorkspaces = this.workspaceRepo.findAllByTaskId(taskId);
+    return allWorkspaces.some(
+      (ws) => this.suspensionRepo.findByWorkspaceId(ws.id) !== null,
+    );
   }
 
   async suspendLeastRecentIfOverLimit(): Promise<void> {
@@ -253,9 +254,18 @@ export class SuspensionService extends TypedEventEmitter<SuspensionServiceEvents
     }
   }
 
+  /**
+   * Returns the first worktree-mode workspace for a task, or the first workspace if none are worktree.
+   * Suspension primarily targets worktree workspaces.
+   */
   private getWorkspaceWithRepo(taskId: string) {
-    const workspace = this.workspaceRepo.findByTaskId(taskId);
-    if (!workspace) throw new Error(`Workspace not found for task ${taskId}`);
+    const allWorkspaces = this.workspaceRepo.findAllByTaskId(taskId);
+    if (allWorkspaces.length === 0)
+      throw new Error(`Workspace not found for task ${taskId}`);
+
+    // Prefer worktree-mode workspace for suspension operations
+    const workspace =
+      allWorkspaces.find((ws) => ws.mode === "worktree") ?? allWorkspaces[0];
 
     let folderPath: string | null = null;
     if (workspace.repositoryId) {

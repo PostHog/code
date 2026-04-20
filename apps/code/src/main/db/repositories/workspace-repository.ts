@@ -12,11 +12,15 @@ export interface CreateWorkspaceData {
   taskId: string;
   repositoryId: string | null;
   mode: WorkspaceMode;
+  label?: string | null;
 }
 
 export interface IWorkspaceRepository {
   findById(id: string): Workspace | null;
+  /** Returns the first workspace for a task, or null. Use findAllByTaskId for multi-repo tasks. */
   findByTaskId(taskId: string): Workspace | null;
+  /** Returns all workspaces for a task (one per repo in multi-repo setups). */
+  findAllByTaskId(taskId: string): Workspace[];
   findAllByRepositoryId(repositoryId: string): Workspace[];
   findAllPinned(): Workspace[];
   findAll(): Workspace[];
@@ -58,6 +62,10 @@ export class WorkspaceRepository implements IWorkspaceRepository {
     );
   }
 
+  findAllByTaskId(taskId: string): Workspace[] {
+    return this.db.select().from(workspaces).where(byTaskId(taskId)).all();
+  }
+
   findAllByRepositoryId(repositoryId: string): Workspace[] {
     return this.db
       .select()
@@ -82,6 +90,7 @@ export class WorkspaceRepository implements IWorkspaceRepository {
       taskId: data.taskId,
       repositoryId: data.repositoryId,
       mode: data.mode,
+      label: data.label ?? null,
       createdAt: timestamp,
       updatedAt: timestamp,
     };

@@ -19,6 +19,7 @@ export const workspaceInfoSchema = z.object({
   mode: workspaceModeSchema,
   worktree: worktreeInfoSchema.nullable(),
   branchName: z.string().nullable(),
+  label: z.string().nullable().optional(),
   linkedBranch: z.string().nullable(),
 });
 
@@ -31,9 +32,23 @@ export const workspaceSchema = z.object({
   worktreeName: z.string().nullable(),
   branchName: z.string().nullable(),
   baseBranch: z.string().nullable(),
+  label: z.string().nullable().optional(),
   linkedBranch: z.string().nullable(),
   createdAt: z.string(),
 });
+
+// Per-repo configuration for multi-repo workspace creation
+export const repoWorkspaceConfigSchema = z.object({
+  mainRepoPath: z.string(),
+  folderId: z.string(),
+  folderPath: z.string(),
+  mode: workspaceModeSchema,
+  branch: z.string().optional(),
+  useExistingBranch: z.boolean().optional(),
+  label: z.string().optional(),
+});
+
+export type RepoWorkspaceConfig = z.infer<typeof repoWorkspaceConfigSchema>;
 
 // Input schemas
 export const createWorkspaceInput = z
@@ -45,6 +60,9 @@ export const createWorkspaceInput = z
     mode: workspaceModeSchema,
     branch: z.string().optional(),
     useExistingBranch: z.boolean().optional(),
+    label: z.string().optional(),
+    /** Additional repos for multi-repo tasks. Each gets its own workspace. */
+    additionalRepos: z.array(repoWorkspaceConfigSchema).optional(),
   })
   .refine(
     (data) =>
@@ -69,13 +87,16 @@ export const getWorkspaceInfoInput = z.object({
 });
 
 // Output schemas
-export const createWorkspaceOutput = workspaceInfoSchema;
+export const createWorkspaceOutput = z.array(workspaceInfoSchema);
 export const verifyWorkspaceOutput = z.object({
   exists: z.boolean(),
   missingPath: z.string().optional(),
 });
-export const getWorkspaceInfoOutput = workspaceInfoSchema.nullable();
-export const getAllWorkspacesOutput = z.record(z.string(), workspaceSchema);
+export const getWorkspaceInfoOutput = z.array(workspaceInfoSchema);
+export const getAllWorkspacesOutput = z.record(
+  z.string(),
+  z.array(workspaceSchema),
+);
 
 export const workspaceErrorPayload = z.object({
   taskId: z.string(),

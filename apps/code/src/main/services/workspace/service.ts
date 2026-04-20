@@ -48,14 +48,20 @@ import type {
 const execFileAsync = promisify(execFile);
 
 type TaskAssociation =
-  | { taskId: string; folderId: string; mode: "local" }
-  | { taskId: string; folderId: string | null; mode: "cloud" }
+  | { taskId: string; folderId: string; mode: "local"; label: string | null }
+  | {
+      taskId: string;
+      folderId: string | null;
+      mode: "cloud";
+      label: string | null;
+    }
   | {
       taskId: string;
       folderId: string;
       mode: "worktree";
       worktree: string;
       branchName: string | null;
+      label: string | null;
     };
 
 async function hasAnyFiles(repoPath: string): Promise<boolean> {
@@ -137,40 +143,48 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
   @inject(MAIN_TOKENS.ProvisioningService)
   private provisioningService!: ProvisioningService;
 
-  private creatingWorkspaces = new Map<string, Promise<WorkspaceInfo>>();
+  private creatingWorkspaces = new Map<string, Promise<WorkspaceInfo[]>>();
   private branchWatcherInitialized = false;
 
-  private findTaskAssociation(taskId: string): TaskAssociation | null {
-    const workspace = this.workspaceRepo.findByTaskId(taskId);
-    if (!workspace) return null;
+  private findTaskAssociations(taskId: string): TaskAssociation[] {
+    const allWorkspaces = this.workspaceRepo.findAllByTaskId(taskId);
+    const result: TaskAssociation[] = [];
 
-    if (workspace.mode === "cloud") {
-      return {
-        taskId,
-        folderId: workspace.repositoryId,
-        mode: "cloud",
-      };
+    for (const workspace of allWorkspaces) {
+      if (workspace.mode === "cloud") {
+        result.push({
+          taskId,
+          folderId: workspace.repositoryId,
+          mode: "cloud",
+          label: workspace.label,
+        });
+        continue;
+      }
+
+      if (!workspace.repositoryId) continue;
+
+      if (workspace.mode === "worktree") {
+        const worktree = this.worktreeRepo.findByWorkspaceId(workspace.id);
+        if (!worktree) continue;
+        result.push({
+          taskId,
+          folderId: workspace.repositoryId,
+          mode: "worktree",
+          worktree: worktree.name,
+          branchName: null,
+          label: workspace.label,
+        });
+      } else {
+        result.push({
+          taskId,
+          folderId: workspace.repositoryId,
+          mode: "local",
+          label: workspace.label,
+        });
+      }
     }
 
-    if (!workspace.repositoryId) return null;
-
-    if (workspace.mode === "worktree") {
-      const worktree = this.worktreeRepo.findByWorkspaceId(workspace.id);
-      if (!worktree) return null;
-      return {
-        taskId,
-        folderId: workspace.repositoryId,
-        mode: "worktree",
-        worktree: worktree.name,
-        branchName: null,
-      };
-    }
-
-    return {
-      taskId,
-      folderId: workspace.repositoryId,
-      mode: "local",
-    };
+    return result;
   }
 
   private getFolderPath(folderId: string): string | null {
@@ -188,6 +202,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
           taskId: workspace.taskId,
           folderId: workspace.repositoryId,
           mode: "cloud",
+          label: workspace.label,
         });
         continue;
       }
@@ -203,12 +218,14 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
           mode: "worktree",
           worktree: worktree.name,
           branchName: null,
+          label: workspace.label,
         });
       } else {
         result.push({
           taskId: workspace.taskId,
           folderId: workspace.repositoryId,
           mode: "local",
+          label: workspace.label,
         });
       }
     }
@@ -409,7 +426,9 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     }
   }
 
-  async createWorkspace(options: CreateWorkspaceInput): Promise<WorkspaceInfo> {
+  async createWorkspace(
+    options: CreateWorkspaceInput,
+  ): Promise<WorkspaceInfo[]> {
     // Prevent concurrent workspace creation for the same task
     const existingPromise = this.creatingWorkspaces.get(options.taskId);
     if (existingPromise) {
@@ -419,7 +438,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       return existingPromise;
     }
 
-    const promise = this.doCreateWorkspace(options);
+    const promise = this.doCreateAllWorkspaces(options);
     this.creatingWorkspaces.set(options.taskId, promise);
 
     try {
@@ -429,8 +448,63 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     }
   }
 
-  private async doCreateWorkspace(
+  private async doCreateAllWorkspaces(
     options: CreateWorkspaceInput,
+  ): Promise<WorkspaceInfo[]> {
+    // Build the list of repo configs: first repo from top-level fields, then additionalRepos
+    const primaryConfig = {
+      taskId: options.taskId,
+      mainRepoPath: options.mainRepoPath,
+      folderPath: options.folderPath,
+      folderId: options.folderId,
+      mode: options.mode,
+      branch: options.branch,
+      useExistingBranch: options.useExistingBranch,
+      label: options.label,
+    };
+
+    const results: WorkspaceInfo[] = [];
+
+    // Check if workspaces already exist for this task
+    const existingWorkspaces = await this.getWorkspaceInfo(options.taskId);
+    if (existingWorkspaces.length > 0) {
+      log.info(
+        `Workspaces already exist for task ${options.taskId}, returning existing`,
+      );
+      return existingWorkspaces;
+    }
+
+    // Create workspace for primary repo
+    const primaryResult = await this.doCreateWorkspace(primaryConfig);
+    results.push(primaryResult);
+
+    // Create workspaces for additional repos
+    if (options.additionalRepos) {
+      for (const repoConfig of options.additionalRepos) {
+        try {
+          const result = await this.doCreateWorkspace({
+            taskId: options.taskId,
+            ...repoConfig,
+          });
+          results.push(result);
+        } catch (error) {
+          log.error(
+            `Failed to create workspace for additional repo ${repoConfig.label ?? repoConfig.folderPath}:`,
+            error,
+          );
+          this.emitWorkspaceError(
+            options.taskId,
+            `Failed to set up repo ${repoConfig.label ?? repoConfig.folderPath}: ${String(error)}`,
+          );
+        }
+      }
+    }
+
+    return results;
+  }
+
+  private async doCreateWorkspace(
+    options: CreateWorkspaceInput & { label?: string },
   ): Promise<WorkspaceInfo> {
     const {
       taskId,
@@ -439,18 +513,11 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       mode,
       branch,
       useExistingBranch,
+      label,
     } = options;
 
-    const existingWorkspace = await this.getWorkspaceInfo(taskId);
-    if (existingWorkspace) {
-      log.info(
-        `Workspace already exists for task ${taskId}, returning existing workspace`,
-      );
-      return existingWorkspace;
-    }
-
     log.info(
-      `Creating workspace for task ${taskId} in ${mainRepoPath} (mode: ${mode}, useExistingBranch: ${useExistingBranch})`,
+      `Creating workspace for task ${taskId} in ${mainRepoPath} (mode: ${mode}, label: ${label ?? "none"}, useExistingBranch: ${useExistingBranch})`,
     );
 
     const repository = this.repositoryRepo.findByPath(mainRepoPath);
@@ -461,6 +528,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         taskId,
         repositoryId,
         mode: "cloud",
+        label: label ?? null,
       });
 
       return {
@@ -468,6 +536,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         mode,
         worktree: null,
         branchName: null,
+        label: label ?? null,
         linkedBranch: null,
       };
     }
@@ -502,6 +571,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         taskId,
         repositoryId,
         mode: "local",
+        label: label ?? null,
       });
 
       const localBranch = await getBranchFromPath(folderPath);
@@ -510,6 +580,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         mode,
         worktree: null,
         branchName: localBranch,
+        label: label ?? null,
         linkedBranch: null,
       };
     }
@@ -604,6 +675,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       taskId,
       repositoryId,
       mode: "worktree",
+      label: label ?? null,
     });
 
     this.worktreeRepo.create({
@@ -617,70 +689,66 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       mode,
       worktree,
       branchName: worktree.branchName,
+      label: label ?? null,
       linkedBranch: null,
     };
   }
 
   async deleteWorkspace(taskId: string, mainRepoPath: string): Promise<void> {
-    log.info(`Deleting workspace for task ${taskId}`);
+    log.info(`Deleting workspaces for task ${taskId}`);
 
-    const association = this.findTaskAssociation(taskId);
-    if (!association) {
-      log.warn(`No workspace found for task ${taskId}`);
+    const associations = this.findTaskAssociations(taskId);
+    if (associations.length === 0) {
+      log.warn(`No workspaces found for task ${taskId}`);
       return;
-    }
-
-    if (association.mode === "cloud") {
-      this.removeTaskAssociation(taskId);
-      log.info(`Cloud workspace deleted for task ${taskId}`);
-      return;
-    }
-
-    const folderId = association.folderId;
-    const folderPath = this.getFolderPath(folderId);
-    if (!folderPath) {
-      log.warn(`No folder found for task ${taskId}, removing association only`);
-      this.removeTaskAssociation(taskId);
-      return;
-    }
-
-    let worktreePath: string | null = null;
-
-    if (association.mode === "worktree") {
-      worktreePath = deriveWorktreePath(folderPath, association.worktree);
     }
 
     await this.agentService.cancelSessionsByTaskId(taskId);
     this.processTracking.killByTaskId(taskId);
 
-    if (association.mode === "worktree" && worktreePath) {
-      await this.cleanupWorktree(
-        taskId,
-        mainRepoPath,
-        worktreePath,
-        association.branchName,
-      );
+    for (const association of associations) {
+      if (association.mode === "cloud") {
+        continue;
+      }
 
-      const otherWorkspacesForFolder = this.getAllTaskAssociations().filter(
-        (a) =>
-          a.folderId === folderId &&
-          a.taskId !== taskId &&
-          a.mode === "worktree",
-      );
+      if (!association.folderId) continue;
 
-      if (otherWorkspacesForFolder.length === 0) {
-        await this.cleanupRepoWorktreeFolder(folderPath);
+      const folderPath = this.getFolderPath(association.folderId);
+      if (!folderPath) continue;
+
+      if (association.mode === "worktree") {
+        const worktreePath = deriveWorktreePath(
+          folderPath,
+          association.worktree,
+        );
+        await this.cleanupWorktree(
+          taskId,
+          mainRepoPath,
+          worktreePath,
+          association.branchName,
+        );
+
+        const otherWorkspacesForFolder = this.getAllTaskAssociations().filter(
+          (a) =>
+            a.folderId === association.folderId &&
+            a.taskId !== taskId &&
+            a.mode === "worktree",
+        );
+
+        if (otherWorkspacesForFolder.length === 0) {
+          await this.cleanupRepoWorktreeFolder(folderPath);
+        }
       }
     }
 
-    this.removeTaskAssociation(taskId);
+    this.removeTaskAssociations(taskId);
 
-    log.info(`Workspace deleted for task ${taskId}`);
+    log.info(`Workspaces deleted for task ${taskId}`);
   }
 
-  private removeTaskAssociation(taskId: string): void {
-    const workspace = this.workspaceRepo.findByTaskId(taskId);
-    if (workspace) {
+  private removeTaskAssociations(taskId: string): void {
+    const allWorkspaces = this.workspaceRepo.findAllByTaskId(taskId);
+    for (const workspace of allWorkspaces) {
       this.worktreeRepo.deleteByWorkspaceId(workspace.id);
     }
     this.workspaceRepo.deleteByTaskId(taskId);
@@ -740,113 +808,138 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
   async verifyWorkspaceExists(
     taskId: string,
   ): Promise<{ exists: boolean; missingPath?: string }> {
-    const association = this.findTaskAssociation(taskId);
-    if (!association) {
+    const associations = this.findTaskAssociations(taskId);
+    if (associations.length === 0) {
       return { exists: false };
     }
 
-    if (association.mode === "cloud") {
-      return { exists: true };
-    }
-
-    const folderPath = this.getFolderPath(association.folderId);
-    if (!folderPath) {
-      this.removeTaskAssociation(taskId);
-      return { exists: false, missingPath: "(folder not found)" };
-    }
-
-    if (association.mode === "local") {
-      const exists = fs.existsSync(folderPath);
-      if (!exists) {
-        log.info(
-          `Folder for task ${taskId} no longer exists, removing association`,
-        );
-        this.removeTaskAssociation(taskId);
-        return { exists: false, missingPath: folderPath };
+    // All workspaces must exist for the task to be considered valid
+    for (const association of associations) {
+      if (association.mode === "cloud") {
+        continue;
       }
-      return { exists: true };
-    }
 
-    if (association.mode === "worktree") {
-      const worktreePath = deriveWorktreePath(folderPath, association.worktree);
-      const exists = fs.existsSync(worktreePath);
-      if (!exists) {
-        log.info(
-          `Worktree for task ${taskId} no longer exists, removing association`,
-        );
-        this.removeTaskAssociation(taskId);
-        return { exists: false, missingPath: worktreePath };
+      if (!association.folderId) {
+        this.removeTaskAssociations(taskId);
+        return { exists: false, missingPath: "(folder not found)" };
       }
-      return { exists: true };
-    }
 
-    return { exists: false };
-  }
+      const folderPath = this.getFolderPath(association.folderId);
+      if (!folderPath) {
+        this.removeTaskAssociations(taskId);
+        return { exists: false, missingPath: "(folder not found)" };
+      }
 
-  async getWorkspaceInfo(taskId: string): Promise<WorkspaceInfo | null> {
-    const association = this.findTaskAssociation(taskId);
-    if (!association) {
-      return null;
-    }
+      if (association.mode === "local") {
+        const exists = fs.existsSync(folderPath);
+        if (!exists) {
+          log.info(
+            `Folder for task ${taskId} no longer exists, removing associations`,
+          );
+          this.removeTaskAssociations(taskId);
+          return { exists: false, missingPath: folderPath };
+        }
+      }
 
-    const dbRow = this.workspaceRepo.findByTaskId(taskId);
-
-    if (association.mode === "cloud") {
-      return {
-        taskId,
-        mode: "cloud",
-        worktree: null,
-        branchName: null,
-        linkedBranch: dbRow?.linkedBranch ?? null,
-      };
-    }
-
-    const folderPath = association.folderId
-      ? this.getFolderPath(association.folderId)
-      : null;
-    let worktreeInfo: WorktreeInfo | null = null;
-    let branchName: string | null = null;
-
-    if (association.mode === "worktree") {
-      if (folderPath) {
+      if (association.mode === "worktree") {
         const worktreePath = deriveWorktreePath(
           folderPath,
           association.worktree,
         );
-        const gitBranch = await getBranchFromPath(worktreePath);
-        branchName = gitBranch ?? association.branchName;
-        worktreeInfo = {
-          worktreePath,
-          worktreeName: association.worktree,
-          branchName,
-          baseBranch: "main",
-          createdAt: new Date().toISOString(),
-        };
+        const exists = fs.existsSync(worktreePath);
+        if (!exists) {
+          log.info(
+            `Worktree for task ${taskId} no longer exists, removing associations`,
+          );
+          this.removeTaskAssociations(taskId);
+          return { exists: false, missingPath: worktreePath };
+        }
       }
-    } else if (association.mode === "local" && folderPath) {
-      branchName = await getBranchFromPath(folderPath);
     }
 
-    return {
-      taskId,
-      mode: association.mode,
-      worktree: worktreeInfo,
-      branchName,
-      linkedBranch: dbRow?.linkedBranch ?? null,
-    };
+    return { exists: true };
   }
 
-  async getAllWorkspaces(): Promise<Record<string, Workspace>> {
+  async getWorkspaceInfo(taskId: string): Promise<WorkspaceInfo[]> {
+    const associations = this.findTaskAssociations(taskId);
+    if (associations.length === 0) {
+      return [];
+    }
+
+    const dbRows = this.workspaceRepo.findAllByTaskId(taskId);
+    const linkedBranchByTaskId = new Map(
+      dbRows.map((row) => [row.taskId, row.linkedBranch ?? null]),
+    );
+
+    const results: WorkspaceInfo[] = [];
+
+    for (const association of associations) {
+      if (association.mode === "cloud") {
+        results.push({
+          taskId,
+          mode: "cloud",
+          worktree: null,
+          branchName: null,
+          label: association.label,
+          linkedBranch: linkedBranchByTaskId.get(taskId) ?? null,
+        });
+        continue;
+      }
+
+      const folderPath = association.folderId
+        ? this.getFolderPath(association.folderId)
+        : null;
+      let worktreeInfo: WorktreeInfo | null = null;
+      let branchName: string | null = null;
+
+      if (association.mode === "worktree") {
+        if (folderPath) {
+          const worktreePath = deriveWorktreePath(
+            folderPath,
+            association.worktree,
+          );
+          const gitBranch = await getBranchFromPath(worktreePath);
+          branchName = gitBranch ?? association.branchName;
+          worktreeInfo = {
+            worktreePath,
+            worktreeName: association.worktree,
+            branchName,
+            baseBranch: "main",
+            createdAt: new Date().toISOString(),
+          };
+        }
+      } else if (association.mode === "local" && folderPath) {
+        branchName = await getBranchFromPath(folderPath);
+      }
+
+      results.push({
+        taskId,
+        mode: association.mode,
+        worktree: worktreeInfo,
+        branchName,
+        label: association.label,
+        linkedBranch: linkedBranchByTaskId.get(taskId) ?? null,
+      });
+    }
+
+    return results;
+  }
+
+  async getAllWorkspaces(): Promise<Record<string, Workspace[]>> {
     const associations = this.getAllTaskAssociations();
     const dbRows = this.workspaceRepo.findAll();
     const linkedBranchByTaskId = new Map(
       dbRows.map((row) => [row.taskId, row.linkedBranch ?? null]),
     );
-    const workspaces: Record<string, Workspace> = {};
+    const workspaces: Record<string, Workspace[]> = {};
 
     for (const assoc of associations) {
+      if (!workspaces[assoc.taskId]) {
+        workspaces[assoc.taskId] = [];
+      }
+
       if (assoc.mode === "cloud") {
-        workspaces[assoc.taskId] = {
+        workspaces[assoc.taskId].push({
           taskId: assoc.taskId,
           folderId: assoc.folderId ?? "",
           folderPath: "",
@@ -855,9 +948,10 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
           worktreeName: null,
           branchName: null,
           baseBranch: null,
+          label: assoc.label,
           linkedBranch: linkedBranchByTaskId.get(assoc.taskId) ?? null,
           createdAt: new Date().toISOString(),
-        };
+        });
         continue;
       }
 
@@ -883,7 +977,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         branchName = await getBranchFromPath(branchPath);
       }
 
-      workspaces[assoc.taskId] = {
+      workspaces[assoc.taskId].push({
         taskId: assoc.taskId,
         folderId: assoc.folderId,
         folderPath,
@@ -892,9 +986,10 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         worktreeName,
         branchName,
         baseBranch: null,
+        label: assoc.label,
         linkedBranch: linkedBranchByTaskId.get(assoc.taskId) ?? null,
         createdAt: new Date().toISOString(),
-      };
+      });
     }
 
     return workspaces;
@@ -912,9 +1007,14 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
   ): Promise<WorktreeInfo | null> {
     log.info(`Promoting task ${taskId} to worktree mode on branch ${branch}`);
 
-    const association = this.findTaskAssociation(taskId);
+    const associations = this.findTaskAssociations(taskId);
+    // Find the local-mode association for this specific repo path
+    const association = associations.find((a) => {
+      if (a.mode !== "local" || !a.folderId) return false;
+      return this.getFolderPath(a.folderId) === mainRepoPath;
+    });
     if (!association) {
-      log.warn(`No association found for task ${taskId}`);
+      log.warn(`No local association found for task ${taskId}`);
       return null;
     }
 
@@ -955,7 +1055,11 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       throw new Error(`Failed to promote task to worktree: ${String(error)}`);
     }
 
-    const workspace = this.workspaceRepo.findByTaskId(taskId);
+    // Find the specific workspace row for this repo and promote it
+    const allWorkspaces = this.workspaceRepo.findAllByTaskId(taskId);
+    const workspace = allWorkspaces.find(
+      (ws) => ws.repositoryId === association.folderId,
+    );
     if (workspace) {
       this.workspaceRepo.updateMode(taskId, "worktree");
       this.worktreeRepo.create({

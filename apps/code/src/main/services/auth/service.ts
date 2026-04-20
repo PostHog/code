@@ -554,6 +554,12 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       return;
     }
 
+    // Skip access check for local dev — the endpoint may not exist
+    if (this.session.cloudRegion === "dev") {
+      this.updateState({ hasCodeAccess: true });
+      return;
+    }
+
     try {
       const apiHost = getCloudUrlFromRegion(this.session.cloudRegion);
       const response = await this.executeAuthenticatedFetch(

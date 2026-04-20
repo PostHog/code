@@ -89,7 +89,10 @@ export class ArchiveService {
   ): Promise<ArchivedTask> {
     const { taskId } = input;
 
-    const workspace = this.workspaceRepo.findByTaskId(taskId);
+    // For multi-repo tasks, archive operates on the first worktree workspace
+    const allWorkspaces = this.workspaceRepo.findAllByTaskId(taskId);
+    const workspace =
+      allWorkspaces.find((ws) => ws.mode === "worktree") ?? allWorkspaces[0];
     if (!workspace) {
       return {
         taskId,

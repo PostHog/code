@@ -651,6 +651,7 @@ export class PostHogAPIClient {
           Task,
           | "title"
           | "repository"
+          | "repositories"
           | "json_schema"
           | "origin_product"
           | "signal_report"
@@ -697,7 +698,9 @@ export class PostHogAPIClient {
     return this.createTask({
       description: task.description ?? "",
       title: task.title,
-      repository: task.repository,
+      // Use repositories array if available, fall back to legacy field
+      repositories: task.repositories,
+      repository: task.repositories?.length ? undefined : task.repository,
       json_schema: task.json_schema,
       origin_product: task.origin_product,
       github_integration: task.github_integration,

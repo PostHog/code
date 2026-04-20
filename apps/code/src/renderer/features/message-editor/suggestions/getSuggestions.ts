@@ -1,6 +1,7 @@
 import type { AvailableCommand } from "@agentclientprotocol/sdk";
 import { CODE_COMMANDS } from "@features/message-editor/commands";
 import { getAvailableCommandsForTask } from "@features/sessions/stores/sessionStore";
+import { workspaceApi } from "@features/workspace/hooks/useWorkspace";
 import {
   fetchRepoFiles,
   pathToFileItem,
@@ -67,28 +68,48 @@ export async function getFileSuggestions(
   sessionId: string,
   query: string,
 ): Promise<FileSuggestionItem[]> {
-  const repoPath = useDraftStore.getState().contexts[sessionId]?.repoPath;
+  const context = useDraftStore.getState().contexts[sessionId];
+  const repoPath = context?.repoPath;
   const absoluteMatch = getAbsolutePathSuggestion(query);
 
   if (!repoPath) {
     return absoluteMatch ? [absoluteMatch] : [];
   }
 
-  const { files, fzf } = await fetchRepoFiles(repoPath);
-  const matched = searchFiles(fzf, files, query);
+  // Collect all repo paths: primary + additional workspaces for multi-repo tasks
+  const repoPaths = [repoPath];
+  if (context?.taskId) {
+    const taskWorkspaces = await workspaceApi.getTaskWorkspaces(context.taskId);
+    for (const ws of taskWorkspaces.slice(1)) {
+      const wsPath = ws.worktreePath ?? ws.folderPath;
+      if (wsPath && wsPath !== repoPath) {
+        repoPaths.push(wsPath);
+      }
+    }
+  }
 
-  const results: FileSuggestionItem[] = matched.map((file) => ({
-    id: file.path,
-    label: parentDirLabel(file.dir, file.name),
-    description: file.dir || undefined,
-    filename: file.name,
-    path: file.path,
-  }));
+  // Search files across all repo paths in parallel
+  const allRepoResults = await Promise.all(
+    repoPaths.map(async (path) => {
+      const { files, fzf } = await fetchRepoFiles(path);
+      const matched = searchFiles(fzf, files, query);
+      const repoName = path.split("/").pop() ?? path;
+      return matched.map((file) => ({
+        id: file.path,
+        label: parentDirLabel(file.dir, file.name),
+        description:
+          repoPaths.length > 1
+            ? `${repoName}/${file.dir || ""}`
+            : file.dir || undefined,
+        filename: file.name,
+        path: file.path,
+      }));
+    }),
+  );
 
-  if (
-    absoluteMatch &&
-    !results.some((r) => `${repoPath}/${r.id}` === absoluteMatch.id)
-  ) {
+  const results: FileSuggestionItem[] = allRepoResults.flat();
+
+  if (absoluteMatch && !results.some((r) => r.id === absoluteMatch.id)) {
     results.unshift(absoluteMatch);
   }
 

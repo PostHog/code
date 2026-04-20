@@ -52,13 +52,15 @@ export function useCodeMirror(options: UseCodeMirrorOptions) {
       if (result.action.type === "external-app") {
         const fileName = filePath.split("/").pop() || "file";
 
-        const workspaces = await workspaceApi.getAll();
+        const allWorkspaces = await workspaceApi.getAll();
         const workspace =
-          Object.values(workspaces).find(
-            (ws) =>
-              (ws?.worktreePath && filePath.startsWith(ws.worktreePath)) ||
-              (ws?.folderPath && filePath.startsWith(ws.folderPath)),
-          ) ?? null;
+          Object.values(allWorkspaces)
+            .flat()
+            .find(
+              (ws) =>
+                (ws?.worktreePath && filePath.startsWith(ws.worktreePath)) ||
+                (ws?.folderPath && filePath.startsWith(ws.folderPath)),
+            ) ?? null;
 
         await handleExternalAppAction(
           result.action.action,

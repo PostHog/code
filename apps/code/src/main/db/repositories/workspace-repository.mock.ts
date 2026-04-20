@@ -10,7 +10,6 @@ export interface MockWorkspaceRepository extends IWorkspaceRepository {
 
 export function createMockWorkspaceRepository(): MockWorkspaceRepository {
   const workspaces = new Map<string, Workspace>();
-  const taskIndex = new Map<string, string>();
 
   const clone = (w: Workspace | null): Workspace | null =>
     w ? { ...w } : null;
@@ -19,9 +18,15 @@ export function createMockWorkspaceRepository(): MockWorkspaceRepository {
     _workspaces: workspaces,
     findById: (id: string) => clone(workspaces.get(id) ?? null),
     findByTaskId: (taskId: string) => {
-      const id = taskIndex.get(taskId);
-      return clone(id ? (workspaces.get(id) ?? null) : null);
+      for (const w of workspaces.values()) {
+        if (w.taskId === taskId) return { ...w };
+      }
+      return null;
     },
+    findAllByTaskId: (taskId: string) =>
+      Array.from(workspaces.values())
+        .filter((w) => w.taskId === taskId)
+        .map((w) => ({ ...w })),
     findAllByRepositoryId: (repositoryId: string) =>
       Array.from(workspaces.values())
         .filter((w) => w.repositoryId === repositoryId)
@@ -38,6 +43,7 @@ export function createMockWorkspaceRepository(): MockWorkspaceRepository {
         taskId: data.taskId,
         repositoryId: data.repositoryId,
         mode: data.mode,
+        label: data.label ?? null,
         pinnedAt: null,
         lastViewedAt: null,
         lastActivityAt: null,
@@ -46,31 +52,42 @@ export function createMockWorkspaceRepository(): MockWorkspaceRepository {
         updatedAt: now,
       };
       workspaces.set(workspace.id, workspace);
-      taskIndex.set(workspace.taskId, workspace.id);
       return { ...workspace };
     },
     deleteByTaskId: (taskId: string) => {
-      const id = taskIndex.get(taskId);
-      if (id) {
-        workspaces.delete(id);
-        taskIndex.delete(taskId);
+      for (const [id, w] of workspaces) {
+        if (w.taskId === taskId) {
+          workspaces.delete(id);
+        }
       }
     },
     deleteById: (id: string) => {
-      const workspace = workspaces.get(id);
-      if (workspace) {
-        taskIndex.delete(workspace.taskId);
-        workspaces.delete(id);
+      workspaces.delete(id);
+    },
+    updatePinnedAt: (taskId: string, pinnedAt: string | null) => {
+      for (const w of workspaces.values()) {
+        if (w.taskId === taskId) w.pinnedAt = pinnedAt;
       }
     },
-    updateLinkedBranch: () => {},
-    updatePinnedAt: () => {},
-    updateLastViewedAt: () => {},
-    updateLastActivityAt: () => {},
-    updateMode: () => {},
+    updateLastViewedAt: (taskId: string, lastViewedAt: string) => {
+      for (const w of workspaces.values()) {
+        if (w.taskId === taskId) w.lastViewedAt = lastViewedAt;
+      }
+    },
+    updateLastActivityAt: (taskId: string, lastActivityAt: string) => {
+      for (const w of workspaces.values()) {
+        if (w.taskId === taskId) w.lastActivityAt = lastActivityAt;
+      }
+    },
+    updateMode: (taskId: string, mode: string) => {
+      for (const w of workspaces.values()) {
+        if (w.taskId === taskId)
+          w.mode = mode as "cloud" | "local" | "worktree";
+      }
+    },
     deleteAll: () => {
       workspaces.clear();
-      taskIndex.clear();
     },
+    updateLinkedBranch: () => {},
   };
 }
