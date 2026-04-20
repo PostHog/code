@@ -319,7 +319,10 @@ export const osRouter = router({
       const displayName = path.basename(input.originalName ?? "attachment");
       const filePath = await createClipboardTempFilePath(displayName);
 
-      await fsPromises.writeFile(filePath, Buffer.from(input.base64Data, "base64"));
+      await fsPromises.writeFile(
+        filePath,
+        Buffer.from(input.base64Data, "base64"),
+      );
 
       return { path: filePath, name: displayName };
     }),

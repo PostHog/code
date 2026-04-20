@@ -284,7 +284,8 @@ export class TaskCreationSaga extends Saga<
           }
 
           const transport =
-            (input.content || input.filePaths?.length) && workspaceMode === "cloud"
+            (input.content || input.filePaths?.length) &&
+            workspaceMode === "cloud"
               ? getCloudPromptTransport(input.content ?? "", input.filePaths)
               : null;
           const pendingUserArtifactIds = transport

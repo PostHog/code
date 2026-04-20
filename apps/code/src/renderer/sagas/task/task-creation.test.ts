@@ -292,10 +292,7 @@ describe("TaskCreationSaga", () => {
     const onTaskReady = vi.fn();
 
     mockReadFileAsBase64.mockResolvedValue("aGVsbG8=");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: true } as Response),
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true } as Response));
 
     const saga = new TaskCreationSaga({
       posthogClient: {
@@ -303,8 +300,7 @@ describe("TaskCreationSaga", () => {
         deleteTask: vi.fn(),
         getTask: vi.fn(),
         runTaskInCloud: runTaskInCloudMock,
-        prepareTaskStagedArtifactUploads:
-          prepareTaskStagedArtifactUploadsMock,
+        prepareTaskStagedArtifactUploads: prepareTaskStagedArtifactUploadsMock,
         finalizeTaskStagedArtifactUploads:
           finalizeTaskStagedArtifactUploadsMock,
         sendRunCommand: sendRunCommandMock,

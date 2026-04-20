@@ -792,10 +792,10 @@ export class PostHogAPIClient {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       };
-      }
     }
+  }
 
-    async runTaskInCloud(
+  async runTaskInCloud(
     taskId: string,
     branch?: string | null,
     options?: {
@@ -909,7 +909,9 @@ export class PostHogAPIClient {
       );
     }
 
-    const data = (await response.json()) as { artifacts?: PreparedTaskArtifactUpload[] };
+    const data = (await response.json()) as {
+      artifacts?: PreparedTaskArtifactUpload[];
+    };
     return data.artifacts ?? [];
   }
 
@@ -949,7 +951,9 @@ export class PostHogAPIClient {
       );
     }
 
-    const data = (await response.json()) as { artifacts?: FinalizedTaskArtifactUpload[] };
+    const data = (await response.json()) as {
+      artifacts?: FinalizedTaskArtifactUpload[];
+    };
     return data.artifacts ?? [];
   }
 
@@ -979,7 +983,9 @@ export class PostHogAPIClient {
       throw new Error(`Failed to prepare uploads: ${response.statusText}`);
     }
 
-    const data = (await response.json()) as { artifacts?: PreparedTaskArtifactUpload[] };
+    const data = (await response.json()) as {
+      artifacts?: PreparedTaskArtifactUpload[];
+    };
     return data.artifacts ?? [];
   }
 
@@ -1018,7 +1024,9 @@ export class PostHogAPIClient {
       throw new Error(`Failed to finalize uploads: ${response.statusText}`);
     }
 
-    const data = (await response.json()) as { artifacts?: FinalizedTaskArtifactUpload[] };
+    const data = (await response.json()) as {
+      artifacts?: FinalizedTaskArtifactUpload[];
+    };
     return data.artifacts ?? [];
   }
 
