@@ -298,13 +298,17 @@ export function CloudEnvironmentsSettings() {
         </Text>
         <Text size="1" color="gray">
           {editingEnv
-            ? "Changes to your environment will apply to new sessions."
-            : "Configure a cloud environment for running tasks."}
+            ? "Changes take effect on the next session that uses this environment; running sessions are not affected."
+            : "Once created, you can pick this environment in the Cloud section of the workspace picker when starting a task."}
         </Text>
 
         <Flex direction="column" gap="1">
           <Text size="2" weight="medium">
             Name
+          </Text>
+          <Text size="1" color="gray">
+            Shown in the workspace picker. Pick a name that describes the access
+            profile, e.g. "Internal APIs" or "Read-only".
           </Text>
           <TextField.Root
             size="2"
@@ -317,6 +321,22 @@ export function CloudEnvironmentsSettings() {
         <Flex direction="column" gap="1">
           <Text size="2" weight="medium">
             Network access
+          </Text>
+          <Text size="1" color="gray">
+            Controls which hosts the sandbox may reach.{" "}
+            <Text size="1" color="gray" weight="medium">
+              Full
+            </Text>{" "}
+            allows any outbound traffic.{" "}
+            <Text size="1" color="gray" weight="medium">
+              Trusted sources only
+            </Text>{" "}
+            restricts traffic to a curated list of common package registries and
+            source hosts.{" "}
+            <Text size="1" color="gray" weight="medium">
+              Custom
+            </Text>{" "}
+            lets you define an explicit allowlist below.
           </Text>
           <NetworkAccessSelect
             value={form.network_access_level}
@@ -333,7 +353,15 @@ export function CloudEnvironmentsSettings() {
                 Allowed domains
               </Text>
               <Text size="1" color="gray">
-                List of domains (not URLs). Use * for wildcards.
+                One domain per line (not URLs — no scheme or path). Use{" "}
+                <Text size="1" color="gray" weight="medium">
+                  *
+                </Text>{" "}
+                as a wildcard, e.g.{" "}
+                <Text size="1" color="gray" weight="medium">
+                  *.example.com
+                </Text>{" "}
+                to cover all subdomains. Requests to any other host are blocked.
               </Text>
               <TextArea
                 size="2"
@@ -375,7 +403,9 @@ export function CloudEnvironmentsSettings() {
                 }
               />
               <Text size="1" color="gray">
-                Also include default list of common package managers
+                Also include the built-in list of common package managers and
+                source hosts — recommended unless you deliberately want to block
+                them.
               </Text>
             </Flex>
           </>
@@ -386,7 +416,18 @@ export function CloudEnvironmentsSettings() {
             Environment variables
           </Text>
           <Text size="1" color="gray">
-            In .env format. Leave blank to keep existing values unchanged.
+            Injected into the sandbox shell before the agent runs — useful for
+            API keys or service tokens the agent needs. Standard{" "}
+            <Text size="1" color="gray" weight="medium">
+              .env
+            </Text>{" "}
+            format: one{" "}
+            <Text size="1" color="gray" weight="medium">
+              KEY=value
+            </Text>{" "}
+            per line. Existing values aren't shown back once saved; leave the
+            field blank to keep them unchanged, or enter new values to replace
+            them.
           </Text>
           <TextArea
             size="2"
@@ -459,10 +500,14 @@ export function CloudEnvironmentsSettings() {
 
   return (
     <Flex direction="column" gap="4">
-      <Flex justify="between" align="center">
+      <Flex justify="between" align="start" gap="4">
         <Text size="1" color="gray">
-          Cloud environments define network access and configuration for sandbox
-          sessions.
+          A cloud environment is a reusable configuration applied to remote
+          sandbox sessions — it controls which outbound network hosts the
+          sandbox can reach and what environment variables (like API keys) are
+          available to the agent. Pick an environment in the Cloud section of
+          the workspace picker when starting a task; the Default option uses
+          full network access.
         </Text>
         <Button size="1" variant="outline" onClick={openCreate}>
           <Plus size={12} />
