@@ -70,20 +70,13 @@ export class ProcessTrackingService {
       }
       pids.add(pid);
     }
-
-    log.info(
-      `Registered process: pid=${pid} category=${category} label=${label}${taskId ? ` taskId=${taskId}` : ""}`,
-    );
   }
 
-  unregister(pid: number, reason: string): void {
+  unregister(pid: number, _reason: string): void {
     const proc = this.processes.get(pid);
     if (proc) {
       this.removeFromTaskIndex(pid);
       this.processes.delete(pid);
-      log.info(
-        `Unregistered process: pid=${pid} category=${proc.category} label=${proc.label} reason=${reason}`,
-      );
     }
   }
 

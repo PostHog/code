@@ -210,14 +210,9 @@ export class SessionService {
     const taskId = task.id;
     this.localRepoPaths.set(taskId, params.repoPath);
 
-    log.info("Connecting to task", { taskId });
-
     // Return existing connection promise if already connecting
     const existingPromise = this.connectingTasks.get(taskId);
     if (existingPromise) {
-      log.info("Already connecting to task, returning existing promise", {
-        taskId,
-      });
       return existingPromise;
     }
 
@@ -1063,10 +1058,6 @@ export class SessionService {
           adapter: params.adapter,
         });
         useSessionAdapterStore.getState().setAdapter(taskRunId, params.adapter);
-        log.info("Session adapter updated", {
-          taskRunId,
-          adapter: params.adapter,
-        });
       }
     }
 

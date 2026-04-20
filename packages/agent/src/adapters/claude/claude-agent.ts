@@ -433,11 +433,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
               }
             }
             this.session.lastContextWindowSize = lastContextWindowSize;
-            this.logger.debug("Context window size from result", {
-              sdkReported: contextWindows,
-              resolved: lastContextWindowSize,
-              modelId: this.session.modelId,
-            });
 
             this.session.contextSize = lastContextWindowSize;
             if (lastAssistantTotalUsage !== null) {
@@ -963,7 +958,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         ? { type: "json_schema" as const, schema: meta.jsonSchema }
         : undefined;
 
-    this.logger.info(isResume ? "Resuming session" : "Creating new session", {
+    this.logger.debug(isResume ? "Resuming session" : "Creating new session", {
       sessionId,
       taskId,
       taskRunId: meta?.taskRunId,
@@ -1032,13 +1027,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     };
     this.session = session;
     this.sessionId = sessionId;
-
-    this.logger.info(
-      isResume
-        ? "Session query initialized, awaiting resumption"
-        : "Session query initialized, awaiting initialization",
-      { sessionId, taskId, taskRunId: meta?.taskRunId },
-    );
 
     if (isResume) {
       // Resume must block on initialization to validate the session is still alive.
@@ -1165,17 +1153,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     if (!creationOpts.skipBackgroundFetches) {
       this.deferBackgroundFetches(q);
     }
-
-    this.logger.info(
-      isResume
-        ? "Session resumed successfully"
-        : "Session created successfully",
-      {
-        sessionId,
-        taskId,
-        taskRunId: meta?.taskRunId,
-      },
-    );
 
     return { sessionId, modes, models, configOptions };
   }
@@ -1412,7 +1389,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
    * Both populate caches used later — neither is needed to return configOptions.
    */
   private deferBackgroundFetches(q: Query): void {
-    this.logger.info("Starting background fetches (commands + MCP metadata)");
     Promise.all([
       new Promise<void>((resolve) => setTimeout(resolve, 10)).then(() =>
         this.sendAvailableCommandsUpdate(),

@@ -83,6 +83,18 @@ The dev build of PostHog Code includes a "Dev" cloud region that maps to:
 
 This is defined in `apps/code/src/shared/constants/oauth.ts`. The Dev region only appears when running the dev build (`pnpm dev`), not in production releases.
 
+## Dev console commands
+
+Open devtools in the dev build and type:
+
+- `__codeInboxDemo()` — show help
+- `__codeInboxDemo('seed')` — fill the inbox with fake data
+- `__codeInboxDemo('seed', 'artefacts-unavailable')` — fake data, artefacts-unavailable mode
+- `__codeInboxDemo('seed', 'empty')` — fake data, empty state
+- `__codeInboxDemo('clear')` — remove fake data, go back to real API
+
+Source: `apps/code/src/renderer/features/inbox/devtools/inboxDemoConsole.ts`.
+
 ## Troubleshooting
 
 ### "Invalid client_id" error during OAuth

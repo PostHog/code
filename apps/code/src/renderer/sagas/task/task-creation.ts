@@ -156,16 +156,6 @@ export class TaskCreationSaga extends Saga<
       input.workspaceMode ??
       (task.latest_run?.environment === "cloud" ? "cloud" : "local");
 
-    log.info("Task setup resolved", {
-      taskId: task.id,
-      isOpen: !!input.taskId,
-      repository: repoKey,
-      repoPath,
-      workspaceMode,
-      hasLatestRun: !!task.latest_run,
-      latestRunLogUrl: task.latest_run?.log_url,
-    });
-
     // Step 4: Create workspace if we have a directory
     let workspace: Workspace | null = null;
     const branch = input.branch ?? task.latest_run?.branch ?? null;

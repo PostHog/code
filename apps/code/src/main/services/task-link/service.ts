@@ -37,7 +37,6 @@ export class TaskLinkService extends TypedEventEmitter<TaskLinkEvents> {
     this.deepLinkService.registerHandler("task", (path) =>
       this.handleTaskLink(path),
     );
-    log.info("Registered task link handler for deep links");
   }
 
   private handleTaskLink(path: string): boolean {

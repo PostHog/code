@@ -139,8 +139,6 @@ export function useTaskCreation({
     try {
       const content = editor.getContent();
 
-      log.info("Submitting task", { workspaceMode, selectedDirectory });
-
       const plainText = editor.getText()?.trim();
       if (plainText) {
         useTaskInputHistoryStore.getState().addPrompt(plainText);
@@ -173,7 +171,6 @@ export function useTaskCreation({
           navigateToTask(output.task);
         }
         editor.clear();
-        log.info("Task ready, navigated early", { taskId: output.task.id });
       });
 
       if (!result.success) {

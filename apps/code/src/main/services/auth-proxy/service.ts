@@ -34,7 +34,6 @@ export class AuthProxyService {
         const addr = this.server?.address();
         if (typeof addr === "object" && addr) {
           this.port = addr.port;
-          log.info("Auth proxy started", { port: this.port });
           resolve(this.getProxyUrl());
         } else {
           reject(new Error("Failed to get proxy address"));
@@ -118,12 +117,6 @@ export class AuthProxyService {
       return;
     }
 
-    log.debug("Proxying request", {
-      method: req.method,
-      incoming: req.url,
-      target: targetUrl.toString(),
-    });
-
     const strippedAuthHeaders = new Set([
       "authorization",
       "x-api-key",
@@ -172,11 +165,6 @@ export class AuthProxyService {
         url,
         options,
       );
-
-      log.debug("Proxy response", {
-        url,
-        status: response.status,
-      });
 
       const responseHeaders: Record<string, string> = {};
       const stripHeaders = new Set([

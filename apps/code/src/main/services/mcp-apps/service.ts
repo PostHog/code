@@ -154,7 +154,6 @@ export class McpAppsService extends TypedEventEmitter<McpAppsServiceEvents> {
       throw new Error(`No server config for: ${serverName}`);
     }
 
-    log.info("Creating lazy MCP connection", { serverName, url: config.url });
     const connectionPromise = this.createConnection(config);
     this.pendingConnections.set(serverName, connectionPromise);
 
