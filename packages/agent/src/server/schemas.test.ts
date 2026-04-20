@@ -184,4 +184,61 @@ describe("validateCommandParams", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("accepts valid shell_execute", () => {
+    const result = validateCommandParams("shell_execute", {
+      command: "echo vojta",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts shell_execute with cwd and timeoutMs", () => {
+    const result = validateCommandParams("shell_execute", {
+      command: "ls",
+      cwd: "/workspace",
+      timeoutMs: 5000,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts shell_execute with caller-provided executionId", () => {
+    const result = validateCommandParams("shell_execute", {
+      command: "echo hi",
+      executionId: "abc-123",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects shell_execute with an empty executionId", () => {
+    const result = validateCommandParams("shell_execute", {
+      command: "echo hi",
+      executionId: "",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects shell_execute without command", () => {
+    const result = validateCommandParams("shell_execute", {});
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects shell_execute with empty command", () => {
+    const result = validateCommandParams("shell_execute", { command: "" });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects shell_execute with timeoutMs above the cap", () => {
+    const result = validateCommandParams("shell_execute", {
+      command: "echo hi",
+      timeoutMs: 600_001,
+    });
+
+    expect(result.success).toBe(false);
+  });
 });

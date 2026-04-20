@@ -571,4 +571,152 @@ describe("CloudTaskService", () => {
     ]);
     expect(mockNetFetch).toHaveBeenCalledTimes(3);
   });
+
+  it("routes shell_output and shell_exit notifications to typed cloud updates without log batching", async () => {
+    const updates: unknown[] = [];
+    service.on(CloudTaskEvent.Update, (payload) => updates.push(payload));
+
+    mockNetFetch
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          id: "run-1",
+          status: "in_progress",
+          stage: null,
+          output: null,
+          error_message: null,
+          branch: "main",
+          updated_at: "2026-01-01T00:00:00Z",
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse([], 200, { "X-Has-More": "false" }),
+      );
+
+    const shellOutputFrame = {
+      type: "notification",
+      timestamp: "2026-01-01T00:00:01Z",
+      notification: {
+        jsonrpc: "2.0",
+        method: "_posthog/shell_output",
+        params: {
+          executionId: "exec-1",
+          stream: "stdout",
+          chunk: "vojta\n",
+        },
+      },
+    };
+    const shellExitFrame = {
+      type: "notification",
+      timestamp: "2026-01-01T00:00:02Z",
+      notification: {
+        jsonrpc: "2.0",
+        method: "_posthog/shell_exit",
+        params: { executionId: "exec-1", exitCode: 0, signal: null },
+      },
+    };
+
+    mockStreamFetch.mockResolvedValueOnce(
+      createOpenSseResponse(
+        `id: 1\ndata: ${JSON.stringify(shellOutputFrame)}\n\n` +
+          `id: 2\ndata: ${JSON.stringify(shellExitFrame)}\n\n`,
+      ),
+    );
+
+    service.watch({
+      taskId: "task-1",
+      runId: "run-1",
+      apiHost: "https://app.example.com",
+      teamId: 2,
+    });
+
+    await waitFor(() =>
+      updates.some((u) => (u as { kind?: string }).kind === "shell_exit"),
+    );
+
+    const shellUpdates = updates.filter((u) => {
+      const kind = (u as { kind?: string }).kind;
+      return kind === "shell_output" || kind === "shell_exit";
+    });
+
+    expect(shellUpdates).toEqual([
+      {
+        taskId: "task-1",
+        runId: "run-1",
+        kind: "shell_output",
+        executionId: "exec-1",
+        stream: "stdout",
+        chunk: "vojta\n",
+      },
+      {
+        taskId: "task-1",
+        runId: "run-1",
+        kind: "shell_exit",
+        executionId: "exec-1",
+        exitCode: 0,
+        signal: null,
+      },
+    ]);
+
+    // Shell notifications must not also be batched as log entries, otherwise
+    // the renderer re-processes the same chunks through the log conversion
+    // pipeline and the transcript gets noisy duplicates.
+    const logUpdates = updates.filter(
+      (u) => (u as { kind?: string }).kind === "logs",
+    );
+    expect(logUpdates).toEqual([]);
+  });
+
+  it("ignores shell_output with invalid params", async () => {
+    const updates: unknown[] = [];
+    service.on(CloudTaskEvent.Update, (payload) => updates.push(payload));
+
+    mockNetFetch
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          id: "run-1",
+          status: "in_progress",
+          stage: null,
+          output: null,
+          error_message: null,
+          branch: "main",
+          updated_at: "2026-01-01T00:00:00Z",
+        }),
+      )
+      .mockResolvedValueOnce(
+        createJsonResponse([], 200, { "X-Has-More": "false" }),
+      );
+
+    // Missing executionId — extractor should reject and the event falls
+    // through to normal log batching.
+    const malformedFrame = {
+      type: "notification",
+      timestamp: "2026-01-01T00:00:01Z",
+      notification: {
+        jsonrpc: "2.0",
+        method: "_posthog/shell_output",
+        params: { stream: "stdout", chunk: "orphan\n" },
+      },
+    };
+
+    mockStreamFetch.mockResolvedValueOnce(
+      createOpenSseResponse(
+        `id: 1\ndata: ${JSON.stringify(malformedFrame)}\n\n`,
+      ),
+    );
+
+    service.watch({
+      taskId: "task-1",
+      runId: "run-1",
+      apiHost: "https://app.example.com",
+      teamId: 2,
+    });
+
+    await waitFor(() =>
+      updates.some((u) => (u as { kind?: string }).kind === "logs"),
+    );
+
+    expect(
+      updates.some((u) => (u as { kind?: string }).kind === "shell_output"),
+    ).toBe(false);
+  });
 });

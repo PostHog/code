@@ -1,3 +1,4 @@
+import { type ChildProcess, spawn } from "node:child_process";
 import type {
   ContentBlock,
   RequestPermissionRequest,
@@ -209,6 +210,9 @@ export class AgentServer {
       }) => void;
     }
   >();
+  private shellExecutions = new Map<string, ChildProcess>();
+  private static readonly SHELL_DEFAULT_TIMEOUT_MS = 60_000;
+  private static readonly SHELL_MAX_TIMEOUT_MS = 600_000;
 
   private detachSseController(controller: SseController): void {
     if (this.session?.sseController === controller) {
@@ -642,6 +646,26 @@ export class AgentServer {
         return {
           configOptions: result.configOptions,
         };
+      }
+
+      case "posthog/shell_execute":
+      case "shell_execute": {
+        const command = params.command as string;
+        const cwd = (params.cwd as string | undefined) ?? this.getShellCwd();
+        const requestedTimeout = params.timeoutMs as number | undefined;
+        const timeoutMs = Math.min(
+          requestedTimeout && requestedTimeout > 0
+            ? requestedTimeout
+            : AgentServer.SHELL_DEFAULT_TIMEOUT_MS,
+          AgentServer.SHELL_MAX_TIMEOUT_MS,
+        );
+        const executionId = params.executionId as string | undefined;
+        return this.startShellExecution({
+          command,
+          cwd,
+          timeoutMs,
+          executionId,
+        });
       }
 
       case POSTHOG_NOTIFICATIONS.PERMISSION_RESPONSE:
@@ -1919,6 +1943,8 @@ ${attributionInstructions}
     }
     this.pendingPermissions.clear();
 
+    this.killAllShellExecutions();
+
     try {
       await this.session.acpConnection.cleanup();
     } catch (error) {
@@ -1985,6 +2011,113 @@ ${attributionInstructions}
         },
       },
     });
+  }
+
+  private getShellCwd(): string {
+    return this.config.repositoryPath ?? "/tmp/workspace";
+  }
+
+  private emitShellNotification(
+    method:
+      | typeof POSTHOG_NOTIFICATIONS.SHELL_OUTPUT
+      | typeof POSTHOG_NOTIFICATIONS.SHELL_EXIT,
+    params: Record<string, unknown>,
+  ): void {
+    if (!this.session) return;
+    const notification = {
+      jsonrpc: "2.0" as const,
+      method,
+      params,
+    };
+    this.broadcastEvent({
+      type: "notification",
+      timestamp: new Date().toISOString(),
+      notification,
+    });
+    this.session.logWriter.appendRawLine(
+      this.session.payload.run_id,
+      JSON.stringify(notification),
+    );
+  }
+
+  private startShellExecution(params: {
+    command: string;
+    cwd: string;
+    timeoutMs: number;
+    executionId?: string;
+  }): { executionId: string } {
+    const executionId = params.executionId ?? crypto.randomUUID();
+    const { command, cwd, timeoutMs } = params;
+
+    this.logger.info("Starting shell execution", {
+      executionId,
+      cwd,
+      command,
+    });
+
+    const child = spawn("bash", ["-c", command], {
+      cwd,
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    this.shellExecutions.set(executionId, child);
+
+    const timeout = setTimeout(() => {
+      if (!child.killed) {
+        this.logger.warn("Shell execution timed out", {
+          executionId,
+          timeoutMs,
+        });
+        child.kill("SIGTERM");
+      }
+    }, timeoutMs);
+
+    const emitOutput = (stream: "stdout" | "stderr", chunk: string): void => {
+      this.emitShellNotification(POSTHOG_NOTIFICATIONS.SHELL_OUTPUT, {
+        executionId,
+        stream,
+        chunk,
+      });
+    };
+
+    child.stdout?.on("data", (data: Buffer) =>
+      emitOutput("stdout", data.toString("utf8")),
+    );
+    child.stderr?.on("data", (data: Buffer) =>
+      emitOutput("stderr", data.toString("utf8")),
+    );
+
+    child.on("error", (err) => {
+      this.logger.error("Shell execution error", { executionId, error: err });
+      emitOutput("stderr", `${err.message}\n`);
+    });
+
+    child.on("close", (code, signal) => {
+      clearTimeout(timeout);
+      this.shellExecutions.delete(executionId);
+      this.logger.info("Shell execution finished", {
+        executionId,
+        exitCode: code,
+        signal,
+      });
+      this.emitShellNotification(POSTHOG_NOTIFICATIONS.SHELL_EXIT, {
+        executionId,
+        exitCode: code,
+        signal: signal ?? null,
+      });
+    });
+
+    return { executionId };
+  }
+
+  private killAllShellExecutions(): void {
+    for (const [, child] of this.shellExecutions) {
+      if (!child.killed) {
+        child.kill("SIGTERM");
+      }
+    }
+    this.shellExecutions.clear();
   }
 
   private broadcastEvent(event: Record<string, unknown>): void {

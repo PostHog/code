@@ -111,26 +111,33 @@ export function useSessionCallbacks({
 
   const handleBashCommand = useCallback(
     async (command: string) => {
-      if (!repoPath) return;
+      const currentSession = sessionRef.current;
+      const isCloud = currentSession?.isCloud === true;
+
+      if (!isCloud && !repoPath) return;
 
       const execId = `user-shell-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const displayCwd = repoPath ?? "cloud-sandbox";
+
       await getSessionService().startUserShellExecute(
         taskId,
         execId,
         command,
-        repoPath,
+        displayCwd,
       );
 
       try {
-        const result = await trpcClient.shell.execute.mutate({
-          cwd: repoPath,
-          command,
-        });
+        const result = isCloud
+          ? await getSessionService().executeCloudShellCommand(taskId, command)
+          : await trpcClient.shell.execute.mutate({
+              cwd: repoPath as string,
+              command,
+            });
         await getSessionService().completeUserShellExecute(
           taskId,
           execId,
           command,
-          repoPath,
+          displayCwd,
           result,
         );
       } catch (error) {
@@ -139,7 +146,7 @@ export function useSessionCallbacks({
           taskId,
           execId,
           command,
-          repoPath,
+          displayCwd,
           {
             stdout: "",
             stderr: error instanceof Error ? error.message : "Command failed",

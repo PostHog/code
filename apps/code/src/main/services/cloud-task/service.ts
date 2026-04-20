@@ -1,3 +1,4 @@
+import { POSTHOG_NOTIFICATIONS } from "@posthog/agent";
 import type { CloudTaskPermissionRequestUpdate } from "@shared/types";
 import type { StoredLogEntry } from "@shared/types/session-events";
 import { net } from "electron";
@@ -139,6 +140,78 @@ function isPermissionRequestEvent(
     (data as { type?: string }).type === "permission_request" &&
     typeof (data as { requestId?: string }).requestId === "string"
   );
+}
+
+interface ShellOutputNotification {
+  executionId: string;
+  stream: "stdout" | "stderr";
+  chunk: string;
+}
+
+interface ShellExitNotification {
+  executionId: string;
+  exitCode: number | null;
+  signal: string | null;
+}
+
+function extractShellNotification(
+  data: unknown,
+):
+  | { kind: "output"; params: ShellOutputNotification }
+  | { kind: "exit"; params: ShellExitNotification }
+  | null {
+  if (typeof data !== "object" || data === null) return null;
+  const d = data as Record<string, unknown>;
+  if (d.type !== "notification") return null;
+  const notification = d.notification as
+    | { method?: unknown; params?: unknown }
+    | undefined;
+  const method = notification?.method;
+  if (
+    method !== POSTHOG_NOTIFICATIONS.SHELL_OUTPUT &&
+    method !== POSTHOG_NOTIFICATIONS.SHELL_EXIT
+  ) {
+    return null;
+  }
+  const params = notification?.params as Record<string, unknown> | undefined;
+  if (!params || typeof params !== "object") return null;
+
+  if (method === POSTHOG_NOTIFICATIONS.SHELL_OUTPUT) {
+    const executionId = params.executionId;
+    const stream = params.stream;
+    const chunk = params.chunk;
+    if (
+      typeof executionId === "string" &&
+      (stream === "stdout" || stream === "stderr") &&
+      typeof chunk === "string"
+    ) {
+      return { kind: "output", params: { executionId, stream, chunk } };
+    }
+    return null;
+  }
+
+  if (method === POSTHOG_NOTIFICATIONS.SHELL_EXIT) {
+    const executionId = params.executionId;
+    const exitCode = params.exitCode;
+    const signal = params.signal;
+    if (
+      typeof executionId === "string" &&
+      (exitCode === null || typeof exitCode === "number") &&
+      (signal === null || typeof signal === "string")
+    ) {
+      return {
+        kind: "exit",
+        params: {
+          executionId,
+          exitCode: exitCode as number | null,
+          signal: signal as string | null,
+        },
+      };
+    }
+    return null;
+  }
+
+  return null;
 }
 
 function createStreamStatusError(status: number): CloudTaskStreamError {
@@ -710,6 +783,34 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
         toolCall: event.data.toolCall,
         options: event.data.options,
       });
+      return;
+    }
+
+    const shellNotification = extractShellNotification(event.data);
+    if (shellNotification) {
+      log.info("Shell notification received", {
+        kind: shellNotification.kind,
+        executionId: shellNotification.params.executionId,
+      });
+      if (shellNotification.kind === "output") {
+        this.emit(CloudTaskEvent.Update, {
+          taskId: watcher.taskId,
+          runId: watcher.runId,
+          kind: "shell_output" as const,
+          executionId: shellNotification.params.executionId,
+          stream: shellNotification.params.stream,
+          chunk: shellNotification.params.chunk,
+        });
+      } else {
+        this.emit(CloudTaskEvent.Update, {
+          taskId: watcher.taskId,
+          runId: watcher.runId,
+          kind: "shell_exit" as const,
+          executionId: shellNotification.params.executionId,
+          exitCode: shellNotification.params.exitCode,
+          signal: shellNotification.params.signal,
+        });
+      }
       return;
     }
 

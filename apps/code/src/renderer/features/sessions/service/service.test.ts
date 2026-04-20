@@ -1518,4 +1518,292 @@ describe("SessionService", () => {
       vi.useRealTimers();
     });
   });
+
+  describe("executeCloudShellCommand", () => {
+    function createOnDataCapturer() {
+      let capturedOnData:
+        | ((update: Record<string, unknown>) => void)
+        | undefined;
+      mockTrpcCloudTask.onUpdate.subscribe.mockImplementation(
+        (_input: unknown, callbacks: { onData: (u: unknown) => void }) => {
+          capturedOnData = callbacks.onData as typeof capturedOnData;
+          return { unsubscribe: vi.fn() };
+        },
+      );
+      return () => capturedOnData;
+    }
+
+    it("throws when no active session exists", async () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(undefined);
+
+      await expect(
+        service.executeCloudShellCommand("task-123", "echo vojta"),
+      ).rejects.toThrow("No active session for task");
+    });
+
+    it("registers the pending listener before the RPC round-trip resolves", async () => {
+      const service = getSessionService();
+      const getOnData = createOnDataCapturer();
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({ isCloud: true }),
+      );
+
+      let resolveSendCommand:
+        | ((value: { success: boolean; result?: unknown }) => void)
+        | undefined;
+      mockTrpcCloudTask.sendCommand.mutate.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveSendCommand = resolve;
+          }),
+      );
+
+      const execPromise = service.executeCloudShellCommand(
+        "task-123",
+        "echo vojta",
+      );
+
+      await vi.waitFor(() =>
+        expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledTimes(1),
+      );
+      const callArgs = mockTrpcCloudTask.sendCommand.mutate.mock
+        .calls[0][0] as {
+        method: string;
+        params: { command: string; executionId: string };
+      };
+      expect(callArgs.method).toBe("shell_execute");
+      const executionId = callArgs.params.executionId;
+      expect(executionId).toMatch(/.+/);
+
+      // Deliver the shell_exit *before* the sendCommand RPC resolves —
+      // this mimics the real-world race where `echo` finishes faster than
+      // the HTTP round-trip. The pending listener must already be
+      // registered for the exit event to land.
+      const onData = getOnData();
+      expect(onData).toBeDefined();
+      onData?.({
+        taskId: "task-123",
+        runId: "run-123",
+        kind: "shell_output",
+        executionId,
+        stream: "stdout",
+        chunk: "vojta\n",
+      });
+      onData?.({
+        taskId: "task-123",
+        runId: "run-123",
+        kind: "shell_exit",
+        executionId,
+        exitCode: 0,
+        signal: null,
+      });
+
+      resolveSendCommand?.({ success: true, result: { executionId } });
+
+      await expect(execPromise).resolves.toEqual({
+        stdout: "vojta\n",
+        stderr: "",
+        exitCode: 0,
+      });
+    });
+
+    it("accumulates multiple stdout and stderr chunks across shell_output events", async () => {
+      const service = getSessionService();
+      const getOnData = createOnDataCapturer();
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({ isCloud: true }),
+      );
+      mockTrpcCloudTask.sendCommand.mutate.mockImplementation(
+        async (input: { params: { executionId: string } }) => ({
+          success: true,
+          result: { executionId: input.params.executionId },
+        }),
+      );
+
+      const execPromise = service.executeCloudShellCommand("task-123", "pipe");
+      await vi.waitFor(() =>
+        expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledTimes(1),
+      );
+      const executionId = (
+        mockTrpcCloudTask.sendCommand.mutate.mock.calls[0][0] as {
+          params: { executionId: string };
+        }
+      ).params.executionId;
+
+      const onData = getOnData();
+      onData?.({
+        taskId: "task-123",
+        runId: "run-123",
+        kind: "shell_output",
+        executionId,
+        stream: "stdout",
+        chunk: "line 1\n",
+      });
+      onData?.({
+        taskId: "task-123",
+        runId: "run-123",
+        kind: "shell_output",
+        executionId,
+        stream: "stderr",
+        chunk: "warning\n",
+      });
+      onData?.({
+        taskId: "task-123",
+        runId: "run-123",
+        kind: "shell_output",
+        executionId,
+        stream: "stdout",
+        chunk: "line 2\n",
+      });
+      onData?.({
+        taskId: "task-123",
+        runId: "run-123",
+        kind: "shell_exit",
+        executionId,
+        exitCode: 2,
+        signal: null,
+      });
+
+      await expect(execPromise).resolves.toEqual({
+        stdout: "line 1\nline 2\n",
+        stderr: "warning\n",
+        exitCode: 2,
+      });
+    });
+
+    it("treats shell_exit with only a signal as a failure", async () => {
+      const service = getSessionService();
+      const getOnData = createOnDataCapturer();
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({ isCloud: true }),
+      );
+      mockTrpcCloudTask.sendCommand.mutate.mockImplementation(
+        async (input: { params: { executionId: string } }) => ({
+          success: true,
+          result: { executionId: input.params.executionId },
+        }),
+      );
+
+      const execPromise = service.executeCloudShellCommand(
+        "task-123",
+        "sleep 1",
+      );
+      await vi.waitFor(() =>
+        expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledTimes(1),
+      );
+      const executionId = (
+        mockTrpcCloudTask.sendCommand.mutate.mock.calls[0][0] as {
+          params: { executionId: string };
+        }
+      ).params.executionId;
+
+      getOnData()?.({
+        taskId: "task-123",
+        runId: "run-123",
+        kind: "shell_exit",
+        executionId,
+        exitCode: null,
+        signal: "SIGTERM",
+      });
+
+      await expect(execPromise).resolves.toEqual({
+        stdout: "",
+        stderr: "",
+        exitCode: 1,
+      });
+    });
+
+    it("rejects the pending promise if sendCommand fails", async () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({ isCloud: true }),
+      );
+      mockTrpcCloudTask.sendCommand.mutate.mockResolvedValue({
+        success: false,
+        error: "Backend exploded",
+      });
+
+      await expect(
+        service.executeCloudShellCommand("task-123", "echo hi"),
+      ).rejects.toThrow("Backend exploded");
+    });
+
+    it("resolves hanging shell executions when the session is torn down", async () => {
+      const service = getSessionService();
+      const getOnData = createOnDataCapturer();
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+
+      const session = createMockSession({ isCloud: true });
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(session);
+      mockSessionStoreSetters.getSessions.mockReturnValue({
+        "run-123": session,
+      });
+      mockTrpcCloudTask.sendCommand.mutate.mockImplementation(
+        async (input: { params: { executionId: string } }) => ({
+          success: true,
+          result: { executionId: input.params.executionId },
+        }),
+      );
+      mockTrpcAgent.cancel.mutate.mockResolvedValue(undefined);
+
+      const execPromise = service.executeCloudShellCommand(
+        "task-123",
+        "sleep 60",
+      );
+      await vi.waitFor(() =>
+        expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledTimes(1),
+      );
+      const executionId = (
+        mockTrpcCloudTask.sendCommand.mutate.mock.calls[0][0] as {
+          params: { executionId: string };
+        }
+      ).params.executionId;
+
+      // Some stdout arrived before teardown — should still flush into the
+      // final result so the transcript has partial output.
+      getOnData()?.({
+        taskId: "task-123",
+        runId: "run-123",
+        kind: "shell_output",
+        executionId,
+        stream: "stdout",
+        chunk: "partial\n",
+      });
+
+      await service.disconnectFromTask("task-123");
+
+      await expect(execPromise).resolves.toEqual({
+        stdout: "partial\n",
+        stderr: "Session ended",
+        exitCode: -1,
+      });
+    });
+  });
 });
