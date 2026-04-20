@@ -9,6 +9,7 @@ import {
   ComboboxList,
   ComboboxTrigger,
 } from "@posthog/quill";
+import type { RefObject } from "react";
 
 interface GitHubRepoPickerProps {
   value: string | null;
@@ -18,6 +19,7 @@ interface GitHubRepoPickerProps {
   placeholder?: string;
   size?: "1" | "2";
   disabled?: boolean;
+  anchor?: RefObject<HTMLElement | null>;
 }
 
 export function GitHubRepoPicker({
@@ -27,6 +29,7 @@ export function GitHubRepoPicker({
   isLoading,
   placeholder = "Select repository...",
   disabled = false,
+  anchor,
 }: GitHubRepoPickerProps) {
   if (isLoading) {
     return (
@@ -68,7 +71,12 @@ export function GitHubRepoPicker({
           </Button>
         }
       />
-      <ComboboxContent side="bottom" sideOffset={6} className="min-w-[280px]">
+      <ComboboxContent
+        anchor={anchor}
+        side="bottom"
+        sideOffset={6}
+        className="min-w-[280px]"
+      >
         <ComboboxInput placeholder="Search repositories..." />
         <ComboboxEmpty>No repositories found.</ComboboxEmpty>
         <ComboboxList>

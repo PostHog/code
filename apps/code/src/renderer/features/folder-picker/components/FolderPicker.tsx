@@ -15,18 +15,21 @@ import {
   MenuLabel,
 } from "@posthog/quill";
 import { trpcClient } from "@renderer/trpc";
+import type { RefObject } from "react";
 
 interface FolderPickerProps {
   value: string;
   onChange: (path: string) => void;
   placeholder?: string;
   size?: "1" | "2";
+  anchor?: RefObject<HTMLElement | null>;
 }
 
 export function FolderPicker({
   value,
   onChange,
   placeholder = "Select folder...",
+  anchor,
 }: FolderPickerProps) {
   const {
     getRecentFolders,
@@ -85,6 +88,7 @@ export function FolderPicker({
         }
       />
       <DropdownMenuContent
+        anchor={anchor}
         align="start"
         side="bottom"
         sideOffset={6}

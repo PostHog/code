@@ -16,7 +16,7 @@ import {
 import { useTRPC } from "@renderer/trpc";
 import { toast } from "@renderer/utils/toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 
 interface BranchSelectorProps {
   repoPath: string | null;
@@ -34,6 +34,7 @@ interface BranchSelectorProps {
   onCloudPickerOpen?: () => void;
   onCloudBranchCommit?: () => void;
   taskId?: string;
+  anchor?: RefObject<HTMLElement | null>;
 }
 
 export function BranchSelector({
@@ -51,9 +52,10 @@ export function BranchSelector({
   onCloudPickerOpen,
   onCloudBranchCommit,
   taskId,
+  anchor,
 }: BranchSelectorProps) {
   const [open, setOpen] = useState(false);
-  const anchorRef = useRef<HTMLButtonElement>(null);
+  const localAnchorRef = useRef<HTMLButtonElement>(null);
   const trpc = useTRPC();
   const { actions } = useGitInteractionStore();
 
@@ -149,7 +151,7 @@ export function BranchSelector({
       <ComboboxTrigger
         render={
           <Button
-            ref={anchorRef}
+            ref={localAnchorRef}
             variant="outline"
             size="sm"
             disabled={isDisabled}
@@ -171,7 +173,7 @@ export function BranchSelector({
         }
       />
       <ComboboxContent
-        anchor={anchorRef}
+        anchor={anchor ?? localAnchorRef}
         side="bottom"
         sideOffset={6}
         className="min-w-[240px]"
