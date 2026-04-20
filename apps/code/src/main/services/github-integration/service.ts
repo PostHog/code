@@ -53,7 +53,6 @@ export class GitHubIntegrationService extends TypedEventEmitter<GitHubIntegratio
     this.deepLinkService.registerHandler("integration", (_path, params) =>
       this.handleCallback(params),
     );
-    log.info("Registered integration deep link handler");
   }
 
   public async startFlow(
@@ -72,12 +71,15 @@ export class GitHubIntegrationService extends TypedEventEmitter<GitHubIntegratio
         this.emit(GitHubIntegrationEvent.FlowTimedOut, { projectId });
       }, FLOW_TIMEOUT_MS);
 
-      log.info("Opening GitHub authorization URL in browser", { projectId });
       await this.urlLauncher.launch(authorizeUrl);
 
       return { success: true };
     } catch (error) {
       this.clearFlowTimeout();
+      log.error("Failed to start GitHub integration flow", {
+        projectId,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -88,13 +90,6 @@ export class GitHubIntegrationService extends TypedEventEmitter<GitHubIntegratio
   public consumePendingCallback(): IntegrationCallback | null {
     const pending = this.pendingCallback;
     this.pendingCallback = null;
-    if (pending) {
-      log.info("Consumed pending integration callback", {
-        provider: pending.provider,
-        projectId: pending.projectId,
-        status: pending.status,
-      });
-    }
     return pending;
   }
 
@@ -117,21 +112,20 @@ export class GitHubIntegrationService extends TypedEventEmitter<GitHubIntegratio
 
     this.clearFlowTimeout();
 
+    if (status === "error") {
+      log.error("Received integration callback with error", {
+        provider: callback.provider,
+        projectId: callback.projectId,
+        errorCode: callback.errorCode,
+        errorMessage: callback.errorMessage,
+      });
+    }
+
     const hasListeners =
       this.listenerCount(GitHubIntegrationEvent.Callback) > 0;
     if (hasListeners) {
-      log.info("Emitting integration callback", {
-        provider: callback.provider,
-        projectId: callback.projectId,
-        status,
-      });
       this.emit(GitHubIntegrationEvent.Callback, callback);
     } else {
-      log.info("Queueing integration callback (no listeners yet)", {
-        provider: callback.provider,
-        projectId: callback.projectId,
-        status,
-      });
       this.pendingCallback = callback;
     }
 
