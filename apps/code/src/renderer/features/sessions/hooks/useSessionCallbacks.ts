@@ -1,6 +1,5 @@
 import { tryExecuteCodeCommand } from "@features/message-editor/commands";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
-import { xmlToContent } from "@features/message-editor/utils/content";
 import { useTaskViewed } from "@features/sidebar/hooks/useTaskViewed";
 import { trpcClient } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
@@ -11,6 +10,10 @@ import { useCallback, useRef } from "react";
 import { getSessionService } from "../service/service";
 import type { AgentSession } from "../stores/sessionStore";
 import { sessionStoreSetters } from "../stores/sessionStore";
+import {
+  combineQueuedCloudPrompts,
+  promptToQueuedEditorContent,
+} from "../utils/cloudArtifacts";
 
 const log = logger.scope("session-callbacks");
 
@@ -73,11 +76,31 @@ export function useSessionCallbacks({
   );
 
   const handleCancelPrompt = useCallback(async () => {
-    const queuedContent = sessionStoreSetters.dequeueMessagesAsText(taskId);
-    await getSessionService().cancelPrompt(taskId);
+    const queuedMessages = sessionStoreSetters.dequeueMessages(taskId);
+    const result = await getSessionService().cancelPrompt(taskId);
+    log.info("Prompt cancelled", { success: result });
 
-    if (queuedContent) {
-      setPendingContent(taskId, xmlToContent(queuedContent));
+    const queuedPrompt = sessionRef.current?.isCloud
+      ? combineQueuedCloudPrompts(queuedMessages)
+      : queuedMessages.map((message) => message.content).join("\n\n");
+
+    if (queuedPrompt) {
+      const pendingContent =
+        sessionRef.current?.isCloud
+          ? promptToQueuedEditorContent(queuedPrompt)
+          : {
+              segments: [
+                {
+                  type: "text" as const,
+                  text: typeof queuedPrompt === "string" ? queuedPrompt : "",
+                },
+              ],
+            };
+
+      setPendingContent(
+        taskId,
+        pendingContent,
+      );
     }
     requestFocus(taskId);
   }, [taskId, setPendingContent, requestFocus]);

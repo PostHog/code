@@ -39,12 +39,17 @@ const mockTrpcCloudTask = vi.hoisted(() => ({
   onUpdate: { subscribe: vi.fn() },
 }));
 
+const mockTrpcFs = vi.hoisted(() => ({
+  readFileAsBase64: { query: vi.fn() },
+}));
+
 vi.mock("@renderer/trpc/client", () => ({
   trpcClient: {
     agent: mockTrpcAgent,
     workspace: mockTrpcWorkspace,
     logs: mockTrpcLogs,
     cloudTask: mockTrpcCloudTask,
+    fs: mockTrpcFs,
   },
 }));
 
@@ -57,6 +62,7 @@ const mockSessionStoreSetters = vi.hoisted(() => ({
   removeQueuedMessage: vi.fn(),
   clearMessageQueue: vi.fn(),
   dequeueMessagesAsText: vi.fn(() => null),
+  dequeueMessages: vi.fn(() => []),
   setPendingPermissions: vi.fn(),
   getSessionByTaskId: vi.fn(),
   getSessions: vi.fn(() => ({})),
@@ -99,6 +105,10 @@ const mockAuthenticatedClient = vi.hoisted(() => ({
   getTaskRun: vi.fn(),
   getTask: vi.fn(),
   runTaskInCloud: vi.fn(),
+  prepareTaskRunArtifactUploads: vi.fn(),
+  finalizeTaskRunArtifactUploads: vi.fn(),
+  prepareTaskStagedArtifactUploads: vi.fn(),
+  finalizeTaskStagedArtifactUploads: vi.fn(),
 }));
 
 type MockAuthenticatedClient = typeof mockAuthenticatedClient;
@@ -237,6 +247,16 @@ vi.mock("@utils/session", async () => {
     await vi.importActual<typeof import("@utils/session")>("@utils/session");
   return {
     convertStoredEntriesToEvents: vi.fn(() => []),
+    createUserPromptEvent: vi.fn((prompt, ts) => ({
+      type: "acp_message",
+      ts,
+      message: {
+        jsonrpc: "2.0",
+        id: ts,
+        method: "session/prompt",
+        params: { prompt },
+      },
+    })),
     createUserMessageEvent: vi.fn((message, ts) => ({
       type: "user",
       ts,
@@ -323,6 +343,19 @@ describe("SessionService", () => {
     mockTrpcCloudTask.onUpdate.subscribe.mockReturnValue({
       unsubscribe: vi.fn(),
     });
+    mockTrpcFs.readFileAsBase64.query.mockResolvedValue(null);
+    mockAuthenticatedClient.prepareTaskRunArtifactUploads.mockResolvedValue(
+      [],
+    );
+    mockAuthenticatedClient.finalizeTaskRunArtifactUploads.mockResolvedValue(
+      [],
+    );
+    mockAuthenticatedClient.prepareTaskStagedArtifactUploads.mockResolvedValue(
+      [],
+    );
+    mockAuthenticatedClient.finalizeTaskStagedArtifactUploads.mockResolvedValue(
+      [],
+    );
   });
 
   describe("singleton management", () => {
@@ -1019,6 +1052,36 @@ describe("SessionService", () => {
       );
     });
 
+    it("preserves cloud attachment prompts when queueing a follow-up", async () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({
+          isCloud: true,
+          cloudStatus: "in_progress",
+          isPromptPending: true,
+        }),
+      );
+
+      const prompt: ContentBlock[] = [
+        { type: "text", text: "read this" },
+        {
+          type: "resource_link",
+          uri: "file:///tmp/test.txt",
+          name: "test.txt",
+          mimeType: "text/plain",
+        },
+      ];
+
+      const result = await service.sendPrompt("task-123", prompt);
+
+      expect(result.stopReason).toBe("queued");
+      expect(mockSessionStoreSetters.enqueueMessage).toHaveBeenCalledWith(
+        "task-123",
+        "read this\n\nAttached files: test.txt",
+        prompt,
+      );
+    });
+
     it("sends prompt via tRPC when session is ready", async () => {
       const service = getSessionService();
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
@@ -1035,7 +1098,7 @@ describe("SessionService", () => {
       });
     });
 
-    it("serializes structured prompts before sending cloud follow-ups", async () => {
+    it("uploads attachments before sending cloud follow-ups", async () => {
       const service = getSessionService();
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
         createMockSession({
@@ -1047,16 +1110,47 @@ describe("SessionService", () => {
         success: true,
         result: { stopReason: "end_turn" },
       });
+      mockTrpcFs.readFileAsBase64.query.mockResolvedValue("aGVsbG8=");
+      mockAuthenticatedClient.prepareTaskRunArtifactUploads.mockResolvedValue([
+        {
+          id: "artifact-1",
+          name: "test.txt",
+          type: "user_attachment",
+          source: "posthog_code",
+          size: 5,
+          content_type: "text/plain",
+          storage_path: "tasks/artifacts/test.txt",
+          expires_in: 3600,
+          presigned_post: {
+            url: "https://uploads.example.com",
+            fields: { key: "tasks/artifacts/test.txt" },
+          },
+        },
+      ]);
+      mockAuthenticatedClient.finalizeTaskRunArtifactUploads.mockResolvedValue([
+        {
+          id: "artifact-1",
+          name: "test.txt",
+          type: "user_attachment",
+          source: "posthog_code",
+          size: 5,
+          content_type: "text/plain",
+          storage_path: "tasks/artifacts/test.txt",
+          uploaded_at: "2026-04-16T00:00:00Z",
+        },
+      ]);
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({ ok: true } as Response),
+      );
 
       const prompt: ContentBlock[] = [
         { type: "text", text: "read this" },
         {
-          type: "resource",
-          resource: {
-            uri: "attachment://test.txt",
-            text: "hello from file",
-            mimeType: "text/plain",
-          },
+          type: "resource_link",
+          uri: "file:///tmp/test.txt",
+          name: "test.txt",
+          mimeType: "text/plain",
         },
       ];
 
@@ -1065,17 +1159,13 @@ describe("SessionService", () => {
       expect(result.stopReason).toBe("end_turn");
       expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledTimes(1);
 
-      const [args] = mockTrpcCloudTask.sendCommand.mutate.mock.calls[0] as [
-        {
-          params?: { content?: unknown };
-        },
-      ];
-
-      expect(args.params?.content).toEqual(
-        expect.stringContaining("__twig_cloud_prompt_v1__:"),
-      );
-      expect(args.params?.content).toEqual(
-        expect.stringContaining('"type":"resource"'),
+      expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          params: {
+            content: "read this",
+            artifact_ids: ["artifact-1"],
+          },
+        }),
       );
     });
 
@@ -1169,6 +1259,120 @@ describe("SessionService", () => {
           model: "gpt-5.4",
           reasoningLevel: "high",
           resumeFromRunId: "run-123",
+        }),
+      );
+    });
+
+    it("preserves attachment blocks in the optimistic resume event", async () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({
+          isCloud: true,
+          cloudStatus: "completed",
+          cloudBranch: "feature/cloud-run",
+        }),
+      );
+      mockAuthenticatedClient.getTaskRun.mockResolvedValue({
+        id: "run-123",
+        task: "task-123",
+        team: 123,
+        branch: "feature/cloud-run",
+        runtime_adapter: "claude",
+        model: "claude-sonnet-4-20250514",
+        reasoning_effort: null,
+        environment: "cloud",
+        status: "completed",
+        log_url: "https://example.com/logs/run-123",
+        error_message: null,
+        output: {},
+        state: {},
+        created_at: "2026-04-14T00:00:00Z",
+        updated_at: "2026-04-14T00:00:00Z",
+        completed_at: "2026-04-14T00:05:00Z",
+      });
+      mockAuthenticatedClient.getTask.mockResolvedValue(createMockTask());
+      mockTrpcFs.readFileAsBase64.query.mockResolvedValue("aGVsbG8=");
+      mockAuthenticatedClient.prepareTaskStagedArtifactUploads.mockResolvedValue([
+        {
+          id: "artifact-1",
+          name: "test.txt",
+          type: "user_attachment",
+          source: "posthog_code",
+          size: 5,
+          content_type: "text/plain",
+          storage_path: "tasks/artifacts/test.txt",
+          expires_in: 3600,
+          presigned_post: {
+            url: "https://uploads.example.com",
+            fields: { key: "tasks/artifacts/test.txt" },
+          },
+        },
+      ]);
+      mockAuthenticatedClient.finalizeTaskStagedArtifactUploads.mockResolvedValue([
+        {
+          id: "artifact-1",
+          name: "test.txt",
+          type: "user_attachment",
+          source: "posthog_code",
+          size: 5,
+          content_type: "text/plain",
+          storage_path: "tasks/artifacts/test.txt",
+          uploaded_at: "2026-04-16T00:00:00Z",
+        },
+      ]);
+      mockAuthenticatedClient.runTaskInCloud.mockResolvedValue(
+        createMockTask({
+          latest_run: {
+            id: "run-456",
+            task: "task-123",
+            team: 123,
+            branch: "feature/cloud-run",
+            runtime_adapter: "claude",
+            model: "claude-sonnet-4-20250514",
+            reasoning_effort: null,
+            environment: "cloud",
+            status: "queued",
+            log_url: "https://example.com/logs/run-456",
+            error_message: null,
+            output: {},
+            state: {},
+            created_at: "2026-04-14T00:06:00Z",
+            updated_at: "2026-04-14T00:06:00Z",
+            completed_at: null,
+          },
+        }),
+      );
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({ ok: true } as Response),
+      );
+
+      const prompt: ContentBlock[] = [
+        { type: "text", text: "what is this about?" },
+        {
+          type: "resource_link",
+          uri: "file:///tmp/test.txt",
+          name: "test.txt",
+          mimeType: "text/plain",
+        },
+      ];
+
+      const result = await service.sendPrompt("task-123", prompt);
+
+      expect(result.stopReason).toBe("queued");
+      expect(mockSessionStoreSetters.setSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          events: expect.arrayContaining([
+            expect.objectContaining({
+              message: expect.objectContaining({
+                method: "session/prompt",
+                params: {
+                  prompt,
+                },
+              }),
+            }),
+          ]),
+          skipPolledPromptCount: 1,
         }),
       );
     });

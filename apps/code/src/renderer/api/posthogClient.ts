@@ -98,6 +98,37 @@ export interface ExternalDataSource {
   schemas?: ExternalDataSourceSchema[] | string;
 }
 
+export interface TaskArtifactUploadRequest {
+  name: string;
+  type: "user_attachment";
+  size: number;
+  content_type?: string;
+  source?: string;
+}
+
+export interface DirectUploadPresignedPost {
+  url: string;
+  fields: Record<string, string>;
+}
+
+export interface PreparedTaskArtifactUpload extends TaskArtifactUploadRequest {
+  id: string;
+  storage_path: string;
+  expires_in: number;
+  presigned_post: DirectUploadPresignedPost;
+}
+
+export interface FinalizedTaskArtifactUpload {
+  id: string;
+  name: string;
+  type: string;
+  source?: string;
+  size?: number;
+  content_type?: string;
+  storage_path: string;
+  uploaded_at?: string;
+}
+
 type CloudRuntimeAdapter = "claude" | "codex";
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
@@ -761,10 +792,10 @@ export class PostHogAPIClient {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       };
+      }
     }
-  }
 
-  async runTaskInCloud(
+    async runTaskInCloud(
     taskId: string,
     branch?: string | null,
     options?: {
@@ -773,6 +804,7 @@ export class PostHogAPIClient {
       reasoningLevel?: string;
       resumeFromRunId?: string;
       pendingUserMessage?: string;
+      pendingUserArtifactIds?: string[];
       sandboxEnvironmentId?: string;
       prAuthorshipMode?: PrAuthorshipMode;
       runSource?: CloudRunSource;
@@ -817,6 +849,9 @@ export class PostHogAPIClient {
     if (options?.pendingUserMessage) {
       body.pending_user_message = options.pendingUserMessage;
     }
+    if (options?.pendingUserArtifactIds?.length) {
+      body.pending_user_artifact_ids = options.pendingUserArtifactIds;
+    }
     if (options?.sandboxEnvironmentId) {
       body.sandbox_environment_id = options.sandboxEnvironmentId;
     }
@@ -845,6 +880,146 @@ export class PostHogAPIClient {
     );
 
     return data as unknown as Task;
+  }
+
+  async prepareTaskStagedArtifactUploads(
+    taskId: string,
+    artifacts: TaskArtifactUploadRequest[],
+  ): Promise<PreparedTaskArtifactUpload[]> {
+    if (!artifacts.length) {
+      return [];
+    }
+
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/staged_artifacts/prepare_upload/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/staged_artifacts/prepare_upload/`,
+      overrides: {
+        body: JSON.stringify({ artifacts }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to prepare staged uploads: ${response.statusText}`,
+      );
+    }
+
+    const data = (await response.json()) as { artifacts?: PreparedTaskArtifactUpload[] };
+    return data.artifacts ?? [];
+  }
+
+  async finalizeTaskStagedArtifactUploads(
+    taskId: string,
+    artifacts: PreparedTaskArtifactUpload[],
+  ): Promise<FinalizedTaskArtifactUpload[]> {
+    if (!artifacts.length) {
+      return [];
+    }
+
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/staged_artifacts/finalize_upload/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/staged_artifacts/finalize_upload/`,
+      overrides: {
+        body: JSON.stringify({
+          artifacts: artifacts.map((artifact) => ({
+            id: artifact.id,
+            name: artifact.name,
+            type: artifact.type,
+            source: artifact.source,
+            content_type: artifact.content_type,
+            storage_path: artifact.storage_path,
+          })),
+        }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to finalize staged uploads: ${response.statusText}`,
+      );
+    }
+
+    const data = (await response.json()) as { artifacts?: FinalizedTaskArtifactUpload[] };
+    return data.artifacts ?? [];
+  }
+
+  async prepareTaskRunArtifactUploads(
+    taskId: string,
+    runId: string,
+    artifacts: TaskArtifactUploadRequest[],
+  ): Promise<PreparedTaskArtifactUpload[]> {
+    if (!artifacts.length) {
+      return [];
+    }
+
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/artifacts/prepare_upload/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/artifacts/prepare_upload/`,
+      overrides: {
+        body: JSON.stringify({ artifacts }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to prepare uploads: ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as { artifacts?: PreparedTaskArtifactUpload[] };
+    return data.artifacts ?? [];
+  }
+
+  async finalizeTaskRunArtifactUploads(
+    taskId: string,
+    runId: string,
+    artifacts: PreparedTaskArtifactUpload[],
+  ): Promise<FinalizedTaskArtifactUpload[]> {
+    if (!artifacts.length) {
+      return [];
+    }
+
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/artifacts/finalize_upload/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/artifacts/finalize_upload/`,
+      overrides: {
+        body: JSON.stringify({
+          artifacts: artifacts.map((artifact) => ({
+            id: artifact.id,
+            name: artifact.name,
+            type: artifact.type,
+            source: artifact.source,
+            content_type: artifact.content_type,
+            storage_path: artifact.storage_path,
+          })),
+        }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to finalize uploads: ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as { artifacts?: FinalizedTaskArtifactUpload[] };
+    return data.artifacts ?? [];
   }
 
   async listTaskRuns(taskId: string): Promise<TaskRun[]> {
