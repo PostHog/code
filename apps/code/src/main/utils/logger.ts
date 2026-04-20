@@ -1,12 +1,13 @@
 import { existsSync, mkdirSync, renameSync, unlinkSync } from "node:fs";
+import os from "node:os";
 import { join } from "node:path";
 import { initOtelTransport } from "@main/utils/otel-log-transport";
-import { app } from "electron";
 import log from "electron-log/main";
+import { isDevBuild } from "./env";
 
-const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+const isDev = process.env.NODE_ENV === "development" || isDevBuild();
 const LOG_DIR = join(
-  app.getPath("home"),
+  os.homedir(),
   ".posthog-code",
   isDev ? "logs-dev" : "logs",
 );

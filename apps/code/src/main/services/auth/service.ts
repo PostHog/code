@@ -1,8 +1,8 @@
+import type { IPowerManager } from "@posthog/platform/power-manager";
 import { OAUTH_SCOPE_VERSION } from "@shared/constants/oauth";
 import type { CloudRegion } from "@shared/types/regions";
 import { type BackoffOptions, sleepWithBackoff } from "@shared/utils/backoff";
 import { getCloudUrlFromRegion } from "@shared/utils/urls";
-import { powerMonitor } from "electron";
 import { inject, injectable, postConstruct, preDestroy } from "inversify";
 import type { IAuthPreferenceRepository } from "../../db/repositories/auth-preference-repository";
 import type {
@@ -80,6 +80,8 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
     private readonly oauthService: OAuthService,
     @inject(MAIN_TOKENS.ConnectivityService)
     private readonly connectivityService: ConnectivityService,
+    @inject(MAIN_TOKENS.PowerManager)
+    private readonly powerManager: IPowerManager,
   ) {
     super();
   }
@@ -580,6 +582,7 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
   };
   private recoveryPromise: Promise<void> | null = null;
   private connectivityUnsubscribe: (() => void) | null = null;
+  private resumeUnsubscribe: (() => void) | null = null;
   @postConstruct()
   init(): void {
     const handler = (status: ConnectivityStatusOutput) => {
@@ -592,13 +595,14 @@ export class AuthService extends TypedEventEmitter<AuthServiceEvents> {
       this.connectivityService.off(ConnectivityEvent.StatusChange, handler);
     };
 
-    powerMonitor.on("resume", this.handleResume);
+    this.resumeUnsubscribe = this.powerManager.onResume(this.handleResume);
   }
   @preDestroy()
   shutdown(): void {
     this.connectivityUnsubscribe?.();
     this.connectivityUnsubscribe = null;
-    powerMonitor.off("resume", this.handleResume);
+    this.resumeUnsubscribe?.();
+    this.resumeUnsubscribe = null;
   }
   private handleResume = (): void => {
     this.attemptSessionRecovery();

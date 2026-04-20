@@ -2,30 +2,86 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UpdatesEvent } from "./schemas";
 
 // Use vi.hoisted to ensure mocks are available when vi.mock is hoisted
-const { mockApp, mockAutoUpdater, mockLifecycleService } = vi.hoisted(() => ({
-  mockAutoUpdater: {
-    setFeedURL: vi.fn(),
-    checkForUpdates: vi.fn(),
-    quitAndInstall: vi.fn(),
-    on: vi.fn(),
-  },
-  mockApp: {
-    isPackaged: true,
-    getVersion: vi.fn(() => "1.0.0"),
-    on: vi.fn(),
-    whenReady: vi.fn(() => Promise.resolve()),
-  },
-  mockLifecycleService: {
-    shutdown: vi.fn(() => Promise.resolve()),
-    shutdownWithoutContainer: vi.fn(() => Promise.resolve()),
-    setQuittingForUpdate: vi.fn(),
-  },
-}));
+const {
+  mockUpdater,
+  mockAppLifecycle,
+  mockAppMeta,
+  mockMainWindow,
+  mockLifecycleService,
+  updaterHandlers,
+} = vi.hoisted(() => {
+  const updaterHandlers: {
+    checkStart: (() => void) | null;
+    updateAvailable: (() => void) | null;
+    noUpdate: (() => void) | null;
+    updateDownloaded: ((version: string) => void) | null;
+    error: ((error: Error) => void) | null;
+    focus: (() => void) | null;
+  } = {
+    checkStart: null,
+    updateAvailable: null,
+    noUpdate: null,
+    updateDownloaded: null,
+    error: null,
+    focus: null,
+  };
 
-vi.mock("electron", () => ({
-  app: mockApp,
-  autoUpdater: mockAutoUpdater,
-}));
+  return {
+    updaterHandlers,
+    mockUpdater: {
+      isSupported: vi.fn(() => true),
+      setFeedUrl: vi.fn(),
+      check: vi.fn(),
+      quitAndInstall: vi.fn(),
+      onCheckStart: vi.fn((h: () => void) => {
+        updaterHandlers.checkStart = h;
+        return () => {};
+      }),
+      onUpdateAvailable: vi.fn((h: () => void) => {
+        updaterHandlers.updateAvailable = h;
+        return () => {};
+      }),
+      onNoUpdate: vi.fn((h: () => void) => {
+        updaterHandlers.noUpdate = h;
+        return () => {};
+      }),
+      onUpdateDownloaded: vi.fn((h: (version: string) => void) => {
+        updaterHandlers.updateDownloaded = h;
+        return () => {};
+      }),
+      onError: vi.fn((h: (error: Error) => void) => {
+        updaterHandlers.error = h;
+        return () => {};
+      }),
+    },
+    mockAppLifecycle: {
+      whenReady: vi.fn(() => Promise.resolve()),
+      quit: vi.fn(),
+      exit: vi.fn(),
+      onQuit: vi.fn(() => () => {}),
+      registerDeepLinkScheme: vi.fn(),
+    },
+    mockAppMeta: {
+      version: "1.0.0",
+      isProduction: true,
+    },
+    mockMainWindow: {
+      focus: vi.fn(),
+      isFocused: vi.fn(() => false),
+      isMinimized: vi.fn(() => false),
+      restore: vi.fn(),
+      onFocus: vi.fn((h: () => void) => {
+        updaterHandlers.focus = h;
+        return () => {};
+      }),
+    },
+    mockLifecycleService: {
+      shutdown: vi.fn(() => Promise.resolve()),
+      shutdownWithoutContainer: vi.fn(() => Promise.resolve()),
+      setQuittingForUpdate: vi.fn(),
+    },
+  };
+});
 
 vi.mock("../../utils/logger.js", () => ({
   logger: {
@@ -38,14 +94,21 @@ vi.mock("../../utils/logger.js", () => ({
   },
 }));
 
-vi.mock("../../di/tokens.js", () => ({
-  MAIN_TOKENS: {
-    AppLifecycleService: Symbol.for("AppLifecycleService"),
-  },
+vi.mock("../../utils/env.js", () => ({
+  isDevBuild: () => !mockAppMeta.isProduction,
 }));
 
 // Import the service after mocks are set up
 import { UpdatesService } from "./service";
+
+function injectPorts(service: UpdatesService): void {
+  const s = service as unknown as Record<string, unknown>;
+  s.lifecycleService = mockLifecycleService;
+  s.updater = mockUpdater;
+  s.appLifecycle = mockAppLifecycle;
+  s.appMeta = mockAppMeta;
+  s.mainWindow = mockMainWindow;
+}
 
 // Helper to initialize service and wait for setup without running the periodic interval infinitely
 async function initializeService(service: UpdatesService): Promise<void> {
@@ -68,10 +131,10 @@ describe("UpdatesService", () => {
     originalEnv = { ...process.env };
 
     // Reset mocks to default state
-    mockApp.isPackaged = true;
-    mockApp.getVersion.mockReturnValue("1.0.0");
-    mockApp.on.mockClear();
-    mockApp.whenReady.mockResolvedValue(undefined);
+    mockAppMeta.isProduction = true;
+    mockAppMeta.version = "1.0.0";
+    mockUpdater.isSupported.mockReturnValue(true);
+    mockAppLifecycle.whenReady.mockResolvedValue(undefined);
 
     // Set default platform to darwin (macOS)
     Object.defineProperty(process, "platform", {
@@ -83,10 +146,7 @@ describe("UpdatesService", () => {
     delete process.env.ELECTRON_DISABLE_AUTO_UPDATE;
 
     service = new UpdatesService();
-    // Manually inject the mock lifecycle service (normally done by DI container)
-    (
-      service as unknown as { lifecycleService: typeof mockLifecycleService }
-    ).lifecycleService = mockLifecycleService;
+    injectPorts(service);
   });
 
   afterEach(() => {
@@ -101,61 +161,67 @@ describe("UpdatesService", () => {
 
   describe("isEnabled", () => {
     it("returns true when app is packaged on macOS", () => {
-      mockApp.isPackaged = true;
+      mockUpdater.isSupported.mockReturnValue(true);
       Object.defineProperty(process, "platform", {
         value: "darwin",
         configurable: true,
       });
 
       const newService = new UpdatesService();
+      injectPorts(newService);
       expect(newService.isEnabled).toBe(true);
     });
 
     it("returns true when app is packaged on Windows", () => {
-      mockApp.isPackaged = true;
+      mockUpdater.isSupported.mockReturnValue(true);
       Object.defineProperty(process, "platform", {
         value: "win32",
         configurable: true,
       });
 
       const newService = new UpdatesService();
+      injectPorts(newService);
       expect(newService.isEnabled).toBe(true);
     });
 
     it("returns false when app is not packaged", () => {
-      mockApp.isPackaged = false;
+      mockUpdater.isSupported.mockReturnValue(false);
 
       const newService = new UpdatesService();
+      injectPorts(newService);
       expect(newService.isEnabled).toBe(false);
     });
 
     it("returns false when ELECTRON_DISABLE_AUTO_UPDATE is set", () => {
-      mockApp.isPackaged = true;
+      mockUpdater.isSupported.mockReturnValue(true);
       process.env.ELECTRON_DISABLE_AUTO_UPDATE = "1";
 
       const newService = new UpdatesService();
+      injectPorts(newService);
       expect(newService.isEnabled).toBe(false);
     });
 
     it("returns false on Linux", () => {
-      mockApp.isPackaged = true;
+      mockUpdater.isSupported.mockReturnValue(true);
       Object.defineProperty(process, "platform", {
         value: "linux",
         configurable: true,
       });
 
       const newService = new UpdatesService();
+      injectPorts(newService);
       expect(newService.isEnabled).toBe(false);
     });
 
     it("returns false on unsupported platforms", () => {
-      mockApp.isPackaged = true;
+      mockUpdater.isSupported.mockReturnValue(true);
       Object.defineProperty(process, "platform", {
         value: "freebsd",
         configurable: true,
       });
 
       const newService = new UpdatesService();
+      injectPorts(newService);
       expect(newService.isEnabled).toBe(false);
     });
   });
@@ -164,20 +230,18 @@ describe("UpdatesService", () => {
     it("sets up auto updater when enabled", async () => {
       await initializeService(service);
 
-      expect(mockApp.on).toHaveBeenCalledWith(
-        "browser-window-focus",
-        expect.any(Function),
-      );
-      expect(mockApp.whenReady).toHaveBeenCalled();
+      expect(mockMainWindow.onFocus).toHaveBeenCalledWith(expect.any(Function));
+      expect(mockAppLifecycle.whenReady).toHaveBeenCalled();
     });
 
     it("does not set up auto updater when disabled via env flag", () => {
       process.env.ELECTRON_DISABLE_AUTO_UPDATE = "1";
 
       const newService = new UpdatesService();
+      injectPorts(newService);
       newService.init();
 
-      expect(mockApp.whenReady).not.toHaveBeenCalled();
+      expect(mockAppLifecycle.whenReady).not.toHaveBeenCalled();
     });
 
     it("does not set up auto updater on unsupported platform", () => {
@@ -187,21 +251,22 @@ describe("UpdatesService", () => {
       });
 
       const newService = new UpdatesService();
+      injectPorts(newService);
       newService.init();
 
-      expect(mockApp.whenReady).not.toHaveBeenCalled();
+      expect(mockAppLifecycle.whenReady).not.toHaveBeenCalled();
     });
 
     it("prevents multiple initializations", async () => {
       await initializeService(service);
 
-      const firstCallCount = mockAutoUpdater.setFeedURL.mock.calls.length;
+      const firstCallCount = mockUpdater.setFeedUrl.mock.calls.length;
 
       // Simulate whenReady resolving again (shouldn't happen, but testing guard)
       await initializeService(service);
 
       // setFeedURL should not be called again
-      expect(mockAutoUpdater.setFeedURL.mock.calls.length).toBe(firstCallCount);
+      expect(mockUpdater.setFeedUrl.mock.calls.length).toBe(firstCallCount);
     });
   });
 
@@ -211,13 +276,13 @@ describe("UpdatesService", () => {
         value: "arm64",
         configurable: true,
       });
-      mockApp.getVersion.mockReturnValue("2.0.0");
+      mockAppMeta.version = "2.0.0";
 
       await initializeService(service);
 
-      expect(mockAutoUpdater.setFeedURL).toHaveBeenCalledWith({
-        url: "https://update.electronjs.org/PostHog/code/darwin-arm64/2.0.0",
-      });
+      expect(mockUpdater.setFeedUrl).toHaveBeenCalledWith(
+        "https://update.electronjs.org/PostHog/code/darwin-arm64/2.0.0",
+      );
     });
   });
 
@@ -228,9 +293,11 @@ describe("UpdatesService", () => {
     });
 
     it("returns error when updates are disabled (not packaged)", () => {
-      mockApp.isPackaged = false;
+      mockUpdater.isSupported.mockReturnValue(false);
+      mockAppMeta.isProduction = false;
 
       const newService = new UpdatesService();
+      injectPorts(newService);
       const result = newService.checkForUpdates();
 
       expect(result).toEqual({
@@ -247,6 +314,7 @@ describe("UpdatesService", () => {
       });
 
       const newService = new UpdatesService();
+      injectPorts(newService);
       const result = newService.checkForUpdates();
 
       expect(result).toEqual({
@@ -282,26 +350,22 @@ describe("UpdatesService", () => {
       await initializeService(service);
 
       // Complete the initial check triggered by setupAutoUpdater
-      const notAvailableHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-not-available",
-      )?.[1];
+      const notAvailableHandler = updaterHandlers.noUpdate;
       if (notAvailableHandler) {
         notAvailableHandler();
       }
 
-      mockAutoUpdater.checkForUpdates.mockClear();
+      mockUpdater.check.mockClear();
       service.checkForUpdates();
 
-      expect(mockAutoUpdater.checkForUpdates).toHaveBeenCalled();
+      expect(mockUpdater.check).toHaveBeenCalled();
     });
 
     it("allows retry after previous check completes", async () => {
       await initializeService(service);
 
       // Complete the initial check triggered by setupAutoUpdater
-      const notAvailableHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-not-available",
-      )?.[1];
+      const notAvailableHandler = updaterHandlers.noUpdate;
 
       if (notAvailableHandler) {
         notAvailableHandler();
@@ -330,12 +394,10 @@ describe("UpdatesService", () => {
     it("returns true after an update is downloaded", async () => {
       await initializeService(service);
 
-      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-downloaded",
-      )?.[1];
+      const downloadedHandler = updaterHandlers.updateDownloaded;
 
       if (downloadedHandler) {
-        downloadedHandler({}, "Release notes", "v2.0.0");
+        downloadedHandler("v2.0.0");
       }
 
       expect(service.hasUpdateReady).toBe(true);
@@ -352,12 +414,10 @@ describe("UpdatesService", () => {
       await initializeService(service);
 
       // Simulate update downloaded
-      const updateDownloadedHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-downloaded",
-      )?.[1];
+      const updateDownloadedHandler = updaterHandlers.updateDownloaded;
 
       if (updateDownloadedHandler) {
-        updateDownloadedHandler({}, "Release notes", "v2.0.0");
+        updateDownloadedHandler("v2.0.0");
       }
 
       const resultPromise = service.installUpdate();
@@ -373,7 +433,7 @@ describe("UpdatesService", () => {
       expect(mockLifecycleService.shutdown).not.toHaveBeenCalled();
 
       // Verify quitAndInstall is called after cleanup
-      expect(mockAutoUpdater.quitAndInstall).toHaveBeenCalled();
+      expect(mockUpdater.quitAndInstall).toHaveBeenCalled();
 
       // Verify order: setQuittingForUpdate -> shutdownWithoutContainer -> quitAndInstall
       const setQuittingOrder =
@@ -382,7 +442,7 @@ describe("UpdatesService", () => {
         mockLifecycleService.shutdownWithoutContainer.mock
           .invocationCallOrder[0];
       const quitAndInstallOrder =
-        mockAutoUpdater.quitAndInstall.mock.invocationCallOrder[0];
+        mockUpdater.quitAndInstall.mock.invocationCallOrder[0];
 
       expect(setQuittingOrder).toBeLessThan(cleanupOrder);
       expect(cleanupOrder).toBeLessThan(quitAndInstallOrder);
@@ -392,15 +452,13 @@ describe("UpdatesService", () => {
       await initializeService(service);
 
       // Simulate update downloaded
-      const updateDownloadedHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-downloaded",
-      )?.[1];
+      const updateDownloadedHandler = updaterHandlers.updateDownloaded;
 
       if (updateDownloadedHandler) {
-        updateDownloadedHandler({}, "Release notes", "v2.0.0");
+        updateDownloadedHandler("v2.0.0");
       }
 
-      mockAutoUpdater.quitAndInstall.mockImplementation(() => {
+      mockUpdater.quitAndInstall.mockImplementation(() => {
         throw new Error("Failed to install");
       });
 
@@ -428,15 +486,11 @@ describe("UpdatesService", () => {
     });
 
     it("registers all required event handlers", () => {
-      const registeredEvents = mockAutoUpdater.on.mock.calls.map(
-        ([event]) => event,
-      );
-
-      expect(registeredEvents).toContain("error");
-      expect(registeredEvents).toContain("checking-for-update");
-      expect(registeredEvents).toContain("update-available");
-      expect(registeredEvents).toContain("update-not-available");
-      expect(registeredEvents).toContain("update-downloaded");
+      expect(mockUpdater.onError).toHaveBeenCalled();
+      expect(mockUpdater.onCheckStart).toHaveBeenCalled();
+      expect(mockUpdater.onUpdateAvailable).toHaveBeenCalled();
+      expect(mockUpdater.onNoUpdate).toHaveBeenCalled();
+      expect(mockUpdater.onUpdateDownloaded).toHaveBeenCalled();
     });
 
     it("handles update-not-available event", () => {
@@ -448,9 +502,7 @@ describe("UpdatesService", () => {
       statusHandler.mockClear();
 
       // Simulate no update available
-      const notAvailableHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-not-available",
-      )?.[1];
+      const notAvailableHandler = updaterHandlers.noUpdate;
 
       if (notAvailableHandler) {
         notAvailableHandler();
@@ -465,11 +517,9 @@ describe("UpdatesService", () => {
 
     it("shows update-ready notification instead of up-to-date when update is already downloaded", () => {
       // Simulate update already downloaded
-      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-downloaded",
-      )?.[1];
+      const downloadedHandler = updaterHandlers.updateDownloaded;
       if (downloadedHandler) {
-        downloadedHandler({}, "Release notes", "v2.0.0");
+        downloadedHandler("v2.0.0");
       }
 
       const statusHandler = vi.fn();
@@ -482,9 +532,7 @@ describe("UpdatesService", () => {
       statusHandler.mockClear();
 
       // Server says no new update available
-      const notAvailableHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-not-available",
-      )?.[1];
+      const notAvailableHandler = updaterHandlers.noUpdate;
       if (notAvailableHandler) {
         notAvailableHandler();
       }
@@ -504,12 +552,10 @@ describe("UpdatesService", () => {
       service.on(UpdatesEvent.Ready, readyHandler);
 
       // Simulate update downloaded with version
-      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-downloaded",
-      )?.[1];
+      const downloadedHandler = updaterHandlers.updateDownloaded;
 
       if (downloadedHandler) {
-        downloadedHandler({}, "Release notes here", "v2.0.0");
+        downloadedHandler("v2.0.0");
       }
 
       expect(readyHandler).toHaveBeenCalledWith({ version: "v2.0.0" });
@@ -524,9 +570,7 @@ describe("UpdatesService", () => {
       statusHandler.mockClear();
 
       // Simulate error
-      const errorHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "error",
-      )?.[1];
+      const errorHandler = updaterHandlers.error;
 
       if (errorHandler) {
         errorHandler(new Error("Network error"));
@@ -540,9 +584,7 @@ describe("UpdatesService", () => {
 
     it("handles error event gracefully when not checking", () => {
       // Complete the initial check triggered by setupAutoUpdater so we're not in checking state
-      const notAvailableHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-not-available",
-      )?.[1];
+      const notAvailableHandler = updaterHandlers.noUpdate;
       if (notAvailableHandler) {
         notAvailableHandler();
       }
@@ -551,9 +593,7 @@ describe("UpdatesService", () => {
       service.on(UpdatesEvent.Status, statusHandler);
 
       // Simulate error without starting a check
-      const errorHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "error",
-      )?.[1];
+      const errorHandler = updaterHandlers.error;
 
       expect(() => {
         if (errorHandler) {
@@ -595,9 +635,7 @@ describe("UpdatesService", () => {
       statusHandler.mockClear();
 
       // Simulate response before timeout
-      const notAvailableHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-not-available",
-      )?.[1];
+      const notAvailableHandler = updaterHandlers.noUpdate;
 
       if (notAvailableHandler) {
         notAvailableHandler();
@@ -623,9 +661,7 @@ describe("UpdatesService", () => {
       statusHandler.mockClear();
 
       // Simulate error before timeout
-      const errorHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "error",
-      )?.[1];
+      const errorHandler = updaterHandlers.error;
 
       if (errorHandler) {
         errorHandler(new Error("Network error"));
@@ -651,29 +687,20 @@ describe("UpdatesService", () => {
       service.on(UpdatesEvent.Ready, readyHandler);
 
       // Simulate update downloaded
-      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-downloaded",
-      )?.[1];
+      const downloadedHandler = updaterHandlers.updateDownloaded;
 
       if (downloadedHandler) {
-        downloadedHandler({}, "Release notes", "v2.0.0");
+        downloadedHandler("v2.0.0");
       }
 
       // First Ready event from handleUpdateDownloaded
       expect(readyHandler).toHaveBeenCalledTimes(1);
 
-      // Get the browser-window-focus callback and call it
-      const focusCallback = mockApp.on.mock.calls.find(
-        ([event]) => event === "browser-window-focus",
-      )?.[1];
-
       // Reset the handler count
       readyHandler.mockClear();
 
       // Pending notification should be false now, so no second emit
-      if (focusCallback) {
-        focusCallback();
-      }
+      updaterHandlers.focus?.();
 
       expect(readyHandler).not.toHaveBeenCalled();
     });
@@ -683,28 +710,23 @@ describe("UpdatesService", () => {
     it("performs initial check on setup", async () => {
       await initializeService(service);
 
-      expect(mockAutoUpdater.checkForUpdates).toHaveBeenCalled();
+      expect(mockUpdater.check).toHaveBeenCalled();
     });
 
     it("performs check every 24 hours", async () => {
       await initializeService(service);
 
-      const initialCallCount =
-        mockAutoUpdater.checkForUpdates.mock.calls.length;
+      const initialCallCount = mockUpdater.check.mock.calls.length;
 
       // Advance 24 hours
       await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000);
 
-      expect(mockAutoUpdater.checkForUpdates.mock.calls.length).toBe(
-        initialCallCount + 1,
-      );
+      expect(mockUpdater.check.mock.calls.length).toBe(initialCallCount + 1);
 
       // Advance another 24 hours
       await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000);
 
-      expect(mockAutoUpdater.checkForUpdates.mock.calls.length).toBe(
-        initialCallCount + 2,
-      );
+      expect(mockUpdater.check.mock.calls.length).toBe(initialCallCount + 2);
     });
   });
 
@@ -713,20 +735,18 @@ describe("UpdatesService", () => {
       await initializeService(service);
 
       // Simulate update downloaded
-      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-downloaded",
-      )?.[1];
+      const downloadedHandler = updaterHandlers.updateDownloaded;
       if (downloadedHandler) {
-        downloadedHandler({}, "Release notes", "v2.0.0");
+        downloadedHandler("v2.0.0");
       }
 
       // Clear the checkForUpdates calls from initialization
-      mockAutoUpdater.checkForUpdates.mockClear();
+      mockUpdater.check.mockClear();
 
       // Periodic check should re-check without resetting existing update state
       const result = service.checkForUpdates("periodic");
       expect(result).toEqual({ success: true });
-      expect(mockAutoUpdater.checkForUpdates).toHaveBeenCalled();
+      expect(mockUpdater.check).toHaveBeenCalled();
       // Update should still be ready (state not reset)
       expect(service.hasUpdateReady).toBe(true);
     });
@@ -735,21 +755,19 @@ describe("UpdatesService", () => {
       await initializeService(service);
 
       // Simulate update downloaded
-      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-downloaded",
-      )?.[1];
+      const downloadedHandler = updaterHandlers.updateDownloaded;
       if (downloadedHandler) {
-        downloadedHandler({}, "Release notes", "v2.0.0");
+        downloadedHandler("v2.0.0");
       }
 
       const readyHandler = vi.fn();
       service.on(UpdatesEvent.Ready, readyHandler);
 
       // User check should show existing notification, not re-check
-      mockAutoUpdater.checkForUpdates.mockClear();
+      mockUpdater.check.mockClear();
       const result = service.checkForUpdates("user");
       expect(result).toEqual({ success: true });
-      expect(mockAutoUpdater.checkForUpdates).not.toHaveBeenCalled();
+      expect(mockUpdater.check).not.toHaveBeenCalled();
       expect(readyHandler).toHaveBeenCalledWith({ version: "v2.0.0" });
     });
 
@@ -757,20 +775,16 @@ describe("UpdatesService", () => {
       await initializeService(service);
 
       // Simulate update downloaded
-      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-downloaded",
-      )?.[1];
+      const downloadedHandler = updaterHandlers.updateDownloaded;
       if (downloadedHandler) {
-        downloadedHandler({}, "Release notes", "v2.0.0");
+        downloadedHandler("v2.0.0");
       }
 
       // Periodic check proceeds
       service.checkForUpdates("periodic");
 
       // Simulate error during re-check
-      const errorHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "error",
-      )?.[1];
+      const errorHandler = updaterHandlers.error;
       if (errorHandler) {
         errorHandler(new Error("Network error"));
       }
@@ -786,11 +800,9 @@ describe("UpdatesService", () => {
       service.on(UpdatesEvent.Ready, readyHandler);
 
       // First download of v2.0.0
-      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-downloaded",
-      )?.[1];
+      const downloadedHandler = updaterHandlers.updateDownloaded;
       if (downloadedHandler) {
-        downloadedHandler({}, "Release notes", "v2.0.0");
+        downloadedHandler("v2.0.0");
       }
       expect(readyHandler).toHaveBeenCalledTimes(1);
 
@@ -799,7 +811,7 @@ describe("UpdatesService", () => {
       readyHandler.mockClear();
 
       if (downloadedHandler) {
-        downloadedHandler({}, "Release notes", "v2.0.0");
+        downloadedHandler("v2.0.0");
       }
 
       // Should NOT re-notify since same version
@@ -810,11 +822,9 @@ describe("UpdatesService", () => {
       await initializeService(service);
 
       // Simulate update downloaded
-      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-downloaded",
-      )?.[1];
+      const downloadedHandler = updaterHandlers.updateDownloaded;
       if (downloadedHandler) {
-        downloadedHandler({}, "Release notes", "v2.0.0");
+        downloadedHandler("v2.0.0");
       }
 
       // First periodic check starts (sets checkingForUpdates = true)
@@ -839,11 +849,9 @@ describe("UpdatesService", () => {
       service.on(UpdatesEvent.Ready, readyHandler);
 
       // First download of v2.0.0
-      const downloadedHandler = mockAutoUpdater.on.mock.calls.find(
-        ([event]) => event === "update-downloaded",
-      )?.[1];
+      const downloadedHandler = updaterHandlers.updateDownloaded;
       if (downloadedHandler) {
-        downloadedHandler({}, "Release notes", "v2.0.0");
+        downloadedHandler("v2.0.0");
       }
       expect(readyHandler).toHaveBeenCalledTimes(1);
 
@@ -852,7 +860,7 @@ describe("UpdatesService", () => {
       readyHandler.mockClear();
 
       if (downloadedHandler) {
-        downloadedHandler({}, "Release notes", "v3.0.0");
+        downloadedHandler("v3.0.0");
       }
 
       // Should notify since different version
@@ -864,7 +872,7 @@ describe("UpdatesService", () => {
     it("catches errors during checkForUpdates", async () => {
       await initializeService(service);
 
-      mockAutoUpdater.checkForUpdates.mockImplementation(() => {
+      mockUpdater.check.mockImplementation(() => {
         throw new Error("Network error");
       });
 
@@ -873,13 +881,14 @@ describe("UpdatesService", () => {
     });
 
     it("handles setFeedURL failure gracefully", async () => {
-      mockAutoUpdater.setFeedURL.mockImplementation(() => {
+      mockUpdater.setFeedUrl.mockImplementation(() => {
         throw new Error("Invalid URL");
       });
 
       // Should not throw
       expect(() => {
         const newService = new UpdatesService();
+        injectPorts(newService);
         newService.init();
       }).not.toThrow();
     });

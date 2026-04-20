@@ -5,6 +5,23 @@
  * Never import this file from renderer code.
  */
 export const MAIN_TOKENS = Object.freeze({
+  // Platform ports (host-agnostic interfaces from @posthog/platform)
+  UrlLauncher: Symbol.for("Platform.UrlLauncher"),
+  StoragePaths: Symbol.for("Platform.StoragePaths"),
+  AppMeta: Symbol.for("Platform.AppMeta"),
+  Dialog: Symbol.for("Platform.Dialog"),
+  Clipboard: Symbol.for("Platform.Clipboard"),
+  FileIcon: Symbol.for("Platform.FileIcon"),
+  SecureStorage: Symbol.for("Platform.SecureStorage"),
+  MainWindow: Symbol.for("Platform.MainWindow"),
+  AppLifecycle: Symbol.for("Platform.AppLifecycle"),
+  PowerManager: Symbol.for("Platform.PowerManager"),
+  Updater: Symbol.for("Platform.Updater"),
+  Notifier: Symbol.for("Platform.Notifier"),
+  ContextMenu: Symbol.for("Platform.ContextMenu"),
+  BundledResources: Symbol.for("Platform.BundledResources"),
+  ImageProcessor: Symbol.for("Platform.ImageProcessor"),
+
   // Stores
   SettingsStore: Symbol.for("Main.SettingsStore"),
 

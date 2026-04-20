@@ -155,11 +155,8 @@ class TerminalManagerImpl {
 
     const existing = this.instances.get(sessionId);
     if (existing) {
-      log.debug("Session already exists:", sessionId);
       return existing;
     }
-
-    log.info("Creating terminal instance:", sessionId);
 
     const term = new XTerm({
       cursorBlink: true,
@@ -239,7 +236,6 @@ class TerminalManagerImpl {
       }
 
       instance.isReady = true;
-      log.info("Shell session ready:", sessionId);
 
       if (instance.attachedElement) {
         instance.fitAddon.fit();
@@ -383,8 +379,6 @@ class TerminalManagerImpl {
     if (!instance) {
       return;
     }
-
-    log.info("Destroying terminal instance:", sessionId);
 
     if (instance.attachedElement) {
       this.detach(sessionId);

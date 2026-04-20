@@ -11,7 +11,7 @@ export interface ActionItemDef<T> {
   action: T;
   accelerator?: string;
   enabled?: boolean;
-  icon?: Electron.NativeImage;
+  icon?: string;
   confirm?: ConfirmOptions;
 }
 
@@ -20,7 +20,7 @@ export interface SubmenuItemDef<T> {
   label: string;
   items: Array<{
     label: string;
-    icon?: Electron.NativeImage;
+    icon?: string;
     action: T;
   }>;
 }

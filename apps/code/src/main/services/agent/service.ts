@@ -1,5 +1,5 @@
 import fs, { mkdirSync, symlinkSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
   type Client,
@@ -36,9 +36,12 @@ import {
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import type { OnLogCallback } from "@posthog/agent/types";
 import { getCurrentBranch } from "@posthog/git/queries";
+import type { IAppMeta } from "@posthog/platform/app-meta";
+import type { IBundledResources } from "@posthog/platform/bundled-resources";
+import type { IPowerManager } from "@posthog/platform/power-manager";
+import type { IStoragePaths } from "@posthog/platform/storage-paths";
 import { isAuthError } from "@shared/errors";
 import type { AcpMessage } from "@shared/types/session-events";
-import { app, powerMonitor } from "electron";
 import { inject, injectable, preDestroy } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { isDevBuild } from "../../utils/env";
@@ -286,20 +289,6 @@ function getAgentSessionId(session: ManagedSession): string {
   return sessionId;
 }
 
-function getClaudeCliPath(): string {
-  const appPath = app.getAppPath();
-  return app.isPackaged
-    ? join(`${appPath}.unpacked`, ".vite/build/claude-cli/cli.js")
-    : join(appPath, ".vite/build/claude-cli/cli.js");
-}
-
-function getCodexBinaryPath(): string {
-  const appPath = app.getAppPath();
-  return app.isPackaged
-    ? join(`${appPath}.unpacked`, ".vite/build/codex-acp/codex-acp")
-    : join(appPath, ".vite/build/codex-acp/codex-acp");
-}
-
 interface PendingPermission {
   resolve: (response: RequestPermissionResponse) => void;
   reject: (error: Error) => void;
@@ -338,6 +327,14 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     agentAuthAdapter: AgentAuthAdapter,
     @inject(MAIN_TOKENS.McpAppsService)
     mcpAppsService: McpAppsService,
+    @inject(MAIN_TOKENS.PowerManager)
+    powerManager: IPowerManager,
+    @inject(MAIN_TOKENS.BundledResources)
+    private readonly bundledResources: IBundledResources,
+    @inject(MAIN_TOKENS.AppMeta)
+    private readonly appMeta: IAppMeta,
+    @inject(MAIN_TOKENS.StoragePaths)
+    private readonly storagePaths: IStoragePaths,
   ) {
     super();
     this.processTracking = processTracking;
@@ -347,7 +344,15 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
     this.agentAuthAdapter = agentAuthAdapter;
     this.mcpAppsService = mcpAppsService;
 
-    powerMonitor.on("resume", () => this.checkIdleDeadlines());
+    powerManager.onResume(() => this.checkIdleDeadlines());
+  }
+
+  private getClaudeCliPath(): string {
+    return this.bundledResources.resolve(".vite/build/claude-cli/cli.js");
+  }
+
+  private getCodexBinaryPath(): string {
+    return this.bundledResources.resolve(".vite/build/codex-acp/codex-acp");
   }
 
   /**
@@ -427,11 +432,9 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   public hasActiveSessions(): boolean {
     for (const session of this.sessions.values()) {
       if (session.promptPending || session.inFlightMcpToolCalls.size > 0) {
-        log.info("Active session found", { sessionId: session.taskRunId });
         return true;
       }
     }
-    log.debug("No active sessions found");
     return false;
   }
 
@@ -597,7 +600,7 @@ When creating pull requests, add the following footer at the end of the PR descr
       credentials,
       mockNodeDir,
       proxyUrl,
-      claudeCliPath: getClaudeCliPath(),
+      claudeCliPath: this.getClaudeCliPath(),
     });
 
     const isPreview = taskId === "__preview__";
@@ -605,10 +608,10 @@ When creating pull requests, add the following footer at the end of the PR descr
     const agent = new Agent({
       posthog: {
         ...this.agentAuthAdapter.createPosthogConfig(credentials),
-        userAgent: `posthog/desktop.hog.dev; version: ${app.getVersion()}`,
+        userAgent: `posthog/desktop.hog.dev; version: ${this.appMeta.version}`,
       },
       skipLogPersistence: isPreview,
-      localCachePath: join(app.getPath("home"), ".posthog-code"),
+      localCachePath: join(homedir(), ".posthog-code"),
       debug: isDevBuild(),
       onLog: onAgentLog,
     });
@@ -623,7 +626,8 @@ When creating pull requests, add the following footer at the end of the PR descr
       const acpConnection = await agent.run(taskId, taskRunId, {
         adapter,
         gatewayUrl: proxyUrl,
-        codexBinaryPath: adapter === "codex" ? getCodexBinaryPath() : undefined,
+        codexBinaryPath:
+          adapter === "codex" ? this.getCodexBinaryPath() : undefined,
         model,
         instructions: adapter === "codex" ? systemPrompt.append : undefined,
         onStructuredOutput: jsonSchema
@@ -696,7 +700,7 @@ When creating pull requests, add the following footer at the end of the PR descr
         [];
       try {
         externalPlugins = await discoverExternalPlugins({
-          userDataDir: app.getPath("userData"),
+          userDataDir: this.storagePaths.appDataPath,
           repoPath,
         });
       } catch (err) {
@@ -890,14 +894,6 @@ When creating pull requests, add the following footer at the end of the PR descr
     this.recordActivity(sessionId);
     this.sleepService.acquire(sessionId);
 
-    const promptJson = JSON.stringify(finalPrompt);
-    log.info("Sending prompt to agent", {
-      sessionId,
-      blockCount: finalPrompt.length,
-      blocks: promptJson.slice(0, 10000),
-      totalSize: promptJson.length,
-    });
-
     try {
       const result = await session.clientSideConnection.prompt({
         sessionId: getAgentSessionId(session),
@@ -994,8 +990,6 @@ When creating pull requests, add the following footer at the end of the PR descr
       ) {
         session.config.permissionMode = updatedModeOption.currentValue;
       }
-
-      log.info("Session config option updated", { sessionId, configId, value });
     } catch (err) {
       log.error("Failed to set session config option", {
         sessionId,

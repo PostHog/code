@@ -201,24 +201,12 @@ export class McpProxyService {
             status: response.status,
             body: bodyText.slice(0, 2000),
           });
-        } else {
-          log.debug("MCP proxy response", {
-            id,
-            url,
-            status: response.status,
-          });
         }
 
         this.writeBufferedResponse(response, buf, res);
         return;
       }
 
-      log.debug("MCP proxy response", {
-        id,
-        url,
-        status: response.status,
-        streaming: true,
-      });
       this.writeStreamingResponse(response, res);
     } catch (err) {
       log.error("MCP proxy forward error", { id, url, err });

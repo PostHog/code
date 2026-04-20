@@ -74,16 +74,7 @@ export function BranchSelector({
     ),
   );
 
-  // TODO: remove mock branches
-  const MOCK_BRANCHES = Array.from(
-    { length: 50 },
-    (_, i) =>
-      `feature/branch-${i + 1}-${["auth-refactor", "fix-login", "add-analytics", "upgrade-deps", "redesign-sidebar", "perf-optimization", "migration-v2", "hotfix-crash", "experiment-ai", "cleanup-tests"][i % 10]}`,
-  );
-  const branches = [
-    ...(isCloudMode ? (cloudBranches ?? []) : localBranches),
-    ...MOCK_BRANCHES,
-  ];
+  const branches = isCloudMode ? (cloudBranches ?? []) : localBranches;
   const CREATE_BRANCH_ACTION = "__create_branch__";
   const allItems = isCloudMode ? branches : [...branches, CREATE_BRANCH_ACTION];
   const effectiveLoading = loading || (isCloudMode && cloudBranchesLoading);
@@ -106,7 +97,7 @@ export function BranchSelector({
   );
 
   const handleBranchChange = (value: string | null) => {
-    if (!value) return;
+    if (!value || value === CREATE_BRANCH_ACTION) return;
     if (isSelectionOnly) {
       onBranchSelect?.(value || null);
     } else if (value && value !== currentBranch) {

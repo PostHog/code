@@ -1,13 +1,11 @@
+import type {
+  ContextMenuItem,
+  IContextMenu,
+} from "@posthog/platform/context-menu";
+import type { IDialog } from "@posthog/platform/dialog";
 import type { DetectedApplication } from "@shared/types";
-import {
-  dialog,
-  Menu,
-  type MenuItemConstructorOptions,
-  nativeImage,
-} from "electron";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
-import { getMainWindow } from "../../trpc/context";
 import type { ExternalAppsService } from "../external-apps/service";
 import type {
   ArchivedTaskAction,
@@ -41,11 +39,13 @@ import type {
 
 @injectable()
 export class ContextMenuService {
-  private readonly ICON_SIZE = 16;
-
   constructor(
     @inject(MAIN_TOKENS.ExternalAppsService)
     private readonly externalAppsService: ExternalAppsService,
+    @inject(MAIN_TOKENS.Dialog)
+    private readonly dialog: IDialog,
+    @inject(MAIN_TOKENS.ContextMenu)
+    private readonly contextMenu: IContextMenu,
   ) {}
 
   private async getExternalAppsData() {
@@ -279,11 +279,7 @@ export class ContextMenuService {
         label: "Open in",
         items: apps.map((app) => ({
           label: app.name,
-          icon: app.icon
-            ? nativeImage
-                .createFromDataURL(app.icon)
-                .resize({ width: this.ICON_SIZE, height: this.ICON_SIZE })
-            : undefined,
+          icon: app.icon,
           action: openIn(app.id),
         })),
       },
@@ -310,14 +306,12 @@ export class ContextMenuService {
     return new Promise((resolve) => {
       let pendingConfirm = false;
 
-      const toMenuItem = (def: MenuItemDef<T>): MenuItemConstructorOptions => {
+      const toContextMenuItem = (def: MenuItemDef<T>): ContextMenuItem => {
         switch (def.type) {
           case "separator":
-            return { type: "separator" };
-
+            return { separator: true };
           case "disabled":
-            return { label: def.label, enabled: false };
-
+            return { label: def.label, enabled: false, click: () => {} };
           case "submenu":
             return {
               label: def.label,
@@ -326,31 +320,30 @@ export class ContextMenuService {
                 icon: sub.icon,
                 click: () => resolve({ action: sub.action }),
               })),
+              click: () => {},
             };
-
           case "item": {
             const confirmOptions = def.confirm;
-            const onClick = confirmOptions
+            const click = confirmOptions
               ? async () => {
                   pendingConfirm = true;
                   const confirmed = await this.confirm(confirmOptions);
                   resolve({ action: confirmed ? def.action : null });
                 }
               : () => resolve({ action: def.action });
-
             return {
               label: def.label,
-              accelerator: def.accelerator,
               enabled: def.enabled,
+              accelerator: def.accelerator,
               icon: def.icon,
-              click: onClick,
+              click,
             };
           }
         }
       };
 
-      Menu.buildFromTemplate(items.map(toMenuItem)).popup({
-        callback: () => {
+      this.contextMenu.show(items.map(toContextMenuItem), {
+        onDismiss: () => {
           if (!pendingConfirm) resolve({ action: null });
         },
       });
@@ -358,17 +351,15 @@ export class ContextMenuService {
   }
 
   private async confirm(options: ConfirmOptions): Promise<boolean> {
-    const win = getMainWindow();
-    const result = await dialog.showMessageBox({
-      ...(win ? { parent: win } : {}),
-      type: "question",
+    const response = await this.dialog.confirm({
+      severity: "question",
       title: options.title,
       message: options.message,
       detail: options.detail,
-      buttons: ["Cancel", options.confirmLabel],
-      defaultId: 1,
-      cancelId: 0,
+      options: ["Cancel", options.confirmLabel],
+      defaultIndex: 1,
+      cancelIndex: 0,
     });
-    return result.response === 1;
+    return response === 1;
   }
 }

@@ -8,6 +8,19 @@ set -e
 REPO_ROOT="$(cd ../.. && pwd)"
 SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Self-heal missing Electron binary.
+# pnpm skips package-level postinstall scripts when the lockfile is already
+# satisfied, so if node_modules/electron/dist gets wiped (interrupted download,
+# cache eviction, arch change, manual cleanup), `pnpm install` won't notice —
+# and `electron-forge start` then fails with "Electron failed to install
+# correctly, please delete node_modules/electron and try installing again".
+# Detect the missing binary and invoke Electron's own install script to fetch it.
+ELECTRON_DIST="$REPO_ROOT/node_modules/electron/dist"
+if [ ! -d "$ELECTRON_DIST" ] || [ -z "$(ls -A "$ELECTRON_DIST" 2>/dev/null)" ]; then
+  echo "Electron binary missing at $ELECTRON_DIST — downloading..."
+  node "$REPO_ROOT/node_modules/electron/install.js"
+fi
+
 echo "Rebuilding native modules for Electron..."
 
 cd "$REPO_ROOT"

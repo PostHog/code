@@ -181,14 +181,12 @@ export class SuspensionService extends TypedEventEmitter<SuspensionServiceEvents
         log.error("Inactivity checker failed:", error);
       });
     }, ONE_HOUR_MS);
-    log.info("Inactivity checker started (interval: 1 hour)");
   }
 
   stopInactivityChecker(): void {
     if (!this.inactivityTimerId) return;
     clearInterval(this.inactivityTimerId);
     this.inactivityTimerId = null;
-    log.info("Inactivity checker stopped");
   }
 
   getSettings() {

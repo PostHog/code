@@ -1,8 +1,9 @@
+import type { IAppLifecycle } from "@posthog/platform/app-lifecycle";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppLifecycleService } from "./service";
 
 const {
-  mockApp,
+  mockAppLifecycle,
   mockContainer,
   mockDatabaseService,
   mockTrackAppEvent,
@@ -14,8 +15,12 @@ const {
     close: vi.fn(),
   };
   return {
-    mockApp: {
+    mockAppLifecycle: {
+      whenReady: vi.fn().mockResolvedValue(undefined),
+      quit: vi.fn(),
       exit: vi.fn(),
+      onQuit: vi.fn(() => () => {}),
+      registerDeepLinkScheme: vi.fn(),
     },
     mockContainer: {
       unbindAll: vi.fn(() => Promise.resolve()),
@@ -28,10 +33,6 @@ const {
     mockProcessExit: vi.fn() as unknown as (code?: number) => never,
   };
 });
-
-vi.mock("electron", () => ({
-  app: mockApp,
-}));
 
 vi.mock("../../utils/logger.js", () => ({
   logger: {
@@ -71,7 +72,9 @@ describe("AppLifecycleService", () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     process.exit = mockProcessExit;
-    service = new AppLifecycleService();
+    service = new AppLifecycleService(
+      mockAppLifecycle as unknown as IAppLifecycle,
+    );
   });
 
   afterEach(() => {
@@ -213,7 +216,7 @@ describe("AppLifecycleService", () => {
       mockContainer.unbindAll.mockImplementation(async () => {
         callOrder.push("unbindAll");
       });
-      mockApp.exit.mockImplementation(() => {
+      mockAppLifecycle.exit.mockImplementation(() => {
         callOrder.push("exit");
       });
 
@@ -229,7 +232,7 @@ describe("AppLifecycleService", () => {
       const promise = service.gracefulExit();
       await vi.runAllTimersAsync();
       await promise;
-      expect(mockApp.exit).toHaveBeenCalledWith(0);
+      expect(mockAppLifecycle.exit).toHaveBeenCalledWith(0);
     });
   });
 });

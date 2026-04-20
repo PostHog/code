@@ -7,12 +7,16 @@ procs:
       - agent
       - git
       - enricher
+      - platform
 
   2-agent:
     shell: 'node scripts/pnpm-run.mjs --filter agent run dev'
 
   3-git:
     shell: 'node scripts/pnpm-run.mjs --filter @posthog/git run dev'
+
+  platform:
+    shell: 'node scripts/pnpm-run.mjs --filter @posthog/platform run dev'
 
   4-enricher:
     shell: 'node scripts/pnpm-run.mjs --filter @posthog/enricher run dev'

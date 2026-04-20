@@ -48,11 +48,7 @@ export function McpToolBlock(props: McpToolBlockProps) {
   // invalidate the hasUiForTool query so we pick up newly-discovered UIs.
   useSubscription(
     trpcReact.mcpApps.onDiscoveryComplete.subscriptionOptions(undefined, {
-      onData: (event) => {
-        log.info("Discovery complete, invalidating queries", {
-          mcpToolName,
-          discoveredTools: event.toolKeys,
-        });
+      onData: (_event) => {
         void queryClient.invalidateQueries(
           trpcReact.mcpApps.hasUiForTool.pathFilter(),
         );

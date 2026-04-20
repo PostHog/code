@@ -4,13 +4,10 @@ import { trpcClient } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { useQueryClient } from "@tanstack/react-query";
-import { logger } from "@utils/logger";
 import { useEffect } from "react";
 import { getSessionService } from "../service/service";
 import type { AgentSession } from "../stores/sessionStore";
 import { useChatTitleGenerator } from "./useChatTitleGenerator";
-
-const log = logger.scope("session-connection");
 
 const connectingTasks = new Set<string>();
 const activityRecorded = new Set<string>();
@@ -78,6 +75,7 @@ export function useSessionConnection({
         : undefined;
     const adapter =
       task.latest_run.runtime_adapter === "codex" ? "codex" : "claude";
+    const initialModel = task.latest_run.model ?? undefined;
     const cleanup = getSessionService().watchCloudTask(
       task.id,
       runId,
@@ -89,6 +87,7 @@ export function useSessionConnection({
       task.latest_run?.log_url,
       initialMode,
       adapter,
+      initialModel,
     );
     return cleanup;
   }, [
@@ -101,6 +100,7 @@ export function useSessionConnection({
     task.id,
     task.latest_run?.id,
     task.latest_run?.log_url,
+    task.latest_run?.model,
     task.latest_run?.runtime_adapter,
     task.latest_run?.state?.initial_permission_mode,
   ]);
@@ -125,12 +125,6 @@ export function useSessionConnection({
     if (!task.latest_run?.id) return;
 
     connectingTasks.add(taskId);
-
-    log.info("Reconnecting to existing task session", {
-      taskId: task.id,
-      hasLatestRun: !!task.latest_run,
-      sessionStatus: session?.status ?? "none",
-    });
 
     getSessionService()
       .connectToTask({

@@ -1,9 +1,14 @@
-import { safeStorage } from "electron";
+import type { ISecureStorage } from "@posthog/platform/secure-storage";
 import { z } from "zod";
+import { container } from "../../di/container";
+import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
 import { publicProcedure, router } from "../trpc";
 
 const log = logger.scope("encryptionRouter");
+
+const getSecureStorage = () =>
+  container.get<ISecureStorage>(MAIN_TOKENS.SecureStorage);
 
 export const encryptionRouter = router({
   /**
@@ -13,9 +18,12 @@ export const encryptionRouter = router({
     .input(z.object({ stringToEncrypt: z.string() }))
     .query(async ({ input }) => {
       try {
-        if (safeStorage.isEncryptionAvailable()) {
-          const encrypted = safeStorage.encryptString(input.stringToEncrypt);
-          return encrypted.toString("base64");
+        const secureStorage = getSecureStorage();
+        if (secureStorage.isAvailable()) {
+          const encrypted = await secureStorage.encryptString(
+            input.stringToEncrypt,
+          );
+          return Buffer.from(encrypted).toString("base64");
         }
         return input.stringToEncrypt;
       } catch (error) {
@@ -31,9 +39,12 @@ export const encryptionRouter = router({
     .input(z.object({ stringToDecrypt: z.string() }))
     .query(async ({ input }) => {
       try {
-        if (safeStorage.isEncryptionAvailable()) {
-          const buffer = Buffer.from(input.stringToDecrypt, "base64");
-          return safeStorage.decryptString(buffer);
+        const secureStorage = getSecureStorage();
+        if (secureStorage.isAvailable()) {
+          const bytes = new Uint8Array(
+            Buffer.from(input.stringToDecrypt, "base64"),
+          );
+          return await secureStorage.decryptString(bytes);
         }
         return input.stringToDecrypt;
       } catch (error) {

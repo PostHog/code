@@ -1,10 +1,10 @@
+import type { IMainWindow } from "@posthog/platform/main-window";
+import type { IUrlLauncher } from "@posthog/platform/url-launcher";
 import { getCloudUrlFromRegion } from "@shared/utils/urls";
-import { shell } from "electron";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
-import { focusMainWindow } from "../../window";
 import type { DeepLinkService } from "../deep-link/service";
 import type { CloudRegion, StartGitHubFlowOutput } from "./schemas";
 
@@ -43,6 +43,10 @@ export class GitHubIntegrationService extends TypedEventEmitter<GitHubIntegratio
   constructor(
     @inject(MAIN_TOKENS.DeepLinkService)
     private readonly deepLinkService: DeepLinkService,
+    @inject(MAIN_TOKENS.UrlLauncher)
+    private readonly urlLauncher: IUrlLauncher,
+    @inject(MAIN_TOKENS.MainWindow)
+    private readonly mainWindow: IMainWindow,
   ) {
     super();
 
@@ -69,7 +73,7 @@ export class GitHubIntegrationService extends TypedEventEmitter<GitHubIntegratio
       }, FLOW_TIMEOUT_MS);
 
       log.info("Opening GitHub authorization URL in browser", { projectId });
-      await shell.openExternal(authorizeUrl);
+      await this.urlLauncher.launch(authorizeUrl);
 
       return { success: true };
     } catch (error) {
@@ -131,7 +135,10 @@ export class GitHubIntegrationService extends TypedEventEmitter<GitHubIntegratio
       this.pendingCallback = callback;
     }
 
-    focusMainWindow("github integration deep link");
+    if (this.mainWindow.isMinimized()) {
+      this.mainWindow.restore();
+    }
+    this.mainWindow.focus();
 
     return true;
   }

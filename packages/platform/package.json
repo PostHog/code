@@ -1,0 +1,82 @@
+{
+  "name": "@posthog/platform",
+  "version": "1.0.0",
+  "description": "Host-agnostic platform port interfaces. Zero runtime deps; implemented by per-host adapters (Electron, Node server, React Native, web).",
+  "type": "module",
+  "exports": {
+    "./url-launcher": {
+      "types": "./dist/url-launcher.d.ts",
+      "import": "./dist/url-launcher.js"
+    },
+    "./storage-paths": {
+      "types": "./dist/storage-paths.d.ts",
+      "import": "./dist/storage-paths.js"
+    },
+    "./app-meta": {
+      "types": "./dist/app-meta.d.ts",
+      "import": "./dist/app-meta.js"
+    },
+    "./dialog": {
+      "types": "./dist/dialog.d.ts",
+      "import": "./dist/dialog.js"
+    },
+    "./clipboard": {
+      "types": "./dist/clipboard.d.ts",
+      "import": "./dist/clipboard.js"
+    },
+    "./file-icon": {
+      "types": "./dist/file-icon.d.ts",
+      "import": "./dist/file-icon.js"
+    },
+    "./secure-storage": {
+      "types": "./dist/secure-storage.d.ts",
+      "import": "./dist/secure-storage.js"
+    },
+    "./main-window": {
+      "types": "./dist/main-window.d.ts",
+      "import": "./dist/main-window.js"
+    },
+    "./app-lifecycle": {
+      "types": "./dist/app-lifecycle.d.ts",
+      "import": "./dist/app-lifecycle.js"
+    },
+    "./power-manager": {
+      "types": "./dist/power-manager.d.ts",
+      "import": "./dist/power-manager.js"
+    },
+    "./updater": {
+      "types": "./dist/updater.d.ts",
+      "import": "./dist/updater.js"
+    },
+    "./notifier": {
+      "types": "./dist/notifier.d.ts",
+      "import": "./dist/notifier.js"
+    },
+    "./context-menu": {
+      "types": "./dist/context-menu.d.ts",
+      "import": "./dist/context-menu.js"
+    },
+    "./bundled-resources": {
+      "types": "./dist/bundled-resources.d.ts",
+      "import": "./dist/bundled-resources.js"
+    },
+    "./image-processor": {
+      "types": "./dist/image-processor.d.ts",
+      "import": "./dist/image-processor.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "node ../../scripts/rimraf.mjs dist .turbo"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5.5.0"
+  },
+  "files": [
+    "dist/**/*",
+    "src/**/*"
+  ]
+}

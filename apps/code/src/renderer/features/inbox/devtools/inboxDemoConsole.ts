@@ -239,8 +239,6 @@ export function registerInboxDemoConsoleCommand(): void {
     configurable: true,
     writable: false,
   });
-
-  command("help");
 }
 
 declare global {
