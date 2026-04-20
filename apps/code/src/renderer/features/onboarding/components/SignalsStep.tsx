@@ -74,7 +74,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
             gap="5"
             style={{
               width: "100%",
-              maxWidth: 560,
+              maxWidth: 720,
               margin: "auto auto",
               padding: "16px 0",
             }}

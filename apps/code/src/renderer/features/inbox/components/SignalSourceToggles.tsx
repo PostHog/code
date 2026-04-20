@@ -81,7 +81,7 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
 
   return (
     <Box
-      p="4"
+      p="3"
       style={{
         backgroundColor: "var(--color-panel-solid)",
         border: "1px solid var(--gray-4)",
@@ -155,7 +155,7 @@ export const EvaluationsSection = memo(function EvaluationsSection({
 }: EvaluationsSectionProps) {
   return (
     <Box
-      p="4"
+      p="3"
       style={{
         backgroundColor: "var(--color-panel-solid)",
         border: "1px solid var(--gray-4)",
@@ -176,7 +176,7 @@ export const EvaluationsSection = memo(function EvaluationsSection({
                 weight="medium"
                 style={{ color: "var(--gray-12)" }}
               >
-                PostHog LLM Analytics
+                LLM Analytics
               </Text>
               <Tooltip content="This is only visible to staff users of PostHog">
                 <Badge color="blue">Internal</Badge>
@@ -281,78 +281,97 @@ export function SignalSourceToggles({
   const setupZendesk = useCallback(() => onSetup?.("zendesk"), [onSetup]);
 
   return (
-    <Flex direction="column" gap="2">
-      <SignalSourceToggleCard
-        icon={<BugIcon size={20} />}
-        label="PostHog Error Tracking"
-        description="Surface new issues, reopenings and volume spikes"
-        checked={value.error_tracking}
-        onCheckedChange={toggleErrorTracking}
-        disabled={disabled}
-        syncStatus={sourceStates?.error_tracking?.syncStatus}
-      />
-      <SignalSourceToggleCard
-        icon={<ChatsIcon size={20} />}
-        label="PostHog Conversations"
-        description="Turn support conversations into signals for the inbox"
-        checked={value.conversations}
-        onCheckedChange={toggleConversations}
-        disabled={disabled}
-      />
-      <SignalSourceToggleCard
-        icon={<VideoIcon size={20} />}
-        label="PostHog Session Replay"
-        labelSuffix={<Badge color="orange">Alpha</Badge>}
-        description="Analyze session recordings and event data for UX issues"
-        checked={value.session_replay}
-        onCheckedChange={toggleSessionReplay}
-        disabled={disabled}
-        statusSection={
-          value.session_replay ? (
-            <SourceRunningIndicator
-              status={sourceStates?.session_replay?.syncStatus ?? null}
-              message="Session analysis run in progress now..."
-            />
-          ) : undefined
-        }
-      />
-      {evaluationsUrl && <EvaluationsSection evaluationsUrl={evaluationsUrl} />}
-      <SignalSourceToggleCard
-        icon={<GithubLogoIcon size={20} />}
-        label="GitHub Issues"
-        description="Monitor new issues and updates"
-        checked={value.github}
-        onCheckedChange={toggleGithub}
-        disabled={disabled}
-        requiresSetup={sourceStates?.github?.requiresSetup}
-        onSetup={setupGithub}
-        loading={sourceStates?.github?.loading}
-        syncStatus={sourceStates?.github?.syncStatus}
-      />
-      <SignalSourceToggleCard
-        icon={<KanbanIcon size={20} />}
-        label="Linear"
-        description="Monitor new issues and updates"
-        checked={value.linear}
-        onCheckedChange={toggleLinear}
-        disabled={disabled}
-        requiresSetup={sourceStates?.linear?.requiresSetup}
-        onSetup={setupLinear}
-        loading={sourceStates?.linear?.loading}
-        syncStatus={sourceStates?.linear?.syncStatus}
-      />
-      <SignalSourceToggleCard
-        icon={<TicketIcon size={20} />}
-        label="Zendesk"
-        description="Monitor incoming support tickets"
-        checked={value.zendesk}
-        onCheckedChange={toggleZendesk}
-        disabled={disabled}
-        requiresSetup={sourceStates?.zendesk?.requiresSetup}
-        onSetup={setupZendesk}
-        loading={sourceStates?.zendesk?.loading}
-        syncStatus={sourceStates?.zendesk?.syncStatus}
-      />
+    <Flex gap="4">
+      {/* PostHog data */}
+      <Flex direction="column" gap="2" style={{ flex: 1, minWidth: 0 }}>
+        <Text size="1" weight="medium" style={{ color: "var(--gray-9)" }}>
+          PostHog data
+        </Text>
+        <Flex direction="column" gap="3">
+          <SignalSourceToggleCard
+            icon={<BugIcon size={20} />}
+            label="Error Tracking"
+            description="Surface new issues, reopenings and volume spikes"
+            checked={value.error_tracking}
+            onCheckedChange={toggleErrorTracking}
+            disabled={disabled}
+            syncStatus={sourceStates?.error_tracking?.syncStatus}
+          />
+          <SignalSourceToggleCard
+            icon={<ChatsIcon size={20} />}
+            label="Conversations"
+            description="Turn support conversations into signals"
+            checked={value.conversations}
+            onCheckedChange={toggleConversations}
+            disabled={disabled}
+          />
+          <SignalSourceToggleCard
+            icon={<VideoIcon size={20} />}
+            label="Session Replay"
+            labelSuffix={<Badge color="orange">Alpha</Badge>}
+            description="Analyze recordings for UX issues"
+            checked={value.session_replay}
+            onCheckedChange={toggleSessionReplay}
+            disabled={disabled}
+            statusSection={
+              value.session_replay ? (
+                <SourceRunningIndicator
+                  status={sourceStates?.session_replay?.syncStatus ?? null}
+                  message="Session analysis run in progress now..."
+                />
+              ) : undefined
+            }
+          />
+          {evaluationsUrl && (
+            <EvaluationsSection evaluationsUrl={evaluationsUrl} />
+          )}
+        </Flex>
+      </Flex>
+
+      {/* External connections */}
+      <Flex direction="column" gap="2" style={{ flex: 1, minWidth: 0 }}>
+        <Text size="1" weight="medium" style={{ color: "var(--gray-9)" }}>
+          External connections
+        </Text>
+        <Flex direction="column" gap="3">
+          <SignalSourceToggleCard
+            icon={<GithubLogoIcon size={20} />}
+            label="GitHub Issues"
+            description="Monitor new issues and updates"
+            checked={value.github}
+            onCheckedChange={toggleGithub}
+            disabled={disabled}
+            requiresSetup={sourceStates?.github?.requiresSetup}
+            onSetup={setupGithub}
+            loading={sourceStates?.github?.loading}
+            syncStatus={sourceStates?.github?.syncStatus}
+          />
+          <SignalSourceToggleCard
+            icon={<KanbanIcon size={20} />}
+            label="Linear"
+            description="Monitor new issues and updates"
+            checked={value.linear}
+            onCheckedChange={toggleLinear}
+            disabled={disabled}
+            requiresSetup={sourceStates?.linear?.requiresSetup}
+            onSetup={setupLinear}
+            loading={sourceStates?.linear?.loading}
+            syncStatus={sourceStates?.linear?.syncStatus}
+          />
+          <SignalSourceToggleCard
+            icon={<TicketIcon size={20} />}
+            label="Zendesk"
+            description="Monitor incoming support tickets"
+            checked={value.zendesk}
+            onCheckedChange={toggleZendesk}
+            disabled={disabled}
+            requiresSetup={sourceStates?.zendesk?.requiresSetup}
+            onSetup={setupZendesk}
+            loading={sourceStates?.zendesk?.loading}
+            syncStatus={sourceStates?.zendesk?.syncStatus}
+          />
+        </Flex>
+      </Flex>
     </Flex>
   );
 }
