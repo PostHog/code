@@ -1,4 +1,3 @@
-import { TourHighlight } from "@components/TourHighlight";
 import { EnvironmentSelector } from "@features/environments/components/EnvironmentSelector";
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
@@ -551,16 +550,14 @@ export function TaskInput({
             enableCommands
             enableBashMode={false}
             modelSelector={
-              <TourHighlight active={false} opaque>
-                <UnifiedModelSelector
-                  modelOption={modelOption}
-                  adapter={adapter ?? "claude"}
-                  onAdapterChange={setAdapter}
-                  disabled={isCreatingTask}
-                  isConnecting={isPreviewLoading}
-                  onModelChange={handleModelChange}
-                />
-              </TourHighlight>
+              <UnifiedModelSelector
+                modelOption={modelOption}
+                adapter={adapter ?? "claude"}
+                onAdapterChange={setAdapter}
+                disabled={isCreatingTask}
+                isConnecting={isPreviewLoading}
+                onModelChange={handleModelChange}
+              />
             }
             reasoningSelector={
               !isPreviewLoading && (

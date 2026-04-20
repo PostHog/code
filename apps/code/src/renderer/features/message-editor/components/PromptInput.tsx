@@ -1,6 +1,5 @@
 import "./message-editor.css";
 import type { SessionConfigOption } from "@agentclientprotocol/sdk";
-import { TourHighlight } from "@components/TourHighlight";
 import { ArrowUp, Stop } from "@phosphor-icons/react";
 import { InputGroup, InputGroupAddon, InputGroupButton } from "@posthog/quill";
 import { Flex, Text, Tooltip } from "@radix-ui/themes";
@@ -40,8 +39,6 @@ export interface PromptInputProps {
   // toolbar slots
   modelSelector?: React.ReactElement | null | false;
   reasoningSelector?: React.ReactElement | null | false;
-  // tour hook for the send button (new-task flow)
-  tourHighlightSubmit?: boolean;
   // prompt history provider
   getPromptHistory?: () => string[];
   // callbacks
@@ -79,7 +76,6 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
       enableCommands = true,
       modelSelector,
       reasoningSelector,
-      tourHighlightSubmit = false,
       getPromptHistory,
       onBeforeSubmit,
       onSubmit,
@@ -218,7 +214,6 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
       submitTooltipOverride ??
       (submitBlocked ? "Enter a message" : "Send message");
 
-    // Render send/stop button (wrapped in TourHighlight when requested)
     const submitButton =
       isLoading && onCancel ? (
         <Tooltip content="Stop">
@@ -246,12 +241,6 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
           </InputGroupButton>
         </Tooltip>
       );
-
-    const wrappedSubmit = tourHighlightSubmit ? (
-      <TourHighlight active>{submitButton}</TourHighlight>
-    ) : (
-      submitButton
-    );
 
     return (
       <Flex direction="column" gap="1">
@@ -301,7 +290,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
                 ! bash
               </Text>
             )}
-            {wrappedSubmit}
+            {submitButton}
           </InputGroupAddon>
         </InputGroup>
       </Flex>
