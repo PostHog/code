@@ -129,10 +129,6 @@ export class ShellService extends TypedEventEmitter<ShellEvents> {
     const workingDir = this.resolveWorkingDir(sessionId, cwd);
     const shell = getDefaultShell();
 
-    log.info(
-      `Creating shell session ${sessionId}: shell=${shell}, cwd=${workingDir}`,
-    );
-
     const ptyProcess = pty.spawn(shell, getShellArgs(shell), {
       name: "xterm-256color",
       cols: 80,
@@ -165,7 +161,6 @@ export class ShellService extends TypedEventEmitter<ShellEvents> {
 
     disposables.push(
       ptyProcess.onExit(({ exitCode }) => {
-        log.info(`Shell session ${sessionId} exited with code ${exitCode}`);
         this.processTracking.unregister(ptyProcess.pid, "exited");
         const session = this.sessions.get(sessionId);
         if (session) {
@@ -214,10 +209,6 @@ export class ShellService extends TypedEventEmitter<ShellEvents> {
     const workingDir = this.resolveWorkingDir(sessionId, cwd);
     const shell = getDefaultShell();
 
-    log.info(
-      `Creating command session ${sessionId}: shell=${shell} -c ..., cwd=${workingDir}`,
-    );
-
     const ptyProcess = pty.spawn(shell, ["-c", command], {
       name: "xterm-256color",
       cols: 80,
@@ -250,7 +241,6 @@ export class ShellService extends TypedEventEmitter<ShellEvents> {
 
     disposables.push(
       ptyProcess.onExit(({ exitCode }) => {
-        log.info(`Command session ${sessionId} exited with code ${exitCode}`);
         this.processTracking.unregister(ptyProcess.pid, "exited");
         const session = this.sessions.get(sessionId);
         if (session) {
@@ -332,7 +322,6 @@ export class ShellService extends TypedEventEmitter<ShellEvents> {
    */
   @preDestroy()
   destroyAll(): void {
-    log.info(`Destroying all shell sessions (${this.sessions.size} active)`);
     for (const sessionId of this.sessions.keys()) {
       this.destroy(sessionId);
     }

@@ -427,11 +427,9 @@ export class AgentService extends TypedEventEmitter<AgentServiceEvents> {
   public hasActiveSessions(): boolean {
     for (const session of this.sessions.values()) {
       if (session.promptPending || session.inFlightMcpToolCalls.size > 0) {
-        log.info("Active session found", { sessionId: session.taskRunId });
         return true;
       }
     }
-    log.debug("No active sessions found");
     return false;
   }
 
@@ -890,14 +888,6 @@ When creating pull requests, add the following footer at the end of the PR descr
     this.recordActivity(sessionId);
     this.sleepService.acquire(sessionId);
 
-    const promptJson = JSON.stringify(finalPrompt);
-    log.info("Sending prompt to agent", {
-      sessionId,
-      blockCount: finalPrompt.length,
-      blocks: promptJson.slice(0, 10000),
-      totalSize: promptJson.length,
-    });
-
     try {
       const result = await session.clientSideConnection.prompt({
         sessionId: getAgentSessionId(session),
@@ -994,8 +984,6 @@ When creating pull requests, add the following footer at the end of the PR descr
       ) {
         session.config.permissionMode = updatedModeOption.currentValue;
       }
-
-      log.info("Session config option updated", { sessionId, configId, value });
     } catch (err) {
       log.error("Failed to set session config option", {
         sessionId,

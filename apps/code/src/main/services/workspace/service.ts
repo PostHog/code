@@ -243,8 +243,6 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       AgentServiceEvent.AgentFileActivity,
       this.handleAgentFileActivity.bind(this),
     );
-
-    log.info("Branch watcher initialized");
   }
 
   private handleFocusBranchRenamed({

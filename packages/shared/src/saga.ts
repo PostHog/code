@@ -68,7 +68,6 @@ export abstract class Saga<TInput, TOutput> {
     this.stepTimings = [];
 
     const sagaStart = performance.now();
-    this.log.info("Starting saga", { sagaName: this.sagaName });
 
     try {
       const result = await this.execute(input);
@@ -87,6 +86,7 @@ export abstract class Saga<TInput, TOutput> {
         sagaName: this.sagaName,
         failedStep: this.currentStepName,
         error: error instanceof Error ? error.message : String(error),
+        completedStepTimings: this.stepTimings,
       });
 
       await this.rollback();
@@ -116,16 +116,13 @@ export abstract class Saga<TInput, TOutput> {
    */
   protected async step<T>(config: SagaStep<T>): Promise<T> {
     this.currentStepName = config.name;
-    this.log.debug(`Executing step: ${config.name}`);
 
     const stepStart = performance.now();
     const result = await config.execute();
     const durationMs = Math.round(performance.now() - stepStart);
 
     this.stepTimings.push({ name: config.name, durationMs });
-    this.log.debug(`Step completed: ${config.name}`, { durationMs });
 
-    // Store rollback action with the result bound
     this.completedSteps.push({
       name: config.name,
       rollback: () => config.rollback(result),
@@ -148,14 +145,12 @@ export abstract class Saga<TInput, TOutput> {
     execute: () => Promise<T>,
   ): Promise<T> {
     this.currentStepName = name;
-    this.log.debug(`Executing read-only step: ${name}`);
 
     const stepStart = performance.now();
     const result = await execute();
     const durationMs = Math.round(performance.now() - stepStart);
 
     this.stepTimings.push({ name, durationMs });
-    this.log.debug(`Read-only step completed: ${name}`, { durationMs });
     return result;
   }
 
@@ -172,9 +167,7 @@ export abstract class Saga<TInput, TOutput> {
 
     for (const step of stepsReversed) {
       try {
-        this.log.debug(`Rolling back step: ${step.name}`);
         await step.rollback();
-        this.log.debug(`Step rolled back: ${step.name}`);
       } catch (error) {
         // Log but continue - we want to attempt all rollbacks
         this.log.error(`Failed to rollback step: ${step.name}`, {

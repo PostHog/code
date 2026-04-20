@@ -136,7 +136,6 @@ export class PosthogPluginService extends TypedEventEmitter<PosthogPluginEvents>
       });
 
       if (result.success) {
-        log.info("Skills updated successfully");
         this.emit("skillsUpdated", true);
       } else {
         log.warn("Skills update failed", {
@@ -177,7 +176,6 @@ export class PosthogPluginService extends TypedEventEmitter<PosthogPluginEvents>
       await cp(this.bundledPluginDir, this.runtimePluginDir, {
         recursive: true,
       });
-      log.info("Bundled plugin copied to runtime dir");
     } catch (err) {
       log.warn("Failed to copy bundled plugin", err);
       captureException(err, {

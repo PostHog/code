@@ -65,8 +65,6 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
         !UpdatesService.SUPPORTED_PLATFORMS.includes(process.platform)
       ) {
         log.info("Auto updates only supported on macOS and Windows");
-      } else if (isDevBuild()) {
-        log.info("Auto updates only available in packaged builds");
       }
       return;
     }

@@ -103,7 +103,6 @@ function createClaudeConnection(config: AcpConnectionConfig): AcpConnection {
       ...config.processCallbacks,
       onStructuredOutput: config.onStructuredOutput,
     });
-    logger.info(`Created ${agent.adapterName} agent`);
     return agent;
   }, agentStream);
 
@@ -194,7 +193,6 @@ function createCodexConnection(config: AcpConnectionConfig): AcpConnection {
       codexProcessOptions: config.codexOptions ?? {},
       processCallbacks: config.processCallbacks,
     });
-    logger.info(`Created ${agent.adapterName} agent`);
     return agent;
   }, agentStream);
 

@@ -25,9 +25,6 @@ export class DeepLinkService {
     // Skip protocol registration in development to avoid hijacking deep links
     // from the production app. OAuth uses HTTP callback in dev mode anyway.
     if (process.defaultApp) {
-      log.info(
-        "Skipping protocol registration in development (using HTTP callback for OAuth)",
-      );
       return;
     }
 
@@ -38,9 +35,6 @@ export class DeepLinkService {
     }
 
     this.protocolRegistered = true;
-    log.info(
-      `Registered '${PROTOCOL}' and legacy [${LEGACY_PROTOCOLS.join(", ")}] protocol handlers`,
-    );
   }
 
   public registerHandler(key: string, handler: DeepLinkHandler): void {
@@ -48,7 +42,6 @@ export class DeepLinkService {
       log.warn(`Overwriting existing handler for key: ${key}`);
     }
     this.handlers.set(key, handler);
-    log.info(`Registered deep link handler for key: ${key}`);
   }
 
   public unregisterHandler(key: string): void {

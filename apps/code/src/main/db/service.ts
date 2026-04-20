@@ -41,7 +41,6 @@ export class DatabaseService {
       this._sqlite.pragma("foreign_keys = ON");
       this._db = drizzle(this._sqlite, { schema, casing: "snake_case" });
       migrate(this._db, { migrationsFolder: MIGRATIONS_FOLDER });
-      log.info("Database ready");
     } catch (error) {
       log.error("Database initialization failed", error);
       throw error;

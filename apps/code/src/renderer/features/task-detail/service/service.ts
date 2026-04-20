@@ -201,7 +201,5 @@ export class TaskService {
 
       draftStore.actions.setDraft("task-input", null);
     }
-
-    log.info("Stores updated after task", { taskId: output.task.id });
   }
 }

@@ -25,7 +25,6 @@ export class ConnectivityService extends TypedEventEmitter<ConnectivityEvents> {
   @postConstruct()
   init(): void {
     this.isOnline = net.isOnline();
-    log.info("Initial connectivity status", { isOnline: this.isOnline });
 
     this.startPolling();
   }

@@ -56,7 +56,6 @@ export class OAuthService {
     this.deepLinkService.registerHandler("callback", (_path, searchParams) =>
       this.handleOAuthCallback(searchParams),
     );
-    log.info("Registered OAuth callback handler for deep links");
   }
 
   private handleOAuthCallback(searchParams: URLSearchParams): boolean {

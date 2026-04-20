@@ -19,7 +19,6 @@ export class NotificationService {
   @postConstruct()
   init(): void {
     app.on("browser-window-focus", () => this.clearDockBadge());
-    log.info("Notification service initialized");
   }
 
   send(title: string, body: string, silent: boolean, taskId?: string): void {
@@ -47,7 +46,6 @@ export class NotificationService {
     });
 
     notification.show();
-    log.info("Notification sent", { title, body, silent, taskId });
   }
 
   showDockBadge(): void {
@@ -59,7 +57,6 @@ export class NotificationService {
     } else if (process.platform === "win32") {
       getMainWindow()?.flashFrame(true);
     }
-    log.info("Dock badge shown");
   }
 
   bounceDock(): void {
@@ -80,6 +77,5 @@ export class NotificationService {
     } else if (process.platform === "win32") {
       getMainWindow()?.flashFrame(false);
     }
-    log.info("Dock badge cleared");
   }
 }
