@@ -56,11 +56,14 @@ export type ArtifactType =
   | "reference"
   | "output"
   | "artifact"
-  | "tree_snapshot";
+  | "tree_snapshot"
+  | "user_attachment";
 
 export interface TaskRunArtifact {
+  id?: string;
   name: string;
   type: ArtifactType;
+  source?: string;
   size?: number;
   content_type?: string;
   storage_path?: string;
