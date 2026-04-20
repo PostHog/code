@@ -73,6 +73,7 @@ export function TaskInput({
 
   const editorRef = useRef<EditorHandle>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonGroupRef = useRef<HTMLDivElement>(null);
   const dragCounterRef = useRef(0);
 
   const [editorIsEmpty, setEditorIsEmpty] = useState(true);
@@ -458,11 +459,7 @@ export function TaskInput({
             zIndex: 1,
           }}
         >
-          <Flex
-            gap="2"
-            align="center"
-            style={{ minWidth: 0, overflow: "hidden" }}
-          >
+          <Flex gap="2" align="center" style={{ minWidth: 0 }}>
             <WorkspaceModeSelect
               value={workspaceMode}
               onChange={setWorkspaceMode}
@@ -478,7 +475,7 @@ export function TaskInput({
                 disabled={isCreatingTask}
               />
             )}
-            <ButtonGroup>
+            <ButtonGroup ref={buttonGroupRef}>
               {workspaceMode === "cloud" ? (
                 <GitHubRepoPicker
                   value={selectedRepository}
@@ -488,6 +485,7 @@ export function TaskInput({
                   placeholder="Select repository..."
                   size="1"
                   disabled={isCreatingTask}
+                  anchor={buttonGroupRef}
                 />
               ) : (
                 <FolderPicker
@@ -495,6 +493,7 @@ export function TaskInput({
                   onChange={setSelectedDirectory}
                   placeholder="Select repository..."
                   size="1"
+                  anchor={buttonGroupRef}
                 />
               )}
               <BranchSelector
@@ -520,6 +519,7 @@ export function TaskInput({
                 cloudBranchesFetchingMore={cloudBranchesFetchingMore}
                 onCloudPickerOpen={resumeCloudBranchesLoading}
                 onCloudBranchCommit={pauseCloudBranchesLoading}
+                anchor={buttonGroupRef}
               />
             </ButtonGroup>
             {cloudRegion === "dev" && (
