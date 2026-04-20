@@ -11,6 +11,7 @@ interface OnboardingStoreState {
   hasCompletedSetup: boolean;
   isConnectingGithub: boolean;
   selectedProjectId: number | null;
+  selectedDirectory: string;
 }
 
 interface OnboardingStoreActions {
@@ -21,6 +22,7 @@ interface OnboardingStoreActions {
   resetSelections: () => void;
   setConnectingGithub: (isConnecting: boolean) => void;
   selectProjectId: (projectId: number | null) => void;
+  setSelectedDirectory: (path: string) => void;
 }
 
 type OnboardingStore = OnboardingStoreState & OnboardingStoreActions;
@@ -31,6 +33,7 @@ const initialState: OnboardingStoreState = {
   hasCompletedSetup: false,
   isConnectingGithub: false,
   selectedProjectId: null,
+  selectedDirectory: "",
 };
 
 export const useOnboardingStore = create<OnboardingStore>()(
@@ -53,6 +56,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
         }),
       setConnectingGithub: (isConnectingGithub) => set({ isConnectingGithub }),
       selectProjectId: (selectedProjectId) => set({ selectedProjectId }),
+      setSelectedDirectory: (selectedDirectory) => set({ selectedDirectory }),
     }),
     {
       name: "onboarding-store",
@@ -61,6 +65,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         hasCompletedSetup: state.hasCompletedSetup,
         selectedProjectId: state.selectedProjectId,
+        selectedDirectory: state.selectedDirectory,
       }),
     },
   ),

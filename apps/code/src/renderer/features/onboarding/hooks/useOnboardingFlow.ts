@@ -15,37 +15,45 @@ export interface DetectedRepo {
 export function useOnboardingFlow() {
   const currentStep = useOnboardingStore((state) => state.currentStep);
   const setCurrentStep = useOnboardingStore((state) => state.setCurrentStep);
+  const selectedDirectory = useOnboardingStore(
+    (state) => state.selectedDirectory,
+  );
+  const setSelectedDirectory = useOnboardingStore(
+    (state) => state.setSelectedDirectory,
+  );
   const directionRef = useRef<1 | -1>(1);
 
-  const [selectedDirectory, setSelectedDirectory] = useState("");
   const [detectedRepo, setDetectedRepo] = useState<DetectedRepo | null>(null);
   const [isDetectingRepo, setIsDetectingRepo] = useState(false);
 
-  const handleDirectoryChange = useCallback(async (path: string) => {
-    setSelectedDirectory(path);
-    setDetectedRepo(null);
-    if (!path) return;
+  const handleDirectoryChange = useCallback(
+    async (path: string) => {
+      setSelectedDirectory(path);
+      setDetectedRepo(null);
+      if (!path) return;
 
-    setIsDetectingRepo(true);
-    try {
-      const result = await trpcClient.git.detectRepo.query({
-        directoryPath: path,
-      });
-      if (result) {
-        setDetectedRepo({
-          organization: result.organization,
-          repository: result.repository,
-          fullName: `${result.organization}/${result.repository}`,
-          remote: result.remote ?? undefined,
-          branch: result.branch ?? undefined,
+      setIsDetectingRepo(true);
+      try {
+        const result = await trpcClient.git.detectRepo.query({
+          directoryPath: path,
         });
+        if (result) {
+          setDetectedRepo({
+            organization: result.organization,
+            repository: result.repository,
+            fullName: `${result.organization}/${result.repository}`,
+            remote: result.remote ?? undefined,
+            branch: result.branch ?? undefined,
+          });
+        }
+      } catch {
+        // Not a git repo or no remote
+      } finally {
+        setIsDetectingRepo(false);
       }
-    } catch {
-      // Not a git repo or no remote
-    } finally {
-      setIsDetectingRepo(false);
-    }
-  }, []);
+    },
+    [setSelectedDirectory],
+  );
 
   const hasCodeAccess = useAuthStateValue((state) => state.hasCodeAccess);
 

@@ -18,6 +18,8 @@ interface TaskCard {
   color: string;
 }
 
+// TODO: Replace with real task suggestions from signal analysis.
+// These are placeholder cards shown during the onboarding demo animation.
 const MOCK_TASKS: TaskCard[] = [
   {
     id: "fix-checkout-typeerror",

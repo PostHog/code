@@ -344,10 +344,17 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
             <ArrowLeft size={16} weight="bold" />
             Back
           </Button>
-          <Button size="3" onClick={onNext} disabled={!allReady}>
-            Continue
-            <ArrowRight size={16} weight="bold" />
-          </Button>
+          {allReady ? (
+            <Button size="3" onClick={onNext}>
+              Continue
+              <ArrowRight size={16} weight="bold" />
+            </Button>
+          ) : (
+            <Button size="3" variant="outline" color="gray" onClick={onNext}>
+              Skip for now
+              <ArrowRight size={16} weight="bold" />
+            </Button>
+          )}
         </StepActions>
       </Flex>
     </Flex>

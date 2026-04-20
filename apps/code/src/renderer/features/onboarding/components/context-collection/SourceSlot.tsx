@@ -92,7 +92,7 @@ export function SourceSlot({ source }: SourceSlotProps) {
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{
-                  repeat: Number.POSITIVE_INFINITY,
+                  repeat: Infinity,
                   duration: 1,
                   ease: "linear",
                 }}

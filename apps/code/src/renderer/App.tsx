@@ -139,6 +139,8 @@ function App() {
 
   const needsInviteCode =
     isAuthenticated && hasCodeAccess === false && hasCompletedOnboarding;
+  const isCheckingAccess =
+    isAuthenticated && hasCodeAccess === null && hasCompletedOnboarding;
 
   // Handle transition into main app — only show the dark overlay if dark mode is active
   useEffect(() => {
@@ -181,6 +183,19 @@ function App() {
       return (
         <motion.div key="auth" initial={{ opacity: 1 }}>
           <AuthScreen />
+        </motion.div>
+      );
+    }
+
+    if (isCheckingAccess) {
+      return (
+        <motion.div key="access-check" initial={{ opacity: 1 }}>
+          <Flex align="center" justify="center" minHeight="100vh">
+            <Flex align="center" gap="3">
+              <Spinner size="3" />
+              <Text color="gray">Checking access...</Text>
+            </Flex>
+          </Flex>
         </motion.div>
       );
     }

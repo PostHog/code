@@ -1,6 +1,5 @@
 import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
-import { useProjects } from "@features/projects/hooks/useProjects";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
@@ -11,21 +10,18 @@ import { useEffect } from "react";
 export function usePrefetchSignalData(): void {
   const client = useOptionalAuthenticatedClient();
   const projectId = useAuthStateValue((state) => state.projectId);
-  const { projects } = useProjects();
   const queryClient = useQueryClient();
 
-  // Prefetch per-project integrations (used by GitIntegrationStep)
+  // Prefetch integrations for the selected project (used by GitIntegrationStep)
   useEffect(() => {
-    if (!client || projects.length === 0) return;
+    if (!client || !projectId) return;
 
-    for (const project of projects) {
-      queryClient.prefetchQuery({
-        queryKey: ["integrations", project.id],
-        queryFn: () => client.getIntegrationsForProject(project.id),
-        staleTime: 60_000,
-      });
-    }
-  }, [client, projects, queryClient]);
+    queryClient.prefetchQuery({
+      queryKey: ["integrations", projectId],
+      queryFn: () => client.getIntegrationsForProject(projectId),
+      staleTime: 60_000,
+    });
+  }, [client, projectId, queryClient]);
 
   // Prefetch signals data and repo list
   useEffect(() => {

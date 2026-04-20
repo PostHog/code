@@ -28,6 +28,8 @@ export interface SourceState {
   currentCount: number;
 }
 
+// TODO: Replace with real data fetching. These are hardcoded demo values
+// shown during the "Building your context" animation. No real scanning occurs.
 const SOURCES: SourceConfig[] = [
   {
     id: "ph-events",
