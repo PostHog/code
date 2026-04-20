@@ -18,7 +18,8 @@ export type SourceProduct =
   | "llm_analytics"
   | "github"
   | "linear"
-  | "zendesk";
+  | "zendesk"
+  | "conversations";
 
 const DEFAULT_STATUS_FILTER: SignalReportStatus[] = [
   "ready",
