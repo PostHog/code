@@ -19,7 +19,8 @@ export function filterReportsBySearch(
   return reports.filter(
     (report) =>
       report.title?.toLowerCase().includes(lower) ||
-      report.summary?.toLowerCase().includes(lower),
+      report.summary?.toLowerCase().includes(lower) ||
+      report.id.toLowerCase().includes(lower),
   );
 }
 

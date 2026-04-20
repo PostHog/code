@@ -4,6 +4,7 @@ import {
   BugIcon,
   GithubLogoIcon,
   KanbanIcon,
+  LifebuoyIcon,
   TicketIcon,
   VideoIcon,
 } from "@phosphor-icons/react";
@@ -46,5 +47,10 @@ export const SOURCE_PRODUCT_META: Record<
     Icon: TicketIcon,
     color: "var(--green-9)",
     label: "Zendesk",
+  },
+  conversations: {
+    Icon: LifebuoyIcon,
+    color: "var(--cyan-9)",
+    label: "Conversations",
   },
 };
