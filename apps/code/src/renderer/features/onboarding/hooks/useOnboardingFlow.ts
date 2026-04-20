@@ -50,7 +50,7 @@ export function useOnboardingFlow() {
   const hasCodeAccess = useAuthStateValue((state) => state.hasCodeAccess);
 
   const activeSteps = useMemo(() => {
-    if (hasCodeAccess !== false) {
+    if (hasCodeAccess === true) {
       return ONBOARDING_STEPS.filter((s) => s !== "invite-code");
     }
     return ONBOARDING_STEPS;

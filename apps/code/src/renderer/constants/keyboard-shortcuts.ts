@@ -48,7 +48,7 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
     description: "Open command menu",
     category: "general",
   },
-{
+  {
     id: "settings",
     keys: SHORTCUTS.SETTINGS,
     description: "Open settings",

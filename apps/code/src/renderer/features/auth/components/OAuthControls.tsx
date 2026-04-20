@@ -65,75 +65,12 @@ export function OAuthControls() {
       </button>
 
       <Flex direction="column" gap="2" align="center">
-        {/* <Text
-          size="1"
-          style={{ color: "var(--gray-12)", opacity: 0.5 }}
-        >
-          Redirects to PostHog.com
-        </Text> */}
-
         <RegionSelect
           region={region}
           regionLabel={REGION_LABELS[region]}
           onRegionChange={handleRegionChange}
           disabled={isPending}
         />
-
-        {/* <Text size="2">
-          {authMode === "login" ? (
-            <>
-              <span
-                style={{
-                  color: "var(--gray-12)",
-                  opacity: 0.5,
-                }}
-              >
-                Don&apos;t have an account?{" "}
-              </span>
-              <button
-                type="button"
-                onClick={() => setAuthMode("signup")}
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  color: "var(--accent-9)",
-                  cursor: "pointer",
-                  fontWeight: 500,
-                  fontSize: "inherit",
-                }}
-              >
-                create one
-              </button>
-            </>
-          ) : (
-            <>
-              <span
-                style={{
-                  color: "var(--gray-12)",
-                  opacity: 0.5,
-                }}
-              >
-                Already have an account?{" "}
-              </span>
-              <button
-                type="button"
-                onClick={() => setAuthMode("login")}
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  color: "var(--accent-9)",
-                  cursor: "pointer",
-                  fontWeight: 500,
-                  fontSize: "inherit",
-                }}
-              >
-                sign in
-              </button>
-            </>
-          )}
-        </Text> */}
       </Flex>
     </>
   );

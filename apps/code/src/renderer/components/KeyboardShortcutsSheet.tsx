@@ -17,6 +17,7 @@ function Keycap({ label, size = "md" }: { label: string; size?: "sm" | "md" }) {
   const shadowSize = isSmall ? "2px" : "3px";
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: cosmetic press animation
     <span
       role="presentation"
       onMouseDown={() => setPressed(true)}
@@ -77,11 +78,7 @@ export function KeyboardShortcutsSheet({
         style={{ maxHeight: "80vh", overflow: "hidden" }}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        <Flex
-          align="start"
-          justify="between"
-          style={{ position: "relative" }}
-        >
+        <Flex align="start" justify="between" style={{ position: "relative" }}>
           <ShortcutsHeader />
           <button
             type="button"

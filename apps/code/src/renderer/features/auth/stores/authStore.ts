@@ -40,18 +40,12 @@ interface AuthStoreState {
   needsProjectSelection: boolean;
   needsScopeReauth: boolean;
   hasCodeAccess: boolean | null;
-  hasCompletedOnboarding: boolean;
-  selectedPlan: "free" | "pro" | null;
-  selectedOrgId: string | null;
 
   checkCodeAccess: () => Promise<void>;
   redeemInviteCode: (code: string) => Promise<void>;
   loginWithOAuth: (region: CloudRegion) => Promise<void>;
   signupWithOAuth: (region: CloudRegion) => Promise<void>;
   selectProject: (projectId: number) => Promise<void>;
-  completeOnboarding: () => void;
-  selectPlan: (plan: "free" | "pro") => void;
-  selectOrg: (orgId: string) => void;
   logout: () => Promise<void>;
 }
 
@@ -208,10 +202,6 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
   needsScopeReauth: false,
   hasCodeAccess: null,
 
-  hasCompletedOnboarding: false,
-  selectedPlan: null,
-  selectedOrgId: null,
-
   checkCodeAccess: async () => {
     await syncAuthState();
   },
@@ -246,18 +236,6 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
     useNavigationStore.getState().navigateToTaskInput();
   },
 
-  completeOnboarding: () => {
-    set({ hasCompletedOnboarding: true });
-  },
-
-  selectPlan: (plan: "free" | "pro") => {
-    set({ selectedPlan: plan });
-  },
-
-  selectOrg: (orgId: string) => {
-    set({ selectedOrgId: orgId });
-  },
-
   logout: async () => {
     track(ANALYTICS_EVENTS.USER_LOGGED_OUT);
     sessionResetCallback?.();
@@ -276,8 +254,6 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
       needsProjectSelection: false,
       needsScopeReauth: false,
       hasCodeAccess: null,
-      selectedPlan: null,
-      selectedOrgId: null,
     }));
     inFlightAuthSync = null;
     inFlightAuthSyncKey = null;
