@@ -969,7 +969,7 @@ export class AgentServer {
       },
     });
 
-    this.logger.debug("Session initialized successfully vojta");
+    this.logger.debug("Session initialized successfully");
     this.logger.debug(
       `Agent version: ${this.config.version ?? packageJson.version}`,
     );
