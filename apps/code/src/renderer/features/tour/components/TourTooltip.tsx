@@ -3,16 +3,23 @@ import { useThemeStore } from "@stores/themeStore";
 import { AnimatePresence, motion, useAnimationControls } from "framer-motion";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import type { TourStep } from "../types";
+import type { TooltipPlacement, TourStep } from "../types";
+import { calculateTooltipPlacement } from "../utils/calculateTooltipPlacement";
 
 interface TourTooltipProps {
   step: TourStep;
   stepNumber: number;
   totalSteps: number;
   onDismiss: () => void;
+  targetRect: DOMRect;
 }
 
 const HOG_SIZE = 64;
+const HOG_GAP = 8;
+const BUBBLE_MAX_WIDTH = 280;
+const TOOLTIP_WIDTH_ESTIMATE = BUBBLE_MAX_WIDTH + HOG_GAP + HOG_SIZE;
+const TOOLTIP_HEIGHT_ESTIMATE = 100;
+
 const CARET_SIZE = 12;
 const CARET_INNER = 11;
 
@@ -23,22 +30,6 @@ const talkingAnimation = {
     duration: 0.4,
     repeat: Infinity,
     repeatDelay: 0.1,
-  },
-};
-
-const bubbleVariants = {
-  initial: { opacity: 0, scale: 0.92, x: 20 },
-  animate: {
-    opacity: 1,
-    scale: 1,
-    x: 0,
-    transition: { type: "spring" as const, stiffness: 300, damping: 24 },
-  },
-  exit: {
-    opacity: 0,
-    scale: 0.95,
-    x: 10,
-    transition: { duration: 0.15 },
   },
 };
 
@@ -61,7 +52,53 @@ const hogEntranceVariants = {
   },
 };
 
-function RightCaret() {
+const CARET_SIDE_MAP: Record<
+  TooltipPlacement,
+  "left" | "right" | "top" | "bottom"
+> = {
+  right: "left",
+  left: "right",
+  bottom: "top",
+  top: "bottom",
+};
+
+const TRANSFORM_ORIGIN_MAP: Record<TooltipPlacement, string> = {
+  right: "left center",
+  left: "right center",
+  bottom: "top center",
+  top: "bottom center",
+};
+
+function getBubbleVariants(placement: TooltipPlacement) {
+  const dx = placement === "right" ? 12 : placement === "left" ? -12 : 0;
+  const dy = placement === "bottom" ? -12 : placement === "top" ? 12 : 0;
+
+  return {
+    initial: { opacity: 0, scale: 0.92, x: dx, y: dy },
+    animate: {
+      opacity: 1,
+      scale: 1,
+      x: 0,
+      y: 0,
+      transition: { type: "spring" as const, stiffness: 300, damping: 24 },
+    },
+    exit: {
+      opacity: 0,
+      scale: 0.95,
+      x: dx * 0.5,
+      y: dy * 0.5,
+      transition: { duration: 0.15 },
+    },
+  };
+}
+
+function Caret({
+  side,
+  offset = 0,
+}: {
+  side: "left" | "right" | "top" | "bottom";
+  offset?: number;
+}) {
   const borderColor = "var(--gray-a5)";
   const fillColor = "var(--color-panel-solid)";
 
@@ -71,32 +108,116 @@ function RightCaret() {
     height: 0,
   };
 
-  return (
-    <>
-      <div
-        style={{
-          ...base,
-          top: "50%",
-          right: -CARET_SIZE,
-          marginTop: -CARET_SIZE,
-          borderTop: `${CARET_SIZE}px solid transparent`,
-          borderBottom: `${CARET_SIZE}px solid transparent`,
-          borderLeft: `${CARET_SIZE}px solid ${borderColor}`,
-        }}
-      />
-      <div
-        style={{
-          ...base,
-          top: "50%",
-          right: -CARET_INNER,
-          marginTop: -CARET_INNER,
-          borderTop: `${CARET_INNER}px solid transparent`,
-          borderBottom: `${CARET_INNER}px solid transparent`,
-          borderLeft: `${CARET_INNER}px solid ${fillColor}`,
-        }}
-      />
-    </>
-  );
+  switch (side) {
+    case "right":
+      return (
+        <>
+          <div
+            style={{
+              ...base,
+              top: `calc(50% + ${offset}px)`,
+              right: -CARET_SIZE,
+              marginTop: -CARET_SIZE,
+              borderTop: `${CARET_SIZE}px solid transparent`,
+              borderBottom: `${CARET_SIZE}px solid transparent`,
+              borderLeft: `${CARET_SIZE}px solid ${borderColor}`,
+            }}
+          />
+          <div
+            style={{
+              ...base,
+              top: `calc(50% + ${offset}px)`,
+              right: -CARET_INNER,
+              marginTop: -CARET_INNER,
+              borderTop: `${CARET_INNER}px solid transparent`,
+              borderBottom: `${CARET_INNER}px solid transparent`,
+              borderLeft: `${CARET_INNER}px solid ${fillColor}`,
+            }}
+          />
+        </>
+      );
+    case "left":
+      return (
+        <>
+          <div
+            style={{
+              ...base,
+              top: `calc(50% + ${offset}px)`,
+              left: -CARET_SIZE,
+              marginTop: -CARET_SIZE,
+              borderTop: `${CARET_SIZE}px solid transparent`,
+              borderBottom: `${CARET_SIZE}px solid transparent`,
+              borderRight: `${CARET_SIZE}px solid ${borderColor}`,
+            }}
+          />
+          <div
+            style={{
+              ...base,
+              top: `calc(50% + ${offset}px)`,
+              left: -CARET_INNER,
+              marginTop: -CARET_INNER,
+              borderTop: `${CARET_INNER}px solid transparent`,
+              borderBottom: `${CARET_INNER}px solid transparent`,
+              borderRight: `${CARET_INNER}px solid ${fillColor}`,
+            }}
+          />
+        </>
+      );
+    case "top":
+      return (
+        <>
+          <div
+            style={{
+              ...base,
+              left: `calc(50% + ${offset}px)`,
+              top: -CARET_SIZE,
+              marginLeft: -CARET_SIZE,
+              borderLeft: `${CARET_SIZE}px solid transparent`,
+              borderRight: `${CARET_SIZE}px solid transparent`,
+              borderBottom: `${CARET_SIZE}px solid ${borderColor}`,
+            }}
+          />
+          <div
+            style={{
+              ...base,
+              left: `calc(50% + ${offset}px)`,
+              top: -CARET_INNER,
+              marginLeft: -CARET_INNER,
+              borderLeft: `${CARET_INNER}px solid transparent`,
+              borderRight: `${CARET_INNER}px solid transparent`,
+              borderBottom: `${CARET_INNER}px solid ${fillColor}`,
+            }}
+          />
+        </>
+      );
+    case "bottom":
+      return (
+        <>
+          <div
+            style={{
+              ...base,
+              left: `calc(50% + ${offset}px)`,
+              bottom: -CARET_SIZE,
+              marginLeft: -CARET_SIZE,
+              borderLeft: `${CARET_SIZE}px solid transparent`,
+              borderRight: `${CARET_SIZE}px solid transparent`,
+              borderTop: `${CARET_SIZE}px solid ${borderColor}`,
+            }}
+          />
+          <div
+            style={{
+              ...base,
+              left: `calc(50% + ${offset}px)`,
+              bottom: -CARET_INNER,
+              marginLeft: -CARET_INNER,
+              borderLeft: `${CARET_INNER}px solid transparent`,
+              borderRight: `${CARET_INNER}px solid transparent`,
+              borderTop: `${CARET_INNER}px solid ${fillColor}`,
+            }}
+          />
+        </>
+      );
+  }
 }
 
 export function TourTooltip({
@@ -104,9 +225,21 @@ export function TourTooltip({
   stepNumber,
   totalSteps,
   onDismiss,
+  targetRect,
 }: TourTooltipProps) {
   const isDarkMode = useThemeStore((s) => s.isDarkMode);
   const controls = useAnimationControls();
+
+  const { placement, x, y, arrowOffset } = calculateTooltipPlacement(
+    targetRect,
+    TOOLTIP_WIDTH_ESTIMATE,
+    TOOLTIP_HEIGHT_ESTIMATE,
+    step.preferredPlacement,
+  );
+
+  const caretSide = CARET_SIDE_MAP[placement];
+  const hogOnRight = true;
+  const bubbleVariants = getBubbleVariants(placement);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: restart animation on step change
   useEffect(() => {
@@ -116,6 +249,30 @@ export function TourTooltip({
     }, 500);
     return () => clearTimeout(timer);
   }, [controls, step.id]);
+
+  const hogElement = (
+    <motion.div
+      variants={hogEntranceVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      style={{
+        flexShrink: 0,
+        ...(hogOnRight ? { marginLeft: HOG_GAP } : { marginRight: HOG_GAP }),
+      }}
+    >
+      <motion.img
+        src={step.hogSrc}
+        alt=""
+        animate={controls}
+        style={{
+          width: HOG_SIZE,
+          height: HOG_SIZE,
+          objectFit: "contain",
+        }}
+      />
+    </motion.div>
+  );
 
   return createPortal(
     <Theme
@@ -137,8 +294,8 @@ export function TourTooltip({
           key={step.id}
           style={{
             position: "fixed",
-            top: 72,
-            right: 24,
+            top: y,
+            left: x,
             zIndex: 201,
             pointerEvents: "auto",
             display: "flex",
@@ -146,6 +303,8 @@ export function TourTooltip({
             gap: 0,
           }}
         >
+          {!hogOnRight && hogElement}
+
           <motion.div
             variants={bubbleVariants}
             initial="initial"
@@ -157,13 +316,13 @@ export function TourTooltip({
               border: "1px solid var(--gray-a5)",
               borderRadius: "var(--radius-3)",
               padding: "14px 18px",
-              maxWidth: 280,
+              maxWidth: BUBBLE_MAX_WIDTH,
               boxShadow:
                 "0 8px 24px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.08)",
-              transformOrigin: "right center",
+              transformOrigin: TRANSFORM_ORIGIN_MAP[placement],
             }}
           >
-            <RightCaret />
+            <Caret side={caretSide} offset={arrowOffset} />
             <Flex direction="column" gap="2">
               <Text
                 size="2"
@@ -188,24 +347,7 @@ export function TourTooltip({
             </Flex>
           </motion.div>
 
-          <motion.div
-            variants={hogEntranceVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            style={{ marginLeft: 8, flexShrink: 0 }}
-          >
-            <motion.img
-              src={step.hogSrc}
-              alt=""
-              animate={controls}
-              style={{
-                width: HOG_SIZE,
-                height: HOG_SIZE,
-                objectFit: "contain",
-              }}
-            />
-          </motion.div>
+          {hogOnRight && hogElement}
         </div>
       </AnimatePresence>
     </Theme>,

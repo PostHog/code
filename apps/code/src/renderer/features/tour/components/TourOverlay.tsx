@@ -141,6 +141,7 @@ export function TourOverlay() {
           stepNumber={activeStepIndex + 1}
           totalSteps={tour.steps.length}
           onDismiss={dismiss}
+          targetRect={targetRect}
         />
       )}
     </>

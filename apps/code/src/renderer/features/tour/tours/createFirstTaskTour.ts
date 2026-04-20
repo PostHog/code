@@ -9,7 +9,6 @@ export const createFirstTaskTour: TourDefinition = {
     {
       id: "folder-picker",
       target: "folder-picker",
-
       hogSrc: explorerHog,
       message: "Pick a repo to work with. This tells me where your code lives!",
       advanceOn: { type: "action" },
@@ -17,7 +16,6 @@ export const createFirstTaskTour: TourDefinition = {
     {
       id: "task-editor",
       target: "task-input-editor",
-
       hogSrc: builderHog,
       message:
         "Describe what you want to build or fix. Be as specific as you like!",
@@ -26,7 +24,6 @@ export const createFirstTaskTour: TourDefinition = {
     {
       id: "submit-button",
       target: "submit-button",
-
       hogSrc: happyHog,
       message: "Hit send or press Enter to launch your first agent!",
       advanceOn: { type: "click" },
