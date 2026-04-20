@@ -168,14 +168,16 @@ export function WorkspaceModeSelect({
             <DropdownMenuSeparator />
             <div className="flex items-center justify-between px-2 py-1">
               <MenuLabel className="p-0">Cloud environments</MenuLabel>
-              <button
-                type="button"
-                onClick={handleAddEnvironment}
-                aria-label="Add cloud environment"
-                className="flex cursor-pointer items-center justify-center rounded-sm border-0 bg-transparent p-0.5 text-muted-foreground transition-colors hover:bg-fill-hover hover:text-foreground"
-              >
-                <Plus size={12} />
-              </button>
+              {environments.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleAddEnvironment}
+                  aria-label="Add cloud environment"
+                  className="flex cursor-pointer items-center justify-center rounded-sm border-0 bg-transparent p-0.5 text-muted-foreground transition-colors hover:bg-fill-hover hover:text-foreground"
+                >
+                  <Plus size={12} />
+                </button>
+              )}
             </div>
 
             <DropdownMenuGroup>

@@ -48,6 +48,10 @@ export function EnvironmentSelector({
   const selectedEnvironment = environments.find((env) => env.id === value);
   const displayText = selectedEnvironment?.name ?? "No environment";
 
+  if (environments.length === 0) {
+    return null;
+  }
+
   const handleChange = (newValue: string | null) => {
     onChange(newValue === NONE_VALUE ? null : newValue || null);
     setOpen(false);
