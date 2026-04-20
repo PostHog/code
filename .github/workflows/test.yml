@@ -9,7 +9,12 @@ concurrency:
 
 jobs:
   unit-test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ${{ fromJSON(vars.BLACKSMITH_SHADOW_ENABLED == 'true' && '["ubuntu-latest","blacksmith-4vcpu-ubuntu-2404"]' || '["ubuntu-latest"]') }}
+    runs-on: ${{ matrix.runner }}
+    continue-on-error: ${{ matrix.runner != 'ubuntu-latest' }}
     permissions:
       contents: read
     steps:
@@ -37,7 +42,12 @@ jobs:
         run: pnpm test
 
   integration-test:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ${{ fromJSON(vars.BLACKSMITH_SHADOW_ENABLED == 'true' && '["macos-latest","blacksmith-6vcpu-macos-latest"]' || '["macos-latest"]') }}
+    runs-on: ${{ matrix.runner }}
+    continue-on-error: ${{ matrix.runner != 'macos-latest' }}
     permissions:
       contents: read
     steps:
@@ -60,17 +70,17 @@ jobs:
         id: playwright-cache
         with:
           path: ~/Library/Caches/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: playwright-${{ matrix.runner }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
-            playwright-${{ runner.os }}-
+            playwright-${{ matrix.runner }}-
 
       - name: Cache Electron binary
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/Library/Caches/electron
-          key: electron-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: electron-${{ matrix.runner }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
-            electron-${{ runner.os }}-
+            electron-${{ matrix.runner }}-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -103,7 +113,7 @@ jobs:
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: failure()
+        if: failure() && matrix.runner == 'macos-latest'
         with:
           name: playwright-report
           path: apps/code/playwright-report/
