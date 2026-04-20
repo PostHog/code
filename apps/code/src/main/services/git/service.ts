@@ -2,6 +2,9 @@ import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+
 import { execGh } from "@posthog/git/gh";
 import {
   getAllBranches,
@@ -687,7 +690,6 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
   }
 
   public async getGitStatus(): Promise<GitStatusOutput> {
-    const execFileAsync = promisify(execFile);
     try {
       const { stdout } = await execFileAsync("git", ["--version"]);
       const version = stdout.trim().replace("git version ", "");

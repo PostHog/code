@@ -12,7 +12,6 @@ export function usePrefetchSignalData(): void {
   const projectId = useAuthStateValue((state) => state.projectId);
   const queryClient = useQueryClient();
 
-  // Prefetch integrations for the selected project (used by GitIntegrationStep)
   useEffect(() => {
     if (!client || !projectId) return;
 
@@ -21,11 +20,6 @@ export function usePrefetchSignalData(): void {
       queryFn: () => client.getIntegrationsForProject(projectId),
       staleTime: 60_000,
     });
-  }, [client, projectId, queryClient]);
-
-  // Prefetch signals data and repo list
-  useEffect(() => {
-    if (!client || !projectId) return;
 
     queryClient.prefetchQuery({
       queryKey: ["signals", "source-configs", projectId],
@@ -39,7 +33,6 @@ export function usePrefetchSignalData(): void {
       staleTime: 60_000,
     });
 
-    // Prefetch integrations list, then prefetch GitHub repos if integration exists
     queryClient.prefetchQuery({
       queryKey: ["integrations", "list"],
       queryFn: async () => {

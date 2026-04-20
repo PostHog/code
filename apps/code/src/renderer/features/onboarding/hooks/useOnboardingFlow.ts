@@ -25,6 +25,28 @@ export function useOnboardingFlow() {
 
   const [detectedRepo, setDetectedRepo] = useState<DetectedRepo | null>(null);
   const [isDetectingRepo, setIsDetectingRepo] = useState(false);
+  const hasRehydrated = useRef(false);
+
+  useEffect(() => {
+    if (hasRehydrated.current || !selectedDirectory) return;
+    hasRehydrated.current = true;
+    setIsDetectingRepo(true);
+    trpcClient.git.detectRepo
+      .query({ directoryPath: selectedDirectory })
+      .then((result) => {
+        if (result) {
+          setDetectedRepo({
+            organization: result.organization,
+            repository: result.repository,
+            fullName: `${result.organization}/${result.repository}`,
+            remote: result.remote ?? undefined,
+            branch: result.branch ?? undefined,
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsDetectingRepo(false));
+  }, [selectedDirectory]);
 
   const handleDirectoryChange = useCallback(
     async (path: string) => {
