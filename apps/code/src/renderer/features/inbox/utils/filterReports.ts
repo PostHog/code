@@ -34,14 +34,18 @@ export function buildStatusFilterParam(statuses: SignalReportStatus[]): string {
 /**
  * Comma-separated `ordering` for the signal report list API:
  * 1. Status rank (ready first — semantic server-side rank, always applied)
- * 2. Suggested reviewer (current user's reports first)
- * 3. Toolbar-selected field (priority, total_weight, created_at, etc.)
+ * 2. For priority sort only: actionable ready reports before not_actionable (`actionability_ready_rank`)
+ * 3. Suggested reviewer (current user's reports first; server forces false for not_actionable)
+ * 4. Toolbar-selected field (priority, total_weight, created_at, etc.)
  */
 export function buildSignalReportListOrdering(
   field: SignalReportOrderingField,
   direction: "asc" | "desc",
 ): string {
   const fieldKey = direction === "desc" ? `-${field}` : field;
+  if (field === "priority") {
+    return `status,actionability_ready_rank,-is_suggested_reviewer,${fieldKey}`;
+  }
   return `status,-is_suggested_reviewer,${fieldKey}`;
 }
 
