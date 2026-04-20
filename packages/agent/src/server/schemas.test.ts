@@ -127,7 +127,9 @@ describe("validateCommandParams", () => {
 
   it("accepts artifact-only user_message payloads", () => {
     const result = validateCommandParams("user_message", {
-      artifacts: [{ id: "artifact-1", storage_path: "tasks/artifacts/file.pdf" }],
+      artifacts: [
+        { id: "artifact-1", storage_path: "tasks/artifacts/file.pdf" },
+      ],
     });
 
     expect(result.success).toBe(true);

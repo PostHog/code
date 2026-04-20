@@ -18,7 +18,7 @@ import { type JwtPayload, SANDBOX_CONNECTION_AUDIENCE } from "./jwt";
 
 interface TestableServer {
   getInitialPromptOverride(run: TaskRun): string | null;
-  getClearedPendingUserState(run: TaskRun | null): Record<string, unknown> | null;
+  getClearedPendingUserState(run: TaskRun | null): string[] | null;
   clearPendingInitialPromptState(
     payload: JwtPayload,
     run: TaskRun | null,
@@ -391,7 +391,13 @@ describe("AgentServer HTTP Mode", () => {
       const s = createServer();
       const updateTaskRun = vi
         .spyOn(
-          (s as unknown as { posthogAPI: { updateTaskRun: (...args: unknown[]) => Promise<unknown> } }).posthogAPI,
+          (
+            s as unknown as {
+              posthogAPI: {
+                updateTaskRun: (...args: unknown[]) => Promise<unknown>;
+              };
+            }
+          ).posthogAPI,
           "updateTaskRun",
         )
         .mockResolvedValue({} as never);
@@ -410,10 +416,11 @@ describe("AgentServer HTTP Mode", () => {
       const nextState = (
         s as unknown as TestableServer
       ).getClearedPendingUserState(run);
-      expect(nextState).toEqual({
-        sandbox_url: "https://sandbox.example.com",
-        sandbox_connect_token: "token",
-      });
+      expect(nextState).toEqual([
+        "pending_user_message",
+        "pending_user_artifact_ids",
+        "pending_user_message_ts",
+      ]);
 
       await (s as unknown as TestableServer).clearPendingInitialPromptState(
         {
@@ -427,12 +434,17 @@ describe("AgentServer HTTP Mode", () => {
         run,
       );
 
-      expect(updateTaskRun).toHaveBeenCalledWith("test-task-id", "test-run-id", {
-        state: {
-          sandbox_url: "https://sandbox.example.com",
-          sandbox_connect_token: "token",
+      expect(updateTaskRun).toHaveBeenCalledWith(
+        "test-task-id",
+        "test-run-id",
+        {
+          state_remove_keys: [
+            "pending_user_message",
+            "pending_user_artifact_ids",
+            "pending_user_message_ts",
+          ],
         },
-      });
+      );
     });
   });
 
