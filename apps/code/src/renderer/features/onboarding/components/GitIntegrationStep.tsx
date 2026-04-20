@@ -1,4 +1,5 @@
 import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { useSelectProjectMutation } from "@features/auth/hooks/authMutations";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import { useIntegrationSelectors } from "@features/integrations/stores/integrationStore";
@@ -15,7 +16,7 @@ import {
   GearSix,
   GitBranch,
 } from "@phosphor-icons/react";
-import { Box, Button, Flex, Skeleton, Text } from "@radix-ui/themes";
+import { Box, Button, Callout, Flex, Skeleton, Text } from "@radix-ui/themes";
 import builderHog from "@renderer/assets/images/hedgehogs/builder-hog-03.png";
 import { trpcClient } from "@renderer/trpc/client";
 import { IS_DEV } from "@shared/constants/environment";
@@ -52,27 +53,48 @@ export function GitIntegrationStep({
   const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
   const currentProjectId = useAuthStateValue((state) => state.projectId);
   const client = useOptionalAuthenticatedClient();
+  const selectProjectMutation = useSelectProjectMutation();
 
   const queryClient = useQueryClient();
-  const { projects, isLoading } = useProjectsWithIntegrations();
+  const { projects, projectsWithGithub, isLoading } =
+    useProjectsWithIntegrations();
 
   const isConnecting = useOnboardingStore((state) => state.isConnectingGithub);
   const setConnectingGithub = useOnboardingStore(
     (state) => state.setConnectingGithub,
   );
+  const manuallySelectedProjectId = useOnboardingStore(
+    (state) => state.selectedProjectId,
+  );
+  const setSelectedProjectId = useOnboardingStore(
+    (state) => state.selectProjectId,
+  );
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [timedOut, setTimedOut] = useState(false);
 
+  const selectedProjectId = useMemo(() => {
+    if (manuallySelectedProjectId !== null) {
+      return manuallySelectedProjectId;
+    }
+    return currentProjectId ?? projects[0]?.id ?? null;
+  }, [manuallySelectedProjectId, currentProjectId, projects]);
+
   const selectedProject = useMemo(
-    () => projects.find((p) => p.id === currentProjectId),
-    [projects, currentProjectId],
+    () => projects.find((p) => p.id === selectedProjectId),
+    [projects, selectedProjectId],
   );
 
   const hasGitIntegration = selectedProject?.hasGithubIntegration ?? false;
   const { repositories, isLoadingRepos } = useRepositoryIntegration();
   const { githubIntegrations } = useIntegrationSelectors();
   const githubIntegration = githubIntegrations[0] ?? null;
+
+  const alternativeConnectedProject = useMemo(() => {
+    if (hasGitIntegration) return null;
+    if (!projectsWithGithub.length) return null;
+    return projectsWithGithub.find((p) => p.id !== selectedProjectId) ?? null;
+  }, [hasGitIntegration, projectsWithGithub, selectedProjectId]);
 
   const repoSummary = useMemo(() => {
     if (repositories.length === 0) return null;
@@ -127,7 +149,7 @@ export function GitIntegrationStep({
       stopPolling();
       setTimedOut(false);
       setConnectingGithub(false);
-      invalidateProject(projectId ?? currentProjectId);
+      invalidateProject(projectId ?? selectedProjectId);
     },
     onError: (message) => {
       stopPolling();
@@ -143,14 +165,14 @@ export function GitIntegrationStep({
   });
 
   const handleConnectGitHub = async () => {
-    if (!cloudRegion || !currentProjectId || !client) return;
+    if (!cloudRegion || !selectedProjectId || !client) return;
     stopPolling();
     setTimedOut(false);
     setConnectingGithub(true);
     try {
       await trpcClient.githubIntegration.startFlow.mutate({
         region: cloudRegion,
-        projectId: currentProjectId,
+        projectId: selectedProjectId,
       });
 
       // Dev-only fallback: DeepLinkService skips protocol registration in dev
@@ -158,7 +180,7 @@ export function GitIntegrationStep({
       if (IS_DEV) {
         pollTimerRef.current = setInterval(() => {
           void queryClient.invalidateQueries({
-            queryKey: ["integrations", currentProjectId],
+            queryKey: ["integrations", selectedProjectId],
           });
         }, POLL_INTERVAL_MS);
       }
@@ -172,6 +194,13 @@ export function GitIntegrationStep({
     } catch {
       setConnectingGithub(false);
     }
+  };
+
+  const handleContinue = () => {
+    if (selectedProjectId && selectedProjectId !== currentProjectId) {
+      selectProjectMutation.mutate(selectedProjectId);
+    }
+    onNext();
   };
 
   return (
@@ -219,6 +248,31 @@ export function GitIntegrationStep({
                   </Text>
                 </Flex>
               </motion.div>
+
+              {alternativeConnectedProject && selectedProject && (
+                <Callout.Root color="blue" variant="soft">
+                  <Callout.Text>
+                    GitHub is already connected on{" "}
+                    <Text weight="bold">
+                      {alternativeConnectedProject.name}
+                    </Text>{" "}
+                    ({alternativeConnectedProject.organization.name}). Switch to
+                    that project, or click Connect to install a new integration
+                    on <Text weight="bold">{selectedProject.name}</Text>.
+                  </Callout.Text>
+                  <Flex mt="2">
+                    <Button
+                      size="1"
+                      variant="soft"
+                      onClick={() =>
+                        setSelectedProjectId(alternativeConnectedProject.id)
+                      }
+                    >
+                      Switch to {alternativeConnectedProject.name}
+                    </Button>
+                  </Flex>
+                </Callout.Root>
+              )}
 
               {/* Local folder picker */}
               <motion.div
@@ -479,7 +533,11 @@ export function GitIntegrationStep({
             <ArrowLeft size={16} weight="bold" />
             Back
           </Button>
-          <Button size="3" onClick={onNext} disabled={!selectedDirectory}>
+          <Button
+            size="3"
+            onClick={handleContinue}
+            disabled={!selectedDirectory}
+          >
             Continue
             <ArrowRight size={16} weight="bold" />
           </Button>

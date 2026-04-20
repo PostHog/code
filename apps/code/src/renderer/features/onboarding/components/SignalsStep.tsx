@@ -1,6 +1,7 @@
 import { DataSourceSetup } from "@features/inbox/components/DataSourceSetup";
 import { SignalSourceToggles } from "@features/inbox/components/SignalSourceToggles";
 import { useSignalSourceManager } from "@features/inbox/hooks/useSignalSourceManager";
+import { useMeQuery } from "@hooks/useMeQuery";
 import { ArrowLeft, ArrowRight } from "@phosphor-icons/react";
 import { Button, Flex, Text } from "@radix-ui/themes";
 import detectiveHog from "@renderer/assets/images/hedgehogs/detective-hog.png";
@@ -25,9 +26,13 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
     handleSetup,
     handleSetupComplete,
     handleSetupCancel,
+    evaluationsUrl,
   } = useSignalSourceManager();
+  const { data: me } = useMeQuery();
+  const isStaff = me?.is_staff ?? false;
 
   const anyEnabled =
+    displayValues.session_replay ||
     displayValues.error_tracking ||
     displayValues.github ||
     displayValues.linear ||
@@ -116,6 +121,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
                     disabled={isLoading}
                     sourceStates={sourceStates}
                     onSetup={handleSetup}
+                    evaluationsUrl={isStaff ? evaluationsUrl : undefined}
                   />
                 )}
               </motion.div>

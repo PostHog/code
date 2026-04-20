@@ -1,10 +1,24 @@
+import { Badge } from "@components/ui/Badge";
 import {
+  ArrowSquareOutIcon,
+  BrainIcon,
   BugIcon,
+  ChatsIcon,
+  CircleNotchIcon,
   GithubLogoIcon,
   KanbanIcon,
   TicketIcon,
+  VideoIcon,
 } from "@phosphor-icons/react";
-import { Box, Button, Flex, Spinner, Switch, Text } from "@radix-ui/themes";
+import {
+  Box,
+  Button,
+  Flex,
+  Spinner,
+  Switch,
+  Text,
+  Tooltip,
+} from "@radix-ui/themes";
 import type { SignalSourceConfig } from "@renderer/api/posthogClient";
 import { memo, useCallback } from "react";
 
@@ -132,6 +146,86 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
   );
 });
 
+interface EvaluationsSectionProps {
+  evaluationsUrl: string;
+}
+
+export const EvaluationsSection = memo(function EvaluationsSection({
+  evaluationsUrl,
+}: EvaluationsSectionProps) {
+  return (
+    <Box
+      p="4"
+      style={{
+        backgroundColor: "var(--color-panel-solid)",
+        border: "1px solid var(--gray-4)",
+        borderRadius: "var(--radius-3)",
+        cursor: "pointer",
+      }}
+      onClick={() => window.open(evaluationsUrl, "_blank", "noopener")}
+    >
+      <Flex align="center" justify="between" gap="4">
+        <Flex align="center" gap="3">
+          <Box style={{ color: "var(--gray-11)", flexShrink: 0 }}>
+            <BrainIcon size={20} />
+          </Box>
+          <Flex direction="column" gap="1">
+            <Flex align="center" gap="2">
+              <Text
+                size="2"
+                weight="medium"
+                style={{ color: "var(--gray-12)" }}
+              >
+                PostHog LLM Analytics
+              </Text>
+              <Tooltip content="This is only visible to staff users of PostHog">
+                <Badge color="blue">Internal</Badge>
+              </Tooltip>
+            </Flex>
+            <Text size="1" style={{ color: "var(--gray-11)" }}>
+              Monitor how your AI features are performing
+            </Text>
+          </Flex>
+        </Flex>
+        <Button
+          size="1"
+          onClick={(e) => {
+            e.stopPropagation();
+            window.open(evaluationsUrl, "_blank", "noopener");
+          }}
+        >
+          Open
+          <ArrowSquareOutIcon size={12} />
+        </Button>
+      </Flex>
+    </Box>
+  );
+});
+
+function SourceRunningIndicator({
+  status,
+  message,
+}: {
+  status: SignalSourceConfig["status"];
+  message: string;
+}) {
+  if (status !== "running") {
+    return null;
+  }
+  return (
+    <Flex align="center" gap="2" mt="2">
+      <CircleNotchIcon
+        size={14}
+        className="animate-spin"
+        style={{ color: "var(--accent-11)" }}
+      />
+      <Text size="1" style={{ color: "var(--accent-11)" }}>
+        {message}
+      </Text>
+    </Flex>
+  );
+}
+
 interface SignalSourceTogglesProps {
   value: SignalSourceValues;
   onToggle: (source: keyof SignalSourceValues, enabled: boolean) => void;
@@ -147,6 +241,7 @@ interface SignalSourceTogglesProps {
     >
   >;
   onSetup?: (source: keyof SignalSourceValues) => void;
+  evaluationsUrl?: string;
 }
 
 export function SignalSourceToggles({
@@ -155,7 +250,12 @@ export function SignalSourceToggles({
   disabled,
   sourceStates,
   onSetup,
+  evaluationsUrl,
 }: SignalSourceTogglesProps) {
+  const toggleSessionReplay = useCallback(
+    (checked: boolean) => onToggle("session_replay", checked),
+    [onToggle],
+  );
   const toggleErrorTracking = useCallback(
     (checked: boolean) => onToggle("error_tracking", checked),
     [onToggle],
@@ -170,6 +270,10 @@ export function SignalSourceToggles({
   );
   const toggleZendesk = useCallback(
     (checked: boolean) => onToggle("zendesk", checked),
+    [onToggle],
+  );
+  const toggleConversations = useCallback(
+    (checked: boolean) => onToggle("conversations", checked),
     [onToggle],
   );
   const setupGithub = useCallback(() => onSetup?.("github"), [onSetup]);
@@ -187,6 +291,32 @@ export function SignalSourceToggles({
         disabled={disabled}
         syncStatus={sourceStates?.error_tracking?.syncStatus}
       />
+      <SignalSourceToggleCard
+        icon={<ChatsIcon size={20} />}
+        label="PostHog Conversations"
+        description="Turn support conversations into signals for the inbox"
+        checked={value.conversations}
+        onCheckedChange={toggleConversations}
+        disabled={disabled}
+      />
+      <SignalSourceToggleCard
+        icon={<VideoIcon size={20} />}
+        label="PostHog Session Replay"
+        labelSuffix={<Badge color="orange">Alpha</Badge>}
+        description="Analyze session recordings and event data for UX issues"
+        checked={value.session_replay}
+        onCheckedChange={toggleSessionReplay}
+        disabled={disabled}
+        statusSection={
+          value.session_replay ? (
+            <SourceRunningIndicator
+              status={sourceStates?.session_replay?.syncStatus ?? null}
+              message="Session analysis run in progress now..."
+            />
+          ) : undefined
+        }
+      />
+      {evaluationsUrl && <EvaluationsSection evaluationsUrl={evaluationsUrl} />}
       <SignalSourceToggleCard
         icon={<GithubLogoIcon size={20} />}
         label="GitHub Issues"
