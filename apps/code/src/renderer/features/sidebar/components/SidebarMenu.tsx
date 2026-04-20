@@ -6,6 +6,7 @@ import {
   INBOX_PIPELINE_STATUS_FILTER,
   INBOX_REFETCH_INTERVAL_MS,
 } from "@features/inbox/utils/inboxConstants";
+import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { getSessionService } from "@features/sessions/service/service";
 import {
   archiveTaskImperative,
@@ -28,6 +29,7 @@ import { useSidebarData } from "../hooks/useSidebarData";
 import { useTaskViewed } from "../hooks/useTaskViewed";
 import { CommandCenterItem } from "./items/CommandCenterItem";
 import { InboxItem, NewTaskItem } from "./items/HomeItem";
+import { SetupItem } from "./items/SetupItem";
 import { SkillsItem } from "./items/SkillsItem";
 import { SidebarItem } from "./SidebarItem";
 import { TaskListView } from "./TaskListView";
@@ -40,6 +42,7 @@ function SidebarMenuComponent() {
     navigateToInbox,
     navigateToCommandCenter,
     navigateToSkills,
+    navigateToSetup,
   } = useNavigationStore();
 
   const { data: allTasks = [] } = useTasks();
@@ -51,6 +54,10 @@ function SidebarMenuComponent() {
     useTaskContextMenu();
   const { archiveTask } = useArchiveTask();
   const { togglePin } = usePinnedTasks();
+
+  const hasCompletedSetup = useOnboardingStore(
+    (state) => state.hasCompletedSetup,
+  );
 
   const sidebarData = useSidebarData({
     activeView: view,
@@ -112,6 +119,10 @@ function SidebarMenuComponent() {
 
   const handleSkillsClick = () => {
     navigateToSkills();
+  };
+
+  const handleSetupClick = () => {
+    navigateToSetup();
   };
 
   const handleTaskClick = (taskId: string) => {
@@ -276,6 +287,15 @@ function SidebarMenuComponent() {
               variant="primary"
             />
           </Box>
+
+          {!hasCompletedSetup && (
+            <Box mb="1" px="1">
+              <SetupItem
+                isActive={sidebarData.isSetupActive}
+                onClick={handleSetupClick}
+              />
+            </Box>
+          )}
 
           <Box>
             <InboxItem
