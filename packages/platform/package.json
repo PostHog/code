@@ -1,0 +1,26 @@
+{
+  "name": "@posthog/platform",
+  "version": "1.0.0",
+  "description": "Host-agnostic platform port interfaces. Zero runtime deps; implemented by per-host adapters (Electron, Node server, React Native, web).",
+  "type": "module",
+  "exports": {
+    "./url-launcher": {
+      "types": "./dist/url-launcher.d.ts",
+      "import": "./dist/url-launcher.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "node ../../scripts/rimraf.mjs dist .turbo"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5.5.0"
+  },
+  "files": [
+    "dist/**/*",
+    "src/**/*"
+  ]
+}

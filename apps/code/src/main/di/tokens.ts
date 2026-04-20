@@ -5,6 +5,9 @@
  * Never import this file from renderer code.
  */
 export const MAIN_TOKENS = Object.freeze({
+  // Platform ports (host-agnostic interfaces from @posthog/platform)
+  UrlLauncher: Symbol.for("Platform.UrlLauncher"),
+
   // Stores
   SettingsStore: Symbol.for("Main.SettingsStore"),
 
