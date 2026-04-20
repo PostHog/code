@@ -1,8 +1,20 @@
 import { create } from "zustand";
 
+export interface IntegrationAccount {
+  name?: string;
+  type?: string;
+}
+
+export interface IntegrationConfig {
+  account?: IntegrationAccount;
+  [key: string]: unknown;
+}
+
 export interface Integration {
   id: number;
   kind: string;
+  config?: IntegrationConfig;
+  display_name?: string;
   [key: string]: unknown;
 }
 

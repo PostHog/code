@@ -226,7 +226,7 @@ describe("CodexAcpAgent", () => {
     const aStarted = new Promise<void>((resolve) => {
       releaseA = resolve;
     });
-    let allowAResolve: () => void;
+    let allowAResolve: (() => void) | undefined;
     const aHold = new Promise<void>((resolve) => {
       allowAResolve = resolve;
     });
@@ -258,7 +258,7 @@ describe("CodexAcpAgent", () => {
     // B must not have started while A is still in-flight.
     expect(callOrder).toEqual(["A:start"]);
 
-    allowAResolve!();
+    allowAResolve?.();
     await Promise.all([promptA, promptB]);
 
     expect(callOrder).toEqual(["A:start", "A:end", "B:start"]);
