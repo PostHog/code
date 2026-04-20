@@ -267,12 +267,26 @@ export class CodexAcpAgent extends BaseAcpAgent {
       meta?.permissionMode,
     );
 
+    // Carry taskRunId/taskId across load so prompt() still emits cloud
+    // notifications (TURN_COMPLETE, USAGE_UPDATE) after a reload. newSession
+    // and unstable_resumeSession both do this; loadSession historically did
+    // not, which silently broke task-completion tracking on re-attach.
     this.sessionState = createSessionState(params.sessionId, params.cwd, {
+      taskRunId: meta?.taskRunId,
+      taskId: meta?.taskId ?? meta?.persistence?.taskId,
       modeId: response.modes?.currentModeId ?? "auto",
       permissionMode: currentPermissionMode,
     });
     this.sessionId = params.sessionId;
     this.sessionState.configOptions = response.configOptions ?? [];
+
+    if (meta?.taskRunId) {
+      await this.client.extNotification(POSTHOG_NOTIFICATIONS.SDK_SESSION, {
+        taskRunId: meta.taskRunId,
+        sessionId: params.sessionId,
+        adapter: "codex",
+      });
+    }
 
     return response;
   }
