@@ -1,4 +1,4 @@
-import { Box, Checkbox, Flex, Text } from "@radix-ui/themes";
+import { Box, Checkbox, Flex, Radio, Text } from "@radix-ui/themes";
 import { compactHomePath } from "@utils/path";
 import { isCancelOption, isOtherOption, isSubmitOption } from "./constants";
 import { InlineEditableText } from "./InlineEditableText";
@@ -25,6 +25,7 @@ interface OptionRowProps {
   isHovered: boolean;
   isChecked: boolean;
   showCheckbox: boolean;
+  multiSelect: boolean;
   customInput: string;
   customInputPlaceholder: string;
   isEditing: boolean;
@@ -46,6 +47,7 @@ export function OptionRow({
   isHovered,
   isChecked,
   showCheckbox,
+  multiSelect,
   customInput,
   customInputPlaceholder,
   isEditing,
@@ -195,14 +197,23 @@ export function OptionRow({
         >
           {index + 1}.
         </Text>
-        {showCheckbox && (
-          <Checkbox
-            size="1"
-            color="green"
-            checked={isChecked}
-            style={{ pointerEvents: "none", flexShrink: 0 }}
-          />
-        )}
+        {showCheckbox &&
+          (multiSelect ? (
+            <Checkbox
+              size="1"
+              color="green"
+              checked={isChecked}
+              style={{ pointerEvents: "none", flexShrink: 0 }}
+            />
+          ) : (
+            <Radio
+              size="1"
+              color="green"
+              value={option.id}
+              checked={isChecked}
+              style={{ pointerEvents: "none", flexShrink: 0 }}
+            />
+          ))}
         <Box style={{ flex: 1, minWidth: 0, lineHeight: "16px" }}>
           {renderLabel()}
         </Box>
