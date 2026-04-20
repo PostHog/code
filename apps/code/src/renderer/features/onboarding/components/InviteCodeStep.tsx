@@ -52,7 +52,7 @@ export function InviteCodeStep({ onNext, onBack }: InviteCodeStepProps) {
           <Flex
             direction="column"
             align="start"
-            gap="6"
+            gap="5"
             style={{ width: "100%" }}
           >
             <Flex direction="column" gap="5" style={{ width: "100%" }}>

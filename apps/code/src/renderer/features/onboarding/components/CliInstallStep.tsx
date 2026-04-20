@@ -73,7 +73,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
         >
           <Flex
             direction="column"
-            gap="6"
+            gap="5"
             style={{ width: "100%", maxWidth: 560, margin: "0 auto" }}
           >
             <Flex direction="column" gap="5" style={{ width: "100%" }}>

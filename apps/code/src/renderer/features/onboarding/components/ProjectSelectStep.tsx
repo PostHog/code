@@ -101,12 +101,12 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
           direction="column"
           justify="center"
           align="center"
-          style={{ flex: 1, minHeight: 0, width: "100%" }}
+          style={{ flex: 1, minHeight: 0, width: "100%", overflowY: "auto" }}
         >
           <Flex
             direction="column"
             align="start"
-            gap="6"
+            gap="5"
             style={{ width: "100%" }}
           >
             {/* Header + form */}

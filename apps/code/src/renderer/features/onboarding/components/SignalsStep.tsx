@@ -71,7 +71,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
         >
           <Flex
             direction="column"
-            gap="6"
+            gap="5"
             style={{
               width: "100%",
               maxWidth: 560,
