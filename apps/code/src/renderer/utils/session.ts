@@ -57,27 +57,6 @@ export function createUserMessageEvent(text: string, ts: number): AcpMessage {
 }
 
 /**
- * Create a user prompt event from structured content blocks for display.
- */
-export function createUserPromptEvent(
-  prompt: ContentBlock[],
-  ts: number,
-): AcpMessage {
-  return {
-    type: "acp_message",
-    ts,
-    message: {
-      jsonrpc: "2.0",
-      id: ts,
-      method: "session/prompt",
-      params: {
-        prompt,
-      },
-    } as JsonRpcRequest,
-  };
-}
-
-/**
  * Create a user shell execute event.
  * When id is provided, it's used to track async execution (start/complete).
  * When result is undefined, it represents a command that's still running.
