@@ -5,7 +5,7 @@ import {
   useCurrentUser,
 } from "@features/auth/hooks/authQueries";
 import { logger } from "@utils/logger";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 const log = logger.scope("useProjects");
 
@@ -45,7 +45,14 @@ export function useProjects() {
   );
   const currentProjectId = useAuthStateValue((state) => state.projectId);
   const client = useOptionalAuthenticatedClient();
-  const { data: currentUser, isLoading, error } = useCurrentUser({ client });
+  const {
+    data: currentUser,
+    isLoading: isQueryLoading,
+    error,
+  } = useCurrentUser({ client });
+  const hasLoadedOnce = useRef(false);
+  if (currentUser) hasLoadedOnce.current = true;
+  const isLoading = isQueryLoading && !hasLoadedOnce.current;
 
   const projects = useMemo(() => {
     if (!currentUser?.organization) return [];

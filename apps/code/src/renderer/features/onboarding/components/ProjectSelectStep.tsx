@@ -3,6 +3,7 @@ import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient"
 import { useSelectProjectMutation } from "@features/auth/hooks/authMutations";
 import {
   authKeys,
+  useAuthStateFetched,
   useAuthStateValue,
   useCurrentUser,
 } from "@features/auth/hooks/authQueries";
@@ -34,6 +35,7 @@ interface ProjectSelectStepProps {
 }
 
 export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
+  const authFetched = useAuthStateFetched();
   const isAuthenticated =
     useAuthStateValue((state) => state.status) === "authenticated";
   const selectProjectMutation = useSelectProjectMutation();
@@ -134,7 +136,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                         </Text>
                       </Flex>
                     </motion.div>
-                  ) : (
+                  ) : authFetched ? (
                     <motion.div
                       key="oauth"
                       initial={{ opacity: 1 }}
@@ -147,7 +149,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                         subtitle="Connect your account to get started."
                       />
                     </motion.div>
-                  )}
+                  ) : null}
                 </AnimatePresence>
               </Flex>
 
