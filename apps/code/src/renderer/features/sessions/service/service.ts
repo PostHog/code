@@ -585,11 +585,11 @@ export class SessionService {
     this.unsubscribeFromChannel(taskRunId);
     sessionStoreSetters.updateSession(taskRunId, {
       status: "error",
-      errorMessage:
-        "Session disconnected due to inactivity. Click Retry to reconnect.",
+      errorMessage: "Session disconnected due to inactivity. Reconnecting…",
       isPromptPending: false,
       isCompacting: false,
       promptStartedAt: null,
+      idleKilled: true,
     });
   }
 
