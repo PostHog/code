@@ -38,7 +38,10 @@ const environmentConfig: Record<
 
 function EnvironmentBadge({ mode }: { mode: WorkspaceMode | null }) {
   if (!mode) return null;
-  const config = environmentConfig[mode];
+  const config = environmentConfig[mode] as
+    | (typeof environmentConfig)[WorkspaceMode]
+    | undefined;
+  if (!config) return null;
   const Icon = config.icon;
   return (
     <span className="inline-flex items-center gap-0.5 rounded bg-gray-3 px-1 py-0.5 text-[9px] text-gray-10">

@@ -191,7 +191,7 @@ export function GlobalEventHandlers({
     [handleToggleFocus],
   );
 
-  // Task switching with mod+0-9
+  // Task switching with mod+1-9
   useHotkeys(
     SHORTCUTS.SWITCH_TASK,
     (event, handler) => {
