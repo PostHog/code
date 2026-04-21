@@ -4,6 +4,7 @@ import {
   ArrowSquareOut,
   ArrowsClockwise,
   CheckCircle,
+  CircleNotch,
   GitBranch,
   GithubLogo,
   Terminal,
@@ -30,11 +31,11 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
   const [isCheckingGit, setIsCheckingGit] = useState(false);
   const [isCheckingGh, setIsCheckingGh] = useState(false);
 
-  const { data: gitStatus } = useQuery(
-    trpc.git.getGitStatus.queryOptions(undefined, { staleTime: 0 }),
+  const { data: gitStatus, isLoading: isLoadingGit } = useQuery(
+    trpc.git.getGitStatus.queryOptions(undefined, { staleTime: 30_000 }),
   );
-  const { data: ghStatus } = useQuery(
-    trpc.git.getGhStatus.queryOptions(undefined, { staleTime: 0 }),
+  const { data: ghStatus, isLoading: isLoadingGh } = useQuery(
+    trpc.git.getGhStatus.queryOptions(undefined, { staleTime: 30_000 }),
   );
 
   const gitInstalled = gitStatus?.installed ?? false;
@@ -128,7 +129,16 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                           Git
                         </Text>
                       </Flex>
-                      {gitInstalled && (
+                      {isLoadingGit && (
+                        <CircleNotch
+                          size={14}
+                          style={{
+                            color: "var(--gray-9)",
+                            animation: "spin 1s linear infinite",
+                          }}
+                        />
+                      )}
+                      {!isLoadingGit && gitInstalled && (
                         <Flex align="center" gap="1">
                           <CheckCircle
                             size={14}
@@ -144,7 +154,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                         </Flex>
                       )}
                     </Flex>
-                    {!gitInstalled && (
+                    {!isLoadingGit && !gitInstalled && (
                       <Flex direction="column" gap="3">
                         <Text size="2" style={{ color: "var(--gray-11)" }}>
                           Install with Homebrew or Xcode Command Line Tools:
@@ -231,7 +241,16 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                           GitHub CLI
                         </Text>
                       </Flex>
-                      {ghInstalled && ghAuthenticated && (
+                      {isLoadingGh && (
+                        <CircleNotch
+                          size={14}
+                          style={{
+                            color: "var(--gray-9)",
+                            animation: "spin 1s linear infinite",
+                          }}
+                        />
+                      )}
+                      {!isLoadingGh && ghInstalled && ghAuthenticated && (
                         <Flex align="center" gap="1">
                           <CheckCircle
                             size={14}
@@ -245,7 +264,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                           </Text>
                         </Flex>
                       )}
-                      {ghInstalled && !ghAuthenticated && (
+                      {!isLoadingGh && ghInstalled && !ghAuthenticated && (
                         <Flex align="center" gap="1">
                           <Warning
                             size={14}
@@ -258,7 +277,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                         </Flex>
                       )}
                     </Flex>
-                    {!ghInstalled && (
+                    {!isLoadingGh && !ghInstalled && (
                       <Flex direction="column" gap="3">
                         <Text size="2" style={{ color: "var(--gray-11)" }}>
                           Install with Homebrew:
@@ -299,7 +318,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                         </Flex>
                       </Flex>
                     )}
-                    {ghInstalled && !ghAuthenticated && (
+                    {!isLoadingGh && ghInstalled && !ghAuthenticated && (
                       <Flex direction="column" gap="3">
                         <Text size="2" style={{ color: "var(--gray-11)" }}>
                           Run this in your terminal to log in:
