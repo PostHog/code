@@ -1,11 +1,12 @@
 import { useUsage } from "@features/billing/hooks/useUsage";
+import { isUsageExceeded } from "@features/billing/utils";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useSeat } from "@hooks/useSeat";
 import { Box, Flex, Progress, Text } from "@radix-ui/themes";
 
 export function SidebarUsageBar() {
-  const { usage } = useUsage();
   const { isPro } = useSeat();
+  const { usage } = useUsage({ enabled: !isPro });
 
   if (isPro || !usage) return null;
 
@@ -13,8 +14,7 @@ export function SidebarUsageBar() {
     usage.sustained.used_percent,
     usage.burst.used_percent,
   );
-  const exceeded =
-    usage.is_rate_limited || usage.sustained.exceeded || usage.burst.exceeded;
+  const exceeded = isUsageExceeded(usage);
 
   const handleUpgrade = () => {
     useSettingsDialogStore.getState().open("plan-usage");

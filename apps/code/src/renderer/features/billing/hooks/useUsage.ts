@@ -4,12 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 
 const USAGE_REFETCH_INTERVAL_MS = 60_000;
 
-export function useUsage() {
+export function useUsage({ enabled = true }: { enabled?: boolean } = {}) {
   const trpc = useTRPC();
   const focused = useRendererWindowFocusStore((s) => s.focused);
   const { data: usage, isLoading } = useQuery({
     ...trpc.llmGateway.usage.queryOptions(),
-    refetchInterval: focused ? USAGE_REFETCH_INTERVAL_MS : false,
+    enabled,
+    refetchInterval: focused && enabled ? USAGE_REFETCH_INTERVAL_MS : false,
     refetchIntervalInBackground: false,
   });
   return { usage: usage ?? null, isLoading };
