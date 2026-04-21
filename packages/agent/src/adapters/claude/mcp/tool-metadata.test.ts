@@ -4,6 +4,7 @@ import {
   getMcpToolApprovalState,
   getMcpToolMetadata,
   isMcpToolReadOnly,
+  sanitizeMcpServerName,
   setMcpToolApprovalStates,
 } from "./tool-metadata";
 
@@ -69,6 +70,24 @@ describe("tool-metadata approval states", () => {
         mcp__server__tool: "approved",
       });
       expect(isMcpToolReadOnly("mcp__server__tool")).toBe(false);
+    });
+  });
+
+  describe("sanitizeMcpServerName", () => {
+    it("passes through simple alphanumeric names", () => {
+      expect(sanitizeMcpServerName("HubSpot")).toBe("HubSpot");
+    });
+
+    it("replaces spaces with underscores", () => {
+      expect(sanitizeMcpServerName("My Server")).toBe("My_Server");
+    });
+
+    it("replaces special characters with underscores", () => {
+      expect(sanitizeMcpServerName("server@v2.0!")).toBe("server_v2_0_");
+    });
+
+    it("preserves hyphens and underscores", () => {
+      expect(sanitizeMcpServerName("my-server_v2")).toBe("my-server_v2");
     });
   });
 });

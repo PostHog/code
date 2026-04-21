@@ -1,4 +1,5 @@
 import { delimiter } from "node:path";
+import { sanitizeMcpServerName } from "@posthog/agent/mcp/tool-metadata";
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
@@ -176,8 +177,9 @@ export class AgentAuthAdapter {
 
     const results = await Promise.allSettled(
       installations.map(async (installation) => {
-        const serverName =
-          installation.name || installation.display_name || installation.url;
+        const serverName = sanitizeMcpServerName(
+          installation.name || installation.display_name || installation.url,
+        );
         const toolsUrl = `${baseUrl}/api/environments/${credentials.projectId}/mcp_server_installations/${installation.id}/tools/`;
 
         const response = await this.authService.authenticatedFetch(

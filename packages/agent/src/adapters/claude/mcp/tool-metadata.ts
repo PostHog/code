@@ -15,6 +15,10 @@ const mcpToolMetadataCache: Map<string, McpToolMetadata> = new Map();
 const PENDING_RETRY_INTERVAL_MS = 1_000;
 const PENDING_MAX_RETRIES = 10;
 
+export function sanitizeMcpServerName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
 function buildToolKey(serverName: string, toolName: string): string {
   return `mcp__${serverName}__${toolName}`;
 }
