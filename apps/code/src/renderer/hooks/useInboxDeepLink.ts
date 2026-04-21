@@ -1,5 +1,8 @@
 import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
-import { useAuthStateValue } from "@features/auth/hooks/authQueries";
+import {
+  AUTH_SCOPED_QUERY_META,
+  useAuthStateValue,
+} from "@features/auth/hooks/authQueries";
 import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReportSelectionStore";
 import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsFilterStore";
 import { trpcClient, useTRPC } from "@renderer/trpc";
@@ -65,6 +68,7 @@ export function useInboxDeepLink() {
         const report = await queryClient.fetchQuery<SignalReport | null>({
           queryKey: reportDetailKey(reportId),
           queryFn: () => client.getSignalReport(reportId),
+          meta: AUTH_SCOPED_QUERY_META,
         });
 
         if (!report) {
