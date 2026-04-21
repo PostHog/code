@@ -173,7 +173,7 @@ export function InboxSignalsTab() {
     return reports.find((r) => r.id === singleSelectedId) ?? null;
   }, [reports, singleSelectedId]);
   const needsByIdFallback = !!singleSelectedId && !selectedReportFromList;
-  const { data: byIdReport } = useInboxReportById(
+  const { data: byIdReport, isError: byIdError } = useInboxReportById(
     needsByIdFallback ? singleSelectedId : null,
     {
       refetchInterval: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : false,
@@ -183,18 +183,20 @@ export function InboxSignalsTab() {
   );
 
   // Prune selection when visible reports change (e.g. filter/search).
-  // Preserve any single-selection id that's actively being resolved via the by-id fallback.
+  // Preserve off-list selections that are still loading or resolved via
+  // the by-id fallback; let prune clear them on confirmed null or on error.
   useEffect(() => {
     const visibleIds = reports.map((report) => report.id);
     if (
       singleSelectedId &&
       !reports.some((r) => r.id === singleSelectedId) &&
+      !byIdError &&
       byIdReport !== null
     ) {
       visibleIds.push(singleSelectedId);
     }
     pruneSelection(visibleIds);
-  }, [reports, pruneSelection, singleSelectedId, byIdReport]);
+  }, [reports, pruneSelection, singleSelectedId, byIdReport, byIdError]);
 
   // Scroll once per selection change; refetches must not snap the list back.
   const autoScrolledIdRef = useRef<string | null>(null);
