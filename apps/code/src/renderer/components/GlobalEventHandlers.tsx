@@ -73,17 +73,13 @@ export function GlobalEventHandlers({
 
   const handleSwitchTask = useCallback(
     (index: number) => {
-      if (index === 0) {
-        navigateToTaskInput();
-      } else {
-        const taskData = visualTaskOrder[index - 1];
-        const task = taskData ? taskById.get(taskData.id) : undefined;
-        if (task) {
-          navigateToTask(task);
-        }
+      const taskData = visualTaskOrder[index - 1];
+      const task = taskData ? taskById.get(taskData.id) : undefined;
+      if (task) {
+        navigateToTask(task);
       }
     },
-    [visualTaskOrder, taskById, navigateToTask, navigateToTaskInput],
+    [visualTaskOrder, taskById, navigateToTask],
   );
 
   const handlePrevTask = useCallback(() => {
