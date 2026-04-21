@@ -9,6 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import { useCallback } from "react";
 import { toast } from "sonner";
+import { dispatchBulkApproval } from "./mcpToolBulk";
 import { mcpKeys } from "./useMcpServers";
 
 interface UseMcpInstallationToolsOptions {
@@ -67,19 +68,15 @@ export function useMcpInstallationTools(
   );
 
   const setBulkApprovalMutation = useAuthenticatedMutation(
-    async (client, approval_state: McpApprovalState) => {
-      if (!installationId) throw new Error("No installation selected");
-      const current = tools ?? [];
-      await Promise.all(
-        current
-          .filter((t) => !t.removed_at)
-          .map((t) =>
-            client.updateMcpToolApproval(
-              installationId,
-              t.tool_name,
-              approval_state,
-            ),
-          ),
+    (client, approval_state: McpApprovalState) => {
+      if (!installationId) {
+        return Promise.reject(new Error("No installation selected"));
+      }
+      return dispatchBulkApproval(
+        client,
+        installationId,
+        tools ?? [],
+        approval_state,
       );
     },
     {

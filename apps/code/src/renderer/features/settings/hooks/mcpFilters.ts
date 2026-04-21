@@ -25,18 +25,6 @@ export function filterServersByQuery(
   );
 }
 
-export function filterInstallationsByCategory(
-  installations: McpServerInstallation[],
-  templatesById: Map<string, McpRecommendedServer>,
-  category: McpCategory | "all",
-): McpServerInstallation[] {
-  if (category === "all") return installations;
-  return installations.filter((i) => {
-    const template = i.template_id ? templatesById.get(i.template_id) : null;
-    return template?.category === category;
-  });
-}
-
 export function filterInstallationsByQuery(
   installations: McpServerInstallation[],
   templatesById: Map<string, McpRecommendedServer>,
