@@ -1201,6 +1201,24 @@ export class PostHogAPIClient {
     return await response.json();
   }
 
+  async getSignalReport(reportId: string): Promise<SignalReport | null> {
+    const teamId = await this.getTeamId();
+    const path = `/api/projects/${teamId}/signals/reports/${reportId}/`;
+    const url = new URL(`${this.api.baseUrl}${path}`);
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path,
+    });
+    if (response.status === 404 || response.status === 403) {
+      return null;
+    }
+    if (!response.ok) {
+      throw new Error(`Failed to fetch signal report: ${response.statusText}`);
+    }
+    return (await response.json()) as SignalReport;
+  }
+
   async getSignalReports(
     params?: SignalReportsQueryParams,
   ): Promise<SignalReportsResponse> {

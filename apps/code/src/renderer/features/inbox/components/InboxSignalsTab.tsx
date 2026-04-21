@@ -7,6 +7,7 @@ import {
 import { InboxSourcesDialog } from "@features/inbox/components/InboxSourcesDialog";
 import {
   useInboxAvailableSuggestedReviewers,
+  useInboxReportById,
   useInboxReportsInfinite,
   useInboxSignalProcessingState,
 } from "@features/inbox/hooks/useInboxReports";
@@ -163,16 +164,47 @@ export function InboxSignalsTab() {
   const reportsRef = useRef(reports);
   reportsRef.current = reports;
 
-  // Prune selection when visible reports change (e.g. filter/search)
+  // When exactly one report is selected and it isn't on the currently loaded
+  // list page (e.g. opened via a deep link), fall back to a direct by-id fetch to render it.
+  const singleSelectedId =
+    selectedReportIds.length === 1 ? selectedReportIds[0] : null;
+  const selectedReportFromList = useMemo(() => {
+    if (!singleSelectedId) return null;
+    return reports.find((r) => r.id === singleSelectedId) ?? null;
+  }, [reports, singleSelectedId]);
+  const needsByIdFallback = !!singleSelectedId && !selectedReportFromList;
+  const { data: byIdReport } = useInboxReportById(
+    needsByIdFallback ? singleSelectedId : null,
+  );
+
+  // Prune selection when visible reports change (e.g. filter/search).
+  // Preserve any single-selection id that's actively being resolved via the by-id fallback.
   useEffect(() => {
-    pruneSelection(reports.map((report) => report.id));
-  }, [reports, pruneSelection]);
+    const visibleIds = reports.map((report) => report.id);
+    if (
+      singleSelectedId &&
+      !reports.some((r) => r.id === singleSelectedId) &&
+      byIdReport !== null
+    ) {
+      visibleIds.push(singleSelectedId);
+    }
+    pruneSelection(visibleIds);
+  }, [reports, pruneSelection, singleSelectedId, byIdReport]);
+
+  // Scroll the singly-selected row into view if it's rendered in the list.
+  useEffect(() => {
+    if (!singleSelectedId) return;
+    if (!reports.some((r) => r.id === singleSelectedId)) return;
+    document
+      .querySelector(`[data-report-id="${CSS.escape(singleSelectedId)}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [singleSelectedId, reports]);
 
   // The report to show in the detail pane (only when exactly 1 is selected)
   const selectedReport = useMemo(() => {
     if (selectedReportIds.length !== 1) return null;
-    return reports.find((r) => r.id === selectedReportIds[0]) ?? null;
-  }, [reports, selectedReportIds]);
+    return selectedReportFromList ?? byIdReport ?? null;
+  }, [selectedReportIds, selectedReportFromList, byIdReport]);
 
   // Reports for the multi-select stack (when 2+ selected)
   const selectedReports = useMemo(() => {
