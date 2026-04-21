@@ -50,6 +50,7 @@ interface SidebarItem {
   label: string;
   icon: ReactNode;
   hasChevron?: boolean;
+  fullwidth?: boolean;
 }
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
@@ -73,7 +74,12 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: <Palette size={16} />,
   },
   { id: "claude-code", label: "Claude Code", icon: <Code size={16} /> },
-  { id: "mcp-servers", label: "MCP Servers", icon: <Plugs size={16} /> },
+  {
+    id: "mcp-servers",
+    label: "MCP servers",
+    icon: <Plugs size={16} />,
+    fullwidth: true,
+  },
   { id: "shortcuts", label: "Shortcuts", icon: <Keyboard size={16} /> },
 
   {
@@ -161,6 +167,8 @@ export function SettingsDialog() {
   }
 
   const ActiveComponent = CATEGORY_COMPONENTS[activeCategory];
+  const activeItem = sidebarItems.find((i) => i.id === activeCategory);
+  const isFullwidth = !!activeItem?.fullwidth;
 
   const initials = user
     ? user.first_name && user.last_name
@@ -285,25 +293,40 @@ export function SettingsDialog() {
               fill="url(#settings-dot-pattern)"
             />
           </svg>
-          <ScrollArea
-            style={{
-              height: "100%",
-              width: "100%",
-            }}
-          >
-            <Box
-              p="6"
-              mx="auto"
-              style={{ position: "relative", zIndex: 1, maxWidth: "800px" }}
+          {isFullwidth ? (
+            <div
+              style={{
+                position: "relative",
+                zIndex: 1,
+                height: "100%",
+                width: "100%",
+                display: "flex",
+                minHeight: 0,
+              }}
             >
-              <Flex direction="column" gap="4">
-                <Text size="4" weight="medium">
-                  {CATEGORY_TITLES[activeCategory]}
-                </Text>
-                <ActiveComponent />
-              </Flex>
-            </Box>
-          </ScrollArea>
+              <ActiveComponent />
+            </div>
+          ) : (
+            <ScrollArea
+              style={{
+                height: "100%",
+                width: "100%",
+              }}
+            >
+              <Box
+                p="6"
+                mx="auto"
+                style={{ position: "relative", zIndex: 1, maxWidth: "800px" }}
+              >
+                <Flex direction="column" gap="4">
+                  <Text size="4" weight="medium">
+                    {CATEGORY_TITLES[activeCategory]}
+                  </Text>
+                  <ActiveComponent />
+                </Flex>
+              </Box>
+            </ScrollArea>
+          )}
         </div>
       </div>
     </div>

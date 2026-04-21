@@ -200,9 +200,6 @@ export function ServerDetailView({
           </Flex>
           {installation && status === "connected" && (
             <Flex align="center" gap="2">
-              <Text size="1" color="gray">
-                {isEnabled ? "Enabled" : "Disabled"}
-              </Text>
               <Switch
                 size="1"
                 checked={isEnabled}

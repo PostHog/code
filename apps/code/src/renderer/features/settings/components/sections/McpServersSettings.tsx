@@ -1,5 +1,13 @@
 import { useMcpServers } from "@features/settings/hooks/useMcpServers";
-import { AlertDialog, Button, Flex, Spinner, Text } from "@radix-ui/themes";
+import {
+  AlertDialog,
+  Box,
+  Button,
+  Flex,
+  ScrollArea,
+  Spinner,
+  Text,
+} from "@radix-ui/themes";
 import type {
   McpRecommendedServer,
   McpServerInstallation,
@@ -8,6 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AddCustomServerForm } from "./mcp/AddCustomServerForm";
 import { MarketplaceView } from "./mcp/MarketplaceView";
+import { McpInstalledRail } from "./mcp/McpInstalledRail";
 import { ServerDetailView } from "./mcp/ServerDetailView";
 
 type SceneView =
@@ -103,41 +112,59 @@ export function McpServersSettings() {
     }
   }, [view, installationList]);
 
-  if (view.kind === "add-custom") {
-    return (
-      <AddCustomServerForm
-        pending={installCustomPending}
-        onBack={() => setView({ kind: "marketplace" })}
-        onSubmit={(values) => {
-          installCustom(values, {
-            onSuccess: () => setView({ kind: "marketplace" }),
-          });
-        }}
-      />
+  // When viewing a template and it gets installed, switch to the installation
+  // detail so the freshly-fetched tools and status render.
+  useEffect(() => {
+    if (view.kind !== "detail-template") return;
+    const installation = installationList.find(
+      (i) => i.template_id === view.templateId,
     );
-  }
+    if (installation) {
+      setView({ kind: "detail-installation", installationId: installation.id });
+    }
+  }, [view, installationList]);
 
-  if (view.kind === "detail-installation" || view.kind === "detail-template") {
-    const install =
-      view.kind === "detail-installation" ? selectedInstallation : null;
-    const template = selectedTemplate;
+  const selectedInstallationId =
+    view.kind === "detail-installation" ? view.installationId : null;
 
-    if (!install && !template) {
+  const mainContent = (() => {
+    if (view.kind === "add-custom") {
       return (
-        <Flex align="center" justify="center" py="6">
-          {installationsLoading || serversLoading ? (
-            <Spinner size="2" />
-          ) : (
-            <Text size="2" color="gray">
-              Server not found.
-            </Text>
-          )}
-        </Flex>
+        <AddCustomServerForm
+          pending={installCustomPending}
+          onBack={() => setView({ kind: "marketplace" })}
+          onSubmit={(values) => {
+            installCustom(values, {
+              onSuccess: () => setView({ kind: "marketplace" }),
+            });
+          }}
+        />
       );
     }
 
-    return (
-      <>
+    if (
+      view.kind === "detail-installation" ||
+      view.kind === "detail-template"
+    ) {
+      const install =
+        view.kind === "detail-installation" ? selectedInstallation : null;
+      const template = selectedTemplate;
+
+      if (!install && !template) {
+        return (
+          <Flex align="center" justify="center" py="6">
+            {installationsLoading || serversLoading ? (
+              <Spinner size="2" />
+            ) : (
+              <Text size="2" color="gray">
+                Server not found.
+              </Text>
+            )}
+          </Flex>
+        );
+      }
+
+      return (
         <ServerDetailView
           installation={install}
           template={template}
@@ -158,18 +185,10 @@ export function McpServersSettings() {
             if (install) setUninstallTarget(install);
           }}
         />
-        <UninstallConfirmDialog
-          target={uninstallTarget}
-          isPending={uninstallMutation.isPending}
-          onCancel={() => setUninstallTarget(null)}
-          onConfirm={handleUninstallConfirm}
-        />
-      </>
-    );
-  }
+      );
+    }
 
-  return (
-    <>
+    return (
       <MarketplaceView
         servers={serverList}
         serversLoading={serversLoading}
@@ -188,13 +207,38 @@ export function McpServersSettings() {
         onConnect={handleConnect}
         onAddCustom={() => setView({ kind: "add-custom" })}
       />
+    );
+  })();
+
+  return (
+    <Flex style={{ flex: 1, minHeight: 0, width: "100%", overflow: "hidden" }}>
+      <McpInstalledRail
+        installations={installationList}
+        templates={serverList}
+        selectedInstallationId={selectedInstallationId}
+        onAddCustom={() => setView({ kind: "add-custom" })}
+        onSelectInstallation={(installationId) =>
+          setView({ kind: "detail-installation", installationId })
+        }
+      />
+      <Box style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
+        <ScrollArea style={{ height: "100%", width: "100%" }}>
+          <Box
+            p="6"
+            mx="auto"
+            style={{ position: "relative", zIndex: 1, maxWidth: "960px" }}
+          >
+            {mainContent}
+          </Box>
+        </ScrollArea>
+      </Box>
       <UninstallConfirmDialog
         target={uninstallTarget}
         isPending={uninstallMutation.isPending}
         onCancel={() => setUninstallTarget(null)}
         onConfirm={handleUninstallConfirm}
       />
-    </>
+    </Flex>
   );
 }
 

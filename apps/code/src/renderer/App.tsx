@@ -22,6 +22,7 @@ import { toast } from "@utils/toast";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { Toaster } from "sonner";
+import { InviteCodeScreen } from "./features/auth/components/InviteCodeScreen";
 
 const log = logger.scope("app");
 
@@ -188,13 +189,13 @@ function App() {
     }
 
     // Access gate: show invite code screen if flag is not enabled
-    // if (!hasCodeAccess) {
-    //   return (
-    //     <motion.div key="invite-code">
-    //       <InviteCodeScreen />
-    //     </motion.div>
-    //   );
-    // }
+    if (!hasCodeAccess) {
+      return (
+        <motion.div key="invite-code">
+          <InviteCodeScreen />
+        </motion.div>
+      );
+    }
 
     if (!hasCompletedOnboarding) {
       return (

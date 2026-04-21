@@ -1,6 +1,4 @@
 import {
-  filterInstallationsByCategory,
-  filterInstallationsByQuery,
   filterServersByCategory,
   filterServersByQuery,
 } from "@features/settings/hooks/mcpFilters";
@@ -8,6 +6,7 @@ import { MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
 import {
   Button,
   Flex,
+  Heading,
   IconButton,
   Spinner,
   Text,
@@ -20,7 +19,6 @@ import {
   type McpServerInstallation,
 } from "@renderer/api/posthogClient";
 import { useMemo } from "react";
-import { InstalledStrip } from "./InstalledStrip";
 import { ServerCard } from "./ServerCard";
 
 interface MarketplaceViewProps {
@@ -62,40 +60,26 @@ export function MarketplaceView({
     return map;
   }, [installations]);
 
-  const templatesById = useMemo(() => {
-    const map = new Map<string, McpRecommendedServer>();
-    for (const server of servers) {
-      map.set(server.id, server);
-    }
-    return map;
-  }, [servers]);
-
   const visibleServers = useMemo(() => {
     const byCategory = filterServersByCategory(servers, category);
     return filterServersByQuery(byCategory, query);
   }, [servers, category, query]);
 
-  const visibleInstallations = useMemo(() => {
-    const byCategory = filterInstallationsByCategory(
-      installations,
-      templatesById,
-      category,
-    );
-    return filterInstallationsByQuery(byCategory, templatesById, query);
-  }, [installations, templatesById, category, query]);
-
   const hasFilters = query !== "" || category !== "all";
 
   return (
     <Flex direction="column" gap="4" style={{ minWidth: 0 }}>
-      <Flex align="center" justify="between" gap="3">
-        <Flex direction="column" gap="1">
+      <Flex align="start" justify="between" gap="3">
+        <Flex direction="column" gap="1" style={{ minWidth: 0 }}>
+          <Heading size="6" weight="bold">
+            Marketplace
+          </Heading>
           <Text size="2" color="gray">
             Browse and connect MCP servers that extend your agent with tools,
             data and integrations.
           </Text>
         </Flex>
-        <Button variant="soft" size="2" onClick={onAddCustom}>
+        <Button variant="solid" size="2" onClick={onAddCustom}>
           <Plus size={14} />
           Add custom
         </Button>
@@ -145,12 +129,6 @@ export function MarketplaceView({
         ))}
       </Flex>
 
-      <InstalledStrip
-        installations={visibleInstallations}
-        templates={servers}
-        onSelect={onOpenInstallation}
-      />
-
       <Flex align="center" justify="between">
         <Text size="1" color="gray">
           {visibleServers.length}{" "}
@@ -192,12 +170,7 @@ export function MarketplaceView({
           </Text>
         </Flex>
       ) : (
-        <div
-          className="grid gap-3"
-          style={{
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-          }}
-        >
+        <Flex direction="column" gap="3">
           {visibleServers.map((server) => {
             const installationId = installationByTemplateId.get(server.id);
             return (
@@ -215,7 +188,7 @@ export function MarketplaceView({
               />
             );
           })}
-        </div>
+        </Flex>
       )}
     </Flex>
   );
