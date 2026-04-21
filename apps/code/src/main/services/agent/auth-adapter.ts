@@ -1,5 +1,5 @@
 import { delimiter } from "node:path";
-import { sanitizeMcpServerName } from "@posthog/agent/mcp/tool-metadata";
+import { sanitizeMcpServerName } from "@posthog/agent/adapters/claude/mcp/tool-metadata";
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";

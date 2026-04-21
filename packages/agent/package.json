@@ -52,7 +52,7 @@
       "types": "./dist/adapters/reasoning-effort.d.ts",
       "import": "./dist/adapters/reasoning-effort.js"
     },
-    "./mcp/tool-metadata": {
+    "./adapters/claude/mcp/tool-metadata": {
       "types": "./dist/adapters/claude/mcp/tool-metadata.d.ts",
       "import": "./dist/adapters/claude/mcp/tool-metadata.js"
     },
