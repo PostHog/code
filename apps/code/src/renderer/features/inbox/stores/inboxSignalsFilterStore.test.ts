@@ -103,4 +103,36 @@ describe("inboxSignalsFilterStore", () => {
       "reviewer-2",
     ]);
   });
+
+  it("resetFilters restores defaults across all filter fields", () => {
+    const store = useInboxSignalsFilterStore.getState();
+    store.setSearchQuery("hello");
+    store.setStatusFilter(["ready"]);
+    store.toggleSourceProduct("github");
+    store.setSuggestedReviewerFilter(["reviewer-1"]);
+
+    useInboxSignalsFilterStore.getState().resetFilters();
+
+    const state = useInboxSignalsFilterStore.getState();
+    expect(state.searchQuery).toBe("");
+    expect(state.statusFilter).toEqual([
+      "ready",
+      "pending_input",
+      "in_progress",
+      "candidate",
+      "potential",
+    ]);
+    expect(state.sourceProductFilter).toEqual([]);
+    expect(state.suggestedReviewerFilter).toEqual([]);
+  });
+
+  it("resetFilters preserves sort preferences", () => {
+    useInboxSignalsFilterStore.getState().setSort("created_at", "asc");
+
+    useInboxSignalsFilterStore.getState().resetFilters();
+
+    const state = useInboxSignalsFilterStore.getState();
+    expect(state.sortField).toBe("created_at");
+    expect(state.sortDirection).toBe("asc");
+  });
 });
