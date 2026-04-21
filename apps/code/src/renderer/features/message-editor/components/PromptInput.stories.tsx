@@ -57,9 +57,11 @@ function PromptInputWithChips({
   ...props
 }: React.ComponentProps<typeof PromptInput> & { chips?: MentionChip[] }) {
   const ref = useRef<EditorHandle>(null);
+  const insertedRef = useRef(false);
 
   useEffect(() => {
-    if (!chips?.length) return;
+    if (!chips?.length || insertedRef.current) return;
+    insertedRef.current = true;
     const timer = setTimeout(() => {
       for (const chip of chips) {
         ref.current?.insertChip(chip);
