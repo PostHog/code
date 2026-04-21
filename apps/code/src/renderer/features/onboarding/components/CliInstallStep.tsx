@@ -69,13 +69,12 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
       >
         <Flex
           direction="column"
-          justify="center"
           style={{ flex: 1, minHeight: 0, overflowY: "auto" }}
         >
           <Flex
             direction="column"
             gap="5"
-            style={{ width: "100%", maxWidth: 560, margin: "0 auto" }}
+            style={{ width: "100%", maxWidth: 560, margin: "auto auto" }}
           >
             <Flex direction="column" gap="5" style={{ width: "100%" }}>
               <motion.div

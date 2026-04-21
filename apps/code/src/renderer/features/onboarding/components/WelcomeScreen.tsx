@@ -93,15 +93,14 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
         style={{
           width: "100%",
           height: "100%",
-          paddingTop: "clamp(8px, 2vh, 24px)",
-          paddingBottom: "clamp(16px, 3vh, 40px)",
+          paddingTop: 24,
+          paddingBottom: 40,
         }}
       >
         <Flex
           direction="column"
-          justify="center"
           align="center"
-          style={{ flex: 1, minHeight: 0, width: "100%" }}
+          style={{ flex: 1, minHeight: 0, width: "100%", overflowY: "auto" }}
         >
           <Flex
             direction="column"
@@ -109,7 +108,8 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
             style={{
               width: "100%",
               maxWidth: 560,
-              gap: "clamp(12px, 2.5vh, 24px)",
+              gap: 20,
+              margin: "auto 0",
             }}
           >
             <Flex direction="column" gap="1">
@@ -125,10 +125,7 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
               </Text>
             </Flex>
 
-            <Flex
-              direction="column"
-              style={{ width: "100%", gap: "clamp(4px, 1vh, 12px)" }}
-            >
+            <Flex direction="column" style={{ width: "100%", gap: 8 }}>
               {FEATURES.map((feature, index) => (
                 <FeatureListItem
                   key={feature.title}

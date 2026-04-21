@@ -14,9 +14,3 @@
 .feature-list-item .feature-list-item__description {
   display: block;
 }
-
-@media (max-height: 700px) {
-  .feature-list-item .feature-list-item__description {
-    display: none;
-  }
-}
