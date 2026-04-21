@@ -7,7 +7,6 @@ import { reportKeys } from "@features/inbox/hooks/useInboxReports";
 import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReportSelectionStore";
 import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsFilterStore";
 import { trpcClient, useTRPC } from "@renderer/trpc";
-import type { SignalReport } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
@@ -18,7 +17,8 @@ import { toast } from "sonner";
 const log = logger.scope("inbox-deep-link");
 
 /**
- * Hook that subscribes to inbox report deep link events (posthog-code://inbox/{reportId})
+ * Hook that subscribes to inbox report deep link events (`<scheme>://inbox/{reportId}`,
+ * e.g. `posthog-code://…` in production and `posthog-code-dev://…` in local dev)
  * and opens the report in the inbox view.
  *
  * Behavior on link arrival:
@@ -32,31 +32,30 @@ const log = logger.scope("inbox-deep-link");
  */
 export function useInboxDeepLink() {
   const trpcReact = useTRPC();
-  const navigateToInbox = useNavigationStore((state) => state.navigateToInbox);
-  const setSelectedReportIds = useInboxReportSelectionStore(
-    (state) => state.setSelectedReportIds,
-  );
-  const resetFilters = useInboxSignalsFilterStore(
-    (state) => state.resetFilters,
-  );
   const queryClient = useQueryClient();
-  const isAuthenticated = useAuthStateValue(
-    (state) => state.status === "authenticated",
-  );
   const client = useOptionalAuthenticatedClient();
-  const hasFetchedPending = useRef(false);
+  const isAuthenticated = useAuthStateValue(
+    (s) => s.status === "authenticated",
+  );
+  const pendingDrainedRef = useRef(false);
 
-  const handleOpenReport = useCallback(
+  const navigateToInbox = useNavigationStore((s) => s.navigateToInbox);
+  const setSelectedReportIds = useInboxReportSelectionStore(
+    (s) => s.setSelectedReportIds,
+  );
+  const resetFilters = useInboxSignalsFilterStore((s) => s.resetFilters);
+
+  const openReport = useCallback(
     async (reportId: string) => {
-      log.info(`Opening report from deep link: ${reportId}`);
-
       if (!client) {
         log.warn("Ignoring inbox deep link — not authenticated");
         return;
       }
 
+      log.info(`Opening report from deep link: ${reportId}`);
+
       try {
-        const report = await queryClient.fetchQuery<SignalReport | null>({
+        const report = await queryClient.fetchQuery({
           queryKey: reportKeys.detail(reportId),
           queryFn: () => client.getSignalReport(reportId),
           meta: AUTH_SCOPED_QUERY_META,
@@ -68,9 +67,6 @@ export function useInboxDeepLink() {
           return;
         }
 
-        // Only mutate inbox UI state once we know the report resolves — so a
-        // bad or wrong-team link doesn't clobber the user's saved filters or
-        // yank them away from whatever view they were on.
         resetFilters();
         navigateToInbox();
         setSelectedReportIds([report.id]);
@@ -80,38 +76,31 @@ export function useInboxDeepLink() {
         toast.error("Failed to open report");
       }
     },
-    [navigateToInbox, setSelectedReportIds, resetFilters, queryClient, client],
+    [client, navigateToInbox, queryClient, resetFilters, setSelectedReportIds],
   );
 
-  // Cold start: drain pending deep link that arrived before renderer was ready.
   useEffect(() => {
-    if (!isAuthenticated || hasFetchedPending.current) return;
+    if (!isAuthenticated) {
+      pendingDrainedRef.current = false;
+      return;
+    }
+    if (!client || pendingDrainedRef.current) return;
 
-    const fetchPending = async () => {
-      hasFetchedPending.current = true;
+    pendingDrainedRef.current = true;
+    void (async () => {
       try {
         const pending = await trpcClient.deepLink.getPendingReportLink.query();
-        if (pending) {
-          log.info(
-            `Found pending inbox deep link: reportId=${pending.reportId}`,
-          );
-          handleOpenReport(pending.reportId);
-        }
+        if (pending) await openReport(pending.reportId);
       } catch (error) {
         log.error("Failed to check for pending inbox deep link:", error);
       }
-    };
+    })();
+  }, [isAuthenticated, client, openReport]);
 
-    fetchPending();
-  }, [isAuthenticated, handleOpenReport]);
-
-  // Warm start: receive deep link events while the renderer is running.
   useSubscription(
     trpcReact.deepLink.onOpenReport.subscriptionOptions(undefined, {
       onData: (data) => {
-        log.info(`Received inbox deep link event: reportId=${data.reportId}`);
-        if (!data?.reportId) return;
-        handleOpenReport(data.reportId);
+        if (data?.reportId) void openReport(data.reportId);
       },
     }),
   );

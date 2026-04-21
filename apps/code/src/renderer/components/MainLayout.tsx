@@ -7,6 +7,7 @@ import { ArchivedTasksView } from "@features/archive/components/ArchivedTasksVie
 import { CommandMenu } from "@features/command/components/CommandMenu";
 import { CommandCenterView } from "@features/command-center/components/CommandCenterView";
 import { InboxView } from "@features/inbox/components/InboxView";
+import { useInboxDeepLink } from "@features/inbox/hooks/useInboxDeepLink";
 import { FolderSettingsView } from "@features/settings/components/FolderSettingsView";
 import { SettingsDialog } from "@features/settings/components/SettingsDialog";
 import { MainSidebar } from "@features/sidebar/components/MainSidebar";
@@ -21,7 +22,6 @@ import { useCommandMenuStore } from "@stores/commandMenuStore";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useShortcutsSheetStore } from "@stores/shortcutsSheetStore";
 import { useCallback, useEffect } from "react";
-import { useInboxDeepLink } from "../hooks/useInboxDeepLink";
 import { useTaskDeepLink } from "../hooks/useTaskDeepLink";
 import { GlobalEventHandlers } from "./GlobalEventHandlers";
 
