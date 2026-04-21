@@ -1988,6 +1988,15 @@ export class SessionService {
     });
     updatePersistedConfigOptionValue(session.taskRunId, configId, value);
 
+    if (
+      !session.isCloud &&
+      (session.idleKilled ||
+        session.status === "disconnected" ||
+        session.status === "connecting")
+    ) {
+      return;
+    }
+
     try {
       if (session.isCloud) {
         await this.sendCloudCommand(session, "set_config_option", {
