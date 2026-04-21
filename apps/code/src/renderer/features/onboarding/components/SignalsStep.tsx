@@ -66,7 +66,6 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
             minHeight: 0,
             overflowY: "auto",
             width: "100%",
-            scrollbarWidth: "none",
           }}
         >
           <Flex
