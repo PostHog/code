@@ -227,7 +227,6 @@ export const AllChipTypes: Story = {
         type: "file",
         id: "/tmp/pasted-content.txt",
         label: "pasted-content.txt",
-        pastedText: true,
       },
     ],
   },

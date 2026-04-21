@@ -11,7 +11,6 @@ export interface MentionChip {
     | "github_issue";
   id: string;
   label: string;
-  pastedText?: boolean;
 }
 
 export interface FileAttachment {
