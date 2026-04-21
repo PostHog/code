@@ -9,6 +9,7 @@ import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useCommentState } from "../hooks/useCommentState";
+import { useExpandableFileDiff } from "../hooks/useExpandableFileDiff";
 import type {
   AnnotationMetadata,
   FilesDiffProps,
@@ -103,8 +104,9 @@ export function InteractiveFileDiff(props: InteractiveFileDiffProps) {
 }
 
 function PatchDiffView({
-  fileDiff: initialFileDiff,
+  fileDiff: patchFileDiff,
   repoPath,
+  skipExpansion = false,
   options,
   renderCustomHeader,
   taskId,
@@ -113,6 +115,11 @@ function PatchDiffView({
 }: PatchDiffProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const initialFileDiff = useExpandableFileDiff(
+    patchFileDiff,
+    repoPath,
+    skipExpansion,
+  );
   const [fileDiff, setFileDiff] = useState(initialFileDiff);
   const [revertingHunks, setRevertingHunks] = useState<Set<number>>(
     () => new Set(),
@@ -126,12 +133,17 @@ function PatchDiffView({
     handleLineSelectionEnd,
   } = useCommentState();
 
+  const [lastPatch, setLastPatch] = useState(patchFileDiff);
+  if (patchFileDiff !== lastPatch) {
+    setLastPatch(patchFileDiff);
+    setRevertingHunks(new Set());
+    reset();
+  }
+
   const [lastInitial, setLastInitial] = useState(initialFileDiff);
   if (initialFileDiff !== lastInitial) {
     setLastInitial(initialFileDiff);
     setFileDiff(initialFileDiff);
-    setRevertingHunks(new Set());
-    reset();
   }
 
   const currentFilePath = fileDiff.name ?? fileDiff.prevName ?? "";

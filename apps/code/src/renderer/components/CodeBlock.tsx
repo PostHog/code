@@ -36,9 +36,11 @@ function extractText(children: ReactNode): string {
   if (typeof children === "string") return children;
   if (Array.isArray(children)) return children.map(extractText).join("");
   if (children && typeof children === "object" && "props" in children) {
-    return extractText(
-      (children as { props: { children?: ReactNode } }).props.children,
-    );
+    const props = (
+      children as { props: { children?: ReactNode; code?: string } }
+    ).props;
+    if (typeof props.code === "string") return props.code;
+    return extractText(props.children);
   }
   return "";
 }

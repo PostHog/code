@@ -58,6 +58,11 @@ export function ReviewPage({ task }: ReviewPageProps) {
     uncollapseFile,
   } = useReviewState(changedFiles, allPaths);
 
+  const stagedPathSet = useMemo(
+    () => new Set(stagedParsedFiles.map((f) => f.name ?? f.prevName ?? "")),
+    [stagedParsedFiles],
+  );
+
   if (!repoPath) {
     return (
       <Flex align="center" justify="center" height="100%">
@@ -103,7 +108,11 @@ export function ReviewPage({ task }: ReviewPageProps) {
         (unstagedParsedFiles.length > 0 || untrackedFiles.length > 0) && (
           <SectionLabel label="Changes" />
         )}
-      <FileDiffList files={unstagedParsedFiles} {...sharedDiffProps} />
+      <FileDiffList
+        files={unstagedParsedFiles}
+        alsoStagedPaths={stagedPathSet}
+        {...sharedDiffProps}
+      />
       {untrackedFiles.map((file) => {
         const key = makeFileKey(file.staged, file.path);
         const isCollapsed = collapsedFiles.has(key);
@@ -139,6 +148,7 @@ function SectionLabel({ label }: { label: string }) {
 interface FileDiffListProps {
   files: ReturnType<typeof parsePatchFiles>[number]["files"];
   staged?: boolean;
+  alsoStagedPaths?: Set<string>;
   repoPath: string;
   taskId: string;
   diffOptions: DiffOptions;
@@ -152,6 +162,7 @@ interface FileDiffListProps {
 function FileDiffList({
   files,
   staged = false,
+  alsoStagedPaths,
   repoPath,
   taskId,
   diffOptions,
@@ -166,6 +177,7 @@ function FileDiffList({
     const key = makeFileKey(staged, filePath);
     const isCollapsed = collapsedFiles.has(key);
     const deferredReason = getDeferredReason(key);
+    const skipExpansion = staged || (alsoStagedPaths?.has(filePath) ?? false);
 
     if (deferredReason) {
       const { additions, deletions } = sumHunkStats(fileDiff.hunks);
@@ -190,6 +202,7 @@ function FileDiffList({
           <InteractiveFileDiff
             fileDiff={fileDiff}
             repoPath={repoPath}
+            skipExpansion={skipExpansion}
             options={{ ...diffOptions, collapsed: isCollapsed }}
             taskId={taskId}
             renderCustomHeader={(fd) => (

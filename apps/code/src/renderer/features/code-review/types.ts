@@ -42,6 +42,7 @@ interface PrCommentProps {
 export type PatchDiffProps = FileDiffProps<AnnotationMetadata> &
   PrCommentProps & {
     repoPath?: string;
+    skipExpansion?: boolean;
   };
 
 export type FilesDiffProps = MultiFileDiffProps<AnnotationMetadata> &
