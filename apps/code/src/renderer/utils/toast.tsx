@@ -1,5 +1,11 @@
-import { CheckIcon, InfoIcon, WarningIcon, XIcon } from "@phosphor-icons/react";
-import { Card, Flex, Spinner, Text } from "@radix-ui/themes";
+import {
+  CheckIcon,
+  InfoIcon,
+  WarningIcon,
+  XCircleIcon,
+  XIcon,
+} from "@phosphor-icons/react";
+import { Card, Flex, IconButton, Spinner, Text } from "@radix-ui/themes";
 import type { ReactNode } from "react";
 import { toast as sonnerToast } from "sonner";
 
@@ -26,7 +32,7 @@ function ToastComponent(props: ToastProps) {
       case "success":
         return <CheckIcon size={16} weight="bold" color="var(--green-9)" />;
       case "error":
-        return <XIcon size={16} weight="bold" color="var(--red-9)" />;
+        return <XCircleIcon size={16} weight="bold" color="var(--red-9)" />;
       case "info":
         return <InfoIcon size={16} weight="bold" color="var(--blue-9)" />;
       case "warning":
@@ -50,20 +56,30 @@ function ToastComponent(props: ToastProps) {
             <Text size="1" weight="medium">
               {title}
             </Text>
-            {action && (
-              <Text
+            <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
+              {action && (
+                <Text
+                  size="1"
+                  weight="medium"
+                  color="blue"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => {
+                    action.onClick();
+                    sonnerToast.dismiss(id);
+                  }}
+                >
+                  {action.label}
+                </Text>
+              )}
+              <IconButton
                 size="1"
-                weight="medium"
-                color="blue"
-                style={{ cursor: "pointer", flexShrink: 0 }}
-                onClick={() => {
-                  action.onClick();
-                  sonnerToast.dismiss(id);
-                }}
+                variant="ghost"
+                color="gray"
+                onClick={() => sonnerToast.dismiss(id)}
               >
-                {action.label}
-              </Text>
-            )}
+                <XIcon size={12} />
+              </IconButton>
+            </Flex>
           </Flex>
           {description && (
             <Text size="1" color="gray" style={{ wordBreak: "break-word" }}>
@@ -112,7 +128,7 @@ export const toast = {
 
   error: (
     title: ReactNode,
-    options?: { description?: string; id?: string | number },
+    options?: { description?: string; id?: string | number; duration?: number },
   ) => {
     return sonnerToast.custom(
       (id) => (
@@ -123,7 +139,7 @@ export const toast = {
           description={options?.description}
         />
       ),
-      { id: options?.id },
+      { id: options?.id, duration: options?.duration ?? 5000 },
     );
   },
 
