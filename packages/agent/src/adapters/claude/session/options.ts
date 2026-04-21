@@ -105,6 +105,8 @@ function buildEnvironment(): Record<string, string> {
     CLAUDE_CODE_ENABLE_ASK_USER_QUESTION_TOOL: "true",
     // Offload all MCP tools by default
     ENABLE_TOOL_SEARCH: "auto:0",
+    // Enable idle state as end-of-turn signal (required for SDK 0.2.114+)
+    CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS: "1",
   };
 }
 
