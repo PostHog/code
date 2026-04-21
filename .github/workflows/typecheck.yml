@@ -9,6 +9,7 @@ concurrency:
 
 jobs:
   typecheck:
+    name: ${{ matrix.runner == 'ubuntu-latest' && 'typecheck' || format('typecheck ({0})', matrix.runner) }}
     strategy:
       fail-fast: false
       matrix:

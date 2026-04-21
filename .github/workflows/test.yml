@@ -9,6 +9,7 @@ concurrency:
 
 jobs:
   unit-test:
+    name: ${{ matrix.runner == 'ubuntu-latest' && 'unit-test' || format('unit-test ({0})', matrix.runner) }}
     strategy:
       fail-fast: false
       matrix:
@@ -54,6 +55,7 @@ jobs:
         run: pnpm test
 
   integration-test:
+    name: ${{ matrix.runner == 'macos-latest' && 'integration-test' || format('integration-test ({0})', matrix.runner) }}
     strategy:
       fail-fast: false
       matrix:
