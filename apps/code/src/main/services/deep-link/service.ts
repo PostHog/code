@@ -1,7 +1,7 @@
 import type { IAppLifecycle } from "@posthog/platform/app-lifecycle";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
-import { isDevBuild } from "../../utils/env";
+// TODO: restore `isDevBuild` import when the dev-build skip below is re-enabled.
 import { logger } from "../../utils/logger";
 
 const log = logger.scope("deep-link-service");
@@ -29,11 +29,17 @@ export class DeepLinkService {
       return;
     }
 
+    // TODO: restore before merging — temporarily registering the protocol in
+    // dev builds so shareable inbox links (posthog-code://inbox/...) can be
+    // tested against `pnpm dev`. While this is active, `pnpm dev` will hijack
+    // posthog-code:// system-wide until this block is restored and the dev
+    // build is closed.
+    //
     // Skip protocol registration in development to avoid hijacking deep links
     // from the production app. OAuth uses HTTP callback in dev mode anyway.
-    if (isDevBuild()) {
-      return;
-    }
+    // if (isDevBuild()) {
+    //   return;
+    // }
 
     // Production: register primary and legacy protocols
     this.appLifecycle.registerDeepLinkScheme(PROTOCOL);

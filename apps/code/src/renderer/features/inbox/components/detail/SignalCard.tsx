@@ -121,6 +121,15 @@ function resolveLabels(
   return [];
 }
 
+function zendeskWebUrl(apiUrl: string): string {
+  const match = apiUrl.match(
+    /^(https?:\/\/[^/]+)\/api\/v2\/tickets\/(\d+)(?:\.json)?(?:[?#].*)?$/,
+  );
+  if (!match) return apiUrl;
+  const [, origin, id] = match;
+  return `${origin}/agent/tickets/${id}`;
+}
+
 function truncateBody(body: string, maxLength = COLLAPSE_THRESHOLD): string {
   if (body.length <= maxLength) return body;
   const truncated = body.slice(0, maxLength);
@@ -416,7 +425,7 @@ function ZendeskTicketSignalCard({
         <span className="flex-1" />
         {extra.url && (
           <a
-            href={extra.url}
+            href={zendeskWebUrl(extra.url)}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1 text-[11px] text-gray-10 hover:text-gray-12"
