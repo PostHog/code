@@ -11,11 +11,6 @@ const ALLOW_BYPASS = !IS_ROOT;
 
 const availableModes: ModeInfo[] = [
   {
-    id: "auto",
-    name: "Auto",
-    description: "Use a model classifier to approve/deny permission prompts",
-  },
-  {
     id: "default",
     name: "Default",
     description: "Standard behavior, prompts for dangerous operations",
@@ -33,20 +28,27 @@ const availableModes: ModeInfo[] = [
 ];
 
 if (ALLOW_BYPASS) {
-  availableModes.push({
-    id: "bypassPermissions",
-    name: "Auto-accept Permissions",
-    description: "Auto-accept all permission requests",
-  });
+  availableModes.push(
+    {
+      id: "bypassPermissions",
+      name: "Bypass Permissions",
+      description: "Auto-accept all permission requests",
+    },
+    {
+      id: "auto",
+      name: "Auto Mode",
+      description: "Use a model classifier to approve/deny permission prompts",
+    },
+  );
 }
 
 // Expose execution mode IDs in type-safe order for type checks
 export const CODE_EXECUTION_MODES = [
-  "auto",
   "default",
   "acceptEdits",
   "plan",
   "bypassPermissions",
+  "auto",
 ] as const;
 
 export type CodeExecutionMode = (typeof CODE_EXECUTION_MODES)[number];
