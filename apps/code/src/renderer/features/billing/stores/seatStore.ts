@@ -3,6 +3,7 @@ import {
   SeatPaymentFailedError,
   SeatSubscriptionRequiredError,
 } from "@renderer/api/posthogClient";
+import { trpcClient } from "@renderer/trpc";
 import type { SeatData } from "@shared/types/seat";
 import { PLAN_FREE, PLAN_PRO } from "@shared/types/seat";
 import { isFeatureFlagEnabled } from "@utils/analytics";
@@ -75,6 +76,12 @@ function handleSeatError(
   set({ isLoading: false, error: error.message });
 }
 
+function invalidatePlanCache(): void {
+  trpcClient.llmGateway.invalidatePlanCache.mutate().catch((err) => {
+    log.warn("Failed to invalidate plan cache", err);
+  });
+}
+
 const initialState: SeatStoreState = {
   seat: null,
   isLoading: false,
@@ -119,6 +126,7 @@ export const useSeatStore = create<SeatStore>()((set) => ({
       const seat = await client.createSeat(PLAN_FREE);
       log.info("Free seat created", { id: seat.id, plan: seat.plan_key });
       set({ seat, isLoading: false });
+      invalidatePlanCache();
     } catch (error) {
       log.error("provisionFreeSeat failed", error);
       handleSeatError(error, set);
@@ -138,10 +146,12 @@ export const useSeatStore = create<SeatStore>()((set) => ({
         }
         const seat = await client.upgradeSeat(PLAN_PRO);
         set({ seat, isLoading: false });
+        invalidatePlanCache();
         return;
       }
       const seat = await client.createSeat(PLAN_PRO);
       set({ seat, isLoading: false });
+      invalidatePlanCache();
     } catch (error) {
       handleSeatError(error, set);
     }
@@ -155,6 +165,7 @@ export const useSeatStore = create<SeatStore>()((set) => ({
       await client.cancelSeat();
       const seat = await client.getMySeat();
       set({ seat, isLoading: false });
+      invalidatePlanCache();
     } catch (error) {
       handleSeatError(error, set);
     }
@@ -167,6 +178,7 @@ export const useSeatStore = create<SeatStore>()((set) => ({
       const client = await getClient();
       const seat = await client.reactivateSeat();
       set({ seat, isLoading: false });
+      invalidatePlanCache();
     } catch (error) {
       handleSeatError(error, set);
     }
