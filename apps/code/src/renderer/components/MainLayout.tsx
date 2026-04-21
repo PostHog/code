@@ -21,6 +21,7 @@ import { useCommandMenuStore } from "@stores/commandMenuStore";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useShortcutsSheetStore } from "@stores/shortcutsSheetStore";
 import { useCallback, useEffect } from "react";
+import { useInboxDeepLink } from "../hooks/useInboxDeepLink";
 import { useTaskDeepLink } from "../hooks/useTaskDeepLink";
 import { GlobalEventHandlers } from "./GlobalEventHandlers";
 
@@ -41,6 +42,7 @@ export function MainLayout() {
 
   useIntegrations();
   useTaskDeepLink();
+  useInboxDeepLink();
 
   useEffect(() => {
     if (tasks) {
