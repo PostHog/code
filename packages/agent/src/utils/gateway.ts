@@ -29,3 +29,7 @@ export function getGatewayUsageUrl(
 ): string {
   return `${getGatewayBaseUrl(posthogHost)}/v1/usage/${product}`;
 }
+
+export function getGatewayInvalidatePlanCacheUrl(posthogHost: string): string {
+  return `${getGatewayBaseUrl(posthogHost)}/invalidate-plan-cache`;
+}
