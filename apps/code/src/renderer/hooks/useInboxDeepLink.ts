@@ -3,6 +3,7 @@ import {
   AUTH_SCOPED_QUERY_META,
   useAuthStateValue,
 } from "@features/auth/hooks/authQueries";
+import { reportKeys } from "@features/inbox/hooks/useInboxReports";
 import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReportSelectionStore";
 import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsFilterStore";
 import { trpcClient, useTRPC } from "@renderer/trpc";
@@ -15,10 +16,6 @@ import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 const log = logger.scope("inbox-deep-link");
-
-// Keep in sync with the key in features/inbox/hooks/useInboxReports.ts (`reportKeys.detail`).
-const reportDetailKey = (reportId: string) =>
-  ["inbox", "signal-reports", reportId, "detail"] as const;
 
 /**
  * Hook that subscribes to inbox report deep link events (posthog-code://inbox/{reportId})
@@ -60,7 +57,7 @@ export function useInboxDeepLink() {
 
       try {
         const report = await queryClient.fetchQuery<SignalReport | null>({
-          queryKey: reportDetailKey(reportId),
+          queryKey: reportKeys.detail(reportId),
           queryFn: () => client.getSignalReport(reportId),
           meta: AUTH_SCOPED_QUERY_META,
         });

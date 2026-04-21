@@ -18,7 +18,7 @@ import { useEffect, useMemo } from "react";
 
 const REPORTS_PAGE_SIZE = 100;
 
-const reportKeys = {
+export const reportKeys = {
   all: ["inbox", "signal-reports"] as const,
   list: (params?: SignalReportsQueryParams) =>
     [...reportKeys.all, "list", params ?? {}] as const,
