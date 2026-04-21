@@ -131,7 +131,9 @@ export function useSessionConnection({
         .finally(() => {
           connectingTasks.delete(taskId);
         });
-      return;
+      return () => {
+        connectingTasks.delete(taskId);
+      };
     }
 
     if (
