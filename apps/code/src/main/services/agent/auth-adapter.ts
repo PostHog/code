@@ -83,16 +83,6 @@ export class AgentAuthAdapter {
       const name =
         installation.name || installation.display_name || installation.url;
 
-      if (installation.auth_type === "none") {
-        servers.push({
-          name,
-          type: "http",
-          url: installation.url,
-          headers: [],
-        });
-        continue;
-      }
-
       const proxiedUrl = this.mcpProxy.register(
         `installation-${installation.id}`,
         installation.proxy_url,

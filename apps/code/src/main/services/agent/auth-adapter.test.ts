@@ -105,40 +105,6 @@ describe("AgentAuthAdapter", () => {
     );
   });
 
-  it("includes enabled user-installed MCP servers from backend", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          results: [
-            {
-              id: "inst-1",
-              url: "https://custom-mcp.example.com",
-              proxy_url: "https://proxy.posthog.com/inst-1/",
-              name: "custom-server",
-              display_name: "Custom Server",
-              auth_type: "none",
-              is_enabled: true,
-              pending_oauth: false,
-              needs_reauth: false,
-            },
-          ],
-        }),
-    });
-
-    const servers = await adapter.buildMcpServers(baseCredentials);
-
-    expect(servers).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          name: "custom-server",
-          url: "https://custom-mcp.example.com",
-          headers: [],
-        }),
-      ]),
-    );
-  });
-
   it("routes authenticated installed MCP servers through the proxy URL", async () => {
     mockFetch.mockResolvedValue({
       ok: true,

@@ -3,7 +3,6 @@ import { LoginTransition } from "@components/LoginTransition";
 import { MainLayout } from "@components/MainLayout";
 import { ScopeReauthPrompt } from "@components/ScopeReauthPrompt";
 import { AuthScreen } from "@features/auth/components/AuthScreen";
-import { InviteCodeScreen } from "@features/auth/components/InviteCodeScreen";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useAuthSession } from "@features/auth/hooks/useAuthSession";
 import { OnboardingFlow } from "@features/onboarding/components/OnboardingFlow";
@@ -189,13 +188,13 @@ function App() {
     }
 
     // Access gate: show invite code screen if flag is not enabled
-    if (!hasCodeAccess) {
-      return (
-        <motion.div key="invite-code">
-          <InviteCodeScreen />
-        </motion.div>
-      );
-    }
+    // if (!hasCodeAccess) {
+    //   return (
+    //     <motion.div key="invite-code">
+    //       <InviteCodeScreen />
+    //     </motion.div>
+    //   );
+    // }
 
     if (!hasCompletedOnboarding) {
       return (

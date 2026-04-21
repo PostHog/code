@@ -50,9 +50,60 @@ export class SeatPaymentFailedError extends Error {
 
 const log = logger.scope("posthog-client");
 
-export type McpRecommendedServer = Schemas.RecommendedServer;
+export const MCP_CATEGORIES = [
+  { id: "all", label: "All" },
+  { id: "business", label: "Business Operations" },
+  { id: "data", label: "Data & Analytics" },
+  { id: "design", label: "Design & Content" },
+  { id: "dev", label: "Developer Tools & APIs" },
+  { id: "infra", label: "Infrastructure" },
+  { id: "productivity", label: "Productivity & Collaboration" },
+] as const;
 
-export type McpServerInstallation = Schemas.MCPServerInstallation;
+export type McpCategory = (typeof MCP_CATEGORIES)[number]["id"];
+
+export const MCP_APPROVAL_STATES = [
+  "approved",
+  "needs_approval",
+  "do_not_use",
+] as const;
+
+export type McpApprovalState = (typeof MCP_APPROVAL_STATES)[number];
+
+export type McpAuthType = "api_key" | "oauth";
+
+export type McpRecommendedServer = Omit<
+  Schemas.RecommendedServer,
+  "auth_type"
+> & {
+  id: string;
+  auth_type: McpAuthType;
+  category?: McpCategory;
+  docs_url?: string;
+  icon_key?: string;
+};
+
+export type McpServerInstallation = Omit<
+  Schemas.MCPServerInstallation,
+  "auth_type"
+> & {
+  auth_type?: McpAuthType;
+  template_id?: string | null;
+  tool_count?: number;
+};
+
+export interface McpInstallationTool {
+  id: string;
+  tool_name: string;
+  display_name?: string;
+  description?: string;
+  input_schema?: Record<string, unknown>;
+  approval_state: McpApprovalState;
+  last_seen_at?: string | null;
+  removed_at?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
 
 export type Evaluation = Schemas.Evaluation;
 
@@ -1652,9 +1703,11 @@ export class PostHogAPIClient {
   async installCustomMcpServer(options: {
     name: string;
     url: string;
-    auth_type: "none" | "api_key" | "oauth";
+    auth_type: McpAuthType;
     api_key?: string;
     description?: string;
+    client_id?: string;
+    client_secret?: string;
     install_source?: "posthog" | "posthog-code";
     posthog_code_callback_url?: string;
   }): Promise<McpServerInstallation | Schemas.OAuthRedirectResponse> {
@@ -1728,6 +1781,141 @@ export class PostHogAPIClient {
     if (!response.ok && response.status !== 204) {
       throw new Error(`Failed to uninstall MCP server: ${response.statusText}`);
     }
+  }
+
+  async installMcpTemplate(options: {
+    template_id: string;
+    api_key?: string;
+    install_source?: "posthog" | "posthog-code";
+    posthog_code_callback_url?: string;
+  }): Promise<McpServerInstallation | Schemas.OAuthRedirectResponse> {
+    const teamId = await this.getTeamId();
+    const path = `/api/environments/${teamId}/mcp_server_installations/install_template/`;
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url: new URL(`${this.api.baseUrl}${path}`),
+      path,
+      overrides: { body: JSON.stringify(options) },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        (errorData as { detail?: string }).detail ??
+          `Failed to install MCP template: ${response.statusText}`,
+      );
+    }
+
+    return await response.json();
+  }
+
+  async authorizeMcpInstallation(options: {
+    installation_id: string;
+    install_source?: "posthog" | "posthog-code";
+    posthog_code_callback_url?: string;
+  }): Promise<Schemas.OAuthRedirectResponse> {
+    const teamId = await this.getTeamId();
+    const path = `/api/environments/${teamId}/mcp_server_installations/authorize/`;
+    const url = new URL(`${this.api.baseUrl}${path}`);
+    url.searchParams.set("installation_id", options.installation_id);
+    if (options.install_source) {
+      url.searchParams.set("install_source", options.install_source);
+    }
+    if (options.posthog_code_callback_url) {
+      url.searchParams.set(
+        "posthog_code_callback_url",
+        options.posthog_code_callback_url,
+      );
+    }
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        (errorData as { detail?: string }).detail ??
+          `Failed to authorize MCP installation: ${response.statusText}`,
+      );
+    }
+
+    return await response.json();
+  }
+
+  async getMcpInstallationTools(
+    installationId: string,
+    options: { includeRemoved?: boolean } = {},
+  ): Promise<McpInstallationTool[]> {
+    const teamId = await this.getTeamId();
+    const path = `/api/environments/${teamId}/mcp_server_installations/${installationId}/tools/`;
+    const url = new URL(`${this.api.baseUrl}${path}`);
+    if (options.includeRemoved) {
+      url.searchParams.set("include_removed", "1");
+    }
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch MCP installation tools: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return data.results ?? data ?? [];
+  }
+
+  async updateMcpToolApproval(
+    installationId: string,
+    toolName: string,
+    approval_state: McpApprovalState,
+  ): Promise<McpInstallationTool> {
+    const teamId = await this.getTeamId();
+    const path = `/api/environments/${teamId}/mcp_server_installations/${installationId}/tools/${encodeURIComponent(toolName)}/`;
+    const response = await this.api.fetcher.fetch({
+      method: "patch",
+      url: new URL(`${this.api.baseUrl}${path}`),
+      path,
+      overrides: { body: JSON.stringify({ approval_state }) },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        (errorData as { detail?: string }).detail ??
+          `Failed to update tool approval: ${response.statusText}`,
+      );
+    }
+
+    return await response.json();
+  }
+
+  async refreshMcpInstallationTools(
+    installationId: string,
+  ): Promise<McpInstallationTool[]> {
+    const teamId = await this.getTeamId();
+    const path = `/api/environments/${teamId}/mcp_server_installations/${installationId}/tools/refresh/`;
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url: new URL(`${this.api.baseUrl}${path}`),
+      path,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        (errorData as { detail?: string }).detail ??
+          `Failed to refresh MCP tools: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return data.results ?? data ?? [];
   }
 
   async getMySeat(): Promise<SeatData | null> {
