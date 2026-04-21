@@ -37,7 +37,7 @@ export function ReportListRow({
   };
 
   const rowBgClass = isSelected
-    ? "bg-gray-3"
+    ? "bg-gray-4"
     : report.is_suggested_reviewer
       ? "bg-amber-2"
       : "";
