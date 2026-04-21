@@ -58,16 +58,22 @@ describe("canUseTool MCP approval enforcement", () => {
     }
   });
 
-  it("routes needs_approval MCP tools to permission dialog", async () => {
+  it("routes needs_approval MCP tools to permission dialog with descriptive title", async () => {
     setMcpToolApprovalStates({
-      mcp__server__gated_tool: "needs_approval",
+      mcp__HubSpot__search_crm_objects: "needs_approval",
     });
 
-    const context = createContext("mcp__server__gated_tool");
+    const context = createContext("mcp__HubSpot__search_crm_objects");
     const result = await canUseTool(context);
 
     expect(result.behavior).toBe("allow");
-    expect(context.client.requestPermission).toHaveBeenCalled();
+    expect(context.client.requestPermission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolCall: expect.objectContaining({
+          title: "The agent wants to call search_crm_objects (HubSpot)",
+        }),
+      }),
+    );
   });
 
   it("allows approved MCP tools through normal flow", async () => {
