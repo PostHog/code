@@ -101,7 +101,7 @@ export function HeaderRow() {
           align="center"
           justify="end"
           gap="2"
-          pr="1"
+          pr="3"
           pl="2"
           style={{
             height: "100%",
