@@ -49,7 +49,10 @@ export function ToolRow({ tool, onChange }: ToolRowProps) {
                 size="2"
                 weight="medium"
                 truncate
+                className="select-text"
                 style={{ fontFamily: "var(--code-font-family)" }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
               >
                 {tool.tool_name}
               </Text>
