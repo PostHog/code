@@ -7,6 +7,7 @@ import type {
   EventStats,
   FlagAssignment,
   FlagCheck,
+  FlagEvaluationStats,
   FunctionInfo,
   ListItem,
   PostHogCall,
@@ -113,16 +114,25 @@ export class ParseResult {
       eventNames.length > 0
         ? api.getEventStats(eventNames)
         : Promise.resolve(new Map()),
+      flagKeys.length > 0
+        ? api.getFlagEvaluationStats(flagKeys, 7)
+        : Promise.resolve(new Map()),
     ]);
 
-    const [flagsResult, experimentsResult, eventDefsResult, eventStatsResult] =
-      settled;
+    const [
+      flagsResult,
+      experimentsResult,
+      eventDefsResult,
+      eventStatsResult,
+      flagEvalStatsResult,
+    ] = settled;
 
     const labels = [
       "getFeatureFlags",
       "getExperiments",
       "getEventDefinitions",
       "getEventStats",
+      "getFlagEvaluationStats",
     ];
     settled.forEach((r, i) => {
       if (r.status === "rejected") {
@@ -140,6 +150,10 @@ export class ParseResult {
       eventStatsResult.status === "fulfilled"
         ? eventStatsResult.value
         : new Map<string, EventStats>();
+    const flagEvaluationStats =
+      flagEvalStatsResult.status === "fulfilled"
+        ? flagEvalStatsResult.value
+        : new Map<string, FlagEvaluationStats>();
 
     const flagKeySet = new Set(flagKeys);
     const flags = new Map(
@@ -161,6 +175,9 @@ export class ParseResult {
       experiments,
       eventDefinitions,
       eventStats,
+      flagEvaluationStats,
+      host: config.host,
+      projectId: config.projectId,
     });
   }
 }

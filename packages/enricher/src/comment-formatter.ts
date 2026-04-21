@@ -10,18 +10,30 @@ function commentPrefix(languageId: string): string {
 function formatFlagComment(flag: EnrichedFlag): string {
   const parts: string[] = [`Flag: "${flag.flagKey}"`];
 
-  if (flag.flag) {
-    parts.push(flag.flagType);
-    if (flag.rollout !== null) {
-      parts.push(`${flag.rollout}% rolled out`);
-    }
-    if (flag.experiment) {
-      const status = flag.experiment.end_date ? "complete" : "running";
-      parts.push(`Experiment: "${flag.experiment.name}" (${status})`);
-    }
-    if (flag.staleness) {
-      parts.push(`STALE (${flag.staleness})`);
-    }
+  if (!flag.flag) {
+    parts.push("not in PostHog");
+    return parts.join(" \u2014 ");
+  }
+
+  parts.push(flag.flagType);
+  parts.push(flag.flag.active ? "active" : "inactive");
+  if (flag.rollout !== null) {
+    parts.push(`${flag.rollout}% rolled out`);
+  }
+  if (flag.evaluationStats) {
+    const evals = flag.evaluationStats.evaluations.toLocaleString();
+    const users = flag.evaluationStats.uniqueUsers.toLocaleString();
+    parts.push(`${evals} evals / ${users} users (7d)`);
+  }
+  if (flag.experiment) {
+    const status = flag.experiment.end_date ? "complete" : "running";
+    parts.push(`Experiment: "${flag.experiment.name}" (${status})`);
+  }
+  if (flag.staleness) {
+    parts.push(`STALE (${flag.staleness})`);
+  }
+  if (flag.url) {
+    parts.push(flag.url);
   }
 
   return parts.join(" \u2014 ");

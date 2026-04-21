@@ -161,6 +161,10 @@ export interface EnrichedListItem extends ListItem {
   flagType?: FlagType;
   staleness?: StalenessReason | null;
   rollout?: number | null;
+  active?: boolean;
+  url?: string | null;
+  evaluations?: number;
+  evaluationUsers?: number;
   experimentName?: string | null;
   experimentStatus?: "running" | "complete" | null;
   verified?: boolean;
@@ -177,12 +181,20 @@ export interface EventStats {
   lastSeenAt?: string | null;
 }
 
+export interface FlagEvaluationStats {
+  evaluations: number;
+  uniqueUsers: number;
+}
+
 export interface EnrichmentContext {
   flags?: Map<string, FeatureFlag>;
   experiments?: Experiment[];
   eventDefinitions?: Map<string, EventDefinition>;
   eventStats?: Map<string, EventStats>;
+  flagEvaluationStats?: Map<string, FlagEvaluationStats>;
   stalenessOptions?: StalenessCheckOptions;
+  host?: string;
+  projectId?: number;
 }
 
 export interface StalenessCheckOptions {
@@ -198,6 +210,8 @@ export interface EnrichedFlag {
   rollout: number | null;
   variants: { key: string; rollout_percentage: number }[];
   experiment: Experiment | undefined;
+  url: string | null;
+  evaluationStats: FlagEvaluationStats | undefined;
 }
 
 export interface EnrichedEvent {

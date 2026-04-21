@@ -5,6 +5,7 @@ import {
   extractVariants,
 } from "./flag-classification.js";
 import type { ParseResult } from "./parse-result.js";
+import { buildFlagUrl } from "./posthog-api.js";
 import { classifyStaleness } from "./stale-flags.js";
 import type {
   EnrichedEvent,
@@ -33,10 +34,15 @@ export class EnrichedResult {
     const checks = this.parsed.flagChecks;
     const experiments = this.context.experiments ?? [];
 
+    const { host, projectId } = this.context;
     for (const check of checks) {
       let entry = flagMap.get(check.flagKey);
       if (!entry) {
         const flag = this.context.flags?.get(check.flagKey);
+        const url =
+          flag && host && projectId !== undefined
+            ? buildFlagUrl(host, projectId, flag.id)
+            : null;
         entry = {
           flagKey: check.flagKey,
           occurrences: [],
@@ -53,6 +59,8 @@ export class EnrichedResult {
           experiment: experiments.find(
             (e) => e.feature_flag_key === check.flagKey,
           ),
+          url,
+          evaluationStats: this.context.flagEvaluationStats?.get(check.flagKey),
         };
         flagMap.set(check.flagKey, entry);
       }
@@ -120,6 +128,10 @@ export class EnrichedResult {
           enriched.flagType = flag.flagType;
           enriched.staleness = flag.staleness;
           enriched.rollout = flag.rollout;
+          enriched.active = flag.flag?.active;
+          enriched.url = flag.url;
+          enriched.evaluations = flag.evaluationStats?.evaluations;
+          enriched.evaluationUsers = flag.evaluationStats?.uniqueUsers;
           if (flag.experiment) {
             enriched.experimentName = flag.experiment.name;
             enriched.experimentStatus = flag.experiment.end_date
