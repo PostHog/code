@@ -12,7 +12,7 @@ import { type ServerType, serve } from "@hono/node-server";
 import { getCurrentBranch } from "@posthog/git/queries";
 import { Hono } from "hono";
 import packageJson from "../../package.json" with { type: "json" };
-import { POSTHOG_NOTIFICATIONS } from "../acp-extensions";
+import { POSTHOG_METHODS, POSTHOG_NOTIFICATIONS } from "../acp-extensions";
 import {
   createAcpConnection,
   type InProcessAcpConnection,
@@ -642,6 +642,23 @@ export class AgentServer {
         return {
           configOptions: result.configOptions,
         };
+      }
+
+      case POSTHOG_METHODS.REFRESH_SESSION:
+      case "posthog/refresh_session":
+      case "refresh_session": {
+        const mcpServers = Array.isArray(params.mcpServers)
+          ? params.mcpServers
+          : [];
+
+        this.logger.info("Refresh session requested", {
+          serverCount: mcpServers.length,
+        });
+
+        return await this.session.clientConnection.extMethod(
+          POSTHOG_METHODS.REFRESH_SESSION,
+          { mcpServers },
+        );
       }
 
       case POSTHOG_NOTIFICATIONS.PERMISSION_RESPONSE:

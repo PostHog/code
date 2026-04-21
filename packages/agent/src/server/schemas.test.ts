@@ -184,4 +184,44 @@ describe("validateCommandParams", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("accepts _posthog/refresh_session with mcpServers", () => {
+    const result = validateCommandParams("_posthog/refresh_session", {
+      mcpServers: [
+        { type: "http", name: "mcp", url: "https://mcp.example.com" },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts posthog/refresh_session with empty mcpServers", () => {
+    const result = validateCommandParams("posthog/refresh_session", {
+      mcpServers: [],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts bare refresh_session", () => {
+    const result = validateCommandParams("refresh_session", {
+      mcpServers: [],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects refresh_session without mcpServers", () => {
+    const result = validateCommandParams("_posthog/refresh_session", {});
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects refresh_session with invalid mcpServers entry", () => {
+    const result = validateCommandParams("_posthog/refresh_session", {
+      mcpServers: [{ type: "stdio", name: "bad", command: "/bin/x" }],
+    });
+
+    expect(result.success).toBe(false);
+  });
 });

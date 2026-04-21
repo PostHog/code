@@ -60,6 +60,10 @@ export const setConfigOptionParamsSchema = z.object({
   value: z.string().min(1, "value is required"),
 });
 
+export const refreshSessionParamsSchema = z.object({
+  mcpServers: mcpServersSchema,
+});
+
 export const commandParamsSchemas = {
   user_message: userMessageParamsSchema,
   "posthog/user_message": userMessageParamsSchema,
@@ -71,6 +75,9 @@ export const commandParamsSchemas = {
   "posthog/permission_response": permissionResponseParamsSchema,
   set_config_option: setConfigOptionParamsSchema,
   "posthog/set_config_option": setConfigOptionParamsSchema,
+  refresh_session: refreshSessionParamsSchema,
+  "posthog/refresh_session": refreshSessionParamsSchema,
+  "_posthog/refresh_session": refreshSessionParamsSchema,
 } as const;
 
 export type CommandMethod = keyof typeof commandParamsSchemas;
@@ -82,7 +89,7 @@ export function validateCommandParams(
   const schema =
     commandParamsSchemas[method as CommandMethod] ??
     commandParamsSchemas[
-      method.replace("posthog/", "") as keyof typeof commandParamsSchemas
+      method.replace(/^_?posthog\//, "") as keyof typeof commandParamsSchemas
     ];
 
   if (!schema) {
