@@ -232,7 +232,8 @@ export function SettingsDialog() {
         {isAuthenticated && (
           <button
             type="button"
-            className="flex cursor-pointer items-center gap-2 border-0 border-gray-5 border-t bg-transparent px-3 py-2.5 text-left font-mono text-[12px] text-gray-9 transition-colors hover:bg-gray-3 hover:text-gray-11"
+            disabled={logoutMutation.isPending}
+            className="flex cursor-pointer items-center gap-2 border-0 border-gray-5 border-t bg-transparent px-3 py-2.5 text-left font-mono text-[12px] text-gray-9 transition-colors hover:bg-gray-3 hover:text-gray-11 disabled:pointer-events-none disabled:opacity-50"
             onClick={() => {
               close();
               logoutMutation.mutate();

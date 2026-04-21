@@ -65,14 +65,16 @@ function ToastComponent(props: ToastProps) {
                   {action.label}
                 </Text>
               )}
-              <IconButton
-                size="1"
-                variant="ghost"
-                color="gray"
-                onClick={() => sonnerToast.dismiss(id)}
-              >
-                <XIcon size={12} />
-              </IconButton>
+              {type !== "loading" && (
+                <IconButton
+                  size="1"
+                  variant="ghost"
+                  color="gray"
+                  onClick={() => sonnerToast.dismiss(id)}
+                >
+                  <XIcon size={12} />
+                </IconButton>
+              )}
             </Flex>
           </Flex>
           {description && (

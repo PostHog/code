@@ -296,7 +296,7 @@ export function TaskListView({
               opacity: { duration: 0.4 },
               y: {
                 duration: 3,
-                repeat: Number.POSITIVE_INFINITY,
+                repeat: Infinity,
                 ease: "easeInOut",
                 delay: 0.4,
               },

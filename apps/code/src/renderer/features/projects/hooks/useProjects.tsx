@@ -50,7 +50,7 @@ export function useProjects() {
     isLoading: isQueryLoading,
     error,
   } = useCurrentUser({ client });
-  const isLoading = isQueryLoading && !currentUser;
+  const isInitialLoading = isQueryLoading && !currentUser;
 
   const projects = useMemo(() => {
     if (!currentUser?.organization) return [];
@@ -124,7 +124,7 @@ export function useProjects() {
     currentProject,
     currentProjectId,
     currentUser: currentUser ?? null,
-    isLoading,
+    isLoading: isInitialLoading,
     error,
   };
 }
