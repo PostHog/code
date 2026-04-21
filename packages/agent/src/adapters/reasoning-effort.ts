@@ -3,7 +3,12 @@ import { getReasoningEffortOptions as getCodexReasoningEffortOptions } from "./c
 
 export type RuntimeAdapter = "claude" | "codex";
 
-export type SupportedReasoningEffort = "low" | "medium" | "high" | "max";
+export type SupportedReasoningEffort =
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "max";
 
 export interface ReasoningEffortOption {
   value: SupportedReasoningEffort;

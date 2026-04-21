@@ -132,7 +132,13 @@ async function loadSettingsFile(
   try {
     const content = await fs.promises.readFile(filePath, "utf-8");
     return JSON.parse(content) as ClaudeCodeSettings;
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return {};
+    }
+    process.stderr.write(
+      `[SettingsManager] Failed to load settings from ${filePath}: ${error}\n`,
+    );
     return {};
   }
 }
@@ -179,17 +185,20 @@ export class SettingsManager {
   private enterpriseSettings: ClaudeCodeSettings = {};
   private mergedSettings: ClaudeCodeSettings = {};
   private initialized = false;
+  private initPromise: Promise<void> | null = null;
 
   constructor(cwd: string) {
     this.cwd = cwd;
   }
 
   async initialize(): Promise<void> {
-    if (this.initialized) {
-      return;
-    }
-    await this.loadAllSettings();
-    this.initialized = true;
+    if (this.initialized) return;
+    if (this.initPromise) return this.initPromise;
+    this.initPromise = this.loadAllSettings().then(() => {
+      this.initialized = true;
+      this.initPromise = null;
+    });
+    return this.initPromise;
   }
 
   private getUserSettingsPath(): string {
@@ -311,9 +320,8 @@ export class SettingsManager {
   }
 
   async setCwd(cwd: string): Promise<void> {
-    if (this.cwd === cwd) {
-      return;
-    }
+    if (this.cwd === cwd) return;
+    if (this.initPromise) await this.initPromise;
     this.dispose();
     this.cwd = cwd;
     this.initialized = false;

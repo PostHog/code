@@ -154,9 +154,6 @@ export const createPostToolUseHook =
           );
           delete toolUseCallbacks[toolUseID];
         } else {
-          logger?.error(
-            `No onPostToolUseHook found for tool use ID: ${toolUseID}`,
-          );
           delete toolUseCallbacks[toolUseID];
         }
       }
