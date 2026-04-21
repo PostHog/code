@@ -244,6 +244,11 @@ interface ManagedSession {
   inFlightMcpToolCalls: Map<string, string>;
   /** MCP tool approval states (toolKey → approval_state) fetched at session start */
   mcpToolApprovals: Record<string, string>;
+  /** Maps tool keys to their installation ID and raw tool name for backend updates */
+  toolInstallations: Record<
+    string,
+    { installationId: string; toolName: string }
+  >;
 }
 
 /** Get the agent session ID from a managed session, throwing if not set. */
@@ -649,8 +654,11 @@ When creating pull requests, add the following footer at the end of the PR descr
         },
       });
 
-      const { servers: mcpServers, toolApprovals } =
-        await this.agentAuthAdapter.buildMcpServers(credentials);
+      const {
+        servers: mcpServers,
+        toolApprovals,
+        toolInstallations,
+      } = await this.agentAuthAdapter.buildMcpServers(credentials);
 
       // Store server configs for lazy MCP connections — actual connections
       // are created on-demand when UI resources are first requested.
@@ -790,6 +798,7 @@ When creating pull requests, add the following footer at the end of the PR descr
         configOptions,
         inFlightMcpToolCalls: new Map(),
         mcpToolApprovals: toolApprovals,
+        toolInstallations,
       };
 
       this.sessions.set(taskRunId, session);
@@ -1246,7 +1255,7 @@ For git operations while detached:
         if (toolCallId) {
           service.sleepService.release(taskRunId);
           try {
-            return await new Promise<RequestPermissionResponse>(
+            const response = await new Promise<RequestPermissionResponse>(
               (resolve, reject) => {
                 const key = `${taskRunId}:${toolCallId}`;
                 service.pendingPermissions.set(key, {
@@ -1267,6 +1276,37 @@ For git operations while detached:
                 });
               },
             );
+
+            const approved =
+              response.outcome?.outcome === "selected" &&
+              (response.outcome.optionId === "allow" ||
+                response.outcome.optionId === "allow_always");
+            if (approved && toolName) {
+              const session = service.sessions.get(taskRunId);
+              if (
+                session?.mcpToolApprovals?.[toolName] === "needs_approval" &&
+                session.toolInstallations[toolName]
+              ) {
+                const { installationId, toolName: rawToolName } =
+                  session.toolInstallations[toolName];
+                try {
+                  await service.agentAuthAdapter.updateMcpToolApproval(
+                    session.config.credentials,
+                    installationId,
+                    rawToolName,
+                    "approved",
+                  );
+                  session.mcpToolApprovals[toolName] = "approved";
+                } catch (err) {
+                  log.warn("Failed to update tool approval on backend", {
+                    toolName,
+                    error: err instanceof Error ? err.message : String(err),
+                  });
+                }
+              }
+            }
+
+            return response;
           } finally {
             // Only re-acquire if session wasn't cleaned up while waiting
             if (service.sessions.has(taskRunId)) {

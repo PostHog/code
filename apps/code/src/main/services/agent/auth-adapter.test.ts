@@ -176,12 +176,17 @@ describe("AgentAuthAdapter", () => {
           }),
       });
 
-    const { toolApprovals } = await adapter.buildMcpServers(baseCredentials);
+    const { toolApprovals, toolInstallations } =
+      await adapter.buildMcpServers(baseCredentials);
 
     expect(toolApprovals).toEqual({
       "mcp__tool-server__read_data": "approved",
       "mcp__tool-server__write_data": "do_not_use",
       "mcp__tool-server__query": "needs_approval",
+    });
+    expect(toolInstallations["mcp__tool-server__read_data"]).toEqual({
+      installationId: "inst-3",
+      toolName: "read_data",
     });
   });
 

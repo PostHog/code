@@ -55,6 +55,10 @@ export class AgentAuthAdapter {
   async buildMcpServers(credentials: Credentials): Promise<{
     servers: AcpMcpServer[];
     toolApprovals: Record<string, string>;
+    toolInstallations: Record<
+      string,
+      { installationId: string; toolName: string }
+    >;
   }> {
     const servers: AcpMcpServer[] = [];
     const mcpUrl = this.getPostHogMcpUrl(credentials.apiHost);
@@ -99,12 +103,10 @@ export class AgentAuthAdapter {
       });
     }
 
-    const toolApprovals = await this.fetchMcpToolApprovals(
-      credentials,
-      installations,
-    );
+    const { approvals: toolApprovals, toolInstallations } =
+      await this.fetchMcpToolApprovals(credentials, installations);
 
-    return { servers, toolApprovals };
+    return { servers, toolApprovals, toolInstallations };
   }
 
   async ensureGatewayProxy(apiHost: string): Promise<string> {
@@ -163,6 +165,28 @@ export class AgentAuthAdapter {
     return host.endsWith("/") ? host.slice(0, -1) : host;
   }
 
+  async updateMcpToolApproval(
+    credentials: Credentials,
+    installationId: string,
+    toolName: string,
+    approvalState: string,
+  ): Promise<void> {
+    const baseUrl = this.getPostHogApiBaseUrl(credentials.apiHost);
+    const url = `${baseUrl}/api/environments/${credentials.projectId}/mcp_server_installations/${installationId}/tools/${encodeURIComponent(toolName)}/`;
+    const response = await this.authService.authenticatedFetch(fetch, url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ approval_state: approvalState }),
+    });
+    if (!response.ok) {
+      log.warn("Failed to update MCP tool approval", {
+        installationId,
+        toolName,
+        status: response.status,
+      });
+    }
+  }
+
   private async fetchMcpToolApprovals(
     credentials: Credentials,
     installations: Array<{
@@ -171,9 +195,19 @@ export class AgentAuthAdapter {
       name: string;
       display_name: string;
     }>,
-  ): Promise<Record<string, string>> {
+  ): Promise<{
+    approvals: Record<string, string>;
+    toolInstallations: Record<
+      string,
+      { installationId: string; toolName: string }
+    >;
+  }> {
     const baseUrl = this.getPostHogApiBaseUrl(credentials.apiHost);
     const approvals: Record<string, string> = {};
+    const toolInstallations: Record<
+      string,
+      { installationId: string; toolName: string }
+    > = {};
 
     const results = await Promise.allSettled(
       installations.map(async (installation) => {
@@ -197,6 +231,7 @@ export class AgentAuthAdapter {
         };
         return (data.results ?? []).map((tool) => ({
           serverName,
+          installationId: installation.id,
           toolName: tool.tool_name,
           approvalState: tool.approval_state,
         }));
@@ -214,14 +249,18 @@ export class AgentAuthAdapter {
         continue;
       }
       for (const tool of result.value) {
+        const key = `mcp__${tool.serverName}__${tool.toolName}`;
         if (tool.approvalState) {
-          approvals[`mcp__${tool.serverName}__${tool.toolName}`] =
-            tool.approvalState;
+          approvals[key] = tool.approvalState;
         }
+        toolInstallations[key] = {
+          installationId: tool.installationId,
+          toolName: tool.toolName,
+        };
       }
     }
 
-    return approvals;
+    return { approvals, toolInstallations };
   }
 
   private async fetchMcpInstallations(credentials: Credentials): Promise<

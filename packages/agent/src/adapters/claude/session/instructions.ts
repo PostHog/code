@@ -19,7 +19,9 @@ When in doubt, continue executing and incorporate the feedback inline.
 const MCP_TOOLS = `
 # MCP Tool Access
 
-When an MCP tool call is denied, relay the denial message to the user exactly as given. Do NOT suggest checking "Claude Code settings" — MCP tool permissions in this environment are managed under Settings > MCP Servers in PostHog Code.
+If an MCP tool call is explicitly denied with a message, relay that denial message to the user exactly as given. Do NOT suggest checking "Claude Code settings."
+
+If an MCP tool call returns an error, treat it as a normal tool error — troubleshoot, retry, or inform the user about the specific error. Do NOT assume it is a permissions issue and do NOT direct the user to any settings page.
 `;
 
 export const APPENDED_INSTRUCTIONS = BRANCH_NAMING + PLAN_MODE + MCP_TOOLS;

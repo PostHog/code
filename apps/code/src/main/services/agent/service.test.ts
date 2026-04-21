@@ -164,6 +164,7 @@ function createMockDependencies() {
           },
         ],
         toolApprovals: {},
+        toolInstallations: {},
       }),
     },
     mcpAppsService: {
@@ -305,6 +306,7 @@ describe("AgentService", () => {
         promptPending: false,
         inFlightMcpToolCalls: new Map(),
         mcpToolApprovals: {},
+        toolInstallations: {},
         ...overrides,
       });
     }
