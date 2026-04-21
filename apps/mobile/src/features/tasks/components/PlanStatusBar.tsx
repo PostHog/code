@@ -65,9 +65,9 @@ export function PlanStatusBar({ plan }: PlanStatusBarProps) {
 
       {isExpanded && plan && (
         <View className="border-gray-6 border-t px-4 pt-2 pb-2.5">
-          {plan.map((entry) => (
+          {plan.map((entry, index) => (
             <View
-              key={entry.content}
+              key={`${index}-${entry.content}`}
               className="flex-row items-center gap-2 py-1"
             >
               <StatusIcon status={entry.status} />

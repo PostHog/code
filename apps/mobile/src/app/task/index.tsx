@@ -20,7 +20,10 @@ import {
   type Integration,
   runTaskInCloud,
 } from "@/features/tasks";
+import { logger } from "@/lib/logger";
 import { useThemeColors } from "@/lib/theme";
+
+const log = logger.scope("task-create");
 
 interface ConnectGitHubPromptProps {
   onConnected?: () => void;
@@ -109,7 +112,7 @@ export default function NewTaskScreen() {
         setRepositories(allRepos.sort());
       }
     } catch (error) {
-      console.error("Failed to fetch integrations:", error);
+      log.error("Failed to fetch integrations", error);
     } finally {
       setLoadingRepos(false);
     }
@@ -145,7 +148,7 @@ export default function NewTaskScreen() {
       // Navigate to task detail (replaces current modal)
       router.replace(`/task/${task.id}`);
     } catch (error) {
-      console.error("Failed to create task:", error);
+      log.error("Failed to create task", error);
     } finally {
       setCreating(false);
     }

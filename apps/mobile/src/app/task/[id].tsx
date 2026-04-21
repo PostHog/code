@@ -22,7 +22,10 @@ import {
   taskKeys,
   useTaskSessionStore,
 } from "@/features/tasks";
+import { logger } from "@/lib/logger";
 import { useThemeColors } from "@/lib/theme";
+
+const log = logger.scope("task-detail");
 
 export default function TaskDetailScreen() {
   const { id: taskId } = useLocalSearchParams<{ id: string }>();
@@ -77,7 +80,7 @@ export default function TaskDetailScreen() {
       })
       .catch((err) => {
         if (cancelled) return;
-        console.error("Failed to load task:", err);
+        log.error("Failed to load task", err);
         setError("Failed to load task");
       })
       .finally(() => {
@@ -110,7 +113,7 @@ export default function TaskDetailScreen() {
       })
       .catch((err) => {
         if (cancelled) return;
-        console.error("Failed to reconnect to task:", err);
+        log.error("Failed to reconnect to task", err);
       });
 
     return () => {
@@ -123,7 +126,7 @@ export default function TaskDetailScreen() {
       if (!taskId) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       sendPrompt(taskId, text).catch((err) => {
-        console.error("Failed to send prompt:", err);
+        log.error("Failed to send prompt", err);
         Alert.alert(
           "Failed to send",
           "Your message could not be delivered. Please try again.",
@@ -167,7 +170,7 @@ export default function TaskDetailScreen() {
       // Don't clear retrying here — the effect below clears it
       // once the session shows meaningful state (thinking or terminal).
     } catch (err) {
-      console.error("Failed to retry task:", err);
+      log.error("Failed to retry task", err);
       setRetrying(false);
       Alert.alert(
         "Retry failed",
@@ -188,7 +191,7 @@ export default function TaskDetailScreen() {
     (args: Parameters<typeof sendPermissionResponse>[1]) => {
       if (!taskId) return;
       sendPermissionResponse(taskId, args).catch((err) => {
-        console.error("Failed to send permission response:", err);
+        log.error("Failed to send permission response", err);
         Alert.alert(
           "Failed to respond",
           "Your permission response could not be sent. Please try again.",
@@ -234,7 +237,7 @@ export default function TaskDetailScreen() {
       updateTaskInCache(updatedTask);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
-      console.error("Failed to continue in cloud:", err);
+      log.error("Failed to continue in cloud", err);
       setRetrying(false);
       Alert.alert(
         "Failed to switch",

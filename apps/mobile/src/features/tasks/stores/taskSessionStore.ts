@@ -892,6 +892,7 @@ AppState.addEventListener("change", (nextState) => {
   if (nextState === "active") {
     pollInFlight.clear();
     pollInFlightSince.clear();
+    pollTicks.clear();
     for (const [taskRunId, interval] of cloudPollers) {
       clearInterval(interval);
       cloudPollers.delete(taskRunId);

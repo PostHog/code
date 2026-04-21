@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore, useUserQuery } from "@/features/auth";
+import { logger } from "@/lib/logger";
 import {
   createTask,
   deleteTask,
@@ -10,6 +11,8 @@ import {
 } from "../api";
 import { filterAndSortTasks, useTaskStore } from "../stores/taskStore";
 import type { CreateTaskOptions, Task } from "../types";
+
+const log = logger.scope("tasks-mutations");
 
 export const taskKeys = {
   all: ["tasks"] as const,
@@ -75,7 +78,7 @@ export function useCreateTask() {
       invalidateTasks();
     },
     onError: (error) => {
-      console.error("Failed to create task:", error.message);
+      log.error("Failed to create task", error.message);
     },
   });
 
@@ -99,7 +102,7 @@ export function useUpdateTask() {
       queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
     },
     onError: (error) => {
-      console.error("Failed to update task:", error.message);
+      log.error("Failed to update task", error.message);
     },
   });
 }
@@ -115,7 +118,7 @@ export function useDeleteTask() {
       queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
     },
     onError: (error) => {
-      console.error("Failed to delete task:", error.message);
+      log.error("Failed to delete task", error.message);
     },
   });
 }
@@ -130,7 +133,7 @@ export function useRunTask() {
       queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
     },
     onError: (error) => {
-      console.error("Failed to run task:", error.message);
+      log.error("Failed to run task", error.message);
     },
   });
 }

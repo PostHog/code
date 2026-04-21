@@ -1,5 +1,8 @@
 import { ExpoSpeechRecognitionModule } from "expo-speech-recognition";
 import { useCallback, useRef, useState } from "react";
+import { logger } from "@/lib/logger";
+
+const log = logger.scope("voice-recording");
 
 type RecordingStatus = "idle" | "recording" | "transcribing" | "error";
 
@@ -110,7 +113,7 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
 
       setStatus("recording");
     } catch (err) {
-      console.error("Failed to start speech recognition:", err);
+      log.error("Failed to start speech recognition", err);
       setError("Failed to start speech recognition");
       setStatus("error");
     }
