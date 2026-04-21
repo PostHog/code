@@ -5,9 +5,11 @@ import {
   ArrowUpRight,
   Check,
   DownloadSimple,
+  MagnifyingGlass,
   Prohibit,
   Shield,
   Trash,
+  X,
 } from "@phosphor-icons/react";
 import {
   Badge,
@@ -18,6 +20,7 @@ import {
   Spinner,
   Switch,
   Text,
+  TextField,
   Tooltip,
 } from "@radix-ui/themes";
 import type {
@@ -60,6 +63,7 @@ export function ServerDetailView({
   onUninstall,
 }: ServerDetailViewProps) {
   const [showRemoved, setShowRemoved] = useState(false);
+  const [toolSearch, setToolSearch] = useState("");
 
   const name =
     installation?.display_name ||
@@ -107,6 +111,12 @@ export function ServerDetailView({
       return a.tool_name.localeCompare(b.tool_name);
     });
   }, [tools]);
+
+  const filteredTools = useMemo(() => {
+    if (!toolSearch) return visibleTools;
+    const term = toolSearch.toLowerCase();
+    return visibleTools.filter((t) => t.tool_name.toLowerCase().includes(term));
+  }, [visibleTools, toolSearch]);
 
   const removedCount = tools.filter((t) => !!t.removed_at).length;
 
@@ -317,18 +327,49 @@ export function ServerDetailView({
             </Flex>
           ) : (
             <Flex direction="column" gap="2">
-              {visibleTools.map((tool) => (
-                <ToolRow
-                  key={tool.tool_name}
-                  tool={tool}
-                  onChange={(approval_state) =>
-                    setToolApproval({
-                      toolName: tool.tool_name,
-                      approval_state,
-                    })
-                  }
-                />
-              ))}
+              {visibleTools.length > 5 && (
+                <TextField.Root
+                  value={toolSearch}
+                  onChange={(e) => setToolSearch(e.target.value)}
+                  placeholder="Search tools..."
+                  size="2"
+                >
+                  <TextField.Slot>
+                    <MagnifyingGlass size={14} />
+                  </TextField.Slot>
+                  {toolSearch && (
+                    <TextField.Slot>
+                      <IconButton
+                        variant="ghost"
+                        size="1"
+                        onClick={() => setToolSearch("")}
+                      >
+                        <X size={12} />
+                      </IconButton>
+                    </TextField.Slot>
+                  )}
+                </TextField.Root>
+              )}
+              {filteredTools.length === 0 ? (
+                <Flex align="center" justify="center" py="4">
+                  <Text size="2" color="gray">
+                    No tools match &ldquo;{toolSearch}&rdquo;
+                  </Text>
+                </Flex>
+              ) : (
+                filteredTools.map((tool) => (
+                  <ToolRow
+                    key={tool.tool_name}
+                    tool={tool}
+                    onChange={(approval_state) =>
+                      setToolApproval({
+                        toolName: tool.tool_name,
+                        approval_state,
+                      })
+                    }
+                  />
+                ))
+              )}
             </Flex>
           )}
 
