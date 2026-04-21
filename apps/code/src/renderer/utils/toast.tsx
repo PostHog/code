@@ -1,10 +1,4 @@
-import {
-  CheckIcon,
-  InfoIcon,
-  WarningIcon,
-  XCircleIcon,
-  XIcon,
-} from "@phosphor-icons/react";
+import { CheckIcon, InfoIcon, WarningIcon, XIcon } from "@phosphor-icons/react";
 import { Card, Flex, IconButton, Spinner, Text } from "@radix-ui/themes";
 import type { ReactNode } from "react";
 import { toast as sonnerToast } from "sonner";
@@ -32,7 +26,7 @@ function ToastComponent(props: ToastProps) {
       case "success":
         return <CheckIcon size={16} weight="bold" color="var(--green-9)" />;
       case "error":
-        return <XCircleIcon size={16} weight="bold" color="var(--red-9)" />;
+        return <XIcon size={16} weight="bold" color="var(--red-9)" />;
       case "info":
         return <InfoIcon size={16} weight="bold" color="var(--blue-9)" />;
       case "warning":
