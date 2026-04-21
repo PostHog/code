@@ -5,9 +5,9 @@ import {
   WelcomePane,
 } from "@features/inbox/components/InboxEmptyStates";
 import { InboxSourcesDialog } from "@features/inbox/components/InboxSourcesDialog";
+import { useInboxDeepLinkListSync } from "@features/inbox/hooks/useInboxDeepLinkListSync";
 import {
   useInboxAvailableSuggestedReviewers,
-  useInboxReportById,
   useInboxReportsInfinite,
   useInboxSignalProcessingState,
 } from "@features/inbox/hooks/useInboxReports";
@@ -155,70 +155,18 @@ export function InboxSignalsTab() {
   const selectExactRange = useInboxReportSelectionStore(
     (s) => s.selectExactRange,
   );
-  const pruneSelection = useInboxReportSelectionStore((s) => s.pruneSelection);
   const clearSelection = useInboxReportSelectionStore((s) => s.clearSelection);
+
+  const { selectedReport } = useInboxDeepLinkListSync({
+    reports,
+    inboxPollingActive,
+  });
 
   // Stable refs so callbacks don't need re-registration on every render
   const selectedReportIdsRef = useRef(selectedReportIds);
   selectedReportIdsRef.current = selectedReportIds;
   const reportsRef = useRef(reports);
   reportsRef.current = reports;
-
-  // When exactly one report is selected and it isn't on the currently loaded
-  // list page (e.g. opened via a deep link), fall back to a direct by-id fetch to render it.
-  const singleSelectedId =
-    selectedReportIds.length === 1 ? selectedReportIds[0] : null;
-  const selectedReportFromList = useMemo(() => {
-    if (!singleSelectedId) return null;
-    return reports.find((r) => r.id === singleSelectedId) ?? null;
-  }, [reports, singleSelectedId]);
-  const needsByIdFallback = !!singleSelectedId && !selectedReportFromList;
-  const { data: byIdReport, isError: byIdError } = useInboxReportById(
-    needsByIdFallback ? singleSelectedId : null,
-    {
-      refetchInterval: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : false,
-      refetchIntervalInBackground: false,
-      staleTime: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : 12_000,
-    },
-  );
-
-  // Prune selection when visible reports change (e.g. filter/search).
-  // Preserve off-list selections that are still loading or resolved via
-  // the by-id fallback; let prune clear them on confirmed null or on error.
-  useEffect(() => {
-    const visibleIds = reports.map((report) => report.id);
-    if (
-      singleSelectedId &&
-      !reports.some((r) => r.id === singleSelectedId) &&
-      !byIdError &&
-      byIdReport !== null
-    ) {
-      visibleIds.push(singleSelectedId);
-    }
-    pruneSelection(visibleIds);
-  }, [reports, pruneSelection, singleSelectedId, byIdReport, byIdError]);
-
-  // Scroll once per selection change; refetches must not snap the list back.
-  const autoScrolledIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!singleSelectedId) {
-      autoScrolledIdRef.current = null;
-      return;
-    }
-    if (autoScrolledIdRef.current === singleSelectedId) return;
-    if (!reports.some((r) => r.id === singleSelectedId)) return;
-
-    document
-      .querySelector(`[data-report-id="${CSS.escape(singleSelectedId)}"]`)
-      ?.scrollIntoView({ block: "nearest" });
-    autoScrolledIdRef.current = singleSelectedId;
-  }, [singleSelectedId, reports]);
-
-  // The report to show in the detail pane (only when exactly 1 is selected)
-  const selectedReport = useMemo(() => {
-    if (selectedReportIds.length !== 1) return null;
-    return selectedReportFromList ?? byIdReport ?? null;
-  }, [selectedReportIds, selectedReportFromList, byIdReport]);
 
   // Reports for the multi-select stack (when 2+ selected)
   const selectedReports = useMemo(() => {
