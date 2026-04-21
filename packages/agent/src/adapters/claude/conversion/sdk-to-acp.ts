@@ -644,15 +644,6 @@ export function classifyAgentError(
   return "agent_error";
 }
 
-export function isTransientAgentError(
-  classification: AgentErrorClassification,
-): boolean {
-  return (
-    classification === "upstream_stream_terminated" ||
-    classification === "upstream_connection_error"
-  );
-}
-
 export function handleResultMessage(
   message: SDKResultMessage,
 ): ResultMessageHandlerResult {

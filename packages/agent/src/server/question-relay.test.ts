@@ -1,5 +1,6 @@
 import { type SetupServerApi, setupServer } from "msw/node";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { classifyAgentError } from "../adapters/claude/conversion/sdk-to-acp";
 import type { PostHogAPIClient } from "../posthog-api";
 import { createTestRepo, type TestRepo } from "../test/fixtures/api";
 import { createPostHogHandlers } from "../test/mocks/msw-handlers";
@@ -76,6 +77,15 @@ function createTransientConnectionError(): Error & {
 }
 
 describe("Question relay", () => {
+  it.each([
+    ["API Error: terminated", "upstream_stream_terminated"],
+    ["API Error: Connection error", "upstream_connection_error"],
+    ["something else", "agent_error"],
+    [undefined, "agent_error"],
+  ])("classifies %p as %s", (message, expected) => {
+    expect(classifyAgentError(message)).toBe(expected);
+  });
+
   let repo: TestRepo;
   let server: TestableAgentServer;
   let mswServer: SetupServerApi;
