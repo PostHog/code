@@ -10,6 +10,7 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import type { Pushable } from "../../utils/streams";
 import type { BaseSession } from "../base-acp-agent";
+import type { McpToolApprovals } from "./mcp/tool-metadata";
 import type { SettingsManager } from "./session/settings";
 import type { CodeExecutionMode } from "./tools";
 
@@ -117,7 +118,7 @@ export type NewSessionMeta = {
   /** Model ID to use for this session (e.g. "claude-sonnet-4-6") */
   model?: string;
   jsonSchema?: Record<string, unknown> | null;
-  mcpToolApprovals?: Record<string, string>;
+  mcpToolApprovals?: McpToolApprovals;
   claudeCode?: {
     options?: Options;
     emitRawSDKMessages?: boolean | SDKMessageFilter[];

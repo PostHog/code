@@ -1,5 +1,9 @@
 import { delimiter } from "node:path";
-import { sanitizeMcpServerName } from "@posthog/agent/adapters/claude/mcp/tool-metadata";
+import {
+  type McpToolApprovalState,
+  type McpToolApprovals,
+  sanitizeMcpServerName,
+} from "@posthog/agent/adapters/claude/mcp/tool-metadata";
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
@@ -10,6 +14,15 @@ import type { McpProxyService } from "../mcp-proxy/service";
 import type { Credentials } from "./schemas";
 
 const log = logger.scope("agent-auth-adapter");
+
+const VALID_APPROVAL_STATES = new Set([
+  "approved",
+  "needs_approval",
+  "do_not_use",
+]);
+function isValidApprovalState(value: string): value is McpToolApprovalState {
+  return VALID_APPROVAL_STATES.has(value);
+}
 
 export interface AcpMcpServer {
   name: string;
@@ -24,6 +37,15 @@ export interface AgentPosthogConfig {
   refreshApiKey: () => Promise<string>;
   projectId: number;
 }
+
+/** Reference linking an MCP tool key back to its server installation for backend updates. */
+export interface McpToolInstallationRef {
+  installationId: string;
+  toolName: string;
+}
+
+/** Maps MCP tool keys (e.g. `mcp__server__tool`) to their installation reference. */
+export type McpToolInstallations = Record<string, McpToolInstallationRef>;
 
 interface ConfigureProcessEnvInput {
   credentials: Credentials;
@@ -54,11 +76,8 @@ export class AgentAuthAdapter {
 
   async buildMcpServers(credentials: Credentials): Promise<{
     servers: AcpMcpServer[];
-    toolApprovals: Record<string, string>;
-    toolInstallations: Record<
-      string,
-      { installationId: string; toolName: string }
-    >;
+    toolApprovals: McpToolApprovals;
+    toolInstallations: McpToolInstallations;
   }> {
     const servers: AcpMcpServer[] = [];
     const mcpUrl = this.getPostHogMcpUrl(credentials.apiHost);
@@ -169,7 +188,7 @@ export class AgentAuthAdapter {
     credentials: Credentials,
     installationId: string,
     toolName: string,
-    approvalState: string,
+    approvalState: McpToolApprovalState,
   ): Promise<void> {
     const baseUrl = this.getPostHogApiBaseUrl(credentials.apiHost);
     const url = `${baseUrl}/api/environments/${credentials.projectId}/mcp_server_installations/${installationId}/tools/${encodeURIComponent(toolName)}/`;
@@ -196,18 +215,12 @@ export class AgentAuthAdapter {
       display_name: string;
     }>,
   ): Promise<{
-    approvals: Record<string, string>;
-    toolInstallations: Record<
-      string,
-      { installationId: string; toolName: string }
-    >;
+    approvals: McpToolApprovals;
+    toolInstallations: McpToolInstallations;
   }> {
     const baseUrl = this.getPostHogApiBaseUrl(credentials.apiHost);
-    const approvals: Record<string, string> = {};
-    const toolInstallations: Record<
-      string,
-      { installationId: string; toolName: string }
-    > = {};
+    const approvals: McpToolApprovals = {};
+    const toolInstallations: McpToolInstallations = {};
 
     const results = await Promise.allSettled(
       installations.map(async (installation) => {
@@ -250,7 +263,7 @@ export class AgentAuthAdapter {
       }
       for (const tool of result.value) {
         const key = `mcp__${tool.serverName}__${tool.toolName}`;
-        if (tool.approvalState) {
+        if (tool.approvalState && isValidApprovalState(tool.approvalState)) {
           approvals[key] = tool.approvalState;
         }
         toolInstallations[key] = {

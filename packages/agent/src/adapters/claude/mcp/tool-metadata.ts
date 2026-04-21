@@ -3,6 +3,9 @@ import { Logger } from "../../../utils/logger";
 
 export type McpToolApprovalState = "approved" | "needs_approval" | "do_not_use";
 
+/** Maps MCP tool keys (e.g. `mcp__server__tool`) to their backend approval state. */
+export type McpToolApprovals = Record<string, McpToolApprovalState>;
+
 export interface McpToolMetadata {
   readOnly: boolean;
   name: string;
@@ -119,9 +122,7 @@ export function getMcpToolApprovalState(
   return mcpToolMetadataCache.get(toolName)?.approvalState;
 }
 
-export function setMcpToolApprovalStates(
-  approvals: Record<string, McpToolApprovalState>,
-): void {
+export function setMcpToolApprovalStates(approvals: McpToolApprovals): void {
   for (const [toolKey, approvalState] of Object.entries(approvals)) {
     const existing = mcpToolMetadataCache.get(toolKey);
     if (existing) {

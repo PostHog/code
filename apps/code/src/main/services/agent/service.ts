@@ -17,6 +17,7 @@ import {
   isNotification,
   POSTHOG_NOTIFICATIONS,
 } from "@posthog/agent";
+import type { McpToolApprovals } from "@posthog/agent/adapters/claude/mcp/tool-metadata";
 import { hydrateSessionJsonl } from "@posthog/agent/adapters/claude/session/jsonl-hydration";
 import { getReasoningEffortOptions } from "@posthog/agent/adapters/reasoning-effort";
 import { Agent } from "@posthog/agent/agent";
@@ -52,7 +53,7 @@ import type { McpAppsService } from "../mcp-apps/service";
 import type { PosthogPluginService } from "../posthog-plugin/service";
 import type { ProcessTrackingService } from "../process-tracking/service";
 import type { SleepService } from "../sleep/service";
-import type { AgentAuthAdapter } from "./auth-adapter";
+import type { AgentAuthAdapter, McpToolInstallations } from "./auth-adapter";
 import { discoverExternalPlugins } from "./discover-plugins";
 import {
   AgentServiceEvent,
@@ -242,13 +243,10 @@ interface ManagedSession {
   configOptions?: SessionConfigOption[];
   /** Tracks in-flight MCP tool calls (toolCallId → toolKey) for cancellation */
   inFlightMcpToolCalls: Map<string, string>;
-  /** MCP tool approval states (toolKey → approval_state) fetched at session start */
-  mcpToolApprovals: Record<string, string>;
-  /** Maps tool keys to their installation ID and raw tool name for backend updates */
-  toolInstallations: Record<
-    string,
-    { installationId: string; toolName: string }
-  >;
+  /** MCP tool approval states fetched at session start */
+  mcpToolApprovals: McpToolApprovals;
+  /** Maps tool keys to their installation for backend approval updates */
+  toolInstallations: McpToolInstallations;
 }
 
 /** Get the agent session ID from a managed session, throwing if not set. */
@@ -1232,7 +1230,7 @@ For git operations while detached:
         if (toolName && isMcpToolReadOnly(toolName)) {
           const session = service.sessions.get(taskRunId);
           const approvalState = session?.mcpToolApprovals?.[toolName];
-          if (approvalState !== "needs_approval") {
+          if (approvalState === "approved") {
             log.info("Auto-approving read-only MCP tool", {
               taskRunId,
               toolName,
