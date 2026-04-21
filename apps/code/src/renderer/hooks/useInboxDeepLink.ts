@@ -25,22 +25,19 @@ const reportDetailKey = (reportId: string) =>
  * and opens the report in the inbox view.
  *
  * Behavior on link arrival:
- * 1. Reset inbox-local filters so the linked report isn't hidden.
- * 2. Navigate to the inbox view.
- * 3. Fetch the report by id directly, bypassing the paginated list, and seed
+ * 1. Fetch the report by id directly, bypassing the paginated list, and seed
  *    the TanStack Query cache so the detail pane fallback reuses it.
  *    - On 404/403 (wrong team / deleted / suppressed): toast "Report not found
- *      in the current team" and clear selection.
- *    - On success: set selection to the report id.
+ *      in the current team" and leave the current view untouched.
+ *    - On transient failure: toast a generic error and leave state untouched.
+ * 2. Only on success: reset inbox-local filters (so the report isn't hidden),
+ *    navigate to the inbox view, and select the report id.
  */
 export function useInboxDeepLink() {
   const trpcReact = useTRPC();
   const navigateToInbox = useNavigationStore((state) => state.navigateToInbox);
   const setSelectedReportIds = useInboxReportSelectionStore(
     (state) => state.setSelectedReportIds,
-  );
-  const clearSelection = useInboxReportSelectionStore(
-    (state) => state.clearSelection,
   );
   const resetFilters = useInboxSignalsFilterStore(
     (state) => state.resetFilters,
@@ -61,9 +58,6 @@ export function useInboxDeepLink() {
         return;
       }
 
-      resetFilters();
-      navigateToInbox();
-
       try {
         const report = await queryClient.fetchQuery<SignalReport | null>({
           queryKey: reportDetailKey(reportId),
@@ -74,26 +68,22 @@ export function useInboxDeepLink() {
         if (!report) {
           log.warn(`Report not found or not accessible: ${reportId}`);
           toast.error("Report not found in the current team");
-          clearSelection();
           return;
         }
 
+        // Only mutate inbox UI state once we know the report resolves — so a
+        // bad or wrong-team link doesn't clobber the user's saved filters or
+        // yank them away from whatever view they were on.
+        resetFilters();
+        navigateToInbox();
         setSelectedReportIds([report.id]);
         log.info(`Successfully opened report from deep link: ${report.id}`);
       } catch (error) {
         log.error("Unexpected error opening report from deep link:", error);
         toast.error("Failed to open report");
-        clearSelection();
       }
     },
-    [
-      navigateToInbox,
-      setSelectedReportIds,
-      clearSelection,
-      resetFilters,
-      queryClient,
-      client,
-    ],
+    [navigateToInbox, setSelectedReportIds, resetFilters, queryClient, client],
   );
 
   // Cold start: drain pending deep link that arrived before renderer was ready.
