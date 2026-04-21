@@ -169,12 +169,22 @@ export function useInboxSignalProcessingState(options?: {
 
 export function useInboxReportById(
   reportId: string | null,
-  options?: { enabled?: boolean },
+  options?: {
+    enabled?: boolean;
+    refetchInterval?: number | false | (() => number | false | undefined);
+    refetchIntervalInBackground?: boolean;
+    staleTime?: number;
+  },
 ) {
   return useAuthenticatedQuery<SignalReport | null>(
     reportKeys.detail(reportId ?? ""),
     (client) => client.getSignalReport(reportId ?? ""),
-    { enabled: !!reportId && (options?.enabled ?? true) },
+    {
+      enabled: !!reportId && (options?.enabled ?? true),
+      refetchInterval: options?.refetchInterval,
+      refetchIntervalInBackground: options?.refetchIntervalInBackground,
+      staleTime: options?.staleTime,
+    },
   );
 }
 

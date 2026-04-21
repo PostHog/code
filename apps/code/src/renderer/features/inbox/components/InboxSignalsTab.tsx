@@ -175,6 +175,11 @@ export function InboxSignalsTab() {
   const needsByIdFallback = !!singleSelectedId && !selectedReportFromList;
   const { data: byIdReport } = useInboxReportById(
     needsByIdFallback ? singleSelectedId : null,
+    {
+      refetchInterval: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : false,
+      refetchIntervalInBackground: false,
+      staleTime: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : 12_000,
+    },
   );
 
   // Prune selection when visible reports change (e.g. filter/search).
