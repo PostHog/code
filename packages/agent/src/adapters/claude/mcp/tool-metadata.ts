@@ -1,10 +1,13 @@
 import type { McpServerStatus, Query } from "@anthropic-ai/claude-agent-sdk";
 import { Logger } from "../../../utils/logger";
 
+export type McpToolApprovalState = "approved" | "needs_approval" | "do_not_use";
+
 export interface McpToolMetadata {
   readOnly: boolean;
   name: string;
   description?: string;
+  approvalState?: McpToolApprovalState;
 }
 
 const mcpToolMetadataCache: Map<string, McpToolMetadata> = new Map();
@@ -49,10 +52,12 @@ export async function fetchMcpToolMetadata(
         const toolKey = buildToolKey(server.name, tool.name);
         const readOnly = tool.annotations?.readOnly === true;
 
+        const existing = mcpToolMetadataCache.get(toolKey);
         mcpToolMetadataCache.set(toolKey, {
           readOnly,
           name: tool.name,
           description: tool.description,
+          approvalState: existing?.approvalState,
         });
         if (readOnly) readOnlyCount++;
       }
@@ -102,6 +107,29 @@ export function getConnectedMcpServerNames(): string[] {
     if (parts.length >= 3) names.add(parts[1]);
   }
   return [...names];
+}
+
+export function getMcpToolApprovalState(
+  toolName: string,
+): McpToolApprovalState | undefined {
+  return mcpToolMetadataCache.get(toolName)?.approvalState;
+}
+
+export function setMcpToolApprovalStates(
+  approvals: Record<string, McpToolApprovalState>,
+): void {
+  for (const [toolKey, approvalState] of Object.entries(approvals)) {
+    const existing = mcpToolMetadataCache.get(toolKey);
+    if (existing) {
+      existing.approvalState = approvalState;
+    } else {
+      mcpToolMetadataCache.set(toolKey, {
+        readOnly: false,
+        name: toolKey,
+        approvalState,
+      });
+    }
+  }
 }
 
 export function clearMcpToolMetadataCache(): void {

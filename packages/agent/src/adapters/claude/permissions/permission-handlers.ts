@@ -9,6 +9,7 @@ import type {
 import { text } from "../../../utils/acp-content";
 import type { Logger } from "../../../utils/logger";
 import { toolInfoFromToolUse } from "../conversion/tool-use-to-acp";
+import { getMcpToolApprovalState } from "../mcp/tool-metadata";
 import {
   getClaudePlansDir,
   getLatestAssistantText,
@@ -507,6 +508,21 @@ export async function canUseTool(
           return { behavior: "deny", message, interrupt: false };
         }
       }
+    }
+  }
+
+  if (toolName.startsWith("mcp__")) {
+    const approvalState = getMcpToolApprovalState(toolName);
+
+    if (approvalState === "do_not_use") {
+      const message =
+        "This tool has been blocked. To re-enable it, go to Settings > MCP Servers in PostHog Code.";
+      await emitToolDenial(context, message);
+      return { behavior: "deny", message, interrupt: false };
+    }
+
+    if (approvalState === "needs_approval") {
+      return handleDefaultPermissionFlow(context);
     }
   }
 

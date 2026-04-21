@@ -117,6 +117,7 @@ export type NewSessionMeta = {
   /** Model ID to use for this session (e.g. "claude-sonnet-4-6") */
   model?: string;
   jsonSchema?: Record<string, unknown> | null;
+  mcpToolApprovals?: Record<string, string>;
   claudeCode?: {
     options?: Options;
     emitRawSDKMessages?: boolean | SDKMessageFilter[];

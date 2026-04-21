@@ -242,6 +242,8 @@ interface ManagedSession {
   configOptions?: SessionConfigOption[];
   /** Tracks in-flight MCP tool calls (toolCallId → toolKey) for cancellation */
   inFlightMcpToolCalls: Map<string, string>;
+  /** MCP tool approval states (toolKey → approval_state) fetched at session start */
+  mcpToolApprovals: Record<string, string>;
 }
 
 /** Get the agent session ID from a managed session, throwing if not set. */
@@ -647,7 +649,7 @@ When creating pull requests, add the following footer at the end of the PR descr
         },
       });
 
-      const mcpServers =
+      const { servers: mcpServers, toolApprovals } =
         await this.agentAuthAdapter.buildMcpServers(credentials);
 
       // Store server configs for lazy MCP connections — actual connections
@@ -735,6 +737,7 @@ When creating pull requests, add the following footer at the end of the PR descr
             taskRunId,
             sessionId: existingSessionId,
             systemPrompt,
+            mcpToolApprovals: toolApprovals,
             ...(permissionMode && { permissionMode }),
             ...(model != null && { model }),
             ...(jsonSchema && { jsonSchema }),
@@ -758,6 +761,7 @@ When creating pull requests, add the following footer at the end of the PR descr
           _meta: {
             taskRunId,
             systemPrompt,
+            mcpToolApprovals: toolApprovals,
             ...(permissionMode && { permissionMode }),
             ...(model != null && { model }),
             ...(jsonSchema && { jsonSchema }),
@@ -785,6 +789,7 @@ When creating pull requests, add the following footer at the end of the PR descr
         promptPending: false,
         configOptions,
         inFlightMcpToolCalls: new Map(),
+        mcpToolApprovals: toolApprovals,
       };
 
       this.sessions.set(taskRunId, session);
@@ -1216,19 +1221,23 @@ For git operations while detached:
         });
 
         if (toolName && isMcpToolReadOnly(toolName)) {
-          log.info("Auto-approving read-only MCP tool", {
-            taskRunId,
-            toolName,
-          });
-          const allowOption = params.options.find(
-            (o) => o.kind === "allow_once" || o.kind === "allow_always",
-          );
-          return {
-            outcome: {
-              outcome: "selected",
-              optionId: allowOption?.optionId ?? params.options[0].optionId,
-            },
-          };
+          const session = service.sessions.get(taskRunId);
+          const approvalState = session?.mcpToolApprovals?.[toolName];
+          if (approvalState !== "needs_approval") {
+            log.info("Auto-approving read-only MCP tool", {
+              taskRunId,
+              toolName,
+            });
+            const allowOption = params.options.find(
+              (o) => o.kind === "allow_once" || o.kind === "allow_always",
+            );
+            return {
+              outcome: {
+                outcome: "selected",
+                optionId: allowOption?.optionId ?? params.options[0].optionId,
+              },
+            };
+          }
         }
 
         // If we have a toolCallId, always prompt the user for permission.
