@@ -10,12 +10,15 @@ import type {
   SpawnedProcess,
   SpawnOptions,
 } from "@anthropic-ai/claude-agent-sdk";
+import type { FileEnrichmentDeps } from "../../../enrichment/file-enricher";
 import { IS_ROOT } from "../../../utils/common";
 import type { Logger } from "../../../utils/logger";
 import {
   createPostToolUseHook,
   createPreToolUseHook,
+  createReadEnrichmentHook,
   createSubagentRewriteHook,
+  type EnrichedReadCache,
   type OnModeChange,
 } from "../hooks";
 import type { CodeExecutionMode } from "../tools";
@@ -49,6 +52,8 @@ export interface BuildOptionsParams {
   onProcessSpawned?: (info: ProcessSpawnedInfo) => void;
   onProcessExited?: (pid: number) => void;
   effort?: EffortLevel;
+  enrichmentDeps?: FileEnrichmentDeps;
+  enrichedReadCache?: EnrichedReadCache;
 }
 
 export function buildSystemPrompt(
@@ -108,14 +113,21 @@ function buildHooks(
   onModeChange: OnModeChange | undefined,
   settingsManager: SettingsManager,
   logger: Logger,
+  enrichmentDeps: FileEnrichmentDeps | undefined,
+  enrichedReadCache: EnrichedReadCache | undefined,
 ): Options["hooks"] {
+  const postToolUseHooks = [createPostToolUseHook({ onModeChange, logger })];
+  if (enrichmentDeps && enrichedReadCache) {
+    postToolUseHooks.push(
+      createReadEnrichmentHook(enrichmentDeps, enrichedReadCache),
+    );
+  }
+
   return {
     ...userHooks,
     PostToolUse: [
       ...(userHooks?.PostToolUse || []),
-      {
-        hooks: [createPostToolUseHook({ onModeChange, logger })],
-      },
+      { hooks: postToolUseHooks },
     ],
     PreToolUse: [
       ...(userHooks?.PreToolUse || []),
@@ -269,6 +281,8 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
       params.onModeChange,
       params.settingsManager,
       params.logger,
+      params.enrichmentDeps,
+      params.enrichedReadCache,
     ),
     outputFormat: params.outputFormat,
     abortController: getAbortController(

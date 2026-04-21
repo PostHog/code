@@ -42,13 +42,17 @@ import {
   POSTHOG_NOTIFICATIONS,
 } from "../../acp-extensions";
 import {
+  createEnrichment,
+  type Enrichment,
+} from "../../enrichment/file-enricher";
+import {
   type CodeExecutionMode,
   type CodexNativeMode,
   isCodeExecutionMode,
   isCodexNativeMode,
   type PermissionMode,
 } from "../../execution-mode";
-import type { ProcessSpawnedCallback } from "../../types";
+import type { PostHogAPIConfig, ProcessSpawnedCallback } from "../../types";
 import { Logger } from "../../utils/logger";
 import {
   nodeReadableToWebReadable,
@@ -86,6 +90,7 @@ interface NewSessionMeta {
 export interface CodexAcpAgentOptions {
   codexProcessOptions: CodexProcessOptions;
   processCallbacks?: ProcessSpawnedCallback;
+  posthogApiConfig?: PostHogAPIConfig;
 }
 
 type CodexSession = BaseSession & {
@@ -168,6 +173,7 @@ export class CodexAcpAgent extends BaseAcpAgent {
   // Snapshot of the initialize() request so refreshSession can replay the
   // same handshake against a respawned codex-acp subprocess.
   private lastInitRequest?: InitializeRequest;
+  private enrichment?: Enrichment;
 
   constructor(client: AgentSideConnection, options: CodexAcpAgentOptions) {
     super(client);
@@ -205,12 +211,16 @@ export class CodexAcpAgent extends BaseAcpAgent {
 
     this.sessionState = createSessionState("", cwd);
 
+    this.enrichment = createEnrichment(options.posthogApiConfig, this.logger);
+
     // Create the ClientSideConnection to codex-acp.
     // The Client handler delegates all requests from codex-acp to the upstream
     // PostHog Code client via our AgentSideConnection.
     this.codexConnection = new ClientSideConnection(
       (_agent) =>
-        createCodexClient(this.client, this.logger, this.sessionState),
+        createCodexClient(this.client, this.logger, this.sessionState, {
+          enrichmentDeps: this.enrichment?.deps,
+        }),
       codexStream,
     );
   }
@@ -672,5 +682,7 @@ export class CodexAcpAgent extends BaseAcpAgent {
     } catch (err) {
       this.logger.warn("Failed to kill codex-acp process", { error: err });
     }
+    this.enrichment?.dispose();
+    this.enrichment = undefined;
   }
 }

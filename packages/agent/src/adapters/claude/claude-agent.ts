@@ -51,6 +51,12 @@ import {
   POSTHOG_METHODS,
   POSTHOG_NOTIFICATIONS,
 } from "../../acp-extensions";
+import {
+  createEnrichment,
+  type Enrichment,
+  type FileEnrichmentDeps,
+} from "../../enrichment/file-enricher";
+import type { PostHogAPIConfig } from "../../types";
 import { unreachable, withTimeout } from "../../utils/common";
 import { Logger } from "../../utils/logger";
 import { Pushable } from "../../utils/streams";
@@ -62,6 +68,7 @@ import {
   handleSystemMessage,
   handleUserAssistantMessage,
 } from "./conversion/sdk-to-acp";
+import type { EnrichedReadCache } from "./hooks";
 import {
   fetchMcpToolMetadata,
   getConnectedMcpServerNames,
@@ -116,6 +123,7 @@ export interface ClaudeAcpAgentOptions {
   onProcessExited?: (pid: number) => void;
   onMcpServersReady?: (serverNames: string[]) => void;
   onStructuredOutput?: (output: Record<string, unknown>) => Promise<void>;
+  posthogApiConfig?: PostHogAPIConfig;
 }
 
 export class ClaudeAcpAgent extends BaseAcpAgent {
@@ -125,12 +133,29 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   backgroundTerminals: { [key: string]: BackgroundTerminal } = {};
   clientCapabilities?: ClientCapabilities;
   private options?: ClaudeAcpAgentOptions;
+  private enrichment?: Enrichment;
+  private enrichedReadCache: EnrichedReadCache = new Map();
 
   constructor(client: AgentSideConnection, options?: ClaudeAcpAgentOptions) {
     super(client);
     this.options = options;
     this.toolUseCache = {};
     this.logger = new Logger({ debug: true, prefix: "[ClaudeAcpAgent]" });
+    this.enrichment = createEnrichment(options?.posthogApiConfig, this.logger);
+  }
+
+  protected getEnrichmentDeps(): FileEnrichmentDeps | undefined {
+    return this.enrichment?.deps;
+  }
+
+  override async closeSession(): Promise<void> {
+    try {
+      await super.closeSession();
+    } finally {
+      this.enrichment?.dispose();
+      this.enrichment = undefined;
+      this.enrichedReadCache.clear();
+    }
   }
 
   async initialize(request: InitializeRequest): Promise<InitializeResponse> {
@@ -355,6 +380,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       client: this.client,
       toolUseCache: this.toolUseCache,
       fileContentCache: this.fileContentCache,
+      enrichedReadCache: this.enrichedReadCache,
       logger: this.logger,
       supportsTerminalOutput,
     };
@@ -993,6 +1019,8 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       onProcessSpawned: this.options?.onProcessSpawned,
       onProcessExited: this.options?.onProcessExited,
       effort,
+      enrichmentDeps: this.enrichment?.deps,
+      enrichedReadCache: this.enrichedReadCache,
     });
 
     // Use the same abort controller that buildSessionOptions gave to the query
@@ -1354,6 +1382,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         client: this.client,
         toolUseCache: this.toolUseCache,
         fileContentCache: this.fileContentCache,
+        enrichedReadCache: this.enrichedReadCache,
         logger: this.logger,
         registerHooks: false,
       };
