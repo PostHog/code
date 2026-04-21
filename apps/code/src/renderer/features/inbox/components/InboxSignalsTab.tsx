@@ -196,13 +196,20 @@ export function InboxSignalsTab() {
     pruneSelection(visibleIds);
   }, [reports, pruneSelection, singleSelectedId, byIdReport]);
 
-  // Scroll the singly-selected row into view if it's rendered in the list.
+  // Scroll once per selection change; refetches must not snap the list back.
+  const autoScrolledIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!singleSelectedId) return;
+    if (!singleSelectedId) {
+      autoScrolledIdRef.current = null;
+      return;
+    }
+    if (autoScrolledIdRef.current === singleSelectedId) return;
     if (!reports.some((r) => r.id === singleSelectedId)) return;
+
     document
       .querySelector(`[data-report-id="${CSS.escape(singleSelectedId)}"]`)
       ?.scrollIntoView({ block: "nearest" });
+    autoScrolledIdRef.current = singleSelectedId;
   }, [singleSelectedId, reports]);
 
   // The report to show in the detail pane (only when exactly 1 is selected)
