@@ -529,7 +529,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
         type: chip.type,
         id: chip.id,
         label: chip.label,
-        pastedText: false,
+        pastedText: chip.pastedText ?? false,
       });
       draft.saveDraft(editor, attachments);
     },
