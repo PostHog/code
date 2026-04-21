@@ -117,7 +117,7 @@ export function SignalsToolbar({
 
   const pipelineHintParts = [
     readyCount != null && processingCount > 0
-      ? `${readyCount} ready · ${processingCount} in pipeline`
+      ? `${readyCount} up for review • ${processingCount} in research pipeline`
       : null,
     pipelinePausedUntil
       ? `Pipeline paused · resumes in ${formatPauseRemaining(pipelinePausedUntil)}`
