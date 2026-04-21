@@ -1289,6 +1289,14 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     );
     session.configOptions = configOptions;
 
+    const initialEffort = configOptions.find((o) => o.id === "effort");
+    if (initialEffort && typeof initialEffort.currentValue === "string") {
+      await q.applyFlagSettings({
+        // @ts-expect-error SDK Settings.effortLevel omits "max" but runtime accepts it
+        effortLevel: initialEffort.currentValue,
+      });
+    }
+
     if (!creationOpts.skipBackgroundFetches) {
       this.deferBackgroundFetches(q);
     }
