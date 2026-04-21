@@ -169,12 +169,12 @@ importers:
       '@posthog/hedgehog-mode':
         specifier: ^0.0.48
         version: 0.0.48(prop-types@15.8.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      '@posthog/quill':
-        specifier: 0.1.0-alpha.7
-        version: 0.1.0-alpha.7(@types/react-dom@19.2.3(@types/react@19.2.11))(@types/react@19.2.11)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(tailwindcss@4.2.2)
       '@posthog/platform':
         specifier: workspace:*
         version: link:../../packages/platform
+      '@posthog/quill':
+        specifier: 0.1.0-alpha.7
+        version: 0.1.0-alpha.7(@types/react-dom@19.2.3(@types/react@19.2.11))(@types/react@19.2.11)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(tailwindcss@4.2.2)
       '@posthog/shared':
         specifier: workspace:*
         version: link:../../packages/shared

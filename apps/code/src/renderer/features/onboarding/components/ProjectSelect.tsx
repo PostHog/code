@@ -10,6 +10,7 @@ interface ProjectSelectProps {
   projects: Array<{ id: number; name: string }>;
   onProjectChange: (projectId: number) => void;
   disabled?: boolean;
+  size?: "1" | "2";
 }
 
 export function ProjectSelect({
@@ -18,6 +19,7 @@ export function ProjectSelect({
   projects,
   onProjectChange,
   disabled = false,
+  size = "2",
 }: ProjectSelectProps) {
   const [open, setOpen] = useState(false);
   const currentProject = projects.find((p) => p.id === projectId);
@@ -28,14 +30,14 @@ export function ProjectSelect({
 
   if (projects.length <= 1) {
     return (
-      <Text size="2" style={{ color: "var(--gray-12)", opacity: 0.5 }}>
+      <Text size={size} style={{ color: "var(--gray-12)", opacity: 0.5 }}>
         {projectName}
       </Text>
     );
   }
 
   return (
-    <Text size="2">
+    <Text size={size}>
       <span style={{ color: "var(--gray-12)", opacity: 0.5 }}>
         {projectName}
         {" · "}

@@ -137,6 +137,11 @@ function App() {
     }),
   );
 
+  const needsInviteCode =
+    isAuthenticated && hasCodeAccess === false && hasCompletedOnboarding;
+  const isCheckingAccess =
+    isAuthenticated && hasCodeAccess === null && hasCompletedOnboarding;
+
   // Handle transition into main app — only show the dark overlay if dark mode is active
   useEffect(() => {
     const isInMainApp = isAuthenticated && hasCompletedOnboarding;
@@ -164,8 +169,16 @@ function App() {
     );
   }
 
-  // Four-phase rendering: auth → access gate → onboarding → main app
+  // Rendering: onboarding (includes auth + invite code gate) → main app
   const renderContent = () => {
+    if (!hasCompletedOnboarding) {
+      return (
+        <motion.div key="onboarding" initial={{ opacity: 1 }}>
+          <OnboardingFlow />
+        </motion.div>
+      );
+    }
+
     if (!isAuthenticated) {
       return (
         <motion.div key="auth" initial={{ opacity: 1 }}>
@@ -174,10 +187,9 @@ function App() {
       );
     }
 
-    // Access check loading state
-    if (hasCodeAccess === null) {
+    if (isCheckingAccess) {
       return (
-        <motion.div key="access-check">
+        <motion.div key="access-check" initial={{ opacity: 1 }}>
           <Flex align="center" justify="center" minHeight="100vh">
             <Flex align="center" gap="3">
               <Spinner size="3" />
@@ -188,19 +200,10 @@ function App() {
       );
     }
 
-    // Access gate: show invite code screen if flag is not enabled
-    if (!hasCodeAccess) {
+    if (needsInviteCode) {
       return (
-        <motion.div key="invite-code">
+        <motion.div key="invite-code" initial={{ opacity: 1 }}>
           <InviteCodeScreen />
-        </motion.div>
-      );
-    }
-
-    if (!hasCompletedOnboarding) {
-      return (
-        <motion.div key="onboarding">
-          <OnboardingFlow />
         </motion.div>
       );
     }

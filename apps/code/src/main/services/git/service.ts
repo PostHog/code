@@ -1,5 +1,10 @@
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+
 import { execGh } from "@posthog/git/gh";
 import {
   getAllBranches,
@@ -53,6 +58,7 @@ import type {
   GitHubIssue,
   GitRepoInfo,
   GitStateSnapshot,
+  GitStatusOutput,
   GitSyncStatus,
   OpenPrOutput,
   PrActionType,
@@ -683,6 +689,16 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     };
   }
 
+  public async getGitStatus(): Promise<GitStatusOutput> {
+    try {
+      const { stdout } = await execFileAsync("git", ["--version"]);
+      const version = stdout.trim().replace("git version ", "");
+      return { installed: true, version };
+    } catch {
+      return { installed: false, version: null };
+    }
+  }
+
   public async getGhStatus(): Promise<GhStatusOutput> {
     const versionResult = await execGh(["--version"]);
     if (versionResult.exitCode !== 0) {
@@ -699,7 +715,9 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     const authResult = await execGh(["auth", "status"]);
     const authenticated = authResult.exitCode === 0;
     const authOutput = `${authResult.stdout}\n${authResult.stderr}`;
-    const usernameMatch = authOutput.match(/Logged in to github.com as (\S+)/);
+    const usernameMatch = authOutput.match(
+      /Logged in to github.com (?:as |account )(\S+)/,
+    );
 
     return {
       installed: true,

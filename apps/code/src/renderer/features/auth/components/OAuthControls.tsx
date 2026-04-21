@@ -1,0 +1,77 @@
+import { useOAuthFlow } from "@features/auth/hooks/useOAuthFlow";
+import { Callout, Flex, Spinner } from "@radix-ui/themes";
+import posthogIcon from "@renderer/assets/images/posthog-icon.svg";
+import { REGION_LABELS } from "@shared/types/regions";
+import { RegionSelect } from "./RegionSelect";
+
+export function OAuthControls() {
+  const {
+    region,
+    handleAuth,
+    handleRegionChange,
+    handleCancel,
+    isPending,
+    errorMessage,
+  } = useOAuthFlow();
+
+  return (
+    <>
+      {errorMessage && (
+        <Callout.Root color="red" size="1">
+          <Callout.Text>{errorMessage}</Callout.Text>
+        </Callout.Root>
+      )}
+
+      {isPending && (
+        <Callout.Root color="blue" size="1">
+          <Callout.Text>Waiting for authorization...</Callout.Text>
+        </Callout.Root>
+      )}
+
+      <button
+        type="button"
+        onClick={isPending ? handleCancel : handleAuth}
+        disabled={false}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          width: "100%",
+          height: "44px",
+          border: isPending
+            ? "1.5px solid var(--gray-6)"
+            : "1.5px solid var(--accent-8)",
+          borderRadius: "6px",
+          fontSize: "15px",
+          fontWeight: 500,
+          cursor: "pointer",
+          backgroundColor: isPending ? "var(--gray-3)" : "var(--accent-9)",
+          color: isPending ? "var(--gray-11)" : "var(--accent-contrast)",
+          boxShadow: isPending ? "none" : "0 3px 0 -1px var(--accent-8)",
+          transition: "opacity 150ms ease, box-shadow 100ms ease",
+        }}
+      >
+        {isPending ? (
+          <Spinner size="1" />
+        ) : (
+          <img
+            src={posthogIcon}
+            alt=""
+            style={{ width: "20px", height: "20px" }}
+          />
+        )}
+        {isPending ? "Cancel" : "Sign in / sign up with PostHog"}
+      </button>
+
+      <Flex direction="column" gap="2" align="center">
+        <RegionSelect
+          region={region}
+          regionLabel={REGION_LABELS[region]}
+          onRegionChange={handleRegionChange}
+          disabled={isPending}
+        />
+      </Flex>
+    </>
+  );
+}

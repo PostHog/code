@@ -10,11 +10,12 @@ export function StepIndicator({
   currentStep,
   activeSteps,
 }: StepIndicatorProps) {
-  const currentIndex = activeSteps.indexOf(currentStep);
+  const displaySteps = activeSteps;
+  const currentIndex = displaySteps.indexOf(currentStep);
 
   return (
     <Flex align="center" gap="2" justify="center" py="6">
-      {activeSteps.map((step, index) => (
+      {displaySteps.map((step, index) => (
         <div
           key={step}
           style={{
