@@ -6,7 +6,7 @@ Fork of `@anthropic-ai/claude-agent-acp`. Upstream repo: https://github.com/anth
 
 - **Forked**: v0.10.9, commit `5411e0f4`, Dec 2 2025
 - **Last sync**: v0.30.0, commit `e9dd452`, April 20 2026
-- **SDK**: `@anthropic-ai/claude-agent-sdk` 0.2.114, `@agentclientprotocol/sdk` 0.19.0
+- **SDK**: `@anthropic-ai/claude-agent-sdk` 0.2.112 (0.2.114 breaks session init, see agentclientprotocol/claude-agent-acp#575), `@agentclientprotocol/sdk` 0.19.0
 
 ## File Mapping
 
