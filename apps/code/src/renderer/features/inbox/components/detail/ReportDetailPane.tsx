@@ -32,6 +32,7 @@ import {
   TextArea,
   Tooltip,
 } from "@radix-ui/themes";
+import { getDeeplinkProtocol } from "@shared/deeplink";
 import type {
   ActionabilityJudgmentArtefact,
   ActionabilityJudgmentContent,
@@ -331,7 +332,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(
-                    `posthog-code://inbox/${report.id}`,
+                    `${getDeeplinkProtocol(import.meta.env.DEV)}://inbox/${report.id}`,
                   );
                   toast.success("Link copied");
                 } catch {

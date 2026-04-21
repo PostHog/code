@@ -14,7 +14,7 @@ const getService = () =>
 
 export const mcpCallbackRouter = router({
   /**
-   * Get the callback URL for MCP OAuth (dev: http://localhost:8238/..., prod: posthog-code://...).
+   * Get the callback URL for MCP OAuth (dev: http://localhost:8238/..., prod: deep link via the app-registered URL scheme).
    * Call this before making the install_custom API call to PostHog.
    */
   getCallbackUrl: publicProcedure
