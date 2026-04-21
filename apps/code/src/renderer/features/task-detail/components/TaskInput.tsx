@@ -31,6 +31,7 @@ import { Flex, Text } from "@radix-ui/themes";
 import { useAuthStore } from "@renderer/features/auth/stores/authStore";
 import { useDraftStore } from "@renderer/features/message-editor/stores/draftStore";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
+import { toast } from "@renderer/utils/toast";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
 import { getFilePath } from "@utils/getFilePath";
@@ -78,6 +79,8 @@ export function TaskInput({
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
+  const [cloudBranchSearchQuery, setCloudBranchSearchQuery] = useState("");
+  const [isCloudBranchPickerOpen, setIsCloudBranchPickerOpen] = useState(false);
   const [selectedEnvironment, setSelectedEnvironmentRaw] = useState<
     string | null
   >(null);
@@ -104,8 +107,13 @@ export function TaskInput({
   const setAdapter = (newAdapter: AgentAdapter) =>
     setLastUsedAdapter(newAdapter);
 
-  const { repositories, getIntegrationIdForRepo, isLoadingRepos } =
-    useRepositoryIntegration();
+  const {
+    repositories,
+    getIntegrationIdForRepo,
+    isLoadingRepos,
+    isRefreshingRepos,
+    refreshRepositories,
+  } = useRepositoryIntegration();
   const [selectedRepository, setSelectedRepository] = useState<string | null>(
     () => lastUsedCloudRepository?.toLowerCase() ?? null,
   );
@@ -124,10 +132,17 @@ export function TaskInput({
   const {
     data: cloudBranchData,
     isPending: cloudBranchesLoading,
+    isRefreshing: cloudBranchesRefreshing,
     isFetchingMore: cloudBranchesFetchingMore,
-    pauseLoadingMore: pauseCloudBranchesLoading,
-    resumeLoadingMore: resumeCloudBranchesLoading,
-  } = useGithubBranches(selectedIntegrationId, selectedCloudRepository);
+    hasMore: cloudBranchesHasMore,
+    loadMore: loadMoreCloudBranches,
+    refresh: refreshCloudBranches,
+  } = useGithubBranches(
+    selectedIntegrationId,
+    selectedCloudRepository,
+    cloudBranchSearchQuery,
+    isCloudBranchPickerOpen,
+  );
   const cloudBranches = cloudBranchData?.branches;
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
@@ -168,13 +183,54 @@ export function TaskInput({
   }, [selectedDirectory, newBranchName, gitActions]);
 
   const handleRepositorySelect = useCallback(
-    (repo: string) => {
+    (repo: string | null) => {
+      if (!repo) {
+        setSelectedRepository(null);
+        setLastUsedCloudRepository(null);
+        return;
+      }
+
       const normalizedRepo = repo.toLowerCase();
       setSelectedRepository(normalizedRepo);
       setLastUsedCloudRepository(normalizedRepo);
     },
     [setLastUsedCloudRepository],
   );
+
+  const handleRefreshRepositories = useCallback(() => {
+    void refreshRepositories().catch((error) => {
+      toast.error("Failed to refresh repositories", {
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+      });
+    });
+  }, [refreshRepositories]);
+
+  const handleRefreshBranches = useCallback(() => {
+    void refreshCloudBranches().catch((error) => {
+      toast.error("Failed to refresh branches", {
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+      });
+    });
+  }, [refreshCloudBranches]);
+
+  const handleCloudBranchPickerOpen = useCallback(() => {
+    setIsCloudBranchPickerOpen(true);
+  }, []);
+
+  const handleCloudBranchPickerClose = useCallback(() => {
+    setIsCloudBranchPickerOpen(false);
+    setCloudBranchSearchQuery("");
+  }, []);
+
+  const handleCloudBranchSearchChange = useCallback((value: string) => {
+    setCloudBranchSearchQuery(value);
+  }, []);
+
+  const handleLoadMoreCloudBranches = useCallback(() => {
+    loadMoreCloudBranches();
+  }, [loadMoreCloudBranches]);
 
   const {
     modeOption,
@@ -219,6 +275,11 @@ export function TaskInput({
       }
     }
   }, [view.folderId, folders]);
+
+  useEffect(() => {
+    setCloudBranchSearchQuery("");
+    setIsCloudBranchPickerOpen(false);
+  }, []);
 
   const effectiveRepoPath =
     workspaceMode === "cloud" ? selectedCloudRepository : selectedDirectory;
@@ -462,6 +523,8 @@ export function TaskInput({
                   onChange={handleRepositorySelect}
                   repositories={repositories}
                   isLoading={isLoadingRepos}
+                  isRefreshing={isRefreshingRepos}
+                  onRefresh={handleRefreshRepositories}
                   placeholder="Select repository..."
                   size="1"
                   disabled={isCreatingTask}
@@ -490,15 +553,23 @@ export function TaskInput({
                   isCreatingTask ||
                   (workspaceMode === "cloud" && !selectedCloudRepository)
                 }
-                loading={branchLoading}
+                loading={workspaceMode === "cloud" ? false : branchLoading}
                 workspaceMode={workspaceMode}
                 selectedBranch={selectedBranch}
                 onBranchSelect={setSelectedBranch}
                 cloudBranches={cloudBranches}
                 cloudBranchesLoading={cloudBranchesLoading}
+                isRefreshing={cloudBranchesRefreshing}
                 cloudBranchesFetchingMore={cloudBranchesFetchingMore}
-                onCloudPickerOpen={resumeCloudBranchesLoading}
-                onCloudBranchCommit={pauseCloudBranchesLoading}
+                cloudBranchesHasMore={cloudBranchesHasMore}
+                cloudSearchQuery={cloudBranchSearchQuery}
+                onCloudPickerOpen={handleCloudBranchPickerOpen}
+                onCloudPickerClose={handleCloudBranchPickerClose}
+                onCloudSearchChange={handleCloudBranchSearchChange}
+                onCloudLoadMore={handleLoadMoreCloudBranches}
+                onRefresh={
+                  workspaceMode === "cloud" ? handleRefreshBranches : undefined
+                }
                 anchor={buttonGroupRef}
               />
             </ButtonGroup>

@@ -5,8 +5,14 @@ import {
   useIntegrationSelectors,
   useIntegrationStore,
 } from "@features/integrations/stores/integrationStore";
-import { useQueries } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useAuthenticatedInfiniteQuery } from "./useAuthenticatedInfiniteQuery";
 import { useAuthenticatedQuery } from "./useAuthenticatedQuery";
 
@@ -15,8 +21,8 @@ const integrationKeys = {
   list: () => [...integrationKeys.all, "list"] as const,
   repositories: (integrationId?: number) =>
     [...integrationKeys.all, "repositories", integrationId] as const,
-  branches: (integrationId?: number, repo?: string | null) =>
-    [...integrationKeys.all, "branches", integrationId, repo] as const,
+  branches: (integrationId?: number, repo?: string | null, search?: string) =>
+    [...integrationKeys.all, "branches", integrationId, repo, search] as const,
 };
 
 export function useIntegrations() {
@@ -68,11 +74,8 @@ function useAllGithubRepositories(githubIntegrations: Integration[]) {
   });
 }
 
-// Keep the first page small so it returns in a single upstream GitHub round
-// trip (GitHub's max per_page is 100), then fetch the remainder in larger
-// chunks to keep the total number of client/PostHog round trips low.
-const BRANCHES_FIRST_PAGE_SIZE = 100;
-const BRANCHES_PAGE_SIZE = 1000;
+const BRANCHES_FIRST_PAGE_SIZE = 50;
+const BRANCHES_PAGE_SIZE = 100;
 
 interface GithubBranchesPage {
   branches: string[];
@@ -83,18 +86,14 @@ interface GithubBranchesPage {
 export function useGithubBranches(
   integrationId?: number,
   repo?: string | null,
+  search?: string,
+  enabled: boolean = true,
 ) {
-  // While paused we stop chaining `fetchNextPage` calls. The flag is scoped
-  // to the current query target and resets whenever it changes, so switching
-  // repos or integrations starts a fresh fetch.
-  const [paused, setPaused] = useState(false);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on key change
-  useEffect(() => {
-    setPaused(false);
-  }, [integrationId, repo]);
+  const deferredSearch = useDeferredValue(search?.trim() ?? "");
+  const queryEnabled = enabled && !!integrationId && !!repo;
 
   const query = useAuthenticatedInfiniteQuery<GithubBranchesPage, number>(
-    integrationKeys.branches(integrationId, repo),
+    integrationKeys.branches(integrationId, repo, deferredSearch),
     async (client, offset) => {
       if (!integrationId || !repo) {
         return { branches: [], defaultBranch: null, hasMore: false };
@@ -106,9 +105,11 @@ export function useGithubBranches(
         repo,
         offset,
         pageSize,
+        deferredSearch,
       );
     },
     {
+      enabled: queryEnabled,
       initialPageParam: 0,
       getNextPageParam: (lastPage, allPages) => {
         if (!lastPage.hasMore) return undefined;
@@ -116,22 +117,6 @@ export function useGithubBranches(
       },
     },
   );
-
-  // Auto-fetch remaining pages in the background whenever we are not paused.
-  // Any in-flight page is allowed to finish and land in the cache; the pause
-  // just prevents us from kicking off the next one. Resuming picks up from
-  // wherever `getNextPageParam` computes the next offset to be.
-  useEffect(() => {
-    if (paused) return;
-    if (query.hasNextPage && !query.isFetchingNextPage) {
-      query.fetchNextPage();
-    }
-  }, [
-    paused,
-    query.hasNextPage,
-    query.isFetchingNextPage,
-    query.fetchNextPage,
-  ]);
 
   const data = useMemo(() => {
     if (!query.data?.pages.length) {
@@ -143,23 +128,36 @@ export function useGithubBranches(
     };
   }, [query.data?.pages]);
 
-  const pauseLoadingMore = useCallback(() => setPaused(true), []);
-  const resumeLoadingMore = useCallback(() => setPaused(false), []);
+  const loadMore = useCallback(() => {
+    if (!query.hasNextPage || query.isFetchingNextPage) {
+      return;
+    }
+
+    void query.fetchNextPage();
+  }, [query.fetchNextPage, query.hasNextPage, query.isFetchingNextPage]);
+
+  const refresh = useCallback(async () => {
+    await query.refetch();
+  }, [query.refetch]);
 
   return {
     data,
-    isPending: query.isPending,
-    isFetchingMore:
-      !paused && (query.isFetchingNextPage || (query.hasNextPage ?? false)),
-    pauseLoadingMore,
-    resumeLoadingMore,
+    isPending: queryEnabled ? query.isPending : false,
+    isRefreshing: queryEnabled ? query.isRefetching : false,
+    isFetchingMore: query.isFetchingNextPage,
+    hasMore: query.hasNextPage ?? false,
+    loadMore,
+    refresh,
   };
 }
 
 export function useRepositoryIntegration() {
+  const client = useOptionalAuthenticatedClient();
+  const queryClient = useQueryClient();
   const { isPending: integrationsPending } = useIntegrations();
   const { githubIntegrations, hasGithubIntegration } =
     useIntegrationSelectors();
+  const [isRefreshingRepos, setIsRefreshingRepos] = useState(false);
 
   const { repositoryMap, isPending: reposPending } =
     useAllGithubRepositories(githubIntegrations);
@@ -179,11 +177,40 @@ export function useRepositoryIntegration() {
     [repositoryMap],
   );
 
+  const refreshRepositories = useCallback(async () => {
+    if (!githubIntegrations.length || !client) {
+      return;
+    }
+
+    setIsRefreshingRepos(true);
+
+    try {
+      await Promise.all(
+        githubIntegrations.map((integration) =>
+          client.refreshGithubRepositories(integration.id),
+        ),
+      );
+
+      await Promise.all(
+        githubIntegrations.map((integration) =>
+          queryClient.refetchQueries({
+            queryKey: integrationKeys.repositories(integration.id),
+            exact: true,
+          }),
+        ),
+      );
+    } finally {
+      setIsRefreshingRepos(false);
+    }
+  }, [client, githubIntegrations, queryClient]);
+
   return {
     repositories,
     getIntegrationIdForRepo,
     isRepoInIntegration,
     isLoadingRepos: integrationsPending || reposPending,
+    isRefreshingRepos,
+    refreshRepositories,
     hasGithubIntegration,
   };
 }

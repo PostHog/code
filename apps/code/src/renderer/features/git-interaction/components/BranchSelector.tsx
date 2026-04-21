@@ -1,7 +1,13 @@
 import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
 import { getSuggestedBranchName } from "@features/git-interaction/utils/getSuggestedBranchName";
 import { invalidateGitBranchQueries } from "@features/git-interaction/utils/gitCacheKeys";
-import { CaretDown, GitBranch, Plus, Spinner } from "@phosphor-icons/react";
+import {
+  ArrowClockwise,
+  CaretDown,
+  GitBranch,
+  Plus,
+  Spinner,
+} from "@phosphor-icons/react";
 import {
   Button,
   Combobox,
@@ -10,6 +16,7 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  ComboboxListFooter,
   ComboboxTrigger,
 } from "@posthog/quill";
 import { useTRPC } from "@renderer/trpc";
@@ -30,10 +37,17 @@ interface BranchSelectorProps {
   selectedBranch?: string | null;
   onBranchSelect?: (branch: string | null) => void;
   cloudBranches?: string[];
+  cloudBranchesHasMore?: boolean;
   cloudBranchesLoading?: boolean;
   cloudBranchesFetchingMore?: boolean;
+  cloudSearchQuery?: string;
   onCloudPickerOpen?: () => void;
+  onCloudPickerClose?: () => void;
+  onCloudSearchChange?: (value: string) => void;
+  onCloudLoadMore?: () => void;
   onCloudBranchCommit?: () => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
   taskId?: string;
   anchor?: RefObject<HTMLElement | null>;
 }
@@ -48,10 +62,17 @@ export function BranchSelector({
   selectedBranch,
   onBranchSelect,
   cloudBranches,
+  cloudBranchesHasMore,
   cloudBranchesLoading,
   cloudBranchesFetchingMore,
+  cloudSearchQuery,
   onCloudPickerOpen,
+  onCloudPickerClose,
+  onCloudSearchChange,
+  onCloudLoadMore,
   onCloudBranchCommit,
+  onRefresh,
+  isRefreshing = false,
   taskId,
   anchor,
 }: BranchSelectorProps) {
@@ -101,14 +122,14 @@ export function BranchSelector({
   const handleBranchChange = (value: string | null) => {
     if (!value) return;
     if (isSelectionOnly) {
-      onBranchSelect?.(value || null);
-    } else if (value && value !== currentBranch) {
+      onBranchSelect?.(value);
+    } else if (value !== currentBranch) {
       checkoutMutation.mutate({
         directoryPath: repoPath as string,
         branchName: value,
       });
     }
-    if (isCloudMode && value) {
+    if (isCloudMode) {
       onCloudBranchCommit?.();
     }
     setOpen(false);
@@ -118,6 +139,8 @@ export function BranchSelector({
     setOpen(next);
     if (isCloudMode && next) {
       onCloudPickerOpen?.();
+    } else if (isCloudMode && !next) {
+      onCloudPickerClose?.();
     }
   };
 
@@ -129,18 +152,24 @@ export function BranchSelector({
     effectiveLoading || (isCloudMode && open && cloudBranchesFetchingMore);
 
   const isDisabled = !!(disabled || !repoPath || cloudStillLoading);
+  const inputValue = isCloudMode ? (cloudSearchQuery ?? "") : searchQuery;
 
   return (
     <Combobox
       items={branches}
       limit={COMBOBOX_LIMIT}
       value={displayedBranch}
+      inputValue={inputValue}
+      onInputValueChange={
+        isCloudMode
+          ? (value) => onCloudSearchChange?.((value as string | null) ?? "")
+          : setSearchQuery
+      }
       onValueChange={(v) => handleBranchChange(v as string | null)}
-      inputValue={searchQuery}
-      onInputValueChange={setSearchQuery}
       open={open}
-      onOpenChange={(nextOpen) => handleOpenChange(nextOpen)}
+      onOpenChange={handleOpenChange}
       disabled={isDisabled}
+      filter={isCloudMode ? null : undefined}
     >
       <ComboboxTrigger
         render={
@@ -172,14 +201,43 @@ export function BranchSelector({
         sideOffset={6}
         className="min-w-[240px]"
       >
-        <ComboboxInput placeholder="Search branches..." showTrigger={false} />
+        <div className="flex min-w-0 items-center gap-1 pe-2">
+          <div className="min-w-0 flex-1">
+            <ComboboxInput
+              placeholder="Search branches..."
+              showTrigger={false}
+            />
+          </div>
+          {onRefresh ? (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isDisabled || isRefreshing}
+              aria-label="Refresh branches"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onRefresh();
+              }}
+            >
+              <ArrowClockwise
+                size={14}
+                className={isRefreshing ? "animate-spin" : undefined}
+              />
+            </Button>
+          ) : null}
+        </div>
 
-        {isCloudMode && cloudBranchesFetchingMore && (
+        {isCloudMode && cloudBranchesFetchingMore ? (
           <div className="flex items-center gap-1 px-2 py-1.5 text-muted-foreground text-xs">
             <Spinner size={12} className="animate-spin" />
             Loading more ({branches.length})…
           </div>
-        )}
+        ) : null}
 
         <ComboboxEmpty>No branches found.</ComboboxEmpty>
 
@@ -196,7 +254,7 @@ export function BranchSelector({
           )}
         </ComboboxList>
 
-        {!isCloudMode && (
+        {!isCloudMode ? (
           <button
             type="button"
             className="flex w-full items-center gap-2 border-t px-2 py-1.5 text-accent-foreground text-xs hover:bg-accent/10"
@@ -212,15 +270,46 @@ export function BranchSelector({
             <Plus size={11} weight="bold" />
             Create new branch
           </button>
-        )}
+        ) : null}
 
-        {branches.length > COMBOBOX_LIMIT && (
+        {isCloudMode && cloudBranchesHasMore ? (
+          <ComboboxListFooter>
+            <div className="px-2 pb-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-center"
+                disabled={cloudBranchesFetchingMore}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onCloudLoadMore?.();
+                }}
+              >
+                {cloudBranchesFetchingMore ? (
+                  <>
+                    <Spinner size={14} className="animate-spin" />
+                    Loading more…
+                  </>
+                ) : (
+                  "Load more"
+                )}
+              </Button>
+            </div>
+          </ComboboxListFooter>
+        ) : null}
+
+        {!isCloudMode && branches.length > COMBOBOX_LIMIT ? (
           <div className="px-2 py-1.5 text-center text-muted-foreground text-xs">
             {searchQuery
-              ? `Showing up to ${COMBOBOX_LIMIT} matches — refine your search`
-              : `Showing ${COMBOBOX_LIMIT} of ${branches.length} — type to filter`}
+              ? `Showing up to ${COMBOBOX_LIMIT} matches - refine your search`
+              : `Showing ${COMBOBOX_LIMIT} of ${branches.length} - type to filter`}
           </div>
-        )}
+        ) : null}
       </ComboboxContent>
     </Combobox>
   );

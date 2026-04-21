@@ -1,5 +1,5 @@
 import { Tooltip } from "@components/ui/Tooltip";
-import { GithubLogo } from "@phosphor-icons/react";
+import { ArrowClockwise, GithubLogo } from "@phosphor-icons/react";
 import {
   Button,
   Combobox,
@@ -16,7 +16,7 @@ const COMBOBOX_LIMIT = 50;
 
 interface GitHubRepoPickerProps {
   value: string | null;
-  onChange: (repo: string) => void;
+  onChange: (repo: string | null) => void;
   repositories: string[];
   isLoading: boolean;
   placeholder?: string;
@@ -25,6 +25,8 @@ interface GitHubRepoPickerProps {
   anchor?: RefObject<HTMLElement | null>;
   /** When false, the list is shown without a filter field (e.g. short lists in modals). */
   showSearchInput?: boolean;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export function GitHubRepoPicker({
@@ -36,6 +38,8 @@ export function GitHubRepoPicker({
   disabled = false,
   anchor,
   showSearchInput = true,
+  onRefresh,
+  isRefreshing = false,
 }: GitHubRepoPickerProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -91,7 +95,7 @@ export function GitHubRepoPicker({
       limit={COMBOBOX_LIMIT}
       value={value}
       onValueChange={(v) => {
-        if (v) onChange(v as string);
+        onChange(v ? (v as string) : null);
       }}
       inputValue={searchQuery}
       onInputValueChange={setSearchQuery}
@@ -118,7 +122,33 @@ export function GitHubRepoPicker({
         className="min-w-[280px]"
       >
         {showSearchInput ? (
-          <ComboboxInput placeholder="Search repositories..." />
+          <div className="flex min-w-0 items-center gap-1 pe-2">
+            <div className="min-w-0 flex-1">
+              <ComboboxInput placeholder="Search repositories..." />
+            </div>
+            {onRefresh ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={disabled || isRefreshing}
+                aria-label="Refresh repositories"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onRefresh();
+                }}
+              >
+                <ArrowClockwise
+                  size={14}
+                  className={isRefreshing ? "animate-spin" : undefined}
+                />
+              </Button>
+            ) : null}
+          </div>
         ) : null}
         <ComboboxEmpty>No repositories found.</ComboboxEmpty>
         <ComboboxList>
