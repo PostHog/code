@@ -145,7 +145,7 @@ function TaskFilterMenu() {
         align="start"
         side="bottom"
         sideOffset={6}
-        className="min-w-xs"
+        className="min-w-fit"
       >
         <MenuLabel>Organize</MenuLabel>
         <DropdownMenuRadioGroup
