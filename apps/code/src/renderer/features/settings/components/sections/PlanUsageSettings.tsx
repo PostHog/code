@@ -1,3 +1,4 @@
+import { useUsage } from "@features/billing/hooks/useUsage";
 import { useSeatStore } from "@features/billing/stores/seatStore";
 import { useSeat } from "@hooks/useSeat";
 import {
@@ -16,8 +17,6 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { Tooltip } from "@renderer/components/ui/Tooltip";
-import { useTRPC } from "@renderer/trpc";
-import { useQuery } from "@tanstack/react-query";
 import { getPostHogUrl } from "@utils/urls";
 import { useState } from "react";
 
@@ -36,14 +35,6 @@ function formatResetTime(seconds: number): string {
   const days = Math.ceil(seconds / 86400);
   if (days === 1) return "1 day";
   return `${days} days`;
-}
-
-function useUsage() {
-  const trpc = useTRPC();
-  const { data: usage, isLoading } = useQuery(
-    trpc.llmGateway.usage.queryOptions(),
-  );
-  return { usage: usage ?? null, isLoading };
 }
 
 export function PlanUsageSettings() {
