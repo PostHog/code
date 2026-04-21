@@ -4,10 +4,12 @@ import { ArrowsClockwise, Columns, Rows, X } from "@phosphor-icons/react";
 import { Button } from "@posthog/quill";
 import { Flex, Separator, Text } from "@radix-ui/themes";
 import { DiffSettingsMenu } from "@renderer/features/code-review/components/DiffSettingsMenu";
+import { DiffSourceSelector } from "@renderer/features/code-review/components/DiffSourceSelector";
 import {
   type ReviewMode,
   useReviewNavigationStore,
 } from "@renderer/features/code-review/stores/reviewNavigationStore";
+import type { ResolvedDiffSource } from "@renderer/features/code-review/utils/resolveDiffSource";
 import { FoldVertical, Maximize, Minimize, UnfoldVertical } from "lucide-react";
 import { memo } from "react";
 
@@ -20,6 +22,9 @@ interface ReviewToolbarProps {
   onExpandAll: () => void;
   onCollapseAll: () => void;
   onRefresh?: () => void;
+  effectiveSource?: ResolvedDiffSource;
+  branchSourceAvailable?: boolean;
+  defaultBranch?: string | null;
 }
 
 export const ReviewToolbar = memo(function ReviewToolbar({
@@ -29,6 +34,9 @@ export const ReviewToolbar = memo(function ReviewToolbar({
   onExpandAll,
   onCollapseAll,
   onRefresh,
+  effectiveSource,
+  branchSourceAvailable,
+  defaultBranch,
 }: ReviewToolbarProps) {
   const viewMode = useDiffViewerStore((s) => s.viewMode);
   const toggleViewMode = useDiffViewerStore((s) => s.toggleViewMode);
@@ -62,9 +70,19 @@ export const ReviewToolbar = memo(function ReviewToolbar({
         flexShrink: 0,
       }}
     >
-      <Text size="1" weight="medium">
-        {fileCount} file{fileCount !== 1 ? "s" : ""} changed
-      </Text>
+      <Flex align="center" gap="2">
+        <Text size="1" weight="medium">
+          {fileCount} file{fileCount !== 1 ? "s" : ""} changed
+        </Text>
+        {effectiveSource && (
+          <DiffSourceSelector
+            taskId={taskId}
+            effectiveSource={effectiveSource}
+            branchAvailable={branchSourceAvailable ?? false}
+            defaultBranch={defaultBranch ?? null}
+          />
+        )}
+      </Flex>
 
       <Flex align="center" gap="1" ml="auto">
         {onRefresh && (

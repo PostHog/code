@@ -18,6 +18,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ResolvedDiffSource } from "../utils/resolveDiffSource";
 import { ReviewToolbar } from "./ReviewToolbar";
 
 function splitFilePath(fullPath: string): {
@@ -306,6 +307,9 @@ export interface ReviewShellProps {
   onExpandAll: () => void;
   onCollapseAll: () => void;
   onRefresh?: () => void;
+  effectiveSource?: ResolvedDiffSource;
+  branchSourceAvailable?: boolean;
+  defaultBranch?: string | null;
 }
 
 export function ReviewShell({
@@ -321,6 +325,9 @@ export function ReviewShell({
   onExpandAll,
   onCollapseAll,
   onRefresh,
+  effectiveSource,
+  branchSourceAvailable,
+  defaultBranch,
 }: ReviewShellProps) {
   const taskId = task.id;
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -409,24 +416,6 @@ export function ReviewShell({
     return () => observer.disconnect();
   }, [taskId, setActiveFilePath]);
 
-  if (isLoading) {
-    return (
-      <Flex align="center" justify="center" height="100%">
-        <Spinner size="2" />
-      </Flex>
-    );
-  }
-
-  if (isEmpty) {
-    return (
-      <Flex align="center" justify="center" height="100%">
-        <Text size="2" color="gray">
-          No file changes to review
-        </Text>
-      </Flex>
-    );
-  }
-
   return (
     <WorkerPoolContextProvider
       poolOptions={{ workerFactory }}
@@ -444,6 +433,9 @@ export function ReviewShell({
           onExpandAll={onExpandAll}
           onCollapseAll={onCollapseAll}
           onRefresh={onRefresh}
+          effectiveSource={effectiveSource}
+          branchSourceAvailable={branchSourceAvailable}
+          defaultBranch={defaultBranch}
         />
         <Flex style={{ flex: 1, minHeight: 0 }}>
           <div
@@ -452,7 +444,19 @@ export function ReviewShell({
             id="review-shell-diff-container"
             style={{ minWidth: 0 }}
           >
-            {children}
+            {isLoading ? (
+              <Flex align="center" justify="center" height="100%">
+                <Spinner size="2" />
+              </Flex>
+            ) : isEmpty ? (
+              <Flex align="center" justify="center" height="100%">
+                <Text size="2" color="gray">
+                  No file changes to review
+                </Text>
+              </Flex>
+            ) : (
+              children
+            )}
           </div>
 
           {isExpanded && <ExpandedSidebar task={task} />}
