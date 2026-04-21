@@ -4,6 +4,8 @@ import { HedgehogMode } from "@components/HedgehogMode";
 import { KeyboardShortcutsSheet } from "@components/KeyboardShortcutsSheet";
 
 import { ArchivedTasksView } from "@features/archive/components/ArchivedTasksView";
+import { UsageLimitModal } from "@features/billing/components/UsageLimitModal";
+import { useUsageLimitDetection } from "@features/billing/hooks/useUsageLimitDetection";
 import { CommandMenu } from "@features/command/components/CommandMenu";
 import { CommandCenterView } from "@features/command-center/components/CommandCenterView";
 import { InboxView } from "@features/inbox/components/InboxView";
@@ -15,6 +17,7 @@ import { TaskDetail } from "@features/task-detail/components/TaskDetail";
 import { TaskInput } from "@features/task-detail/components/TaskInput";
 import { useTasks } from "@features/tasks/hooks/useTasks";
 import { useConnectivity } from "@hooks/useConnectivity";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useIntegrations } from "@hooks/useIntegrations";
 import { Box, Flex } from "@radix-ui/themes";
 import { useCommandMenuStore } from "@stores/commandMenuStore";
@@ -38,7 +41,9 @@ export function MainLayout() {
   } = useShortcutsSheetStore();
   const { data: tasks } = useTasks();
   const { showPrompt, isChecking, check, dismiss } = useConnectivity();
+  const billingEnabled = useFeatureFlag("posthog-code-billing");
 
+  useUsageLimitDetection();
   useIntegrations();
   useTaskDeepLink();
 
@@ -99,6 +104,7 @@ export function MainLayout() {
         onToggleShortcutsSheet={toggleShortcutsSheet}
       />
       <SettingsDialog />
+      {billingEnabled && <UsageLimitModal />}
       <HedgehogMode />
     </Flex>
   );

@@ -1,4 +1,6 @@
 import { useArchivedTaskIds } from "@features/archive/hooks/useArchivedTaskIds";
+import { SidebarUsageBar } from "@features/billing/components/SidebarUsageBar";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { ArchiveIcon } from "@phosphor-icons/react";
 import { Box, Flex } from "@radix-ui/themes";
 import { useNavigationStore } from "@stores/navigationStore";
@@ -12,6 +14,7 @@ export const SidebarContent: React.FC = () => {
   const navigateToArchived = useNavigationStore(
     (state) => state.navigateToArchived,
   );
+  const billingEnabled = useFeatureFlag("posthog-code-billing");
 
   return (
     <Flex direction="column" height="100%">
@@ -19,6 +22,7 @@ export const SidebarContent: React.FC = () => {
         <SidebarMenu />
       </Box>
       <UpdateBanner />
+      {billingEnabled && <SidebarUsageBar />}
       {archivedTaskIds.size > 0 && (
         <Box className="shrink-0 border-gray-6 border-t">
           <button
