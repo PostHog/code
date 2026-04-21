@@ -49,6 +49,32 @@ const QUESTION_META = {
   ],
 };
 
+function createTransientPromptError(): Error & {
+  data: { classification: string; result: string };
+} {
+  const error = new Error("API Error: terminated") as Error & {
+    data: { classification: string; result: string };
+  };
+  error.data = {
+    classification: "upstream_stream_terminated",
+    result: "API Error: terminated",
+  };
+  return error;
+}
+
+function createTransientConnectionError(): Error & {
+  data: { classification: string; result: string };
+} {
+  const error = new Error("fetch failed") as Error & {
+    data: { classification: string; result: string };
+  };
+  error.data = {
+    classification: "upstream_connection_error",
+    result: "fetch failed",
+  };
+  return error;
+}
+
 describe("Question relay", () => {
   let repo: TestRepo;
   let server: TestableAgentServer;
@@ -513,6 +539,94 @@ describe("Question relay", () => {
         sessionId: "acp-session",
         prompt: [{ type: "text", text: "original task description" }],
       });
+    });
+
+    it("does not replay a transient upstream termination before any session activity", async () => {
+      vi.spyOn(server.posthogAPI, "getTask").mockResolvedValue({
+        id: "test-task-id",
+        title: "t",
+        description: "original task description",
+      } as unknown as Task);
+      vi.spyOn(server.posthogAPI, "getTaskRun").mockResolvedValue({
+        id: "test-run-id",
+        task: "test-task-id",
+        state: {},
+      } as unknown as TaskRun);
+
+      const promptSpy = vi
+        .fn()
+        .mockRejectedValueOnce(createTransientPromptError());
+      const updateTaskRunSpy = vi
+        .spyOn(server.posthogAPI, "updateTaskRun")
+        .mockResolvedValue({} as TaskRun);
+      server.session = {
+        payload: TEST_PAYLOAD,
+        acpSessionId: "acp-session",
+        clientConnection: { prompt: promptSpy },
+        logWriter: {
+          flushAll: vi.fn().mockResolvedValue(undefined),
+          getFullAgentResponse: vi.fn().mockReturnValue(null),
+          resetTurnMessages: vi.fn(),
+          flush: vi.fn().mockResolvedValue(undefined),
+          isRegistered: vi.fn().mockReturnValue(true),
+        },
+      };
+
+      await server.sendInitialTaskMessage(TEST_PAYLOAD);
+
+      expect(promptSpy).toHaveBeenCalledTimes(1);
+      expect(updateTaskRunSpy).toHaveBeenCalledWith(
+        "test-task-id",
+        "test-run-id",
+        {
+          status: "failed",
+          error_message: "Upstream LLM stream terminated",
+        },
+      );
+    });
+
+    it("surfaces upstream connection errors with the connection-specific message", async () => {
+      vi.spyOn(server.posthogAPI, "getTask").mockResolvedValue({
+        id: "test-task-id",
+        title: "t",
+        description: "original task description",
+      } as unknown as Task);
+      vi.spyOn(server.posthogAPI, "getTaskRun").mockResolvedValue({
+        id: "test-run-id",
+        task: "test-task-id",
+        state: {},
+      } as unknown as TaskRun);
+
+      const promptSpy = vi.fn().mockImplementationOnce(async () => {
+        throw createTransientConnectionError();
+      });
+      const updateTaskRunSpy = vi
+        .spyOn(server.posthogAPI, "updateTaskRun")
+        .mockResolvedValue({} as TaskRun);
+      server.session = {
+        payload: TEST_PAYLOAD,
+        acpSessionId: "acp-session",
+        clientConnection: { prompt: promptSpy },
+        logWriter: {
+          flushAll: vi.fn().mockResolvedValue(undefined),
+          getFullAgentResponse: vi.fn().mockReturnValue(null),
+          resetTurnMessages: vi.fn(),
+          flush: vi.fn().mockResolvedValue(undefined),
+          isRegistered: vi.fn().mockReturnValue(true),
+        },
+      };
+
+      await server.sendInitialTaskMessage(TEST_PAYLOAD);
+
+      expect(promptSpy).toHaveBeenCalledTimes(1);
+      expect(updateTaskRunSpy).toHaveBeenCalledWith(
+        "test-task-id",
+        "test-run-id",
+        {
+          status: "failed",
+          error_message: "Upstream LLM connection error",
+        },
+      );
     });
   });
 });

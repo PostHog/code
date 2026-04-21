@@ -618,6 +618,41 @@ export type ResultMessageHandlerResult = {
   };
 };
 
+export type AgentErrorClassification =
+  | "upstream_stream_terminated"
+  | "upstream_connection_error"
+  | "agent_error";
+
+/**
+ * Classify an error string surfaced by the Claude CLI via `is_error: true`
+ * result messages. Transient upstream-stream terminations (e.g. the fetch body
+ * from the LLM gateway is torn down mid-stream) are retriable; most other
+ * errors are not.
+ */
+export function classifyAgentError(
+  result: string | undefined,
+): AgentErrorClassification {
+  if (!result) return "agent_error";
+  const text = result.trim();
+  // Anthropic SDK surfaces an undici fetch abort as "API Error: terminated".
+  if (/API Error:\s*terminated\b/i.test(text)) {
+    return "upstream_stream_terminated";
+  }
+  if (/API Error:\s*Connection error\b/i.test(text)) {
+    return "upstream_connection_error";
+  }
+  return "agent_error";
+}
+
+export function isTransientAgentError(
+  classification: AgentErrorClassification,
+): boolean {
+  return (
+    classification === "upstream_stream_terminated" ||
+    classification === "upstream_connection_error"
+  );
+}
+
 export function handleResultMessage(
   message: SDKResultMessage,
 ): ResultMessageHandlerResult {
@@ -636,9 +671,13 @@ export function handleResultMessage(
         return { shouldStop: true, stopReason: "max_tokens", usage };
       }
       if (message.is_error) {
+        const classification = classifyAgentError(message.result);
         return {
           shouldStop: true,
-          error: RequestError.internalError(undefined, message.result),
+          error: RequestError.internalError(
+            { classification, result: message.result },
+            message.result,
+          ),
           usage,
         };
       }
