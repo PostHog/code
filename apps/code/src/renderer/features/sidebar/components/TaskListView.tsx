@@ -20,7 +20,8 @@ import { Flex, Text } from "@radix-ui/themes";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 import { normalizeRepoKey } from "@shared/utils/repo";
 import { useNavigationStore } from "@stores/navigationStore";
-import { useCallback, useEffect } from "react";
+import { getRelativeDateGroup } from "@utils/time";
+import { Fragment, useCallback, useEffect, useMemo } from "react";
 import type { TaskData, TaskGroup } from "../hooks/useSidebarData";
 import { useSidebarStore } from "../stores/sidebarStore";
 import { DraggableFolder } from "./DraggableFolder";
@@ -246,6 +247,20 @@ export function TaskListView({
   const timestampKey: "lastActivityAt" | "createdAt" =
     sortMode === "updated" ? "lastActivityAt" : "createdAt";
 
+  const dateGroupedTasks = useMemo(() => {
+    const groups: { label: string; tasks: TaskData[] }[] = [];
+    for (const task of flatTasks) {
+      const label = getRelativeDateGroup(task[timestampKey]);
+      const last = groups[groups.length - 1];
+      if (last && last.label === label) {
+        last.tasks.push(task);
+      } else {
+        groups.push({ label, tasks: [task] });
+      }
+    }
+    return groups;
+  }, [flatTasks, timestampKey]);
+
   return (
     <Flex direction="column">
       {pinnedTasks.length > 0 && (
@@ -363,23 +378,30 @@ export function TaskListView({
         </DragDropProvider>
       ) : (
         <Flex direction="column" gap="1px">
-          {flatTasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              isActive={activeTaskId === task.id}
-              isEditing={editingTaskId === task.id}
-              onClick={() => onTaskClick(task.id)}
-              onDoubleClick={() => onTaskDoubleClick(task.id)}
-              onContextMenu={(e, isPinned) =>
-                onTaskContextMenu(task.id, e, isPinned)
-              }
-              onArchive={() => onTaskArchive(task.id)}
-              onTogglePin={() => onTaskTogglePin(task.id)}
-              onEditSubmit={(newTitle) => onTaskEditSubmit(task.id, newTitle)}
-              onEditCancel={onTaskEditCancel}
-              timestamp={task[timestampKey]}
-            />
+          {dateGroupedTasks.map((group) => (
+            <Fragment key={group.label}>
+              <SectionLabel label={group.label} />
+              {group.tasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  isActive={activeTaskId === task.id}
+                  isEditing={editingTaskId === task.id}
+                  onClick={() => onTaskClick(task.id)}
+                  onDoubleClick={() => onTaskDoubleClick(task.id)}
+                  onContextMenu={(e, isPinned) =>
+                    onTaskContextMenu(task.id, e, isPinned)
+                  }
+                  onArchive={() => onTaskArchive(task.id)}
+                  onTogglePin={() => onTaskTogglePin(task.id)}
+                  onEditSubmit={(newTitle) =>
+                    onTaskEditSubmit(task.id, newTitle)
+                  }
+                  onEditCancel={onTaskEditCancel}
+                  timestamp={task[timestampKey]}
+                />
+              ))}
+            </Fragment>
           ))}
           {hasMore && (
             <div className="px-2 py-2">
