@@ -1,10 +1,10 @@
+import { useCloudPrUrl } from "@features/git-interaction/hooks/useCloudPrUrl";
 import { usePrActions } from "@features/git-interaction/hooks/usePrActions";
 import { usePrDetails } from "@features/git-interaction/hooks/usePrDetails";
 import {
   getPrVisualConfig,
   parsePrNumber,
 } from "@features/git-interaction/utils/prStatus";
-import { useSessionForTask } from "@features/sessions/hooks/useSession";
 import { ChevronDownIcon } from "@radix-ui/react-icons";
 import { Button, DropdownMenu, Flex, Spinner, Text } from "@radix-ui/themes";
 
@@ -15,8 +15,7 @@ interface CloudGitInteractionHeaderProps {
 export function CloudGitInteractionHeader({
   taskId,
 }: CloudGitInteractionHeaderProps) {
-  const session = useSessionForTask(taskId);
-  const prUrl = (session?.cloudOutput?.pr_url as string) ?? null;
+  const prUrl = useCloudPrUrl(taskId);
   const {
     meta: { state, merged, draft },
   } = usePrDetails(prUrl);
