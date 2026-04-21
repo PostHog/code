@@ -4,6 +4,7 @@ import { getAvailableCodexModes, getAvailableModes } from "./execution-mode";
 describe("execution modes", () => {
   it("includes auto-accept permissions for claude sessions", () => {
     expect(getAvailableModes().map((mode) => mode.id)).toEqual([
+      "auto",
       "default",
       "acceptEdits",
       "plan",

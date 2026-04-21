@@ -124,6 +124,7 @@ function prependPrContext(params: PromptRequest): PromptRequest {
 }
 
 const CODEX_NATIVE_MODE: Record<CodeExecutionMode, CodexNativeMode> = {
+  auto: "auto",
   default: "auto",
   acceptEdits: "auto",
   plan: "read-only",

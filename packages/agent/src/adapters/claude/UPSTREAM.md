@@ -51,7 +51,6 @@ Fork of `@anthropic-ai/claude-agent-acp`. Upstream repo: https://github.com/anth
 | Session storage | `this.sessions[sessionId]` (multi) | `this.session` (single) | Architectural choice |
 | bypassPermissions | `updatedPermissions` with `destination: "session"` | No `updatedPermissions` | Different permission persistence |
 | Auth methods | `claude-ai-login` + `console-login` | Returns empty `authMethods` | Auth handled externally |
-| `auto` mode | Model classifier for auto-approval | Not implemented | PostHog uses its own permission model |
 | Session fingerprinting | Implicit teardown on cwd/mcp change | Explicit `refreshSession()` | Caller-initiated is more predictable |
 | Shutdown on ACP close | Process exits | No standalone process | Agent is embedded in server |
 
@@ -65,10 +64,10 @@ Fork of `@anthropic-ai/claude-agent-acp`. Upstream repo: https://github.com/anth
 - **Mid-stream usage updates** (v0.29.1): Fire `usage_update` from `message_start`/`message_delta` stream events
 - **Raw SDK message relay** (v0.27.0): `emitRawSDKMessages` on `NewSessionMeta` for opt-in diagnostics
 - **Effort level sync** (v0.25.x): `xhigh` level added, `applyFlagSettings` on effort change
+- **Auto permission mode** (v0.25.0): Added to `CODE_EXECUTION_MODES`, available modes, ExitPlanMode options
 
 ## Skipped in v0.30.0 Sync
 
-- **`auto` permission mode** (v0.25.0): PostHog has its own permission model
 - **Separate auth methods** (v0.25.0): PostHog returns empty authMethods
 - **Session fingerprinting** (v0.25.3): PostHog uses explicit `refreshSession()` instead
 - **Process exit on ACP close** (v0.27.0): PostHog embeds agent in server

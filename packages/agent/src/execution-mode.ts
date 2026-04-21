@@ -11,6 +11,11 @@ const ALLOW_BYPASS = !IS_ROOT;
 
 const availableModes: ModeInfo[] = [
   {
+    id: "auto",
+    name: "Auto",
+    description: "Use a model classifier to approve/deny permission prompts",
+  },
+  {
     id: "default",
     name: "Default",
     description: "Standard behavior, prompts for dangerous operations",
@@ -25,11 +30,6 @@ const availableModes: ModeInfo[] = [
     name: "Plan Mode",
     description: "Planning mode, no actual tool execution",
   },
-  // {
-  //   id: "dontAsk",
-  //   name: "Don't Ask",
-  //   description: "Don't prompt for permissions, deny if not pre-approved",
-  // },
 ];
 
 if (ALLOW_BYPASS) {
@@ -42,10 +42,10 @@ if (ALLOW_BYPASS) {
 
 // Expose execution mode IDs in type-safe order for type checks
 export const CODE_EXECUTION_MODES = [
+  "auto",
   "default",
   "acceptEdits",
   "plan",
-  // "dontAsk",
   "bypassPermissions",
 ] as const;
 
