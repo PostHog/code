@@ -1,3 +1,4 @@
+import { ReportImplementationPrLink } from "@features/inbox/components/utils/ReportImplementationPrLink";
 import { TaskLogsPanel } from "@features/task-detail/components/TaskLogsPanel";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import {
@@ -10,7 +11,7 @@ import {
 } from "@phosphor-icons/react";
 import { Button, Spinner, Text, Tooltip } from "@radix-ui/themes";
 import type { SignalReportStatus, SignalReportTask, Task } from "@shared/types";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type Relationship = SignalReportTask["relationship"];
 
@@ -164,11 +165,6 @@ export function getTaskPrUrl(task: Task): string | null {
   return null;
 }
 
-export function getPrNumberFromUrl(prUrl: string): string | null {
-  const match = prUrl.match(/\/pull\/(\d+)(?:$|[/?#])/);
-  return match ? `#${match[1]}` : null;
-}
-
 const BAR_HEIGHT = 38;
 
 interface Bar {
@@ -179,6 +175,8 @@ interface Bar {
   tooltip?: string;
   /** When true, render a "Create PR" control instead of the status label. */
   showRunAction?: boolean;
+  /** PR URL produced by the implementation task, if available. */
+  prUrl?: string | null;
 }
 
 interface ReportTaskLogsProps {
@@ -186,15 +184,12 @@ interface ReportTaskLogsProps {
   reportStatus: SignalReportStatus;
   /** Open the cloud task confirmation flow. */
   onRunInCloud?: () => void;
-  /** Called when the implementation PR URL changes (or becomes null). */
-  onPrUrlChange?: (prUrl: string | null) => void;
 }
 
 export function ReportTaskLogs({
   reportId,
   reportStatus,
   onRunInCloud,
-  onPrUrlChange,
 }: ReportTaskLogsProps) {
   const { data, isLoading } = useReportTasks(reportId, reportStatus);
   const [expanded, setExpanded] = useState<Relationship | null>(null);
@@ -206,9 +201,6 @@ export function ReportTaskLogs({
     tasks.find((t) => t.relationship === "implementation")?.task ?? null;
 
   const prUrl = implementationTask ? getTaskPrUrl(implementationTask) : null;
-  useEffect(() => {
-    onPrUrlChange?.(prUrl);
-  }, [prUrl, onPrUrlChange]);
 
   // Build the stacked bars we'll render. We always surface the research bar
   // (using a pending/unavailable placeholder if no research task exists yet).
@@ -241,6 +233,7 @@ export function ReportTaskLogs({
       relationship: "implementation",
       task: implementationTask,
       summary: getTaskStatusSummary(implementationTask),
+      prUrl,
     });
   } else if (reportStatus === "ready") {
     bars.push({
@@ -349,8 +342,17 @@ export function ReportTaskLogs({
                     className="flex-1 text-[11px]"
                     style={{ color: summary.color }}
                   >
-                    {summary.label}
+                    {bar.prUrl
+                      ? summary.label
+                      : relationship === "implementation" &&
+                          (task?.latest_run?.status === "queued" ||
+                            task?.latest_run?.status === "in_progress")
+                        ? "Working on a PR…"
+                        : summary.label}
                   </Text>
+                )}
+                {bar.prUrl && (
+                  <ReportImplementationPrLink prUrl={bar.prUrl} size="md" />
                 )}
                 {showRunAction && (
                   <Button

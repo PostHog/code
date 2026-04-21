@@ -278,6 +278,10 @@ export interface SignalReport {
   already_addressed?: boolean | null;
   /** Whether the current user is a suggested reviewer for this report (server-annotated). */
   is_suggested_reviewer?: boolean;
+  /** Distinct source products contributing signals to this report. */
+  source_products?: string[];
+  /** PR URL from the latest implementation task run, if available. */
+  implementation_pr_url?: string | null;
 }
 
 export interface SignalReportArtefactContent {
