@@ -248,7 +248,7 @@ export function TaskListView({
     sortMode === "updated" ? "lastActivityAt" : "createdAt";
 
   const dateGroupedTasks = useMemo(() => {
-    const groups: { label: string; tasks: TaskData[] }[] = [];
+    const groups: { label: string | null; tasks: TaskData[] }[] = [];
     for (const task of flatTasks) {
       const label = getRelativeDateGroup(task[timestampKey]);
       const last = groups[groups.length - 1];
@@ -379,8 +379,8 @@ export function TaskListView({
       ) : (
         <Flex direction="column" gap="1px">
           {dateGroupedTasks.map((group) => (
-            <Fragment key={group.label}>
-              <SectionLabel label={group.label} />
+            <Fragment key={group.label ?? "today"}>
+              {group.label && <SectionLabel label={group.label} />}
               {group.tasks.map((task) => (
                 <TaskRow
                   key={task.id}
