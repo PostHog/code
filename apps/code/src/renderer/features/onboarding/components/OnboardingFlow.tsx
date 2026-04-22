@@ -28,6 +28,7 @@ export function OnboardingFlow() {
   const {
     currentStep,
     activeSteps,
+    isLastStep,
     direction,
     next,
     back,
@@ -46,12 +47,10 @@ export function OnboardingFlow() {
   );
   usePrefetchSignalData();
 
-  useHotkeys("right", next, { enableOnFormTags: false }, [next]);
-  useHotkeys("left", back, { enableOnFormTags: false }, [back]);
+  const handleNext = isLastStep ? completeOnboarding : next;
 
-  const handleComplete = () => {
-    completeOnboarding();
-  };
+  useHotkeys("right", handleNext, { enableOnFormTags: false }, [handleNext]);
+  useHotkeys("left", back, { enableOnFormTags: false }, [back]);
 
   const footerRight = (
     <Flex gap="5">
@@ -75,7 +74,7 @@ export function OnboardingFlow() {
           size="1"
           variant="ghost"
           color="gray"
-          onClick={handleComplete}
+          onClick={completeOnboarding}
           style={{ opacity: 0.5 }}
         >
           <ArrowRight size={14} weight="bold" />
@@ -100,7 +99,7 @@ export function OnboardingFlow() {
               transition={{ duration: 0.3 }}
               style={{ width: "100%", flex: 1, minHeight: 0 }}
             >
-              <WelcomeScreen onNext={next} />
+              <WelcomeScreen onNext={handleNext} />
             </motion.div>
           )}
 
@@ -115,7 +114,7 @@ export function OnboardingFlow() {
               transition={{ duration: 0.3 }}
               style={{ width: "100%", flex: 1, minHeight: 0 }}
             >
-              <ProjectSelectStep onNext={next} onBack={back} />
+              <ProjectSelectStep onNext={handleNext} onBack={back} />
             </motion.div>
           )}
 
@@ -130,7 +129,7 @@ export function OnboardingFlow() {
               transition={{ duration: 0.3 }}
               style={{ width: "100%", flex: 1, minHeight: 0 }}
             >
-              <InviteCodeStep onNext={next} onBack={back} />
+              <InviteCodeStep onNext={handleNext} onBack={back} />
             </motion.div>
           )}
 
@@ -146,7 +145,7 @@ export function OnboardingFlow() {
               style={{ width: "100%", flex: 1, minHeight: 0 }}
             >
               <GitIntegrationStep
-                onNext={next}
+                onNext={handleNext}
                 onBack={back}
                 selectedDirectory={selectedDirectory}
                 detectedRepo={detectedRepo}
@@ -167,7 +166,7 @@ export function OnboardingFlow() {
               transition={{ duration: 0.3 }}
               style={{ width: "100%", flex: 1, minHeight: 0 }}
             >
-              <CliInstallStep onNext={next} onBack={back} />
+              <CliInstallStep onNext={handleNext} onBack={back} />
             </motion.div>
           )}
 
@@ -182,7 +181,7 @@ export function OnboardingFlow() {
               transition={{ duration: 0.3 }}
               style={{ width: "100%", flex: 1, minHeight: 0 }}
             >
-              <SignalsStep onNext={handleComplete} onBack={back} />
+              <SignalsStep onNext={handleNext} onBack={back} />
             </motion.div>
           )}
         </AnimatePresence>
