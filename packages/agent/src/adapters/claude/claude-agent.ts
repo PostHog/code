@@ -316,15 +316,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   }
 
   async prompt(params: PromptRequest): Promise<PromptResponse> {
-    this.session.cancelled = false;
-    this.session.interruptReason = undefined;
-    this.session.accumulatedUsage = {
-      inputTokens: 0,
-      outputTokens: 0,
-      cachedReadTokens: 0,
-      cachedWriteTokens: 0,
-    };
-
     const userMessage = promptToClaude(params);
     const promptUuid = randomUUID();
     userMessage.uuid = promptUuid;
@@ -364,7 +355,19 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       this.session.input.push(userMessage);
     }
 
-    // Broadcast user message to client
+    // Reset session state here (after the queued-wait) rather than at the
+    // top of prompt(). Otherwise a new prompt() call would wipe cancelled=true
+    // on the previous still-running loop, causing it to return end_turn
+    // instead of the cancelled stop reason the spec requires.
+    this.session.cancelled = false;
+    this.session.interruptReason = undefined;
+    this.session.accumulatedUsage = {
+      inputTokens: 0,
+      outputTokens: 0,
+      cachedReadTokens: 0,
+      cachedWriteTokens: 0,
+    };
+
     await this.broadcastUserMessage(params);
 
     this.session.promptRunning = true;
@@ -652,10 +655,6 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
 
           case "user":
           case "assistant": {
-            if (this.session.cancelled) {
-              break;
-            }
-
             // Check for prompt replay (our own message echoed back)
             if (message.type === "user" && "uuid" in message && message.uuid) {
               if (message.uuid === promptUuid) {
@@ -670,10 +669,14 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
                 pending.resolve(false);
                 this.session.pendingMessages.delete(message.uuid as string);
                 handedOff = true;
-                // the current loop stops with end_turn,
-                // the loop of the next prompt continues running
-                return { stopReason: "end_turn" };
+                return {
+                  stopReason: this.session.cancelled ? "cancelled" : "end_turn",
+                };
               }
+            }
+
+            if (this.session.cancelled) {
+              break;
             }
 
             // Skip replayed user messages that aren't pending prompts

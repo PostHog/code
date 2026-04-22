@@ -959,6 +959,7 @@ export class SessionService {
           isPromptPending: true,
           promptStartedAt: acpMsg.ts,
           pausedDurationMs: 0,
+          currentPromptId: msg.id,
         });
       }
       if (
@@ -968,9 +969,17 @@ export class SessionService {
         msg.result !== null &&
         "stopReason" in msg.result
       ) {
+        // Only clear pending state if this response matches the currently
+        // in-flight prompt. A late response from a previously cancelled turn
+        // must not be allowed to mark a newer turn as done.
+        const session = sessionStoreSetters.getSessions()[taskRunId];
+        if (session && session.currentPromptId !== msg.id) {
+          continue;
+        }
         sessionStoreSetters.updateSession(taskRunId, {
           isPromptPending: false,
           promptStartedAt: null,
+          currentPromptId: null,
         });
       }
     }
@@ -1008,6 +1017,18 @@ export class SessionService {
       msg.result !== null &&
       "stopReason" in msg.result
     ) {
+      // Ignore responses that don't match the currently in-flight prompt id.
+      // A late response from a cancelled prior turn must not drain the queue
+      // or fire the "prompt complete" notification for the newer turn.
+      const currentSession = sessionStoreSetters.getSessions()[taskRunId];
+      const matchesCurrent =
+        !currentSession ||
+        currentSession.currentPromptId == null ||
+        currentSession.currentPromptId === msg.id;
+      if (!matchesCurrent) {
+        return;
+      }
+
       const stopReason = (msg.result as { stopReason?: string }).stopReason;
       const hasQueuedMessages = this.drainQueuedMessages(taskRunId, session);
 
