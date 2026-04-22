@@ -72,7 +72,7 @@ export function TourOverlay() {
     const handler = () => {
       if (!advancedRef.current) {
         advancedRef.current = true;
-        setTimeout(() => advance(tourId, stepId), 0);
+        advance(tourId, stepId);
       }
     };
 
