@@ -26,8 +26,20 @@ const ITEM_WIDTH = 260;
 const SPACE_HOTKEY_OPTIONS = {
   enableOnFormTags: true,
   enableOnContentEditable: true,
-  preventDefault: true,
+  preventDefault: false,
 } as const;
+
+function isInputWithContent(): boolean {
+  const el = document.activeElement;
+  if (!el) return false;
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+    return el.value.length > 0;
+  }
+  if (el instanceof HTMLElement && el.isContentEditable) {
+    return (el.textContent?.length ?? 0) > 0;
+  }
+  return false;
+}
 
 const MASK_STYLE = {
   maskImage:
@@ -343,12 +355,26 @@ export function SpaceSwitcher({
     };
   }, [show, hide]);
 
-  useHotkeys(SHORTCUTS.SPACE_UP, navigatePrev, SPACE_HOTKEY_OPTIONS, [
-    navigatePrev,
-  ]);
-  useHotkeys(SHORTCUTS.SPACE_DOWN, navigateNext, SPACE_HOTKEY_OPTIONS, [
-    navigateNext,
-  ]);
+  useHotkeys(
+    SHORTCUTS.SPACE_UP,
+    (e) => {
+      if (isInputWithContent()) return;
+      e.preventDefault();
+      navigatePrev();
+    },
+    SPACE_HOTKEY_OPTIONS,
+    [navigatePrev],
+  );
+  useHotkeys(
+    SHORTCUTS.SPACE_DOWN,
+    (e) => {
+      if (isInputWithContent()) return;
+      e.preventDefault();
+      navigateNext();
+    },
+    SPACE_HOTKEY_OPTIONS,
+    [navigateNext],
+  );
 
   if (!mounted || tasks.length === 0) return null;
 
