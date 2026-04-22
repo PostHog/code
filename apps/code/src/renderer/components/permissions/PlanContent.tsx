@@ -69,10 +69,7 @@ export function PlanContent({ id, plan }: PlanContentProps) {
         </Flex>
 
         {createPortal(
-          <Box
-            className="pointer-events-auto absolute inset-0 flex flex-col bg-gray-1"
-            style={{ transition: "opacity 150ms ease" }}
-          >
+          <Box className="pointer-events-auto absolute inset-0 flex flex-col bg-gray-1">
             <Flex
               align="center"
               justify="between"
