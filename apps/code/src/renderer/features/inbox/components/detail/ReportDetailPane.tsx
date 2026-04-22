@@ -15,7 +15,6 @@ import {
   CaretRightIcon,
   Cloud as CloudIcon,
   EyeIcon,
-  GitPullRequestIcon,
   LinkSimpleIcon,
   WarningIcon,
   XIcon,
@@ -54,7 +53,7 @@ import { SignalReportActionabilityBadge } from "../utils/SignalReportActionabili
 import { SignalReportPriorityBadge } from "../utils/SignalReportPriorityBadge";
 import { SignalReportStatusBadge } from "../utils/SignalReportStatusBadge";
 import { SignalReportSummaryMarkdown } from "../utils/SignalReportSummaryMarkdown";
-import { getPrNumberFromUrl, ReportTaskLogs } from "./ReportTaskLogs";
+import { ReportTaskLogs } from "./ReportTaskLogs";
 import { SignalCard } from "./SignalCard";
 
 function isSuggestedReviewerRowMe(
@@ -203,15 +202,12 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
   const setSelectedRepo = useInboxCloudTaskStore((s) => s.setSelectedRepo);
   const runCloudTask = useInboxCloudTaskStore((s) => s.runCloudTask);
 
-  /** Matches server autostart rules: ready + immediately actionable + not already fixed. */
+  /** Matches server autostart rules: ready (or awaiting user input) + immediately actionable + not already fixed. */
   const canCreateImplementationPr =
-    report.status === "ready" &&
+    (report.status === "ready" || report.status === "pending_input") &&
     report.actionability === "immediately_actionable" &&
     report.already_addressed !== true;
 
-  const [implementationPrUrl, setImplementationPrUrl] = useState<string | null>(
-    null,
-  );
   const [cloudPromptDraft, setCloudPromptDraft] = useState("");
   const cloudRepoPickerAnchorRef = useRef<HTMLDivElement>(null);
 
@@ -279,25 +275,12 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
         <Flex align="center" gap="2" className="min-w-0">
           <SignalReportStatusBadge status={report.status} />
           <Text
-            size="1"
-            weight="medium"
-            className="block min-w-0 break-words text-[13px]"
+            size="3"
+            weight={report.status === "ready" ? "bold" : "medium"}
+            className="block min-w-0 text-balance break-words leading-tight"
           >
             {report.title ?? "Untitled signal"}
           </Text>
-          {implementationPrUrl && (
-            <Tooltip content={implementationPrUrl}>
-              <a
-                href={implementationPrUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-5 px-2 py-0.5 font-medium text-[11px] text-green-12 hover:bg-green-6"
-              >
-                <GitPullRequestIcon size={12} weight="bold" />
-                {getPrNumberFromUrl(implementationPrUrl) ?? "PR"}
-              </a>
-            </Tooltip>
-          )}
         </Flex>
         <Flex align="center" gap="1" className="shrink-0">
           <Tooltip content="Copy link to this report">
@@ -555,7 +538,6 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
         onRunInCloud={
           canCreateImplementationPr ? handleOpenCloudConfirm : undefined
         }
-        onPrUrlChange={setImplementationPrUrl}
       />
 
       {/* ── Cloud task confirmation dialog ────────────────────── */}

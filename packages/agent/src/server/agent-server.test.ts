@@ -8,6 +8,7 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 import { createTestRepo, type TestRepo } from "../test/fixtures/api";
 import { createPostHogHandlers } from "../test/mocks/msw-handlers";
@@ -17,6 +18,11 @@ import { type JwtPayload, SANDBOX_CONNECTION_AUDIENCE } from "./jwt";
 
 interface TestableServer {
   getInitialPromptOverride(run: TaskRun): string | null;
+  getClearedPendingUserState(run: TaskRun | null): string[] | null;
+  clearPendingInitialPromptState(
+    payload: JwtPayload,
+    run: TaskRun | null,
+  ): Promise<void>;
   detectAndAttachPrUrl(payload: unknown, update: unknown): void;
   detectedPrUrl: string | null;
   buildCloudSystemPrompt(prUrl?: string | null): string;
@@ -294,6 +300,36 @@ describe("AgentServer HTTP Mode", () => {
       const body = await response.json();
       expect(body.error).toBe("No active session for this run");
     }, 20000);
+
+    it("accepts artifact-only user_message payloads", async () => {
+      await createServer().start();
+      const token = createToken({ run_id: "different-run-id" });
+
+      const response = await fetch(`http://localhost:${port}/command`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "user_message",
+          params: {
+            artifacts: [
+              {
+                id: "artifact-1",
+                name: "test.txt",
+                storage_path: "tasks/artifacts/test.txt",
+              },
+            ],
+          },
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body.error).toBe("No active session for this run");
+    }, 20000);
   });
 
   describe("404 handling", () => {
@@ -349,6 +385,66 @@ describe("AgentServer HTTP Mode", () => {
         run,
       );
       expect(result).toBeNull();
+    });
+
+    it("removes pending prompt keys when clearing initial prompt state", async () => {
+      const s = createServer();
+      const updateTaskRun = vi
+        .spyOn(
+          (
+            s as unknown as {
+              posthogAPI: {
+                updateTaskRun: (...args: unknown[]) => Promise<unknown>;
+              };
+            }
+          ).posthogAPI,
+          "updateTaskRun",
+        )
+        .mockResolvedValue({} as never);
+      const run = {
+        id: "test-run-id",
+        task: "test-task-id",
+        state: {
+          sandbox_url: "https://sandbox.example.com",
+          sandbox_connect_token: "token",
+          pending_user_message: "read this",
+          pending_user_artifact_ids: ["artifact-1"],
+          pending_user_message_ts: "123.456",
+        },
+      } as unknown as TaskRun;
+
+      const nextState = (
+        s as unknown as TestableServer
+      ).getClearedPendingUserState(run);
+      expect(nextState).toEqual([
+        "pending_user_message",
+        "pending_user_artifact_ids",
+        "pending_user_message_ts",
+      ]);
+
+      await (s as unknown as TestableServer).clearPendingInitialPromptState(
+        {
+          run_id: "test-run-id",
+          task_id: "test-task-id",
+          team_id: 1,
+          user_id: 1,
+          distinct_id: "test-distinct-id",
+          mode: "interactive",
+        },
+        run,
+      );
+
+      expect(updateTaskRun).toHaveBeenCalledWith(
+        "test-task-id",
+        "test-run-id",
+        {
+          state_remove_keys: [
+            "pending_user_message",
+            "pending_user_artifact_ids",
+            "pending_user_message_ts",
+          ],
+        },
+      );
     });
   });
 

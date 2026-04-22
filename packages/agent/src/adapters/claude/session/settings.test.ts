@@ -1,0 +1,159 @@
+import { execFileSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { resolveMainRepoPath } from "./repo-path";
+import { SettingsManager } from "./settings";
+
+function runGit(cwd: string, args: string[]): void {
+  execFileSync("git", args, { cwd, stdio: ["ignore", "ignore", "pipe"] });
+}
+
+describe("SettingsManager per-repo persistence", () => {
+  let mainRepo: string;
+  let worktree: string;
+  let tmpRoot: string;
+
+  beforeEach(async () => {
+    tmpRoot = await fs.promises.realpath(
+      await fs.promises.mkdtemp(path.join(os.tmpdir(), "settings-manager-")),
+    );
+    mainRepo = path.join(tmpRoot, "main");
+    worktree = path.join(tmpRoot, "wt");
+    await fs.promises.mkdir(mainRepo, { recursive: true });
+
+    runGit(mainRepo, ["init", "-b", "main"]);
+    runGit(mainRepo, ["config", "user.email", "test@example.com"]);
+    runGit(mainRepo, ["config", "user.name", "test"]);
+    runGit(mainRepo, ["commit", "--allow-empty", "-m", "init"]);
+    runGit(mainRepo, ["worktree", "add", "-b", "feat", worktree]);
+  });
+
+  afterEach(async () => {
+    await fs.promises.rm(tmpRoot, { recursive: true, force: true });
+  });
+
+  it("persists allow rules to the primary worktree when invoked from a secondary worktree", async () => {
+    const manager = new SettingsManager(worktree);
+    await manager.initialize();
+
+    await manager.addAllowRules([
+      { toolName: "Bash", ruleContent: "pnpm test:*" },
+    ]);
+
+    const repoLocalPath = path.join(mainRepo, ".claude", "settings.local.json");
+    const contents = JSON.parse(
+      await fs.promises.readFile(repoLocalPath, "utf-8"),
+    );
+    expect(contents.permissions.allow).toContain("Bash(pnpm test:*)");
+
+    const worktreeLocalPath = path.join(
+      worktree,
+      ".claude",
+      "settings.local.json",
+    );
+    expect(fs.existsSync(worktreeLocalPath)).toBe(false);
+  });
+
+  it("sees rules persisted by a sibling worktree after re-initialization", async () => {
+    const writer = new SettingsManager(worktree);
+    await writer.initialize();
+    await writer.addAllowRules([{ toolName: "TodoWrite" }]);
+
+    const sibling = path.join(tmpRoot, "wt2");
+    runGit(mainRepo, ["worktree", "add", "-b", "other", sibling]);
+
+    const reader = new SettingsManager(sibling);
+    await reader.initialize();
+    const decision = reader.checkPermission("TodoWrite", {});
+    expect(decision.decision).toBe("allow");
+  });
+
+  it("widens name-based matching for argumentless rules", async () => {
+    const manager = new SettingsManager(worktree);
+    await manager.initialize();
+
+    await manager.addAllowRules([{ toolName: "TodoWrite" }]);
+
+    expect(manager.checkPermission("TodoWrite", {}).decision).toBe("allow");
+  });
+
+  it("does not widen name-based matching when the rule has an argument", async () => {
+    // A rule *with* an argument for a tool we don't have an accessor for must
+    // not match regardless of the actual input — otherwise a deny rule like
+    // `Bash(rm -rf)` applied to a non-ACP Bash invocation would match any
+    // command.
+    const manager = new SettingsManager(worktree);
+    await manager.initialize();
+
+    await manager.addAllowRules([
+      { toolName: "UnknownTool", ruleContent: "something" },
+    ]);
+
+    expect(
+      manager.checkPermission("UnknownTool", { command: "anything" }).decision,
+    ).toBe("ask");
+  });
+
+  it("still allows ACP-prefixed Bash invocations when a Bash(...) rule is persisted", async () => {
+    const manager = new SettingsManager(worktree);
+    await manager.initialize();
+
+    await manager.addAllowRules([
+      { toolName: "Bash", ruleContent: "pnpm test:*" },
+    ]);
+
+    const decision = manager.checkPermission("mcp__acp__Bash", {
+      command: "pnpm test --filter agent",
+    });
+    expect(decision.decision).toBe("allow");
+  });
+
+  it("refuses to overwrite the file when existing contents cannot be parsed", async () => {
+    const manager = new SettingsManager(worktree);
+    await manager.initialize();
+
+    const filePath = path.join(mainRepo, ".claude", "settings.local.json");
+    const original = "{ this is not valid json";
+    await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.promises.writeFile(filePath, original);
+
+    await expect(
+      manager.addAllowRules([{ toolName: "TodoWrite" }]),
+    ).rejects.toThrow();
+
+    // File must be untouched — overwriting would wipe whatever the user had.
+    expect(await fs.promises.readFile(filePath, "utf-8")).toBe(original);
+  });
+
+  it("concurrent addAllowRules calls do not clobber each other", async () => {
+    const manager = new SettingsManager(worktree);
+    await manager.initialize();
+
+    await Promise.all([
+      manager.addAllowRules([{ toolName: "A" }]),
+      manager.addAllowRules([{ toolName: "B" }]),
+      manager.addAllowRules([{ toolName: "C" }]),
+    ]);
+
+    const filePath = path.join(mainRepo, ".claude", "settings.local.json");
+    const contents = JSON.parse(await fs.promises.readFile(filePath, "utf-8"));
+    expect(contents.permissions.allow).toEqual(
+      expect.arrayContaining(["A", "B", "C"]),
+    );
+  });
+});
+
+describe("resolveMainRepoPath", () => {
+  it("returns cwd when the directory is not inside a git repository", async () => {
+    const tmp = await fs.promises.realpath(
+      await fs.promises.mkdtemp(path.join(os.tmpdir(), "repo-path-")),
+    );
+    try {
+      expect(await resolveMainRepoPath(tmp)).toBe(tmp);
+    } finally {
+      await fs.promises.rm(tmp, { recursive: true, force: true });
+    }
+  });
+});

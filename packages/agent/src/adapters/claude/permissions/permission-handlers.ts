@@ -2,7 +2,10 @@ import type {
   AgentSideConnection,
   RequestPermissionResponse,
 } from "@agentclientprotocol/sdk";
-import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
+import type {
+  PermissionRuleValue,
+  PermissionUpdate,
+} from "@anthropic-ai/claude-agent-sdk";
 import { text } from "../../../utils/acp-content";
 import type { Logger } from "../../../utils/logger";
 import { toolInfoFromToolUse } from "../conversion/tool-use-to-acp";
@@ -347,7 +350,7 @@ async function handleDefaultPermissionFlow(
   const options = buildPermissionOptions(
     toolName,
     toolInput as Record<string, unknown>,
-    session?.cwd,
+    session.settingsManager.getRepoRoot(),
     suggestions,
   );
 
@@ -374,17 +377,19 @@ async function handleDefaultPermissionFlow(
       response.outcome.optionId === "allow_always")
   ) {
     if (response.outcome.optionId === "allow_always") {
+      const rules = extractAllowRules(suggestions, toolName);
+      try {
+        await session.settingsManager.addAllowRules(rules);
+      } catch (error) {
+        context.logger.warn(
+          "[canUseTool] Failed to persist allow rules to repository settings",
+          { error: error instanceof Error ? error.message : String(error) },
+        );
+      }
       return {
         behavior: "allow",
         updatedInput: toolInput as Record<string, unknown>,
-        updatedPermissions: suggestions ?? [
-          {
-            type: "addRules",
-            rules: [{ toolName }],
-            behavior: "allow",
-            destination: "localSettings",
-          },
-        ],
+        updatedPermissions: buildSessionPermissions(suggestions, rules),
       };
     }
     return {
@@ -427,6 +432,44 @@ function handlePlanFileException(
     behavior: "allow",
     updatedInput: toolInput as Record<string, unknown>,
   };
+}
+
+function extractAllowRules(
+  suggestions: PermissionUpdate[] | undefined,
+  toolName: string,
+): PermissionRuleValue[] {
+  if (!suggestions || suggestions.length === 0) {
+    return [{ toolName }];
+  }
+  return suggestions
+    .filter(
+      (update) => update.type === "addRules" && update.behavior === "allow",
+    )
+    .flatMap((update) => ("rules" in update ? update.rules : []));
+}
+
+/**
+ * Forwards any non-addRules suggestions from the SDK (e.g. addDirectories)
+ * with their destination remapped to `session`. Our own allow rules are
+ * persisted via `settingsManager.addAllowRules`, so the SDK must not write
+ * them to its default per-cwd location.
+ */
+function buildSessionPermissions(
+  suggestions: PermissionUpdate[] | undefined,
+  rules: PermissionRuleValue[],
+): PermissionUpdate[] {
+  const passthrough = (suggestions ?? [])
+    .filter(
+      (update) => !(update.type === "addRules" && update.behavior === "allow"),
+    )
+    .map((update) => ({ ...update, destination: "session" as const }));
+  if (rules.length === 0) {
+    return passthrough;
+  }
+  return [
+    { type: "addRules", rules, behavior: "allow", destination: "session" },
+    ...passthrough,
+  ];
 }
 
 function extractDomainFromUrl(url: string): string | null {

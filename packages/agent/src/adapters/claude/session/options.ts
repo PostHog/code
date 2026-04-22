@@ -117,6 +117,7 @@ function buildHooks(
   logger: Logger,
   enrichmentDeps: FileEnrichmentDeps | undefined,
   enrichedReadCache: EnrichedReadCache | undefined,
+  registeredAgents: ReadonlySet<string>,
 ): Options["hooks"] {
   const postToolUseHooks = [createPostToolUseHook({ onModeChange, logger })];
   if (enrichmentDeps && enrichedReadCache) {
@@ -136,10 +137,59 @@ function buildHooks(
       {
         hooks: [
           createPreToolUseHook(settingsManager, logger),
-          createSubagentRewriteHook(logger),
+          createSubagentRewriteHook(logger, registeredAgents),
         ],
       },
     ],
+  };
+}
+
+/**
+ * Read-only Haiku-powered exploration agent. Registered under the `ph-explore`
+ * name rather than `Explore` to work around a Claude Agent SDK bug where
+ * `options.agents` cannot shadow built-in agent definitions. The
+ * `createSubagentRewriteHook` rewrites `subagent_type: "Explore"` to
+ * `"ph-explore"` so callers don't have to know about the alias.
+ */
+const PH_EXPLORE_AGENT: NonNullable<Options["agents"]>[string] = {
+  description:
+    'Fast agent for exploring and understanding codebases. Use this when you need to find files by pattern (eg. "src/components/**/*.tsx"), search for code or keywords (eg. "where is the auth middleware?"), or answer questions about how the codebase works (eg. "how does the session service handle reconnects?"). When calling this agent, specify a thoroughness level: "quick" for targeted lookups, "medium" for broader exploration, or "very thorough" for comprehensive analysis across multiple locations.',
+  model: "haiku",
+  prompt: `You are a fast, read-only codebase exploration agent.
+
+Your job is to find files, search code, read the most relevant sources, and report findings clearly.
+
+Rules:
+- Never create, modify, delete, move, or copy files.
+- Never use shell redirection or any command that changes system state.
+- Use Glob for broad file pattern matching.
+- Use Grep for searching file contents.
+- Use Read when you know the exact file path to inspect.
+- Use Bash only for safe read-only commands like ls, git status, git log, git diff, find, cat, head, and tail.
+- Adapt your search approach based on the thoroughness level specified by the caller.
+- Return file paths as absolute paths in your final response.
+- Avoid using emojis.
+- Wherever possible, spawn multiple parallel tool calls for grepping and reading files.
+- Search efficiently, then read only the most relevant files.
+- Return findings directly in your final response — do not create files.`,
+  tools: [
+    "Bash",
+    "Glob",
+    "Grep",
+    "Read",
+    "WebFetch",
+    "WebSearch",
+    "NotebookRead",
+    "TodoWrite",
+  ],
+};
+
+function buildAgents(
+  userAgents: Options["agents"],
+): NonNullable<Options["agents"]> {
+  return {
+    "ph-explore": PH_EXPLORE_AGENT,
+    ...(userAgents || {}),
   };
 }
 
@@ -256,6 +306,9 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
       ? []
       : { type: "preset", preset: "claude_code" });
 
+  const agents = buildAgents(params.userProvidedOptions?.agents);
+  const registeredAgentNames = new Set(Object.keys(agents));
+
   const options: Options = {
     ...params.userProvidedOptions,
     betas: ["context-1m-2025-08-07"],
@@ -269,6 +322,7 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
     canUseTool: params.canUseTool,
     executable: "node",
     tools,
+    agents,
     extraArgs: {
       ...params.userProvidedOptions?.extraArgs,
       "replay-user-messages": "",
@@ -285,6 +339,7 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
       params.logger,
       params.enrichmentDeps,
       params.enrichedReadCache,
+      registeredAgentNames,
     ),
     outputFormat: params.outputFormat,
     abortController: getAbortController(
