@@ -53,6 +53,7 @@ Fork of `@anthropic-ai/claude-agent-acp`. Upstream repo: https://github.com/anth
 | Auth methods | `claude-ai-login` + `console-login` | Returns empty `authMethods` | Auth handled externally |
 | Session fingerprinting | Implicit teardown on cwd/mcp change | Explicit `refreshSession()` | Caller-initiated is more predictable |
 | Shutdown on ACP close | Process exits | No standalone process | Agent is embedded in server |
+| ExitPlanMode options | Static list of all modes + bypass | Contextual: shows pre-plan mode as default, optional downgrade to manual | Reduces decision fatigue; user usually wants the mode they were in |
 
 ## Changes Ported in v0.30.0 Sync
 
