@@ -1,12 +1,13 @@
 import type { AvailableCommand } from "@agentclientprotocol/sdk";
-import type { GithubIssueState } from "@main/services/git/schemas";
+import type { GithubRefKind, GithubRefState } from "@main/services/git/schemas";
 import type {
   EditorContent,
   FileAttachment,
   MentionChip,
 } from "./utils/content";
 
-export type { GithubIssueState };
+export type GithubIssueState = GithubRefState;
+export type { GithubRefKind, GithubRefState };
 
 export interface EditorHandle {
   focus: () => void;
@@ -26,6 +27,7 @@ export interface SuggestionItem {
   label: string;
   description?: string;
   filename?: string;
+  chipType?: MentionChip["type"];
 }
 
 export interface FileSuggestionItem extends SuggestionItem {
@@ -37,12 +39,14 @@ export interface CommandSuggestionItem extends SuggestionItem {
 }
 
 export interface IssueSuggestionItem extends SuggestionItem {
+  kind: GithubRefKind;
   number: number;
   title: string;
   url: string;
   repo: string;
-  state: GithubIssueState;
+  state: GithubRefState;
   labels: string[];
+  isDraft?: boolean;
 }
 
 export type SuggestionLoadingState = "idle" | "loading" | "error" | "success";

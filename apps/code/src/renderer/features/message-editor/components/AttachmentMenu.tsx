@@ -158,7 +158,7 @@ export function AttachmentMenu({
           align="start"
           side="top"
           sideOffset={6}
-          className="min-w-[180px]"
+          className="min-w-[200px]"
         >
           <DropdownMenuItem onClick={handleAddFile}>
             <File size={14} weight="bold" />
@@ -170,7 +170,7 @@ export function AttachmentMenu({
             title={issueDisabledReason ?? undefined}
           >
             <GithubLogo size={14} weight="bold" />
-            Add issue
+            Add issue or pull request
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

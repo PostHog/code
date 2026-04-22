@@ -8,7 +8,8 @@ export interface MentionChip {
     | "experiment"
     | "insight"
     | "feature_flag"
-    | "github_issue";
+    | "github_issue"
+    | "github_pr";
   id: string;
   label: string;
 }
@@ -57,11 +58,12 @@ export function contentToXml(content: EditorContent): string {
         return `<insight id="${escapedId}" />`;
       case "feature_flag":
         return `<feature_flag id="${escapedId}" />`;
-      case "github_issue": {
-        const numberMatch = chip.label.match(/^#(\d+)/);
-        const number = numberMatch ? numberMatch[1] : "";
-        const title = chip.label.replace(/^#\d+\s*-\s*/, "");
-        return `<github_issue number="${escapeXmlAttr(number)}" title="${escapeXmlAttr(title)}" url="${escapedId}" />`;
+      case "github_issue":
+      case "github_pr": {
+        const labelMatch = chip.label.match(/^#(\d+)(?:\s*-\s*(.*))?$/);
+        const number = labelMatch?.[1] ?? "";
+        const title = labelMatch?.[2] ?? "";
+        return `<${chip.type} number="${escapeXmlAttr(number)}" title="${escapeXmlAttr(title)}" url="${escapedId}" />`;
       }
       default:
         return `@${chip.label}`;
@@ -81,7 +83,7 @@ export function contentToXml(content: EditorContent): string {
 }
 
 const CHIP_TAG_REGEX =
-  /<(file|error|experiment|insight|feature_flag|github_issue)\b([^>]*?)\s*\/>/g;
+  /<(file|error|experiment|insight|feature_flag|github_issue|github_pr)\b([^>]*?)\s*\/>/g;
 const ATTR_REGEX = /(\w+)="([^"]*)"/g;
 
 function deriveFileLabel(filePath: string): string {
@@ -115,13 +117,14 @@ function chipFromTag(tag: string, rawAttrs: string): MentionChip | null {
       if (!id) return null;
       return { type: tag, id, label: id };
     }
-    case "github_issue": {
+    case "github_issue":
+    case "github_pr": {
       const number = attrs.number ?? "";
       const title = attrs.title ?? "";
       const url = attrs.url ?? "";
       if (!number && !url) return null;
       const label = title ? `#${number} - ${title}` : `#${number}`;
-      return { type: "github_issue", id: url, label };
+      return { type: tag, id: url, label };
     }
     default:
       return null;

@@ -1,4 +1,4 @@
-import type { GithubIssueState } from "../types";
+import type { GithubRefState } from "../types";
 import type { MentionChip } from "./content";
 
 export interface GithubIssueChipSource {
@@ -17,11 +17,22 @@ export function githubIssueToMentionChip(
   };
 }
 
-export const GITHUB_ISSUE_STATE_COLORS: Record<GithubIssueState, string> = {
+export function githubPullRequestToMentionChip(
+  pr: GithubIssueChipSource,
+): MentionChip {
+  return {
+    type: "github_pr",
+    id: pr.url,
+    label: `#${pr.number} - ${pr.title}`,
+  };
+}
+
+export const GITHUB_ISSUE_STATE_COLORS: Record<GithubRefState, string> = {
   OPEN: "#238636",
   CLOSED: "#AB7DF8",
+  MERGED: "#8957E5",
 };
 
-export function githubIssueStateColor(state: GithubIssueState): string {
+export function githubIssueStateColor(state: GithubRefState): string {
   return GITHUB_ISSUE_STATE_COLORS[state];
 }
