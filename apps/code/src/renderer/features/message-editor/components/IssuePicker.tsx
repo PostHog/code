@@ -62,7 +62,7 @@ export function IssuePicker({
     }
   }, [open]);
 
-  const { data: issues = [] } = useQuery(
+  const { data: issues = [], isFetching } = useQuery(
     trpc.git.searchGithubIssues.queryOptions(
       {
         directoryPath: repoPath,
@@ -104,7 +104,9 @@ export function IssuePicker({
           showTrigger={false}
           placeholder="Search issues..."
         />
-        <ComboboxEmpty>No issues found.</ComboboxEmpty>
+        <ComboboxEmpty>
+          {isFetching ? "Searching..." : "No issues found."}
+        </ComboboxEmpty>
         <ComboboxList>
           {(issue: Issue) => (
             <ComboboxItem
