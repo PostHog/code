@@ -11,6 +11,7 @@ interface TourTooltipProps {
   stepNumber: number;
   totalSteps: number;
   onDismiss: () => void;
+  onNext: () => void;
   targetRect: DOMRect;
 }
 
@@ -150,6 +151,7 @@ export function TourTooltip({
   stepNumber,
   totalSteps,
   onDismiss,
+  onNext,
   targetRect,
 }: TourTooltipProps) {
   const isDarkMode = useThemeStore((s) => s.isDarkMode);
@@ -259,15 +261,20 @@ export function TourTooltip({
                 <Text size="1" style={{ color: "var(--gray-9)" }}>
                   {stepNumber}/{totalSteps}
                 </Text>
-                <Button
-                  size="1"
-                  variant="ghost"
-                  color="gray"
-                  onClick={onDismiss}
-                  style={{ opacity: 0.5 }}
-                >
-                  Skip tour
-                </Button>
+                <Flex align="center" gap="2">
+                  <Button
+                    size="1"
+                    variant="ghost"
+                    color="gray"
+                    onClick={onDismiss}
+                    style={{ opacity: 0.5 }}
+                  >
+                    Skip tour
+                  </Button>
+                  <Button size="1" variant="ghost" onClick={onNext}>
+                    Next
+                  </Button>
+                </Flex>
               </Flex>
             </Flex>
           </motion.div>
