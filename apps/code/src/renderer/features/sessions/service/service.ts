@@ -1020,12 +1020,11 @@ export class SessionService {
       // Ignore responses that don't match the currently in-flight prompt id.
       // A late response from a cancelled prior turn must not drain the queue
       // or fire the "prompt complete" notification for the newer turn.
-      const currentSession = sessionStoreSetters.getSessions()[taskRunId];
-      const matchesCurrent =
-        !currentSession ||
-        currentSession.currentPromptId == null ||
-        currentSession.currentPromptId === msg.id;
-      if (!matchesCurrent) {
+      // We check against `session` (captured at the top of this function, pre-update),
+      // because updatePromptStateFromEvents above already cleared currentPromptId
+      // for a valid match — re-reading from the store would lose the distinction
+      // between "valid match just cleared" and "no turn was in flight".
+      if (session.currentPromptId !== msg.id) {
         return;
       }
 
