@@ -1,7 +1,17 @@
+import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
 import type { Icon } from "@phosphor-icons/react";
 import {
+  ArrowsClockwise,
+  ArrowsLeftRight,
+  Brain,
   CheckCircle,
-  CircleNotch,
+  FileText,
+  Globe,
+  MagnifyingGlass,
+  PencilSimple,
+  Terminal,
+  Trash,
+  Wrench,
 } from "@phosphor-icons/react";
 import { Flex, Text } from "@radix-ui/themes";
 import { AnimatePresence, motion } from "framer-motion";
@@ -35,6 +45,18 @@ const TOOL_VERBS: Record<string, string> = {
   ListDirectory: "Browsing",
 };
 
+const TOOL_KIND: Record<string, string> = {
+  Read: "read", Edit: "edit", Write: "edit", Grep: "search", Glob: "search",
+  Bash: "execute", Agent: "think", ToolSearch: "search", WebSearch: "search",
+  WebFetch: "fetch", StructuredOutput: "other", create_output: "other",
+};
+
+const KIND_ICONS: Record<string, Icon> = {
+  read: FileText, edit: PencilSimple, delete: Trash, move: ArrowsLeftRight,
+  search: MagnifyingGlass, execute: Terminal, think: Brain, fetch: Globe,
+  switch_mode: ArrowsClockwise, other: Wrench,
+};
+
 function shortenPath(path: string): string {
   const parts = path.split("/");
   if (parts.length <= 3) return path;
@@ -57,7 +79,9 @@ export function SetupScanFeed({
   isDone,
   doneLabel = "Complete",
 }: SetupScanFeedProps) {
-  const activeLabel = currentTool ? toolLabel(currentTool, currentFilePath) : null;
+  const activeLabel = currentTool
+    ? toolLabel(currentTool, currentFilePath)
+    : "Starting...";
 
   return (
     <Flex direction="column" gap="0" style={{ width: "100%" }}>
@@ -127,13 +151,7 @@ export function SetupScanFeed({
                   maxWidth: "100%",
                 }}
               >
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                  style={{ flexShrink: 0, display: "flex" }}
-                >
-                  <CircleNotch size={12} color="var(--gray-8)" />
-                </motion.div>
+                <DotsCircleSpinner size={14} className="text-[var(--gray-9)]" />
                 <Text
                   size="1"
                   style={{
@@ -195,7 +213,9 @@ export function SetupScanFeed({
           >
             <AnimatePresence initial={false}>
               {recentEntries.slice(-4).map((entry) => {
-                const entryLabel = entry.filePath
+                const kind = TOOL_KIND[entry.tool] ?? "other";
+                const EntryIcon = KIND_ICONS[kind] ?? Wrench;
+                const entryText = entry.filePath
                   ? shortenPath(entry.filePath)
                   : entry.title || TOOL_VERBS[entry.tool] || entry.tool;
                 return (
@@ -206,21 +226,27 @@ export function SetupScanFeed({
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <Text
-                      size="1"
-                      style={{
-                        color: "var(--gray-9)",
-                        fontFamily: "var(--code-font-family)",
-                        fontSize: 11,
-                        lineHeight: "22px",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        display: "block",
-                      }}
-                    >
-                      {entryLabel}
-                    </Text>
+                    <Flex align="center" gap="2" style={{ height: 24 }}>
+                      <EntryIcon
+                        size={12}
+                        weight="regular"
+                        color="var(--gray-9)"
+                        style={{ flexShrink: 0 }}
+                      />
+                      <Text
+                        size="1"
+                        style={{
+                          color: "var(--gray-9)",
+                          fontFamily: "var(--code-font-family)",
+                          fontSize: 11,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {entryText}
+                      </Text>
+                    </Flex>
                   </motion.div>
                 );
               })}
