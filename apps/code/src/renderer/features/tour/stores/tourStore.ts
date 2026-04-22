@@ -84,10 +84,16 @@ export const useTourStore = create<TourStore>()(
       completeTour: (tourId) => {
         const { completedTourIds } = get();
         if (completedTourIds.includes(tourId)) return;
+        const tour = TOUR_REGISTRY[tourId];
         set({
           completedTourIds: [...completedTourIds, tourId],
           activeTourId: null,
           activeStepIndex: 0,
+        });
+        track(ANALYTICS_EVENTS.TOUR_EVENT, {
+          tour_id: tourId,
+          action: "completed",
+          total_steps: tour?.steps.length,
         });
       },
 
