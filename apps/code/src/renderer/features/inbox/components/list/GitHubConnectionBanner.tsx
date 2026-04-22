@@ -12,10 +12,15 @@ import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { queryClient } from "@utils/queryClient";
 import { useEffect, useRef } from "react";
 
-/** PostHog Cloud OAuth URL to attach GitHub (`connect_from` is handled by PostHog web after redirect). */
-function posthogCloudGithubAccountLinkUrl(region: CloudRegion): string {
-  const url = new URL("/login/github/", getCloudUrlFromRegion(region));
-  url.searchParams.set("connect_from", "posthog_code");
+/** PostHog Cloud URL to the project integrations page where users can connect their GitHub profile. */
+function posthogCloudGithubAccountLinkUrl(
+  region: CloudRegion,
+  projectId: number,
+): string {
+  const url = new URL(
+    `/project/${projectId}/settings/project-integrations`,
+    getCloudUrlFromRegion(region),
+  );
   return url.toString();
 }
 
@@ -26,6 +31,7 @@ export function GitHubConnectionBanner() {
     { staleTime: 5 * 60 * 1000 },
   );
   const cloudRegion = useAuthStateValue((s) => s.cloudRegion);
+  const projectId = useAuthStateValue((s) => s.projectId);
   const awaitingLink = useRef(false);
 
   // After the user clicks connect and returns to the app, refetch to pick up the new github_login
@@ -48,11 +54,11 @@ export function GitHubConnectionBanner() {
     return null;
   }
 
-  if (!cloudRegion) {
+  if (!cloudRegion || projectId === null) {
     return null;
   }
 
-  const connectUrl = posthogCloudGithubAccountLinkUrl(cloudRegion);
+  const connectUrl = posthogCloudGithubAccountLinkUrl(cloudRegion, projectId);
 
   return (
     <div className="pointer-events-auto absolute inset-x-2 bottom-2 z-20">
