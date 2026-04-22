@@ -110,6 +110,23 @@ describe("SettingsManager per-repo persistence", () => {
     expect(decision.decision).toBe("allow");
   });
 
+  it("refuses to overwrite the file when existing contents cannot be parsed", async () => {
+    const manager = new SettingsManager(worktree);
+    await manager.initialize();
+
+    const filePath = path.join(mainRepo, ".claude", "settings.local.json");
+    const original = "{ this is not valid json";
+    await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.promises.writeFile(filePath, original);
+
+    await expect(
+      manager.addAllowRules([{ toolName: "TodoWrite" }]),
+    ).rejects.toThrow();
+
+    // File must be untouched — overwriting would wipe whatever the user had.
+    expect(await fs.promises.readFile(filePath, "utf-8")).toBe(original);
+  });
+
   it("concurrent addAllowRules calls do not clobber each other", async () => {
     const manager = new SettingsManager(worktree);
     await manager.initialize();

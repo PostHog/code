@@ -164,6 +164,26 @@ async function loadSettingsFile(
   }
 }
 
+/**
+ * Reads a settings file for a read-modify-write cycle. Unlike
+ * `loadSettingsFile`, this throws on any error other than ENOENT — we refuse
+ * to overwrite a file we couldn't parse, because doing so would wipe the
+ * user's existing settings (other allow/deny/ask rules, env, model, etc).
+ */
+async function readSettingsFileForUpdate(
+  filePath: string,
+): Promise<ClaudeCodeSettings> {
+  try {
+    const content = await fs.promises.readFile(filePath, "utf-8");
+    return JSON.parse(content) as ClaudeCodeSettings;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return {};
+    }
+    throw error;
+  }
+}
+
 export interface PermissionSettings {
   allow?: string[];
   deny?: string[];
@@ -365,7 +385,7 @@ export class SettingsManager {
     await this.writeMutex.acquire();
     try {
       const filePath = this.getLocalSettingsPath();
-      const existing = await loadSettingsFile(filePath);
+      const existing = await readSettingsFileForUpdate(filePath);
       const permissions: PermissionSettings = {
         ...(existing.permissions ?? {}),
       };
