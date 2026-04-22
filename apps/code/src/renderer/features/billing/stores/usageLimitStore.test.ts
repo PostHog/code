@@ -26,11 +26,11 @@ describe("usageLimitStore", () => {
     expect(state.context).toBe("idle");
   });
 
-  it("hide closes and clears context", () => {
+  it("hide closes but preserves context for exit animation", () => {
     useUsageLimitStore.getState().show("mid-task");
     useUsageLimitStore.getState().hide();
     const state = useUsageLimitStore.getState();
     expect(state.isOpen).toBe(false);
-    expect(state.context).toBeNull();
+    expect(state.context).toBe("mid-task");
   });
 });
