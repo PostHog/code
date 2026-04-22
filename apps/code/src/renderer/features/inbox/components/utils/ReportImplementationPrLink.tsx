@@ -16,6 +16,31 @@ interface ReportImplementationPrLinkProps {
   skipStatusFetch?: boolean;
 }
 
+function parseGitHubPrReference(prUrl: string): {
+  reference: string;
+  prNumber: string;
+} {
+  try {
+    const parsed = new URL(prUrl);
+    const match = parsed.pathname.match(/^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:$|[/?#])/);
+    if (match) {
+      return {
+        reference: `${match[1]}/${match[2]}#${match[3]}`,
+        prNumber: `#${match[3]}`,
+      };
+    }
+  } catch {
+    // Fall through to regex fallback for non-URL-safe inputs
+  }
+
+  const prMatch = prUrl.match(/\/pull\/(\d+)(?:$|[/?#])/);
+  const prNumber = prMatch ? `#${prMatch[1]}` : "PR";
+  return {
+    reference: prUrl,
+    prNumber,
+  };
+}
+
 export function ReportImplementationPrLink({
   prUrl,
   size = "sm",
@@ -36,15 +61,15 @@ export function ReportImplementationPrLink({
           ? "bg-red-4 text-red-11 hover:bg-red-5"
           : "bg-green-4 text-green-11 hover:bg-green-5";
 
+  const { reference: prReference, prNumber } = parseGitHubPrReference(prUrl);
+
   const tooltip = merged
-    ? `Merged — ${prUrl}`
+    ? `Merged — ${prReference}`
     : state === "closed"
-      ? `Closed — ${prUrl}`
-      : prUrl;
+      ? `Closed — ${prReference}`
+      : prReference;
 
   const iconSize = isSm ? 10 : 12;
-  const prMatch = prUrl.match(/\/pull\/(\d+)(?:$|[/?#])/);
-  const prNumber = prMatch ? `#${prMatch[1]}` : "PR";
 
   return (
     <Tooltip content={tooltip}>
