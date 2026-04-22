@@ -14,6 +14,8 @@ export interface QueryStrings {
   constructorAliases: string;
   destructuredMethods: string;
   bareFunctionCalls: string;
+  /** Import statements — only populated for languages where cross-file wrapper resolution is supported. */
+  imports?: string;
 }
 
 export interface LangFamily {
@@ -233,6 +235,34 @@ const JS_QUERIES: QueryStrings = {
         property: (property_identifier) @method)
       arguments: (arguments . (_) @first_arg)) @call
   `,
+
+  imports: `
+    (import_statement
+      (import_clause
+        (identifier) @default_name)
+      source: (string (string_fragment) @source)) @stmt
+
+    (import_statement
+      (import_clause
+        (named_imports
+          (import_specifier
+            name: (identifier) @imported_name) @spec))
+      source: (string (string_fragment) @source)) @stmt
+
+    (import_statement
+      (import_clause
+        (named_imports
+          (import_specifier
+            name: (identifier) @imported_name
+            alias: (identifier) @local_name) @spec))
+      source: (string (string_fragment) @source)) @stmt
+
+    (import_statement
+      (import_clause
+        (namespace_import
+          (identifier) @namespace_name))
+      source: (string (string_fragment) @source)) @stmt
+  `,
 };
 
 const PY_QUERIES: QueryStrings = {
@@ -319,6 +349,32 @@ const PY_QUERIES: QueryStrings = {
         object: (_) @client
         attribute: (identifier) @method)
       arguments: (argument_list . (_) @first_arg)) @call
+  `,
+
+  imports: `
+    (import_from_statement
+      module_name: (dotted_name) @source
+      name: (dotted_name) @imported_name) @stmt
+
+    (import_from_statement
+      module_name: (dotted_name) @source
+      name: (aliased_import
+        name: (dotted_name) @imported_name
+        alias: (identifier) @local_name)) @stmt
+
+    (import_from_statement
+      module_name: (relative_import
+        (import_prefix) @relative_prefix
+        (dotted_name)? @relative_name)
+      name: (dotted_name) @imported_name) @stmt
+
+    (import_from_statement
+      module_name: (relative_import
+        (import_prefix) @relative_prefix
+        (dotted_name)? @relative_name)
+      name: (aliased_import
+        name: (dotted_name) @imported_name
+        alias: (identifier) @local_name)) @stmt
   `,
 };
 

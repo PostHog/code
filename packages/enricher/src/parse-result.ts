@@ -51,6 +51,8 @@ export class ParseResult {
         name: c.key,
         line: c.line,
         dynamic: c.dynamic ?? false,
+        viaWrapper: c.viaWrapper,
+        inJsx: c.inJsx,
       }));
   }
 
@@ -61,6 +63,8 @@ export class ParseResult {
         method: c.method,
         flagKey: c.key,
         line: c.line,
+        viaWrapper: c.viaWrapper,
+        inJsx: c.inJsx,
       }));
   }
 
@@ -94,6 +98,8 @@ export class ParseResult {
         name: call.key,
         method: call.method,
         detail: call.dynamic ? "dynamic event name" : undefined,
+        viaWrapper: call.viaWrapper,
+        inJsx: call.inJsx,
       });
     }
 
@@ -154,6 +160,7 @@ export class ParseResult {
       flagEvalStatsResult.status === "fulfilled"
         ? flagEvalStatsResult.value
         : new Map<string, FlagEvaluationStats>();
+    const flagEvaluationStatsError = flagEvalStatsResult.status === "rejected";
 
     const flagKeySet = new Set(flagKeys);
     const flags = new Map(
@@ -170,14 +177,23 @@ export class ParseResult {
         .map((d) => [d.name, d]),
     );
 
+    const host = config.host.replace(/\/$/, "");
+    const flagUrls = new Map<string, string>();
+    for (const [key, flag] of flags) {
+      flagUrls.set(
+        key,
+        `${host}/project/${config.projectId}/feature_flags/${flag.id}`,
+      );
+    }
+
     return new EnrichedResult(this, {
       flags,
       experiments,
       eventDefinitions,
       eventStats,
       flagEvaluationStats,
-      host: config.host,
-      projectId: config.projectId,
+      flagEvaluationStatsError,
+      flagUrls,
     });
   }
 }

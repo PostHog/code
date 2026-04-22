@@ -7,14 +7,6 @@ import type {
   FlagEvaluationStats,
 } from "./types.js";
 
-export function buildFlagUrl(
-  host: string,
-  projectId: number,
-  flagId: number,
-): string {
-  return `${host.replace(/\/$/, "")}/project/${projectId}/feature_flags/${flagId}`;
-}
-
 export class PostHogApi {
   private config: EnricherApiConfig;
 
@@ -140,6 +132,8 @@ export class PostHogApi {
       return new Map();
     }
 
+    // HogQL over `/query/` rejects typed placeholders (`{name:Type}`) and
+    // placeholder values in INTERVAL, so `days` is inlined (clamped).
     const days = Math.max(1, Math.min(365, Math.floor(daysBack)));
     const query = `
       SELECT
@@ -165,7 +159,7 @@ export class PostHogApi {
 
     const stats = new Map<string, FlagEvaluationStats>();
     for (const [flagKey, evaluations, uniqueUsers] of data.results) {
-      stats.set(flagKey, { evaluations, uniqueUsers });
+      stats.set(flagKey, { evaluations, uniqueUsers, windowDays: days });
     }
     return stats;
   }

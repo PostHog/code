@@ -22,6 +22,7 @@ function resolveGrammarsDir(): string {
 export class ParserManager {
   private parser: Parser | null = null;
   private languages = new Map<string, Parser.Language>();
+  private languageKeys = new WeakMap<Parser.Language, string>();
   private queryCache = new Map<string, Parser.Query>();
   private maxCacheSize = 256;
   private initPromise: Promise<void> | null = null;
@@ -80,6 +81,7 @@ export class ParserManager {
         const wasmPath = path.join(this.wasmDir, family.wasm);
         lang = await Parser.Language.load(wasmPath);
         this.languages.set(family.wasm, lang);
+        this.languageKeys.set(lang, family.wasm);
       } catch (err) {
         warn(`Failed to load grammar ${family.wasm}`, err);
         return null;
@@ -102,7 +104,8 @@ export class ParserManager {
       return null;
     }
 
-    const cacheKey = `${lang.toString()}:${queryStr}`;
+    const langKey = this.languageKeys.get(lang) ?? lang.toString();
+    const cacheKey = `${langKey}:${queryStr}`;
     let query = this.queryCache.get(cacheKey);
     if (query) {
       // LRU: move to end by deleting and re-inserting
@@ -133,6 +136,7 @@ export class ParserManager {
     this.parser = null;
     this.initPromise = null;
     this.languages.clear();
+    this.languageKeys = new WeakMap();
     this.queryCache.clear();
   }
 }

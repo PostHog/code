@@ -5,7 +5,6 @@ import {
   extractVariants,
 } from "./flag-classification.js";
 import type { ParseResult } from "./parse-result.js";
-import { buildFlagUrl } from "./posthog-api.js";
 import { classifyStaleness } from "./stale-flags.js";
 import type {
   EnrichedEvent,
@@ -34,15 +33,11 @@ export class EnrichedResult {
     const checks = this.parsed.flagChecks;
     const experiments = this.context.experiments ?? [];
 
-    const { host, projectId } = this.context;
     for (const check of checks) {
       let entry = flagMap.get(check.flagKey);
       if (!entry) {
         const flag = this.context.flags?.get(check.flagKey);
-        const url =
-          flag && host && projectId !== undefined
-            ? buildFlagUrl(host, projectId, flag.id)
-            : null;
+        const url = this.context.flagUrls?.get(check.flagKey) ?? null;
         entry = {
           flagKey: check.flagKey,
           occurrences: [],
@@ -61,6 +56,7 @@ export class EnrichedResult {
           ),
           url,
           evaluationStats: this.context.flagEvaluationStats?.get(check.flagKey),
+          evaluationStatsError: this.context.flagEvaluationStatsError ?? false,
         };
         flagMap.set(check.flagKey, entry);
       }

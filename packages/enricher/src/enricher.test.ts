@@ -409,6 +409,7 @@ describeWithGrammars("PostHogEnricher", () => {
       expect(enriched.flags[0].evaluationStats).toEqual({
         evaluations: 1240,
         uniqueUsers: 230,
+        windowDays: 7,
       });
     });
 
@@ -494,6 +495,58 @@ describeWithGrammars("PostHogEnricher", () => {
       const body = String(queryPost?.[1]?.body ?? "");
       expect(body).toContain("$feature_flag_called");
       expect(body).toContain("tracked-flag");
+    });
+
+    test("toComments renders 'eval stats unavailable' when query rejects", async () => {
+      const code = `posthog.getFeatureFlag('broken-flag');`;
+      const result = await enricher.parse(code, "javascript");
+
+      const mockFetch = vi.fn(async (url: string, init?: RequestInit) => {
+        const urlStr = typeof url === "string" ? url : String(url);
+        if (urlStr.includes("/feature_flags/")) {
+          return Response.json({ results: [makeFlag("broken-flag")] });
+        }
+        if (urlStr.includes("/experiments/")) {
+          return Response.json({ results: [] });
+        }
+        if (urlStr.includes("/event_definitions/")) {
+          return Response.json({ results: [] });
+        }
+        if (urlStr.includes("/query/") && init?.method === "POST") {
+          const body =
+            typeof init.body === "string"
+              ? init.body
+              : init.body instanceof Uint8Array
+                ? new TextDecoder().decode(init.body)
+                : "";
+          if (body.includes("$feature_flag_called")) {
+            return new Response("forbidden", { status: 403 });
+          }
+          return Response.json({ results: [] });
+        }
+        return Response.json({});
+      });
+      vi.stubGlobal("fetch", mockFetch);
+
+      const enriched = await result.enrichFromApi(API_CONFIG);
+      const annotated = enriched.toComments();
+      expect(annotated).toContain("eval stats unavailable");
+      expect(annotated).not.toContain("evals /");
+    });
+
+    test("enrichedFlags url handles host with trailing slash", async () => {
+      const code = `posthog.getFeatureFlag('slashy');`;
+      const result = await enricher.parse(code, "javascript");
+
+      mockApiResponses({ flags: [makeFlag("slashy", { id: 9 })] });
+      const enriched = await result.enrichFromApi({
+        ...API_CONFIG,
+        host: "https://test.posthog.com/",
+      });
+
+      expect(enriched.flags[0].url).toBe(
+        "https://test.posthog.com/project/1/feature_flags/9",
+      );
     });
 
     test("enrichFromApi with no detected usage returns empty enrichment", async () => {
