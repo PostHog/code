@@ -3,7 +3,7 @@ import { isUsageExceeded } from "@features/billing/utils";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useSeat } from "@hooks/useSeat";
-import { Box, Flex, Progress, Text } from "@radix-ui/themes";
+import { Circle } from "@phosphor-icons/react";
 
 export function SidebarUsageBar() {
   const billingEnabled = useFeatureFlag("posthog-code-billing");
@@ -23,26 +23,33 @@ export function SidebarUsageBar() {
   };
 
   return (
-    <Box px="2" py="1.5" className="shrink-0 border-gray-6 border-t">
-      <Flex direction="column" gap="1">
-        <Flex justify="between" align="center">
-          <Text size="1" className="text-gray-11">
+    <div className="shrink-0 border-gray-6 border-t px-3 py-3">
+      <div className="flex items-center justify-between">
+        <span className="font-medium text-gray-11 text-xs">
+          Free plan
+          <Circle
+            size={4}
+            weight="fill"
+            className="mx-1.5 inline text-gray-8"
+          />
+          <span className="font-normal text-gray-10">
             {exceeded ? "Limit reached" : `${Math.round(usagePercent)}% used`}
-          </Text>
-          <button
-            type="button"
-            className="bg-transparent font-medium text-[11px] text-accent-11 transition-colors hover:text-accent-12"
-            onClick={handleUpgrade}
-          >
-            Upgrade
-          </button>
-        </Flex>
-        <Progress
-          value={Math.min(usagePercent, 100)}
-          size="1"
-          color={exceeded ? "red" : undefined}
+          </span>
+        </span>
+        <button
+          type="button"
+          className="bg-transparent font-medium text-accent-11 text-xs transition-colors hover:text-accent-12"
+          onClick={handleUpgrade}
+        >
+          Upgrade
+        </button>
+      </div>
+      <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-4">
+        <div
+          className={`h-full rounded-full transition-all ${exceeded ? "bg-red-9" : "bg-accent-9"}`}
+          style={{ width: `${Math.min(Math.ceil(usagePercent), 100)}%` }}
         />
-      </Flex>
-    </Box>
+      </div>
+    </div>
   );
 }
