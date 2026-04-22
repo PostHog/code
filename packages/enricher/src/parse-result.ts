@@ -1,8 +1,10 @@
 import { EnrichedResult } from "./enriched-result.js";
+import { warn } from "./log.js";
 import { PostHogApi } from "./posthog-api.js";
 import type {
   CapturedEvent,
   EnricherApiConfig,
+  EventStats,
   FlagAssignment,
   FlagCheck,
   FunctionInfo,
@@ -102,17 +104,42 @@ export class ParseResult {
     const flagKeys = this.flagKeys;
     const eventNames = this.eventNames;
 
-    const [allFlags, allExperiments, allEventDefs, eventStats] =
-      await Promise.all([
-        flagKeys.length > 0 ? api.getFeatureFlags() : Promise.resolve([]),
-        flagKeys.length > 0 ? api.getExperiments() : Promise.resolve([]),
-        eventNames.length > 0
-          ? api.getEventDefinitions(eventNames)
-          : Promise.resolve([]),
-        eventNames.length > 0
-          ? api.getEventStats(eventNames)
-          : Promise.resolve(new Map()),
-      ]);
+    const settled = await Promise.allSettled([
+      flagKeys.length > 0 ? api.getFeatureFlags() : Promise.resolve([]),
+      flagKeys.length > 0 ? api.getExperiments() : Promise.resolve([]),
+      eventNames.length > 0
+        ? api.getEventDefinitions(eventNames)
+        : Promise.resolve([]),
+      eventNames.length > 0
+        ? api.getEventStats(eventNames)
+        : Promise.resolve(new Map()),
+    ]);
+
+    const [flagsResult, experimentsResult, eventDefsResult, eventStatsResult] =
+      settled;
+
+    const labels = [
+      "getFeatureFlags",
+      "getExperiments",
+      "getEventDefinitions",
+      "getEventStats",
+    ];
+    settled.forEach((r, i) => {
+      if (r.status === "rejected") {
+        warn(`enricher: ${labels[i]} failed`, r.reason);
+      }
+    });
+
+    const allFlags =
+      flagsResult.status === "fulfilled" ? flagsResult.value : [];
+    const allExperiments =
+      experimentsResult.status === "fulfilled" ? experimentsResult.value : [];
+    const allEventDefs =
+      eventDefsResult.status === "fulfilled" ? eventDefsResult.value : [];
+    const eventStats =
+      eventStatsResult.status === "fulfilled"
+        ? eventStatsResult.value
+        : new Map<string, EventStats>();
 
     const flagKeySet = new Set(flagKeys);
     const flags = new Map(

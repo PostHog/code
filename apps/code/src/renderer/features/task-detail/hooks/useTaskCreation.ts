@@ -8,6 +8,8 @@ import {
 } from "@features/message-editor/utils/content";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
+import { useTourStore } from "@features/tour/stores/tourStore";
+import { createFirstTaskTour } from "@features/tour/tours/createFirstTaskTour";
 import { useConnectivity } from "@hooks/useConnectivity";
 import type { WorkspaceMode } from "@main/services/workspace/schemas";
 import { get } from "@renderer/di/container";
@@ -170,6 +172,7 @@ export function useTaskCreation({
         } else {
           navigateToTask(output.task);
         }
+        useTourStore.getState().completeTour(createFirstTaskTour.id);
         editor.clear();
       });
 

@@ -87,6 +87,9 @@ export class PostHogApi {
       return new Map();
     }
 
+    // HogQL over `/query/` rejects typed placeholders (`{name:Type}`) and
+    // placeholder values in INTERVAL, so `days` is inlined (clamped).
+    const days = Math.max(1, Math.min(365, Math.floor(daysBack)));
     const query = `
       SELECT
         event,
@@ -94,8 +97,8 @@ export class PostHogApi {
         count(DISTINCT person_id) AS unique_users,
         max(timestamp) AS last_seen
       FROM events
-      WHERE event IN ({eventNames:Array(String)})
-        AND timestamp >= now() - INTERVAL {daysBack:Int32} DAY
+      WHERE event IN {eventNames}
+        AND timestamp >= now() - INTERVAL ${days} DAY
       GROUP BY event
     `;
 
@@ -105,7 +108,7 @@ export class PostHogApi {
       query: {
         kind: "HogQLQuery",
         query,
-        values: { eventNames, daysBack },
+        values: { eventNames },
       },
     });
 

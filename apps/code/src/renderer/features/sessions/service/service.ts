@@ -585,11 +585,11 @@ export class SessionService {
     this.unsubscribeFromChannel(taskRunId);
     sessionStoreSetters.updateSession(taskRunId, {
       status: "error",
-      errorMessage:
-        "Session disconnected due to inactivity. Click Retry to reconnect.",
+      errorMessage: "Session disconnected due to inactivity. Reconnecting…",
       isPromptPending: false,
       isCompacting: false,
       promptStartedAt: null,
+      idleKilled: true,
     });
   }
 
@@ -1987,6 +1987,15 @@ export class SessionService {
       configOptions: updatedOptions,
     });
     updatePersistedConfigOptionValue(session.taskRunId, configId, value);
+
+    if (
+      !session.isCloud &&
+      (session.idleKilled ||
+        session.status === "disconnected" ||
+        session.status === "connecting")
+    ) {
+      return;
+    }
 
     try {
       if (session.isCloud) {

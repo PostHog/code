@@ -45,7 +45,12 @@ export function useProjects() {
   );
   const currentProjectId = useAuthStateValue((state) => state.projectId);
   const client = useOptionalAuthenticatedClient();
-  const { data: currentUser, isLoading, error } = useCurrentUser({ client });
+  const {
+    data: currentUser,
+    isLoading: isQueryLoading,
+    error,
+  } = useCurrentUser({ client });
+  const isInitialLoading = isQueryLoading && !currentUser;
 
   const projects = useMemo(() => {
     if (!currentUser?.organization) return [];
@@ -119,7 +124,7 @@ export function useProjects() {
     currentProject,
     currentProjectId,
     currentUser: currentUser ?? null,
-    isLoading,
+    isLoading: isInitialLoading,
     error,
   };
 }

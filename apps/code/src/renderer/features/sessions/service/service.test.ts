@@ -1454,6 +1454,72 @@ describe("SessionService", () => {
       ).toHaveBeenLastCalledWith("run-123", "mode", "default");
     });
 
+    it("skips backend call when local session is idle-killed so reconnect restore handles it", async () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({
+          status: "error",
+          idleKilled: true,
+          configOptions: [
+            {
+              id: "mode",
+              name: "Mode",
+              type: "select",
+              category: "mode",
+              currentValue: "default",
+              options: [],
+            },
+          ],
+        }),
+      );
+
+      await service.setSessionConfigOption("task-123", "mode", "acceptEdits");
+
+      expect(mockTrpcAgent.setConfigOption.mutate).not.toHaveBeenCalled();
+      expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledTimes(1);
+      expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+        "run-123",
+        {
+          configOptions: [
+            {
+              id: "mode",
+              name: "Mode",
+              type: "select",
+              category: "mode",
+              currentValue: "acceptEdits",
+              options: [],
+            },
+          ],
+        },
+      );
+      expect(
+        mockSessionConfigStore.updatePersistedConfigOptionValue,
+      ).toHaveBeenCalledWith("run-123", "mode", "acceptEdits");
+    });
+
+    it("skips backend call when local session is reconnecting (disconnected status)", async () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({
+          status: "disconnected",
+          configOptions: [
+            {
+              id: "mode",
+              name: "Mode",
+              type: "select",
+              category: "mode",
+              currentValue: "default",
+              options: [],
+            },
+          ],
+        }),
+      );
+
+      await service.setSessionConfigOption("task-123", "mode", "acceptEdits");
+
+      expect(mockTrpcAgent.setConfigOption.mutate).not.toHaveBeenCalled();
+    });
+
     it("routes cloud sessions through sendCommand with set_config_option", async () => {
       const service = getSessionService();
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(

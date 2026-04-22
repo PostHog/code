@@ -15,6 +15,7 @@ import { useIsWorkspaceCloudRun } from "@features/workspace/hooks/useWorkspace";
 import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
 import { Pause, Spinner, Warning } from "@phosphor-icons/react";
 import { Box, Button, ContextMenu, Flex, Text } from "@radix-ui/themes";
+import type { TaskRunStatus } from "@shared/types";
 import {
   type AcpMessage,
   isJsonRpcNotification,
@@ -27,6 +28,7 @@ import {
   useSessionViewActions,
   useShowRawLogs,
 } from "../stores/sessionViewStore";
+import { CloudInitializingView } from "./CloudInitializingView";
 import { ConversationView } from "./ConversationView";
 import { DropZoneOverlay } from "./DropZoneOverlay";
 import { ModelSelector } from "./ModelSelector";
@@ -54,6 +56,8 @@ interface SessionViewProps {
   onRetry?: () => void;
   onNewSession?: () => void;
   isInitializing?: boolean;
+  isCloud?: boolean;
+  cloudStatus?: TaskRunStatus | null;
   slackThreadUrl?: string;
   compact?: boolean;
   isActiveSession?: boolean;
@@ -85,6 +89,8 @@ export function SessionView({
   onRetry,
   onNewSession,
   isInitializing = false,
+  isCloud = false,
+  cloudStatus = null,
   slackThreadUrl,
   compact = false,
   isActiveSession = true,
@@ -411,13 +417,17 @@ export function SessionView({
               </Box>
             </>
           ) : isInitializing ? (
-            <Flex
-              align="center"
-              justify="center"
-              className="absolute inset-0 bg-background"
-            >
-              <Spinner size={32} className="animate-spin text-gray-9" />
-            </Flex>
+            isCloud ? (
+              <CloudInitializingView cloudStatus={cloudStatus} />
+            ) : (
+              <Flex
+                align="center"
+                justify="center"
+                className="absolute inset-0 bg-background"
+              >
+                <Spinner size={32} className="animate-spin text-gray-9" />
+              </Flex>
+            )
           ) : (
             <>
               <DropZoneOverlay isVisible={isDraggingFile} />

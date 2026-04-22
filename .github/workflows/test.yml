@@ -81,6 +81,7 @@ jobs:
           pnpm --filter @posthog/platform build &
           pnpm --filter @posthog/shared build
           pnpm --filter @posthog/git build
+          pnpm --filter @posthog/enricher build
           pnpm --filter agent build &
           wait
 

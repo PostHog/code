@@ -29,11 +29,11 @@ function useChangedFileStats(task: Task) {
     isCloud ? undefined : repoPath,
   );
 
-  const { changedFiles: cloudFiles } = useCloudChangedFiles(taskId, task);
+  const { reviewFiles } = useCloudChangedFiles(taskId, task);
 
   return useMemo(() => {
     if (isCloud) {
-      const stats = computeDiffStats(cloudFiles);
+      const stats = computeDiffStats(reviewFiles);
       return {
         filesChanged: stats.filesChanged,
         linesAdded: stats.linesAdded,
@@ -45,7 +45,7 @@ function useChangedFileStats(task: Task) {
       linesAdded: localDiffStats.linesAdded,
       linesRemoved: localDiffStats.linesRemoved,
     };
-  }, [isCloud, cloudFiles, localDiffStats]);
+  }, [isCloud, reviewFiles, localDiffStats]);
 }
 
 export function DiffStatsBadge({ task }: DiffStatsBadgeProps) {

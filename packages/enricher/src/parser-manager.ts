@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import Parser from "web-tree-sitter";
@@ -8,9 +9,14 @@ import type { DetectionConfig } from "./types.js";
 import { DEFAULT_CONFIG } from "./types.js";
 
 function resolveGrammarsDir(): string {
-  // Works from both dist/ (built) and src/ (tests) — both are one level below package root
   const thisFile = fileURLToPath(import.meta.url);
-  return path.join(path.dirname(thisFile), "..", "grammars");
+  const dir = path.dirname(thisFile);
+  const candidates = [
+    path.join(dir, "..", "grammars"),
+    path.join(dir, "grammars"),
+    path.join(dir, "..", "..", "grammars"),
+  ];
+  return candidates.find((p) => existsSync(p)) ?? candidates[0];
 }
 
 export class ParserManager {

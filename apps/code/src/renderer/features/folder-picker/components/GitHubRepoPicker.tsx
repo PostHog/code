@@ -10,7 +10,9 @@ import {
   ComboboxList,
   ComboboxTrigger,
 } from "@posthog/quill";
-import { type RefObject, useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
+
+const COMBOBOX_LIMIT = 50;
 
 interface GitHubRepoPickerProps {
   value: string | null;
@@ -36,6 +38,7 @@ export function GitHubRepoPicker({
   showSearchInput = true,
 }: GitHubRepoPickerProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const onlyRepo = repositories.length === 1 ? repositories[0] : null;
 
   useEffect(() => {
@@ -85,10 +88,13 @@ export function GitHubRepoPicker({
   return (
     <Combobox
       items={repositories}
+      limit={COMBOBOX_LIMIT}
       value={value}
       onValueChange={(v) => {
         if (v) onChange(v as string);
       }}
+      inputValue={searchQuery}
+      onInputValueChange={setSearchQuery}
       disabled={disabled}
     >
       <ComboboxTrigger
@@ -122,6 +128,14 @@ export function GitHubRepoPicker({
             </ComboboxItem>
           )}
         </ComboboxList>
+
+        {repositories.length > COMBOBOX_LIMIT && (
+          <div className="px-2 py-1.5 text-center text-muted-foreground text-xs">
+            {searchQuery
+              ? `Showing up to ${COMBOBOX_LIMIT} matches — refine your search`
+              : `Showing ${COMBOBOX_LIMIT} of ${repositories.length} — type to filter`}
+          </div>
+        )}
       </ComboboxContent>
     </Combobox>
   );

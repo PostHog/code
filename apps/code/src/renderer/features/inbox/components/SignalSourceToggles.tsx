@@ -44,6 +44,8 @@ interface SignalSourceToggleCardProps {
   loading?: boolean;
   statusSection?: React.ReactNode;
   syncStatus?: string | null;
+  docsUrl?: string;
+  docsLabel?: string;
 }
 
 function syncStatusLabel(status: string | null | undefined): {
@@ -76,6 +78,8 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
   loading,
   statusSection,
   syncStatus,
+  docsUrl,
+  docsLabel,
 }: SignalSourceToggleCardProps) {
   const statusInfo = checked ? syncStatusLabel(syncStatus) : null;
 
@@ -118,6 +122,30 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
             <Text size="1" style={{ color: "var(--gray-11)" }}>
               {description}
             </Text>
+            {docsUrl && (
+              <Text size="1" style={{ color: "var(--gray-11)" }}>
+                <a
+                  href={docsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    window.open(docsUrl, "_blank", "noopener");
+                  }}
+                  style={{
+                    color: "var(--accent-11)",
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
+                  Learn about {docsLabel ?? label}
+                  <ArrowSquareOutIcon size={11} />
+                </a>
+              </Text>
+            )}
           </Flex>
         </Flex>
         {loading ? (
@@ -184,6 +212,32 @@ export const EvaluationsSection = memo(function EvaluationsSection({
             </Flex>
             <Text size="1" style={{ color: "var(--gray-11)" }}>
               Monitor how your AI features are performing
+            </Text>
+            <Text size="1" style={{ color: "var(--gray-11)" }}>
+              <a
+                href="https://posthog.com/docs/llm-analytics"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  window.open(
+                    "https://posthog.com/docs/llm-analytics",
+                    "_blank",
+                    "noopener",
+                  );
+                }}
+                style={{
+                  color: "var(--accent-11)",
+                  textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
+                Learn about LLM Analytics
+                <ArrowSquareOutIcon size={11} />
+              </a>
             </Text>
           </Flex>
         </Flex>
@@ -296,14 +350,18 @@ export function SignalSourceToggles({
             onCheckedChange={toggleErrorTracking}
             disabled={disabled}
             syncStatus={sourceStates?.error_tracking?.syncStatus}
+            docsUrl="https://posthog.com/docs/error-tracking"
+            docsLabel="Error Tracking"
           />
           <SignalSourceToggleCard
             icon={<ChatsIcon size={20} />}
-            label="Conversations"
+            label="Support"
             description="Turn support conversations into signals"
             checked={value.conversations}
             onCheckedChange={toggleConversations}
             disabled={disabled}
+            docsUrl="https://posthog.com/docs/support"
+            docsLabel="Support"
           />
           <SignalSourceToggleCard
             icon={<VideoIcon size={20} />}
@@ -313,6 +371,8 @@ export function SignalSourceToggles({
             checked={value.session_replay}
             onCheckedChange={toggleSessionReplay}
             disabled={disabled}
+            docsUrl="https://posthog.com/docs/session-replay"
+            docsLabel="Session Replay"
             statusSection={
               value.session_replay ? (
                 <SourceRunningIndicator

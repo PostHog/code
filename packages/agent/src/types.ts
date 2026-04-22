@@ -152,6 +152,12 @@ export interface AgentConfig {
   skipLogPersistence?: boolean;
   /** Local cache path for instant log loading (e.g., ~/.posthog-code) */
   localCachePath?: string;
+  /**
+   * Annotate files the agent reads with PostHog enrichment (event volume,
+   * flag rollout/staleness, experiment links). Defaults to enabled when
+   * `posthog` config is present; set `{ enabled: false }` to opt out.
+   */
+  enricher?: { enabled?: boolean };
   debug?: boolean;
   onLog?: OnLogCallback;
 }

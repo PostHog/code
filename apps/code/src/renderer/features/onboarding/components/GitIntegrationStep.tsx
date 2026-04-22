@@ -175,8 +175,8 @@ export function GitIntegrationStep({
         projectId: selectedProjectId,
       });
 
-      // Dev-only fallback: DeepLinkService skips protocol registration in dev
-      // (see registerProtocol), so the browser can't deep-link back.
+      // Dev-only fallback: GitHub returns via posthog-code-dev:// while the
+      // browser flow may not always surface the same path; poll integrations.
       if (IS_DEV) {
         pollTimerRef.current = setInterval(() => {
           void queryClient.invalidateQueries({

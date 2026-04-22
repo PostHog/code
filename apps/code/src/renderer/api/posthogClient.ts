@@ -1201,6 +1201,30 @@ export class PostHogAPIClient {
     return await response.json();
   }
 
+  async getSignalReport(reportId: string): Promise<SignalReport | null> {
+    const teamId = await this.getTeamId();
+    const path = `/api/projects/${teamId}/signals/reports/${reportId}/`;
+    const url = new URL(`${this.api.baseUrl}${path}`);
+
+    try {
+      const response = await this.api.fetcher.fetch({
+        method: "get",
+        url,
+        path,
+      });
+      return (await response.json()) as SignalReport;
+    } catch (error) {
+      // The shared fetcher throws "Failed request: [<status>] <body>" for any
+      // non-2xx. Treat missing / forbidden as "not available in the current
+      // team" and surface other errors to the caller.
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("[404]") || msg.includes("[403]")) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
   async getSignalReports(
     params?: SignalReportsQueryParams,
   ): Promise<SignalReportsResponse> {
@@ -1989,5 +2013,44 @@ export class PostHogAPIClient {
         `Failed to delete sandbox environment: ${response.statusText}`,
       );
     }
+  }
+
+  /** Find an exported asset by session recording ID. */
+  async findExportBySessionRecordingId(
+    projectId: number,
+    sessionRecordingId: string,
+  ): Promise<number | null> {
+    const urlPath = `/api/projects/${projectId}/exports/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    url.searchParams.set("session_recording_id", sessionRecordingId);
+    url.searchParams.set("export_format", "video/mp4");
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: urlPath,
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as {
+      results?: Array<{ id: number; has_content: boolean }>;
+    };
+    const match = data.results?.find((e) => e.has_content);
+    return match?.id ?? null;
+  }
+
+  /** Get the presigned content URL for an exported asset (e.g. rasterized recording). */
+  async getExportContentUrl(
+    projectId: number,
+    exportId: number,
+  ): Promise<string | null> {
+    const urlPath = `/api/projects/${projectId}/exports/${exportId}/content/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: urlPath,
+    });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
   }
 }

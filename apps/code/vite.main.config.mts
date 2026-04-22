@@ -424,6 +424,52 @@ function copyDrizzleMigrations(): Plugin {
   };
 }
 
+let enricherGrammarsCopied = false;
+
+function copyEnricherGrammars(): Plugin {
+  return {
+    name: "copy-enricher-grammars",
+    writeBundle() {
+      // `.vite/grammars` is what the bundle resolves at dev-time; electron-forge
+      // only copies `.vite/build/**` into the packaged app, so we need both.
+      const destDirs = [
+        join(__dirname, ".vite/grammars"),
+        join(__dirname, ".vite/build/grammars"),
+      ];
+
+      if (enricherGrammarsCopied && destDirs.every((d) => existsSync(d))) {
+        return;
+      }
+
+      const candidates = [
+        join(__dirname, "node_modules/@posthog/enricher/grammars"),
+        join(__dirname, "../../node_modules/@posthog/enricher/grammars"),
+        join(__dirname, "../../packages/enricher/grammars"),
+      ];
+
+      const sourceDir = candidates.find((p) => existsSync(p));
+      if (!sourceDir) {
+        console.warn(
+          "[copy-enricher-grammars] grammars directory not found. Checked:",
+          candidates.join(", "),
+        );
+        return;
+      }
+
+      for (const destDir of destDirs) {
+        if (!existsSync(destDir)) {
+          mkdirSync(destDir, { recursive: true });
+        }
+        cpSync(sourceDir, destDir, { recursive: true });
+      }
+      enricherGrammarsCopied = true;
+      console.log(
+        `Copied enricher grammars from ${sourceDir} to ${destDirs.join(", ")}`,
+      );
+    },
+  };
+}
+
 let codexAcpCopied = false;
 
 function copyCodexAcpBinaries(): Plugin {
@@ -492,6 +538,7 @@ export default defineConfig(({ mode }) => {
       copyPosthogPlugin(isDev),
       copyDrizzleMigrations(),
       copyCodexAcpBinaries(),
+      copyEnricherGrammars(),
       createPosthogPlugin(env, "posthog-code-main"),
     ].filter(Boolean),
     define: {
