@@ -76,7 +76,7 @@ export function SetupView() {
       <Flex
         align="center"
         justify="center"
-        style={{ minHeight: "100%", padding: "48px 24px" }}
+        style={{ minHeight: "100%", padding: "48px 24px", position: "relative", zIndex: 1 }}
       >
         <Flex
           direction="column"
@@ -84,7 +84,8 @@ export function SetupView() {
           style={{
             width: "100%",
             maxWidth: 520,
-            backgroundColor: "var(--color-panel-translucent)",
+            backgroundColor: "var(--color-background)",
+            border: "1px solid var(--gray-a3)",
             borderRadius: 16,
             padding: "24px 28px",
           }}

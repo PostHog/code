@@ -216,9 +216,9 @@ export function SetupScanFeed({
             gap="0"
             px="3"
             py="2"
-            mx="3"
+            mx="4"
             style={{
-              backgroundColor: "var(--gray-a2)",
+              backgroundColor: "var(--gray-2)",
               borderRadius: "0 0 10px 10px",
               maxHeight: 120,
               overflow: "hidden",
