@@ -2,6 +2,7 @@ import { ConnectivityPrompt } from "@components/ConnectivityPrompt";
 import { HeaderRow } from "@components/HeaderRow";
 import { HedgehogMode } from "@components/HedgehogMode";
 import { KeyboardShortcutsSheet } from "@components/KeyboardShortcutsSheet";
+import { SpaceSwitcher } from "@components/SpaceSwitcher";
 
 import { ArchivedTasksView } from "@features/archive/components/ArchivedTasksView";
 import { CommandMenu } from "@features/command/components/CommandMenu";
@@ -12,6 +13,8 @@ import { FolderSettingsView } from "@features/settings/components/FolderSettings
 import { SettingsDialog } from "@features/settings/components/SettingsDialog";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { MainSidebar } from "@features/sidebar/components/MainSidebar";
+import { useSidebarData } from "@features/sidebar/hooks/useSidebarData";
+import { useVisualTaskOrder } from "@features/sidebar/hooks/useVisualTaskOrder";
 import { SkillsView } from "@features/skills/components/SkillsView";
 import { TaskDetail } from "@features/task-detail/components/TaskDetail";
 import { TaskInput } from "@features/task-detail/components/TaskInput";
@@ -30,7 +33,8 @@ import { useTaskDeepLink } from "../hooks/useTaskDeepLink";
 import { GlobalEventHandlers } from "./GlobalEventHandlers";
 
 export function MainLayout() {
-  const { view, hydrateTask, navigateToTaskInput } = useNavigationStore();
+  const { view, hydrateTask, navigateToTaskInput, navigateToTask } =
+    useNavigationStore();
   const {
     isOpen: commandMenuOpen,
     setOpen: setCommandMenuOpen,
@@ -43,6 +47,12 @@ export function MainLayout() {
   } = useShortcutsSheetStore();
   const { data: tasks } = useTasks();
   const { showPrompt, isChecking, check, dismiss } = useConnectivity();
+
+  // Space switcher data
+  const sidebarData = useSidebarData({ activeView: view });
+  const visualTaskOrder = useVisualTaskOrder(sidebarData);
+  const activeTaskId =
+    view.type === "task-detail" && view.data ? view.data.id : null;
 
   const startTour = useTourStore((s) => s.startTour);
   const isFirstTaskTourDone = useTourStore((s) =>
@@ -102,6 +112,14 @@ export function MainLayout() {
         </Box>
       </Flex>
 
+      <SpaceSwitcher
+        tasks={visualTaskOrder}
+        activeTaskId={activeTaskId}
+        allTasks={tasks ?? []}
+        isOnNewTask={view.type === "task-input"}
+        onNavigateToTask={navigateToTask}
+        onNewTask={navigateToTaskInput}
+      />
       <CommandMenu open={commandMenuOpen} onOpenChange={setCommandMenuOpen} />
       <KeyboardShortcutsSheet
         open={shortcutsSheetOpen}

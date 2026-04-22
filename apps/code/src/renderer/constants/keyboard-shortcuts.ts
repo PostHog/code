@@ -2,7 +2,7 @@ import { isMac } from "@utils/platform";
 
 export const SHORTCUTS = {
   COMMAND_MENU: "mod+k",
-  NEW_TASK: "mod+n,mod+t",
+  NEW_TASK: "mod+n,mod+t,mod+0",
   SETTINGS: "mod+,",
   SHORTCUTS_SHEET: "mod+/",
   GO_BACK: "mod+[",
@@ -19,6 +19,8 @@ export const SHORTCUTS = {
   TOGGLE_FOCUS: "mod+r",
   PASTE_AS_FILE: "mod+shift+v",
   INBOX: "mod+i",
+  SPACE_UP: "mod+up",
+  SPACE_DOWN: "mod+down",
   BLUR: "escape",
   SUBMIT_BLUR: "mod+enter",
 } as const;
@@ -40,7 +42,7 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
     keys: "mod+n",
     description: "New task",
     category: "general",
-    alternateKeys: "mod+t",
+    alternateKeys: "mod+t, mod+0",
   },
   {
     id: "command-menu",
@@ -85,6 +87,18 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
     description: "Next task",
     category: "navigation",
     alternateKeys: "ctrl+tab",
+  },
+  {
+    id: "space-up",
+    keys: SHORTCUTS.SPACE_UP,
+    description: "Previous space",
+    category: "navigation",
+  },
+  {
+    id: "space-down",
+    keys: SHORTCUTS.SPACE_DOWN,
+    description: "Next space",
+    category: "navigation",
   },
   {
     id: "go-back",
