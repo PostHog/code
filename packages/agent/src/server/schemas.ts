@@ -41,12 +41,31 @@ export const jsonRpcRequestSchema = z.object({
 
 export type JsonRpcRequest = z.infer<typeof jsonRpcRequestSchema>;
 
-export const userMessageParamsSchema = z.object({
-  content: z.union([
-    z.string().min(1, "Content is required"),
-    z.array(z.record(z.string(), z.unknown())).min(1, "Content is required"),
-  ]),
-});
+export const userMessageParamsSchema = z
+  .object({
+    content: z
+      .union([
+        z.string().min(1, "Content is required"),
+        z
+          .array(z.record(z.string(), z.unknown()))
+          .min(1, "Content is required"),
+      ])
+      .optional(),
+    artifacts: z.array(z.record(z.string(), z.unknown())).optional(),
+  })
+  .refine(
+    (params) => {
+      const hasContent =
+        typeof params.content === "string"
+          ? params.content.trim().length > 0
+          : Array.isArray(params.content) && params.content.length > 0;
+      const hasArtifacts =
+        Array.isArray(params.artifacts) && params.artifacts.length > 0;
+
+      return hasContent || hasArtifacts;
+    },
+    { error: "Either content or artifacts are required" },
+  );
 
 export const permissionResponseParamsSchema = z.object({
   requestId: z.string().min(1, "requestId is required"),

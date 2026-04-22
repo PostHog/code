@@ -1,3 +1,6 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
+import { pathToFileURL } from "node:url";
 import type {
   ContentBlock,
   RequestPermissionRequest,
@@ -33,13 +36,14 @@ import type {
   DeviceInfo,
   LogLevel,
   TaskRun,
+  TaskRunArtifact,
   TreeSnapshotEvent,
 } from "../types";
+import { resourceLink } from "../utils/acp-content";
 import { AsyncMutex } from "../utils/async-mutex";
 import { getLlmGatewayUrl } from "../utils/gateway";
 import { Logger } from "../utils/logger";
 import {
-  deserializeCloudPrompt,
   normalizeCloudPromptContent,
   promptBlocksToText,
 } from "./cloud-prompt";
@@ -340,7 +344,7 @@ export class AgentServer {
           });
         },
         cancel: () => {
-          this.logger.info("SSE connection closed");
+          this.logger.debug("SSE connection closed");
           if (this.session?.sseController) {
             this.session.sseController = null;
           }
@@ -545,9 +549,29 @@ export class AgentServer {
     switch (method) {
       case POSTHOG_NOTIFICATIONS.USER_MESSAGE:
       case "user_message": {
-        const prompt = normalizeCloudPromptContent(
-          params.content as string | ContentBlock[],
-        );
+        this.logger.info("Received user_message command", {
+          hasContent:
+            typeof params.content === "string"
+              ? params.content.trim().length > 0
+              : Array.isArray(params.content) && params.content.length > 0,
+          artifactCount: Array.isArray(params.artifacts)
+            ? params.artifacts.length
+            : 0,
+        });
+        const prompt = await this.buildPromptFromContentAndArtifacts({
+          content: params.content as string | ContentBlock[] | undefined,
+          artifacts: Array.isArray(params.artifacts)
+            ? (params.artifacts as TaskRunArtifact[])
+            : [],
+          taskId: this.session.payload.task_id,
+          runId: this.session.payload.run_id,
+        });
+        if (prompt.length === 0) {
+          throw new Error("User message cannot be empty");
+        }
+        this.logger.info("Built user_message prompt", {
+          blockTypes: prompt.map((block) => block.type),
+        });
         const promptPreview = promptBlocksToText(prompt);
 
         this.logger.info(
@@ -1014,7 +1038,7 @@ export class AgentServer {
       const initialPromptOverride = taskRun
         ? this.getInitialPromptOverride(taskRun)
         : null;
-      const pendingUserPrompt = this.getPendingUserPrompt(taskRun);
+      const pendingUserPrompt = await this.getPendingUserPrompt(taskRun);
       let initialPrompt: ContentBlock[] = [];
       if (pendingUserPrompt?.length) {
         initialPrompt = pendingUserPrompt;
@@ -1047,6 +1071,8 @@ export class AgentServer {
         stopReason: result.stopReason,
       });
 
+      await this.clearPendingInitialPromptState(payload, taskRun);
+
       if (result.stopReason === "end_turn") {
         void this.syncCloudBranchMetadata(payload);
       }
@@ -1078,7 +1104,7 @@ export class AgentServer {
 
       // Read the pending user prompt from TaskRun state (set by the workflow
       // when the user sends a follow-up message that triggers a resume).
-      const pendingUserPrompt = this.getPendingUserPrompt(taskRun);
+      const pendingUserPrompt = await this.getPendingUserPrompt(taskRun);
 
       const sandboxContext = this.resumeState.snapshotApplied
         ? `The workspace environment (all files, packages, and code changes) has been fully restored from where you left off.`
@@ -1218,16 +1244,186 @@ export class AgentServer {
     return trimmed.length > 0 ? trimmed : null;
   }
 
-  private getPendingUserPrompt(taskRun: TaskRun | null): ContentBlock[] | null {
+  private async getPendingUserPrompt(
+    taskRun: TaskRun | null,
+  ): Promise<ContentBlock[] | null> {
     if (!taskRun) return null;
     const state = taskRun.state as Record<string, unknown> | undefined;
     const message = state?.pending_user_message;
-    if (typeof message !== "string") {
+    const artifactIds = Array.isArray(state?.pending_user_artifact_ids)
+      ? state.pending_user_artifact_ids.filter(
+          (artifactId): artifactId is string =>
+            typeof artifactId === "string" && artifactId.trim().length > 0,
+        )
+      : [];
+    const prompt = await this.buildPromptFromContentAndArtifacts({
+      content: typeof message === "string" ? message : undefined,
+      artifacts: this.getArtifactsById(taskRun.artifacts, artifactIds),
+      taskId: taskRun.task,
+      runId: taskRun.id,
+    });
+    this.logger.info("Built pending user prompt", {
+      hasMessage: typeof message === "string" && message.trim().length > 0,
+      requestedArtifactCount: artifactIds.length,
+      blockTypes: prompt.map((block) => block.type),
+    });
+    return prompt.length > 0 ? prompt : null;
+  }
+
+  private getClearedPendingUserState(taskRun: TaskRun | null): string[] | null {
+    const state =
+      taskRun?.state && typeof taskRun.state === "object"
+        ? (taskRun.state as Record<string, unknown>)
+        : null;
+    if (!state) {
       return null;
     }
 
-    const prompt = deserializeCloudPrompt(message);
-    return prompt.length > 0 ? prompt : null;
+    const pendingKeys = [
+      "pending_user_message",
+      "pending_user_artifact_ids",
+      "pending_user_message_ts",
+    ].filter((key) => key in state);
+
+    return pendingKeys.length > 0 ? pendingKeys : null;
+  }
+
+  private async clearPendingInitialPromptState(
+    payload: JwtPayload,
+    taskRun: TaskRun | null,
+  ): Promise<void> {
+    const stateRemoveKeys = this.getClearedPendingUserState(taskRun);
+    if (!stateRemoveKeys) {
+      return;
+    }
+
+    await this.posthogAPI.updateTaskRun(payload.task_id, payload.run_id, {
+      state_remove_keys: stateRemoveKeys,
+    });
+  }
+
+  private async buildPromptFromContentAndArtifacts({
+    content,
+    artifacts,
+    taskId,
+    runId,
+  }: {
+    content?: string | ContentBlock[];
+    artifacts?: TaskRunArtifact[];
+    taskId: string;
+    runId: string;
+  }): Promise<ContentBlock[]> {
+    const contentBlocks = content ? normalizeCloudPromptContent(content) : [];
+    const artifactBlocks = await this.hydrateArtifactsToPrompt(
+      taskId,
+      runId,
+      artifacts ?? [],
+    );
+
+    return [...contentBlocks, ...artifactBlocks];
+  }
+
+  private getArtifactsById(
+    artifacts: TaskRunArtifact[] | undefined,
+    artifactIds: string[],
+  ): TaskRunArtifact[] {
+    if (!artifacts?.length || artifactIds.length === 0) {
+      return [];
+    }
+
+    const artifactsById = new Map(
+      artifacts
+        .filter(
+          (artifact): artifact is TaskRunArtifact & { id: string } =>
+            typeof artifact.id === "string" && artifact.id.trim().length > 0,
+        )
+        .map((artifact) => [artifact.id, artifact]),
+    );
+
+    return artifactIds.flatMap((artifactId) => {
+      const artifact = artifactsById.get(artifactId);
+      if (!artifact) {
+        this.logger.warn("Pending artifact missing from run manifest", {
+          artifactId,
+        });
+        return [];
+      }
+
+      return [artifact];
+    });
+  }
+
+  private async hydrateArtifactsToPrompt(
+    taskId: string,
+    runId: string,
+    artifacts: TaskRunArtifact[],
+  ): Promise<ContentBlock[]> {
+    if (artifacts.length === 0) {
+      return [];
+    }
+
+    this.logger.debug("Hydrating prompt artifacts", {
+      taskId,
+      runId,
+      artifactCount: artifacts.length,
+      artifactNames: artifacts.map((artifact) => artifact.name),
+    });
+
+    return (
+      await Promise.all(
+        artifacts.map((artifact) =>
+          this.hydrateArtifactToPromptBlock(taskId, runId, artifact),
+        ),
+      )
+    ).flatMap((artifactBlock) => (artifactBlock ? [artifactBlock] : []));
+  }
+
+  private async hydrateArtifactToPromptBlock(
+    taskId: string,
+    runId: string,
+    artifact: TaskRunArtifact,
+  ): Promise<ContentBlock | null> {
+    if (!artifact.storage_path) {
+      this.logger.warn("Skipping artifact without storage path", {
+        taskId,
+        runId,
+        artifactName: artifact.name,
+      });
+      return null;
+    }
+
+    const data = await this.posthogAPI.downloadArtifact(
+      taskId,
+      runId,
+      artifact.storage_path,
+    );
+    if (!data) {
+      throw new Error(`Failed to download artifact ${artifact.name}`);
+    }
+
+    const safeName = this.getSafeArtifactName(artifact.name);
+    const artifactDir = join(
+      this.config.repositoryPath ?? "/tmp/workspace",
+      ".posthog",
+      "attachments",
+      runId,
+      artifact.id ?? safeName,
+    );
+    await mkdir(artifactDir, { recursive: true });
+
+    const artifactPath = join(artifactDir, safeName);
+    await writeFile(artifactPath, Buffer.from(data));
+
+    return resourceLink(pathToFileURL(artifactPath).toString(), artifact.name, {
+      ...(artifact.content_type ? { mimeType: artifact.content_type } : {}),
+      ...(typeof artifact.size === "number" ? { size: artifact.size } : {}),
+    });
+  }
+
+  private getSafeArtifactName(name: string): string {
+    const baseName = basename(name).trim();
+    const normalizedName = baseName.replace(/[^\w.-]/g, "_");
+    return normalizedName.length > 0 ? normalizedName : "attachment";
   }
 
   private getResumeRunId(taskRun: TaskRun | null): string | null {
