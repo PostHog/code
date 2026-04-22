@@ -1,20 +1,15 @@
-import { useUsage } from "@features/billing/hooks/useUsage";
+import { useFreeUsage } from "@features/billing/hooks/useFreeUsage";
 import { isUsageExceeded } from "@features/billing/utils";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
-import { useSeat } from "@hooks/useSeat";
 import { Circle } from "@phosphor-icons/react";
 import { BILLING_FLAG } from "@shared/constants";
 
 export function SidebarUsageBar() {
   const billingEnabled = useFeatureFlag(BILLING_FLAG);
-  const { seat, isPro } = useSeat();
-  const seatLoaded = seat !== null;
-  const { usage } = useUsage({
-    enabled: billingEnabled && seatLoaded && !isPro,
-  });
+  const usage = useFreeUsage(billingEnabled);
 
-  if (!billingEnabled || !seatLoaded || isPro || !usage) return null;
+  if (!usage) return null;
 
   const usagePercent = Math.max(
     usage.sustained.used_percent,
