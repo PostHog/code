@@ -19,6 +19,7 @@ import {
 } from "@radix-ui/themes";
 import { Tooltip } from "@renderer/components/ui/Tooltip";
 import { BILLING_FLAG } from "@shared/constants";
+import { PLAN_PRO_ALPHA } from "@shared/types/seat";
 import { getPostHogUrl } from "@utils/urls";
 import { useState } from "react";
 
@@ -53,6 +54,7 @@ export function PlanUsageSettings() {
   const { upgradeToPro, cancelSeat, reactivateSeat, clearError } =
     useSeatStore();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const isAlpha = seat?.plan_key === PLAN_PRO_ALPHA;
   const { usage, isLoading: usageLoading } = useUsage({
     enabled: seat !== null && !isPro,
   });
@@ -130,20 +132,23 @@ export function PlanUsageSettings() {
               price="$200"
               period="/mo"
               features={[
-                "Unlimited usage*",
+                "Higher usage limits",
                 "Local and cloud execution",
                 "All Claude and Codex models",
               ]}
-              isCurrent={isPro}
+              isCurrent={isPro && !isAlpha}
               resetLabel={
-                isPro && isCanceling && formattedActiveUntil
+                isPro && !isAlpha && isCanceling && formattedActiveUntil
                   ? `Cancels ${formattedActiveUntil}`
-                  : isPro && formattedActiveUntil && daysUntilReset !== null
+                  : isPro &&
+                      !isAlpha &&
+                      formattedActiveUntil &&
+                      daysUntilReset !== null
                     ? `Resets ${formattedActiveUntil} (${daysUntilReset} days)`
                     : undefined
               }
               action={
-                isPro ? (
+                isPro && !isAlpha ? (
                   isCanceling ? (
                     <Button
                       size="1"
@@ -201,6 +206,27 @@ export function PlanUsageSettings() {
           </Flex>
         )}
       </Flex>
+
+      {isAlpha && (
+        <Flex
+          p="4"
+          style={{
+            border: "1px solid var(--accent-7)",
+            borderRadius: "var(--radius-3)",
+            background: "var(--accent-2)",
+          }}
+        >
+          <Flex direction="column" gap="2">
+            <Text size="2" weight="medium">
+              Alpha plan
+            </Text>
+            <Text size="2" style={{ color: "var(--gray-11)" }}>
+              You're on the free alpha Pro plan with full Pro features. You can
+              upgrade to the paid Pro plan anytime for higher usage limits.
+            </Text>
+          </Flex>
+        </Flex>
+      )}
 
       <Flex direction="column" gap="3">
         <Text size="2" weight="medium" style={{ color: "var(--gray-9)" }}>
@@ -294,7 +320,7 @@ export function PlanUsageSettings() {
                 weight="bold"
                 style={{ color: "var(--accent-9)" }}
               />
-              <Text size="2">Unlimited token usage</Text>
+              <Text size="2">Higher usage limits</Text>
             </Flex>
             <Flex align="center" gap="2">
               <Check
