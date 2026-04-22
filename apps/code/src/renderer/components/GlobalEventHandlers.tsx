@@ -8,6 +8,7 @@ import { useSidebarStore } from "@features/sidebar/stores/sidebarStore";
 import { useTasks } from "@features/tasks/hooks/useTasks";
 import { useFocusWorkspace } from "@features/workspace/hooks/useFocusWorkspace";
 import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { SHORTCUTS } from "@renderer/constants/keyboard-shortcuts";
 import { useTRPC } from "@renderer/trpc";
 import type { Task } from "@shared/types";
@@ -170,10 +171,15 @@ export function GlobalEventHandlers({
     setReviewMode(currentTaskId, mode === "closed" ? "split" : "closed");
   }, [currentTaskId, getReviewMode, setReviewMode]);
 
+  const inboxEnabled = useFeatureFlag("posthog-code-inbox");
+
   useHotkeys(SHORTCUTS.TOGGLE_LEFT_SIDEBAR, toggleLeftSidebar, globalOptions);
   useHotkeys(SHORTCUTS.TOGGLE_REVIEW_PANEL, handleToggleReview, globalOptions);
   useHotkeys(SHORTCUTS.SHORTCUTS_SHEET, onToggleShortcutsSheet, globalOptions);
-  useHotkeys(SHORTCUTS.INBOX, navigateToInbox, globalOptions);
+  useHotkeys(SHORTCUTS.INBOX, navigateToInbox, {
+    ...globalOptions,
+    enabled: inboxEnabled,
+  });
   useHotkeys(SHORTCUTS.PREV_TASK, handlePrevTask, globalOptions, [
     handlePrevTask,
   ]);
