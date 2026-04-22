@@ -54,6 +54,7 @@ export interface PromptInputProps {
   // manual submit override (for flows like new-task that submit outside the editor hook)
   onSubmitClick?: () => void;
   submitTooltipOverride?: string;
+  tourTarget?: string;
 }
 
 export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
@@ -88,6 +89,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
       onBlur,
       onSubmitClick,
       submitTooltipOverride,
+      tourTarget,
     },
     ref,
   ) => {
@@ -236,7 +238,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
             onClick={handleSubmitClick}
             disabled={submitBlocked}
             aria-label="Send message"
-            data-tour="submit-button"
+            {...(tourTarget && { "data-tour": `${tourTarget}-submit` })}
           >
             <ArrowUp size={14} weight="bold" />
           </InputGroupButton>
@@ -249,8 +251,10 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
           onClick={handleContainerClick}
           className={`h-auto bg-card ${isBashMode ? "ring-1 ring-blue-9" : ""}`}
           style={{ cursor: "text" }}
-          data-tour="task-input-editor"
-          data-tour-ready={!isEmpty ? "true" : undefined}
+          {...(tourTarget && {
+            "data-tour": `${tourTarget}-editor`,
+            "data-tour-ready": !isEmpty ? "true" : undefined,
+          })}
         >
           {attachments.length > 0 && (
             <InputGroupAddon align="block-start">

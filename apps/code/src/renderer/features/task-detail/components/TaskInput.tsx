@@ -524,6 +524,7 @@ export function TaskInput({
             autoFocus
             clearOnSubmit={false}
             submitDisabledExternal={!canSubmit || isCreatingTask || !isOnline}
+            tourTarget="task-input"
             repoPath={selectedDirectory}
             modeOption={modeOption}
             onModeChange={handleModeChange}

@@ -23,7 +23,7 @@ export const createFirstTaskTour: TourDefinition = {
     },
     {
       id: "submit-button",
-      target: "submit-button",
+      target: "task-input-submit",
       hogSrc: happyHog,
       message: "Hit send or press Enter to launch your first agent!",
       advanceOn: { type: "click" },
