@@ -83,6 +83,43 @@ export const refreshSessionParamsSchema = z.object({
   mcpServers: mcpServersSchema,
 });
 
+// --- Sandbox command schemas ---
+
+export const sandboxGitChangedFilesParams = z.object({});
+
+export const sandboxGitDiffParams = z.object({
+  ignoreWhitespace: z.boolean().optional(),
+});
+
+export const sandboxGitDiffStatsParams = z.object({});
+
+export const sandboxGitCurrentBranchParams = z.object({});
+
+export const sandboxGitFileAtHeadParams = z.object({
+  filePath: z.string().min(1, "filePath is required"),
+});
+
+export const sandboxGitStageFilesParams = z.object({
+  paths: z.array(z.string().min(1)).min(1, "At least one path is required"),
+});
+
+export const sandboxGitUnstageFilesParams = z.object({
+  paths: z.array(z.string().min(1)).min(1, "At least one path is required"),
+});
+
+export const sandboxGitDiscardFileParams = z.object({
+  filePath: z.string().min(1, "filePath is required"),
+  fileStatus: z.enum(["modified", "added", "deleted", "renamed", "untracked"]),
+});
+
+export const sandboxGitSyncStatusParams = z.object({});
+
+export const sandboxGitRepoInfoParams = z.object({});
+
+export const sandboxFsReadFileParams = z.object({
+  filePath: z.string().min(1, "filePath is required"),
+});
+
 export const commandParamsSchemas = {
   user_message: userMessageParamsSchema,
   "posthog/user_message": userMessageParamsSchema,
@@ -99,7 +136,29 @@ export const commandParamsSchemas = {
   "_posthog/refresh_session": refreshSessionParamsSchema,
 } as const;
 
+export const sandboxCommandParamsSchemas = {
+  "git/changed_files": sandboxGitChangedFilesParams,
+  "git/diff_cached": sandboxGitDiffParams,
+  "git/diff_unstaged": sandboxGitDiffParams,
+  "git/diff_head": sandboxGitDiffParams,
+  "git/diff_stats": sandboxGitDiffStatsParams,
+  "git/current_branch": sandboxGitCurrentBranchParams,
+  "git/file_at_head": sandboxGitFileAtHeadParams,
+  "git/stage_files": sandboxGitStageFilesParams,
+  "git/unstage_files": sandboxGitUnstageFilesParams,
+  "git/discard_file": sandboxGitDiscardFileParams,
+  "git/sync_status": sandboxGitSyncStatusParams,
+  "git/repo_info": sandboxGitRepoInfoParams,
+  "fs/read_file": sandboxFsReadFileParams,
+} as const;
+
+export type SandboxCommandMethod = keyof typeof sandboxCommandParamsSchemas;
+
 export type CommandMethod = keyof typeof commandParamsSchemas;
+
+export function isSandboxMethod(method: string): boolean {
+  return method in sandboxCommandParamsSchemas;
+}
 
 export function validateCommandParams(
   method: string,
@@ -109,7 +168,8 @@ export function validateCommandParams(
     commandParamsSchemas[method as CommandMethod] ??
     commandParamsSchemas[
       method.replace(/^_?posthog\//, "") as keyof typeof commandParamsSchemas
-    ];
+    ] ??
+    sandboxCommandParamsSchemas[method as SandboxCommandMethod];
 
   if (!schema) {
     return { success: false, error: `Unknown method: ${method}` };

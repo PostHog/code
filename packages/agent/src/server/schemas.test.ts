@@ -234,4 +234,103 @@ describe("validateCommandParams", () => {
 
     expect(result.success).toBe(false);
   });
+
+  describe("sandbox git commands", () => {
+    it.each([
+      "git/changed_files",
+      "git/diff_stats",
+      "git/current_branch",
+      "git/sync_status",
+      "git/repo_info",
+    ])("accepts %s with empty params", (method) => {
+      const result = validateCommandParams(method, {});
+      expect(result.success).toBe(true);
+    });
+
+    it.each(["git/diff_cached", "git/diff_unstaged", "git/diff_head"])(
+      "accepts %s with ignoreWhitespace",
+      (method) => {
+        expect(
+          validateCommandParams(method, { ignoreWhitespace: true }).success,
+        ).toBe(true);
+        expect(validateCommandParams(method, {}).success).toBe(true);
+      },
+    );
+
+    it("accepts git/file_at_head with filePath", () => {
+      expect(
+        validateCommandParams("git/file_at_head", { filePath: "src/main.ts" })
+          .success,
+      ).toBe(true);
+    });
+
+    it("rejects git/file_at_head without filePath", () => {
+      expect(validateCommandParams("git/file_at_head", {}).success).toBe(false);
+    });
+
+    it("accepts git/stage_files with paths", () => {
+      expect(
+        validateCommandParams("git/stage_files", {
+          paths: ["a.ts", "b.ts"],
+        }).success,
+      ).toBe(true);
+    });
+
+    it("rejects git/stage_files with empty paths", () => {
+      expect(
+        validateCommandParams("git/stage_files", { paths: [] }).success,
+      ).toBe(false);
+    });
+
+    it("rejects git/unstage_files without paths", () => {
+      expect(validateCommandParams("git/unstage_files", {}).success).toBe(
+        false,
+      );
+    });
+
+    it("accepts git/discard_file with valid status", () => {
+      for (const status of [
+        "modified",
+        "added",
+        "deleted",
+        "renamed",
+        "untracked",
+      ]) {
+        expect(
+          validateCommandParams("git/discard_file", {
+            filePath: "test.ts",
+            fileStatus: status,
+          }).success,
+        ).toBe(true);
+      }
+    });
+
+    it("rejects git/discard_file with invalid status", () => {
+      expect(
+        validateCommandParams("git/discard_file", {
+          filePath: "test.ts",
+          fileStatus: "invalid",
+        }).success,
+      ).toBe(false);
+    });
+
+    it("rejects git/discard_file without filePath", () => {
+      expect(
+        validateCommandParams("git/discard_file", {
+          fileStatus: "modified",
+        }).success,
+      ).toBe(false);
+    });
+
+    it("accepts fs/read_file with filePath", () => {
+      expect(
+        validateCommandParams("fs/read_file", { filePath: "README.md" })
+          .success,
+      ).toBe(true);
+    });
+
+    it("rejects fs/read_file without filePath", () => {
+      expect(validateCommandParams("fs/read_file", {}).success).toBe(false);
+    });
+  });
 });
