@@ -1,3 +1,4 @@
+import { CHAT_CONTENT_MAX_WIDTH } from "@features/sessions/constants";
 import type { Plan } from "@features/sessions/types";
 import {
   CaretDown,
@@ -38,7 +39,7 @@ export function PlanStatusBar({ plan }: PlanStatusBarProps) {
       className="cursor-pointer border-gray-4 border-t bg-gray-2"
       onClick={() => setIsExpanded(!isExpanded)}
     >
-      <Box className="mx-auto max-w-[750px]">
+      <Box className="mx-auto" style={{ maxWidth: CHAT_CONTENT_MAX_WIDTH }}>
         <Flex align="center" gap="2" className="px-3 py-2">
           {isExpanded ? (
             <CaretDown size={12} className="text-gray-9" />
