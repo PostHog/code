@@ -1,4 +1,6 @@
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
+import { ANALYTICS_EVENTS } from "@shared/types/analytics";
+import { track } from "@utils/analytics";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createFirstTaskTour } from "../tours/createFirstTaskTour";
@@ -31,7 +33,15 @@ export const useTourStore = create<TourStore>()(
         const { completedTourIds, activeTourId } = get();
         if (completedTourIds.includes(tourId) || activeTourId === tourId)
           return;
+        const tour = TOUR_REGISTRY[tourId];
         set({ activeTourId: tourId, activeStepIndex: 0 });
+        track(ANALYTICS_EVENTS.TOUR_EVENT, {
+          tour_id: tourId,
+          action: "started",
+          step_id: tour?.steps[0]?.id,
+          step_index: 0,
+          total_steps: tour?.steps.length,
+        });
       },
 
       advance: (tourId, stepId) => {
@@ -44,6 +54,14 @@ export const useTourStore = create<TourStore>()(
         const currentStep = tour.steps[activeStepIndex];
         if (!currentStep || currentStep.id !== stepId) return;
 
+        track(ANALYTICS_EVENTS.TOUR_EVENT, {
+          tour_id: tourId,
+          action: "step_advanced",
+          step_id: stepId,
+          step_index: activeStepIndex,
+          total_steps: tour.steps.length,
+        });
+
         if (activeStepIndex >= tour.steps.length - 1) {
           set((state) => {
             if (!state.activeTourId) return state;
@@ -52,6 +70,11 @@ export const useTourStore = create<TourStore>()(
               activeTourId: null,
               activeStepIndex: 0,
             };
+          });
+          track(ANALYTICS_EVENTS.TOUR_EVENT, {
+            tour_id: tourId,
+            action: "completed",
+            total_steps: tour.steps.length,
           });
         } else {
           set({ activeStepIndex: activeStepIndex + 1 });
@@ -69,8 +92,16 @@ export const useTourStore = create<TourStore>()(
       },
 
       dismiss: () => {
-        const { activeTourId } = get();
+        const { activeTourId, activeStepIndex } = get();
         if (!activeTourId) return;
+        const tour = TOUR_REGISTRY[activeTourId];
+        track(ANALYTICS_EVENTS.TOUR_EVENT, {
+          tour_id: activeTourId,
+          action: "dismissed",
+          step_id: tour?.steps[activeStepIndex]?.id,
+          step_index: activeStepIndex,
+          total_steps: tour?.steps.length,
+        });
         set((state) => ({
           completedTourIds: [...state.completedTourIds, activeTourId],
           activeTourId: null,
