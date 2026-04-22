@@ -345,6 +345,14 @@ export function SessionView({
 
   useAutoFocusOnTyping(editorRef, !isActiveSession);
 
+  if (showRawLogs) {
+    return (
+      <Flex direction="column" height="100%" className="relative bg-background">
+        <RawLogsView events={events} onClose={() => setShowRawLogs(false)} />
+      </Flex>
+    );
+  }
+
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger>
@@ -360,18 +368,14 @@ export function SessionView({
         >
           {isSuspended ? (
             <>
-              {showRawLogs ? (
-                <RawLogsView events={events} />
-              ) : (
-                <ConversationView
-                  events={events}
-                  isPromptPending={isPromptPending}
-                  promptStartedAt={promptStartedAt}
-                  repoPath={repoPath}
-                  taskId={taskId}
-                  slackThreadUrl={slackThreadUrl}
-                />
-              )}
+              <ConversationView
+                events={events}
+                isPromptPending={isPromptPending}
+                promptStartedAt={promptStartedAt}
+                repoPath={repoPath}
+                taskId={taskId}
+                slackThreadUrl={slackThreadUrl}
+              />
               <Box className="border-gray-4 border-t">
                 <Box className="mx-auto max-w-[750px] p-2">
                   <Flex
@@ -431,19 +435,15 @@ export function SessionView({
           ) : (
             <>
               <DropZoneOverlay isVisible={isDraggingFile} />
-              {showRawLogs ? (
-                <RawLogsView events={events} />
-              ) : (
-                <ConversationView
-                  events={events}
-                  isPromptPending={isPromptPending}
-                  promptStartedAt={promptStartedAt}
-                  repoPath={repoPath}
-                  taskId={taskId}
-                  slackThreadUrl={slackThreadUrl}
-                  compact={compact}
-                />
-              )}
+              <ConversationView
+                events={events}
+                isPromptPending={isPromptPending}
+                promptStartedAt={promptStartedAt}
+                repoPath={repoPath}
+                taskId={taskId}
+                slackThreadUrl={slackThreadUrl}
+                compact={compact}
+              />
 
               <PlanStatusBar plan={latestPlan} />
 
@@ -557,12 +557,20 @@ export function SessionView({
         </Flex>
       </ContextMenu.Trigger>
       <ContextMenu.Content size="1">
-        <ContextMenu.CheckboxItem
-          checked={showRawLogs}
-          onCheckedChange={setShowRawLogs}
+        <ContextMenu.Item
+          onSelect={() => {
+            const text = window.getSelection()?.toString();
+            if (text) {
+              navigator.clipboard.writeText(text);
+            }
+          }}
         >
+          Copy
+        </ContextMenu.Item>
+        <ContextMenu.Separator />
+        <ContextMenu.Item onSelect={() => setShowRawLogs(true)}>
           Show raw logs
-        </ContextMenu.CheckboxItem>
+        </ContextMenu.Item>
       </ContextMenu.Content>
     </ContextMenu.Root>
   );
