@@ -3,6 +3,7 @@ import { escapeXmlAttr, unescapeXmlAttr } from "@utils/xml";
 export interface MentionChip {
   type:
     | "file"
+    | "folder"
     | "command"
     | "error"
     | "experiment"
@@ -31,7 +32,8 @@ export function contentToPlainText(content: EditorContent): string {
     .map((seg) => {
       if (seg.type === "text") return seg.text;
       const chip = seg.chip;
-      if (chip.type === "file") return `@${chip.label}`;
+      if (chip.type === "file" || chip.type === "folder")
+        return `@${chip.label}`;
       if (chip.type === "command") return `/${chip.label}`;
       return `@${chip.label}`;
     })
@@ -48,6 +50,9 @@ export function contentToXml(content: EditorContent): string {
       case "file":
         inlineFilePaths.add(chip.id);
         return `<file path="${escapedId}" />`;
+      case "folder":
+        inlineFilePaths.add(chip.id);
+        return `<folder path="${escapedId}" />`;
       case "command":
         return `/${chip.label}`;
       case "error":
@@ -83,10 +88,10 @@ export function contentToXml(content: EditorContent): string {
 }
 
 const CHIP_TAG_REGEX =
-  /<(file|error|experiment|insight|feature_flag|github_issue|github_pr)\b([^>]*?)\s*\/>/g;
+  /<(file|folder|error|experiment|insight|feature_flag|github_issue|github_pr)\b([^>]*?)\s*\/>/g;
 const ATTR_REGEX = /(\w+)="([^"]*)"/g;
 
-function deriveFileLabel(filePath: string): string {
+export function deriveFileLabel(filePath: string): string {
   const segments = filePath.split("/").filter(Boolean);
   const fileName = segments.pop() ?? filePath;
   const parentDir = segments.pop();
@@ -108,6 +113,11 @@ function chipFromTag(tag: string, rawAttrs: string): MentionChip | null {
       const path = attrs.path;
       if (!path) return null;
       return { type: "file", id: path, label: deriveFileLabel(path) };
+    }
+    case "folder": {
+      const path = attrs.path;
+      if (!path) return null;
+      return { type: "folder", id: path, label: deriveFileLabel(path) };
     }
     case "error":
     case "experiment":
@@ -177,7 +187,7 @@ export function extractFilePaths(content: EditorContent): string[] {
   for (const seg of content.segments) {
     if (
       seg.type === "chip" &&
-      seg.chip.type === "file" &&
+      (seg.chip.type === "file" || seg.chip.type === "folder") &&
       !seen.has(seg.chip.id)
     ) {
       seen.add(seg.chip.id);

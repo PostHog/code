@@ -5,6 +5,7 @@ import {
   FileTextIcon,
   FlagIcon,
   FlaskIcon,
+  FolderIcon,
   GithubLogoIcon,
   GitPullRequestIcon,
   TerminalIcon,
@@ -24,6 +25,7 @@ const selectedRing = "border-ring/50 ring-[1px] ring-ring/50";
 
 const typeIconMap: Record<ChipType, React.ComponentType<{ size: number }>> = {
   file: FileTextIcon,
+  folder: FolderIcon,
   command: TerminalIcon,
   github_issue: GithubLogoIcon,
   github_pr: GitPullRequestIcon,
@@ -78,6 +80,7 @@ function DefaultChip({
   const isCommand = type === "command";
   const prefix = isCommand ? "/" : "@";
   const isFile = type === "file";
+  const isFolder = type === "folder";
   const isGithubRef = type === "github_issue" || type === "github_pr";
   const canOpenUrl = isGithubRef && /^https:\/\//.test(id);
 
@@ -98,7 +101,7 @@ function DefaultChip({
     </Chip>
   );
 
-  if (isFile) {
+  if (isFile || isFolder) {
     return <Tooltip content={id}>{chipContent}</Tooltip>;
   }
 
