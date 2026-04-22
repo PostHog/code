@@ -127,11 +127,10 @@ export type OnModeChange = (mode: CodeExecutionMode) => Promise<void>;
 
 interface CreatePostToolUseHookParams {
   onModeChange?: OnModeChange;
-  logger?: Logger;
 }
 
 export const createPostToolUseHook =
-  ({ onModeChange, logger }: CreatePostToolUseHookParams): HookCallback =>
+  ({ onModeChange }: CreatePostToolUseHookParams): HookCallback =>
   async (
     input: HookInput,
     toolUseID: string | undefined,

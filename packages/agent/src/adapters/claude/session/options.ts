@@ -118,7 +118,7 @@ function buildHooks(
   enrichmentDeps: FileEnrichmentDeps | undefined,
   enrichedReadCache: EnrichedReadCache | undefined,
 ): Options["hooks"] {
-  const postToolUseHooks = [createPostToolUseHook({ onModeChange, logger })];
+  const postToolUseHooks = [createPostToolUseHook({ onModeChange })];
   if (enrichmentDeps && enrichedReadCache) {
     postToolUseHooks.push(
       createReadEnrichmentHook(enrichmentDeps, enrichedReadCache),
