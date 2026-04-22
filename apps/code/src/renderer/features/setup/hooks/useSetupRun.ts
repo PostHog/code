@@ -36,11 +36,10 @@ function handleSessionUpdate(
   if (!inner) return;
 
   if ("method" in inner && inner.method === "session/update") {
-    const params = inner.params as
-      | { update?: Record<string, unknown> }
-      | undefined;
-    const update = params?.update;
-    if (!update) return;
+    const params = inner.params as Record<string, unknown> | undefined;
+    if (!params) return;
+
+    const update = (params.update as Record<string, unknown>) ?? params;
 
     const entry = extractToolCall(update);
     if (entry) {

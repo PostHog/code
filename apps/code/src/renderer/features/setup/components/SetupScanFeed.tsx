@@ -210,6 +210,7 @@ export function SetupScanFeed({
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
+          transition={{ height: { duration: 0.3, ease: "easeOut" }, opacity: { duration: 0.2 } }}
           style={{ overflow: "hidden" }}
         >
           <Flex
@@ -227,7 +228,7 @@ export function SetupScanFeed({
               overflow: "hidden",
             }}
           >
-            <AnimatePresence initial={false}>
+            <AnimatePresence initial={false} mode="popLayout">
               {recentEntries.slice(-4).map((entry) => {
                 const kind = TOOL_KIND[entry.tool] ?? "other";
                 const EntryIcon = KIND_ICONS[kind] ?? Wrench;
@@ -237,10 +238,14 @@ export function SetupScanFeed({
                 return (
                   <motion.div
                     key={entry.id}
-                    initial={{ opacity: 0, y: 4 }}
+                    layout
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 0.7, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{
+                      duration: 0.2,
+                      layout: { type: "spring", damping: 25, stiffness: 300 },
+                    }}
                   >
                     <Flex align="center" gap="2" style={{ height: 24 }}>
                       <EntryIcon

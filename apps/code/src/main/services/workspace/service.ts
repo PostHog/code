@@ -4,7 +4,6 @@ import * as fsPromises from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { trackAppEvent } from "@main/services/posthog-analytics";
-import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { createGitClient } from "@posthog/git/client";
 import {
   getCurrentBranch,
@@ -15,6 +14,7 @@ import {
 import { CreateOrSwitchBranchSaga } from "@posthog/git/sagas/branch";
 import { DetachHeadSaga } from "@posthog/git/sagas/head";
 import { WorktreeManager } from "@posthog/git/worktree";
+import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { inject, injectable } from "inversify";
 import type { RepositoryRepository } from "../../db/repositories/repository-repository";
 import type { WorkspaceRepository } from "../../db/repositories/workspace-repository";
@@ -369,7 +369,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       taskId,
       branchName,
     });
-    trackAppEvent("branch_linked", {
+    trackAppEvent(ANALYTICS_EVENTS.BRANCH_LINKED, {
       task_id: taskId,
       branch_name: branchName,
       source: source ?? "unknown",
@@ -383,7 +383,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       taskId,
       branchName: null,
     });
-    trackAppEvent("branch_unlinked", {
+    trackAppEvent(ANALYTICS_EVENTS.BRANCH_UNLINKED, {
       task_id: taskId,
       source: source ?? "unknown",
     });
