@@ -48,6 +48,33 @@ interface SignalSourceToggleCardProps {
   docsLabel?: string;
 }
 
+function DocsLink({ url, label }: { url: string; label: string }) {
+  return (
+    <Text size="1" style={{ color: "var(--gray-11)" }}>
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          window.open(url, "_blank", "noopener");
+        }}
+        style={{
+          color: "var(--accent-11)",
+          textDecoration: "none",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+        }}
+      >
+        Learn about {label}
+        <ArrowSquareOutIcon size={11} />
+      </a>
+    </Text>
+  );
+}
+
 function syncStatusLabel(status: string | null | undefined): {
   text: string;
   color: string;
@@ -122,30 +149,7 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
             <Text size="1" style={{ color: "var(--gray-11)" }}>
               {description}
             </Text>
-            {docsUrl && (
-              <Text size="1" style={{ color: "var(--gray-11)" }}>
-                <a
-                  href={docsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    window.open(docsUrl, "_blank", "noopener");
-                  }}
-                  style={{
-                    color: "var(--accent-11)",
-                    textDecoration: "none",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                  }}
-                >
-                  Learn about {docsLabel ?? label}
-                  <ArrowSquareOutIcon size={11} />
-                </a>
-              </Text>
-            )}
+            {docsUrl && <DocsLink url={docsUrl} label={docsLabel ?? label} />}
           </Flex>
         </Flex>
         {loading ? (
@@ -213,32 +217,10 @@ export const EvaluationsSection = memo(function EvaluationsSection({
             <Text size="1" style={{ color: "var(--gray-11)" }}>
               Monitor how your AI features are performing
             </Text>
-            <Text size="1" style={{ color: "var(--gray-11)" }}>
-              <a
-                href="https://posthog.com/docs/llm-analytics"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  window.open(
-                    "https://posthog.com/docs/llm-analytics",
-                    "_blank",
-                    "noopener",
-                  );
-                }}
-                style={{
-                  color: "var(--accent-11)",
-                  textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                Learn about LLM Analytics
-                <ArrowSquareOutIcon size={11} />
-              </a>
-            </Text>
+            <DocsLink
+              url="https://posthog.com/docs/llm-analytics"
+              label="LLM Analytics"
+            />
           </Flex>
         </Flex>
         <Button
