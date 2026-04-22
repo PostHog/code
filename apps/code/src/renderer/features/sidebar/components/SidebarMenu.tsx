@@ -13,6 +13,7 @@ import {
 } from "@features/tasks/hooks/useArchiveTask";
 import { useTasks, useUpdateTask } from "@features/tasks/hooks/useTasks";
 import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useTaskContextMenu } from "@hooks/useTaskContextMenu";
 import { ScrollArea, Separator } from "@posthog/quill";
 import { Box, Flex } from "@radix-ui/themes";
@@ -55,10 +56,12 @@ function SidebarMenuComponent() {
   const sidebarData = useSidebarData({
     activeView: view,
   });
+  const inboxEnabled = useFeatureFlag("posthog-code-inbox");
   const inboxPollingActive = useRendererWindowFocusStore((s) => s.focused);
   const { data: inboxProbe } = useInboxReports(
     { status: INBOX_PIPELINE_STATUS_FILTER },
     {
+      enabled: inboxEnabled,
       refetchInterval: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : false,
       refetchIntervalInBackground: false,
       staleTime: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : 15_000,
@@ -277,13 +280,15 @@ function SidebarMenuComponent() {
             />
           </Box>
 
-          <Box>
-            <InboxItem
-              isActive={sidebarData.isInboxActive}
-              onClick={handleInboxClick}
-              signalCount={inboxSignalCount}
-            />
-          </Box>
+          {inboxEnabled && (
+            <Box>
+              <InboxItem
+                isActive={sidebarData.isInboxActive}
+                onClick={handleInboxClick}
+                signalCount={inboxSignalCount}
+              />
+            </Box>
+          )}
 
           <Box>
             <SkillsItem

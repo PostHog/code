@@ -20,6 +20,7 @@ import { TourOverlay } from "@features/tour/components/TourOverlay";
 import { useTourStore } from "@features/tour/stores/tourStore";
 import { createFirstTaskTour } from "@features/tour/tours/createFirstTaskTour";
 import { useConnectivity } from "@hooks/useConnectivity";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useIntegrations } from "@hooks/useIntegrations";
 import { Box, Flex } from "@radix-ui/themes";
 import { useCommandMenuStore } from "@stores/commandMenuStore";
@@ -43,6 +44,7 @@ export function MainLayout() {
   } = useShortcutsSheetStore();
   const { data: tasks } = useTasks();
   const { showPrompt, isChecking, check, dismiss } = useConnectivity();
+  const inboxEnabled = useFeatureFlag("posthog-code-inbox");
 
   const startTour = useTourStore((s) => s.startTour);
   const isFirstTaskTourDone = useTourStore((s) =>
@@ -92,7 +94,7 @@ export function MainLayout() {
 
           {view.type === "folder-settings" && <FolderSettingsView />}
 
-          {view.type === "inbox" && <InboxView />}
+          {view.type === "inbox" && inboxEnabled && <InboxView />}
 
           {view.type === "archived" && <ArchivedTasksView />}
 
