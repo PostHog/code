@@ -198,9 +198,9 @@ export function McpAppHost({
     </Flex>
   );
 
-  const portalTarget = document.getElementById("mcp-fullscreen-portal");
-
-  if (displayMode === "fullscreen" && portalTarget) {
+  if (displayMode === "fullscreen") {
+    const portalTarget = document.getElementById("fullscreen-portal");
+    if (!portalTarget) return null;
     return (
       <>
         {fullscreenToggle}

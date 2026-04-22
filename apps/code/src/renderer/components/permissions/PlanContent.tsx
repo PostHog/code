@@ -51,9 +51,9 @@ export function PlanContent({ id, plan }: PlanContentProps) {
     <ReactMarkdown remarkPlugins={[remarkGfm]}>{plan}</ReactMarkdown>
   );
 
-  const portalTarget = document.getElementById("mcp-fullscreen-portal");
-
-  if (isFullscreen && portalTarget) {
+  if (isFullscreen) {
+    const portalTarget = document.getElementById("fullscreen-portal");
+    if (!portalTarget) return null;
     return (
       <>
         <Flex justify="end" className="py-0.5">
