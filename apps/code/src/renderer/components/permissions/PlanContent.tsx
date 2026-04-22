@@ -53,56 +53,57 @@ export function PlanContent({ id, plan }: PlanContentProps) {
 
   if (isFullscreen) {
     const portalTarget = document.getElementById("fullscreen-portal");
-    if (!portalTarget) return null;
-    return (
-      <>
-        <Flex justify="end" className="py-0.5">
-          <IconButton
-            size="1"
-            variant="ghost"
-            color="gray"
-            onClick={() => setIsFullscreen(false)}
-            title="Exit fullscreen"
-          >
-            <ArrowsIn size={12} />
-          </IconButton>
-        </Flex>
-
-        {createPortal(
-          <Box className="pointer-events-auto absolute inset-0 flex flex-col bg-gray-1">
-            <Flex
-              align="center"
-              justify="between"
-              className="border-gray-6 border-b px-4 py-2"
+    if (portalTarget) {
+      return (
+        <>
+          <Flex justify="end" className="py-0.5">
+            <IconButton
+              size="1"
+              variant="ghost"
+              color="gray"
+              onClick={() => setIsFullscreen(false)}
+              title="Exit fullscreen"
             >
-              <Flex align="center" gap="2">
-                <ListChecks size={14} className="text-gray-11" />
-                <Text size="2" className="text-gray-11">
-                  Plan
-                </Text>
-              </Flex>
-              <IconButton
-                size="1"
-                variant="ghost"
-                color="gray"
-                onClick={() => setIsFullscreen(false)}
-                title="Exit fullscreen (Escape)"
+              <ArrowsIn size={12} />
+            </IconButton>
+          </Flex>
+
+          {createPortal(
+            <Box className="pointer-events-auto absolute inset-0 flex flex-col bg-gray-1">
+              <Flex
+                align="center"
+                justify="between"
+                className="border-gray-6 border-b px-4 py-2"
               >
-                <X size={14} />
-              </IconButton>
-            </Flex>
+                <Flex align="center" gap="2">
+                  <ListChecks size={14} className="text-gray-11" />
+                  <Text size="2" className="text-gray-11">
+                    Plan
+                  </Text>
+                </Flex>
+                <IconButton
+                  size="1"
+                  variant="ghost"
+                  color="gray"
+                  onClick={() => setIsFullscreen(false)}
+                  title="Exit fullscreen (Escape)"
+                >
+                  <X size={14} />
+                </IconButton>
+              </Flex>
 
-            <Box
-              ref={scrollRef}
-              className="plan-markdown flex-1 overflow-y-auto p-6"
-            >
-              {markdown}
-            </Box>
-          </Box>,
-          portalTarget,
-        )}
-      </>
-    );
+              <Box
+                ref={scrollRef}
+                className="plan-markdown flex-1 overflow-y-auto p-6"
+              >
+                {markdown}
+              </Box>
+            </Box>,
+            portalTarget,
+          )}
+        </>
+      );
+    }
   }
 
   return (
