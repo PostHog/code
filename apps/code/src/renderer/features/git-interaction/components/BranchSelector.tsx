@@ -10,13 +10,14 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
-  ComboboxListFooter,
   ComboboxTrigger,
 } from "@posthog/quill";
 import { useTRPC } from "@renderer/trpc";
 import { toast } from "@renderer/utils/toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { type RefObject, useEffect, useRef, useState } from "react";
+
+const COMBOBOX_LIMIT = 50;
 
 interface BranchSelectorProps {
   repoPath: string | null;
@@ -55,6 +56,7 @@ export function BranchSelector({
   anchor,
 }: BranchSelectorProps) {
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const localAnchorRef = useRef<HTMLButtonElement>(null);
   const trpc = useTRPC();
   const { actions } = useGitInteractionStore();
@@ -77,8 +79,6 @@ export function BranchSelector({
   );
 
   const branches = isCloudMode ? (cloudBranches ?? []) : localBranches;
-  const CREATE_BRANCH_ACTION = "__create_branch__";
-  const allItems = isCloudMode ? branches : [...branches, CREATE_BRANCH_ACTION];
   const effectiveLoading = loading || (isCloudMode && cloudBranchesLoading);
   const cloudStillLoading =
     isCloudMode && cloudBranchesLoading && branches.length === 0;
@@ -99,7 +99,7 @@ export function BranchSelector({
   );
 
   const handleBranchChange = (value: string | null) => {
-    if (!value || value === CREATE_BRANCH_ACTION) return;
+    if (!value) return;
     if (isSelectionOnly) {
       onBranchSelect?.(value || null);
     } else if (value && value !== currentBranch) {
@@ -132,9 +132,12 @@ export function BranchSelector({
 
   return (
     <Combobox
-      items={allItems}
+      items={branches}
+      limit={COMBOBOX_LIMIT}
       value={displayedBranch}
       onValueChange={(v) => handleBranchChange(v as string | null)}
+      inputValue={searchQuery}
+      onInputValueChange={setSearchQuery}
       open={open}
       onOpenChange={(nextOpen) => handleOpenChange(nextOpen)}
       disabled={isDisabled}
@@ -181,36 +184,43 @@ export function BranchSelector({
         <ComboboxEmpty>No branches found.</ComboboxEmpty>
 
         <ComboboxList className="max-h-[min(14rem,calc(var(--available-height,14rem)-5rem))] pe-2">
-          {(item: string) =>
-            item === CREATE_BRANCH_ACTION ? (
-              <ComboboxListFooter key="footer">
-                <ComboboxItem
-                  value={CREATE_BRANCH_ACTION}
-                  onClick={() => {
-                    setOpen(false);
-                    actions.openBranch(
-                      taskId
-                        ? getSuggestedBranchName(taskId, repoPath ?? undefined)
-                        : undefined,
-                    );
-                  }}
-                >
-                  <Plus size={11} weight="bold" />
-                  Create new branch
-                </ComboboxItem>
-              </ComboboxListFooter>
-            ) : (
-              <ComboboxItem
-                key={item}
-                value={item}
-                title={item}
-                className="relative"
-              >
-                {item}
-              </ComboboxItem>
-            )
-          }
+          {(item: string) => (
+            <ComboboxItem
+              key={item}
+              value={item}
+              title={item}
+              className="relative"
+            >
+              {item}
+            </ComboboxItem>
+          )}
         </ComboboxList>
+
+        {!isCloudMode && (
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 border-t px-2 py-1.5 text-accent-foreground text-xs hover:bg-accent/10"
+            onClick={() => {
+              setOpen(false);
+              actions.openBranch(
+                taskId
+                  ? getSuggestedBranchName(taskId, repoPath ?? undefined)
+                  : undefined,
+              );
+            }}
+          >
+            <Plus size={11} weight="bold" />
+            Create new branch
+          </button>
+        )}
+
+        {branches.length > COMBOBOX_LIMIT && (
+          <div className="px-2 py-1.5 text-center text-muted-foreground text-xs">
+            {searchQuery
+              ? `Showing up to ${COMBOBOX_LIMIT} matches — refine your search`
+              : `Showing ${COMBOBOX_LIMIT} of ${branches.length} — type to filter`}
+          </div>
+        )}
       </ComboboxContent>
     </Combobox>
   );
