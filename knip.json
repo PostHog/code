@@ -3,7 +3,11 @@
   "ignoreWorkspaces": ["apps/mobile"],
   "workspaces": {
     ".": {
-      "entry": ["mprocs.yaml", "scripts/pnpm-run.mjs", "scripts/test-access-token.js"]
+      "entry": [
+        "mprocs.yaml",
+        "scripts/pnpm-run.mjs",
+        "scripts/test-access-token.js"
+      ]
     },
     "apps/code": {
       "entry": [
