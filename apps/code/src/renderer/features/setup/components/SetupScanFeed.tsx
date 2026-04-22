@@ -107,7 +107,7 @@ export function SetupScanFeed({
           height: 48,
           backgroundColor: "var(--color-panel-solid)",
           border: "1px solid var(--gray-a3)",
-          borderRadius: recentEntries.length > 0 && !isDone ? "12px 12px 0 0" : 12,
+          borderRadius: 12,
           boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
         }}
       >
@@ -216,18 +216,17 @@ export function SetupScanFeed({
             gap="0"
             px="3"
             py="2"
+            mx="3"
             style={{
               backgroundColor: "var(--gray-a2)",
               borderRadius: "0 0 10px 10px",
-              borderLeft: "1px solid var(--gray-a3)",
-              borderRight: "1px solid var(--gray-a3)",
-              borderBottom: "1px solid var(--gray-a3)",
               maxHeight: 120,
               overflow: "hidden",
             }}
           >
             <AnimatePresence initial={false} mode="popLayout">
-              {recentEntries.slice(-4).map((entry) => {
+              {recentEntries.slice(-4).map((entry, index, arr) => {
+                const isLatest = index === arr.length - 1;
                 const kind = TOOL_KIND[entry.tool] ?? "other";
                 const EntryIcon = KIND_ICONS[kind] ?? Wrench;
                 const entryText = entry.filePath
@@ -238,7 +237,7 @@ export function SetupScanFeed({
                     key={entry.id}
                     layout
                     initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 0.7, y: 0 }}
+                    animate={{ opacity: isLatest ? 1 : 0.45, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
                     transition={{
                       duration: 0.2,
