@@ -1415,7 +1415,7 @@ ${truncatedDiff || "(no diff available)"}${contextSection}`;
     return items.map((issue) => ({
       number: issue.number,
       title: issue.title,
-      state: issue.state.toUpperCase(),
+      state: issue.state.toUpperCase() === "OPEN" ? "OPEN" : "CLOSED",
       labels: issue.labels.map((l) => l.name),
       url: issue.url,
       repo,

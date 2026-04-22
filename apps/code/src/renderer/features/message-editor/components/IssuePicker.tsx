@@ -5,16 +5,14 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
-  Item,
-  ItemContent,
-  ItemDescription,
-  ItemMedia,
-  ItemTitle,
 } from "@posthog/quill";
 import { useTRPC } from "@renderer/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import type { GithubIssueState } from "../types";
 import type { MentionChip } from "../utils/content";
+import { githubIssueToMentionChip } from "../utils/githubIssueChip";
+import { IssueRow } from "./IssueRow";
 
 interface IssuePickerProps {
   repoPath: string;
@@ -29,7 +27,7 @@ type Issue = {
   title: string;
   url: string;
   repo: string;
-  state: string;
+  state: GithubIssueState;
   labels: string[];
 };
 
@@ -75,11 +73,7 @@ export function IssuePicker({
 
   const handleValueChange = (value: Issue | null) => {
     if (!value) return;
-    onSelect({
-      type: "github_issue",
-      id: value.url,
-      label: `#${value.number} - ${value.title}`,
-    });
+    onSelect(githubIssueToMentionChip(value));
   };
 
   return (
@@ -114,26 +108,7 @@ export function IssuePicker({
               value={issue}
               className="relative h-auto"
             >
-              <Item size="xs" className="border-0 p-0">
-                <ItemMedia variant="icon" className="mt-1 self-start">
-                  <span
-                    className="inline-block h-2.5 w-2.5 rounded-full"
-                    style={{
-                      background:
-                        issue.state === "OPEN" ? "#238636" : "#AB7DF8",
-                    }}
-                  />
-                </ItemMedia>
-                <ItemContent variant="menuItem">
-                  <ItemTitle className="whitespace-normal text-left">
-                    #{issue.number} - {issue.title}
-                  </ItemTitle>
-                  <ItemDescription className="text-left">
-                    {issue.repo}
-                    {issue.labels.length > 0 && ` · ${issue.labels.join(", ")}`}
-                  </ItemDescription>
-                </ItemContent>
-              </Item>
+              <IssueRow issue={issue} />
             </ComboboxItem>
           )}
         </ComboboxList>
