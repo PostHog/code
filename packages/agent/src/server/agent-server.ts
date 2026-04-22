@@ -460,7 +460,9 @@ export class AgentServer {
           port: this.config.port,
         },
         () => {
-          this.logger.info(`HTTP server listening on port ${this.config.port}`);
+          this.logger.debug(
+            `HTTP server listening on port ${this.config.port}`,
+          );
           resolve();
         },
       );
@@ -472,12 +474,12 @@ export class AgentServer {
   private async autoInitializeSession(): Promise<void> {
     const { taskId, runId, mode, projectId } = this.config;
 
-    this.logger.info("Auto-initializing session", { taskId, runId, mode });
+    this.logger.debug("Auto-initializing session", { taskId, runId, mode });
 
     // Check if this is a resume from a previous run
     const resumeRunId = process.env.POSTHOG_RESUME_RUN_ID;
     if (resumeRunId) {
-      this.logger.info("Resuming from previous run", {
+      this.logger.debug("Resuming from previous run", {
         resumeRunId,
         currentRunId: runId,
       });
@@ -489,13 +491,13 @@ export class AgentServer {
           apiClient: this.posthogAPI,
           logger: new Logger({ debug: true, prefix: "[Resume]" }),
         });
-        this.logger.info("Resume state loaded", {
+        this.logger.debug("Resume state loaded", {
           conversationTurns: this.resumeState.conversation.length,
           snapshotApplied: this.resumeState.snapshotApplied,
           logEntries: this.resumeState.logEntryCount,
         });
       } catch (error) {
-        this.logger.warn("Failed to load resume state, starting fresh", {
+        this.logger.debug("Failed to load resume state, starting fresh", {
           error,
         });
         this.resumeState = null;
@@ -516,7 +518,7 @@ export class AgentServer {
   }
 
   async stop(): Promise<void> {
-    this.logger.info("Stopping agent server...");
+    this.logger.debug("Stopping agent server...");
 
     if (this.session) {
       await this.cleanupSession();
@@ -527,7 +529,7 @@ export class AgentServer {
       this.server = null;
     }
 
-    this.logger.info("Agent server stopped");
+    this.logger.debug("Agent server stopped");
   }
 
   private authenticateRequest(
@@ -589,7 +591,7 @@ export class AgentServer {
         });
         const promptPreview = promptBlocksToText(prompt);
 
-        this.logger.info(
+        this.logger.debug(
           `Processing user message (detectedPrUrl=${this.detectedPrUrl ?? "none"}): ${promptPreview.substring(0, 100)}...`,
         );
 
@@ -607,7 +609,7 @@ export class AgentServer {
           }),
         });
 
-        this.logger.info("User message completed", {
+        this.logger.debug("User message completed", {
           stopReason: result.stopReason,
         });
 
@@ -621,7 +623,7 @@ export class AgentServer {
           // Relay the response to Slack. For follow-ups this is the primary
           // delivery path — the HTTP caller only handles reactions.
           this.relayAgentResponse(this.session.payload).catch((err) =>
-            this.logger.warn("Failed to relay follow-up response", err),
+            this.logger.debug("Failed to relay follow-up response", err),
           );
         }
 
@@ -637,7 +639,7 @@ export class AgentServer {
             this.session.payload.run_id,
           );
         } catch {
-          this.logger.warn("Failed to extract assistant message from logs");
+          this.logger.debug("Failed to extract assistant message from logs");
         }
 
         return {
@@ -648,7 +650,7 @@ export class AgentServer {
 
       case POSTHOG_NOTIFICATIONS.CANCEL:
       case "cancel": {
-        this.logger.info("Cancel requested", {
+        this.logger.debug("Cancel requested", {
           acpSessionId: this.session.acpSessionId,
         });
         await this.session.clientConnection.cancel({
@@ -659,7 +661,7 @@ export class AgentServer {
 
       case POSTHOG_NOTIFICATIONS.CLOSE:
       case "close": {
-        this.logger.info("Close requested");
+        this.logger.debug("Close requested");
         await this.cleanupSession();
         return { closed: true };
       }
@@ -669,7 +671,7 @@ export class AgentServer {
         const configId = params.configId as string;
         const value = params.value as string;
 
-        this.logger.info("Set config option requested", { configId, value });
+        this.logger.debug("Set config option requested", { configId, value });
 
         const result =
           await this.session.clientConnection.setSessionConfigOption({
@@ -707,7 +709,7 @@ export class AgentServer {
         const customInput = params.customInput as string | undefined;
         const answers = params.answers as Record<string, string> | undefined;
 
-        this.logger.info("Permission response received", {
+        this.logger.debug("Permission response received", {
           requestId,
           optionId,
         });
@@ -742,7 +744,7 @@ export class AgentServer {
     // duplicate Slack messages. This lock ensures the second caller waits for the first
     // initialization to finish and reuses the session.
     if (this.initializationPromise) {
-      this.logger.info("Waiting for in-progress initialization", {
+      this.logger.debug("Waiting for in-progress initialization", {
         runId: payload.run_id,
       });
       await this.initializationPromise;
@@ -774,7 +776,7 @@ export class AgentServer {
       await this.cleanupSession();
     }
 
-    this.logger.info("Initializing session", {
+    this.logger.debug("Initializing session", {
       runId: payload.run_id,
       taskId: payload.task_id,
     });
@@ -790,7 +792,7 @@ export class AgentServer {
       this.posthogAPI
         .getTaskRun(payload.task_id, payload.run_id)
         .catch((err) => {
-          this.logger.warn("Failed to fetch task run for session context", {
+          this.logger.debug("Failed to fetch task run for session context", {
             taskId: payload.task_id,
             runId: payload.run_id,
             error: err,
@@ -798,7 +800,7 @@ export class AgentServer {
           return null;
         }),
       this.posthogAPI.getTask(payload.task_id).catch((err) => {
-        this.logger.warn("Failed to fetch task for session context", {
+        this.logger.debug("Failed to fetch task for session context", {
           taskId: payload.task_id,
           error: err,
         });
@@ -941,7 +943,7 @@ export class AgentServer {
     });
 
     const acpSessionId = sessionResponse.sessionId;
-    this.logger.info("ACP session created", {
+    this.logger.debug("ACP session created", {
       acpSessionId,
       runId: payload.run_id,
     });
@@ -963,18 +965,15 @@ export class AgentServer {
       debug: true,
       prefix: "[AgentServer]",
       onLog: (level, scope, message, data) => {
-        // Preserve console output (onLog suppresses default console.*)
-        const _formatted =
-          data !== undefined ? `${message} ${JSON.stringify(data)}` : message;
         this.emitConsoleLog(level, scope, message, data);
       },
     });
 
-    this.logger.info("Session initialized successfully");
-    this.logger.info(
+    this.logger.debug("Session initialized successfully");
+    this.logger.debug(
       `Agent version: ${this.config.version ?? packageJson.version}`,
     );
-    this.logger.info(`Initial permission mode: ${initialPermissionMode}`);
+    this.logger.debug(`Initial permission mode: ${initialPermissionMode}`);
 
     // Signal in_progress so the UI can start polling for updates
     this.posthogAPI
@@ -982,7 +981,7 @@ export class AgentServer {
         status: "in_progress",
       })
       .catch((err) =>
-        this.logger.warn("Failed to set task run to in_progress", err),
+        this.logger.debug("Failed to set task run to in_progress", err),
       );
 
     await this.sendInitialTaskMessage(payload, preTaskRun);
@@ -1038,7 +1037,7 @@ export class AgentServer {
           payload.run_id,
         );
       } catch (error) {
-        this.logger.warn("Failed to fetch task run", {
+        this.logger.debug("Failed to fetch task run", {
           taskId: payload.task_id,
           runId: payload.run_id,
           error,
@@ -1050,7 +1049,7 @@ export class AgentServer {
     if (!this.resumeState) {
       const resumeRunId = this.getResumeRunId(taskRun);
       if (resumeRunId) {
-        this.logger.info("Resuming from previous run (via TaskRun state)", {
+        this.logger.debug("Resuming from previous run (via TaskRun state)", {
           resumeRunId,
           currentRunId: payload.run_id,
         });
@@ -1062,13 +1061,13 @@ export class AgentServer {
             apiClient: this.posthogAPI,
             logger: new Logger({ debug: true, prefix: "[Resume]" }),
           });
-          this.logger.info("Resume state loaded (via TaskRun state)", {
+          this.logger.debug("Resume state loaded (via TaskRun state)", {
             conversationTurns: this.resumeState.conversation.length,
             snapshotApplied: this.resumeState.snapshotApplied,
             logEntries: this.resumeState.logEntryCount,
           });
         } catch (error) {
-          this.logger.warn("Failed to load resume state, starting fresh", {
+          this.logger.debug("Failed to load resume state, starting fresh", {
             error,
           });
           this.resumeState = null;
@@ -1099,11 +1098,11 @@ export class AgentServer {
       }
 
       if (initialPrompt.length === 0) {
-        this.logger.warn("Task has no description, skipping initial message");
+        this.logger.debug("Task has no description, skipping initial message");
         return;
       }
 
-      this.logger.info("Sending initial task message", {
+      this.logger.debug("Sending initial task message", {
         taskId: payload.task_id,
         descriptionLength: promptBlocksToText(initialPrompt).length,
         usedInitialPromptOverride: !!initialPromptOverride,
@@ -1117,7 +1116,7 @@ export class AgentServer {
         prompt: initialPrompt,
       });
 
-      this.logger.info("Initial task message completed", {
+      this.logger.debug("Initial task message completed", {
         stopReason: result.stopReason,
       });
 
@@ -1190,7 +1189,7 @@ export class AgentServer {
         ];
       }
 
-      this.logger.info("Sending resume message", {
+      this.logger.debug("Sending resume message", {
         taskId: payload.task_id,
         conversationTurns: this.resumeState.conversation.length,
         promptLength: promptBlocksToText(resumePromptBlocks).length,
@@ -1208,7 +1207,7 @@ export class AgentServer {
         prompt: resumePromptBlocks,
       });
 
-      this.logger.info("Resume message completed", {
+      this.logger.debug("Resume message completed", {
         stopReason: result.stopReason,
       });
 
@@ -1674,7 +1673,7 @@ ${attributionInstructions}
     try {
       return await getCurrentBranch(this.config.repositoryPath);
     } catch (error) {
-      this.logger.warn("Failed to determine current git branch", {
+      this.logger.debug("Failed to determine current git branch", {
         repositoryPath: this.config.repositoryPath,
         error,
       });
@@ -1695,7 +1694,7 @@ ${attributionInstructions}
       });
       this.lastReportedBranch = branchName;
     } catch (error) {
-      this.logger.warn("Failed to attach current branch to task run", {
+      this.logger.debug("Failed to attach current branch to task run", {
         taskId: payload.task_id,
         runId: payload.run_id,
         branchName,
@@ -1715,7 +1714,7 @@ ${attributionInstructions}
           coalesce: true,
         });
       } catch (error) {
-        this.logger.warn("Failed to flush session logs before completion", {
+        this.logger.debug("Failed to flush session logs before completion", {
           taskId: payload.task_id,
           runId: payload.run_id,
           error,
@@ -1724,7 +1723,7 @@ ${attributionInstructions}
     }
 
     if (stopReason !== "error") {
-      this.logger.info("Skipping status update for non-error stop reason", {
+      this.logger.debug("Skipping status update for non-error stop reason", {
         stopReason,
       });
       return;
@@ -1737,7 +1736,7 @@ ${attributionInstructions}
         status,
         error_message: errorMessage ?? "Agent error",
       });
-      this.logger.info("Task completion signaled", { status, stopReason });
+      this.logger.debug("Task completion signaled", { status, stopReason });
     } catch (error) {
       this.logger.error("Failed to signal task completion", error);
     }
@@ -1874,7 +1873,7 @@ ${attributionInstructions}
             isPlanApproval ||
             (needsDesktopApproval && this.session?.hasDesktopConnected)
           ) {
-            this.logger.info("Relaying permission request", {
+            this.logger.debug("Relaying permission request", {
               kind: params.toolCall?.kind,
               isQuestion,
               hasDesktopConnected: this.session?.hasDesktopConnected ?? false,
@@ -1919,7 +1918,7 @@ ${attributionInstructions}
         ) {
           this.session.permissionMode = params.update
             .currentModeId as PermissionMode;
-          this.logger.info("Permission mode updated", {
+          this.logger.debug("Permission mode updated", {
             mode: params.update.currentModeId,
           });
         }
@@ -1965,7 +1964,7 @@ ${attributionInstructions}
     try {
       await this.session.logWriter.flush(payload.run_id, { coalesce: true });
     } catch (error) {
-      this.logger.warn("Failed to flush logs before Slack relay", {
+      this.logger.debug("Failed to flush logs before Slack relay", {
         taskId: payload.task_id,
         runId: payload.run_id,
         error,
@@ -1974,7 +1973,7 @@ ${attributionInstructions}
 
     const message = this.session.logWriter.getFullAgentResponse(payload.run_id);
     if (!message) {
-      this.logger.warn("No agent message found for Slack relay", {
+      this.logger.debug("No agent message found for Slack relay", {
         taskId: payload.task_id,
         runId: payload.run_id,
         sessionRegistered: this.session.logWriter.isRegistered(payload.run_id),
@@ -1989,7 +1988,7 @@ ${attributionInstructions}
         message,
       );
     } catch (error) {
-      this.logger.warn("Failed to relay initial agent response to Slack", {
+      this.logger.debug("Failed to relay initial agent response to Slack", {
         taskId: payload.task_id,
         runId: payload.run_id,
         error,
@@ -2022,7 +2021,7 @@ ${attributionInstructions}
     this.posthogAPI
       .relayMessage(payload.task_id, payload.run_id, message)
       .catch((err) =>
-        this.logger.warn("Failed to relay question to Slack", { err }),
+        this.logger.debug("Failed to relay question to Slack", { err }),
       );
   }
 
@@ -2120,7 +2119,7 @@ ${attributionInstructions}
 
       const prUrl = prUrlMatch[0];
       this.detectedPrUrl = prUrl;
-      this.logger.info("Detected PR URL in bash output", {
+      this.logger.debug("Detected PR URL in bash output", {
         runId: payload.run_id,
         prUrl,
       });
@@ -2131,7 +2130,7 @@ ${attributionInstructions}
           output: { pr_url: prUrl },
         })
         .then(() => {
-          this.logger.info("PR URL attached to task run", {
+          this.logger.debug("PR URL attached to task run", {
             taskId: payload.task_id,
             runId: payload.run_id,
             prUrl,
@@ -2157,7 +2156,7 @@ ${attributionInstructions}
   private async cleanupSession(): Promise<void> {
     if (!this.session) return;
 
-    this.logger.info("Cleaning up session");
+    this.logger.debug("Cleaning up session");
 
     try {
       await this.captureTreeState();
