@@ -127,7 +127,6 @@ export type OnModeChange = (mode: CodeExecutionMode) => Promise<void>;
 
 interface CreatePostToolUseHookParams {
   onModeChange?: OnModeChange;
-  logger?: Logger;
 }
 
 export const createPostToolUseHook =
