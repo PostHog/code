@@ -1201,6 +1201,30 @@ export class PostHogAPIClient {
     return await response.json();
   }
 
+  async getSignalReport(reportId: string): Promise<SignalReport | null> {
+    const teamId = await this.getTeamId();
+    const path = `/api/projects/${teamId}/signals/reports/${reportId}/`;
+    const url = new URL(`${this.api.baseUrl}${path}`);
+
+    try {
+      const response = await this.api.fetcher.fetch({
+        method: "get",
+        url,
+        path,
+      });
+      return (await response.json()) as SignalReport;
+    } catch (error) {
+      // The shared fetcher throws "Failed request: [<status>] <body>" for any
+      // non-2xx. Treat missing / forbidden as "not available in the current
+      // team" and surface other errors to the caller.
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("[404]") || msg.includes("[403]")) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
   async getSignalReports(
     params?: SignalReportsQueryParams,
   ): Promise<SignalReportsResponse> {

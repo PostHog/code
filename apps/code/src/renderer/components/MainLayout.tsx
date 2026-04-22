@@ -7,6 +7,7 @@ import { ArchivedTasksView } from "@features/archive/components/ArchivedTasksVie
 import { CommandMenu } from "@features/command/components/CommandMenu";
 import { CommandCenterView } from "@features/command-center/components/CommandCenterView";
 import { InboxView } from "@features/inbox/components/InboxView";
+import { useInboxDeepLink } from "@features/inbox/hooks/useInboxDeepLink";
 import { FolderSettingsView } from "@features/settings/components/FolderSettingsView";
 import { SettingsDialog } from "@features/settings/components/SettingsDialog";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
@@ -50,6 +51,7 @@ export function MainLayout() {
 
   useIntegrations();
   useTaskDeepLink();
+  useInboxDeepLink();
 
   useEffect(() => {
     if (tasks) {

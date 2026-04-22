@@ -16,6 +16,7 @@ import {
   Cloud as CloudIcon,
   EyeIcon,
   GitPullRequestIcon,
+  LinkSimpleIcon,
   WarningIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -297,13 +298,35 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
             </Tooltip>
           )}
         </Flex>
-        <button
-          type="button"
-          onClick={onClose}
-          className="shrink-0 rounded p-0.5 text-gray-11 hover:bg-gray-3 hover:text-gray-12"
-        >
-          <XIcon size={14} />
-        </button>
+        <Flex align="center" gap="1" className="shrink-0">
+          <Tooltip content="Copy link to this report">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(
+                    `posthog-code://inbox/${report.id}`,
+                  );
+                  toast.success("Link copied");
+                } catch {
+                  toast.error("Failed to copy link");
+                }
+              }}
+              aria-label="Copy link to this report"
+              className="rounded p-0.5 text-gray-11 hover:bg-gray-3 hover:text-gray-12"
+            >
+              <LinkSimpleIcon size={14} />
+            </button>
+          </Tooltip>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close report detail"
+            className="rounded p-0.5 text-gray-11 hover:bg-gray-3 hover:text-gray-12"
+          >
+            <XIcon size={14} />
+          </button>
+        </Flex>
       </Flex>
 
       {/* ── Scrollable detail area ──────────────────────────────── */}

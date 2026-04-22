@@ -70,6 +70,7 @@ export const MAIN_TOKENS = Object.freeze({
   UIService: Symbol.for("Main.UIService"),
   UpdatesService: Symbol.for("Main.UpdatesService"),
   TaskLinkService: Symbol.for("Main.TaskLinkService"),
+  InboxLinkService: Symbol.for("Main.InboxLinkService"),
   WatcherRegistryService: Symbol.for("Main.WatcherRegistryService"),
   EnvironmentService: Symbol.for("Main.EnvironmentService"),
   ProvisioningService: Symbol.for("Main.ProvisioningService"),

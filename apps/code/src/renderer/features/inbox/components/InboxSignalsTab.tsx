@@ -5,6 +5,7 @@ import {
   WelcomePane,
 } from "@features/inbox/components/InboxEmptyStates";
 import { InboxSourcesDialog } from "@features/inbox/components/InboxSourcesDialog";
+import { useInboxDeepLinkListSync } from "@features/inbox/hooks/useInboxDeepLinkListSync";
 import {
   useInboxAvailableSuggestedReviewers,
   useInboxReportsInfinite,
@@ -155,25 +156,18 @@ export function InboxSignalsTab() {
   const selectExactRange = useInboxReportSelectionStore(
     (s) => s.selectExactRange,
   );
-  const pruneSelection = useInboxReportSelectionStore((s) => s.pruneSelection);
   const clearSelection = useInboxReportSelectionStore((s) => s.clearSelection);
+
+  const { selectedReport } = useInboxDeepLinkListSync({
+    reports,
+    inboxPollingActive,
+  });
 
   // Stable refs so callbacks don't need re-registration on every render
   const selectedReportIdsRef = useRef(selectedReportIds);
   selectedReportIdsRef.current = selectedReportIds;
   const reportsRef = useRef(reports);
   reportsRef.current = reports;
-
-  // Prune selection when visible reports change (e.g. filter/search)
-  useEffect(() => {
-    pruneSelection(reports.map((report) => report.id));
-  }, [reports, pruneSelection]);
-
-  // The report to show in the detail pane (only when exactly 1 is selected)
-  const selectedReport = useMemo(() => {
-    if (selectedReportIds.length !== 1) return null;
-    return reports.find((r) => r.id === selectedReportIds[0]) ?? null;
-  }, [reports, selectedReportIds]);
 
   // Reports for the multi-select stack (when 2+ selected)
   const selectedReports = useMemo(() => {
