@@ -25,7 +25,7 @@ function permissionOptions(allowAlwaysLabel: string): PermissionOption[] {
 export function buildPermissionOptions(
   toolName: string,
   toolInput: Record<string, unknown>,
-  cwd?: string,
+  _cwd?: string,
   suggestions?: PermissionUpdate[],
 ): PermissionOption[] {
   if (BASH_TOOLS.has(toolName)) {
@@ -36,12 +36,9 @@ export function buildPermissionOptions(
 
     const command = toolInput?.command as string | undefined;
     const cmdName = command?.split(/\s+/)[0] ?? "this command";
-    const cwdLabel = cwd ? ` in ${cwd}` : "";
     const label = ruleContent ?? `\`${cmdName}\` commands`;
 
-    return permissionOptions(
-      `Yes, and don't ask again for ${label}${cwdLabel}`,
-    );
+    return permissionOptions(`Yes, and don't ask again for ${label}`);
   }
 
   if (toolName === "BashOutput") {
