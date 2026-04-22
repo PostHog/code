@@ -130,7 +130,7 @@ export const DraggableTab: React.FC<DraggableTabProps> = ({
       align="center"
       gap="1"
       pl="3"
-      pr={onClose ? "1" : "3"}
+      pr={onClose ? "2" : "3"}
       className={`group relative flex-shrink-0 select-none border-r border-b-2 transition-colors ${draggable ? "cursor-grab" : "cursor-pointer"}`}
       style={{
         borderRightColor: "var(--gray-6)",
@@ -178,6 +178,7 @@ export const DraggableTab: React.FC<DraggableTabProps> = ({
         <Box
           style={{
             width: "14px",
+            marginLeft: "2px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
