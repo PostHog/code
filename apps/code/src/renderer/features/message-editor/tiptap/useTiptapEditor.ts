@@ -1,10 +1,10 @@
 import { sessionStoreSetters } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore as useFeatureSettingsStore } from "@features/settings/stores/settingsStore";
 import { toast } from "@renderer/utils/toast";
-import { useSettingsStore } from "@stores/settingsStore";
 import type { EditorView } from "@tiptap/pm/view";
 import { useEditor } from "@tiptap/react";
 import { getFilePath } from "@utils/getFilePath";
+import { isSendMessageSubmitKey } from "@utils/sendMessageKey";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePromptHistoryStore } from "../stores/promptHistoryStore";
@@ -182,26 +182,17 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
             return true;
           }
 
-          if (event.key === "Enter") {
-            const sendMessagesWith =
-              useSettingsStore.getState().sendMessagesWith;
-            const isCmdEnterMode = sendMessagesWith === "cmd+enter";
-            const isSubmitKey = isCmdEnterMode
-              ? event.metaKey || event.ctrlKey
-              : !event.shiftKey;
-
-            if (isSubmitKey) {
-              if (!view.editable || submitDisabledRef.current) return false;
-              // tippy.js sets data-state="hidden" when hiding via .hide()
-              const visibleSuggestion = document.querySelector(
-                "[data-tippy-root] .tippy-box:not([data-state='hidden'])",
-              );
-              if (visibleSuggestion) return false;
-              event.preventDefault();
-              historyActions.reset();
-              submitRef.current();
-              return true;
-            }
+          if (isSendMessageSubmitKey(event)) {
+            if (!view.editable || submitDisabledRef.current) return false;
+            // tippy.js sets data-state="hidden" when hiding via .hide()
+            const visibleSuggestion = document.querySelector(
+              "[data-tippy-root] .tippy-box:not([data-state='hidden'])",
+            );
+            if (visibleSuggestion) return false;
+            event.preventDefault();
+            historyActions.reset();
+            submitRef.current();
+            return true;
           }
 
           if (event.key === "ArrowUp" || event.key === "ArrowDown") {
