@@ -29,6 +29,7 @@ import {
   Wrench,
 } from "@phosphor-icons/react";
 import { Avatar, Box, Flex, ScrollArea, Text } from "@radix-ui/themes";
+import { BILLING_FLAG } from "@shared/constants";
 import { type ReactNode, useEffect, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { AdvancedSettings } from "./sections/AdvancedSettings";
@@ -128,7 +129,7 @@ export function SettingsDialog() {
   const client = useOptionalAuthenticatedClient();
   const { data: user } = useCurrentUser({ client });
   const { seat, planLabel } = useSeat();
-  const billingEnabled = useFeatureFlag("posthog-code-billing");
+  const billingEnabled = useFeatureFlag(BILLING_FLAG);
   const logoutMutation = useLogoutMutation();
 
   const sidebarItems = useMemo(

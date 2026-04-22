@@ -25,6 +25,7 @@ import { useConnectivity } from "@hooks/useConnectivity";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useIntegrations } from "@hooks/useIntegrations";
 import { Box, Flex } from "@radix-ui/themes";
+import { BILLING_FLAG } from "@shared/constants";
 import { useCommandMenuStore } from "@stores/commandMenuStore";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useShortcutsSheetStore } from "@stores/shortcutsSheetStore";
@@ -46,7 +47,7 @@ export function MainLayout() {
   } = useShortcutsSheetStore();
   const { data: tasks } = useTasks();
   const { showPrompt, isChecking, check, dismiss } = useConnectivity();
-  const billingEnabled = useFeatureFlag("posthog-code-billing");
+  const billingEnabled = useFeatureFlag(BILLING_FLAG);
 
   const startTour = useTourStore((s) => s.startTour);
   const isFirstTaskTourDone = useTourStore((s) =>
