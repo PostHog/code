@@ -19,6 +19,7 @@ export type Adapter = "claude" | "codex";
 export interface QueuedMessage {
   id: string;
   content: string;
+  rawPrompt?: string | ContentBlock[];
   queuedAt: number;
 }
 
@@ -292,7 +293,11 @@ export const sessionStoreSetters = {
     });
   },
 
-  enqueueMessage: (taskId: string, content: string) => {
+  enqueueMessage: (
+    taskId: string,
+    content: string,
+    rawPrompt?: string | ContentBlock[],
+  ) => {
     const id = `queue-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     useSessionStore.setState((state) => {
       const taskRunId = state.taskIdIndex[taskId];
@@ -300,7 +305,12 @@ export const sessionStoreSetters = {
 
       const session = state.sessions[taskRunId];
       if (session) {
-        session.messageQueue.push({ id, content, queuedAt: Date.now() });
+        session.messageQueue.push({
+          id,
+          content,
+          rawPrompt,
+          queuedAt: Date.now(),
+        });
       }
     });
   },
@@ -343,6 +353,21 @@ export const sessionStoreSetters = {
       session.messageQueue = [];
     });
     return result;
+  },
+
+  dequeueMessages: (taskId: string): QueuedMessage[] => {
+    let queuedMessages: QueuedMessage[] = [];
+    useSessionStore.setState((state) => {
+      const taskRunId = state.taskIdIndex[taskId];
+      if (!taskRunId) return;
+
+      const session = state.sessions[taskRunId];
+      if (!session || session.messageQueue.length === 0) return;
+
+      queuedMessages = [...session.messageQueue];
+      session.messageQueue = [];
+    });
+    return queuedMessages;
   },
 
   appendOptimisticItem: (

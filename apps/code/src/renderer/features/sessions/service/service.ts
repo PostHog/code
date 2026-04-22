@@ -8,11 +8,6 @@ import {
   getAuthenticatedClient,
 } from "@features/auth/hooks/authClient";
 import { fetchAuthState } from "@features/auth/hooks/authQueries";
-import {
-  buildCloudPromptBlocks,
-  buildCloudTaskDescription,
-  serializeCloudPrompt,
-} from "@features/editor/utils/cloud-prompt";
 import { useSessionAdapterStore } from "@features/sessions/stores/sessionAdapterStore";
 import {
   getPersistedConfigOptions,
@@ -68,7 +63,7 @@ import {
 import { queryClient } from "@utils/queryClient";
 import {
   convertStoredEntriesToEvents,
-  createUserMessageEvent,
+  createUserPromptEvent,
   createUserShellExecuteEvent,
   extractPromptText,
   getUserShellExecutesSinceLastPrompt,
@@ -76,6 +71,13 @@ import {
   normalizePromptToBlocks,
   shellExecutesToContextBlocks,
 } from "@utils/session";
+import {
+  cloudPromptToBlocks,
+  combineQueuedCloudPrompts,
+  getCloudPromptTransport,
+  uploadRunAttachments,
+  uploadTaskStagedAttachments,
+} from "../utils/cloudArtifacts";
 
 const log = logger.scope("session-service");
 const LOCAL_SESSION_RECONNECT_ATTEMPTS = 3;
@@ -129,7 +131,7 @@ function buildCloudDefaultConfigOptions(
 interface AuthCredentials {
   apiHost: string;
   projectId: number;
-  client: Awaited<ReturnType<typeof getAuthenticatedClient>>;
+  client: NonNullable<Awaited<ReturnType<typeof getAuthenticatedClient>>>;
 }
 
 export interface ConnectParams {
@@ -1422,41 +1424,26 @@ export class SessionService {
 
   // --- Cloud Commands ---
 
-  private async prepareCloudPrompt(
-    prompt: string | ContentBlock[],
-  ): Promise<{ blocks: ContentBlock[]; promptText: string }> {
-    const blocks =
-      typeof prompt === "string"
-        ? await buildCloudPromptBlocks(prompt)
-        : prompt;
-
-    if (blocks.length === 0) {
-      throw new Error("Cloud prompt cannot be empty");
-    }
-
-    const promptText =
-      extractPromptText(blocks).trim() ||
-      (typeof prompt === "string" ? buildCloudTaskDescription(prompt) : "");
-
-    return { blocks, promptText };
-  }
-
   private async sendCloudPrompt(
     session: AgentSession,
     prompt: string | ContentBlock[],
     options?: { skipQueueGuard?: boolean },
   ): Promise<{ stopReason: string }> {
-    const rawPromptText = extractPromptText(prompt);
-    if (!rawPromptText.trim()) {
+    const transport = getCloudPromptTransport(prompt);
+    if (!transport.messageText && transport.filePaths.length === 0) {
       return { stopReason: "empty" };
     }
 
     if (isTerminalStatus(session.cloudStatus)) {
-      return this.resumeCloudRun(session, rawPromptText);
+      return this.resumeCloudRun(session, prompt);
     }
 
     if (!options?.skipQueueGuard && session.isPromptPending) {
-      sessionStoreSetters.enqueueMessage(session.taskId, rawPromptText);
+      sessionStoreSetters.enqueueMessage(
+        session.taskId,
+        transport.promptText,
+        prompt,
+      );
       log.info("Cloud message queued", {
         taskId: session.taskId,
         queueLength: session.messageQueue.length + 1,
@@ -1464,12 +1451,26 @@ export class SessionService {
       return { stopReason: "queued" };
     }
 
-    const auth = await this.getCloudCommandAuth();
-    if (!auth) {
+    const [auth, cloudCommandAuth] = await Promise.all([
+      this.getAuthCredentials(),
+      this.getCloudCommandAuth(),
+    ]);
+    if (!auth || !cloudCommandAuth) {
       throw new Error("Authentication required for cloud commands");
     }
-
-    const { blocks, promptText } = await this.prepareCloudPrompt(prompt);
+    const artifactIds = await uploadRunAttachments(
+      auth.client,
+      session.taskId,
+      session.taskRunId,
+      transport.filePaths,
+    );
+    const params: Record<string, unknown> = {};
+    if (transport.messageText) {
+      params.content = transport.messageText;
+    }
+    if (artifactIds.length > 0) {
+      params.artifact_ids = artifactIds;
+    }
 
     sessionStoreSetters.updateSession(session.taskRunId, {
       isPromptPending: true,
@@ -1479,21 +1480,17 @@ export class SessionService {
       task_id: session.taskId,
       is_initial: session.events.length === 0,
       execution_type: "cloud",
-      prompt_length_chars: promptText.length,
+      prompt_length_chars: transport.promptText.length,
     });
 
     try {
       const result = await trpcClient.cloudTask.sendCommand.mutate({
         taskId: session.taskId,
         runId: session.taskRunId,
-        apiHost: auth.apiHost,
-        teamId: auth.teamId,
+        apiHost: cloudCommandAuth.apiHost,
+        teamId: cloudCommandAuth.teamId,
         method: "user_message",
-        params: {
-          // The live /command API still validates user_message content as a
-          // string, so structured prompts must go through the serialized form.
-          content: serializeCloudPrompt(blocks),
-        },
+        params,
       });
 
       sessionStoreSetters.updateSession(session.taskRunId, {
@@ -1533,12 +1530,13 @@ export class SessionService {
   private async sendQueuedCloudMessages(
     taskId: string,
     attempt = 0,
-    pendingText?: string,
+    pendingPrompt?: string | ContentBlock[],
   ): Promise<{ stopReason: string }> {
-    // First attempt: atomically dequeue. Retries reuse the already-dequeued text.
-    const combinedText =
-      pendingText ?? sessionStoreSetters.dequeueMessagesAsText(taskId);
-    if (!combinedText) return { stopReason: "skipped" };
+    // First attempt: atomically dequeue. Retries reuse the already-dequeued prompt.
+    const combinedPrompt =
+      pendingPrompt ??
+      combineQueuedCloudPrompts(sessionStoreSetters.dequeueMessages(taskId));
+    if (!combinedPrompt) return { stopReason: "skipped" };
 
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) {
@@ -1550,12 +1548,12 @@ export class SessionService {
 
     log.info("Sending queued cloud messages", {
       taskId,
-      promptLength: combinedText.length,
+      promptLength: combinedPrompt.length,
       attempt,
     });
 
     try {
-      return await this.sendCloudPrompt(session, combinedText, {
+      return await this.sendCloudPrompt(session, combinedPrompt, {
         skipQueueGuard: true,
       });
     } catch (error) {
@@ -1574,7 +1572,7 @@ export class SessionService {
               this.sendQueuedCloudMessages(
                 taskId,
                 attempt + 1,
-                combinedText,
+                combinedPrompt,
               ).catch((err) => {
                 log.error("Queued cloud message retry failed", {
                   taskId,
@@ -1601,8 +1599,8 @@ export class SessionService {
     session: AgentSession,
     prompt: string | ContentBlock[],
   ): Promise<{ stopReason: string }> {
-    const client = await getAuthenticatedClient();
-    if (!client) {
+    const authCredentials = await this.getAuthCredentials();
+    if (!authCredentials) {
       throw new Error("Authentication required for cloud commands");
     }
     const auth = await this.getCloudCommandAuth();
@@ -1610,11 +1608,19 @@ export class SessionService {
       throw new Error("Authentication required for cloud commands");
     }
 
-    const { blocks, promptText } = await this.prepareCloudPrompt(prompt);
+    const transport = getCloudPromptTransport(prompt);
+    if (!transport.messageText && transport.filePaths.length === 0) {
+      return { stopReason: "empty" };
+    }
+    const artifactIds = await uploadTaskStagedAttachments(
+      authCredentials.client,
+      session.taskId,
+      transport.filePaths,
+    );
 
     const [previousRun, task] = await Promise.all([
-      client.getTaskRun(session.taskId, session.taskRunId),
-      client.getTask(session.taskId),
+      authCredentials.client.getTaskRun(session.taskId, session.taskRunId),
+      authCredentials.client.getTask(session.taskId),
     ]);
     const hasGitHubRepo = !!task.repository && !!task.github_integration;
     const previousState = previousRun.state as Record<string, unknown>;
@@ -1652,7 +1658,7 @@ export class SessionService {
     // Create a new run WITH resume context — backend validates the previous run,
     // derives snapshot_external_id server-side, and passes everything as extra_state.
     // The agent will load conversation history and restore the sandbox snapshot.
-    const updatedTask = await client.runTaskInCloud(
+    const updatedTask = await authCredentials.client.runTaskInCloud(
       session.taskId,
       previousBaseBranch,
       {
@@ -1660,7 +1666,9 @@ export class SessionService {
         model: runtimeOptions.model,
         reasoningLevel: runtimeOptions.reasoningLevel,
         resumeFromRunId: session.taskRunId,
-        pendingUserMessage: serializeCloudPrompt(blocks),
+        pendingUserMessage: transport.messageText,
+        pendingUserArtifactIds:
+          artifactIds.length > 0 ? artifactIds : undefined,
         prAuthorshipMode,
         runSource: this.getCloudRunSource(previousState),
         signalReportId:
@@ -1688,7 +1696,12 @@ export class SessionService {
     // Reset processedLineCount to 0 because the new run's log stream starts fresh.
     newSession.events = [
       ...session.events,
-      createUserMessageEvent(promptText, Date.now()),
+      createUserPromptEvent(
+        transport.filePaths.length > 0
+          ? cloudPromptToBlocks(prompt)
+          : [{ type: "text", text: transport.promptText }],
+        Date.now(),
+      ),
     ];
     newSession.processedLineCount = 0;
     // Skip the first session/prompt from polled logs — we already have the
@@ -1729,7 +1742,7 @@ export class SessionService {
       task_id: session.taskId,
       is_initial: false,
       execution_type: "cloud",
-      prompt_length_chars: promptText.length,
+      prompt_length_chars: transport.promptText.length,
     });
 
     return { stopReason: "queued" };

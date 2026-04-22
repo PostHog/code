@@ -303,4 +303,27 @@ export const osRouter = router({
 
       return { path: filePath, name: displayName, mimeType };
     }),
+
+  /**
+   * Save arbitrary file bytes to a temp file
+   * Returns the file path for use as a file attachment
+   */
+  saveClipboardFile: publicProcedure
+    .input(
+      z.object({
+        base64Data: z.string(),
+        originalName: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const displayName = path.basename(input.originalName ?? "attachment");
+      const filePath = await createClipboardTempFilePath(displayName);
+
+      await fsPromises.writeFile(
+        filePath,
+        Buffer.from(input.base64Data, "base64"),
+      );
+
+      return { path: filePath, name: displayName };
+    }),
 });

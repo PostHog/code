@@ -1,7 +1,3 @@
-import {
-  buildCloudPromptBlocks,
-  serializeCloudPrompt,
-} from "@features/editor/utils/cloud-prompt";
 import { buildPromptBlocks } from "@features/editor/utils/prompt-builder";
 import { DEFAULT_PANEL_IDS } from "@features/panels/constants/panelConstants";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
@@ -10,6 +6,10 @@ import {
   type ConnectParams,
   getSessionService,
 } from "@features/sessions/service/service";
+import {
+  getCloudPromptTransport,
+  uploadTaskStagedAttachments,
+} from "@features/sessions/utils/cloudArtifacts";
 import { getTaskDirectory } from "@hooks/useRepositoryDirectory";
 import type {
   Workspace,
@@ -117,13 +117,6 @@ export class TaskCreationSaga extends Saga<
   protected async execute(
     input: TaskCreationInput,
   ): Promise<TaskCreationOutput> {
-    const initialCloudPrompt =
-      input.workspaceMode === "cloud" && !input.taskId && input.content
-        ? await this.readOnlyStep("cloud_prompt_preparation", () =>
-            buildCloudPromptBlocks(input.content ?? "", input.filePaths),
-          )
-        : null;
-
     // Step 1: Get or create task
     // For new tasks, start folder registration in parallel with task creation
     // since folder_registration only needs repoPath (from input), not task.id
@@ -290,13 +283,28 @@ export class TaskCreationSaga extends Saga<
             githubUserToken = await getGhUserTokenOrThrow();
           }
 
+          const transport =
+            (input.content || input.filePaths?.length) &&
+            workspaceMode === "cloud"
+              ? getCloudPromptTransport(input.content ?? "", input.filePaths)
+              : null;
+          const pendingUserArtifactIds = transport
+            ? await uploadTaskStagedAttachments(
+                this.deps.posthogClient,
+                task.id,
+                transport.filePaths,
+              )
+            : [];
+
           return this.deps.posthogClient.runTaskInCloud(task.id, branch, {
             adapter: input.adapter,
             model: input.model,
             reasoningLevel: input.reasoningLevel,
-            pendingUserMessage: initialCloudPrompt
-              ? serializeCloudPrompt(initialCloudPrompt)
-              : undefined,
+            pendingUserMessage: transport?.messageText,
+            pendingUserArtifactIds:
+              pendingUserArtifactIds.length > 0
+                ? pendingUserArtifactIds
+                : undefined,
             sandboxEnvironmentId: input.sandboxEnvironmentId,
             prAuthorshipMode,
             runSource: input.cloudRunSource ?? "manual",
