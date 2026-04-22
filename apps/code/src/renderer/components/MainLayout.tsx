@@ -9,11 +9,15 @@ import { CommandCenterView } from "@features/command-center/components/CommandCe
 import { InboxView } from "@features/inbox/components/InboxView";
 import { FolderSettingsView } from "@features/settings/components/FolderSettingsView";
 import { SettingsDialog } from "@features/settings/components/SettingsDialog";
+import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { MainSidebar } from "@features/sidebar/components/MainSidebar";
 import { SkillsView } from "@features/skills/components/SkillsView";
 import { TaskDetail } from "@features/task-detail/components/TaskDetail";
 import { TaskInput } from "@features/task-detail/components/TaskInput";
 import { useTasks } from "@features/tasks/hooks/useTasks";
+import { TourOverlay } from "@features/tour/components/TourOverlay";
+import { useTourStore } from "@features/tour/stores/tourStore";
+import { createFirstTaskTour } from "@features/tour/tours/createFirstTaskTour";
 import { useConnectivity } from "@hooks/useConnectivity";
 import { useIntegrations } from "@hooks/useIntegrations";
 import { Box, Flex } from "@radix-ui/themes";
@@ -39,6 +43,11 @@ export function MainLayout() {
   const { data: tasks } = useTasks();
   const { showPrompt, isChecking, check, dismiss } = useConnectivity();
 
+  const startTour = useTourStore((s) => s.startTour);
+  const isFirstTaskTourDone = useTourStore((s) =>
+    s.completedTourIds.includes(createFirstTaskTour.id),
+  );
+
   useIntegrations();
   useTaskDeepLink();
 
@@ -53,6 +62,14 @@ export function MainLayout() {
       navigateToTaskInput();
     }
   }, [view, navigateToTaskInput]);
+
+  const settingsOpen = useSettingsDialogStore((s) => s.isOpen);
+
+  useEffect(() => {
+    if (isFirstTaskTourDone || settingsOpen) return;
+    const timer = setTimeout(() => startTour(createFirstTaskTour.id), 600);
+    return () => clearTimeout(timer);
+  }, [isFirstTaskTourDone, settingsOpen, startTour]);
 
   const handleToggleCommandMenu = useCallback(() => {
     toggleCommandMenu();
@@ -99,6 +116,7 @@ export function MainLayout() {
         onToggleShortcutsSheet={toggleShortcutsSheet}
       />
       <SettingsDialog />
+      <TourOverlay />
       <HedgehogMode />
     </Flex>
   );

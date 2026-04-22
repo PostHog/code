@@ -443,7 +443,19 @@ export function TaskInput({
                 disabled={isCreatingTask}
               />
             )}
-            <ButtonGroup ref={buttonGroupRef}>
+            <ButtonGroup
+              ref={buttonGroupRef}
+              data-tour="folder-picker"
+              data-tour-ready={
+                (
+                  workspaceMode === "cloud"
+                    ? selectedRepository
+                    : selectedDirectory
+                )
+                  ? "true"
+                  : undefined
+              }
+            >
               {workspaceMode === "cloud" ? (
                 <GitHubRepoPicker
                   value={selectedRepository}
@@ -512,6 +524,7 @@ export function TaskInput({
             autoFocus
             clearOnSubmit={false}
             submitDisabledExternal={!canSubmit || isCreatingTask || !isOnline}
+            tourTarget="task-input"
             repoPath={selectedDirectory}
             modeOption={modeOption}
             onModeChange={handleModeChange}
