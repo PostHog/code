@@ -18,6 +18,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 interface ActivityEntry {
   id: number;
+  toolCallId: string;
   tool: string;
   filePath: string | null;
   title: string;
@@ -28,7 +29,6 @@ interface SetupScanFeedProps {
   icon: Icon;
   color: string;
   currentTool: string | null;
-  currentFilePath: string | null;
   recentEntries: ActivityEntry[];
   isDone: boolean;
   doneLabel?: string;
@@ -62,21 +62,55 @@ const TOOL_VERBS: Record<string, string> = {
 };
 
 const TOOL_KIND: Record<string, string> = {
-  Read: "read", Edit: "edit", Write: "edit", Grep: "search", Glob: "search",
-  Bash: "execute", Agent: "think", ToolSearch: "search", WebSearch: "search",
-  WebFetch: "fetch", StructuredOutput: "other", create_output: "other",
+  Read: "read",
+  Edit: "edit",
+  Write: "edit",
+  Grep: "search",
+  Glob: "search",
+  Bash: "execute",
+  Agent: "think",
+  ToolSearch: "search",
+  WebSearch: "search",
+  WebFetch: "fetch",
+  StructuredOutput: "other",
+  create_output: "other",
 };
 
 const KIND_ICONS: Record<string, Icon> = {
-  read: FileText, edit: PencilSimple, delete: Trash, move: ArrowsLeftRight,
-  search: MagnifyingGlass, execute: Terminal, think: Brain, fetch: Globe,
-  switch_mode: ArrowsClockwise, other: Wrench,
+  read: FileText,
+  edit: PencilSimple,
+  delete: Trash,
+  move: ArrowsLeftRight,
+  search: MagnifyingGlass,
+  execute: Terminal,
+  think: Brain,
+  fetch: Globe,
+  switch_mode: ArrowsClockwise,
+  other: Wrench,
 };
 
 function shortenPath(path: string): string {
   const parts = path.split("/");
   if (parts.length <= 3) return path;
   return `.../${parts.slice(-3).join("/")}`;
+}
+
+const GENERIC_TITLES = new Set([
+  "Read File",
+  "Execute command",
+  "Edit",
+  "Write",
+  "Find",
+  "Fetch",
+  "Working",
+  "Task",
+  "Terminal",
+]);
+
+function entryDisplayText(entry: ActivityEntry): string {
+  if (entry.filePath) return shortenPath(entry.filePath);
+  if (entry.title && !GENERIC_TITLES.has(entry.title)) return entry.title;
+  return TOOL_VERBS[entry.tool] ?? "Working...";
 }
 
 function toolLabel(tool: string): string {
@@ -88,14 +122,11 @@ export function SetupScanFeed({
   icon: LabelIcon,
   color,
   currentTool,
-  currentFilePath,
   recentEntries,
   isDone,
   doneLabel = "Complete",
 }: SetupScanFeedProps) {
-  const activeLabel = currentTool
-    ? toolLabel(currentTool)
-    : "Starting...";
+  const activeLabel = currentTool ? toolLabel(currentTool) : "Starting...";
 
   return (
     <Flex direction="column" gap="0" style={{ width: "100%" }}>
@@ -128,7 +159,11 @@ export function SetupScanFeed({
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: "spring", damping: 15, stiffness: 300 }}
-                style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
                 <CheckCircle size={16} weight="fill" color="var(--green-9)" />
               </motion.div>
@@ -195,7 +230,11 @@ export function SetupScanFeed({
                   height: 20,
                 }}
               >
-                <Text size="1" weight="medium" style={{ color: "var(--gray-11)" }}>
+                <Text
+                  size="1"
+                  weight="medium"
+                  style={{ color: "var(--gray-11)" }}
+                >
                   {doneLabel}
                 </Text>
               </motion.div>
@@ -208,7 +247,10 @@ export function SetupScanFeed({
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
-          transition={{ height: { duration: 0.3, ease: "easeOut" }, opacity: { duration: 0.2 } }}
+          transition={{
+            height: { duration: 0.3, ease: "easeOut" },
+            opacity: { duration: 0.2 },
+          }}
           style={{ overflow: "hidden" }}
         >
           <Flex
@@ -229,9 +271,7 @@ export function SetupScanFeed({
                 const isLatest = index === arr.length - 1;
                 const kind = TOOL_KIND[entry.tool] ?? "other";
                 const EntryIcon = KIND_ICONS[kind] ?? Wrench;
-                const entryText = entry.filePath
-                  ? shortenPath(entry.filePath)
-                  : entry.title || TOOL_VERBS[entry.tool];
+                const entryText = entryDisplayText(entry);
                 return (
                   <motion.div
                     key={entry.id}

@@ -22,6 +22,7 @@ const log = logger.scope("setup-run");
 
 interface ActivityEntry {
   id: number;
+  toolCallId: string;
   tool: string;
   filePath: string | null;
   title: string;
@@ -72,8 +73,21 @@ function extractPathFromRawInput(
       if (!cmd) return null;
       return cmd.length > 80 ? `${cmd.slice(0, 77)}...` : cmd;
     }
-    default:
+    default: {
+      const filePath =
+        rawInput.file_path ?? rawInput.path ?? rawInput.notebook_path;
+      if (typeof filePath === "string") return filePath;
+      const pattern = rawInput.pattern;
+      if (typeof pattern === "string") return `"${pattern}"`;
+      const command = rawInput.command;
+      if (typeof command === "string")
+        return command.length > 80 ? `${command.slice(0, 77)}...` : command;
+      const url = rawInput.url;
+      if (typeof url === "string") return url;
+      const query = rawInput.query;
+      if (typeof query === "string") return query;
       return null;
+    }
   }
 }
 
@@ -81,9 +95,8 @@ function extractToolCall(
   update: Record<string, unknown>,
 ): ActivityEntry | null {
   const sessionUpdate = update.sessionUpdate as string | undefined;
-  if (sessionUpdate !== "tool_call") return null;
-
-  log.debug("tool_call update payload", { keys: Object.keys(update), update });
+  if (sessionUpdate !== "tool_call" && sessionUpdate !== "tool_call_update")
+    return null;
 
   const meta = update._meta as
     | { claudeCode?: { toolName?: string } }
@@ -98,9 +111,10 @@ function extractToolCall(
   const filePath =
     locations?.[0]?.path ?? extractPathFromRawInput(tool, rawInput);
   const title = (update.title as string) ?? "";
+  const toolCallId = (update.toolCallId as string) ?? "";
 
   activityIdCounter += 1;
-  return { id: activityIdCounter, tool, filePath, title };
+  return { id: activityIdCounter, toolCallId, tool, filePath, title };
 }
 
 export function useSetupRun() {
@@ -121,6 +135,43 @@ export function useSetupRun() {
 
   const startedRef = useRef(false);
   const discoveryStartedAtRef = useRef<number | null>(null);
+
+  const subscribeToWizardEvents = useCallback((taskId: string) => {
+    const checkForRun = async () => {
+      const client = await getAuthenticatedClient();
+      if (!client) return;
+
+      for (let i = 0; i < 30; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        try {
+          const taskData = (await client.getTask(taskId)) as unknown as Task;
+          const runId = taskData.latest_run?.id;
+          if (runId) {
+            log.debug("Wizard run found, subscribing", { taskId, runId });
+            trpcClient.agent.onSessionEvent.subscribe(
+              { taskRunId: runId },
+              {
+                onData: (payload: unknown) => {
+                  handleSessionUpdate(payload, (entry) => {
+                    useSetupStore.getState().pushWizardActivity(entry);
+                  });
+                },
+                onError: (err) => {
+                  log.error("Wizard subscription error", { error: err });
+                },
+              },
+            );
+            return;
+          }
+        } catch {
+          // keep polling
+        }
+      }
+    };
+    checkForRun().catch((err) =>
+      log.error("Wizard event subscribe failed", { error: err }),
+    );
+  }, []);
 
   const startWizardTask = useCallback(async () => {
     const existingId = useSetupStore.getState().wizardTaskId;
@@ -190,44 +241,7 @@ export function useSetupRun() {
         captureException(err, { scope: "setup.start_wizard_task" });
       }
     }
-  }, [selectedDirectory]);
-
-  const subscribeToWizardEvents = useCallback((taskId: string) => {
-    const checkForRun = async () => {
-      const client = await getAuthenticatedClient();
-      if (!client) return;
-
-      for (let i = 0; i < 30; i++) {
-        await new Promise((r) => setTimeout(r, 2000));
-        try {
-          const taskData = (await client.getTask(taskId)) as unknown as Task;
-          const runId = taskData.latest_run?.id;
-          if (runId) {
-            log.debug("Wizard run found, subscribing", { taskId, runId });
-            trpcClient.agent.onSessionEvent.subscribe(
-              { taskRunId: runId },
-              {
-                onData: (payload: unknown) => {
-                  handleSessionUpdate(payload, (entry) => {
-                    useSetupStore.getState().pushWizardActivity(entry);
-                  });
-                },
-                onError: (err) => {
-                  log.error("Wizard subscription error", { error: err });
-                },
-              },
-            );
-            return;
-          }
-        } catch {
-          // keep polling
-        }
-      }
-    };
-    checkForRun().catch((err) =>
-      log.error("Wizard event subscribe failed", { error: err }),
-    );
-  }, []);
+  }, [selectedDirectory, subscribeToWizardEvents]);
 
   const startDiscovery = useCallback(async () => {
     const state = useSetupStore.getState();

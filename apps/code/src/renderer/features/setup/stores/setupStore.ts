@@ -8,6 +8,7 @@ type DiscoveryStatus = "idle" | "running" | "done" | "error";
 
 interface ActivityEntry {
   id: number;
+  toolCallId: string;
   tool: string;
   filePath: string | null;
   title: string;
@@ -58,10 +59,30 @@ const initialState: SetupStoreState = {
 };
 
 function pushEntry(prev: AgentFeedState, entry: ActivityEntry): AgentFeedState {
+  const existingIdx = entry.toolCallId
+    ? prev.recentEntries.findIndex(
+        (e) => e.toolCallId === entry.toolCallId,
+      )
+    : -1;
+
+  let newEntries: ActivityEntry[];
+  if (existingIdx >= 0) {
+    newEntries = [...prev.recentEntries];
+    const old = newEntries[existingIdx];
+    newEntries[existingIdx] = {
+      ...old,
+      tool: entry.tool || old.tool,
+      filePath: entry.filePath || old.filePath,
+      title: entry.title || old.title,
+    };
+  } else {
+    newEntries = [...prev.recentEntries.slice(-4), entry];
+  }
+
   return {
     currentTool: entry.tool,
-    currentFilePath: entry.filePath,
-    recentEntries: [...prev.recentEntries.slice(-4), entry],
+    currentFilePath: entry.filePath ?? prev.currentFilePath,
+    recentEntries: newEntries,
   };
 }
 

@@ -76,7 +76,12 @@ export function SetupView() {
       <Flex
         align="center"
         justify="center"
-        style={{ minHeight: "100%", padding: "48px 24px", position: "relative", zIndex: 1 }}
+        style={{
+          minHeight: "100%",
+          padding: "48px 24px",
+          position: "relative",
+          zIndex: 1,
+        }}
       >
         <Flex
           direction="column"
@@ -121,7 +126,6 @@ export function SetupView() {
                   icon={MagicWand}
                   color="blue"
                   currentTool={wizardFeed.currentTool}
-                  currentFilePath={wizardFeed.currentFilePath}
                   recentEntries={wizardFeed.recentEntries}
                   isDone={false}
                   doneLabel="Integration ready"
@@ -139,7 +143,6 @@ export function SetupView() {
                 icon={Robot}
                 color="orange"
                 currentTool={discoveryFeed.currentTool}
-                currentFilePath={discoveryFeed.currentFilePath}
                 recentEntries={discoveryFeed.recentEntries}
                 isDone={isDiscoveryDone}
                 doneLabel="Analysis complete"
@@ -153,9 +156,21 @@ export function SetupView() {
             transition={{ duration: 0.3, delay: 0.15 }}
           >
             <Flex align="center" gap="3" py="1">
-              <img
+              <motion.img
                 src={explorerHog}
                 alt=""
+                animate={
+                  isDiscoveryDone
+                    ? { y: 0 }
+                    : {
+                        y: [0, -3, 0],
+                        transition: {
+                          duration: 0.35,
+                          repeat: Infinity,
+                          repeatDelay: 0.15,
+                        },
+                      }
+                }
                 style={{
                   width: 36,
                   height: 36,
