@@ -45,6 +45,14 @@ vi.mock("@utils/urls", () => ({
   getPostHogUrl: (path: string) => `https://posthog.com${path}`,
 }));
 
+vi.mock("@renderer/trpc", () => ({
+  trpcClient: {
+    llmGateway: {
+      invalidatePlanCache: { mutate: vi.fn().mockResolvedValue(undefined) },
+    },
+  },
+}));
+
 import { useSeatStore } from "./seatStore";
 
 function makeSeat(overrides: Partial<SeatData> = {}): SeatData {
