@@ -194,6 +194,8 @@ export function useGitInteraction(
     [git.changedFiles],
   );
 
+  const createPrDraftKey = `${taskId}:${repoPath ?? ""}`;
+
   const openCreatePr = () => {
     const prExists = git.prStatus?.prExists ?? false;
     const needsBranch = !git.isFeatureBranch || prExists;
@@ -206,6 +208,7 @@ export function useGitInteraction(
       suggestedBranchName: needsBranch
         ? getSuggestedBranchName(taskId, repoPath)
         : undefined,
+      draftKey: createPrDraftKey,
     });
   };
 
@@ -294,6 +297,7 @@ export function useGitInteraction(
         attachPrUrlToTask(taskId, result.prUrl);
       }
 
+      modal.clearCreatePrDraft(createPrDraftKey);
       modal.closeCreatePr();
     } catch (error) {
       log.error("Create PR flow failed", error);
