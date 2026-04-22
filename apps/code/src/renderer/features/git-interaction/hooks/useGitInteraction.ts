@@ -28,7 +28,7 @@ import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useQueryClient } from "@tanstack/react-query";
 import { track } from "@utils/analytics";
 import { logger } from "@utils/logger";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 const log = logger.scope("git-interaction");
 
@@ -151,6 +151,7 @@ export function useGitInteraction(
   const queryClient = useQueryClient();
   const store = useGitInteractionStore();
   const { actions: modal } = store;
+  const pushAbortRef = useRef<AbortController | null>(null);
 
   const git = useGitQueries(repoPath);
 
@@ -427,6 +428,10 @@ export function useGitInteraction(
 
     const pushMode = mode ?? useGitInteractionStore.getState().pushMode;
 
+    pushAbortRef.current?.abort();
+    const controller = new AbortController();
+    pushAbortRef.current = controller;
+
     modal.setIsSubmitting(true);
     modal.setPushError(null);
 
@@ -438,7 +443,10 @@ export function useGitInteraction(
             ? trpcClient.git.publish
             : trpcClient.git.push;
 
-      const result = await pushFn.mutate({ directoryPath: repoPath });
+      const result = await pushFn.mutate(
+        { directoryPath: repoPath },
+        { signal: controller.signal },
+      );
 
       if (!result.success) {
         const message =
@@ -458,9 +466,31 @@ export function useGitInteraction(
       }
 
       modal.setPushState("success");
+    } catch (error) {
+      trackGitAction(taskId, pushMode, false);
+      if (controller.signal.aborted) {
+        return;
+      }
+      log.error("Push failed", error);
+      const message = error instanceof Error ? error.message : "Push failed.";
+      modal.setPushError(message);
+      modal.setPushState("error");
     } finally {
+      if (pushAbortRef.current === controller) {
+        pushAbortRef.current = null;
+      }
       modal.setIsSubmitting(false);
     }
+  };
+
+  const abortPush = () => {
+    pushAbortRef.current?.abort();
+    pushAbortRef.current = null;
+  };
+
+  const closePush = () => {
+    abortPush();
+    modal.closePush();
   };
 
   const generateCommitMessage = async () => {
@@ -590,7 +620,7 @@ export function useGitInteraction(
     actions: {
       openAction,
       closeCommit: modal.closeCommit,
-      closePush: modal.closePush,
+      closePush,
       closeBranch: modal.closeBranch,
       setCommitMessage: modal.setCommitMessage,
       setCommitNextStep: modal.setCommitNextStep,
