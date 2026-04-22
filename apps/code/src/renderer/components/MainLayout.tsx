@@ -53,7 +53,7 @@ export function MainLayout() {
     s.completedTourIds.includes(createFirstTaskTour.id),
   );
 
-  useUsageLimitDetection();
+  useUsageLimitDetection(billingEnabled);
   useIntegrations();
   useTaskDeepLink();
   useInboxDeepLink();

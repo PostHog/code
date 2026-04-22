@@ -1,14 +1,16 @@
 import { useUsage } from "@features/billing/hooks/useUsage";
 import { isUsageExceeded } from "@features/billing/utils";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useSeat } from "@hooks/useSeat";
 import { Box, Flex, Progress, Text } from "@radix-ui/themes";
 
 export function SidebarUsageBar() {
+  const billingEnabled = useFeatureFlag("posthog-code-billing");
   const { isPro } = useSeat();
-  const { usage } = useUsage({ enabled: !isPro });
+  const { usage } = useUsage({ enabled: billingEnabled && !isPro });
 
-  if (isPro || !usage) return null;
+  if (!billingEnabled || isPro || !usage) return null;
 
   const usagePercent = Math.max(
     usage.sustained.used_percent,

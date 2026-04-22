@@ -1,13 +1,11 @@
 import { useUsageLimitStore } from "@features/billing/stores/usageLimitStore";
 import { isUsageExceeded } from "@features/billing/utils";
 import { useSessionStore } from "@features/sessions/stores/sessionStore";
-import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useSeat } from "@hooks/useSeat";
 import { useEffect, useRef } from "react";
 import { useUsage } from "./useUsage";
 
-export function useUsageLimitDetection() {
-  const billingEnabled = useFeatureFlag("posthog-code-billing");
+export function useUsageLimitDetection(billingEnabled: boolean) {
   const { isPro } = useSeat();
   const { usage } = useUsage({ enabled: billingEnabled && !isPro });
   const hasAlertedRef = useRef(false);
