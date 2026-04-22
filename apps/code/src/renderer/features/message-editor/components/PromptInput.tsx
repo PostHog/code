@@ -236,6 +236,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
             onClick={handleSubmitClick}
             disabled={submitBlocked}
             aria-label="Send message"
+            data-tour="submit-button"
           >
             <ArrowUp size={14} weight="bold" />
           </InputGroupButton>
@@ -260,6 +261,8 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
           <div
             className="cli-editor-scroll max-h-[200px] min-h-[50px] w-full flex-1 overflow-y-auto px-2 py-2 text-[14px]"
             style={{ position: "relative" }}
+            data-tour="task-input-editor"
+            data-tour-ready={!isEmpty ? "true" : undefined}
           >
             <EditorContent editor={editor} />
           </div>
