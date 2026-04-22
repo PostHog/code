@@ -35,14 +35,30 @@ interface SetupScanFeedProps {
 }
 
 const TOOL_VERBS: Record<string, string> = {
-  Read: "Reading",
-  Glob: "Searching",
-  Grep: "Searching",
-  Bash: "Running",
-  Edit: "Editing",
-  Write: "Writing",
+  Read: "Reading a file",
+  Glob: "Searching files",
+  Grep: "Searching code",
+  Bash: "Running a command",
+  Edit: "Making changes",
+  Write: "Writing a file",
   Agent: "Thinking",
-  ListDirectory: "Browsing",
+  ListDirectory: "Browsing files",
+  ToolSearch: "Looking up tools",
+  WebSearch: "Searching the web",
+  WebFetch: "Fetching a page",
+  NotebookEdit: "Editing notebook",
+  Monitor: "Monitoring",
+  SearchReplace: "Making changes",
+  MultiEdit: "Making changes",
+  StructuredOutput: "Preparing results",
+  create_output: "Preparing results",
+  TodoRead: "Reviewing tasks",
+  TodoWrite: "Updating tasks",
+  TaskCreate: "Creating a task",
+  TaskUpdate: "Updating a task",
+  TaskGet: "Checking task status",
+  TaskList: "Listing tasks",
+  AskFollowupQuestion: "Thinking",
 };
 
 const TOOL_KIND: Record<string, string> = {
@@ -64,9 +80,9 @@ function shortenPath(path: string): string {
 }
 
 function toolLabel(tool: string, filePath: string | null): string {
-  const verb = TOOL_VERBS[tool] ?? tool;
+  const verb = TOOL_VERBS[tool] ?? "Working...";
   if (!filePath) return verb;
-  return `${verb} ${shortenPath(filePath)}`;
+  return `${verb}: ${shortenPath(filePath)}`;
 }
 
 export function SetupScanFeed({
@@ -217,7 +233,7 @@ export function SetupScanFeed({
                 const EntryIcon = KIND_ICONS[kind] ?? Wrench;
                 const entryText = entry.filePath
                   ? shortenPath(entry.filePath)
-                  : entry.title || TOOL_VERBS[entry.tool] || entry.tool;
+                  : entry.title || TOOL_VERBS[entry.tool] || "Working";
                 return (
                   <motion.div
                     key={entry.id}
