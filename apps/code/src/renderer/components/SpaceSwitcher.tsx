@@ -358,22 +358,22 @@ export function SpaceSwitcher({
   useHotkeys(
     SHORTCUTS.SPACE_UP,
     (e) => {
-      if (isInputWithContent()) return;
+      if (!mounted && isInputWithContent()) return;
       e.preventDefault();
       navigatePrev();
     },
     SPACE_HOTKEY_OPTIONS,
-    [navigatePrev],
+    [navigatePrev, mounted],
   );
   useHotkeys(
     SHORTCUTS.SPACE_DOWN,
     (e) => {
-      if (isInputWithContent()) return;
+      if (!mounted && isInputWithContent()) return;
       e.preventDefault();
       navigateNext();
     },
     SPACE_HOTKEY_OPTIONS,
-    [navigateNext],
+    [navigateNext, mounted],
   );
 
   if (!mounted || tasks.length === 0) return null;
