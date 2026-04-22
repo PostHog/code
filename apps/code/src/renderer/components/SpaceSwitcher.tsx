@@ -24,8 +24,8 @@ const CONTAINER_HEIGHT = 420;
 const ITEM_WIDTH = 260;
 
 const SPACE_HOTKEY_OPTIONS = {
-  enableOnFormTags: false,
-  enableOnContentEditable: false,
+  enableOnFormTags: true,
+  enableOnContentEditable: true,
   preventDefault: true,
 } as const;
 
