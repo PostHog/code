@@ -203,9 +203,9 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
   const setSelectedRepo = useInboxCloudTaskStore((s) => s.setSelectedRepo);
   const runCloudTask = useInboxCloudTaskStore((s) => s.runCloudTask);
 
-  /** Matches server autostart rules: ready + immediately actionable + not already fixed. */
+  /** Matches server autostart rules: ready (or awaiting user input) + immediately actionable + not already fixed. */
   const canCreateImplementationPr =
-    report.status === "ready" &&
+    (report.status === "ready" || report.status === "pending_input") &&
     report.actionability === "immediately_actionable" &&
     report.already_addressed !== true;
 
