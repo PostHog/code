@@ -92,6 +92,37 @@ function getBubbleVariants(placement: TooltipPlacement) {
   };
 }
 
+const COLORED_BORDER: Record<string, string> = {
+  left: "borderRight",
+  right: "borderLeft",
+  top: "borderBottom",
+  bottom: "borderTop",
+};
+
+function caretTriangle(
+  side: "left" | "right" | "top" | "bottom",
+  size: number,
+  offset: number,
+  color: string,
+): React.CSSProperties {
+  const isHorizontal = side === "left" || side === "right";
+  const [t1, t2] = isHorizontal
+    ? ["borderTop", "borderBottom"]
+    : ["borderLeft", "borderRight"];
+
+  return {
+    position: "absolute",
+    width: 0,
+    height: 0,
+    [isHorizontal ? "top" : "left"]: `calc(50% + ${offset}px)`,
+    [side]: -size,
+    [isHorizontal ? "marginTop" : "marginLeft"]: -size,
+    [t1]: `${size}px solid transparent`,
+    [t2]: `${size}px solid transparent`,
+    [COLORED_BORDER[side]]: `${size}px solid ${color}`,
+  };
+}
+
 function Caret({
   side,
   offset = 0,
@@ -99,125 +130,19 @@ function Caret({
   side: "left" | "right" | "top" | "bottom";
   offset?: number;
 }) {
-  const borderColor = "var(--gray-a5)";
-  const fillColor = "var(--color-panel-solid)";
-
-  const base: React.CSSProperties = {
-    position: "absolute",
-    width: 0,
-    height: 0,
-  };
-
-  switch (side) {
-    case "right":
-      return (
-        <>
-          <div
-            style={{
-              ...base,
-              top: `calc(50% + ${offset}px)`,
-              right: -CARET_SIZE,
-              marginTop: -CARET_SIZE,
-              borderTop: `${CARET_SIZE}px solid transparent`,
-              borderBottom: `${CARET_SIZE}px solid transparent`,
-              borderLeft: `${CARET_SIZE}px solid ${borderColor}`,
-            }}
-          />
-          <div
-            style={{
-              ...base,
-              top: `calc(50% + ${offset}px)`,
-              right: -CARET_INNER,
-              marginTop: -CARET_INNER,
-              borderTop: `${CARET_INNER}px solid transparent`,
-              borderBottom: `${CARET_INNER}px solid transparent`,
-              borderLeft: `${CARET_INNER}px solid ${fillColor}`,
-            }}
-          />
-        </>
-      );
-    case "left":
-      return (
-        <>
-          <div
-            style={{
-              ...base,
-              top: `calc(50% + ${offset}px)`,
-              left: -CARET_SIZE,
-              marginTop: -CARET_SIZE,
-              borderTop: `${CARET_SIZE}px solid transparent`,
-              borderBottom: `${CARET_SIZE}px solid transparent`,
-              borderRight: `${CARET_SIZE}px solid ${borderColor}`,
-            }}
-          />
-          <div
-            style={{
-              ...base,
-              top: `calc(50% + ${offset}px)`,
-              left: -CARET_INNER,
-              marginTop: -CARET_INNER,
-              borderTop: `${CARET_INNER}px solid transparent`,
-              borderBottom: `${CARET_INNER}px solid transparent`,
-              borderRight: `${CARET_INNER}px solid ${fillColor}`,
-            }}
-          />
-        </>
-      );
-    case "top":
-      return (
-        <>
-          <div
-            style={{
-              ...base,
-              left: `calc(50% + ${offset}px)`,
-              top: -CARET_SIZE,
-              marginLeft: -CARET_SIZE,
-              borderLeft: `${CARET_SIZE}px solid transparent`,
-              borderRight: `${CARET_SIZE}px solid transparent`,
-              borderBottom: `${CARET_SIZE}px solid ${borderColor}`,
-            }}
-          />
-          <div
-            style={{
-              ...base,
-              left: `calc(50% + ${offset}px)`,
-              top: -CARET_INNER,
-              marginLeft: -CARET_INNER,
-              borderLeft: `${CARET_INNER}px solid transparent`,
-              borderRight: `${CARET_INNER}px solid transparent`,
-              borderBottom: `${CARET_INNER}px solid ${fillColor}`,
-            }}
-          />
-        </>
-      );
-    case "bottom":
-      return (
-        <>
-          <div
-            style={{
-              ...base,
-              left: `calc(50% + ${offset}px)`,
-              bottom: -CARET_SIZE,
-              marginLeft: -CARET_SIZE,
-              borderLeft: `${CARET_SIZE}px solid transparent`,
-              borderRight: `${CARET_SIZE}px solid transparent`,
-              borderTop: `${CARET_SIZE}px solid ${borderColor}`,
-            }}
-          />
-          <div
-            style={{
-              ...base,
-              left: `calc(50% + ${offset}px)`,
-              bottom: -CARET_INNER,
-              marginLeft: -CARET_INNER,
-              borderLeft: `${CARET_INNER}px solid transparent`,
-              borderRight: `${CARET_INNER}px solid transparent`,
-              borderTop: `${CARET_INNER}px solid ${fillColor}`,
-            }}
-          />
-        </>
-      );
-  }
+  return (
+    <>
+      <div style={caretTriangle(side, CARET_SIZE, offset, "var(--gray-a5)")} />
+      <div
+        style={caretTriangle(
+          side,
+          CARET_INNER,
+          offset,
+          "var(--color-panel-solid)",
+        )}
+      />
+    </>
+  );
 }
 
 export function TourTooltip({
