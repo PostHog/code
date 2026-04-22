@@ -1,5 +1,7 @@
+import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { createFirstTaskTour } from "../tours/createFirstTaskTour";
 import { TOUR_REGISTRY } from "../tours/tourRegistry";
 
 interface TourStoreState {
@@ -85,6 +87,16 @@ export const useTourStore = create<TourStore>()(
       partialize: (state) => ({
         completedTourIds: state.completedTourIds,
       }),
+      onRehydrateStorage: () => () => {
+        const migrationKey = "tour-store-v1-migrated";
+        if (localStorage.getItem(migrationKey)) return;
+        localStorage.setItem(migrationKey, "1");
+
+        const { hasCompletedOnboarding } = useOnboardingStore.getState();
+        if (hasCompletedOnboarding) {
+          useTourStore.getState().completeTour(createFirstTaskTour.id);
+        }
+      },
     },
   ),
 );
