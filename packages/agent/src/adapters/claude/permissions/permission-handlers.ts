@@ -350,7 +350,7 @@ async function handleDefaultPermissionFlow(
   const options = buildPermissionOptions(
     toolName,
     toolInput as Record<string, unknown>,
-    session?.cwd,
+    session.settingsManager.getRepoRoot(),
     suggestions,
   );
 

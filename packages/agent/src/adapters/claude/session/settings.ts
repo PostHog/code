@@ -346,6 +346,10 @@ export class SettingsManager {
     return this.cwd;
   }
 
+  getRepoRoot(): string {
+    return this.repoRoot;
+  }
+
   /**
    * Persists allow rules to `<primary-worktree>/.claude/settings.local.json`.
    * Because local settings are resolved against the primary worktree, every
