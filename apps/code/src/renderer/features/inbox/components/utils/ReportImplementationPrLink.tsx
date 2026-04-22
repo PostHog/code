@@ -22,7 +22,9 @@ function parseGitHubPrReference(prUrl: string): {
 } {
   try {
     const parsed = new URL(prUrl);
-    const match = parsed.pathname.match(/^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:$|[/?#])/);
+    const match = parsed.pathname.match(
+      /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:$|[/?#])/,
+    );
     if (match) {
       return {
         reference: `${match[1]}/${match[2]}#${match[3]}`,
