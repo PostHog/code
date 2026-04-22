@@ -1,5 +1,6 @@
 import { fetch } from "expo/fetch";
 import { getBaseUrl, getHeaders, getProjectId } from "@/lib/api";
+import { logger } from "@/lib/logger";
 import type {
   CreateTaskOptions,
   Integration,
@@ -7,6 +8,18 @@ import type {
   Task,
   TaskRun,
 } from "./types";
+
+const log = logger.scope("tasks-api");
+
+export class HttpError extends Error {
+  readonly status: number;
+
+  constructor(status: number, statusText: string, prefix: string) {
+    super(`${prefix}: ${status} ${statusText}`);
+    this.name = "HttpError";
+    this.status = status;
+  }
+}
 
 async function withRetry<T>(
   fn: () => Promise<T>,
@@ -37,9 +50,15 @@ async function withRetry<T>(
 }
 
 function isRetryableError(error: unknown): boolean {
+  if (
+    error instanceof Error &&
+    "status" in error &&
+    typeof error.status === "number"
+  ) {
+    return error.status >= 500 && error.status < 600;
+  }
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
-    if (/\b5\d{2}\b/.test(message)) return true;
     if (message.includes("network")) return true;
     if (message.includes("timeout")) return true;
     if (message.includes("econnreset")) return true;
@@ -69,7 +88,11 @@ export async function getTasks(filters?: {
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch tasks: ${response.statusText}`);
+    throw new HttpError(
+      response.status,
+      response.statusText,
+      "Failed to fetch tasks",
+    );
   }
 
   const data = await response.json();
@@ -87,7 +110,11 @@ export async function getTask(taskId: string): Promise<Task> {
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch task: ${response.statusText}`);
+    throw new HttpError(
+      response.status,
+      response.statusText,
+      "Failed to fetch task",
+    );
   }
 
   return await response.json();
@@ -109,9 +136,11 @@ export async function createTask(options: CreateTaskOptions): Promise<Task> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("Create task error:", errorText);
-    throw new Error(
-      `Failed to create task: ${response.statusText} - ${errorText}`,
+    log.error("Create task error", errorText);
+    throw new HttpError(
+      response.status,
+      `${response.statusText} - ${errorText}`,
+      "Failed to create task",
     );
   }
 
@@ -136,7 +165,11 @@ export async function updateTask(
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to update task: ${response.statusText}`);
+    throw new HttpError(
+      response.status,
+      response.statusText,
+      "Failed to update task",
+    );
   }
 
   return await response.json();
@@ -156,7 +189,11 @@ export async function deleteTask(taskId: string): Promise<void> {
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to delete task: ${response.statusText}`);
+    throw new HttpError(
+      response.status,
+      response.statusText,
+      "Failed to delete task",
+    );
   }
 }
 
@@ -210,7 +247,11 @@ export async function runTaskInCloud(
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to run task: ${response.statusText}`);
+    throw new HttpError(
+      response.status,
+      response.statusText,
+      "Failed to run task",
+    );
   }
 
   return await response.json();
@@ -230,7 +271,11 @@ export async function getTaskRun(
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch task run: ${response.statusText}`);
+    throw new HttpError(
+      response.status,
+      response.statusText,
+      "Failed to fetch task run",
+    );
   }
 
   return await response.json();
@@ -257,7 +302,11 @@ export async function appendTaskRunLog(
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to append log: ${response.statusText}`);
+        throw new HttpError(
+          response.status,
+          response.statusText,
+          "Failed to append log",
+        );
       }
     },
     { shouldRetry: isRetryableError },
@@ -376,7 +425,11 @@ export async function fetchS3Logs(logUrl: string): Promise<string> {
         if (response.status === 404) {
           return "";
         }
-        throw new Error(`Failed to fetch logs: ${response.statusText}`);
+        throw new HttpError(
+          response.status,
+          response.statusText,
+          "Failed to fetch logs",
+        );
       }
 
       return await response.text();
@@ -396,7 +449,11 @@ export async function getIntegrations(): Promise<Integration[]> {
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch integrations: ${response.statusText}`);
+    throw new HttpError(
+      response.status,
+      response.statusText,
+      "Failed to fetch integrations",
+    );
   }
 
   const data = await response.json();
@@ -416,7 +473,11 @@ export async function getGithubRepositories(
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch repositories: ${response.statusText}`);
+    throw new HttpError(
+      response.status,
+      response.statusText,
+      "Failed to fetch repositories",
+    );
   }
 
   const data = await response.json();

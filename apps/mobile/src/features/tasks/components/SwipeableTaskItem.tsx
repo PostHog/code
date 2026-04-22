@@ -38,6 +38,26 @@ export function SwipeableTaskItem({
   const translateX = useRef(new Animated.Value(0)).current;
   const actionTriggeredRef = useRef(false);
 
+  // PanResponder.create runs once per mount, so its callbacks close over the
+  // *initial* prop values. Route through a ref so props stay current without
+  // rebuilding the responder.
+  const propsRef = useRef({
+    task,
+    isArchived,
+    onArchive,
+    onUnarchive,
+    onSwipeStart,
+    onSwipeEnd,
+  });
+  propsRef.current = {
+    task,
+    isArchived,
+    onArchive,
+    onUnarchive,
+    onSwipeStart,
+    onSwipeEnd,
+  };
+
   // Reset position when the item reappears (e.g. moved between sections)
   useEffect(() => {
     translateX.setValue(0);
@@ -62,14 +82,15 @@ export function SwipeableTaskItem({
       onShouldBlockNativeResponder: () => true,
       onPanResponderGrant: () => {
         actionTriggeredRef.current = false;
-        onSwipeStart?.();
+        propsRef.current.onSwipeStart?.();
       },
       onPanResponderMove: (_, gesture) => {
         // Clamp to left-only swipe
         translateX.setValue(gesture.dx > 0 ? 0 : gesture.dx);
       },
       onPanResponderRelease: (_, gesture) => {
-        onSwipeEnd?.();
+        const p = propsRef.current;
+        p.onSwipeEnd?.();
         if (gesture.dx < -SWIPE_THRESHOLD && !actionTriggeredRef.current) {
           actionTriggeredRef.current = true;
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -82,10 +103,10 @@ export function SwipeableTaskItem({
             LayoutAnimation.configureNext(
               LayoutAnimation.Presets.easeInEaseOut,
             );
-            if (isArchived) {
-              onUnarchive(task.id);
+            if (p.isArchived) {
+              p.onUnarchive(p.task.id);
             } else {
-              onArchive(task.id);
+              p.onArchive(p.task.id);
             }
           });
         } else {
@@ -98,7 +119,7 @@ export function SwipeableTaskItem({
         }
       },
       onPanResponderTerminate: () => {
-        onSwipeEnd?.();
+        propsRef.current.onSwipeEnd?.();
         Animated.spring(translateX, {
           toValue: 0,
           useNativeDriver: true,
