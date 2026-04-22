@@ -357,7 +357,7 @@ export class SettingsManager {
    */
   async addAllowRules(rules: PermissionRuleValue[]): Promise<void> {
     if (rules.length === 0) return;
-    if (this.initPromise) await this.initPromise;
+    if (!this.initialized) await this.initialize();
     await this.writeMutex.acquire();
     try {
       const filePath = this.getLocalSettingsPath();

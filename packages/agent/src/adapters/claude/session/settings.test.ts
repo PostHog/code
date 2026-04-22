@@ -70,21 +70,27 @@ describe("SettingsManager per-repo persistence", () => {
     expect(decision.decision).toBe("allow");
   });
 
-  it("only widens name-based matching for argumentless rules", async () => {
+  it("widens name-based matching for argumentless rules", async () => {
     const manager = new SettingsManager(worktree);
     await manager.initialize();
 
-    // Argumentless rule should match a bare tool name.
     await manager.addAllowRules([{ toolName: "TodoWrite" }]);
-    expect(manager.checkPermission("TodoWrite", {}).decision).toBe("allow");
 
-    // A rule *with* an argument for a tool we don't have an accessor for
-    // must NOT match regardless of the actual input — otherwise a deny rule
-    // like `Bash(rm -rf)` applied to a non-ACP Bash invocation would match
-    // any command.
+    expect(manager.checkPermission("TodoWrite", {}).decision).toBe("allow");
+  });
+
+  it("does not widen name-based matching when the rule has an argument", async () => {
+    // A rule *with* an argument for a tool we don't have an accessor for must
+    // not match regardless of the actual input — otherwise a deny rule like
+    // `Bash(rm -rf)` applied to a non-ACP Bash invocation would match any
+    // command.
+    const manager = new SettingsManager(worktree);
+    await manager.initialize();
+
     await manager.addAllowRules([
       { toolName: "UnknownTool", ruleContent: "something" },
     ]);
+
     expect(
       manager.checkPermission("UnknownTool", { command: "anything" }).decision,
     ).toBe("ask");
