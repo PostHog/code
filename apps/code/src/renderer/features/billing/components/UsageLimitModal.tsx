@@ -17,8 +17,8 @@ export function UsageLimitModal() {
     <Dialog.Root open={isOpen}>
       <Dialog.Content
         maxWidth="400px"
-        onEscapeKeyDown={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={hide}
       >
         <Flex direction="column" gap="3">
           <Flex align="center" gap="2">

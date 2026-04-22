@@ -53,7 +53,12 @@ vi.mock("@renderer/trpc", () => ({
   },
 }));
 
+import { trpcClient } from "@renderer/trpc";
 import { useSeatStore } from "./seatStore";
+
+const mockInvalidatePlanCache = vi.mocked(
+  trpcClient.llmGateway.invalidatePlanCache.mutate,
+);
 
 function makeSeat(overrides: Partial<SeatData> = {}): SeatData {
   return {
@@ -196,6 +201,7 @@ describe("seatStore", () => {
 
       expect(client.createSeat).toHaveBeenCalledWith(PLAN_FREE);
       expect(useSeatStore.getState().seat).toEqual(seat);
+      expect(mockInvalidatePlanCache).toHaveBeenCalled();
     });
 
     it("uses existing seat instead of creating", async () => {
@@ -209,6 +215,7 @@ describe("seatStore", () => {
 
       expect(client.createSeat).not.toHaveBeenCalled();
       expect(useSeatStore.getState().seat).toEqual(existing);
+      expect(mockInvalidatePlanCache).not.toHaveBeenCalled();
     });
   });
 
@@ -226,6 +233,7 @@ describe("seatStore", () => {
 
       expect(client.upgradeSeat).toHaveBeenCalledWith(PLAN_PRO);
       expect(useSeatStore.getState().seat).toEqual(proSeat);
+      expect(mockInvalidatePlanCache).toHaveBeenCalled();
     });
 
     it("no-ops when already on pro", async () => {
@@ -252,6 +260,7 @@ describe("seatStore", () => {
       await useSeatStore.getState().upgradeToPro();
 
       expect(client.createSeat).toHaveBeenCalledWith(PLAN_PRO);
+      expect(mockInvalidatePlanCache).toHaveBeenCalled();
     });
   });
 
@@ -267,6 +276,7 @@ describe("seatStore", () => {
 
       expect(client.cancelSeat).toHaveBeenCalled();
       expect(useSeatStore.getState().seat).toEqual(canceledSeat);
+      expect(mockInvalidatePlanCache).toHaveBeenCalled();
     });
   });
 
@@ -281,6 +291,7 @@ describe("seatStore", () => {
       await useSeatStore.getState().reactivateSeat();
 
       expect(useSeatStore.getState().seat).toEqual(seat);
+      expect(mockInvalidatePlanCache).toHaveBeenCalled();
     });
   });
 
@@ -321,6 +332,17 @@ describe("seatStore", () => {
       await useSeatStore.getState().fetchSeat();
 
       expect(useSeatStore.getState().error).toBe("Card declined");
+    });
+
+    it("does not invalidate plan cache on failure", async () => {
+      mockIsFeatureFlagEnabled.mockReturnValue(true);
+      mockClient({
+        getMySeat: vi.fn().mockRejectedValue(new Error("Network error")),
+      });
+
+      await useSeatStore.getState().upgradeToPro();
+
+      expect(mockInvalidatePlanCache).not.toHaveBeenCalled();
     });
   });
 
