@@ -236,6 +236,62 @@ export interface TaskFeedbackProperties {
   feedback_comment?: string;
 }
 
+// Setup / onboarding events
+type SetupDiscoveredTaskCategory =
+  | "bug"
+  | "security"
+  | "dead_code"
+  | "duplication"
+  | "performance"
+  | "stale_feature_flag"
+  | "error_tracking"
+  | "event_tracking"
+  | "funnel";
+
+export interface SetupViewedProperties {
+  discovery_status: "idle" | "running" | "done" | "error";
+}
+
+export interface SetupDiscoveryStartedProperties {
+  discovery_task_id: string;
+  discovery_task_run_id: string;
+}
+
+export interface SetupDiscoveryCompletedProperties {
+  discovery_task_id: string;
+  discovery_task_run_id: string;
+  task_count: number;
+  duration_seconds: number;
+}
+
+export interface SetupDiscoveryFailedProperties {
+  discovery_task_id?: string;
+  discovery_task_run_id?: string;
+  reason: "failed" | "cancelled" | "timeout" | "startup_error";
+  error_message?: string;
+}
+
+export interface SetupTaskSelectedProperties {
+  discovered_task_id: string;
+  category: SetupDiscoveredTaskCategory;
+  position: number;
+  total_discovered: number;
+}
+
+export interface SetupSkippedProperties {
+  discovery_status: "idle" | "running" | "done" | "error";
+  had_discovered_tasks: boolean;
+}
+
+export interface SetupWizardStartedProperties {
+  wizard_task_id: string;
+}
+
+export interface SetupWizardFailedProperties {
+  reason: "unauthenticated_client" | "missing_directory" | "startup_error";
+  error_message?: string;
+}
+
 // Event names as constants
 export const ANALYTICS_EVENTS = {
   // App lifecycle
@@ -301,6 +357,16 @@ export const ANALYTICS_EVENTS = {
   // Tour events
   TOUR_EVENT: "Tour event",
 
+  // Setup / onboarding events
+  SETUP_VIEWED: "Setup viewed",
+  SETUP_DISCOVERY_STARTED: "Setup discovery started",
+  SETUP_DISCOVERY_COMPLETED: "Setup discovery completed",
+  SETUP_DISCOVERY_FAILED: "Setup discovery failed",
+  SETUP_TASK_SELECTED: "Setup task selected",
+  SETUP_SKIPPED: "Setup skipped",
+  SETUP_WIZARD_STARTED: "Setup wizard started",
+  SETUP_WIZARD_FAILED: "Setup wizard failed",
+
   // Error events
   TASK_CREATION_FAILED: "Task creation failed",
   AGENT_SESSION_ERROR: "Agent session error",
@@ -363,6 +429,16 @@ export type EventPropertyMap = {
 
   // Tour events
   [ANALYTICS_EVENTS.TOUR_EVENT]: TourEventProperties;
+
+  // Setup / onboarding events
+  [ANALYTICS_EVENTS.SETUP_VIEWED]: SetupViewedProperties;
+  [ANALYTICS_EVENTS.SETUP_DISCOVERY_STARTED]: SetupDiscoveryStartedProperties;
+  [ANALYTICS_EVENTS.SETUP_DISCOVERY_COMPLETED]: SetupDiscoveryCompletedProperties;
+  [ANALYTICS_EVENTS.SETUP_DISCOVERY_FAILED]: SetupDiscoveryFailedProperties;
+  [ANALYTICS_EVENTS.SETUP_TASK_SELECTED]: SetupTaskSelectedProperties;
+  [ANALYTICS_EVENTS.SETUP_SKIPPED]: SetupSkippedProperties;
+  [ANALYTICS_EVENTS.SETUP_WIZARD_STARTED]: SetupWizardStartedProperties;
+  [ANALYTICS_EVENTS.SETUP_WIZARD_FAILED]: SetupWizardFailedProperties;
 
   // Error events
   [ANALYTICS_EVENTS.TASK_CREATION_FAILED]: TaskCreationFailedProperties;
