@@ -19,5 +19,5 @@ export const useUsageLimitStore = create<UsageLimitStore>()((set) => ({
   context: null,
 
   show: (context) => set({ isOpen: true, context }),
-  hide: () => set({ isOpen: false, context: null }),
+  hide: () => set({ isOpen: false }),
 }));
