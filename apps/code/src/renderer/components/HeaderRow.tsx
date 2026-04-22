@@ -100,7 +100,7 @@ export function HeaderRow() {
         <Flex
           align="center"
           justify="end"
-          gap="2"
+          gap="1"
           pr="1"
           pl="2"
           style={{
