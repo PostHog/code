@@ -148,19 +148,26 @@ export function getConfigOptionByCategory(
  */
 export function cycleModeOption(
   modeOption: SessionConfigOption | undefined,
+  options?: { allowBypassPermissions?: boolean },
 ): string | undefined {
   if (!modeOption || modeOption.type !== "select") return undefined;
 
   const allOptions = flattenSelectOptions(modeOption.options);
-  if (allOptions.length === 0) return undefined;
+  const filtered = options?.allowBypassPermissions
+    ? allOptions
+    : allOptions.filter(
+        (opt) =>
+          opt.value !== "bypassPermissions" && opt.value !== "full-access",
+      );
+  if (filtered.length === 0) return undefined;
 
-  const currentIndex = allOptions.findIndex(
+  const currentIndex = filtered.findIndex(
     (opt) => opt.value === modeOption.currentValue,
   );
-  if (currentIndex === -1) return allOptions[0]?.value;
+  if (currentIndex === -1) return filtered[0]?.value;
 
-  const nextIndex = (currentIndex + 1) % allOptions.length;
-  return allOptions[nextIndex]?.value;
+  const nextIndex = (currentIndex + 1) % filtered.length;
+  return filtered[nextIndex]?.value;
 }
 
 /**

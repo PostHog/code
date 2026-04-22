@@ -19,25 +19,49 @@ function createModeOption(
   } as SessionConfigOption;
 }
 
+const CLAUDE_MODES = ["default", "acceptEdits", "plan", "bypassPermissions"];
+const CODEX_MODES = ["read-only", "auto", "full-access"];
+
 describe("cycleModeOption", () => {
-  it("cycles through auto-accept permissions for claude", () => {
-    const option = createModeOption("plan", [
-      "default",
-      "acceptEdits",
-      "plan",
-      "bypassPermissions",
-    ]);
+  it.each([
+    {
+      name: "claude: advances to next mode when bypass allowed",
+      values: CLAUDE_MODES,
+      currentValue: "plan",
+      allowBypassPermissions: true,
+      expected: "bypassPermissions",
+    },
+    {
+      name: "codex: advances to next mode when bypass allowed",
+      values: CODEX_MODES,
+      currentValue: "auto",
+      allowBypassPermissions: true,
+      expected: "full-access",
+    },
+    {
+      name: "claude: skips bypassPermissions when not allowed",
+      values: CLAUDE_MODES,
+      currentValue: "acceptEdits",
+      allowBypassPermissions: false,
+      expected: "plan",
+    },
+    {
+      name: "claude: wraps past bypassPermissions back to default",
+      values: CLAUDE_MODES,
+      currentValue: "plan",
+      allowBypassPermissions: false,
+      expected: "default",
+    },
+    {
+      name: "codex: skips full-access when not allowed",
+      values: CODEX_MODES,
+      currentValue: "auto",
+      allowBypassPermissions: false,
+      expected: "read-only",
+    },
+  ])("$name", ({ values, currentValue, allowBypassPermissions, expected }) => {
+    const option = createModeOption(currentValue, values);
 
-    expect(cycleModeOption(option)).toBe("bypassPermissions");
-  });
-
-  it("cycles through full access for codex", () => {
-    const option = createModeOption("auto", [
-      "read-only",
-      "auto",
-      "full-access",
-    ]);
-
-    expect(cycleModeOption(option)).toBe("full-access");
+    expect(cycleModeOption(option, { allowBypassPermissions })).toBe(expected);
   });
 });

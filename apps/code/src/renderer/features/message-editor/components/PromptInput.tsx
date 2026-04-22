@@ -3,6 +3,7 @@ import type { SessionConfigOption } from "@agentclientprotocol/sdk";
 import { ArrowUp, Stop } from "@phosphor-icons/react";
 import { InputGroup, InputGroupAddon, InputGroupButton } from "@posthog/quill";
 import { Flex, Text, Tooltip } from "@radix-ui/themes";
+import { cycleModeOption } from "@renderer/features/sessions/stores/sessionStore";
 import { EditorContent } from "@tiptap/react";
 import { hasOpenOverlay } from "@utils/overlay";
 import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react";
@@ -186,6 +187,27 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
         enabled: isLoading && !!onCancel,
       },
       [isActiveSession, isLoading, onCancel],
+    );
+
+    useHotkeys(
+      "shift+tab",
+      (e) => {
+        if (!editor?.isFocused) return;
+        if (hasOpenOverlay()) return;
+        if (!modeOption || !onModeChange) return;
+        const nextMode = cycleModeOption(modeOption, {
+          allowBypassPermissions,
+        });
+        if (!nextMode) return;
+        e.preventDefault();
+        onModeChange(nextMode);
+      },
+      {
+        enableOnFormTags: true,
+        enableOnContentEditable: true,
+        enabled: !disabled && !!modeOption && !!onModeChange,
+      },
+      [editor, modeOption, onModeChange, allowBypassPermissions, disabled],
     );
 
     const handleContainerClick = useCallback(
