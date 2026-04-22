@@ -21,6 +21,7 @@ import {
   buildStatusFilterParam,
   buildSuggestedReviewerFilterParam,
   filterReportsBySearch,
+  isReportUpForReview,
 } from "@features/inbox/utils/filterReports";
 import { INBOX_REFETCH_INTERVAL_MS } from "@features/inbox/utils/inboxConstants";
 import { useRepositoryIntegration } from "@hooks/useIntegrations";
@@ -133,7 +134,7 @@ export function InboxSignalsTab() {
   });
 
   const readyCount = useMemo(
-    () => allReports.filter((r) => r.status === "ready").length,
+    () => allReports.filter(isReportUpForReview).length,
     [allReports],
   );
   const processingCount = useMemo(

@@ -58,7 +58,13 @@ export function useAuthState() {
   return useQuery({
     ...getAuthStateQueryOptions(),
     placeholderData: ANONYMOUS_AUTH_STATE,
+    refetchOnMount: true,
   });
+}
+
+export function useAuthStateFetched(): boolean {
+  const { isFetched } = useAuthState();
+  return isFetched;
 }
 
 export function useAuthStateValue<T>(selector: (state: AuthState) => T): T {

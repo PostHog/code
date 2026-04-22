@@ -4,10 +4,13 @@ import { trpcClient } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
 import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { useQueryClient } from "@tanstack/react-query";
+import { logger } from "@utils/logger";
 import { useEffect } from "react";
 import { getSessionService } from "../service/service";
-import type { AgentSession } from "../stores/sessionStore";
+import { type AgentSession, sessionStoreSetters } from "../stores/sessionStore";
 import { useChatTitleGenerator } from "./useChatTitleGenerator";
+
+const log = logger.scope("session-connection");
 
 const connectingTasks = new Set<string>();
 const activityRecorded = new Set<string>();
@@ -111,6 +114,27 @@ export function useSessionConnection({
     if (!isOnline) return;
     if (isCloud) return;
     if (isSuspended) return;
+
+    if (session?.status === "error" && session?.idleKilled) {
+      const taskRunId = session.taskRunId;
+      connectingTasks.add(taskId);
+      getSessionService()
+        .clearSessionError(taskId, repoPath)
+        .catch((error) => {
+          log.error("Auto-reconnect after idle kill failed", error);
+          sessionStoreSetters.updateSession(taskRunId, {
+            idleKilled: false,
+            errorMessage:
+              "Session disconnected due to inactivity. Click Retry to reconnect.",
+          });
+        })
+        .finally(() => {
+          connectingTasks.delete(taskId);
+        });
+      return () => {
+        connectingTasks.delete(taskId);
+      };
+    }
 
     if (
       session?.status === "connected" ||

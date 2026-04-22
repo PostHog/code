@@ -143,7 +143,7 @@ describe("computeGitInteractionState", () => {
   });
 
   describe("on feature branch with existing PR", () => {
-    it("still offers create-pr for stacking", () => {
+    it("returns commit as primary when PR exists and there are uncommitted changes", () => {
       const result = computeGitInteractionState(
         makeState({
           currentBranch: "feature/test",
@@ -156,8 +156,58 @@ describe("computeGitInteractionState", () => {
           },
         }),
       );
-      // create-pr still enabled — creates a new stacked branch
-      expect(result.primaryAction.id).toBe("create-pr");
+      expect(result.primaryAction.id).toBe("commit");
+    });
+
+    it("returns push as primary when PR exists and there are unpushed commits", () => {
+      const result = computeGitInteractionState(
+        makeState({
+          currentBranch: "feature/test",
+          hasChanges: false,
+          aheadOfRemote: 2,
+          prStatus: {
+            prExists: true,
+            baseBranch: "main",
+            headBranch: "feature/test",
+            prUrl: "https://github.com/test/test/pull/1",
+          },
+        }),
+      );
+      expect(result.primaryAction.id).toBe("push");
+    });
+
+    it("returns view-pr as primary when PR exists and tree is clean", () => {
+      const result = computeGitInteractionState(
+        makeState({
+          currentBranch: "feature/test",
+          hasChanges: false,
+          aheadOfDefault: 3,
+          prStatus: {
+            prExists: true,
+            baseBranch: "main",
+            headBranch: "feature/test",
+            prUrl: "https://github.com/test/test/pull/1",
+          },
+        }),
+      );
+      expect(result.primaryAction.id).toBe("view-pr");
+    });
+
+    it("excludes create-pr from actions when a PR already exists", () => {
+      const result = computeGitInteractionState(
+        makeState({
+          currentBranch: "feature/test",
+          hasChanges: true,
+          prStatus: {
+            prExists: true,
+            baseBranch: "main",
+            headBranch: "feature/test",
+            prUrl: "https://github.com/test/test/pull/1",
+          },
+        }),
+      );
+      expect(actionIds(result)).not.toContain("create-pr");
+      expect(actionIds(result)).toContain("view-pr");
     });
   });
 

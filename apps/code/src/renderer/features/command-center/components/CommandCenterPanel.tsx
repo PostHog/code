@@ -1,6 +1,14 @@
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { TaskInput } from "@features/task-detail/components/TaskInput";
-import { ArrowsOut, Plus, X } from "@phosphor-icons/react";
+import type { WorkspaceMode } from "@main/services/workspace/schemas";
+import {
+  ArrowsOut,
+  Cloud,
+  Desktop,
+  GitFork,
+  Plus,
+  X,
+} from "@phosphor-icons/react";
 import { Flex, Text } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
@@ -17,6 +25,27 @@ import { TaskSelector } from "./TaskSelector";
 interface CommandCenterPanelProps {
   cell: CommandCenterCellData;
   isActiveSession: boolean;
+}
+
+const environmentConfig: Record<
+  WorkspaceMode,
+  { label: string; icon: typeof Desktop }
+> = {
+  local: { label: "Local", icon: Desktop },
+  worktree: { label: "Worktree", icon: GitFork },
+  cloud: { label: "Cloud", icon: Cloud },
+};
+
+function EnvironmentBadge({ mode }: { mode: WorkspaceMode | null }) {
+  if (!mode) return null;
+  const config = environmentConfig[mode];
+  const Icon = config.icon;
+  return (
+    <span className="inline-flex items-center gap-0.5 rounded bg-gray-3 px-1 py-0.5 text-[9px] text-gray-10">
+      <Icon size={10} />
+      {config.label}
+    </span>
+  );
 }
 
 function EmptyCell({ cellIndex }: { cellIndex: number }) {
@@ -148,6 +177,7 @@ function PopulatedCell({
         </Text>
         <Flex align="center" gap="1" className="shrink-0">
           <StatusBadge status={cell.status} />
+          <EnvironmentBadge mode={cell.workspaceMode} />
           {cell.repoName && (
             <span className="rounded bg-gray-3 px-1 py-0.5 text-[9px] text-gray-10">
               {cell.repoName}

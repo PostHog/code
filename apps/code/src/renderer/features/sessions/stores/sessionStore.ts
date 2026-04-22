@@ -78,6 +78,7 @@ export interface AgentSession {
   contextSize?: number;
   /** Pre-computed conversation summary for commit/PR generation context */
   conversationSummary?: string;
+  idleKilled?: boolean;
 }
 
 // --- Config Option Helpers ---

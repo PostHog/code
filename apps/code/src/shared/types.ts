@@ -14,7 +14,13 @@ export const executionModeSchema = z.enum([
 export type ExecutionMode = z.infer<typeof executionModeSchema>;
 
 // Effort level schema and type - shared between main and renderer
-export const effortLevelSchema = z.enum(["low", "medium", "high", "max"]);
+export const effortLevelSchema = z.enum([
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+]);
 export type EffortLevel = z.infer<typeof effortLevelSchema>;
 
 interface UserBasic {
@@ -72,7 +78,7 @@ export interface TaskRun {
   branch: string | null;
   runtime_adapter?: "claude" | "codex" | null;
   model?: string | null;
-  reasoning_effort?: "low" | "medium" | "high" | "max" | null;
+  reasoning_effort?: "low" | "medium" | "high" | "xhigh" | "max" | null;
   stage?: string | null; // Current stage (e.g., 'research', 'plan', 'build')
   environment?: "local" | "cloud";
   status: TaskRunStatus;

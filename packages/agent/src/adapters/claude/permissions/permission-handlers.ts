@@ -164,7 +164,8 @@ async function applyPlanApproval(
 
   if (
     response.outcome?.outcome === "selected" &&
-    (response.outcome.optionId === "default" ||
+    (response.outcome.optionId === "auto" ||
+      response.outcome.optionId === "default" ||
       response.outcome.optionId === "acceptEdits" ||
       response.outcome.optionId === "bypassPermissions")
   ) {

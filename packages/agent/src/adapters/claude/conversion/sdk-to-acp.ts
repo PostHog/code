@@ -21,7 +21,7 @@ import { POSTHOG_NOTIFICATIONS } from "@/acp-extensions";
 import { image, text } from "../../../utils/acp-content";
 import { unreachable } from "../../../utils/common";
 import type { Logger } from "../../../utils/logger";
-import { registerHookCallback } from "../hooks";
+import { type EnrichedReadCache, registerHookCallback } from "../hooks";
 import type { Session, ToolUpdateMeta, ToolUseCache } from "../types";
 import {
   type ClaudePlanEntry,
@@ -51,6 +51,7 @@ type ChunkHandlerContext = {
   sessionId: string;
   toolUseCache: ToolUseCache;
   fileContentCache: { [key: string]: string };
+  enrichedReadCache?: EnrichedReadCache;
   client: AgentSideConnection;
   logger: Logger;
   parentToolCallId?: string;
@@ -67,6 +68,7 @@ export interface MessageHandlerContext {
   client: AgentSideConnection;
   toolUseCache: ToolUseCache;
   fileContentCache: { [key: string]: string };
+  enrichedReadCache?: EnrichedReadCache;
   logger: Logger;
   registerHooks?: boolean;
   supportsTerminalOutput?: boolean;
@@ -248,7 +250,7 @@ function extractTextFromContent(content: unknown): string | null {
   return null;
 }
 
-function stripCatLineNumbers(text: string): string {
+export function stripCatLineNumbers(text: string): string {
   return text.replace(/^ *\d+[\t→]/gm, "");
 }
 
@@ -318,6 +320,7 @@ function handleToolResultChunk(
       supportsTerminalOutput: ctx.supportsTerminalOutput,
       toolUseId: chunk.tool_use_id,
       cachedFileContent: ctx.fileContentCache,
+      enrichedReadCache: ctx.enrichedReadCache,
     },
   );
 
@@ -448,6 +451,7 @@ function toAcpNotifications(
   supportsTerminalOutput?: boolean,
   cwd?: string,
   mcpToolUseResult?: Record<string, unknown>,
+  enrichedReadCache?: EnrichedReadCache,
 ): SessionNotification[] {
   if (typeof content === "string") {
     const update: SessionUpdate = {
@@ -468,6 +472,7 @@ function toAcpNotifications(
     sessionId,
     toolUseCache,
     fileContentCache,
+    enrichedReadCache,
     client,
     logger,
     parentToolCallId,
@@ -498,6 +503,7 @@ function streamEventToAcpNotifications(
   registerHooks?: boolean,
   supportsTerminalOutput?: boolean,
   cwd?: string,
+  enrichedReadCache?: EnrichedReadCache,
 ): SessionNotification[] {
   const event = message.event;
   switch (event.type) {
@@ -514,6 +520,8 @@ function streamEventToAcpNotifications(
         registerHooks,
         supportsTerminalOutput,
         cwd,
+        undefined,
+        enrichedReadCache,
       );
     case "content_block_delta":
       return toAcpNotifications(
@@ -528,6 +536,8 @@ function streamEventToAcpNotifications(
         registerHooks,
         supportsTerminalOutput,
         cwd,
+        undefined,
+        enrichedReadCache,
       );
     case "message_start":
     case "message_delta":
@@ -717,6 +727,7 @@ export async function handleStreamEvent(
     context.registerHooks,
     context.supportsTerminalOutput,
     context.session.cwd,
+    context.enrichedReadCache,
   )) {
     await client.sessionUpdate(notification);
     context.session.notificationHistory.push(notification);
@@ -840,6 +851,7 @@ export async function handleUserAssistantMessage(
     context.supportsTerminalOutput,
     session.cwd,
     mcpToolUseResult,
+    context.enrichedReadCache,
   )) {
     await client.sessionUpdate(notification);
     session.notificationHistory.push(notification);

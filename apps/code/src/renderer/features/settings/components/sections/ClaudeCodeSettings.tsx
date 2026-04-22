@@ -196,9 +196,9 @@ export function ClaudeCodeSettings() {
             <Warning weight="fill" />
           </Callout.Icon>
           <Callout.Text>
-            Auto-accept is enabled. All actions (shell commands, file edits, web
-            requests) run without approval. Pick this mode from the mode menu in
-            the prompt input per session.
+            Bypass Permissions is enabled. All actions (shell commands, file
+            edits, web requests) run without approval. Pick this mode from the
+            mode menu in the prompt input per session.
           </Callout.Text>
         </Callout.Root>
       )}

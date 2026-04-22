@@ -1,9 +1,9 @@
 import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { useLogoutMutation } from "@features/auth/hooks/authMutations";
 import {
   useAuthStateValue,
   useCurrentUser,
 } from "@features/auth/hooks/authQueries";
-import { useAuthStore } from "@features/auth/stores/authStore";
 import {
   type SettingsCategory,
   useSettingsDialogStore,
@@ -129,6 +129,7 @@ export function SettingsDialog() {
   const { data: user } = useCurrentUser({ client });
   const { seat, planLabel } = useSeat();
   const billingEnabled = useFeatureFlag("posthog-code-billing");
+  const logoutMutation = useLogoutMutation();
 
   const sidebarItems = useMemo(
     () =>
@@ -231,8 +232,12 @@ export function SettingsDialog() {
         {isAuthenticated && (
           <button
             type="button"
-            className="flex cursor-pointer items-center gap-2 border-0 border-gray-5 border-t bg-transparent px-3 py-2.5 text-left font-mono text-[12px] text-gray-9 transition-colors hover:bg-gray-3 hover:text-gray-11"
-            onClick={() => useAuthStore.getState().logout()}
+            disabled={logoutMutation.isPending}
+            className="flex cursor-pointer items-center gap-2 border-0 border-gray-5 border-t bg-transparent px-3 py-2.5 text-left font-mono text-[12px] text-gray-9 transition-colors hover:bg-gray-3 hover:text-gray-11 disabled:pointer-events-none disabled:opacity-50"
+            onClick={() => {
+              close();
+              logoutMutation.mutate();
+            }}
           >
             <SignOut size={14} />
             <span>Sign out</span>

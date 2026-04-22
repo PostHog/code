@@ -106,9 +106,7 @@ function getCreatePrDisabledReason(
     return "Authenticate GitHub CLI with `gh auth login`";
   if (!s.repoInfo) return "No GitHub remote detected.";
 
-  if (s.prStatus?.prExists) {
-    if (!s.hasChanges) return "PR already exists.";
-  }
+  if (s.prStatus?.prExists) return "PR already exists.";
 
   // Something must be shippable: uncommitted changes or unpushed commits
   const hasShippableWork =
@@ -156,13 +154,17 @@ function getPrimaryAction(
   pushAction: GitMenuAction,
   viewPrAction: GitMenuAction | null,
 ): GitMenuAction {
-  // createPr handles most cases for getting to a PR (branch creation,
-  // commit, push, etc), so it's always primary when available
-  if (createPrAction.enabled) return createPrAction;
+  // When a PR already exists, the user usually wants to ship more work to it
+  // (commit → push) rather than create a new one. View PR is the fallback.
+  if (viewPrAction) {
+    if (commitAction.enabled) return commitAction;
+    if (pushAction.enabled) return pushAction;
+    return viewPrAction;
+  }
 
+  if (createPrAction.enabled) return createPrAction;
   if (commitAction.enabled) return commitAction;
   if (pushAction.enabled) return pushAction;
-  if (viewPrAction) return viewPrAction;
   return commitAction;
 }
 

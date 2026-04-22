@@ -2014,4 +2014,43 @@ export class PostHogAPIClient {
       );
     }
   }
+
+  /** Find an exported asset by session recording ID. */
+  async findExportBySessionRecordingId(
+    projectId: number,
+    sessionRecordingId: string,
+  ): Promise<number | null> {
+    const urlPath = `/api/projects/${projectId}/exports/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    url.searchParams.set("session_recording_id", sessionRecordingId);
+    url.searchParams.set("export_format", "video/mp4");
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: urlPath,
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as {
+      results?: Array<{ id: number; has_content: boolean }>;
+    };
+    const match = data.results?.find((e) => e.has_content);
+    return match?.id ?? null;
+  }
+
+  /** Get the presigned content URL for an exported asset (e.g. rasterized recording). */
+  async getExportContentUrl(
+    projectId: number,
+    exportId: number,
+  ): Promise<string | null> {
+    const urlPath = `/api/projects/${projectId}/exports/${exportId}/content/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: urlPath,
+    });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  }
 }

@@ -108,6 +108,11 @@ export function buildExitPlanModePermissionOptions(): PermissionOption[] {
   options.push(
     {
       kind: "allow_always",
+      name: 'Yes, and use "auto" mode',
+      optionId: "auto",
+    },
+    {
+      kind: "allow_always",
       name: "Yes, and auto-accept edits",
       optionId: "acceptEdits",
     },
