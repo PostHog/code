@@ -1,5 +1,6 @@
 import type { SeatData } from "@shared/types/seat";
-import { PLAN_FREE, PLAN_PRO } from "@shared/types/seat";
+import { PLAN_FREE, PLAN_PRO, PLAN_PRO_ALPHA } from "@shared/types/seat";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockGetAuthenticatedClient = vi.hoisted(() => vi.fn());
@@ -183,6 +184,20 @@ describe("seatStore", () => {
 
       expect(client.upgradeSeat).not.toHaveBeenCalled();
       expect(client.createSeat).not.toHaveBeenCalled();
+      expect(useSeatStore.getState().seat).toEqual(proSeat);
+    });
+
+    it("upgrades alpha pro seat to paid pro", async () => {
+      const alphaSeat = makeSeat({ plan_key: PLAN_PRO_ALPHA });
+      const proSeat = makeSeat({ plan_key: PLAN_PRO });
+      const client = mockClient({
+        getMySeat: vi.fn().mockResolvedValue(alphaSeat),
+        upgradeSeat: vi.fn().mockResolvedValue(proSeat),
+      });
+
+      await useSeatStore.getState().upgradeToPro();
+
+      expect(client.upgradeSeat).toHaveBeenCalledWith(PLAN_PRO);
       expect(useSeatStore.getState().seat).toEqual(proSeat);
     });
 
