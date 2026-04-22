@@ -127,11 +127,25 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
     setStatus("transcribing");
 
     return new Promise<string | null>((resolve) => {
-      resolveRef.current = resolve;
-      // stop() asks the recognizer to deliver a final result then end
+      // Some Android engines go silent (e.g. backgrounded mid-recognition)
+      // and never fire result/error/end — without this timeout the UI
+      // would stay stuck on "Transcribing…" with no way out.
+      let timedOut = false;
+      const timeoutId = setTimeout(() => {
+        timedOut = true;
+        log.warn("Speech recognition did not finalize, falling back");
+        cleanup();
+        setStatus("idle");
+        resolve(transcriptRef.current || null);
+      }, 5000);
+      resolveRef.current = (value) => {
+        if (timedOut) return;
+        clearTimeout(timeoutId);
+        resolve(value);
+      };
       ExpoSpeechRecognitionModule.stop();
     });
-  }, [status]);
+  }, [status, cleanup]);
 
   const cancelRecording = useCallback(async () => {
     ExpoSpeechRecognitionModule.abort();

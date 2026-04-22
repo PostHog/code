@@ -2,12 +2,27 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+// Cap on how many archived task IDs we persist. Beyond this, the oldest
+// entries are evicted so AsyncStorage doesn't grow without bound.
+const MAX_ARCHIVED_TASKS = 100;
+
 interface ArchivedTasksState {
-  // taskId → timestamp (ms) for FIFO ordering
+  // taskId → timestamp (ms) for eviction ordering
   archivedTasks: Record<string, number>;
   archive: (taskId: string) => void;
   unarchive: (taskId: string) => void;
   isArchived: (taskId: string) => boolean;
+}
+
+function withCap(entries: Record<string, number>): Record<string, number> {
+  const ids = Object.keys(entries);
+  if (ids.length <= MAX_ARCHIVED_TASKS) return entries;
+  const kept = ids
+    .sort((a, b) => entries[b] - entries[a])
+    .slice(0, MAX_ARCHIVED_TASKS);
+  const trimmed: Record<string, number> = {};
+  for (const id of kept) trimmed[id] = entries[id];
+  return trimmed;
 }
 
 export const useArchivedTasksStore = create<ArchivedTasksState>()(
@@ -17,10 +32,10 @@ export const useArchivedTasksStore = create<ArchivedTasksState>()(
 
       archive: (taskId: string) =>
         set((state) => ({
-          archivedTasks: {
+          archivedTasks: withCap({
             ...state.archivedTasks,
             [taskId]: Date.now(),
-          },
+          }),
         })),
 
       unarchive: (taskId: string) =>

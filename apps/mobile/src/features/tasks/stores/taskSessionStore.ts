@@ -111,7 +111,6 @@ interface TaskSessionStore {
   cancelPrompt: (taskId: string) => Promise<boolean>;
   getSessionForTask: (taskId: string) => TaskSession | undefined;
 
-  _handleEvent: (taskRunId: string, event: SessionEvent) => void;
   _startCloudPolling: (taskRunId: string, logUrl: string) => void;
   _stopCloudPolling: (taskRunId: string) => void;
   _resumeCloudRun: (
@@ -518,23 +517,6 @@ export const useTaskSessionStore = create<TaskSessionStore>((set, get) => ({
 
   getSessionForTask: (taskId: string) => {
     return Object.values(get().sessions).find((s) => s.taskId === taskId);
-  },
-
-  _handleEvent: (taskRunId: string, event: SessionEvent) => {
-    set((state) => {
-      const session = state.sessions[taskRunId];
-      if (!session) return state;
-
-      return {
-        sessions: {
-          ...state.sessions,
-          [taskRunId]: {
-            ...session,
-            events: [...session.events, event],
-          },
-        },
-      };
-    });
   },
 
   _startCloudPolling: (taskRunId: string, logUrl: string) => {
