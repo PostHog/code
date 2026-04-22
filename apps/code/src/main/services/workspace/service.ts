@@ -4,6 +4,7 @@ import * as fsPromises from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { trackAppEvent } from "@main/services/posthog-analytics";
+import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { createGitClient } from "@posthog/git/client";
 import {
   getCurrentBranch,
@@ -340,9 +341,9 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         branchName,
         error,
       });
-      trackAppEvent("branch_link_default_branch_unknown", {
-        taskId,
-        branchName,
+      trackAppEvent(ANALYTICS_EVENTS.BRANCH_LINK_DEFAULT_BRANCH_UNKNOWN, {
+        task_id: taskId,
+        branch_name: branchName,
       });
       return;
     }

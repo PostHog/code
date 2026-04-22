@@ -116,6 +116,25 @@ export interface AgentFileActivityProperties {
   branch_name: string | null;
 }
 
+// Branch link events
+type BranchLinkSource = "agent" | "user" | "unknown";
+
+export interface BranchLinkedProperties {
+  task_id: string;
+  branch_name: string;
+  source: BranchLinkSource;
+}
+
+export interface BranchUnlinkedProperties {
+  task_id: string;
+  source: BranchLinkSource;
+}
+
+export interface BranchLinkDefaultBranchUnknownProperties {
+  task_id: string;
+  branch_name: string;
+}
+
 // File interactions
 export interface FileOpenedProperties {
   file_extension: string;
@@ -319,6 +338,9 @@ export const ANALYTICS_EVENTS = {
   GIT_ACTION_EXECUTED: "Git action executed",
   PR_CREATED: "PR created",
   AGENT_FILE_ACTIVITY: "Agent file activity",
+  BRANCH_LINKED: "Branch linked",
+  BRANCH_UNLINKED: "Branch unlinked",
+  BRANCH_LINK_DEFAULT_BRANCH_UNKNOWN: "Branch link default branch unknown",
 
   // File interactions
   FILE_OPENED: "File opened",
@@ -392,6 +414,9 @@ export type EventPropertyMap = {
   [ANALYTICS_EVENTS.GIT_ACTION_EXECUTED]: GitActionExecutedProperties;
   [ANALYTICS_EVENTS.PR_CREATED]: PrCreatedProperties;
   [ANALYTICS_EVENTS.AGENT_FILE_ACTIVITY]: AgentFileActivityProperties;
+  [ANALYTICS_EVENTS.BRANCH_LINKED]: BranchLinkedProperties;
+  [ANALYTICS_EVENTS.BRANCH_UNLINKED]: BranchUnlinkedProperties;
+  [ANALYTICS_EVENTS.BRANCH_LINK_DEFAULT_BRANCH_UNKNOWN]: BranchLinkDefaultBranchUnknownProperties;
 
   // File interactions
   [ANALYTICS_EVENTS.FILE_OPENED]: FileOpenedProperties;

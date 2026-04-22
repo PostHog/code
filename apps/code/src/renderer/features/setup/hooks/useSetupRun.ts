@@ -84,6 +84,8 @@ function extractToolCall(
   const sessionUpdate = update.sessionUpdate as string | undefined;
   if (sessionUpdate !== "tool_call") return null;
 
+  log.debug("tool_call update payload", { keys: Object.keys(update), update });
+
   const meta = update._meta as
     | { claudeCode?: { toolName?: string } }
     | undefined;
@@ -91,7 +93,9 @@ function extractToolCall(
   const locations = update.locations as
     | { path?: string; line?: number }[]
     | undefined;
-  const rawInput = update.rawInput as Record<string, unknown> | undefined;
+  const rawInput = (update.rawInput ?? update.input) as
+    | Record<string, unknown>
+    | undefined;
   const filePath =
     locations?.[0]?.path ?? extractPathFromRawInput(tool, rawInput);
   const title = (update.title as string) ?? "";
