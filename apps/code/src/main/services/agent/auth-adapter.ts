@@ -198,11 +198,9 @@ export class AgentAuthAdapter {
       body: JSON.stringify({ approval_state: approvalState }),
     });
     if (!response.ok) {
-      log.warn("Failed to update MCP tool approval", {
-        installationId,
-        toolName,
-        status: response.status,
-      });
+      throw new Error(
+        `Failed to update MCP tool approval (${response.status}) for ${toolName} on installation ${installationId}`,
+      );
     }
   }
 
