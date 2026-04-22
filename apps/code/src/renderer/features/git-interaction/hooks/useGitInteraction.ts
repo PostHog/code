@@ -9,6 +9,7 @@ import type {
   CommitNextStep,
   GitMenuAction,
   GitMenuActionId,
+  PushMode,
 } from "@features/git-interaction/types";
 import {
   createBranch,
@@ -70,7 +71,7 @@ interface GitInteractionActions {
   setPrBody: (value: string) => void;
   setBranchName: (value: string) => void;
   runCommit: () => Promise<void>;
-  runPush: () => Promise<void>;
+  runPush: (mode?: PushMode) => Promise<void>;
   runBranch: () => Promise<void>;
   runCreatePr: () => Promise<void>;
   generateCommitMessage: () => Promise<void>;
@@ -411,24 +412,29 @@ export function useGitInteraction(
       modal.closeCommit();
 
       if (store.commitNextStep === "commit-push") {
-        modal.openPush(git.hasRemote ? "push" : "publish");
+        const mode = git.hasRemote ? "push" : "publish";
+        modal.openPush(mode);
+        await runPush(mode);
+        return;
       }
     } finally {
       modal.setIsSubmitting(false);
     }
   };
 
-  const runPush = async () => {
+  const runPush = async (mode?: PushMode) => {
     if (!repoPath) return;
+
+    const pushMode = mode ?? useGitInteractionStore.getState().pushMode;
 
     modal.setIsSubmitting(true);
     modal.setPushError(null);
 
     try {
       const pushFn =
-        store.pushMode === "sync"
+        pushMode === "sync"
           ? trpcClient.git.sync
-          : store.pushMode === "publish"
+          : pushMode === "publish"
             ? trpcClient.git.publish
             : trpcClient.git.push;
 
@@ -439,13 +445,13 @@ export function useGitInteraction(
           "message" in result
             ? result.message
             : `Pull: ${result.pullMessage}, Push: ${result.pushMessage}`;
-        trackGitAction(taskId, store.pushMode, false);
+        trackGitAction(taskId, pushMode, false);
         modal.setPushError(message || "Push failed.");
         modal.setPushState("error");
         return;
       }
 
-      trackGitAction(taskId, store.pushMode, true);
+      trackGitAction(taskId, pushMode, true);
 
       if (result.state) {
         updateGitCacheFromSnapshot(queryClient, repoPath, result.state);
