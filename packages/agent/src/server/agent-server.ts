@@ -14,6 +14,7 @@ import {
 import { type ServerType, serve } from "@hono/node-server";
 import { getCurrentBranch } from "@posthog/git/queries";
 import { Hono } from "hono";
+import { z } from "zod";
 import packageJson from "../../package.json" with { type: "json" };
 import { POSTHOG_METHODS, POSTHOG_NOTIFICATIONS } from "../acp-extensions";
 import {
@@ -54,6 +55,16 @@ import {
 import { type JwtPayload, JwtValidationError, validateJwt } from "./jwt";
 import { jsonRpcRequestSchema, validateCommandParams } from "./schemas";
 import type { AgentServerConfig } from "./types";
+
+const agentErrorClassificationSchema = z.enum([
+  "upstream_stream_terminated",
+  "upstream_connection_error",
+  "agent_error",
+]) satisfies z.ZodType<AgentErrorClassification>;
+
+const errorWithClassificationSchema = z.object({
+  data: z.object({ classification: agentErrorClassificationSchema }),
+});
 
 type MessageCallback = (message: unknown) => void;
 
@@ -985,18 +996,9 @@ export class AgentServer {
       error instanceof Error ? error.message : String(error ?? "");
 
     // Prefer the structured `data` carried on RequestError if present.
-    const data = (error as { data?: unknown } | undefined)?.data;
-    if (
-      data &&
-      typeof data === "object" &&
-      "classification" in data &&
-      typeof (data as { classification: unknown }).classification === "string"
-    ) {
-      return {
-        classification: (data as { classification: AgentErrorClassification })
-          .classification,
-        message,
-      };
+    const parsed = errorWithClassificationSchema.safeParse(error);
+    if (parsed.success) {
+      return { classification: parsed.data.data.classification, message };
     }
 
     return { classification: classifyAgentError(message), message };
