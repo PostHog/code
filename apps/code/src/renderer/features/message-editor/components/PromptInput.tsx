@@ -249,6 +249,8 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
           onClick={handleContainerClick}
           className={`h-auto bg-card ${isBashMode ? "ring-1 ring-blue-9" : ""}`}
           style={{ cursor: "text" }}
+          data-tour="task-input-editor"
+          data-tour-ready={!isEmpty ? "true" : undefined}
         >
           {attachments.length > 0 && (
             <InputGroupAddon align="block-start">
@@ -261,8 +263,6 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
           <div
             className="cli-editor-scroll max-h-[200px] min-h-[50px] w-full flex-1 overflow-y-auto px-2 py-2 text-[14px]"
             style={{ position: "relative" }}
-            data-tour="task-input-editor"
-            data-tour-ready={!isEmpty ? "true" : undefined}
           >
             <EditorContent editor={editor} />
           </div>
