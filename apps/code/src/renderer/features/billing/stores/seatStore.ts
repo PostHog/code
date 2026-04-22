@@ -4,10 +4,8 @@ import {
   SeatSubscriptionRequiredError,
 } from "@renderer/api/posthogClient";
 import { trpcClient } from "@renderer/trpc";
-import { BILLING_FLAG } from "@shared/constants";
 import type { SeatData } from "@shared/types/seat";
 import { PLAN_FREE, PLAN_PRO } from "@shared/types/seat";
-import { isFeatureFlagEnabled } from "@utils/analytics";
 import { logger } from "@utils/logger";
 import { getPostHogUrl } from "@utils/urls";
 import { create } from "zustand";
@@ -86,10 +84,6 @@ export const useSeatStore = create<SeatStore>()((set) => ({
   ...initialState,
 
   fetchSeat: async (options?: { autoProvision?: boolean }) => {
-    if (!isFeatureFlagEnabled(BILLING_FLAG)) {
-      set({ error: "Billing is not enabled" });
-      return;
-    }
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
       const client = await getClient();
@@ -105,7 +99,6 @@ export const useSeatStore = create<SeatStore>()((set) => ({
   },
 
   provisionFreeSeat: async () => {
-    if (!isFeatureFlagEnabled(BILLING_FLAG)) return;
     log.info("Provisioning free seat");
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
@@ -130,7 +123,6 @@ export const useSeatStore = create<SeatStore>()((set) => ({
   },
 
   upgradeToPro: async () => {
-    if (!isFeatureFlagEnabled(BILLING_FLAG)) return;
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
       const client = await getClient();
@@ -154,7 +146,6 @@ export const useSeatStore = create<SeatStore>()((set) => ({
   },
 
   cancelSeat: async () => {
-    if (!isFeatureFlagEnabled(BILLING_FLAG)) return;
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
       const client = await getClient();
@@ -168,7 +159,6 @@ export const useSeatStore = create<SeatStore>()((set) => ({
   },
 
   reactivateSeat: async () => {
-    if (!isFeatureFlagEnabled(BILLING_FLAG)) return;
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
       const client = await getClient();

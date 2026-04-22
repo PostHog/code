@@ -1,5 +1,6 @@
 import { useUsage } from "@features/billing/hooks/useUsage";
 import { useSeatStore } from "@features/billing/stores/seatStore";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useSeat } from "@hooks/useSeat";
 import {
   ArrowSquareOut,
@@ -17,6 +18,7 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { Tooltip } from "@renderer/components/ui/Tooltip";
+import { BILLING_FLAG } from "@shared/constants";
 import { getPostHogUrl } from "@utils/urls";
 import { useState } from "react";
 
@@ -47,6 +49,7 @@ export function PlanUsageSettings() {
     error,
     redirectUrl,
   } = useSeat();
+  const billingEnabled = useFeatureFlag(BILLING_FLAG);
   const { upgradeToPro, cancelSeat, reactivateSeat, clearError } =
     useSeatStore();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
@@ -188,7 +191,7 @@ export function PlanUsageSettings() {
               borderRadius: "var(--radius-3)",
             }}
           >
-            {isLoading ? (
+            {isLoading || !billingEnabled ? (
               <Spinner size="2" />
             ) : (
               <Text size="2" color="gray">
