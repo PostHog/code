@@ -10,7 +10,6 @@ import { useSkillButtonsStore } from "@features/skill-buttons/stores/skillButton
 import { CaretDown } from "@phosphor-icons/react";
 import {
   Button,
-  ButtonGroup,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -56,13 +55,14 @@ export function SkillButtonsMenu({ taskId }: SkillButtonsMenuProps) {
 
   return (
     <TooltipProvider delay={500}>
-      <ButtonGroup>
+      <div className="flex items-center">
         <Tooltip>
           <TooltipTrigger
             render={
               <Button
                 variant="outline"
                 size="sm"
+                className="rounded-s-[3px] rounded-e-none"
                 onClick={() => handleTrigger(primaryButton.id, "primary")}
               >
                 <SkillButtonIcon button={primaryButton} />
@@ -75,7 +75,12 @@ export function SkillButtonsMenu({ taskId }: SkillButtonsMenuProps) {
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button variant="outline" size="icon-sm" aria-label="More skills">
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="rounded-s-none rounded-e-[3px] border-s-0"
+                aria-label="More skills"
+              >
                 <CaretDown size={14} weight="bold" />
               </Button>
             }
@@ -98,7 +103,7 @@ export function SkillButtonsMenu({ taskId }: SkillButtonsMenuProps) {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-      </ButtonGroup>
+      </div>
     </TooltipProvider>
   );
 }

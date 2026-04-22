@@ -26,7 +26,7 @@ export interface SkillButton {
 export const SKILL_BUTTONS: Record<SkillButtonId, SkillButton> = {
   "add-analytics": {
     id: "add-analytics",
-    label: "Add analytics",
+    label: "Track events",
     prompt: "/instrument-product-analytics",
     color: "#2F80FA",
     Icon: ChartBar,
@@ -37,7 +37,7 @@ export const SKILL_BUTTONS: Record<SkillButtonId, SkillButton> = {
   },
   "create-feature-flags": {
     id: "create-feature-flags",
-    label: "Create feature flag",
+    label: "Add feature flag",
     prompt: "/instrument-feature-flags",
     color: "#30ABC6",
     Icon: ToggleRight,
@@ -62,7 +62,7 @@ export const SKILL_BUTTONS: Record<SkillButtonId, SkillButton> = {
   },
   "add-error-tracking": {
     id: "add-error-tracking",
-    label: "Add error tracking",
+    label: "Track errors",
     prompt: "/instrument-error-tracking",
     color: "#BF8113",
     Icon: Warning,
@@ -74,7 +74,7 @@ export const SKILL_BUTTONS: Record<SkillButtonId, SkillButton> = {
   },
   "instrument-llm-calls": {
     id: "instrument-llm-calls",
-    label: "Instrument LLM calls",
+    label: "Trace LLM calls",
     prompt: "/instrument-llm-analytics",
     color: "#B029D2",
     Icon: Broadcast,
@@ -86,7 +86,7 @@ export const SKILL_BUTTONS: Record<SkillButtonId, SkillButton> = {
   },
   "add-logging": {
     id: "add-logging",
-    label: "Add logging",
+    label: "Capture logs",
     prompt: "/instrument-logs",
     color: "#C92474",
     Icon: Pulse,
