@@ -23,9 +23,9 @@ const ITEM_STRIDE = ITEM_HEIGHT + ITEM_GAP;
 const CONTAINER_HEIGHT = 420;
 const ITEM_WIDTH = 260;
 
-const HOTKEY_OPTIONS = {
-  enableOnFormTags: true,
-  enableOnContentEditable: true,
+const SPACE_HOTKEY_OPTIONS = {
+  enableOnFormTags: false,
+  enableOnContentEditable: false,
   preventDefault: true,
 } as const;
 
@@ -239,11 +239,13 @@ export function SpaceSwitcher({
     return map;
   }, [allTasks]);
 
-  // Slot 0 = new task, slots 1..n = tasks
+  // Slot 0 = new task, slots 1..n = tasks, -1 = no active slot
   const totalSlots = tasks.length + 1;
   const currentSlot = isOnNewTask
     ? 0
-    : tasks.findIndex((t) => t.id === activeTaskId) + 1;
+    : activeTaskId !== null
+      ? tasks.findIndex((t) => t.id === activeTaskId) + 1
+      : -1;
 
   const navigateToSlot = useCallback(
     (slot: number) => {
@@ -259,16 +261,26 @@ export function SpaceSwitcher({
   );
 
   const navigatePrev = useCallback(() => {
-    if (totalSlots === 0) return;
+    if (tasks.length === 0) return;
+    // No active slot → go to last task
+    if (currentSlot === -1) {
+      navigateToSlot(totalSlots - 1);
+      return;
+    }
     const prev = currentSlot <= 0 ? totalSlots - 1 : currentSlot - 1;
     navigateToSlot(prev);
-  }, [totalSlots, currentSlot, navigateToSlot]);
+  }, [tasks.length, totalSlots, currentSlot, navigateToSlot]);
 
   const navigateNext = useCallback(() => {
-    if (totalSlots === 0) return;
+    if (tasks.length === 0) return;
+    // No active slot → go to first (new task)
+    if (currentSlot === -1) {
+      navigateToSlot(0);
+      return;
+    }
     const next = currentSlot >= totalSlots - 1 ? 0 : currentSlot + 1;
     navigateToSlot(next);
-  }, [totalSlots, currentSlot, navigateToSlot]);
+  }, [tasks.length, totalSlots, currentSlot, navigateToSlot]);
 
   const handleItemClick = useCallback(
     (taskId: string) => {
@@ -331,15 +343,18 @@ export function SpaceSwitcher({
     };
   }, [show, hide]);
 
-  useHotkeys(SHORTCUTS.SPACE_UP, navigatePrev, HOTKEY_OPTIONS, [navigatePrev]);
-  useHotkeys(SHORTCUTS.SPACE_DOWN, navigateNext, HOTKEY_OPTIONS, [
+  useHotkeys(SHORTCUTS.SPACE_UP, navigatePrev, SPACE_HOTKEY_OPTIONS, [
+    navigatePrev,
+  ]);
+  useHotkeys(SHORTCUTS.SPACE_DOWN, navigateNext, SPACE_HOTKEY_OPTIONS, [
     navigateNext,
   ]);
 
   if (!mounted || tasks.length === 0) return null;
 
   const centerOffset = CONTAINER_HEIGHT / 2 - ITEM_HEIGHT / 2;
-  const translateY = centerOffset - Math.max(0, currentSlot) * ITEM_STRIDE;
+  const centeredSlot = currentSlot === -1 ? 0 : currentSlot;
+  const translateY = centerOffset - centeredSlot * ITEM_STRIDE;
 
   return (
     <div
@@ -367,12 +382,12 @@ export function SpaceSwitcher({
               transition: "transform 200ms cubic-bezier(0.25, 1, 0.5, 1)",
             }}
           >
-            <NewTaskItem isActive={isOnNewTask} onClick={onNewTask} />
+            <NewTaskItem isActive={currentSlot === 0} onClick={onNewTask} />
             {tasks.map((task, index) => (
               <SpaceItem
                 key={task.id}
                 task={task}
-                isActive={!isOnNewTask && task.id === activeTaskId}
+                isActive={currentSlot > 0 && task.id === activeTaskId}
                 index={index}
                 onClick={() => handleItemClick(task.id)}
               />
