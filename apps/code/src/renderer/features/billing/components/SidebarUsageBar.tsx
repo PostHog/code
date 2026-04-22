@@ -7,10 +7,13 @@ import { Circle } from "@phosphor-icons/react";
 
 export function SidebarUsageBar() {
   const billingEnabled = useFeatureFlag("posthog-code-billing");
-  const { isPro } = useSeat();
-  const { usage } = useUsage({ enabled: billingEnabled && !isPro });
+  const { seat, isPro } = useSeat();
+  const seatLoaded = seat !== null;
+  const { usage } = useUsage({
+    enabled: billingEnabled && seatLoaded && !isPro,
+  });
 
-  if (!billingEnabled || isPro || !usage) return null;
+  if (!billingEnabled || !seatLoaded || isPro || !usage) return null;
 
   const usagePercent = Math.max(
     usage.sustained.used_percent,

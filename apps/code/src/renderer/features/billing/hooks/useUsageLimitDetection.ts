@@ -6,12 +6,15 @@ import { useEffect, useRef } from "react";
 import { useUsage } from "./useUsage";
 
 export function useUsageLimitDetection(billingEnabled: boolean) {
-  const { isPro } = useSeat();
-  const { usage } = useUsage({ enabled: billingEnabled && !isPro });
+  const { seat, isPro } = useSeat();
+  const seatLoaded = seat !== null;
+  const { usage } = useUsage({
+    enabled: billingEnabled && seatLoaded && !isPro,
+  });
   const hasAlertedRef = useRef(false);
 
   useEffect(() => {
-    if (!billingEnabled || isPro || !usage) return;
+    if (!billingEnabled || !seatLoaded || isPro || !usage) return;
 
     const exceeded = isUsageExceeded(usage);
 
@@ -31,5 +34,5 @@ export function useUsageLimitDetection(billingEnabled: boolean) {
     if (!exceeded) {
       hasAlertedRef.current = false;
     }
-  }, [billingEnabled, isPro, usage]);
+  }, [billingEnabled, seatLoaded, isPro, usage]);
 }

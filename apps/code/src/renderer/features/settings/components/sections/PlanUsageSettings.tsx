@@ -50,7 +50,9 @@ export function PlanUsageSettings() {
   const { upgradeToPro, cancelSeat, reactivateSeat, clearError } =
     useSeatStore();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
-  const { usage, isLoading: usageLoading } = useUsage({ enabled: !isPro });
+  const { usage, isLoading: usageLoading } = useUsage({
+    enabled: seat !== null && !isPro,
+  });
 
   const formattedActiveUntil = activeUntil
     ? activeUntil.toLocaleDateString(undefined, {
