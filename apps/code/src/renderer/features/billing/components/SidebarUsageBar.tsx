@@ -4,9 +4,10 @@ import { useSettingsDialogStore } from "@features/settings/stores/settingsDialog
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useSeat } from "@hooks/useSeat";
 import { Circle } from "@phosphor-icons/react";
+import { BILLING_FLAG } from "@shared/constants";
 
 export function SidebarUsageBar() {
-  const billingEnabled = useFeatureFlag("posthog-code-billing");
+  const billingEnabled = useFeatureFlag(BILLING_FLAG);
   const { seat, isPro } = useSeat();
   const seatLoaded = seat !== null;
   const { usage } = useUsage({
