@@ -173,12 +173,12 @@ export const createPostToolUseHook =
  *
  * https://github.com/anthropics/claude-agent-sdk-typescript/issues/267
  */
-const SUBAGENT_REWRITES: Record<string, string> = {
+export const SUBAGENT_REWRITES: Record<string, string> = {
   Explore: "ph-explore",
 };
 
 export const createSubagentRewriteHook =
-  (logger: Logger): HookCallback =>
+  (logger: Logger, registeredAgents: ReadonlySet<string>): HookCallback =>
   async (input: HookInput, _toolUseID: string | undefined) => {
     if (input.hook_event_name !== "PreToolUse") {
       return { continue: true };
@@ -195,6 +195,13 @@ export const createSubagentRewriteHook =
     }
 
     const target = SUBAGENT_REWRITES[subagentType];
+    if (!registeredAgents.has(target)) {
+      logger.warn(
+        `[SubagentRewriteHook] Skipping rewrite ${subagentType} → ${target}: target agent not registered for this session. Falling back to built-in ${subagentType}.`,
+      );
+      return { continue: true };
+    }
+
     logger.info(
       `[SubagentRewriteHook] Rewriting subagent_type: ${subagentType} → ${target}`,
     );
