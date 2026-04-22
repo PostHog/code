@@ -142,7 +142,7 @@ async function requestPlanApproval(
   });
 
   return await client.requestPermission({
-    options: buildExitPlanModePermissionOptions(),
+    options: buildExitPlanModePermissionOptions(context.session.prePlanMode),
     sessionId,
     toolCall: {
       toolCallId: toolUseID,
@@ -210,6 +210,7 @@ async function handleEnterPlanModeTool(
 ): Promise<ToolPermissionResult> {
   const { session, toolInput } = context;
 
+  session.prePlanMode = session.permissionMode;
   session.permissionMode = "plan";
   await session.query.setPermissionMode("plan");
   await context.updateConfigOption("mode", "plan");

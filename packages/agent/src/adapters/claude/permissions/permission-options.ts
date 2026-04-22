@@ -1,5 +1,5 @@
 import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
-import { IS_ROOT } from "../../../utils/common";
+import type { CodeExecutionMode } from "../../../execution-mode";
 import { BASH_TOOLS, READ_TOOLS, SEARCH_TOOLS, WRITE_TOOLS } from "../tools";
 
 export interface PermissionOption {
@@ -92,42 +92,40 @@ export function buildPermissionOptions(
   return permissionOptions("Yes, always allow");
 }
 
-const ALLOW_BYPASS = !IS_ROOT || !!process.env.IS_SANDBOX;
+const MODE_LABELS: Record<string, string> = {
+  default: "manual approval",
+  acceptEdits: "auto-accept edits",
+  bypassPermissions: "bypass permissions",
+  auto: "auto mode",
+};
 
-export function buildExitPlanModePermissionOptions(): PermissionOption[] {
-  const options: PermissionOption[] = [];
+export function buildExitPlanModePermissionOptions(
+  prePlanMode?: CodeExecutionMode,
+): PermissionOption[] {
+  const currentMode = prePlanMode ?? "default";
 
-  if (ALLOW_BYPASS) {
+  const options: PermissionOption[] = [
+    {
+      kind: "allow_always",
+      name: `Yes, continue with ${MODE_LABELS[currentMode] ?? currentMode}`,
+      optionId: currentMode,
+    },
+  ];
+
+  if (currentMode !== "default") {
     options.push({
-      kind: "allow_always",
-      name: "Yes, bypass all permissions",
-      optionId: "bypassPermissions",
-    });
-  }
-
-  options.push(
-    {
-      kind: "allow_always",
-      name: 'Yes, and use "auto" mode',
-      optionId: "auto",
-    },
-    {
-      kind: "allow_always",
-      name: "Yes, and auto-accept edits",
-      optionId: "acceptEdits",
-    },
-    {
       kind: "allow_once",
       name: "Yes, and manually approve edits",
       optionId: "default",
-    },
-    {
-      kind: "reject_once",
-      name: "No, and tell the agent what to do differently",
-      optionId: "reject_with_feedback",
-      _meta: { customInput: true },
-    },
-  );
+    });
+  }
+
+  options.push({
+    kind: "reject_once",
+    name: "No, and tell the agent what to do differently",
+    optionId: "reject_with_feedback",
+    _meta: { customInput: true },
+  });
 
   return options;
 }

@@ -45,6 +45,7 @@ export type Session = BaseSession & {
   input: Pushable<SDKUserMessage>;
   settingsManager: SettingsManager;
   permissionMode: CodeExecutionMode;
+  prePlanMode?: CodeExecutionMode;
   modelId?: string;
   cwd: string;
   taskRunId?: string;
