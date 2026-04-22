@@ -1,4 +1,3 @@
-import { CloudReviewPage } from "@features/code-review/components/CloudReviewPage";
 import { ReviewPage } from "@features/code-review/components/ReviewPage";
 import { useReviewNavigationStore } from "@features/code-review/stores/reviewNavigationStore";
 import { FilePicker } from "@features/command/components/FilePicker";
@@ -15,7 +14,6 @@ import { useTaskData } from "@features/task-detail/hooks/useTaskData";
 import { useUpdateTask } from "@features/tasks/hooks/useTasks";
 import { useTaskStore } from "@features/tasks/stores/taskStore";
 import { useWorkspaceEvents } from "@features/workspace/hooks";
-import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { useBlurOnEscape } from "@hooks/useBlurOnEscape";
 import { useFileWatcher } from "@hooks/useFileWatcher";
 import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
@@ -169,10 +167,6 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
   const reviewMode = useReviewNavigationStore(
     (s) => s.reviewModes[taskId] ?? "closed",
   );
-  const workspace = useWorkspace(taskId);
-  const isCloud =
-    workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
-
   const isReviewOpen = reviewMode !== "closed";
   const isExpanded = reviewMode === "expanded";
 
@@ -266,11 +260,7 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
             visibility: isReviewOpen ? undefined : "hidden",
           }}
         >
-          {isCloud ? (
-            <CloudReviewPage task={task} />
-          ) : (
-            <ReviewPage task={task} />
-          )}
+          <ReviewPage task={task} />
         </Box>
       </Flex>
       <FilePicker
