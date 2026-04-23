@@ -131,14 +131,14 @@ function ShortcutsHeader() {
 }
 
 export function KeyboardShortcutsList() {
-  const inboxEnabled = useFeatureFlag("posthog-code-inbox");
+  const inboxHidden = useFeatureFlag("posthog-code-inbox-hidden");
   const shortcutsByCategory = useMemo(() => {
     const grouped = getShortcutsByCategory();
-    if (!inboxEnabled) {
+    if (inboxHidden) {
       grouped.navigation = grouped.navigation.filter((s) => s.id !== "inbox");
     }
     return grouped;
-  }, [inboxEnabled]);
+  }, [inboxHidden]);
 
   const categoryOrder: ShortcutCategory[] = [
     "general",

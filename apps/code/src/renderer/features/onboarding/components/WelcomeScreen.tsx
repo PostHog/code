@@ -60,13 +60,13 @@ const CYCLE_INTERVAL_MS = 2500;
 const CYCLE_START_DELAY_MS = ALL_FEATURES.length * 100 + 400;
 
 export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
-  const inboxEnabled = useFeatureFlag("posthog-code-inbox");
+  const inboxHidden = useFeatureFlag("posthog-code-inbox-hidden");
   const features = useMemo(
     () =>
-      inboxEnabled
-        ? ALL_FEATURES
-        : ALL_FEATURES.filter((f) => f.id !== "signals-inbox"),
-    [inboxEnabled],
+      inboxHidden
+        ? ALL_FEATURES.filter((f) => f.id !== "signals-inbox")
+        : ALL_FEATURES,
+    [inboxHidden],
   );
   const [activeIndex, setActiveIndex] = useState(-1);
   const timerRef = useRef<ReturnType<typeof setInterval>>(null);

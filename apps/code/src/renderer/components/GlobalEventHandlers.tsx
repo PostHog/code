@@ -171,14 +171,14 @@ export function GlobalEventHandlers({
     setReviewMode(currentTaskId, mode === "closed" ? "split" : "closed");
   }, [currentTaskId, getReviewMode, setReviewMode]);
 
-  const inboxEnabled = useFeatureFlag("posthog-code-inbox");
+  const inboxHidden = useFeatureFlag("posthog-code-inbox-hidden");
 
   useHotkeys(SHORTCUTS.TOGGLE_LEFT_SIDEBAR, toggleLeftSidebar, globalOptions);
   useHotkeys(SHORTCUTS.TOGGLE_REVIEW_PANEL, handleToggleReview, globalOptions);
   useHotkeys(SHORTCUTS.SHORTCUTS_SHEET, onToggleShortcutsSheet, globalOptions);
   useHotkeys(SHORTCUTS.INBOX, navigateToInbox, {
     ...globalOptions,
-    enabled: inboxEnabled,
+    enabled: !inboxHidden,
   });
   useHotkeys(SHORTCUTS.PREV_TASK, handlePrevTask, globalOptions, [
     handlePrevTask,

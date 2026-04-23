@@ -129,7 +129,7 @@ export function SettingsDialog() {
   const client = useOptionalAuthenticatedClient();
   const { data: user } = useCurrentUser({ client });
   const { seat, planLabel } = useSeat();
-  const inboxEnabled = useFeatureFlag("posthog-code-inbox");
+  const inboxHidden = useFeatureFlag("posthog-code-inbox-hidden");
   const billingEnabled = useFeatureFlag(BILLING_FLAG);
   const logoutMutation = useLogoutMutation();
 
@@ -137,10 +137,10 @@ export function SettingsDialog() {
     () =>
       SIDEBAR_ITEMS.filter((item) => {
         if (item.id === "plan-usage" && !billingEnabled) return false;
-        if (item.id === "signals" && !inboxEnabled) return false;
+        if (item.id === "signals" && inboxHidden) return false;
         return true;
       }),
-    [billingEnabled, inboxEnabled],
+    [billingEnabled, inboxHidden],
   );
 
   useHotkeys("escape", close, {
