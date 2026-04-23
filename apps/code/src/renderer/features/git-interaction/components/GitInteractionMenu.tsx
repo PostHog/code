@@ -12,8 +12,16 @@ import {
   GitFork,
   GitPullRequest,
 } from "@phosphor-icons/react";
-import { ChevronDownIcon } from "@radix-ui/react-icons";
-import { Button, DropdownMenu, Flex, Spinner, Text } from "@radix-ui/themes";
+import {
+  Button,
+  ButtonGroup,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@posthog/quill";
+import { Spinner } from "@radix-ui/themes";
+import { ChevronDown } from "lucide-react";
 
 interface GitInteractionMenuProps {
   primaryAction: GitMenuAction;
@@ -21,51 +29,6 @@ interface GitInteractionMenuProps {
   isBusy?: boolean;
   onPrimary: (actionId: GitMenuActionId) => void;
   onSelect: (actionId: GitMenuActionId) => void;
-}
-
-function ActionButton({
-  action,
-  isPrimary,
-  isBusy,
-  allDisabled,
-  onClick,
-}: {
-  action: GitMenuAction;
-  isPrimary: boolean;
-  isBusy?: boolean;
-  allDisabled?: boolean;
-  onClick: () => void;
-}) {
-  const icon = getActionIcon(action.id);
-  const isDisabled = !action.enabled || isBusy;
-  const button = (
-    <Button
-      size="1"
-      variant={allDisabled ? "soft" : "solid"}
-      color={allDisabled ? "gray" : undefined}
-      disabled={isDisabled}
-      onClick={onClick}
-      style={{
-        borderTopRightRadius: isPrimary ? 0 : undefined,
-        borderBottomRightRadius: isPrimary ? 0 : undefined,
-      }}
-    >
-      <Flex align="center" gap="2">
-        {isBusy ? <Spinner size="1" /> : icon}
-        <Text size="1">{action.label}</Text>
-      </Flex>
-    </Button>
-  );
-
-  if (!action.enabled && action.disabledReason) {
-    return (
-      <Tooltip content={action.disabledReason} side="bottom">
-        <span style={{ display: "inline-flex" }}>{button}</span>
-      </Tooltip>
-    );
-  }
-
-  return button;
 }
 
 function getActionIcon(actionId: GitMenuActionId) {
@@ -98,69 +61,81 @@ export function GitInteractionMenu({
 }: GitInteractionMenuProps) {
   const allDisabled = actions.every((a) => !a.enabled);
   const showDropdown = actions.length > 1;
+  const variant = allDisabled ? "default" : "primary";
+  const isPrimaryDisabled = !primaryAction.enabled || isBusy;
+
+  const primaryButton = (
+    <Button
+      variant={variant}
+      disabled={isPrimaryDisabled}
+      onClick={() => onPrimary(primaryAction.id)}
+      className="bg-primary text-primary-foreground not-disabled:hover:bg-primary/80 hover:text-primary-foreground/80"
+    >
+      {isBusy ? <Spinner size="1" /> : getActionIcon(primaryAction.id)}
+      {primaryAction.label}
+    </Button>
+  );
+
+  const wrappedPrimaryButton =
+    !primaryAction.enabled && primaryAction.disabledReason ? (
+      <Tooltip content={primaryAction.disabledReason} side="bottom">
+        <span style={{ display: "inline-flex" }}>{primaryButton}</span>
+      </Tooltip>
+    ) : (
+      primaryButton
+    );
+
+  if (!showDropdown || allDisabled) {
+    return wrappedPrimaryButton;
+  }
 
   return (
-    <Flex align="center" gap="0">
-      <ActionButton
-        action={primaryAction}
-        isPrimary={showDropdown}
-        isBusy={isBusy}
-        allDisabled={allDisabled}
-        onClick={() => onPrimary(primaryAction.id)}
-      />
-      {showDropdown && (
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger>
+    <ButtonGroup>
+      {wrappedPrimaryButton}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
             <Button
-              size="1"
-              variant={allDisabled ? "soft" : "solid"}
-              color={allDisabled ? "gray" : undefined}
+              className="bg-primary not-disabled:hover:bg-primary/80"
+              variant={variant}
               disabled={isBusy}
-              style={{
-                borderTopLeftRadius: 0,
-                borderBottomLeftRadius: 0,
-                borderLeft: allDisabled
-                  ? undefined
-                  : "1px solid var(--accent-8)",
-                paddingLeft: "6px",
-                paddingRight: "6px",
-              }}
-            >
-              <ChevronDownIcon />
-            </Button>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content size="1" align="end">
-            {actions.map((action) => {
-              const icon = getActionIcon(action.id);
-              const itemContent = (
-                <Flex align="center" gap="2">
-                  {icon}
-                  <Text size="1">{action.label}</Text>
-                </Flex>
-              );
+            />
+          }
+        >
+          <ChevronDown size={12} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {actions.map((action) => {
+            const icon = getActionIcon(action.id);
+            const itemContent = (
+              <>
+                {icon} {action.label}
+              </>
+            );
 
-              if (!action.enabled && action.disabledReason) {
-                return (
-                  <Tooltip key={action.id} content={action.disabledReason}>
-                    <DropdownMenu.Item disabled>
-                      {itemContent}
-                    </DropdownMenu.Item>
-                  </Tooltip>
-                );
-              }
-
+            if (!action.enabled && action.disabledReason) {
               return (
-                <DropdownMenu.Item
+                <Tooltip
                   key={action.id}
-                  onSelect={() => onSelect(action.id)}
+                  content={action.disabledReason}
+                  side="left"
                 >
-                  {itemContent}
-                </DropdownMenu.Item>
+                  <DropdownMenuItem disabled>{itemContent}</DropdownMenuItem>
+                </Tooltip>
               );
-            })}
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
-      )}
-    </Flex>
+            }
+
+            return (
+              <DropdownMenuItem
+                key={action.id}
+                onClick={() => onSelect(action.id)}
+              >
+                {itemContent}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </ButtonGroup>
   );
 }
