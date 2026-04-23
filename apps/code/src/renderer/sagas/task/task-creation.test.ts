@@ -122,7 +122,8 @@ describe("TaskCreationSaga", () => {
     const createdTask = createTask();
     const startedTask = createTask({ latest_run: createRun() });
     const createTaskMock = vi.fn().mockResolvedValue(createdTask);
-    const runTaskInCloudMock = vi.fn().mockResolvedValue(startedTask);
+    const createTaskRunMock = vi.fn().mockResolvedValue(createRun());
+    const startTaskRunMock = vi.fn().mockResolvedValue(startedTask);
     const sendRunCommandMock = vi.fn();
     const onTaskReady = vi.fn();
 
@@ -131,7 +132,8 @@ describe("TaskCreationSaga", () => {
         createTask: createTaskMock,
         deleteTask: vi.fn(),
         getTask: vi.fn(),
-        runTaskInCloud: runTaskInCloudMock,
+        createTaskRun: createTaskRunMock,
+        startTaskRun: startTaskRunMock,
         sendRunCommand: sendRunCommandMock,
         updateTask: vi.fn(),
       } as never,
@@ -153,22 +155,24 @@ describe("TaskCreationSaga", () => {
       throw new Error("Expected task creation to succeed");
     }
 
-    expect(runTaskInCloudMock).toHaveBeenCalledWith(
-      "task-123",
-      "release/remembered-branch",
-      {
-        adapter: "codex",
-        model: "gpt-5.4",
-        reasoningLevel: "high",
-        pendingUserMessage: "Ship the fix",
-        sandboxEnvironmentId: undefined,
-        prAuthorshipMode: "bot",
-        runSource: "manual",
-        signalReportId: undefined,
-        githubUserToken: undefined,
-        initialPermissionMode: "auto",
-      },
-    );
+    expect(createTaskRunMock).toHaveBeenCalledWith("task-123", {
+      environment: "cloud",
+      mode: "interactive",
+      branch: "release/remembered-branch",
+      adapter: "codex",
+      model: "gpt-5.4",
+      reasoningLevel: "high",
+      sandboxEnvironmentId: undefined,
+      prAuthorshipMode: "bot",
+      runSource: "manual",
+      signalReportId: undefined,
+      githubUserToken: undefined,
+      initialPermissionMode: "auto",
+    });
+    expect(startTaskRunMock).toHaveBeenCalledWith("task-123", "run-123", {
+      pendingUserMessage: "Ship the fix",
+      pendingUserArtifactIds: undefined,
+    });
     expect(sendRunCommandMock).not.toHaveBeenCalled();
     expect(onTaskReady).toHaveBeenCalledTimes(1);
     expect(onTaskReady.mock.calls[0][0].task.latest_run?.branch).toBe(
@@ -177,7 +181,7 @@ describe("TaskCreationSaga", () => {
     expect(result.data.task.latest_run?.branch).toBe(
       "release/remembered-branch",
     );
-    expect(runTaskInCloudMock.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(startTaskRunMock.mock.invocationCallOrder[0]).toBeLessThan(
       onTaskReady.mock.invocationCallOrder[0],
     );
   });
@@ -186,7 +190,8 @@ describe("TaskCreationSaga", () => {
     const createdTask = createTask();
     const startedTask = createTask({ latest_run: createRun() });
     const createTaskMock = vi.fn().mockResolvedValue(createdTask);
-    const runTaskInCloudMock = vi.fn().mockResolvedValue(startedTask);
+    const createTaskRunMock = vi.fn().mockResolvedValue(createRun());
+    const startTaskRunMock = vi.fn().mockResolvedValue(startedTask);
     const updateTaskMock = vi.fn();
 
     mockGenerateTitleAndSummary.mockResolvedValue({ title: "Auto title" });
@@ -200,7 +205,8 @@ describe("TaskCreationSaga", () => {
         createTask: createTaskMock,
         deleteTask: vi.fn(),
         getTask: vi.fn(),
-        runTaskInCloud: runTaskInCloudMock,
+        createTaskRun: createTaskRunMock,
+        startTaskRun: startTaskRunMock,
         sendRunCommand: vi.fn(),
         updateTask: updateTaskMock,
       } as never,
@@ -224,7 +230,8 @@ describe("TaskCreationSaga", () => {
     const createdTask = createTask();
     const startedTask = createTask({ latest_run: createRun() });
     const createTaskMock = vi.fn().mockResolvedValue(createdTask);
-    const runTaskInCloudMock = vi.fn().mockResolvedValue(startedTask);
+    const createTaskRunMock = vi.fn().mockResolvedValue(createRun());
+    const startTaskRunMock = vi.fn().mockResolvedValue(startedTask);
     const updateTaskMock = vi.fn().mockResolvedValue(undefined);
 
     mockGenerateTitleAndSummary.mockResolvedValue({ title: "Auto title" });
@@ -235,7 +242,8 @@ describe("TaskCreationSaga", () => {
         createTask: createTaskMock,
         deleteTask: vi.fn(),
         getTask: vi.fn(),
-        runTaskInCloud: runTaskInCloudMock,
+        createTaskRun: createTaskRunMock,
+        startTaskRun: startTaskRunMock,
         sendRunCommand: vi.fn(),
         updateTask: updateTaskMock,
       } as never,
@@ -259,8 +267,9 @@ describe("TaskCreationSaga", () => {
     const createdTask = createTask();
     const startedTask = createTask({ latest_run: createRun() });
     const createTaskMock = vi.fn().mockResolvedValue(createdTask);
-    const runTaskInCloudMock = vi.fn().mockResolvedValue(startedTask);
-    const prepareTaskStagedArtifactUploadsMock = vi.fn().mockResolvedValue([
+    const createTaskRunMock = vi.fn().mockResolvedValue(createRun());
+    const startTaskRunMock = vi.fn().mockResolvedValue(startedTask);
+    const prepareTaskRunArtifactUploadsMock = vi.fn().mockResolvedValue([
       {
         id: "artifact-1",
         name: "test.txt",
@@ -276,7 +285,7 @@ describe("TaskCreationSaga", () => {
         },
       },
     ]);
-    const finalizeTaskStagedArtifactUploadsMock = vi.fn().mockResolvedValue([
+    const finalizeTaskRunArtifactUploadsMock = vi.fn().mockResolvedValue([
       {
         id: "artifact-1",
         name: "test.txt",
@@ -299,10 +308,10 @@ describe("TaskCreationSaga", () => {
         createTask: createTaskMock,
         deleteTask: vi.fn(),
         getTask: vi.fn(),
-        runTaskInCloud: runTaskInCloudMock,
-        prepareTaskStagedArtifactUploads: prepareTaskStagedArtifactUploadsMock,
-        finalizeTaskStagedArtifactUploads:
-          finalizeTaskStagedArtifactUploadsMock,
+        createTaskRun: createTaskRunMock,
+        startTaskRun: startTaskRunMock,
+        prepareTaskRunArtifactUploads: prepareTaskRunArtifactUploadsMock,
+        finalizeTaskRunArtifactUploads: finalizeTaskRunArtifactUploadsMock,
         sendRunCommand: sendRunCommandMock,
         updateTask: vi.fn(),
       } as never,
@@ -331,22 +340,32 @@ describe("TaskCreationSaga", () => {
         description: "read this file\n\nAttached files: test.txt",
       }),
     );
-    expect(runTaskInCloudMock).toHaveBeenCalledWith(
-      "task-123",
-      "release/remembered-branch",
-      expect.objectContaining({
-        adapter: "codex",
-        model: "gpt-5.4",
-        reasoningLevel: "medium",
-        pendingUserMessage: "read this file",
-        pendingUserArtifactIds: ["artifact-1"],
-        sandboxEnvironmentId: undefined,
-        prAuthorshipMode: "bot",
-        runSource: "manual",
-      }),
-    );
+    expect(createTaskRunMock).toHaveBeenCalledWith("task-123", {
+      environment: "cloud",
+      mode: "interactive",
+      branch: "release/remembered-branch",
+      adapter: "codex",
+      model: "gpt-5.4",
+      reasoningLevel: "medium",
+      sandboxEnvironmentId: undefined,
+      prAuthorshipMode: "bot",
+      runSource: "manual",
+      signalReportId: undefined,
+      githubUserToken: undefined,
+      initialPermissionMode: "auto",
+    });
+    expect(startTaskRunMock).toHaveBeenCalledWith("task-123", "run-123", {
+      pendingUserMessage: "read this file",
+      pendingUserArtifactIds: ["artifact-1"],
+    });
     expect(sendRunCommandMock).not.toHaveBeenCalled();
-    expect(runTaskInCloudMock.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(createTaskRunMock.mock.invocationCallOrder[0]).toBeLessThan(
+      prepareTaskRunArtifactUploadsMock.mock.invocationCallOrder[0],
+    );
+    expect(
+      prepareTaskRunArtifactUploadsMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(startTaskRunMock.mock.invocationCallOrder[0]);
+    expect(startTaskRunMock.mock.invocationCallOrder[0]).toBeLessThan(
       onTaskReady.mock.invocationCallOrder[0],
     );
   });

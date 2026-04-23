@@ -8,7 +8,7 @@ import {
 } from "@features/sessions/service/service";
 import {
   getCloudPromptTransport,
-  uploadTaskStagedAttachments,
+  uploadRunAttachments,
 } from "@features/sessions/utils/cloudArtifacts";
 import { getTaskDirectory } from "@hooks/useRepositoryDirectory";
 import type {
@@ -288,23 +288,13 @@ export class TaskCreationSaga extends Saga<
             workspaceMode === "cloud"
               ? getCloudPromptTransport(input.content ?? "", input.filePaths)
               : null;
-          const pendingUserArtifactIds = transport
-            ? await uploadTaskStagedAttachments(
-                this.deps.posthogClient,
-                task.id,
-                transport.filePaths,
-              )
-            : [];
-
-          return this.deps.posthogClient.runTaskInCloud(task.id, branch, {
+          const taskRun = await this.deps.posthogClient.createTaskRun(task.id, {
+            environment: "cloud",
+            mode: "interactive",
+            branch,
             adapter: input.adapter,
             model: input.model,
             reasoningLevel: input.reasoningLevel,
-            pendingUserMessage: transport?.messageText,
-            pendingUserArtifactIds:
-              pendingUserArtifactIds.length > 0
-                ? pendingUserArtifactIds
-                : undefined,
             sandboxEnvironmentId: input.sandboxEnvironmentId,
             prAuthorshipMode,
             runSource: input.cloudRunSource ?? "manual",
@@ -314,6 +304,26 @@ export class TaskCreationSaga extends Saga<
               ? (input.executionMode ??
                 (input.adapter === "codex" ? "auto" : "plan"))
               : input.executionMode,
+          });
+          if (!taskRun?.id) {
+            throw new Error("Failed to create cloud run");
+          }
+
+          const pendingUserArtifactIds = transport
+            ? await uploadRunAttachments(
+                this.deps.posthogClient,
+                task.id,
+                taskRun.id,
+                transport.filePaths,
+              )
+            : [];
+
+          return this.deps.posthogClient.startTaskRun(task.id, taskRun.id, {
+            pendingUserMessage: transport?.messageText,
+            pendingUserArtifactIds:
+              pendingUserArtifactIds.length > 0
+                ? pendingUserArtifactIds
+                : undefined,
           });
         },
         rollback: async () => {

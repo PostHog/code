@@ -131,6 +131,101 @@ export interface FinalizedTaskArtifactUpload {
 
 type CloudRuntimeAdapter = "claude" | "codex";
 
+interface CloudRunOptions {
+  adapter?: CloudRuntimeAdapter;
+  model?: string;
+  reasoningLevel?: string;
+  sandboxEnvironmentId?: string;
+  prAuthorshipMode?: PrAuthorshipMode;
+  runSource?: CloudRunSource;
+  signalReportId?: string;
+  githubUserToken?: string;
+  initialPermissionMode?: PermissionMode;
+}
+
+interface CreateTaskRunOptions extends CloudRunOptions {
+  environment?: "local" | "cloud";
+  mode?: "interactive" | "background";
+  branch?: string | null;
+}
+
+interface StartTaskRunOptions {
+  pendingUserMessage?: string;
+  pendingUserArtifactIds?: string[];
+}
+
+function buildCloudRunRequestBody(
+  options?: CloudRunOptions & {
+    branch?: string | null;
+    mode?: "interactive" | "background";
+    resumeFromRunId?: string;
+    pendingUserMessage?: string;
+    pendingUserArtifactIds?: string[];
+  },
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    mode: options?.mode ?? "interactive",
+  };
+
+  if (options?.branch) {
+    body.branch = options.branch;
+  }
+  if (options?.adapter) {
+    body.runtime_adapter = options.adapter;
+    if (options.model) {
+      body.model = options.model;
+    }
+    if (options.reasoningLevel) {
+      if (!options.model) {
+        throw new Error(
+          "A cloud reasoning level requires a model to be selected.",
+        );
+      }
+      if (
+        !isSupportedReasoningEffort(
+          options.adapter,
+          options.model,
+          options.reasoningLevel,
+        )
+      ) {
+        throw new Error(
+          `Reasoning effort '${options.reasoningLevel}' is not supported for ${options.adapter} model '${options.model}'.`,
+        );
+      }
+      body.reasoning_effort = options.reasoningLevel;
+    }
+  }
+  if (options?.resumeFromRunId) {
+    body.resume_from_run_id = options.resumeFromRunId;
+  }
+  if (options?.pendingUserMessage) {
+    body.pending_user_message = options.pendingUserMessage;
+  }
+  if (options?.pendingUserArtifactIds?.length) {
+    body.pending_user_artifact_ids = options.pendingUserArtifactIds;
+  }
+  if (options?.sandboxEnvironmentId) {
+    body.sandbox_environment_id = options.sandboxEnvironmentId;
+  }
+  if (options?.prAuthorshipMode) {
+    body.pr_authorship_mode = options.prAuthorshipMode;
+  }
+  if (options?.runSource) {
+    body.run_source = options.runSource;
+  }
+  if (options?.signalReportId) {
+    body.signal_report_id = options.signalReportId;
+  }
+  if (options?.githubUserToken) {
+    body.github_user_token = options.githubUserToken;
+  }
+  if (options?.initialPermissionMode) {
+    body.initial_permission_mode = options.initialPermissionMode;
+  }
+
+  return body;
+}
+
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -798,78 +893,18 @@ export class PostHogAPIClient {
   async runTaskInCloud(
     taskId: string,
     branch?: string | null,
-    options?: {
-      adapter?: CloudRuntimeAdapter;
-      model?: string;
-      reasoningLevel?: string;
+    options?: CloudRunOptions & {
       resumeFromRunId?: string;
       pendingUserMessage?: string;
       pendingUserArtifactIds?: string[];
-      sandboxEnvironmentId?: string;
-      prAuthorshipMode?: PrAuthorshipMode;
-      runSource?: CloudRunSource;
-      signalReportId?: string;
-      githubUserToken?: string;
-      initialPermissionMode?: PermissionMode;
     },
   ): Promise<Task> {
     const teamId = await this.getTeamId();
-    const body: Record<string, unknown> = { mode: "interactive" };
-    if (branch) {
-      body.branch = branch;
-    }
-    if (options?.adapter) {
-      body.runtime_adapter = options.adapter;
-      if (options.model) {
-        body.model = options.model;
-      }
-      if (options.reasoningLevel) {
-        if (!options.model) {
-          throw new Error(
-            "A cloud reasoning level requires a model to be selected.",
-          );
-        }
-        if (
-          !isSupportedReasoningEffort(
-            options.adapter,
-            options.model,
-            options.reasoningLevel,
-          )
-        ) {
-          throw new Error(
-            `Reasoning effort '${options.reasoningLevel}' is not supported for ${options.adapter} model '${options.model}'.`,
-          );
-        }
-        body.reasoning_effort = options.reasoningLevel;
-      }
-    }
-    if (options?.resumeFromRunId) {
-      body.resume_from_run_id = options.resumeFromRunId;
-    }
-    if (options?.pendingUserMessage) {
-      body.pending_user_message = options.pendingUserMessage;
-    }
-    if (options?.pendingUserArtifactIds?.length) {
-      body.pending_user_artifact_ids = options.pendingUserArtifactIds;
-    }
-    if (options?.sandboxEnvironmentId) {
-      body.sandbox_environment_id = options.sandboxEnvironmentId;
-    }
-    if (options?.prAuthorshipMode) {
-      body.pr_authorship_mode = options.prAuthorshipMode;
-    }
-    if (options?.runSource) {
-      body.run_source = options.runSource;
-    }
-    if (options?.signalReportId) {
-      body.signal_report_id = options.signalReportId;
-    }
-    if (options?.githubUserToken) {
-      body.github_user_token = options.githubUserToken;
-    }
-    if (options?.initialPermissionMode) {
-      body.initial_permission_mode = options.initialPermissionMode;
-    }
+    const body = buildCloudRunRequestBody({
+      ...options,
+      branch,
+      mode: "interactive",
+    });
 
     const data = await this.api.post(
       `/api/projects/{project_id}/tasks/{id}/run/`,
@@ -1067,19 +1102,62 @@ export class PostHogAPIClient {
     return await response.json();
   }
 
-  async createTaskRun(taskId: string): Promise<TaskRun> {
+  async createTaskRun(
+    taskId: string,
+    options?: CreateTaskRunOptions,
+  ): Promise<TaskRun> {
     const teamId = await this.getTeamId();
-    const data = await this.api.post(
-      `/api/projects/{project_id}/tasks/{task_id}/runs/`,
-      {
-        path: { project_id: teamId.toString(), task_id: taskId },
-        //@ts-expect-error the generated client does not infer the request type unless explicitly specified on the viewset
-        body: {
-          environment: "local" as const,
-        },
-      },
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/runs/`,
     );
-    return data as unknown as TaskRun;
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/runs/`,
+      overrides: {
+        body: JSON.stringify({
+          ...buildCloudRunRequestBody({
+            ...options,
+            mode: options?.mode ?? "background",
+          }),
+          environment: options?.environment ?? "local",
+        }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to create task run: ${response.statusText}`);
+    }
+
+    return (await response.json()) as TaskRun;
+  }
+
+  async startTaskRun(
+    taskId: string,
+    runId: string,
+    options?: StartTaskRunOptions,
+  ): Promise<Task> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/start/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/start/`,
+      overrides: {
+        body: JSON.stringify({
+          pending_user_message: options?.pendingUserMessage,
+          pending_user_artifact_ids: options?.pendingUserArtifactIds,
+        }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to start task run: ${response.statusText}`);
+    }
+
+    return (await response.json()) as Task;
   }
 
   async updateTaskRun(
