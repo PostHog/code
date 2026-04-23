@@ -7,15 +7,16 @@ function makeInstallation(
 ): McpServerInstallation {
   return {
     id: "inst-1",
-    server_id: null,
+    template_id: null,
     name: "Test",
     proxy_url: "https://proxy.example.com/inst-1",
+    tool_count: 0,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     needs_reauth: false,
     pending_oauth: false,
     ...overrides,
-  } as McpServerInstallation;
+  };
 }
 
 describe("getInstallationStatus", () => {

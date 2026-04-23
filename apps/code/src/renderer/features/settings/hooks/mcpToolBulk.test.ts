@@ -9,8 +9,14 @@ function tool(
   return {
     id: `tool-${name}`,
     tool_name: name,
+    display_name: name,
+    description: "",
+    input_schema: {},
     approval_state: "needs_approval",
+    last_seen_at: "2026-01-01T00:00:00Z",
+    removed_at: null,
     created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
   };
 }

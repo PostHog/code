@@ -71,7 +71,7 @@ export function ToolRow({ tool, onChange }: ToolRowProps) {
         </button>
         <div className="shrink-0">
           <ToolPolicyToggle
-            value={tool.approval_state}
+            value={tool.approval_state ?? "needs_approval"}
             onChange={onChange}
             disabled={removed}
           />

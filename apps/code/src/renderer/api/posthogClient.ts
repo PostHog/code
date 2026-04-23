@@ -60,50 +60,13 @@ export const MCP_CATEGORIES = [
   { id: "productivity", label: "Productivity & Collaboration" },
 ] as const;
 
-export type McpCategory = (typeof MCP_CATEGORIES)[number]["id"];
-
-export const MCP_APPROVAL_STATES = [
-  "approved",
-  "needs_approval",
-  "do_not_use",
-] as const;
-
-export type McpApprovalState = (typeof MCP_APPROVAL_STATES)[number];
-
-export type McpAuthType = "api_key" | "oauth";
-
-export type McpRecommendedServer = Omit<
-  Schemas.RecommendedServer,
-  "auth_type"
-> & {
-  id: string;
-  auth_type: McpAuthType;
-  category?: McpCategory;
-  docs_url?: string;
-  icon_key?: string;
-};
-
-export type McpServerInstallation = Omit<
-  Schemas.MCPServerInstallation,
-  "auth_type"
-> & {
-  auth_type?: McpAuthType;
-  template_id?: string | null;
-  tool_count?: number;
-};
-
-export interface McpInstallationTool {
-  id: string;
-  tool_name: string;
-  display_name?: string;
-  description?: string;
-  input_schema?: Record<string, unknown>;
-  approval_state: McpApprovalState;
-  last_seen_at?: string | null;
-  removed_at?: string | null;
-  created_at: string;
-  updated_at?: string | null;
-}
+export type McpCategory = Schemas.CategoryEnum;
+export type McpApprovalState =
+  Schemas.MCPServerInstallationToolApprovalStateEnum;
+export type McpAuthType = Schemas.AuthType9cbEnum;
+export type McpRecommendedServer = Schemas.MCPServerTemplate;
+export type McpServerInstallation = Schemas.MCPServerInstallation;
+export type McpInstallationTool = Schemas.MCPServerInstallationTool;
 
 export type Evaluation = Schemas.Evaluation;
 
@@ -941,7 +904,6 @@ export class PostHogAPIClient {
       `/api/projects/{project_id}/tasks/{task_id}/runs/`,
       {
         path: { project_id: teamId.toString(), task_id: taskId },
-        //@ts-expect-error the generated client does not infer the request type unless explicitly specified on the viewset
         body: {
           environment: "local" as const,
         },

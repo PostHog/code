@@ -95,7 +95,7 @@ export function ServerDetailView({
   const counts = useMemo(() => {
     return tools.reduce(
       (acc, t) => {
-        if (t.removed_at) return acc;
+        if (t.removed_at || !t.approval_state) return acc;
         acc[t.approval_state] = (acc[t.approval_state] ?? 0) + 1;
         return acc;
       },
