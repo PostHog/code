@@ -111,13 +111,12 @@ function toUnifiedDiffPatch(
 @injectable()
 export class GitService extends TypedEventEmitter<GitServiceEvents> {
   private lastFetchTime = new Map<string, number>();
-  private llmGateway: LlmGatewayService;
 
   constructor(
-    @inject(MAIN_TOKENS.LlmGatewayService) llmGateway: LlmGatewayService,
+    @inject(MAIN_TOKENS.LlmGatewayService)
+    private readonly llmGateway: LlmGatewayService,
   ) {
     super();
-    this.llmGateway = llmGateway;
   }
 
   private async getStateSnapshot(
@@ -1123,85 +1122,71 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
 
     const [owner, repoName] = parts;
 
-    try {
-      const repoResult = await execGh([
-        "api",
-        `repos/${owner}/${repoName}`,
-        "--jq",
-        ".default_branch",
-      ]);
+    const repoResult = await execGh([
+      "api",
+      `repos/${owner}/${repoName}`,
+      "--jq",
+      ".default_branch",
+    ]);
 
-      if (repoResult.exitCode !== 0 || !repoResult.stdout.trim()) {
-        return [];
-      }
-      const defaultBranch = repoResult.stdout.trim();
-
-      const result = await execGh([
-        "api",
-        `repos/${owner}/${repoName}/compare/${defaultBranch}...${branch}`,
-      ]);
-
-      if (result.exitCode !== 0) {
-        throw new Error(
-          `Failed to fetch branch files: ${result.stderr || result.error || "Unknown error"}`,
-        );
-      }
-
-      const response = JSON.parse(result.stdout) as {
-        files?: Array<{
-          filename: string;
-          status: string;
-          previous_filename?: string;
-          additions: number;
-          deletions: number;
-          patch?: string;
-        }>;
-      };
-      const files = response.files;
-
-      if (!files) return [];
-
-      return files.map((f) => {
-        let status: ChangedFile["status"];
-        switch (f.status) {
-          case "added":
-            status = "added";
-            break;
-          case "removed":
-            status = "deleted";
-            break;
-          case "renamed":
-            status = "renamed";
-            break;
-          default:
-            status = "modified";
-            break;
-        }
-
-        return {
-          path: f.filename,
-          status,
-          originalPath: f.previous_filename,
-          linesAdded: f.additions,
-          linesRemoved: f.deletions,
-          patch: f.patch
-            ? toUnifiedDiffPatch(
-                f.patch,
-                f.filename,
-                f.previous_filename,
-                status,
-              )
-            : undefined,
-        };
-      });
-    } catch (error) {
-      log.warn("Failed to fetch branch changed files", {
-        repo,
-        branch,
-        error,
-      });
-      throw error;
+    if (repoResult.exitCode !== 0 || !repoResult.stdout.trim()) {
+      return [];
     }
+    const defaultBranch = repoResult.stdout.trim();
+
+    const result = await execGh([
+      "api",
+      `repos/${owner}/${repoName}/compare/${defaultBranch}...${branch}`,
+    ]);
+
+    if (result.exitCode !== 0) {
+      throw new Error(
+        `Failed to fetch branch files: ${result.stderr || result.error || "Unknown error"}`,
+      );
+    }
+
+    const response = JSON.parse(result.stdout) as {
+      files?: Array<{
+        filename: string;
+        status: string;
+        previous_filename?: string;
+        additions: number;
+        deletions: number;
+        patch?: string;
+      }>;
+    };
+    const files = response.files;
+
+    if (!files) return [];
+
+    return files.map((f) => {
+      let status: ChangedFile["status"];
+      switch (f.status) {
+        case "added":
+          status = "added";
+          break;
+        case "removed":
+          status = "deleted";
+          break;
+        case "renamed":
+          status = "renamed";
+          break;
+        default:
+          status = "modified";
+          break;
+      }
+
+      return {
+        path: f.filename,
+        status,
+        originalPath: f.previous_filename,
+        linesAdded: f.additions,
+        linesRemoved: f.deletions,
+        patch: f.patch
+          ? toUnifiedDiffPatch(f.patch, f.filename, f.previous_filename, status)
+          : undefined,
+      };
+    });
   }
 
   public async generateCommitMessage(

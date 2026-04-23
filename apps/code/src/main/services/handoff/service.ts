@@ -1,9 +1,10 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { MAIN_TOKENS } from "@main/di/tokens";
 import { logger } from "@main/utils/logger";
 import { TypedEventEmitter } from "@main/utils/typed-event-emitter";
+import { POSTHOG_NOTIFICATIONS } from "@posthog/agent";
 import { HandoffCheckpointTracker } from "@posthog/agent/handoff-checkpoint";
 import { PostHogAPIClient } from "@posthog/agent/posthog-api";
 import { TreeTracker } from "@posthog/agent/tree-tracker";
@@ -22,12 +23,20 @@ import type { CloudTaskService } from "../cloud-task/service";
 import type { GitService } from "../git/service";
 import { HandoffSaga, type HandoffSagaDeps } from "./handoff-saga";
 import {
+  HandoffToCloudSaga,
+  type HandoffToCloudSagaDeps,
+} from "./handoff-to-cloud-saga";
+import {
   HandoffEvent,
   type HandoffExecuteInput,
   type HandoffExecuteResult,
   type HandoffPreflightInput,
   type HandoffPreflightResult,
   type HandoffServiceEvents,
+  type HandoffToCloudExecuteInput,
+  type HandoffToCloudExecuteResult,
+  type HandoffToCloudPreflightInput,
+  type HandoffToCloudPreflightResult,
 } from "./schemas";
 
 const log = logger.scope("handoff");
@@ -78,13 +87,8 @@ export class HandoffService extends TypedEventEmitter<HandoffServiceEvents> {
 
   async execute(input: HandoffExecuteInput): Promise<HandoffExecuteResult> {
     const deps: HandoffSagaDeps = {
-      createApiClient: (apiHost: string, teamId: number) => {
-        const config = this.agentAuthAdapter.createPosthogConfig({
-          apiHost,
-          projectId: teamId,
-        });
-        return new PostHogAPIClient(config);
-      },
+      createApiClient: (apiHost, teamId) =>
+        this.createApiClient(apiHost, teamId),
 
       applyTreeSnapshot: async (
         snapshot: AgentTypes.TreeSnapshotEvent,
@@ -159,7 +163,8 @@ export class HandoffService extends TypedEventEmitter<HandoffServiceEvents> {
 
         const logDir = join(homedir(), ".posthog-code", "sessions", runId);
         mkdirSync(logDir, { recursive: true });
-        writeFileSync(join(logDir, "logs.ndjson"), content);
+        const marker = JSON.stringify({ type: "seed_boundary" });
+        writeFileSync(join(logDir, "logs.ndjson"), `${content}\n${marker}`);
         log.info("Seeded local logs from cloud", {
           runId,
           bytes: content.length,
@@ -206,6 +211,176 @@ export class HandoffService extends TypedEventEmitter<HandoffServiceEvents> {
       success: true,
       sessionId: result.data.sessionId,
     };
+  }
+
+  async preflightToCloud(
+    input: HandoffToCloudPreflightInput,
+  ): Promise<HandoffToCloudPreflightResult> {
+    const { repoPath } = input;
+
+    let localGitState: AgentTypes.HandoffLocalGitState | undefined;
+    try {
+      localGitState = await this.getLocalGitState(repoPath);
+    } catch (err) {
+      log.warn("Failed to read local git state for cloud handoff", {
+        repoPath,
+        err,
+      });
+    }
+
+    return { canHandoff: true, localGitState };
+  }
+
+  async executeToCloud(
+    input: HandoffToCloudExecuteInput,
+  ): Promise<HandoffToCloudExecuteResult> {
+    const { taskId, runId, repoPath, apiHost, teamId } = input;
+    const apiClient = this.createApiClient(apiHost, teamId);
+
+    const checkpointTracker = new HandoffCheckpointTracker({
+      repositoryPath: repoPath,
+      taskId,
+      runId,
+      apiClient,
+    });
+
+    const treeTracker = new TreeTracker({
+      repositoryPath: repoPath,
+      taskId,
+      runId,
+      apiClient,
+    });
+
+    const appendNotification = async (
+      method: string,
+      params: Record<string, unknown>,
+    ) => {
+      await apiClient.appendTaskRunLog(taskId, runId, [
+        {
+          type: "notification",
+          timestamp: new Date().toISOString(),
+          notification: { jsonrpc: "2.0", method, params },
+        },
+      ]);
+    };
+
+    const deps: HandoffToCloudSagaDeps = {
+      createApiClient: () => apiClient,
+
+      captureGitCheckpoint: async (localGitState) => {
+        const checkpoint =
+          await checkpointTracker.captureForHandoff(localGitState);
+        if (!checkpoint) return null;
+        return { ...checkpoint, device: { type: "local" as const } };
+      },
+
+      captureTreeSnapshot: async () => {
+        const snapshot = await treeTracker.captureTree({});
+        if (!snapshot) return null;
+        return { ...snapshot, device: { type: "local" as const } };
+      },
+
+      persistCheckpointToLog: (checkpoint) =>
+        appendNotification(
+          POSTHOG_NOTIFICATIONS.GIT_CHECKPOINT,
+          checkpoint as unknown as Record<string, unknown>,
+        ),
+
+      persistSnapshotToLog: (snapshot) =>
+        appendNotification(
+          POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT,
+          snapshot as unknown as Record<string, unknown>,
+        ),
+
+      flushLocalLogs: async () => {
+        const logPath = join(
+          homedir(),
+          ".posthog-code",
+          "sessions",
+          runId,
+          "logs.ndjson",
+        );
+        if (!existsSync(logPath)) return 0;
+
+        const lines = readFileSync(logPath, "utf-8")
+          .split("\n")
+          .filter((l) => l.trim());
+        if (lines.length === 0) return 0;
+
+        const boundaryIndex = lines.findIndex((l) => {
+          try {
+            return JSON.parse(l).type === "seed_boundary";
+          } catch {
+            return false;
+          }
+        });
+        const newLines =
+          boundaryIndex >= 0 ? lines.slice(boundaryIndex + 1) : lines;
+
+        const entries: AgentTypes.StoredEntry[] = [];
+        for (const line of newLines) {
+          try {
+            entries.push(JSON.parse(line));
+          } catch {
+            // skip
+          }
+        }
+
+        if (entries.length > 0) {
+          await apiClient.appendTaskRunLog(taskId, runId, entries);
+          log.info("Flushed local logs to cloud", {
+            runId,
+            entries: entries.length,
+          });
+        }
+
+        return lines.length;
+      },
+
+      resumeRunInCloud: async () => {
+        await apiClient.resumeRunInCloud(taskId, runId);
+      },
+
+      killSession: async (taskRunId) => {
+        await this.agentService.cancelSession(taskRunId);
+      },
+
+      updateWorkspaceMode: (tid, mode) => {
+        this.workspaceRepo.updateMode(tid, mode);
+      },
+
+      onProgress: (step, message) => {
+        this.emit(HandoffEvent.Progress, { taskId, step, message });
+      },
+    };
+
+    const saga = new HandoffToCloudSaga(deps, log);
+    const result = await saga.run(input);
+
+    if (!result.success) {
+      log.error("Handoff to cloud saga failed", {
+        error: result.error,
+        failedStep: result.failedStep,
+      });
+      deps.onProgress("failed", result.error ?? "Handoff to cloud failed");
+      return {
+        success: false,
+        error: `Handoff to cloud failed at step '${result.failedStep}': ${result.error}`,
+      };
+    }
+
+    return {
+      success: true,
+      logEntryCount: result.data.flushedLogEntryCount,
+    };
+  }
+
+  private createApiClient(apiHost: string, teamId: number): PostHogAPIClient {
+    const config = this.agentAuthAdapter.createPosthogConfig({
+      apiHost,
+      projectId: teamId,
+    });
+    return new PostHogAPIClient(config);
   }
 
   private async getLocalGitState(

@@ -1468,6 +1468,18 @@ export class SessionService {
       return this.resumeCloudRun(session, prompt);
     }
 
+    if (session.cloudStatus !== "in_progress") {
+      sessionStoreSetters.enqueueMessage(session.taskId, transport.promptText);
+      sessionStoreSetters.updateSession(session.taskRunId, {
+        isPromptPending: true,
+      });
+      log.info("Cloud message queued (sandbox not ready)", {
+        taskId: session.taskId,
+        cloudStatus: session.cloudStatus,
+      });
+      return { stopReason: "queued" };
+    }
+
     if (!options?.skipQueueGuard && session.isPromptPending) {
       sessionStoreSetters.enqueueMessage(
         session.taskId,
@@ -2611,6 +2623,76 @@ export class SessionService {
         err instanceof Error ? err.message : "Handoff to local failed",
       );
       this.watchCloudTask(taskId, runId, auth.apiHost, auth.projectId);
+      sessionStoreSetters.updateSession(runId, {
+        handoffInProgress: false,
+        status: "disconnected",
+      });
+    }
+  }
+
+  async handoffToCloud(taskId: string, repoPath: string): Promise<void> {
+    const session = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (!session) {
+      log.warn("No session found for cloud handoff", { taskId });
+      return;
+    }
+
+    const runId = session.taskRunId;
+    const auth = await this.getHandoffAuth();
+    if (!auth) return;
+
+    sessionStoreSetters.updateSession(runId, { handoffInProgress: true });
+
+    try {
+      const preflight = await trpcClient.handoff.preflightToCloud.query({
+        taskId,
+        runId,
+        repoPath,
+      });
+      if (!preflight.canHandoff) {
+        sessionStoreSetters.updateSession(runId, {
+          handoffInProgress: false,
+        });
+        throw new Error(preflight.reason ?? "Cannot hand off to cloud");
+      }
+
+      this.unsubscribeFromChannel(runId);
+      sessionStoreSetters.updateSession(runId, { status: "connecting" });
+
+      const result = await trpcClient.handoff.executeToCloud.mutate({
+        taskId,
+        runId,
+        repoPath,
+        apiHost: auth.apiHost,
+        teamId: auth.projectId,
+        localGitState: preflight.localGitState,
+      });
+      if (!result.success) {
+        throw new Error(result.error ?? "Handoff to cloud failed");
+      }
+
+      sessionStoreSetters.updateSession(runId, {
+        isCloud: true,
+        cloudStatus: undefined,
+        cloudStage: undefined,
+        cloudOutput: undefined,
+        cloudErrorMessage: undefined,
+        cloudBranch: undefined,
+        handoffInProgress: false,
+        status: "disconnected",
+        processedLineCount: result.logEntryCount ?? 0,
+      });
+
+      this.watchCloudTask(taskId, runId, auth.apiHost, auth.projectId);
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries(trpc.workspace.getAll.pathFilter());
+      log.info("Local-to-cloud handoff complete", { taskId, runId });
+    } catch (err) {
+      log.error("Handoff to cloud failed", { taskId, err });
+      toast.error(
+        err instanceof Error ? err.message : "Handoff to cloud failed",
+      );
+      this.subscribeToChannel(runId);
       sessionStoreSetters.updateSession(runId, {
         handoffInProgress: false,
         status: "disconnected",

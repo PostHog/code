@@ -1,15 +1,52 @@
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { DiffStatsBadge } from "@features/code-review/components/DiffStatsBadge";
 import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
 import { CloudGitInteractionHeader } from "@features/git-interaction/components/CloudGitInteractionHeader";
 import { GitInteractionHeader } from "@features/git-interaction/components/GitInteractionHeader";
+import { useSessionForTask } from "@features/sessions/hooks/useSession";
+import { useSessionCallbacks } from "@features/sessions/hooks/useSessionCallbacks";
 import { SidebarTrigger } from "@features/sidebar/components/SidebarTrigger";
 import { useSidebarStore } from "@features/sidebar/stores/sidebarStore";
 import { SkillButtonsMenu } from "@features/skill-buttons/components/SkillButtonsMenu";
 import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
-import { Box, Flex } from "@radix-ui/themes";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
+import { Box, Button, Flex, Text } from "@radix-ui/themes";
+import type { Task } from "@shared/types";
 import { useHeaderStore } from "@stores/headerStore";
 import { useNavigationStore } from "@stores/navigationStore";
 import { isWindows } from "@utils/platform";
+
+const CLOUD_HANDOFF_FLAG = "phc-cloud-handoff";
+
+function LocalHandoffButton({ taskId, task }: { taskId: string; task: Task }) {
+  const session = useSessionForTask(taskId);
+  const workspace = useWorkspace(taskId);
+  const repoPath = workspace?.folderPath ?? null;
+  const authStatus = useAuthStateValue((s) => s.status);
+  const cloudHandoffEnabled = useFeatureFlag(CLOUD_HANDOFF_FLAG);
+  const { handleContinueInCloud } = useSessionCallbacks({
+    taskId,
+    task,
+    session: session ?? undefined,
+    repoPath,
+  });
+
+  if (authStatus !== "authenticated") return null;
+  if (!cloudHandoffEnabled) return null;
+
+  return (
+    <Button
+      size="1"
+      variant="soft"
+      disabled={session?.handoffInProgress}
+      onClick={handleContinueInCloud}
+    >
+      <Text size="1">
+        {session?.handoffInProgress ? "Transferring..." : "Continue in cloud"}
+      </Text>
+    </Button>
+  );
+}
 
 export const HEADER_HEIGHT = 36;
 const COLLAPSED_WIDTH = 110;
@@ -137,7 +174,10 @@ export function HeaderRow() {
           {isCloudTask ? (
             <CloudGitInteractionHeader taskId={view.data.id} task={view.data} />
           ) : (
-            <GitInteractionHeader taskId={view.data.id} />
+            <>
+              <LocalHandoffButton taskId={view.data.id} task={view.data} />
+              <GitInteractionHeader taskId={view.data.id} />
+            </>
           )}
         </Flex>
       )}

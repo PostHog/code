@@ -73,6 +73,7 @@ function createDeps(overrides: Partial<HandoffSagaDeps> = {}): HandoffSagaDeps {
       getTaskRun: vi.fn().mockResolvedValue({
         log_url: "https://logs.example.com/run-1.ndjson",
       }),
+      updateTaskRun: vi.fn().mockResolvedValue({}),
     }),
     applyTreeSnapshot: vi.fn().mockResolvedValue(undefined),
     applyGitCheckpoint: vi.fn().mockResolvedValue(undefined),
@@ -97,7 +98,6 @@ function createResumeState(
     conversation: [],
     latestSnapshot: null,
     latestGitCheckpoint: null,
-    snapshotApplied: false,
     interrupted: false,
     logEntryCount: 0,
     ...overrides,

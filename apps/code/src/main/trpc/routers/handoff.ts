@@ -7,6 +7,10 @@ import {
   handoffExecuteResult,
   handoffPreflightInput,
   handoffPreflightResult,
+  handoffToCloudExecuteInput,
+  handoffToCloudExecuteResult,
+  handoffToCloudPreflightInput,
+  handoffToCloudPreflightResult,
 } from "../../services/handoff/schemas";
 import type { HandoffService } from "../../services/handoff/service";
 import { publicProcedure, router } from "../trpc";
@@ -24,6 +28,16 @@ export const handoffRouter = router({
     .input(handoffExecuteInput)
     .output(handoffExecuteResult)
     .mutation(({ input }) => getService().execute(input)),
+
+  preflightToCloud: publicProcedure
+    .input(handoffToCloudPreflightInput)
+    .output(handoffToCloudPreflightResult)
+    .query(({ input }) => getService().preflightToCloud(input)),
+
+  executeToCloud: publicProcedure
+    .input(handoffToCloudExecuteInput)
+    .output(handoffToCloudExecuteResult)
+    .mutation(({ input }) => getService().executeToCloud(input)),
 
   onProgress: publicProcedure
     .input(z.object({ taskId: z.string() }))

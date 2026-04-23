@@ -153,6 +153,14 @@ export class PostHogAPIClient {
     );
   }
 
+  async resumeRunInCloud(taskId: string, runId: string): Promise<TaskRun> {
+    const teamId = this.getTeamId();
+    return this.apiRequest<TaskRun>(
+      `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/resume_in_cloud/`,
+      { method: "POST" },
+    );
+  }
+
   async updateTaskRun(
     taskId: string,
     runId: string,
