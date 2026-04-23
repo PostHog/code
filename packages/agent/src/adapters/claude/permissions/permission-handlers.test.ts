@@ -12,6 +12,9 @@ function createContext(
   return {
     session: {
       permissionMode: "default" as const,
+      settingsManager: {
+        getRepoRoot: vi.fn().mockReturnValue("/repo"),
+      },
       ...((overrides.session as Record<string, unknown>) ?? {}),
     },
     toolName,
