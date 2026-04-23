@@ -22,10 +22,7 @@ interface AiApprovalScreenProps {
   isAdmin: boolean;
 }
 
-export function AiApprovalScreen({
-  orgName,
-  isAdmin,
-}: AiApprovalScreenProps) {
+export function AiApprovalScreen({ orgName, isAdmin }: AiApprovalScreenProps) {
   const logoutMutation = useLogoutMutation();
   const openSettings = useSettingsDialogStore((s) => s.open);
   const cloudRegion = useAuthStateValue((s) => s.cloudRegion);
