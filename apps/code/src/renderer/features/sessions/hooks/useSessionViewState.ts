@@ -41,6 +41,8 @@ export function useSessionViewState(taskId: string, task: Task) {
     ? (workspace?.baseBranch ?? task.latest_run?.branch ?? null)
     : null;
 
+  const canBash = !isCloud || !!session?.sandboxEnvironmentId;
+
   return {
     session,
     repoPath,
@@ -55,6 +57,7 @@ export function useSessionViewState(taskId: string, task: Task) {
     promptStartedAt,
     isInitializing,
     cloudBranch,
+    canBash,
     errorTitle: session?.errorTitle,
     errorMessage:
       session?.errorMessage ??

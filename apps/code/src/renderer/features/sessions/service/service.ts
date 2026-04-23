@@ -82,6 +82,25 @@ const LOCAL_SESSION_RECONNECT_BACKOFF = {
   initialDelayMs: 1_000,
   maxDelayMs: 5_000,
 };
+
+/** Maps a Unix signal name to exit code using the 128 + N convention. */
+const SIGNAL_NUMBERS: Record<string, number> = {
+  SIGHUP: 1,
+  SIGINT: 2,
+  SIGQUIT: 3,
+  SIGABRT: 6,
+  SIGKILL: 9,
+  SIGPIPE: 13,
+  SIGALRM: 14,
+  SIGTERM: 15,
+};
+
+function signalToExitCode(signal: string | null): number {
+  if (!signal) return 0;
+  const num = SIGNAL_NUMBERS[signal];
+  return num ? 128 + num : 128;
+}
+
 const LOCAL_SESSION_RECOVERY_MESSAGE =
   "Lost connection to the agent. Reconnecting…";
 const LOCAL_SESSION_RECOVERY_FAILED_MESSAGE =
@@ -185,6 +204,7 @@ export class SessionService {
   >();
   /** Maps toolCallId → cloud requestId for routing permission responses */
   private cloudPermissionRequestIds = new Map<string, string>();
+  private static readonly MAX_PENDING_CLOUD_SHELLS = 5;
   private pendingCloudShells = new Map<
     string,
     {
@@ -198,6 +218,8 @@ export class SessionService {
       }) => void;
     }
   >();
+  /** Sandbox environment IDs set during task creation, keyed by taskId. */
+  private taskSandboxEnvironments = new Map<string, string>();
   private idleKilledSubscription: { unsubscribe: () => void } | null = null;
 
   constructor() {
@@ -1733,6 +1755,7 @@ export class SessionService {
       newRun.log_url,
       initialMode,
       newRun.runtime_adapter ?? session.adapter ?? "claude",
+      session.sandboxEnvironmentId,
     );
 
     // Invalidate task queries so the UI picks up the new run metadata
@@ -2072,6 +2095,14 @@ export class SessionService {
     await this.setSessionConfigOption(taskId, configOption.id, value);
   }
 
+  /**
+   * Records a sandbox environment ID for a task. Called during task creation
+   * so that `watchCloudTask` can propagate it to the session.
+   */
+  setSandboxEnvironmentId(taskId: string, sandboxEnvironmentId: string): void {
+    this.taskSandboxEnvironments.set(taskId, sandboxEnvironmentId);
+  }
+
   async executeCloudShellCommand(
     taskId: string,
     command: string,
@@ -2079,6 +2110,14 @@ export class SessionService {
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) {
       throw new Error("No active session for task");
+    }
+
+    if (
+      this.pendingCloudShells.size >= SessionService.MAX_PENDING_CLOUD_SHELLS
+    ) {
+      throw new Error(
+        `Too many concurrent shell executions (max ${SessionService.MAX_PENDING_CLOUD_SHELLS})`,
+      );
     }
 
     // Pre-register the pending listener before the RPC round-trip — fast
@@ -2305,6 +2344,7 @@ export class SessionService {
     logUrl?: string,
     initialMode?: string,
     adapter: Adapter = "claude",
+    sandboxEnvironmentId?: string,
   ): () => void {
     const taskRunId = runId;
     const startToken = ++this.nextCloudTaskWatchToken;
@@ -2369,6 +2409,8 @@ export class SessionService {
       session.status = "disconnected";
       session.isCloud = true;
       session.adapter = adapter;
+      session.sandboxEnvironmentId =
+        sandboxEnvironmentId ?? this.taskSandboxEnvironments.get(taskId);
       session.configOptions = buildCloudDefaultConfigOptions(
         initialMode,
         adapter,
@@ -2619,7 +2661,7 @@ export class SessionService {
         pending.resolve({
           stdout: pending.stdout,
           stderr: pending.stderr,
-          exitCode: update.exitCode ?? (update.signal ? 1 : 0),
+          exitCode: update.exitCode ?? signalToExitCode(update.signal),
         });
       }
       return;

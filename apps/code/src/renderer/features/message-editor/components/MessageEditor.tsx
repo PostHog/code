@@ -182,7 +182,7 @@ export const MessageEditor = forwardRef<EditorHandle, MessageEditorProps>(
       autoFocus,
       context: { taskId, repoPath },
       getPromptHistory,
-      capabilities: { bashMode: true },
+      capabilities: { bashMode: !!onBashCommand },
       onSubmit,
       onBashCommand,
       onBashModeChange,

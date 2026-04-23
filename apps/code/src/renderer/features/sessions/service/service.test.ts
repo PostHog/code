@@ -1731,7 +1731,7 @@ describe("SessionService", () => {
       await expect(execPromise).resolves.toEqual({
         stdout: "",
         stderr: "",
-        exitCode: 1,
+        exitCode: 143, // 128 + SIGTERM(15)
       });
     });
 

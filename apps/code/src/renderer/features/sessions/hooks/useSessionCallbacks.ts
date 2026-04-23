@@ -115,6 +115,7 @@ export function useSessionCallbacks({
       const currentSession = sessionRef.current;
       const isCloud = currentSession?.isCloud === true;
 
+      if (isCloud && !currentSession?.sandboxEnvironmentId) return;
       if (!isCloud && !repoPath) return;
 
       const execId = `user-shell-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;

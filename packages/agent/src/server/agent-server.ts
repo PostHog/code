@@ -213,6 +213,7 @@ export class AgentServer {
   private shellExecutions = new Map<string, ChildProcess>();
   private static readonly SHELL_DEFAULT_TIMEOUT_MS = 60_000;
   private static readonly SHELL_MAX_TIMEOUT_MS = 600_000;
+  private static readonly MAX_CONCURRENT_SHELLS = 5;
 
   private detachSseController(controller: SseController): void {
     if (this.session?.sseController === controller) {
@@ -2039,6 +2040,12 @@ ${attributionInstructions}
     timeoutMs: number;
     executionId?: string;
   }): { executionId: string } {
+    if (this.shellExecutions.size >= AgentServer.MAX_CONCURRENT_SHELLS) {
+      throw new Error(
+        `Too many concurrent shell executions (max ${AgentServer.MAX_CONCURRENT_SHELLS})`,
+      );
+    }
+
     const executionId = params.executionId ?? crypto.randomUUID();
     const { command, cwd, timeoutMs } = params;
 
@@ -2050,7 +2057,7 @@ ${attributionInstructions}
 
     const child = spawn("bash", ["-c", command], {
       cwd,
-      env: process.env,
+      env: { PATH: process.env.PATH, HOME: process.env.HOME },
       stdio: ["ignore", "pipe", "pipe"],
     });
 

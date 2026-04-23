@@ -57,6 +57,8 @@ export interface AgentSession {
   messageQueue: QueuedMessage[];
   /** Whether this session is for a cloud run */
   isCloud?: boolean;
+  /** Sandbox environment ID attached to this cloud run (enables bash execution) */
+  sandboxEnvironmentId?: string;
   /** Cloud task run status (only set for cloud sessions) */
   cloudStatus?: TaskRunStatus;
   /** Cloud task current stage */

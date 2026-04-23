@@ -55,6 +55,7 @@ export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
     promptStartedAt,
     isInitializing,
     cloudBranch,
+    canBash,
     errorTitle,
     errorMessage,
   } = useSessionViewState(taskId, task);
@@ -127,7 +128,7 @@ export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
               isPromptPending={isPromptPending}
               promptStartedAt={promptStartedAt}
               onSendPrompt={handleSendPrompt}
-              onBashCommand={handleBashCommand}
+              onBashCommand={canBash ? handleBashCommand : undefined}
               onCancelPrompt={handleCancelPrompt}
               repoPath={repoPath}
               cloudBranch={cloudBranch}

@@ -318,6 +318,13 @@ export class TaskCreationSaga extends Saga<
         },
       });
 
+      if (input.sandboxEnvironmentId) {
+        getSessionService().setSandboxEnvironmentId(
+          task.id,
+          input.sandboxEnvironmentId,
+        );
+      }
+
       if (!hasProvisioning && this.deps.onTaskReady) {
         this.deps.onTaskReady({ task, workspace });
       }
