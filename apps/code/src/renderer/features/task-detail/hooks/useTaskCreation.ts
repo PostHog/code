@@ -74,7 +74,10 @@ function prepareTaskInput(
     filePaths,
     repoPath:
       options.workspaceMode === "cloud" ? undefined : options.selectedDirectory,
-    repository: options.selectedRepository,
+    repository:
+      options.workspaceMode === "cloud"
+        ? options.selectedRepository
+        : undefined,
     githubIntegrationId: options.githubIntegrationId,
     workspaceMode: options.workspaceMode,
     branch: options.branch,
