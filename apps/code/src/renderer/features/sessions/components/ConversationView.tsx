@@ -212,7 +212,7 @@ export function ConversationView({
   return (
     <div className="relative flex-1">
       <div
-        id="mcp-fullscreen-portal"
+        id="fullscreen-portal"
         className="pointer-events-none absolute inset-0 z-20"
       />
 
