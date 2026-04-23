@@ -175,10 +175,10 @@ const config: ForgeConfig = {
       format: "ULFO",
       background: "./build/dmg-background.png",
       iconSize: 80,
-      window: { size: { width: 540, height: 380 } },
+      window: { size: { width: 560, height: 380 } },
       contents: (opts) => [
-        { x: 135, y: 225, type: "file", path: opts.appPath },
-        { x: 405, y: 225, type: "link", path: "/Applications" },
+        { x: 104, y: 55, type: "file", path: opts.appPath },
+        { x: 104, y: 243, type: "link", path: "/Applications" },
       ],
       ...(shouldSignMacApp && appleCodesignIdentity
         ? {
