@@ -3,18 +3,18 @@ import { useSessions } from "@features/sessions/stores/sessionStore";
 import { useSuspendedTaskIds } from "@features/suspension/hooks/useSuspendedTaskIds";
 import { useTasks } from "@features/tasks/hooks/useTasks";
 import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
-import { getTaskRepository, parseRepository } from "@renderer/utils/repository";
 import type { Task, TaskRunStatus } from "@shared/types";
 import { useEffect, useMemo, useRef } from "react";
 import { useSidebarStore } from "../stores/sidebarStore";
 import type { SortMode } from "../types";
+import {
+  type TaskGroup as GenericTaskGroup,
+  getRepositoryInfo,
+  groupByRepository,
+  type TaskRepositoryInfo,
+} from "../utils/groupTasks";
 import { usePinnedTasks } from "./usePinnedTasks";
 import { useTaskViewed } from "./useTaskViewed";
-
-export interface TaskRepositoryInfo {
-  fullPath: string;
-  name: string;
-}
 
 export interface TaskData {
   id: string;
@@ -32,11 +32,7 @@ export interface TaskData {
   taskRunEnvironment?: "local" | "cloud";
 }
 
-export interface TaskGroup {
-  id: string;
-  name: string;
-  tasks: TaskData[];
-}
+export type TaskGroup = GenericTaskGroup<TaskData>;
 
 export interface SidebarData {
   isHomeActive: boolean;
@@ -69,28 +65,6 @@ interface UseSidebarDataProps {
   activeView: ViewState;
 }
 
-function getRepositoryInfo(
-  task: Task,
-  folderPath?: string,
-): TaskRepositoryInfo | null {
-  const repository = getTaskRepository(task);
-  if (repository) {
-    const parsed = parseRepository(repository);
-    return {
-      fullPath: repository,
-      name: parsed?.repoName ?? repository,
-    };
-  }
-  if (folderPath) {
-    const name = folderPath.split("/").pop() ?? folderPath;
-    return {
-      fullPath: folderPath,
-      name,
-    };
-  }
-  return null;
-}
-
 function getSortValue(task: TaskData, sortMode: SortMode): number {
   return sortMode === "updated" ? task.lastActivityAt : task.createdAt;
 }
@@ -99,42 +73,6 @@ function sortTasks(tasks: TaskData[], sortMode: SortMode): TaskData[] {
   return tasks.sort(
     (a, b) => getSortValue(b, sortMode) - getSortValue(a, sortMode),
   );
-}
-
-function groupByRepository(
-  tasks: TaskData[],
-  folderOrder: string[],
-): TaskGroup[] {
-  const groupMap = new Map<string, TaskGroup>();
-
-  for (const task of tasks) {
-    const repository = task.repository;
-    const groupId = repository?.fullPath ?? "other";
-    const groupName = repository?.name ?? "Other";
-
-    if (!groupMap.has(groupId)) {
-      groupMap.set(groupId, { id: groupId, name: groupName, tasks: [] });
-    }
-
-    groupMap.get(groupId)?.tasks.push(task);
-  }
-
-  const groups = Array.from(groupMap.values());
-
-  if (folderOrder.length === 0) {
-    return groups.sort((a, b) => a.name.localeCompare(b.name));
-  }
-
-  return groups.sort((a, b) => {
-    const aIndex = folderOrder.indexOf(a.id);
-    const bIndex = folderOrder.indexOf(b.id);
-    if (aIndex === -1 && bIndex === -1) {
-      return a.name.localeCompare(b.name);
-    }
-    if (aIndex === -1) return 1;
-    if (bIndex === -1) return -1;
-    return aIndex - bIndex;
-  });
 }
 
 export function useSidebarData({
