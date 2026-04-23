@@ -10,6 +10,7 @@ import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useCloudRunState } from "@features/task-detail/hooks/useCloudRunState";
 import { Cloud } from "@phosphor-icons/react";
 import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
+import { useIsCloudTask } from "@renderer/features/workspace/hooks/useIsCloudTask";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
@@ -194,9 +195,7 @@ function CloudFileTreePanel({ taskId, task }: FileTreePanelProps) {
 }
 
 export function FileTreePanel({ taskId, task }: FileTreePanelProps) {
-  const workspace = useWorkspace(taskId);
-  const isCloud =
-    workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
+  const isCloud = useIsCloudTask(taskId);
 
   if (isCloud) {
     return <CloudFileTreePanel taskId={taskId} task={task} />;

@@ -6,7 +6,6 @@ import { ResumeSaga } from "./resume-saga";
 import {
   createAgentChunk,
   createAgentMessage,
-  createArchiveBuffer,
   createMockApiClient,
   createMockLogger,
   createNotification,
@@ -52,7 +51,6 @@ describe("ResumeSaga", () => {
       if (result.success) {
         expect(result.data.conversation).toHaveLength(0);
         expect(result.data.latestSnapshot).toBeNull();
-        expect(result.data.snapshotApplied).toBe(false);
         expect(result.data.logEntryCount).toBe(0);
       }
     });
@@ -468,13 +466,9 @@ describe("ResumeSaga", () => {
     });
   });
 
-  describe("snapshot application", () => {
-    it("applies snapshot when archive URL present", async () => {
+  describe("snapshot metadata", () => {
+    it("returns latest snapshot metadata when archive URL present", async () => {
       const baseCommit = await repo.git(["rev-parse", "HEAD"]);
-
-      const archive = await createArchiveBuffer([
-        { path: "restored.ts", content: "restored content" },
-      ]);
 
       (mockApiClient.getTaskRun as ReturnType<typeof vi.fn>).mockResolvedValue(
         createTaskRun(),
@@ -490,9 +484,6 @@ describe("ResumeSaga", () => {
           timestamp: new Date().toISOString(),
         }),
       ]);
-      (
-        mockApiClient.downloadArtifact as ReturnType<typeof vi.fn>
-      ).mockResolvedValue(archive);
 
       const saga = new ResumeSaga(mockLogger);
       const result = await saga.run({
@@ -505,13 +496,13 @@ describe("ResumeSaga", () => {
       expect(result.success).toBe(true);
       if (!result.success) return;
 
-      expect(result.data.snapshotApplied).toBe(true);
-
-      const content = await repo.readFile("restored.ts");
-      expect(content).toBe("restored content");
+      expect(result.data.latestSnapshot?.treeHash).toBe("hash-1");
+      expect(result.data.latestSnapshot?.archiveUrl).toBe(
+        "gs://bucket/hash-1.tar.gz",
+      );
     });
 
-    it("continues without snapshot when no archive URL", async () => {
+    it("returns snapshot metadata even when no archive URL", async () => {
       (mockApiClient.getTaskRun as ReturnType<typeof vi.fn>).mockResolvedValue(
         createTaskRun(),
       );
@@ -533,39 +524,8 @@ describe("ResumeSaga", () => {
       expect(result.success).toBe(true);
       if (!result.success) return;
 
-      expect(result.data.snapshotApplied).toBe(false);
       expect(result.data.latestSnapshot).not.toBeNull();
       expect(result.data.conversation).toHaveLength(1);
-    });
-
-    it("continues without snapshot when apply fails", async () => {
-      (mockApiClient.getTaskRun as ReturnType<typeof vi.fn>).mockResolvedValue(
-        createTaskRun(),
-      );
-      (
-        mockApiClient.fetchTaskRunLogs as ReturnType<typeof vi.fn>
-      ).mockResolvedValue([
-        createTreeSnapshotNotification("hash-1", "gs://bucket/hash-1.tar.gz"),
-        createUserMessage("hello"),
-      ]);
-      (
-        mockApiClient.downloadArtifact as ReturnType<typeof vi.fn>
-      ).mockRejectedValue(new Error("Download failed"));
-
-      const saga = new ResumeSaga(mockLogger);
-      const result = await saga.run({
-        taskId: "task-1",
-        runId: "run-1",
-        repositoryPath: repo.path,
-        apiClient: mockApiClient,
-      });
-
-      expect(result.success).toBe(true);
-      if (!result.success) return;
-
-      expect(result.data.snapshotApplied).toBe(false);
-      expect(result.data.conversation).toHaveLength(1);
-      expect(mockLogger.warn).toHaveBeenCalled();
     });
   });
 

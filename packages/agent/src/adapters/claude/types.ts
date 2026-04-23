@@ -13,7 +13,7 @@ import type { BaseSession } from "../base-acp-agent";
 import type { SettingsManager } from "./session/settings";
 import type { CodeExecutionMode } from "./tools";
 
-export type EffortLevel = "low" | "medium" | "high" | "max";
+export type EffortLevel = "low" | "medium" | "high" | "xhigh" | "max";
 
 export type AccumulatedUsage = {
   inputTokens: number;
@@ -62,6 +62,7 @@ export type Session = BaseSession & {
   promptRunning: boolean;
   pendingMessages: Map<string, PendingMessage>;
   nextPendingOrder: number;
+  emitRawSDKMessages: boolean | SDKMessageFilter[];
 };
 
 export type ToolUseCache = {
@@ -99,6 +100,11 @@ export type ToolUpdateMeta = {
   terminal_exit?: TerminalExit;
 };
 
+export type SDKMessageFilter = {
+  type: string;
+  subtype?: string;
+};
+
 export type NewSessionMeta = {
   taskRunId?: string;
   disableBuiltInTools?: boolean;
@@ -113,5 +119,6 @@ export type NewSessionMeta = {
   jsonSchema?: Record<string, unknown> | null;
   claudeCode?: {
     options?: Options;
+    emitRawSDKMessages?: boolean | SDKMessageFilter[];
   };
 };

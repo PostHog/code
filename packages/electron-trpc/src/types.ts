@@ -3,7 +3,8 @@ import type { TRPCResponseMessage } from "@trpc/server/rpc";
 
 export type ETRPCRequest =
   | { method: "request"; operation: Operation }
-  | { method: "subscription.stop"; id: string | number };
+  | { method: "subscription.stop"; id: string | number }
+  | { method: "operation.cancel"; id: string | number };
 
 export interface RendererGlobalElectronTRPC {
   sendMessage: (args: ETRPCRequest) => void;

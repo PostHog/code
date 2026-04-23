@@ -20,7 +20,7 @@ export function RegionSelect({
 
   if (!expanded) {
     return (
-      <Text size="2">
+      <Text size="2" style={{ marginTop: 10 }}>
         <span style={{ color: "var(--gray-12)", opacity: 0.5 }}>
           {regionLabel}
           {" \u00B7 "}
@@ -47,7 +47,7 @@ export function RegionSelect({
   }
 
   return (
-    <Flex direction="column" gap="2" style={{ width: "100%" }}>
+    <Flex direction="column" gap="2" style={{ width: "100%", marginTop: 10 }}>
       <Flex justify="between" align="center">
         <Text
           size="2"

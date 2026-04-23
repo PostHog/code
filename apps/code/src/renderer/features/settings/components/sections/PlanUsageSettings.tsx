@@ -1,5 +1,7 @@
+import { useUsage } from "@features/billing/hooks/useUsage";
 import { useSeatStore } from "@features/billing/stores/seatStore";
 import { useSeat } from "@hooks/useSeat";
+import type { UsageBucket } from "@main/services/llm-gateway/schemas";
 import {
   ArrowSquareOut,
   Check,
@@ -16,16 +18,9 @@ import {
   Text,
 } from "@radix-ui/themes";
 import { Tooltip } from "@renderer/components/ui/Tooltip";
-import { useTRPC } from "@renderer/trpc";
-import { useQuery } from "@tanstack/react-query";
+import { PLAN_PRO_ALPHA } from "@shared/types/seat";
 import { getPostHogUrl } from "@utils/urls";
 import { useState } from "react";
-
-interface UsageBucket {
-  used_percent: number;
-  resets_in_seconds: number;
-  exceeded: boolean;
-}
 
 function formatResetTime(seconds: number): string {
   if (seconds < 3600) return "less than 1 hour";
@@ -36,14 +31,6 @@ function formatResetTime(seconds: number): string {
   const days = Math.ceil(seconds / 86400);
   if (days === 1) return "1 day";
   return `${days} days`;
-}
-
-function useUsage() {
-  const trpc = useTRPC();
-  const { data: usage, isLoading } = useQuery(
-    trpc.llmGateway.usage.queryOptions(),
-  );
-  return { usage: usage ?? null, isLoading };
 }
 
 export function PlanUsageSettings() {
@@ -59,7 +46,10 @@ export function PlanUsageSettings() {
   const { upgradeToPro, cancelSeat, reactivateSeat, clearError } =
     useSeatStore();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
-  const { usage, isLoading: usageLoading } = useUsage();
+  const isAlpha = seat?.plan_key === PLAN_PRO_ALPHA;
+  const { usage, isLoading: usageLoading } = useUsage({
+    enabled: seat !== null,
+  });
 
   const formattedActiveUntil = activeUntil
     ? activeUntil.toLocaleDateString(undefined, {
@@ -134,20 +124,23 @@ export function PlanUsageSettings() {
               price="$200"
               period="/mo"
               features={[
-                "Unlimited usage*",
+                "Higher usage limits",
                 "Local and cloud execution",
                 "All Claude and Codex models",
               ]}
-              isCurrent={isPro}
+              isCurrent={isPro && !isAlpha}
               resetLabel={
-                isPro && isCanceling && formattedActiveUntil
+                isPro && !isAlpha && isCanceling && formattedActiveUntil
                   ? `Cancels ${formattedActiveUntil}`
-                  : isPro && formattedActiveUntil && daysUntilReset !== null
+                  : isPro &&
+                      !isAlpha &&
+                      formattedActiveUntil &&
+                      daysUntilReset !== null
                     ? `Resets ${formattedActiveUntil} (${daysUntilReset} days)`
                     : undefined
               }
               action={
-                isPro ? (
+                isPro && !isAlpha ? (
                   isCanceling ? (
                     <Button
                       size="1"
@@ -205,6 +198,27 @@ export function PlanUsageSettings() {
           </Flex>
         )}
       </Flex>
+
+      {isAlpha && (
+        <Flex
+          p="4"
+          style={{
+            border: "1px solid var(--accent-7)",
+            borderRadius: "var(--radius-3)",
+            background: "var(--accent-2)",
+          }}
+        >
+          <Flex direction="column" gap="2">
+            <Text size="2" weight="medium">
+              Alpha plan
+            </Text>
+            <Text size="2" style={{ color: "var(--gray-11)" }}>
+              You're on the free alpha Pro plan with full Pro features. You can
+              upgrade to the paid Pro plan anytime for higher usage limits.
+            </Text>
+          </Flex>
+        </Flex>
+      )}
 
       <Flex direction="column" gap="3">
         <Text size="2" weight="medium" style={{ color: "var(--gray-9)" }}>
@@ -298,7 +312,7 @@ export function PlanUsageSettings() {
                 weight="bold"
                 style={{ color: "var(--accent-9)" }}
               />
-              <Text size="2">Unlimited token usage</Text>
+              <Text size="2">Higher usage limits</Text>
             </Flex>
             <Flex align="center" gap="2">
               <Check

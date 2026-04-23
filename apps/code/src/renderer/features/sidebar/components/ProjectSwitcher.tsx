@@ -21,6 +21,7 @@ import {
 import { Box, Dialog, Flex, Text } from "@radix-ui/themes";
 import { trpcClient } from "@renderer/trpc/client";
 import { getCloudUrlFromRegion } from "@shared/utils/urls";
+import { EXTERNAL_LINKS } from "@utils/links";
 import { isMac } from "@utils/platform";
 import { useState } from "react";
 import "./ProjectSwitcher.css";
@@ -95,7 +96,7 @@ export function ProjectSwitcher() {
 
   const handleDiscord = async () => {
     await trpcClient.os.openExternal.mutate({
-      url: "https://discord.gg/c3qYyJXSWp",
+      url: EXTERNAL_LINKS.discord,
     });
     setPopoverOpen(false);
   };
@@ -184,18 +185,14 @@ export function ProjectSwitcher() {
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent side="right" sideOffset={4}>
                   <DropdownMenuItem
-                    onClick={() =>
-                      handleOpenExternal("https://posthog.com/code")
-                    }
+                    onClick={() => handleOpenExternal(EXTERNAL_LINKS.website)}
                   >
                     <ArrowSquareOut size={14} className="text-gray-11" />
                     PostHog Code Website
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() =>
-                      handleOpenExternal("https://posthog.com/privacy")
-                    }
+                    onClick={() => handleOpenExternal(EXTERNAL_LINKS.privacy)}
                   >
                     <ShieldCheck size={14} className="text-gray-11" />
                     Privacy Policy

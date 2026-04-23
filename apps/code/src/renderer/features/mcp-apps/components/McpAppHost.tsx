@@ -198,50 +198,51 @@ export function McpAppHost({
     </Flex>
   );
 
-  const portalTarget = document.getElementById("mcp-fullscreen-portal");
+  if (displayMode === "fullscreen") {
+    const portalTarget = document.getElementById("fullscreen-portal");
+    if (portalTarget) {
+      return (
+        <>
+          {fullscreenToggle}
 
-  if (displayMode === "fullscreen" && portalTarget) {
-    return (
-      <>
-        {fullscreenToggle}
-
-        {createPortal(
-          <Box
-            className="pointer-events-auto absolute inset-0 flex flex-col bg-gray-1"
-            style={{
-              transition: "opacity 150ms ease",
-            }}
-          >
-            <Flex
-              align="center"
-              justify="between"
-              className="border-gray-6 border-b px-4 py-2"
+          {createPortal(
+            <Box
+              className="pointer-events-auto absolute inset-0 flex flex-col bg-gray-1"
+              style={{
+                transition: "opacity 150ms ease",
+              }}
             >
-              <Flex align="center" gap="2">
-                <Plugs size={14} className="text-gray-11" />
-                <Text size="2" className="text-gray-11">
-                  {serverName} - {toolName}
-                </Text>
-              </Flex>
-              <IconButton
-                size="1"
-                variant="ghost"
-                color="gray"
-                onClick={() => {
-                  setDisplayMode("inline");
-                }}
-                title="Exit fullscreen (Escape)"
+              <Flex
+                align="center"
+                justify="between"
+                className="border-gray-6 border-b px-4 py-2"
               >
-                <X size={14} />
-              </IconButton>
-            </Flex>
+                <Flex align="center" gap="2">
+                  <Plugs size={14} className="text-gray-11" />
+                  <Text size="2" className="text-gray-11">
+                    {serverName} - {toolName}
+                  </Text>
+                </Flex>
+                <IconButton
+                  size="1"
+                  variant="ghost"
+                  color="gray"
+                  onClick={() => {
+                    setDisplayMode("inline");
+                  }}
+                  title="Exit fullscreen (Escape)"
+                >
+                  <X size={14} />
+                </IconButton>
+              </Flex>
 
-            <Box className="flex-1 overflow-hidden p-4">{iframeElement}</Box>
-          </Box>,
-          portalTarget,
-        )}
-      </>
-    );
+              <Box className="flex-1 overflow-hidden p-4">{iframeElement}</Box>
+            </Box>,
+            portalTarget,
+          )}
+        </>
+      );
+    }
   }
 
   return (

@@ -48,12 +48,19 @@ export class FsService {
 
       if (query?.trim()) {
         const allFiles = await listAllFiles(repoPath);
+        const directories = this.deriveDirectories(allFiles);
         const lowerQuery = query.toLowerCase();
-        const filtered = allFiles.filter((f) =>
+        const matchingDirs = directories.filter((d) =>
+          d.toLowerCase().includes(lowerQuery),
+        );
+        const matchingFiles = allFiles.filter((f) =>
           f.toLowerCase().includes(lowerQuery),
         );
-        const limited = limit ? filtered.slice(0, limit) : filtered;
-        return this.toFileEntries(limited, changedFiles);
+        const entries = [
+          ...this.toDirectoryEntries(matchingDirs),
+          ...this.toFileEntries(matchingFiles, changedFiles),
+        ];
+        return limit ? entries.slice(0, limit) : entries;
       }
 
       const cached = this.cache.get(repoPath);
@@ -62,7 +69,11 @@ export class FsService {
       }
 
       const files = await listAllFiles(repoPath);
-      const entries = this.toFileEntries(files, changedFiles);
+      const directories = this.deriveDirectories(files);
+      const entries = [
+        ...this.toDirectoryEntries(directories),
+        ...this.toFileEntries(files, changedFiles),
+      ];
       this.cache.set(repoPath, { files: entries, timestamp: Date.now() });
 
       return limit ? entries.slice(0, limit) : entries;
@@ -170,7 +181,29 @@ export class FsService {
     return files.map((p) => ({
       path: p,
       name: path.basename(p),
+      kind: "file",
       changed: changedFiles.has(p),
     }));
+  }
+
+  private toDirectoryEntries(directories: string[]): FileEntry[] {
+    return directories.map((p) => ({
+      path: p,
+      name: path.basename(p),
+      kind: "directory",
+    }));
+  }
+
+  private deriveDirectories(files: string[]): string[] {
+    const dirs = new Set<string>();
+    for (const file of files) {
+      let parent = path.posix.dirname(file);
+      while (parent && parent !== "." && parent !== "/") {
+        if (dirs.has(parent)) break;
+        dirs.add(parent);
+        parent = path.posix.dirname(parent);
+      }
+    }
+    return Array.from(dirs).sort();
   }
 }

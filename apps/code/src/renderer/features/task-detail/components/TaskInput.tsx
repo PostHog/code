@@ -1,3 +1,4 @@
+import { DotPatternBackground } from "@components/DotPatternBackground";
 import { EnvironmentSelector } from "@features/environments/components/EnvironmentSelector";
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
@@ -23,6 +24,7 @@ import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
 import { useConnectivity } from "@hooks/useConnectivity";
 import {
   useGithubBranches,
+  useGithubRepositories,
   useRepositoryIntegration,
 } from "@hooks/useIntegrations";
 import { ButtonGroup } from "@posthog/quill";
@@ -30,6 +32,7 @@ import { Flex, Text } from "@radix-ui/themes";
 import { useAuthStore } from "@renderer/features/auth/stores/authStore";
 import { useDraftStore } from "@renderer/features/message-editor/stores/draftStore";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
+import { toast } from "@renderer/utils/toast";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
 import { getFilePath } from "@utils/getFilePath";
@@ -37,8 +40,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePreviewConfig } from "../hooks/usePreviewConfig";
 import { useTaskCreation } from "../hooks/useTaskCreation";
 import { type WorkspaceMode, WorkspaceModeSelect } from "./WorkspaceModeSelect";
-
-const DOT_FILL = "var(--gray-6)";
 
 interface TaskInputProps {
   sessionId?: string;
@@ -79,6 +80,10 @@ export function TaskInput({
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
+  const [cloudRepoSearchQuery, setCloudRepoSearchQuery] = useState("");
+  const [isCloudRepoPickerOpen, setIsCloudRepoPickerOpen] = useState(false);
+  const [cloudBranchSearchQuery, setCloudBranchSearchQuery] = useState("");
+  const [isCloudBranchPickerOpen, setIsCloudBranchPickerOpen] = useState(false);
   const [selectedEnvironment, setSelectedEnvironmentRaw] = useState<
     string | null
   >(null);
@@ -105,8 +110,19 @@ export function TaskInput({
   const setAdapter = (newAdapter: AgentAdapter) =>
     setLastUsedAdapter(newAdapter);
 
-  const { repositories, getIntegrationIdForRepo, isLoadingRepos } =
-    useRepositoryIntegration();
+  const {
+    repositories,
+    getIntegrationIdForRepo,
+    isLoadingRepos,
+    isRefreshingRepos,
+    refreshRepositories,
+  } = useRepositoryIntegration();
+  const {
+    repositories: visibleCloudRepositories,
+    isPending: cloudRepositoriesLoading,
+    hasMore: cloudRepositoriesHasMore,
+    loadMore: loadMoreCloudRepositories,
+  } = useGithubRepositories(cloudRepoSearchQuery, isCloudRepoPickerOpen);
   const [selectedRepository, setSelectedRepository] = useState<string | null>(
     () => lastUsedCloudRepository?.toLowerCase() ?? null,
   );
@@ -125,10 +141,17 @@ export function TaskInput({
   const {
     data: cloudBranchData,
     isPending: cloudBranchesLoading,
+    isRefreshing: cloudBranchesRefreshing,
     isFetchingMore: cloudBranchesFetchingMore,
-    pauseLoadingMore: pauseCloudBranchesLoading,
-    resumeLoadingMore: resumeCloudBranchesLoading,
-  } = useGithubBranches(selectedIntegrationId, selectedCloudRepository);
+    hasMore: cloudBranchesHasMore,
+    loadMore: loadMoreCloudBranches,
+    refresh: refreshCloudBranches,
+  } = useGithubBranches(
+    selectedIntegrationId,
+    selectedCloudRepository,
+    cloudBranchSearchQuery,
+    isCloudBranchPickerOpen,
+  );
   const cloudBranches = cloudBranchData?.branches;
   const cloudDefaultBranch = cloudBranchData?.defaultBranch ?? null;
 
@@ -169,13 +192,69 @@ export function TaskInput({
   }, [selectedDirectory, newBranchName, gitActions]);
 
   const handleRepositorySelect = useCallback(
-    (repo: string) => {
+    (repo: string | null) => {
+      if (!repo) {
+        setSelectedRepository(null);
+        setLastUsedCloudRepository(null);
+        return;
+      }
+
       const normalizedRepo = repo.toLowerCase();
       setSelectedRepository(normalizedRepo);
       setLastUsedCloudRepository(normalizedRepo);
     },
     [setLastUsedCloudRepository],
   );
+
+  const handleRefreshRepositories = useCallback(() => {
+    void refreshRepositories().catch((error) => {
+      toast.error("Failed to refresh repositories", {
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+      });
+    });
+  }, [refreshRepositories]);
+
+  const handleRefreshBranches = useCallback(() => {
+    void refreshCloudBranches().catch((error) => {
+      toast.error("Failed to refresh branches", {
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+      });
+    });
+  }, [refreshCloudBranches]);
+
+  const handleCloudBranchPickerOpen = useCallback(() => {
+    setIsCloudBranchPickerOpen(true);
+  }, []);
+
+  const handleCloudRepoPickerOpenChange = useCallback((open: boolean) => {
+    setIsCloudRepoPickerOpen(open);
+    if (!open) {
+      setCloudRepoSearchQuery("");
+    }
+  }, []);
+
+  const handleCloudRepoSearchChange = useCallback((value: string) => {
+    setCloudRepoSearchQuery(value);
+  }, []);
+
+  const handleLoadMoreCloudRepositories = useCallback(() => {
+    loadMoreCloudRepositories();
+  }, [loadMoreCloudRepositories]);
+
+  const handleCloudBranchPickerClose = useCallback(() => {
+    setIsCloudBranchPickerOpen(false);
+    setCloudBranchSearchQuery("");
+  }, []);
+
+  const handleCloudBranchSearchChange = useCallback((value: string) => {
+    setCloudBranchSearchQuery(value);
+  }, []);
+
+  const handleLoadMoreCloudBranches = useCallback(() => {
+    loadMoreCloudBranches();
+  }, [loadMoreCloudBranches]);
 
   const {
     modeOption,
@@ -220,6 +299,11 @@ export function TaskInput({
       }
     }
   }, [view.folderId, folders]);
+
+  useEffect(() => {
+    setCloudBranchSearchQuery("");
+    setIsCloudBranchPickerOpen(false);
+  }, []);
 
   const effectiveRepoPath =
     workspaceMode === "cloud" ? selectedCloudRepository : selectedDirectory;
@@ -417,37 +501,7 @@ export function TaskInput({
         height="100%"
         style={{ position: "relative" }}
       >
-        <svg
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            width: "100%",
-            height: "100.333%",
-            pointerEvents: "none",
-            opacity: 0.4,
-            maskImage: "linear-gradient(to top, black 0%, transparent 100%)",
-            WebkitMaskImage:
-              "linear-gradient(to top, black 0%, transparent 100%)",
-          }}
-        >
-          <defs>
-            <pattern
-              id="dot-pattern"
-              patternUnits="userSpaceOnUse"
-              width="8"
-              height="8"
-            >
-              <circle cx="0" cy="0" r="1" fill={DOT_FILL} />
-              <circle cx="0" cy="8" r="1" fill={DOT_FILL} />
-              <circle cx="8" cy="8" r="1" fill={DOT_FILL} />
-              <circle cx="8" cy="0" r="1" fill={DOT_FILL} />
-              <circle cx="4" cy="4" r="1" fill={DOT_FILL} />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#dot-pattern)" />
-        </svg>
+        <DotPatternBackground style={{ height: "100.333%" }} />
         <Flex
           direction="column"
           gap="2"
@@ -474,13 +528,40 @@ export function TaskInput({
                 disabled={isCreatingTask}
               />
             )}
-            <ButtonGroup ref={buttonGroupRef}>
+            <ButtonGroup
+              ref={buttonGroupRef}
+              data-tour="folder-picker"
+              data-tour-ready={
+                (
+                  workspaceMode === "cloud"
+                    ? selectedRepository
+                    : selectedDirectory
+                )
+                  ? "true"
+                  : undefined
+              }
+            >
               {workspaceMode === "cloud" ? (
                 <GitHubRepoPicker
                   value={selectedRepository}
                   onChange={handleRepositorySelect}
-                  repositories={repositories}
-                  isLoading={isLoadingRepos}
+                  repositories={
+                    isCloudRepoPickerOpen
+                      ? visibleCloudRepositories
+                      : repositories
+                  }
+                  isLoading={
+                    isLoadingRepos ||
+                    (isCloudRepoPickerOpen && cloudRepositoriesLoading)
+                  }
+                  isRefreshing={isRefreshingRepos}
+                  onRefresh={handleRefreshRepositories}
+                  open={isCloudRepoPickerOpen}
+                  onOpenChange={handleCloudRepoPickerOpenChange}
+                  searchQuery={cloudRepoSearchQuery}
+                  onSearchQueryChange={handleCloudRepoSearchChange}
+                  hasMore={cloudRepositoriesHasMore}
+                  onLoadMore={handleLoadMoreCloudRepositories}
                   placeholder="Select repository..."
                   size="1"
                   disabled={isCreatingTask}
@@ -509,15 +590,23 @@ export function TaskInput({
                   isCreatingTask ||
                   (workspaceMode === "cloud" && !selectedCloudRepository)
                 }
-                loading={branchLoading}
+                loading={workspaceMode === "cloud" ? false : branchLoading}
                 workspaceMode={workspaceMode}
                 selectedBranch={selectedBranch}
                 onBranchSelect={setSelectedBranch}
                 cloudBranches={cloudBranches}
                 cloudBranchesLoading={cloudBranchesLoading}
+                isRefreshing={cloudBranchesRefreshing}
                 cloudBranchesFetchingMore={cloudBranchesFetchingMore}
-                onCloudPickerOpen={resumeCloudBranchesLoading}
-                onCloudBranchCommit={pauseCloudBranchesLoading}
+                cloudBranchesHasMore={cloudBranchesHasMore}
+                cloudSearchQuery={cloudBranchSearchQuery}
+                onCloudPickerOpen={handleCloudBranchPickerOpen}
+                onCloudPickerClose={handleCloudBranchPickerClose}
+                onCloudSearchChange={handleCloudBranchSearchChange}
+                onCloudLoadMore={handleLoadMoreCloudBranches}
+                onRefresh={
+                  workspaceMode === "cloud" ? handleRefreshBranches : undefined
+                }
                 anchor={buttonGroupRef}
               />
             </ButtonGroup>
@@ -543,6 +632,7 @@ export function TaskInput({
             autoFocus
             clearOnSubmit={false}
             submitDisabledExternal={!canSubmit || isCreatingTask || !isOnline}
+            tourTarget="task-input"
             repoPath={selectedDirectory}
             modeOption={modeOption}
             onModeChange={handleModeChange}

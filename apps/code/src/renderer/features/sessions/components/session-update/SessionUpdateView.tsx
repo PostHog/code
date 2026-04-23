@@ -1,4 +1,7 @@
-import type { ConversationItem } from "@features/sessions/components/buildConversationItems";
+import type {
+  ConversationItem,
+  ProgressStep,
+} from "@features/sessions/components/buildConversationItems";
 import type { SessionUpdate, ToolCall } from "@features/sessions/types";
 import { memo } from "react";
 
@@ -6,6 +9,7 @@ import { AgentMessage } from "./AgentMessage";
 import { CompactBoundaryView } from "./CompactBoundaryView";
 import { ConsoleMessage } from "./ConsoleMessage";
 import { ErrorNotificationView } from "./ErrorNotificationView";
+import { ProgressGroupView } from "./ProgressGroupView";
 import { StatusNotificationView } from "./StatusNotificationView";
 import { TaskNotificationView } from "./TaskNotificationView";
 import { ThoughtView } from "./ThoughtView";
@@ -41,6 +45,11 @@ export type RenderItem =
       status: "completed" | "failed" | "stopped";
       summary: string;
       outputFile: string;
+    }
+  | {
+      sessionUpdate: "progress_group";
+      steps: ProgressStep[];
+      isActive: boolean;
     };
 
 interface SessionUpdateViewProps {
@@ -122,6 +131,14 @@ export const SessionUpdateView = memo(function SessionUpdateView({
     case "task_notification":
       return (
         <TaskNotificationView status={item.status} summary={item.summary} />
+      );
+    case "progress_group":
+      return (
+        <ProgressGroupView
+          steps={item.steps}
+          isActive={item.isActive}
+          turnComplete={turnComplete}
+        />
       );
     default:
       return null;

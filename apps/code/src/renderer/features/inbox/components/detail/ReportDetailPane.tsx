@@ -1,5 +1,4 @@
 import { Badge } from "@components/ui/Badge";
-import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
 import {
   useInboxReportArtefacts,
@@ -14,10 +13,9 @@ import {
   ArrowSquareOutIcon,
   CaretDownIcon,
   CaretRightIcon,
-  ClockIcon,
   Cloud as CloudIcon,
   EyeIcon,
-  GitPullRequestIcon,
+  LinkSimpleIcon,
   WarningIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -31,18 +29,16 @@ import {
   TextArea,
   Tooltip,
 } from "@radix-ui/themes";
+import { getDeeplinkProtocol } from "@shared/deeplink";
 import type {
   ActionabilityJudgmentArtefact,
   ActionabilityJudgmentContent,
   PriorityJudgmentArtefact,
   SignalFindingArtefact,
   SignalReport,
-  SignalReportArtefact,
-  SignalReportArtefactsResponse,
   SuggestedReviewer,
   SuggestedReviewersArtefact,
 } from "@shared/types";
-import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { useNavigationStore } from "@stores/navigationStore";
 import {
   type ReactNode,
@@ -57,7 +53,7 @@ import { SignalReportActionabilityBadge } from "../utils/SignalReportActionabili
 import { SignalReportPriorityBadge } from "../utils/SignalReportPriorityBadge";
 import { SignalReportStatusBadge } from "../utils/SignalReportStatusBadge";
 import { SignalReportSummaryMarkdown } from "../utils/SignalReportSummaryMarkdown";
-import { getPrNumberFromUrl, ReportTaskLogs } from "./ReportTaskLogs";
+import { ReportTaskLogs } from "./ReportTaskLogs";
 import { SignalCard } from "./SignalCard";
 
 function isSuggestedReviewerRowMe(
@@ -68,23 +64,6 @@ function isSuggestedReviewerRowMe(
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-
-function getArtefactsUnavailableMessage(
-  reason: SignalReportArtefactsResponse["unavailableReason"],
-): string {
-  switch (reason) {
-    case "forbidden":
-      return "Evidence could not be loaded with the current API permissions.";
-    case "not_found":
-      return "Evidence endpoint is unavailable for this signal in this environment.";
-    case "invalid_payload":
-      return "Evidence format was unexpected, so no artefacts could be shown.";
-    case "request_failed":
-      return "Evidence is temporarily unavailable. You can still create a task from this report.";
-    default:
-      return "Evidence is currently unavailable for this signal.";
-  }
-}
 
 function DetailRow({
   label,
@@ -146,24 +125,13 @@ interface ReportDetailPaneProps {
 }
 
 export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
-  // ── Auth / URLs ─────────────────────────────────────────────────────────
-  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
-  const projectId = useAuthStateValue((state) => state.projectId);
   const { data: me } = useMeQuery();
-  const replayBaseUrl =
-    cloudRegion && projectId
-      ? `${getCloudUrlFromRegion(cloudRegion)}/project/${projectId}/replay`
-      : null;
 
   // ── Report data ─────────────────────────────────────────────────────────
   const artefactsQuery = useInboxReportArtefacts(report.id, {
     enabled: true,
   });
   const allArtefacts = artefactsQuery.data?.results ?? [];
-
-  const videoSegments = allArtefacts.filter(
-    (a): a is SignalReportArtefact => a.type === "video_segment",
-  );
 
   const suggestedReviewers = useMemo(() => {
     const reviewerArtefact = allArtefacts.find(
@@ -203,17 +171,24 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
   }, [allArtefacts]);
 
   const artefactsUnavailableReason = artefactsQuery.data?.unavailableReason;
-  const showArtefactsUnavailable =
-    !artefactsQuery.isLoading &&
-    (!!artefactsQuery.error || !!artefactsUnavailableReason);
-  const artefactsUnavailableMessage = artefactsQuery.error
-    ? "Evidence could not be loaded right now. You can still create a task from this report."
-    : getArtefactsUnavailableMessage(artefactsUnavailableReason);
+  void artefactsUnavailableReason; // TODO: wire up unavailable UI
 
   const signalsQuery = useInboxReportSignals(report.id, {
     enabled: true,
   });
-  const signals = signalsQuery.data?.signals ?? [];
+  const allSignals = signalsQuery.data?.signals ?? [];
+  const sessionProblemSignals = allSignals.filter(
+    (s) =>
+      s.source_product === "session_replay" &&
+      s.source_type === "session_problem",
+  );
+  const signals = allSignals.filter(
+    (s) =>
+      !(
+        s.source_product === "session_replay" &&
+        s.source_type === "session_problem"
+      ),
+  );
 
   // ── Task creation ───────────────────────────────────────────────────────
   const { navigateToTask } = useNavigationStore();
@@ -227,15 +202,12 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
   const setSelectedRepo = useInboxCloudTaskStore((s) => s.setSelectedRepo);
   const runCloudTask = useInboxCloudTaskStore((s) => s.runCloudTask);
 
-  /** Matches server autostart rules: ready + immediately actionable + not already fixed. */
+  /** Matches server autostart rules: ready (or awaiting user input) + immediately actionable + not already fixed. */
   const canCreateImplementationPr =
-    report.status === "ready" &&
+    (report.status === "ready" || report.status === "pending_input") &&
     report.actionability === "immediately_actionable" &&
     report.already_addressed !== true;
 
-  const [implementationPrUrl, setImplementationPrUrl] = useState<string | null>(
-    null,
-  );
   const [cloudPromptDraft, setCloudPromptDraft] = useState("");
   const cloudRepoPickerAnchorRef = useRef<HTMLDivElement>(null);
 
@@ -303,33 +275,42 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
         <Flex align="center" gap="2" className="min-w-0">
           <SignalReportStatusBadge status={report.status} />
           <Text
-            size="1"
-            weight="medium"
-            className="block min-w-0 break-words text-[13px]"
+            size="3"
+            weight={report.status === "ready" ? "bold" : "medium"}
+            className="block min-w-0 text-balance break-words leading-tight"
           >
             {report.title ?? "Untitled signal"}
           </Text>
-          {implementationPrUrl && (
-            <Tooltip content={implementationPrUrl}>
-              <a
-                href={implementationPrUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-5 px-2 py-0.5 font-medium text-[11px] text-green-12 hover:bg-green-6"
-              >
-                <GitPullRequestIcon size={12} weight="bold" />
-                {getPrNumberFromUrl(implementationPrUrl) ?? "PR"}
-              </a>
-            </Tooltip>
-          )}
         </Flex>
-        <button
-          type="button"
-          onClick={onClose}
-          className="shrink-0 rounded p-0.5 text-gray-11 hover:bg-gray-3 hover:text-gray-12"
-        >
-          <XIcon size={14} />
-        </button>
+        <Flex align="center" gap="1" className="shrink-0">
+          <Tooltip content="Copy link to this report">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(
+                    `${getDeeplinkProtocol(import.meta.env.DEV)}://inbox/${report.id}`,
+                  );
+                  toast.success("Link copied");
+                } catch {
+                  toast.error("Failed to copy link");
+                }
+              }}
+              aria-label="Copy link to this report"
+              className="rounded p-0.5 text-gray-11 hover:bg-gray-3 hover:text-gray-12"
+            >
+              <LinkSimpleIcon size={14} />
+            </button>
+          </Tooltip>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close report detail"
+            className="rounded p-0.5 text-gray-11 hover:bg-gray-3 hover:text-gray-12"
+          >
+            <XIcon size={14} />
+          </button>
+        </Flex>
       </Flex>
 
       {/* ── Scrollable detail area ──────────────────────────────── */}
@@ -524,67 +505,28 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
             </Text>
           )}
 
-          {/* ── Evidence (session segments) ─────────────────────── */}
-          <Box>
-            <Text size="1" weight="medium" className="block text-[13px]" mb="2">
-              Evidence
-            </Text>
-            {artefactsQuery.isLoading && (
-              <Text size="1" color="gray" className="block text-[12px]">
-                Loading evidence...
+          {/* ── Session problem evidence ─────────────────────────── */}
+          {sessionProblemSignals.length > 0 && (
+            <Box>
+              <Text
+                size="1"
+                weight="medium"
+                className="block text-[13px]"
+                mb="2"
+              >
+                Evidence ({sessionProblemSignals.length})
               </Text>
-            )}
-            {showArtefactsUnavailable && (
-              <Text size="1" color="gray" className="block text-[12px]">
-                {artefactsUnavailableMessage}
-              </Text>
-            )}
-            {!artefactsQuery.isLoading &&
-              !showArtefactsUnavailable &&
-              videoSegments.length === 0 && (
-                <Text size="1" color="gray" className="block text-[12px]">
-                  No session segments available for this report.
-                </Text>
-              )}
-            <Flex direction="column" gap="1">
-              {videoSegments.map((artefact) => (
-                <Box
-                  key={artefact.id}
-                  className="rounded border border-gray-6 bg-gray-1 p-2"
-                >
-                  <Text
-                    size="1"
-                    className="whitespace-pre-wrap text-pretty break-words text-[12px]"
-                  >
-                    {artefact.content.content}
-                  </Text>
-                  <Flex align="center" justify="between" mt="1" gap="2">
-                    <Flex align="center" gap="1">
-                      <ClockIcon size={12} className="text-gray-9" />
-                      <Text size="1" color="gray" className="text-[12px]">
-                        {artefact.content.start_time
-                          ? new Date(
-                              artefact.content.start_time,
-                            ).toLocaleString()
-                          : "Unknown time"}
-                      </Text>
-                    </Flex>
-                    {replayBaseUrl && artefact.content.session_id && (
-                      <a
-                        href={`${replayBaseUrl}/${artefact.content.session_id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[12px] text-gray-11 hover:text-gray-12"
-                      >
-                        View replay
-                        <ArrowSquareOutIcon size={12} />
-                      </a>
-                    )}
-                  </Flex>
-                </Box>
-              ))}
-            </Flex>
-          </Box>
+              <Flex direction="column" gap="2">
+                {sessionProblemSignals.map((signal) => (
+                  <SignalCard
+                    key={signal.signal_id}
+                    signal={signal}
+                    finding={signalFindings.get(signal.signal_id)}
+                  />
+                ))}
+              </Flex>
+            </Box>
+          )}
         </Flex>
       </ScrollArea>
 
@@ -596,7 +538,6 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
         onRunInCloud={
           canCreateImplementationPr ? handleOpenCloudConfirm : undefined
         }
-        onPrUrlChange={setImplementationPrUrl}
       />
 
       {/* ── Cloud task confirmation dialog ────────────────────── */}

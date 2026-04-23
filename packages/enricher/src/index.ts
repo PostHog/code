@@ -31,12 +31,16 @@ export type {
   FlagAssignment,
   FlagType,
   FunctionInfo,
+  ImportEdge,
+  LocalWrapper,
+  ParseContext,
   PostHogCall,
   PostHogInitCall,
   StalenessCheckOptions,
   StalenessReason,
   SupportedLanguage,
   VariantBranch,
+  WrapperClassification,
 } from "./types.js";
 export { DEFAULT_CONFIG } from "./types.js";
 

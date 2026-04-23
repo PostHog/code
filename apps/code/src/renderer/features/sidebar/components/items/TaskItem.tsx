@@ -63,6 +63,7 @@ function TaskHoverToolbar({
               e.stopPropagation();
               onTogglePin();
             }}
+            onDoubleClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -86,6 +87,7 @@ function TaskHoverToolbar({
               e.stopPropagation();
               onArchive();
             }}
+            onDoubleClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();

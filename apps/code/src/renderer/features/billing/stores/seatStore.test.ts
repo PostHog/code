@@ -1,13 +1,9 @@
 import type { SeatData } from "@shared/types/seat";
-import { PLAN_FREE, PLAN_PRO } from "@shared/types/seat";
+import { PLAN_FREE, PLAN_PRO, PLAN_PRO_ALPHA } from "@shared/types/seat";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockIsFeatureFlagEnabled = vi.hoisted(() => vi.fn());
 const mockGetAuthenticatedClient = vi.hoisted(() => vi.fn());
-
-vi.mock("@utils/analytics", () => ({
-  isFeatureFlagEnabled: mockIsFeatureFlagEnabled,
-}));
 
 vi.mock("@features/auth/hooks/authClient", () => ({
   getAuthenticatedClient: mockGetAuthenticatedClient,
@@ -45,7 +41,20 @@ vi.mock("@utils/urls", () => ({
   getPostHogUrl: (path: string) => `https://posthog.com${path}`,
 }));
 
+vi.mock("@renderer/trpc", () => ({
+  trpcClient: {
+    llmGateway: {
+      invalidatePlanCache: { mutate: vi.fn().mockResolvedValue(undefined) },
+    },
+  },
+}));
+
+import { trpcClient } from "@renderer/trpc";
 import { useSeatStore } from "./seatStore";
+
+const mockInvalidatePlanCache = vi.mocked(
+  trpcClient.llmGateway.invalidatePlanCache.mutate,
+);
 
 function makeSeat(overrides: Partial<SeatData> = {}): SeatData {
   return {
@@ -86,61 +95,8 @@ describe("seatStore", () => {
     });
   });
 
-  describe("billing flag gate", () => {
-    it("fetchSeat does not call API when billing is disabled", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(false);
-      const client = mockClient();
-
-      await useSeatStore.getState().fetchSeat({ autoProvision: true });
-
-      expect(client.getMySeat).not.toHaveBeenCalled();
-      expect(client.createSeat).not.toHaveBeenCalled();
-      expect(useSeatStore.getState().seat).toBeNull();
-      expect(useSeatStore.getState().error).toBe("Billing is not enabled");
-    });
-
-    it("provisionFreeSeat does not call API when billing is disabled", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(false);
-      const client = mockClient();
-
-      await useSeatStore.getState().provisionFreeSeat();
-
-      expect(client.getMySeat).not.toHaveBeenCalled();
-      expect(client.createSeat).not.toHaveBeenCalled();
-    });
-
-    it("upgradeToPro does not call API when billing is disabled", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(false);
-      const client = mockClient();
-
-      await useSeatStore.getState().upgradeToPro();
-
-      expect(client.getMySeat).not.toHaveBeenCalled();
-      expect(client.upgradeSeat).not.toHaveBeenCalled();
-    });
-
-    it("cancelSeat does not call API when billing is disabled", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(false);
-      const client = mockClient();
-
-      await useSeatStore.getState().cancelSeat();
-
-      expect(client.cancelSeat).not.toHaveBeenCalled();
-    });
-
-    it("reactivateSeat does not call API when billing is disabled", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(false);
-      const client = mockClient();
-
-      await useSeatStore.getState().reactivateSeat();
-
-      expect(client.reactivateSeat).not.toHaveBeenCalled();
-    });
-  });
-
   describe("fetchSeat", () => {
     it("fetches existing seat", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(true);
       const seat = makeSeat();
       mockClient({ getMySeat: vi.fn().mockResolvedValue(seat) });
 
@@ -152,7 +108,6 @@ describe("seatStore", () => {
     });
 
     it("auto-provisions free seat when none exists", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(true);
       const seat = makeSeat();
       const client = mockClient({
         getMySeat: vi.fn().mockResolvedValue(null),
@@ -166,7 +121,6 @@ describe("seatStore", () => {
     });
 
     it("does not auto-provision when option is false", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(true);
       const client = mockClient();
 
       await useSeatStore.getState().fetchSeat();
@@ -178,7 +132,6 @@ describe("seatStore", () => {
 
   describe("provisionFreeSeat", () => {
     it("creates free seat when none exists", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(true);
       const seat = makeSeat();
       const client = mockClient({
         createSeat: vi.fn().mockResolvedValue(seat),
@@ -188,10 +141,10 @@ describe("seatStore", () => {
 
       expect(client.createSeat).toHaveBeenCalledWith(PLAN_FREE);
       expect(useSeatStore.getState().seat).toEqual(seat);
+      expect(mockInvalidatePlanCache).toHaveBeenCalled();
     });
 
     it("uses existing seat instead of creating", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(true);
       const existing = makeSeat();
       const client = mockClient({
         getMySeat: vi.fn().mockResolvedValue(existing),
@@ -201,12 +154,12 @@ describe("seatStore", () => {
 
       expect(client.createSeat).not.toHaveBeenCalled();
       expect(useSeatStore.getState().seat).toEqual(existing);
+      expect(mockInvalidatePlanCache).not.toHaveBeenCalled();
     });
   });
 
   describe("upgradeToPro", () => {
     it("upgrades existing free seat to pro", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(true);
       const freeSeat = makeSeat({ plan_key: PLAN_FREE });
       const proSeat = makeSeat({ plan_key: PLAN_PRO });
       const client = mockClient({
@@ -218,10 +171,10 @@ describe("seatStore", () => {
 
       expect(client.upgradeSeat).toHaveBeenCalledWith(PLAN_PRO);
       expect(useSeatStore.getState().seat).toEqual(proSeat);
+      expect(mockInvalidatePlanCache).toHaveBeenCalled();
     });
 
     it("no-ops when already on pro", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(true);
       const proSeat = makeSeat({ plan_key: PLAN_PRO });
       const client = mockClient({
         getMySeat: vi.fn().mockResolvedValue(proSeat),
@@ -234,8 +187,21 @@ describe("seatStore", () => {
       expect(useSeatStore.getState().seat).toEqual(proSeat);
     });
 
+    it("upgrades alpha pro seat to paid pro", async () => {
+      const alphaSeat = makeSeat({ plan_key: PLAN_PRO_ALPHA });
+      const proSeat = makeSeat({ plan_key: PLAN_PRO });
+      const client = mockClient({
+        getMySeat: vi.fn().mockResolvedValue(alphaSeat),
+        upgradeSeat: vi.fn().mockResolvedValue(proSeat),
+      });
+
+      await useSeatStore.getState().upgradeToPro();
+
+      expect(client.upgradeSeat).toHaveBeenCalledWith(PLAN_PRO);
+      expect(useSeatStore.getState().seat).toEqual(proSeat);
+    });
+
     it("creates pro seat when none exists", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(true);
       const proSeat = makeSeat({ plan_key: PLAN_PRO });
       const client = mockClient({
         createSeat: vi.fn().mockResolvedValue(proSeat),
@@ -244,12 +210,12 @@ describe("seatStore", () => {
       await useSeatStore.getState().upgradeToPro();
 
       expect(client.createSeat).toHaveBeenCalledWith(PLAN_PRO);
+      expect(mockInvalidatePlanCache).toHaveBeenCalled();
     });
   });
 
   describe("cancelSeat", () => {
     it("cancels and re-fetches seat", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(true);
       const canceledSeat = makeSeat({ status: "canceling" });
       const client = mockClient({
         getMySeat: vi.fn().mockResolvedValue(canceledSeat),
@@ -259,12 +225,12 @@ describe("seatStore", () => {
 
       expect(client.cancelSeat).toHaveBeenCalled();
       expect(useSeatStore.getState().seat).toEqual(canceledSeat);
+      expect(mockInvalidatePlanCache).toHaveBeenCalled();
     });
   });
 
   describe("reactivateSeat", () => {
     it("reactivates seat", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(true);
       const seat = makeSeat({ status: "active" });
       mockClient({
         reactivateSeat: vi.fn().mockResolvedValue(seat),
@@ -273,12 +239,12 @@ describe("seatStore", () => {
       await useSeatStore.getState().reactivateSeat();
 
       expect(useSeatStore.getState().seat).toEqual(seat);
+      expect(mockInvalidatePlanCache).toHaveBeenCalled();
     });
   });
 
   describe("error handling", () => {
     it("sets redirect URL on subscription required error", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(true);
       const { SeatSubscriptionRequiredError } = await import(
         "@renderer/api/posthogClient"
       );
@@ -300,7 +266,6 @@ describe("seatStore", () => {
     });
 
     it("sets error on payment failure", async () => {
-      mockIsFeatureFlagEnabled.mockReturnValue(true);
       const { SeatPaymentFailedError } = await import(
         "@renderer/api/posthogClient"
       );
@@ -313,6 +278,16 @@ describe("seatStore", () => {
       await useSeatStore.getState().fetchSeat();
 
       expect(useSeatStore.getState().error).toBe("Card declined");
+    });
+
+    it("does not invalidate plan cache on failure", async () => {
+      mockClient({
+        getMySeat: vi.fn().mockRejectedValue(new Error("Network error")),
+      });
+
+      await useSeatStore.getState().upgradeToPro();
+
+      expect(mockInvalidatePlanCache).not.toHaveBeenCalled();
     });
   });
 

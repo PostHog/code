@@ -59,6 +59,13 @@ export class ApplySnapshotSaga extends Saga<
         const base64Content = Buffer.from(arrayBuffer).toString("utf-8");
         const binaryContent = Buffer.from(base64Content, "base64");
         await writeFile(archivePath, binaryContent);
+        this.log.info("Tree archive downloaded", {
+          treeHash: snapshot.treeHash,
+          snapshotBytes: binaryContent.byteLength,
+          snapshotWireBytes: arrayBuffer.byteLength,
+          totalBytes: binaryContent.byteLength,
+          totalWireBytes: arrayBuffer.byteLength,
+        });
       },
       rollback: async () => {
         if (this.archivePath) {

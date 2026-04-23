@@ -5,16 +5,18 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
-  Item,
-  ItemContent,
-  ItemDescription,
-  ItemMedia,
-  ItemTitle,
 } from "@posthog/quill";
 import { useTRPC } from "@renderer/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import type { GithubRefKind, GithubRefState } from "../types";
 import type { MentionChip } from "../utils/content";
+import {
+  githubIssueToMentionChip,
+  githubPullRequestToMentionChip,
+} from "../utils/githubIssueChip";
+import { IssueRow } from "./IssueRow";
+import { SuggestionStatus } from "./SuggestionStatus";
 
 interface IssuePickerProps {
   repoPath: string;
@@ -24,13 +26,15 @@ interface IssuePickerProps {
   anchor: React.RefObject<HTMLElement | null>;
 }
 
-type Issue = {
+type Ref = {
+  kind: GithubRefKind;
   number: number;
   title: string;
   url: string;
   repo: string;
-  state: string;
+  state: GithubRefState;
   labels: string[];
+  isDraft?: boolean;
 };
 
 export function IssuePicker({
@@ -62,8 +66,8 @@ export function IssuePicker({
     }
   }, [open]);
 
-  const { data: issues = [] } = useQuery(
-    trpc.git.searchGithubIssues.queryOptions(
+  const { data: refs = [], isFetching } = useQuery(
+    trpc.git.searchGithubRefs.queryOptions(
       {
         directoryPath: repoPath,
         query: debouncedQuery || undefined,
@@ -73,23 +77,25 @@ export function IssuePicker({
     ),
   );
 
-  const handleValueChange = (value: Issue | null) => {
+  const isLoading = isFetching || query !== debouncedQuery;
+
+  const handleValueChange = (value: Ref | null) => {
     if (!value) return;
-    onSelect({
-      type: "github_issue",
-      id: value.url,
-      label: `#${value.number} - ${value.title}`,
-    });
+    onSelect(
+      value.kind === "pr"
+        ? githubPullRequestToMentionChip(value)
+        : githubIssueToMentionChip(value),
+    );
   };
 
   return (
-    <Combobox<Issue>
-      items={issues as Issue[]}
+    <Combobox<Ref>
+      items={refs as Ref[]}
       open={open}
       onOpenChange={(nextOpen) => onOpenChange(nextOpen)}
       inputValue={query}
       onInputValueChange={(value) => setQuery(value ?? "")}
-      onValueChange={(value) => handleValueChange(value as Issue | null)}
+      onValueChange={(value) => handleValueChange(value as Ref | null)}
       filter={null}
     >
       <ComboboxContent
@@ -102,36 +108,22 @@ export function IssuePicker({
         <ComboboxInput
           autoFocus
           showTrigger={false}
-          placeholder="Search issues..."
+          placeholder="Search issues or pull requests..."
         />
-        <ComboboxEmpty>No issues found.</ComboboxEmpty>
+        <ComboboxEmpty>
+          <SuggestionStatus
+            loading={isLoading}
+            emptyMessage="No issues or pull requests found."
+          />
+        </ComboboxEmpty>
         <ComboboxList>
-          {(issue: Issue) => (
+          {(ref: Ref) => (
             <ComboboxItem
-              key={issue.number}
-              value={issue}
+              key={`${ref.kind}-${ref.number}`}
+              value={ref}
               className="relative h-auto"
             >
-              <Item size="xs" className="border-0 p-0">
-                <ItemMedia variant="icon" className="mt-1 self-start">
-                  <span
-                    className="inline-block h-2.5 w-2.5 rounded-full"
-                    style={{
-                      background:
-                        issue.state === "OPEN" ? "#238636" : "#AB7DF8",
-                    }}
-                  />
-                </ItemMedia>
-                <ItemContent variant="menuItem">
-                  <ItemTitle className="whitespace-normal text-left">
-                    #{issue.number} - {issue.title}
-                  </ItemTitle>
-                  <ItemDescription className="text-left">
-                    {issue.repo}
-                    {issue.labels.length > 0 && ` · ${issue.labels.join(", ")}`}
-                  </ItemDescription>
-                </ItemContent>
-              </Item>
+              <IssueRow issue={ref} />
             </ComboboxItem>
           )}
         </ComboboxList>

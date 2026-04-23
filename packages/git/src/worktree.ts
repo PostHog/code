@@ -2,7 +2,7 @@ import { execFile, spawn } from "node:child_process";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { getGitOperationManager } from "./operation-manager";
+import { getCleanEnv, getGitOperationManager } from "./operation-manager";
 import {
   addToLocalExclude,
   branchExists,
@@ -327,6 +327,7 @@ export class WorktreeManager {
         {
           cwd: this.mainRepoPath,
           stdio: ["ignore", "pipe", "pipe"],
+          env: getCleanEnv(),
         },
       );
 

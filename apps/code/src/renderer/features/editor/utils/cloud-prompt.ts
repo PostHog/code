@@ -8,6 +8,8 @@ import { makeAttachmentUri } from "@utils/promptContent";
 import { unescapeXmlAttr } from "@utils/xml";
 
 const ABSOLUTE_FILE_TAG_REGEX = /<file\s+path="([^"]+)"\s*\/>/g;
+const FOLDER_TAG_REGEX = /<folder\s+path="[^"]+"\s*\/>/g;
+const FOLDER_TAG_PATH_REGEX = /<folder\s+path="([^"]+)"\s*\/>/g;
 const TEXT_EXTENSIONS = new Set([
   "c",
   "cc",
@@ -112,6 +114,14 @@ function collectAbsoluteFileTagPaths(prompt: string): string[] {
   return filePaths;
 }
 
+function collectFolderTagPaths(prompt: string): Set<string> {
+  const paths = new Set<string>();
+  for (const match of prompt.matchAll(FOLDER_TAG_PATH_REGEX)) {
+    paths.add(unescapeXmlAttr(match[1]));
+  }
+  return paths;
+}
+
 function unique<T>(values: T[]): T[] {
   return Array.from(new Set(values));
 }
@@ -122,10 +132,12 @@ function normalizePromptText(prompt: string): string {
 
 export function stripAbsoluteFileTags(prompt: string): string {
   return normalizePromptText(
-    prompt.replaceAll(ABSOLUTE_FILE_TAG_REGEX, (match, rawPath: string) => {
-      const decodedPath = unescapeXmlAttr(rawPath);
-      return isAbsolutePath(decodedPath) ? "" : match;
-    }),
+    prompt
+      .replaceAll(ABSOLUTE_FILE_TAG_REGEX, (match, rawPath: string) => {
+        const decodedPath = unescapeXmlAttr(rawPath);
+        return isAbsolutePath(decodedPath) ? "" : match;
+      })
+      .replaceAll(FOLDER_TAG_REGEX, ""),
   );
 }
 
@@ -133,11 +145,12 @@ export function getAbsoluteAttachmentPaths(
   prompt: string,
   filePaths: string[] = [],
 ): string[] {
+  const folderPaths = collectFolderTagPaths(prompt);
   const absolutePaths = [
     ...collectAbsoluteFileTagPaths(prompt),
     ...filePaths.filter(isAbsolutePath),
   ];
-  return unique(absolutePaths);
+  return unique(absolutePaths).filter((p) => !folderPaths.has(p));
 }
 
 export function buildCloudTaskDescription(

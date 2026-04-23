@@ -29,6 +29,7 @@ import {
 } from "@radix-ui/themes";
 import { useReviewNavigationStore } from "@renderer/features/code-review/stores/reviewNavigationStore";
 import { getStatusIndicator } from "@renderer/features/git-interaction/utils/gitStatusUtils";
+import { useIsCloudTask } from "@renderer/features/workspace/hooks/useIsCloudTask";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 import { trpcClient } from "@renderer/trpc/client";
 import { track } from "@renderer/utils/analytics";
@@ -463,9 +464,7 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
 }
 
 export function ChangesPanel({ taskId, task }: ChangesPanelProps) {
-  const workspace = useWorkspace(taskId);
-  const isCloud =
-    workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
+  const isCloud = useIsCloudTask(taskId);
 
   if (isCloud) {
     return <CloudChangesPanel taskId={taskId} task={task} />;

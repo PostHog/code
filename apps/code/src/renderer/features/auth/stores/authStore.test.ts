@@ -136,7 +136,6 @@ describe("authStore", () => {
       needsProjectSelection: false,
       needsScopeReauth: false,
       hasCodeAccess: null,
-      hasCompletedOnboarding: false,
     });
   });
 

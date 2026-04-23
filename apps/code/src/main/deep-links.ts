@@ -1,7 +1,9 @@
+import { getDeeplinkProtocol } from "@shared/deeplink";
 import { app } from "electron";
 import { container } from "./di/container";
 import { MAIN_TOKENS } from "./di/tokens";
 import type { DeepLinkService } from "./services/deep-link/service";
+import { isDevBuild } from "./utils/env";
 import { logger } from "./utils/logger";
 import { focusMainWindow } from "./window";
 
@@ -11,6 +13,14 @@ let pendingDeepLinkUrl: string | null = null;
 
 function getDeepLinkService(): DeepLinkService {
   return container.get<DeepLinkService>(MAIN_TOKENS.DeepLinkService);
+}
+
+function findDeepLinkUrlInArgs(args: string[]): string | undefined {
+  const prefixes = [`${getDeeplinkProtocol(isDevBuild())}://`];
+  if (!isDevBuild()) {
+    prefixes.push("twig://", "array://");
+  }
+  return args.find((arg) => prefixes.some((p) => arg.startsWith(p)));
 }
 
 /**
@@ -39,12 +49,7 @@ export function registerDeepLinkHandlers(): void {
       argCount: commandLine.length,
     });
 
-    const url = commandLine.find(
-      (arg) =>
-        arg.startsWith("posthog-code://") ||
-        arg.startsWith("twig://") ||
-        arg.startsWith("array://"),
-    );
+    const url = findDeepLinkUrlInArgs(commandLine);
     if (url) {
       log.info("Deep link URL found in second-instance args", { url });
       getDeepLinkService().handleUrl(url);
@@ -69,12 +74,7 @@ export function initializeDeepLinks(): void {
       pendingDeepLinkUrl = null;
     }
   } else {
-    const deepLinkUrl = process.argv.find(
-      (arg) =>
-        arg.startsWith("posthog-code://") ||
-        arg.startsWith("twig://") ||
-        arg.startsWith("array://"),
-    );
+    const deepLinkUrl = findDeepLinkUrlInArgs(process.argv);
     if (deepLinkUrl) {
       getDeepLinkService().handleUrl(deepLinkUrl);
     }

@@ -1,7 +1,3 @@
-import {
-  buildCloudPromptBlocks,
-  serializeCloudPrompt,
-} from "@features/editor/utils/cloud-prompt";
 import { buildPromptBlocks } from "@features/editor/utils/prompt-builder";
 import { DEFAULT_PANEL_IDS } from "@features/panels/constants/panelConstants";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
@@ -10,6 +6,10 @@ import {
   type ConnectParams,
   getSessionService,
 } from "@features/sessions/service/service";
+import {
+  getCloudPromptTransport,
+  uploadRunAttachments,
+} from "@features/sessions/utils/cloudArtifacts";
 import { getTaskDirectory } from "@hooks/useRepositoryDirectory";
 import type {
   Workspace,
@@ -117,13 +117,6 @@ export class TaskCreationSaga extends Saga<
   protected async execute(
     input: TaskCreationInput,
   ): Promise<TaskCreationOutput> {
-    const initialCloudPrompt =
-      input.workspaceMode === "cloud" && !input.taskId && input.content
-        ? await this.readOnlyStep("cloud_prompt_preparation", () =>
-            buildCloudPromptBlocks(input.content ?? "", input.filePaths),
-          )
-        : null;
-
     // Step 1: Get or create task
     // For new tasks, start folder registration in parallel with task creation
     // since folder_registration only needs repoPath (from input), not task.id
@@ -290,13 +283,18 @@ export class TaskCreationSaga extends Saga<
             githubUserToken = await getGhUserTokenOrThrow();
           }
 
-          return this.deps.posthogClient.runTaskInCloud(task.id, branch, {
+          const transport =
+            (input.content || input.filePaths?.length) &&
+            workspaceMode === "cloud"
+              ? getCloudPromptTransport(input.content ?? "", input.filePaths)
+              : null;
+          const taskRun = await this.deps.posthogClient.createTaskRun(task.id, {
+            environment: "cloud",
+            mode: "interactive",
+            branch,
             adapter: input.adapter,
             model: input.model,
             reasoningLevel: input.reasoningLevel,
-            pendingUserMessage: initialCloudPrompt
-              ? serializeCloudPrompt(initialCloudPrompt)
-              : undefined,
             sandboxEnvironmentId: input.sandboxEnvironmentId,
             prAuthorshipMode,
             runSource: input.cloudRunSource ?? "manual",
@@ -306,6 +304,26 @@ export class TaskCreationSaga extends Saga<
               ? (input.executionMode ??
                 (input.adapter === "codex" ? "auto" : "plan"))
               : input.executionMode,
+          });
+          if (!taskRun?.id) {
+            throw new Error("Failed to create cloud run");
+          }
+
+          const pendingUserArtifactIds = transport
+            ? await uploadRunAttachments(
+                this.deps.posthogClient,
+                task.id,
+                taskRun.id,
+                transport.filePaths,
+              )
+            : [];
+
+          return this.deps.posthogClient.startTaskRun(task.id, taskRun.id, {
+            pendingUserMessage: transport?.messageText,
+            pendingUserArtifactIds:
+              pendingUserArtifactIds.length > 0
+                ? pendingUserArtifactIds
+                : undefined,
           });
         },
         rollback: async () => {

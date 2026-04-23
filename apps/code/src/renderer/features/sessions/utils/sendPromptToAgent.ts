@@ -1,3 +1,4 @@
+import type { ContentBlock } from "@agentclientprotocol/sdk";
 import { useReviewNavigationStore } from "@features/code-review/stores/reviewNavigationStore";
 import { DEFAULT_TAB_IDS } from "@features/panels/constants/panelConstants";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
@@ -8,7 +9,10 @@ import { getSessionService } from "@features/sessions/service/service";
  * Sends a prompt to the agent session for a task, collapses the review
  * panel to split mode if expanded, and switches to the logs/chat tab.
  */
-export function sendPromptToAgent(taskId: string, prompt: string): void {
+export function sendPromptToAgent(
+  taskId: string,
+  prompt: string | ContentBlock[],
+): void {
   getSessionService().sendPrompt(taskId, prompt);
 
   const { getReviewMode, setReviewMode } = useReviewNavigationStore.getState();

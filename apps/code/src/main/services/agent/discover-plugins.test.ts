@@ -241,6 +241,35 @@ describe("discoverExternalPlugins", () => {
       expect(result).toEqual([]);
     });
 
+    it("excludes the posthog marketplace plugin (bundled in-app)", async () => {
+      const posthogPath = "/mock/plugins/posthog";
+      const otherPath = "/mock/plugins/other";
+      vol.mkdirSync(posthogPath, { recursive: true });
+      vol.mkdirSync(otherPath, { recursive: true });
+
+      vol.mkdirSync("/mock/home/.claude/plugins", { recursive: true });
+      vol.writeFileSync(
+        INSTALLED_PLUGINS_PATH,
+        JSON.stringify({
+          version: 2,
+          plugins: {
+            "posthog@claude-plugins-official": [
+              { scope: "user", installPath: posthogPath, version: "1.0.0" },
+            ],
+            "other@claude-plugins-official": [
+              { scope: "user", installPath: otherPath, version: "1.0.0" },
+            ],
+          },
+        }),
+      );
+
+      const result = await discoverExternalPlugins({
+        userDataDir: USER_DATA_DIR,
+      });
+
+      expect(result).toEqual([{ type: "local", path: otherPath }]);
+    });
+
     it("handles multiple plugins with multiple entries", async () => {
       const pathA = "/mock/plugins/plugin-a";
       const pathB = "/mock/plugins/plugin-b";

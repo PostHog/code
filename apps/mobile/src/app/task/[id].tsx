@@ -1,30 +1,51 @@
 import { Text } from "@components/text";
+import { useQueryClient } from "@tanstack/react-query";
+import * as Haptics from "expo-haptics";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ActionSheetIOS,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  View,
+} from "react-native";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Composer } from "@/features/chat";
 import {
   getTask,
+  runTaskInCloud,
   type Task,
   TaskSessionView,
+  taskKeys,
   useTaskSessionStore,
 } from "@/features/tasks";
+import { logger } from "@/lib/logger";
 import { useThemeColors } from "@/lib/theme";
+
+const log = logger.scope("task-detail");
 
 export default function TaskDetailScreen() {
   const { id: taskId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const themeColors = useThemeColors();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
-  const { connectToTask, disconnectFromTask, sendPrompt, getSessionForTask } =
-    useTaskSessionStore();
+  const {
+    connectToTask,
+    disconnectFromTask,
+    sendPrompt,
+    cancelPrompt,
+    sendPermissionResponse,
+    getSessionForTask,
+  } = useTaskSessionStore();
 
   const session = taskId ? getSessionForTask(taskId) : undefined;
 
@@ -47,66 +68,216 @@ export default function TaskDetailScreen() {
   useEffect(() => {
     if (!taskId) return;
 
+    let cancelled = false;
     setLoading(true);
     setError(null);
 
     getTask(taskId)
       .then((fetchedTask) => {
+        if (cancelled) return;
         setTask(fetchedTask);
         return connectToTask(fetchedTask);
       })
       .catch((err) => {
-        console.error("Failed to load task:", err);
+        if (cancelled) return;
+        log.error("Failed to load task", err);
         setError("Failed to load task");
       })
       .finally(() => {
-        setLoading(false);
+        if (cancelled) return;
+        // Brief delay for FlatList to render its initial batch behind
+        // the loading overlay before revealing.
+        setTimeout(() => setLoading(false), 150);
       });
 
     return () => {
+      cancelled = true;
       disconnectFromTask(taskId);
     };
   }, [taskId, connectToTask, disconnectFromTask]);
 
+  // Auto-reconnect if the session disappears while the screen is active
+  // (e.g., cloud sandbox expired and the session was cleaned up).
+  // Re-fetches the task to get a fresh S3 presigned URL.
+  useEffect(() => {
+    if (!taskId || !task || loading) return;
+    if (session) return;
+    if (retrying) return;
+
+    let cancelled = false;
+    getTask(taskId)
+      .then((freshTask) => {
+        if (cancelled) return;
+        setTask(freshTask);
+        return connectToTask(freshTask);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        log.error("Failed to reconnect to task", err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [taskId, task, loading, session, connectToTask, retrying]);
+
   const handleSendPrompt = useCallback(
     (text: string) => {
       if (!taskId) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       sendPrompt(taskId, text).catch((err) => {
-        console.error("Failed to send prompt:", err);
+        log.error("Failed to send prompt", err);
+        Alert.alert(
+          "Failed to send",
+          "Your message could not be delivered. Please try again.",
+        );
       });
     },
     [taskId, sendPrompt],
   );
 
+  const handleStop = useCallback(() => {
+    if (!taskId) return;
+    // cancelPrompt returns false on failure — no need to alert,
+    // the agent may have already finished or the sandbox expired.
+    cancelPrompt(taskId).catch(() => {});
+  }, [taskId, cancelPrompt]);
+
+  const updateTaskInCache = useCallback(
+    (updated: Task) => {
+      // Directly patch the task in all list query caches so the task list
+      // reflects the change immediately (e.g., environment: local → cloud).
+      queryClient.setQueriesData<Task[]>(
+        { queryKey: taskKeys.lists() },
+        (old) => old?.map((t) => (t.id === updated.id ? updated : t)),
+      );
+    },
+    [queryClient],
+  );
+
+  const handleRetry = useCallback(async () => {
+    if (!taskId || !task) return;
+    try {
+      setRetrying(true);
+      disconnectFromTask(taskId);
+
+      const updatedTask = await runTaskInCloud(taskId, {
+        resumeFromRunId: task.latest_run?.id,
+      });
+      setTask(updatedTask);
+      await connectToTask(updatedTask);
+      updateTaskInCache(updatedTask);
+      // Don't clear retrying here — the effect below clears it
+      // once the session shows meaningful state (thinking or terminal).
+    } catch (err) {
+      log.error("Failed to retry task", err);
+      setRetrying(false);
+      Alert.alert(
+        "Retry failed",
+        "Could not restart the task. Please try again.",
+      );
+    }
+  }, [taskId, task, disconnectFromTask, connectToTask, updateTaskInCache]);
+
+  // Clear retrying once the agent finishes a turn or the run terminates.
+  useEffect(() => {
+    if (!retrying || !session) return;
+    if (!session.isPromptPending || session.terminalStatus) {
+      setRetrying(false);
+    }
+  }, [retrying, session]);
+
+  const handleSendPermissionResponse = useCallback(
+    (args: Parameters<typeof sendPermissionResponse>[1]) => {
+      if (!taskId) return;
+      sendPermissionResponse(taskId, args).catch((err) => {
+        log.error("Failed to send permission response", err);
+        Alert.alert(
+          "Failed to respond",
+          "Your permission response could not be sent. Please try again.",
+        );
+      });
+    },
+    [taskId, sendPermissionResponse],
+  );
+
   const handleOpenTask = useCallback(
     (newTaskId: string) => {
-      router.push(`/task/${newTaskId}`);
+      router.replace(`/task/${newTaskId}`);
     },
     [router],
   );
 
-  if (loading) {
-    return (
-      <>
-        <Stack.Screen
-          options={{
-            headerShown: true,
-            headerTransparent: false,
-            headerTitle: "Loading...",
-            headerStyle: { backgroundColor: themeColors.background },
-            headerTintColor: themeColors.gray[12],
-            presentation: "modal",
-          }}
-        />
-        <View className="flex-1 items-center justify-center bg-background">
-          <ActivityIndicator size="large" color={themeColors.accent[9]} />
-          <Text className="mt-4 text-gray-11">Loading task...</Text>
-        </View>
-      </>
-    );
-  }
+  // Stale detection for local tasks: if no new S3 data arrives for 30s
+  // while the agent is supposedly working, the desktop may be offline.
+  const isLocal = task?.latest_run?.environment === "local";
+  const [isStale, setIsStale] = useState(false);
+  useEffect(() => {
+    if (!isLocal || !session?.isPromptPending) {
+      setIsStale(false);
+      return;
+    }
+    const interval = setInterval(() => {
+      const lastEvent = session.lastEventAt ?? 0;
+      setIsStale(lastEvent > 0 && Date.now() - lastEvent > 30_000);
+    }, 5_000);
+    return () => clearInterval(interval);
+  }, [isLocal, session?.isPromptPending, session?.lastEventAt]);
 
-  if (error || !task) {
+  const handleContinueInCloud = useCallback(async () => {
+    if (!taskId || !task) return;
+    try {
+      setRetrying(true);
+      disconnectFromTask(taskId);
+      const updatedTask = await runTaskInCloud(taskId, {
+        resumeFromRunId: task.latest_run?.id,
+      });
+      setTask(updatedTask);
+      await connectToTask(updatedTask);
+      updateTaskInCache(updatedTask);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      log.error("Failed to continue in cloud", err);
+      setRetrying(false);
+      Alert.alert(
+        "Failed to switch",
+        "Could not continue this task in the cloud. Please try again.",
+      );
+    }
+  }, [taskId, task, disconnectFromTask, connectToTask, updateTaskInCache]);
+
+  const environment = task?.latest_run?.environment;
+
+  const visibleAgentTypes = [
+    "agent_message_chunk",
+    "agent_message",
+    "agent_thought_chunk",
+    "tool_call",
+  ];
+  const hasAnyAgentOutput =
+    session?.events.some((e) => {
+      if (e.type !== "session_update") return false;
+      const su = (e.notification as Record<string, unknown>)?.update;
+      return visibleAgentTypes.includes(
+        (su as Record<string, unknown>)?.sessionUpdate as string,
+      );
+    }) ?? false;
+
+  const isConnecting =
+    retrying || (!!session?.awaitingAgentOutput && !hasAnyAgentOutput);
+  const isThinking = !!session?.awaitingAgentOutput && hasAnyAgentOutput;
+
+  // Haptic pulse when connecting/thinking indicators dismiss
+  const prevWaiting = useRef(false);
+  useEffect(() => {
+    const waiting = isConnecting || isThinking;
+    if (prevWaiting.current && !waiting) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    prevWaiting.current = waiting;
+  }, [isConnecting, isThinking]);
+
+  if (error || (!task && !loading)) {
     return (
       <>
         <Stack.Screen
@@ -140,33 +311,97 @@ export default function TaskDetailScreen() {
         options={{
           headerShown: true,
           headerTransparent: false,
-          headerTitle: task.title || "Task",
+          headerTitle: loading ? "Loading..." : task?.title || "Task",
           headerStyle: { backgroundColor: themeColors.background },
           headerTintColor: themeColors.gray[12],
           headerTitleStyle: {
             fontWeight: "600",
           },
           presentation: "modal",
+          headerRight: environment
+            ? () => (
+                <Pressable
+                  onPress={
+                    isLocal
+                      ? () =>
+                          ActionSheetIOS.showActionSheetWithOptions(
+                            {
+                              options: ["Keep locally", "Move to Cloud"],
+                              cancelButtonIndex: 0,
+                              title: isStale
+                                ? "Desktop may be offline"
+                                : "Running on your desktop",
+                            },
+                            (index) => {
+                              if (index === 1) handleContinueInCloud();
+                            },
+                          )
+                      : undefined
+                  }
+                  className={`rounded-full px-3 py-1 ${
+                    environment === "cloud" ? "bg-accent-3" : "bg-gray-4"
+                  }`}
+                >
+                  <Text
+                    className={`font-medium text-xs ${
+                      environment === "cloud"
+                        ? "text-accent-11"
+                        : "text-gray-11"
+                    }`}
+                  >
+                    {environment === "cloud" ? "Cloud" : "Local"}
+                  </Text>
+                </Pressable>
+              )
+            : undefined,
         }}
       />
       <Animated.View className="flex-1 bg-background" style={contentPosition}>
+        {/* Always render TaskSessionView so the FlatList can layout behind
+            the loading overlay. This prevents the "flash of messages" when
+            switching from loading spinner to rendered content. */}
         <TaskSessionView
           events={session?.events ?? []}
-          isPromptPending={session?.isPromptPending ?? false}
+          isConnecting={isConnecting}
+          isThinking={isThinking}
+          terminalStatus={retrying ? undefined : session?.terminalStatus}
+          lastError={retrying ? undefined : session?.lastError}
+          onRetry={
+            !retrying && session?.terminalStatus ? handleRetry : undefined
+          }
           onOpenTask={handleOpenTask}
+          onSendPermissionResponse={handleSendPermissionResponse}
           contentContainerStyle={{
-            paddingTop: 80 + insets.bottom,
+            paddingTop:
+              session?.terminalStatus && !retrying ? 16 : 80 + insets.bottom,
             paddingBottom: 16,
           }}
         />
 
-        {/* Fixed input at bottom */}
-        <Animated.View
-          className="absolute inset-x-0 bottom-0"
-          style={inputContainerStyle}
-        >
-          <Composer onSend={handleSendPrompt} />
-        </Animated.View>
+        {/* Loading overlay — covers the list while it does initial layout */}
+        {loading && (
+          <View className="absolute inset-0 items-center justify-center bg-background">
+            <ActivityIndicator size="large" color={themeColors.accent[9]} />
+            <Text className="mt-4 text-gray-11">
+              {task?.latest_run ? "Connecting..." : "Loading task..."}
+            </Text>
+          </View>
+        )}
+
+        {/* Fixed input at bottom — hidden when run is terminal */}
+        {!session?.terminalStatus && (
+          <Animated.View
+            className="absolute inset-x-0 bottom-0"
+            style={inputContainerStyle}
+          >
+            <Composer
+              onSend={handleSendPrompt}
+              onStop={handleStop}
+              isUserTurn={!(session?.isPromptPending ?? true)}
+              placeholder={"Ask a question"}
+            />
+          </Animated.View>
+        )}
       </Animated.View>
     </>
   );

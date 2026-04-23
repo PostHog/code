@@ -20,6 +20,7 @@ import {
   IconButton,
   Text,
 } from "@radix-ui/themes";
+import { isSendMessageSubmitKey } from "@utils/sendMessageKey";
 import { formatRelativeTimeShort } from "@utils/time";
 import { useCallback, useEffect, useRef, useState } from "react";
 import rehypeRaw from "rehype-raw";
@@ -301,7 +302,7 @@ export function PrCommentThread({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      if (isSendMessageSubmitKey(e)) {
         e.preventDefault();
         handleReplySubmit();
       }

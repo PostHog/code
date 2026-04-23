@@ -2,9 +2,14 @@ import { ErrorBoundary } from "@components/ErrorBoundary";
 import { LoginTransition } from "@components/LoginTransition";
 import { MainLayout } from "@components/MainLayout";
 import { ScopeReauthPrompt } from "@components/ScopeReauthPrompt";
+import { AiApprovalScreen } from "@features/ai-approval/components/AiApprovalScreen";
 import { AuthScreen } from "@features/auth/components/AuthScreen";
 import { InviteCodeScreen } from "@features/auth/components/InviteCodeScreen";
-import { useAuthStateValue } from "@features/auth/hooks/authQueries";
+import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
+import {
+  useAuthStateValue,
+  useCurrentUser,
+} from "@features/auth/hooks/authQueries";
 import { useAuthSession } from "@features/auth/hooks/useAuthSession";
 import { OnboardingFlow } from "@features/onboarding/components/OnboardingFlow";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
@@ -25,6 +30,8 @@ import { useEffect, useRef, useState } from "react";
 import { Toaster } from "sonner";
 
 const log = logger.scope("app");
+
+const ORGANIZATION_ADMIN_LEVEL = 8;
 
 function App() {
   const trpcReact = useTRPC();
@@ -137,6 +144,28 @@ function App() {
     }),
   );
 
+  const needsInviteCode =
+    isAuthenticated && hasCodeAccess === false && hasCompletedOnboarding;
+  const isCheckingAccess =
+    isAuthenticated && hasCodeAccess === null && hasCompletedOnboarding;
+
+  const authenticatedClient = useOptionalAuthenticatedClient();
+  const { data: currentUser } = useCurrentUser({
+    client: authenticatedClient,
+    enabled:
+      isAuthenticated && hasCompletedOnboarding && hasCodeAccess === true,
+    refetchOnWindowFocus: "always",
+  });
+  const currentOrg = currentUser?.organization;
+  const needsAiApproval =
+    isAuthenticated &&
+    hasCompletedOnboarding &&
+    hasCodeAccess === true &&
+    currentOrg != null &&
+    currentOrg.is_ai_data_processing_approved !== true;
+  const isAdmin =
+    (currentOrg?.membership_level ?? 0) >= ORGANIZATION_ADMIN_LEVEL;
+
   // Handle transition into main app — only show the dark overlay if dark mode is active
   useEffect(() => {
     const isInMainApp = isAuthenticated && hasCompletedOnboarding;
@@ -164,8 +193,16 @@ function App() {
     );
   }
 
-  // Four-phase rendering: auth → access gate → onboarding → main app
+  // Rendering: onboarding (includes auth + invite code gate) → main app
   const renderContent = () => {
+    if (!hasCompletedOnboarding) {
+      return (
+        <motion.div key="onboarding" initial={{ opacity: 1 }}>
+          <OnboardingFlow />
+        </motion.div>
+      );
+    }
+
     if (!isAuthenticated) {
       return (
         <motion.div key="auth" initial={{ opacity: 1 }}>
@@ -174,10 +211,9 @@ function App() {
       );
     }
 
-    // Access check loading state
-    if (hasCodeAccess === null) {
+    if (isCheckingAccess) {
       return (
-        <motion.div key="access-check">
+        <motion.div key="access-check" initial={{ opacity: 1 }}>
           <Flex align="center" justify="center" minHeight="100vh">
             <Flex align="center" gap="3">
               <Spinner size="3" />
@@ -188,19 +224,21 @@ function App() {
       );
     }
 
-    // Access gate: show invite code screen if flag is not enabled
-    if (!hasCodeAccess) {
+    if (needsInviteCode) {
       return (
-        <motion.div key="invite-code">
+        <motion.div key="invite-code" initial={{ opacity: 1 }}>
           <InviteCodeScreen />
         </motion.div>
       );
     }
 
-    if (!hasCompletedOnboarding) {
+    if (needsAiApproval) {
       return (
-        <motion.div key="onboarding">
-          <OnboardingFlow />
+        <motion.div key="ai-approval" initial={{ opacity: 1 }}>
+          <AiApprovalScreen
+            orgName={currentOrg?.name ?? null}
+            isAdmin={isAdmin}
+          />
         </motion.div>
       );
     }

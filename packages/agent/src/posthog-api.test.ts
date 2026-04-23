@@ -45,4 +45,65 @@ describe("PostHogAPIClient", () => {
     expect(refreshApiKey).toHaveBeenCalledTimes(1);
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
+
+  it("downloads artifacts through the backend endpoint", async () => {
+    const client = new PostHogAPIClient({
+      apiUrl: "https://app.posthog.com",
+      getApiKey: vi.fn().mockResolvedValue("token"),
+      projectId: 7,
+    });
+    const bytes = new TextEncoder().encode("hello world");
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      arrayBuffer: vi.fn().mockResolvedValue(bytes.buffer),
+    });
+
+    const artifact = await client.downloadArtifact(
+      "task-1",
+      "run-1",
+      "tasks/artifacts/team_1/task_task-1/run_run-1/file.txt",
+    );
+
+    expect(artifact).toEqual(bytes.buffer);
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://app.posthog.com/api/projects/7/tasks/task-1/runs/run-1/artifacts/download/",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          storage_path: "tasks/artifacts/team_1/task_task-1/run_run-1/file.txt",
+        }),
+        headers: expect.any(Headers),
+      }),
+    );
+  });
+
+  it("returns only the artifacts created by the current upload request", async () => {
+    const client = new PostHogAPIClient({
+      apiUrl: "https://app.posthog.com",
+      getApiKey: vi.fn().mockResolvedValue("token"),
+      projectId: 1,
+    });
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        artifacts: [
+          { storage_path: "gs://bucket/existing.tar.gz", name: "existing" },
+          { storage_path: "gs://bucket/new-1.pack", name: "new-1" },
+          { storage_path: "gs://bucket/new-2.index", name: "new-2" },
+        ],
+      }),
+    });
+
+    const artifacts = await client.uploadTaskArtifacts("task-1", "run-1", [
+      { name: "new-1", type: "artifact", content: "AAA" },
+      { name: "new-2", type: "artifact", content: "BBB" },
+    ]);
+
+    expect(artifacts).toEqual([
+      { storage_path: "gs://bucket/new-1.pack", name: "new-1" },
+      { storage_path: "gs://bucket/new-2.index", name: "new-2" },
+    ]);
+  });
 });

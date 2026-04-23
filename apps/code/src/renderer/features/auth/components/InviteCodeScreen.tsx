@@ -1,12 +1,14 @@
-import { DraggableTitleBar } from "@components/DraggableTitleBar";
+import { FullScreenLayout } from "@components/FullScreenLayout";
+import { OnboardingHogTip } from "@features/onboarding/components/OnboardingHogTip";
+import { SignOut } from "@phosphor-icons/react";
+import { Button, Callout, Flex, Spinner, Text } from "@radix-ui/themes";
+import happyHog from "@renderer/assets/images/hedgehogs/happy-hog.png";
+import { motion } from "framer-motion";
 import {
   useLogoutMutation,
   useRedeemInviteCodeMutation,
-} from "@features/auth/hooks/authMutations";
-import { useAuthUiStateStore } from "@features/auth/stores/authUiStateStore";
-import { Callout, Flex, Spinner, Text, Theme } from "@radix-ui/themes";
-import phWordmark from "@renderer/assets/images/wordmark.svg";
-import zenHedgehog from "@renderer/assets/images/zen.png";
+} from "../hooks/authMutations";
+import { useAuthUiStateStore } from "../stores/authUiStateStore";
 
 export function InviteCodeScreen() {
   const code = useAuthUiStateStore((state) => state.inviteCode);
@@ -14,176 +16,137 @@ export function InviteCodeScreen() {
   const resetInviteCode = useAuthUiStateStore((state) => state.resetInviteCode);
   const redeemMutation = useRedeemInviteCodeMutation();
   const logoutMutation = useLogoutMutation();
+  const errorMessage = redeemMutation.error?.message ?? null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!code.trim()) return;
     redeemMutation.mutate(code.trim(), {
-      onSuccess: () => resetInviteCode(),
+      onSuccess: () => {
+        resetInviteCode();
+      },
     });
   };
 
-  const errorMessage = redeemMutation.error?.message ?? null;
+  const footerRight = (
+    <Button
+      size="1"
+      variant="ghost"
+      color="gray"
+      onClick={() => logoutMutation.mutate()}
+      style={{ opacity: 0.5 }}
+    >
+      <SignOut size={14} />
+      Log out
+    </Button>
+  );
 
   return (
-    <Theme appearance="light" accentColor="orange" radius="medium">
-      <Flex height="100vh" style={{ position: "relative", overflow: "hidden" }}>
-        <DraggableTitleBar />
-
-        {/* Background */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            backgroundColor: "rgb(243, 244, 240)",
-          }}
-        />
-
-        {/* Right panel — zen hedgehog */}
+    <FullScreenLayout footerRight={footerRight}>
+      <Flex align="center" justify="center" height="100%" px="8">
         <Flex
+          direction="column"
           align="center"
-          justify="center"
           style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            bottom: 0,
-            width: "50%",
-            backgroundColor: "rgb(243, 244, 240)",
+            width: "100%",
+            maxWidth: 480,
+            height: "100%",
+            paddingTop: 24,
+            paddingBottom: 40,
           }}
         >
-          <img
-            src={zenHedgehog}
-            alt=""
-            className="zen-float"
-            style={{ width: "340px", maxWidth: "80%" }}
-          />
-        </Flex>
-
-        {/* Left side with card */}
-        <Flex
-          width="50%"
-          align="center"
-          justify="center"
-          style={{ position: "relative", zIndex: 1 }}
-        >
-          {/* Invite code card */}
           <Flex
             direction="column"
-            gap="5"
-            style={{
-              position: "relative",
-              width: "360px",
-              padding: "32px",
-              backgroundColor: "var(--color-panel-solid)",
-              borderRadius: "16px",
-              border: "1px solid var(--gray-4)",
-              boxShadow:
-                "0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)",
-            }}
+            justify="center"
+            align="center"
+            style={{ flex: 1, minHeight: 0, width: "100%" }}
           >
-            {/* Logo */}
-            <img
-              src={phWordmark}
-              alt="PostHog"
-              style={{
-                height: "48px",
-                objectFit: "contain",
-                alignSelf: "center",
-              }}
-            />
-
-            <Text
-              size="2"
-              align="center"
-              style={{ color: "var(--gray-12)", opacity: 0.7 }}
+            <Flex
+              direction="column"
+              align="start"
+              gap="6"
+              style={{ width: "100%" }}
             >
-              Enter your invite code to get started
-            </Text>
-
-            {/* Error */}
-            {errorMessage && (
-              <Callout.Root color="red" size="1">
-                <Callout.Text>{errorMessage}</Callout.Text>
-              </Callout.Root>
-            )}
-
-            {/* Form */}
-            <form onSubmit={handleSubmit}>
-              <Flex direction="column" gap="3">
-                <input
-                  type="text"
-                  value={code}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                  placeholder="Invite code"
-                  disabled={redeemMutation.isPending}
-                  style={{
-                    width: "100%",
-                    height: "44px",
-                    padding: "0 12px",
-                    border: "1px solid var(--gray-6)",
-                    borderRadius: "10px",
-                    fontSize: "15px",
-                    backgroundColor: "var(--gray-2)",
-                    color: "var(--gray-12)",
-                    outline: "none",
-                    boxSizing: "border-box",
-                  }}
-                />
-                <button
-                  type="submit"
-                  disabled={redeemMutation.isPending || !code.trim()}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    width: "100%",
-                    height: "44px",
-                    border: "1.5px solid var(--accent-8)",
-                    borderRadius: "6px",
-                    fontSize: "15px",
-                    fontWeight: 500,
-                    cursor:
-                      redeemMutation.isPending || !code.trim()
-                        ? "not-allowed"
-                        : "pointer",
-                    backgroundColor: "var(--accent-9)",
-                    color: "var(--accent-contrast)",
-                    boxShadow: "0 3px 0 -1px var(--accent-8)",
-                    opacity: redeemMutation.isPending || !code.trim() ? 0.5 : 1,
-                    transition: "opacity 150ms ease, box-shadow 100ms ease",
-                  }}
+              <Flex direction="column" gap="5" style={{ width: "100%" }}>
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
                 >
-                  {redeemMutation.isPending ? <Spinner size="1" /> : "Redeem"}
-                </button>
-              </Flex>
-            </form>
+                  <Flex direction="column" gap="2">
+                    <Text
+                      size="6"
+                      weight="bold"
+                      style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+                    >
+                      Enter your invite code
+                    </Text>
+                    <Text size="2" style={{ color: "var(--gray-11)" }}>
+                      You need an invite code to access PostHog Code.
+                    </Text>
+                  </Flex>
+                </motion.div>
 
-            {/* Log out link */}
-            <Flex justify="center">
-              <button
-                type="button"
-                onClick={() => logoutMutation.mutate()}
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  color: "var(--gray-12)",
-                  opacity: 0.5,
-                  cursor: "pointer",
-                  fontSize: "13px",
-                }}
-              >
-                Log out
-              </button>
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.05 }}
+                >
+                  <form onSubmit={handleSubmit}>
+                    <Flex direction="column" gap="3">
+                      {errorMessage && (
+                        <Callout.Root color="red" size="1">
+                          <Callout.Text>{errorMessage}</Callout.Text>
+                        </Callout.Root>
+                      )}
+                      <input
+                        type="text"
+                        value={code}
+                        onChange={(e) => setInviteCode(e.target.value)}
+                        placeholder="Invite code"
+                        disabled={redeemMutation.isPending}
+                        style={{
+                          width: "100%",
+                          height: 44,
+                          padding: "0 14px",
+                          border: "1px solid var(--gray-a3)",
+                          borderRadius: 10,
+                          fontSize: 15,
+                          backgroundColor: "var(--color-panel-solid)",
+                          color: "var(--gray-12)",
+                          outline: "none",
+                          boxSizing: "border-box",
+                          boxShadow:
+                            "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
+                          fontFamily: "inherit",
+                        }}
+                      />
+                      <Button
+                        type="submit"
+                        size="3"
+                        disabled={redeemMutation.isPending || !code.trim()}
+                        style={{ width: "100%" }}
+                      >
+                        {redeemMutation.isPending ? (
+                          <Spinner size="1" />
+                        ) : (
+                          "Redeem"
+                        )}
+                      </Button>
+                    </Flex>
+                  </form>
+                </motion.div>
+              </Flex>
+
+              <OnboardingHogTip
+                hogSrc={happyHog}
+                message="Got a code from a friend or the PostHog team? Pop it in above."
+                delay={0.1}
+              />
             </Flex>
           </Flex>
         </Flex>
-
-        {/* Right side - shows background */}
-        <div style={{ width: "50%" }} />
       </Flex>
-    </Theme>
+    </FullScreenLayout>
   );
 }

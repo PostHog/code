@@ -3,7 +3,6 @@ import { SignalSourceToggles } from "@features/inbox/components/SignalSourceTogg
 import { useSignalSourceManager } from "@features/inbox/hooks/useSignalSourceManager";
 import { GitHubIntegrationSection } from "@features/settings/components/sections/GitHubIntegrationSection";
 import { useRepositoryIntegration } from "@hooks/useIntegrations";
-import { useMeQuery } from "@hooks/useMeQuery";
 import { Box, Flex, Select, Text, Tooltip } from "@radix-ui/themes";
 import type { SignalReportPriority } from "@shared/types";
 
@@ -32,16 +31,11 @@ export function SignalSourcesSettings() {
     handleSetup,
     handleSetupComplete,
     handleSetupCancel,
-    evaluations,
-    evaluationsUrl,
-    handleToggleEvaluation,
     userAutonomyConfig,
     handleUpdateUserAutonomyPriority,
   } = useSignalSourceManager();
 
   const { hasGithubIntegration } = useRepositoryIntegration();
-  const { data: me } = useMeQuery();
-  const isStaff = me?.is_staff ?? false;
 
   if (isLoading) {
     return (
@@ -90,13 +84,6 @@ export function SignalSourcesSettings() {
                 disabled={!hasGithubIntegration}
                 sourceStates={sourceStates}
                 onSetup={handleSetup}
-                evaluations={isStaff ? evaluations : undefined}
-                evaluationsUrl={isStaff ? evaluationsUrl : undefined}
-                onToggleEvaluation={
-                  isStaff
-                    ? (id, enabled) => void handleToggleEvaluation(id, enabled)
-                    : undefined
-                }
               />
             )}
           </Box>

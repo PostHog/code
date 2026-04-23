@@ -40,7 +40,7 @@ interface AuthStoreState {
   needsProjectSelection: boolean;
   needsScopeReauth: boolean;
   hasCodeAccess: boolean | null;
-  hasCompletedOnboarding: boolean;
+
   checkCodeAccess: () => Promise<void>;
   redeemInviteCode: (code: string) => Promise<void>;
   loginWithOAuth: (region: CloudRegion) => Promise<void>;
@@ -201,8 +201,6 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
   needsProjectSelection: false,
   needsScopeReauth: false,
   hasCodeAccess: null,
-
-  hasCompletedOnboarding: false,
 
   checkCodeAccess: async () => {
     await syncAuthState();

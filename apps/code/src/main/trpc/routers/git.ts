@@ -35,6 +35,10 @@ import {
   getDiffStatsOutput,
   getFileAtHeadInput,
   getFileAtHeadOutput,
+  getGithubIssueInput,
+  getGithubIssueOutput,
+  getGithubPullRequestInput,
+  getGithubPullRequestOutput,
   getGitRepoInfoInput,
   getGitRepoInfoOutput,
   getGitSyncStatusOutput,
@@ -51,6 +55,7 @@ import {
   ghAuthTokenOutput,
   ghStatusOutput,
   gitStateSnapshotSchema,
+  gitStatusOutput,
   openPrInput,
   openPrOutput,
   prStatusInput,
@@ -63,8 +68,8 @@ import {
   pushOutput,
   replyToPrCommentInput,
   replyToPrCommentOutput,
-  searchGithubIssuesInput,
-  searchGithubIssuesOutput,
+  searchGithubRefsInput,
+  searchGithubRefsOutput,
   stageFilesInput,
   syncInput,
   syncOutput,
@@ -239,35 +244,45 @@ export const gitRouter = router({
   push: publicProcedure
     .input(pushInput)
     .output(pushOutput)
-    .mutation(({ input }) =>
+    .mutation(({ input, signal }) =>
       getService().push(
         input.directoryPath,
         input.remote,
         input.branch,
         input.setUpstream,
+        signal,
       ),
     ),
 
   pull: publicProcedure
     .input(pullInput)
     .output(pullOutput)
-    .mutation(({ input }) =>
-      getService().pull(input.directoryPath, input.remote, input.branch),
+    .mutation(({ input, signal }) =>
+      getService().pull(
+        input.directoryPath,
+        input.remote,
+        input.branch,
+        signal,
+      ),
     ),
 
   publish: publicProcedure
     .input(publishInput)
     .output(publishOutput)
-    .mutation(({ input }) =>
-      getService().publish(input.directoryPath, input.remote),
+    .mutation(({ input, signal }) =>
+      getService().publish(input.directoryPath, input.remote, signal),
     ),
 
   sync: publicProcedure
     .input(syncInput)
     .output(syncOutput)
-    .mutation(({ input }) =>
-      getService().sync(input.directoryPath, input.remote),
+    .mutation(({ input, signal }) =>
+      getService().sync(input.directoryPath, input.remote, signal),
     ),
+
+  getGitStatus: publicProcedure
+    .output(gitStatusOutput)
+    .query(() => getService().getGitStatus()),
 
   getGhStatus: publicProcedure
     .output(ghStatusOutput)
@@ -363,15 +378,30 @@ export const gitRouter = router({
       ),
     ),
 
-  searchGithubIssues: publicProcedure
-    .input(searchGithubIssuesInput)
-    .output(searchGithubIssuesOutput)
+  searchGithubRefs: publicProcedure
+    .input(searchGithubRefsInput)
+    .output(searchGithubRefsOutput)
     .query(({ input }) =>
-      getService().searchGithubIssues(
+      getService().searchGithubRefs(
         input.directoryPath,
         input.query,
         input.limit,
+        input.kinds,
       ),
+    ),
+
+  getGithubIssue: publicProcedure
+    .input(getGithubIssueInput)
+    .output(getGithubIssueOutput)
+    .query(({ input }) =>
+      getService().getGithubIssue(input.owner, input.repo, input.number),
+    ),
+
+  getGithubPullRequest: publicProcedure
+    .input(getGithubPullRequestInput)
+    .output(getGithubPullRequestOutput)
+    .query(({ input }) =>
+      getService().getGithubPullRequest(input.owner, input.repo, input.number),
     ),
 
   onCreatePrProgress: publicProcedure.subscription(async function* (opts) {

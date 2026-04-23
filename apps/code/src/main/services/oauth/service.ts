@@ -23,7 +23,6 @@ import type {
 
 const log = logger.scope("oauth-service");
 
-const PROTOCOL = "posthog-code";
 const OAUTH_TIMEOUT_MS = 180_000; // 3 minutes
 const DEV_CALLBACK_PORT = 8237;
 
@@ -100,7 +99,7 @@ export class OAuthService {
   private getRedirectUri(): string {
     return isDevBuild()
       ? `http://localhost:${DEV_CALLBACK_PORT}/callback`
-      : `${PROTOCOL}://callback`;
+      : `${this.deepLinkService.getProtocol()}://callback`;
   }
 
   /**

@@ -1,7 +1,100 @@
 import type { HookCallback, HookInput } from "@anthropic-ai/claude-agent-sdk";
+import {
+  enrichFileForAgent,
+  type FileEnrichmentDeps,
+} from "../../enrichment/file-enricher";
 import type { Logger } from "../../utils/logger";
+import { stripCatLineNumbers } from "./conversion/sdk-to-acp";
 import type { SettingsManager } from "./session/settings";
 import type { CodeExecutionMode } from "./tools";
+
+function extractTextFromToolResponse(response: unknown): string | null {
+  if (typeof response === "string") return response;
+  if (!response) return null;
+  if (Array.isArray(response)) {
+    const parts: string[] = [];
+    for (const part of response) {
+      if (typeof part === "string") {
+        parts.push(part);
+      } else if (
+        part &&
+        typeof part === "object" &&
+        "text" in part &&
+        typeof (part as { text?: unknown }).text === "string"
+      ) {
+        parts.push((part as { text: string }).text);
+      }
+    }
+    return parts.length > 0 ? parts.join("") : null;
+  }
+  if (typeof response === "object" && response !== null) {
+    const maybe = response as {
+      content?: unknown;
+      text?: unknown;
+      file?: { content?: unknown };
+    };
+    if (
+      maybe.file &&
+      typeof maybe.file === "object" &&
+      typeof maybe.file.content === "string"
+    ) {
+      return maybe.file.content;
+    }
+    if (typeof maybe.text === "string") return maybe.text;
+    if (maybe.content) return extractTextFromToolResponse(maybe.content);
+  }
+  return null;
+}
+
+/**
+ * Per-toolUseId handoff from the PostToolUse hook to `toolUpdateFromToolResult`.
+ * Can't emit a standalone `tool_call_update` because the SDK emits its own
+ * when it processes the tool_result, and the renderer applies it via
+ * `Object.assign` — our earlier update would be overwritten.
+ */
+export type EnrichedReadCache = Map<string, string>;
+
+export const createReadEnrichmentHook =
+  (deps: FileEnrichmentDeps, cache: EnrichedReadCache): HookCallback =>
+  async (input: HookInput) => {
+    if (input.hook_event_name !== "PostToolUse") return { continue: true };
+    if (input.tool_name !== "Read") return { continue: true };
+
+    const toolInput = input.tool_input as { file_path?: string } | undefined;
+    const filePath = toolInput?.file_path;
+    if (!filePath) return { continue: true };
+
+    const raw = extractTextFromToolResponse(input.tool_response);
+    if (!raw) return { continue: true };
+
+    const enriched = await enrichFileForAgent(
+      deps,
+      filePath,
+      stripCatLineNumbers(raw),
+    );
+    if (!enriched) return { continue: true };
+
+    if (input.tool_use_id) {
+      cache.set(input.tool_use_id, enriched);
+    }
+
+    return {
+      continue: true,
+      hookSpecificOutput: {
+        hookEventName: "PostToolUse" as const,
+        additionalContext: [
+          `## PostHog metadata for ${filePath}`,
+          "",
+          "The file below is annotated with live data from the user's PostHog project:",
+          "flag type / rollout / staleness / linked experiment, and for events the verification status,",
+          "30-day volume, and unique-user count. Treat these as authoritative product context —",
+          "they describe what is actually running in production.",
+          "",
+          enriched,
+        ].join("\n"),
+      },
+    };
+  };
 
 const toolUseCallbacks: {
   [toolUseId: string]: {
@@ -34,11 +127,10 @@ export type OnModeChange = (mode: CodeExecutionMode) => Promise<void>;
 
 interface CreatePostToolUseHookParams {
   onModeChange?: OnModeChange;
-  logger?: Logger;
 }
 
 export const createPostToolUseHook =
-  ({ onModeChange, logger }: CreatePostToolUseHookParams): HookCallback =>
+  ({ onModeChange }: CreatePostToolUseHookParams): HookCallback =>
   async (
     input: HookInput,
     toolUseID: string | undefined,
@@ -61,9 +153,6 @@ export const createPostToolUseHook =
           );
           delete toolUseCallbacks[toolUseID];
         } else {
-          logger?.error(
-            `No onPostToolUseHook found for tool use ID: ${toolUseID}`,
-          );
           delete toolUseCallbacks[toolUseID];
         }
       }
@@ -83,12 +172,12 @@ export const createPostToolUseHook =
  *
  * https://github.com/anthropics/claude-agent-sdk-typescript/issues/267
  */
-const SUBAGENT_REWRITES: Record<string, string> = {
+export const SUBAGENT_REWRITES: Record<string, string> = {
   Explore: "ph-explore",
 };
 
 export const createSubagentRewriteHook =
-  (logger: Logger): HookCallback =>
+  (logger: Logger, registeredAgents: ReadonlySet<string>): HookCallback =>
   async (input: HookInput, _toolUseID: string | undefined) => {
     if (input.hook_event_name !== "PreToolUse") {
       return { continue: true };
@@ -105,6 +194,13 @@ export const createSubagentRewriteHook =
     }
 
     const target = SUBAGENT_REWRITES[subagentType];
+    if (!registeredAgents.has(target)) {
+      logger.warn(
+        `[SubagentRewriteHook] Skipping rewrite ${subagentType} → ${target}: target agent not registered for this session. Falling back to built-in ${subagentType}.`,
+      );
+      return { continue: true };
+    }
+
     logger.info(
       `[SubagentRewriteHook] Rewriting subagent_type: ${subagentType} → ${target}`,
     );
