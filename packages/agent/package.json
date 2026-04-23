@@ -60,6 +60,10 @@
       "types": "./dist/resume.d.ts",
       "import": "./dist/resume.js"
     },
+    "./handoff-checkpoint": {
+      "types": "./dist/handoff-checkpoint.d.ts",
+      "import": "./dist/handoff-checkpoint.js"
+    },
     "./tree-tracker": {
       "types": "./dist/tree-tracker.d.ts",
       "import": "./dist/tree-tracker.js"
@@ -67,6 +71,10 @@
     "./server": {
       "types": "./dist/server/agent-server.d.ts",
       "import": "./dist/server/agent-server.js"
+    },
+    "./server/schemas": {
+      "types": "./dist/server/schemas.d.ts",
+      "import": "./dist/server/schemas.js"
     }
   },
   "bin": {

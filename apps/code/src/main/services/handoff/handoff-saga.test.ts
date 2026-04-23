@@ -1,10 +1,19 @@
-import type { TreeSnapshotEvent } from "@posthog/agent/types";
+import type * as AgentResume from "@posthog/agent/resume";
+import type * as AgentTypes from "@posthog/agent/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { HandoffSagaDeps, HandoffSagaInput } from "./handoff-saga";
 import { HandoffSaga } from "./handoff-saga";
 
 const mockResumeFromLog = vi.hoisted(() => vi.fn());
 const mockFormatConversation = vi.hoisted(() => vi.fn());
+
+const DEFAULT_LOCAL_GIT_STATE = {
+  head: "abc123",
+  branch: "feature/handoff",
+  upstreamHead: null,
+  upstreamRemote: "origin",
+  upstreamMergeRef: "refs/heads/feature/handoff",
+};
 
 vi.mock("@posthog/agent/resume", () => ({
   resumeFromLog: mockResumeFromLog,
@@ -25,14 +34,35 @@ function createInput(
 }
 
 function createSnapshot(
-  overrides: Partial<TreeSnapshotEvent> = {},
-): TreeSnapshotEvent {
+  overrides: Partial<AgentTypes.TreeSnapshotEvent> = {},
+): AgentTypes.TreeSnapshotEvent {
   return {
     treeHash: "abc123",
     baseCommit: "def456",
     archiveUrl: "https://s3.example.com/archive.tar.gz",
     changes: [{ path: "test.txt", status: "A" }],
     timestamp: "2026-04-07T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function createCheckpoint(
+  overrides: Partial<AgentTypes.GitCheckpointEvent> = {},
+): AgentTypes.GitCheckpointEvent {
+  return {
+    checkpointId: "checkpoint-1",
+    commit: "checkpointcommit123",
+    checkpointRef: "refs/posthog-code-checkpoint/checkpoint-1",
+    headRef: "refs/posthog-code-handoff/head/checkpoint-1",
+    head: "def456",
+    branch: "feature/handoff",
+    indexTree: "index123",
+    worktreeTree: "worktree123",
+    artifactPath: "gs://bucket/checkpoint-1.bundle",
+    timestamp: "2026-04-07T00:00:00Z",
+    upstreamRemote: "origin",
+    upstreamMergeRef: "refs/heads/feature/handoff",
+    remoteUrl: "git@github.com:PostHog/code.git",
     ...overrides,
   };
 }
@@ -45,6 +75,7 @@ function createDeps(overrides: Partial<HandoffSagaDeps> = {}): HandoffSagaDeps {
       }),
     }),
     applyTreeSnapshot: vi.fn().mockResolvedValue(undefined),
+    applyGitCheckpoint: vi.fn().mockResolvedValue(undefined),
     updateWorkspaceMode: vi.fn(),
     reconnectSession: vi.fn().mockResolvedValue({
       sessionId: "session-1",
@@ -59,6 +90,40 @@ function createDeps(overrides: Partial<HandoffSagaDeps> = {}): HandoffSagaDeps {
   };
 }
 
+function createResumeState(
+  overrides: Partial<AgentResume.ResumeState> = {},
+): AgentResume.ResumeState {
+  return {
+    conversation: [],
+    latestSnapshot: null,
+    latestGitCheckpoint: null,
+    snapshotApplied: false,
+    interrupted: false,
+    logEntryCount: 0,
+    ...overrides,
+  };
+}
+
+function getProgressSteps(deps: HandoffSagaDeps): string[] {
+  return (deps.onProgress as ReturnType<typeof vi.fn>).mock.calls.map(
+    (call: unknown[]) => call[0] as string,
+  );
+}
+
+async function runSaga(
+  overrides: {
+    input?: Partial<HandoffSagaInput>;
+    deps?: Partial<HandoffSagaDeps>;
+    resumeState?: Partial<AgentResume.ResumeState>;
+  } = {},
+) {
+  mockResumeFromLog.mockResolvedValue(createResumeState(overrides.resumeState));
+  const deps = createDeps(overrides.deps);
+  const saga = new HandoffSaga(deps);
+  const result = await saga.run(createInput(overrides.input));
+  return { deps, result };
+}
+
 describe("HandoffSaga", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -67,19 +132,15 @@ describe("HandoffSaga", () => {
 
   it("completes happy path with snapshot", async () => {
     const snapshot = createSnapshot();
-    mockResumeFromLog.mockResolvedValue({
-      conversation: [
-        { role: "user", content: [{ type: "text", text: "hello" }] },
-      ],
-      latestSnapshot: snapshot,
-      snapshotApplied: false,
-      interrupted: false,
-      logEntryCount: 10,
+    const { result } = await runSaga({
+      resumeState: {
+        conversation: [
+          { role: "user", content: [{ type: "text", text: "hello" }] },
+        ],
+        latestSnapshot: snapshot,
+        logEntryCount: 10,
+      },
     });
-
-    const deps = createDeps();
-    const saga = new HandoffSaga(deps);
-    const result = await saga.run(createInput());
 
     expect(result.success).toBe(true);
     if (!result.success) return;
@@ -89,23 +150,14 @@ describe("HandoffSaga", () => {
   });
 
   it("closes cloud run before fetching logs", async () => {
-    mockResumeFromLog.mockResolvedValue({
-      conversation: [],
-      latestSnapshot: null,
-      snapshotApplied: false,
-      interrupted: false,
-      logEntryCount: 0,
-    });
-
-    const deps = createDeps();
-    const saga = new HandoffSaga(deps);
-    await saga.run(createInput());
+    const { deps } = await runSaga();
 
     expect(deps.closeCloudRun).toHaveBeenCalledWith(
       "task-1",
       "run-1",
       "https://us.posthog.com",
       2,
+      undefined,
     );
     const closeOrder = (deps.closeCloudRun as ReturnType<typeof vi.fn>).mock
       .invocationCallOrder[0];
@@ -114,17 +166,12 @@ describe("HandoffSaga", () => {
   });
 
   it("skips snapshot apply when no archiveUrl", async () => {
-    mockResumeFromLog.mockResolvedValue({
-      conversation: [],
-      latestSnapshot: createSnapshot({ archiveUrl: undefined }),
-      snapshotApplied: false,
-      interrupted: false,
-      logEntryCount: 5,
+    const { deps, result } = await runSaga({
+      resumeState: {
+        latestSnapshot: createSnapshot({ archiveUrl: undefined }),
+        logEntryCount: 5,
+      },
     });
-
-    const deps = createDeps();
-    const saga = new HandoffSaga(deps);
-    const result = await saga.run(createInput());
 
     expect(result.success).toBe(true);
     if (!result.success) return;
@@ -133,17 +180,7 @@ describe("HandoffSaga", () => {
   });
 
   it("skips snapshot apply when no snapshot at all", async () => {
-    mockResumeFromLog.mockResolvedValue({
-      conversation: [],
-      latestSnapshot: null,
-      snapshotApplied: false,
-      interrupted: false,
-      logEntryCount: 0,
-    });
-
-    const deps = createDeps();
-    const saga = new HandoffSaga(deps);
-    const result = await saga.run(createInput());
+    const { deps, result } = await runSaga();
 
     expect(result.success).toBe(true);
     if (!result.success) return;
@@ -152,17 +189,7 @@ describe("HandoffSaga", () => {
   });
 
   it("seeds local logs when cloudLogUrl is present", async () => {
-    mockResumeFromLog.mockResolvedValue({
-      conversation: [],
-      latestSnapshot: null,
-      snapshotApplied: false,
-      interrupted: false,
-      logEntryCount: 0,
-    });
-
-    const deps = createDeps();
-    const saga = new HandoffSaga(deps);
-    await saga.run(createInput());
+    const { deps } = await runSaga();
 
     expect(deps.seedLocalLogs).toHaveBeenCalledWith(
       "run-1",
@@ -171,41 +198,29 @@ describe("HandoffSaga", () => {
   });
 
   it("skips seeding logs when cloudLogUrl is falsy", async () => {
-    mockResumeFromLog.mockResolvedValue({
-      conversation: [],
-      latestSnapshot: null,
-      snapshotApplied: false,
-      interrupted: false,
-      logEntryCount: 0,
-    });
-
     const apiClient = {
       getTaskRun: vi.fn().mockResolvedValue({ log_url: undefined }),
     };
-    const deps = createDeps({
-      createApiClient: vi.fn().mockReturnValue(apiClient),
+    const { deps } = await runSaga({
+      deps: {
+        createApiClient: vi.fn().mockReturnValue(apiClient),
+      },
     });
-    const saga = new HandoffSaga(deps);
-    await saga.run(createInput());
 
     expect(deps.seedLocalLogs).not.toHaveBeenCalled();
   });
 
   it("sets pending context with handoff summary", async () => {
-    mockResumeFromLog.mockResolvedValue({
-      conversation: [
-        { role: "user", content: [{ type: "text", text: "hello" }] },
-      ],
-      latestSnapshot: null,
-      snapshotApplied: false,
-      interrupted: false,
-      logEntryCount: 1,
-    });
     mockFormatConversation.mockReturnValue("User said hello");
 
-    const deps = createDeps();
-    const saga = new HandoffSaga(deps);
-    await saga.run(createInput());
+    const { deps } = await runSaga({
+      resumeState: {
+        conversation: [
+          { role: "user", content: [{ type: "text", text: "hello" }] },
+        ],
+        logEntryCount: 1,
+      },
+    });
 
     expect(deps.setPendingContext).toHaveBeenCalledWith(
       "run-1",
@@ -218,17 +233,11 @@ describe("HandoffSaga", () => {
   });
 
   it("context mentions files restored when snapshot applied", async () => {
-    mockResumeFromLog.mockResolvedValue({
-      conversation: [],
-      latestSnapshot: createSnapshot(),
-      snapshotApplied: false,
-      interrupted: false,
-      logEntryCount: 0,
+    const { deps } = await runSaga({
+      resumeState: {
+        latestSnapshot: createSnapshot(),
+      },
     });
-
-    const deps = createDeps();
-    const saga = new HandoffSaga(deps);
-    await saga.run(createInput());
 
     expect(deps.setPendingContext).toHaveBeenCalledWith(
       "run-1",
@@ -237,17 +246,9 @@ describe("HandoffSaga", () => {
   });
 
   it("passes sessionId and adapter through to reconnectSession", async () => {
-    mockResumeFromLog.mockResolvedValue({
-      conversation: [],
-      latestSnapshot: null,
-      snapshotApplied: false,
-      interrupted: false,
-      logEntryCount: 0,
+    const { deps } = await runSaga({
+      input: { sessionId: "ses-abc", adapter: "codex" },
     });
-
-    const deps = createDeps();
-    const saga = new HandoffSaga(deps);
-    await saga.run(createInput({ sessionId: "ses-abc", adapter: "codex" }));
 
     expect(deps.reconnectSession).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -258,23 +259,16 @@ describe("HandoffSaga", () => {
   });
 
   it("emits progress events in order", async () => {
-    mockResumeFromLog.mockResolvedValue({
-      conversation: [],
-      latestSnapshot: createSnapshot(),
-      snapshotApplied: false,
-      interrupted: false,
-      logEntryCount: 0,
+    const { deps } = await runSaga({
+      resumeState: {
+        latestGitCheckpoint: createCheckpoint(),
+        latestSnapshot: createSnapshot(),
+      },
     });
 
-    const deps = createDeps();
-    const saga = new HandoffSaga(deps);
-    await saga.run(createInput());
-
-    const progressCalls = (deps.onProgress as ReturnType<typeof vi.fn>).mock
-      .calls;
-    const steps = progressCalls.map((call: unknown[]) => call[0]);
-    expect(steps).toEqual([
+    expect(getProgressSteps(deps)).toEqual([
       "fetching_logs",
+      "applying_git_checkpoint",
       "applying_snapshot",
       "spawning_agent",
       "complete",
@@ -283,19 +277,13 @@ describe("HandoffSaga", () => {
 
   describe("rollbacks", () => {
     it("rolls back workspace mode when spawn_agent fails", async () => {
-      mockResumeFromLog.mockResolvedValue({
-        conversation: [],
-        latestSnapshot: null,
-        snapshotApplied: false,
-        interrupted: false,
-        logEntryCount: 0,
+      const { deps, result } = await runSaga({
+        deps: {
+          reconnectSession: vi
+            .fn()
+            .mockRejectedValue(new Error("spawn failed")),
+        },
       });
-
-      const deps = createDeps({
-        reconnectSession: vi.fn().mockRejectedValue(new Error("spawn failed")),
-      });
-      const saga = new HandoffSaga(deps);
-      const result = await saga.run(createInput());
 
       expect(result.success).toBe(false);
       if (result.success) return;
@@ -304,19 +292,11 @@ describe("HandoffSaga", () => {
     });
 
     it("kills session on rollback if spawn partially succeeded", async () => {
-      mockResumeFromLog.mockResolvedValue({
-        conversation: [],
-        latestSnapshot: null,
-        snapshotApplied: false,
-        interrupted: false,
-        logEntryCount: 0,
+      const { result } = await runSaga({
+        deps: {
+          reconnectSession: vi.fn().mockResolvedValue(null),
+        },
       });
-
-      const deps = createDeps({
-        reconnectSession: vi.fn().mockResolvedValue(null),
-      });
-      const saga = new HandoffSaga(deps);
-      const result = await saga.run(createInput());
 
       expect(result.success).toBe(false);
       if (result.success) return;
@@ -336,5 +316,28 @@ describe("HandoffSaga", () => {
       expect(deps.updateWorkspaceMode).not.toHaveBeenCalled();
       expect(deps.reconnectSession).not.toHaveBeenCalled();
     });
+  });
+
+  it("applies git checkpoint before restoring the file snapshot", async () => {
+    const { deps, result } = await runSaga({
+      input: { localGitState: DEFAULT_LOCAL_GIT_STATE },
+      resumeState: {
+        latestSnapshot: createSnapshot(),
+        latestGitCheckpoint: createCheckpoint(),
+      },
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(deps.applyGitCheckpoint).toHaveBeenCalledTimes(1);
+    expect(deps.applyGitCheckpoint).toHaveBeenCalledWith(
+      expect.any(Object),
+      "/repo",
+      "task-1",
+      "run-1",
+      expect.any(Object),
+      DEFAULT_LOCAL_GIT_STATE,
+    );
+    expect(deps.applyTreeSnapshot).toHaveBeenCalledTimes(1);
   });
 });

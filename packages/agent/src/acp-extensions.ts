@@ -37,6 +37,9 @@ export const POSTHOG_NOTIFICATIONS = {
   /** Tree state snapshot captured (git tree hash + file archive) */
   TREE_SNAPSHOT: "_posthog/tree_snapshot",
 
+  /** Git checkpoint captured for handoff */
+  GIT_CHECKPOINT: "_posthog/git_checkpoint",
+
   /** Agent mode changed (interactive/background) */
   MODE_CHANGE: "_posthog/mode_change",
 

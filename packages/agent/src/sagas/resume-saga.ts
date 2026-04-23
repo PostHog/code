@@ -5,6 +5,7 @@ import type { PostHogAPIClient } from "../posthog-api";
 import { TreeTracker } from "../tree-tracker";
 import type {
   DeviceInfo,
+  GitCheckpointEvent,
   StoredNotification,
   TreeSnapshotEvent,
 } from "../types";
@@ -34,6 +35,7 @@ export interface ResumeInput {
 export interface ResumeOutput {
   conversation: ConversationTurn[];
   latestSnapshot: TreeSnapshotEvent | null;
+  latestGitCheckpoint: GitCheckpointEvent | null;
   snapshotApplied: boolean;
   interrupted: boolean;
   lastDevice?: DeviceInfo;
@@ -73,6 +75,11 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
     // Step 3: Find latest snapshot (read-only, pure computation)
     const latestSnapshot = await this.readOnlyStep("find_snapshot", () =>
       Promise.resolve(this.findLatestTreeSnapshot(entries)),
+    );
+
+    const latestGitCheckpoint = await this.readOnlyStep(
+      "find_git_checkpoint",
+      () => Promise.resolve(this.findLatestGitCheckpoint(entries)),
     );
 
     // Step 4: Apply snapshot if present (wrapped in step for consistent logging)
@@ -158,6 +165,7 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
     return {
       conversation,
       latestSnapshot,
+      latestGitCheckpoint,
       snapshotApplied,
       interrupted: latestSnapshot?.interrupted ?? false,
       lastDevice,
@@ -169,6 +177,7 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
     return {
       conversation: [],
       latestSnapshot: null,
+      latestGitCheckpoint: null,
       snapshotApplied: false,
       interrupted: false,
       logEntryCount: 0,
@@ -190,6 +199,29 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
           | TreeSnapshotEvent
           | undefined;
         if (params?.treeHash) {
+          return params;
+        }
+      }
+    }
+    return null;
+  }
+
+  private findLatestGitCheckpoint(
+    entries: StoredNotification[],
+  ): GitCheckpointEvent | null {
+    const sdkPrefixedMethod = `_${POSTHOG_NOTIFICATIONS.GIT_CHECKPOINT}`;
+
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const entry = entries[i];
+      const method = entry.notification?.method;
+      if (
+        method === sdkPrefixedMethod ||
+        method === POSTHOG_NOTIFICATIONS.GIT_CHECKPOINT
+      ) {
+        const params = entry.notification?.params as
+          | GitCheckpointEvent
+          | undefined;
+        if (params?.checkpointId && params?.checkpointRef) {
           return params;
         }
       }

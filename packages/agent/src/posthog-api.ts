@@ -230,7 +230,11 @@ export class PostHogAPIClient {
       },
     );
 
-    return response.artifacts ?? [];
+    const manifest = response.artifacts ?? [];
+
+    // The backend returns the full run artifact manifest after each upload.
+    // Callers want the artifacts corresponding to this upload request only.
+    return manifest.slice(-artifacts.length);
   }
 
   /**

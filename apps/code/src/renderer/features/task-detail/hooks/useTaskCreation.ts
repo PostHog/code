@@ -72,7 +72,8 @@ function prepareTaskInput(
         ? buildCloudTaskDescription(serializedContent, filePaths)
         : undefined,
     filePaths,
-    repoPath: options.selectedDirectory,
+    repoPath:
+      options.workspaceMode === "cloud" ? undefined : options.selectedDirectory,
     repository: options.selectedRepository,
     githubIntegrationId: options.githubIntegrationId,
     workspaceMode: options.workspaceMode,

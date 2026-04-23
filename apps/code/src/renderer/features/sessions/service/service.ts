@@ -2585,10 +2585,21 @@ export class SessionService {
     sessionStoreSetters.updateSession(runId, { handoffInProgress: true });
 
     try {
-      await this.runHandoffPreflight(taskId, runId, repoPath, auth);
+      const preflight = await this.runHandoffPreflight(
+        taskId,
+        runId,
+        repoPath,
+        auth,
+      );
       this.stopCloudTaskWatch(taskId);
       sessionStoreSetters.updateSession(runId, { status: "connecting" });
-      await this.executeHandoff(taskId, runId, repoPath, auth);
+      await this.executeHandoff(
+        taskId,
+        runId,
+        repoPath,
+        auth,
+        preflight.localGitState,
+      );
       this.transitionToLocalSession(runId);
       this.subscribeToChannel(runId);
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
@@ -2634,7 +2645,7 @@ export class SessionService {
     runId: string,
     repoPath: string,
     auth: { apiHost: string; projectId: number },
-  ): Promise<void> {
+  ): Promise<Awaited<ReturnType<typeof trpcClient.handoff.preflight.query>>> {
     const preflight = await trpcClient.handoff.preflight.query({
       taskId,
       runId,
@@ -2648,6 +2659,7 @@ export class SessionService {
       });
       throw new Error(preflight.reason ?? "Cannot hand off to local");
     }
+    return preflight;
   }
 
   private async executeHandoff(
@@ -2655,6 +2667,9 @@ export class SessionService {
     runId: string,
     repoPath: string,
     auth: { apiHost: string; projectId: number },
+    localGitState?: Awaited<
+      ReturnType<typeof trpcClient.handoff.preflight.query>
+    >["localGitState"],
   ): Promise<void> {
     const result = await trpcClient.handoff.execute.mutate({
       taskId,
@@ -2662,6 +2677,7 @@ export class SessionService {
       repoPath,
       apiHost: auth.apiHost,
       teamId: auth.projectId,
+      localGitState,
     });
     if (!result.success) {
       throw new Error(result.error ?? "Handoff failed");

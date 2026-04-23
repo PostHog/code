@@ -1,10 +1,10 @@
 import type { PostHogAPIClient } from "@posthog/agent/posthog-api";
+import type * as AgentResume from "@posthog/agent/resume";
 import {
-  type ConversationTurn,
   formatConversationForResume,
   resumeFromLog,
 } from "@posthog/agent/resume";
-import type { TreeSnapshotEvent } from "@posthog/agent/types";
+import type * as AgentTypes from "@posthog/agent/types";
 import { Saga, type SagaLogger } from "@posthog/shared";
 import type { WorkspaceMode } from "../../db/repositories/workspace-repository";
 import type { SessionResponse } from "../agent/schemas";
@@ -18,6 +18,7 @@ export interface HandoffSagaInput {
   teamId: number;
   sessionId?: string;
   adapter?: "claude" | "codex";
+  localGitState?: AgentTypes.HandoffLocalGitState;
 }
 
 export interface HandoffSagaOutput {
@@ -29,11 +30,19 @@ export interface HandoffSagaOutput {
 export interface HandoffSagaDeps {
   createApiClient(apiHost: string, teamId: number): PostHogAPIClient;
   applyTreeSnapshot(
-    snapshot: TreeSnapshotEvent,
+    snapshot: AgentTypes.TreeSnapshotEvent,
     repoPath: string,
     taskId: string,
     runId: string,
     apiClient: PostHogAPIClient,
+  ): Promise<void>;
+  applyGitCheckpoint(
+    checkpoint: AgentTypes.GitCheckpointEvent,
+    repoPath: string,
+    taskId: string,
+    runId: string,
+    apiClient: PostHogAPIClient,
+    localGitState?: AgentTypes.HandoffLocalGitState,
   ): Promise<void>;
   updateWorkspaceMode(taskId: string, mode: WorkspaceMode): void;
   reconnectSession(params: {
@@ -51,6 +60,7 @@ export interface HandoffSagaDeps {
     runId: string,
     apiHost: string,
     teamId: number,
+    localGitState?: AgentTypes.HandoffLocalGitState,
   ): Promise<void>;
   seedLocalLogs(runId: string, logUrl: string): Promise<void>;
   killSession(taskRunId: string): Promise<void>;
@@ -76,7 +86,13 @@ export class HandoffSaga extends Saga<HandoffSagaInput, HandoffSagaOutput> {
     );
 
     await this.readOnlyStep("close_cloud_run", async () => {
-      await this.deps.closeCloudRun(taskId, runId, apiHost, teamId);
+      await this.deps.closeCloudRun(
+        taskId,
+        runId,
+        apiHost,
+        teamId,
+        input.localGitState,
+      );
     });
 
     const apiClient = this.deps.createApiClient(apiHost, teamId);
@@ -94,7 +110,30 @@ export class HandoffSaga extends Saga<HandoffSagaInput, HandoffSagaOutput> {
       },
     );
 
-    let snapshotApplied = false;
+    let filesRestored = false;
+    const checkpoint = resumeState.latestGitCheckpoint;
+    if (checkpoint) {
+      this.deps.onProgress(
+        "applying_git_checkpoint",
+        "Applying cloud git state locally...",
+      );
+
+      await this.step({
+        name: "apply_git_checkpoint",
+        execute: async () => {
+          await this.deps.applyGitCheckpoint(
+            checkpoint,
+            repoPath,
+            taskId,
+            runId,
+            apiClient,
+            input.localGitState,
+          );
+        },
+        rollback: async () => {},
+      });
+    }
+
     const snapshot = resumeState.latestSnapshot;
     if (snapshot?.archiveUrl) {
       this.deps.onProgress(
@@ -112,7 +151,7 @@ export class HandoffSaga extends Saga<HandoffSagaInput, HandoffSagaOutput> {
             runId,
             apiClient,
           );
-          snapshotApplied = true;
+          filesRestored = true;
         },
         rollback: async () => {},
       });
@@ -167,7 +206,7 @@ export class HandoffSaga extends Saga<HandoffSagaInput, HandoffSagaOutput> {
     await this.readOnlyStep("set_context", async () => {
       const context = this.buildHandoffContext(
         resumeState.conversation,
-        snapshotApplied,
+        filesRestored,
       );
       this.deps.setPendingContext(runId, context);
     });
@@ -176,13 +215,13 @@ export class HandoffSaga extends Saga<HandoffSagaInput, HandoffSagaOutput> {
 
     return {
       sessionId: agentSessionId,
-      snapshotApplied,
+      snapshotApplied: filesRestored,
       conversationTurns: resumeState.conversation.length,
     };
   }
 
   private buildHandoffContext(
-    conversation: ConversationTurn[],
+    conversation: AgentResume.ConversationTurn[],
     snapshotApplied: boolean,
   ): string {
     const conversationSummary = formatConversationForResume(conversation);

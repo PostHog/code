@@ -1,3 +1,8 @@
+import type {
+  GitHandoffCheckpoint,
+  HandoffLocalGitState as GitHandoffLocalGitState,
+} from "@posthog/git/handoff";
+
 /**
  * Stored custom notification following ACP extensibility model.
  * Custom notifications use underscore-prefixed methods (e.g., `_posthog/phase_start`).
@@ -196,3 +201,22 @@ export interface TreeSnapshot {
 export interface TreeSnapshotEvent extends TreeSnapshot {
   device?: DeviceInfo;
 }
+
+export type HandoffLocalGitState = GitHandoffLocalGitState;
+
+export interface GitCheckpoint extends GitHandoffCheckpoint {
+  artifactPath?: string;
+  indexArtifactPath?: string;
+}
+
+export interface GitCheckpointEvent extends GitCheckpoint {
+  device?: DeviceInfo;
+}
+
+/**
+ * Keeps the emitted `@posthog/agent/types` entrypoint as a runtime ESM module.
+ *
+ * `export {}` is stripped by tsup in this package, which leaves `dist/types.js`
+ * empty and breaks downstream type resolution for the exported subpath.
+ */
+export const AGENT_TYPES_MODULE = true;
