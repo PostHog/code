@@ -67,7 +67,8 @@ export function GitHubRepoPicker({
     controlledHasMore !== undefined ||
     onLoadMore !== undefined;
   const showInlineLoadingState = remoteMode && open && isLoading;
-  const onlyRepo = repositories.length === 1 ? repositories[0] : null;
+  const onlyRepo =
+    !remoteMode && repositories.length === 1 ? repositories[0] : null;
   const trimmedSearchQuery = searchQuery.trim();
   const filteredRepositoryCount = useMemo(() => {
     if (!trimmedSearchQuery) {
