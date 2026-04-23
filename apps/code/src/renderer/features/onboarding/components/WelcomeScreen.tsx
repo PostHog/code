@@ -8,7 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { Button, Flex, Text } from "@radix-ui/themes";
 import explorerHog from "@renderer/assets/images/hedgehogs/explorer-hog.png";
-import LogosLandscape from "@renderer/assets/logos-landscape";
+import Logo from "@renderer/assets/logo";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FeatureListItem } from "./FeatureListItem";
 import { OnboardingHogTip } from "./OnboardingHogTip";
@@ -122,8 +122,9 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
                 >
                   Welcome to
                 </Text>
-                <LogosLandscape />
+                <Logo />
               </Flex>
+
               <Text
                 size="2"
                 className="hidden"
