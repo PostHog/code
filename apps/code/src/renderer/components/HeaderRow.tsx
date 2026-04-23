@@ -84,7 +84,7 @@ export function HeaderRow() {
         <Flex
           align="center"
           justify="between"
-          px="3"
+          pl="3"
           style={{
             height: "100%",
             overflow: "hidden",
@@ -102,10 +102,9 @@ export function HeaderRow() {
           justify="end"
           gap="1"
           pr="1"
-          pl="2"
+          pl="1"
           style={{
             height: "100%",
-            borderLeft: "1px solid var(--gray-6)",
             flexShrink: 0,
             maxWidth: "50%",
             overflow: "hidden",

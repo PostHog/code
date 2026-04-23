@@ -73,7 +73,9 @@ export function DiffStatsBadge({ task }: DiffStatsBadgeProps) {
     >
       <Button
         onClick={handleClick}
-        className={`no-drag inline-flex h-6 cursor-pointer items-center gap-1 rounded-(--radius-1) border-none px-1.5 font-mono text-(--gray-11) text-[11px] transition-colors duration-100 hover:bg-(--gray-a3) ${isOpen ? "bg-(--gray-a3)" : "bg-transparent"}`}
+        variant="outline"
+        size="sm"
+        className={`no-drag font-mono text-(--gray-11) text-[11px] transition-colors duration-100 hover:bg-(--gray-a3) ${isOpen ? "bg-(--gray-a3)" : "bg-transparent"}`}
       >
         <GitDiff size={14} style={{ flexShrink: 0 }} />
         {hasChanges ? (

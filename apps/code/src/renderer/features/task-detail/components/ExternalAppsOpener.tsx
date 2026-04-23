@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
+  Kbd,
 } from "@posthog/quill";
 import { SHORTCUTS } from "@renderer/constants/keyboard-shortcuts";
 import { handleExternalAppAction } from "@utils/handleExternalAppAction";
@@ -17,7 +18,7 @@ import { useCallback } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 const THUMBNAIL_ICON_SIZE = 20;
-const DROPDOWN_ICON_SIZE = 16;
+const DROPDOWN_ICON_SIZE = 20;
 
 interface ExternalAppsOpenerProps {
   targetPath: string | null;
@@ -90,11 +91,11 @@ export function ExternalAppsOpener({ targetPath }: ExternalAppsOpenerProps) {
   return (
     <ButtonGroup className="no-drag">
       <Button
-        size="xs"
+        size="icon-sm"
+        variant="outline"
         aria-label={`Open in ${defaultApp?.name ?? "editor"}`}
         onClick={handleOpenDefault}
         disabled={!isReady || !defaultApp}
-        variant="outline"
       >
         {defaultApp?.icon ? (
           <img
@@ -110,15 +111,21 @@ export function ExternalAppsOpener({ targetPath }: ExternalAppsOpenerProps) {
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={<Button variant="outline" size="xs" aria-label="More editor options" />}
+          render={
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label="More editor options"
+            />
+          }
         >
           <ChevronDown size={10} />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="min-w-[150px]">
           {detectedApps.map((app) => (
             <DropdownMenuItem
               key={app.id}
-              onSelect={() => handleOpenWith(app.id)}
+              onClick={() => handleOpenWith(app.id)}
             >
               {app.icon ? (
                 <img
@@ -132,15 +139,19 @@ export function ExternalAppsOpener({ targetPath }: ExternalAppsOpenerProps) {
               )}
               {app.name}
               {app.id === defaultApp?.id && (
-                <DropdownMenuShortcut>⌘O</DropdownMenuShortcut>
+                <DropdownMenuShortcut>
+                  <Kbd>⌘O</Kbd>
+                </DropdownMenuShortcut>
               )}
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={handleCopyPath}>
+          <DropdownMenuItem onClick={handleCopyPath}>
             <CopyIcon size={THUMBNAIL_ICON_SIZE} weight="regular" />
             Copy Path
-            <DropdownMenuShortcut>⌘⇧C</DropdownMenuShortcut>
+            <DropdownMenuShortcut>
+              <Kbd>⌘⇧C</Kbd>
+            </DropdownMenuShortcut>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

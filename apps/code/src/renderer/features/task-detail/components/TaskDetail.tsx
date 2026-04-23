@@ -151,11 +151,7 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
             </Text>
           </Tooltip>
         )}
-        {openTargetPath && (
-          <Flex align="center" gap="2" className="shrink-0">
-            <ExternalAppsOpener targetPath={openTargetPath} />
-          </Flex>
-        )}
+        {openTargetPath && <ExternalAppsOpener targetPath={openTargetPath} />}
       </Flex>
     ),
     [
