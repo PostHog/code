@@ -105,6 +105,11 @@ export function SessionView({
 
   useEffect(() => {
     if (allowBypassPermissions) return;
+    // Cloud runs execute in an isolated sandbox where bypass is safe, and the
+    // agent's own gate (ALLOW_BYPASS = !IS_ROOT || IS_SANDBOX) already permits
+    // it regardless of this local preference. Auto-reverting here would clobber
+    // the user's explicit plan-approval choice and strand them in Plan Mode.
+    if (isCloud) return;
     const isBypass =
       currentModeId === "bypassPermissions" || currentModeId === "full-access";
     if (isBypass && taskId) {
@@ -114,7 +119,7 @@ export function SessionView({
         "default",
       );
     }
-  }, [allowBypassPermissions, currentModeId, taskId]);
+  }, [allowBypassPermissions, currentModeId, taskId, isCloud]);
 
   const handleModeChange = useCallback(
     (nextMode: string) => {
