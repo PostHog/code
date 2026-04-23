@@ -112,13 +112,17 @@ export function TourOverlay() {
 
     const el = document.querySelector(selector);
     if (el) {
+      if (el.getAttribute("data-tour-ready") === "true") {
+        tryAdvance();
+        return;
+      }
+
       observer.observe(el, {
         subtree: true,
         childList: true,
         characterData: true,
         attributes: true,
       });
-      resetTimer();
     }
 
     return () => {
@@ -132,6 +136,13 @@ export function TourOverlay() {
   const overlayBlocked = settingsOpen || commandMenuOpen;
   const isActive = !!(tour && step && targetRect && !overlayBlocked);
 
+  const handleNext = () => {
+    if (activeTourId && step) {
+      advancedRef.current = true;
+      advance(activeTourId, step.id);
+    }
+  };
+
   return (
     <>
       <SpotlightOverlay targetRect={isActive ? targetRect : null} />
@@ -141,6 +152,7 @@ export function TourOverlay() {
           stepNumber={activeStepIndex + 1}
           totalSteps={tour.steps.length}
           onDismiss={dismiss}
+          onNext={handleNext}
           targetRect={targetRect}
         />
       )}

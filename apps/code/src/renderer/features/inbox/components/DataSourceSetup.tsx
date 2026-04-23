@@ -1,7 +1,10 @@
 import { useAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
-import { useRepositoryIntegration } from "@hooks/useIntegrations";
+import {
+  useGithubRepositories,
+  useRepositoryIntegration,
+} from "@hooks/useIntegrations";
 import { Box, Button, Flex, Text, TextField } from "@radix-ui/themes";
 import { trpcClient } from "@renderer/trpc";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -63,13 +66,26 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
     repositories,
     getIntegrationIdForRepo,
     isLoadingRepos,
+    isRefreshingRepos,
+    refreshRepositories,
     hasGithubIntegration,
   } = useRepositoryIntegration();
+  const [repoPickerSearchQuery, setRepoPickerSearchQuery] = useState("");
+  const [isRepoPickerOpen, setIsRepoPickerOpen] = useState(false);
+  const {
+    repositories: visibleRepositories,
+    isPending: visibleRepositoriesLoading,
+    hasMore: visibleRepositoriesHasMore,
+    loadMore: loadMoreVisibleRepositories,
+  } = useGithubRepositories(repoPickerSearchQuery, isRepoPickerOpen);
   const [repo, setRepo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selectedIntegrationId = repo
+    ? getIntegrationIdForRepo(repo)
+    : undefined;
 
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
@@ -83,6 +99,14 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
   }, []);
 
   useEffect(() => stopPolling, [stopPolling]);
+
+  useEffect(() => {
+    if (isLoadingRepos || !repo || repositories.includes(repo)) {
+      return;
+    }
+
+    setRepo(null);
+  }, [isLoadingRepos, repo, repositories]);
 
   // Stop polling once integration appears
   useEffect(() => {
@@ -141,10 +165,7 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
   }, [cloudRegion, projectId, client, stopPolling]);
 
   const handleSubmit = useCallback(async () => {
-    const githubIntegrationId = repo
-      ? getIntegrationIdForRepo(repo)
-      : undefined;
-    if (!projectId || !client || !repo || !githubIntegrationId) return;
+    if (!projectId || !client || !repo || !selectedIntegrationId) return;
 
     setLoading(true);
     try {
@@ -154,7 +175,7 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
           repository: repo,
           auth_method: {
             selection: "oauth",
-            github_integration_id: githubIntegrationId,
+            github_integration_id: selectedIntegrationId,
           },
           schemas: schemasPayload("github"),
         },
@@ -168,7 +189,36 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
     } finally {
       setLoading(false);
     }
-  }, [projectId, client, repo, getIntegrationIdForRepo, onComplete]);
+  }, [projectId, client, onComplete, repo, selectedIntegrationId]);
+
+  const handleRefreshRepositories = useCallback(() => {
+    void refreshRepositories()
+      .then(() => {
+        toast.success("Repositories refreshed");
+      })
+      .catch((error) => {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to refresh repositories",
+        );
+      });
+  }, [refreshRepositories]);
+
+  const handleRepoPickerOpenChange = useCallback((open: boolean) => {
+    setIsRepoPickerOpen(open);
+    if (!open) {
+      setRepoPickerSearchQuery("");
+    }
+  }, []);
+
+  const handleRepoPickerSearchChange = useCallback((value: string) => {
+    setRepoPickerSearchQuery(value);
+  }, []);
+
+  const handleLoadMoreRepositories = useCallback(() => {
+    loadMoreVisibleRepositories();
+  }, [loadMoreVisibleRepositories]);
 
   if (!hasGithubIntegration) {
     return (
@@ -205,8 +255,18 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
         <GitHubRepoPicker
           value={repo}
           onChange={setRepo}
-          repositories={repositories}
-          isLoading={isLoadingRepos}
+          repositories={isRepoPickerOpen ? visibleRepositories : repositories}
+          isLoading={
+            isLoadingRepos || (isRepoPickerOpen && visibleRepositoriesLoading)
+          }
+          isRefreshing={isRefreshingRepos}
+          onRefresh={handleRefreshRepositories}
+          open={isRepoPickerOpen}
+          onOpenChange={handleRepoPickerOpenChange}
+          searchQuery={repoPickerSearchQuery}
+          onSearchQueryChange={handleRepoPickerSearchChange}
+          hasMore={visibleRepositoriesHasMore}
+          onLoadMore={handleLoadMoreRepositories}
           placeholder="Select repository..."
           size="2"
         />
@@ -215,7 +275,11 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
           <Button size="2" variant="soft" onClick={onCancel} disabled={loading}>
             Cancel
           </Button>
-          <Button size="2" onClick={handleSubmit} disabled={!repo || loading}>
+          <Button
+            size="2"
+            onClick={handleSubmit}
+            disabled={!repo || !selectedIntegrationId || loading}
+          >
             {loading ? "Creating..." : "Create source"}
           </Button>
         </Flex>

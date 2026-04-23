@@ -248,31 +248,6 @@ export function GitIntegrationStep({
                 </Flex>
               </motion.div>
 
-              {alternativeConnectedProject && selectedProject && (
-                <Callout.Root color="blue" variant="soft">
-                  <Callout.Text>
-                    GitHub is already connected on{" "}
-                    <Text weight="bold">
-                      {alternativeConnectedProject.name}
-                    </Text>{" "}
-                    ({alternativeConnectedProject.organization.name}). Switch to
-                    that project, or click Connect to install a new integration
-                    on <Text weight="bold">{selectedProject.name}</Text>.
-                  </Callout.Text>
-                  <Flex mt="2">
-                    <Button
-                      size="1"
-                      variant="soft"
-                      onClick={() =>
-                        setSelectedProjectId(alternativeConnectedProject.id)
-                      }
-                    >
-                      Switch to {alternativeConnectedProject.name}
-                    </Button>
-                  </Flex>
-                </Callout.Root>
-              )}
-
               {/* Local folder picker */}
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
@@ -392,6 +367,33 @@ export function GitIntegrationStep({
                   </Flex>
                 </Box>
               </motion.div>
+
+              {alternativeConnectedProject && selectedProject && (
+                <Callout.Root color="blue" variant="soft">
+                  <Callout.Text>
+                    GitHub is already connected on{" "}
+                    <Text weight="bold">
+                      {alternativeConnectedProject.name}
+                    </Text>{" "}
+                    ({alternativeConnectedProject.organization.name}). Switch to
+                    that project, or click{" "}
+                    <Text weight="bold">Connect GitHub</Text> below to install a
+                    new integration on{" "}
+                    <Text weight="bold">{selectedProject.name}</Text>.
+                  </Callout.Text>
+                  <Flex mt="2">
+                    <Button
+                      size="1"
+                      variant="soft"
+                      onClick={() =>
+                        setSelectedProjectId(alternativeConnectedProject.id)
+                      }
+                    >
+                      Switch to {alternativeConnectedProject.name}
+                    </Button>
+                  </Flex>
+                </Callout.Root>
+              )}
 
               {/* GitHub integration */}
               <motion.div

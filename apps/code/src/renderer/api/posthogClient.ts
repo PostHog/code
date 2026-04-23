@@ -1253,6 +1253,7 @@ export class PostHogAPIClient {
     repo: string,
     offset: number,
     limit: number,
+    search?: string,
   ): Promise<{
     branches: string[];
     defaultBranch: string | null;
@@ -1265,6 +1266,9 @@ export class PostHogAPIClient {
     url.searchParams.set("repo", repo);
     url.searchParams.set("offset", String(offset));
     url.searchParams.set("limit", String(limit));
+    if (search?.trim()) {
+      url.searchParams.set("search", search.trim());
+    }
     const response = await this.api.fetcher.fetch({
       method: "get",
       url,
@@ -1288,10 +1292,43 @@ export class PostHogAPIClient {
   async getGithubRepositories(
     integrationId: string | number,
   ): Promise<string[]> {
+    const repositories: string[] = [];
+    let offset = 0;
+
+    while (true) {
+      const page = await this.getGithubRepositoriesPage(
+        integrationId,
+        offset,
+        500,
+      );
+      repositories.push(...page.repositories);
+
+      if (!page.hasMore) {
+        return repositories;
+      }
+
+      offset += page.repositories.length;
+    }
+  }
+
+  async getGithubRepositoriesPage(
+    integrationId: string | number,
+    offset: number,
+    limit: number,
+    search?: string,
+  ): Promise<{
+    repositories: string[];
+    hasMore: boolean;
+  }> {
     const teamId = await this.getTeamId();
     const url = new URL(
       `${this.api.baseUrl}/api/environments/${teamId}/integrations/${integrationId}/github_repos/`,
     );
+    url.searchParams.set("offset", String(offset));
+    url.searchParams.set("limit", String(limit));
+    if (search?.trim()) {
+      url.searchParams.set("search", search.trim());
+    }
     const response = await this.api.fetcher.fetch({
       method: "get",
       url,
@@ -1305,13 +1342,47 @@ export class PostHogAPIClient {
     }
 
     const data = await response.json();
+    return {
+      repositories: this.normalizeGithubRepositories(data),
+      hasMore: data.has_more ?? false,
+    };
+  }
 
-    const repos =
-      data.repositories ?? data.results ?? (Array.isArray(data) ? data : []);
-    return repos.map((repo: string | { full_name?: string; name?: string }) => {
-      if (typeof repo === "string") return repo;
-      return (repo.full_name ?? repo.name ?? "").toLowerCase();
+  async refreshGithubRepositories(
+    integrationId: string | number,
+  ): Promise<string[]> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/environments/${teamId}/integrations/${integrationId}/github_repos/refresh/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/environments/${teamId}/integrations/${integrationId}/github_repos/refresh/`,
     });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to refresh GitHub repositories: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return this.normalizeGithubRepositories(data);
+  }
+
+  private normalizeGithubRepositories(data: unknown): string[] {
+    const repos =
+      (data as { repositories?: unknown[] }).repositories ??
+      (data as { results?: unknown[] }).results ??
+      (Array.isArray(data) ? data : []);
+
+    return (repos as (string | { full_name?: string; name?: string })[]).map(
+      (repo) => {
+        if (typeof repo === "string") return repo;
+        return (repo.full_name ?? repo.name ?? "").toLowerCase();
+      },
+    );
   }
 
   async getAgents() {

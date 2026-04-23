@@ -10,18 +10,33 @@ function commentPrefix(languageId: string): string {
 function formatFlagComment(flag: EnrichedFlag): string {
   const parts: string[] = [`Flag: "${flag.flagKey}"`];
 
-  if (flag.flag) {
-    parts.push(flag.flagType);
-    if (flag.rollout !== null) {
-      parts.push(`${flag.rollout}% rolled out`);
-    }
-    if (flag.experiment) {
-      const status = flag.experiment.end_date ? "complete" : "running";
-      parts.push(`Experiment: "${flag.experiment.name}" (${status})`);
-    }
-    if (flag.staleness) {
-      parts.push(`STALE (${flag.staleness})`);
-    }
+  if (!flag.flag) {
+    parts.push("not in PostHog");
+    return parts.join(" \u2014 ");
+  }
+
+  parts.push(flag.flagType);
+  parts.push(flag.flag.active ? "active" : "inactive");
+  if (flag.rollout !== null) {
+    parts.push(`${flag.rollout}% rolled out`);
+  }
+  if (flag.evaluationStats) {
+    const evals = flag.evaluationStats.evaluations.toLocaleString();
+    const users = flag.evaluationStats.uniqueUsers.toLocaleString();
+    const days = flag.evaluationStats.windowDays;
+    parts.push(`${evals} evals / ${users} users (${days}d)`);
+  } else if (flag.evaluationStatsError) {
+    parts.push("eval stats unavailable");
+  }
+  if (flag.experiment) {
+    const status = flag.experiment.end_date ? "complete" : "running";
+    parts.push(`Experiment: "${flag.experiment.name}" (${status})`);
+  }
+  if (flag.staleness) {
+    parts.push(`STALE (${flag.staleness})`);
+  }
+  if (flag.url) {
+    parts.push(flag.url);
   }
 
   return parts.join(" \u2014 ");
@@ -49,21 +64,26 @@ function buildCommentBody(
   enrichedFlags: Map<string, EnrichedFlag>,
   enrichedEvents: Map<string, EnrichedEvent>,
 ): string | null {
+  let body: string | null = null;
   if (item.type === "flag") {
     const flag = enrichedFlags.get(item.name);
-    if (flag) return formatFlagComment(flag);
-    return null;
-  }
-  if (item.type === "event") {
+    body = flag ? formatFlagComment(flag) : null;
+  } else if (item.type === "event") {
     const event = enrichedEvents.get(item.name);
-    if (event) return formatEventComment(event);
-    if (item.detail) return `Event: ${item.detail}`;
-    return null;
+    if (event) {
+      body = formatEventComment(event);
+    } else if (item.detail) {
+      body = `Event: ${item.detail}`;
+    }
+  } else if (item.type === "init") {
+    body = `Init: token "${item.name}"`;
   }
-  if (item.type === "init") {
-    return `Init: token "${item.name}"`;
+
+  if (!body) return null;
+  if (item.viaWrapper) {
+    body = `${body} (via ${item.viaWrapper})`;
   }
-  return null;
+  return body;
 }
 
 export function formatComments(
@@ -84,7 +104,9 @@ export function formatComments(
     const body = buildCommentBody(item, enrichedFlags, enrichedEvents);
     if (!body) continue;
 
-    const comment = `${prefix} [PostHog] ${body}`;
+    const comment = item.inJsx
+      ? `{/* [PostHog] ${body} */}`
+      : `${prefix} [PostHog] ${body}`;
     const indent = lines[targetLine]?.match(/^(\s*)/)?.[1] ?? "";
     lines.splice(targetLine, 0, `${indent}${comment}`);
     offset++;
@@ -102,20 +124,53 @@ export function formatInlineComments(
 ): string {
   const prefix = commentPrefix(languageId);
   const lines = source.split("\n");
-  const byLine = new Map<number, string[]>();
+  // Per line, separate bodies by JSX vs JS context. Inline suffixes use
+  // different comment syntax in each context, so we can't safely coalesce
+  // mixed-context items into a single inline suffix.
+  const byLine = new Map<
+    number,
+    { jsxBodies: string[]; nonJsxBodies: string[] }
+  >();
 
   for (const item of items) {
     const body = buildCommentBody(item, enrichedFlags, enrichedEvents);
     if (!body) continue;
-    const arr = byLine.get(item.line) ?? [];
-    arr.push(body);
-    byLine.set(item.line, arr);
+    const entry = byLine.get(item.line) ?? { jsxBodies: [], nonJsxBodies: [] };
+    (item.inJsx ? entry.jsxBodies : entry.nonJsxBodies).push(body);
+    byLine.set(item.line, entry);
   }
 
-  for (const [lineIdx, bodies] of byLine) {
+  // When a single line mixes JSX and JS items we can't append one inline
+  // suffix without risking invalid syntax in one context or the other, so
+  // fall back to a JSX-style leading comment (valid as both an empty-block
+  // statement in JS and a JSX expression comment in JSX trees).
+  const leadingInserts: Array<{ atLine: number; text: string }> = [];
+
+  for (const [lineIdx, { jsxBodies, nonJsxBodies }] of byLine) {
     if (lineIdx < 0 || lineIdx >= lines.length) continue;
-    const suffix = ` ${prefix} [PostHog] ${bodies.join(" | ")}`;
+
+    if (jsxBodies.length > 0 && nonJsxBodies.length > 0) {
+      const joined = [...nonJsxBodies, ...jsxBodies].join(" | ");
+      const indent = lines[lineIdx]?.match(/^(\s*)/)?.[1] ?? "";
+      leadingInserts.push({
+        atLine: lineIdx,
+        text: `${indent}{/* [PostHog] ${joined} */}`,
+      });
+      continue;
+    }
+
+    const isJsx = jsxBodies.length > 0;
+    const bodies = isJsx ? jsxBodies : nonJsxBodies;
+    const joined = bodies.join(" | ");
+    const suffix = isJsx
+      ? ` {/* [PostHog] ${joined} */}`
+      : ` ${prefix} [PostHog] ${joined}`;
     lines[lineIdx] = `${lines[lineIdx]}${suffix}`;
+  }
+
+  leadingInserts.sort((a, b) => b.atLine - a.atLine);
+  for (const { atLine, text } of leadingInserts) {
+    lines.splice(atLine, 0, text);
   }
 
   return lines.join("\n");

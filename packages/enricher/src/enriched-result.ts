@@ -37,6 +37,7 @@ export class EnrichedResult {
       let entry = flagMap.get(check.flagKey);
       if (!entry) {
         const flag = this.context.flags?.get(check.flagKey);
+        const url = this.context.flagUrls?.get(check.flagKey) ?? null;
         entry = {
           flagKey: check.flagKey,
           occurrences: [],
@@ -53,6 +54,9 @@ export class EnrichedResult {
           experiment: experiments.find(
             (e) => e.feature_flag_key === check.flagKey,
           ),
+          url,
+          evaluationStats: this.context.flagEvaluationStats?.get(check.flagKey),
+          evaluationStatsError: this.context.flagEvaluationStatsError ?? false,
         };
         flagMap.set(check.flagKey, entry);
       }
@@ -120,6 +124,10 @@ export class EnrichedResult {
           enriched.flagType = flag.flagType;
           enriched.staleness = flag.staleness;
           enriched.rollout = flag.rollout;
+          enriched.active = flag.flag?.active;
+          enriched.url = flag.url;
+          enriched.evaluations = flag.evaluationStats?.evaluations;
+          enriched.evaluationUsers = flag.evaluationStats?.uniqueUsers;
           if (flag.experiment) {
             enriched.experimentName = flag.experiment.name;
             enriched.experimentStatus = flag.experiment.end_date

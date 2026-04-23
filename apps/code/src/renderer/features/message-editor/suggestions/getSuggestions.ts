@@ -6,10 +6,17 @@ import {
   pathToFileItem,
   searchFiles,
 } from "@hooks/useRepoFiles";
+import { trpc } from "@renderer/trpc/client";
 import { isAbsolutePath } from "@utils/path";
+import { queryClient } from "@utils/queryClient";
 import Fuse, { type IFuseOptions } from "fuse.js";
 import { useDraftStore } from "../stores/draftStore";
-import type { CommandSuggestionItem, FileSuggestionItem } from "../types";
+import type {
+  CommandSuggestionItem,
+  FileSuggestionItem,
+  IssueSuggestionItem,
+} from "../types";
+import { githubIssueToMentionChip } from "../utils/githubIssueChip";
 
 const COMMAND_FUSE_OPTIONS: IFuseOptions<AvailableCommand> = {
   keys: [
@@ -93,6 +100,41 @@ export async function getFileSuggestions(
   }
 
   return results;
+}
+
+export async function getIssueSuggestions(
+  sessionId: string,
+  query: string,
+): Promise<IssueSuggestionItem[]> {
+  const repoPath = useDraftStore.getState().contexts[sessionId]?.repoPath;
+  if (!repoPath) return [];
+
+  try {
+    const issues = await queryClient.fetchQuery({
+      ...trpc.git.searchGithubIssues.queryOptions({
+        directoryPath: repoPath,
+        query: query || undefined,
+        limit: 25,
+      }),
+      staleTime: 30_000,
+    });
+
+    return issues.map((issue) => {
+      const chip = githubIssueToMentionChip(issue);
+      return {
+        id: chip.id,
+        label: chip.label,
+        number: issue.number,
+        title: issue.title,
+        url: issue.url,
+        repo: issue.repo,
+        state: issue.state,
+        labels: issue.labels,
+      };
+    });
+  } catch {
+    return [];
+  }
 }
 
 export function getCommandSuggestions(

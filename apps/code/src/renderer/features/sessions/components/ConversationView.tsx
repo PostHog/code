@@ -1,3 +1,4 @@
+import { CHAT_CONTENT_MAX_WIDTH } from "@features/sessions/constants";
 import { useContextUsage } from "@features/sessions/hooks/useContextUsage";
 import {
   sessionStoreSetters,
@@ -212,7 +213,7 @@ export function ConversationView({
   return (
     <div className="relative flex-1">
       <div
-        id="mcp-fullscreen-portal"
+        id="fullscreen-portal"
         className="pointer-events-none absolute inset-0 z-20"
       />
 
@@ -224,7 +225,8 @@ export function ConversationView({
         onScrollStateChange={handleScrollStateChange}
         keepMounted={mcpAppIndices}
         className="absolute inset-0 bg-background"
-        itemClassName="mx-auto max-w-[750px] px-2 py-1.5"
+        itemClassName="mx-auto px-2 py-1.5"
+        itemStyle={{ maxWidth: CHAT_CONTENT_MAX_WIDTH }}
         footer={
           <div className={compact ? "pb-1" : "pb-16"}>
             <SessionFooter

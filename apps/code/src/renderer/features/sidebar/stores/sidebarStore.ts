@@ -1,3 +1,4 @@
+import { SIDEBAR_MIN_WIDTH } from "@features/sidebar/constants";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -126,7 +127,10 @@ export const useSidebarStore = create<SidebarStore>()(
           open: persistedState.open ?? current.open,
           hasUserSetOpen:
             persistedState.hasUserSetOpen ?? current.hasUserSetOpen,
-          width: persistedState.width ?? current.width,
+          width: Math.max(
+            SIDEBAR_MIN_WIDTH,
+            persistedState.width ?? current.width,
+          ),
           collapsedSections: new Set(persistedState.collapsedSections ?? []),
           folderOrder: persistedState.folderOrder ?? [],
           historyVisibleCount:

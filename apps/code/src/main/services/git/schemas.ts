@@ -508,10 +508,13 @@ export const discardFileChangesOutput = z.object({
 
 export type DiscardFileChangesOutput = z.infer<typeof discardFileChangesOutput>;
 
+export const githubIssueStateSchema = z.enum(["OPEN", "CLOSED"]);
+export type GithubIssueState = z.infer<typeof githubIssueStateSchema>;
+
 export const githubIssueSchema = z.object({
   number: z.number(),
   title: z.string(),
-  state: z.string(),
+  state: githubIssueStateSchema,
   labels: z.array(z.string()),
   url: z.string(),
   repo: z.string(),

@@ -4,6 +4,7 @@ import type {
   EventStats,
   Experiment,
   FeatureFlag,
+  FlagEvaluationStats,
 } from "./types.js";
 
 export class PostHogApi {
@@ -119,6 +120,46 @@ export class PostHogApi {
         uniqueUsers,
         lastSeenAt: lastSeen || null,
       });
+    }
+    return stats;
+  }
+
+  async getFlagEvaluationStats(
+    flagKeys: string[],
+    daysBack = 7,
+  ): Promise<Map<string, FlagEvaluationStats>> {
+    if (flagKeys.length === 0) {
+      return new Map();
+    }
+
+    // HogQL over `/query/` rejects typed placeholders (`{name:Type}`) and
+    // placeholder values in INTERVAL, so `days` is inlined (clamped).
+    const days = Math.max(1, Math.min(365, Math.floor(daysBack)));
+    const query = `
+      SELECT
+        properties.$feature_flag AS flag_key,
+        count() AS evaluations,
+        count(DISTINCT person_id) AS unique_users
+      FROM events
+      WHERE event = '$feature_flag_called'
+        AND properties.$feature_flag IN {flagKeys}
+        AND timestamp >= now() - INTERVAL ${days} DAY
+      GROUP BY flag_key
+    `;
+
+    const data = await this.post<{
+      results: [string, number, number][];
+    }>("/query/", {
+      query: {
+        kind: "HogQLQuery",
+        query,
+        values: { flagKeys },
+      },
+    });
+
+    const stats = new Map<string, FlagEvaluationStats>();
+    for (const [flagKey, evaluations, uniqueUsers] of data.results) {
+      stats.set(flagKey, { evaluations, uniqueUsers, windowDays: days });
     }
     return stats;
   }

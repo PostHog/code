@@ -82,6 +82,7 @@ function mockApiResponses(opts: {
   experiments?: Experiment[];
   eventDefs?: EventDefinition[];
   eventStats?: [string, number, number, string][];
+  flagEvalStats?: [string, number, number][];
 }): void {
   const mockFetch = vi.fn(async (url: string, init?: RequestInit) => {
     const urlStr = typeof url === "string" ? url : String(url);
@@ -96,6 +97,15 @@ function mockApiResponses(opts: {
       return Response.json({ results: opts.eventDefs ?? [] });
     }
     if (urlStr.includes("/query/") && init?.method === "POST") {
+      const body =
+        typeof init.body === "string"
+          ? init.body
+          : init.body instanceof Uint8Array
+            ? new TextDecoder().decode(init.body)
+            : "";
+      if (body.includes("$feature_flag_called")) {
+        return Response.json({ results: opts.flagEvalStats ?? [] });
+      }
       return Response.json({ results: opts.eventStats ?? [] });
     }
     return Response.json({});
@@ -381,6 +391,162 @@ describeWithGrammars("PostHogEnricher", () => {
       const annotated = enriched.toComments();
       expect(annotated).toContain("5,000 events");
       expect(annotated).toContain("1,200 users");
+    });
+
+    test("enrichedFlags includes url and evaluation stats", async () => {
+      const code = `posthog.getFeatureFlag('my-flag');`;
+      const result = await enricher.parse(code, "javascript");
+
+      mockApiResponses({
+        flags: [makeFlag("my-flag", { id: 42 })],
+        flagEvalStats: [["my-flag", 1240, 230]],
+      });
+      const enriched = await result.enrichFromApi(API_CONFIG);
+
+      expect(enriched.flags[0].url).toBe(
+        "https://test.posthog.com/project/1/feature_flags/42",
+      );
+      expect(enriched.flags[0].evaluationStats).toEqual({
+        evaluations: 1240,
+        uniqueUsers: 230,
+        windowDays: 7,
+      });
+    });
+
+    test("toComments renders rich flag line with url, active, rollout, evals", async () => {
+      const code = `posthog.getFeatureFlag('my-flag');`;
+      const result = await enricher.parse(code, "javascript");
+
+      mockApiResponses({
+        flags: [
+          makeFlag("my-flag", {
+            id: 42,
+            filters: { groups: [{ rollout_percentage: 60, properties: [] }] },
+          }),
+        ],
+        flagEvalStats: [["my-flag", 1240, 230]],
+      });
+      const enriched = await result.enrichFromApi(API_CONFIG);
+
+      const annotated = enriched.toComments();
+      expect(annotated).toContain(`Flag: "my-flag"`);
+      expect(annotated).toContain("active");
+      expect(annotated).toContain("60% rolled out");
+      expect(annotated).toContain("1,240 evals / 230 users (7d)");
+      expect(annotated).toContain(
+        "https://test.posthog.com/project/1/feature_flags/42",
+      );
+    });
+
+    test("toComments marks inactive flags explicitly", async () => {
+      const code = `posthog.getFeatureFlag('off-flag');`;
+      const result = await enricher.parse(code, "javascript");
+
+      mockApiResponses({ flags: [makeFlag("off-flag", { active: false })] });
+      const enriched = await result.enrichFromApi(API_CONFIG);
+
+      const annotated = enriched.toComments();
+      expect(annotated).toContain("inactive");
+      expect(annotated).toContain("STALE (inactive)");
+    });
+
+    test("toComments handles flag not in PostHog", async () => {
+      const code = `posthog.getFeatureFlag('ghost-flag');`;
+      const result = await enricher.parse(code, "javascript");
+
+      mockApiResponses({ flags: [] });
+      const enriched = await result.enrichFromApi(API_CONFIG);
+
+      const annotated = enriched.toComments();
+      expect(annotated).toContain(`Flag: "ghost-flag" \u2014 not in PostHog`);
+    });
+
+    test("toComments omits evaluation segment when stats missing", async () => {
+      const code = `posthog.getFeatureFlag('quiet-flag');`;
+      const result = await enricher.parse(code, "javascript");
+
+      mockApiResponses({ flags: [makeFlag("quiet-flag", { id: 7 })] });
+      const enriched = await result.enrichFromApi(API_CONFIG);
+
+      const annotated = enriched.toComments();
+      expect(annotated).toContain(`Flag: "quiet-flag"`);
+      expect(annotated).not.toContain("evals /");
+      expect(annotated).toContain(
+        "https://test.posthog.com/project/1/feature_flags/7",
+      );
+    });
+
+    test("getFlagEvaluationStats is called with detected flag keys", async () => {
+      const code = `posthog.getFeatureFlag('tracked-flag');`;
+      const result = await enricher.parse(code, "javascript");
+
+      mockApiResponses({
+        flags: [makeFlag("tracked-flag")],
+        flagEvalStats: [["tracked-flag", 10, 5]],
+      });
+      await result.enrichFromApi(API_CONFIG);
+
+      const calls = vi.mocked(fetch).mock.calls;
+      const queryPost = calls.find(
+        ([url, init]) =>
+          String(url).includes("/query/") && init?.method === "POST",
+      );
+      expect(queryPost).toBeDefined();
+      const body = String(queryPost?.[1]?.body ?? "");
+      expect(body).toContain("$feature_flag_called");
+      expect(body).toContain("tracked-flag");
+    });
+
+    test("toComments renders 'eval stats unavailable' when query rejects", async () => {
+      const code = `posthog.getFeatureFlag('broken-flag');`;
+      const result = await enricher.parse(code, "javascript");
+
+      const mockFetch = vi.fn(async (url: string, init?: RequestInit) => {
+        const urlStr = typeof url === "string" ? url : String(url);
+        if (urlStr.includes("/feature_flags/")) {
+          return Response.json({ results: [makeFlag("broken-flag")] });
+        }
+        if (urlStr.includes("/experiments/")) {
+          return Response.json({ results: [] });
+        }
+        if (urlStr.includes("/event_definitions/")) {
+          return Response.json({ results: [] });
+        }
+        if (urlStr.includes("/query/") && init?.method === "POST") {
+          const body =
+            typeof init.body === "string"
+              ? init.body
+              : init.body instanceof Uint8Array
+                ? new TextDecoder().decode(init.body)
+                : "";
+          if (body.includes("$feature_flag_called")) {
+            return new Response("forbidden", { status: 403 });
+          }
+          return Response.json({ results: [] });
+        }
+        return Response.json({});
+      });
+      vi.stubGlobal("fetch", mockFetch);
+
+      const enriched = await result.enrichFromApi(API_CONFIG);
+      const annotated = enriched.toComments();
+      expect(annotated).toContain("eval stats unavailable");
+      expect(annotated).not.toContain("evals /");
+    });
+
+    test("enrichedFlags url handles host with trailing slash", async () => {
+      const code = `posthog.getFeatureFlag('slashy');`;
+      const result = await enricher.parse(code, "javascript");
+
+      mockApiResponses({ flags: [makeFlag("slashy", { id: 9 })] });
+      const enriched = await result.enrichFromApi({
+        ...API_CONFIG,
+        host: "https://test.posthog.com/",
+      });
+
+      expect(enriched.flags[0].url).toBe(
+        "https://test.posthog.com/project/1/feature_flags/9",
+      );
     });
 
     test("enrichFromApi with no detected usage returns empty enrichment", async () => {

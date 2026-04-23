@@ -2,19 +2,14 @@ import { useDiffViewerStore } from "@features/code-editor/stores/diffViewerStore
 import { usePrDetails } from "@features/git-interaction/hooks/usePrDetails";
 import { useCloudChangedFiles } from "@features/task-detail/hooks/useCloudChangedFiles";
 import { extractCloudFileDiff } from "@features/task-detail/utils/cloudToolChanges";
-import type { FileDiffMetadata } from "@pierre/diffs";
-import { processFile } from "@pierre/diffs";
 import { Flex, Spinner, Text } from "@radix-ui/themes";
 import { useReviewNavigationStore } from "@renderer/features/code-review/stores/reviewNavigationStore";
-import type { ChangedFile, Task } from "@shared/types";
+import type { Task } from "@shared/types";
 import { useMemo } from "react";
-import type { DiffOptions } from "../types";
-import type { PrCommentThread } from "../utils/prCommentAnnotations";
-import { InteractiveFileDiff } from "./InteractiveFileDiff";
 import { LazyDiff } from "./LazyDiff";
+import { PatchedFileDiff } from "./PatchedFileDiff";
 import {
   DeferredDiffPlaceholder,
-  DiffFileHeader,
   ReviewShell,
   useReviewState,
 } from "./ReviewShell";
@@ -122,10 +117,14 @@ export function CloudReviewPage({ task }: CloudReviewPageProps) {
           );
         }
 
+        const githubFileUrl = prUrl
+          ? `${prUrl}/files#diff-${file.path.replaceAll("/", "-")}`
+          : undefined;
+
         return (
           <div key={file.path} data-file-path={file.path}>
             <LazyDiff>
-              <CloudFileDiff
+              <PatchedFileDiff
                 file={file}
                 taskId={taskId}
                 prUrl={prUrl}
@@ -133,85 +132,13 @@ export function CloudReviewPage({ task }: CloudReviewPageProps) {
                 collapsed={isCollapsed}
                 onToggle={() => toggleFile(file.path)}
                 commentThreads={showReviewComments ? commentThreads : undefined}
-                toolCallDiff={toolCallDiffs?.get(file.path) ?? null}
+                fallback={toolCallDiffs?.get(file.path) ?? null}
+                externalUrl={githubFileUrl}
               />
             </LazyDiff>
           </div>
         );
       })}
     </ReviewShell>
-  );
-}
-
-function CloudFileDiff({
-  file,
-  taskId,
-  prUrl,
-  options,
-  collapsed,
-  onToggle,
-  commentThreads,
-  toolCallDiff,
-}: {
-  file: ChangedFile;
-  taskId: string;
-  prUrl: string | null;
-  options: DiffOptions;
-  collapsed: boolean;
-  onToggle: () => void;
-  commentThreads?: Map<number, PrCommentThread>;
-  toolCallDiff: { oldText: string | null; newText: string | null } | null;
-}) {
-  const fileDiff = useMemo((): FileDiffMetadata | undefined => {
-    if (!file.patch) return undefined;
-    return processFile(file.patch, { isGitDiff: true });
-  }, [file.patch]);
-
-  const diffSourceProps = useMemo(() => {
-    if (fileDiff) return { fileDiff };
-    if (toolCallDiff) {
-      const name = file.path.split("/").pop() || file.path;
-      return {
-        oldFile: { name, contents: toolCallDiff.oldText ?? "" },
-        newFile: { name, contents: toolCallDiff.newText ?? "" },
-      };
-    }
-    return null;
-  }, [fileDiff, toolCallDiff, file.path]);
-
-  if (!diffSourceProps) {
-    const hasChanges = (file.linesAdded ?? 0) + (file.linesRemoved ?? 0) > 0;
-    const reason = hasChanges ? "large" : "unavailable";
-    const githubFileUrl = prUrl
-      ? `${prUrl}/files#diff-${file.path.replaceAll("/", "-")}`
-      : undefined;
-    return (
-      <DeferredDiffPlaceholder
-        filePath={file.path}
-        linesAdded={file.linesAdded ?? 0}
-        linesRemoved={file.linesRemoved ?? 0}
-        reason={reason}
-        collapsed={collapsed}
-        onToggle={onToggle}
-        externalUrl={githubFileUrl}
-      />
-    );
-  }
-
-  return (
-    <InteractiveFileDiff
-      {...diffSourceProps}
-      options={{ ...options, collapsed }}
-      taskId={taskId}
-      prUrl={prUrl}
-      commentThreads={commentThreads}
-      renderCustomHeader={(fd) => (
-        <DiffFileHeader
-          fileDiff={fd}
-          collapsed={collapsed}
-          onToggle={onToggle}
-        />
-      )}
-    />
   );
 }

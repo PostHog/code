@@ -435,6 +435,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     remote = "origin",
     branch?: string,
     setUpstream = false,
+    signal?: AbortSignal,
   ): Promise<PushOutput> {
     const saga = new PushSaga();
     const result = await saga.run({
@@ -442,6 +443,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       remote,
       branch: branch || undefined,
       setUpstream,
+      signal,
     });
     if (!result.success) {
       return { success: false, message: result.error };
@@ -464,12 +466,14 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     directoryPath: string,
     remote = "origin",
     branch?: string,
+    signal?: AbortSignal,
   ): Promise<PullOutput> {
     const saga = new PullSaga();
     const result = await saga.run({
       baseDir: directoryPath,
       remote,
       branch: branch || undefined,
+      signal,
     });
     if (!result.success) {
       return { success: false, message: result.error };
@@ -488,6 +492,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
   public async publish(
     directoryPath: string,
     remote = "origin",
+    signal?: AbortSignal,
   ): Promise<PublishOutput> {
     const currentBranch = await getCurrentBranch(directoryPath);
     if (!currentBranch) {
@@ -499,6 +504,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       remote,
       currentBranch,
       true,
+      signal,
     );
     return {
       success: pushResult.success,
@@ -511,8 +517,14 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
   public async sync(
     directoryPath: string,
     remote = "origin",
+    signal?: AbortSignal,
   ): Promise<SyncOutput> {
-    const pullResult = await this.pull(directoryPath, remote);
+    const pullResult = await this.pull(
+      directoryPath,
+      remote,
+      undefined,
+      signal,
+    );
     if (!pullResult.success) {
       return {
         success: false,
@@ -521,7 +533,13 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       };
     }
 
-    const pushResult = await this.push(directoryPath, remote);
+    const pushResult = await this.push(
+      directoryPath,
+      remote,
+      undefined,
+      false,
+      signal,
+    );
 
     const state = await this.getStateSnapshot(directoryPath);
 
@@ -1397,7 +1415,7 @@ ${truncatedDiff || "(no diff available)"}${contextSection}`;
     return items.map((issue) => ({
       number: issue.number,
       title: issue.title,
-      state: issue.state.toUpperCase(),
+      state: issue.state.toUpperCase() === "OPEN" ? "OPEN" : "CLOSED",
       labels: issue.labels.map((l) => l.name),
       url: issue.url,
       repo,

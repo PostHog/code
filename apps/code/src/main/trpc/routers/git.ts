@@ -240,34 +240,40 @@ export const gitRouter = router({
   push: publicProcedure
     .input(pushInput)
     .output(pushOutput)
-    .mutation(({ input }) =>
+    .mutation(({ input, signal }) =>
       getService().push(
         input.directoryPath,
         input.remote,
         input.branch,
         input.setUpstream,
+        signal,
       ),
     ),
 
   pull: publicProcedure
     .input(pullInput)
     .output(pullOutput)
-    .mutation(({ input }) =>
-      getService().pull(input.directoryPath, input.remote, input.branch),
+    .mutation(({ input, signal }) =>
+      getService().pull(
+        input.directoryPath,
+        input.remote,
+        input.branch,
+        signal,
+      ),
     ),
 
   publish: publicProcedure
     .input(publishInput)
     .output(publishOutput)
-    .mutation(({ input }) =>
-      getService().publish(input.directoryPath, input.remote),
+    .mutation(({ input, signal }) =>
+      getService().publish(input.directoryPath, input.remote, signal),
     ),
 
   sync: publicProcedure
     .input(syncInput)
     .output(syncOutput)
-    .mutation(({ input }) =>
-      getService().sync(input.directoryPath, input.remote),
+    .mutation(({ input, signal }) =>
+      getService().sync(input.directoryPath, input.remote, signal),
     ),
 
   getGitStatus: publicProcedure
