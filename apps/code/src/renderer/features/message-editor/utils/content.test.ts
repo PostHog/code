@@ -58,6 +58,57 @@ describe("xmlToContent", () => {
     }
   });
 
+  it("parses github_pr tags with title", () => {
+    const xml =
+      '<github_pr number="123" title="Ship it" url="https://github.com/org/repo/pull/123" />';
+    expect(xmlToContent(xml).segments).toEqual([
+      {
+        type: "chip",
+        chip: {
+          type: "github_pr",
+          id: "https://github.com/org/repo/pull/123",
+          label: "#123 - Ship it",
+        },
+      },
+    ]);
+  });
+
+  it("serializes a fallback-labeled github_issue chip with an empty title", () => {
+    const content: EditorContent = {
+      segments: [
+        {
+          type: "chip",
+          chip: {
+            type: "github_issue",
+            id: "https://github.com/org/repo/issues/1454",
+            label: "#1454",
+          },
+        },
+      ],
+    };
+    expect(contentToXml(content)).toBe(
+      '<github_issue number="1454" title="" url="https://github.com/org/repo/issues/1454" />',
+    );
+  });
+
+  it("round-trips a github_pr chip", () => {
+    const content: EditorContent = {
+      segments: [
+        {
+          type: "chip",
+          chip: {
+            type: "github_pr",
+            id: "https://github.com/org/repo/pull/42",
+            label: "#42 - Fix thing",
+          },
+        },
+      ],
+    };
+    expect(xmlToContent(contentToXml(content)).segments).toEqual(
+      content.segments,
+    );
+  });
+
   it.each([
     ["error", "err-1"],
     ["experiment", "exp-1"],

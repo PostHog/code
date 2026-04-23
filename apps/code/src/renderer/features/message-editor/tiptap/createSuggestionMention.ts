@@ -146,7 +146,7 @@ export function createSuggestionMention<T extends SuggestionItem>(
           {
             type: "mentionChip",
             attrs: {
-              type: chipType,
+              type: item.chipType ?? chipType,
               id: item.id,
               label: item.label,
             },

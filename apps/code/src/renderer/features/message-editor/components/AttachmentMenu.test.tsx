@@ -59,7 +59,7 @@ vi.mock("@renderer/trpc/client", () => ({
       getGhStatus: {
         queryOptions: () => ({}),
       },
-      searchGithubIssues: {
+      searchGithubRefs: {
         queryOptions: () => ({}),
       },
     },

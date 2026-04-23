@@ -16,7 +16,10 @@ import type {
   FileSuggestionItem,
   IssueSuggestionItem,
 } from "../types";
-import { githubIssueToMentionChip } from "../utils/githubIssueChip";
+import {
+  githubIssueToMentionChip,
+  githubPullRequestToMentionChip,
+} from "../utils/githubIssueChip";
 
 const COMMAND_FUSE_OPTIONS: IFuseOptions<AvailableCommand> = {
   keys: [
@@ -110,8 +113,8 @@ export async function getIssueSuggestions(
   if (!repoPath) return [];
 
   try {
-    const issues = await queryClient.fetchQuery({
-      ...trpc.git.searchGithubIssues.queryOptions({
+    const refs = await queryClient.fetchQuery({
+      ...trpc.git.searchGithubRefs.queryOptions({
         directoryPath: repoPath,
         query: query || undefined,
         limit: 25,
@@ -119,17 +122,23 @@ export async function getIssueSuggestions(
       staleTime: 30_000,
     });
 
-    return issues.map((issue) => {
-      const chip = githubIssueToMentionChip(issue);
+    return refs.map((ref) => {
+      const chip =
+        ref.kind === "pr"
+          ? githubPullRequestToMentionChip(ref)
+          : githubIssueToMentionChip(ref);
       return {
         id: chip.id,
         label: chip.label,
-        number: issue.number,
-        title: issue.title,
-        url: issue.url,
-        repo: issue.repo,
-        state: issue.state,
-        labels: issue.labels,
+        chipType: chip.type,
+        kind: ref.kind,
+        number: ref.number,
+        title: ref.title,
+        url: ref.url,
+        repo: ref.repo,
+        state: ref.state,
+        labels: ref.labels,
+        isDraft: ref.isDraft,
       };
     });
   } catch {

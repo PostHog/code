@@ -508,27 +508,52 @@ export const discardFileChangesOutput = z.object({
 
 export type DiscardFileChangesOutput = z.infer<typeof discardFileChangesOutput>;
 
-export const githubIssueStateSchema = z.enum(["OPEN", "CLOSED"]);
-export type GithubIssueState = z.infer<typeof githubIssueStateSchema>;
+export const githubRefKindSchema = z.enum(["issue", "pr"]);
+export type GithubRefKind = z.infer<typeof githubRefKindSchema>;
 
-export const githubIssueSchema = z.object({
+export const githubRefStateSchema = z.enum(["OPEN", "CLOSED", "MERGED"]);
+export type GithubRefState = z.infer<typeof githubRefStateSchema>;
+
+export const githubRefSchema = z.object({
+  kind: githubRefKindSchema,
   number: z.number(),
   title: z.string(),
-  state: githubIssueStateSchema,
+  state: githubRefStateSchema,
   labels: z.array(z.string()),
   url: z.string(),
   repo: z.string(),
+  isDraft: z.boolean().optional(),
 });
 
-export type GitHubIssue = z.infer<typeof githubIssueSchema>;
+export type GithubRef = z.infer<typeof githubRefSchema>;
 
-export const searchGithubIssuesInput = z.object({
+// Legacy alias kept so callers that previously consumed only issues continue to work.
+export const githubIssueStateSchema = githubRefStateSchema;
+export type GithubIssueState = GithubRefState;
+export const githubIssueSchema = githubRefSchema;
+export type GitHubIssue = GithubRef;
+export type GithubPullRequest = GithubRef;
+
+export const searchGithubRefsInput = z.object({
   directoryPath: z.string(),
   query: z.string().optional(),
   limit: z.number().default(25),
+  kinds: z.array(githubRefKindSchema).optional(),
 });
 
-export const searchGithubIssuesOutput = z.array(githubIssueSchema);
+export const searchGithubRefsOutput = z.array(githubRefSchema);
+
+export const getGithubIssueInput = z.object({
+  owner: z.string(),
+  repo: z.string(),
+  number: z.number().int().positive(),
+});
+
+export const getGithubIssueOutput = githubRefSchema.nullable();
+
+export const getGithubPullRequestInput = getGithubIssueInput;
+
+export const getGithubPullRequestOutput = getGithubIssueOutput;
 
 export const createPrProgressPayload = z.object({
   flowId: z.string(),

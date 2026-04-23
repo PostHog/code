@@ -9,10 +9,14 @@ import {
 import { useTRPC } from "@renderer/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import type { GithubIssueState } from "../types";
+import type { GithubRefKind, GithubRefState } from "../types";
 import type { MentionChip } from "../utils/content";
-import { githubIssueToMentionChip } from "../utils/githubIssueChip";
+import {
+  githubIssueToMentionChip,
+  githubPullRequestToMentionChip,
+} from "../utils/githubIssueChip";
 import { IssueRow } from "./IssueRow";
+import { SuggestionStatus } from "./SuggestionStatus";
 
 interface IssuePickerProps {
   repoPath: string;
@@ -22,13 +26,15 @@ interface IssuePickerProps {
   anchor: React.RefObject<HTMLElement | null>;
 }
 
-type Issue = {
+type Ref = {
+  kind: GithubRefKind;
   number: number;
   title: string;
   url: string;
   repo: string;
-  state: GithubIssueState;
+  state: GithubRefState;
   labels: string[];
+  isDraft?: boolean;
 };
 
 export function IssuePicker({
@@ -60,8 +66,8 @@ export function IssuePicker({
     }
   }, [open]);
 
-  const { data: issues = [], isFetching } = useQuery(
-    trpc.git.searchGithubIssues.queryOptions(
+  const { data: refs = [], isFetching } = useQuery(
+    trpc.git.searchGithubRefs.queryOptions(
       {
         directoryPath: repoPath,
         query: debouncedQuery || undefined,
@@ -71,19 +77,25 @@ export function IssuePicker({
     ),
   );
 
-  const handleValueChange = (value: Issue | null) => {
+  const isLoading = isFetching || query !== debouncedQuery;
+
+  const handleValueChange = (value: Ref | null) => {
     if (!value) return;
-    onSelect(githubIssueToMentionChip(value));
+    onSelect(
+      value.kind === "pr"
+        ? githubPullRequestToMentionChip(value)
+        : githubIssueToMentionChip(value),
+    );
   };
 
   return (
-    <Combobox<Issue>
-      items={issues as Issue[]}
+    <Combobox<Ref>
+      items={refs as Ref[]}
       open={open}
       onOpenChange={(nextOpen) => onOpenChange(nextOpen)}
       inputValue={query}
       onInputValueChange={(value) => setQuery(value ?? "")}
-      onValueChange={(value) => handleValueChange(value as Issue | null)}
+      onValueChange={(value) => handleValueChange(value as Ref | null)}
       filter={null}
     >
       <ComboboxContent
@@ -96,19 +108,22 @@ export function IssuePicker({
         <ComboboxInput
           autoFocus
           showTrigger={false}
-          placeholder="Search issues..."
+          placeholder="Search issues or pull requests..."
         />
         <ComboboxEmpty>
-          {isFetching ? "Searching..." : "No issues found."}
+          <SuggestionStatus
+            loading={isLoading}
+            emptyMessage="No issues or pull requests found."
+          />
         </ComboboxEmpty>
         <ComboboxList>
-          {(issue: Issue) => (
+          {(ref: Ref) => (
             <ComboboxItem
-              key={issue.number}
-              value={issue}
+              key={`${ref.kind}-${ref.number}`}
+              value={ref}
               className="relative h-auto"
             >
-              <IssueRow issue={issue} />
+              <IssueRow issue={ref} />
             </ComboboxItem>
           )}
         </ComboboxList>

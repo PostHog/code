@@ -6,6 +6,7 @@ import {
   FlagIcon,
   FlaskIcon,
   GithubLogoIcon,
+  GitPullRequestIcon,
   TerminalIcon,
   WarningIcon,
   XIcon,
@@ -25,6 +26,7 @@ const typeIconMap: Record<ChipType, React.ComponentType<{ size: number }>> = {
   file: FileTextIcon,
   command: TerminalIcon,
   github_issue: GithubLogoIcon,
+  github_pr: GitPullRequestIcon,
   error: WarningIcon,
   experiment: FlaskIcon,
   insight: ChartLineIcon,
@@ -76,19 +78,23 @@ function DefaultChip({
   const isCommand = type === "command";
   const prefix = isCommand ? "/" : "@";
   const isFile = type === "file";
+  const isGithubRef = type === "github_issue" || type === "github_pr";
+  const canOpenUrl = isGithubRef && /^https:\/\//.test(id);
 
   const chipContent = (
     <Chip
       size="xs"
       variant="outline"
       contentEditable={false}
-      onClick={
-        type === "github_issue" ? () => window.open(id, "_blank") : undefined
-      }
-      className={`${chipBase} ${type === "github_issue" ? "cursor-pointer!" : "cursor-default! active:translate-y-0!"} ${isCommand ? "cli-slash-command" : "cli-file-mention"} ${selected ? selectedRing : ""}`}
+      onClick={canOpenUrl ? () => window.open(id, "_blank") : undefined}
+      className={`${chipBase} max-w-full whitespace-nowrap ${isGithubRef ? "cursor-pointer!" : "cursor-default! active:translate-y-0!"} ${isCommand ? "cli-slash-command" : "cli-file-mention"} ${selected ? selectedRing : ""}`}
     >
       <IconCloseButton type={type as ChipType} onRemove={onRemove} />
-      {type === "github_issue" ? label : `${prefix}${label}`}
+      {isGithubRef ? (
+        <span className="min-w-0 truncate">{label}</span>
+      ) : (
+        `${prefix}${label}`
+      )}
     </Chip>
   );
 

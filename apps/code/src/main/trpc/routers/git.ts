@@ -35,6 +35,10 @@ import {
   getDiffStatsOutput,
   getFileAtHeadInput,
   getFileAtHeadOutput,
+  getGithubIssueInput,
+  getGithubIssueOutput,
+  getGithubPullRequestInput,
+  getGithubPullRequestOutput,
   getGitRepoInfoInput,
   getGitRepoInfoOutput,
   getGitSyncStatusOutput,
@@ -64,8 +68,8 @@ import {
   pushOutput,
   replyToPrCommentInput,
   replyToPrCommentOutput,
-  searchGithubIssuesInput,
-  searchGithubIssuesOutput,
+  searchGithubRefsInput,
+  searchGithubRefsOutput,
   stageFilesInput,
   syncInput,
   syncOutput,
@@ -374,15 +378,30 @@ export const gitRouter = router({
       ),
     ),
 
-  searchGithubIssues: publicProcedure
-    .input(searchGithubIssuesInput)
-    .output(searchGithubIssuesOutput)
+  searchGithubRefs: publicProcedure
+    .input(searchGithubRefsInput)
+    .output(searchGithubRefsOutput)
     .query(({ input }) =>
-      getService().searchGithubIssues(
+      getService().searchGithubRefs(
         input.directoryPath,
         input.query,
         input.limit,
+        input.kinds,
       ),
+    ),
+
+  getGithubIssue: publicProcedure
+    .input(getGithubIssueInput)
+    .output(getGithubIssueOutput)
+    .query(({ input }) =>
+      getService().getGithubIssue(input.owner, input.repo, input.number),
+    ),
+
+  getGithubPullRequest: publicProcedure
+    .input(getGithubPullRequestInput)
+    .output(getGithubPullRequestOutput)
+    .query(({ input }) =>
+      getService().getGithubPullRequest(input.owner, input.repo, input.number),
     ),
 
   onCreatePrProgress: publicProcedure.subscription(async function* (opts) {

@@ -6,7 +6,6 @@ import {
   ItemMedia,
   ItemTitle,
   Kbd,
-  Spinner,
 } from "@posthog/quill";
 import {
   forwardRef,
@@ -16,6 +15,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { SuggestionStatus } from "../components/SuggestionStatus";
 import type { SuggestionItem } from "../types";
 
 export interface SuggestionListRef {
@@ -96,15 +96,8 @@ export const SuggestionList = forwardRef<
   if (items.length === 0) {
     return (
       <div className={CONTAINER_CLASS}>
-        <div className="flex items-center gap-2 p-2 text-[var(--gray-11)]">
-          {loading ? (
-            <>
-              <Spinner className="h-3.5 w-3.5" />
-              <span>Loading...</span>
-            </>
-          ) : (
-            "No results found"
-          )}
+        <div className="p-2">
+          <SuggestionStatus loading={loading} emptyMessage="No results found" />
         </div>
       </div>
     );

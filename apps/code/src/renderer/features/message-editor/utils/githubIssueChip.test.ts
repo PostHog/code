@@ -22,13 +22,19 @@ describe("githubIssueToMentionChip", () => {
 });
 
 describe("githubIssueStateColor", () => {
-  it("returns the OPEN color for open issues", () => {
+  it("returns the OPEN color", () => {
     expect(githubIssueStateColor("OPEN")).toBe(GITHUB_ISSUE_STATE_COLORS.OPEN);
   });
 
-  it("returns the CLOSED color for closed issues", () => {
+  it("returns the CLOSED color", () => {
     expect(githubIssueStateColor("CLOSED")).toBe(
       GITHUB_ISSUE_STATE_COLORS.CLOSED,
+    );
+  });
+
+  it("returns the MERGED color", () => {
+    expect(githubIssueStateColor("MERGED")).toBe(
+      GITHUB_ISSUE_STATE_COLORS.MERGED,
     );
   });
 });
