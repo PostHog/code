@@ -1314,6 +1314,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         logger: this.logger,
         updateConfigOption: (configId: string, value: string) =>
           this.updateConfigOption(configId, value),
+        applySessionMode: (modeId: string) => this.applySessionMode(modeId),
         allowedDomains,
       });
   }

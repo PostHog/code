@@ -52,6 +52,7 @@ interface ToolHandlerContext {
   fileContentCache: { [key: string]: string };
   logger: Logger;
   updateConfigOption: (configId: string, value: string) => Promise<void>;
+  applySessionMode: (modeId: string) => Promise<void>;
   allowedDomains?: string[];
 }
 
@@ -163,8 +164,6 @@ async function applyPlanApproval(
   context: ToolHandlerContext,
   updatedInput: Record<string, unknown>,
 ): Promise<ToolPermissionResult> {
-  const { session } = context;
-
   if (
     response.outcome?.outcome === "selected" &&
     (response.outcome.optionId === "auto" ||
@@ -172,16 +171,7 @@ async function applyPlanApproval(
       response.outcome.optionId === "acceptEdits" ||
       response.outcome.optionId === "bypassPermissions")
   ) {
-    session.permissionMode = response.outcome
-      .optionId as typeof session.permissionMode;
-    await session.query.setPermissionMode(response.outcome.optionId);
-    await context.client.sessionUpdate({
-      sessionId: context.sessionId,
-      update: {
-        sessionUpdate: "current_mode_update",
-        currentModeId: response.outcome.optionId,
-      },
-    });
+    await context.applySessionMode(response.outcome.optionId);
     await context.updateConfigOption("mode", response.outcome.optionId);
 
     return {
@@ -211,10 +201,9 @@ async function applyPlanApproval(
 async function handleEnterPlanModeTool(
   context: ToolHandlerContext,
 ): Promise<ToolPermissionResult> {
-  const { session, toolInput } = context;
+  const { toolInput } = context;
 
-  session.permissionMode = "plan";
-  await session.query.setPermissionMode("plan");
+  await context.applySessionMode("plan");
   await context.updateConfigOption("mode", "plan");
 
   return {
