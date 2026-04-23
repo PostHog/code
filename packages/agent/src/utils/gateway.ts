@@ -31,5 +31,5 @@ export function getGatewayUsageUrl(
 }
 
 export function getGatewayInvalidatePlanCacheUrl(posthogHost: string): string {
-  return `${getGatewayBaseUrl(posthogHost)}/invalidate-plan-cache`;
+  return `${getGatewayBaseUrl(posthogHost)}/v1/invalidate-plan-cache`;
 }
