@@ -1,14 +1,10 @@
-import { useDiffViewerStore } from "@features/code-editor/stores/diffViewerStore";
 import {
   useBranchChangedFiles,
-  useGitQueries,
   usePrChangedFiles,
 } from "@features/git-interaction/hooks/useGitQueries";
-import { useLinkedBranchPrUrl } from "@features/git-interaction/hooks/useLinkedBranchPrUrl";
 import { makeFileKey } from "@features/git-interaction/utils/fileKey";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
-import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import type { parsePatchFiles } from "@pierre/diffs";
 import { Flex, Text } from "@radix-ui/themes";
 import { useReviewNavigationStore } from "@renderer/features/code-review/stores/reviewNavigationStore";
@@ -16,12 +12,10 @@ import { useTRPC } from "@renderer/trpc/client";
 import type { ChangedFile, Task } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { useEffectiveDiffSource } from "../hooks/useEffectiveDiffSource";
 import { useReviewDiffs } from "../hooks/useReviewDiffs";
 import type { DiffOptions } from "../types";
-import {
-  type ResolvedDiffSource,
-  resolveDiffSource,
-} from "../utils/resolveDiffSource";
+import type { ResolvedDiffSource } from "../utils/resolveDiffSource";
 import { InteractiveFileDiff } from "./InteractiveFileDiff";
 import { LazyDiff } from "./LazyDiff";
 import { RemoteDiffList } from "./RemoteDiffList";
@@ -44,36 +38,21 @@ interface ReviewPageProps {
 export function ReviewPage({ task }: ReviewPageProps) {
   const taskId = task.id;
   const repoPath = useCwd(taskId);
-  const workspace = useWorkspace(taskId);
-  const linkedBranch = workspace?.linkedBranch ?? null;
   const openFile = usePanelLayoutStore((s) => s.openFile);
 
   const isReviewOpen = useReviewNavigationStore(
     (s) => (s.reviewModes[taskId] ?? "closed") !== "closed",
   );
 
-  const configuredSource = useDiffViewerStore(
-    (s) => s.diffSource[taskId] ?? null,
-  );
-
   const {
-    repoInfo,
-    aheadOfDefault,
-    defaultBranch,
-    changedFiles: workspaceFiles,
-  } = useGitQueries(repoPath);
-  const prUrl = useLinkedBranchPrUrl(taskId);
-  const hasLocalChanges = workspaceFiles.length > 0;
-  const branchSourceAvailable = !!linkedBranch && aheadOfDefault > 0;
-  const prSourceAvailable = !!prUrl;
-
-  const effectiveSource = resolveDiffSource({
-    configured: configuredSource,
-    hasLocalChanges,
+    effectiveSource,
+    prUrl,
     linkedBranch,
-    aheadOfDefault,
+    defaultBranch,
+    repoSlug,
+    branchSourceAvailable,
     prSourceAvailable,
-  });
+  } = useEffectiveDiffSource(taskId);
 
   const isLocalActive = isReviewOpen && effectiveSource === "local";
 
@@ -123,7 +102,7 @@ export function ReviewPage({ task }: ReviewPageProps) {
       <BranchReviewPage
         task={task}
         branch={linkedBranch as string}
-        repoInfo={repoInfo ?? undefined}
+        repoSlug={repoSlug}
         defaultBranch={defaultBranch}
         isReviewOpen={isReviewOpen}
         effectiveSource={effectiveSource}
@@ -216,7 +195,7 @@ export function ReviewPage({ task }: ReviewPageProps) {
 function BranchReviewPage({
   task,
   branch,
-  repoInfo,
+  repoSlug,
   defaultBranch,
   isReviewOpen,
   effectiveSource,
@@ -225,7 +204,7 @@ function BranchReviewPage({
 }: {
   task: Task;
   branch: string;
-  repoInfo: { organization: string; repository: string } | undefined;
+  repoSlug: string | null;
   defaultBranch: string | null;
   isReviewOpen: boolean;
   effectiveSource: ResolvedDiffSource;
@@ -233,9 +212,6 @@ function BranchReviewPage({
   prSourceAvailable: boolean;
 }) {
   const taskId = task.id;
-  const repoSlug = repoInfo
-    ? `${repoInfo.organization}/${repoInfo.repository}`
-    : null;
 
   const { data: files = EMPTY_BRANCH_FILES, isLoading } = useBranchChangedFiles(
     isReviewOpen ? repoSlug : null,

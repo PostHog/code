@@ -180,8 +180,8 @@ export function useBranchChangedFiles(
       { repo: repo as string, branch: branch as string },
       {
         enabled: !!repo && !!branch,
-        staleTime: pollFast ? 10_000 : 30_000,
-        refetchInterval: pollFast ? 10_000 : 30_000,
+        staleTime: pollFast ? 10_000 : 5 * 60_000,
+        refetchInterval: pollFast ? 10_000 : false,
         retry: 1,
       },
     ),
