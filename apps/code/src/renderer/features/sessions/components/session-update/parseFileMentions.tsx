@@ -1,8 +1,9 @@
+import { GithubRefChip } from "@features/editor/components/GithubRefChip";
 import {
   baseComponents,
   defaultRemarkPlugins,
 } from "@features/editor/components/MarkdownRenderer";
-import { File, GithubLogo, Warning } from "@phosphor-icons/react";
+import { File, Warning } from "@phosphor-icons/react";
 import { Text } from "@radix-ui/themes";
 import { unescapeXmlAttr } from "@utils/xml";
 import type { ReactNode } from "react";
@@ -11,9 +12,9 @@ import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 
 const MENTION_TAG_REGEX =
-  /<file\s+path="([^"]+)"\s*\/>|<github_issue\s+number="([^"]+)"(?:\s+title="([^"]*)")?(?:\s+url="([^"]*)")?\s*\/>|<error_context\s+label="([^"]*)">[\s\S]*?<\/error_context>/g;
+  /<file\s+path="([^"]+)"\s*\/>|<(github_issue|github_pr)\s+number="([^"]+)"(?:\s+title="([^"]*)")?(?:\s+url="([^"]*)")?\s*\/>|<error_context\s+label="([^"]*)">[\s\S]*?<\/error_context>/g;
 const MENTION_TAG_TEST =
-  /<(?:file\s+path|github_issue\s+number|error_context\s+label)="[^"]+"/;
+  /<(?:file\s+path|github_issue\s+number|github_pr\s+number|error_context\s+label)="[^"]+"/;
 const SLASH_COMMAND_START = /^\/([a-zA-Z][\w-]*)(?=\s|$)/;
 
 const inlineComponents: Components = {
@@ -129,26 +130,28 @@ export function parseMentionTags(content: string): ReactNode[] {
         />,
       );
     } else if (match[2]) {
-      const issueNumber = match[2];
-      const issueTitle = match[3] ? unescapeXmlAttr(match[3]) : undefined;
-      const issueUrl = match[4] ? unescapeXmlAttr(match[4]) : undefined;
+      const kind = match[2] === "github_pr" ? "pr" : "issue";
+      const issueNumber = match[3];
+      const issueTitle = match[4] ? unescapeXmlAttr(match[4]) : undefined;
+      const issueUrl = match[5] ? unescapeXmlAttr(match[5]) : "";
       const label = issueTitle
         ? `#${issueNumber} - ${issueTitle}`
         : `#${issueNumber}`;
       parts.push(
-        <MentionChip
-          key={`issue-${matchIndex}`}
-          icon={<GithubLogo size={12} />}
-          label={label}
-          onClick={issueUrl ? () => window.open(issueUrl, "_blank") : undefined}
-        />,
+        <GithubRefChip
+          key={`${match[2]}-${matchIndex}`}
+          href={issueUrl}
+          kind={kind}
+        >
+          {label}
+        </GithubRefChip>,
       );
-    } else if (match[5]) {
+    } else if (match[6]) {
       parts.push(
         <MentionChip
           key={`error-ctx-${matchIndex}`}
           icon={<Warning size={12} />}
-          label={unescapeXmlAttr(match[5])}
+          label={unescapeXmlAttr(match[6])}
         />,
       );
     }
