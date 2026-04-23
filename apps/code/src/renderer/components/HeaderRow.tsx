@@ -4,6 +4,7 @@ import { CloudGitInteractionHeader } from "@features/git-interaction/components/
 import { GitInteractionHeader } from "@features/git-interaction/components/GitInteractionHeader";
 import { SidebarTrigger } from "@features/sidebar/components/SidebarTrigger";
 import { useSidebarStore } from "@features/sidebar/stores/sidebarStore";
+import { SkillButtonsMenu } from "@features/skill-buttons/components/SkillButtonsMenu";
 import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { Box, Flex } from "@radix-ui/themes";
 import { useHeaderStore } from "@stores/headerStore";
@@ -110,6 +111,9 @@ export function HeaderRow() {
             overflow: "hidden",
           }}
         >
+          <div className="no-drag">
+            <SkillButtonsMenu taskId={view.data.id} />
+          </div>
           {activeWorkspace &&
             (activeWorkspace.branchName || activeWorkspace.baseBranch) && (
               <div className="no-drag flex h-full min-w-0 items-center">

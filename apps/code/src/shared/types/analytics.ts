@@ -19,6 +19,14 @@ export type FeedbackType = "good" | "bad" | "general";
 type FileOpenSource = "sidebar" | "agent-suggestion" | "search" | "diff";
 export type FileChangeType = "added" | "modified" | "deleted";
 type StopReason = "user_cancelled" | "completed" | "error" | "timeout";
+export type SkillButtonId =
+  | "add-analytics"
+  | "create-feature-flags"
+  | "run-experiment"
+  | "add-error-tracking"
+  | "instrument-llm-calls"
+  | "add-logging";
+type SkillButtonSource = "primary" | "dropdown";
 export type CommandMenuAction =
   | "home"
   | "new-task"
@@ -158,6 +166,12 @@ export interface CommandMenuActionProperties {
   action_type: CommandMenuAction;
 }
 
+export interface SkillButtonTriggeredProperties {
+  task_id: string;
+  button_id: SkillButtonId;
+  source: SkillButtonSource;
+}
+
 // Settings events
 export interface SettingChangedProperties {
   setting_name: string;
@@ -280,6 +294,7 @@ export const ANALYTICS_EVENTS = {
   COMMAND_MENU_OPENED: "Command menu opened",
   COMMAND_MENU_ACTION: "Command menu action",
   COMMAND_CENTER_VIEWED: "Command center viewed",
+  SKILL_BUTTON_TRIGGERED: "Skill button triggered",
 
   // Permission events
   PERMISSION_RESPONDED: "Permission responded",
@@ -343,6 +358,7 @@ export type EventPropertyMap = {
   [ANALYTICS_EVENTS.COMMAND_MENU_OPENED]: never;
   [ANALYTICS_EVENTS.COMMAND_MENU_ACTION]: CommandMenuActionProperties;
   [ANALYTICS_EVENTS.COMMAND_CENTER_VIEWED]: never;
+  [ANALYTICS_EVENTS.SKILL_BUTTON_TRIGGERED]: SkillButtonTriggeredProperties;
 
   // Permission events
   [ANALYTICS_EVENTS.PERMISSION_RESPONDED]: PermissionRespondedProperties;
