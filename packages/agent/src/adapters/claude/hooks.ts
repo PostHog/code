@@ -130,7 +130,7 @@ interface CreatePostToolUseHookParams {
 }
 
 export const createPostToolUseHook =
-  ({ onModeChange, logger }: CreatePostToolUseHookParams): HookCallback =>
+  ({ onModeChange }: CreatePostToolUseHookParams): HookCallback =>
   async (
     input: HookInput,
     toolUseID: string | undefined,

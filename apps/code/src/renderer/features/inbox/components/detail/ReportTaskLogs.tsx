@@ -408,8 +408,6 @@ export function ReportTaskLogs({
             const row = isInteractive ? (
               showRunAction ? (
                 // biome-ignore lint/a11y/useSemanticElements: a <button> can't contain the nested run-action <button>
-                // biome-ignore lint/a11y/useKeyWithClickEvents: keyboard handled via onKeyDown
-                // biome-ignore lint/a11y/noStaticElementInteractions: role="button" makes this interactive
                 <div
                   key={relationship}
                   role="button"
