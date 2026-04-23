@@ -1,6 +1,7 @@
 import { useUsage } from "@features/billing/hooks/useUsage";
 import { useSeatStore } from "@features/billing/stores/seatStore";
 import { useSeat } from "@hooks/useSeat";
+import type { UsageBucket } from "@main/services/llm-gateway/schemas";
 import {
   ArrowSquareOut,
   Check,
@@ -20,12 +21,6 @@ import { Tooltip } from "@renderer/components/ui/Tooltip";
 import { PLAN_PRO_ALPHA } from "@shared/types/seat";
 import { getPostHogUrl } from "@utils/urls";
 import { useState } from "react";
-
-interface UsageBucket {
-  used_percent: number;
-  resets_in_seconds: number;
-  exceeded: boolean;
-}
 
 function formatResetTime(seconds: number): string {
   if (seconds < 3600) return "less than 1 hour";
@@ -53,7 +48,7 @@ export function PlanUsageSettings() {
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const isAlpha = seat?.plan_key === PLAN_PRO_ALPHA;
   const { usage, isLoading: usageLoading } = useUsage({
-    enabled: seat !== null && !isPro,
+    enabled: seat !== null,
   });
 
   const formattedActiveUntil = activeUntil

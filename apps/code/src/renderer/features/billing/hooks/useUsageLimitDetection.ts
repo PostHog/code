@@ -9,6 +9,12 @@ export function useUsageLimitDetection(billingEnabled: boolean) {
   const hasAlertedRef = useRef(false);
 
   useEffect(() => {
+    if (!billingEnabled) {
+      hasAlertedRef.current = false;
+    }
+  }, [billingEnabled]);
+
+  useEffect(() => {
     if (!usage) return;
 
     const exceeded = isUsageExceeded(usage);

@@ -32,7 +32,9 @@ export function SidebarUsageBar() {
             className="mx-1.5 inline text-gray-8"
           />
           <span className="font-normal text-gray-10">
-            {exceeded ? "Limit reached" : `${Math.round(usagePercent)}% used`}
+            {exceeded
+              ? "Limit reached"
+              : `${Math.min(Math.round(usagePercent), 100)}% used`}
           </span>
         </span>
         <button
