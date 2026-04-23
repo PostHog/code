@@ -1,7 +1,9 @@
+import { useDiffViewerStore } from "@features/code-editor/stores/diffViewerStore";
 import {
   useBranchChangedFiles,
   usePrChangedFiles,
 } from "@features/git-interaction/hooks/useGitQueries";
+import { usePrDetails } from "@features/git-interaction/hooks/usePrDetails";
 import { makeFileKey } from "@features/git-interaction/utils/fileKey";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
@@ -15,6 +17,7 @@ import { useMemo } from "react";
 import { useEffectiveDiffSource } from "../hooks/useEffectiveDiffSource";
 import { useReviewDiffs } from "../hooks/useReviewDiffs";
 import type { DiffOptions } from "../types";
+import type { PrCommentThread } from "../utils/prCommentAnnotations";
 import type { ResolvedDiffSource } from "../utils/resolveDiffSource";
 import { InteractiveFileDiff } from "./InteractiveFileDiff";
 import { LazyDiff } from "./LazyDiff";
@@ -53,6 +56,14 @@ export function ReviewPage({ task }: ReviewPageProps) {
     branchSourceAvailable,
     prSourceAvailable,
   } = useEffectiveDiffSource(taskId);
+
+  const showReviewComments = useDiffViewerStore((s) => s.showReviewComments);
+  const { commentThreads } = usePrDetails(prUrl, {
+    includeComments: isReviewOpen && showReviewComments,
+  });
+  const effectiveCommentThreads = showReviewComments
+    ? commentThreads
+    : undefined;
 
   const isLocalActive = isReviewOpen && effectiveSource === "local";
 
@@ -108,6 +119,8 @@ export function ReviewPage({ task }: ReviewPageProps) {
         effectiveSource={effectiveSource}
         branchSourceAvailable={branchSourceAvailable}
         prSourceAvailable={prSourceAvailable}
+        prUrl={prUrl}
+        commentThreads={effectiveCommentThreads}
       />
     );
   }
@@ -122,6 +135,7 @@ export function ReviewPage({ task }: ReviewPageProps) {
         effectiveSource={effectiveSource}
         branchSourceAvailable={branchSourceAvailable}
         prSourceAvailable={prSourceAvailable}
+        commentThreads={effectiveCommentThreads}
       />
     );
   }
@@ -135,6 +149,8 @@ export function ReviewPage({ task }: ReviewPageProps) {
     revealFile,
     getDeferredReason,
     openFile,
+    prUrl,
+    commentThreads: effectiveCommentThreads,
   };
 
   return (
@@ -201,6 +217,8 @@ function BranchReviewPage({
   effectiveSource,
   branchSourceAvailable,
   prSourceAvailable,
+  prUrl,
+  commentThreads,
 }: {
   task: Task;
   branch: string;
@@ -210,6 +228,8 @@ function BranchReviewPage({
   effectiveSource: ResolvedDiffSource;
   branchSourceAvailable: boolean;
   prSourceAvailable: boolean;
+  prUrl: string | null;
+  commentThreads?: Map<number, PrCommentThread>;
 }) {
   const taskId = task.id;
 
@@ -244,11 +264,13 @@ function BranchReviewPage({
       <RemoteDiffList
         files={files}
         taskId={taskId}
+        prUrl={prUrl}
         options={reviewState.diffOptions}
         collapsedFiles={reviewState.collapsedFiles}
         toggleFile={reviewState.toggleFile}
         revealFile={reviewState.revealFile}
         getDeferredReason={reviewState.getDeferredReason}
+        commentThreads={commentThreads}
       />
     </ReviewShell>
   );
@@ -262,6 +284,7 @@ function PrReviewPage({
   effectiveSource,
   branchSourceAvailable,
   prSourceAvailable,
+  commentThreads,
 }: {
   task: Task;
   prUrl: string;
@@ -270,6 +293,7 @@ function PrReviewPage({
   effectiveSource: ResolvedDiffSource;
   branchSourceAvailable: boolean;
   prSourceAvailable: boolean;
+  commentThreads?: Map<number, PrCommentThread>;
 }) {
   const taskId = task.id;
 
@@ -307,6 +331,7 @@ function PrReviewPage({
         toggleFile={reviewState.toggleFile}
         revealFile={reviewState.revealFile}
         getDeferredReason={reviewState.getDeferredReason}
+        commentThreads={commentThreads}
       />
     </ReviewShell>
   );
@@ -334,6 +359,8 @@ interface FileDiffListProps {
   revealFile: (key: string) => void;
   getDeferredReason: (key: string) => DeferredReason | null;
   openFile: (taskId: string, path: string, preview: boolean) => void;
+  prUrl: string | null;
+  commentThreads?: Map<number, PrCommentThread>;
 }
 
 function FileDiffList({
@@ -348,6 +375,8 @@ function FileDiffList({
   revealFile,
   getDeferredReason,
   openFile,
+  prUrl,
+  commentThreads,
 }: FileDiffListProps) {
   return files.map((fileDiff) => {
     const filePath = fileDiff.name ?? fileDiff.prevName ?? "";
@@ -382,6 +411,8 @@ function FileDiffList({
             skipExpansion={skipExpansion}
             options={{ ...diffOptions, collapsed: isCollapsed }}
             taskId={taskId}
+            prUrl={prUrl}
+            commentThreads={commentThreads}
             renderCustomHeader={(fd) => (
               <DiffFileHeader
                 fileDiff={fd}
