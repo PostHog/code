@@ -35,6 +35,7 @@ module.exports = {
       },
       fontFamily: {
         sans: [
+          "Open Runde",
           "-apple-system",
           "BlinkMacSystemFont",
           "Segoe UI",
