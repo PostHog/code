@@ -4,10 +4,7 @@
     "deny": [
       "Read(./apps/cli/**)",
       "Edit(./apps/cli/**)",
-      "Write(./apps/cli/**)",
-      "Read(./apps/mobile/**)",
-      "Edit(./apps/mobile/**)",
-      "Write(./apps/mobile/**)"
+      "Write(./apps/cli/**)"
     ]
   }
 }

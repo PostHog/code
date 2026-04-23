@@ -337,8 +337,7 @@ export function TaskListView({
               const folder = folders.find(
                 (f) =>
                   (f.remoteUrl &&
-                    normalizeRepoKey(f.remoteUrl).toLowerCase() ===
-                      normalizeRepoKey(group.id).toLowerCase()) ||
+                    normalizeRepoKey(f.remoteUrl).toLowerCase() === group.id) ||
                   f.path === group.id,
               );
               const groupFolderId =

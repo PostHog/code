@@ -5,6 +5,7 @@ import {
   type EditorHandle as PromptInputHandle,
 } from "@features/message-editor/components/PromptInput";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
+import { CHAT_CONTENT_MAX_WIDTH } from "@features/sessions/constants";
 import {
   useModeConfigOptionForTask,
   usePendingPermissionsForTask,
@@ -381,7 +382,10 @@ export function SessionView({
                   slackThreadUrl={slackThreadUrl}
                 />
                 <Box className="border-gray-4 border-t">
-                  <Box className="mx-auto max-w-[750px] p-2">
+                  <Box
+                    className="mx-auto p-2"
+                    style={{ maxWidth: CHAT_CONTENT_MAX_WIDTH }}
+                  >
                     <Flex
                       align="center"
                       justify="between"
@@ -494,7 +498,10 @@ export function SessionView({
                   </Flex>
                 ) : hideInput ? null : firstPendingPermission ? (
                   <Box className="border-gray-4 border-t">
-                    <Box className="mx-auto max-w-[750px] p-2">
+                    <Box
+                      className="mx-auto p-2"
+                      style={{ maxWidth: CHAT_CONTENT_MAX_WIDTH }}
+                    >
                       <PermissionSelector
                         toolCall={firstPendingPermission.toolCall}
                         options={firstPendingPermission.options}
@@ -526,8 +533,11 @@ export function SessionView({
                       }`}
                     >
                       <Box
-                        className={
-                          compact ? "p-1" : "mx-auto max-w-[750px] p-2"
+                        className={compact ? "p-1" : "mx-auto p-2"}
+                        style={
+                          compact
+                            ? undefined
+                            : { maxWidth: CHAT_CONTENT_MAX_WIDTH }
                         }
                       >
                         <PromptInput

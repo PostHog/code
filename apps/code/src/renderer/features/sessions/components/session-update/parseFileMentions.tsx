@@ -4,6 +4,7 @@ import {
 } from "@features/editor/components/MarkdownRenderer";
 import { File, GithubLogo, Warning } from "@phosphor-icons/react";
 import { Text } from "@radix-ui/themes";
+import { unescapeXmlAttr } from "@utils/xml";
 import type { ReactNode } from "react";
 import { memo } from "react";
 import type { Components } from "react-markdown";
@@ -46,7 +47,7 @@ export function hasMentionTags(content: string): boolean {
 export const hasFileMentions = hasMentionTags;
 
 const chipClass =
-  "inline-flex items-center gap-1 rounded-[var(--radius-1)] bg-[var(--accent-a3)] px-1 py-px align-middle font-medium text-[var(--accent-11)]";
+  "inline-flex min-w-0 max-w-full items-center gap-1 rounded-[var(--radius-1)] bg-[var(--accent-a3)] px-1 py-px align-middle font-medium text-[var(--accent-11)]";
 
 export function MentionChip({
   icon,
@@ -62,6 +63,13 @@ export function MentionChip({
     margin: "0 2px",
   };
 
+  const content = (
+    <>
+      {icon}
+      <span className="truncate">{label}</span>
+    </>
+  );
+
   if (onClick) {
     return (
       <button
@@ -70,16 +78,14 @@ export function MentionChip({
         onClick={onClick}
         style={style}
       >
-        {icon}
-        {label}
+        {content}
       </button>
     );
   }
 
   return (
     <span className={chipClass} style={style}>
-      {icon}
-      {label}
+      {content}
     </span>
   );
 }
@@ -110,7 +116,7 @@ export function parseMentionTags(content: string): ReactNode[] {
     }
 
     if (match[1]) {
-      const filePath = match[1];
+      const filePath = unescapeXmlAttr(match[1]);
       const segments = filePath.split("/").filter(Boolean);
       const fileName = segments.pop() ?? filePath;
       const parentDir = segments.pop();
@@ -124,8 +130,8 @@ export function parseMentionTags(content: string): ReactNode[] {
       );
     } else if (match[2]) {
       const issueNumber = match[2];
-      const issueTitle = match[3];
-      const issueUrl = match[4];
+      const issueTitle = match[3] ? unescapeXmlAttr(match[3]) : undefined;
+      const issueUrl = match[4] ? unescapeXmlAttr(match[4]) : undefined;
       const label = issueTitle
         ? `#${issueNumber} - ${issueTitle}`
         : `#${issueNumber}`;
@@ -142,7 +148,7 @@ export function parseMentionTags(content: string): ReactNode[] {
         <MentionChip
           key={`error-ctx-${matchIndex}`}
           icon={<Warning size={12} />}
-          label={match[5]}
+          label={unescapeXmlAttr(match[5])}
         />,
       );
     }

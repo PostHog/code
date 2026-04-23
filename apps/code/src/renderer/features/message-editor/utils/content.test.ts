@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { contentToXml, type EditorContent, xmlToContent } from "./content";
+import {
+  contentToXml,
+  type EditorContent,
+  extractFilePaths,
+  xmlToContent,
+} from "./content";
 
 describe("xmlToContent", () => {
   it("parses a file tag into a file chip", () => {
@@ -58,6 +63,57 @@ describe("xmlToContent", () => {
     }
   });
 
+  it("parses github_pr tags with title", () => {
+    const xml =
+      '<github_pr number="123" title="Ship it" url="https://github.com/org/repo/pull/123" />';
+    expect(xmlToContent(xml).segments).toEqual([
+      {
+        type: "chip",
+        chip: {
+          type: "github_pr",
+          id: "https://github.com/org/repo/pull/123",
+          label: "#123 - Ship it",
+        },
+      },
+    ]);
+  });
+
+  it("serializes a fallback-labeled github_issue chip with an empty title", () => {
+    const content: EditorContent = {
+      segments: [
+        {
+          type: "chip",
+          chip: {
+            type: "github_issue",
+            id: "https://github.com/org/repo/issues/1454",
+            label: "#1454",
+          },
+        },
+      ],
+    };
+    expect(contentToXml(content)).toBe(
+      '<github_issue number="1454" title="" url="https://github.com/org/repo/issues/1454" />',
+    );
+  });
+
+  it("round-trips a github_pr chip", () => {
+    const content: EditorContent = {
+      segments: [
+        {
+          type: "chip",
+          chip: {
+            type: "github_pr",
+            id: "https://github.com/org/repo/pull/42",
+            label: "#42 - Fix thing",
+          },
+        },
+      ],
+    };
+    expect(xmlToContent(contentToXml(content)).segments).toEqual(
+      content.segments,
+    );
+  });
+
   it.each([
     ["error", "err-1"],
     ["experiment", "exp-1"],
@@ -96,6 +152,48 @@ describe("xmlToContent", () => {
 
   it("returns a single text segment for empty input", () => {
     expect(xmlToContent("").segments).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("parses a folder tag into a folder chip", () => {
+    const result = xmlToContent('<folder path="src/foo" />');
+    expect(result.segments).toEqual([
+      {
+        type: "chip",
+        chip: { type: "folder", id: "src/foo", label: "src/foo" },
+      },
+    ]);
+  });
+
+  it("round-trips a folder chip", () => {
+    const content: EditorContent = {
+      segments: [
+        {
+          type: "chip",
+          chip: { type: "folder", id: "src/foo", label: "src/foo" },
+        },
+      ],
+    };
+    expect(contentToXml(content)).toBe('<folder path="src/foo" />');
+    expect(xmlToContent(contentToXml(content)).segments).toEqual(
+      content.segments,
+    );
+  });
+
+  it("extractFilePaths includes folder chips alongside file chips", () => {
+    const content: EditorContent = {
+      segments: [
+        { type: "text", text: "see " },
+        {
+          type: "chip",
+          chip: { type: "folder", id: "src/sub", label: "src/sub" },
+        },
+        {
+          type: "chip",
+          chip: { type: "file", id: "src/a.ts", label: "a.ts" },
+        },
+      ],
+    };
+    expect(extractFilePaths(content)).toEqual(["src/sub", "src/a.ts"]);
   });
 
   it("round-trips contentToXml for a mix of text and chips", () => {

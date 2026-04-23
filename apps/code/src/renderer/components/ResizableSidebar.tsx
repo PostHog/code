@@ -1,7 +1,6 @@
+import { SIDEBAR_MIN_WIDTH } from "@features/sidebar/constants";
 import { Box, Flex } from "@radix-ui/themes";
 import React from "react";
-
-const MIN_WIDTH = 140;
 
 interface ResizableSidebarProps {
   children: React.ReactNode;
@@ -36,9 +35,9 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
       const maxWidth = window.innerWidth * 0.5;
       const newWidth =
         side === "left"
-          ? Math.max(MIN_WIDTH, Math.min(maxWidth, e.clientX))
+          ? Math.max(SIDEBAR_MIN_WIDTH, Math.min(maxWidth, e.clientX))
           : Math.max(
-              MIN_WIDTH,
+              SIDEBAR_MIN_WIDTH,
               Math.min(maxWidth, window.innerWidth - e.clientX),
             );
       setWidth(newWidth);

@@ -9,6 +9,7 @@ import type {
   CommitNextStep,
   GitMenuAction,
   GitMenuActionId,
+  PushMode,
 } from "@features/git-interaction/types";
 import {
   createBranch,
@@ -27,7 +28,7 @@ import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useQueryClient } from "@tanstack/react-query";
 import { track } from "@utils/analytics";
 import { logger } from "@utils/logger";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 const log = logger.scope("git-interaction");
 
@@ -70,7 +71,7 @@ interface GitInteractionActions {
   setPrBody: (value: string) => void;
   setBranchName: (value: string) => void;
   runCommit: () => Promise<void>;
-  runPush: () => Promise<void>;
+  runPush: (mode?: PushMode) => Promise<void>;
   runBranch: () => Promise<void>;
   runCreatePr: () => Promise<void>;
   generateCommitMessage: () => Promise<void>;
@@ -150,6 +151,7 @@ export function useGitInteraction(
   const queryClient = useQueryClient();
   const store = useGitInteractionStore();
   const { actions: modal } = store;
+  const pushAbortRef = useRef<AbortController | null>(null);
 
   const git = useGitQueries(repoPath);
 
@@ -194,6 +196,8 @@ export function useGitInteraction(
     [git.changedFiles],
   );
 
+  const createPrDraftKey = `${taskId}:${repoPath ?? ""}`;
+
   const openCreatePr = () => {
     const prExists = git.prStatus?.prExists ?? false;
     const needsBranch = !git.isFeatureBranch || prExists;
@@ -206,6 +210,7 @@ export function useGitInteraction(
       suggestedBranchName: needsBranch
         ? getSuggestedBranchName(taskId, repoPath)
         : undefined,
+      draftKey: createPrDraftKey,
     });
   };
 
@@ -294,6 +299,7 @@ export function useGitInteraction(
         attachPrUrlToTask(taskId, result.prUrl);
       }
 
+      modal.clearCreatePrDraft(createPrDraftKey);
       modal.closeCreatePr();
     } catch (error) {
       log.error("Create PR flow failed", error);
@@ -407,50 +413,84 @@ export function useGitInteraction(
       modal.closeCommit();
 
       if (store.commitNextStep === "commit-push") {
-        modal.openPush(git.hasRemote ? "push" : "publish");
+        const mode = git.hasRemote ? "push" : "publish";
+        modal.openPush(mode);
+        await runPush(mode);
+        return;
       }
     } finally {
       modal.setIsSubmitting(false);
     }
   };
 
-  const runPush = async () => {
+  const runPush = async (mode?: PushMode) => {
     if (!repoPath) return;
+
+    const pushMode = mode ?? useGitInteractionStore.getState().pushMode;
+
+    pushAbortRef.current?.abort();
+    const controller = new AbortController();
+    pushAbortRef.current = controller;
 
     modal.setIsSubmitting(true);
     modal.setPushError(null);
 
     try {
       const pushFn =
-        store.pushMode === "sync"
+        pushMode === "sync"
           ? trpcClient.git.sync
-          : store.pushMode === "publish"
+          : pushMode === "publish"
             ? trpcClient.git.publish
             : trpcClient.git.push;
 
-      const result = await pushFn.mutate({ directoryPath: repoPath });
+      const result = await pushFn.mutate(
+        { directoryPath: repoPath },
+        { signal: controller.signal },
+      );
 
       if (!result.success) {
         const message =
           "message" in result
             ? result.message
             : `Pull: ${result.pullMessage}, Push: ${result.pushMessage}`;
-        trackGitAction(taskId, store.pushMode, false);
+        trackGitAction(taskId, pushMode, false);
         modal.setPushError(message || "Push failed.");
         modal.setPushState("error");
         return;
       }
 
-      trackGitAction(taskId, store.pushMode, true);
+      trackGitAction(taskId, pushMode, true);
 
       if (result.state) {
         updateGitCacheFromSnapshot(queryClient, repoPath, result.state);
       }
 
       modal.setPushState("success");
+    } catch (error) {
+      trackGitAction(taskId, pushMode, false);
+      if (controller.signal.aborted) {
+        return;
+      }
+      log.error("Push failed", error);
+      const message = error instanceof Error ? error.message : "Push failed.";
+      modal.setPushError(message);
+      modal.setPushState("error");
     } finally {
+      if (pushAbortRef.current === controller) {
+        pushAbortRef.current = null;
+      }
       modal.setIsSubmitting(false);
     }
+  };
+
+  const abortPush = () => {
+    pushAbortRef.current?.abort();
+    pushAbortRef.current = null;
+  };
+
+  const closePush = () => {
+    abortPush();
+    modal.closePush();
   };
 
   const generateCommitMessage = async () => {
@@ -580,7 +620,7 @@ export function useGitInteraction(
     actions: {
       openAction,
       closeCommit: modal.closeCommit,
-      closePush: modal.closePush,
+      closePush,
       closeBranch: modal.closeBranch,
       setCommitMessage: modal.setCommitMessage,
       setCommitNextStep: modal.setCommitNextStep,

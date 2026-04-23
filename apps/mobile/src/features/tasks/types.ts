@@ -51,7 +51,20 @@ export interface SessionNotification {
     status?: "pending" | "in_progress" | "completed" | "failed" | null;
     rawInput?: Record<string, unknown>;
     rawOutput?: unknown;
+    entries?: PlanEntry[];
+    _meta?: {
+      claudeCode?: {
+        toolName?: string;
+        parentToolCallId?: string;
+      };
+    };
   };
+}
+
+export interface PlanEntry {
+  content: string;
+  status: "pending" | "in_progress" | "completed";
+  priority: string;
 }
 
 export interface AcpMessage {

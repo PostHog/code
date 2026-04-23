@@ -6,6 +6,7 @@ import type {
   SessionConfigSelectOptions,
 } from "@agentclientprotocol/sdk";
 import type { ExecutionMode, TaskRunStatus } from "@shared/types";
+import type { SkillButtonId } from "@shared/types/analytics";
 import type { AcpMessage } from "@shared/types/session-events";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
@@ -25,12 +26,18 @@ export interface QueuedMessage {
 
 export type { TaskRunStatus };
 
-export type OptimisticItem = {
-  type: "user_message";
-  id: string;
-  content: string;
-  timestamp: number;
-};
+export type OptimisticItem =
+  | {
+      type: "user_message";
+      id: string;
+      content: string;
+      timestamp: number;
+    }
+  | {
+      type: "skill_button_action";
+      id: string;
+      buttonId: SkillButtonId;
+    };
 
 export interface AgentSession {
   taskRunId: string;
@@ -379,13 +386,17 @@ export const sessionStoreSetters = {
 
   appendOptimisticItem: (
     taskRunId: string,
-    item: Omit<OptimisticItem, "id">,
+    item: OptimisticItem extends infer T
+      ? T extends { id: string }
+        ? Omit<T, "id">
+        : never
+      : never,
   ): void => {
     const id = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     useSessionStore.setState((state) => {
       const session = state.sessions[taskRunId];
       if (session) {
-        session.optimisticItems.push({ ...item, id });
+        session.optimisticItems.push({ ...item, id } as OptimisticItem);
       }
     });
   },

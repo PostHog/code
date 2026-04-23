@@ -21,6 +21,14 @@ const integrationKeys = {
   list: () => [...integrationKeys.all, "list"] as const,
   repositories: (integrationId?: number) =>
     [...integrationKeys.all, "repositories", integrationId] as const,
+  repositoryPicker: (integrationId?: number, search?: string, limit?: number) =>
+    [
+      ...integrationKeys.all,
+      "repository-picker",
+      integrationId,
+      search,
+      limit,
+    ] as const,
   branches: (integrationId?: number, repo?: string | null, search?: string) =>
     [...integrationKeys.all, "branches", integrationId, repo, search] as const,
 };
@@ -74,8 +82,90 @@ function useAllGithubRepositories(githubIntegrations: Integration[]) {
   });
 }
 
+const REPOSITORIES_PAGE_SIZE = 50;
 const BRANCHES_FIRST_PAGE_SIZE = 50;
 const BRANCHES_PAGE_SIZE = 100;
+
+export function useGithubRepositories(
+  search?: string,
+  enabled: boolean = true,
+) {
+  const client = useOptionalAuthenticatedClient();
+  const { githubIntegrations } = useIntegrationSelectors();
+  const deferredSearch = useDeferredValue(search?.trim() ?? "");
+  const [requestedLimit, setRequestedLimit] = useState(REPOSITORIES_PAGE_SIZE);
+  const queryEnabled = enabled && !!client && githubIntegrations.length > 0;
+
+  useEffect(() => {
+    setRequestedLimit(REPOSITORIES_PAGE_SIZE);
+  }, []);
+
+  const { repositoryMap, isPending, isRefreshing, hasMore } = useQueries({
+    queries: githubIntegrations.map((integration) => ({
+      queryKey: integrationKeys.repositoryPicker(
+        integration.id,
+        deferredSearch,
+        requestedLimit,
+      ),
+      queryFn: async () => {
+        if (!client) throw new Error("Not authenticated");
+
+        const page = await client.getGithubRepositoriesPage(
+          integration.id,
+          0,
+          requestedLimit,
+          deferredSearch,
+        );
+
+        return { integrationId: integration.id, ...page };
+      },
+      enabled: queryEnabled,
+      staleTime: 5 * 60 * 1000,
+      meta: AUTH_SCOPED_QUERY_META,
+    })),
+    combine: (results) => {
+      const map: Record<string, number> = {};
+      let pending = false;
+      let refreshing = false;
+      let hasMoreResults = false;
+
+      for (const result of results) {
+        if (result.isPending) pending = true;
+        if (result.isRefetching) refreshing = true;
+        if (!result.data) continue;
+
+        if (result.data.hasMore) {
+          hasMoreResults = true;
+        }
+
+        for (const repo of result.data.repositories ?? []) {
+          if (!(repo in map)) {
+            map[repo] = result.data.integrationId;
+          }
+        }
+      }
+
+      return {
+        repositoryMap: map,
+        isPending: pending,
+        isRefreshing: refreshing,
+        hasMore: hasMoreResults,
+      };
+    },
+  });
+
+  const loadMore = useCallback(() => {
+    setRequestedLimit((currentLimit) => currentLimit + REPOSITORIES_PAGE_SIZE);
+  }, []);
+
+  return {
+    repositories: Object.keys(repositoryMap),
+    isPending: queryEnabled ? isPending : false,
+    isRefreshing: queryEnabled ? isRefreshing : false,
+    hasMore,
+    loadMore,
+  };
+}
 
 interface GithubBranchesPage {
   branches: string[];
@@ -199,6 +289,10 @@ export function useRepositoryIntegration() {
           }),
         ),
       );
+
+      await queryClient.refetchQueries({
+        queryKey: [...integrationKeys.all, "repository-picker"],
+      });
     } finally {
       setIsRefreshingRepos(false);
     }

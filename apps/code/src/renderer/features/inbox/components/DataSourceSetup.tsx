@@ -1,7 +1,10 @@
 import { useAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
-import { useRepositoryIntegration } from "@hooks/useIntegrations";
+import {
+  useGithubRepositories,
+  useRepositoryIntegration,
+} from "@hooks/useIntegrations";
 import { Box, Button, Flex, Text, TextField } from "@radix-ui/themes";
 import { trpcClient } from "@renderer/trpc";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -67,6 +70,14 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
     refreshRepositories,
     hasGithubIntegration,
   } = useRepositoryIntegration();
+  const [repoPickerSearchQuery, setRepoPickerSearchQuery] = useState("");
+  const [isRepoPickerOpen, setIsRepoPickerOpen] = useState(false);
+  const {
+    repositories: visibleRepositories,
+    isPending: visibleRepositoriesLoading,
+    hasMore: visibleRepositoriesHasMore,
+    loadMore: loadMoreVisibleRepositories,
+  } = useGithubRepositories(repoPickerSearchQuery, isRepoPickerOpen);
   const [repo, setRepo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -194,6 +205,21 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
       });
   }, [refreshRepositories]);
 
+  const handleRepoPickerOpenChange = useCallback((open: boolean) => {
+    setIsRepoPickerOpen(open);
+    if (!open) {
+      setRepoPickerSearchQuery("");
+    }
+  }, []);
+
+  const handleRepoPickerSearchChange = useCallback((value: string) => {
+    setRepoPickerSearchQuery(value);
+  }, []);
+
+  const handleLoadMoreRepositories = useCallback(() => {
+    loadMoreVisibleRepositories();
+  }, [loadMoreVisibleRepositories]);
+
   if (!hasGithubIntegration) {
     return (
       <SetupFormContainer title="Connect GitHub">
@@ -229,10 +255,18 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
         <GitHubRepoPicker
           value={repo}
           onChange={setRepo}
-          repositories={repositories}
-          isLoading={isLoadingRepos}
+          repositories={isRepoPickerOpen ? visibleRepositories : repositories}
+          isLoading={
+            isLoadingRepos || (isRepoPickerOpen && visibleRepositoriesLoading)
+          }
           isRefreshing={isRefreshingRepos}
           onRefresh={handleRefreshRepositories}
+          open={isRepoPickerOpen}
+          onOpenChange={handleRepoPickerOpenChange}
+          searchQuery={repoPickerSearchQuery}
+          onSearchQueryChange={handleRepoPickerSearchChange}
+          hasMore={visibleRepositoriesHasMore}
+          onLoadMore={handleLoadMoreRepositories}
           placeholder="Select repository..."
           size="2"
         />

@@ -6,10 +6,20 @@ import {
   pathToFileItem,
   searchFiles,
 } from "@hooks/useRepoFiles";
+import { trpc } from "@renderer/trpc/client";
 import { isAbsolutePath } from "@utils/path";
+import { queryClient } from "@utils/queryClient";
 import Fuse, { type IFuseOptions } from "fuse.js";
 import { useDraftStore } from "../stores/draftStore";
-import type { CommandSuggestionItem, FileSuggestionItem } from "../types";
+import type {
+  CommandSuggestionItem,
+  FileSuggestionItem,
+  IssueSuggestionItem,
+} from "../types";
+import {
+  githubIssueToMentionChip,
+  githubPullRequestToMentionChip,
+} from "../utils/githubIssueChip";
 
 const COMMAND_FUSE_OPTIONS: IFuseOptions<AvailableCommand> = {
   keys: [
@@ -74,16 +84,23 @@ export async function getFileSuggestions(
     return absoluteMatch ? [absoluteMatch] : [];
   }
 
-  const { files, fzf } = await fetchRepoFiles(repoPath);
+  const { files, fzf } = await fetchRepoFiles(repoPath, {
+    includeDirectories: true,
+  });
   const matched = searchFiles(fzf, files, query);
 
-  const results: FileSuggestionItem[] = matched.map((file) => ({
-    id: file.path,
-    label: parentDirLabel(file.dir, file.name),
-    description: file.dir || undefined,
-    filename: file.name,
-    path: file.path,
-  }));
+  const results: FileSuggestionItem[] = matched.map((file) => {
+    const isDirectory = file.kind === "directory";
+    return {
+      id: file.path,
+      label: parentDirLabel(file.dir, file.name),
+      description: file.dir || undefined,
+      filename: file.name,
+      path: file.path,
+      kind: file.kind,
+      chipType: isDirectory ? "folder" : "file",
+    };
+  });
 
   if (
     absoluteMatch &&
@@ -93,6 +110,47 @@ export async function getFileSuggestions(
   }
 
   return results;
+}
+
+export async function getIssueSuggestions(
+  sessionId: string,
+  query: string,
+): Promise<IssueSuggestionItem[]> {
+  const repoPath = useDraftStore.getState().contexts[sessionId]?.repoPath;
+  if (!repoPath) return [];
+
+  try {
+    const refs = await queryClient.fetchQuery({
+      ...trpc.git.searchGithubRefs.queryOptions({
+        directoryPath: repoPath,
+        query: query || undefined,
+        limit: 25,
+      }),
+      staleTime: 30_000,
+    });
+
+    return refs.map((ref) => {
+      const chip =
+        ref.kind === "pr"
+          ? githubPullRequestToMentionChip(ref)
+          : githubIssueToMentionChip(ref);
+      return {
+        id: chip.id,
+        label: chip.label,
+        chipType: chip.type,
+        kind: ref.kind,
+        number: ref.number,
+        title: ref.title,
+        url: ref.url,
+        repo: ref.repo,
+        state: ref.state,
+        labels: ref.labels,
+        isDraft: ref.isDraft,
+      };
+    });
+  } catch {
+    return [];
+  }
 }
 
 export function getCommandSuggestions(
