@@ -72,6 +72,7 @@ import type { EnrichedReadCache } from "./hooks";
 import {
   fetchMcpToolMetadata,
   getConnectedMcpServerNames,
+  setMcpToolApprovalStates,
 } from "./mcp/tool-metadata";
 import { canUseTool } from "./permissions/permission-handlers";
 import { getAvailableSlashCommands } from "./session/commands";
@@ -1090,6 +1091,10 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       ? parseMcpServers(params)
       : {};
     const systemPrompt = buildSystemPrompt(meta?.systemPrompt);
+
+    if (meta?.mcpToolApprovals) {
+      setMcpToolApprovalStates(meta.mcpToolApprovals);
+    }
 
     // Configure structured output via SDK's native outputFormat
     const outputFormat =

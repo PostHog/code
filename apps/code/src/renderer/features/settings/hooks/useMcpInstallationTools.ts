@@ -36,7 +36,10 @@ export function useMcpInstallationTools(
             includeRemoved: options.includeRemoved,
           })
         : Promise.resolve([] as McpInstallationTool[]),
-    { enabled: !!installationId },
+    {
+      enabled: !!installationId,
+      refetchOnMount: "always",
+    },
   );
 
   const invalidate = useCallback(() => {

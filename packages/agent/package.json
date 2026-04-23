@@ -52,6 +52,10 @@
       "types": "./dist/adapters/reasoning-effort.d.ts",
       "import": "./dist/adapters/reasoning-effort.js"
     },
+    "./adapters/claude/mcp/tool-metadata": {
+      "types": "./dist/adapters/claude/mcp/tool-metadata.d.ts",
+      "import": "./dist/adapters/claude/mcp/tool-metadata.js"
+    },
     "./execution-mode": {
       "types": "./dist/execution-mode.d.ts",
       "import": "./dist/execution-mode.js"

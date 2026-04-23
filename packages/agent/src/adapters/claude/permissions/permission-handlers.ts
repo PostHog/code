@@ -10,6 +10,10 @@ import { text } from "../../../utils/acp-content";
 import type { Logger } from "../../../utils/logger";
 import { toolInfoFromToolUse } from "../conversion/tool-use-to-acp";
 import {
+  getMcpToolApprovalState,
+  getMcpToolMetadata,
+} from "../mcp/tool-metadata";
+import {
   getClaudePlansDir,
   getLatestAssistantText,
   isClaudePlanFilePath,
@@ -408,6 +412,92 @@ async function handleDefaultPermissionFlow(
   }
 }
 
+function parseMcpToolName(toolName: string): {
+  serverName: string;
+  tool: string;
+} {
+  const parts = toolName.split("__");
+  return {
+    serverName: parts[1] ?? toolName,
+    tool: parts.slice(2).join("__") || toolName,
+  };
+}
+
+async function handleMcpApprovalFlow(
+  context: ToolHandlerContext,
+): Promise<ToolPermissionResult> {
+  const { toolName, toolInput, toolUseID, client, sessionId } = context;
+
+  const { serverName, tool: displayTool } = parseMcpToolName(toolName);
+  const metadata = getMcpToolMetadata(toolName);
+  const description = metadata?.description
+    ? `\n\n${metadata.description}`
+    : "";
+
+  const response = await client.requestPermission({
+    options: [
+      { kind: "allow_once", name: "Yes", optionId: "allow" },
+      {
+        kind: "allow_always",
+        name: "Yes, always allow",
+        optionId: "allow_always",
+      },
+      {
+        kind: "reject_once",
+        name: "Type here to tell the agent what to do differently",
+        optionId: "reject",
+        _meta: { customInput: true },
+      },
+    ],
+    sessionId,
+    toolCall: {
+      toolCallId: toolUseID,
+      title: `The agent wants to call ${displayTool} (${serverName})`,
+      kind: "other",
+      content: description
+        ? [{ type: "content" as const, content: text(description) }]
+        : [],
+      rawInput: { ...(toolInput as Record<string, unknown>), toolName },
+    },
+  });
+
+  if (context.signal?.aborted || response.outcome?.outcome === "cancelled") {
+    throw new Error("Tool use aborted");
+  }
+
+  if (
+    response.outcome?.outcome === "selected" &&
+    (response.outcome.optionId === "allow" ||
+      response.outcome.optionId === "allow_always")
+  ) {
+    if (response.outcome.optionId === "allow_always") {
+      return {
+        behavior: "allow",
+        updatedInput: toolInput as Record<string, unknown>,
+        updatedPermissions: [
+          {
+            type: "addRules",
+            rules: [{ toolName }],
+            behavior: "allow",
+            destination: "localSettings",
+          },
+        ],
+      };
+    }
+    return {
+      behavior: "allow",
+      updatedInput: toolInput as Record<string, unknown>,
+    };
+  }
+
+  const feedback = (response._meta?.customInput as string | undefined)?.trim();
+  const message = feedback
+    ? `User refused permission to run tool with feedback: ${feedback}`
+    : "User refused permission to run tool";
+  await emitToolDenial(context, message);
+  return { behavior: "deny", message, interrupt: !feedback };
+}
+
 function handlePlanFileException(
   context: ToolHandlerContext,
 ): ToolPermissionResult | null {
@@ -507,6 +597,21 @@ export async function canUseTool(
           return { behavior: "deny", message, interrupt: false };
         }
       }
+    }
+  }
+
+  if (toolName.startsWith("mcp__")) {
+    const approvalState = getMcpToolApprovalState(toolName);
+
+    if (approvalState === "do_not_use") {
+      const message =
+        "This tool has been blocked. To re-enable it, go to Settings > MCP Servers in PostHog Code.";
+      await emitToolDenial(context, message);
+      return { behavior: "deny", message, interrupt: false };
+    }
+
+    if (approvalState === "needs_approval") {
+      return handleMcpApprovalFlow(context);
     }
   }
 

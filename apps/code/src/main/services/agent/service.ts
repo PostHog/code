@@ -17,6 +17,7 @@ import {
   isNotification,
   POSTHOG_NOTIFICATIONS,
 } from "@posthog/agent";
+import type { McpToolApprovals } from "@posthog/agent/adapters/claude/mcp/tool-metadata";
 import { hydrateSessionJsonl } from "@posthog/agent/adapters/claude/session/jsonl-hydration";
 import { getReasoningEffortOptions } from "@posthog/agent/adapters/reasoning-effort";
 import { Agent } from "@posthog/agent/agent";
@@ -52,7 +53,7 @@ import type { McpAppsService } from "../mcp-apps/service";
 import type { PosthogPluginService } from "../posthog-plugin/service";
 import type { ProcessTrackingService } from "../process-tracking/service";
 import type { SleepService } from "../sleep/service";
-import type { AgentAuthAdapter } from "./auth-adapter";
+import type { AgentAuthAdapter, McpToolInstallations } from "./auth-adapter";
 import { discoverExternalPlugins } from "./discover-plugins";
 import {
   AgentServiceEvent,
@@ -242,6 +243,10 @@ interface ManagedSession {
   configOptions?: SessionConfigOption[];
   /** Tracks in-flight MCP tool calls (toolCallId → toolKey) for cancellation */
   inFlightMcpToolCalls: Map<string, string>;
+  /** MCP tool approval states fetched at session start */
+  mcpToolApprovals: McpToolApprovals;
+  /** Maps tool keys to their installation for backend approval updates */
+  toolInstallations: McpToolInstallations;
 }
 
 /** Get the agent session ID from a managed session, throwing if not set. */
@@ -647,8 +652,11 @@ When creating pull requests, add the following footer at the end of the PR descr
         },
       });
 
-      const mcpServers =
-        await this.agentAuthAdapter.buildMcpServers(credentials);
+      const {
+        servers: mcpServers,
+        toolApprovals,
+        toolInstallations,
+      } = await this.agentAuthAdapter.buildMcpServers(credentials);
 
       // Store server configs for lazy MCP connections — actual connections
       // are created on-demand when UI resources are first requested.
@@ -735,6 +743,7 @@ When creating pull requests, add the following footer at the end of the PR descr
             taskRunId,
             sessionId: existingSessionId,
             systemPrompt,
+            mcpToolApprovals: toolApprovals,
             ...(permissionMode && { permissionMode }),
             ...(model != null && { model }),
             ...(jsonSchema && { jsonSchema }),
@@ -758,6 +767,7 @@ When creating pull requests, add the following footer at the end of the PR descr
           _meta: {
             taskRunId,
             systemPrompt,
+            mcpToolApprovals: toolApprovals,
             ...(permissionMode && { permissionMode }),
             ...(model != null && { model }),
             ...(jsonSchema && { jsonSchema }),
@@ -785,6 +795,8 @@ When creating pull requests, add the following footer at the end of the PR descr
         promptPending: false,
         configOptions,
         inFlightMcpToolCalls: new Map(),
+        mcpToolApprovals: toolApprovals,
+        toolInstallations,
       };
 
       this.sessions.set(taskRunId, session);
@@ -1216,19 +1228,23 @@ For git operations while detached:
         });
 
         if (toolName && isMcpToolReadOnly(toolName)) {
-          log.info("Auto-approving read-only MCP tool", {
-            taskRunId,
-            toolName,
-          });
-          const allowOption = params.options.find(
-            (o) => o.kind === "allow_once" || o.kind === "allow_always",
-          );
-          return {
-            outcome: {
-              outcome: "selected",
-              optionId: allowOption?.optionId ?? params.options[0].optionId,
-            },
-          };
+          const session = service.sessions.get(taskRunId);
+          const approvalState = session?.mcpToolApprovals?.[toolName];
+          if (approvalState === "approved") {
+            log.info("Auto-approving read-only MCP tool", {
+              taskRunId,
+              toolName,
+            });
+            const allowOption = params.options.find(
+              (o) => o.kind === "allow_once" || o.kind === "allow_always",
+            );
+            return {
+              outcome: {
+                outcome: "selected",
+                optionId: allowOption?.optionId ?? params.options[0].optionId,
+              },
+            };
+          }
         }
 
         // If we have a toolCallId, always prompt the user for permission.
@@ -1237,7 +1253,7 @@ For git operations while detached:
         if (toolCallId) {
           service.sleepService.release(taskRunId);
           try {
-            return await new Promise<RequestPermissionResponse>(
+            const response = await new Promise<RequestPermissionResponse>(
               (resolve, reject) => {
                 const key = `${taskRunId}:${toolCallId}`;
                 service.pendingPermissions.set(key, {
@@ -1258,6 +1274,37 @@ For git operations while detached:
                 });
               },
             );
+
+            const approved =
+              response.outcome?.outcome === "selected" &&
+              (response.outcome.optionId === "allow" ||
+                response.outcome.optionId === "allow_always");
+            if (approved && toolName) {
+              const session = service.sessions.get(taskRunId);
+              if (
+                session?.mcpToolApprovals?.[toolName] === "needs_approval" &&
+                session.toolInstallations[toolName]
+              ) {
+                const { installationId, toolName: rawToolName } =
+                  session.toolInstallations[toolName];
+                try {
+                  await service.agentAuthAdapter.updateMcpToolApproval(
+                    session.config.credentials,
+                    installationId,
+                    rawToolName,
+                    "approved",
+                  );
+                  session.mcpToolApprovals[toolName] = "approved";
+                } catch (err) {
+                  log.warn("Failed to update tool approval on backend", {
+                    toolName,
+                    error: err instanceof Error ? err.message : String(err),
+                  });
+                }
+              }
+            }
+
+            return response;
           } finally {
             // Only re-acquire if session wasn't cleaned up while waiting
             if (service.sessions.has(taskRunId)) {

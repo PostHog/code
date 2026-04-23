@@ -16,4 +16,12 @@ Only enter plan mode (EnterPlanMode) when the user is requesting a significant c
 When in doubt, continue executing and incorporate the feedback inline.
 `;
 
-export const APPENDED_INSTRUCTIONS = BRANCH_NAMING + PLAN_MODE;
+const MCP_TOOLS = `
+# MCP Tool Access
+
+If an MCP tool call is explicitly denied with a message, relay that denial message to the user exactly as given. Do NOT suggest checking "Claude Code settings."
+
+If an MCP tool call returns an error, treat it as a normal tool error — troubleshoot, retry, or inform the user about the specific error. Do NOT assume it is a permissions issue and do NOT direct the user to any settings page.
+`;
+
+export const APPENDED_INSTRUCTIONS = BRANCH_NAMING + PLAN_MODE + MCP_TOOLS;
