@@ -850,6 +850,54 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     }
   }
 
+  /**
+   * Look up the PR URL for any branch name (not just the currently checked-out
+   * one). Uses `gh pr list --head` rather than `gh pr view` so the lookup works
+   * regardless of which branch the working tree is on.
+   */
+  public async getPrUrlForBranch(
+    directoryPath: string,
+    branchName: string,
+  ): Promise<string | null> {
+    try {
+      const remoteUrl = await getRemoteUrl(directoryPath);
+      if (!remoteUrl) return null;
+
+      const parsed = parseGitHubUrl(remoteUrl);
+      if (!parsed) return null;
+
+      const repoSlug = `${parsed.organization}/${parsed.repository}`;
+      const result = await execGh([
+        "pr",
+        "list",
+        "--head",
+        branchName,
+        "--state",
+        "all",
+        "--json",
+        "url",
+        "--limit",
+        "1",
+        "--repo",
+        repoSlug,
+      ]);
+
+      if (result.exitCode !== 0) {
+        log.warn("Failed to list PRs for branch", {
+          branchName,
+          error: result.stderr || result.error,
+        });
+        return null;
+      }
+
+      const data = JSON.parse(result.stdout) as Array<{ url?: string }>;
+      return data[0]?.url ?? null;
+    } catch (error) {
+      log.warn("Failed to resolve PR URL for branch", { branchName, error });
+      return null;
+    }
+  }
+
   private async createPrViaGh(
     directoryPath: string,
     title?: string,

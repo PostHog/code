@@ -52,6 +52,8 @@ import {
   getPrReviewCommentsOutput,
   getPrTemplateInput,
   getPrTemplateOutput,
+  getPrUrlForBranchInput,
+  getPrUrlForBranchOutput,
   ghAuthTokenOutput,
   ghStatusOutput,
   gitStateSnapshotSchema,
@@ -296,6 +298,13 @@ export const gitRouter = router({
     .input(prStatusInput)
     .output(prStatusOutput)
     .query(({ input }) => getService().getPrStatus(input.directoryPath)),
+
+  getPrUrlForBranch: publicProcedure
+    .input(getPrUrlForBranchInput)
+    .output(getPrUrlForBranchOutput)
+    .query(({ input }) =>
+      getService().getPrUrlForBranch(input.directoryPath, input.branchName),
+    ),
 
   createPr: publicProcedure
     .input(createPrInput)
