@@ -187,3 +187,24 @@ export function useBranchChangedFiles(
     ),
   );
 }
+
+export function useLocalBranchChangedFiles(
+  directoryPath: string | null,
+  branch: string | null,
+) {
+  const trpc = useTRPC();
+  return useQuery(
+    trpc.git.getLocalBranchChangedFiles.queryOptions(
+      {
+        directoryPath: directoryPath as string,
+        branch: branch as string,
+      },
+      {
+        enabled: !!directoryPath && !!branch,
+        staleTime: 30_000,
+        refetchOnMount: "always",
+        retry: 1,
+      },
+    ),
+  );
+}

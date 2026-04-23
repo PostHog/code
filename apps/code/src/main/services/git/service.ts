@@ -8,6 +8,8 @@ const execFileAsync = promisify(execFile);
 import { execGh } from "@posthog/git/gh";
 import {
   getAllBranches,
+  getBranchDiffPatchesByPath,
+  getChangedFilesBetweenBranches,
   getChangedFilesDetailed,
   getCommitConventions,
   getCommitsBetweenBranches,
@@ -1235,6 +1237,39 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
           : undefined,
       };
     });
+  }
+
+  public async getLocalBranchChangedFiles(
+    directoryPath: string,
+    branch: string,
+  ): Promise<ChangedFile[]> {
+    await this.fetchIfStale(directoryPath);
+
+    const defaultBranch = await getDefaultBranch(directoryPath);
+    if (!defaultBranch) return [];
+
+    const files = await getChangedFilesBetweenBranches(
+      directoryPath,
+      defaultBranch,
+      branch,
+      { excludePatterns: [".claude", "CLAUDE.local.md"] },
+    );
+    if (files.length === 0) return [];
+
+    const patchByPath = await getBranchDiffPatchesByPath(
+      directoryPath,
+      defaultBranch,
+      branch,
+    );
+
+    return files.map((f) => ({
+      path: f.path,
+      status: f.status,
+      originalPath: f.originalPath,
+      linesAdded: f.linesAdded,
+      linesRemoved: f.linesRemoved,
+      patch: patchByPath.get(f.path),
+    }));
   }
 
   public async generateCommitMessage(
