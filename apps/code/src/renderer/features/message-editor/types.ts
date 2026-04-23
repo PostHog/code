@@ -32,6 +32,7 @@ export interface SuggestionItem {
 
 export interface FileSuggestionItem extends SuggestionItem {
   path: string;
+  kind?: "file" | "directory";
 }
 
 export interface CommandSuggestionItem extends SuggestionItem {

@@ -4,6 +4,7 @@ import { MentionChipView } from "./MentionChipView";
 
 export type ChipType =
   | "file"
+  | "folder"
   | "command"
   | "error"
   | "experiment"

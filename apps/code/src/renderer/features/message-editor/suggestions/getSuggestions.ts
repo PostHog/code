@@ -84,16 +84,23 @@ export async function getFileSuggestions(
     return absoluteMatch ? [absoluteMatch] : [];
   }
 
-  const { files, fzf } = await fetchRepoFiles(repoPath);
+  const { files, fzf } = await fetchRepoFiles(repoPath, {
+    includeDirectories: true,
+  });
   const matched = searchFiles(fzf, files, query);
 
-  const results: FileSuggestionItem[] = matched.map((file) => ({
-    id: file.path,
-    label: parentDirLabel(file.dir, file.name),
-    description: file.dir || undefined,
-    filename: file.name,
-    path: file.path,
-  }));
+  const results: FileSuggestionItem[] = matched.map((file) => {
+    const isDirectory = file.kind === "directory";
+    return {
+      id: file.path,
+      label: parentDirLabel(file.dir, file.name),
+      description: file.dir || undefined,
+      filename: file.name,
+      path: file.path,
+      kind: file.kind,
+      chipType: isDirectory ? "folder" : "file",
+    };
+  });
 
   if (
     absoluteMatch &&

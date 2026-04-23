@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { contentToXml, type EditorContent, xmlToContent } from "./content";
+import {
+  contentToXml,
+  type EditorContent,
+  extractFilePaths,
+  xmlToContent,
+} from "./content";
 
 describe("xmlToContent", () => {
   it("parses a file tag into a file chip", () => {
@@ -147,6 +152,48 @@ describe("xmlToContent", () => {
 
   it("returns a single text segment for empty input", () => {
     expect(xmlToContent("").segments).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("parses a folder tag into a folder chip", () => {
+    const result = xmlToContent('<folder path="src/foo" />');
+    expect(result.segments).toEqual([
+      {
+        type: "chip",
+        chip: { type: "folder", id: "src/foo", label: "src/foo" },
+      },
+    ]);
+  });
+
+  it("round-trips a folder chip", () => {
+    const content: EditorContent = {
+      segments: [
+        {
+          type: "chip",
+          chip: { type: "folder", id: "src/foo", label: "src/foo" },
+        },
+      ],
+    };
+    expect(contentToXml(content)).toBe('<folder path="src/foo" />');
+    expect(xmlToContent(contentToXml(content)).segments).toEqual(
+      content.segments,
+    );
+  });
+
+  it("extractFilePaths includes folder chips alongside file chips", () => {
+    const content: EditorContent = {
+      segments: [
+        { type: "text", text: "see " },
+        {
+          type: "chip",
+          chip: { type: "folder", id: "src/sub", label: "src/sub" },
+        },
+        {
+          type: "chip",
+          chip: { type: "file", id: "src/a.ts", label: "a.ts" },
+        },
+      ],
+    };
+    expect(extractFilePaths(content)).toEqual(["src/sub", "src/a.ts"]);
   });
 
   it("round-trips contentToXml for a mix of text and chips", () => {

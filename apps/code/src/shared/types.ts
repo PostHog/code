@@ -187,6 +187,7 @@ export type CloudTaskUpdatePayload =
 // Mention types for editors
 type MentionType =
   | "file"
+  | "folder"
   | "error"
   | "experiment"
   | "insight"
@@ -197,6 +198,7 @@ export interface MentionItem {
   // File items
   path?: string;
   name?: string;
+  kind?: "file" | "directory";
   // URL items
   url?: string;
   type?: MentionType;

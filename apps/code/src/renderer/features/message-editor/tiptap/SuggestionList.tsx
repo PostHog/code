@@ -1,4 +1,5 @@
 import { FileIcon } from "@components/ui/FileIcon";
+import { FolderIcon } from "@phosphor-icons/react";
 import {
   Item,
   ItemContent,
@@ -33,11 +34,16 @@ const CONTAINER_CLASS =
   "flex w-max min-w-[300px] max-w-[440px] flex-col overflow-hidden rounded-md border border-[var(--gray-a6)] bg-[var(--color-panel-solid)] text-[13px] shadow-lg";
 
 function DefaultRow({ item }: { item: SuggestionItem }) {
+  const isFolder = item.chipType === "folder";
   return (
     <Item size="xs" className="border-0 p-0">
       {item.filename && (
         <ItemMedia variant="icon" className="mt-0.5 self-start">
-          <FileIcon filename={item.filename} size={14} />
+          {isFolder ? (
+            <FolderIcon size={14} />
+          ) : (
+            <FileIcon filename={item.filename} size={14} />
+          )}
         </ItemMedia>
       )}
       <ItemContent variant="menuItem">
@@ -121,7 +127,7 @@ export const SuggestionList = forwardRef<
               }}
               onClick={() => command(item)}
               onMouseEnter={() => hasMouseMoved && setSelectedIndex(index)}
-              className={`flex w-full border-none px-2 py-1.5 text-left ${
+              className={`flex w-full border-none px-2 py-0.5 text-left ${
                 isSelected ? "bg-[var(--accent-a4)]" : ""
               }`}
             >

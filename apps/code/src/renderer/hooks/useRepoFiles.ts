@@ -9,32 +9,56 @@ export interface FileItem {
   path: string;
   name: string;
   dir: string;
+  kind: "file" | "directory";
 }
 
-const FILE_DISPLAY_LIMIT = 20;
+const MENTION_DISPLAY_LIMIT = 20;
 
 export function pathToFileItem(path: string): FileItem {
   const parts = path.split("/");
   const name = parts.pop() ?? path;
   const dir = parts.join("/");
-  return { path, name, dir };
+  return { path, name, dir, kind: "file" };
 }
 
-function transformRawFiles(rawFiles: MentionItem[]): FileItem[] {
+function pathToFolderItem(path: string): FileItem {
+  const parts = path.split("/");
+  const name = parts.pop() ?? path;
+  const dir = parts.join("/");
+  return { path, name, dir, kind: "directory" };
+}
+
+function transformRawFiles(
+  rawFiles: MentionItem[],
+  includeDirectories: boolean,
+): FileItem[] {
   return rawFiles
     .filter((file): file is MentionItem & { path: string } => !!file.path)
-    .map((file) => pathToFileItem(file.path));
+    .filter((file) => includeDirectories || file.kind !== "directory")
+    .map((file) =>
+      file.kind === "directory"
+        ? pathToFolderItem(file.path)
+        : pathToFileItem(file.path),
+    );
 }
 
 function createFzf(files: FileItem[]): Fzf<FileItem[]> {
   return new Fzf(files, {
-    selector: (item) => `${item.name} ${item.path}`,
-    limit: FILE_DISPLAY_LIMIT,
+    selector: (item) =>
+      item.kind === "directory"
+        ? `${item.name}/ ${item.path}/`
+        : `${item.name} ${item.path}`,
+    limit: MENTION_DISPLAY_LIMIT,
     tiebreakers: [byLengthAsc],
   });
 }
 
-export function useRepoFiles(repoPath: string | undefined, enabled = true) {
+export function useRepoFiles(
+  repoPath: string | undefined,
+  enabled = true,
+  options: { includeDirectories?: boolean } = {},
+) {
+  const { includeDirectories = false } = options;
   const trpcReact = useTRPC();
   const { data: rawFiles, isLoading } = useQuery(
     trpcReact.fs.listRepoFiles.queryOptions(
@@ -45,8 +69,8 @@ export function useRepoFiles(repoPath: string | undefined, enabled = true) {
 
   const files: FileItem[] = useMemo(() => {
     if (!rawFiles) return [];
-    return transformRawFiles(rawFiles);
-  }, [rawFiles]);
+    return transformRawFiles(rawFiles, includeDirectories);
+  }, [rawFiles, includeDirectories]);
 
   const fzf = useMemo(() => createFzf(files), [files]);
 
@@ -59,7 +83,7 @@ export function searchFiles(
   query: string,
 ): FileItem[] {
   if (!query.trim()) {
-    return files.slice(0, FILE_DISPLAY_LIMIT);
+    return files.slice(0, MENTION_DISPLAY_LIMIT);
   }
   const results = fzf.find(query);
   return results.map((result) => result.item);
@@ -70,23 +94,38 @@ const fzfCache = new Map<
   { fzf: Fzf<FileItem[]>; filesLength: number }
 >();
 
-export async function fetchRepoFiles(repoPath: string): Promise<{
+function fzfCacheKey(repoPath: string, includeDirectories: boolean): string {
+  return `${repoPath}\u0000${includeDirectories ? "1" : "0"}`;
+}
+
+export async function fetchRepoFiles(
+  repoPath: string,
+  options: { includeDirectories?: boolean } = {},
+): Promise<{
   files: FileItem[];
   fzf: Fzf<FileItem[]>;
 }> {
+  const { includeDirectories = false } = options;
   const rawFiles = await queryClient.fetchQuery({
     ...trpc.fs.listRepoFiles.queryOptions({ repoPath }),
     staleTime: 1000 * 60 * 5,
   });
 
-  const files = transformRawFiles(rawFiles as MentionItem[]);
+  const files = transformRawFiles(
+    rawFiles as MentionItem[],
+    includeDirectories,
+  );
 
-  const cached = fzfCache.get(repoPath);
+  const cacheKey = fzfCacheKey(repoPath, includeDirectories);
+  const cached = fzfCache.get(cacheKey);
   if (cached && cached.filesLength === files.length) {
     return { files, fzf: cached.fzf };
   }
 
   const fzf = createFzf(files);
-  fzfCache.set(repoPath, { fzf, filesLength: files.length });
+  fzfCache.set(cacheKey, {
+    fzf,
+    filesLength: files.length,
+  });
   return { files, fzf };
 }
