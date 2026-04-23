@@ -37,6 +37,7 @@ interface UseTaskCreationOptions {
   reasoningLevel?: string;
   environmentId?: string | null;
   sandboxEnvironmentId?: string;
+  signalReportId?: string;
   onTaskCreated?: (task: Task) => void;
 }
 
@@ -60,6 +61,7 @@ function prepareTaskInput(
     reasoningLevel?: string;
     environmentId?: string | null;
     sandboxEnvironmentId?: string;
+    signalReportId?: string;
   },
 ): TaskCreationInput {
   const serializedContent = contentToXml(content).trim();
@@ -87,6 +89,15 @@ function prepareTaskInput(
     reasoningLevel: options.reasoningLevel,
     environmentId: options.environmentId ?? undefined,
     sandboxEnvironmentId: options.sandboxEnvironmentId,
+    cloudPrAuthorshipMode:
+      options.signalReportId && options.workspaceMode === "cloud"
+        ? "user"
+        : undefined,
+    cloudRunSource:
+      options.signalReportId && options.workspaceMode === "cloud"
+        ? "signal_report"
+        : undefined,
+    signalReportId: options.signalReportId,
   };
 }
 
@@ -116,10 +127,12 @@ export function useTaskCreation({
   reasoningLevel,
   environmentId,
   sandboxEnvironmentId,
+  signalReportId,
   onTaskCreated,
 }: UseTaskCreationOptions): UseTaskCreationReturn {
   const [isCreatingTask, setIsCreatingTask] = useState(false);
-  const { navigateToTask } = useNavigationStore();
+  const { clearTaskInputReportAssociation, navigateToTask } =
+    useNavigationStore();
   const isAuthenticated = useAuthStateValue(
     (state) => state.status === "authenticated",
   );
@@ -162,6 +175,7 @@ export function useTaskCreation({
         reasoningLevel,
         environmentId,
         sandboxEnvironmentId,
+        signalReportId,
       });
 
       if (executionMode) {
@@ -171,6 +185,9 @@ export function useTaskCreation({
       const taskService = get<TaskService>(RENDERER_TOKENS.TaskService);
       const result = await taskService.createTask(input, (output) => {
         invalidateTasks(output.task);
+        if (signalReportId) {
+          clearTaskInputReportAssociation();
+        }
         if (onTaskCreated) {
           onTaskCreated(output.task);
         } else {
@@ -210,6 +227,8 @@ export function useTaskCreation({
     reasoningLevel,
     environmentId,
     sandboxEnvironmentId,
+    signalReportId,
+    clearTaskInputReportAssociation,
     invalidateTasks,
     navigateToTask,
     onTaskCreated,

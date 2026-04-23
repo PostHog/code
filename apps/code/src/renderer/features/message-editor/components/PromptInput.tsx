@@ -55,6 +55,7 @@ export interface PromptInputProps {
   // manual submit override (for flows like new-task that submit outside the editor hook)
   onSubmitClick?: () => void;
   submitTooltipOverride?: string;
+  editorHeight?: "default" | "large";
   tourTarget?: string;
 }
 
@@ -90,6 +91,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
       onBlur,
       onSubmitClick,
       submitTooltipOverride,
+      editorHeight = "default",
       tourTarget,
     },
     ref,
@@ -292,7 +294,11 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
             </InputGroupAddon>
           )}
           <div
-            className="cli-editor-scroll max-h-[200px] min-h-[50px] w-full flex-1 overflow-y-auto px-2 py-2 text-[14px]"
+            className={
+              editorHeight === "large"
+                ? "cli-editor-scroll max-h-[45vh] min-h-[50px] w-full flex-1 overflow-y-auto px-2 py-2 text-[14px]"
+                : "cli-editor-scroll max-h-[200px] min-h-[50px] w-full flex-1 overflow-y-auto px-2 py-2 text-[14px]"
+            }
             style={{ position: "relative" }}
           >
             <EditorContent editor={editor} />
