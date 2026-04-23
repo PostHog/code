@@ -66,14 +66,17 @@ export async function getMarketplaceInstallPaths(): Promise<string[]> {
   try {
     const content = await fs.promises.readFile(installedPath, "utf-8");
     const data = JSON.parse(content) as InstalledPluginsFile;
-
+    logger.info("installed plugins", { plugins: data.plugins });
     if (!data.plugins || typeof data.plugins !== "object") {
       return [];
     }
 
     const paths: string[] = [];
-    for (const entries of Object.values(data.plugins)) {
+    for (const [key, entries] of Object.entries(data.plugins)) {
+      logger.info("installed plugin", { key, entries });
       if (!Array.isArray(entries)) continue;
+      // Skip the marketplace posthog plugin — the app bundles its own.
+      if (key.split("@")[0] === "posthog") continue;
       for (const entry of entries) {
         if (entry.installPath && fs.existsSync(entry.installPath)) {
           paths.push(entry.installPath);
