@@ -79,18 +79,18 @@ export function useOnboardingFlow() {
   );
 
   const hasCodeAccess = useAuthStateValue((state) => state.hasCodeAccess);
-  const inboxEnabled = useFeatureFlag("posthog-code-inbox");
+  const inboxHidden = useFeatureFlag("posthog-code-inbox-hidden");
 
   const activeSteps = useMemo(() => {
     let steps = ONBOARDING_STEPS as OnboardingStep[];
     if (hasCodeAccess === true) {
       steps = steps.filter((s) => s !== "invite-code");
     }
-    if (!inboxEnabled) {
+    if (inboxHidden) {
       steps = steps.filter((s) => s !== "signals");
     }
     return steps;
-  }, [hasCodeAccess, inboxEnabled]);
+  }, [hasCodeAccess, inboxHidden]);
 
   useEffect(() => {
     if (!activeSteps.includes(currentStep)) {

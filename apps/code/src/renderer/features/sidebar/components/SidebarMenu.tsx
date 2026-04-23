@@ -56,12 +56,12 @@ function SidebarMenuComponent() {
   const sidebarData = useSidebarData({
     activeView: view,
   });
-  const inboxEnabled = useFeatureFlag("posthog-code-inbox");
+  const inboxHidden = useFeatureFlag("posthog-code-inbox-hidden");
   const inboxPollingActive = useRendererWindowFocusStore((s) => s.focused);
   const { data: inboxProbe } = useInboxReports(
     { status: INBOX_PIPELINE_STATUS_FILTER },
     {
-      enabled: inboxEnabled,
+      enabled: !inboxHidden,
       refetchInterval: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : false,
       refetchIntervalInBackground: false,
       staleTime: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : 15_000,
@@ -280,7 +280,7 @@ function SidebarMenuComponent() {
             />
           </Box>
 
-          {inboxEnabled && (
+          {!inboxHidden && (
             <Box>
               <InboxItem
                 isActive={sidebarData.isInboxActive}
