@@ -2,14 +2,13 @@ import type { ContentBlock } from "@agentclientprotocol/sdk";
 import { Saga } from "@posthog/shared";
 import { isNotification, POSTHOG_NOTIFICATIONS } from "../acp-extensions";
 import type { PostHogAPIClient } from "../posthog-api";
-import { TreeTracker } from "../tree-tracker";
 import type {
   DeviceInfo,
   GitCheckpointEvent,
   StoredNotification,
   TreeSnapshotEvent,
 } from "../types";
-import { Logger } from "../utils/logger";
+import type { Logger } from "../utils/logger";
 
 export interface ConversationTurn {
   role: "user" | "assistant";
@@ -36,7 +35,6 @@ export interface ResumeOutput {
   conversation: ConversationTurn[];
   latestSnapshot: TreeSnapshotEvent | null;
   latestGitCheckpoint: GitCheckpointEvent | null;
-  snapshotApplied: boolean;
   interrupted: boolean;
   lastDevice?: DeviceInfo;
   logEntryCount: number;
@@ -46,9 +44,7 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
   readonly sagaName = "ResumeSaga";
 
   protected async execute(input: ResumeInput): Promise<ResumeOutput> {
-    const { taskId, runId, repositoryPath, apiClient } = input;
-    const logger =
-      input.logger || new Logger({ debug: false, prefix: "[Resume]" });
+    const { taskId, runId, apiClient } = input;
 
     // Step 1: Fetch task run (read-only)
     const taskRun = await this.readOnlyStep("fetch_task_run", () =>
@@ -83,69 +79,21 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
     );
 
     // Step 4: Apply snapshot if present (wrapped in step for consistent logging)
-    // Note: We use a try/catch inside the step because snapshot failure should NOT fail the saga
-    let snapshotApplied = false;
-    if (latestSnapshot?.archiveUrl && repositoryPath) {
+    if (latestSnapshot) {
       this.log.info("Found tree snapshot", {
         treeHash: latestSnapshot.treeHash,
-        hasArchiveUrl: true,
+        hasArchiveUrl: !!latestSnapshot.archiveUrl,
         changes: latestSnapshot.changes?.length ?? 0,
-        interrupted: latestSnapshot.interrupted,
       });
-
-      await this.step({
-        name: "apply_snapshot",
-        execute: async () => {
-          const treeTracker = new TreeTracker({
-            repositoryPath,
-            taskId,
-            runId,
-            apiClient,
-            logger: logger.child("TreeTracker"),
-          });
-
-          try {
-            await treeTracker.applyTreeSnapshot(latestSnapshot);
-            treeTracker.setLastTreeHash(latestSnapshot.treeHash);
-            snapshotApplied = true;
-            this.log.info("Tree snapshot applied successfully", {
-              treeHash: latestSnapshot.treeHash,
-            });
-          } catch (error) {
-            // Log but don't fail - continue with conversation rebuild
-            // ApplySnapshotSaga handles its own rollback internally
-            this.log.warn(
-              "Failed to apply tree snapshot, continuing without it",
-              {
-                error: error instanceof Error ? error.message : String(error),
-                treeHash: latestSnapshot.treeHash,
-              },
-            );
-          }
-        },
-        rollback: async () => {
-          // Inner ApplySnapshotSaga handles its own rollback
-        },
-      });
-    } else if (latestSnapshot?.archiveUrl && !repositoryPath) {
-      this.log.warn(
-        "Snapshot found but no repositoryPath configured - files cannot be restored",
-        {
-          treeHash: latestSnapshot.treeHash,
-          changes: latestSnapshot.changes?.length ?? 0,
-        },
-      );
-    } else if (latestSnapshot) {
-      this.log.warn(
-        "Snapshot found but has no archive URL - files cannot be restored",
-        {
-          treeHash: latestSnapshot.treeHash,
-          changes: latestSnapshot.changes?.length ?? 0,
-        },
-      );
     }
 
-    // Step 5: Rebuild conversation (read-only, pure computation)
+    if (latestGitCheckpoint) {
+      this.log.info("Found git checkpoint", {
+        checkpointId: latestGitCheckpoint.checkpointId,
+        branch: latestGitCheckpoint.branch,
+      });
+    }
+
     const conversation = await this.readOnlyStep("rebuild_conversation", () =>
       Promise.resolve(this.rebuildConversation(entries)),
     );
@@ -158,7 +106,7 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
     this.log.info("Resume state rebuilt", {
       turns: conversation.length,
       hasSnapshot: !!latestSnapshot,
-      snapshotApplied,
+      hasGitCheckpoint: !!latestGitCheckpoint,
       interrupted: latestSnapshot?.interrupted ?? false,
     });
 
@@ -166,7 +114,6 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
       conversation,
       latestSnapshot,
       latestGitCheckpoint,
-      snapshotApplied,
       interrupted: latestSnapshot?.interrupted ?? false,
       lastDevice,
       logEntryCount: entries.length,
@@ -178,7 +125,6 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
       conversation: [],
       latestSnapshot: null,
       latestGitCheckpoint: null,
-      snapshotApplied: false,
       interrupted: false,
       logEntryCount: 0,
     };

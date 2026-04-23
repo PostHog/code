@@ -6,20 +6,10 @@ import {
 } from "@posthog/agent/resume";
 import type * as AgentTypes from "@posthog/agent/types";
 import { Saga, type SagaLogger } from "@posthog/shared";
-import type { WorkspaceMode } from "../../db/repositories/workspace-repository";
 import type { SessionResponse } from "../agent/schemas";
-import type { HandoffStep } from "./schemas";
+import type { HandoffBaseDeps, HandoffExecuteInput } from "./schemas";
 
-export interface HandoffSagaInput {
-  taskId: string;
-  runId: string;
-  repoPath: string;
-  apiHost: string;
-  teamId: number;
-  sessionId?: string;
-  adapter?: "claude" | "codex";
-  localGitState?: AgentTypes.HandoffLocalGitState;
-}
+export type HandoffSagaInput = HandoffExecuteInput;
 
 export interface HandoffSagaOutput {
   sessionId: string;
@@ -27,8 +17,7 @@ export interface HandoffSagaOutput {
   conversationTurns: number;
 }
 
-export interface HandoffSagaDeps {
-  createApiClient(apiHost: string, teamId: number): PostHogAPIClient;
+export interface HandoffSagaDeps extends HandoffBaseDeps {
   applyTreeSnapshot(
     snapshot: AgentTypes.TreeSnapshotEvent,
     repoPath: string,
@@ -44,7 +33,6 @@ export interface HandoffSagaDeps {
     apiClient: PostHogAPIClient,
     localGitState?: AgentTypes.HandoffLocalGitState,
   ): Promise<void>;
-  updateWorkspaceMode(taskId: string, mode: WorkspaceMode): void;
   reconnectSession(params: {
     taskId: string;
     taskRunId: string;
@@ -63,9 +51,7 @@ export interface HandoffSagaDeps {
     localGitState?: AgentTypes.HandoffLocalGitState,
   ): Promise<void>;
   seedLocalLogs(runId: string, logUrl: string): Promise<void>;
-  killSession(taskRunId: string): Promise<void>;
   setPendingContext(taskRunId: string, context: string): void;
-  onProgress(step: HandoffStep, message: string): void;
 }
 
 export class HandoffSaga extends Saga<HandoffSagaInput, HandoffSagaOutput> {
@@ -96,6 +82,12 @@ export class HandoffSaga extends Saga<HandoffSagaInput, HandoffSagaOutput> {
     });
 
     const apiClient = this.deps.createApiClient(apiHost, teamId);
+
+    await this.readOnlyStep("update_run_environment", async () => {
+      await apiClient.updateTaskRun(taskId, runId, {
+        environment: "local",
+      });
+    });
 
     const { resumeState, cloudLogUrl } = await this.readOnlyStep(
       "fetch_and_rebuild",

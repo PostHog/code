@@ -113,7 +113,7 @@ export class HandoffCheckpointTracker {
         divergence: GitHandoffBranchDivergence,
       ) => Promise<boolean>;
     },
-  ): Promise<void> {
+  ): Promise<{ packBytes: number; indexBytes: number; totalBytes: number }> {
     if (!this.apiClient) {
       throw new Error(
         "Cannot apply handoff checkpoint: API client not configured",
@@ -152,6 +152,12 @@ export class HandoffCheckpointTracker {
       });
 
       this.logApplyMetrics(checkpoint, downloads, applyResult.totalBytes);
+
+      return {
+        packBytes: downloads.pack?.rawBytes ?? 0,
+        indexBytes: downloads.index?.rawBytes ?? 0,
+        totalBytes: applyResult.totalBytes,
+      };
     } finally {
       await this.removeIfPresent(packPath);
       await this.removeIfPresent(indexPath);
@@ -207,23 +213,24 @@ export class HandoffCheckpointTracker {
   }
 
   private async uploadArtifacts(specs: UploadArtifactSpec[]): Promise<Uploads> {
-    const uploads = await Promise.all(
-      specs.map(async (spec) => {
-        if (!spec.filePath) {
-          return [spec.key, undefined] as const;
-        }
-        return [
-          spec.key,
-          await this.uploadArtifactFile(
-            spec.filePath,
-            spec.name,
-            spec.contentType,
-          ),
-        ] as const;
-      }),
-    );
+    const results: Array<readonly [ArtifactKey, UploadedArtifact | undefined]> =
+      [];
+    for (const spec of specs) {
+      if (!spec.filePath) {
+        results.push([spec.key, undefined] as const);
+        continue;
+      }
+      results.push([
+        spec.key,
+        await this.uploadArtifactFile(
+          spec.filePath,
+          spec.name,
+          spec.contentType,
+        ),
+      ] as const);
+    }
 
-    return Object.fromEntries(uploads) as Uploads;
+    return Object.fromEntries(results) as Uploads;
   }
 
   private async downloadArtifactToFile(
@@ -241,9 +248,8 @@ export class HandoffCheckpointTracker {
       artifactPath,
     );
     if (!arrayBuffer) {
-      throw new Error(`Failed to download ${label}`);
+      throw new Error(`Failed to download ${label} from ${artifactPath}`);
     }
-
     const base64Content = Buffer.from(arrayBuffer).toString("utf-8");
     const binaryContent = Buffer.from(base64Content, "base64");
     await writeFile(filePath, binaryContent);
