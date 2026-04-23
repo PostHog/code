@@ -46,7 +46,7 @@ export function SidebarUsageBar() {
       <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-4">
         <div
           className={`h-full rounded-full transition-all ${exceeded ? "bg-red-9" : "bg-accent-9"}`}
-          style={{ width: `${Math.min(Math.ceil(usagePercent), 100)}%` }}
+          style={{ width: `${Math.min(Math.round(usagePercent), 100)}%` }}
         />
       </div>
     </div>
