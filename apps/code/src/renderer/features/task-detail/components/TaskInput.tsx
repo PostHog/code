@@ -24,6 +24,7 @@ import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
 import { useConnectivity } from "@hooks/useConnectivity";
 import {
   useGithubBranches,
+  useGithubRepositories,
   useRepositoryIntegration,
 } from "@hooks/useIntegrations";
 import { ButtonGroup } from "@posthog/quill";
@@ -79,6 +80,8 @@ export function TaskInput({
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
+  const [cloudRepoSearchQuery, setCloudRepoSearchQuery] = useState("");
+  const [isCloudRepoPickerOpen, setIsCloudRepoPickerOpen] = useState(false);
   const [cloudBranchSearchQuery, setCloudBranchSearchQuery] = useState("");
   const [isCloudBranchPickerOpen, setIsCloudBranchPickerOpen] = useState(false);
   const [selectedEnvironment, setSelectedEnvironmentRaw] = useState<
@@ -114,6 +117,12 @@ export function TaskInput({
     isRefreshingRepos,
     refreshRepositories,
   } = useRepositoryIntegration();
+  const {
+    repositories: visibleCloudRepositories,
+    isPending: cloudRepositoriesLoading,
+    hasMore: cloudRepositoriesHasMore,
+    loadMore: loadMoreCloudRepositories,
+  } = useGithubRepositories(cloudRepoSearchQuery, isCloudRepoPickerOpen);
   const [selectedRepository, setSelectedRepository] = useState<string | null>(
     () => lastUsedCloudRepository?.toLowerCase() ?? null,
   );
@@ -218,6 +227,21 @@ export function TaskInput({
   const handleCloudBranchPickerOpen = useCallback(() => {
     setIsCloudBranchPickerOpen(true);
   }, []);
+
+  const handleCloudRepoPickerOpenChange = useCallback((open: boolean) => {
+    setIsCloudRepoPickerOpen(open);
+    if (!open) {
+      setCloudRepoSearchQuery("");
+    }
+  }, []);
+
+  const handleCloudRepoSearchChange = useCallback((value: string) => {
+    setCloudRepoSearchQuery(value);
+  }, []);
+
+  const handleLoadMoreCloudRepositories = useCallback(() => {
+    loadMoreCloudRepositories();
+  }, [loadMoreCloudRepositories]);
 
   const handleCloudBranchPickerClose = useCallback(() => {
     setIsCloudBranchPickerOpen(false);
@@ -521,10 +545,23 @@ export function TaskInput({
                 <GitHubRepoPicker
                   value={selectedRepository}
                   onChange={handleRepositorySelect}
-                  repositories={repositories}
-                  isLoading={isLoadingRepos}
+                  repositories={
+                    isCloudRepoPickerOpen
+                      ? visibleCloudRepositories
+                      : repositories
+                  }
+                  isLoading={
+                    isLoadingRepos ||
+                    (isCloudRepoPickerOpen && cloudRepositoriesLoading)
+                  }
                   isRefreshing={isRefreshingRepos}
                   onRefresh={handleRefreshRepositories}
+                  open={isCloudRepoPickerOpen}
+                  onOpenChange={handleCloudRepoPickerOpenChange}
+                  searchQuery={cloudRepoSearchQuery}
+                  onSearchQueryChange={handleCloudRepoSearchChange}
+                  hasMore={cloudRepositoriesHasMore}
+                  onLoadMore={handleLoadMoreCloudRepositories}
                   placeholder="Select repository..."
                   size="1"
                   disabled={isCreatingTask}

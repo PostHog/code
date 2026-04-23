@@ -1292,10 +1292,43 @@ export class PostHogAPIClient {
   async getGithubRepositories(
     integrationId: string | number,
   ): Promise<string[]> {
+    const repositories: string[] = [];
+    let offset = 0;
+
+    while (true) {
+      const page = await this.getGithubRepositoriesPage(
+        integrationId,
+        offset,
+        500,
+      );
+      repositories.push(...page.repositories);
+
+      if (!page.hasMore) {
+        return repositories;
+      }
+
+      offset += page.repositories.length;
+    }
+  }
+
+  async getGithubRepositoriesPage(
+    integrationId: string | number,
+    offset: number,
+    limit: number,
+    search?: string,
+  ): Promise<{
+    repositories: string[];
+    hasMore: boolean;
+  }> {
     const teamId = await this.getTeamId();
     const url = new URL(
       `${this.api.baseUrl}/api/environments/${teamId}/integrations/${integrationId}/github_repos/`,
     );
+    url.searchParams.set("offset", String(offset));
+    url.searchParams.set("limit", String(limit));
+    if (search?.trim()) {
+      url.searchParams.set("search", search.trim());
+    }
     const response = await this.api.fetcher.fetch({
       method: "get",
       url,
@@ -1309,7 +1342,10 @@ export class PostHogAPIClient {
     }
 
     const data = await response.json();
-    return this.normalizeGithubRepositories(data);
+    return {
+      repositories: this.normalizeGithubRepositories(data),
+      hasMore: data.has_more ?? false,
+    };
   }
 
   async refreshGithubRepositories(

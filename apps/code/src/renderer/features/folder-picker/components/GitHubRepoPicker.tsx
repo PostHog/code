@@ -8,11 +8,13 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  ComboboxListFooter,
   ComboboxTrigger,
 } from "@posthog/quill";
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { defaultFilter } from "cmdk";
+import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 
-const COMBOBOX_LIMIT = 50;
+const COMBOBOX_INITIAL_LIMIT = 50;
 
 interface GitHubRepoPickerProps {
   value: string | null;
@@ -27,6 +29,12 @@ interface GitHubRepoPickerProps {
   showSearchInput?: boolean;
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  searchQuery?: string;
+  onSearchQueryChange?: (value: string) => void;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 export function GitHubRepoPicker({
@@ -40,10 +48,39 @@ export function GitHubRepoPicker({
   showSearchInput = true,
   onRefresh,
   isRefreshing = false,
+  open: controlledOpen,
+  onOpenChange,
+  searchQuery: controlledSearchQuery,
+  onSearchQueryChange,
+  hasMore: controlledHasMore,
+  onLoadMore,
 }: GitHubRepoPickerProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const [uncontrolledSearchQuery, setUncontrolledSearchQuery] = useState("");
+  const [visibleLimit, setVisibleLimit] = useState(COMBOBOX_INITIAL_LIMIT);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const searchQuery = controlledSearchQuery ?? uncontrolledSearchQuery;
+  const remoteMode =
+    controlledSearchQuery !== undefined ||
+    onSearchQueryChange !== undefined ||
+    controlledHasMore !== undefined ||
+    onLoadMore !== undefined;
+  const showInlineLoadingState = remoteMode && open && isLoading;
   const onlyRepo = repositories.length === 1 ? repositories[0] : null;
+  const trimmedSearchQuery = searchQuery.trim();
+  const filteredRepositoryCount = useMemo(() => {
+    if (!trimmedSearchQuery) {
+      return repositories.length;
+    }
+
+    return repositories.reduce(
+      (count, repo) =>
+        count + (defaultFilter(repo, trimmedSearchQuery) > 0 ? 1 : 0),
+      0,
+    );
+  }, [repositories, trimmedSearchQuery]);
+  const hasMore = controlledHasMore ?? filteredRepositoryCount > visibleLimit;
 
   useEffect(() => {
     if (onlyRepo && value !== onlyRepo) {
@@ -51,7 +88,7 @@ export function GitHubRepoPicker({
     }
   }, [onlyRepo, value, onChange]);
 
-  if (isLoading) {
+  if (isLoading && !showInlineLoadingState) {
     return (
       <Button variant="outline" disabled size="sm">
         <GithubLogo size={16} weight="regular" style={{ flexShrink: 0 }} />
@@ -60,7 +97,7 @@ export function GitHubRepoPicker({
     );
   }
 
-  if (repositories.length === 0) {
+  if (repositories.length === 0 && !showInlineLoadingState) {
     return (
       <Button variant="outline" disabled size="sm">
         <GithubLogo size={16} weight="regular" style={{ flexShrink: 0 }} />
@@ -92,13 +129,27 @@ export function GitHubRepoPicker({
   return (
     <Combobox
       items={repositories}
-      limit={COMBOBOX_LIMIT}
+      limit={visibleLimit}
       value={value}
       onValueChange={(v) => {
         onChange(v ? (v as string) : null);
       }}
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setUncontrolledOpen(nextOpen);
+        onOpenChange?.(nextOpen);
+        if (!nextOpen) {
+          setUncontrolledSearchQuery("");
+          onSearchQueryChange?.("");
+          setVisibleLimit(COMBOBOX_INITIAL_LIMIT);
+        }
+      }}
       inputValue={searchQuery}
-      onInputValueChange={setSearchQuery}
+      onInputValueChange={(nextSearchQuery) => {
+        setUncontrolledSearchQuery(nextSearchQuery);
+        onSearchQueryChange?.(nextSearchQuery);
+        setVisibleLimit(COMBOBOX_INITIAL_LIMIT);
+      }}
       disabled={disabled}
     >
       <ComboboxTrigger
@@ -150,7 +201,11 @@ export function GitHubRepoPicker({
             ) : null}
           </div>
         ) : null}
-        <ComboboxEmpty>No repositories found.</ComboboxEmpty>
+        <ComboboxEmpty>
+          {showInlineLoadingState
+            ? "Loading repositories..."
+            : "No repositories found."}
+        </ComboboxEmpty>
         <ComboboxList>
           {(repo: string) => (
             <ComboboxItem key={repo} value={repo}>
@@ -159,12 +214,48 @@ export function GitHubRepoPicker({
           )}
         </ComboboxList>
 
-        {repositories.length > COMBOBOX_LIMIT && (
-          <div className="px-2 py-1.5 text-center text-muted-foreground text-xs">
-            {searchQuery
-              ? `Showing up to ${COMBOBOX_LIMIT} matches — refine your search`
-              : `Showing ${COMBOBOX_LIMIT} of ${repositories.length} — type to filter`}
-          </div>
+        {(hasMore ||
+          (remoteMode
+            ? repositories.length > COMBOBOX_INITIAL_LIMIT
+            : filteredRepositoryCount > COMBOBOX_INITIAL_LIMIT)) && (
+          <ComboboxListFooter>
+            <div className="px-2 pb-2">
+              <div className="px-1 pb-2 text-center text-muted-foreground text-xs">
+                {remoteMode
+                  ? trimmedSearchQuery
+                    ? `Showing ${repositories.length}${hasMore ? "+" : ""} matches`
+                    : `Showing ${repositories.length}${hasMore ? "+" : ""} repositories`
+                  : trimmedSearchQuery
+                    ? `Showing ${Math.min(visibleLimit, filteredRepositoryCount)} of ${filteredRepositoryCount} matches`
+                    : `Showing ${Math.min(visibleLimit, repositories.length)} of ${repositories.length}`}
+              </div>
+              {hasMore ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-center"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (remoteMode) {
+                      onLoadMore?.();
+                      return;
+                    }
+
+                    setVisibleLimit(
+                      (currentLimit) => currentLimit + COMBOBOX_INITIAL_LIMIT,
+                    );
+                  }}
+                >
+                  Load more
+                </Button>
+              ) : null}
+            </div>
+          </ComboboxListFooter>
         )}
       </ComboboxContent>
     </Combobox>
