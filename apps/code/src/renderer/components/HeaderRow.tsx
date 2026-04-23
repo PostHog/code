@@ -2,7 +2,7 @@ import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { DiffStatsBadge } from "@features/code-review/components/DiffStatsBadge";
 import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
 import { CloudGitInteractionHeader } from "@features/git-interaction/components/CloudGitInteractionHeader";
-import { GitInteractionHeader } from "@features/git-interaction/components/GitInteractionHeader";
+import { TaskActionsMenu } from "@features/git-interaction/components/TaskActionsMenu";
 import { HandoffConfirmDialog } from "@features/sessions/components/HandoffConfirmDialog";
 import { useSessionForTask } from "@features/sessions/hooks/useSession";
 import { useSessionCallbacks } from "@features/sessions/hooks/useSessionCallbacks";
@@ -206,11 +206,9 @@ export function HeaderRow() {
           {isCloudTask ? (
             <CloudGitInteractionHeader taskId={view.data.id} task={view.data} />
           ) : (
-            <>
-              <LocalHandoffButton taskId={view.data.id} task={view.data} />
-              <GitInteractionHeader taskId={view.data.id} />
-            </>
+            <LocalHandoffButton taskId={view.data.id} task={view.data} />
           )}
+          <TaskActionsMenu taskId={view.data.id} isCloud={isCloudTask} />
         </Flex>
       )}
     </Flex>

@@ -1,5 +1,11 @@
 import type { PrActionType } from "@main/services/git/schemas";
-import { GitMerge, GitPullRequest } from "@phosphor-icons/react";
+import {
+  Check,
+  GitMerge,
+  GitPullRequest,
+  PencilSimple,
+  X,
+} from "@phosphor-icons/react";
 
 export interface PrAction {
   id: PrActionType;
@@ -78,4 +84,17 @@ export const PR_ACTION_LABELS: Record<PrActionType, string> = {
 
 export function parsePrNumber(prUrl: string): string | undefined {
   return prUrl.match(/\/pull\/(\d+)/)?.[1];
+}
+
+export function getPrActionIcon(action: PrActionType): React.ReactNode {
+  switch (action) {
+    case "close":
+      return <X size={12} weight="bold" />;
+    case "reopen":
+      return <GitPullRequest size={12} weight="bold" />;
+    case "ready":
+      return <Check size={12} weight="bold" />;
+    case "draft":
+      return <PencilSimple size={12} weight="bold" />;
+  }
 }

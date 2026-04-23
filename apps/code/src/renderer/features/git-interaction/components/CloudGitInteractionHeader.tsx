@@ -2,23 +2,15 @@ import {
   GitBranchDialog,
   GitCommitDialog,
 } from "@features/git-interaction/components/GitInteractionDialogs";
-import { useCloudPrUrl } from "@features/git-interaction/hooks/useCloudPrUrl";
 import { useGitInteraction } from "@features/git-interaction/hooks/useGitInteraction";
-import { usePrActions } from "@features/git-interaction/hooks/usePrActions";
-import { usePrDetails } from "@features/git-interaction/hooks/usePrDetails";
 import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
 import { getSuggestedBranchName } from "@features/git-interaction/utils/getSuggestedBranchName";
-import {
-  getPrVisualConfig,
-  parsePrNumber,
-} from "@features/git-interaction/utils/prStatus";
 import { DirtyTreeDialog } from "@features/sessions/components/DirtyTreeDialog";
 import { HandoffConfirmDialog } from "@features/sessions/components/HandoffConfirmDialog";
 import { useSessionForTask } from "@features/sessions/hooks/useSession";
 import { getLocalHandoffService } from "@features/sessions/service/localHandoffService";
 import { useHandoffDialogStore } from "@features/sessions/stores/handoffDialogStore";
-import { ChevronDownIcon } from "@radix-ui/react-icons";
-import { Button, DropdownMenu, Flex, Spinner, Text } from "@radix-ui/themes";
+import { Button, Text } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { useState } from "react";
 
@@ -31,12 +23,7 @@ export function CloudGitInteractionHeader({
   taskId,
   task,
 }: CloudGitInteractionHeaderProps) {
-  const prUrl = useCloudPrUrl(taskId);
   const session = useSessionForTask(taskId);
-  const {
-    meta: { state, merged, draft },
-  } = usePrDetails(prUrl);
-  const { execute, isPending } = usePrActions(prUrl);
   const localHandoff = getLocalHandoffService();
 
   const confirmOpen = useHandoffDialogStore((s) => s.confirmOpen);
@@ -91,13 +78,8 @@ export function CloudGitInteractionHeader({
     await localHandoff.resumePending();
   };
 
-  const config =
-    prUrl && state !== null ? getPrVisualConfig(state, merged, draft) : null;
-  const prNumber = prUrl ? parsePrNumber(prUrl) : null;
-  const hasDropdown = config ? config.actions.length > 0 : false;
-
   return (
-    <Flex align="center" gap="2" className="no-drag">
+    <>
       <Button
         size="1"
         variant="soft"
@@ -110,61 +92,6 @@ export function CloudGitInteractionHeader({
           {session?.handoffInProgress ? "Transferring..." : "Continue locally"}
         </Text>
       </Button>
-      {config && (
-        <Flex align="center" gap="0">
-          <Button
-            size="1"
-            variant="soft"
-            color={config.color}
-            asChild
-            style={
-              hasDropdown
-                ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 }
-                : undefined
-            }
-          >
-            <a href={prUrl ?? ""} target="_blank" rel="noopener noreferrer">
-              <Flex align="center" gap="2">
-                {isPending ? <Spinner size="1" /> : config.icon}
-                <Text className="text-[13px]">
-                  {config.label}
-                  {prNumber && ` #${prNumber}`}
-                </Text>
-              </Flex>
-            </a>
-          </Button>
-          {hasDropdown && (
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger>
-                <Button
-                  size="1"
-                  variant="soft"
-                  color={config.color}
-                  disabled={isPending}
-                  style={{
-                    borderTopLeftRadius: 0,
-                    borderBottomLeftRadius: 0,
-                    borderLeft: `1px solid var(--${config.color}-6)`,
-                  }}
-                  className="pr-[6px] pl-[6px]"
-                >
-                  <ChevronDownIcon />
-                </Button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content size="1" align="end">
-                {config.actions.map((action) => (
-                  <DropdownMenu.Item
-                    key={action.id}
-                    onSelect={() => execute(action.id)}
-                  >
-                    <Text className="text-[13px]">{action.label}</Text>
-                  </DropdownMenu.Item>
-                ))}
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
-          )}
-        </Flex>
-      )}
       {confirmOpen && direction === "to-local" && (
         <HandoffConfirmDialog
           open={confirmOpen}
@@ -237,6 +164,6 @@ export function CloudGitInteractionHeader({
           error={git.modals.branchError}
         />
       )}
-    </Flex>
+    </>
   );
 }
