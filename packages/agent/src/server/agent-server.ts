@@ -293,7 +293,7 @@ export class AgentServer {
   }
 
   private shouldRelayPermissionToClient(mode: PermissionMode): boolean {
-    return mode === "default" || mode === "auto";
+    return mode === "default" || mode === "auto" || mode === "read-only";
   }
 
   private createApp(): Hono {
