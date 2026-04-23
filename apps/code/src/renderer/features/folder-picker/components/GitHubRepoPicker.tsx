@@ -97,7 +97,14 @@ export function GitHubRepoPicker({
     );
   }
 
-  if (repositories.length === 0 && !showInlineLoadingState) {
+  const hasActiveRemoteSearch =
+    remoteMode && (open || trimmedSearchQuery.length > 0);
+
+  if (
+    repositories.length === 0 &&
+    !showInlineLoadingState &&
+    !hasActiveRemoteSearch
+  ) {
     return (
       <Button variant="outline" disabled size="sm">
         <GithubLogo size={16} weight="regular" style={{ flexShrink: 0 }} />

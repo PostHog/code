@@ -102,7 +102,7 @@ export function BranchSelector({
   const branches = isCloudMode ? (cloudBranches ?? []) : localBranches;
   const effectiveLoading = loading || (isCloudMode && cloudBranchesLoading);
   const cloudStillLoading =
-    isCloudMode && cloudBranchesLoading && branches.length === 0;
+    isCloudMode && cloudBranchesLoading && branches.length === 0 && !open;
 
   const checkoutMutation = useMutation(
     trpc.git.checkoutBranch.mutationOptions({
