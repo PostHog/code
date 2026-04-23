@@ -375,6 +375,15 @@ export function SpaceSwitcher({
     SPACE_HOTKEY_OPTIONS,
     [navigateNext, mounted],
   );
+  useHotkeys(
+    SHORTCUTS.BLUR,
+    (e) => {
+      e.preventDefault();
+      hide();
+    },
+    { ...SPACE_HOTKEY_OPTIONS, enabled: mounted },
+    [hide, mounted],
+  );
 
   if (!mounted || tasks.length === 0) return null;
 
