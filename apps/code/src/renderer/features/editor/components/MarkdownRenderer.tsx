@@ -3,14 +3,13 @@ import { Divider } from "@components/Divider";
 import { HighlightedCode } from "@components/HighlightedCode";
 import { List, ListItem } from "@components/List";
 import { parseGithubIssueUrl } from "@features/message-editor/utils/githubIssueUrl";
-import { GithubLogoIcon, GitPullRequestIcon } from "@phosphor-icons/react";
-import { Chip } from "@posthog/quill";
 import { Blockquote, Checkbox, Code, Em, Kbd, Text } from "@radix-ui/themes";
-import { memo, type ReactNode, useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { PluggableList } from "unified";
+import { GithubRefChip } from "./GithubRefChip";
 
 interface MarkdownRendererProps {
   content: string;
@@ -30,29 +29,6 @@ const HeadingText = ({ children }: { children: React.ReactNode }) => (
     <strong>{children}</strong>
   </Text>
 );
-
-function GithubRefChip({
-  href,
-  kind,
-  children,
-}: {
-  href: string;
-  kind: "issue" | "pr";
-  children: ReactNode;
-}) {
-  const Icon = kind === "pr" ? GitPullRequestIcon : GithubLogoIcon;
-  return (
-    <Chip
-      size="xs"
-      variant="outline"
-      onClick={() => window.open(href, "_blank")}
-      className="cli-file-mention relative top-px max-w-full cursor-pointer! whitespace-nowrap pl-1 active:translate-y-0"
-    >
-      <Icon size={10} />
-      <span className="min-w-0 truncate">{children}</span>
-    </Chip>
-  );
-}
 
 export const baseComponents: Components = {
   h1: ({ children }) => <HeadingText>{children}</HeadingText>,
