@@ -224,6 +224,10 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
       [focus],
     );
 
+    const handleContextMenu = useCallback((e: React.MouseEvent) => {
+      e.stopPropagation();
+    }, []);
+
     const handleSubmitClick = (e: React.MouseEvent) => {
       e.stopPropagation();
       if (onSubmitClick) {
@@ -271,6 +275,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
       <Flex direction="column" gap="1">
         <InputGroup
           onClick={handleContainerClick}
+          onContextMenu={handleContextMenu}
           className={`h-auto bg-card ${isBashMode ? "ring-1 ring-blue-9" : ""}`}
           style={{ cursor: "text" }}
           {...(tourTarget && {

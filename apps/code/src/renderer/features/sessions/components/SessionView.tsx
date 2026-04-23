@@ -346,6 +346,15 @@ export function SessionView({
 
   useAutoFocusOnTyping(editorRef, !isActiveSession);
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('input, textarea, [contenteditable="true"], .ProseMirror')
+    ) {
+      e.stopPropagation();
+    }
+  }, []);
+
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger>
@@ -354,6 +363,7 @@ export function SessionView({
             direction="column"
             height="100%"
             className="relative bg-background"
+            onContextMenu={handleContextMenu}
           >
             <RawLogsView
               events={events}
@@ -366,6 +376,7 @@ export function SessionView({
             height="100%"
             className="relative bg-background"
             onClick={handlePaneClick}
+            onContextMenu={handleContextMenu}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
