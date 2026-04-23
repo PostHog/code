@@ -31,6 +31,8 @@ import { Toaster } from "sonner";
 
 const log = logger.scope("app");
 
+const ORGANIZATION_ADMIN_LEVEL = 8;
+
 function App() {
   const trpcReact = useTRPC();
   const { isBootstrapped } = useAuthSession();
@@ -154,21 +156,15 @@ function App() {
       isAuthenticated && hasCompletedOnboarding && hasCodeAccess === true,
     refetchOnWindowFocus: "always",
   });
-  const currentOrg = currentUser?.organization as
-    | {
-        id: string;
-        name: string;
-        is_ai_data_processing_approved?: boolean | null;
-        membership_level?: number | null;
-      }
-    | undefined;
+  const currentOrg = currentUser?.organization;
   const needsAiApproval =
     isAuthenticated &&
     hasCompletedOnboarding &&
     hasCodeAccess === true &&
     currentOrg != null &&
     currentOrg.is_ai_data_processing_approved !== true;
-  const isAdmin = (currentOrg?.membership_level ?? 0) >= 8;
+  const isAdmin =
+    (currentOrg?.membership_level ?? 0) >= ORGANIZATION_ADMIN_LEVEL;
 
   // Handle transition into main app — only show the dark overlay if dark mode is active
   useEffect(() => {
@@ -240,9 +236,7 @@ function App() {
       return (
         <motion.div key="ai-approval" initial={{ opacity: 1 }}>
           <AiApprovalScreen
-            currentOrg={
-              currentOrg ? { id: currentOrg.id, name: currentOrg.name } : null
-            }
+            orgName={currentOrg?.name ?? null}
             isAdmin={isAdmin}
           />
         </motion.div>

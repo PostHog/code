@@ -17,18 +17,13 @@ import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { motion } from "framer-motion";
 import { useHotkeys } from "react-hotkeys-hook";
 
-interface OrgSummary {
-  id: string;
-  name: string;
-}
-
 interface AiApprovalScreenProps {
-  currentOrg: OrgSummary | null;
+  orgName: string | null;
   isAdmin: boolean;
 }
 
 export function AiApprovalScreen({
-  currentOrg,
+  orgName,
   isAdmin,
 }: AiApprovalScreenProps) {
   const logoutMutation = useLogoutMutation();
@@ -110,8 +105,8 @@ export function AiApprovalScreen({
                     </Text>
                   </Flex>
                   <Text size="2" style={{ color: "var(--gray-11)" }}>
-                    {currentOrg
-                      ? `The "${currentOrg.name}" organization hasn't approved AI data processing yet.`
+                    {orgName
+                      ? `The "${orgName}" organization hasn't approved AI data processing yet.`
                       : "Your organization hasn't approved AI data processing yet."}{" "}
                     PostHog AI may process identifying user data with external
                     AI providers. Your data won't be used for training models.
