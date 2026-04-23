@@ -24,6 +24,7 @@ import {
 import { getFilePath } from "@utils/getFilePath";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSessionService } from "../service/service";
+import { flattenSelectOptions } from "../stores/sessionStore";
 import {
   useSessionViewActions,
   useShowRawLogs,
@@ -67,6 +68,25 @@ interface SessionViewProps {
 
 const DEFAULT_ERROR_MESSAGE =
   "Failed to resume this session. The working directory may have been deleted. Please start a new session.";
+
+/**
+ * When an allow_always permission is granted outside a mode-switch prompt,
+ * ratchet the session to the closest "auto-accept edits" preset offered by
+ * this adapter's mode catalog. Claude exposes `acceptEdits`; Codex has no
+ * exact equivalent, so fall back to `auto`. Returns undefined if neither is
+ * available (in which case leave the current mode untouched).
+ */
+function resolveAllowAlwaysUpgradeMode(
+  modeOption: ReturnType<typeof useModeConfigOptionForTask>,
+): string | undefined {
+  if (modeOption?.type !== "select") return undefined;
+  const availableIds = new Set(
+    flattenSelectOptions(modeOption.options).map((opt) => opt.value),
+  );
+  if (availableIds.has("acceptEdits")) return "acceptEdits";
+  if (availableIds.has("auto")) return "auto";
+  return undefined;
+}
 
 export function SessionView({
   events,
@@ -228,11 +248,18 @@ export function SessionView({
       const isModeSwitch =
         firstPendingPermission.toolCall?.kind === "switch_mode";
       if (selectedOption?.kind === "allow_always" && !isModeSwitch) {
-        getSessionService().setSessionConfigOptionByCategory(
-          taskId,
-          "mode",
-          "acceptEdits",
-        );
+        // Pick the adapter-appropriate "upgrade" mode. Claude exposes
+        // acceptEdits; Codex does not — its closest analogue is auto. Resolve
+        // against the session's advertised mode catalog so the footer label
+        // stays coherent with the dropdown contents.
+        const upgradeMode = resolveAllowAlwaysUpgradeMode(modeOption);
+        if (upgradeMode) {
+          getSessionService().setSessionConfigOptionByCategory(
+            taskId,
+            "mode",
+            upgradeMode,
+          );
+        }
       }
 
       if (customInput) {
@@ -269,7 +296,14 @@ export function SessionView({
 
       requestFocus(sessionId);
     },
-    [firstPendingPermission, taskId, onSendPrompt, requestFocus, sessionId],
+    [
+      firstPendingPermission,
+      taskId,
+      onSendPrompt,
+      requestFocus,
+      sessionId,
+      modeOption,
+    ],
   );
 
   const handlePermissionCancel = useCallback(async () => {
