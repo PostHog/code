@@ -1,5 +1,5 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { basename, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type {
   ContentBlock,
@@ -12,7 +12,18 @@ import {
   PROTOCOL_VERSION,
 } from "@agentclientprotocol/sdk";
 import { type ServerType, serve } from "@hono/node-server";
-import { getCurrentBranch } from "@posthog/git/queries";
+import {
+  getChangedFilesDetailed,
+  getCurrentBranch,
+  getDiffStats,
+  getFileAtHead,
+  getStagedDiff,
+  getSyncStatus,
+  getUnstagedDiff,
+  getDiffHead as gitGetDiffHead,
+  stageFiles as gitStageFiles,
+  unstageFiles as gitUnstageFiles,
+} from "@posthog/git/queries";
 import { Hono } from "hono";
 import { z } from "zod";
 import packageJson from "../../package.json" with { type: "json" };
@@ -53,7 +64,11 @@ import {
   promptBlocksToText,
 } from "./cloud-prompt";
 import { type JwtPayload, JwtValidationError, validateJwt } from "./jwt";
-import { jsonRpcRequestSchema, validateCommandParams } from "./schemas";
+import {
+  isSandboxMethod,
+  jsonRpcRequestSchema,
+  validateCommandParams,
+} from "./schemas";
 import type { AgentServerConfig } from "./types";
 
 const agentErrorClassificationSchema = z.enum([
@@ -392,10 +407,6 @@ export class AgentServer {
         );
       }
 
-      if (!this.session || this.session.payload.run_id !== payload.run_id) {
-        return c.json({ error: "No active session for this run" }, 400);
-      }
-
       const rawBody = await c.req.json().catch(() => null);
       const parseResult = jsonRpcRequestSchema.safeParse(rawBody);
 
@@ -421,6 +432,35 @@ export class AgentServer {
           },
           200,
         );
+      }
+
+      // Sandbox commands don't require an active agent session — they operate
+      // directly on the sandbox filesystem and git state.
+      if (isSandboxMethod(command.method)) {
+        try {
+          const result = await this.executeSandboxCommand(
+            command.method,
+            (paramsValidation.data as Record<string, unknown>) ?? {},
+          );
+          return c.json({
+            jsonrpc: "2.0",
+            id: command.id,
+            result,
+          });
+        } catch (error) {
+          return c.json({
+            jsonrpc: "2.0",
+            id: command.id,
+            error: {
+              code: -32000,
+              message: error instanceof Error ? error.message : "Unknown error",
+            },
+          });
+        }
+      }
+
+      if (!this.session || this.session.payload.run_id !== payload.run_id) {
+        return c.json({ error: "No active session for this run" }, 400);
       }
 
       try {
@@ -730,6 +770,140 @@ export class AgentServer {
 
       default:
         throw new Error(`Unknown method: ${method}`);
+    }
+  }
+
+  /** Resolves a file path within the repo, rejecting path traversal attempts. */
+  private resolveSandboxPath(repoPath: string, filePath: string): string {
+    const resolved = resolve(join(repoPath, filePath));
+    const repoRoot = resolve(repoPath);
+    if (!resolved.startsWith(`${repoRoot}/`) && resolved !== repoRoot) {
+      throw new Error("Path traversal not allowed");
+    }
+    return resolved;
+  }
+
+  private async executeSandboxCommand(
+    method: string,
+    params: Record<string, unknown>,
+  ): Promise<unknown> {
+    const repoPath = this.config.repositoryPath;
+    if (!repoPath) {
+      throw new Error(
+        "No repository configured for this sandbox — sandbox commands are unavailable",
+      );
+    }
+
+    switch (method) {
+      case "git/changed_files": {
+        const files = await getChangedFilesDetailed(repoPath);
+        return { files };
+      }
+
+      case "git/diff_cached": {
+        const ignoreWhitespace = params.ignoreWhitespace as boolean | undefined;
+        const diff = await getStagedDiff(repoPath, { ignoreWhitespace });
+        return { diff };
+      }
+
+      case "git/diff_unstaged": {
+        const ignoreWhitespace = params.ignoreWhitespace as boolean | undefined;
+        const diff = await getUnstagedDiff(repoPath, { ignoreWhitespace });
+        return { diff };
+      }
+
+      case "git/diff_head": {
+        const ignoreWhitespace = params.ignoreWhitespace as boolean | undefined;
+        const diff = await gitGetDiffHead(repoPath, { ignoreWhitespace });
+        return { diff };
+      }
+
+      case "git/diff_stats": {
+        const stats = await getDiffStats(repoPath);
+        return stats;
+      }
+
+      case "git/current_branch": {
+        const branch = await getCurrentBranch(repoPath);
+        return { branch };
+      }
+
+      case "git/file_at_head": {
+        const filePath = params.filePath as string;
+        this.resolveSandboxPath(repoPath, filePath);
+        const content = await getFileAtHead(repoPath, filePath);
+        return { content };
+      }
+
+      case "git/stage_files": {
+        const paths = params.paths as string[];
+        for (const p of paths) this.resolveSandboxPath(repoPath, p);
+        await gitStageFiles(repoPath, paths);
+        const [files, stats] = await Promise.all([
+          getChangedFilesDetailed(repoPath),
+          getDiffStats(repoPath),
+        ]);
+        return { changedFiles: files, diffStats: stats };
+      }
+
+      case "git/unstage_files": {
+        const paths = params.paths as string[];
+        for (const p of paths) this.resolveSandboxPath(repoPath, p);
+        await gitUnstageFiles(repoPath, paths);
+        const [files, stats] = await Promise.all([
+          getChangedFilesDetailed(repoPath),
+          getDiffStats(repoPath),
+        ]);
+        return { changedFiles: files, diffStats: stats };
+      }
+
+      case "git/discard_file": {
+        const filePath = params.filePath as string;
+        const fileStatus = params.fileStatus as string;
+        this.resolveSandboxPath(repoPath, filePath);
+
+        if (fileStatus === "untracked") {
+          await unlink(join(repoPath, filePath));
+        } else {
+          const { getGitOperationManager } = await import(
+            "@posthog/git/operation-manager"
+          );
+          const manager = getGitOperationManager();
+          await manager.executeWrite(repoPath, (git) =>
+            git.checkout(["HEAD", "--", filePath]),
+          );
+        }
+
+        const [files, stats] = await Promise.all([
+          getChangedFilesDetailed(repoPath),
+          getDiffStats(repoPath),
+        ]);
+        return { success: true, changedFiles: files, diffStats: stats };
+      }
+
+      case "git/sync_status": {
+        const status = await getSyncStatus(repoPath);
+        return status;
+      }
+
+      case "git/repo_info": {
+        const [branch, status, stats] = await Promise.all([
+          getCurrentBranch(repoPath),
+          getSyncStatus(repoPath),
+          getDiffStats(repoPath),
+        ]);
+        return { branch, syncStatus: status, diffStats: stats };
+      }
+
+      case "fs/read_file": {
+        const filePath = params.filePath as string;
+        const safePath = this.resolveSandboxPath(repoPath, filePath);
+        const content = await readFile(safePath, "utf-8");
+        return { content };
+      }
+
+      default:
+        throw new Error(`Unknown sandbox method: ${method}`);
     }
   }
 

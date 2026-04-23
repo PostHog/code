@@ -332,6 +332,187 @@ describe("AgentServer HTTP Mode", () => {
     }, 20000);
   });
 
+  describe("sandbox commands", () => {
+    const sendSandboxCommand = async (
+      method: string,
+      params: Record<string, unknown> = {},
+    ) => {
+      const token = createToken();
+      return fetch(`http://localhost:${port}/command`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: "test-1",
+          method,
+          params,
+        }),
+      });
+    };
+
+    it("returns changed files from sandbox git state", async () => {
+      await createServer().start();
+      // Create an unstaged change
+      await repo.writeFile("new-file.txt", "hello world");
+
+      const response = await sendSandboxCommand("git/changed_files");
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(body.result).toBeDefined();
+      expect(body.result.files).toBeInstanceOf(Array);
+
+      const newFile = body.result.files.find(
+        (f: { path: string }) => f.path === "new-file.txt",
+      );
+      expect(newFile).toBeDefined();
+      expect(newFile.status).toBe("untracked");
+    }, 30000);
+
+    it("returns staged diff", async () => {
+      await createServer().start();
+      await repo.writeFile("staged.txt", "staged content");
+      await repo.git(["add", "staged.txt"]);
+
+      const response = await sendSandboxCommand("git/diff_cached");
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(body.result.diff).toContain("staged content");
+    }, 30000);
+
+    it("returns unstaged diff", async () => {
+      await createServer().start();
+      // Modify a tracked file
+      await repo.writeFile("README.md", "# Modified Readme");
+
+      const response = await sendSandboxCommand("git/diff_unstaged");
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(body.result.diff).toContain("Modified Readme");
+    }, 30000);
+
+    it("returns diff stats", async () => {
+      await createServer().start();
+      await repo.writeFile("README.md", "# Modified\nNew line");
+
+      const response = await sendSandboxCommand("git/diff_stats");
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(body.result).toHaveProperty("filesChanged");
+      expect(body.result).toHaveProperty("linesAdded");
+      expect(body.result).toHaveProperty("linesRemoved");
+      expect(body.result.filesChanged).toBeGreaterThan(0);
+    }, 30000);
+
+    it("returns current branch", async () => {
+      await createServer().start();
+
+      const response = await sendSandboxCommand("git/current_branch");
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(typeof body.result.branch).toBe("string");
+    }, 30000);
+
+    it("returns file content at HEAD", async () => {
+      await createServer().start();
+
+      const response = await sendSandboxCommand("git/file_at_head", {
+        filePath: "README.md",
+      });
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(body.result.content).toBe("# Test Repo");
+    }, 30000);
+
+    it("stages and unstages files", async () => {
+      await createServer().start();
+      await repo.writeFile("to-stage.txt", "content");
+
+      // Stage
+      const stageResponse = await sendSandboxCommand("git/stage_files", {
+        paths: ["to-stage.txt"],
+      });
+      expect(stageResponse.status).toBe(200);
+      const stageBody = await stageResponse.json();
+      expect(stageBody.result.changedFiles).toBeInstanceOf(Array);
+
+      const stagedFile = stageBody.result.changedFiles.find(
+        (f: { path: string }) => f.path === "to-stage.txt",
+      );
+      expect(stagedFile).toBeDefined();
+      expect(stagedFile.staged).toBe(true);
+
+      // Unstage
+      const unstageResponse = await sendSandboxCommand("git/unstage_files", {
+        paths: ["to-stage.txt"],
+      });
+      expect(unstageResponse.status).toBe(200);
+      const unstageBody = await unstageResponse.json();
+
+      const unstagedFile = unstageBody.result.changedFiles.find(
+        (f: { path: string }) => f.path === "to-stage.txt",
+      );
+      expect(unstagedFile).toBeDefined();
+      expect(unstagedFile.staged).toBeFalsy();
+    }, 30000);
+
+    it("reads a file from the sandbox filesystem", async () => {
+      await createServer().start();
+      await repo.writeFile("test-read.txt", "file contents here");
+
+      const response = await sendSandboxCommand("fs/read_file", {
+        filePath: "test-read.txt",
+      });
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(body.result.content).toBe("file contents here");
+    }, 30000);
+
+    it("returns error when repository path is not configured", async () => {
+      await createServer({ repositoryPath: undefined }).start();
+
+      const response = await sendSandboxCommand("git/changed_files");
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(body.error).toBeDefined();
+      expect(body.error.message).toContain("No repository configured");
+    }, 30000);
+
+    it("does not require an active agent session", async () => {
+      // Sandbox commands with a different run_id should still work (no session guard)
+      await createServer().start();
+      const token = createToken({ run_id: "different-run-id" });
+
+      const response = await fetch(`http://localhost:${port}/command`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: "test-1",
+          method: "git/current_branch",
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.result).toBeDefined();
+      expect(typeof body.result.branch).toBe("string");
+    }, 30000);
+  });
+
   describe("404 handling", () => {
     it("returns 404 for unknown routes", async () => {
       await createServer().start();
