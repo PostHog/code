@@ -6,20 +6,17 @@ export type HandoffToCloudSagaInput = HandoffToCloudExecuteInput;
 
 export interface HandoffToCloudSagaOutput {
   checkpointCaptured: boolean;
-  snapshotCaptured: boolean;
-  flushedLogEntryCount: number;
+  logEntryCount: number;
 }
 
 export interface HandoffToCloudSagaDeps extends HandoffBaseDeps {
   captureGitCheckpoint(
     localGitState?: AgentTypes.HandoffLocalGitState,
   ): Promise<AgentTypes.GitCheckpointEvent | null>;
-  captureTreeSnapshot(): Promise<AgentTypes.TreeSnapshotEvent | null>;
   persistCheckpointToLog(
     checkpoint: AgentTypes.GitCheckpointEvent,
   ): Promise<void>;
-  persistSnapshotToLog(snapshot: AgentTypes.TreeSnapshotEvent): Promise<void>;
-  flushLocalLogs(): Promise<number>;
+  countLocalLogEntries(runId: string): number;
   resumeRunInCloud(): Promise<void>;
 }
 
@@ -41,7 +38,6 @@ export class HandoffToCloudSaga extends Saga<
     const { taskId, runId } = input;
 
     let checkpointCaptured = false;
-    let snapshotCaptured = false;
 
     this.deps.onProgress(
       "capturing_checkpoint",
@@ -52,34 +48,12 @@ export class HandoffToCloudSaga extends Saga<
       this.deps.captureGitCheckpoint(input.localGitState),
     );
 
-    let persistedNotificationCount = 0;
-
     if (checkpoint) {
       await this.readOnlyStep("persist_checkpoint_to_log", () =>
         this.deps.persistCheckpointToLog(checkpoint),
       );
       checkpointCaptured = true;
-      persistedNotificationCount++;
     }
-
-    this.deps.onProgress("capturing_snapshot", "Capturing local file state...");
-
-    const snapshot = await this.readOnlyStep("capture_tree_snapshot", () =>
-      this.deps.captureTreeSnapshot(),
-    );
-
-    if (snapshot) {
-      await this.readOnlyStep("persist_snapshot_to_log", () =>
-        this.deps.persistSnapshotToLog(snapshot),
-      );
-      snapshotCaptured = true;
-      persistedNotificationCount++;
-    }
-
-    const localLogLineCount = await this.readOnlyStep("flush_local_logs", () =>
-      this.deps.flushLocalLogs(),
-    );
-    const flushedLogEntryCount = localLogLineCount + persistedNotificationCount;
 
     this.deps.onProgress("starting_cloud_run", "Starting cloud sandbox...");
 
@@ -95,6 +69,8 @@ export class HandoffToCloudSaga extends Saga<
       this.deps.killSession(runId),
     );
 
+    const logEntryCount = this.deps.countLocalLogEntries(runId);
+
     await this.step({
       name: "update_workspace",
       execute: async () => {
@@ -107,6 +83,6 @@ export class HandoffToCloudSaga extends Saga<
 
     this.deps.onProgress("complete", "Handoff to cloud complete");
 
-    return { checkpointCaptured, snapshotCaptured, flushedLogEntryCount };
+    return { checkpointCaptured, logEntryCount };
   }
 }

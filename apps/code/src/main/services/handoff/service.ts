@@ -1,4 +1,10 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { MAIN_TOKENS } from "@main/di/tokens";
@@ -7,7 +13,6 @@ import { TypedEventEmitter } from "@main/utils/typed-event-emitter";
 import { POSTHOG_NOTIFICATIONS } from "@posthog/agent";
 import { HandoffCheckpointTracker } from "@posthog/agent/handoff-checkpoint";
 import { PostHogAPIClient } from "@posthog/agent/posthog-api";
-import { TreeTracker } from "@posthog/agent/tree-tracker";
 import type * as AgentTypes from "@posthog/agent/types";
 import {
   type GitHandoffBranchDivergence,
@@ -104,25 +109,6 @@ export class HandoffService extends TypedEventEmitter<HandoffServiceEvents> {
     const deps: HandoffSagaDeps = {
       createApiClient: (apiHost, teamId) =>
         this.createApiClient(apiHost, teamId),
-
-      applyTreeSnapshot: async (
-        snapshot: AgentTypes.TreeSnapshotEvent,
-        repoPath: string,
-        taskId: string,
-        runId: string,
-        apiClient: PostHogAPIClient,
-      ) => {
-        const tracker = new TreeTracker({
-          repositoryPath: repoPath,
-          taskId,
-          runId,
-          apiClient,
-        });
-        await tracker.applyTreeSnapshot({
-          ...snapshot,
-          baseCommit: null,
-        });
-      },
 
       applyGitCheckpoint: async (
         checkpoint: AgentTypes.GitCheckpointEvent,
@@ -259,13 +245,6 @@ export class HandoffService extends TypedEventEmitter<HandoffServiceEvents> {
       apiClient,
     });
 
-    const treeTracker = new TreeTracker({
-      repositoryPath: repoPath,
-      taskId,
-      runId,
-      apiClient,
-    });
-
     const appendNotification = async (
       method: string,
       params: Record<string, unknown>,
@@ -289,67 +268,24 @@ export class HandoffService extends TypedEventEmitter<HandoffServiceEvents> {
         return { ...checkpoint, device: { type: "local" as const } };
       },
 
-      captureTreeSnapshot: async () => {
-        const snapshot = await treeTracker.captureTree({});
-        if (!snapshot) return null;
-        return { ...snapshot, device: { type: "local" as const } };
-      },
-
       persistCheckpointToLog: (checkpoint) =>
         appendNotification(
           POSTHOG_NOTIFICATIONS.GIT_CHECKPOINT,
           checkpoint as unknown as Record<string, unknown>,
         ),
 
-      persistSnapshotToLog: (snapshot) =>
-        appendNotification(
-          POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT,
-          snapshot as unknown as Record<string, unknown>,
-        ),
-
-      flushLocalLogs: async () => {
+      countLocalLogEntries: (taskRunId) => {
         const logPath = join(
           homedir(),
           ".posthog-code",
           "sessions",
-          runId,
+          taskRunId,
           "logs.ndjson",
         );
         if (!existsSync(logPath)) return 0;
-
-        const lines = readFileSync(logPath, "utf-8")
+        return readFileSync(logPath, "utf-8")
           .split("\n")
-          .filter((l) => l.trim());
-        if (lines.length === 0) return 0;
-
-        const boundaryIndex = lines.findIndex((l) => {
-          try {
-            return JSON.parse(l).type === "seed_boundary";
-          } catch {
-            return false;
-          }
-        });
-        const newLines =
-          boundaryIndex >= 0 ? lines.slice(boundaryIndex + 1) : lines;
-
-        const entries: AgentTypes.StoredEntry[] = [];
-        for (const line of newLines) {
-          try {
-            entries.push(JSON.parse(line));
-          } catch {
-            // skip
-          }
-        }
-
-        if (entries.length > 0) {
-          await apiClient.appendTaskRunLog(taskId, runId, entries);
-          log.info("Flushed local logs to cloud", {
-            runId,
-            entries: entries.length,
-          });
-        }
-
-        return lines.length;
+          .filter((l) => l.trim()).length;
       },
 
       resumeRunInCloud: async () => {
@@ -389,10 +325,30 @@ export class HandoffService extends TypedEventEmitter<HandoffServiceEvents> {
       input.localGitState?.branch ?? null,
     );
 
+    this.deleteLocalLogCache(runId);
+
     return {
       success: true,
-      logEntryCount: result.data.flushedLogEntryCount,
+      logEntryCount: result.data.logEntryCount,
     };
+  }
+
+  private deleteLocalLogCache(runId: string): void {
+    const logPath = join(
+      homedir(),
+      ".posthog-code",
+      "sessions",
+      runId,
+      "logs.ndjson",
+    );
+    try {
+      rmSync(logPath, { force: true });
+    } catch (err) {
+      log.warn("Failed to delete local log cache after cloud handoff", {
+        runId,
+        err,
+      });
+    }
   }
 
   private async cleanupLocalAfterCloudHandoff(

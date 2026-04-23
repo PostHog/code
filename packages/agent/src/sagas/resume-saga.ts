@@ -1,12 +1,11 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import { Saga } from "@posthog/shared";
-import { isNotification, POSTHOG_NOTIFICATIONS } from "../acp-extensions";
+import { POSTHOG_NOTIFICATIONS } from "../acp-extensions";
 import type { PostHogAPIClient } from "../posthog-api";
 import type {
   DeviceInfo,
   GitCheckpointEvent,
   StoredNotification,
-  TreeSnapshotEvent,
 } from "../types";
 import type { Logger } from "../utils/logger";
 
@@ -33,7 +32,6 @@ export interface ResumeInput {
 
 export interface ResumeOutput {
   conversation: ConversationTurn[];
-  latestSnapshot: TreeSnapshotEvent | null;
   latestGitCheckpoint: GitCheckpointEvent | null;
   interrupted: boolean;
   lastDevice?: DeviceInfo;
@@ -68,24 +66,10 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
 
     this.log.info("Fetched log entries", { count: entries.length });
 
-    // Step 3: Find latest snapshot (read-only, pure computation)
-    const latestSnapshot = await this.readOnlyStep("find_snapshot", () =>
-      Promise.resolve(this.findLatestTreeSnapshot(entries)),
-    );
-
     const latestGitCheckpoint = await this.readOnlyStep(
       "find_git_checkpoint",
       () => Promise.resolve(this.findLatestGitCheckpoint(entries)),
     );
-
-    // Step 4: Apply snapshot if present (wrapped in step for consistent logging)
-    if (latestSnapshot) {
-      this.log.info("Found tree snapshot", {
-        treeHash: latestSnapshot.treeHash,
-        hasArchiveUrl: !!latestSnapshot.archiveUrl,
-        changes: latestSnapshot.changes?.length ?? 0,
-      });
-    }
 
     if (latestGitCheckpoint) {
       this.log.info("Found git checkpoint", {
@@ -105,16 +89,14 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
 
     this.log.info("Resume state rebuilt", {
       turns: conversation.length,
-      hasSnapshot: !!latestSnapshot,
       hasGitCheckpoint: !!latestGitCheckpoint,
-      interrupted: latestSnapshot?.interrupted ?? false,
+      interrupted: false,
     });
 
     return {
       conversation,
-      latestSnapshot,
       latestGitCheckpoint,
-      interrupted: latestSnapshot?.interrupted ?? false,
+      interrupted: false,
       lastDevice,
       logEntryCount: entries.length,
     };
@@ -123,33 +105,10 @@ export class ResumeSaga extends Saga<ResumeInput, ResumeOutput> {
   private emptyResult(): ResumeOutput {
     return {
       conversation: [],
-      latestSnapshot: null,
       latestGitCheckpoint: null,
       interrupted: false,
       logEntryCount: 0,
     };
-  }
-
-  private findLatestTreeSnapshot(
-    entries: StoredNotification[],
-  ): TreeSnapshotEvent | null {
-    for (let i = entries.length - 1; i >= 0; i--) {
-      const entry = entries[i];
-      if (
-        isNotification(
-          entry.notification?.method,
-          POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT,
-        )
-      ) {
-        const params = entry.notification.params as
-          | TreeSnapshotEvent
-          | undefined;
-        if (params?.treeHash) {
-          return params;
-        }
-      }
-    }
-    return null;
   }
 
   private findLatestGitCheckpoint(

@@ -12,7 +12,9 @@ import { useSidebarStore } from "@features/sidebar/stores/sidebarStore";
 import { SkillButtonsMenu } from "@features/skill-buttons/components/SkillButtonsMenu";
 import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
-import { Box, Button, Flex, Text } from "@radix-ui/themes";
+import { Cloud, Spinner } from "@phosphor-icons/react";
+import { Button as QuillButton } from "@posthog/quill";
+import { Box, Flex } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { useHeaderStore } from "@stores/headerStore";
 import { useNavigationStore } from "@stores/navigationStore";
@@ -58,20 +60,27 @@ function LocalHandoffButton({ taskId, task }: { taskId: string; task: Task }) {
     }
   };
 
+  const inProgress = session?.handoffInProgress ?? false;
+
   return (
     <>
-      <Button
-        size="1"
-        variant="soft"
-        disabled={session?.handoffInProgress}
-        onClick={() =>
-          openConfirm(taskId, "to-cloud", workspace?.branchName ?? null)
-        }
-      >
-        <Text size="1">
-          {session?.handoffInProgress ? "Transferring..." : "Continue in cloud"}
-        </Text>
-      </Button>
+      <div className="no-drag flex items-center">
+        <QuillButton
+          variant="outline"
+          size="sm"
+          disabled={inProgress}
+          onClick={() =>
+            openConfirm(taskId, "to-cloud", workspace?.branchName ?? null)
+          }
+        >
+          {inProgress ? (
+            <Spinner size={14} className="shrink-0 animate-spin" />
+          ) : (
+            <Cloud size={14} weight="regular" className="shrink-0" />
+          )}
+          {inProgress ? "Transferring..." : "Continue in cloud"}
+        </QuillButton>
+      </div>
       {confirmOpen && direction === "to-cloud" && (
         <HandoffConfirmDialog
           open={confirmOpen}

@@ -543,6 +543,33 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       watcher.needsPostBootstrapReconnect = false;
       this.scheduleReconnect(key);
     }
+
+    void this.verifyPostBootstrapStatus(key);
+  }
+
+  private async verifyPostBootstrapStatus(key: string): Promise<void> {
+    const watcher = this.watchers.get(key);
+    if (!watcher) return;
+    if (isTerminalStatus(watcher.lastStatus)) return;
+
+    const run = await this.fetchTaskRun(watcher);
+    const currentWatcher = this.watchers.get(key);
+    if (!currentWatcher || currentWatcher !== watcher) return;
+    if (!run) return;
+
+    if (!this.applyTaskRunState(watcher, run)) return;
+    if (isTerminalStatus(watcher.lastStatus)) return;
+
+    this.emit(CloudTaskEvent.Update, {
+      taskId: watcher.taskId,
+      runId: watcher.runId,
+      kind: "status",
+      status: watcher.lastStatus ?? undefined,
+      stage: watcher.lastStage,
+      output: watcher.lastOutput,
+      errorMessage: watcher.lastErrorMessage,
+      branch: watcher.lastBranch,
+    });
   }
 
   private async connectSse(
