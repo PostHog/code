@@ -2,9 +2,14 @@ import { ErrorBoundary } from "@components/ErrorBoundary";
 import { LoginTransition } from "@components/LoginTransition";
 import { MainLayout } from "@components/MainLayout";
 import { ScopeReauthPrompt } from "@components/ScopeReauthPrompt";
+import { AiApprovalScreen } from "@features/ai-approval/components/AiApprovalScreen";
 import { AuthScreen } from "@features/auth/components/AuthScreen";
 import { InviteCodeScreen } from "@features/auth/components/InviteCodeScreen";
-import { useAuthStateValue } from "@features/auth/hooks/authQueries";
+import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
+import {
+  useAuthStateValue,
+  useCurrentUser,
+} from "@features/auth/hooks/authQueries";
 import { useAuthSession } from "@features/auth/hooks/useAuthSession";
 import { OnboardingFlow } from "@features/onboarding/components/OnboardingFlow";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
@@ -142,6 +147,29 @@ function App() {
   const isCheckingAccess =
     isAuthenticated && hasCodeAccess === null && hasCompletedOnboarding;
 
+  const authenticatedClient = useOptionalAuthenticatedClient();
+  const { data: currentUser } = useCurrentUser({
+    client: authenticatedClient,
+    enabled:
+      isAuthenticated && hasCompletedOnboarding && hasCodeAccess === true,
+    refetchOnWindowFocus: "always",
+  });
+  const currentOrg = currentUser?.organization as
+    | {
+        id: string;
+        name: string;
+        is_ai_data_processing_approved?: boolean | null;
+        membership_level?: number | null;
+      }
+    | undefined;
+  const needsAiApproval =
+    isAuthenticated &&
+    hasCompletedOnboarding &&
+    hasCodeAccess === true &&
+    currentOrg != null &&
+    currentOrg.is_ai_data_processing_approved !== true;
+  const isAdmin = (currentOrg?.membership_level ?? 0) >= 8;
+
   // Handle transition into main app — only show the dark overlay if dark mode is active
   useEffect(() => {
     const isInMainApp = isAuthenticated && hasCompletedOnboarding;
@@ -204,6 +232,19 @@ function App() {
       return (
         <motion.div key="invite-code" initial={{ opacity: 1 }}>
           <InviteCodeScreen />
+        </motion.div>
+      );
+    }
+
+    if (needsAiApproval) {
+      return (
+        <motion.div key="ai-approval" initial={{ opacity: 1 }}>
+          <AiApprovalScreen
+            currentOrg={
+              currentOrg ? { id: currentOrg.id, name: currentOrg.name } : null
+            }
+            isAdmin={isAdmin}
+          />
         </motion.div>
       );
     }

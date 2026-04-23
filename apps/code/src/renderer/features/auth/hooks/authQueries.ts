@@ -75,6 +75,7 @@ export function useAuthStateValue<T>(selector: (state: AuthState) => T): T {
 export function useCurrentUser(options?: {
   enabled?: boolean;
   client?: PostHogAPIClient | null;
+  refetchOnWindowFocus?: boolean | "always";
 }) {
   const authState = useAuthStateValue((state) => state);
   const client = options?.client ?? null;
@@ -91,6 +92,7 @@ export function useCurrentUser(options?: {
     },
     enabled: !!client && !!authIdentity && (options?.enabled ?? true),
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: options?.refetchOnWindowFocus,
     meta: AUTH_SCOPED_QUERY_META,
   });
 }

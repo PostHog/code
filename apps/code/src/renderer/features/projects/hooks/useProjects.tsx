@@ -86,6 +86,8 @@ export function useProjects() {
   }, [currentUser, availableProjectIds]);
 
   const selectProjectMutation = useSelectProjectMutation();
+  const selectProjectMutate = selectProjectMutation.mutate;
+  const isSelectingProject = selectProjectMutation.isPending;
   const currentProject = projects.find((p) => p.id === currentProjectId);
   const groupedProjects = groupProjectsByOrg(projects);
 
@@ -95,6 +97,7 @@ export function useProjects() {
       : null;
 
   useEffect(() => {
+    if (isSelectingProject) return;
     if (projects.length > 0 && !currentProject) {
       const preferredProject =
         (userTeamId && projects.find((p) => p.id === userTeamId)) ||
@@ -108,13 +111,14 @@ export function useProjects() {
             ? "no project selected"
             : "current project not found in list",
       });
-      selectProjectMutation.mutate(preferredProject.id);
+      selectProjectMutate(preferredProject.id);
     }
   }, [
     currentProject,
     currentProjectId,
     projects,
-    selectProjectMutation,
+    selectProjectMutate,
+    isSelectingProject,
     userTeamId,
   ]);
 
