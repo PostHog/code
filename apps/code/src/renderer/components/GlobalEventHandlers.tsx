@@ -73,17 +73,13 @@ export function GlobalEventHandlers({
 
   const handleSwitchTask = useCallback(
     (index: number) => {
-      if (index === 0) {
-        navigateToTaskInput();
-      } else {
-        const taskData = visualTaskOrder[index - 1];
-        const task = taskData ? taskById.get(taskData.id) : undefined;
-        if (task) {
-          navigateToTask(task);
-        }
+      const taskData = visualTaskOrder[index - 1];
+      const task = taskData ? taskById.get(taskData.id) : undefined;
+      if (task) {
+        navigateToTask(task);
       }
     },
-    [visualTaskOrder, taskById, navigateToTask, navigateToTaskInput],
+    [visualTaskOrder, taskById, navigateToTask],
   );
 
   const handlePrevTask = useCallback(() => {
@@ -195,7 +191,7 @@ export function GlobalEventHandlers({
     [handleToggleFocus],
   );
 
-  // Task switching with mod+0-9
+  // Task switching with mod+1-9
   useHotkeys(
     SHORTCUTS.SWITCH_TASK,
     (event, handler) => {

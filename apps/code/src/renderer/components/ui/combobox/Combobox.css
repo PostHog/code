@@ -299,6 +299,7 @@
   box-sizing: border-box;
   display: flex;
   align-items: center;
+  gap: 6px;
   width: 100%;
   height: var(--combobox-item-height);
   padding-left: var(--combobox-content-padding);

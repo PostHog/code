@@ -37,6 +37,9 @@ export const POSTHOG_NOTIFICATIONS = {
   /** Tree state snapshot captured (git tree hash + file archive) */
   TREE_SNAPSHOT: "_posthog/tree_snapshot",
 
+  /** Git checkpoint captured for handoff */
+  GIT_CHECKPOINT: "_posthog/git_checkpoint",
+
   /** Agent mode changed (interactive/background) */
   MODE_CHANGE: "_posthog/mode_change",
 
@@ -54,6 +57,9 @@ export const POSTHOG_NOTIFICATIONS = {
 
   /** Agent status update (thinking, working, etc.) */
   STATUS: "_posthog/status",
+
+  /** Structured backend progress notification; events in the same turn group into one card on the client */
+  PROGRESS: "_posthog/progress",
 
   /** Task-level notification (progress, milestones) */
   TASK_NOTIFICATION: "_posthog/task_notification",

@@ -48,6 +48,8 @@ interface InboxSignalsFilterActions {
   toggleSourceProduct: (source: SourceProduct) => void;
   toggleSuggestedReviewer: (reviewerUuid: string) => void;
   setSuggestedReviewerFilter: (reviewerUuids: string[]) => void;
+  /** Reset all filters when a deep link arrives so the linked report isn't hidden. */
+  resetFilters: () => void;
 }
 
 type InboxSignalsFilterStore = InboxSignalsFilterState &
@@ -92,6 +94,13 @@ export const useInboxSignalsFilterStore = create<InboxSignalsFilterStore>()(
       setSuggestedReviewerFilter: (reviewerUuids) =>
         set({
           suggestedReviewerFilter: Array.from(new Set(reviewerUuids)),
+        }),
+      resetFilters: () =>
+        set({
+          searchQuery: "",
+          statusFilter: DEFAULT_STATUS_FILTER,
+          sourceProductFilter: [],
+          suggestedReviewerFilter: [],
         }),
     }),
     {

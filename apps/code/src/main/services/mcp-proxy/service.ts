@@ -6,6 +6,16 @@ import type { AuthService } from "../auth/service";
 
 const log = logger.scope("mcp-proxy");
 
+function truncateRequestBody(body: RequestInit["body"]): string | undefined {
+  if (body == null) return undefined;
+  if (typeof body === "string") return body.slice(0, 2000);
+  if (body instanceof Buffer) return body.toString("utf8").slice(0, 2000);
+  if (body instanceof Uint8Array) {
+    return Buffer.from(body).toString("utf8").slice(0, 2000);
+  }
+  return `[${body.constructor.name}]`;
+}
+
 /**
  * Local HTTP proxy for MCP servers. Allows routing MCP requests through a
  * stable loopback URL while injecting a fresh access token on every forwarded
@@ -195,12 +205,20 @@ export class McpProxyService {
         }
 
         if (/"isError"\s*:\s*true/.test(bodyText) || response.status >= 400) {
-          log.warn("MCP proxy non-OK body", {
+          const details = {
             id,
             url,
+            method: options.method,
             status: response.status,
+            requestBody: truncateRequestBody(options.body),
+            responseHeaders: Object.fromEntries(response.headers.entries()),
             body: bodyText.slice(0, 2000),
-          });
+          };
+          if (response.status >= 500) {
+            log.error("MCP proxy server error", details);
+          } else {
+            log.warn("MCP proxy non-OK body", details);
+          }
         }
 
         this.writeBufferedResponse(response, buf, res);

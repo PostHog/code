@@ -158,3 +158,26 @@ export function walkNodes(
   };
   visit(root);
 }
+
+const JSX_NODE_TYPES = new Set([
+  "jsx_element",
+  "jsx_fragment",
+  "jsx_self_closing_element",
+  "jsx_opening_element",
+  "jsx_closing_element",
+  "jsx_attribute",
+]);
+
+/**
+ * Returns true when `node` lives anywhere inside a JSX element — i.e. appending
+ * a trailing `// …` comment to the call's line would land inside JSX content
+ * rather than in a JavaScript statement context.
+ */
+export function isInsideJsx(node: Parser.SyntaxNode): boolean {
+  let cur: Parser.SyntaxNode | null = node.parent;
+  while (cur) {
+    if (JSX_NODE_TYPES.has(cur.type)) return true;
+    cur = cur.parent;
+  }
+  return false;
+}

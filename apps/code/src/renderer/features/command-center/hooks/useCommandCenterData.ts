@@ -1,6 +1,8 @@
 import { useSessions } from "@features/sessions/hooks/useSession";
 import type { AgentSession } from "@features/sessions/stores/sessionStore";
 import { useTasks } from "@features/tasks/hooks/useTasks";
+import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
+import type { WorkspaceMode } from "@main/services/workspace/schemas";
 import type { Task } from "@shared/types";
 import { getTaskRepository, parseRepository } from "@utils/repository";
 import { useMemo } from "react";
@@ -15,6 +17,7 @@ export interface CommandCenterCellData {
   session: AgentSession | undefined;
   status: CellStatus;
   repoName: string | null;
+  workspaceMode: WorkspaceMode | null;
 }
 
 export interface StatusSummary {
@@ -56,6 +59,7 @@ export function useCommandCenterData(): {
   const storeCells = useCommandCenterStore((s) => s.cells);
   const { data: tasks = [] } = useTasks();
   const sessions = useSessions();
+  const { data: workspaces } = useWorkspaces();
 
   const taskMap = useMemo(() => {
     const map = new Map<string, Task>();
@@ -81,10 +85,20 @@ export function useCommandCenterData(): {
       const session = taskId ? sessionByTaskId.get(taskId) : undefined;
       const status = taskId ? deriveStatus(session) : "idle";
       const repoName = task ? getRepoName(task) : null;
+      const workspaceMode =
+        (taskId ? workspaces?.[taskId]?.mode : null) ?? null;
 
-      return { cellIndex, taskId, task, session, status, repoName };
+      return {
+        cellIndex,
+        taskId,
+        task,
+        session,
+        status,
+        repoName,
+        workspaceMode,
+      };
     });
-  }, [storeCells, taskMap, sessionByTaskId]);
+  }, [storeCells, taskMap, sessionByTaskId, workspaces]);
 
   const summary = useMemo(() => {
     const populated = cells.filter((c) => c.taskId && c.task);

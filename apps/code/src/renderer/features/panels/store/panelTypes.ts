@@ -29,6 +29,9 @@ export type TabData =
       type: "logs";
     }
   | {
+      type: "review";
+    }
+  | {
       type: "other";
     };
 

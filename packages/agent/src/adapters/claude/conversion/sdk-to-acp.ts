@@ -21,7 +21,7 @@ import { POSTHOG_NOTIFICATIONS } from "@/acp-extensions";
 import { image, text } from "../../../utils/acp-content";
 import { unreachable } from "../../../utils/common";
 import type { Logger } from "../../../utils/logger";
-import { registerHookCallback } from "../hooks";
+import { type EnrichedReadCache, registerHookCallback } from "../hooks";
 import type { Session, ToolUpdateMeta, ToolUseCache } from "../types";
 import {
   type ClaudePlanEntry,
@@ -51,6 +51,7 @@ type ChunkHandlerContext = {
   sessionId: string;
   toolUseCache: ToolUseCache;
   fileContentCache: { [key: string]: string };
+  enrichedReadCache?: EnrichedReadCache;
   client: AgentSideConnection;
   logger: Logger;
   parentToolCallId?: string;
@@ -67,6 +68,7 @@ export interface MessageHandlerContext {
   client: AgentSideConnection;
   toolUseCache: ToolUseCache;
   fileContentCache: { [key: string]: string };
+  enrichedReadCache?: EnrichedReadCache;
   logger: Logger;
   registerHooks?: boolean;
   supportsTerminalOutput?: boolean;
@@ -248,7 +250,7 @@ function extractTextFromContent(content: unknown): string | null {
   return null;
 }
 
-function stripCatLineNumbers(text: string): string {
+export function stripCatLineNumbers(text: string): string {
   return text.replace(/^ *\d+[\t→]/gm, "");
 }
 
@@ -318,6 +320,7 @@ function handleToolResultChunk(
       supportsTerminalOutput: ctx.supportsTerminalOutput,
       toolUseId: chunk.tool_use_id,
       cachedFileContent: ctx.fileContentCache,
+      enrichedReadCache: ctx.enrichedReadCache,
     },
   );
 
@@ -448,6 +451,7 @@ function toAcpNotifications(
   supportsTerminalOutput?: boolean,
   cwd?: string,
   mcpToolUseResult?: Record<string, unknown>,
+  enrichedReadCache?: EnrichedReadCache,
 ): SessionNotification[] {
   if (typeof content === "string") {
     const update: SessionUpdate = {
@@ -468,6 +472,7 @@ function toAcpNotifications(
     sessionId,
     toolUseCache,
     fileContentCache,
+    enrichedReadCache,
     client,
     logger,
     parentToolCallId,
@@ -498,6 +503,7 @@ function streamEventToAcpNotifications(
   registerHooks?: boolean,
   supportsTerminalOutput?: boolean,
   cwd?: string,
+  enrichedReadCache?: EnrichedReadCache,
 ): SessionNotification[] {
   const event = message.event;
   switch (event.type) {
@@ -514,6 +520,8 @@ function streamEventToAcpNotifications(
         registerHooks,
         supportsTerminalOutput,
         cwd,
+        undefined,
+        enrichedReadCache,
       );
     case "content_block_delta":
       return toAcpNotifications(
@@ -528,6 +536,8 @@ function streamEventToAcpNotifications(
         registerHooks,
         supportsTerminalOutput,
         cwd,
+        undefined,
+        enrichedReadCache,
       );
     case "message_start":
     case "message_delta":
@@ -608,6 +618,32 @@ export type ResultMessageHandlerResult = {
   };
 };
 
+export type AgentErrorClassification =
+  | "upstream_stream_terminated"
+  | "upstream_connection_error"
+  | "agent_error";
+
+/**
+ * Classify an error string surfaced by the Claude CLI via `is_error: true`
+ * result messages. Transient upstream-stream terminations (e.g. the fetch body
+ * from the LLM gateway is torn down mid-stream) are retriable; most other
+ * errors are not.
+ */
+export function classifyAgentError(
+  result: string | undefined,
+): AgentErrorClassification {
+  if (!result) return "agent_error";
+  const text = result.trim();
+  // Anthropic SDK surfaces an undici fetch abort as "API Error: terminated".
+  if (/API Error:\s*terminated\b/i.test(text)) {
+    return "upstream_stream_terminated";
+  }
+  if (/API Error:\s*Connection error\b/i.test(text)) {
+    return "upstream_connection_error";
+  }
+  return "agent_error";
+}
+
 export function handleResultMessage(
   message: SDKResultMessage,
 ): ResultMessageHandlerResult {
@@ -626,9 +662,13 @@ export function handleResultMessage(
         return { shouldStop: true, stopReason: "max_tokens", usage };
       }
       if (message.is_error) {
+        const classification = classifyAgentError(message.result);
         return {
           shouldStop: true,
-          error: RequestError.internalError(undefined, message.result),
+          error: RequestError.internalError(
+            { classification, result: message.result },
+            message.result,
+          ),
           usage,
         };
       }
@@ -717,6 +757,7 @@ export async function handleStreamEvent(
     context.registerHooks,
     context.supportsTerminalOutput,
     context.session.cwd,
+    context.enrichedReadCache,
   )) {
     await client.sessionUpdate(notification);
     context.session.notificationHistory.push(notification);
@@ -840,6 +881,7 @@ export async function handleUserAssistantMessage(
     context.supportsTerminalOutput,
     session.cwd,
     mcpToolUseResult,
+    context.enrichedReadCache,
   )) {
     await client.sessionUpdate(notification);
     session.notificationHistory.push(notification);

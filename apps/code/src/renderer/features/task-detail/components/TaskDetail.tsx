@@ -8,6 +8,7 @@ import {
   getLeafPanel,
   parseTabId,
 } from "@features/panels/store/panelStoreHelpers";
+import { MIN_CHAT_WIDTH } from "@features/sessions/constants";
 import { getSessionService } from "@features/sessions/service/service";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useTaskData } from "@features/task-detail/hooks/useTaskData";
@@ -151,11 +152,7 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
             </Text>
           </Tooltip>
         )}
-        {openTargetPath && (
-          <Flex align="center" gap="2" className="shrink-0">
-            <ExternalAppsOpener targetPath={openTargetPath} />
-          </Flex>
-        )}
+        {openTargetPath && <ExternalAppsOpener targetPath={openTargetPath} />}
       </Flex>
     ),
     [
@@ -197,7 +194,11 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
 
       const onMouseMove = (moveEvent: MouseEvent) => {
         const delta = startX - moveEvent.clientX;
-        const maxWidth = containerRect.width * 0.5;
+        const maxWidth = Math.max(
+          MIN_REVIEW_WIDTH,
+          containerRect.width * 0.5,
+          containerRect.width - MIN_CHAT_WIDTH,
+        );
         const newWidth = Math.min(
           maxWidth,
           Math.max(MIN_REVIEW_WIDTH, startWidth + delta),

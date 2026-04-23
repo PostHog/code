@@ -26,5 +26,5 @@ export interface AgentServerConfig {
   allowedDomains?: string[];
   runtimeAdapter?: "claude" | "codex";
   model?: string;
-  reasoningEffort?: "low" | "medium" | "high" | "max";
+  reasoningEffort?: "low" | "medium" | "high" | "xhigh" | "max";
 }

@@ -1,0 +1,80 @@
+import { type FileDiffMetadata, processFile } from "@pierre/diffs";
+import type { ChangedFile } from "@shared/types";
+import { useMemo } from "react";
+import type { DiffOptions } from "../types";
+import type { PrCommentThread } from "../utils/prCommentAnnotations";
+import { InteractiveFileDiff } from "./InteractiveFileDiff";
+import { DeferredDiffPlaceholder, DiffFileHeader } from "./ReviewShell";
+
+interface PatchedFileDiffProps {
+  file: ChangedFile;
+  taskId: string;
+  options: DiffOptions;
+  collapsed: boolean;
+  onToggle: () => void;
+  fallback?: { oldText: string | null; newText: string | null } | null;
+  externalUrl?: string;
+  prUrl?: string | null;
+  commentThreads?: Map<number, PrCommentThread>;
+}
+
+export function PatchedFileDiff({
+  file,
+  taskId,
+  options,
+  collapsed,
+  onToggle,
+  fallback,
+  externalUrl,
+  prUrl,
+  commentThreads,
+}: PatchedFileDiffProps) {
+  const fileDiff = useMemo((): FileDiffMetadata | undefined => {
+    if (!file.patch) return undefined;
+    return processFile(file.patch, { isGitDiff: true });
+  }, [file.patch]);
+
+  const diffSourceProps = useMemo(() => {
+    if (fileDiff) return { fileDiff };
+    if (fallback) {
+      const name = file.path.split("/").pop() || file.path;
+      return {
+        oldFile: { name, contents: fallback.oldText ?? "" },
+        newFile: { name, contents: fallback.newText ?? "" },
+      };
+    }
+    return null;
+  }, [fileDiff, fallback, file.path]);
+
+  if (!diffSourceProps) {
+    const hasChanges = (file.linesAdded ?? 0) + (file.linesRemoved ?? 0) > 0;
+    return (
+      <DeferredDiffPlaceholder
+        filePath={file.path}
+        linesAdded={file.linesAdded ?? 0}
+        linesRemoved={file.linesRemoved ?? 0}
+        reason={hasChanges ? "large" : "unavailable"}
+        collapsed={collapsed}
+        onToggle={onToggle}
+        externalUrl={externalUrl}
+      />
+    );
+  }
+
+  return (
+    <InteractiveFileDiff
+      {...diffSourceProps}
+      options={{ ...options, collapsed }}
+      taskId={taskId}
+      prUrl={prUrl}
+      commentThreads={commentThreads}
+      renderCustomHeader={(fd) => (
+        <DiffFileHeader
+          fileDiff={fd}
+          collapsed={collapsed}
+          onToggle={onToggle}
+        />
+      )}
+    />
+  );
+}

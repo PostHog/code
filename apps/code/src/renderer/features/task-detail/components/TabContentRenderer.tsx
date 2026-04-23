@@ -5,6 +5,9 @@ import { ChangesPanel } from "@features/task-detail/components/ChangesPanel";
 import { FileTreePanel } from "@features/task-detail/components/FileTreePanel";
 import { TaskLogsPanel } from "@features/task-detail/components/TaskLogsPanel";
 import { TaskShellPanel } from "@features/task-detail/components/TaskShellPanel";
+import { useIsWorkspaceCloudRun } from "@features/workspace/hooks/useWorkspace";
+import { CloudReviewPage } from "@renderer/features/code-review/components/CloudReviewPage";
+import { ReviewPage } from "@renderer/features/code-review/components/ReviewPage";
 import type { Task } from "@shared/types";
 
 interface TabContentRendererProps {
@@ -18,6 +21,7 @@ export function TabContentRenderer({
   taskId,
   task,
 }: TabContentRendererProps) {
+  const isCloud = useIsWorkspaceCloudRun(taskId);
   const { data } = tab;
 
   switch (data.type) {
@@ -38,6 +42,14 @@ export function TabContentRenderer({
         />
       );
 
+    case "review": {
+      return isCloud ? (
+        <CloudReviewPage task={task} />
+      ) : (
+        <ReviewPage task={task} />
+      );
+    }
+
     case "action":
       return (
         <ActionPanel
@@ -49,8 +61,6 @@ export function TabContentRenderer({
       );
 
     case "other":
-      // Handle system tabs by ID
-      // TODO: These should all have their own type as well
       switch (tab.id) {
         case "files":
           return <FileTreePanel taskId={taskId} task={task} />;

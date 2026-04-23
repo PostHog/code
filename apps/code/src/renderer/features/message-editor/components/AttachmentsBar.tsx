@@ -123,24 +123,26 @@ function FileChip({
   onRemove: () => void;
 }) {
   return (
-    <div className="group relative flex-shrink-0">
-      <span className="inline-flex items-center gap-1 rounded-[var(--radius-1)] bg-[var(--gray-a3)] p-1 font-medium text-[11px] text-[var(--gray-11)] leading-tight">
-        <File size={14} weight="duotone" className="shrink-0" />
-        <span className="max-w-[120px] truncate">{attachment.label}</span>
-      </span>
-      <IconButton
-        size="1"
-        variant="solid"
-        color="gray"
-        className="!absolute -top-1 -right-1 !size-3.5 opacity-0 transition-opacity group-hover:opacity-100"
+    <span className="group/chip inline-flex flex-shrink-0 items-center gap-1 rounded-[var(--radius-1)] bg-[var(--gray-a3)] p-1 font-medium text-[11px] text-[var(--gray-11)] leading-tight">
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label="Remove attachment"
+        className="relative inline-flex size-3.5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0"
         onClick={(e) => {
           e.stopPropagation();
           onRemove();
         }}
       >
-        <X size={8} weight="bold" />
-      </IconButton>
-    </div>
+        <span className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-100 transition-opacity duration-150 group-hover/chip:opacity-0 motion-reduce:transition-none">
+          <File size={14} weight="duotone" />
+        </span>
+        <span className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover/chip:opacity-100 motion-reduce:transition-none">
+          <X size={12} weight="bold" />
+        </span>
+      </button>
+      <span className="max-w-[120px] truncate">{attachment.label}</span>
+    </span>
   );
 }
 

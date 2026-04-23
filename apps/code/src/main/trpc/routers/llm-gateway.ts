@@ -26,4 +26,8 @@ export const llmGatewayRouter = router({
   usage: publicProcedure
     .output(usageOutput)
     .query(() => getService().fetchUsage()),
+
+  invalidatePlanCache: publicProcedure.mutation(() =>
+    getService().invalidatePlanCache(),
+  ),
 });

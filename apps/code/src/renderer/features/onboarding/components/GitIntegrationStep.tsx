@@ -175,8 +175,8 @@ export function GitIntegrationStep({
         projectId: selectedProjectId,
       });
 
-      // Dev-only fallback: DeepLinkService skips protocol registration in dev
-      // (see registerProtocol), so the browser can't deep-link back.
+      // Dev-only fallback: GitHub returns via posthog-code-dev:// while the
+      // browser flow may not always surface the same path; poll integrations.
       if (IS_DEV) {
         pollTimerRef.current = setInterval(() => {
           void queryClient.invalidateQueries({
@@ -247,31 +247,6 @@ export function GitIntegrationStep({
                   </Text>
                 </Flex>
               </motion.div>
-
-              {alternativeConnectedProject && selectedProject && (
-                <Callout.Root color="blue" variant="soft">
-                  <Callout.Text>
-                    GitHub is already connected on{" "}
-                    <Text weight="bold">
-                      {alternativeConnectedProject.name}
-                    </Text>{" "}
-                    ({alternativeConnectedProject.organization.name}). Switch to
-                    that project, or click Connect to install a new integration
-                    on <Text weight="bold">{selectedProject.name}</Text>.
-                  </Callout.Text>
-                  <Flex mt="2">
-                    <Button
-                      size="1"
-                      variant="soft"
-                      onClick={() =>
-                        setSelectedProjectId(alternativeConnectedProject.id)
-                      }
-                    >
-                      Switch to {alternativeConnectedProject.name}
-                    </Button>
-                  </Flex>
-                </Callout.Root>
-              )}
 
               {/* Local folder picker */}
               <motion.div
@@ -392,6 +367,33 @@ export function GitIntegrationStep({
                   </Flex>
                 </Box>
               </motion.div>
+
+              {alternativeConnectedProject && selectedProject && (
+                <Callout.Root color="blue" variant="soft">
+                  <Callout.Text>
+                    GitHub is already connected on{" "}
+                    <Text weight="bold">
+                      {alternativeConnectedProject.name}
+                    </Text>{" "}
+                    ({alternativeConnectedProject.organization.name}). Switch to
+                    that project, or click{" "}
+                    <Text weight="bold">Connect GitHub</Text> below to install a
+                    new integration on{" "}
+                    <Text weight="bold">{selectedProject.name}</Text>.
+                  </Callout.Text>
+                  <Flex mt="2">
+                    <Button
+                      size="1"
+                      variant="soft"
+                      onClick={() =>
+                        setSelectedProjectId(alternativeConnectedProject.id)
+                      }
+                    >
+                      Switch to {alternativeConnectedProject.name}
+                    </Button>
+                  </Flex>
+                </Callout.Root>
+              )}
 
               {/* GitHub integration */}
               <motion.div

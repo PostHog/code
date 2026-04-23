@@ -2,12 +2,14 @@ import { CodeBlock } from "@components/CodeBlock";
 import { Divider } from "@components/Divider";
 import { HighlightedCode } from "@components/HighlightedCode";
 import { List, ListItem } from "@components/List";
+import { parseGithubIssueUrl } from "@features/message-editor/utils/githubIssueUrl";
 import { Blockquote, Checkbox, Code, Em, Kbd, Text } from "@radix-ui/themes";
 import { memo, useMemo } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { PluggableList } from "unified";
+import { GithubRefChip } from "./GithubRefChip";
 
 interface MarkdownRendererProps {
   content: string;
@@ -87,39 +89,53 @@ export const baseComponents: Components = {
       {children}
     </del>
   ),
-  a: ({ href, children }) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="markdown-link"
-      style={{
-        fontSize: "var(--font-size-1)",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "2px",
-      }}
-    >
-      {children}
-      <svg
-        width="10"
-        height="10"
-        viewBox="0 0 12 12"
-        fill="none"
-        stroke="var(--accent-11)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{ marginLeft: "var(--space-1)", flexShrink: 0 }}
-        aria-label="external link icon"
-        role="img"
+  a: ({ href, children }) => {
+    const githubRef = href ? parseGithubIssueUrl(href) : null;
+    if (githubRef) {
+      const isAutoLink = typeof children === "string" && children === href;
+      const label = isAutoLink
+        ? `${githubRef.owner}/${githubRef.repo}#${githubRef.number}`
+        : children;
+      return (
+        <GithubRefChip href={githubRef.normalizedUrl} kind={githubRef.kind}>
+          {label}
+        </GithubRefChip>
+      );
+    }
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="markdown-link"
+        style={{
+          fontSize: "var(--font-size-1)",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "2px",
+        }}
       >
-        <path d="M4.5 1.5H2.25C1.836 1.5 1.5 1.836 1.5 2.25V9.75C1.5 10.164 1.836 10.5 2.25 10.5H9.75C10.164 10.5 10.5 10.164 10.5 9.75V7.5" />
-        <path d="M7.5 1.5H10.5V4.5" />
-        <path d="M5.25 6.75L10.5 1.5" />
-      </svg>
-    </a>
-  ),
+        {children}
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 12 12"
+          fill="none"
+          stroke="var(--accent-11)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ marginLeft: "var(--space-1)", flexShrink: 0 }}
+          aria-label="external link icon"
+          role="img"
+        >
+          <path d="M4.5 1.5H2.25C1.836 1.5 1.5 1.836 1.5 2.25V9.75C1.5 10.164 1.836 10.5 2.25 10.5H9.75C10.164 10.5 10.5 10.164 10.5 9.75V7.5" />
+          <path d="M7.5 1.5H10.5V4.5" />
+          <path d="M5.25 6.75L10.5 1.5" />
+        </svg>
+      </a>
+    );
+  },
   kbd: ({ children }) => <Kbd size="1">{children}</Kbd>,
   ul: ({ children }) => (
     <List as="ul" size="1">

@@ -34,7 +34,7 @@ import {
   isOpenAIModel,
 } from "@posthog/agent/gateway-models";
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
-import type { OnLogCallback } from "@posthog/agent/types";
+import type * as AgentTypes from "@posthog/agent/types";
 import { getCurrentBranch } from "@posthog/git/queries";
 import type { IAppMeta } from "@posthog/platform/app-meta";
 import type { IBundledResources } from "@posthog/platform/bundled-resources";
@@ -180,46 +180,13 @@ function createTappedWritableStream(
   });
 }
 
-const onAgentLog: OnLogCallback = (level, scope, message, data) => {
+const onAgentLog: AgentTypes.OnLogCallback = (level, scope, message, data) => {
   const scopedLog = logger.scope(scope);
   if (data !== undefined) {
     scopedLog[level as keyof typeof scopedLog](message, data);
   } else {
     scopedLog[level](message);
   }
-};
-
-const HAIKU_EXPLORE_AGENT_OVERRIDE = {
-  description:
-    'Fast agent for exploring and understanding codebases. Use this when you need to find files by pattern (eg. "src/components/**/*.tsx"), search for code or keywords (eg. "where is the auth middleware?"), or answer questions about how the codebase works (eg. "how does the session service handle reconnects?"). When calling this agent, specify a thoroughness level: "quick" for targeted lookups, "medium" for broader exploration, or "very thorough" for comprehensive analysis across multiple locations.',
-  model: "haiku",
-  prompt: `You are a fast, read-only codebase exploration agent.
-
-Your job is to find files, search code, read the most relevant sources, and report findings clearly.
-
-Rules:
-- Never create, modify, delete, move, or copy files.
-- Never use shell redirection or any command that changes system state.
-- Use Glob for broad file pattern matching.
-- Use Grep for searching file contents.
-- Use Read when you know the exact file path to inspect.
-- Use Bash only for safe read-only commands like ls, git status, git log, git diff, find, cat, head, and tail.
-- Adapt your search approach based on the thoroughness level specified by the caller.
-- Return file paths as absolute paths in your final response.
-- Avoid using emojis.
-- Wherever possible, spawn multiple parallel tool calls for grepping and reading files.
-- Search efficiently, then read only the most relevant files.
-- Return findings directly in your final response — do not create files.`,
-  tools: [
-    "Bash",
-    "Glob",
-    "Grep",
-    "Read",
-    "WebFetch",
-    "WebSearch",
-    "NotebookRead",
-    "TodoWrite",
-  ],
 };
 
 function buildClaudeCodeOptions(args: {
@@ -233,9 +200,6 @@ function buildClaudeCodeOptions(args: {
     }),
     ...(args.effort && { effort: args.effort }),
     plugins: args.plugins,
-    agents: {
-      "ph-explore": HAIKU_EXPLORE_AGENT_OVERRIDE,
-    },
   };
 }
 
@@ -1043,6 +1007,19 @@ When creating pull requests, add the following footer at the end of the PR descr
     return this.prompt(sessionId, [
       { type: "text", text: "Continue where you left off." },
     ]);
+  }
+
+  setPendingContext(taskRunId: string, context: string): void {
+    const session = this.sessions.get(taskRunId);
+    if (!session) {
+      log.warn("Session not found for setPendingContext", { taskRunId });
+      return;
+    }
+    session.pendingContext = context;
+    log.info("Set pending context on session", {
+      taskRunId,
+      contextLength: context.length,
+    });
   }
 
   /**

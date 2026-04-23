@@ -1,7 +1,10 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { PermissionRuleValue } from "@anthropic-ai/claude-agent-sdk";
 import { minimatch } from "minimatch";
+import { AsyncMutex } from "../../../utils/async-mutex";
+import { resolveMainRepoPath } from "./repo-path";
 
 const ACP_TOOL_NAME_PREFIX = "mcp__acp__";
 
@@ -86,7 +89,8 @@ function matchesRule(
   const ruleAppliesToTool =
     (rule.toolName === "Bash" && toolName === acpToolNames.bash) ||
     (rule.toolName === "Edit" && FILE_EDITING_TOOLS.includes(toolName)) ||
-    (rule.toolName === "Read" && FILE_READING_TOOLS.includes(toolName));
+    (rule.toolName === "Read" && FILE_READING_TOOLS.includes(toolName)) ||
+    (rule.toolName === toolName && !rule.argument);
 
   if (!ruleAppliesToTool) {
     return false;
@@ -123,6 +127,23 @@ function matchesRule(
   return matchesGlob(rule.argument, actualArg, cwd);
 }
 
+function formatRule(rule: PermissionRuleValue): string {
+  return rule.ruleContent
+    ? `${rule.toolName}(${rule.ruleContent})`
+    : rule.toolName;
+}
+
+async function writeFileAtomic(filePath: string, data: string): Promise<void> {
+  const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  await fs.promises.writeFile(tmpPath, data);
+  try {
+    await fs.promises.rename(tmpPath, filePath);
+  } catch (error) {
+    await fs.promises.rm(tmpPath, { force: true });
+    throw error;
+  }
+}
+
 async function loadSettingsFile(
   filePath: string | undefined,
 ): Promise<ClaudeCodeSettings> {
@@ -132,8 +153,34 @@ async function loadSettingsFile(
   try {
     const content = await fs.promises.readFile(filePath, "utf-8");
     return JSON.parse(content) as ClaudeCodeSettings;
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return {};
+    }
+    process.stderr.write(
+      `[SettingsManager] Failed to load settings from ${filePath}: ${error}\n`,
+    );
     return {};
+  }
+}
+
+/**
+ * Reads a settings file for a read-modify-write cycle. Unlike
+ * `loadSettingsFile`, this throws on any error other than ENOENT — we refuse
+ * to overwrite a file we couldn't parse, because doing so would wipe the
+ * user's existing settings (other allow/deny/ask rules, env, model, etc).
+ */
+async function readSettingsFileForUpdate(
+  filePath: string,
+): Promise<ClaudeCodeSettings> {
+  try {
+    const content = await fs.promises.readFile(filePath, "utf-8");
+    return JSON.parse(content) as ClaudeCodeSettings;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return {};
+    }
+    throw error;
   }
 }
 
@@ -171,25 +218,32 @@ export function getManagedSettingsPath(): string {
       return "/etc/claude-code/managed-settings.json";
   }
 }
+
 export class SettingsManager {
   private cwd: string;
+  private repoRoot: string;
   private userSettings: ClaudeCodeSettings = {};
   private projectSettings: ClaudeCodeSettings = {};
   private localSettings: ClaudeCodeSettings = {};
   private enterpriseSettings: ClaudeCodeSettings = {};
   private mergedSettings: ClaudeCodeSettings = {};
   private initialized = false;
+  private initPromise: Promise<void> | null = null;
+  private writeMutex = new AsyncMutex();
 
   constructor(cwd: string) {
     this.cwd = cwd;
+    this.repoRoot = cwd;
   }
 
   async initialize(): Promise<void> {
-    if (this.initialized) {
-      return;
-    }
-    await this.loadAllSettings();
-    this.initialized = true;
+    if (this.initialized) return;
+    if (this.initPromise) return this.initPromise;
+    this.initPromise = this.loadAllSettings().then(() => {
+      this.initialized = true;
+      this.initPromise = null;
+    });
+    return this.initPromise;
   }
 
   private getUserSettingsPath(): string {
@@ -202,11 +256,17 @@ export class SettingsManager {
     return path.join(this.cwd, ".claude", "settings.json");
   }
 
+  /**
+   * Local settings are anchored to the primary worktree so every worktree of
+   * the same repository shares a single `.claude/settings.local.json`. This
+   * avoids re-prompting for the same permission in every worktree.
+   */
   private getLocalSettingsPath(): string {
-    return path.join(this.cwd, ".claude", "settings.local.json");
+    return path.join(this.repoRoot, ".claude", "settings.local.json");
   }
 
   private async loadAllSettings(): Promise<void> {
+    this.repoRoot = await resolveMainRepoPath(this.cwd);
     const [userSettings, projectSettings, localSettings, enterpriseSettings] =
       await Promise.all([
         loadSettingsFile(this.getUserSettingsPath()),
@@ -269,10 +329,6 @@ export class SettingsManager {
   }
 
   checkPermission(toolName: string, toolInput: unknown): PermissionCheckResult {
-    if (!toolName.startsWith(ACP_TOOL_NAME_PREFIX)) {
-      return { decision: "ask" };
-    }
-
     const permissions = this.mergedSettings.permissions;
     if (!permissions) {
       return { decision: "ask" };
@@ -310,10 +366,48 @@ export class SettingsManager {
     return this.cwd;
   }
 
-  async setCwd(cwd: string): Promise<void> {
-    if (this.cwd === cwd) {
-      return;
+  getRepoRoot(): string {
+    return this.repoRoot;
+  }
+
+  /**
+   * Persists allow rules to `<primary-worktree>/.claude/settings.local.json`.
+   * Because local settings are resolved against the primary worktree, every
+   * worktree of the same repository picks up the new rule on next load.
+   *
+   * Writes are serialised via `writeMutex` to prevent concurrent callers from
+   * clobbering each other, and use a temp-file + rename to keep the file
+   * consistent if the process dies mid-write.
+   */
+  async addAllowRules(rules: PermissionRuleValue[]): Promise<void> {
+    if (rules.length === 0) return;
+    if (!this.initialized) await this.initialize();
+    await this.writeMutex.acquire();
+    try {
+      const filePath = this.getLocalSettingsPath();
+      const existing = await readSettingsFileForUpdate(filePath);
+      const permissions: PermissionSettings = {
+        ...(existing.permissions ?? {}),
+      };
+      const current = new Set(permissions.allow ?? []);
+      for (const rule of rules) {
+        current.add(formatRule(rule));
+      }
+      permissions.allow = Array.from(current);
+      const next: ClaudeCodeSettings = { ...existing, permissions };
+      await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+      await writeFileAtomic(filePath, `${JSON.stringify(next, null, 2)}\n`);
+
+      this.localSettings = next;
+      this.mergeAllSettings();
+    } finally {
+      this.writeMutex.release();
     }
+  }
+
+  async setCwd(cwd: string): Promise<void> {
+    if (this.cwd === cwd) return;
+    if (this.initPromise) await this.initPromise;
     this.dispose();
     this.cwd = cwd;
     this.initialized = false;

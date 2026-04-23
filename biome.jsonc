@@ -109,9 +109,12 @@
       }
     },
     {
-      // API client generates a a lot of Any
+      // API client generates a lot of Any and uses codegen-specific formatting
       "includes": ["apps/code/src/renderer/api/generated.ts"],
       "linter": {
+        "enabled": false
+      },
+      "formatter": {
         "enabled": false
       }
     },

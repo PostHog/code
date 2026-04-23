@@ -1,15 +1,25 @@
 import { sessionStoreSetters } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore as useFeatureSettingsStore } from "@features/settings/stores/settingsStore";
+import { trpc } from "@renderer/trpc/client";
 import { toast } from "@renderer/utils/toast";
-import { useSettingsStore } from "@stores/settingsStore";
 import type { EditorView } from "@tiptap/pm/view";
 import { useEditor } from "@tiptap/react";
 import { getFilePath } from "@utils/getFilePath";
+import { queryClient } from "@utils/queryClient";
+import { isSendMessageSubmitKey } from "@utils/sendMessageKey";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePromptHistoryStore } from "../stores/promptHistoryStore";
 import type { FileAttachment, MentionChip } from "../utils/content";
 import { contentToXml, isContentEmpty } from "../utils/content";
+import {
+  githubIssueToMentionChip,
+  githubPullRequestToMentionChip,
+} from "../utils/githubIssueChip";
+import {
+  type ParsedGithubIssueUrl,
+  parseGithubIssueUrl,
+} from "../utils/githubIssueUrl";
 import { persistImageFile, persistTextContent } from "../utils/persistFile";
 import { getEditorExtensions } from "./extensions";
 import { type DraftContext, useDraftSync } from "./useDraftSync";
@@ -42,6 +52,25 @@ export interface UseTiptapEditorOptions {
 const EDITOR_CLASS =
   "cli-editor min-h-[1.5em] w-full break-words border-none bg-transparent pr-2 text-[14px] text-[var(--gray-12)] outline-none [overflow-wrap:break-word] [white-space:pre-wrap] [word-break:break-word]";
 
+function insertChipWithTrailingSpace(
+  view: EditorView,
+  attrs: {
+    type: MentionChip["type"];
+    id: string;
+    label: string;
+    pastedText?: boolean;
+  },
+): void {
+  const chipNode = view.state.schema.nodes.mentionChip.create({
+    pastedText: false,
+    ...attrs,
+  });
+  const space = view.state.schema.text(" ");
+  const { tr } = view.state;
+  tr.replaceSelectionWith(chipNode).insert(tr.selection.from, space);
+  view.dispatch(tr);
+}
+
 async function pasteTextAsFile(
   view: EditorView,
   text: string,
@@ -50,18 +79,93 @@ async function pasteTextAsFile(
   const result = await persistTextContent(text);
   pasteCountRef.current += 1;
   const lineCount = text.split("\n").length;
-  const label = `Pasted text #${pasteCountRef.current} (${lineCount} lines)`;
-  const chipNode = view.state.schema.nodes.mentionChip.create({
+  insertChipWithTrailingSpace(view, {
     type: "file",
     id: result.path,
-    label,
+    label: `Pasted text #${pasteCountRef.current} (${lineCount} lines)`,
     pastedText: true,
   });
-  const space = view.state.schema.text(" ");
-  const { tr } = view.state;
-  tr.replaceSelectionWith(chipNode).insert(tr.selection.from, space);
-  view.dispatch(tr);
   view.focus();
+}
+
+function buildGithubRefPlaceholderChip(
+  parsed: ParsedGithubIssueUrl,
+): MentionChip {
+  const source = {
+    number: parsed.number,
+    title: "Loading...",
+    url: parsed.normalizedUrl,
+  };
+  return parsed.kind === "pr"
+    ? githubPullRequestToMentionChip(source)
+    : githubIssueToMentionChip(source);
+}
+
+function insertGithubRefPlaceholder(
+  view: EditorView,
+  parsed: ParsedGithubIssueUrl,
+): void {
+  insertChipWithTrailingSpace(view, buildGithubRefPlaceholderChip(parsed));
+}
+
+async function fetchGithubRefTitle(
+  parsed: ParsedGithubIssueUrl,
+): Promise<string | null> {
+  const input = {
+    owner: parsed.owner,
+    repo: parsed.repo,
+    number: parsed.number,
+  };
+  try {
+    if (parsed.kind === "pr") {
+      const pr = await queryClient.fetchQuery({
+        ...trpc.git.getGithubPullRequest.queryOptions(input),
+        staleTime: 60_000,
+      });
+      return pr?.title ?? null;
+    }
+    const issue = await queryClient.fetchQuery({
+      ...trpc.git.getGithubIssue.queryOptions(input),
+      staleTime: 60_000,
+    });
+    return issue?.title ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveGithubRefChip(
+  view: EditorView,
+  parsed: ParsedGithubIssueUrl,
+): Promise<void> {
+  const chipType = parsed.kind === "pr" ? "github_pr" : "github_issue";
+  const placeholderLabel = `#${parsed.number} - Loading...`;
+  const title = await fetchGithubRefTitle(parsed);
+  const resolvedLabel =
+    title !== null ? `#${parsed.number} - ${title}` : `#${parsed.number}`;
+
+  if (view.isDestroyed) return;
+
+  const { doc, tr } = view.state;
+  let updated = false;
+  doc.descendants((node, pos) => {
+    if (
+      node.type.name !== "mentionChip" ||
+      node.attrs.type !== chipType ||
+      node.attrs.id !== parsed.normalizedUrl ||
+      node.attrs.label !== placeholderLabel
+    ) {
+      return true;
+    }
+    tr.setNodeMarkup(pos, undefined, {
+      ...node.attrs,
+      label: resolvedLabel,
+    });
+    updated = true;
+    return false;
+  });
+
+  if (updated) view.dispatch(tr);
 }
 
 function showPasteHint(message: string, description: string): void {
@@ -182,26 +286,17 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
             return true;
           }
 
-          if (event.key === "Enter") {
-            const sendMessagesWith =
-              useSettingsStore.getState().sendMessagesWith;
-            const isCmdEnterMode = sendMessagesWith === "cmd+enter";
-            const isSubmitKey = isCmdEnterMode
-              ? event.metaKey || event.ctrlKey
-              : !event.shiftKey;
-
-            if (isSubmitKey) {
-              if (!view.editable || submitDisabledRef.current) return false;
-              // tippy.js sets data-state="hidden" when hiding via .hide()
-              const visibleSuggestion = document.querySelector(
-                "[data-tippy-root] .tippy-box:not([data-state='hidden'])",
-              );
-              if (visibleSuggestion) return false;
-              event.preventDefault();
-              historyActions.reset();
-              submitRef.current();
-              return true;
-            }
+          if (isSendMessageSubmitKey(event)) {
+            if (!view.editable || submitDisabledRef.current) return false;
+            // tippy.js sets data-state="hidden" when hiding via .hide()
+            const visibleSuggestion = document.querySelector(
+              "[data-tippy-root] .tippy-box:not([data-state='hidden'])",
+            );
+            if (visibleSuggestion) return false;
+            event.preventDefault();
+            historyActions.reset();
+            submitRef.current();
+            return true;
           }
 
           if (event.key === "ArrowUp" || event.key === "ArrowDown") {
@@ -294,23 +389,36 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
           return false;
         },
         handlePaste: (view, event) => {
-          // Auto-wrap selected text as markdown link when pasting a URL
           const { from, to } = view.state.selection;
-          if (from !== to) {
-            const pastedUrl = event.clipboardData
-              ?.getData("text/plain")
-              ?.trim();
-            if (pastedUrl && /^https?:\/\/\S+$/.test(pastedUrl)) {
+          const clipboardText = event.clipboardData?.getData("text/plain");
+          const trimmedClipboardText = clipboardText?.trim();
+
+          // Auto-wrap selected text as markdown link when pasting a URL
+          if (
+            from !== to &&
+            trimmedClipboardText &&
+            /^https?:\/\/\S+$/.test(trimmedClipboardText)
+          ) {
+            event.preventDefault();
+            const selectedText = view.state.doc.textBetween(from, to);
+            const linkMarkdown = `[${selectedText}](${trimmedClipboardText})`;
+            view.dispatch(
+              view.state.tr.replaceWith(
+                from,
+                to,
+                view.state.schema.text(linkMarkdown),
+              ),
+            );
+            return true;
+          }
+
+          // Auto-convert a pasted GitHub issue or PR URL into a chip
+          if (from === to && trimmedClipboardText) {
+            const parsedRef = parseGithubIssueUrl(trimmedClipboardText);
+            if (parsedRef) {
               event.preventDefault();
-              const selectedText = view.state.doc.textBetween(from, to);
-              const linkMarkdown = `[${selectedText}](${pastedUrl})`;
-              view.dispatch(
-                view.state.tr.replaceWith(
-                  from,
-                  to,
-                  view.state.schema.text(linkMarkdown),
-                ),
-              );
+              insertGithubRefPlaceholder(view, parsedRef);
+              void resolveGithubRefChip(view, parsedRef);
               return true;
             }
           }
@@ -351,19 +459,18 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
           }
 
           // Auto-convert long pasted text into a file attachment
-          const pastedText = event.clipboardData?.getData("text/plain");
           const autoConvertThreshold =
             useFeatureSettingsStore.getState().autoConvertLongText;
           if (
-            pastedText &&
+            clipboardText &&
             autoConvertThreshold !== "off" &&
-            pastedText.length > Number(autoConvertThreshold)
+            clipboardText.length > Number(autoConvertThreshold)
           ) {
             event.preventDefault();
 
             (async () => {
               try {
-                await pasteTextAsFile(view, pastedText, pasteCountRef);
+                await pasteTextAsFile(view, clipboardText, pasteCountRef);
                 showPasteHint(
                   "Pasted as file attachment",
                   "Click the chip to convert back to text.",
@@ -376,7 +483,7 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
             return true;
           }
 
-          if (pastedText && pastedText.length > 200) {
+          if (clipboardText && clipboardText.length > 200) {
             showPasteHint(
               "Pasted as text",
               "Use ⌘⇧V to paste as a file attachment instead.",

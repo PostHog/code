@@ -14,6 +14,7 @@ export interface PickFileOptions {
   title?: string;
   multiple?: boolean;
   directories?: boolean;
+  filesAndDirectories?: boolean;
   createDirectories?: boolean;
 }
 

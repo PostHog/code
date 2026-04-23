@@ -125,6 +125,16 @@ describe("validateCommandParams", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts artifact-only user_message payloads", () => {
+    const result = validateCommandParams("user_message", {
+      artifacts: [
+        { id: "artifact-1", storage_path: "tasks/artifacts/file.pdf" },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("rejects empty content array", () => {
     const result = validateCommandParams("user_message", {
       content: [],

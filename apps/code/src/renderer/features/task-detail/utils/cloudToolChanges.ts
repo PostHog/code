@@ -252,6 +252,7 @@ export function extractCloudToolChangedFiles(
     const path =
       diff?.path ?? (kind === "move" ? destinationPath : locationPath);
     if (!path) continue;
+    if (path.includes(".claude/plans/")) continue;
 
     let file: ChangedFile;
     if (kind === "move") {

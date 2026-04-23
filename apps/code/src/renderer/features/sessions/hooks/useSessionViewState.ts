@@ -1,4 +1,5 @@
 import { useCwd } from "@features/sidebar/hooks/useCwd";
+import { useIsCloudTask } from "@features/workspace/hooks/useIsCloudTask";
 import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import type { Task } from "@shared/types";
 import { useSessionForTask } from "../stores/sessionStore";
@@ -7,9 +8,7 @@ export function useSessionViewState(taskId: string, task: Task) {
   const session = useSessionForTask(taskId);
   const repoPath = useCwd(taskId) ?? null;
   const workspace = useWorkspace(taskId);
-
-  const isCloud =
-    workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
+  const isCloud = useIsCloudTask(taskId);
 
   const cloudStatus = session?.cloudStatus ?? null;
   const isCloudRunNotTerminal =

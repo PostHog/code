@@ -1,7 +1,9 @@
 import { useAuthenticatedMutation } from "@hooks/useAuthenticatedMutation";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import type {
+  McpAuthType,
   McpRecommendedServer,
+  McpServerInstallation,
   PostHogAPIClient,
 } from "@renderer/api/posthogClient";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
@@ -10,56 +12,75 @@ import { useSubscription } from "@trpc/tanstack-react-query";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-const mcpKeys = {
+export const mcpKeys = {
   servers: ["mcp", "servers"] as const,
   installations: ["mcp", "installations"] as const,
+  tools: (installationId: string) =>
+    ["mcp", "installations", installationId, "tools"] as const,
 };
 
 /**
- * Install an MCP server with OAuth through the main process.
- * 1. Gets callback URL from main process (deep link or local HTTP server)
- * 2. Calls PostHog API with install_source="twig" + twig_callback_url
- * 3. If redirect_url returned, main process opens browser and waits for callback
+ * Run the OAuth install flow for an MCP server.
+ * Gets callback URL, calls the API, and (if a redirect_url comes back) opens the
+ * browser and waits for the callback.
  */
-async function installWithOAuth(
+async function runOAuthInstall(
+  redirectUrl: string,
+): Promise<{ success?: boolean; error?: string }> {
+  return trpcClient.mcpCallback.openAndWaitForCallback.mutate({ redirectUrl });
+}
+
+async function getCallbackUrl(): Promise<string> {
+  const { callbackUrl } = await trpcClient.mcpCallback.getCallbackUrl.query();
+  return callbackUrl;
+}
+
+async function installTemplateWithOAuth(
+  client: PostHogAPIClient,
+  vars: { template_id: string; api_key?: string },
+) {
+  const callbackUrl = await getCallbackUrl();
+  const data = await client.installMcpTemplate({
+    ...vars,
+    install_source: "posthog-code",
+    posthog_code_callback_url: callbackUrl,
+  });
+  if ("redirect_url" in data && data.redirect_url) {
+    return runOAuthInstall(data.redirect_url);
+  }
+  return { success: true };
+}
+
+async function installCustomWithOAuth(
   client: PostHogAPIClient,
   vars: {
     name: string;
     url: string;
     description: string;
-    auth_type: "none" | "api_key" | "oauth";
+    auth_type: McpAuthType;
     api_key?: string;
+    client_id?: string;
+    client_secret?: string;
   },
 ) {
-  // Step 1: Get callback URL from main process
-  const { callbackUrl } = await trpcClient.mcpCallback.getCallbackUrl.query();
-
-  // Step 2: Call PostHog API with PostHog Code-specific params
+  const callbackUrl = await getCallbackUrl();
   const data = await client.installCustomMcpServer({
     ...vars,
     install_source: "posthog-code",
     posthog_code_callback_url: callbackUrl,
   });
-
-  // Step 3: If OAuth redirect needed, open browser via main process and wait
   if ("redirect_url" in data && data.redirect_url) {
-    const result = await trpcClient.mcpCallback.openAndWaitForCallback.mutate({
-      redirectUrl: data.redirect_url,
-    });
-    return result;
+    return runOAuthInstall(data.redirect_url);
   }
-
-  // Non-OAuth: return installation directly
   return { success: true };
 }
 
+export { filterServersByCategory, filterServersByQuery } from "./mcpFilters";
+
 export function useMcpServers() {
   const trpcReact = useTRPC();
-  const [installingUrl, setInstallingUrl] = useState<string | null>(null);
+  const [installingId, setInstallingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
-  const markSessionsForMcpRefresh = useCallback(() => {
-    // MCP config changes are picked up on next session creation.
-  }, []);
 
   const { data: installations, isLoading: installationsLoading } =
     useAuthenticatedQuery(mcpKeys.installations, (client) =>
@@ -71,10 +92,27 @@ export function useMcpServers() {
     (client) => client.getMcpServers(),
   );
 
-  const installedUrls = useMemo(
-    () => new Set((installations ?? []).map((i) => i.url)),
+  const installedTemplateIds = useMemo(
+    () =>
+      new Set(
+        (installations ?? [])
+          .map((i) => i.template_id)
+          .filter((id): id is string => !!id),
+      ),
     [installations],
   );
+
+  const installedUrls = useMemo(
+    () =>
+      new Set(
+        (installations ?? []).map((i) => i.url).filter((u): u is string => !!u),
+      ),
+    [installations],
+  );
+
+  const invalidateInstallations = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
+  }, [queryClient]);
 
   const uninstallMutation = useAuthenticatedMutation(
     (client, installationId: string) =>
@@ -82,8 +120,7 @@ export function useMcpServers() {
     {
       onSuccess: () => {
         toast.success("Server uninstalled");
-        queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
-        markSessionsForMcpRefresh();
+        invalidateInstallations();
       },
       onError: (error: Error) => {
         toast.error(error.message || "Failed to uninstall server");
@@ -98,8 +135,7 @@ export function useMcpServers() {
       }),
     {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
-        markSessionsForMcpRefresh();
+        invalidateInstallations();
       },
       onError: (error: Error) => {
         toast.error(error.message || "Failed to update server");
@@ -114,72 +150,115 @@ export function useMcpServers() {
     [toggleEnabledMutation],
   );
 
-  const installRecommendedMutation = useAuthenticatedMutation(
+  const installTemplateMutation = useAuthenticatedMutation(
+    (client, vars: { template_id: string; api_key?: string }) =>
+      installTemplateWithOAuth(client, vars),
+    {
+      onSuccess: (data) => {
+        if (data && "success" in data && data.success) {
+          toast.success("Server connected");
+        } else if (data && "error" in data && data.error) {
+          toast.error(data.error);
+        }
+        invalidateInstallations();
+        setInstallingId(null);
+      },
+      onError: (error: Error) => {
+        toast.error(error.message || "Failed to connect server");
+        setInstallingId(null);
+      },
+    },
+  );
+
+  const installTemplate = useCallback(
+    (template: McpRecommendedServer, opts?: { api_key?: string }) => {
+      setInstallingId(template.id);
+      installTemplateMutation.mutate({
+        template_id: template.id,
+        api_key: opts?.api_key,
+      });
+    },
+    [installTemplateMutation],
+  );
+
+  const installCustomMutation = useAuthenticatedMutation(
     (
       client,
       vars: {
         name: string;
         url: string;
         description: string;
-        auth_type: "none" | "api_key" | "oauth";
+        auth_type: McpAuthType;
+        api_key?: string;
+        client_id?: string;
+        client_secret?: string;
       },
-    ) => installWithOAuth(client, vars),
+    ) => installCustomWithOAuth(client, vars),
     {
       onSuccess: (data) => {
         if (data && "success" in data && data.success) {
-          toast.success("Server connected");
-          markSessionsForMcpRefresh();
+          toast.success("Server added");
         } else if (data && "error" in data && data.error) {
           toast.error(data.error);
         }
-        queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
-        setInstallingUrl(null);
+        invalidateInstallations();
       },
       onError: (error: Error) => {
-        toast.error(error.message || "Failed to connect server");
-        setInstallingUrl(null);
+        toast.error(error.message || "Failed to add server");
       },
     },
   );
 
-  const installRecommended = useCallback(
-    (server: McpRecommendedServer) => {
-      setInstallingUrl(server.url);
-      installRecommendedMutation.mutate({
-        name: server.name,
-        url: server.url,
-        description: server.description,
-        auth_type: server.auth_type,
+  const reauthorizeMutation = useAuthenticatedMutation(
+    async (client, installationId: string) => {
+      const callbackUrl = await getCallbackUrl();
+      const data = await client.authorizeMcpInstallation({
+        installation_id: installationId,
+        install_source: "posthog-code",
+        posthog_code_callback_url: callbackUrl,
       });
+      return runOAuthInstall(data.redirect_url);
     },
-    [installRecommendedMutation],
+    {
+      onSuccess: (data) => {
+        if (data && "success" in data && data.success) {
+          toast.success("Server reconnected");
+        } else if (data && "error" in data && data.error) {
+          toast.error(data.error);
+        }
+        invalidateInstallations();
+      },
+      onError: (error: Error) => {
+        toast.error(error.message || "Failed to reconnect server");
+      },
+    },
   );
 
-  // Subscribe to MCP OAuth completion events for background refresh
   useSubscription(
     trpcReact.mcpCallback.onOAuthComplete.subscriptionOptions(undefined, {
       onData: (data) => {
         if (data.status === "success") {
-          queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
-          markSessionsForMcpRefresh();
+          invalidateInstallations();
         }
       },
     }),
   );
 
   return {
-    installations,
+    installations: installations as McpServerInstallation[] | undefined,
     installationsLoading,
-    servers,
+    servers: servers as McpRecommendedServer[] | undefined,
     serversLoading,
+    installedTemplateIds,
     installedUrls,
-    installingUrl,
+    installingId,
     uninstallMutation,
     toggleEnabled,
-    installRecommended,
-    invalidateInstallations: () => {
-      queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
-      markSessionsForMcpRefresh();
-    },
+    installTemplate,
+    installCustom: installCustomMutation.mutate,
+    installCustomPending: installCustomMutation.isPending,
+    reauthorize: reauthorizeMutation.mutate,
+    reauthorizePending: reauthorizeMutation.isPending,
+    invalidateInstallations,
   };
 }

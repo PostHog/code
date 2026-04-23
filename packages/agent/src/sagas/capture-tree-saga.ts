@@ -113,6 +113,8 @@ export class CaptureTreeSaga extends Saga<CaptureTreeInput, CaptureTreeOutput> {
       execute: async () => {
         const archiveContent = await readFile(archivePath);
         const base64Content = archiveContent.toString("base64");
+        const snapshotBytes = archiveContent.byteLength;
+        const snapshotWireBytes = Buffer.byteLength(base64Content, "utf-8");
 
         const artifacts = await apiClient.uploadTaskArtifacts(taskId, runId, [
           {
@@ -123,12 +125,17 @@ export class CaptureTreeSaga extends Saga<CaptureTreeInput, CaptureTreeOutput> {
           },
         ]);
 
-        if (artifacts.length > 0 && artifacts[0].storage_path) {
+        const uploadedArtifact = artifacts[0];
+        if (uploadedArtifact?.storage_path) {
           this.log.info("Tree archive uploaded", {
-            storagePath: artifacts[0].storage_path,
+            storagePath: uploadedArtifact.storage_path,
             treeHash,
+            snapshotBytes,
+            snapshotWireBytes,
+            totalBytes: snapshotBytes,
+            totalWireBytes: snapshotWireBytes,
           });
-          return artifacts[0].storage_path;
+          return uploadedArtifact.storage_path;
         }
 
         return undefined;

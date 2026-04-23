@@ -1,9 +1,9 @@
 import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { useLogoutMutation } from "@features/auth/hooks/authMutations";
 import {
   useAuthStateValue,
   useCurrentUser,
 } from "@features/auth/hooks/authQueries";
-import { useAuthStore } from "@features/auth/stores/authStore";
 import {
   type SettingsCategory,
   useSettingsDialogStore,
@@ -29,6 +29,7 @@ import {
   Wrench,
 } from "@phosphor-icons/react";
 import { Avatar, Box, Flex, ScrollArea, Text } from "@radix-ui/themes";
+import { BILLING_FLAG } from "@shared/constants";
 import { type ReactNode, useEffect, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { AdvancedSettings } from "./sections/AdvancedSettings";
@@ -50,6 +51,7 @@ interface SidebarItem {
   label: string;
   icon: ReactNode;
   hasChevron?: boolean;
+  fullwidth?: boolean;
 }
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
@@ -73,7 +75,12 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: <Palette size={16} />,
   },
   { id: "claude-code", label: "Claude Code", icon: <Code size={16} /> },
-  { id: "mcp-servers", label: "MCP Servers", icon: <Plugs size={16} /> },
+  {
+    id: "mcp-servers",
+    label: "MCP servers",
+    icon: <Plugs size={16} />,
+    fullwidth: true,
+  },
   { id: "shortcuts", label: "Shortcuts", icon: <Keyboard size={16} /> },
 
   {
@@ -128,7 +135,8 @@ export function SettingsDialog() {
   const client = useOptionalAuthenticatedClient();
   const { data: user } = useCurrentUser({ client });
   const { seat, planLabel } = useSeat();
-  const billingEnabled = useFeatureFlag("posthog-code-billing");
+  const billingEnabled = useFeatureFlag(BILLING_FLAG);
+  const logoutMutation = useLogoutMutation();
 
   const sidebarItems = useMemo(
     () =>
@@ -161,6 +169,8 @@ export function SettingsDialog() {
   }
 
   const ActiveComponent = CATEGORY_COMPONENTS[activeCategory];
+  const activeItem = sidebarItems.find((i) => i.id === activeCategory);
+  const isFullwidth = !!activeItem?.fullwidth;
 
   const initials = user
     ? user.first_name && user.last_name
@@ -231,8 +241,12 @@ export function SettingsDialog() {
         {isAuthenticated && (
           <button
             type="button"
-            className="flex cursor-pointer items-center gap-2 border-0 border-gray-5 border-t bg-transparent px-3 py-2.5 text-left font-mono text-[12px] text-gray-9 transition-colors hover:bg-gray-3 hover:text-gray-11"
-            onClick={() => useAuthStore.getState().logout()}
+            disabled={logoutMutation.isPending}
+            className="flex cursor-pointer items-center gap-2 border-0 border-gray-5 border-t bg-transparent px-3 py-2.5 text-left font-mono text-[12px] text-gray-9 transition-colors hover:bg-gray-3 hover:text-gray-11 disabled:pointer-events-none disabled:opacity-50"
+            onClick={() => {
+              close();
+              logoutMutation.mutate();
+            }}
           >
             <SignOut size={14} />
             <span>Sign out</span>
@@ -285,25 +299,40 @@ export function SettingsDialog() {
               fill="url(#settings-dot-pattern)"
             />
           </svg>
-          <ScrollArea
-            style={{
-              height: "100%",
-              width: "100%",
-            }}
-          >
-            <Box
-              p="6"
-              mx="auto"
-              style={{ position: "relative", zIndex: 1, maxWidth: "800px" }}
+          {isFullwidth ? (
+            <div
+              style={{
+                position: "relative",
+                zIndex: 1,
+                height: "100%",
+                width: "100%",
+                display: "flex",
+                minHeight: 0,
+              }}
             >
-              <Flex direction="column" gap="4">
-                <Text size="4" weight="medium">
-                  {CATEGORY_TITLES[activeCategory]}
-                </Text>
-                <ActiveComponent />
-              </Flex>
-            </Box>
-          </ScrollArea>
+              <ActiveComponent />
+            </div>
+          ) : (
+            <ScrollArea
+              style={{
+                height: "100%",
+                width: "100%",
+              }}
+            >
+              <Box
+                p="6"
+                mx="auto"
+                style={{ position: "relative", zIndex: 1, maxWidth: "800px" }}
+              >
+                <Flex direction="column" gap="4">
+                  <Text size="4" weight="medium">
+                    {CATEGORY_TITLES[activeCategory]}
+                  </Text>
+                  <ActiveComponent />
+                </Flex>
+              </Box>
+            </ScrollArea>
+          )}
         </div>
       </div>
     </div>

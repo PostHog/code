@@ -4,12 +4,14 @@ import { MentionChipView } from "./MentionChipView";
 
 export type ChipType =
   | "file"
+  | "folder"
   | "command"
   | "error"
   | "experiment"
   | "insight"
   | "feature_flag"
-  | "github_issue";
+  | "github_issue"
+  | "github_pr";
 
 export interface MentionChipAttrs {
   type: ChipType;
