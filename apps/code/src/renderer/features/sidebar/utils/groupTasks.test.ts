@@ -51,6 +51,28 @@ describe("getRepositoryInfo", () => {
     });
   });
 
+  it("strips .git suffix even when repository is already lowercase", () => {
+    const info = getRepositoryInfo(
+      makeTask({ repository: "posthog/code.git" }),
+    );
+    expect(info).toEqual({
+      fullPath: "posthog/code",
+      name: "code",
+      organization: "posthog",
+    });
+  });
+
+  it("trims surrounding whitespace from the repository string", () => {
+    const info = getRepositoryInfo(
+      makeTask({ repository: "  PostHog/code.git\n" }),
+    );
+    expect(info).toEqual({
+      fullPath: "posthog/code",
+      name: "code",
+      organization: "PostHog",
+    });
+  });
+
   it("falls through to the folderPath when the repository string is malformed", () => {
     const info = getRepositoryInfo(
       makeTask({ repository: "posthog" }),
@@ -106,6 +128,22 @@ describe("groupByRepository", () => {
     const byId = new Map(groups.map((g) => [g.id, g]));
     expect(byId.get("posthog/code")?.tasks).toHaveLength(1);
     expect(byId.get("other")?.tasks).toHaveLength(1);
+  });
+
+  it("merges .git and non-.git variants of the same repository into one group", () => {
+    // Exercises the end-to-end flow: getRepositoryInfo normalizes both, then
+    // groupByRepository sees them as the same bucket.
+    const t1 = getRepositoryInfo(makeTask({ repository: "PostHog/code.git" }));
+    const t2 = getRepositoryInfo(makeTask({ repository: "posthog/code" }));
+    expect(t1).not.toBeNull();
+    expect(t2).not.toBeNull();
+
+    const groups = groupByRepository([task("t1", t1), task("t2", t2)], []);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.id).toBe("posthog/code");
+    expect(groups[0]?.name).toBe("code");
+    expect(groups[0]?.tasks.map((t) => t.id)).toEqual(["t1", "t2"]);
   });
 
   it("merges tasks with the same repository but different casing into one group", () => {
