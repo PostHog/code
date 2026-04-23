@@ -221,4 +221,4 @@ export function normalizePromptToBlocks(
   return typeof prompt === "string" ? [{ type: "text", text: prompt }] : prompt;
 }
 
-export { isFatalSessionError } from "@shared/errors";
+export { isFatalSessionError, isRateLimitError } from "@shared/errors";

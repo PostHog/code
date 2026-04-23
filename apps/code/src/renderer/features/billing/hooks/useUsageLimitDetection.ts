@@ -6,6 +6,7 @@ import { useFreeUsage } from "./useFreeUsage";
 
 export function useUsageLimitDetection(billingEnabled: boolean) {
   const usage = useFreeUsage(billingEnabled);
+  const isOpen = useUsageLimitStore((s) => s.isOpen);
   const hasAlertedRef = useRef(false);
 
   useEffect(() => {
@@ -13,6 +14,12 @@ export function useUsageLimitDetection(billingEnabled: boolean) {
       hasAlertedRef.current = false;
     }
   }, [billingEnabled]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      hasAlertedRef.current = false;
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!usage) return;
