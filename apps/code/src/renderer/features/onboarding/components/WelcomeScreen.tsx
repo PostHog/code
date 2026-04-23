@@ -1,3 +1,4 @@
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import {
   ArrowRight,
   ChartLine,
@@ -8,37 +9,42 @@ import {
 } from "@phosphor-icons/react";
 import { Button, Flex, Text } from "@radix-ui/themes";
 import explorerHog from "@renderer/assets/images/hedgehogs/explorer-hog.png";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FeatureListItem } from "./FeatureListItem";
 import { OnboardingHogTip } from "./OnboardingHogTip";
 import { StepActions } from "./StepActions";
 
-const FEATURES = [
+const ALL_FEATURES = [
   {
+    id: "signals-inbox",
     icon: <Tray size={24} />,
     title: "Your signals inbox",
     description:
       "Automatically surfaces the highest-impact work from your product data so you always know what to do next.",
   },
   {
+    id: "product-data",
     icon: <ChartLine size={24} />,
     title: "Product data as context",
     description:
       "Your agents have context from your analytics, session replays and feature flags built in.",
   },
   {
+    id: "any-model",
     icon: <Robot size={24} />,
     title: "Any model, any harness",
     description:
       "Bring your own agent framework or use our built-in harnesses. Swap models without changing your workflow.",
   },
   {
+    id: "ship-work",
     icon: <Cloud size={24} />,
     title: "Ship work, not messages",
     description:
       "Run tasks in parallel across local and cloud environments. Work gets done whether you're watching or not.",
   },
   {
+    id: "review-ship",
     icon: <GitPullRequest size={24} />,
     title: "Review and ship with confidence",
     description:
@@ -51,18 +57,26 @@ interface WelcomeScreenProps {
 }
 
 const CYCLE_INTERVAL_MS = 2500;
-const CYCLE_START_DELAY_MS = FEATURES.length * 100 + 400;
+const CYCLE_START_DELAY_MS = ALL_FEATURES.length * 100 + 400;
 
 export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
+  const inboxHidden = useFeatureFlag("posthog-code-inbox-hidden");
+  const features = useMemo(
+    () =>
+      inboxHidden
+        ? ALL_FEATURES.filter((f) => f.id !== "signals-inbox")
+        : ALL_FEATURES,
+    [inboxHidden],
+  );
   const [activeIndex, setActiveIndex] = useState(-1);
   const timerRef = useRef<ReturnType<typeof setInterval>>(null);
 
   const startCycling = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % FEATURES.length);
+      setActiveIndex((prev) => (prev + 1) % features.length);
     }, CYCLE_INTERVAL_MS);
-  }, []);
+  }, [features.length]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -126,7 +140,7 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
             </Flex>
 
             <Flex direction="column" style={{ width: "100%", gap: 8 }}>
-              {FEATURES.map((feature, index) => (
+              {features.map((feature, index) => (
                 <FeatureListItem
                   key={feature.title}
                   icon={feature.icon}

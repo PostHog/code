@@ -1,5 +1,6 @@
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { trpcClient } from "@renderer/trpc/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ONBOARDING_STEPS, type OnboardingStep } from "../types";
@@ -78,13 +79,18 @@ export function useOnboardingFlow() {
   );
 
   const hasCodeAccess = useAuthStateValue((state) => state.hasCodeAccess);
+  const inboxHidden = useFeatureFlag("posthog-code-inbox-hidden");
 
   const activeSteps = useMemo(() => {
+    let steps = ONBOARDING_STEPS as OnboardingStep[];
     if (hasCodeAccess === true) {
-      return ONBOARDING_STEPS.filter((s) => s !== "invite-code");
+      steps = steps.filter((s) => s !== "invite-code");
     }
-    return ONBOARDING_STEPS;
-  }, [hasCodeAccess]);
+    if (inboxHidden) {
+      steps = steps.filter((s) => s !== "signals");
+    }
+    return steps;
+  }, [hasCodeAccess, inboxHidden]);
 
   useEffect(() => {
     if (!activeSteps.includes(currentStep)) {

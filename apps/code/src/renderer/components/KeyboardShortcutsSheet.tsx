@@ -1,3 +1,4 @@
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { Box, Dialog, Flex, Text } from "@radix-ui/themes";
 import {
   CATEGORY_LABELS,
@@ -130,7 +131,14 @@ function ShortcutsHeader() {
 }
 
 export function KeyboardShortcutsList() {
-  const shortcutsByCategory = useMemo(() => getShortcutsByCategory(), []);
+  const inboxHidden = useFeatureFlag("posthog-code-inbox-hidden");
+  const shortcutsByCategory = useMemo(() => {
+    const grouped = getShortcutsByCategory();
+    if (inboxHidden) {
+      grouped.navigation = grouped.navigation.filter((s) => s.id !== "inbox");
+    }
+    return grouped;
+  }, [inboxHidden]);
 
   const categoryOrder: ShortcutCategory[] = [
     "general",

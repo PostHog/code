@@ -51,6 +51,7 @@ export function MainLayout() {
   } = useShortcutsSheetStore();
   const { data: tasks } = useTasks();
   const { showPrompt, isChecking, check, dismiss } = useConnectivity();
+  const inboxHidden = useFeatureFlag("posthog-code-inbox-hidden");
   const billingEnabled = useFeatureFlag(BILLING_FLAG);
 
   // Space switcher data
@@ -108,7 +109,7 @@ export function MainLayout() {
 
           {view.type === "folder-settings" && <FolderSettingsView />}
 
-          {view.type === "inbox" && <InboxView />}
+          {view.type === "inbox" && !inboxHidden && <InboxView />}
 
           {view.type === "archived" && <ArchivedTasksView />}
 
