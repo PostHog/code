@@ -4,6 +4,8 @@ import { HedgehogMode } from "@components/HedgehogMode";
 import { KeyboardShortcutsSheet } from "@components/KeyboardShortcutsSheet";
 
 import { ArchivedTasksView } from "@features/archive/components/ArchivedTasksView";
+import { UsageLimitModal } from "@features/billing/components/UsageLimitModal";
+import { useUsageLimitDetection } from "@features/billing/hooks/useUsageLimitDetection";
 import { CommandMenu } from "@features/command/components/CommandMenu";
 import { CommandCenterView } from "@features/command-center/components/CommandCenterView";
 import { InboxView } from "@features/inbox/components/InboxView";
@@ -20,8 +22,10 @@ import { TourOverlay } from "@features/tour/components/TourOverlay";
 import { useTourStore } from "@features/tour/stores/tourStore";
 import { createFirstTaskTour } from "@features/tour/tours/createFirstTaskTour";
 import { useConnectivity } from "@hooks/useConnectivity";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useIntegrations } from "@hooks/useIntegrations";
 import { Box, Flex } from "@radix-ui/themes";
+import { BILLING_FLAG } from "@shared/constants";
 import { useCommandMenuStore } from "@stores/commandMenuStore";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useShortcutsSheetStore } from "@stores/shortcutsSheetStore";
@@ -43,12 +47,14 @@ export function MainLayout() {
   } = useShortcutsSheetStore();
   const { data: tasks } = useTasks();
   const { showPrompt, isChecking, check, dismiss } = useConnectivity();
+  const billingEnabled = useFeatureFlag(BILLING_FLAG);
 
   const startTour = useTourStore((s) => s.startTour);
   const isFirstTaskTourDone = useTourStore((s) =>
     s.completedTourIds.includes(createFirstTaskTour.id),
   );
 
+  useUsageLimitDetection(billingEnabled);
   useIntegrations();
   useTaskDeepLink();
   useInboxDeepLink();
@@ -119,6 +125,7 @@ export function MainLayout() {
       />
       <SettingsDialog />
       <TourOverlay />
+      {billingEnabled && <UsageLimitModal />}
       <HedgehogMode />
     </Flex>
   );

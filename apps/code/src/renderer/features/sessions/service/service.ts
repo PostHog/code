@@ -2127,35 +2127,6 @@ export class SessionService {
   }
 
   /**
-   * Append a user shell execute event (synchronous version for backwards compatibility).
-   */
-  async appendUserShellExecute(
-    taskId: string,
-    command: string,
-    cwd: string,
-    result: { stdout: string; stderr: string; exitCode: number },
-  ): Promise<void> {
-    const id = `user-shell-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2, 9)}`;
-    const session = sessionStoreSetters.getSessionByTaskId(taskId);
-    if (!session) return;
-
-    const storedEntry: StoredLogEntry = {
-      type: "notification",
-      timestamp: new Date().toISOString(),
-      notification: {
-        method: "_array/user_shell_execute",
-        params: { id, command, cwd, result },
-      },
-    };
-
-    const event = createUserShellExecuteEvent(command, cwd, result, id);
-
-    await this.appendAndPersist(taskId, session, event, storedEntry);
-  }
-
-  /**
    * Retry connecting to the existing session (resume attempt using
    * the sessionId from logs). Does NOT tear down — avoids the connect
    * effect loop.

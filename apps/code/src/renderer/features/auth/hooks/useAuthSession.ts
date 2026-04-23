@@ -11,6 +11,7 @@ import { useAuthUiStateStore } from "@features/auth/stores/authUiStateStore";
 import { useSeatStore } from "@features/billing/stores/seatStore";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { trpcClient } from "@renderer/trpc/client";
+import { BILLING_FLAG } from "@shared/constants";
 import { identifyUser, resetUser } from "@utils/analytics";
 import { logger } from "@utils/logger";
 import { useEffect } from "react";
@@ -104,7 +105,7 @@ export function useAuthSession() {
   const { data: currentUser } = useCurrentUser({ client });
   const authIdentity = getAuthIdentity(authState);
 
-  const billingEnabled = useFeatureFlag("posthog-code-billing");
+  const billingEnabled = useFeatureFlag(BILLING_FLAG);
 
   useAuthSubscriptionSync();
   useAuthIdentitySync(authIdentity, authState.cloudRegion);

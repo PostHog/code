@@ -5,11 +5,7 @@ import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useTRPC } from "@renderer/trpc/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
-import { logger } from "@utils/logger";
-import { useEffect } from "react";
 import type { ToolViewProps } from "./toolCallUtils";
-
-const log = logger.scope("mcp-tool-block");
 
 interface McpToolBlockProps extends ToolViewProps {
   mcpToolName: string;
@@ -34,15 +30,6 @@ export function McpToolBlock(props: McpToolBlockProps) {
       },
     ),
   );
-
-  // TODO: Remove this, used for local debugging only
-  useEffect(() => {
-    log.debug("McpToolBlock render", {
-      mcpToolName,
-      hasUi,
-      isDisabledForServer,
-    });
-  }, [mcpToolName, hasUi, isDisabledForServer]);
 
   // When MCP Apps discovery completes (possibly after this component mounted),
   // invalidate the hasUiForTool query so we pick up newly-discovered UIs.

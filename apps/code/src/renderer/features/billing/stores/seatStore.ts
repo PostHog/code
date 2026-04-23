@@ -3,9 +3,9 @@ import {
   SeatPaymentFailedError,
   SeatSubscriptionRequiredError,
 } from "@renderer/api/posthogClient";
+import { trpcClient } from "@renderer/trpc";
 import type { SeatData } from "@shared/types/seat";
 import { PLAN_FREE, PLAN_PRO } from "@shared/types/seat";
-import { isFeatureFlagEnabled } from "@utils/analytics";
 import { logger } from "@utils/logger";
 import { getPostHogUrl } from "@utils/urls";
 import { create } from "zustand";
@@ -30,14 +30,6 @@ interface SeatStoreActions {
 }
 
 type SeatStore = SeatStoreState & SeatStoreActions;
-
-const BILLING_FLAG = "posthog-code-billing";
-
-function assertBillingEnabled(): void {
-  if (!isFeatureFlagEnabled(BILLING_FLAG)) {
-    throw new Error("Billing is not enabled");
-  }
-}
 
 async function getClient() {
   const client = await getAuthenticatedClient();
@@ -75,6 +67,12 @@ function handleSeatError(
   set({ isLoading: false, error: error.message });
 }
 
+function invalidatePlanCache(): void {
+  trpcClient.llmGateway.invalidatePlanCache.mutate().catch((err) => {
+    log.warn("Failed to invalidate plan cache", err);
+  });
+}
+
 const initialState: SeatStoreState = {
   seat: null,
   isLoading: false,
@@ -88,7 +86,6 @@ export const useSeatStore = create<SeatStore>()((set) => ({
   fetchSeat: async (options?: { autoProvision?: boolean }) => {
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
-      assertBillingEnabled();
       const client = await getClient();
       let seat = await client.getMySeat();
       if (!seat && options?.autoProvision) {
@@ -105,7 +102,6 @@ export const useSeatStore = create<SeatStore>()((set) => ({
     log.info("Provisioning free seat");
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
-      assertBillingEnabled();
       const client = await getClient();
       const existing = await client.getMySeat();
       if (existing) {
@@ -119,6 +115,7 @@ export const useSeatStore = create<SeatStore>()((set) => ({
       const seat = await client.createSeat(PLAN_FREE);
       log.info("Free seat created", { id: seat.id, plan: seat.plan_key });
       set({ seat, isLoading: false });
+      invalidatePlanCache();
     } catch (error) {
       log.error("provisionFreeSeat failed", error);
       handleSeatError(error, set);
@@ -128,7 +125,6 @@ export const useSeatStore = create<SeatStore>()((set) => ({
   upgradeToPro: async () => {
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
-      assertBillingEnabled();
       const client = await getClient();
       const existing = await client.getMySeat();
       if (existing) {
@@ -138,10 +134,12 @@ export const useSeatStore = create<SeatStore>()((set) => ({
         }
         const seat = await client.upgradeSeat(PLAN_PRO);
         set({ seat, isLoading: false });
+        invalidatePlanCache();
         return;
       }
       const seat = await client.createSeat(PLAN_PRO);
       set({ seat, isLoading: false });
+      invalidatePlanCache();
     } catch (error) {
       handleSeatError(error, set);
     }
@@ -150,11 +148,11 @@ export const useSeatStore = create<SeatStore>()((set) => ({
   cancelSeat: async () => {
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
-      assertBillingEnabled();
       const client = await getClient();
       await client.cancelSeat();
       const seat = await client.getMySeat();
       set({ seat, isLoading: false });
+      invalidatePlanCache();
     } catch (error) {
       handleSeatError(error, set);
     }
@@ -163,10 +161,10 @@ export const useSeatStore = create<SeatStore>()((set) => ({
   reactivateSeat: async () => {
     set({ isLoading: true, error: null, redirectUrl: null });
     try {
-      assertBillingEnabled();
       const client = await getClient();
       const seat = await client.reactivateSeat();
       set({ seat, isLoading: false });
+      invalidatePlanCache();
     } catch (error) {
       handleSeatError(error, set);
     }

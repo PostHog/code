@@ -7,9 +7,17 @@ import type {
   TaskRun,
   TaskRunArtifact,
 } from "./types";
-import { getGatewayUsageUrl, getLlmGatewayUrl } from "./utils/gateway";
+import {
+  getGatewayInvalidatePlanCacheUrl,
+  getGatewayUsageUrl,
+  getLlmGatewayUrl,
+} from "./utils/gateway";
 
-export { getGatewayUsageUrl, getLlmGatewayUrl };
+export {
+  getGatewayInvalidatePlanCacheUrl,
+  getGatewayUsageUrl,
+  getLlmGatewayUrl,
+};
 
 const DEFAULT_USER_AGENT = `posthog/agent.hog.dev; version: ${packageJson.version}`;
 
