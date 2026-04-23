@@ -30,8 +30,6 @@ export interface ResumeState {
   conversation: ConversationTurn[];
   latestSnapshot: TreeSnapshotEvent | null;
   latestGitCheckpoint: GitCheckpointEvent | null;
-  /** Whether the tree snapshot was successfully applied (files restored) */
-  snapshotApplied: boolean;
   interrupted: boolean;
   lastDevice?: DeviceInfo;
   logEntryCount: number;
@@ -61,11 +59,7 @@ export interface ResumeConfig {
 /**
  * Resume a task from its persisted log.
  * Returns the rebuilt state for the agent to continue from.
- *
- * Uses Saga pattern internally for atomic operations.
- * Note: snapshotApplied field indicates if files were actually restored -
- * even if latestSnapshot is non-null, files may not have been restored if
- * the snapshot had no archive URL or download/extraction failed.
+ * Snapshot and checkpoint application happens in the agent server after SSE connects.
  */
 export async function resumeFromLog(
   config: ResumeConfig,
@@ -102,7 +96,6 @@ export async function resumeFromLog(
     conversation: result.data.conversation as ConversationTurn[],
     latestSnapshot: result.data.latestSnapshot,
     latestGitCheckpoint: result.data.latestGitCheckpoint,
-    snapshotApplied: result.data.snapshotApplied,
     interrupted: result.data.interrupted,
     lastDevice: result.data.lastDevice,
     logEntryCount: result.data.logEntryCount,
@@ -124,15 +117,31 @@ export function conversationToPromptHistory(
 const RESUME_HISTORY_TOKEN_BUDGET = 50_000;
 const TOOL_RESULT_MAX_CHARS = 2000;
 
+const RESUME_CONTEXT_MARKERS = [
+  "You are resuming a previous conversation",
+  "Here is the conversation history from the",
+  "Continue from where you left off",
+];
+
+function isResumeContextTurn(turn: ConversationTurn): boolean {
+  if (turn.role !== "user") return false;
+  const text = turn.content
+    .filter((b) => b.type === "text")
+    .map((b) => (b as { type: "text"; text: string }).text)
+    .join("");
+  return RESUME_CONTEXT_MARKERS.some((marker) => text.includes(marker));
+}
+
 export function formatConversationForResume(
   conversation: ConversationTurn[],
 ): string {
-  const selected = selectRecentTurns(conversation, RESUME_HISTORY_TOKEN_BUDGET);
+  const filtered = conversation.filter((turn) => !isResumeContextTurn(turn));
+  const selected = selectRecentTurns(filtered, RESUME_HISTORY_TOKEN_BUDGET);
   const parts: string[] = [];
 
-  if (selected.length < conversation.length) {
+  if (selected.length < filtered.length) {
     parts.push(
-      `*(${conversation.length - selected.length} earlier turns omitted)*`,
+      `*(${filtered.length - selected.length} earlier turns omitted)*`,
     );
   }
 

@@ -1065,6 +1065,24 @@ export class PostHogAPIClient {
     return data.artifacts ?? [];
   }
 
+  async resumeRunInCloud(taskId: string, runId: string): Promise<TaskRun> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/resume_in_cloud/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/resume_in_cloud/`,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to resume run in cloud: ${response.statusText}`);
+    }
+
+    return (await response.json()) as TaskRun;
+  }
+
   async listTaskRuns(taskId: string): Promise<TaskRun[]> {
     const teamId = await this.getTeamId();
     const url = new URL(

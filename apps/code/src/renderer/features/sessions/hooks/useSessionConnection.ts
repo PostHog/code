@@ -112,7 +112,7 @@ export function useSessionConnection({
     if (!repoPath) return;
     if (connectingTasks.has(taskId)) return;
     if (!isOnline) return;
-    if (isCloud) return;
+    if (isCloud || session?.isCloud) return;
     if (isSuspended) return;
 
     if (session?.status === "error" && session?.idleKilled) {

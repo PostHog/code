@@ -478,50 +478,34 @@ export class AgentServer {
     await this.autoInitializeSession();
   }
 
-  private async autoInitializeSession(): Promise<void> {
-    const { taskId, runId, mode, projectId } = this.config;
-
-    this.logger.debug("Auto-initializing session", { taskId, runId, mode });
-
-    // Check if this is a resume from a previous run
-    const resumeRunId = process.env.POSTHOG_RESUME_RUN_ID;
-    if (resumeRunId) {
-      this.logger.debug("Resuming from previous run", {
-        resumeRunId,
-        currentRunId: runId,
+  private async loadResumeState(
+    taskId: string,
+    resumeRunId: string,
+    currentRunId: string,
+  ): Promise<void> {
+    this.logger.debug("Loading resume state", { resumeRunId, currentRunId });
+    try {
+      this.resumeState = await resumeFromLog({
+        taskId,
+        runId: resumeRunId,
+        repositoryPath: this.config.repositoryPath,
+        apiClient: this.posthogAPI,
+        logger: new Logger({ debug: true, prefix: "[Resume]" }),
       });
-      try {
-        this.resumeState = await resumeFromLog({
-          taskId,
-          runId: resumeRunId,
-          repositoryPath: this.config.repositoryPath,
-          apiClient: this.posthogAPI,
-          logger: new Logger({ debug: true, prefix: "[Resume]" }),
-        });
-        this.logger.debug("Resume state loaded", {
-          conversationTurns: this.resumeState.conversation.length,
-          snapshotApplied: this.resumeState.snapshotApplied,
-          logEntries: this.resumeState.logEntryCount,
-        });
-      } catch (error) {
-        this.logger.debug("Failed to load resume state, starting fresh", {
-          error,
-        });
-        this.resumeState = null;
-      }
+      this.logger.debug("Resume state loaded", {
+        conversationTurns: this.resumeState.conversation.length,
+        hasSnapshot: !!this.resumeState.latestSnapshot,
+        hasGitCheckpoint: !!this.resumeState.latestGitCheckpoint,
+        gitCheckpointBranch:
+          this.resumeState.latestGitCheckpoint?.branch ?? null,
+        logEntries: this.resumeState.logEntryCount,
+      });
+    } catch (error) {
+      this.logger.debug("Failed to load resume state, starting fresh", {
+        error,
+      });
+      this.resumeState = null;
     }
-
-    // Create a synthetic payload from config (no JWT needed for auto-init)
-    const payload: JwtPayload = {
-      task_id: taskId,
-      run_id: runId,
-      team_id: projectId,
-      user_id: 0, // System-initiated
-      distinct_id: "agent-server",
-      mode,
-    };
-
-    await this.initializeSession(payload, null);
   }
 
   async stop(): Promise<void> {
@@ -1057,33 +1041,14 @@ export class AgentServer {
       }
     }
 
-    // Check for resume if not already loaded from env var in autoInitializeSession
     if (!this.resumeState) {
       const resumeRunId = this.getResumeRunId(taskRun);
       if (resumeRunId) {
-        this.logger.debug("Resuming from previous run (via TaskRun state)", {
+        await this.loadResumeState(
+          payload.task_id,
           resumeRunId,
-          currentRunId: payload.run_id,
-        });
-        try {
-          this.resumeState = await resumeFromLog({
-            taskId: payload.task_id,
-            runId: resumeRunId,
-            repositoryPath: this.config.repositoryPath,
-            apiClient: this.posthogAPI,
-            logger: new Logger({ debug: true, prefix: "[Resume]" }),
-          });
-          this.logger.debug("Resume state loaded (via TaskRun state)", {
-            conversationTurns: this.resumeState.conversation.length,
-            snapshotApplied: this.resumeState.snapshotApplied,
-            logEntries: this.resumeState.logEntryCount,
-          });
-        } catch (error) {
-          this.logger.debug("Failed to load resume state, starting fresh", {
-            error,
-          });
-          this.resumeState = null;
-        }
+          payload.run_id,
+        );
       }
     }
 
@@ -1163,11 +1128,70 @@ export class AgentServer {
         this.resumeState.conversation,
       );
 
-      // Read the pending user prompt from TaskRun state (set by the workflow
-      // when the user sends a follow-up message that triggers a resume).
+      let snapshotApplied = false;
+      if (
+        this.resumeState.latestSnapshot?.archiveUrl &&
+        this.config.repositoryPath &&
+        this.posthogAPI
+      ) {
+        try {
+          const treeTracker = new TreeTracker({
+            repositoryPath: this.config.repositoryPath,
+            taskId: payload.task_id,
+            runId: payload.run_id,
+            apiClient: this.posthogAPI,
+            logger: this.logger.child("TreeTracker"),
+          });
+          await treeTracker.applyTreeSnapshot(this.resumeState.latestSnapshot);
+          treeTracker.setLastTreeHash(this.resumeState.latestSnapshot.treeHash);
+          snapshotApplied = true;
+          this.logger.info("Tree snapshot applied", {
+            treeHash: this.resumeState.latestSnapshot.treeHash,
+            changes: this.resumeState.latestSnapshot.changes?.length ?? 0,
+            hasArchiveUrl: !!this.resumeState.latestSnapshot.archiveUrl,
+          });
+        } catch (error) {
+          this.logger.warn("Failed to apply tree snapshot", {
+            error: error instanceof Error ? error.message : String(error),
+            treeHash: this.resumeState.latestSnapshot.treeHash,
+          });
+        }
+      }
+
+      if (
+        this.resumeState.latestGitCheckpoint &&
+        this.config.repositoryPath &&
+        this.posthogAPI
+      ) {
+        try {
+          const checkpointTracker = new HandoffCheckpointTracker({
+            repositoryPath: this.config.repositoryPath,
+            taskId: payload.task_id,
+            runId: payload.run_id,
+            apiClient: this.posthogAPI,
+            logger: this.logger.child("HandoffCheckpoint"),
+          });
+          const metrics = await checkpointTracker.applyFromHandoff(
+            this.resumeState.latestGitCheckpoint,
+          );
+          this.logger.info("Git checkpoint applied", {
+            branch: this.resumeState.latestGitCheckpoint.branch,
+            head: this.resumeState.latestGitCheckpoint.head,
+            packBytes: metrics.packBytes,
+            indexBytes: metrics.indexBytes,
+            totalBytes: metrics.totalBytes,
+          });
+        } catch (error) {
+          this.logger.warn("Failed to apply git checkpoint", {
+            error: error instanceof Error ? error.message : String(error),
+            branch: this.resumeState.latestGitCheckpoint.branch,
+          });
+        }
+      }
+
       const pendingUserPrompt = await this.getPendingUserPrompt(taskRun);
 
-      const sandboxContext = this.resumeState.snapshotApplied
+      const sandboxContext = snapshotApplied
         ? `The workspace environment (all files, packages, and code changes) has been fully restored from where you left off.`
         : `The workspace files from the previous session were not restored (the file snapshot may have expired), so you are starting with a fresh environment. Your conversation history is fully preserved below.`;
 
@@ -1206,7 +1230,10 @@ export class AgentServer {
         conversationTurns: this.resumeState.conversation.length,
         promptLength: promptBlocksToText(resumePromptBlocks).length,
         hasPendingUserMessage: !!pendingUserPrompt?.length,
-        snapshotApplied: this.resumeState.snapshotApplied,
+        snapshotApplied,
+        hasGitCheckpoint: !!this.resumeState.latestGitCheckpoint,
+        gitCheckpointBranch:
+          this.resumeState.latestGitCheckpoint?.branch ?? null,
       });
 
       // Clear resume state so it's not reused
@@ -1432,6 +1459,29 @@ export class AgentServer {
     const baseName = basename(name).trim();
     const normalizedName = baseName.replace(/[^\w.-]/g, "_");
     return normalizedName.length > 0 ? normalizedName : "attachment";
+  }
+
+  private async autoInitializeSession(): Promise<void> {
+    const { taskId, runId, mode, projectId } = this.config;
+
+    this.logger.debug("Auto-initializing session", { taskId, runId, mode });
+
+    const resumeRunId = process.env.POSTHOG_RESUME_RUN_ID;
+    if (resumeRunId) {
+      await this.loadResumeState(taskId, resumeRunId, runId);
+    }
+
+    // Create a synthetic payload from config (no JWT needed for auto-init)
+    const payload: JwtPayload = {
+      task_id: taskId,
+      run_id: runId,
+      team_id: projectId,
+      user_id: 0, // System-initiated
+      distinct_id: "agent-server",
+      mode,
+    };
+
+    await this.initializeSession(payload, null);
   }
 
   private getResumeRunId(taskRun: TaskRun | null): string | null {
