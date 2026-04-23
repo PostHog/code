@@ -24,10 +24,11 @@ export function getRepositoryInfo(
 ): TaskRepositoryInfo | null {
   const repository = getTaskRepository(task);
   if (repository) {
-    const parsed = parseRepository(repository);
+    const normalized = normalizeRepoKey(repository);
+    const parsed = parseRepository(normalized);
     if (parsed) {
       return {
-        fullPath: normalizeRepoKey(repository).toLowerCase(),
+        fullPath: normalized.toLowerCase(),
         name: parsed.repoName,
         organization: parsed.organization,
       };

@@ -40,11 +40,15 @@ describe("getRepositoryInfo", () => {
     });
   });
 
-  it("strips .git suffix when normalizing the fullPath", () => {
+  it("strips .git suffix from both fullPath and name", () => {
     const info = getRepositoryInfo(
       makeTask({ repository: "PostHog/code.git" }),
     );
-    expect(info?.fullPath).toBe("posthog/code");
+    expect(info).toEqual({
+      fullPath: "posthog/code",
+      name: "code",
+      organization: "PostHog",
+    });
   });
 
   it("falls through to the folderPath when the repository string is malformed", () => {
