@@ -16,6 +16,14 @@
 @import "tailwindcss";
 
 /*
+ * Tailwind v4 ignores `darkMode: "class"` from the legacy v3 config loaded
+ * via @config, so we re-declare the dark variant here. This tracks the
+ * `.dark` class that themeStore syncs onto <html>, keeping `dark:` utilities
+ * in sync with the in-app theme toggle (rather than just OS preference).
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
  * @posthog/quill — shadcn-style integration.
  *
  *   tokens.css   registers quill's design tokens (:root + .dark CSS

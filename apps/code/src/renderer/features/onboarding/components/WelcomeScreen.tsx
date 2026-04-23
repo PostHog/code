@@ -8,6 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { Button, Flex, Text } from "@radix-ui/themes";
 import explorerHog from "@renderer/assets/images/hedgehogs/explorer-hog.png";
+import LogosLandscape from "@renderer/assets/logos-landscape";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FeatureListItem } from "./FeatureListItem";
 import { OnboardingHogTip } from "./OnboardingHogTip";
@@ -113,14 +114,21 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
             }}
           >
             <Flex direction="column" gap="1">
+              <Flex direction="row" align="center" gap="2">
+                <Text
+                  size="6"
+                  weight="bold"
+                  style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+                >
+                  Welcome to
+                </Text>
+                <LogosLandscape />
+              </Flex>
               <Text
-                size="6"
-                weight="bold"
-                style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+                size="2"
+                className="hidden"
+                style={{ color: "var(--gray-11)" }}
               >
-                Welcome to PostHog Code
-              </Text>
-              <Text size="2" style={{ color: "var(--gray-11)" }}>
                 Your product workbench.
               </Text>
             </Flex>
