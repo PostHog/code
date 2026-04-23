@@ -10,7 +10,7 @@
     }
   },
   "scripts": {
-    "build": "tsup",
+    "build": "node ../../scripts/rimraf.mjs dist && tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "clean": "node ../../scripts/rimraf.mjs dist .turbo",

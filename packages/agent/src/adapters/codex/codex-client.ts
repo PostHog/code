@@ -29,6 +29,10 @@ import type {
   WriteTextFileRequest,
   WriteTextFileResponse,
 } from "@agentclientprotocol/sdk";
+import {
+  enrichFileForAgent,
+  type FileEnrichmentDeps,
+} from "../../enrichment/file-enricher";
 import type { PermissionMode } from "../../execution-mode";
 import type { Logger } from "../../utils/logger";
 import type { CodexSessionState } from "./session-state";
@@ -36,6 +40,8 @@ import type { CodexSessionState } from "./session-state";
 export interface CodexClientCallbacks {
   /** Called when a usage_update session notification is received */
   onUsageUpdate?: (update: Record<string, unknown>) => void;
+  /** When set, Read responses are annotated with PostHog enrichment before reaching codex-acp. */
+  enrichmentDeps?: FileEnrichmentDeps;
 }
 
 const AUTO_APPROVED_KINDS: Record<PermissionMode, Set<ToolKind>> = {
@@ -152,7 +158,14 @@ export function createCodexClient(
     async readTextFile(
       params: ReadTextFileRequest,
     ): Promise<ReadTextFileResponse> {
-      return upstreamClient.readTextFile(params);
+      const response = await upstreamClient.readTextFile(params);
+      if (!callbacks?.enrichmentDeps) return response;
+      const enriched = await enrichFileForAgent(
+        callbacks.enrichmentDeps,
+        params.path,
+        response.content,
+      );
+      return enriched ? { ...response, content: enriched } : response;
     },
 
     async writeTextFile(

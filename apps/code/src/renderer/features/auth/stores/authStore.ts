@@ -40,7 +40,7 @@ interface AuthStoreState {
   needsProjectSelection: boolean;
   needsScopeReauth: boolean;
   hasCodeAccess: boolean | null;
-  hasCompletedOnboarding: boolean;
+
   checkCodeAccess: () => Promise<void>;
   redeemInviteCode: (code: string) => Promise<void>;
   loginWithOAuth: (region: CloudRegion) => Promise<void>;
@@ -202,8 +202,6 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
   needsScopeReauth: false,
   hasCodeAccess: null,
 
-  hasCompletedOnboarding: false,
-
   checkCodeAccess: async () => {
     await syncAuthState();
   },
@@ -243,9 +241,6 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
     sessionResetCallback?.();
     useSeatStore.getState().reset();
     useSettingsDialogStore.getState().close();
-    clearAuthenticatedRendererState({ clearAllQueries: true });
-    await trpcClient.auth.logout.mutate();
-    useNavigationStore.getState().navigateToTaskInput();
 
     set((state) => ({
       ...state,
@@ -263,5 +258,9 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
     inFlightAuthSync = null;
     inFlightAuthSyncKey = null;
     lastCompletedAuthSyncKey = null;
+
+    clearAuthenticatedRendererState({ clearAllQueries: true });
+    useNavigationStore.getState().navigateToTaskInput();
+    await trpcClient.auth.logout.mutate();
   },
 }));

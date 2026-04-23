@@ -1,7 +1,7 @@
-import { app, Notification } from "electron";
+import type { IMainWindow } from "@posthog/platform/main-window";
+import type { INotifier } from "@posthog/platform/notifier";
 import { inject, injectable, postConstruct } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
-import { getMainWindow } from "../../trpc/context";
 import { logger } from "../../utils/logger";
 import { TaskLinkEvent, type TaskLinkService } from "../task-link/service";
 
@@ -14,72 +14,59 @@ export class NotificationService {
   constructor(
     @inject(MAIN_TOKENS.TaskLinkService)
     private readonly taskLinkService: TaskLinkService,
+    @inject(MAIN_TOKENS.Notifier)
+    private readonly notifier: INotifier,
+    @inject(MAIN_TOKENS.MainWindow)
+    private readonly mainWindow: IMainWindow,
   ) {}
 
   @postConstruct()
   init(): void {
-    app.on("browser-window-focus", () => this.clearDockBadge());
-    log.info("Notification service initialized");
+    this.mainWindow.onFocus(() => this.clearDockBadge());
   }
 
   send(title: string, body: string, silent: boolean, taskId?: string): void {
-    if (!Notification.isSupported()) {
+    if (!this.notifier.isSupported()) {
       log.warn("Notifications not supported on this platform");
       return;
     }
 
-    const notification = new Notification({ title, body, silent });
-
-    notification.on("click", () => {
-      log.info("Notification clicked, focusing window", { title, taskId });
-      const mainWindow = getMainWindow();
-      if (mainWindow) {
-        if (mainWindow.isMinimized()) {
-          mainWindow.restore();
+    this.notifier.notify({
+      title,
+      body,
+      silent,
+      onClick: () => {
+        log.info("Notification clicked, focusing window", { title, taskId });
+        if (this.mainWindow.isMinimized()) {
+          this.mainWindow.restore();
         }
-        mainWindow.focus();
-      }
+        this.mainWindow.focus();
 
-      if (taskId) {
-        this.taskLinkService.emit(TaskLinkEvent.OpenTask, { taskId });
-        log.info("Notification clicked, navigating to task", { taskId });
-      }
+        if (taskId) {
+          this.taskLinkService.emit(TaskLinkEvent.OpenTask, { taskId });
+          log.info("Notification clicked, navigating to task", { taskId });
+        }
+      },
     });
-
-    notification.show();
     log.info("Notification sent", { title, body, silent, taskId });
   }
 
   showDockBadge(): void {
     if (this.hasBadge) return;
-
     this.hasBadge = true;
-    if (process.platform === "darwin" || process.platform === "linux") {
-      app.dock?.setBadge("•");
-    } else if (process.platform === "win32") {
-      getMainWindow()?.flashFrame(true);
-    }
+    this.notifier.setUnreadIndicator(true);
     log.info("Dock badge shown");
   }
 
   bounceDock(): void {
-    if (process.platform === "darwin") {
-      app.dock?.bounce("informational");
-    } else if (process.platform === "win32") {
-      getMainWindow()?.flashFrame(true);
-    }
+    this.notifier.requestAttention();
     log.info("Dock bounce triggered");
   }
 
   private clearDockBadge(): void {
     if (!this.hasBadge) return;
-
     this.hasBadge = false;
-    if (process.platform === "darwin" || process.platform === "linux") {
-      app.dock?.setBadge("");
-    } else if (process.platform === "win32") {
-      getMainWindow()?.flashFrame(false);
-    }
+    this.notifier.setUnreadIndicator(false);
     log.info("Dock badge cleared");
   }
 }

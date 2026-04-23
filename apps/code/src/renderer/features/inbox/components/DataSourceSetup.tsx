@@ -63,6 +63,8 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
     repositories,
     getIntegrationIdForRepo,
     isLoadingRepos,
+    isRefreshingRepos,
+    refreshRepositories,
     hasGithubIntegration,
   } = useRepositoryIntegration();
   const [repo, setRepo] = useState<string | null>(null);
@@ -70,6 +72,9 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
   const [connecting, setConnecting] = useState(false);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selectedIntegrationId = repo
+    ? getIntegrationIdForRepo(repo)
+    : undefined;
 
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
@@ -83,6 +88,14 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
   }, []);
 
   useEffect(() => stopPolling, [stopPolling]);
+
+  useEffect(() => {
+    if (isLoadingRepos || !repo || repositories.includes(repo)) {
+      return;
+    }
+
+    setRepo(null);
+  }, [isLoadingRepos, repo, repositories]);
 
   // Stop polling once integration appears
   useEffect(() => {
@@ -141,10 +154,7 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
   }, [cloudRegion, projectId, client, stopPolling]);
 
   const handleSubmit = useCallback(async () => {
-    const githubIntegrationId = repo
-      ? getIntegrationIdForRepo(repo)
-      : undefined;
-    if (!projectId || !client || !repo || !githubIntegrationId) return;
+    if (!projectId || !client || !repo || !selectedIntegrationId) return;
 
     setLoading(true);
     try {
@@ -154,7 +164,7 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
           repository: repo,
           auth_method: {
             selection: "oauth",
-            github_integration_id: githubIntegrationId,
+            github_integration_id: selectedIntegrationId,
           },
           schemas: schemasPayload("github"),
         },
@@ -168,7 +178,21 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
     } finally {
       setLoading(false);
     }
-  }, [projectId, client, repo, getIntegrationIdForRepo, onComplete]);
+  }, [projectId, client, onComplete, repo, selectedIntegrationId]);
+
+  const handleRefreshRepositories = useCallback(() => {
+    void refreshRepositories()
+      .then(() => {
+        toast.success("Repositories refreshed");
+      })
+      .catch((error) => {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to refresh repositories",
+        );
+      });
+  }, [refreshRepositories]);
 
   if (!hasGithubIntegration) {
     return (
@@ -207,6 +231,8 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
           onChange={setRepo}
           repositories={repositories}
           isLoading={isLoadingRepos}
+          isRefreshing={isRefreshingRepos}
+          onRefresh={handleRefreshRepositories}
           placeholder="Select repository..."
           size="2"
         />
@@ -215,7 +241,11 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
           <Button size="2" variant="soft" onClick={onCancel} disabled={loading}>
             Cancel
           </Button>
-          <Button size="2" onClick={handleSubmit} disabled={!repo || loading}>
+          <Button
+            size="2"
+            onClick={handleSubmit}
+            disabled={!repo || !selectedIntegrationId || loading}
+          >
             {loading ? "Creating..." : "Create source"}
           </Button>
         </Flex>

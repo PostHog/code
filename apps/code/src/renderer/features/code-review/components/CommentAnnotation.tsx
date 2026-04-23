@@ -2,6 +2,7 @@ import { sendPromptToAgent } from "@features/sessions/utils/sendPromptToAgent";
 import { PaperPlaneTilt, X } from "@phosphor-icons/react";
 import type { AnnotationSide } from "@pierre/diffs";
 import { Button, IconButton } from "@radix-ui/themes";
+import { isSendMessageSubmitKey } from "@utils/sendMessageKey";
 import { useCallback, useRef } from "react";
 import { buildInlineCommentPrompt } from "../utils/reviewPrompts";
 
@@ -46,7 +47,7 @@ export function CommentAnnotation({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      if (isSendMessageSubmitKey(e)) {
         e.preventDefault();
         handleSubmit();
       }

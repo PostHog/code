@@ -17,6 +17,7 @@ import type {
   SignalReportsQueryParams,
   SignalReportsResponse,
   SignalReportTask,
+  SignalReportTaskRelationship,
   SignalTeamConfig,
   SignalUserAutonomyConfig,
   SuggestedReviewersArtefact,
@@ -95,6 +96,37 @@ export interface ExternalDataSource {
   // The generated `ExternalDataSourceSerializers` types this as `string`,
   // but the actual API returns an array of schema objects
   schemas?: ExternalDataSourceSchema[] | string;
+}
+
+export interface TaskArtifactUploadRequest {
+  name: string;
+  type: "user_attachment";
+  size: number;
+  content_type?: string;
+  source?: string;
+}
+
+export interface DirectUploadPresignedPost {
+  url: string;
+  fields: Record<string, string>;
+}
+
+export interface PreparedTaskArtifactUpload extends TaskArtifactUploadRequest {
+  id: string;
+  storage_path: string;
+  expires_in: number;
+  presigned_post: DirectUploadPresignedPost;
+}
+
+export interface FinalizedTaskArtifactUpload {
+  id: string;
+  name: string;
+  type: string;
+  source?: string;
+  size?: number;
+  content_type?: string;
+  storage_path: string;
+  uploaded_at?: string;
 }
 
 type CloudRuntimeAdapter = "claude" | "codex";
@@ -331,6 +363,7 @@ function normalizeAvailableSuggestedReviewer(
     uuid: normalizedUuid,
     name: optionalString(value.name) ?? "",
     email: optionalString(value.email) ?? "",
+    github_login: optionalString(value.github_login) ?? "",
   };
 }
 
@@ -656,6 +689,8 @@ export class PostHogAPIClient {
         >
       > & {
         github_integration?: number | null;
+        /** POST-only: `SignalReportTask.relationship` to create when linking to `signal_report`. */
+        signal_report_task_relationship?: SignalReportTaskRelationship;
       },
   ) {
     const teamId = await this.getTeamId();
@@ -769,6 +804,7 @@ export class PostHogAPIClient {
       reasoningLevel?: string;
       resumeFromRunId?: string;
       pendingUserMessage?: string;
+      pendingUserArtifactIds?: string[];
       sandboxEnvironmentId?: string;
       prAuthorshipMode?: PrAuthorshipMode;
       runSource?: CloudRunSource;
@@ -813,6 +849,9 @@ export class PostHogAPIClient {
     if (options?.pendingUserMessage) {
       body.pending_user_message = options.pendingUserMessage;
     }
+    if (options?.pendingUserArtifactIds?.length) {
+      body.pending_user_artifact_ids = options.pendingUserArtifactIds;
+    }
     if (options?.sandboxEnvironmentId) {
       body.sandbox_environment_id = options.sandboxEnvironmentId;
     }
@@ -841,6 +880,154 @@ export class PostHogAPIClient {
     );
 
     return data as unknown as Task;
+  }
+
+  async prepareTaskStagedArtifactUploads(
+    taskId: string,
+    artifacts: TaskArtifactUploadRequest[],
+  ): Promise<PreparedTaskArtifactUpload[]> {
+    if (!artifacts.length) {
+      return [];
+    }
+
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/staged_artifacts/prepare_upload/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/staged_artifacts/prepare_upload/`,
+      overrides: {
+        body: JSON.stringify({ artifacts }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to prepare staged uploads: ${response.statusText}`,
+      );
+    }
+
+    const data = (await response.json()) as {
+      artifacts?: PreparedTaskArtifactUpload[];
+    };
+    return data.artifacts ?? [];
+  }
+
+  async finalizeTaskStagedArtifactUploads(
+    taskId: string,
+    artifacts: PreparedTaskArtifactUpload[],
+  ): Promise<FinalizedTaskArtifactUpload[]> {
+    if (!artifacts.length) {
+      return [];
+    }
+
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/staged_artifacts/finalize_upload/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/staged_artifacts/finalize_upload/`,
+      overrides: {
+        body: JSON.stringify({
+          artifacts: artifacts.map((artifact) => ({
+            id: artifact.id,
+            name: artifact.name,
+            type: artifact.type,
+            source: artifact.source,
+            content_type: artifact.content_type,
+            storage_path: artifact.storage_path,
+          })),
+        }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to finalize staged uploads: ${response.statusText}`,
+      );
+    }
+
+    const data = (await response.json()) as {
+      artifacts?: FinalizedTaskArtifactUpload[];
+    };
+    return data.artifacts ?? [];
+  }
+
+  async prepareTaskRunArtifactUploads(
+    taskId: string,
+    runId: string,
+    artifacts: TaskArtifactUploadRequest[],
+  ): Promise<PreparedTaskArtifactUpload[]> {
+    if (!artifacts.length) {
+      return [];
+    }
+
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/artifacts/prepare_upload/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/artifacts/prepare_upload/`,
+      overrides: {
+        body: JSON.stringify({ artifacts }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to prepare uploads: ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as {
+      artifacts?: PreparedTaskArtifactUpload[];
+    };
+    return data.artifacts ?? [];
+  }
+
+  async finalizeTaskRunArtifactUploads(
+    taskId: string,
+    runId: string,
+    artifacts: PreparedTaskArtifactUpload[],
+  ): Promise<FinalizedTaskArtifactUpload[]> {
+    if (!artifacts.length) {
+      return [];
+    }
+
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/artifacts/finalize_upload/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/artifacts/finalize_upload/`,
+      overrides: {
+        body: JSON.stringify({
+          artifacts: artifacts.map((artifact) => ({
+            id: artifact.id,
+            name: artifact.name,
+            type: artifact.type,
+            source: artifact.source,
+            content_type: artifact.content_type,
+            storage_path: artifact.storage_path,
+          })),
+        }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to finalize uploads: ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as {
+      artifacts?: FinalizedTaskArtifactUpload[];
+    };
+    return data.artifacts ?? [];
   }
 
   async listTaskRuns(taskId: string): Promise<TaskRun[]> {
@@ -1066,6 +1253,7 @@ export class PostHogAPIClient {
     repo: string,
     offset: number,
     limit: number,
+    search?: string,
   ): Promise<{
     branches: string[];
     defaultBranch: string | null;
@@ -1078,6 +1266,9 @@ export class PostHogAPIClient {
     url.searchParams.set("repo", repo);
     url.searchParams.set("offset", String(offset));
     url.searchParams.set("limit", String(limit));
+    if (search?.trim()) {
+      url.searchParams.set("search", search.trim());
+    }
     const response = await this.api.fetcher.fetch({
       method: "get",
       url,
@@ -1118,12 +1309,44 @@ export class PostHogAPIClient {
     }
 
     const data = await response.json();
+    return this.normalizeGithubRepositories(data);
+  }
 
-    const repos = data.repositories ?? data.results ?? data ?? [];
-    return repos.map((repo: string | { full_name?: string; name?: string }) => {
-      if (typeof repo === "string") return repo;
-      return (repo.full_name ?? repo.name ?? "").toLowerCase();
+  async refreshGithubRepositories(
+    integrationId: string | number,
+  ): Promise<string[]> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/environments/${teamId}/integrations/${integrationId}/github_repos/refresh/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/environments/${teamId}/integrations/${integrationId}/github_repos/refresh/`,
     });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to refresh GitHub repositories: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return this.normalizeGithubRepositories(data);
+  }
+
+  private normalizeGithubRepositories(data: unknown): string[] {
+    const repos =
+      (data as { repositories?: unknown[] }).repositories ??
+      (data as { results?: unknown[] }).results ??
+      (Array.isArray(data) ? data : []);
+
+    return (repos as (string | { full_name?: string; name?: string })[]).map(
+      (repo) => {
+        if (typeof repo === "string") return repo;
+        return (repo.full_name ?? repo.name ?? "").toLowerCase();
+      },
+    );
   }
 
   async getAgents() {
@@ -1194,6 +1417,30 @@ export class PostHogAPIClient {
     }
 
     return await response.json();
+  }
+
+  async getSignalReport(reportId: string): Promise<SignalReport | null> {
+    const teamId = await this.getTeamId();
+    const path = `/api/projects/${teamId}/signals/reports/${reportId}/`;
+    const url = new URL(`${this.api.baseUrl}${path}`);
+
+    try {
+      const response = await this.api.fetcher.fetch({
+        method: "get",
+        url,
+        path,
+      });
+      return (await response.json()) as SignalReport;
+    } catch (error) {
+      // The shared fetcher throws "Failed request: [<status>] <body>" for any
+      // non-2xx. Treat missing / forbidden as "not available in the current
+      // team" and surface other errors to the caller.
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("[404]") || msg.includes("[403]")) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async getSignalReports(
@@ -1984,5 +2231,44 @@ export class PostHogAPIClient {
         `Failed to delete sandbox environment: ${response.statusText}`,
       );
     }
+  }
+
+  /** Find an exported asset by session recording ID. */
+  async findExportBySessionRecordingId(
+    projectId: number,
+    sessionRecordingId: string,
+  ): Promise<number | null> {
+    const urlPath = `/api/projects/${projectId}/exports/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    url.searchParams.set("session_recording_id", sessionRecordingId);
+    url.searchParams.set("export_format", "video/mp4");
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: urlPath,
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as {
+      results?: Array<{ id: number; has_content: boolean }>;
+    };
+    const match = data.results?.find((e) => e.has_content);
+    return match?.id ?? null;
+  }
+
+  /** Get the presigned content URL for an exported asset (e.g. rasterized recording). */
+  async getExportContentUrl(
+    projectId: number,
+    exportId: number,
+  ): Promise<string | null> {
+    const urlPath = `/api/projects/${projectId}/exports/${exportId}/content/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: urlPath,
+    });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
   }
 }

@@ -1,6 +1,7 @@
 import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
 import { useCommandCenterStore } from "@features/command-center/stores/commandCenterStore";
 import { useInboxReports } from "@features/inbox/hooks/useInboxReports";
+import { isReportUpForReview } from "@features/inbox/utils/filterReports";
 import {
   INBOX_PIPELINE_STATUS_FILTER,
   INBOX_REFETCH_INTERVAL_MS,
@@ -64,12 +65,7 @@ function SidebarMenuComponent() {
     },
   );
   const inboxResults = inboxProbe?.results ?? [];
-  const inboxSignalCount = inboxResults.filter(
-    (r) =>
-      r.status === "ready" &&
-      r.is_suggested_reviewer &&
-      r.actionability === "immediately_actionable",
-  ).length;
+  const inboxSignalCount = inboxResults.filter(isReportUpForReview).length;
 
   const taskMap = new Map<string, Task>();
   for (const task of allTasks) {
@@ -270,7 +266,7 @@ function SidebarMenuComponent() {
   }, [setEditingTaskId]);
 
   return (
-    <Box height="100%" position="relative">
+    <Box height="100%" position="relative" id="side-bar-menu">
       <ScrollArea className="h-full overflow-y-auto overflow-x-hidden">
         <Flex direction="column" py="2" px="2" gap="1px">
           <Box mb="2">

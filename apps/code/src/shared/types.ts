@@ -14,7 +14,13 @@ export const executionModeSchema = z.enum([
 export type ExecutionMode = z.infer<typeof executionModeSchema>;
 
 // Effort level schema and type - shared between main and renderer
-export const effortLevelSchema = z.enum(["low", "medium", "high", "max"]);
+export const effortLevelSchema = z.enum([
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+]);
 export type EffortLevel = z.infer<typeof effortLevelSchema>;
 
 interface UserBasic {
@@ -72,7 +78,7 @@ export interface TaskRun {
   branch: string | null;
   runtime_adapter?: "claude" | "codex" | null;
   model?: string | null;
-  reasoning_effort?: "low" | "medium" | "high" | "max" | null;
+  reasoning_effort?: "low" | "medium" | "high" | "xhigh" | "max" | null;
   stage?: string | null; // Current stage (e.g., 'research', 'plan', 'build')
   environment?: "local" | "cloud";
   status: TaskRunStatus;
@@ -278,6 +284,10 @@ export interface SignalReport {
   already_addressed?: boolean | null;
   /** Whether the current user is a suggested reviewer for this report (server-annotated). */
   is_suggested_reviewer?: boolean;
+  /** Distinct source products contributing signals to this report. */
+  source_products?: string[];
+  /** PR URL from the latest implementation task run, if available. */
+  implementation_pr_url?: string | null;
 }
 
 export interface SignalReportArtefactContent {
@@ -365,6 +375,7 @@ export interface AvailableSuggestedReviewer {
   uuid: string;
   name: string;
   email: string;
+  github_login: string;
 }
 
 export interface SuggestedReviewer {
@@ -457,9 +468,23 @@ export interface SignalReportsQueryParams {
   suggested_reviewers?: string;
 }
 
+/** Values match `SignalReportTask.Relationship` on the PostHog API. */
+export const SIGNAL_REPORT_TASK_RELATIONSHIPS = [
+  "repo_selection",
+  "research",
+  "implementation",
+] as const;
+
+export type SignalReportTaskRelationship =
+  (typeof SIGNAL_REPORT_TASK_RELATIONSHIPS)[number];
+
+/** Inbox / cloud PR tasks must use this when creating the `SignalReportTask` link. */
+export const SIGNAL_REPORT_TASK_IMPLEMENTATION_RELATIONSHIP: SignalReportTaskRelationship =
+  "implementation";
+
 export interface SignalReportTask {
   id: string;
-  relationship: "repo_selection" | "research" | "implementation";
+  relationship: SignalReportTaskRelationship;
   task_id: string;
   created_at: string;
 }

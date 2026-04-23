@@ -41,7 +41,7 @@ const SOURCE_LABELS: Record<keyof SignalSourceValues, string> = {
   github: "GitHub Issues",
   linear: "Linear Issues",
   zendesk: "Zendesk Tickets",
-  conversations: "PostHog Conversations",
+  conversations: "PostHog Support",
 };
 
 const DATA_WAREHOUSE_SOURCES: Record<
@@ -151,7 +151,7 @@ export function useSignalSourceManager() {
         {
           requiresSetup: boolean;
           loading: boolean;
-          syncStatus?: string | null;
+          syncStatus?: SignalSourceConfig["status"];
         }
       >
     > = {};

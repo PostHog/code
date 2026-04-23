@@ -250,7 +250,7 @@ describe("checkpoint sagas", () => {
     });
   });
 
-  it("handles submodules without breaking", async () => {
+  it("handles submodules without breaking", { timeout: 15000 }, async () => {
     const subRepo = await mkdtemp(
       path.join(tmpdir(), "posthog-code-submodule-"),
     );

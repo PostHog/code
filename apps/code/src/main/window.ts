@@ -2,8 +2,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createIPCHandler } from "@posthog/electron-trpc/main";
 import { BrowserWindow, screen, shell } from "electron";
+import { container } from "./di/container";
+import { MAIN_TOKENS } from "./di/tokens";
 import { buildApplicationMenu } from "./menu";
-import { setMainWindowGetter } from "./trpc/context";
+import type { ElectronMainWindow } from "./platform-adapters/electron-main-window";
 import { trpcRouter } from "./trpc/router";
 import { isDevBuild } from "./utils/env";
 import { logger } from "./utils/logger";
@@ -175,7 +177,9 @@ export function createWindow(): void {
   mainWindow.on("unmaximize", () => mainWindow && saveWindowState(mainWindow));
   mainWindow.on("close", () => mainWindow && saveWindowState(mainWindow));
 
-  setMainWindowGetter(() => mainWindow);
+  container
+    .get<ElectronMainWindow>(MAIN_TOKENS.MainWindow)
+    .setMainWindowGetter(() => mainWindow);
 
   createIPCHandler({
     router: trpcRouter,

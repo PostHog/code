@@ -260,6 +260,7 @@ export function ActionSelector({
                   isHovered={isHovered}
                   isChecked={isChecked}
                   showCheckbox={showSubmitButton}
+                  multiSelect={multiSelect}
                   customInput={customInput}
                   customInputPlaceholder={customInputPlaceholder}
                   isEditing={showInlineEdit && isSelected}
@@ -294,6 +295,7 @@ export function ActionSelector({
                   isHovered={isHovered}
                   isChecked={false}
                   showCheckbox={false}
+                  multiSelect={multiSelect}
                   customInput=""
                   customInputPlaceholder=""
                   isEditing={false}

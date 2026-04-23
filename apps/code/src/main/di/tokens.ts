@@ -5,6 +5,23 @@
  * Never import this file from renderer code.
  */
 export const MAIN_TOKENS = Object.freeze({
+  // Platform ports (host-agnostic interfaces from @posthog/platform)
+  UrlLauncher: Symbol.for("Platform.UrlLauncher"),
+  StoragePaths: Symbol.for("Platform.StoragePaths"),
+  AppMeta: Symbol.for("Platform.AppMeta"),
+  Dialog: Symbol.for("Platform.Dialog"),
+  Clipboard: Symbol.for("Platform.Clipboard"),
+  FileIcon: Symbol.for("Platform.FileIcon"),
+  SecureStorage: Symbol.for("Platform.SecureStorage"),
+  MainWindow: Symbol.for("Platform.MainWindow"),
+  AppLifecycle: Symbol.for("Platform.AppLifecycle"),
+  PowerManager: Symbol.for("Platform.PowerManager"),
+  Updater: Symbol.for("Platform.Updater"),
+  Notifier: Symbol.for("Platform.Notifier"),
+  ContextMenu: Symbol.for("Platform.ContextMenu"),
+  BundledResources: Symbol.for("Platform.BundledResources"),
+  ImageProcessor: Symbol.for("Platform.ImageProcessor"),
+
   // Stores
   SettingsStore: Symbol.for("Main.SettingsStore"),
 
@@ -23,6 +40,7 @@ export const MAIN_TOKENS = Object.freeze({
   AgentService: Symbol.for("Main.AgentService"),
   AuthService: Symbol.for("Main.AuthService"),
   AuthProxyService: Symbol.for("Main.AuthProxyService"),
+  McpProxyService: Symbol.for("Main.McpProxyService"),
   ArchiveService: Symbol.for("Main.ArchiveService"),
   SuspensionService: Symbol.for("Main.SuspensionService"),
   AppLifecycleService: Symbol.for("Main.AppLifecycleService"),
@@ -52,6 +70,7 @@ export const MAIN_TOKENS = Object.freeze({
   UIService: Symbol.for("Main.UIService"),
   UpdatesService: Symbol.for("Main.UpdatesService"),
   TaskLinkService: Symbol.for("Main.TaskLinkService"),
+  InboxLinkService: Symbol.for("Main.InboxLinkService"),
   WatcherRegistryService: Symbol.for("Main.WatcherRegistryService"),
   EnvironmentService: Symbol.for("Main.EnvironmentService"),
   ProvisioningService: Symbol.for("Main.ProvisioningService"),

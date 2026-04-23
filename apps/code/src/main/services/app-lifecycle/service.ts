@@ -1,6 +1,6 @@
+import type { IAppLifecycle } from "@posthog/platform/app-lifecycle";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
-import { app } from "electron";
-import { injectable } from "inversify";
+import { inject, injectable } from "inversify";
 import type { DatabaseService } from "../../db/service";
 import { container } from "../../di/container";
 import { MAIN_TOKENS } from "../../di/tokens";
@@ -20,6 +20,11 @@ export class AppLifecycleService {
 
   private _isQuittingForUpdate = false;
   private _isShuttingDown = false;
+
+  constructor(
+    @inject(MAIN_TOKENS.AppLifecycle)
+    private readonly appLifecycle: IAppLifecycle,
+  ) {}
 
   get isQuittingForUpdate(): boolean {
     return this._isQuittingForUpdate;
@@ -85,7 +90,7 @@ export class AppLifecycleService {
    */
   async gracefulExit(): Promise<void> {
     await this.shutdown();
-    app.exit(0);
+    this.appLifecycle.exit(0);
   }
 
   /**

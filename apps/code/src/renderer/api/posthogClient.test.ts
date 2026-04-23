@@ -124,4 +124,67 @@ describe("PostHogAPIClient", () => {
 
     expect(post).not.toHaveBeenCalled();
   });
+
+  describe("getSignalReport", () => {
+    function makeClient(fetch: ReturnType<typeof vi.fn>) {
+      const client = new PostHogAPIClient(
+        "http://localhost:8000",
+        async () => "token",
+        async () => "token",
+        123,
+      );
+      (
+        client as unknown as {
+          api: { baseUrl: string; fetcher: { fetch: typeof fetch } };
+        }
+      ).api = {
+        baseUrl: "http://localhost:8000",
+        fetcher: { fetch },
+      };
+      return client;
+    }
+
+    it("returns the parsed report on success", async () => {
+      const fetch = vi.fn().mockResolvedValue({
+        json: async () => ({ id: "abc", title: "hi" }),
+      });
+      const client = makeClient(fetch);
+
+      await expect(client.getSignalReport("abc")).resolves.toEqual({
+        id: "abc",
+        title: "hi",
+      });
+    });
+
+    it("returns null when the shared fetcher throws a 404", async () => {
+      const fetch = vi
+        .fn()
+        .mockRejectedValue(
+          new Error('Failed request: [404] {"detail":"Not found."}'),
+        );
+      const client = makeClient(fetch);
+
+      await expect(client.getSignalReport("abc")).resolves.toBeNull();
+    });
+
+    it("returns null when the shared fetcher throws a 403", async () => {
+      const fetch = vi
+        .fn()
+        .mockRejectedValue(
+          new Error('Failed request: [403] {"detail":"Forbidden."}'),
+        );
+      const client = makeClient(fetch);
+
+      await expect(client.getSignalReport("abc")).resolves.toBeNull();
+    });
+
+    it("rethrows non-404/403 errors", async () => {
+      const fetch = vi
+        .fn()
+        .mockRejectedValue(new Error("Failed request: [500] boom"));
+      const client = makeClient(fetch);
+
+      await expect(client.getSignalReport("abc")).rejects.toThrow("[500]");
+    });
+  });
 });

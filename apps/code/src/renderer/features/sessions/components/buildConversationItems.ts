@@ -56,6 +56,15 @@ export type ConversationItem =
   | UserShellExecute
   | { type: "queued"; id: string; message: QueuedMessage };
 
+export type ProgressStatus = "in_progress" | "completed" | "failed";
+
+export interface ProgressStep {
+  key: string;
+  status: ProgressStatus;
+  label: string;
+  detail?: string;
+}
+
 export interface LastTurnInfo {
   isComplete: boolean;
   durationMs: number;
@@ -66,6 +75,17 @@ export interface BuildResult {
   items: ConversationItem[];
   lastTurnInfo: LastTurnInfo | null;
   isCompacting: boolean;
+}
+
+interface ProgressCardState {
+  /** Step key → full step entry. Key order reflects arrival order. */
+  steps: Map<string, ProgressStep>;
+  /** Reference to the pushed render item; mutated in place as events arrive. */
+  renderItem: {
+    sessionUpdate: "progress_group";
+    steps: ProgressStep[];
+    isActive: boolean;
+  };
 }
 
 interface TurnState {
@@ -88,6 +108,11 @@ interface ItemBuilder {
   shellExecutes: Map<string, { item: UserShellExecute; index: number }>;
   isCompacting: boolean;
   nextId: () => number;
+  /** Progress cards keyed by the backend-supplied `group` id. The first event
+   *  for a group opens the card inline where it arrived; every subsequent
+   *  event for the same id mutates the same card, regardless of which turn is
+   *  currently active. */
+  progressCards: Map<string, ProgressCardState>;
 }
 
 function createItemBuilder(): ItemBuilder {
@@ -99,6 +124,7 @@ function createItemBuilder(): ItemBuilder {
     shellExecutes: new Map(),
     isCompacting: false,
     nextId: () => idCounter++,
+    progressCards: new Map(),
   };
 }
 
@@ -141,6 +167,7 @@ function pushItem(b: ItemBuilder, update: RenderItem) {
 }
 
 export interface BuildConversationOptions {
+  /** Render `debug`-level console logs inline; without this only info/warn/error show up. */
   showDebugLogs?: boolean;
 }
 
@@ -343,18 +370,24 @@ function handleNotification(
   }
 
   if (isNotification(msg.method, POSTHOG_NOTIFICATIONS.CONSOLE)) {
-    if (!b.currentTurn) {
-      ensureImplicitTurn(b, ts);
-    }
     const params = msg.params as { level?: string; message?: string };
     if (!params?.message) return;
-    if (params.level === "debug" && !options?.showDebugLogs) return;
+    const level = params.level ?? "info";
+    // Cloud runs downgrade every console log to debug at the source, so this
+    // gate hides the entire stream unless the user flips the debug toggle.
+    if (level === "debug" && !options?.showDebugLogs) return;
+    if (!b.currentTurn) ensureImplicitTurn(b, ts);
     pushItem(b, {
       sessionUpdate: "console",
-      level: params.level ?? "info",
+      level,
       message: params.message,
       timestamp: new Date(ts).toISOString(),
     });
+    return;
+  }
+
+  if (isNotification(msg.method, POSTHOG_NOTIFICATIONS.PROGRESS)) {
+    handleProgress(b, msg.params, ts);
     return;
   }
 
@@ -387,6 +420,72 @@ function handleNotification(
       isComplete: params.isComplete,
     });
     return;
+  }
+}
+
+function ensureProgressCardForGroup(
+  b: ItemBuilder,
+  group: string,
+  ts: number,
+): ProgressCardState | null {
+  const existing = b.progressCards.get(group);
+  if (existing) return existing;
+
+  if (!b.currentTurn) ensureImplicitTurn(b, ts);
+  if (!b.currentTurn) return null;
+
+  const renderItem = {
+    sessionUpdate: "progress_group" as const,
+    steps: [] as ProgressStep[],
+    isActive: true,
+  };
+  const card: ProgressCardState = {
+    steps: new Map(),
+    renderItem,
+  };
+  b.progressCards.set(group, card);
+  pushItem(b, renderItem);
+  return card;
+}
+
+function syncProgressCard(card: ProgressCardState) {
+  const ordered: ProgressStep[] = Array.from(card.steps.values());
+  card.renderItem.steps = ordered;
+  card.renderItem.isActive = ordered.some((s) => s.status === "in_progress");
+}
+
+function handleProgress(b: ItemBuilder, rawParams: unknown, ts: number) {
+  const params = rawParams as
+    | {
+        step?: string;
+        status?: string;
+        label?: string;
+        detail?: string;
+        group?: string;
+      }
+    | undefined;
+  if (!params?.step || !params.label || !params.group) return;
+
+  const status = normalizeProgressStatus(params.status);
+  const card = ensureProgressCardForGroup(b, params.group, ts);
+  if (!card) return;
+  card.steps.set(params.step, {
+    key: params.step,
+    status,
+    label: params.label,
+    detail: params.detail,
+  });
+  syncProgressCard(card);
+}
+
+function normalizeProgressStatus(raw: string | undefined): ProgressStatus {
+  switch (raw) {
+    case "in_progress":
+    case "completed":
+    case "failed":
+      return raw;
+    default:
+      return "in_progress";
   }
 }
 

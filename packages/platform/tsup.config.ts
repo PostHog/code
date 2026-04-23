@@ -1,0 +1,28 @@
+import { defineConfig } from "tsup";
+
+export default defineConfig({
+  entry: [
+    "src/url-launcher.ts",
+    "src/storage-paths.ts",
+    "src/app-meta.ts",
+    "src/dialog.ts",
+    "src/clipboard.ts",
+    "src/file-icon.ts",
+    "src/secure-storage.ts",
+    "src/main-window.ts",
+    "src/app-lifecycle.ts",
+    "src/power-manager.ts",
+    "src/updater.ts",
+    "src/notifier.ts",
+    "src/context-menu.ts",
+    "src/bundled-resources.ts",
+    "src/image-processor.ts",
+  ],
+  format: ["esm"],
+  dts: true,
+  sourcemap: true,
+  clean: true,
+  splitting: false,
+  outDir: "dist",
+  target: "es2022",
+});

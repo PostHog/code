@@ -503,9 +503,6 @@ export async function hydrateSessionJsonl(params: {
     const jsonlPath = getSessionJsonlPath(params.sessionId, params.cwd);
     try {
       await fs.access(jsonlPath);
-      log.info("Local JSONL exists, skipping S3 hydration", {
-        sessionId: params.sessionId,
-      });
       return true;
     } catch {
       // File doesn't exist, proceed with hydration

@@ -3,10 +3,15 @@
   "ignoreWorkspaces": ["apps/mobile"],
   "workspaces": {
     ".": {
-      "entry": ["mprocs.yaml"]
+      "entry": [
+        "mprocs.yaml",
+        "scripts/pnpm-run.mjs",
+        "scripts/test-access-token.js"
+      ]
     },
     "apps/code": {
       "entry": [
+        "src/main/bootstrap.ts",
         "src/main/index.ts",
         "src/main/preload.ts",
         "src/renderer/main.tsx",
@@ -42,6 +47,21 @@
       "entry": ["src/*.ts"],
       "project": ["src/**/*.ts"],
       "ignore": ["tests/**"],
+      "includeEntryExports": true
+    },
+    "packages/electron-trpc": {
+      "entry": [
+        "src/main/index.ts",
+        "src/renderer/index.ts",
+        "main.d.ts",
+        "renderer.d.ts"
+      ],
+      "project": ["src/**/*.ts"],
+      "includeEntryExports": true
+    },
+    "packages/shared": {
+      "entry": ["src/index.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts"],
       "includeEntryExports": true
     }
   }

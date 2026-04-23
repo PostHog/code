@@ -8,11 +8,6 @@ import {
   getAuthenticatedClient,
 } from "@features/auth/hooks/authClient";
 import { fetchAuthState } from "@features/auth/hooks/authQueries";
-import {
-  buildCloudPromptBlocks,
-  buildCloudTaskDescription,
-  serializeCloudPrompt,
-} from "@features/editor/utils/cloud-prompt";
 import { useSessionAdapterStore } from "@features/sessions/stores/sessionAdapterStore";
 import {
   getPersistedConfigOptions,
@@ -26,6 +21,7 @@ import type {
   PermissionRequest,
 } from "@features/sessions/stores/sessionStore";
 import {
+  flattenSelectOptions,
   getConfigOptionByCategory,
   mergeConfigOptions,
   sessionStoreSetters,
@@ -68,7 +64,7 @@ import {
 import { queryClient } from "@utils/queryClient";
 import {
   convertStoredEntriesToEvents,
-  createUserMessageEvent,
+  createUserPromptEvent,
   createUserShellExecuteEvent,
   extractPromptText,
   getUserShellExecutesSinceLastPrompt,
@@ -76,6 +72,13 @@ import {
   normalizePromptToBlocks,
   shellExecutesToContextBlocks,
 } from "@utils/session";
+import {
+  cloudPromptToBlocks,
+  combineQueuedCloudPrompts,
+  getCloudPromptTransport,
+  uploadRunAttachments,
+  uploadTaskStagedAttachments,
+} from "../utils/cloudArtifacts";
 
 const log = logger.scope("session-service");
 const LOCAL_SESSION_RECONNECT_ATTEMPTS = 3;
@@ -91,10 +94,15 @@ const LOCAL_SESSION_RECOVERY_FAILED_MESSAGE =
 /**
  * Build default configOptions for cloud sessions so the mode switcher
  * is available in the UI even without a local agent connection.
+ *
+ * The `extra` options (model, thought_level) come from the preview-config
+ * trpc query, which is async. Callers populate them by calling
+ * `fetchAndApplyCloudPreviewOptions` after the session exists in the store.
  */
 function buildCloudDefaultConfigOptions(
   initialMode: string | undefined,
   adapter: Adapter = "claude",
+  extra: SessionConfigOption[] = [],
 ): SessionConfigOption[] {
   const modes =
     adapter === "codex" ? getAvailableCodexModes() : getAvailableModes();
@@ -117,13 +125,14 @@ function buildCloudDefaultConfigOptions(
       category: "mode" as SessionConfigOption["category"],
       description: "Choose an approval and sandboxing preset for your session",
     },
+    ...extra,
   ];
 }
 
 interface AuthCredentials {
   apiHost: string;
   projectId: number;
-  client: Awaited<ReturnType<typeof getAuthenticatedClient>>;
+  client: NonNullable<Awaited<ReturnType<typeof getAuthenticatedClient>>>;
 }
 
 export interface ConnectParams {
@@ -187,6 +196,14 @@ export class SessionService {
   /** Maps toolCallId → cloud requestId for routing permission responses */
   private cloudPermissionRequestIds = new Map<string, string>();
   private idleKilledSubscription: { unsubscribe: () => void } | null = null;
+  /**
+   * Cached preview-config-options responses keyed by `${apiHost}::${adapter}`.
+   * Shared across cloud sessions so switching model/adapter reuses the list.
+   */
+  private previewConfigOptionsCache = new Map<
+    string,
+    Promise<SessionConfigOption[]>
+  >();
 
   constructor() {
     this.idleKilledSubscription =
@@ -211,14 +228,9 @@ export class SessionService {
     const taskId = task.id;
     this.localRepoPaths.set(taskId, params.repoPath);
 
-    log.info("Connecting to task", { taskId });
-
     // Return existing connection promise if already connecting
     const existingPromise = this.connectingTasks.get(taskId);
     if (existingPromise) {
-      log.info("Already connecting to task, returning existing promise", {
-        taskId,
-      });
       return existingPromise;
     }
 
@@ -576,11 +588,11 @@ export class SessionService {
     this.unsubscribeFromChannel(taskRunId);
     sessionStoreSetters.updateSession(taskRunId, {
       status: "error",
-      errorMessage:
-        "Session disconnected due to inactivity. Click Retry to reconnect.",
+      errorMessage: "Session disconnected due to inactivity. Reconnecting…",
       isPromptPending: false,
       isCompacting: false,
       promptStartedAt: null,
+      idleKilled: true,
     });
   }
 
@@ -1064,10 +1076,6 @@ export class SessionService {
           adapter: params.adapter,
         });
         useSessionAdapterStore.getState().setAdapter(taskRunId, params.adapter);
-        log.info("Session adapter updated", {
-          taskRunId,
-          adapter: params.adapter,
-        });
       }
     }
 
@@ -1425,41 +1433,26 @@ export class SessionService {
 
   // --- Cloud Commands ---
 
-  private async prepareCloudPrompt(
-    prompt: string | ContentBlock[],
-  ): Promise<{ blocks: ContentBlock[]; promptText: string }> {
-    const blocks =
-      typeof prompt === "string"
-        ? await buildCloudPromptBlocks(prompt)
-        : prompt;
-
-    if (blocks.length === 0) {
-      throw new Error("Cloud prompt cannot be empty");
-    }
-
-    const promptText =
-      extractPromptText(blocks).trim() ||
-      (typeof prompt === "string" ? buildCloudTaskDescription(prompt) : "");
-
-    return { blocks, promptText };
-  }
-
   private async sendCloudPrompt(
     session: AgentSession,
     prompt: string | ContentBlock[],
     options?: { skipQueueGuard?: boolean },
   ): Promise<{ stopReason: string }> {
-    const rawPromptText = extractPromptText(prompt);
-    if (!rawPromptText.trim()) {
+    const transport = getCloudPromptTransport(prompt);
+    if (!transport.messageText && transport.filePaths.length === 0) {
       return { stopReason: "empty" };
     }
 
     if (isTerminalStatus(session.cloudStatus)) {
-      return this.resumeCloudRun(session, rawPromptText);
+      return this.resumeCloudRun(session, prompt);
     }
 
     if (!options?.skipQueueGuard && session.isPromptPending) {
-      sessionStoreSetters.enqueueMessage(session.taskId, rawPromptText);
+      sessionStoreSetters.enqueueMessage(
+        session.taskId,
+        transport.promptText,
+        prompt,
+      );
       log.info("Cloud message queued", {
         taskId: session.taskId,
         queueLength: session.messageQueue.length + 1,
@@ -1467,12 +1460,26 @@ export class SessionService {
       return { stopReason: "queued" };
     }
 
-    const auth = await this.getCloudCommandAuth();
-    if (!auth) {
+    const [auth, cloudCommandAuth] = await Promise.all([
+      this.getAuthCredentials(),
+      this.getCloudCommandAuth(),
+    ]);
+    if (!auth || !cloudCommandAuth) {
       throw new Error("Authentication required for cloud commands");
     }
-
-    const { blocks, promptText } = await this.prepareCloudPrompt(prompt);
+    const artifactIds = await uploadRunAttachments(
+      auth.client,
+      session.taskId,
+      session.taskRunId,
+      transport.filePaths,
+    );
+    const params: Record<string, unknown> = {};
+    if (transport.messageText) {
+      params.content = transport.messageText;
+    }
+    if (artifactIds.length > 0) {
+      params.artifact_ids = artifactIds;
+    }
 
     sessionStoreSetters.updateSession(session.taskRunId, {
       isPromptPending: true,
@@ -1482,21 +1489,17 @@ export class SessionService {
       task_id: session.taskId,
       is_initial: session.events.length === 0,
       execution_type: "cloud",
-      prompt_length_chars: promptText.length,
+      prompt_length_chars: transport.promptText.length,
     });
 
     try {
       const result = await trpcClient.cloudTask.sendCommand.mutate({
         taskId: session.taskId,
         runId: session.taskRunId,
-        apiHost: auth.apiHost,
-        teamId: auth.teamId,
+        apiHost: cloudCommandAuth.apiHost,
+        teamId: cloudCommandAuth.teamId,
         method: "user_message",
-        params: {
-          // The live /command API still validates user_message content as a
-          // string, so structured prompts must go through the serialized form.
-          content: serializeCloudPrompt(blocks),
-        },
+        params,
       });
 
       sessionStoreSetters.updateSession(session.taskRunId, {
@@ -1536,12 +1539,13 @@ export class SessionService {
   private async sendQueuedCloudMessages(
     taskId: string,
     attempt = 0,
-    pendingText?: string,
+    pendingPrompt?: string | ContentBlock[],
   ): Promise<{ stopReason: string }> {
-    // First attempt: atomically dequeue. Retries reuse the already-dequeued text.
-    const combinedText =
-      pendingText ?? sessionStoreSetters.dequeueMessagesAsText(taskId);
-    if (!combinedText) return { stopReason: "skipped" };
+    // First attempt: atomically dequeue. Retries reuse the already-dequeued prompt.
+    const combinedPrompt =
+      pendingPrompt ??
+      combineQueuedCloudPrompts(sessionStoreSetters.dequeueMessages(taskId));
+    if (!combinedPrompt) return { stopReason: "skipped" };
 
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) {
@@ -1553,12 +1557,12 @@ export class SessionService {
 
     log.info("Sending queued cloud messages", {
       taskId,
-      promptLength: combinedText.length,
+      promptLength: combinedPrompt.length,
       attempt,
     });
 
     try {
-      return await this.sendCloudPrompt(session, combinedText, {
+      return await this.sendCloudPrompt(session, combinedPrompt, {
         skipQueueGuard: true,
       });
     } catch (error) {
@@ -1577,7 +1581,7 @@ export class SessionService {
               this.sendQueuedCloudMessages(
                 taskId,
                 attempt + 1,
-                combinedText,
+                combinedPrompt,
               ).catch((err) => {
                 log.error("Queued cloud message retry failed", {
                   taskId,
@@ -1604,8 +1608,8 @@ export class SessionService {
     session: AgentSession,
     prompt: string | ContentBlock[],
   ): Promise<{ stopReason: string }> {
-    const client = await getAuthenticatedClient();
-    if (!client) {
+    const authCredentials = await this.getAuthCredentials();
+    if (!authCredentials) {
       throw new Error("Authentication required for cloud commands");
     }
     const auth = await this.getCloudCommandAuth();
@@ -1613,11 +1617,19 @@ export class SessionService {
       throw new Error("Authentication required for cloud commands");
     }
 
-    const { blocks, promptText } = await this.prepareCloudPrompt(prompt);
+    const transport = getCloudPromptTransport(prompt);
+    if (!transport.messageText && transport.filePaths.length === 0) {
+      return { stopReason: "empty" };
+    }
+    const artifactIds = await uploadTaskStagedAttachments(
+      authCredentials.client,
+      session.taskId,
+      transport.filePaths,
+    );
 
     const [previousRun, task] = await Promise.all([
-      client.getTaskRun(session.taskId, session.taskRunId),
-      client.getTask(session.taskId),
+      authCredentials.client.getTaskRun(session.taskId, session.taskRunId),
+      authCredentials.client.getTask(session.taskId),
     ]);
     const hasGitHubRepo = !!task.repository && !!task.github_integration;
     const previousState = previousRun.state as Record<string, unknown>;
@@ -1655,7 +1667,7 @@ export class SessionService {
     // Create a new run WITH resume context — backend validates the previous run,
     // derives snapshot_external_id server-side, and passes everything as extra_state.
     // The agent will load conversation history and restore the sandbox snapshot.
-    const updatedTask = await client.runTaskInCloud(
+    const updatedTask = await authCredentials.client.runTaskInCloud(
       session.taskId,
       previousBaseBranch,
       {
@@ -1663,7 +1675,9 @@ export class SessionService {
         model: runtimeOptions.model,
         reasoningLevel: runtimeOptions.reasoningLevel,
         resumeFromRunId: session.taskRunId,
-        pendingUserMessage: serializeCloudPrompt(blocks),
+        pendingUserMessage: transport.messageText,
+        pendingUserArtifactIds:
+          artifactIds.length > 0 ? artifactIds : undefined,
         prAuthorshipMode,
         runSource: this.getCloudRunSource(previousState),
         signalReportId:
@@ -1691,7 +1705,12 @@ export class SessionService {
     // Reset processedLineCount to 0 because the new run's log stream starts fresh.
     newSession.events = [
       ...session.events,
-      createUserMessageEvent(promptText, Date.now()),
+      createUserPromptEvent(
+        transport.filePaths.length > 0
+          ? cloudPromptToBlocks(prompt)
+          : [{ type: "text", text: transport.promptText }],
+        Date.now(),
+      ),
     ];
     newSession.processedLineCount = 0;
     // Skip the first session/prompt from polled logs — we already have the
@@ -1707,6 +1726,12 @@ export class SessionService {
       typeof newRun.state?.initial_permission_mode === "string"
         ? newRun.state.initial_permission_mode
         : undefined;
+    const priorModel = getConfigOptionByCategory(
+      session.configOptions,
+      "model",
+    )?.currentValue;
+    const initialModel =
+      newRun.model ?? (typeof priorModel === "string" ? priorModel : undefined);
     this.watchCloudTask(
       session.taskId,
       newRun.id,
@@ -1716,6 +1741,7 @@ export class SessionService {
       newRun.log_url,
       initialMode,
       newRun.runtime_adapter ?? session.adapter ?? "claude",
+      initialModel,
     );
 
     // Invalidate task queries so the UI picks up the new run metadata
@@ -1725,7 +1751,7 @@ export class SessionService {
       task_id: session.taskId,
       is_initial: false,
       execution_type: "cloud",
-      prompt_length_chars: promptText.length,
+      prompt_length_chars: transport.promptText.length,
     });
 
     return { stopReason: "queued" };
@@ -1984,6 +2010,15 @@ export class SessionService {
     });
     updatePersistedConfigOptionValue(session.taskRunId, configId, value);
 
+    if (
+      !session.isCloud &&
+      (session.idleKilled ||
+        session.status === "disconnected" ||
+        session.status === "connecting")
+    ) {
+      return;
+    }
+
     try {
       if (session.isCloud) {
         await this.sendCloudCommand(session, "set_config_option", {
@@ -2101,35 +2136,6 @@ export class SessionService {
   }
 
   /**
-   * Append a user shell execute event (synchronous version for backwards compatibility).
-   */
-  async appendUserShellExecute(
-    taskId: string,
-    command: string,
-    cwd: string,
-    result: { stdout: string; stderr: string; exitCode: number },
-  ): Promise<void> {
-    const id = `user-shell-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2, 9)}`;
-    const session = sessionStoreSetters.getSessionByTaskId(taskId);
-    if (!session) return;
-
-    const storedEntry: StoredLogEntry = {
-      type: "notification",
-      timestamp: new Date().toISOString(),
-      notification: {
-        method: "_array/user_shell_execute",
-        params: { id, command, cwd, result },
-      },
-    };
-
-    const event = createUserShellExecuteEvent(command, cwd, result, id);
-
-    await this.appendAndPersist(taskId, session, event, storedEntry);
-  }
-
-  /**
    * Retry connecting to the existing session (resume attempt using
    * the sessionId from logs). Does NOT tear down — avoids the connect
    * effect loop.
@@ -2228,6 +2234,70 @@ export class SessionService {
   }
 
   /**
+   * Fetch model/effort options from the main-process preview-config endpoint
+   * and merge them into the cloud session's configOptions. Cached per
+   * (apiHost, adapter) so repeated visits don't refetch.
+   *
+   * Runs fire-and-forget: the session stays usable with just the `mode` option
+   * if the fetch fails or is still in flight.
+   */
+  private async fetchAndApplyCloudPreviewOptions(
+    taskRunId: string,
+    apiHost: string,
+    adapter: Adapter,
+    initialModel?: string,
+  ): Promise<void> {
+    const cacheKey = `${apiHost}::${adapter}`;
+    let pending = this.previewConfigOptionsCache.get(cacheKey);
+    if (!pending) {
+      pending = trpcClient.agent.getPreviewConfigOptions
+        .query({ apiHost, adapter })
+        .catch((err: unknown) => {
+          log.warn("Failed to fetch preview config options for cloud session", {
+            apiHost,
+            adapter,
+            error: err,
+          });
+          this.previewConfigOptionsCache.delete(cacheKey);
+          return [] as SessionConfigOption[];
+        });
+      this.previewConfigOptionsCache.set(cacheKey, pending);
+    }
+
+    const previewOptions = await pending;
+    const extras = previewOptions
+      .filter(
+        (opt) => opt.category === "model" || opt.category === "thought_level",
+      )
+      .map((opt) => {
+        if (
+          opt.category === "model" &&
+          opt.type === "select" &&
+          typeof initialModel === "string"
+        ) {
+          const flat = flattenSelectOptions(opt.options);
+          if (flat.some((o) => o.value === initialModel)) {
+            return { ...opt, currentValue: initialModel };
+          }
+        }
+        return opt;
+      });
+
+    if (extras.length === 0) return;
+
+    const session = sessionStoreSetters.getSessions()[taskRunId];
+    if (!session) return;
+
+    const existingOptions = session.configOptions ?? [];
+    const existingIds = new Set(existingOptions.map((o) => o.id));
+    const newExtras = extras.filter((o) => !existingIds.has(o.id));
+    if (newExtras.length === 0) return;
+    const merged = [...existingOptions, ...newExtras];
+
+    sessionStoreSetters.updateSession(taskRunId, { configOptions: merged });
+  }
+
+  /**
    * Start watching a cloud task via main-process CloudTaskService.
    *
    * The watcher stays alive across navigation. A fresh watcher is created only
@@ -2244,6 +2314,7 @@ export class SessionService {
     logUrl?: string,
     initialMode?: string,
     adapter: Adapter = "claude",
+    initialModel?: string,
   ): () => void {
     const taskRunId = runId;
     const startToken = ++this.nextCloudTaskWatchToken;
@@ -2274,6 +2345,12 @@ export class SessionService {
             configOptions: buildCloudDefaultConfigOptions(currentMode, adapter),
           });
         }
+        void this.fetchAndApplyCloudPreviewOptions(
+          existing.taskRunId,
+          apiHost,
+          adapter,
+          initialModel,
+        );
       }
       return () => {};
     }
@@ -2334,6 +2411,13 @@ export class SessionService {
         sessionStoreSetters.updateSession(existing.taskRunId, updates);
       }
     }
+
+    void this.fetchAndApplyCloudPreviewOptions(
+      taskRunId,
+      apiHost,
+      adapter,
+      initialModel,
+    );
 
     if (shouldHydrateSession) {
       this.hydrateCloudTaskSessionFromLogs(taskId, taskRunId, logUrl);

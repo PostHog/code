@@ -2,8 +2,10 @@ import { existsSync } from "node:fs";
 import { cp, mkdir, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { app, net } from "electron";
-import { injectable, postConstruct, preDestroy } from "inversify";
+import type { IBundledResources } from "@posthog/platform/bundled-resources";
+import type { IStoragePaths } from "@posthog/platform/storage-paths";
+import { inject, injectable, postConstruct, preDestroy } from "inversify";
+import { MAIN_TOKENS } from "../../di/tokens";
 import { isDevBuild } from "../../utils/env";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
@@ -34,22 +36,28 @@ export class PosthogPluginService extends TypedEventEmitter<PosthogPluginEvents>
   private lastCheckAt = 0;
   private updating = false;
 
+  constructor(
+    @inject(MAIN_TOKENS.StoragePaths)
+    private readonly storagePaths: IStoragePaths,
+    @inject(MAIN_TOKENS.BundledResources)
+    private readonly bundledResources: IBundledResources,
+  ) {
+    super();
+  }
+
   /** Runtime plugin dir under userData */
   private get runtimePluginDir(): string {
-    return join(app.getPath("userData"), "plugins", "posthog");
+    return join(this.storagePaths.appDataPath, "plugins", "posthog");
   }
 
   /** Runtime skills cache (downloaded zips extracted here) */
   private get runtimeSkillsDir(): string {
-    return join(app.getPath("userData"), "skills");
+    return join(this.storagePaths.appDataPath, "skills");
   }
 
   /** Bundled plugin path inside the .vite build output */
   private get bundledPluginDir(): string {
-    const appPath = app.getAppPath();
-    return app.isPackaged
-      ? join(`${appPath}.unpacked`, ".vite/build/plugins/posthog")
-      : join(appPath, ".vite/build/plugins/posthog");
+    return this.bundledResources.resolve(".vite/build/plugins/posthog");
   }
 
   @postConstruct()
@@ -136,7 +144,6 @@ export class PosthogPluginService extends TypedEventEmitter<PosthogPluginEvents>
       });
 
       if (result.success) {
-        log.info("Skills updated successfully");
         this.emit("skillsUpdated", true);
       } else {
         log.warn("Skills update failed", {
@@ -177,7 +184,6 @@ export class PosthogPluginService extends TypedEventEmitter<PosthogPluginEvents>
       await cp(this.bundledPluginDir, this.runtimePluginDir, {
         recursive: true,
       });
-      log.info("Bundled plugin copied to runtime dir");
     } catch (err) {
       log.warn("Failed to copy bundled plugin", err);
       captureException(err, {
@@ -188,7 +194,7 @@ export class PosthogPluginService extends TypedEventEmitter<PosthogPluginEvents>
   }
 
   private async downloadFile(url: string, destPath: string): Promise<void> {
-    const response = await net.fetch(url);
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(
         `Download failed: ${response.status} ${response.statusText}`,

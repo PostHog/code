@@ -136,7 +136,6 @@ describe("authStore", () => {
       needsProjectSelection: false,
       needsScopeReauth: false,
       hasCodeAccess: null,
-      hasCompletedOnboarding: false,
     });
   });
 
@@ -191,5 +190,29 @@ describe("authStore", () => {
       queryKey: ["currentUser"],
       exact: true,
     });
+  });
+
+  it("clears auth state immediately on logout before the auth service responds", async () => {
+    mockGetState.query.mockResolvedValue(authenticatedState);
+    let resolveLogout!: () => void;
+    mockLogout.mutate.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveLogout = () => resolve(undefined);
+        }),
+    );
+
+    await useAuthStore.getState().checkCodeAccess();
+
+    const logoutPromise = useAuthStore.getState().logout();
+    await Promise.resolve();
+
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(useAuthStore.getState().client).toBeNull();
+    expect(useAuthStore.getState().projectId).toBeNull();
+    expect(useAuthStore.getState().needsScopeReauth).toBe(false);
+
+    resolveLogout();
+    await logoutPromise;
   });
 });

@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockApp = vi.hoisted(() => ({
-  setAsDefaultProtocolClient: vi.fn(),
-}));
-
-vi.mock("electron", () => ({
-  app: mockApp,
+const mockAppLifecycle = vi.hoisted(() => ({
+  whenReady: vi.fn().mockResolvedValue(undefined),
+  quit: vi.fn(),
+  exit: vi.fn(),
+  onQuit: vi.fn(() => () => {}),
+  registerDeepLinkScheme: vi.fn(),
 }));
 
 vi.mock("../../utils/logger.js", () => ({
@@ -19,59 +19,63 @@ vi.mock("../../utils/logger.js", () => ({
   },
 }));
 
+import type { IAppLifecycle } from "@posthog/platform/app-lifecycle";
 import { DeepLinkService } from "./service";
 
 describe("DeepLinkService", () => {
   let service: DeepLinkService;
-  let originalDefaultApp: boolean | undefined;
-
-  const setDefaultApp = (value: boolean | undefined) => {
-    Object.defineProperty(process, "defaultApp", {
-      value,
-      writable: true,
-      configurable: true,
-    });
-  };
+  const originalIsDev = process.env.POSTHOG_CODE_IS_DEV;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    originalDefaultApp = process.defaultApp;
-    service = new DeepLinkService();
+    process.env.POSTHOG_CODE_IS_DEV = "false";
+    service = new DeepLinkService(mockAppLifecycle as unknown as IAppLifecycle);
   });
 
   afterEach(() => {
-    setDefaultApp(originalDefaultApp);
+    if (originalIsDev === undefined) {
+      delete process.env.POSTHOG_CODE_IS_DEV;
+    } else {
+      process.env.POSTHOG_CODE_IS_DEV = originalIsDev;
+    }
   });
 
   describe("registerProtocol", () => {
     it("registers posthog-code and legacy protocols in production", () => {
-      setDefaultApp(false);
+      process.env.POSTHOG_CODE_IS_DEV = "false";
 
       service.registerProtocol();
 
-      expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledWith(
+      expect(mockAppLifecycle.registerDeepLinkScheme).toHaveBeenCalledWith(
         "posthog-code",
       );
-      expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledWith("twig");
-      expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledWith("array");
-      expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledTimes(3);
+      expect(mockAppLifecycle.registerDeepLinkScheme).toHaveBeenCalledWith(
+        "twig",
+      );
+      expect(mockAppLifecycle.registerDeepLinkScheme).toHaveBeenCalledWith(
+        "array",
+      );
+      expect(mockAppLifecycle.registerDeepLinkScheme).toHaveBeenCalledTimes(3);
     });
 
-    it("skips protocol registration in development mode", () => {
-      setDefaultApp(true);
+    it("registers posthog-code-dev only in development mode", () => {
+      process.env.POSTHOG_CODE_IS_DEV = "true";
 
       service.registerProtocol();
 
-      expect(mockApp.setAsDefaultProtocolClient).not.toHaveBeenCalled();
+      expect(mockAppLifecycle.registerDeepLinkScheme).toHaveBeenCalledWith(
+        "posthog-code-dev",
+      );
+      expect(mockAppLifecycle.registerDeepLinkScheme).toHaveBeenCalledTimes(1);
     });
 
     it("prevents multiple registrations", () => {
-      setDefaultApp(false);
+      process.env.POSTHOG_CODE_IS_DEV = "false";
 
       service.registerProtocol();
       service.registerProtocol();
 
-      expect(mockApp.setAsDefaultProtocolClient).toHaveBeenCalledTimes(3);
+      expect(mockAppLifecycle.registerDeepLinkScheme).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -233,11 +237,49 @@ describe("DeepLinkService", () => {
         expect(result).toBe(false);
       });
     });
+
+    describe("primary protocol by build", () => {
+      it("accepts posthog-code-dev:// in development", () => {
+        process.env.POSTHOG_CODE_IS_DEV = "true";
+        const handler = vi.fn(() => true);
+        service.registerHandler("inbox", handler);
+
+        const result = service.handleUrl("posthog-code-dev://inbox/r1");
+        expect(result).toBe(true);
+        expect(handler).toHaveBeenCalledWith("r1", expect.any(URLSearchParams));
+      });
+
+      it("rejects posthog-code:// in development", () => {
+        process.env.POSTHOG_CODE_IS_DEV = "true";
+        service.registerHandler(
+          "inbox",
+          vi.fn(() => true),
+        );
+
+        expect(service.handleUrl("posthog-code://inbox/r1")).toBe(false);
+      });
+
+      it("rejects posthog-code-dev:// in production", () => {
+        process.env.POSTHOG_CODE_IS_DEV = "false";
+        service.registerHandler(
+          "inbox",
+          vi.fn(() => true),
+        );
+
+        expect(service.handleUrl("posthog-code-dev://inbox/r1")).toBe(false);
+      });
+    });
   });
 
   describe("getProtocol", () => {
-    it("returns the posthog-code protocol", () => {
+    it("returns posthog-code in production", () => {
+      process.env.POSTHOG_CODE_IS_DEV = "false";
       expect(service.getProtocol()).toBe("posthog-code");
+    });
+
+    it("returns posthog-code-dev in development", () => {
+      process.env.POSTHOG_CODE_IS_DEV = "true";
+      expect(service.getProtocol()).toBe("posthog-code-dev");
     });
   });
 });

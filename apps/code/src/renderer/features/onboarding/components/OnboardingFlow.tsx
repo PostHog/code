@@ -1,182 +1,194 @@
-import { DraggableTitleBar } from "@components/DraggableTitleBar";
-import { ZenHedgehog } from "@components/ZenHedgehog";
+import { FullScreenLayout } from "@components/FullScreenLayout";
 import { useLogoutMutation } from "@features/auth/hooks/authMutations";
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
-import { SignOut } from "@phosphor-icons/react";
-import { Button, Flex, Theme } from "@radix-ui/themes";
+import { ArrowRight, SignOut } from "@phosphor-icons/react";
+import { Button, Flex } from "@radix-ui/themes";
+import { IS_DEV } from "@shared/constants/environment";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { useHotkeys } from "react-hotkeys-hook";
 
 import { useOnboardingFlow } from "../hooks/useOnboardingFlow";
+import { usePrefetchSignalData } from "../hooks/usePrefetchSignalData";
+import { CliInstallStep } from "./CliInstallStep";
 import { GitIntegrationStep } from "./GitIntegrationStep";
-import { OrgStep } from "./OrgStep";
+import { InviteCodeStep } from "./InviteCodeStep";
+import { ProjectSelectStep } from "./ProjectSelectStep";
 import { SignalsStep } from "./SignalsStep";
 import { StepIndicator } from "./StepIndicator";
-import { TutorialStep } from "./TutorialStep";
-import { WelcomeStep } from "./WelcomeStep";
+import { WelcomeScreen } from "./WelcomeScreen";
+
+const stepVariants = {
+  enter: (dir: number) => ({ opacity: 0, x: dir * 20 }),
+  center: { opacity: 1, x: 0 },
+  exit: (dir: number) => ({ opacity: 0, x: dir * -20 }),
+};
 
 export function OnboardingFlow() {
-  const { currentStep, activeSteps, next, back } = useOnboardingFlow();
+  const {
+    currentStep,
+    activeSteps,
+    direction,
+    next,
+    back,
+    selectedDirectory,
+    detectedRepo,
+    isDetectingRepo,
+    handleDirectoryChange,
+  } = useOnboardingFlow();
   const completeOnboarding = useOnboardingStore(
     (state) => state.completeOnboarding,
   );
+  const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
   const logoutMutation = useLogoutMutation();
+  const isAuthenticated = useAuthStateValue(
+    (state) => state.status === "authenticated",
+  );
+  usePrefetchSignalData();
+
+  useHotkeys("right", next, { enableOnFormTags: false }, [next]);
+  useHotkeys("left", back, { enableOnFormTags: false }, [back]);
 
   const handleComplete = () => {
     completeOnboarding();
   };
 
-  const isTutorial = currentStep === "tutorial";
+  const footerRight = (
+    <Flex gap="5">
+      {isAuthenticated && (
+        <Button
+          size="1"
+          variant="ghost"
+          color="gray"
+          onClick={() => {
+            logoutMutation.mutate();
+            resetOnboarding();
+          }}
+          style={{ opacity: 0.5 }}
+        >
+          <SignOut size={14} />
+          Log out
+        </Button>
+      )}
+      {IS_DEV && (
+        <Button
+          size="1"
+          variant="ghost"
+          color="gray"
+          onClick={handleComplete}
+          style={{ opacity: 0.5 }}
+        >
+          <ArrowRight size={14} weight="bold" />
+          Skip setup
+        </Button>
+      )}
+    </Flex>
+  );
 
   return (
-    <Theme appearance="light" accentColor="orange" radius="medium">
+    <FullScreenLayout footerRight={footerRight}>
       <LayoutGroup>
-        <Flex
-          direction="column"
-          height="100vh"
-          style={{ position: "relative", overflow: "hidden" }}
-        >
-          <DraggableTitleBar />
-
-          {isTutorial ? (
-            <TutorialStep onComplete={handleComplete} onBack={back} />
-          ) : (
-            <>
-              {/* Background */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  backgroundColor: "rgb(243, 244, 240)",
-                }}
-              />
-
-              {/* Right panel — zen hedgehog */}
-              <Flex
-                align="center"
-                justify="center"
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  right: 0,
-                  bottom: 0,
-                  width: "55%",
-                  backgroundColor: "rgb(243, 244, 240)",
-                }}
-              >
-                <ZenHedgehog />
-              </Flex>
-
-              {/* Content */}
-              <Flex
-                direction="column"
-                flexGrow="1"
-                style={{
-                  position: "relative",
-                  zIndex: 1,
-                  minHeight: 0,
-                  width: "45%",
-                }}
-              >
-                <Flex
-                  direction="column"
-                  flexGrow="1"
-                  overflow="hidden"
-                  style={{ minHeight: 0 }}
-                >
-                  <AnimatePresence mode="wait">
-                    {currentStep === "welcome" && (
-                      <motion.div
-                        key="welcome"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.3 }}
-                        style={{ width: "100%", flex: 1, minHeight: 0 }}
-                      >
-                        <WelcomeStep onNext={next} />
-                      </motion.div>
-                    )}
-
-                    {currentStep === "org" && (
-                      <motion.div
-                        key="org"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.3 }}
-                        style={{ width: "100%", flex: 1, minHeight: 0 }}
-                      >
-                        <OrgStep onNext={next} onBack={back} />
-                      </motion.div>
-                    )}
-
-                    {currentStep === "git-integration" && (
-                      <motion.div
-                        key="git-integration"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.3 }}
-                        style={{ width: "100%", flex: 1, minHeight: 0 }}
-                      >
-                        <GitIntegrationStep onNext={next} onBack={back} />
-                      </motion.div>
-                    )}
-
-                    {currentStep === "signals" && (
-                      <motion.div
-                        key="signals"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.3 }}
-                        style={{ width: "100%", flex: 1, minHeight: 0 }}
-                      >
-                        <SignalsStep onNext={next} onBack={back} />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </Flex>
-
-                <StepIndicator
-                  currentStep={currentStep}
-                  activeSteps={activeSteps}
-                />
-                <Flex
-                  justify="between"
-                  style={{
-                    position: "absolute",
-                    bottom: 20,
-                    left: 32,
-                    right: 32,
-                    zIndex: 2,
-                  }}
-                >
-                  <Button
-                    size="1"
-                    variant="ghost"
-                    color="gray"
-                    onClick={() => logoutMutation.mutate()}
-                    style={{ opacity: 0.5 }}
-                  >
-                    <SignOut size={14} />
-                    Log out
-                  </Button>
-                  <Button
-                    size="1"
-                    variant="ghost"
-                    color="gray"
-                    onClick={handleComplete}
-                    style={{ opacity: 0.5 }}
-                  >
-                    Skip setup
-                  </Button>
-                </Flex>
-              </Flex>
-            </>
+        <AnimatePresence mode="wait" custom={direction}>
+          {currentStep === "welcome" && (
+            <motion.div
+              key="welcome"
+              custom={direction}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              variants={stepVariants}
+              transition={{ duration: 0.3 }}
+              style={{ width: "100%", flex: 1, minHeight: 0 }}
+            >
+              <WelcomeScreen onNext={next} />
+            </motion.div>
           )}
-        </Flex>
+
+          {currentStep === "project-select" && (
+            <motion.div
+              key="project-select"
+              custom={direction}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              variants={stepVariants}
+              transition={{ duration: 0.3 }}
+              style={{ width: "100%", flex: 1, minHeight: 0 }}
+            >
+              <ProjectSelectStep onNext={next} onBack={back} />
+            </motion.div>
+          )}
+
+          {currentStep === "invite-code" && (
+            <motion.div
+              key="invite-code"
+              custom={direction}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              variants={stepVariants}
+              transition={{ duration: 0.3 }}
+              style={{ width: "100%", flex: 1, minHeight: 0 }}
+            >
+              <InviteCodeStep onNext={next} onBack={back} />
+            </motion.div>
+          )}
+
+          {currentStep === "github" && (
+            <motion.div
+              key="github"
+              custom={direction}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              variants={stepVariants}
+              transition={{ duration: 0.3 }}
+              style={{ width: "100%", flex: 1, minHeight: 0 }}
+            >
+              <GitIntegrationStep
+                onNext={next}
+                onBack={back}
+                selectedDirectory={selectedDirectory}
+                detectedRepo={detectedRepo}
+                isDetectingRepo={isDetectingRepo}
+                onDirectoryChange={handleDirectoryChange}
+              />
+            </motion.div>
+          )}
+
+          {currentStep === "install-cli" && (
+            <motion.div
+              key="install-cli"
+              custom={direction}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              variants={stepVariants}
+              transition={{ duration: 0.3 }}
+              style={{ width: "100%", flex: 1, minHeight: 0 }}
+            >
+              <CliInstallStep onNext={next} onBack={back} />
+            </motion.div>
+          )}
+
+          {currentStep === "signals" && (
+            <motion.div
+              key="signals"
+              custom={direction}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              variants={stepVariants}
+              transition={{ duration: 0.3 }}
+              style={{ width: "100%", flex: 1, minHeight: 0 }}
+            >
+              <SignalsStep onNext={handleComplete} onBack={back} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <StepIndicator currentStep={currentStep} activeSteps={activeSteps} />
       </LayoutGroup>
-    </Theme>
+    </FullScreenLayout>
   );
 }

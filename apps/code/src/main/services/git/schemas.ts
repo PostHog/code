@@ -212,6 +212,14 @@ export const commitInput = z.object({
 
 export type CommitInput = z.infer<typeof commitInput>;
 
+// Git CLI status
+export const gitStatusOutput = z.object({
+  installed: z.boolean(),
+  version: z.string().nullable(),
+});
+
+export type GitStatusOutput = z.infer<typeof gitStatusOutput>;
+
 // GitHub CLI status
 export const ghStatusOutput = z.object({
   installed: z.boolean(),

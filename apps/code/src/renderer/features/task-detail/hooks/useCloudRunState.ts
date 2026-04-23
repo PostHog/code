@@ -1,3 +1,4 @@
+import { resolveCloudPrUrl } from "@features/git-interaction/hooks/useCloudPrUrl";
 import { useSessionForTask } from "@features/sessions/hooks/useSession";
 import { useCloudEventSummary } from "@features/task-detail/hooks/useCloudEventSummary";
 import { extractCloudToolChangedFiles } from "@features/task-detail/utils/cloudToolChanges";
@@ -14,8 +15,7 @@ export function useCloudRunState(taskId: string, task: Task) {
 
   const session = useSessionForTask(taskId);
 
-  const rawPrUrl = freshTask.latest_run?.output?.pr_url;
-  const prUrl = typeof rawPrUrl === "string" ? rawPrUrl : null;
+  const prUrl = resolveCloudPrUrl(freshTask, session);
   const branch = freshTask.latest_run?.branch ?? null;
   const cloudBranch = session?.cloudBranch ?? null;
   const effectiveBranch = branch ?? cloudBranch;
@@ -33,10 +33,9 @@ export function useCloudRunState(taskId: string, task: Task) {
     () => extractCloudToolChangedFiles(summary.toolCalls),
     [summary],
   );
+  const treeSnapshotFiles = summary.treeSnapshotFiles;
   const fallbackFiles: ChangedFile[] =
-    summary.treeSnapshotFiles.length > 0
-      ? summary.treeSnapshotFiles
-      : toolCallFiles;
+    treeSnapshotFiles.length > 0 ? treeSnapshotFiles : toolCallFiles;
 
   return {
     freshTask,
@@ -47,5 +46,8 @@ export function useCloudRunState(taskId: string, task: Task) {
     cloudStatus,
     isRunActive,
     fallbackFiles,
+    toolCallFiles,
+    treeSnapshotFiles,
+    toolCalls: summary.toolCalls,
   };
 }

@@ -10,7 +10,9 @@ import { useSessionConnection } from "@features/sessions/hooks/useSessionConnect
 import { useSessionViewState } from "@features/sessions/hooks/useSessionViewState";
 import { useRestoreTask } from "@features/suspension/hooks/useRestoreTask";
 import { useSuspendedTaskIds } from "@features/suspension/hooks/useSuspendedTaskIds";
+import { BranchMismatchDialog } from "@features/task-detail/components/BranchMismatchDialog";
 import { WorkspaceSetupPrompt } from "@features/task-detail/components/WorkspaceSetupPrompt";
+import { useBranchMismatchDialog } from "@features/workspace/hooks/useBranchMismatchDialog";
 import {
   useCreateWorkspace,
   useWorkspaceLoaded,
@@ -55,6 +57,7 @@ export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
     promptStartedAt,
     isInitializing,
     cloudBranch,
+    cloudStatus,
     errorTitle,
     errorMessage,
   } = useSessionViewState(taskId, task);
@@ -75,6 +78,12 @@ export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
     handleNewSession,
     handleBashCommand,
   } = useSessionCallbacks({ taskId, task, session, repoPath });
+
+  const { handleBeforeSubmit, dialogProps } = useBranchMismatchDialog({
+    taskId,
+    repoPath,
+    onSendPrompt: handleSendPrompt,
+  });
 
   const slackThreadUrl =
     typeof task.latest_run?.state?.slack_thread_url === "string"
@@ -126,6 +135,7 @@ export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
               isRestoring={isRestoring}
               isPromptPending={isPromptPending}
               promptStartedAt={promptStartedAt}
+              onBeforeSubmit={handleBeforeSubmit}
               onSendPrompt={handleSendPrompt}
               onBashCommand={isCloud ? undefined : handleBashCommand}
               onCancelPrompt={handleCancelPrompt}
@@ -138,11 +148,15 @@ export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
               onRetry={handleRetry}
               onNewSession={isCloud ? undefined : handleNewSession}
               isInitializing={isInitializing}
+              isCloud={isCloud}
+              cloudStatus={cloudStatus}
               slackThreadUrl={slackThreadUrl}
             />
           </ErrorBoundary>
         </Box>
       </Flex>
+
+      {dialogProps && <BranchMismatchDialog {...dialogProps} />}
     </BackgroundWrapper>
   );
 }

@@ -45,7 +45,12 @@ export function useProjects() {
   );
   const currentProjectId = useAuthStateValue((state) => state.projectId);
   const client = useOptionalAuthenticatedClient();
-  const { data: currentUser, isLoading, error } = useCurrentUser({ client });
+  const {
+    data: currentUser,
+    isLoading: isQueryLoading,
+    error,
+  } = useCurrentUser({ client });
+  const isInitialLoading = isQueryLoading && !currentUser;
 
   const projects = useMemo(() => {
     if (!currentUser?.organization) return [];
@@ -84,18 +89,34 @@ export function useProjects() {
   const currentProject = projects.find((p) => p.id === currentProjectId);
   const groupedProjects = groupProjectsByOrg(projects);
 
+  const userTeamId =
+    currentUser?.team && typeof currentUser.team === "object"
+      ? (currentUser.team as { id: number }).id
+      : null;
+
   useEffect(() => {
     if (projects.length > 0 && !currentProject) {
-      log.info("Auto-selecting first available project", {
-        projectId: projects[0].id,
+      const preferredProject =
+        (userTeamId && projects.find((p) => p.id === userTeamId)) ||
+        projects[0];
+      log.info("Auto-selecting project", {
+        projectId: preferredProject.id,
+        source:
+          preferredProject.id === userTeamId ? "user-team" : "first-available",
         reason:
           currentProjectId == null
             ? "no project selected"
             : "current project not found in list",
       });
-      selectProjectMutation.mutate(projects[0].id);
+      selectProjectMutation.mutate(preferredProject.id);
     }
-  }, [currentProject, currentProjectId, projects, selectProjectMutation]);
+  }, [
+    currentProject,
+    currentProjectId,
+    projects,
+    selectProjectMutation,
+    userTeamId,
+  ]);
 
   return {
     projects,
@@ -103,7 +124,7 @@ export function useProjects() {
     currentProject,
     currentProjectId,
     currentUser: currentUser ?? null,
-    isLoading,
+    isLoading: isInitialLoading,
     error,
   };
 }

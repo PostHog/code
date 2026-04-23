@@ -2,8 +2,8 @@ import { AnimatedEllipsis } from "@features/inbox/components/utils/AnimatedEllip
 import { SOURCE_PRODUCT_META } from "@features/inbox/components/utils/source-product-icons";
 import { ArrowDownIcon } from "@phosphor-icons/react";
 import { Box, Button, Flex, Text, Tooltip } from "@radix-ui/themes";
-import explorerHog from "@renderer/assets/images/explorer-hog.png";
-import graphsHog from "@renderer/assets/images/graphs-hog.png";
+import explorerHog from "@renderer/assets/images/hedgehogs/explorer-hog.png";
+import graphsHog from "@renderer/assets/images/hedgehogs/graphs-hog.png";
 import mailHog from "@renderer/assets/images/mail-hog.png";
 
 // ── Full-width empty states ─────────────────────────────────────────────────

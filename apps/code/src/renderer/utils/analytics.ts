@@ -37,9 +37,7 @@ export function initializePostHog() {
           capture_console_errors: true,
         },
     loaded: () => {
-      log.info("PostHog loaded");
       posthog.startSessionRecording();
-      log.info("Session recording started");
     },
   });
 
@@ -76,7 +74,6 @@ export function logSessionRecordingStatus() {
  */
 export function startSessionRecording() {
   if (!isInitialized) {
-    log.warn("PostHog not initialized, cannot start session recording");
     return;
   }
 
@@ -97,7 +94,6 @@ export function identifyUser(
   properties?: UserIdentifyProperties,
 ) {
   if (!isInitialized) {
-    log.warn("PostHog not initialized, cannot identify user");
     return;
   }
 
@@ -106,7 +102,6 @@ export function identifyUser(
 
 export function resetUser() {
   if (!isInitialized) {
-    log.warn("PostHog not initialized, cannot reset user");
     return;
   }
 
@@ -122,7 +117,6 @@ export function track<K extends keyof EventPropertyMap>(
       : [properties: EventPropertyMap[K]]
 ) {
   if (!isInitialized) {
-    log.warn("PostHog not initialized, cannot track event");
     return;
   }
 
@@ -160,7 +154,6 @@ export function captureException(
   additionalProperties?: Record<string, unknown>,
 ) {
   if (!isInitialized) {
-    log.warn("PostHog not initialized, cannot capture exception");
     return;
   }
 
@@ -180,7 +173,6 @@ export function captureException(
  */
 export function isFeatureFlagEnabled(flagKey: string): boolean {
   if (!isInitialized) {
-    log.warn("PostHog not initialized, cannot check feature flag");
     return false;
   }
 
@@ -194,7 +186,6 @@ export function isFeatureFlagEnabled(flagKey: string): boolean {
  */
 export function onFeatureFlagsLoaded(callback: () => void): () => void {
   if (!isInitialized) {
-    log.warn("PostHog not initialized, cannot subscribe to feature flags");
     return () => {};
   }
 

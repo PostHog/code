@@ -5,6 +5,7 @@ import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useCloudChangedFiles } from "@features/task-detail/hooks/useCloudChangedFiles";
 import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { GitDiff } from "@phosphor-icons/react";
+import { Button } from "@posthog/quill";
 import { Flex, Text } from "@radix-ui/themes";
 import {
   formatHotkey,
@@ -29,11 +30,11 @@ function useChangedFileStats(task: Task) {
     isCloud ? undefined : repoPath,
   );
 
-  const { changedFiles: cloudFiles } = useCloudChangedFiles(taskId, task);
+  const { reviewFiles } = useCloudChangedFiles(taskId, task);
 
   return useMemo(() => {
     if (isCloud) {
-      const stats = computeDiffStats(cloudFiles);
+      const stats = computeDiffStats(reviewFiles);
       return {
         filesChanged: stats.filesChanged,
         linesAdded: stats.linesAdded,
@@ -45,7 +46,7 @@ function useChangedFileStats(task: Task) {
       linesAdded: localDiffStats.linesAdded,
       linesRemoved: localDiffStats.linesRemoved,
     };
-  }, [isCloud, cloudFiles, localDiffStats]);
+  }, [isCloud, reviewFiles, localDiffStats]);
 }
 
 export function DiffStatsBadge({ task }: DiffStatsBadgeProps) {
@@ -70,10 +71,11 @@ export function DiffStatsBadge({ task }: DiffStatsBadgeProps) {
       shortcut={formatHotkey(SHORTCUTS.TOGGLE_REVIEW_PANEL)}
       side="bottom"
     >
-      <button
-        type="button"
+      <Button
         onClick={handleClick}
-        className={`no-drag inline-flex h-6 cursor-pointer items-center gap-1 rounded-[var(--radius-1)] border-none px-1.5 font-mono text-[11px] text-[var(--gray-11)] transition-colors duration-100 hover:bg-[var(--gray-a3)] ${isOpen ? "bg-[var(--gray-a3)]" : "bg-transparent"}`}
+        variant="outline"
+        size="sm"
+        className={`no-drag font-mono text-(--gray-11) text-[11px] transition-colors duration-100 hover:bg-(--gray-a3) ${isOpen ? "bg-(--gray-a3)" : "bg-transparent"}`}
       >
         <GitDiff size={14} style={{ flexShrink: 0 }} />
         {hasChanges ? (
@@ -92,7 +94,7 @@ export function DiffStatsBadge({ task }: DiffStatsBadgeProps) {
         ) : (
           <Text style={{ color: "var(--gray-9)", fontSize: "11px" }}>0</Text>
         )}
-      </button>
+      </Button>
     </Tooltip>
   );
 }

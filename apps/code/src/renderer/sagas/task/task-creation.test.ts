@@ -255,15 +255,44 @@ describe("TaskCreationSaga", () => {
     });
   });
 
-  it("sends initial cloud prompts with attachments as pending user messages", async () => {
+  it("uploads initial cloud attachments before starting the run", async () => {
     const createdTask = createTask();
     const startedTask = createTask({ latest_run: createRun() });
     const createTaskMock = vi.fn().mockResolvedValue(createdTask);
     const runTaskInCloudMock = vi.fn().mockResolvedValue(startedTask);
+    const prepareTaskStagedArtifactUploadsMock = vi.fn().mockResolvedValue([
+      {
+        id: "artifact-1",
+        name: "test.txt",
+        type: "user_attachment",
+        size: 5,
+        source: "posthog_code",
+        content_type: "text/plain",
+        storage_path: "tasks/artifacts/test.txt",
+        expires_in: 3600,
+        presigned_post: {
+          url: "https://uploads.example.com",
+          fields: { key: "tasks/artifacts/test.txt" },
+        },
+      },
+    ]);
+    const finalizeTaskStagedArtifactUploadsMock = vi.fn().mockResolvedValue([
+      {
+        id: "artifact-1",
+        name: "test.txt",
+        type: "user_attachment",
+        size: 5,
+        source: "posthog_code",
+        content_type: "text/plain",
+        storage_path: "tasks/artifacts/test.txt",
+        uploaded_at: "2026-04-16T00:00:00Z",
+      },
+    ]);
     const sendRunCommandMock = vi.fn();
     const onTaskReady = vi.fn();
 
-    mockReadAbsoluteFile.mockResolvedValue("hello from attachment");
+    mockReadFileAsBase64.mockResolvedValue("aGVsbG8=");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true } as Response));
 
     const saga = new TaskCreationSaga({
       posthogClient: {
@@ -271,6 +300,9 @@ describe("TaskCreationSaga", () => {
         deleteTask: vi.fn(),
         getTask: vi.fn(),
         runTaskInCloud: runTaskInCloudMock,
+        prepareTaskStagedArtifactUploads: prepareTaskStagedArtifactUploadsMock,
+        finalizeTaskStagedArtifactUploads:
+          finalizeTaskStagedArtifactUploadsMock,
         sendRunCommand: sendRunCommandMock,
         updateTask: vi.fn(),
       } as never,
@@ -306,9 +338,8 @@ describe("TaskCreationSaga", () => {
         adapter: "codex",
         model: "gpt-5.4",
         reasoningLevel: "medium",
-        pendingUserMessage: expect.stringContaining(
-          "__twig_cloud_prompt_v1__:",
-        ),
+        pendingUserMessage: "read this file",
+        pendingUserArtifactIds: ["artifact-1"],
         sandboxEnvironmentId: undefined,
         prAuthorshipMode: "bot",
         runSource: "manual",

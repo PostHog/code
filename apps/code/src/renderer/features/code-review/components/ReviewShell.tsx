@@ -18,6 +18,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ResolvedDiffSource } from "../utils/resolveDiffSource";
 import { ReviewToolbar } from "./ReviewToolbar";
 
 function splitFilePath(fullPath: string): {
@@ -306,6 +307,9 @@ export interface ReviewShellProps {
   onExpandAll: () => void;
   onCollapseAll: () => void;
   onRefresh?: () => void;
+  effectiveSource?: ResolvedDiffSource;
+  branchSourceAvailable?: boolean;
+  defaultBranch?: string | null;
 }
 
 export function ReviewShell({
@@ -321,6 +325,9 @@ export function ReviewShell({
   onExpandAll,
   onCollapseAll,
   onRefresh,
+  effectiveSource,
+  branchSourceAvailable,
+  defaultBranch,
 }: ReviewShellProps) {
   const taskId = task.id;
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -409,24 +416,6 @@ export function ReviewShell({
     return () => observer.disconnect();
   }, [taskId, setActiveFilePath]);
 
-  if (isLoading) {
-    return (
-      <Flex align="center" justify="center" height="100%">
-        <Spinner size="2" />
-      </Flex>
-    );
-  }
-
-  if (isEmpty) {
-    return (
-      <Flex align="center" justify="center" height="100%">
-        <Text size="2" color="gray">
-          No file changes to review
-        </Text>
-      </Flex>
-    );
-  }
-
   return (
     <WorkerPoolContextProvider
       poolOptions={{ workerFactory }}
@@ -434,7 +423,7 @@ export function ReviewShell({
         theme: { dark: "github-dark", light: "github-light" },
       }}
     >
-      <Flex direction="column" height="100%">
+      <Flex direction="column" height="100%" id="review-shell">
         <ReviewToolbar
           taskId={taskId}
           fileCount={fileCount}
@@ -444,14 +433,30 @@ export function ReviewShell({
           onExpandAll={onExpandAll}
           onCollapseAll={onCollapseAll}
           onRefresh={onRefresh}
+          effectiveSource={effectiveSource}
+          branchSourceAvailable={branchSourceAvailable}
+          defaultBranch={defaultBranch}
         />
         <Flex style={{ flex: 1, minHeight: 0 }}>
           <div
             ref={scrollContainerRef}
-            className="scrollbar-hide flex-1 space-y-2 overflow-auto"
+            className="scrollbar-overlay-y flex-1 space-y-2 overflow-auto"
+            id="review-shell-diff-container"
             style={{ minWidth: 0 }}
           >
-            {children}
+            {isLoading ? (
+              <Flex align="center" justify="center" height="100%">
+                <Spinner size="2" />
+              </Flex>
+            ) : isEmpty ? (
+              <Flex align="center" justify="center" height="100%">
+                <Text size="2" color="gray">
+                  No file changes to review
+                </Text>
+              </Flex>
+            ) : (
+              children
+            )}
           </div>
 
           {isExpanded && <ExpandedSidebar task={task} />}
@@ -491,7 +496,7 @@ function FileHeaderRow({
         fontFamily: "var(--code-font-family)",
         fontSize: "12px",
         cursor: "pointer",
-        userSelect: "none",
+        // userSelect: "none",
         width: "100%",
         background: "none",
         border: "none",
@@ -508,9 +513,24 @@ function FileHeaderRow({
         }}
       />
       <FileIcon filename={fileName} size={14} />
-      <span style={{ color: "var(--gray-9)" }}>{dirPath}</span>
-      <span style={{ fontWeight: 600, marginLeft: dirPath ? "-6px" : 0 }}>
-        {fileName}
+      <span
+        style={{ display: "flex", minWidth: 0, flex: 1, gap: "6px" }}
+        title={dirPath + fileName}
+      >
+        <span style={{ fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>
+          {fileName}
+        </span>
+        <span
+          style={{
+            color: "var(--gray-9)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            minWidth: 0,
+          }}
+        >
+          {dirPath}
+        </span>
       </span>
       <span style={{ fontFamily: "monospace", fontSize: "10px" }}>
         {additions > 0 && (

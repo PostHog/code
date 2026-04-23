@@ -1,10 +1,12 @@
-import { app } from "electron";
-import { injectable } from "inversify";
+import type { IAppLifecycle } from "@posthog/platform/app-lifecycle";
+import { getDeeplinkProtocol } from "@shared/deeplink";
+import { inject, injectable } from "inversify";
+import { MAIN_TOKENS } from "../../di/tokens";
+import { isDevBuild } from "../../utils/env";
 import { logger } from "../../utils/logger";
 
 const log = logger.scope("deep-link-service");
 
-const PROTOCOL = "posthog-code";
 const LEGACY_PROTOCOLS = ["twig", "array"];
 
 export type DeepLinkHandler = (
@@ -17,30 +19,26 @@ export class DeepLinkService {
   private protocolRegistered = false;
   private handlers = new Map<string, DeepLinkHandler>();
 
+  constructor(
+    @inject(MAIN_TOKENS.AppLifecycle)
+    private readonly appLifecycle: IAppLifecycle,
+  ) {}
+
   public registerProtocol(): void {
     if (this.protocolRegistered) {
       return;
     }
 
-    // Skip protocol registration in development to avoid hijacking deep links
-    // from the production app. OAuth uses HTTP callback in dev mode anyway.
-    if (process.defaultApp) {
-      log.info(
-        "Skipping protocol registration in development (using HTTP callback for OAuth)",
-      );
-      return;
-    }
-
-    // Production: register primary and legacy protocols
-    app.setAsDefaultProtocolClient(PROTOCOL);
-    for (const legacy of LEGACY_PROTOCOLS) {
-      app.setAsDefaultProtocolClient(legacy);
+    // Dev uses `posthog-code-dev` so local builds do not steal `posthog-code`
+    // from the production app. Production also registers legacy schemes.
+    this.appLifecycle.registerDeepLinkScheme(getDeeplinkProtocol(isDevBuild()));
+    if (!isDevBuild()) {
+      for (const legacy of LEGACY_PROTOCOLS) {
+        this.appLifecycle.registerDeepLinkScheme(legacy);
+      }
     }
 
     this.protocolRegistered = true;
-    log.info(
-      `Registered '${PROTOCOL}' and legacy [${LEGACY_PROTOCOLS.join(", ")}] protocol handlers`,
-    );
   }
 
   public registerHandler(key: string, handler: DeepLinkHandler): void {
@@ -48,7 +46,6 @@ export class DeepLinkService {
       log.warn(`Overwriting existing handler for key: ${key}`);
     }
     this.handlers.set(key, handler);
-    log.info(`Registered deep link handler for key: ${key}`);
   }
 
   public unregisterHandler(key: string): void {
@@ -59,15 +56,16 @@ export class DeepLinkService {
    * Handle an incoming deep link URL
    *
    * NOTE: Strips the protocol and main key, passing only dynamic segments to handlers.
-   * Supports posthog-code:// and legacy twig:// and array:// protocols.
+   * Supports the active primary scheme (posthog-code or posthog-code-dev) and,
+   * in production only, legacy twig:// and array:// protocols.
    */
   public handleUrl(url: string): boolean {
     log.info("Received deep link:", url);
 
-    const isPrimaryProtocol = url.startsWith(`${PROTOCOL}://`);
-    const isLegacyProtocol = LEGACY_PROTOCOLS.some((p) =>
-      url.startsWith(`${p}://`),
-    );
+    const primary = getDeeplinkProtocol(isDevBuild());
+    const isPrimaryProtocol = url.startsWith(`${primary}://`);
+    const isLegacyProtocol =
+      !isDevBuild() && LEGACY_PROTOCOLS.some((p) => url.startsWith(`${p}://`));
 
     if (!isPrimaryProtocol && !isLegacyProtocol) {
       log.warn("URL does not match protocol:", url);
@@ -77,7 +75,7 @@ export class DeepLinkService {
     try {
       const parsedUrl = new URL(url);
 
-      // The hostname is the main key (e.g., "task" in posthog-code://task/...)
+      // The hostname is the main key (e.g., "task" in <scheme>://task/...)
       const mainKey = parsedUrl.hostname;
 
       if (!mainKey) {
@@ -105,6 +103,6 @@ export class DeepLinkService {
   }
 
   public getProtocol(): string {
-    return PROTOCOL;
+    return getDeeplinkProtocol(isDevBuild());
   }
 }

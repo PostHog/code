@@ -1,4 +1,7 @@
-import { app, autoUpdater } from "electron";
+import type { IAppLifecycle } from "@posthog/platform/app-lifecycle";
+import type { IAppMeta } from "@posthog/platform/app-meta";
+import type { IMainWindow } from "@posthog/platform/main-window";
+import type { IUpdater } from "@posthog/platform/updater";
 import { inject, injectable, postConstruct, preDestroy } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { isDevBuild } from "../../utils/env";
@@ -30,6 +33,18 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
   @inject(MAIN_TOKENS.AppLifecycleService)
   private lifecycleService!: AppLifecycleService;
 
+  @inject(MAIN_TOKENS.Updater)
+  private updater!: IUpdater;
+
+  @inject(MAIN_TOKENS.AppLifecycle)
+  private appLifecycle!: IAppLifecycle;
+
+  @inject(MAIN_TOKENS.AppMeta)
+  private appMeta!: IAppMeta;
+
+  @inject(MAIN_TOKENS.MainWindow)
+  private mainWindow!: IMainWindow;
+
   private updateReady = false;
   private pendingNotification = false;
   private checkingForUpdates = false;
@@ -38,6 +53,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
   private downloadedVersion: string | null = null;
   private notifiedVersion: string | null = null;
   private initialized = false;
+  private unsubscribes: Array<() => void> = [];
 
   get hasUpdateReady(): boolean {
     return this.updateReady;
@@ -45,7 +61,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
 
   get isEnabled(): boolean {
     return (
-      !isDevBuild() &&
+      this.updater.isSupported() &&
       !process.env[UpdatesService.DISABLE_ENV_FLAG] &&
       UpdatesService.SUPPORTED_PLATFORMS.includes(process.platform)
     );
@@ -53,7 +69,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
 
   private get feedUrl(): string {
     const ctor = this.constructor as typeof UpdatesService;
-    return `${ctor.SERVER_HOST}/${ctor.REPO_OWNER}/${ctor.REPO_NAME}/${process.platform}-${process.arch}/${app.getVersion()}`;
+    return `${ctor.SERVER_HOST}/${ctor.REPO_OWNER}/${ctor.REPO_NAME}/${process.platform}-${process.arch}/${this.appMeta.version}`;
   }
 
   @postConstruct()
@@ -65,14 +81,14 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
         !UpdatesService.SUPPORTED_PLATFORMS.includes(process.platform)
       ) {
         log.info("Auto updates only supported on macOS and Windows");
-      } else if (isDevBuild()) {
-        log.info("Auto updates only available in packaged builds");
       }
       return;
     }
 
-    app.on("browser-window-focus", () => this.flushPendingNotification());
-    app.whenReady().then(() => this.setupAutoUpdater());
+    this.unsubscribes.push(
+      this.mainWindow.onFocus(() => this.flushPendingNotification()),
+    );
+    this.appLifecycle.whenReady().then(() => this.setupAutoUpdater());
   }
 
   triggerMenuCheck(): void {
@@ -135,7 +151,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
       // Skip container teardown so before-quit handler can still access services
       await this.lifecycleService.shutdownWithoutContainer();
 
-      autoUpdater.quitAndInstall();
+      this.updater.quitAndInstall();
       return { installed: true };
     } catch (error) {
       log.error("Failed to quit and install update", error);
@@ -153,24 +169,26 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
     const feedUrl = this.feedUrl;
     log.info("Setting up auto updater", {
       feedUrl,
-      currentVersion: app.getVersion(),
+      currentVersion: this.appMeta.version,
       platform: process.platform,
       arch: process.arch,
     });
 
     try {
-      autoUpdater.setFeedURL({ url: feedUrl });
+      this.updater.setFeedUrl(feedUrl);
     } catch (error) {
       log.error("Failed to set feed URL", error);
       return;
     }
 
-    autoUpdater.on("error", (error) => this.handleError(error));
-    autoUpdater.on("checking-for-update", () => this.handleCheckingForUpdate());
-    autoUpdater.on("update-available", () => this.handleUpdateAvailable());
-    autoUpdater.on("update-not-available", () => this.handleNoUpdate());
-    autoUpdater.on("update-downloaded", (_event, _releaseNotes, releaseName) =>
-      this.handleUpdateDownloaded(releaseName),
+    this.unsubscribes.push(
+      this.updater.onError((error) => this.handleError(error)),
+      this.updater.onCheckStart(() => this.handleCheckingForUpdate()),
+      this.updater.onUpdateAvailable(() => this.handleUpdateAvailable()),
+      this.updater.onNoUpdate(() => this.handleNoUpdate()),
+      this.updater.onUpdateDownloaded((releaseName) =>
+        this.handleUpdateDownloaded(releaseName),
+      ),
     );
 
     // Perform initial check (periodic source — not user-initiated)
@@ -214,7 +232,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
 
   private handleNoUpdate(): void {
     this.clearCheckTimeout();
-    log.info("No updates available", { currentVersion: app.getVersion() });
+    log.info("No updates available", { currentVersion: this.appMeta.version });
     if (this.checkingForUpdates) {
       this.checkingForUpdates = false;
 
@@ -226,7 +244,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
         this.emitStatus({
           checking: false,
           upToDate: true,
-          version: app.getVersion(),
+          version: this.appMeta.version,
         });
       }
     }
@@ -243,7 +261,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
     }
 
     log.info("Update downloaded, awaiting user confirmation", {
-      currentVersion: app.getVersion(),
+      currentVersion: this.appMeta.version,
       downloadedVersion: this.downloadedVersion,
     });
 
@@ -292,7 +310,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
     }, UpdatesService.CHECK_TIMEOUT_MS);
 
     try {
-      autoUpdater.checkForUpdates();
+      this.updater.check();
     } catch (error) {
       this.clearCheckTimeout();
       log.error("Failed to check for updates", error);
@@ -318,5 +336,7 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
       clearInterval(this.checkIntervalId);
       this.checkIntervalId = null;
     }
+    for (const unsub of this.unsubscribes) unsub();
+    this.unsubscribes = [];
   }
 }

@@ -1,13 +1,15 @@
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { buildCloudTaskDescription } from "@features/editor/utils/cloud-prompt";
-import type { MessageEditorHandle } from "@features/message-editor/components/MessageEditor";
 import { useTaskInputHistoryStore } from "@features/message-editor/stores/taskInputHistoryStore";
+import type { EditorHandle } from "@features/message-editor/types";
 import {
   contentToXml,
   extractFilePaths,
 } from "@features/message-editor/utils/content";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
+import { useTourStore } from "@features/tour/stores/tourStore";
+import { createFirstTaskTour } from "@features/tour/tours/createFirstTaskTour";
 import { useConnectivity } from "@hooks/useConnectivity";
 import type { WorkspaceMode } from "@main/services/workspace/schemas";
 import { get } from "@renderer/di/container";
@@ -22,7 +24,7 @@ import type { TaskCreationInput, TaskService } from "../service/service";
 const log = logger.scope("task-creation");
 
 interface UseTaskCreationOptions {
-  editorRef: React.RefObject<MessageEditorHandle | null>;
+  editorRef: React.RefObject<EditorHandle | null>;
   selectedDirectory: string;
   selectedRepository?: string | null;
   githubIntegrationId?: number;
@@ -139,8 +141,6 @@ export function useTaskCreation({
     try {
       const content = editor.getContent();
 
-      log.info("Submitting task", { workspaceMode, selectedDirectory });
-
       const plainText = editor.getText()?.trim();
       if (plainText) {
         useTaskInputHistoryStore.getState().addPrompt(plainText);
@@ -172,8 +172,8 @@ export function useTaskCreation({
         } else {
           navigateToTask(output.task);
         }
+        useTourStore.getState().completeTour(createFirstTaskTour.id);
         editor.clear();
-        log.info("Task ready, navigated early", { taskId: output.task.id });
       });
 
       if (!result.success) {

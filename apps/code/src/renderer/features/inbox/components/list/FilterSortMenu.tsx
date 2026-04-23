@@ -15,6 +15,7 @@ import {
   FunnelSimple as FunnelSimpleIcon,
   GithubLogoIcon,
   KanbanIcon,
+  LifebuoyIcon,
   ListNumbers,
   TicketIcon,
   TrendUp,
@@ -96,6 +97,11 @@ const SOURCE_PRODUCT_OPTIONS: {
   { value: "github", label: "GitHub", icon: <GithubLogoIcon size={14} /> },
   { value: "linear", label: "Linear", icon: <KanbanIcon size={14} /> },
   { value: "zendesk", label: "Zendesk", icon: <TicketIcon size={14} /> },
+  {
+    value: "conversations",
+    label: "Conversations",
+    icon: <LifebuoyIcon size={14} />,
+  },
 ];
 
 const ITEM_CLASS_NAME =

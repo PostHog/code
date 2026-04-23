@@ -1,5 +1,4 @@
 import { getBackoffDelay } from "@shared/utils/backoff";
-import { net } from "electron";
 import { injectable, postConstruct, preDestroy } from "inversify";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
@@ -12,6 +11,7 @@ import {
 const log = logger.scope("connectivity");
 
 const CHECK_URL = "https://www.google.com/generate_204";
+const CHECK_TIMEOUT_MS = 5_000;
 const MIN_POLL_INTERVAL_MS = 3_000;
 const MAX_POLL_INTERVAL_MS = 10_000;
 const ONLINE_POLL_INTERVAL_MS = 3_000;
@@ -24,9 +24,12 @@ export class ConnectivityService extends TypedEventEmitter<ConnectivityEvents> {
 
   @postConstruct()
   init(): void {
-    this.isOnline = net.isOnline();
-    log.info("Initial connectivity status", { isOnline: this.isOnline });
+    // Assume online until the first check says otherwise, so dependent services
+    // don't needlessly queue offline-recovery work on boot.
+    this.isOnline = true;
+    log.info("Connectivity service starting (assumed online)");
 
+    void this.checkConnectivity();
     this.startPolling();
   }
 
@@ -50,20 +53,16 @@ export class ConnectivityService extends TypedEventEmitter<ConnectivityEvents> {
   }
 
   private async checkConnectivity(): Promise<void> {
-    if (!net.isOnline()) {
-      this.setOnline(false);
-      return;
-    }
-
-    if (!this.isOnline) {
-      const verified = await this.verifyWithHttp();
-      this.setOnline(verified);
-    }
+    const verified = await this.verifyWithHttp();
+    this.setOnline(verified);
   }
 
   private async verifyWithHttp(): Promise<boolean> {
     try {
-      const response = await net.fetch(CHECK_URL, { method: "HEAD" });
+      const response = await fetch(CHECK_URL, {
+        method: "HEAD",
+        signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
+      });
       return response.ok || response.status === 204;
     } catch (error) {
       log.debug("HTTP connectivity check failed", { error });
@@ -79,7 +78,7 @@ export class ConnectivityService extends TypedEventEmitter<ConnectivityEvents> {
   }
 
   private schedulePoll(): void {
-    // when online: just poll net.isOnline periodically
+    // when online: just poll periodically
     // when offline: poll more frequently with backoff to detect recovery
     const interval = this.isOnline
       ? ONLINE_POLL_INTERVAL_MS

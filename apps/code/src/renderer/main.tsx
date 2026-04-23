@@ -3,7 +3,6 @@ import "reflect-metadata";
 import "@stores/rendererWindowFocusStore";
 import { Providers } from "@components/Providers";
 import App from "@renderer/App";
-import { logger } from "@utils/logger";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./styles/globals.css";
@@ -33,9 +32,6 @@ import "./styles/globals.css";
     internals.ReactDebugCurrentFrame = { getCurrentStack: null };
   }
 }
-
-const log = logger.scope("app");
-log.info("PostHog Code renderer booting up");
 
 document.title = import.meta.env.DEV
   ? "PostHog Code (Development)"

@@ -1,26 +1,35 @@
 import { useFolders } from "@features/folders/hooks/useFolders";
 import {
+  CaretDown,
   Folder as FolderIcon,
   FolderOpen,
-  GitBranchIcon,
+  GitBranch,
 } from "@phosphor-icons/react";
-import { ChevronDownIcon } from "@radix-ui/react-icons";
-import { Button, DropdownMenu, Flex, Text } from "@radix-ui/themes";
-import type { Responsive } from "@radix-ui/themes/dist/esm/props/prop-def.js";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  MenuLabel,
+} from "@posthog/quill";
 import { trpcClient } from "@renderer/trpc";
+import type { RefObject } from "react";
 
 interface FolderPickerProps {
   value: string;
   onChange: (path: string) => void;
   placeholder?: string;
-  size?: Responsive<"1" | "2">;
+  size?: "1" | "2";
+  anchor?: RefObject<HTMLElement | null>;
 }
 
 export function FolderPicker({
   value,
   onChange,
   placeholder = "Select folder...",
-  size = "1",
+  anchor,
 }: FolderPickerProps) {
   const {
     getRecentFolders,
@@ -49,98 +58,61 @@ export function FolderPicker({
     }
   };
 
-  // If no folders, render as a plain button that directly opens file picker
   if (recentFolders.length === 0) {
     return (
-      <Button
-        color="gray"
-        variant="outline"
-        size={size}
-        onClick={handleOpenFilePicker}
-        style={{ cursor: "pointer" }}
-      >
-        <Flex justify="between" align="center" gap="2" width="100%">
-          <Flex align="center" gap="2">
-            <FolderIcon size={16} weight="regular" style={{ flexShrink: 0 }} />
-            <Text
-              size={size}
-              style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                maxWidth: "120px",
-              }}
-              truncate
-            >
-              {displayValue || placeholder}
-            </Text>
-          </Flex>
-          <ChevronDownIcon style={{ flexShrink: 0 }} />
-        </Flex>
+      <Button variant="outline" size="sm" onClick={handleOpenFilePicker}>
+        <FolderIcon size={14} weight="regular" className="shrink-0" />
+        <span className="max-w-[120px] truncate">
+          {displayValue || placeholder}
+        </span>
+        <CaretDown size={10} weight="bold" className="text-muted-foreground" />
       </Button>
     );
   }
 
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        <Button color="gray" variant="outline" size={size}>
-          <Flex justify="between" align="center" gap="2">
-            <Flex align="center" gap="2" style={{ minWidth: 0 }}>
-              <FolderIcon
-                size={16}
-                weight="regular"
-                style={{ flexShrink: 0 }}
-              />
-              <Text
-                size={size}
-                style={{
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-                truncate
-              >
-                {displayValue || placeholder}
-              </Text>
-            </Flex>
-            <ChevronDownIcon style={{ flexShrink: 0 }} />
-          </Flex>
-        </Button>
-      </DropdownMenu.Trigger>
-
-      <DropdownMenu.Content
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="outline" size="sm" aria-label="Folder">
+            <FolderIcon size={14} weight="regular" className="shrink-0" />
+            <span className="max-w-[120px] truncate">
+              {displayValue || placeholder}
+            </span>
+            <CaretDown
+              size={10}
+              weight="bold"
+              className="text-muted-foreground"
+            />
+          </Button>
+        }
+      />
+      <DropdownMenuContent
+        anchor={anchor}
         align="start"
-        style={{ minWidth: "var(--radix-dropdown-menu-trigger-width)" }}
-        size={size}
+        side="bottom"
+        sideOffset={6}
+        className="min-w-[200px]"
       >
-        <DropdownMenu.Label>
-          <Text size={size}>Recent</Text>
-        </DropdownMenu.Label>
+        <MenuLabel>Recent</MenuLabel>
 
         {recentFolders.map((folder) => (
-          <DropdownMenu.Item
+          <DropdownMenuItem
             key={folder.id}
-            onSelect={() => handleSelect(folder.path)}
+            onClick={() => handleSelect(folder.path)}
           >
-            <Flex py="0" align="center" gap="2">
-              <GitBranchIcon size={12} />
-              <Flex direction="row" gap="1">
-                <Text size={size}>{folder.name}</Text>
-              </Flex>
-            </Flex>
-          </DropdownMenu.Item>
+            <GitBranch size={12} />
+            <span className="whitespace-nowrap">{folder.name}</span>
+          </DropdownMenuItem>
         ))}
 
-        <DropdownMenu.Separator />
+        <DropdownMenuSeparator />
 
-        <DropdownMenu.Item onSelect={handleOpenFilePicker}>
-          <Flex align="center" gap="2">
-            <FolderOpen size={12} />
-            <Text size={size}>Open folder...</Text>
-          </Flex>
-        </DropdownMenu.Item>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+        <DropdownMenuItem onClick={handleOpenFilePicker}>
+          <FolderOpen size={12} />
+          <span className="whitespace-nowrap">Open folder...</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

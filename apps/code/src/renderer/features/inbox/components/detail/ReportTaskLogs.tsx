@@ -1,42 +1,58 @@
+import { ReportImplementationPrLink } from "@features/inbox/components/utils/ReportImplementationPrLink";
 import { TaskLogsPanel } from "@features/task-detail/components/TaskLogsPanel";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import {
   CaretUpIcon,
   CheckCircleIcon,
   CircleNotchIcon,
+  Cloud,
+  DotOutlineIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
-import { Flex, Spinner, Text, Tooltip } from "@radix-ui/themes";
+import { Button, Spinner, Text, Tooltip } from "@radix-ui/themes";
 import type { SignalReportStatus, SignalReportTask, Task } from "@shared/types";
 import { useState } from "react";
 
-const RELATIONSHIP_LABELS: Record<SignalReportTask["relationship"], string> = {
+type Relationship = SignalReportTask["relationship"];
+
+const RELATIONSHIP_LABELS: Record<Relationship, string> = {
   repo_selection: "Repository selection",
   research: "Research task",
   implementation: "Implementation task",
 };
 
+// We display relationships in this order, top to bottom.
+const DISPLAYED_RELATIONSHIPS: Relationship[] = ["implementation", "research"];
+
 interface ReportTaskData {
   task: Task;
-  relationship: SignalReportTask["relationship"];
+  relationship: Relationship;
 }
 
-function useReportTask(reportId: string, reportStatus: SignalReportStatus) {
+function useReportTasks(reportId: string, reportStatus: SignalReportStatus) {
   const isActive =
     reportStatus === "candidate" ||
     reportStatus === "in_progress" ||
     reportStatus === "pending_input";
 
-  return useAuthenticatedQuery<ReportTaskData | null>(
-    ["inbox", "report-task", reportId],
+  return useAuthenticatedQuery<ReportTaskData[]>(
+    ["inbox", "report-tasks", reportId],
     async (client) => {
-      const reportTasks = await client.getSignalReportTasks(reportId, {
-        relationship: "research",
-      });
-      const match = reportTasks[0];
-      if (!match) return null;
-      const task = await client.getTask(match.task_id);
-      return { task, relationship: match.relationship };
+      const reportTasks = await client.getSignalReportTasks(reportId);
+      const relevant = reportTasks.filter((rt) =>
+        DISPLAYED_RELATIONSHIPS.includes(rt.relationship),
+      );
+      const tasks = await Promise.all(
+        relevant.map(async (rt) => {
+          const task = (await client.getTask(rt.task_id)) as unknown as Task;
+          return { task, relationship: rt.relationship };
+        }),
+      );
+      return tasks.sort(
+        (a, b) =>
+          DISPLAYED_RELATIONSHIPS.indexOf(a.relationship) -
+          DISPLAYED_RELATIONSHIPS.indexOf(b.relationship),
+      );
     },
     {
       enabled: !!reportId,
@@ -46,11 +62,13 @@ function useReportTask(reportId: string, reportStatus: SignalReportStatus) {
   );
 }
 
-function getTaskStatusSummary(task: Task): {
+interface BarSummary {
   label: string;
   color: string;
   icon: React.ReactNode;
-} {
+}
+
+function getTaskStatusSummary(task: Task): BarSummary {
   const status = task.latest_run?.status;
   switch (status) {
     case "queued":
@@ -89,101 +107,197 @@ function getTaskStatusSummary(task: Task): {
   }
 }
 
+function getResearchPendingSummary(
+  reportStatus: SignalReportStatus,
+  isLoading: boolean,
+): { summary: BarSummary; tooltip: string } {
+  if (isLoading) {
+    return {
+      summary: {
+        label: "Loading…",
+        color: "var(--gray-9)",
+        icon: <Spinner size="1" />,
+      },
+      tooltip: "Checking if a research task exists for this report.",
+    };
+  }
+  if (reportStatus === "candidate") {
+    return {
+      summary: {
+        label: "Queued",
+        color: "var(--gray-9)",
+        icon: <Spinner size="1" />,
+      },
+      tooltip:
+        "This report has been queued. A repository will be selected and then an AI agent will research it.",
+    };
+  }
+  if (reportStatus === "in_progress") {
+    return {
+      summary: {
+        label: "Starting…",
+        color: "var(--amber-9)",
+        icon: <CircleNotchIcon size={14} className="animate-spin" />,
+      },
+      tooltip:
+        "An AI research agent is being set up. Logs will appear here once the agent starts running.",
+    };
+  }
+  return {
+    summary: {
+      label: "Unavailable",
+      color: "var(--gray-9)",
+      icon: <XCircleIcon size={14} />,
+    },
+    tooltip:
+      "No research task is recorded for this report. It may have been created before research tracking was in place.",
+  };
+}
+
+export function getTaskPrUrl(task: Task): string | null {
+  const output = task.latest_run?.output;
+  if (output && typeof output === "object" && !Array.isArray(output)) {
+    const prUrl = (output as Record<string, unknown>).pr_url;
+    if (typeof prUrl === "string" && prUrl.length > 0) {
+      return prUrl;
+    }
+  }
+  return null;
+}
+
 const BAR_HEIGHT = 38;
+
+interface Bar {
+  relationship: Relationship;
+  task: Task | null;
+  summary: BarSummary;
+  /** Tooltip shown on hover (e.g. pipeline status explanation). */
+  tooltip?: string;
+  /** When set, render a run-action button with this label instead of (or alongside) the status label. */
+  runActionLabel?: string;
+  /** PR URL produced by the implementation task, if available. */
+  prUrl?: string | null;
+}
 
 interface ReportTaskLogsProps {
   reportId: string;
   reportStatus: SignalReportStatus;
+  /** Open the cloud task confirmation flow. */
+  onRunInCloud?: () => void;
 }
 
 export function ReportTaskLogs({
   reportId,
   reportStatus,
+  onRunInCloud,
 }: ReportTaskLogsProps) {
-  const { data, isLoading } = useReportTask(reportId, reportStatus);
-  const [expanded, setExpanded] = useState(false);
+  const { data, isLoading } = useReportTasks(reportId, reportStatus);
+  const [expanded, setExpanded] = useState<Relationship | null>(null);
 
-  const task = data?.task ?? null;
-  const relationship = data?.relationship ?? null;
+  const tasks = data ?? [];
+  const researchTask =
+    tasks.find((t) => t.relationship === "research")?.task ?? null;
+  const implementationTask =
+    tasks.find((t) => t.relationship === "implementation")?.task ?? null;
 
+  const prUrl = implementationTask ? getTaskPrUrl(implementationTask) : null;
+
+  // Build the stacked bars we'll render. We always surface the research bar
+  // (using a pending/unavailable placeholder if no research task exists yet).
+  // For `ready` reports without an implementation task yet, we still show the
+  // implementation row ("Not started"); the run-action control only appears
+  // when the parent passes `onRunInCloud`. For `pending_input` reports, we
+  // surface the control as "Provide input for PR" so the user can supply the
+  // additional context the agent is waiting on.
+  const bars: Bar[] = [];
+
+  if (researchTask) {
+    bars.push({
+      relationship: "research",
+      task: researchTask,
+      summary: getTaskStatusSummary(researchTask),
+    });
+  } else {
+    const { summary, tooltip } = getResearchPendingSummary(
+      reportStatus,
+      isLoading,
+    );
+    bars.push({
+      relationship: "research",
+      task: null,
+      summary,
+      tooltip,
+    });
+  }
+
+  const isPendingInput = reportStatus === "pending_input";
+  const runActionLabel = onRunInCloud
+    ? isPendingInput
+      ? "Provide input for PR"
+      : "Create PR"
+    : undefined;
+
+  if (implementationTask) {
+    bars.push({
+      relationship: "implementation",
+      task: implementationTask,
+      summary: getTaskStatusSummary(implementationTask),
+      prUrl,
+      runActionLabel: isPendingInput ? runActionLabel : undefined,
+    });
+  } else if (reportStatus === "ready" || isPendingInput) {
+    bars.push({
+      relationship: "implementation",
+      task: null,
+      summary: {
+        label: "Not started",
+        color: "var(--gray-9)",
+        icon: <DotOutlineIcon size={14} />,
+      },
+      runActionLabel,
+    });
+  }
+
+  // Hide entirely when the report isn't actionable (e.g. POTENTIAL) and we
+  // have no tasks to show — matches the previous behavior.
   const showBar =
     isLoading ||
-    !!task ||
+    tasks.length > 0 ||
     reportStatus === "candidate" ||
     reportStatus === "in_progress" ||
-    reportStatus === "ready";
+    reportStatus === "ready" ||
+    isPendingInput;
 
   if (!showBar) {
     return null;
   }
 
-  const hasTask = !isLoading && !!task;
-
-  // No task yet — show pipeline status with tooltip explaining what's happening
-  if (!hasTask) {
-    let statusText: string;
-    let tooltipText: string;
-    if (isLoading) {
-      statusText = "Loading task…";
-      tooltipText = "Checking if a research task exists for this report.";
-    } else if (reportStatus === "candidate") {
-      statusText = "Queued for research";
-      tooltipText =
-        "This report has been queued. A repository will be selected and then an AI agent will research it.";
-    } else if (reportStatus === "in_progress") {
-      statusText = "Research is starting…";
-      tooltipText =
-        "An AI research agent is being set up. Logs will appear here once the agent starts running.";
-    } else {
-      statusText = "Waiting for research task";
-      tooltipText =
-        "No research task has been created yet. One will appear when the report is picked up for investigation.";
-    }
-
-    return (
-      <Flex
-        align="center"
-        gap="2"
-        px="3"
-        py="2"
-        className="shrink-0 border-gray-5 border-t"
-        style={{ height: BAR_HEIGHT }}
-      >
-        <Tooltip content={tooltipText}>
-          <Flex align="center" gap="2" className="cursor-help">
-            <Spinner size="1" />
-            <Text size="1" color="gray" className="text-[12px]">
-              {statusText}
-            </Text>
-          </Flex>
-        </Tooltip>
-      </Flex>
-    );
-  }
-
-  const status = getTaskStatusSummary(task);
+  const expandedBar = expanded
+    ? (bars.find((b) => b.relationship === expanded && b.task) ?? null)
+    : null;
+  const totalBarsHeight = BAR_HEIGHT * bars.length;
 
   return (
     <>
-      {/* In-flow spacer — same height as the bar */}
+      {/* In-flow spacer — same height as the stacked bars. */}
       <div
         className="shrink-0 border-gray-5 border-t"
-        style={{ height: BAR_HEIGHT }}
+        style={{ height: totalBarsHeight }}
       />
 
       {/* Scrim — biome-ignore: scrim is a non-semantic dismissal target */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: scrim dismiss */}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: scrim dismiss */}
       <div
-        onClick={expanded ? () => setExpanded(false) : undefined}
+        onClick={expandedBar ? () => setExpanded(null) : undefined}
         style={{
           position: "absolute",
           inset: 0,
           zIndex: 10,
           background: "rgba(0, 0, 0, 0.32)",
-          opacity: expanded ? 1 : 0,
+          opacity: expandedBar ? 1 : 0,
           transition: "opacity 0.2s ease",
-          pointerEvents: expanded ? "auto" : "none",
+          pointerEvents: expandedBar ? "auto" : "none",
         }}
       />
 
@@ -201,51 +315,164 @@ export function ReportTaskLogs({
           borderTop: "1px solid var(--gray-6)",
           background: "var(--color-background)",
           pointerEvents: "none",
-          top: expanded ? "15%" : `calc(100% - ${BAR_HEIGHT}px)`,
+          top: expandedBar ? "15%" : `calc(100% - ${totalBarsHeight}px)`,
           transition: "top 0.25s cubic-bezier(0.32, 0.72, 0, 1)",
         }}
       >
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          style={{ pointerEvents: "auto" }}
-          className="flex w-full shrink-0 cursor-pointer items-center gap-2 border-gray-5 border-b bg-transparent px-3 py-2 text-left transition-colors hover:bg-gray-2"
-        >
-          <span style={{ color: status.color }}>{status.icon}</span>
-          <Text size="1" weight="medium" className="flex-1 text-[12px]">
-            {relationship ? RELATIONSHIP_LABELS[relationship] : "Research task"}
-          </Text>
-          <Text
-            size="1"
-            className="text-[11px]"
-            style={{ color: status.color }}
-          >
-            {status.label}
-          </Text>
-          <span
-            className="inline-flex text-gray-9"
-            style={{
-              transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-              transition: "transform 0.2s ease",
-            }}
-          >
-            <CaretUpIcon size={12} />
-          </span>
-        </button>
+        {/* Stacked header bars — one per task relationship. */}
+        <div className="shrink-0" style={{ pointerEvents: "auto" }}>
+          {bars.map((bar, index) => {
+            const { relationship, task, summary, tooltip, runActionLabel } =
+              bar;
+            const showRunAction = !!runActionLabel;
+            const isExpanded = expanded === relationship;
+            const isInteractive = !!task;
+            // When we have both an expandable task and a run button, the outer
+            // element becomes a <div role="button"> so we can legally nest the
+            // run button inside. Without a task, there's nothing to expand; the
+            // run button becomes the sole interactive control.
+            const hideStatusLabel = showRunAction && !task;
 
+            const rowClassName = [
+              "flex w-full items-center gap-2 bg-transparent px-3 py-2 text-left transition-colors",
+              index > 0 ? "border-gray-5 border-t" : "",
+              isInteractive
+                ? "cursor-pointer hover:bg-gray-2"
+                : showRunAction
+                  ? "cursor-default"
+                  : "cursor-default opacity-70",
+              isExpanded && isInteractive ? "bg-gray-2" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+
+            const toggleExpand = () =>
+              setExpanded((curr) =>
+                curr === relationship ? null : relationship,
+              );
+
+            const rowInner = (
+              <>
+                <span style={{ color: summary.color }}>{summary.icon}</span>
+                <Text size="1" weight="medium" className="text-[12px]">
+                  {RELATIONSHIP_LABELS[relationship]}
+                </Text>
+                {hideStatusLabel ? (
+                  <span className="flex-1" />
+                ) : (
+                  <Text
+                    size="1"
+                    className="flex-1 text-[11px]"
+                    style={{ color: summary.color }}
+                  >
+                    {bar.prUrl
+                      ? summary.label
+                      : relationship === "implementation" &&
+                          (task?.latest_run?.status === "queued" ||
+                            task?.latest_run?.status === "in_progress")
+                        ? "Working on a PR…"
+                        : summary.label}
+                  </Text>
+                )}
+                {bar.prUrl && (
+                  <ReportImplementationPrLink prUrl={bar.prUrl} size="md" />
+                )}
+                {showRunAction && (
+                  <Button
+                    size="1"
+                    variant="solid"
+                    className="gap-1 font-medium text-[11px]"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRunInCloud?.();
+                    }}
+                  >
+                    <Cloud size={12} />
+                    {runActionLabel}
+                  </Button>
+                )}
+                {isInteractive && (
+                  <span
+                    className="inline-flex text-gray-9"
+                    style={{
+                      transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform 0.2s ease",
+                    }}
+                  >
+                    <CaretUpIcon size={12} />
+                  </span>
+                )}
+              </>
+            );
+
+            const row = isInteractive ? (
+              showRunAction ? (
+                // biome-ignore lint/a11y/useSemanticElements: a <button> can't contain the nested run-action <button>
+                <div
+                  key={relationship}
+                  role="button"
+                  tabIndex={0}
+                  onClick={toggleExpand}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleExpand();
+                    }
+                  }}
+                  className={rowClassName}
+                  style={{ height: BAR_HEIGHT }}
+                >
+                  {rowInner}
+                </div>
+              ) : (
+                <button
+                  key={relationship}
+                  type="button"
+                  onClick={toggleExpand}
+                  className={rowClassName}
+                  style={{ height: BAR_HEIGHT }}
+                >
+                  {rowInner}
+                </button>
+              )
+            ) : (
+              <div
+                key={relationship}
+                className={rowClassName}
+                style={{ height: BAR_HEIGHT }}
+              >
+                {rowInner}
+              </div>
+            );
+
+            return tooltip ? (
+              <Tooltip key={relationship} content={tooltip}>
+                {row}
+              </Tooltip>
+            ) : (
+              row
+            );
+          })}
+        </div>
+
+        {/* Expanded logs body — only rendered for the selected task. */}
         <div
           style={{
             flex: 1,
             minHeight: 0,
             overflow: "hidden",
-            pointerEvents: expanded ? "auto" : "none",
+            pointerEvents: expandedBar ? "auto" : "none",
           }}
         >
-          <TaskLogsPanel
-            taskId={task.id}
-            task={task}
-            hideInput={reportStatus !== "ready"}
-          />
+          {expandedBar?.task && (
+            <TaskLogsPanel
+              key={expandedBar.task.id}
+              taskId={expandedBar.task.id}
+              task={expandedBar.task}
+              hideInput={reportStatus !== "ready"}
+            />
+          )}
         </div>
       </div>
     </>

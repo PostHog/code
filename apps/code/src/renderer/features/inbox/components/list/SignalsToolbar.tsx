@@ -117,7 +117,7 @@ export function SignalsToolbar({
 
   const pipelineHintParts = [
     readyCount != null && processingCount > 0
-      ? `${readyCount} ready · ${processingCount} in pipeline`
+      ? `${readyCount} up for review • ${processingCount} in research pipeline`
       : null,
     pipelinePausedUntil
       ? `Pipeline paused · resumes in ${formatPauseRemaining(pipelinePausedUntil)}`
@@ -180,12 +180,14 @@ export function SignalsToolbar({
                     className="inline-flex h-1.5 w-1.5 shrink-0 cursor-default rounded-full"
                     style={{
                       backgroundColor: "var(--red-9)",
-                      boxShadow: "0 0 8px var(--red-9)",
-                      opacity: isFetching ? 1 : 0.55,
-                      transform: isFetching ? "scale(1)" : "scale(0.92)",
+                      boxShadow: isFetching
+                        ? "0 0 6px var(--red-9)"
+                        : "0 0 4px var(--red-9)",
+                      opacity: isFetching ? 1 : 0.6,
+                      transform: isFetching ? "scale(1.05)" : "scale(0.92)",
                       transition: isFetching
-                        ? "opacity 0.1s ease-out, transform 0.1s ease-out"
-                        : "opacity 0.4s ease-in, transform 0.4s ease-in",
+                        ? "opacity 0.15s ease-out, transform 0.15s ease-out, box-shadow 0.15s ease-out"
+                        : "opacity 0.6s ease-in, transform 0.6s ease-in, box-shadow 0.6s ease-in",
                     }}
                     aria-label="Live inbox refresh active"
                   />

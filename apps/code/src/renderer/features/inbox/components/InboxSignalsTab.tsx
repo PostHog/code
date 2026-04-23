@@ -5,6 +5,7 @@ import {
   WelcomePane,
 } from "@features/inbox/components/InboxEmptyStates";
 import { InboxSourcesDialog } from "@features/inbox/components/InboxSourcesDialog";
+import { useInboxDeepLinkListSync } from "@features/inbox/hooks/useInboxDeepLinkListSync";
 import {
   useInboxAvailableSuggestedReviewers,
   useInboxReportsInfinite,
@@ -20,8 +21,10 @@ import {
   buildStatusFilterParam,
   buildSuggestedReviewerFilterParam,
   filterReportsBySearch,
+  isReportUpForReview,
 } from "@features/inbox/utils/filterReports";
 import { INBOX_REFETCH_INTERVAL_MS } from "@features/inbox/utils/inboxConstants";
+import { useRepositoryIntegration } from "@hooks/useIntegrations";
 import { Box, Flex, ScrollArea } from "@radix-ui/themes";
 import type { SignalReportsQueryParams } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
@@ -47,6 +50,9 @@ export function InboxSignalsTab() {
   const suggestedReviewerFilter = useInboxSignalsFilterStore(
     (s) => s.suggestedReviewerFilter,
   );
+
+  // ── GitHub integration ───────────────────────────────────────────────
+  const { hasGithubIntegration } = useRepositoryIntegration();
 
   // ── Signal source configs ───────────────────────────────────────────────
   const { data: signalSourceConfigs } = useSignalSourceConfigs();
@@ -128,7 +134,7 @@ export function InboxSignalsTab() {
   });
 
   const readyCount = useMemo(
-    () => allReports.filter((r) => r.status === "ready").length,
+    () => allReports.filter(isReportUpForReview).length,
     [allReports],
   );
   const processingCount = useMemo(
@@ -150,25 +156,18 @@ export function InboxSignalsTab() {
   const selectExactRange = useInboxReportSelectionStore(
     (s) => s.selectExactRange,
   );
-  const pruneSelection = useInboxReportSelectionStore((s) => s.pruneSelection);
   const clearSelection = useInboxReportSelectionStore((s) => s.clearSelection);
+
+  const { selectedReport } = useInboxDeepLinkListSync({
+    reports,
+    inboxPollingActive,
+  });
 
   // Stable refs so callbacks don't need re-registration on every render
   const selectedReportIdsRef = useRef(selectedReportIds);
   selectedReportIdsRef.current = selectedReportIds;
   const reportsRef = useRef(reports);
   reportsRef.current = reports;
-
-  // Prune selection when visible reports change (e.g. filter/search)
-  useEffect(() => {
-    pruneSelection(reports.map((report) => report.id));
-  }, [reports, pruneSelection]);
-
-  // The report to show in the detail pane (only when exactly 1 is selected)
-  const selectedReport = useMemo(() => {
-    if (selectedReportIds.length !== 1) return null;
-    return reports.find((r) => r.id === selectedReportIds[0]) ?? null;
-  }, [reports, selectedReportIds]);
 
   // Reports for the multi-select stack (when 2+ selected)
   const selectedReports = useMemo(() => {
@@ -475,6 +474,7 @@ export function InboxSignalsTab() {
                     filteredCount={reports.length}
                     isSearchActive={!!searchQuery.trim()}
                     livePolling={inboxPollingActive}
+                    isFetching={isFetching}
                     readyCount={readyCount}
                     processingCount={processingCount}
                     pipelinePausedUntil={signalProcessingState?.paused_until}
@@ -576,7 +576,7 @@ export function InboxSignalsTab() {
             }}
           >
             <Box style={{ pointerEvents: "auto" }}>
-              {!hasSignalSources ? (
+              {!hasSignalSources || !hasGithubIntegration ? (
                 <WelcomePane onEnableInbox={() => setSourcesDialogOpen(true)} />
               ) : (
                 <WarmingUpPane
@@ -594,6 +594,7 @@ export function InboxSignalsTab() {
         open={sourcesDialogOpen}
         onOpenChange={setSourcesDialogOpen}
         hasSignalSources={hasSignalSources}
+        hasGithubIntegration={hasGithubIntegration}
       />
     </>
   );

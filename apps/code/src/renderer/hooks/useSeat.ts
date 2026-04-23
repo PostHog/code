@@ -1,5 +1,5 @@
 import { useSeatStore } from "@features/billing/stores/seatStore";
-import { PLAN_PRO, seatHasAccess } from "@shared/types/seat";
+import { isProPlan, seatHasAccess } from "@shared/types/seat";
 
 export function useSeat() {
   const seat = useSeatStore((s) => s.seat);
@@ -7,7 +7,7 @@ export function useSeat() {
   const error = useSeatStore((s) => s.error);
   const redirectUrl = useSeatStore((s) => s.redirectUrl);
 
-  const isPro = seat?.plan_key === PLAN_PRO;
+  const isPro = isProPlan(seat?.plan_key);
   const hasAccess = seat ? seatHasAccess(seat.status) : false;
   const isCanceling = seat?.status === "canceling";
   const planLabel = isPro ? "Pro" : "Free";

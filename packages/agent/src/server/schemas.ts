@@ -41,12 +41,31 @@ export const jsonRpcRequestSchema = z.object({
 
 export type JsonRpcRequest = z.infer<typeof jsonRpcRequestSchema>;
 
-export const userMessageParamsSchema = z.object({
-  content: z.union([
-    z.string().min(1, "Content is required"),
-    z.array(z.record(z.string(), z.unknown())).min(1, "Content is required"),
-  ]),
-});
+export const userMessageParamsSchema = z
+  .object({
+    content: z
+      .union([
+        z.string().min(1, "Content is required"),
+        z
+          .array(z.record(z.string(), z.unknown()))
+          .min(1, "Content is required"),
+      ])
+      .optional(),
+    artifacts: z.array(z.record(z.string(), z.unknown())).optional(),
+  })
+  .refine(
+    (params) => {
+      const hasContent =
+        typeof params.content === "string"
+          ? params.content.trim().length > 0
+          : Array.isArray(params.content) && params.content.length > 0;
+      const hasArtifacts =
+        Array.isArray(params.artifacts) && params.artifacts.length > 0;
+
+      return hasContent || hasArtifacts;
+    },
+    { error: "Either content or artifacts are required" },
+  );
 
 export const permissionResponseParamsSchema = z.object({
   requestId: z.string().min(1, "requestId is required"),
@@ -60,6 +79,10 @@ export const setConfigOptionParamsSchema = z.object({
   value: z.string().min(1, "value is required"),
 });
 
+export const refreshSessionParamsSchema = z.object({
+  mcpServers: mcpServersSchema,
+});
+
 export const commandParamsSchemas = {
   user_message: userMessageParamsSchema,
   "posthog/user_message": userMessageParamsSchema,
@@ -71,6 +94,9 @@ export const commandParamsSchemas = {
   "posthog/permission_response": permissionResponseParamsSchema,
   set_config_option: setConfigOptionParamsSchema,
   "posthog/set_config_option": setConfigOptionParamsSchema,
+  refresh_session: refreshSessionParamsSchema,
+  "posthog/refresh_session": refreshSessionParamsSchema,
+  "_posthog/refresh_session": refreshSessionParamsSchema,
 } as const;
 
 export type CommandMethod = keyof typeof commandParamsSchemas;
@@ -82,7 +108,7 @@ export function validateCommandParams(
   const schema =
     commandParamsSchemas[method as CommandMethod] ??
     commandParamsSchemas[
-      method.replace("posthog/", "") as keyof typeof commandParamsSchemas
+      method.replace(/^_?posthog\//, "") as keyof typeof commandParamsSchemas
     ];
 
   if (!schema) {

@@ -116,6 +116,10 @@ export function EnvironmentForm({
         <Text size="1" weight="medium">
           Name
         </Text>
+        <Text size="1" color="gray" className="text-[12px]">
+          Shown in the worktree picker. Use short names like "default" or
+          "with-seed-data" so you can spot which setup will run.
+        </Text>
         <TextField.Root
           size="1"
           value={name}
@@ -130,7 +134,9 @@ export function EnvironmentForm({
           Setup script
         </Text>
         <Text size="1" color="gray" className="text-[12px]">
-          Runs in the project root on worktree creation.
+          Runs in the worktree root right after it's created, before the agent
+          starts. Use it to install dependencies, generate build artifacts, or
+          seed a local database. Leave blank if no setup is needed.
         </Text>
         <TextArea
           size="1"

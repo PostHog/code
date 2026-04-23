@@ -70,10 +70,6 @@ export class SessionLogWriter {
       return;
     }
 
-    this.logger.info("Session registered", {
-      taskId: context.taskId,
-      runId: context.runId,
-    });
     this.sessions.set(sessionId, { context, currentTurnMessages: [] });
 
     this.lastFlushAttemptTime.set(sessionId, Date.now());

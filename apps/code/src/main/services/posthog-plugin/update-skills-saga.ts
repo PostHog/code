@@ -235,8 +235,6 @@ export class UpdateSkillsSaga extends Saga<
         await cp(src, dest, { recursive: true });
       }
     }
-
-    this.log.info("Skills merged");
   }
 
   /**
@@ -314,7 +312,5 @@ export class UpdateSkillsSaga extends Saga<
         }
       }
     }
-
-    this.log.info("Context-mill omnibus skills merged");
   }
 }

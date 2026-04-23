@@ -9,6 +9,21 @@ import { SuspensionRepositoryImpl } from "../db/repositories/suspension-reposito
 import { WorkspaceRepository } from "../db/repositories/workspace-repository";
 import { WorktreeRepository } from "../db/repositories/worktree-repository";
 import { DatabaseService } from "../db/service";
+import { ElectronAppLifecycle } from "../platform-adapters/electron-app-lifecycle";
+import { ElectronAppMeta } from "../platform-adapters/electron-app-meta";
+import { ElectronBundledResources } from "../platform-adapters/electron-bundled-resources";
+import { ElectronClipboard } from "../platform-adapters/electron-clipboard";
+import { ElectronContextMenu } from "../platform-adapters/electron-context-menu";
+import { ElectronDialog } from "../platform-adapters/electron-dialog";
+import { ElectronFileIcon } from "../platform-adapters/electron-file-icon";
+import { ElectronImageProcessor } from "../platform-adapters/electron-image-processor";
+import { ElectronMainWindow } from "../platform-adapters/electron-main-window";
+import { ElectronNotifier } from "../platform-adapters/electron-notifier";
+import { ElectronPowerManager } from "../platform-adapters/electron-power-manager";
+import { ElectronSecureStorage } from "../platform-adapters/electron-secure-storage";
+import { ElectronStoragePaths } from "../platform-adapters/electron-storage-paths";
+import { ElectronUpdater } from "../platform-adapters/electron-updater";
+import { ElectronUrlLauncher } from "../platform-adapters/electron-url-launcher";
 import { AgentAuthAdapter } from "../services/agent/auth-adapter";
 import { AgentService } from "../services/agent/service";
 import { AppLifecycleService } from "../services/app-lifecycle/service";
@@ -28,10 +43,12 @@ import { FoldersService } from "../services/folders/service";
 import { FsService } from "../services/fs/service";
 import { GitService } from "../services/git/service";
 import { GitHubIntegrationService } from "../services/github-integration/service";
+import { InboxLinkService } from "../services/inbox-link/service";
 import { LinearIntegrationService } from "../services/linear-integration/service";
 import { LlmGatewayService } from "../services/llm-gateway/service";
 import { McpAppsService } from "../services/mcp-apps/service";
 import { McpCallbackService } from "../services/mcp-callback/service";
+import { McpProxyService } from "../services/mcp-proxy/service";
 import { NotificationService } from "../services/notification/service";
 import { OAuthService } from "../services/oauth/service";
 import { PosthogPluginService } from "../services/posthog-plugin/service";
@@ -52,6 +69,22 @@ export const container = new Container({
   defaultScope: "Singleton",
 });
 
+container.bind(MAIN_TOKENS.UrlLauncher).to(ElectronUrlLauncher);
+container.bind(MAIN_TOKENS.StoragePaths).to(ElectronStoragePaths);
+container.bind(MAIN_TOKENS.AppMeta).to(ElectronAppMeta);
+container.bind(MAIN_TOKENS.Dialog).to(ElectronDialog);
+container.bind(MAIN_TOKENS.Clipboard).to(ElectronClipboard);
+container.bind(MAIN_TOKENS.FileIcon).to(ElectronFileIcon);
+container.bind(MAIN_TOKENS.SecureStorage).to(ElectronSecureStorage);
+container.bind(MAIN_TOKENS.MainWindow).to(ElectronMainWindow);
+container.bind(MAIN_TOKENS.AppLifecycle).to(ElectronAppLifecycle);
+container.bind(MAIN_TOKENS.PowerManager).to(ElectronPowerManager);
+container.bind(MAIN_TOKENS.Updater).to(ElectronUpdater);
+container.bind(MAIN_TOKENS.Notifier).to(ElectronNotifier);
+container.bind(MAIN_TOKENS.ContextMenu).to(ElectronContextMenu);
+container.bind(MAIN_TOKENS.BundledResources).to(ElectronBundledResources);
+container.bind(MAIN_TOKENS.ImageProcessor).to(ElectronImageProcessor);
+
 container.bind(MAIN_TOKENS.DatabaseService).to(DatabaseService);
 container
   .bind(MAIN_TOKENS.AuthPreferenceRepository)
@@ -66,6 +99,7 @@ container.bind(MAIN_TOKENS.AgentAuthAdapter).to(AgentAuthAdapter);
 container.bind(MAIN_TOKENS.AgentService).to(AgentService);
 container.bind(MAIN_TOKENS.AuthService).to(AuthService);
 container.bind(MAIN_TOKENS.AuthProxyService).to(AuthProxyService);
+container.bind(MAIN_TOKENS.McpProxyService).to(McpProxyService);
 container.bind(MAIN_TOKENS.ArchiveService).to(ArchiveService);
 container.bind(MAIN_TOKENS.SuspensionService).to(SuspensionService);
 container.bind(MAIN_TOKENS.AppLifecycleService).to(AppLifecycleService);
@@ -101,6 +135,7 @@ container.bind(MAIN_TOKENS.ShellService).to(ShellService);
 container.bind(MAIN_TOKENS.UIService).to(UIService);
 container.bind(MAIN_TOKENS.UpdatesService).to(UpdatesService);
 container.bind(MAIN_TOKENS.TaskLinkService).to(TaskLinkService);
+container.bind(MAIN_TOKENS.InboxLinkService).to(InboxLinkService);
 container.bind(MAIN_TOKENS.WatcherRegistryService).to(WatcherRegistryService);
 container.bind(MAIN_TOKENS.WorkspaceService).to(WorkspaceService);
 

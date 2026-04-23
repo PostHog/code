@@ -4,11 +4,17 @@ import { CloudTaskEvent } from "./schemas";
 const mockNetFetch = vi.hoisted(() => vi.fn());
 const mockStreamFetch = vi.hoisted(() => vi.fn());
 
-vi.mock("electron", () => ({
-  net: {
-    fetch: mockNetFetch,
-  },
-}));
+// The service now uses global fetch for BOTH authenticated API calls (JSON)
+// and SSE streaming. The two used to be distinct (net.fetch vs global fetch).
+// To preserve the existing test fixtures, route by URL: /stream/ → stream mock,
+// everything else → API mock.
+const fetchRouter = vi.hoisted(() =>
+  vi.fn((input: string | Request, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input.url;
+    const impl = url.includes("/stream/") ? mockStreamFetch : mockNetFetch;
+    return impl(input, init);
+  }),
+);
 
 vi.mock("../../utils/logger", () => ({
   logger: {
@@ -92,7 +98,7 @@ describe("CloudTaskService", () => {
     mockNetFetch.mockReset();
     mockStreamFetch.mockReset();
     mockAuthService.authenticatedFetch.mockReset();
-    vi.stubGlobal("fetch", mockStreamFetch);
+    vi.stubGlobal("fetch", fetchRouter);
 
     mockAuthService.authenticatedFetch.mockImplementation(
       async (

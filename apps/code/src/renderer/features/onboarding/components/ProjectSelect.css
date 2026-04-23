@@ -1,6 +1,5 @@
 .project-select-popover [cmdk-root] {
-  width: 320px;
-  min-width: 320px;
+  width: 100%;
   background: var(--color-panel-solid);
   border-radius: var(--radius-3);
   border: 1px solid var(--gray-6);

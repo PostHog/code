@@ -86,7 +86,7 @@ function getTerminalTheme(isDarkMode: boolean) {
         foreground: "#0d0d0d",
         cursor: "#f54d00",
         cursorAccent: "#f2f3ee",
-        selectionBackground: "rgba(245, 77, 0, 0.2)",
+        selectionBackground: "rgba(245, 77, 0, 0.95)",
         selectionForeground: "#0d0d0d",
       };
 }
@@ -155,11 +155,8 @@ class TerminalManagerImpl {
 
     const existing = this.instances.get(sessionId);
     if (existing) {
-      log.debug("Session already exists:", sessionId);
       return existing;
     }
-
-    log.info("Creating terminal instance:", sessionId);
 
     const term = new XTerm({
       cursorBlink: true,
@@ -239,7 +236,6 @@ class TerminalManagerImpl {
       }
 
       instance.isReady = true;
-      log.info("Shell session ready:", sessionId);
 
       if (instance.attachedElement) {
         instance.fitAddon.fit();
@@ -383,8 +379,6 @@ class TerminalManagerImpl {
     if (!instance) {
       return;
     }
-
-    log.info("Destroying terminal instance:", sessionId);
 
     if (instance.attachedElement) {
       this.detach(sessionId);

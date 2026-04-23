@@ -1,6 +1,7 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { app } from "electron";
+
 import { z } from "zod";
 import { logger } from "../../utils/logger";
 import { publicProcedure, router } from "../trpc";
@@ -9,7 +10,7 @@ const log = logger.scope("logsRouter");
 
 function getLocalLogPath(taskRunId: string): string {
   return path.join(
-    app.getPath("home"),
+    os.homedir(),
     ".posthog-code",
     "sessions",
     taskRunId,

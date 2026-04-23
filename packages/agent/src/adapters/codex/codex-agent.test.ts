@@ -60,20 +60,32 @@ describe("CodexAcpAgent", () => {
     vi.clearAllMocks();
   });
 
-  function createAgent(): CodexAcpAgent {
+  function createAgent(overrides: Partial<AgentSideConnection> = {}): {
+    agent: CodexAcpAgent;
+    client: AgentSideConnection & {
+      extNotification: ReturnType<typeof vi.fn>;
+      sessionUpdate: ReturnType<typeof vi.fn>;
+    };
+  } {
     const client = {
       extNotification: vi.fn(),
-    } as unknown as AgentSideConnection;
+      sessionUpdate: vi.fn(),
+      ...overrides,
+    } as unknown as AgentSideConnection & {
+      extNotification: ReturnType<typeof vi.fn>;
+      sessionUpdate: ReturnType<typeof vi.fn>;
+    };
 
-    return new CodexAcpAgent(client, {
+    const agent = new CodexAcpAgent(client, {
       codexProcessOptions: {
         cwd: process.cwd(),
       },
     });
+    return { agent, client };
   }
 
   it("applies the requested initial mode for a new session", async () => {
-    const agent = createAgent();
+    const { agent } = createAgent();
     mockCodexConnection.newSession.mockResolvedValue({
       sessionId: "session-1",
       modes: { currentModeId: "auto", availableModes: [] },
@@ -95,8 +107,50 @@ describe("CodexAcpAgent", () => {
     ).toBe("read-only");
   });
 
+  it("propagates taskRunId and fires SDK_SESSION when loading a cloud session", async () => {
+    const { agent, client } = createAgent();
+    mockCodexConnection.loadSession.mockResolvedValue({
+      modes: { currentModeId: "auto", availableModes: [] },
+      configOptions: [],
+    } satisfies Partial<LoadSessionResponse>);
+
+    await agent.loadSession({
+      sessionId: "session-1",
+      cwd: process.cwd(),
+      _meta: { taskRunId: "run-1", taskId: "task-1" },
+    } as never);
+
+    expect(
+      (agent as unknown as { sessionState: { taskRunId?: string } })
+        .sessionState.taskRunId,
+    ).toBe("run-1");
+    expect(client.extNotification).toHaveBeenCalledWith(
+      "_posthog/sdk_session",
+      {
+        taskRunId: "run-1",
+        sessionId: "session-1",
+        adapter: "codex",
+      },
+    );
+  });
+
+  it("does not emit SDK_SESSION on loadSession when taskRunId is absent", async () => {
+    const { agent, client } = createAgent();
+    mockCodexConnection.loadSession.mockResolvedValue({
+      modes: { currentModeId: "auto", availableModes: [] },
+      configOptions: [],
+    } satisfies Partial<LoadSessionResponse>);
+
+    await agent.loadSession({
+      sessionId: "session-1",
+      cwd: process.cwd(),
+    } as never);
+
+    expect(client.extNotification).not.toHaveBeenCalled();
+  });
+
   it("preserves the live session mode when loading an existing session", async () => {
-    const agent = createAgent();
+    const { agent } = createAgent();
     mockCodexConnection.loadSession.mockResolvedValue({
       modes: { currentModeId: "read-only", availableModes: [] },
       configOptions: [],
@@ -113,5 +167,180 @@ describe("CodexAcpAgent", () => {
       (agent as unknown as { sessionState: { permissionMode: string } })
         .sessionState.permissionMode,
     ).toBe("read-only");
+  });
+
+  it("prepends _meta.prContext to the forwarded prompt but not to the broadcast", async () => {
+    const { agent, client } = createAgent();
+    mockCodexConnection.newSession.mockResolvedValue({
+      sessionId: "session-1",
+      modes: { currentModeId: "auto", availableModes: [] },
+      configOptions: [],
+    } satisfies Partial<NewSessionResponse>);
+    await agent.newSession({
+      cwd: process.cwd(),
+    } as never);
+
+    mockCodexConnection.prompt.mockResolvedValue({ stopReason: "end_turn" });
+
+    await agent.prompt({
+      sessionId: "session-1",
+      prompt: [{ type: "text", text: "ship the fix" }],
+      _meta: { prContext: "PR #123 is open; review before editing." },
+    } as never);
+
+    // codex-acp receives the PR context prepended as a text block.
+    expect(mockCodexConnection.prompt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: [
+          { type: "text", text: "PR #123 is open; review before editing." },
+          { type: "text", text: "ship the fix" },
+        ],
+      }),
+    );
+    // The broadcast shows only the real user turn — the prContext prefix
+    // is internal routing and should not render as a user message.
+    expect(client.sessionUpdate).toHaveBeenCalledTimes(1);
+    expect(client.sessionUpdate).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      update: {
+        sessionUpdate: "user_message_chunk",
+        content: { type: "text", text: "ship the fix" },
+      },
+    });
+  });
+
+  it("serializes concurrent prompts so usage accumulators are not wiped mid-turn", async () => {
+    const { agent } = createAgent();
+    mockCodexConnection.newSession.mockResolvedValue({
+      sessionId: "session-1",
+      modes: { currentModeId: "auto", availableModes: [] },
+      configOptions: [],
+    } satisfies Partial<NewSessionResponse>);
+    await agent.newSession({
+      cwd: process.cwd(),
+      _meta: { taskRunId: "run-1" },
+    } as never);
+
+    const callOrder: string[] = [];
+    let releaseA: () => void;
+    const aStarted = new Promise<void>((resolve) => {
+      releaseA = resolve;
+    });
+    let allowAResolve: () => void = () => {};
+    const aHold = new Promise<void>((resolve) => {
+      allowAResolve = resolve;
+    });
+
+    mockCodexConnection.prompt.mockImplementationOnce(async () => {
+      callOrder.push("A:start");
+      releaseA();
+      await aHold;
+      callOrder.push("A:end");
+      return { stopReason: "end_turn" };
+    });
+    mockCodexConnection.prompt.mockImplementationOnce(async () => {
+      callOrder.push("B:start");
+      return { stopReason: "end_turn" };
+    });
+
+    const promptA = agent.prompt({
+      sessionId: "session-1",
+      prompt: [{ type: "text", text: "A" }],
+    } as never);
+
+    await aStarted;
+
+    const promptB = agent.prompt({
+      sessionId: "session-1",
+      prompt: [{ type: "text", text: "B" }],
+    } as never);
+
+    // B must not have started while A is still in-flight.
+    expect(callOrder).toEqual(["A:start"]);
+
+    allowAResolve();
+    await Promise.all([promptA, promptB]);
+
+    expect(callOrder).toEqual(["A:start", "A:end", "B:start"]);
+  });
+
+  it("does not let a failing prompt block subsequent prompts", async () => {
+    const { agent } = createAgent();
+    mockCodexConnection.newSession.mockResolvedValue({
+      sessionId: "session-1",
+      modes: { currentModeId: "auto", availableModes: [] },
+      configOptions: [],
+    } satisfies Partial<NewSessionResponse>);
+    await agent.newSession({
+      cwd: process.cwd(),
+    } as never);
+
+    mockCodexConnection.prompt.mockRejectedValueOnce(new Error("boom"));
+    mockCodexConnection.prompt.mockResolvedValueOnce({
+      stopReason: "end_turn",
+    });
+
+    await expect(
+      agent.prompt({
+        sessionId: "session-1",
+        prompt: [{ type: "text", text: "A" }],
+      } as never),
+    ).rejects.toThrow("boom");
+
+    await expect(
+      agent.prompt({
+        sessionId: "session-1",
+        prompt: [{ type: "text", text: "B" }],
+      } as never),
+    ).resolves.toEqual({ stopReason: "end_turn" });
+  });
+
+  it("broadcasts user prompt as user_message_chunk before delegating to codex-acp", async () => {
+    const { agent, client } = createAgent();
+    // Seed an active session so prompt() has the state it expects.
+    mockCodexConnection.newSession.mockResolvedValue({
+      sessionId: "session-1",
+      modes: { currentModeId: "auto", availableModes: [] },
+      configOptions: [],
+    } satisfies Partial<NewSessionResponse>);
+    await agent.newSession({
+      cwd: process.cwd(),
+    } as never);
+
+    const callOrder: string[] = [];
+    client.sessionUpdate.mockImplementation(async () => {
+      callOrder.push("sessionUpdate");
+    });
+    mockCodexConnection.prompt.mockImplementation(async () => {
+      callOrder.push("prompt");
+      return { stopReason: "end_turn" };
+    });
+
+    await agent.prompt({
+      sessionId: "session-1",
+      prompt: [
+        { type: "text", text: "first chunk" },
+        { type: "text", text: "second chunk" },
+      ],
+    } as never);
+
+    expect(client.sessionUpdate).toHaveBeenCalledTimes(2);
+    expect(client.sessionUpdate).toHaveBeenNthCalledWith(1, {
+      sessionId: "session-1",
+      update: {
+        sessionUpdate: "user_message_chunk",
+        content: { type: "text", text: "first chunk" },
+      },
+    });
+    expect(client.sessionUpdate).toHaveBeenNthCalledWith(2, {
+      sessionId: "session-1",
+      update: {
+        sessionUpdate: "user_message_chunk",
+        content: { type: "text", text: "second chunk" },
+      },
+    });
+    // Broadcast must land before the prompt reaches codex-acp so the user
+    // turn is persisted even if the underlying prompt fails.
+    expect(callOrder).toEqual(["sessionUpdate", "sessionUpdate", "prompt"]);
   });
 });

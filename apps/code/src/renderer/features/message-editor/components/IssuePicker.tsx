@@ -1,109 +1,143 @@
-import { MagnifyingGlass } from "@phosphor-icons/react";
-import { Spinner } from "@radix-ui/themes";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+} from "@posthog/quill";
 import { useTRPC } from "@renderer/trpc/client";
 import { useQuery } from "@tanstack/react-query";
-import { Command } from "cmdk";
 import { useEffect, useRef, useState } from "react";
 import type { MentionChip } from "../utils/content";
 
 interface IssuePickerProps {
   repoPath: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSelect: (chip: MentionChip) => void;
+  anchor: React.RefObject<HTMLElement | null>;
 }
 
-export function IssuePicker({ repoPath, onSelect }: IssuePickerProps) {
+type Issue = {
+  number: number;
+  title: string;
+  url: string;
+  repo: string;
+  state: string;
+  labels: string[];
+};
+
+export function IssuePicker({
+  repoPath,
+  open,
+  onOpenChange,
+  onSelect,
+  anchor,
+}: IssuePickerProps) {
   const trpc = useTRPC();
-  const [inputValue, setInputValue] = useState("");
+  const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      setDebouncedQuery(inputValue);
+      setDebouncedQuery(query);
     }, 300);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [inputValue]);
+  }, [query]);
 
-  const { data: issues = [], isLoading } = useQuery(
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+      setDebouncedQuery("");
+    }
+  }, [open]);
+
+  const { data: issues = [], isFetching } = useQuery(
     trpc.git.searchGithubIssues.queryOptions(
       {
         directoryPath: repoPath,
         query: debouncedQuery || undefined,
         limit: 25,
       },
-      { staleTime: 30_000 },
+      { staleTime: 30_000, enabled: open && !!repoPath },
     ),
   );
 
-  const handleSelect = (issue: (typeof issues)[number]) => {
+  const handleValueChange = (value: Issue | null) => {
+    if (!value) return;
     onSelect({
       type: "github_issue",
-      id: issue.url,
-      label: `#${issue.number} - ${issue.title}`,
+      id: value.url,
+      label: `#${value.number} - ${value.title}`,
     });
   };
 
   return (
-    <Command shouldFilter={false} loop>
-      <div className="combobox-input-wrapper">
-        <MagnifyingGlass
-          size={12}
-          weight="regular"
-          className="combobox-input-icon"
-        />
-        <Command.Input
-          placeholder="Search issues..."
-          value={inputValue}
-          onValueChange={setInputValue}
+    <Combobox<Issue>
+      items={issues as Issue[]}
+      open={open}
+      onOpenChange={(nextOpen) => onOpenChange(nextOpen)}
+      inputValue={query}
+      onInputValueChange={(value) => setQuery(value ?? "")}
+      onValueChange={(value) => handleValueChange(value as Issue | null)}
+      filter={null}
+    >
+      <ComboboxContent
+        anchor={anchor}
+        side="top"
+        align="start"
+        sideOffset={6}
+        className="min-w-[400px] p-0"
+      >
+        <ComboboxInput
           autoFocus
+          showTrigger={false}
+          placeholder="Search issues..."
         />
-      </div>
-
-      <Command.List>
-        {isLoading ? (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              padding: "var(--space-4) 0",
-            }}
-          >
-            <Spinner size="2" />
-          </div>
-        ) : issues.length === 0 ? (
-          <Command.Empty>No issues found.</Command.Empty>
-        ) : (
-          <Command.Group>
-            {issues.map((issue) => (
-              <Command.Item
-                key={issue.number}
-                value={`${issue.number} ${issue.title}`}
-                onSelect={() => handleSelect(issue)}
-              >
-                <div className="issue-picker-text">
-                  <span className="issue-picker-title">
-                    <span
-                      className="issue-picker-dot"
-                      style={{
-                        background:
-                          issue.state === "OPEN" ? "#238636" : "#AB7DF8",
-                      }}
-                    />
+        <ComboboxEmpty>
+          {isFetching ? "Searching..." : "No issues found."}
+        </ComboboxEmpty>
+        <ComboboxList>
+          {(issue: Issue) => (
+            <ComboboxItem
+              key={issue.number}
+              value={issue}
+              className="relative h-auto"
+            >
+              <Item size="xs" className="border-0 p-0">
+                <ItemMedia variant="icon" className="mt-1 self-start">
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{
+                      background:
+                        issue.state === "OPEN" ? "#238636" : "#AB7DF8",
+                    }}
+                  />
+                </ItemMedia>
+                <ItemContent variant="menuItem">
+                  <ItemTitle className="whitespace-normal text-left">
                     #{issue.number} - {issue.title}
-                  </span>
-                  <span className="issue-picker-meta">
+                  </ItemTitle>
+                  <ItemDescription className="text-left">
                     {issue.repo}
                     {issue.labels.length > 0 && ` · ${issue.labels.join(", ")}`}
-                  </span>
-                </div>
-              </Command.Item>
-            ))}
-          </Command.Group>
-        )}
-      </Command.List>
-    </Command>
+                  </ItemDescription>
+                </ItemContent>
+              </Item>
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }

@@ -20,6 +20,7 @@ export type Adapter = "claude" | "codex";
 export interface QueuedMessage {
   id: string;
   content: string;
+  rawPrompt?: string | ContentBlock[];
   queuedAt: number;
 }
 
@@ -85,6 +86,7 @@ export interface AgentSession {
   contextSize?: number;
   /** Pre-computed conversation summary for commit/PR generation context */
   conversationSummary?: string;
+  idleKilled?: boolean;
 }
 
 // --- Config Option Helpers ---
@@ -153,19 +155,26 @@ export function getConfigOptionByCategory(
  */
 export function cycleModeOption(
   modeOption: SessionConfigOption | undefined,
+  options?: { allowBypassPermissions?: boolean },
 ): string | undefined {
   if (!modeOption || modeOption.type !== "select") return undefined;
 
   const allOptions = flattenSelectOptions(modeOption.options);
-  if (allOptions.length === 0) return undefined;
+  const filtered = options?.allowBypassPermissions
+    ? allOptions
+    : allOptions.filter(
+        (opt) =>
+          opt.value !== "bypassPermissions" && opt.value !== "full-access",
+      );
+  if (filtered.length === 0) return undefined;
 
-  const currentIndex = allOptions.findIndex(
+  const currentIndex = filtered.findIndex(
     (opt) => opt.value === modeOption.currentValue,
   );
-  if (currentIndex === -1) return allOptions[0]?.value;
+  if (currentIndex === -1) return filtered[0]?.value;
 
-  const nextIndex = (currentIndex + 1) % allOptions.length;
-  return allOptions[nextIndex]?.value;
+  const nextIndex = (currentIndex + 1) % filtered.length;
+  return filtered[nextIndex]?.value;
 }
 
 /**
@@ -298,7 +307,11 @@ export const sessionStoreSetters = {
     });
   },
 
-  enqueueMessage: (taskId: string, content: string) => {
+  enqueueMessage: (
+    taskId: string,
+    content: string,
+    rawPrompt?: string | ContentBlock[],
+  ) => {
     const id = `queue-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     useSessionStore.setState((state) => {
       const taskRunId = state.taskIdIndex[taskId];
@@ -306,7 +319,12 @@ export const sessionStoreSetters = {
 
       const session = state.sessions[taskRunId];
       if (session) {
-        session.messageQueue.push({ id, content, queuedAt: Date.now() });
+        session.messageQueue.push({
+          id,
+          content,
+          rawPrompt,
+          queuedAt: Date.now(),
+        });
       }
     });
   },
@@ -349,6 +367,21 @@ export const sessionStoreSetters = {
       session.messageQueue = [];
     });
     return result;
+  },
+
+  dequeueMessages: (taskId: string): QueuedMessage[] => {
+    let queuedMessages: QueuedMessage[] = [];
+    useSessionStore.setState((state) => {
+      const taskRunId = state.taskIdIndex[taskId];
+      if (!taskRunId) return;
+
+      const session = state.sessions[taskRunId];
+      if (!session || session.messageQueue.length === 0) return;
+
+      queuedMessages = [...session.messageQueue];
+      session.messageQueue = [];
+    });
+    return queuedMessages;
   },
 
   appendOptimisticItem: (

@@ -215,7 +215,7 @@ export function ConversationView({
   return (
     <div className="relative flex-1">
       <div
-        id="mcp-fullscreen-portal"
+        id="fullscreen-portal"
         className="pointer-events-none absolute inset-0 z-20"
       />
 
@@ -226,7 +226,7 @@ export function ConversationView({
         renderItem={renderItem}
         onScrollStateChange={handleScrollStateChange}
         keepMounted={mcpAppIndices}
-        className="absolute inset-0 bg-gray-1"
+        className="absolute inset-0 bg-background"
         itemClassName="mx-auto max-w-[750px] px-2 py-1.5"
         footer={
           <div className={compact ? "pb-1" : "pb-16"}>

@@ -17,7 +17,7 @@ export function useSessionViewState(taskId: string, task: Task) {
     (!cloudStatus || cloudStatus === "queued" || cloudStatus === "in_progress");
   const isCloudRunTerminal = isCloud && !isCloudRunNotTerminal;
 
-  const hasError = session?.status === "error";
+  const hasError = session?.status === "error" && !session?.idleKilled;
   const isRunning = isCloud ? !hasError : session?.status === "connected";
 
   const events = session?.events ?? [];

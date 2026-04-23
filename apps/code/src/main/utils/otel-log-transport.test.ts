@@ -39,15 +39,12 @@ vi.mock("@opentelemetry/semantic-conventions", () => ({
   ATTR_SERVICE_NAME: "service.name",
 }));
 
-vi.mock("electron", () => ({
-  app: { getVersion: () => "1.0.0-test" },
-}));
-
 describe("otel-log-transport", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
     vi.unstubAllEnvs();
+    process.env.POSTHOG_CODE_VERSION = "1.0.0-test";
   });
 
   describe("initOtelTransport", () => {

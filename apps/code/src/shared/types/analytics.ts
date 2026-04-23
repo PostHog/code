@@ -212,6 +212,34 @@ export interface SessionConfigChangedProperties {
   to_value: string;
 }
 
+// Tour events
+type TourAction = "started" | "step_advanced" | "dismissed" | "completed";
+
+export interface TourEventProperties {
+  tour_id: string;
+  action: TourAction;
+  step_id?: string;
+  step_index?: number;
+  total_steps?: number;
+}
+
+// Branch mismatch events
+type BranchMismatchAction = "switch" | "continue" | "cancel";
+
+export interface BranchMismatchWarningShownProperties {
+  task_id: string;
+  linked_branch: string;
+  current_branch: string;
+  has_uncommitted_changes: boolean;
+}
+
+export interface BranchMismatchActionProperties {
+  task_id: string;
+  action: BranchMismatchAction;
+  linked_branch: string;
+  current_branch: string;
+}
+
 // Feedback events
 export interface TaskFeedbackProperties {
   task_id: string;
@@ -281,6 +309,13 @@ export const ANALYTICS_EVENTS = {
   // Feedback events
   TASK_FEEDBACK: "Task feedback",
 
+  // Branch mismatch events
+  BRANCH_MISMATCH_WARNING_SHOWN: "Branch mismatch warning shown",
+  BRANCH_MISMATCH_ACTION: "Branch mismatch action",
+
+  // Tour events
+  TOUR_EVENT: "Tour event",
+
   // Error events
   TASK_CREATION_FAILED: "Task creation failed",
   AGENT_SESSION_ERROR: "Agent session error",
@@ -337,6 +372,13 @@ export type EventPropertyMap = {
 
   // Feedback events
   [ANALYTICS_EVENTS.TASK_FEEDBACK]: TaskFeedbackProperties;
+
+  // Branch mismatch events
+  [ANALYTICS_EVENTS.BRANCH_MISMATCH_WARNING_SHOWN]: BranchMismatchWarningShownProperties;
+  [ANALYTICS_EVENTS.BRANCH_MISMATCH_ACTION]: BranchMismatchActionProperties;
+
+  // Tour events
+  [ANALYTICS_EVENTS.TOUR_EVENT]: TourEventProperties;
 
   // Error events
   [ANALYTICS_EVENTS.TASK_CREATION_FAILED]: TaskCreationFailedProperties;

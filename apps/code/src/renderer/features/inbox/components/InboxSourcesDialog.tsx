@@ -6,12 +6,14 @@ interface InboxSourcesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   hasSignalSources: boolean;
+  hasGithubIntegration: boolean;
 }
 
 export function InboxSourcesDialog({
   open,
   onOpenChange,
   hasSignalSources,
+  hasGithubIntegration,
 }: InboxSourcesDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -32,12 +34,18 @@ export function InboxSourcesDialog({
         </Flex>
         <SignalSourcesSettings />
         <Flex justify="end" mt="4">
-          {hasSignalSources ? (
+          {hasSignalSources && hasGithubIntegration ? (
             <Dialog.Close>
               <Button size="2">Back to Inbox</Button>
             </Dialog.Close>
           ) : (
-            <Tooltip content="You haven't enabled any signal source yet!">
+            <Tooltip
+              content={
+                !hasGithubIntegration
+                  ? "Connect GitHub to get started!"
+                  : "You haven't enabled any signal source yet!"
+              }
+            >
               <Button size="2" disabled>
                 Back to Inbox
               </Button>

@@ -408,6 +408,38 @@ body {
   background: var(--gray-a8);
 }
 
+.scrollbar-overlay-y {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.scrollbar-overlay-y::-webkit-scrollbar {
+  width: 6px;
+  background: transparent;
+}
+
+.scrollbar-overlay-y::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-overlay-y::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.scrollbar-overlay-y:hover {
+  scrollbar-color: var(--gray-a6) transparent;
+}
+
+.scrollbar-overlay-y:hover::-webkit-scrollbar-thumb {
+  background: var(--gray-a6);
+}
+
+.scrollbar-overlay-y:hover::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-a8);
+}
+
 /* File mention list styles */
 .file-mention-item {
   padding: var(--space-2);
@@ -941,6 +973,12 @@ button,
 /* Inbox report list: Radix ScrollArea thumb defaults to 100ms background-color transition */
 .scroll-area-constrain-width.inbox-report-list-scroll .rt-ScrollAreaThumb {
   transition: none;
+}
+
+/* GitHub avatar loading placeholder */
+.github-avatar:not(.loaded) {
+  outline: 1px dashed var(--gray-7);
+  outline-offset: -1px;
 }
 
 /* Inbox warming-up ellipsis wave */

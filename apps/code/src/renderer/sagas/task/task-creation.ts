@@ -1,7 +1,3 @@
-import {
-  buildCloudPromptBlocks,
-  serializeCloudPrompt,
-} from "@features/editor/utils/cloud-prompt";
 import { buildPromptBlocks } from "@features/editor/utils/prompt-builder";
 import { DEFAULT_PANEL_IDS } from "@features/panels/constants/panelConstants";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
@@ -10,6 +6,10 @@ import {
   type ConnectParams,
   getSessionService,
 } from "@features/sessions/service/service";
+import {
+  getCloudPromptTransport,
+  uploadTaskStagedAttachments,
+} from "@features/sessions/utils/cloudArtifacts";
 import { getTaskDirectory } from "@hooks/useRepositoryDirectory";
 import type {
   Workspace,
@@ -20,7 +20,11 @@ import type { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { trpcClient } from "@renderer/trpc";
 import { generateTitleAndSummary } from "@renderer/utils/generateTitle";
 import { getTaskRepository } from "@renderer/utils/repository";
-import type { ExecutionMode, Task } from "@shared/types";
+import {
+  type ExecutionMode,
+  SIGNAL_REPORT_TASK_IMPLEMENTATION_RELATIONSHIP,
+  type Task,
+} from "@shared/types";
 import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
 import { getGhUserTokenOrThrow } from "@utils/github";
 import { logger } from "@utils/logger";
@@ -113,13 +117,6 @@ export class TaskCreationSaga extends Saga<
   protected async execute(
     input: TaskCreationInput,
   ): Promise<TaskCreationOutput> {
-    const initialCloudPrompt =
-      input.workspaceMode === "cloud" && !input.taskId && input.content
-        ? await this.readOnlyStep("cloud_prompt_preparation", () =>
-            buildCloudPromptBlocks(input.content ?? "", input.filePaths),
-          )
-        : null;
-
     // Step 1: Get or create task
     // For new tasks, start folder registration in parallel with task creation
     // since folder_registration only needs repoPath (from input), not task.id
@@ -155,16 +152,6 @@ export class TaskCreationSaga extends Saga<
     const workspaceMode =
       input.workspaceMode ??
       (task.latest_run?.environment === "cloud" ? "cloud" : "local");
-
-    log.info("Task setup resolved", {
-      taskId: task.id,
-      isOpen: !!input.taskId,
-      repository: repoKey,
-      repoPath,
-      workspaceMode,
-      hasLatestRun: !!task.latest_run,
-      latestRunLogUrl: task.latest_run?.log_url,
-    });
 
     // Step 4: Create workspace if we have a directory
     let workspace: Workspace | null = null;
@@ -296,21 +283,37 @@ export class TaskCreationSaga extends Saga<
             githubUserToken = await getGhUserTokenOrThrow();
           }
 
+          const transport =
+            (input.content || input.filePaths?.length) &&
+            workspaceMode === "cloud"
+              ? getCloudPromptTransport(input.content ?? "", input.filePaths)
+              : null;
+          const pendingUserArtifactIds = transport
+            ? await uploadTaskStagedAttachments(
+                this.deps.posthogClient,
+                task.id,
+                transport.filePaths,
+              )
+            : [];
+
           return this.deps.posthogClient.runTaskInCloud(task.id, branch, {
             adapter: input.adapter,
             model: input.model,
             reasoningLevel: input.reasoningLevel,
-            pendingUserMessage: initialCloudPrompt
-              ? serializeCloudPrompt(initialCloudPrompt)
-              : undefined,
+            pendingUserMessage: transport?.messageText,
+            pendingUserArtifactIds:
+              pendingUserArtifactIds.length > 0
+                ? pendingUserArtifactIds
+                : undefined,
             sandboxEnvironmentId: input.sandboxEnvironmentId,
             prAuthorshipMode,
             runSource: input.cloudRunSource ?? "manual",
             signalReportId: input.signalReportId,
             githubUserToken,
-            initialPermissionMode:
-              input.executionMode ??
-              (input.adapter === "codex" ? "auto" : "plan"),
+            initialPermissionMode: input.adapter
+              ? (input.executionMode ??
+                (input.adapter === "codex" ? "auto" : "plan"))
+              : input.executionMode,
           });
         },
         rollback: async () => {
@@ -445,6 +448,9 @@ export class TaskCreationSaga extends Saga<
               : undefined,
           origin_product: input.signalReportId ? "signal_report" : undefined,
           signal_report: input.signalReportId ?? undefined,
+          signal_report_task_relationship: input.signalReportId
+            ? SIGNAL_REPORT_TASK_IMPLEMENTATION_RELATIONSHIP
+            : undefined,
         });
         return result as unknown as Task;
       },

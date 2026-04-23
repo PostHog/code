@@ -1,4 +1,4 @@
-import { useAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { AUTH_SCOPED_QUERY_META } from "@features/auth/hooks/authQueries";
 import type { Integration } from "@features/integrations/stores/integrationStore";
 import { useProjects } from "@features/projects/hooks/useProjects";
@@ -15,7 +15,7 @@ export interface ProjectWithIntegrations {
 
 export function useProjectsWithIntegrations() {
   const { projects, isLoading: projectsLoading } = useProjects();
-  const client = useAuthenticatedClient();
+  const client = useOptionalAuthenticatedClient();
 
   // Fetch integrations for each project in parallel
   const integrationQueries = useQueries({

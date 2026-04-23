@@ -77,15 +77,16 @@ export function useLogoutMutation() {
       track(ANALYTICS_EVENTS.USER_LOGGED_OUT);
       resetSessionService();
 
-      const state = await trpcClient.auth.logout.mutate();
-      return { state, previousState };
+      return { previousState };
     },
     onSuccess: async ({ previousState }) => {
-      await refreshAuthStateQuery();
       clearAuthScopedQueries();
       useAuthUiStateStore.getState().setStaleRegion(previousState.cloudRegion);
       useNavigationStore.getState().navigateToTaskInput();
       useOnboardingStore.getState().resetSelections();
+
+      await trpcClient.auth.logout.mutate();
+      await refreshAuthStateQuery();
     },
   });
 }

@@ -28,10 +28,6 @@ const log = logger.scope("mcp-sandbox protocol");
 export function registerMcpSandboxProtocol(): void {
   const mainSession = session.fromPartition("persist:main");
 
-  log.info("Registering protocol handler on persist:main", {
-    htmlLength: sandboxProxyHtml.length,
-  });
-
   mainSession.protocol.handle("mcp-sandbox", (request) => {
     log.debug("Serving proxy HTML", { url: request.url });
 

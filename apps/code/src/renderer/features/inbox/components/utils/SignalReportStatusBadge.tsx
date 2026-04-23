@@ -1,5 +1,6 @@
+import { Badge } from "@components/ui/Badge";
 import { inboxStatusLabel } from "@features/inbox/utils/inboxSort";
-import { Badge, Tooltip } from "@radix-ui/themes";
+import { Tooltip } from "@radix-ui/themes";
 import type { SignalReportStatus } from "@shared/types";
 
 const STATUS_TOOLTIPS: Record<string, string> = {
@@ -47,12 +48,7 @@ export function SignalReportStatusBadge({
 
   return (
     <Tooltip content={tooltip}>
-      <Badge
-        color={color}
-        size="1"
-        variant="surface"
-        className="!py-0 !text-[9px] !leading-tight cursor-help uppercase"
-      >
+      <Badge color={color} className="cursor-help">
         {label}
       </Badge>
     </Tooltip>

@@ -10,6 +10,7 @@ import {
 } from "electron";
 import { container } from "./di/container";
 import { MAIN_TOKENS } from "./di/tokens";
+import type { AuthService } from "./services/auth/service";
 import type { McpAppsService } from "./services/mcp-apps/service";
 import type { UIService } from "./services/ui/service";
 import type { UpdatesService } from "./services/updates/service";
@@ -130,6 +131,28 @@ function buildFileMenu(): MenuItemConstructorOptions {
               void container
                 .get<UIService>(MAIN_TOKENS.UIService)
                 .invalidateToken();
+            },
+          },
+          {
+            label: "Force refresh of OAuth token",
+            click: () => {
+              container
+                .get<AuthService>(MAIN_TOKENS.AuthService)
+                .refreshAccessToken()
+                .then(() => {
+                  dialog.showMessageBox({
+                    type: "info",
+                    title: "OAuth Token Refreshed",
+                    message: "Access token refreshed successfully.",
+                  });
+                })
+                .catch((err: Error) => {
+                  dialog.showMessageBox({
+                    type: "error",
+                    title: "OAuth Token Refresh Failed",
+                    message: err.message,
+                  });
+                });
             },
           },
           {

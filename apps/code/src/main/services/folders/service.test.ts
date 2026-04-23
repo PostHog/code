@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockExistsSync = vi.hoisted(() => vi.fn(() => true));
 const mockDialog = vi.hoisted(() => ({
-  showMessageBox: vi.fn(),
+  confirm: vi.fn(),
+  pickFile: vi.fn(),
 }));
 const mockRepositoryRepo = vi.hoisted(() => ({
   findAll: vi.fn(),
@@ -47,10 +48,6 @@ vi.mock("node:fs", () => ({
   },
 }));
 
-vi.mock("electron", () => ({
-  dialog: mockDialog,
-}));
-
 vi.mock("@posthog/git/worktree", () => ({
   WorktreeManager: class MockWorktreeManager {
     deleteWorktree = mockWorktreeManager.deleteWorktree;
@@ -67,10 +64,6 @@ vi.mock("../../utils/logger.js", () => ({
       debug: vi.fn(),
     }),
   },
-}));
-
-vi.mock("../../trpc/context.js", () => ({
-  getMainWindow: vi.fn(() => ({ id: 1 })),
 }));
 
 vi.mock("@posthog/git/queries", () => ({
@@ -101,6 +94,7 @@ vi.mock("../../db/repositories/worktree-repository.js", () => ({
 }));
 
 import { isGitRepository } from "@posthog/git/queries";
+import type { IDialog } from "@posthog/platform/dialog";
 import type { IRepositoryRepository } from "../../db/repositories/repository-repository";
 import type { IWorkspaceRepository } from "../../db/repositories/workspace-repository";
 import type { IWorktreeRepository } from "../../db/repositories/worktree-repository";
@@ -121,6 +115,7 @@ describe("FoldersService", () => {
       mockRepositoryRepo as unknown as IRepositoryRepository,
       mockWorkspaceRepo as unknown as IWorkspaceRepository,
       mockWorktreeRepo as unknown as IWorktreeRepository,
+      mockDialog as unknown as IDialog,
     );
   });
 
@@ -134,6 +129,7 @@ describe("FoldersService", () => {
         mockRepositoryRepo as unknown as IRepositoryRepository,
         mockWorkspaceRepo as unknown as IWorkspaceRepository,
         mockWorktreeRepo as unknown as IWorktreeRepository,
+        mockDialog as unknown as IDialog,
       );
     }
 
@@ -423,7 +419,7 @@ describe("FoldersService", () => {
 
     it("prompts to initialize git for non-git folder", async () => {
       vi.mocked(isGitRepository).mockResolvedValue(false);
-      mockDialog.showMessageBox.mockResolvedValue({ response: 0 });
+      mockDialog.confirm.mockResolvedValue(0);
       mockInitRepositorySaga.run.mockResolvedValue({
         success: true,
         data: { initialized: true },
@@ -440,7 +436,7 @@ describe("FoldersService", () => {
 
       const result = await service.addFolder("/home/user/project");
 
-      expect(mockDialog.showMessageBox).toHaveBeenCalled();
+      expect(mockDialog.confirm).toHaveBeenCalled();
       expect(mockInitRepositorySaga.run).toHaveBeenCalledWith({
         baseDir: "/home/user/project",
         initialCommit: true,
@@ -451,7 +447,7 @@ describe("FoldersService", () => {
 
     it("throws error when user cancels git init", async () => {
       vi.mocked(isGitRepository).mockResolvedValue(false);
-      mockDialog.showMessageBox.mockResolvedValue({ response: 1 });
+      mockDialog.confirm.mockResolvedValue(1);
 
       await expect(service.addFolder("/home/user/project")).rejects.toThrow(
         "Folder must be a git repository",

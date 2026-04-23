@@ -1,5 +1,15 @@
 import type { SessionConfigSelectGroup } from "@agentclientprotocol/sdk";
-import { Select, Text } from "@radix-ui/themes";
+import { CaretDown } from "@phosphor-icons/react";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  MenuLabel,
+} from "@posthog/quill";
 import { Fragment, useMemo } from "react";
 import { getSessionService } from "../service/service";
 import {
@@ -19,7 +29,6 @@ export function ModelSelector({
   taskId,
   disabled,
   onModelChange,
-  adapter: _adapter,
 }: ModelSelectorProps) {
   const session = useSessionForTask(taskId);
   const modelOption = useModelConfigOptionForTask(taskId);
@@ -41,13 +50,9 @@ export function ModelSelector({
   const handleChange = (value: string) => {
     onModelChange?.(value);
 
-    if (taskId && session?.status === "connected") {
-      getSessionService().setSessionConfigOption(
-        taskId,
-        selectOption.id,
-        value,
-      );
-    }
+    if (!taskId || !session) return;
+    if (session.status !== "connected" && !session.isCloud) return;
+    getSessionService().setSessionConfigOption(taskId, selectOption.id, value);
   };
 
   const currentValue = selectOption.currentValue;
@@ -55,46 +60,61 @@ export function ModelSelector({
     options.find((opt) => opt.value === currentValue)?.name ?? currentValue;
 
   return (
-    <Select.Root
-      value={currentValue}
-      onValueChange={handleChange}
-      disabled={disabled}
-      size="1"
-    >
-      <Select.Trigger
-        variant="ghost"
-        style={{
-          fontSize: "12px",
-          color: "var(--gray-11)",
-          padding: "4px 8px",
-          marginLeft: "4px",
-          height: "auto",
-          minHeight: "unset",
-        }}
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            disabled={disabled}
+            aria-label="Model"
+          >
+            {currentLabel}
+            <CaretDown
+              size={10}
+              weight="bold"
+              className="text-muted-foreground"
+            />
+          </Button>
+        }
+      />
+      <DropdownMenuContent
+        align="start"
+        side="top"
+        sideOffset={6}
+        className="min-w-[220px]"
       >
-        <Text style={{ fontSize: "12px" }}>{currentLabel}</Text>
-      </Select.Trigger>
-      <Select.Content position="popper" sideOffset={4}>
-        {groupedOptions.length > 0
-          ? groupedOptions.map((group, index) => (
+        {groupedOptions.length > 0 ? (
+          <DropdownMenuRadioGroup
+            value={currentValue}
+            onValueChange={handleChange}
+          >
+            {groupedOptions.map((group, index) => (
               <Fragment key={group.group}>
-                {index > 0 && <Select.Separator />}
-                <Select.Group>
-                  <Select.Label>{group.name}</Select.Label>
-                  {group.options.map((model) => (
-                    <Select.Item key={model.value} value={model.value}>
-                      {model.name}
-                    </Select.Item>
-                  ))}
-                </Select.Group>
+                {index > 0 && <DropdownMenuSeparator />}
+                <MenuLabel>{group.name}</MenuLabel>
+                {group.options.map((model) => (
+                  <DropdownMenuRadioItem key={model.value} value={model.value}>
+                    <span className="whitespace-nowrap">{model.name}</span>
+                  </DropdownMenuRadioItem>
+                ))}
               </Fragment>
-            ))
-          : options.map((model) => (
-              <Select.Item key={model.value} value={model.value}>
-                {model.name}
-              </Select.Item>
             ))}
-      </Select.Content>
-    </Select.Root>
+          </DropdownMenuRadioGroup>
+        ) : (
+          <DropdownMenuRadioGroup
+            value={currentValue}
+            onValueChange={handleChange}
+          >
+            {options.map((model) => (
+              <DropdownMenuRadioItem key={model.value} value={model.value}>
+                <span className="whitespace-nowrap">{model.name}</span>
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -1,6 +1,7 @@
+import { Badge } from "@components/ui/Badge";
 import { Tooltip } from "@components/ui/Tooltip";
 import { EnvelopeSimple, Plus } from "@phosphor-icons/react";
-import { Badge, type ButtonProps } from "@posthog/quill";
+import type { ButtonProps } from "@posthog/quill";
 import {
   formatHotkey,
   SHORTCUTS,
@@ -58,7 +59,7 @@ export function InboxItem({ isActive, onClick, signalCount }: InboxItemProps) {
               Inbox
               {signalCount && signalCount > 0 ? (
                 <span
-                  className="inline-flex min-w-[14px] shrink-0 items-center justify-center rounded-full px-0.5 font-medium text-[9px] leading-none"
+                  className="ml-2 inline-flex min-w-[14px] shrink-0 items-center justify-center rounded-full px-0.5 font-medium text-[9px] leading-none"
                   style={{
                     height: "14px",
                     backgroundColor: "var(--red-9)",
@@ -73,7 +74,7 @@ export function InboxItem({ isActive, onClick, signalCount }: InboxItemProps) {
           }
           isActive={isActive}
           onClick={onClick}
-          endContent={<Badge variant="warning">Beta</Badge>}
+          endContent={<Badge color="amber">Beta</Badge>}
         />
       </div>
     </Tooltip>

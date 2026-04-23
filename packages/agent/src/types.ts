@@ -56,11 +56,14 @@ export type ArtifactType =
   | "reference"
   | "output"
   | "artifact"
-  | "tree_snapshot";
+  | "tree_snapshot"
+  | "user_attachment";
 
 export interface TaskRunArtifact {
+  id?: string;
   name: string;
   type: ArtifactType;
+  source?: string;
   size?: number;
   content_type?: string;
   storage_path?: string;
@@ -152,6 +155,12 @@ export interface AgentConfig {
   skipLogPersistence?: boolean;
   /** Local cache path for instant log loading (e.g., ~/.posthog-code) */
   localCachePath?: string;
+  /**
+   * Annotate files the agent reads with PostHog enrichment (event volume,
+   * flag rollout/staleness, experiment links). Defaults to enabled when
+   * `posthog` config is present; set `{ enabled: false }` to opt out.
+   */
+  enricher?: { enabled?: boolean };
   debug?: boolean;
   onLog?: OnLogCallback;
 }

@@ -1,5 +1,6 @@
-import { powerSaveBlocker } from "electron";
-import { injectable, preDestroy } from "inversify";
+import type { IPowerManager } from "@posthog/platform/power-manager";
+import { inject, injectable, preDestroy } from "inversify";
+import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
 import { settingsStore } from "../settingsStore";
 
@@ -8,10 +9,13 @@ const log = logger.scope("sleep");
 @injectable()
 export class SleepService {
   private enabled: boolean;
-  private blockerId: number | null = null;
+  private releaseBlocker: (() => void) | null = null;
   private activeActivities = new Set<string>();
 
-  constructor() {
+  constructor(
+    @inject(MAIN_TOKENS.PowerManager)
+    private readonly powerManager: IPowerManager,
+  ) {
     this.enabled = settingsStore.get("preventSleepWhileRunning", false);
   }
 
@@ -50,15 +54,17 @@ export class SleepService {
   }
 
   private startBlocker(): void {
-    if (this.blockerId !== null) return;
-    this.blockerId = powerSaveBlocker.start("prevent-app-suspension");
-    log.info("Started power save blocker", { blockerId: this.blockerId });
+    if (this.releaseBlocker) return;
+    this.releaseBlocker = this.powerManager.preventSleep(
+      "prevent-app-suspension",
+    );
+    log.info("Started power save blocker");
   }
 
   private stopBlocker(): void {
-    if (this.blockerId === null) return;
-    log.info("Stopping power save blocker", { blockerId: this.blockerId });
-    powerSaveBlocker.stop(this.blockerId);
-    this.blockerId = null;
+    if (!this.releaseBlocker) return;
+    log.info("Stopping power save blocker");
+    this.releaseBlocker();
+    this.releaseBlocker = null;
   }
 }
