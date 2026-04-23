@@ -52,6 +52,10 @@ export interface AgentSession {
   isPromptPending: boolean;
   isCompacting: boolean;
   promptStartedAt: number | null;
+  /** JSON-RPC id of the currently in-flight session/prompt request. Used to
+   * correlate late-arriving responses (e.g. from a cancelled prior turn) so
+   * they don't clear the pending state of a newer turn. */
+  currentPromptId?: number | null;
   logUrl?: string;
   processedLineCount?: number;
   framework?: "claude";
