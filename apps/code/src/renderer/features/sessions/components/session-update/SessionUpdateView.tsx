@@ -1,7 +1,5 @@
-import type {
-  ConversationItem,
-  ProgressStep,
-} from "@features/sessions/components/buildConversationItems";
+import type { Step } from "@components/ui/StepList";
+import type { ConversationItem } from "@features/sessions/components/buildConversationItems";
 import type { SessionUpdate, ToolCall } from "@features/sessions/types";
 import { memo } from "react";
 
@@ -48,7 +46,7 @@ export type RenderItem =
     }
   | {
       sessionUpdate: "progress_group";
-      steps: ProgressStep[];
+      steps: Step[];
       isActive: boolean;
     };
 

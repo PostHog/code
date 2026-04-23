@@ -2,6 +2,7 @@ import type {
   ContentBlock,
   SessionNotification,
 } from "@agentclientprotocol/sdk";
+import type { Step, StepStatus } from "@components/ui/StepList";
 import type { QueuedMessage } from "@features/sessions/stores/sessionStore";
 import type { SessionUpdate, ToolCall } from "@features/sessions/types";
 import {
@@ -56,15 +57,6 @@ export type ConversationItem =
   | UserShellExecute
   | { type: "queued"; id: string; message: QueuedMessage };
 
-export type ProgressStatus = "in_progress" | "completed" | "failed";
-
-export interface ProgressStep {
-  key: string;
-  status: ProgressStatus;
-  label: string;
-  detail?: string;
-}
-
 export interface LastTurnInfo {
   isComplete: boolean;
   durationMs: number;
@@ -79,11 +71,11 @@ export interface BuildResult {
 
 interface ProgressCardState {
   /** Step key → full step entry. Key order reflects arrival order. */
-  steps: Map<string, ProgressStep>;
+  steps: Map<string, Step>;
   /** Reference to the pushed render item; mutated in place as events arrive. */
   renderItem: {
     sessionUpdate: "progress_group";
-    steps: ProgressStep[];
+    steps: Step[];
     isActive: boolean;
   };
 }
@@ -436,7 +428,7 @@ function ensureProgressCardForGroup(
 
   const renderItem = {
     sessionUpdate: "progress_group" as const,
-    steps: [] as ProgressStep[],
+    steps: [] as Step[],
     isActive: true,
   };
   const card: ProgressCardState = {
@@ -449,7 +441,7 @@ function ensureProgressCardForGroup(
 }
 
 function syncProgressCard(card: ProgressCardState) {
-  const ordered: ProgressStep[] = Array.from(card.steps.values());
+  const ordered: Step[] = Array.from(card.steps.values());
   card.renderItem.steps = ordered;
   card.renderItem.isActive = ordered.some((s) => s.status === "in_progress");
 }
@@ -466,7 +458,7 @@ function handleProgress(b: ItemBuilder, rawParams: unknown, ts: number) {
     | undefined;
   if (!params?.step || !params.label || !params.group) return;
 
-  const status = normalizeProgressStatus(params.status);
+  const status = normalizeStepStatus(params.status);
   const card = ensureProgressCardForGroup(b, params.group, ts);
   if (!card) return;
   card.steps.set(params.step, {
@@ -478,7 +470,7 @@ function handleProgress(b: ItemBuilder, rawParams: unknown, ts: number) {
   syncProgressCard(card);
 }
 
-function normalizeProgressStatus(raw: string | undefined): ProgressStatus {
+function normalizeStepStatus(raw: string | undefined): StepStatus {
   switch (raw) {
     case "in_progress":
     case "completed":

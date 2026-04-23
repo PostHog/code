@@ -1,45 +1,21 @@
-import type { ProgressStep } from "@features/sessions/components/buildConversationItems";
-import {
-  CaretDownIcon,
-  CaretRightIcon,
-  CheckCircleIcon,
-  CircleIcon,
-  CircleNotchIcon,
-  XCircleIcon,
-} from "@phosphor-icons/react";
+import { type Step, StepList } from "@components/ui/StepList";
+import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import * as Collapsible from "@radix-ui/react-collapsible";
-import { Box, Flex, Text } from "@radix-ui/themes";
+import { Box, Text } from "@radix-ui/themes";
 import { useEffect, useState } from "react";
 
 interface ProgressGroupViewProps {
-  steps: ProgressStep[];
+  steps: Step[];
   /** True while at least one step in this group is `in_progress`. */
   isActive: boolean;
   /** True once the enclosing turn has finished. Drives the auto-collapse. */
   turnComplete?: boolean;
 }
 
-type ProgressStatus = ProgressStep["status"];
-
-function StepIcon({ status }: { status: ProgressStatus }) {
-  switch (status) {
-    case "in_progress":
-      return <CircleNotchIcon size={14} className="animate-spin text-blue-9" />;
-    case "completed":
-      return (
-        <CheckCircleIcon size={14} weight="fill" className="text-green-9" />
-      );
-    case "failed":
-      return <XCircleIcon size={14} weight="fill" className="text-red-9" />;
-    default:
-      return <CircleIcon size={14} className="text-gray-8" />;
-  }
-}
-
 // Header label follows the stream: the currently in-flight step's label if
 // any, otherwise the last step seen. No hardcoded fallbacks — the backend
 // controls all wording, including present-tense during `in_progress`.
-function resolveHeaderLabel(steps: ProgressStep[]): string | null {
+function resolveHeaderLabel(steps: Step[]): string | null {
   if (steps.length === 0) return null;
   const active = steps.find((s) => s.status === "in_progress");
   if (active) return active.label;
@@ -94,9 +70,9 @@ export function ProgressGroupView({
               className="flex w-full items-center gap-2 rounded-sm px-1 py-0.5 text-left enabled:hover:bg-gray-3 disabled:cursor-default"
             >
               {isOpen ? (
-                <CaretDownIcon size={12} className="text-gray-10" />
+                <CaretDown size={12} className="text-gray-10" />
               ) : (
-                <CaretRightIcon size={12} className="text-gray-10" />
+                <CaretRight size={12} className="text-gray-10" />
               )}
               <Text size="2" weight="medium" className="text-gray-12">
                 {summaryLabel}
@@ -105,25 +81,9 @@ export function ProgressGroupView({
           </Collapsible.Trigger>
         )}
         <Collapsible.Content>
-          <Flex direction="column" gap="1" pl={hasHeader ? "4" : "0"} py="1">
-            {steps.map((step) => (
-              <Flex key={step.key} direction="column" gap="0">
-                <Flex align="center" gap="2">
-                  <StepIcon status={step.status} />
-                  <Text size="2" className="text-gray-12">
-                    {step.label}
-                  </Text>
-                </Flex>
-                {step.detail && (
-                  <Box pl="5">
-                    <Text size="1" className="text-gray-10">
-                      {step.detail}
-                    </Text>
-                  </Box>
-                )}
-              </Flex>
-            ))}
-          </Flex>
+          <Box pl={hasHeader ? "4" : "0"} py="1">
+            <StepList steps={steps} />
+          </Box>
         </Collapsible.Content>
       </Collapsible.Root>
     </Box>
