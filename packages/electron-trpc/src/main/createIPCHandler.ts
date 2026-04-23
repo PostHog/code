@@ -17,7 +17,7 @@ const getInternalId = (event: IpcMainEvent, request: ETRPCRequest) => {
 
 class IPCHandler<TRouter extends AnyTRPCRouter> {
   #windows: BrowserWindow[] = [];
-  #subscriptions: Map<string, AbortController> = new Map();
+  #operations: Map<string, AbortController> = new Map();
   #listener: (event: IpcMainEvent, request: ETRPCRequest) => void;
 
   constructor({
@@ -42,7 +42,7 @@ class IPCHandler<TRouter extends AnyTRPCRouter> {
         internalId: getInternalId(event, request),
         event,
         message: request,
-        subscriptions: this.#subscriptions,
+        operations: this.#operations,
       });
     };
     ipcMain.on(ELECTRON_TRPC_CHANNEL, this.#listener);
@@ -50,10 +50,10 @@ class IPCHandler<TRouter extends AnyTRPCRouter> {
 
   destroy() {
     ipcMain.removeListener(ELECTRON_TRPC_CHANNEL, this.#listener);
-    for (const sub of this.#subscriptions.values()) {
+    for (const sub of this.#operations.values()) {
       sub.abort();
     }
-    this.#subscriptions.clear();
+    this.#operations.clear();
   }
 
   attachWindow(win: BrowserWindow) {
@@ -86,10 +86,10 @@ class IPCHandler<TRouter extends AnyTRPCRouter> {
     webContentsId: number;
     frameRoutingId?: number;
   }) {
-    for (const [key, sub] of this.#subscriptions.entries()) {
+    for (const [key, sub] of this.#operations.entries()) {
       if (key.startsWith(`${webContentsId}-${frameRoutingId ?? ""}`)) {
         sub.abort();
-        this.#subscriptions.delete(key);
+        this.#operations.delete(key);
       }
     }
   }
