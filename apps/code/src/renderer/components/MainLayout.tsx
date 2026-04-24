@@ -13,6 +13,7 @@ import { useInboxDeepLink } from "@features/inbox/hooks/useInboxDeepLink";
 import { FolderSettingsView } from "@features/settings/components/FolderSettingsView";
 import { SettingsDialog } from "@features/settings/components/SettingsDialog";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
+import { SetupView } from "@features/setup/components/SetupView";
 import { MainSidebar } from "@features/sidebar/components/MainSidebar";
 import { useSidebarData } from "@features/sidebar/hooks/useSidebarData";
 import { useVisualTaskOrder } from "@features/sidebar/hooks/useVisualTaskOrder";
@@ -129,6 +130,8 @@ export function MainLayout() {
           {view.type === "command-center" && <CommandCenterView />}
 
           {view.type === "skills" && <SkillsView />}
+
+          {view.type === "setup" && <SetupView />}
         </Box>
       </Flex>
 
