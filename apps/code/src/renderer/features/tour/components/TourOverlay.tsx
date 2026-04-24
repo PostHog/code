@@ -46,6 +46,12 @@ export function TourOverlay() {
   const advance = useTourStore((s) => s.advance);
   const dismiss = useTourStore((s) => s.dismiss);
 
+  useEffect(() => {
+    if (!activeTourId) return;
+    document.body.classList.add("tour-active");
+    return () => document.body.classList.remove("tour-active");
+  }, [activeTourId]);
+
   const tour = activeTourId ? TOUR_REGISTRY[activeTourId] : null;
   const step = tour?.steps[activeStepIndex] ?? null;
 
