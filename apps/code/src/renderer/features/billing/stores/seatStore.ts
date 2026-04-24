@@ -99,6 +99,12 @@ export const useSeatStore = create<SeatStore>()((set) => ({
       }
       set({ seat, isLoading: false });
     } catch (error) {
+      const { seat: existingSeat } = useSeatStore.getState();
+      if (existingSeat) {
+        log.warn("fetchSeat failed but seat already loaded, keeping it", error);
+        set({ isLoading: false });
+        return;
+      }
       handleSeatError(error, set);
     }
   },
