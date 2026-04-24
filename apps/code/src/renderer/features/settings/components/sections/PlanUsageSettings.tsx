@@ -20,7 +20,7 @@ import {
 import { Tooltip } from "@renderer/components/ui/Tooltip";
 import { PLAN_PRO_ALPHA } from "@shared/types/seat";
 import { getPostHogUrl } from "@utils/urls";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function formatResetTime(seconds: number): string {
   if (seconds < 3600) return "less than 1 hour";
@@ -43,13 +43,23 @@ export function PlanUsageSettings() {
     error,
     redirectUrl,
   } = useSeat();
-  const { upgradeToPro, cancelSeat, reactivateSeat, clearError } =
+  const { fetchSeat, upgradeToPro, cancelSeat, reactivateSeat, clearError } =
     useSeatStore();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+
   const isAlpha = seat?.plan_key === PLAN_PRO_ALPHA;
-  const { usage, isLoading: usageLoading } = useUsage({
+  const {
+    usage,
+    isLoading: usageLoading,
+    refetch: refetchUsage,
+  } = useUsage({
     enabled: seat !== null,
   });
+
+  useEffect(() => {
+    void fetchSeat();
+    void refetchUsage();
+  }, [fetchSeat, refetchUsage]);
 
   const formattedActiveUntil = activeUntil
     ? activeUntil.toLocaleDateString(undefined, {
