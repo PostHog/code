@@ -8,6 +8,7 @@ import {
   getAuthenticatedClient,
 } from "@features/auth/hooks/authClient";
 import { fetchAuthState } from "@features/auth/hooks/authQueries";
+import { useUsageLimitStore } from "@features/billing/stores/usageLimitStore";
 import { useSessionAdapterStore } from "@features/sessions/stores/sessionAdapterStore";
 import {
   getPersistedConfigOptions,
@@ -70,6 +71,7 @@ import {
   extractPromptText,
   getUserShellExecutesSinceLastPrompt,
   isFatalSessionError,
+  isRateLimitError,
   normalizePromptToBlocks,
   shellExecutesToContextBlocks,
 } from "@utils/session";
@@ -1413,6 +1415,18 @@ export class SessionService {
         ?.details;
 
       sessionStoreSetters.clearOptimisticItems(session.taskRunId);
+
+      if (isRateLimitError(errorMessage, errorDetails)) {
+        log.warn("Rate limit exceeded, showing usage limit modal", {
+          taskRunId: session.taskRunId,
+        });
+        sessionStoreSetters.updateSession(session.taskRunId, {
+          isPromptPending: false,
+          promptStartedAt: null,
+        });
+        useUsageLimitStore.getState().show();
+        return { stopReason: "rate_limited" };
+      }
 
       if (isFatalSessionError(errorMessage, errorDetails)) {
         log.error("Fatal prompt error, attempting recovery", {

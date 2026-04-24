@@ -20,6 +20,12 @@ export function isAuthError(error: unknown): boolean {
   return AUTH_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
 }
 
+const RATE_LIMIT_PATTERNS = [
+  "rate limit exceeded",
+  "rate_limit",
+  "[429]",
+] as const;
+
 const FATAL_SESSION_ERROR_PATTERNS = [
   "internal error",
   "process exited",
@@ -37,10 +43,21 @@ function includesAny(
   return patterns.some((pattern) => lower.includes(pattern));
 }
 
+export function isRateLimitError(
+  errorMessage: string,
+  errorDetails?: string,
+): boolean {
+  return (
+    includesAny(errorMessage, RATE_LIMIT_PATTERNS) ||
+    includesAny(errorDetails, RATE_LIMIT_PATTERNS)
+  );
+}
+
 export function isFatalSessionError(
   errorMessage: string,
   errorDetails?: string,
 ): boolean {
+  if (isRateLimitError(errorMessage, errorDetails)) return false;
   return (
     includesAny(errorMessage, FATAL_SESSION_ERROR_PATTERNS) ||
     includesAny(errorDetails, FATAL_SESSION_ERROR_PATTERNS)
