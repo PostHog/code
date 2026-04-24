@@ -70,6 +70,14 @@ function buildAppMenu(): MenuItemConstructorOptions {
         },
       },
       { type: "separator" },
+      {
+        label: "Settings...",
+        accelerator: "CmdOrCtrl+,",
+        click: () => {
+          container.get<UIService>(MAIN_TOKENS.UIService).openSettings();
+        },
+      },
+      { type: "separator" },
       ...(!isDevBuild()
         ? [
             {
@@ -80,20 +88,12 @@ function buildAppMenu(): MenuItemConstructorOptions {
                   .triggerMenuCheck();
               },
             },
+            { type: "separator" as const },
           ]
         : []),
-      { type: "separator" },
       { role: "hide" as const },
       { role: "hideOthers" as const },
       { role: "unhide" as const },
-      { type: "separator" as const },
-      {
-        label: "Settings...",
-        accelerator: "CmdOrCtrl+,",
-        click: () => {
-          container.get<UIService>(MAIN_TOKENS.UIService).openSettings();
-        },
-      },
       { type: "separator" as const },
       { role: "quit" as const },
     ],
