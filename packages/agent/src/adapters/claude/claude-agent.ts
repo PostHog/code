@@ -1022,6 +1022,19 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
         configOptions: this.session.configOptions,
       },
     });
+
+    // Notify the agent-server so its cached permissionMode stays in sync.
+    // Without this, cloud sessions that change mode via plan approval or
+    // setSessionMode use a stale mode for relay decisions.
+    if (configId === "mode") {
+      await this.client.sessionUpdate({
+        sessionId: this.sessionId,
+        update: {
+          sessionUpdate: "current_mode_update",
+          currentModeId: value,
+        },
+      });
+    }
   }
 
   private async applySessionMode(modeId: string): Promise<void> {
