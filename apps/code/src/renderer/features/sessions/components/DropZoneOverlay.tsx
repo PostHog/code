@@ -25,7 +25,7 @@ export function DropZoneOverlay({ isVisible }: DropZoneOverlayProps) {
     >
       <Flex direction="column" align="center" gap="2">
         <FileArrowUp size={32} weight="duotone" className="text-accent-11" />
-        <Text size="2" weight="medium" className="text-accent-11">
+        <Text className="font-medium text-accent-11 text-sm">
           Drop files to attach
         </Text>
       </Flex>

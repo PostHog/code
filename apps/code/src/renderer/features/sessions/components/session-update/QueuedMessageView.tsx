@@ -40,7 +40,7 @@ export function QueuedMessageView({
       </Flex>
       <Flex align="center" gap="1" mt="1">
         <Clock size={12} className="text-gray-9" />
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px] leading-5">
           Queued
         </Text>
       </Flex>

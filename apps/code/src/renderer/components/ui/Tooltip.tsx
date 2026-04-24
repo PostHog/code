@@ -43,7 +43,7 @@ export function Tooltip({
             side={side}
             align={align}
             sideOffset={sideOffset}
-            className="dark"
+            className="dark text-xs leading-[1.4]"
             style={{
               display: "flex",
               alignItems: "center",
@@ -52,8 +52,6 @@ export function Tooltip({
               color: "var(--gray-12)",
               padding: "6px 10px",
               borderRadius: "6px",
-              fontSize: "12px",
-              lineHeight: "1.4",
               whiteSpace: isSimpleContent ? "nowrap" : "normal",
               border: "1px solid var(--gray-4)",
               boxShadow: "0 4px 12px rgba(0, 0, 0, 0.25)",
@@ -64,9 +62,7 @@ export function Tooltip({
             }}
           >
             {isSimpleContent ? <span>{content}</span> : content}
-            {shortcut && (
-              <KeyHint style={{ fontSize: "12px" }}>{shortcut}</KeyHint>
-            )}
+            {shortcut && <KeyHint className="text-xs">{shortcut}</KeyHint>}
           </TooltipPrimitive.Content>
         </TooltipPrimitive.Portal>
       </TooltipPrimitive.Root>

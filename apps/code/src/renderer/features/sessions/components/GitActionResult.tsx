@@ -52,7 +52,7 @@ export function GitActionResult({
       <Flex direction="column" gap="2">
         <Flex align="center" gap="2">
           <CheckCircle size={16} weight="fill" className="text-green-9" />
-          <Text size="2" weight="medium" className="text-green-11">
+          <Text className="font-medium text-green-11 text-sm">
             {getCompletionLabel(actionType)}
           </Text>
         </Flex>
@@ -60,12 +60,11 @@ export function GitActionResult({
         {showCommit && commitInfo && (
           <Flex align="center" gap="2" className="mt-1">
             <GitCommit size={14} className="text-gray-10" />
-            <Text size="1" className="font-mono text-gray-11">
+            <Text className="font-mono text-[13px] text-gray-11 leading-5">
               {commitInfo.shortSha}
             </Text>
             <Text
-              size="1"
-              className="text-gray-11"
+              className="text-[13px] text-gray-11 leading-5"
               style={{
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -84,7 +83,7 @@ export function GitActionResult({
         {showPrLink && repoInfo?.compareUrl && (
           <Flex align="center" gap="2" className="mt-1">
             <GitPullRequest size={14} className="text-purple-9" />
-            <Text size="1" weight="medium">
+            <Text className="font-medium text-[13px] leading-5">
               {repoInfo.currentBranch}
             </Text>
             <Button

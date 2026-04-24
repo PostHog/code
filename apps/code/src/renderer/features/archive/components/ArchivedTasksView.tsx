@@ -413,11 +413,13 @@ export function ArchivedTasksViewPresentation({
         }}
       >
         <Dialog.Content maxWidth="420px" size="1">
-          <Dialog.Title size="2">Unarchive to new branch?</Dialog.Title>
-          <Dialog.Description size="1">
-            <Text size="1" color="gray">
+          <Dialog.Title className="text-sm">
+            Unarchive to new branch?
+          </Dialog.Title>
+          <Dialog.Description className="text-[13px] leading-5">
+            <Text color="gray" className="text-[13px] leading-5">
               This workspace was last on{" "}
-              <Text size="1" weight="medium">
+              <Text className="font-medium text-[13px] leading-5">
                 {branchNotFound?.branchName}
               </Text>
               , but that branch has been deleted or renamed.
@@ -443,11 +445,13 @@ export function ArchivedTasksViewPresentation({
         }}
       >
         <AlertDialog.Content maxWidth="420px" size="1">
-          <AlertDialog.Title size="2">Delete archived task</AlertDialog.Title>
-          <AlertDialog.Description size="1">
-            <Text size="1" color="gray">
+          <AlertDialog.Title className="text-sm">
+            Delete archived task
+          </AlertDialog.Title>
+          <AlertDialog.Description className="text-[13px] leading-5">
+            <Text color="gray" className="text-[13px] leading-5">
               Permanently delete{" "}
-              <Text size="1" weight="medium">
+              <Text className="font-medium text-[13px] leading-5">
                 {items.find((i) => i.archived.taskId === deleteTargetId)?.task
                   ?.title ?? "Unknown task"}
               </Text>
@@ -489,9 +493,7 @@ export function ArchivedTasksView() {
   const queryClient = useQueryClient();
 
   useSetHeaderContent(
-    <Text size="1" weight="medium" className="text-[13px]">
-      Archived tasks
-    </Text>,
+    <Text className="font-medium text-[13px] leading-5">Archived tasks</Text>,
   );
 
   const [branchNotFound, setBranchNotFound] =

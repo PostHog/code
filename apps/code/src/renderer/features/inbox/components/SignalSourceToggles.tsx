@@ -106,24 +106,32 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
           <Flex direction="column" gap="1">
             <Flex align="center" gap="2">
               <Text
-                size="2"
-                weight="medium"
                 style={{ color: "var(--gray-12)" }}
+                className="font-medium text-sm"
               >
                 {label}
               </Text>
               {labelSuffix}
               {statusInfo && (
-                <Text size="1" style={{ color: statusInfo.color }}>
+                <Text
+                  style={{ color: statusInfo.color }}
+                  className="text-[13px] leading-5"
+                >
                   {statusInfo.text}
                 </Text>
               )}
             </Flex>
-            <Text size="1" style={{ color: "var(--gray-11)" }}>
+            <Text
+              style={{ color: "var(--gray-11)" }}
+              className="text-[13px] leading-5"
+            >
               {description}
             </Text>
             {docsUrl && (
-              <Text size="1" style={{ color: "var(--gray-11)" }}>
+              <Text
+                style={{ color: "var(--gray-11)" }}
+                className="text-[13px] leading-5"
+              >
                 <a
                   href={docsUrl}
                   target="_blank"
@@ -200,9 +208,8 @@ export const EvaluationsSection = memo(function EvaluationsSection({
           <Flex direction="column" gap="1">
             <Flex align="center" gap="2">
               <Text
-                size="2"
-                weight="medium"
                 style={{ color: "var(--gray-12)" }}
+                className="font-medium text-sm"
               >
                 LLM Analytics
               </Text>
@@ -210,10 +217,16 @@ export const EvaluationsSection = memo(function EvaluationsSection({
                 <Badge color="blue">Internal</Badge>
               </Tooltip>
             </Flex>
-            <Text size="1" style={{ color: "var(--gray-11)" }}>
+            <Text
+              style={{ color: "var(--gray-11)" }}
+              className="text-[13px] leading-5"
+            >
               Monitor how your AI features are performing
             </Text>
-            <Text size="1" style={{ color: "var(--gray-11)" }}>
+            <Text
+              style={{ color: "var(--gray-11)" }}
+              className="text-[13px] leading-5"
+            >
               <a
                 href="https://posthog.com/docs/llm-analytics"
                 target="_blank"
@@ -273,7 +286,10 @@ function SourceRunningIndicator({
         className="animate-spin"
         style={{ color: "var(--accent-11)" }}
       />
-      <Text size="1" style={{ color: "var(--accent-11)" }}>
+      <Text
+        style={{ color: "var(--accent-11)" }}
+        className="text-[13px] leading-5"
+      >
         {message}
       </Text>
     </Flex>
@@ -338,7 +354,10 @@ export function SignalSourceToggles({
     <Flex gap="4">
       {/* PostHog data */}
       <Flex direction="column" gap="2" style={{ flex: 1, minWidth: 0 }}>
-        <Text size="1" weight="medium" style={{ color: "var(--gray-9)" }}>
+        <Text
+          style={{ color: "var(--gray-9)" }}
+          className="font-medium text-[13px] leading-5"
+        >
           PostHog data
         </Text>
         <Flex direction="column" gap="3">
@@ -390,7 +409,10 @@ export function SignalSourceToggles({
 
       {/* External connections */}
       <Flex direction="column" gap="2" style={{ flex: 1, minWidth: 0 }}>
-        <Text size="1" weight="medium" style={{ color: "var(--gray-9)" }}>
+        <Text
+          style={{ color: "var(--gray-9)" }}
+          className="font-medium text-[13px] leading-5"
+        >
           External connections
         </Text>
         <Flex direction="column" gap="3">

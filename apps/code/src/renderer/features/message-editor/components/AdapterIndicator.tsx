@@ -10,11 +10,11 @@ export function AdapterIndicator({ adapter }: AdapterIndicatorProps) {
     <Flex align="center" gap="1">
       <Robot size={12} weight="duotone" style={{ color: "var(--gray-9)" }} />
       <Text
-        size="1"
         style={{
           color: "var(--gray-9)",
           fontFamily: "monospace",
         }}
+        className="text-[13px] leading-5"
       >
         {adapter}
       </Text>

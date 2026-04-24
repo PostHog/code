@@ -233,16 +233,14 @@ export function GitIntegrationStep({
               >
                 <Flex direction="column" gap="2">
                   <Text
-                    size="6"
-                    weight="bold"
                     style={{
                       color: "var(--gray-12)",
-                      lineHeight: 1.3,
                     }}
+                    className="font-bold text-2xl leading-tight"
                   >
                     Give your agents access to code
                   </Text>
-                  <Text size="2" style={{ color: "var(--gray-11)" }}>
+                  <Text style={{ color: "var(--gray-11)" }} className="text-sm">
                     Point to a local codebase and optionally connect GitHub.
                   </Text>
                 </Flex>
@@ -272,14 +270,16 @@ export function GitIntegrationStep({
                           style={{ color: "var(--gray-12)" }}
                         />
                         <Text
-                          size="3"
-                          weight="bold"
                           style={{ color: "var(--gray-12)" }}
+                          className="font-bold text-base"
                         >
                           Choose your codebase
                         </Text>
                       </Flex>
-                      <Text size="2" style={{ color: "var(--gray-11)" }}>
+                      <Text
+                        style={{ color: "var(--gray-11)" }}
+                        className="text-sm"
+                      >
                         Select the local folder for your project so we can
                         analyze it.
                       </Text>
@@ -307,7 +307,10 @@ export function GitIntegrationStep({
                                 animation: "spin 1s linear infinite",
                               }}
                             />
-                            <Text size="1" style={{ color: "var(--gray-9)" }}>
+                            <Text
+                              style={{ color: "var(--gray-9)" }}
+                              className="text-[13px] leading-5"
+                            >
                               Detecting repository...
                             </Text>
                           </Flex>
@@ -334,12 +337,12 @@ export function GitIntegrationStep({
                                 }}
                               />
                               <Text
-                                size="1"
                                 style={{
                                   color: repoMatchesGitHub
                                     ? "var(--green-11)"
                                     : "var(--gray-11)",
                                 }}
+                                className="text-[13px] leading-5"
                               >
                                 {repoMatchesGitHub
                                   ? `Linked to ${detectedRepo.fullName} on GitHub`
@@ -358,7 +361,10 @@ export function GitIntegrationStep({
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.2 }}
                           >
-                            <Text size="1" style={{ color: "var(--gray-9)" }}>
+                            <Text
+                              style={{ color: "var(--gray-9)" }}
+                              className="text-[13px] leading-5"
+                            >
                               No git remote detected -- you can still continue.
                             </Text>
                           </motion.div>
@@ -372,14 +378,14 @@ export function GitIntegrationStep({
                 <Callout.Root color="blue" variant="soft">
                   <Callout.Text>
                     GitHub is already connected on{" "}
-                    <Text weight="bold">
+                    <Text className="font-bold">
                       {alternativeConnectedProject.name}
                     </Text>{" "}
                     ({alternativeConnectedProject.organization.name}). Switch to
                     that project, or click{" "}
-                    <Text weight="bold">Connect GitHub</Text> below to install a
-                    new integration on{" "}
-                    <Text weight="bold">{selectedProject.name}</Text>.
+                    <Text className="font-bold">Connect GitHub</Text> below to
+                    install a new integration on{" "}
+                    <Text className="font-bold">{selectedProject.name}</Text>.
                   </Callout.Text>
                   <Flex mt="2">
                     <Button
@@ -419,9 +425,8 @@ export function GitIntegrationStep({
                           style={{ color: "var(--gray-12)" }}
                         />
                         <Text
-                          size="3"
-                          weight="bold"
                           style={{ color: "var(--gray-12)" }}
+                          className="font-bold text-base"
                         >
                           Connect GitHub
                         </Text>
@@ -435,7 +440,10 @@ export function GitIntegrationStep({
                             weight="fill"
                             style={{ color: "var(--green-9)" }}
                           />
-                          <Text size="1" style={{ color: "var(--green-11)" }}>
+                          <Text
+                            style={{ color: "var(--green-11)" }}
+                            className="text-[13px] leading-5"
+                          >
                             Connected
                           </Text>
                         </Flex>
@@ -443,7 +451,10 @@ export function GitIntegrationStep({
                     </Flex>
                     {hasGitIntegration ? (
                       <Flex direction="column" gap="3">
-                        <Text size="2" style={{ color: "var(--gray-11)" }}>
+                        <Text
+                          style={{ color: "var(--gray-11)" }}
+                          className="text-sm"
+                        >
                           {isLoadingRepos
                             ? "Loading repositories..."
                             : repoSummary
@@ -496,7 +507,10 @@ export function GitIntegrationStep({
                       </Flex>
                     ) : !isLoading ? (
                       <Flex direction="column" gap="3">
-                        <Text size="2" style={{ color: "var(--gray-11)" }}>
+                        <Text
+                          style={{ color: "var(--gray-11)" }}
+                          className="text-sm"
+                        >
                           {timedOut
                             ? "We didn't hear back from GitHub. If the browser tab was closed, click Connect again."
                             : isConnecting

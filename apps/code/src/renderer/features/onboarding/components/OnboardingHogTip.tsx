@@ -113,7 +113,10 @@ export function OnboardingHogTip({
               borderRight: "7px solid var(--color-panel-solid)",
             }}
           />
-          <Text size="1" style={{ color: "var(--gray-11)", lineHeight: 1.5 }}>
+          <Text
+            style={{ color: "var(--gray-11)" }}
+            className="text-[13px] leading-normal"
+          >
             {message}
           </Text>
         </div>

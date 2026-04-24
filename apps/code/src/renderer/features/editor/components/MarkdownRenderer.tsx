@@ -25,7 +25,7 @@ function preprocessMarkdown(content: string): string {
 }
 
 const HeadingText = ({ children }: { children: React.ReactNode }) => (
-  <Text as="p" size="2" mb="3" style={{ color: "var(--accent-11)" }}>
+  <Text as="p" mb="3" style={{ color: "var(--accent-11)" }} className="text-sm">
     <strong>{children}</strong>
   </Text>
 );
@@ -44,7 +44,11 @@ export const baseComponents: Components = {
       node.children[0].tagName === "strong";
 
     return (
-      <Text as="p" size="1" mb={isStrongOnly ? "2" : "3"}>
+      <Text
+        as="p"
+        mb={isStrongOnly ? "2" : "3"}
+        className="text-[13px] leading-5"
+      >
         {children}
       </Text>
     );
@@ -58,7 +62,11 @@ export const baseComponents: Components = {
     const match = className?.match(/language-(\w+)/);
     if (!match) {
       return (
-        <Code size="1" variant="ghost" style={{ color: "var(--accent-11)" }}>
+        <Code
+          variant="ghost"
+          style={{ color: "var(--accent-11)" }}
+          className="text-[13px] leading-5"
+        >
           {children}
         </Code>
       );
@@ -71,15 +79,12 @@ export const baseComponents: Components = {
     );
   },
   pre: ({ children }) => <CodeBlock size="1">{children}</CodeBlock>,
-  em: ({ children }) => (
-    <Em style={{ fontSize: "var(--font-size-1)" }}>{children}</Em>
-  ),
-  i: ({ children }) => (
-    <i style={{ fontSize: "var(--font-size-1)" }}>{children}</i>
-  ),
+  em: ({ children }) => <Em className="text-[13px] leading-5">{children}</Em>,
+  i: ({ children }) => <i className="text-[13px] leading-5">{children}</i>,
   strong: ({ children }) => (
     <strong
-      style={{ fontSize: "var(--font-size-1)", color: "var(--accent-11)" }}
+      className="text-[13px] leading-5"
+      style={{ color: "var(--accent-11)" }}
     >
       {children}
     </strong>
@@ -107,9 +112,8 @@ export const baseComponents: Components = {
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="markdown-link"
+        className="markdown-link text-[13px] leading-5"
         style={{
-          fontSize: "var(--font-size-1)",
           display: "inline-flex",
           alignItems: "center",
           gap: "2px",
@@ -136,7 +140,9 @@ export const baseComponents: Components = {
       </a>
     );
   },
-  kbd: ({ children }) => <Kbd size="1">{children}</Kbd>,
+  kbd: ({ children }) => (
+    <Kbd className="text-[13px] leading-5">{children}</Kbd>
+  ),
   ul: ({ children }) => (
     <List as="ul" size="1">
       {children}
@@ -164,9 +170,7 @@ export const baseComponents: Components = {
   },
   // Table components - plain HTML for size control
   table: ({ children }) => (
-    <table className="mb-3" style={{ fontSize: "var(--font-size-1)" }}>
-      {children}
-    </table>
+    <table className="mb-3 text-[13px] leading-5">{children}</table>
   ),
   thead: ({ children }) => <thead>{children}</thead>,
   tbody: ({ children }) => <tbody>{children}</tbody>,

@@ -24,7 +24,8 @@ function FileLineStats({ file }: { file: HandoffChangedFile }) {
     <Flex
       align="center"
       gap="1"
-      style={{ flexShrink: 0, fontSize: "10px", fontFamily: "monospace" }}
+      className="text-[10px] leading-none"
+      style={{ flexShrink: 0, fontFamily: "monospace" }}
     >
       {(file.linesAdded ?? 0) > 0 && (
         <Text style={{ color: "var(--green-9)" }}>+{file.linesAdded}</Text>
@@ -41,7 +42,8 @@ function StatusBadge({ indicator }: { indicator: StatusIndicator }) {
     <Badge
       size="1"
       color={indicator.color}
-      style={{ flexShrink: 0, fontSize: "10px", padding: "0 4px" }}
+      className="text-[10px]"
+      style={{ flexShrink: 0, padding: "0 4px" }}
     >
       {indicator.label}
     </Badge>
@@ -66,7 +68,7 @@ export function DirtyTreeDialog({
       onSubmit={onCommitAndContinue}
     >
       <Flex direction="column" gap="2">
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px] leading-5">
           The following local files have uncommitted changes that would be
           overwritten by the handoff. Commit them to continue.
         </Text>

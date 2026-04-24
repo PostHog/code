@@ -302,7 +302,7 @@ export function TaskListView({
               },
             }}
           />
-          <Text size="1" className="text-gray-10">
+          <Text className="text-[13px] text-gray-10 leading-5">
             No tasks yet
           </Text>
           {!isOnTaskInput && (

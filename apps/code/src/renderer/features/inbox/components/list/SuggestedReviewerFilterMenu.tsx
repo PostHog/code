@@ -78,9 +78,7 @@ export function SuggestedReviewerFilterMenu() {
         <Flex direction="column" gap="2">
           <Flex align="center" justify="between" gap="2">
             <Text
-              size="1"
-              className="text-gray-10"
-              weight="medium"
+              className="font-medium text-[13px] text-gray-10 leading-5"
               style={{ paddingLeft: "1px" }}
             >
               Suggested reviewer
@@ -128,7 +126,7 @@ export function SuggestedReviewerFilterMenu() {
                 <Spinner size="1" />
               </Flex>
             ) : visibleReviewerOptions.length === 0 ? (
-              <Text size="1" color="gray" className="px-1 py-2 text-[12px]">
+              <Text color="gray" className="px-1 py-2 text-[12px] leading-5">
                 No users found.
               </Text>
             ) : (
@@ -159,14 +157,13 @@ export function SuggestedReviewerFilterMenu() {
                             />
                           ) : null}
                           <Flex direction="column" gap="0" className="min-w-0">
-                            <Text size="1" className="truncate text-[12px]">
+                            <Text className="truncate text-[12px] leading-5">
                               {displayName}
                             </Text>
                             {reviewer.email ? (
                               <Text
-                                size="1"
                                 color="gray"
-                                className="truncate text-[11px]"
+                                className="truncate text-[11px] leading-5"
                               >
                                 {reviewer.email}
                               </Text>

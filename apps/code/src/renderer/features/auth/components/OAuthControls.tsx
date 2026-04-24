@@ -32,6 +32,7 @@ export function OAuthControls() {
         type="button"
         onClick={isPending ? handleCancel : handleAuth}
         disabled={false}
+        className="font-medium text-[15px]"
         style={{
           display: "flex",
           alignItems: "center",
@@ -43,8 +44,6 @@ export function OAuthControls() {
             ? "1.5px solid var(--gray-6)"
             : "1.5px solid var(--accent-8)",
           borderRadius: "6px",
-          fontSize: "15px",
-          fontWeight: 500,
           cursor: "pointer",
           backgroundColor: isPending ? "var(--gray-3)" : "var(--accent-9)",
           color: isPending ? "var(--gray-11)" : "var(--accent-contrast)",

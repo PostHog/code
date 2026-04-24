@@ -42,11 +42,7 @@ export function SkillDetailPanel({ skill, onClose }: SkillDetailPanelProps) {
         style={{ borderBottom: "1px solid var(--gray-5)" }}
       >
         <Flex align="start" justify="between" gap="2">
-          <Text
-            size="1"
-            weight="medium"
-            className="block min-w-0 break-words text-[13px]"
-          >
+          <Text className="block min-w-0 break-words font-medium text-[13px] leading-5">
             {skill.name}
           </Text>
           <button
@@ -82,13 +78,13 @@ export function SkillDetailPanel({ skill, onClose }: SkillDetailPanelProps) {
       >
         <Flex direction="column" gap="3" p="3">
           {skill.description && (
-            <Text size="1" className="text-[12px] text-gray-10">
+            <Text className="text-[12px] text-gray-10 leading-5">
               {skill.description}
             </Text>
           )}
 
           {isLoading ? (
-            <Text size="1" className="text-[12px] text-gray-9">
+            <Text className="text-[12px] text-gray-9 leading-5">
               Loading...
             </Text>
           ) : body ? (
@@ -96,7 +92,7 @@ export function SkillDetailPanel({ skill, onClose }: SkillDetailPanelProps) {
               <MarkdownRenderer content={body} />
             </Box>
           ) : (
-            <Text size="1" className="text-[12px] text-gray-9">
+            <Text className="text-[12px] text-gray-9 leading-5">
               No content in SKILL.md
             </Text>
           )}

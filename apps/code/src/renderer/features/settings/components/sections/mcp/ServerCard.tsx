@@ -36,7 +36,7 @@ export function ServerCard({
           <ServerIcon iconKey={server.icon_key} name={server.name} size={40} />
           <Flex direction="column" gap="1" style={{ minWidth: 0, flex: 1 }}>
             <Flex align="center" gap="2">
-              <Text size="3" weight="medium" truncate>
+              <Text truncate className="font-medium text-base">
                 {server.name}
               </Text>
               {installed && (
@@ -49,7 +49,6 @@ export function ServerCard({
             </Flex>
             {server.description && (
               <Text
-                size="1"
                 color="gray"
                 style={{
                   display: "-webkit-box",
@@ -57,6 +56,7 @@ export function ServerCard({
                   WebkitBoxOrient: "vertical",
                   overflow: "hidden",
                 }}
+                className="text-[13px] leading-5"
               >
                 {server.description}
               </Text>

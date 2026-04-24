@@ -212,11 +212,11 @@ export function WorktreesSettings() {
       </Flex>
 
       {isLoading ? (
-        <Text size="2" color="gray">
+        <Text color="gray" className="text-sm">
           Loading worktrees...
         </Text>
       ) : worktreeGroups.length === 0 ? (
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px] leading-5">
           Tasks that are run in a worktree will show up here.
         </Text>
       ) : (

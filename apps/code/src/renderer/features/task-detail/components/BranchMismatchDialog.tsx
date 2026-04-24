@@ -23,7 +23,6 @@ interface BranchMismatchDialogProps {
 function BranchLabel({ name }: { name: string }) {
   return (
     <Code
-      size="2"
       variant="ghost"
       truncate
       style={{
@@ -32,6 +31,7 @@ function BranchLabel({ name }: { name: string }) {
         alignItems: "center",
         gap: "4px",
       }}
+      className="text-sm"
     >
       <GitBranch size={12} style={{ flexShrink: 0 }} />
       <span
@@ -66,22 +66,22 @@ export function BranchMismatchDialog({
       }}
     >
       <AlertDialog.Content maxWidth="420px" size="2">
-        <AlertDialog.Title size="3">
+        <AlertDialog.Title className="text-base">
           <Flex align="center" gap="2">
             <Warning size={18} weight="fill" color="var(--orange-9)" />
             Wrong branch
           </Flex>
         </AlertDialog.Title>
-        <AlertDialog.Description size="2">
+        <AlertDialog.Description className="text-sm">
           This task is linked to a different branch than the one you're
           currently on. The agent will make changes on the current branch.
         </AlertDialog.Description>
         <Flex direction="column" gap="1" mt="3" style={{ minWidth: 0 }}>
           <Flex align="center" gap="2" style={{ minWidth: 0 }}>
             <Text
-              size="1"
               color="gray"
               style={{ flexShrink: 0, width: "64px" }}
+              className="text-[13px] leading-5"
             >
               Linked
             </Text>
@@ -89,9 +89,9 @@ export function BranchMismatchDialog({
           </Flex>
           <Flex align="center" gap="2" style={{ minWidth: 0 }}>
             <Text
-              size="1"
               color="gray"
               style={{ flexShrink: 0, width: "64px" }}
+              className="text-[13px] leading-5"
             >
               Current
             </Text>

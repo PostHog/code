@@ -156,7 +156,7 @@ export function McpServersSettings() {
             {installationsLoading || serversLoading ? (
               <Spinner size="2" />
             ) : (
-              <Text size="2" color="gray">
+              <Text color="gray" className="text-sm">
                 Server not found.
               </Text>
             )}
@@ -265,9 +265,10 @@ function UninstallConfirmDialog({
     >
       <AlertDialog.Content maxWidth="450px">
         <AlertDialog.Title>Remove MCP server</AlertDialog.Title>
-        <AlertDialog.Description size="2">
-          Are you sure you want to remove <Text weight="bold">{name}</Text>?
-          This will revoke its tools from your agent.
+        <AlertDialog.Description className="text-sm">
+          Are you sure you want to remove{" "}
+          <Text className="font-bold">{name}</Text>? This will revoke its tools
+          from your agent.
         </AlertDialog.Description>
         <Flex gap="3" mt="4" justify="end">
           <AlertDialog.Cancel>

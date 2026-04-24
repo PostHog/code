@@ -77,9 +77,7 @@ export function PlanContent({ id, plan }: PlanContentProps) {
               >
                 <Flex align="center" gap="2">
                   <ListChecks size={14} className="text-gray-11" />
-                  <Text size="2" className="text-gray-11">
-                    Plan
-                  </Text>
+                  <Text className="text-gray-11 text-sm">Plan</Text>
                 </Flex>
                 <IconButton
                   size="1"

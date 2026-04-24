@@ -94,14 +94,13 @@ export function AiApprovalScreen({ orgName, isAdmin }: AiApprovalScreenProps) {
                       color="var(--accent-10)"
                     />
                     <Text
-                      size="6"
-                      weight="bold"
-                      style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+                      style={{ color: "var(--gray-12)" }}
+                      className="font-bold text-2xl leading-tight"
                     >
                       PostHog AI needs your approval
                     </Text>
                   </Flex>
-                  <Text size="2" style={{ color: "var(--gray-11)" }}>
+                  <Text style={{ color: "var(--gray-11)" }} className="text-sm">
                     {orgName
                       ? `The "${orgName}" organization hasn't approved AI data processing yet.`
                       : "Your organization hasn't approved AI data processing yet."}{" "}
@@ -133,13 +132,16 @@ export function AiApprovalScreen({ orgName, isAdmin }: AiApprovalScreenProps) {
                       Approve in PostHog
                       <ArrowSquareOut size={16} />
                     </Button>
-                    <Text size="1" style={{ color: "var(--gray-10)" }}>
+                    <Text
+                      style={{ color: "var(--gray-10)" }}
+                      className="text-[13px] leading-5"
+                    >
                       Opens PostHog in your browser. Come back here once you've
                       approved.
                     </Text>
                   </Flex>
                 ) : (
-                  <Text size="2" style={{ color: "var(--gray-11)" }}>
+                  <Text style={{ color: "var(--gray-11)" }} className="text-sm">
                     Ask an organization admin to approve AI data processing.
                   </Text>
                 )}

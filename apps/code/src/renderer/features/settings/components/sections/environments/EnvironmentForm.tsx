@@ -108,15 +108,13 @@ export function EnvironmentForm({
         <span>Back to projects</span>
       </button>
 
-      <Text size="1" weight="medium">
+      <Text className="font-medium text-[13px] leading-5">
         {isNew ? "Creating" : "Editing"} environment for {folder.name}
       </Text>
 
       <Flex direction="column" gap="1">
-        <Text size="1" weight="medium">
-          Name
-        </Text>
-        <Text size="1" color="gray" className="text-[12px]">
+        <Text className="font-medium text-[13px] leading-5">Name</Text>
+        <Text color="gray" className="text-[12px] leading-5">
           Shown in the worktree picker. Use short names like "default" or
           "with-seed-data" so you can spot which setup will run.
         </Text>
@@ -130,10 +128,8 @@ export function EnvironmentForm({
       </Flex>
 
       <Flex direction="column" gap="1">
-        <Text size="1" weight="medium">
-          Setup script
-        </Text>
-        <Text size="1" color="gray" className="text-[12px]">
+        <Text className="font-medium text-[13px] leading-5">Setup script</Text>
+        <Text color="gray" className="text-[12px] leading-5">
           Runs in the worktree root right after it's created, before the agent
           starts. Use it to install dependencies, generate build artifacts, or
           seed a local database. Leave blank if no setup is needed.
@@ -145,7 +141,8 @@ export function EnvironmentForm({
           placeholder={"# e.g.\npnpm install\npnpm run build"}
           rows={4}
           spellCheck={false}
-          style={{ fontFamily: "monospace", fontSize: 11 }}
+          className="[&_textarea]:text-[11px]"
+          style={{ fontFamily: "monospace" }}
         />
       </Flex>
 
@@ -166,7 +163,7 @@ export function EnvironmentForm({
       </Flex>
       */}
 
-      <Text size="1" color="gray" className="text-[12px]">
+      <Text color="gray" className="text-[12px] leading-5">
         Environment will be stored at {filePath}
       </Text>
 

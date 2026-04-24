@@ -44,11 +44,11 @@ export function ProjectEnvironmentCard({
             style={{ flexShrink: 0, color: "var(--gray-9)" }}
           />
           <Flex align="center" gap="2" style={{ minWidth: 0 }}>
-            <Text size="1" weight="medium" truncate>
+            <Text truncate className="font-medium text-[13px] leading-5">
               {folder.name}
             </Text>
             {orgName && (
-              <Text size="1" color="gray">
+              <Text color="gray" className="text-[13px] leading-5">
                 {orgName}
               </Text>
             )}

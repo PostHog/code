@@ -427,7 +427,7 @@ export const AllSizes: Story = {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
         <div>
-          <Text size="1" mb="2" color="gray">
+          <Text mb="2" color="gray" className="text-[13px] leading-5">
             Size 1
           </Text>
           <Combobox.Root value={value1} onValueChange={setValue1} size="1">
@@ -475,7 +475,7 @@ export const AllSizes: Story = {
         </div>
 
         <div>
-          <Text size="1" mb="2" color="gray">
+          <Text mb="2" color="gray" className="text-[13px] leading-5">
             Size 2
           </Text>
           <Combobox.Root value={value2} onValueChange={setValue2} size="2">
@@ -523,7 +523,7 @@ export const AllSizes: Story = {
         </div>
 
         <div>
-          <Text size="1" mb="2" color="gray">
+          <Text mb="2" color="gray" className="text-[13px] leading-5">
             Size 3
           </Text>
           <Combobox.Root value={value3} onValueChange={setValue3} size="3">

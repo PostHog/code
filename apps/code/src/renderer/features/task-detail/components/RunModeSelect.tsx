@@ -27,6 +27,7 @@ export function RunModeSelect({
   onChange,
   size = "1",
 }: RunModeSelectProps) {
+  const textSizeClass = size === "1" ? "text-[13px] leading-5" : "text-sm";
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
@@ -34,7 +35,7 @@ export function RunModeSelect({
           <Flex justify="between" align="center" gap="2">
             <Flex align="center" gap="2" style={{ minWidth: 0 }}>
               {MODE_CONFIG[value].icon}
-              <Text size={size}>{MODE_CONFIG[value].label}</Text>
+              <Text className={textSizeClass}>{MODE_CONFIG[value].label}</Text>
             </Flex>
             <ChevronDownIcon style={{ flexShrink: 0 }} />
           </Flex>
@@ -49,13 +50,13 @@ export function RunModeSelect({
         <DropdownMenu.Item onSelect={() => onChange("local")}>
           <Flex align="center" gap="2">
             <Desktop size={12} />
-            <Text size={size}>Local</Text>
+            <Text className={textSizeClass}>Local</Text>
           </Flex>
         </DropdownMenu.Item>
         <DropdownMenu.Item onSelect={() => onChange("cloud")}>
           <Flex align="center" gap="2">
             <Cloud size={12} />
-            <Text size={size}>Cloud</Text>
+            <Text className={textSizeClass}>Cloud</Text>
           </Flex>
         </DropdownMenu.Item>
       </DropdownMenu.Content>

@@ -72,15 +72,12 @@ function HunkRevertButton({
         type="button"
         disabled={isReverting}
         onClick={onRevert}
-        className={`absolute top-0 right-2 inline-flex items-center gap-0.5 rounded border-none text-white transition-opacity ${
+        className={`absolute top-0 right-2 inline-flex items-center gap-0.5 rounded border-none font-medium text-[10px] text-white leading-4.5 transition-opacity ${
           isReverting ? "opacity-60" : "opacity-0 hover:opacity-100"
         }`}
         style={{
           background: "var(--red-9)",
           padding: "1px 6px",
-          fontSize: "10px",
-          fontWeight: 500,
-          lineHeight: "18px",
           cursor: isReverting ? "default" : "pointer",
           zIndex: 10,
         }}

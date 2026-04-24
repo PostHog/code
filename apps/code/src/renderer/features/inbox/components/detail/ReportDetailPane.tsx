@@ -81,7 +81,6 @@ function DetailRow({
     <Box>
       <Flex align="center" gap="2">
         <Text
-          size="2"
           className="w-[90px] shrink-0 text-[13px]"
           style={{ color: "var(--gray-10)" }}
         >
@@ -105,7 +104,6 @@ function DetailRow({
       </Flex>
       {expanded && explanation && (
         <Text
-          size="1"
           color="gray"
           className="mt-1 block text-pretty text-[13px] leading-relaxed"
           style={{ paddingLeft: 90 }}
@@ -275,9 +273,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
         <Flex align="center" gap="2" className="min-w-0">
           <SignalReportStatusBadge status={report.status} />
           <Text
-            size="3"
-            weight={report.status === "ready" ? "bold" : "medium"}
-            className="block min-w-0 text-balance break-words leading-tight"
+            className={`block min-w-0 text-balance break-words text-base leading-tight ${report.status === "ready" ? "font-bold" : "font-medium"}`}
           >
             {report.title ?? "Untitled signal"}
           </Text>
@@ -389,8 +385,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
                 className="shrink-0"
               />
               <Text
-                size="1"
-                className="text-[12px]"
+                className="text-[12px] leading-5"
                 style={{ color: "var(--amber-11)" }}
               >
                 This issue may already be addressed in recent code changes.
@@ -401,12 +396,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           {/* ── Suggested reviewers ─────────────────────────────── */}
           {suggestedReviewers.length > 0 && (
             <Box>
-              <Text
-                size="1"
-                weight="medium"
-                className="block text-[13px]"
-                mb="2"
-              >
+              <Text className="block font-medium text-[13px] leading-5" mb="2">
                 Suggested reviewers
               </Text>
               <Flex direction="column" gap="1">
@@ -426,7 +416,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
                         style={{ width: 18, height: 18 }}
                         onLoad={(e) => e.currentTarget.classList.add("loaded")}
                       />
-                      <Text size="1" className="text-[12px]">
+                      <Text className="text-[12px] leading-5">
                         {reviewer.user?.first_name ??
                           reviewer.github_name ??
                           reviewer.github_login}
@@ -480,12 +470,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           {/* ── Signals ─────────────────────────────────────────── */}
           {signals.length > 0 && (
             <Box>
-              <Text
-                size="1"
-                weight="medium"
-                className="block text-[13px]"
-                mb="2"
-              >
+              <Text className="block font-medium text-[13px] leading-5" mb="2">
                 Signals ({signals.length})
               </Text>
               <Flex direction="column" gap="2">
@@ -500,7 +485,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
             </Box>
           )}
           {signalsQuery.isLoading && (
-            <Text size="1" color="gray" className="block text-[12px]">
+            <Text color="gray" className="block text-[12px] leading-5">
               Loading signals...
             </Text>
           )}
@@ -508,12 +493,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           {/* ── Session problem evidence ─────────────────────────── */}
           {sessionProblemSignals.length > 0 && (
             <Box>
-              <Text
-                size="1"
-                weight="medium"
-                className="block text-[13px]"
-                mb="2"
-              >
+              <Text className="block font-medium text-[13px] leading-5" mb="2">
                 Evidence ({sessionProblemSignals.length})
               </Text>
               <Flex direction="column" gap="2">
@@ -551,17 +531,17 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           <AlertDialog.Title>
             <Flex align="center" gap="2">
               <CloudIcon size={18} />
-              <Text weight="bold">Run cloud task</Text>
+              <Text className="font-bold">Run cloud task</Text>
             </Flex>
           </AlertDialog.Title>
-          <AlertDialog.Description size="2" className="overflow-visible">
+          <AlertDialog.Description className="overflow-visible text-sm">
             <Flex direction="column" gap="3" className="overflow-visible">
               <Text className="text-[13px]">
                 This will create and run a cloud task from this signal report.
                 You can edit the prompt below before running.
               </Text>
               <Flex direction="column" gap="1">
-                <Text size="1" weight="medium" className="text-[12px]">
+                <Text className="font-medium text-[12px] leading-5">
                   Task prompt
                 </Text>
                 <TextArea
@@ -575,7 +555,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
               </Flex>
               <Box ref={cloudRepoPickerAnchorRef} className="overflow-visible">
                 <Flex direction="column" gap="1">
-                  <Text size="1" weight="medium" className="text-[12px]">
+                  <Text className="font-medium text-[12px] leading-5">
                     Target repository
                   </Text>
                   <GitHubRepoPicker

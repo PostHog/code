@@ -151,11 +151,11 @@ export function MultiSelectStack({
         transition={{ delay: 0.1 }}
       >
         <Flex direction="column" align="center" gap="1">
-          <Text size="2" weight="medium" color="gray">
+          <Text color="gray" className="font-medium text-sm">
             {reports.length} reports selected
           </Text>
           {overflowCount > 0 && (
-            <Text size="1" color="gray" className="text-[11px]">
+            <Text color="gray" className="text-[11px] leading-5">
               +{overflowCount} more not shown
             </Text>
           )}

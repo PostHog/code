@@ -90,7 +90,7 @@ function ImageThumbnail({
         maxWidth="85vw"
         style={{ padding: 16, width: "fit-content" }}
       >
-        <Dialog.Title size="2" mb="2">
+        <Dialog.Title mb="2" className="text-sm">
           {attachment.label}
         </Dialog.Title>
         {dataUrl ? (
@@ -106,7 +106,7 @@ function ImageThumbnail({
             }}
           />
         ) : (
-          <Text size="2" color="gray">
+          <Text color="gray" className="text-sm">
             Unable to load image preview
           </Text>
         )}

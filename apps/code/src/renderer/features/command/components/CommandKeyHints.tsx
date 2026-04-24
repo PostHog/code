@@ -14,19 +14,19 @@ export function CommandKeyHints() {
     >
       <Flex align="center" gap="2">
         <KeyHint keys={["↑", "↓"]} />
-        <Code size="1" variant="ghost" color="gray">
+        <Code variant="ghost" color="gray" className="text-[13px] leading-5">
           Navigate
         </Code>
       </Flex>
       <Flex align="center" gap="2">
         <KeyHint keys={["↵"]} />
-        <Code size="1" variant="ghost" color="gray">
+        <Code variant="ghost" color="gray" className="text-[13px] leading-5">
           Select
         </Code>
       </Flex>
       <Flex align="center" gap="2">
         <KeyHint keys={["Esc"]} />
-        <Code size="1" variant="ghost" color="gray">
+        <Code variant="ghost" color="gray" className="text-[13px] leading-5">
           Close
         </Code>
       </Flex>

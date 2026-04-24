@@ -78,9 +78,9 @@ export function CodeMirrorEditor({
         style={{ borderBottom: "1px solid var(--gray-6)", flexShrink: 0 }}
       >
         <Text
-          size="1"
           color="gray"
           style={{ fontFamily: "var(--code-font-family)" }}
+          className="text-[13px] leading-5"
         >
           {relativePath}
         </Text>

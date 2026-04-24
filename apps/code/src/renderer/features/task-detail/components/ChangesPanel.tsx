@@ -248,7 +248,8 @@ function ChangedFileItem({
         <Flex
           align="center"
           gap="1"
-          style={{ flexShrink: 0, fontSize: "10px", fontFamily: "monospace" }}
+          className="text-[10px] leading-none"
+          style={{ flexShrink: 0, fontFamily: "monospace" }}
         >
           {(file.linesAdded ?? 0) > 0 && (
             <Text style={{ color: "var(--green-9)" }}>+{file.linesAdded}</Text>
@@ -324,7 +325,7 @@ function ChangedFileItem({
                       ) : (
                         <CodeIcon size={16} weight="regular" />
                       )}
-                      <Text size="1">{app.name}</Text>
+                      <Text className="text-[13px] leading-5">{app.name}</Text>
                     </Flex>
                   </DropdownMenu.Item>
                 ))}
@@ -332,7 +333,7 @@ function ChangedFileItem({
               <DropdownMenu.Item onSelect={handleCopyPath}>
                 <Flex align="center" gap="2">
                   <CopyIcon size={16} weight="regular" />
-                  <Text size="1">Copy Path</Text>
+                  <Text className="text-[13px] leading-5">Copy Path</Text>
                 </Flex>
               </DropdownMenu.Item>
             </DropdownMenu.Content>
@@ -343,7 +344,8 @@ function ChangedFileItem({
       <Badge
         size="1"
         color={indicator.color}
-        style={{ flexShrink: 0, fontSize: "10px", padding: "0 4px" }}
+        className="text-[10px]"
+        style={{ flexShrink: 0, padding: "0 4px" }}
       >
         {indicator.label}
       </Badge>
@@ -403,7 +405,7 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
         <PanelMessage detail="Changes will appear once the agent starts writing code">
           <Flex align="center" gap="2">
             <Spinner size="1" />
-            <Text size="2">Waiting for changes...</Text>
+            <Text className="text-sm">Waiting for changes...</Text>
           </Flex>
         </PanelMessage>
       );
@@ -438,7 +440,7 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
         <PanelMessage detail="Changes will appear as the agent modifies files">
           <Flex align="center" gap="2">
             <Spinner size="1" />
-            <Text size="2">Waiting for changes...</Text>
+            <Text className="text-sm">Waiting for changes...</Text>
           </Flex>
         </PanelMessage>
       );
@@ -453,7 +455,7 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
         {isRunActive && (
           <Flex align="center" gap="2" px="3" py="2">
             <Spinner size="1" />
-            <Text size="1" color="gray">
+            <Text color="gray" className="text-[13px] leading-5">
               Agent is still running...
             </Text>
           </Flex>
@@ -569,7 +571,10 @@ function LocalChangesPanel({ taskId, task: _task }: ChangesPanelProps) {
           <Fragment key={header ?? "all"}>
             {header && (
               <Flex px="2" py="1" className="select-none">
-                <Text size="1" color="gray" weight="medium">
+                <Text
+                  color="gray"
+                  className="font-medium text-[13px] leading-5"
+                >
                   {header} ({files.length})
                 </Text>
               </Flex>

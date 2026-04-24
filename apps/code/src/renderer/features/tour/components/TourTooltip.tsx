@@ -252,13 +252,16 @@ export function TourTooltip({
             <Caret side={caretSide} offset={arrowOffset} />
             <Flex direction="column" gap="2">
               <Text
-                size="2"
-                style={{ color: "var(--gray-12)", lineHeight: 1.5 }}
+                style={{ color: "var(--gray-12)" }}
+                className="text-sm leading-normal"
               >
                 {step.message}
               </Text>
               <Flex justify="between" align="center" gap="3">
-                <Text size="1" style={{ color: "var(--gray-9)" }}>
+                <Text
+                  style={{ color: "var(--gray-9)" }}
+                  className="text-[13px] leading-5"
+                >
                   {stepNumber}/{totalSteps}
                 </Text>
                 <Flex align="center" gap="2">

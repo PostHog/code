@@ -113,7 +113,7 @@ function ShortcutsHeader() {
   return (
     <Box mb="4">
       <Flex align="center" gap="3" mb="1">
-        <Dialog.Title size="6" mb="0" style={{ lineHeight: 1.2 }}>
+        <Dialog.Title mb="0" className="text-2xl leading-[1.2]">
           Keyboard Combos
         </Dialog.Title>
         <Flex gap="1" align="center">
@@ -122,7 +122,7 @@ function ShortcutsHeader() {
           ))}
         </Flex>
       </Flex>
-      <Text size="2" color="gray">
+      <Text color="gray" className="text-sm">
         Your cheat codes for shipping faster
       </Text>
     </Box>
@@ -160,7 +160,7 @@ export function KeyboardShortcutsList() {
 
         return (
           <Flex key={category} direction="column" gap="2">
-            <Text size="3" weight="bold" color="gray">
+            <Text color="gray" className="font-bold text-base">
               {CATEGORY_LABELS[category]}
             </Text>
             <Box
@@ -187,7 +187,7 @@ export function KeyboardShortcutsList() {
                       index % 2 === 0 ? "var(--gray-2)" : "var(--gray-1)",
                   }}
                 >
-                  <Text size="2">{shortcut.description}</Text>
+                  <Text className="text-sm">{shortcut.description}</Text>
                   <ShortcutKeys
                     keys={shortcut.keys}
                     alternateKeys={shortcut.alternateKeys}
@@ -228,7 +228,7 @@ function ShortcutKeys({
   return (
     <Flex gap="1" align="center">
       <SingleShortcutKeys keys={keys} />
-      <Text size="1" color="gray">
+      <Text color="gray" className="text-[13px] leading-5">
         or
       </Text>
       <SingleShortcutKeys keys={alternateKeys} />

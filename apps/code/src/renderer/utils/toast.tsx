@@ -47,20 +47,17 @@ function ToastComponent(props: ToastProps) {
         </Flex>
         <Flex direction="column" gap="1" style={{ flex: 1, minWidth: 0 }}>
           <Flex align="center" justify="between" gap="2">
-            <Text size="1" weight="medium">
-              {title}
-            </Text>
+            <Text className="font-medium text-[13px] leading-5">{title}</Text>
             <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
               {action && (
                 <Text
-                  size="1"
-                  weight="medium"
                   color="blue"
                   style={{ cursor: "pointer" }}
                   onClick={() => {
                     action.onClick();
                     sonnerToast.dismiss(id);
                   }}
+                  className="font-medium text-[13px] leading-5"
                 >
                   {action.label}
                 </Text>
@@ -78,7 +75,11 @@ function ToastComponent(props: ToastProps) {
             </Flex>
           </Flex>
           {description && (
-            <Text size="1" color="gray" style={{ wordBreak: "break-word" }}>
+            <Text
+              color="gray"
+              style={{ wordBreak: "break-word" }}
+              className="text-[13px] leading-5"
+            >
               {description}
             </Text>
           )}

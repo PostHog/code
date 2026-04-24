@@ -83,7 +83,7 @@ export function PlanUsageSettings() {
           </Callout.Icon>
           <Callout.Text>
             <Flex direction="column" gap="2">
-              <Text size="2">
+              <Text className="text-sm">
                 Your organization needs an active billing subscription before
                 you can select a plan.
               </Text>
@@ -191,7 +191,7 @@ export function PlanUsageSettings() {
             {isLoading ? (
               <Spinner size="2" />
             ) : (
-              <Text size="2" color="gray">
+              <Text color="gray" className="text-sm">
                 No plan selected
               </Text>
             )}
@@ -209,10 +209,8 @@ export function PlanUsageSettings() {
           }}
         >
           <Flex direction="column" gap="2">
-            <Text size="2" weight="medium">
-              Alpha plan
-            </Text>
-            <Text size="2" style={{ color: "var(--gray-11)" }}>
+            <Text className="font-medium text-sm">Alpha plan</Text>
+            <Text style={{ color: "var(--gray-11)" }} className="text-sm">
               You're on the free alpha Pro plan with full Pro features. You can
               upgrade to the paid Pro plan anytime for higher usage limits.
             </Text>
@@ -221,7 +219,10 @@ export function PlanUsageSettings() {
       )}
 
       <Flex direction="column" gap="3">
-        <Text size="2" weight="medium" style={{ color: "var(--gray-9)" }}>
+        <Text
+          style={{ color: "var(--gray-9)" }}
+          className="font-medium text-sm"
+        >
           Usage
         </Text>
         {usageLoading ? (
@@ -259,7 +260,7 @@ export function PlanUsageSettings() {
               borderRadius: "var(--radius-3)",
             }}
           >
-            <Text size="2" color="gray">
+            <Text color="gray" className="text-sm">
               Unable to load usage data
             </Text>
           </Flex>
@@ -268,7 +269,10 @@ export function PlanUsageSettings() {
 
       {isPro && (
         <Flex direction="column" gap="3">
-          <Text size="2" weight="medium" style={{ color: "var(--gray-9)" }}>
+          <Text
+            style={{ color: "var(--gray-9)" }}
+            className="font-medium text-sm"
+          >
             Billing
           </Text>
           <Flex
@@ -282,7 +286,7 @@ export function PlanUsageSettings() {
           >
             <Flex align="center" gap="3">
               <CreditCard size={18} style={{ color: "var(--gray-9)" }} />
-              <Text size="2">Manage billing and invoices</Text>
+              <Text className="text-sm">Manage billing and invoices</Text>
             </Flex>
             <Button
               size="1"
@@ -300,8 +304,8 @@ export function PlanUsageSettings() {
       )}
       <Dialog.Root open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
         <Dialog.Content maxWidth="420px" size="2">
-          <Dialog.Title size="3">Upgrade to Pro</Dialog.Title>
-          <Dialog.Description size="2" color="gray">
+          <Dialog.Title className="text-base">Upgrade to Pro</Dialog.Title>
+          <Dialog.Description color="gray" className="text-sm">
             You are about to subscribe to the Pro plan. Your organization will
             be charged $200/month starting immediately.
           </Dialog.Description>
@@ -312,7 +316,7 @@ export function PlanUsageSettings() {
                 weight="bold"
                 style={{ color: "var(--accent-9)" }}
               />
-              <Text size="2">Higher usage limits</Text>
+              <Text className="text-sm">Higher usage limits</Text>
             </Flex>
             <Flex align="center" gap="2">
               <Check
@@ -320,7 +324,7 @@ export function PlanUsageSettings() {
                 weight="bold"
                 style={{ color: "var(--accent-9)" }}
               />
-              <Text size="2">Local and cloud execution</Text>
+              <Text className="text-sm">Local and cloud execution</Text>
             </Flex>
             <Flex align="center" gap="2">
               <Check
@@ -328,7 +332,7 @@ export function PlanUsageSettings() {
                 weight="bold"
                 style={{ color: "var(--accent-9)" }}
               />
-              <Text size="2">All Claude and Codex models</Text>
+              <Text className="text-sm">All Claude and Codex models</Text>
             </Flex>
           </Flex>
           <Flex justify="end" gap="3" mt="4">
@@ -376,19 +380,18 @@ function UsageMeter({ label, bucket, color }: UsageMeterProps) {
       }}
     >
       <Flex align="center" justify="between">
-        <Text size="2" weight="medium">
-          {label}
-        </Text>
-        <Text size="2" weight="medium">
-          {percentage.toFixed(2)}%
-        </Text>
+        <Text className="font-medium text-sm">{label}</Text>
+        <Text className="font-medium text-sm">{percentage.toFixed(2)}%</Text>
       </Flex>
       <Progress
         value={percentage}
         size="2"
         color={color === "red" ? "red" : undefined}
       />
-      <Text size="1" style={{ color: "var(--gray-9)" }}>
+      <Text
+        style={{ color: "var(--gray-9)" }}
+        className="text-[13px] leading-5"
+      >
         {bucket.exceeded
           ? "Limit exceeded"
           : `Resets in ${formatResetTime(bucket.resets_in_seconds)}`}
@@ -434,28 +437,31 @@ function PlanCard({
       <Flex direction="column" gap="3">
         <Flex direction="column" gap="1">
           <Text
-            size="1"
-            weight="medium"
             style={{
               color: isCurrent ? "var(--accent-9)" : "var(--gray-9)",
               letterSpacing: "0.05em",
             }}
+            className="font-medium text-[13px] leading-5"
           >
             {isCurrent ? "CURRENT PLAN" : name.toUpperCase()}
           </Text>
           <Flex align="baseline" gap="2">
-            <Text size="5" weight="bold">
-              {name}
-            </Text>
-            <Text size="3" style={{ color: "var(--gray-11)" }}>
+            <Text className="font-bold text-xl">{name}</Text>
+            <Text style={{ color: "var(--gray-11)" }} className="text-base">
               {price}
-              <Text size="1" style={{ color: "var(--gray-9)" }}>
+              <Text
+                style={{ color: "var(--gray-9)" }}
+                className="text-[13px] leading-5"
+              >
                 {period}
               </Text>
             </Text>
           </Flex>
           {resetLabel && (
-            <Text size="1" style={{ color: "var(--gray-9)" }}>
+            <Text
+              style={{ color: "var(--gray-9)" }}
+              className="text-[13px] leading-5"
+            >
               {resetLabel}
             </Text>
           )}
@@ -468,7 +474,7 @@ function PlanCard({
                 weight="bold"
                 style={{ color: "var(--accent-9)", flexShrink: 0 }}
               />
-              <Text size="2" style={{ color: "var(--gray-11)" }}>
+              <Text style={{ color: "var(--gray-11)" }} className="text-sm">
                 {feature.endsWith("*") ? (
                   <>
                     {feature.slice(0, -1)}

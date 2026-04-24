@@ -62,13 +62,12 @@ export function InviteCodeStep({ onNext, onBack }: InviteCodeStepProps) {
               >
                 <Flex direction="column" gap="2">
                   <Text
-                    size="6"
-                    weight="bold"
-                    style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+                    style={{ color: "var(--gray-12)" }}
+                    className="font-bold text-2xl leading-tight"
                   >
                     Enter your invite code
                   </Text>
-                  <Text size="2" style={{ color: "var(--gray-11)" }}>
+                  <Text style={{ color: "var(--gray-11)" }} className="text-sm">
                     You need an invite code to access PostHog Code.
                   </Text>
                 </Flex>
@@ -92,13 +91,13 @@ export function InviteCodeStep({ onNext, onBack }: InviteCodeStepProps) {
                       onChange={(e) => setInviteCode(e.target.value)}
                       placeholder="Invite code"
                       disabled={redeemMutation.isPending}
+                      className="text-[15px]"
                       style={{
                         width: "100%",
                         height: 44,
                         padding: "0 14px",
                         border: "1px solid var(--gray-a3)",
                         borderRadius: 10,
-                        fontSize: 15,
                         backgroundColor: "var(--color-panel-solid)",
                         color: "var(--gray-12)",
                         outline: "none",

@@ -317,8 +317,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
             {reasoningSelector && <span>{reasoningSelector}</span>}
             {isBashMode && (
               <Text
-                size="1"
-                className="font-mono"
+                className="font-mono text-[13px] leading-5"
                 style={{ color: "var(--blue-9)" }}
               >
                 ! bash

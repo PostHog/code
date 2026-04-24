@@ -292,7 +292,9 @@ function ProjectPickerDialogInner({
                   onSelect={() => handleProjectSelect(project.id)}
                 >
                   <Flex align="center" justify="between" width="100%">
-                    <Text size="1">{project.name}</Text>
+                    <Text className="text-[13px] leading-5">
+                      {project.name}
+                    </Text>
                     {project.id === currentProjectId && (
                       <Check size={14} className="text-accent-11" />
                     )}

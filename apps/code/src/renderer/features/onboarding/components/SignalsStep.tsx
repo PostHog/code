@@ -87,13 +87,12 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
               >
                 <Flex direction="column" gap="3">
                   <Text
-                    size="6"
-                    weight="bold"
-                    style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+                    style={{ color: "var(--gray-12)" }}
+                    className="font-bold text-2xl leading-tight"
                   >
                     Set up your Signals Inbox
                   </Text>
-                  <Text size="2" style={{ color: "var(--gray-11)" }}>
+                  <Text style={{ color: "var(--gray-11)" }} className="text-sm">
                     Choose which sources to monitor for this project. Signals
                     will analyze activity and prioritize what needs attention.
                   </Text>

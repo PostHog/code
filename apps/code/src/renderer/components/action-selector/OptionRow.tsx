@@ -89,15 +89,13 @@ export function OptionRow({
         }}
       >
         <Text
-          size="1"
-          weight="medium"
-          className={
+          className={`font-medium text-[13px] leading-5 ${
             isSelected
               ? isCancel
                 ? "text-gray-12"
                 : "text-blue-12"
               : "text-gray-12"
-          }
+          }`}
         >
           {isCancel ? option.label : submitLabel}
         </Text>
@@ -133,9 +131,7 @@ export function OptionRow({
 
     return (
       <Text
-        size="1"
-        weight="medium"
-        className={textClass}
+        className={`font-medium text-[13px] leading-5 ${textClass}`}
         style={{ whiteSpace: "pre-wrap" }}
       >
         {displayText}
@@ -166,33 +162,26 @@ export function OptionRow({
         paddingRight: "var(--space-3)",
       }}
     >
-      <Flex
-        align="center"
-        gap="2"
-        style={{ lineHeight: "var(--line-height-1)" }}
-      >
+      <Flex align="center" gap="2" className="leading-4">
         <Text
-          size="1"
-          className={isSelected ? "text-blue-11" : "text-gray-11"}
-          style={{ width: "1ch", flexShrink: 0, lineHeight: "16px" }}
+          className={`text-[13px] leading-4 ${isSelected ? "text-blue-11" : "text-gray-11"}`}
+          style={{ width: "1ch", flexShrink: 0 }}
         >
           {isSelected ? "›" : ""}
         </Text>
         <Text
-          size="1"
-          className={
+          className={`text-[13px] leading-4 ${
             isSelected
               ? "text-blue-11"
               : isHovered
                 ? "text-blue-11"
                 : "text-gray-11"
-          }
+          }`}
           style={{
             minWidth: "16px",
             textAlign: "right",
             whiteSpace: "nowrap",
             flexShrink: 0,
-            lineHeight: "16px",
           }}
         >
           {index + 1}.
@@ -214,15 +203,14 @@ export function OptionRow({
               style={{ pointerEvents: "none", flexShrink: 0 }}
             />
           ))}
-        <Box style={{ flex: 1, minWidth: 0, lineHeight: "16px" }}>
+        <Box className="leading-4" style={{ flex: 1, minWidth: 0 }}>
           {renderLabel()}
         </Box>
       </Flex>
       {option.description && !isCurrentlyEditing && (
         <Text
-          size="1"
           as="p"
-          className="text-gray-11"
+          className="text-[13px] text-gray-11 leading-5"
           style={{
             marginLeft: showCheckbox ? "64px" : "40px",
             marginTop: "2px",

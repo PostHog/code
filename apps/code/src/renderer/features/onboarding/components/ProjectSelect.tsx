@@ -27,17 +27,21 @@ export function ProjectSelect({
     ? `${currentProject.name} ${currentProject.id}`
     : undefined;
   const [highlightedValue, setHighlightedValue] = useState(defaultValue);
+  const sizeClass = size === "1" ? "text-[13px] leading-5" : "text-sm";
 
   if (projects.length <= 1) {
     return (
-      <Text size={size} style={{ color: "var(--gray-12)", opacity: 0.5 }}>
+      <Text
+        className={sizeClass}
+        style={{ color: "var(--gray-12)", opacity: 0.5 }}
+      >
         {projectName}
       </Text>
     );
   }
 
   return (
-    <Text size={size}>
+    <Text className={sizeClass}>
       <span style={{ color: "var(--gray-12)", opacity: 0.5 }}>
         {projectName}
         {" · "}
@@ -96,7 +100,7 @@ export function ProjectSelect({
                   }}
                 >
                   <Flex align="center" justify="between" width="100%">
-                    <Text size="2">{project.name}</Text>
+                    <Text className="text-sm">{project.name}</Text>
                     {project.id === projectId && (
                       <Check size={14} className="text-accent-11" />
                     )}

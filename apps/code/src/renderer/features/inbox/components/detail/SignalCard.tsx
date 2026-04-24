@@ -266,9 +266,7 @@ function SignalCardHeader({
         )}
       </span>
       <Text
-        size="1"
-        weight="medium"
-        className="text-[11px]"
+        className="font-medium text-[11px] leading-5"
         style={{ color: "var(--gray-10)" }}
       >
         {signalCardSourceLine(signal)}
@@ -353,9 +351,7 @@ function GitHubIssueSignalCard({
         className="text-[11px]"
         style={{ color: "var(--gray-10)" }}
       >
-        <Text weight="medium" className="text-[11px]">
-          #{extra.number}
-        </Text>
+        <Text className="font-medium text-[11px]">#{extra.number}</Text>
         {labels.map((label) => (
           <span
             key={label.name}
@@ -393,8 +389,7 @@ function GitHubIssueSignalCard({
       </Flex>
       {extra.created_at && (
         <Text
-          size="1"
-          className="mt-1 block text-[11px]"
+          className="mt-1 block text-[11px] leading-5"
           style={{ color: "var(--gray-10)" }}
         >
           Opened: {new Date(extra.created_at).toLocaleString()}
@@ -501,8 +496,7 @@ function LlmEvalSignalCard({
       </Flex>
       {extra.trace_id && (
         <Text
-          size="1"
-          className="mt-1 block text-[11px]"
+          className="mt-1 block text-[11px] leading-5"
           style={{ color: "var(--gray-10)" }}
         >
           Trace:{" "}
@@ -560,7 +554,11 @@ function SessionProblemSignalCard({
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
       <SignalCardHeader signal={signal} verified={verified} />
       {extra.segment_title && (
-        <Text size="1" weight="medium" mt="1" className="text-gray-11" as="p">
+        <Text
+          mt="1"
+          className="font-medium text-[13px] text-gray-11 leading-5"
+          as="p"
+        >
           {extra.segment_title}
         </Text>
       )}
@@ -721,8 +719,7 @@ function GenericSignalCard({
       <SignalCardHeader signal={signal} verified={verified} />
       <CollapsibleBody body={signal.content} />
       <Text
-        size="1"
-        className="mt-2 block text-[11px]"
+        className="mt-2 block text-[11px] leading-5"
         style={{ color: "var(--gray-10)" }}
       >
         {new Date(signal.timestamp).toLocaleString()}
@@ -757,7 +754,7 @@ function CodePathsCollapsible({ paths }: { paths: string[] }) {
               parenIdx >= 0 ? trimmed.slice(0, parenIdx) : trimmed;
             const comment = parenIdx >= 0 ? trimmed.slice(parenIdx + 1) : null;
             return (
-              <Text key={raw} size="1" className="text-[11px]">
+              <Text key={raw} className="text-[11px] leading-5">
                 <span className="font-mono" style={{ color: "var(--gray-12)" }}>
                   {filePath}
                 </span>
@@ -792,7 +789,6 @@ function DataQueriedCollapsible({ text }: { text: string }) {
       </button>
       {expanded && (
         <Text
-          size="1"
           color="gray"
           className="mt-1 block whitespace-pre-wrap text-pretty pl-[18px] text-[11px] leading-relaxed"
         >

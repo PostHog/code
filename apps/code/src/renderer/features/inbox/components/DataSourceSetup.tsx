@@ -224,7 +224,7 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
     return (
       <SetupFormContainer title="Connect GitHub">
         <Flex direction="column" gap="3">
-          <Text size="2" style={{ color: "var(--gray-11)" }}>
+          <Text style={{ color: "var(--gray-11)" }} className="text-sm">
             Connect your GitHub account to import issues as signals.
           </Text>
           <Flex gap="2" justify="end">
@@ -395,7 +395,7 @@ function LinearSetup({ onComplete }: SetupFormProps) {
         </Button>
 
         {pollError && (
-          <Text size="2" style={{ color: "var(--red-11)" }}>
+          <Text style={{ color: "var(--red-11)" }} className="text-sm">
             {pollError}
           </Text>
         )}
@@ -508,7 +508,10 @@ function SetupFormContainer({
     >
       <Flex direction="column" gap="3">
         <Flex align="center" justify="between">
-          <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
+          <Text
+            style={{ color: "var(--gray-12)" }}
+            className="font-medium text-sm"
+          >
             {title}
           </Text>
         </Flex>

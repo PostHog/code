@@ -20,7 +20,7 @@ export function RegionSelect({
 
   if (!expanded) {
     return (
-      <Text size="2" style={{ marginTop: 10 }}>
+      <Text style={{ marginTop: 10 }} className="text-sm">
         <span style={{ color: "var(--gray-12)", opacity: 0.5 }}>
           {regionLabel}
           {" \u00B7 "}
@@ -50,13 +50,15 @@ export function RegionSelect({
     <Flex direction="column" gap="2" style={{ width: "100%", marginTop: 10 }}>
       <Flex justify="between" align="center">
         <Text
-          size="2"
-          weight="medium"
           style={{ color: "var(--gray-12)", opacity: 0.6 }}
+          className="font-medium text-sm"
         >
           PostHog region
         </Text>
-        <Text size="2" style={{ color: "var(--gray-12)", opacity: 0.5 }}>
+        <Text
+          style={{ color: "var(--gray-12)", opacity: 0.5 }}
+          className="text-sm"
+        >
           <button
             type="button"
             onClick={() => setExpanded(false)}

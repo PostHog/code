@@ -110,7 +110,10 @@ export function GitHubIntegrationSection({
           <GitBranchIcon size={20} />
         </Box>
         <Flex direction="column">
-          <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
+          <Text
+            style={{ color: "var(--gray-12)" }}
+            className="font-medium text-sm"
+          >
             Code access
           </Text>
           {hasGithubIntegration &&
@@ -120,7 +123,7 @@ export function GitHubIntegrationSection({
               content={
                 <Flex direction="column" gap="1">
                   {repositories.map((repo) => (
-                    <Text key={repo} size="1">
+                    <Text key={repo} className="text-[13px] leading-5">
                       {repo}
                     </Text>
                   ))}
@@ -129,7 +132,10 @@ export function GitHubIntegrationSection({
               side="bottom"
             >
               <Flex align="center" gap="1" style={{ cursor: "help" }}>
-                <Text size="1" style={{ color: "var(--gray-11)" }}>
+                <Text
+                  style={{ color: "var(--gray-11)" }}
+                  className="text-[13px] leading-5"
+                >
                   Connected and active ({repositories.length}{" "}
                   {repositories.length === 1 ? "repo" : "repos"})
                 </Text>
@@ -140,7 +146,10 @@ export function GitHubIntegrationSection({
               </Flex>
             </Tooltip>
           ) : (
-            <Text size="1" style={{ color: "var(--gray-11)" }}>
+            <Text
+              style={{ color: "var(--gray-11)" }}
+              className="text-[13px] leading-5"
+            >
               {hasGithubIntegration
                 ? "Connected and active"
                 : "Required for the Inbox pipeline to work"}

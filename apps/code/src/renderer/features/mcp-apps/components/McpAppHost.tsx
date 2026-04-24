@@ -219,7 +219,7 @@ export function McpAppHost({
               >
                 <Flex align="center" gap="2">
                   <Plugs size={14} className="text-gray-11" />
-                  <Text size="2" className="text-gray-11">
+                  <Text className="text-gray-11 text-sm">
                     {serverName} - {toolName}
                   </Text>
                 </Flex>

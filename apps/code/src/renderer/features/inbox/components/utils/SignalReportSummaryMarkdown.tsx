@@ -9,9 +9,9 @@ const LIST_SUMMARY_BOX_STYLE: CSSProperties = {
 
 const LIST_SUMMARY_INNER_CLASS =
   "line-clamp-4 overflow-hidden text-[12px] text-pretty leading-tight [&_a]:pointer-events-auto " +
-  "[&_.rt-Text]:!text-[12px] [&_.rt-Text]:!leading-[1.25] " +
-  "[&_strong]:!text-[12px] [&_strong]:!leading-[1.25] [&_em]:!text-[12px] [&_i]:!text-[12px] " +
-  "[&_a]:!text-[12px] [&_a]:!leading-[1.25] [&_code]:!text-[12px] [&_li]:!text-[12px]";
+  "[&_.rt-Text]:!text-[12px] [&_.rt-Text]:!leading-tight " +
+  "[&_strong]:!text-[12px] [&_strong]:!leading-tight [&_em]:!text-[12px] [&_i]:!text-[12px] " +
+  "[&_a]:!text-[12px] [&_a]:!leading-tight [&_code]:!text-[12px] [&_li]:!text-[12px]";
 
 interface SignalReportSummaryMarkdownProps {
   content: string | null;

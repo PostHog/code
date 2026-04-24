@@ -168,9 +168,7 @@ export function FilterSortMenu() {
         <Flex direction="column" gap="3">
           <Box>
             <Text
-              size="1"
-              className="text-gray-10"
-              weight="medium"
+              className="font-medium text-[13px] text-gray-10 leading-5"
               style={{ paddingLeft: "1px" }}
             >
               Sort by
@@ -201,9 +199,7 @@ export function FilterSortMenu() {
 
           <Box>
             <Text
-              size="1"
-              className="text-gray-10"
-              weight="medium"
+              className="font-medium text-[13px] text-gray-10 leading-5"
               style={{ paddingLeft: "1px" }}
             >
               Status
@@ -238,9 +234,7 @@ export function FilterSortMenu() {
 
           <Box>
             <Text
-              size="1"
-              className="text-gray-10"
-              weight="medium"
+              className="font-medium text-[13px] text-gray-10 leading-5"
               style={{ paddingLeft: "1px" }}
             >
               Source

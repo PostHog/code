@@ -204,11 +204,14 @@ export function SettingsDialog() {
           >
             <Avatar size="2" fallback={initials} radius="full" color="amber" />
             <Flex direction="column" style={{ minWidth: 0 }}>
-              <Text size="2" weight="medium" truncate>
+              <Text truncate className="font-medium text-sm">
                 {user.email}
               </Text>
               {seat && (
-                <Text size="1" style={{ color: "var(--gray-9)" }}>
+                <Text
+                  style={{ color: "var(--gray-9)" }}
+                  className="text-[13px] leading-5"
+                >
                   {planLabel} Plan
                 </Text>
               )}
@@ -325,7 +328,7 @@ export function SettingsDialog() {
                 style={{ position: "relative", zIndex: 1, maxWidth: "800px" }}
               >
                 <Flex direction="column" gap="4">
-                  <Text size="4" weight="medium">
+                  <Text className="font-medium text-lg leading-6.5">
                     {CATEGORY_TITLES[activeCategory]}
                   </Text>
                   <ActiveComponent />

@@ -49,12 +49,12 @@ export function PlanApprovalView({
           {isComplete ? (
             <>
               <CheckCircle size={14} weight="fill" className="text-green-9" />
-              <Text size="1" className="text-green-11">
+              <Text className="text-[13px] text-green-11 leading-5">
                 Plan approved — proceeding with implementation
               </Text>
             </>
           ) : wasCancelled ? (
-            <Text size="1" className="text-gray-10">
+            <Text className="text-[13px] text-gray-10 leading-5">
               (Plan rejected)
             </Text>
           ) : null}

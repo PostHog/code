@@ -84,9 +84,7 @@ export function McpInstalledRail({
         pb="2"
         style={{ borderBottom: "1px solid var(--gray-5)" }}
       >
-        <Text size="2" weight="bold">
-          MCP servers
-        </Text>
+        <Text className="font-bold text-sm">MCP servers</Text>
         <IconButton
           variant="ghost"
           color="gray"
@@ -131,22 +129,20 @@ export function McpInstalledRail({
         style={{ letterSpacing: "0.06em" }}
       >
         <Text
-          size="1"
-          weight="medium"
           color="gray"
-          style={{ textTransform: "uppercase", fontSize: 10 }}
+          style={{ textTransform: "uppercase" }}
+          className="font-medium text-[10px] leading-none"
         >
           Active
         </Text>
         <Text
-          size="1"
           color="gray"
           style={{
             background: "var(--gray-4)",
             padding: "1px 6px",
             borderRadius: 10,
-            fontSize: 10,
           }}
+          className="text-[10px] leading-none"
         >
           {visibleInstallations.length}
         </Text>
@@ -156,9 +152,9 @@ export function McpInstalledRail({
         <Flex direction="column" gap="1" px="2" pb="3">
           {visibleInstallations.length === 0 ? (
             <Text
-              size="1"
               color="gray"
               style={{ padding: "8px 10px", fontStyle: "italic" }}
+              className="text-[13px] leading-5"
             >
               {search
                 ? `Nothing matches "${search}".`
@@ -196,16 +192,19 @@ export function McpInstalledRail({
                   />
                   <Flex
                     direction="column"
-                    style={{ minWidth: 0, lineHeight: 1.2 }}
+                    className="leading-[1.2]"
+                    style={{ minWidth: 0 }}
                   >
-                    <Text size="1" weight="medium" truncate>
+                    <Text
+                      truncate
+                      className="font-medium text-[13px] leading-5"
+                    >
                       {name}
                     </Text>
                     <Text
-                      size="1"
                       color="gray"
                       truncate
-                      style={{ fontSize: 10 }}
+                      className="text-[10px] leading-none"
                     >
                       {installation.tool_count ?? 0} tools
                     </Text>

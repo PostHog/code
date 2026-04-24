@@ -21,10 +21,9 @@ export function WelcomePane({ onEnableInbox }: { onEnableInbox: () => void }) {
         <img src={graphsHog} alt="" style={{ width: 120, marginBottom: 16 }} />
 
         <Text
-          size="4"
-          weight="bold"
           align="center"
           style={{ color: "var(--gray-12)" }}
+          className="font-bold text-lg leading-6.5"
         >
           Welcome to your Inbox
         </Text>
@@ -37,11 +36,11 @@ export function WelcomePane({ onEnableInbox }: { onEnableInbox: () => void }) {
           style={{ maxWidth: 340 }}
         >
           <Text
-            size="1"
             align="center"
-            style={{ color: "var(--gray-11)", lineHeight: 1.35 }}
+            style={{ color: "var(--gray-11)" }}
+            className="text-[13px] leading-[1.35]"
           >
-            <Text weight="medium" style={{ color: "var(--gray-12)" }}>
+            <Text style={{ color: "var(--gray-12)" }} className="font-medium">
               Background analysis of your data — while you sleep.
             </Text>
             <br />
@@ -52,11 +51,11 @@ export function WelcomePane({ onEnableInbox }: { onEnableInbox: () => void }) {
           <ArrowDownIcon size={14} style={{ color: "var(--gray-8)" }} />
 
           <Text
-            size="1"
             align="center"
-            style={{ color: "var(--gray-11)", lineHeight: 1.35 }}
+            style={{ color: "var(--gray-11)" }}
+            className="text-[13px] leading-[1.35]"
           >
-            <Text weight="medium" style={{ color: "var(--gray-12)" }}>
+            <Text style={{ color: "var(--gray-12)" }} className="font-medium">
               Ready-to-run fixes for real user problems.
             </Text>
             <br />
@@ -96,20 +95,19 @@ export function WarmingUpPane({
         />
 
         <Text
-          size="4"
-          weight="bold"
           align="center"
           style={{ color: "var(--gray-12)" }}
+          className="font-bold text-lg leading-6.5"
         >
           Inbox is warming up
           <AnimatedEllipsis />
         </Text>
 
         <Text
-          size="1"
           align="center"
           mt="3"
-          style={{ color: "var(--gray-11)", lineHeight: 1.35 }}
+          style={{ color: "var(--gray-11)" }}
+          className="text-[13px] leading-[1.35]"
         >
           Reports will appear here as soon as signals come in.
         </Text>
@@ -157,18 +155,17 @@ export function SelectReportPane() {
           style={{ width: 100, marginBottom: 12, opacity: 0.8 }}
         />
         <Text
-          size="2"
-          weight="medium"
           align="center"
           style={{ color: "var(--gray-10)" }}
+          className="font-medium text-sm"
         >
           Select a report
         </Text>
         <Text
-          size="1"
           align="center"
           mt="1"
-          style={{ color: "var(--gray-9)", lineHeight: 1.35 }}
+          style={{ color: "var(--gray-9)" }}
+          className="text-[13px] leading-[1.35]"
         >
           Pick a report from the list to see details, signals, and evidence.
         </Text>

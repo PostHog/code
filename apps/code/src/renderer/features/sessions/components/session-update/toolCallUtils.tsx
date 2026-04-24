@@ -12,8 +12,7 @@ export function ToolTitle({
 }) {
   return (
     <Text
-      size="1"
-      className={`text-gray-11${className ? ` ${className}` : ""}`}
+      className={`text-[13px] leading-5 text-gray-11${className ? ` ${className}` : ""}`}
     >
       {children}
     </Text>
@@ -30,14 +29,10 @@ export function StatusIndicators({
   return (
     <>
       {isFailed && (
-        <Text size="1" className="text-gray-10">
-          (Failed)
-        </Text>
+        <Text className="text-[13px] text-gray-10 leading-5">(Failed)</Text>
       )}
       {wasCancelled && (
-        <Text size="1" className="text-gray-10">
-          (Cancelled)
-        </Text>
+        <Text className="text-[13px] text-gray-10 leading-5">(Cancelled)</Text>
       )}
     </>
   );
@@ -233,7 +228,7 @@ export function ExpandableIcon({
 export function ContentPre({ children }: { children: React.ReactNode }) {
   return (
     <Box className="max-h-64 overflow-auto px-3 py-2">
-      <Text asChild size="1" className="text-gray-11">
+      <Text asChild className="text-[13px] text-gray-11 leading-5">
         <pre className="m-0 whitespace-pre-wrap break-all font-mono">
           {children}
         </pre>

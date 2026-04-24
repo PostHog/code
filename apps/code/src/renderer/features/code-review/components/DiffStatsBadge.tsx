@@ -81,18 +81,20 @@ export function DiffStatsBadge({ task }: DiffStatsBadgeProps) {
         {hasChanges ? (
           <Flex align="center" gap="1">
             {linesAdded > 0 && (
-              <Text style={{ color: "var(--green-9)", fontSize: "11px" }}>
+              <Text className="text-[11px]" style={{ color: "var(--green-9)" }}>
                 +{linesAdded}
               </Text>
             )}
             {linesRemoved > 0 && (
-              <Text style={{ color: "var(--red-9)", fontSize: "11px" }}>
+              <Text className="text-[11px]" style={{ color: "var(--red-9)" }}>
                 -{linesRemoved}
               </Text>
             )}
           </Flex>
         ) : (
-          <Text style={{ color: "var(--gray-9)", fontSize: "11px" }}>0</Text>
+          <Text className="text-[11px]" style={{ color: "var(--gray-9)" }}>
+            0
+          </Text>
         )}
       </Button>
     </Tooltip>

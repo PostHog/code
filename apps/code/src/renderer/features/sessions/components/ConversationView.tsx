@@ -297,7 +297,7 @@ const TurnCancelledView = memo(function TurnCancelledView({
     <Box className="border-gray-4 border-l-2 py-0.5 pl-3">
       <Flex align="center" gap="2" className="text-gray-9">
         <XCircle size={14} />
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px] leading-5">
           {message}
         </Text>
       </Flex>

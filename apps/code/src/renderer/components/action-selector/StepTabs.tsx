@@ -38,15 +38,13 @@ export function StepTabs({
             }}
           >
             <Text
-              size="1"
-              weight={isCurrent ? "medium" : "regular"}
-              className={
+              className={`text-[13px] leading-5 ${
                 isCurrent
-                  ? "text-blue-11"
+                  ? "font-medium text-blue-11"
                   : isCompleted
                     ? "text-green-11"
                     : "text-gray-11"
-              }
+              }`}
             >
               {isCompleted && "✓ "}
               {step.label}

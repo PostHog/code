@@ -180,7 +180,7 @@
   font-family: "Open Runde";
   src:
     url("../../../assets/fonts/OpenRunde/OpenRunde-Regular.woff2")
-      format("woff2"),
+    format("woff2"),
     url("../../../assets/fonts/OpenRunde/OpenRunde-Regular.woff") format("woff");
   font-weight: 400;
   font-style: normal;
@@ -190,7 +190,8 @@
 @font-face {
   font-family: "Open Runde";
   src:
-    url("../../../assets/fonts/OpenRunde/OpenRunde-Medium.woff2") format("woff2"),
+    url("../../../assets/fonts/OpenRunde/OpenRunde-Medium.woff2")
+    format("woff2"),
     url("../../../assets/fonts/OpenRunde/OpenRunde-Medium.woff") format("woff");
   font-weight: 500;
   font-style: normal;
@@ -201,8 +202,9 @@
   font-family: "Open Runde";
   src:
     url("../../../assets/fonts/OpenRunde/OpenRunde-Semibold.woff2")
-      format("woff2"),
-    url("../../../assets/fonts/OpenRunde/OpenRunde-Semibold.woff") format("woff");
+    format("woff2"),
+    url("../../../assets/fonts/OpenRunde/OpenRunde-Semibold.woff")
+    format("woff");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -295,13 +297,16 @@
   --font-weight-medium: 500;
   --font-weight-bold: 700;
 
-  /* Bump the smallest Radix text size so size="1" is more legible */
+  /*
+   * Override Radix's smallest text size to 13px / 20px LH (default is
+   * 12 / 16). This still applies to *Radix-internal* components that
+   * read --font-size-1 — buttons with size="1", DropdownMenu items,
+   * TextField with size="1", etc. App-level <Text> / <Heading>
+   * typography is now controlled via Tailwind utilities, not these
+   * tokens.
+   */
   --font-size-1: calc(13px * var(--scaling));
   --line-height-1: calc(20px * var(--scaling));
-
-  /* Custom font sizes (extending Radix scale) */
-  --font-size-1-5: calc(13px * var(--scaling));
-  --line-height-1-5: calc(16px * var(--scaling));
 }
 
 body {

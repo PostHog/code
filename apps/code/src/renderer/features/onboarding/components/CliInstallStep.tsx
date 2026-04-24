@@ -84,13 +84,12 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
               >
                 <Flex direction="column" gap="2">
                   <Text
-                    size="6"
-                    weight="bold"
-                    style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+                    style={{ color: "var(--gray-12)" }}
+                    className="font-bold text-2xl leading-tight"
                   >
                     Install required tools
                   </Text>
-                  <Text size="2" style={{ color: "var(--gray-11)" }}>
+                  <Text style={{ color: "var(--gray-11)" }} className="text-sm">
                     These CLI tools are needed for code management and GitHub
                     workflows.
                   </Text>
@@ -121,9 +120,8 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                           style={{ color: "var(--gray-12)" }}
                         />
                         <Text
-                          size="3"
-                          weight="bold"
                           style={{ color: "var(--gray-12)" }}
+                          className="font-bold text-base"
                         >
                           Git
                         </Text>
@@ -144,7 +142,10 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                             weight="fill"
                             style={{ color: "var(--green-9)" }}
                           />
-                          <Text size="1" style={{ color: "var(--green-11)" }}>
+                          <Text
+                            style={{ color: "var(--green-11)" }}
+                            className="text-[13px] leading-5"
+                          >
                             Installed
                             {gitStatus?.version
                               ? ` (${gitStatus.version})`
@@ -155,7 +156,10 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                     </Flex>
                     {!isLoadingGit && !gitInstalled && (
                       <Flex direction="column" gap="3">
-                        <Text size="2" style={{ color: "var(--gray-11)" }}>
+                        <Text
+                          style={{ color: "var(--gray-11)" }}
+                          className="text-sm"
+                        >
                           Install with Homebrew or Xcode Command Line Tools:
                         </Text>
                         <Flex direction="column" gap="2">
@@ -164,7 +168,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                               size={14}
                               style={{ color: "var(--gray-9)", flexShrink: 0 }}
                             />
-                            <Code size="2" variant="soft">
+                            <Code variant="soft" className="text-sm">
                               brew install git
                             </Code>
                           </Flex>
@@ -173,7 +177,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                               size={14}
                               style={{ color: "var(--gray-9)", flexShrink: 0 }}
                             />
-                            <Code size="2" variant="soft">
+                            <Code variant="soft" className="text-sm">
                               xcode-select --install
                             </Code>
                           </Flex>
@@ -233,9 +237,8 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                           style={{ color: "var(--gray-12)" }}
                         />
                         <Text
-                          size="3"
-                          weight="bold"
                           style={{ color: "var(--gray-12)" }}
+                          className="font-bold text-base"
                         >
                           GitHub CLI
                         </Text>
@@ -256,7 +259,10 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                             weight="fill"
                             style={{ color: "var(--green-9)" }}
                           />
-                          <Text size="1" style={{ color: "var(--green-11)" }}>
+                          <Text
+                            style={{ color: "var(--green-11)" }}
+                            className="text-[13px] leading-5"
+                          >
                             {ghStatus?.username
                               ? `Logged in as ${ghStatus.username}`
                               : "Authenticated"}
@@ -270,7 +276,10 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                             weight="fill"
                             style={{ color: "var(--amber-9)" }}
                           />
-                          <Text size="1" style={{ color: "var(--amber-11)" }}>
+                          <Text
+                            style={{ color: "var(--amber-11)" }}
+                            className="text-[13px] leading-5"
+                          >
                             Not logged in
                           </Text>
                         </Flex>
@@ -278,7 +287,10 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                     </Flex>
                     {!isLoadingGh && !ghInstalled && (
                       <Flex direction="column" gap="3">
-                        <Text size="2" style={{ color: "var(--gray-11)" }}>
+                        <Text
+                          style={{ color: "var(--gray-11)" }}
+                          className="text-sm"
+                        >
                           Install with Homebrew:
                         </Text>
                         <Flex align="center" gap="2">
@@ -286,7 +298,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                             size={14}
                             style={{ color: "var(--gray-9)", flexShrink: 0 }}
                           />
-                          <Code size="2" variant="soft">
+                          <Code variant="soft" className="text-sm">
                             brew install gh
                           </Code>
                         </Flex>
@@ -319,7 +331,10 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                     )}
                     {!isLoadingGh && ghInstalled && !ghAuthenticated && (
                       <Flex direction="column" gap="3">
-                        <Text size="2" style={{ color: "var(--gray-11)" }}>
+                        <Text
+                          style={{ color: "var(--gray-11)" }}
+                          className="text-sm"
+                        >
                           Run this in your terminal to log in:
                         </Text>
                         <Flex align="center" gap="2">
@@ -327,7 +342,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                             size={14}
                             style={{ color: "var(--gray-9)", flexShrink: 0 }}
                           />
-                          <Code size="2" variant="soft">
+                          <Code variant="soft" className="text-sm">
                             gh auth login
                           </Code>
                         </Flex>

@@ -64,7 +64,7 @@ export function ProvisioningView({ taskId }: ProvisioningViewProps) {
       <Flex direction="column" height="100%" p="3" gap="2">
         <Flex align="center" gap="2">
           <Spinner size="1" />
-          <Text size="1" weight="medium">
+          <Text className="font-medium text-[13px] leading-5">
             Setting up worktree...
           </Text>
         </Flex>
@@ -79,13 +79,12 @@ export function ProvisioningView({ taskId }: ProvisioningViewProps) {
         >
           <pre
             ref={scrollRef}
+            className="text-[13px] leading-5"
             style={{
               margin: 0,
               padding: "var(--space-2)",
               height: "100%",
               overflow: "auto",
-              fontSize: "var(--font-size-1)",
-              lineHeight: "var(--line-height-2)",
               fontFamily: "var(--code-font-family)",
               whiteSpace: "pre-wrap",
               wordBreak: "break-all",

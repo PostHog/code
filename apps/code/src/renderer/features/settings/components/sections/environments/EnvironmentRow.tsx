@@ -28,10 +28,10 @@ export function EnvironmentRow({
       }}
     >
       <Flex direction="column" style={{ minWidth: 0 }}>
-        <Text size="1" truncate>
+        <Text truncate className="text-[13px] leading-5">
           {environment.name}
         </Text>
-        <Text size="1" color="gray" truncate className="text-[12px]">
+        <Text color="gray" truncate className="text-[12px] leading-5">
           {filename}
         </Text>
       </Flex>

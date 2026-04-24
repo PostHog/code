@@ -92,9 +92,7 @@ const CommandGroupWrapper = React.forwardRef<
   return (
     <CommandGroup ref={ref} className={`p-1 ${className || ""}`} {...props}>
       {heading && (
-        <div className="px-2 py-1.5 text-gray-11" style={{ fontSize: "14px" }}>
-          {heading}
-        </div>
+        <div className="px-2 py-1.5 text-gray-11 text-sm">{heading}</div>
       )}
       {children}
     </CommandGroup>

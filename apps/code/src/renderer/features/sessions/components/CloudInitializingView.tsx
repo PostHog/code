@@ -74,11 +74,9 @@ export function CloudInitializingView({
       <Flex direction="column" align="center" gap="2">
         <Flex align="center" gap="2">
           <Spinner size={16} className="animate-spin text-gray-9" />
-          <Text size="3" weight="medium">
-            {heading}
-          </Text>
+          <Text className="font-medium text-base">{heading}</Text>
         </Flex>
-        <Text size="2" color="gray">
+        <Text color="gray" className="text-sm">
           {subtitle}
         </Text>
       </Flex>

@@ -64,7 +64,7 @@ export const LeafNodeRenderer: React.FC<LeafNodeRendererProps> = ({
         >
           <Flex direction="column" align="center" gap="2">
             <CloudIcon size={24} className="text-gray-10" />
-            <Text size="2" color="gray">
+            <Text color="gray" className="text-sm">
               Cloud runs are read-only
             </Text>
           </Flex>

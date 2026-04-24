@@ -234,9 +234,7 @@ export function GeneralSettings() {
       )}
 
       {/* Appearance */}
-      <Text size="2" weight="medium" className="mb-2 pt-4">
-        Appearance
-      </Text>
+      <Text className="mb-2 pt-4 font-medium text-sm">Appearance</Text>
 
       <SettingRow
         label="Theme"
@@ -257,16 +255,12 @@ export function GeneralSettings() {
       </SettingRow>
 
       {/* Notifications */}
-      <Text
-        size="2"
-        weight="medium"
-        className="mb-2 block border-gray-6 border-t pt-4"
-      >
+      <Text className="mb-2 block border-gray-6 border-t pt-4 font-medium text-sm">
         Notifications
       </Text>
 
       {notificationsDenied && (
-        <Text size="1" color="yellow" className="mb-2">
+        <Text color="yellow" className="mb-2 text-[13px] leading-5">
           Notifications are blocked by macOS. To enable them, open System
           Settings &gt; Notifications &gt; PostHog Code and turn on Allow
           Notifications.
@@ -356,7 +350,7 @@ export function GeneralSettings() {
               size="1"
               style={{ width: "120px" }}
             />
-            <Text size="1" color="gray">
+            <Text color="gray" className="text-[13px] leading-5">
               {completionVolume}%
             </Text>
           </Flex>
@@ -364,11 +358,7 @@ export function GeneralSettings() {
       )}
 
       {/* Input */}
-      <Text
-        size="2"
-        weight="medium"
-        className="mb-2 block border-gray-6 border-t pt-4"
-      >
+      <Text className="mb-2 block border-gray-6 border-t pt-4 font-medium text-sm">
         Input
       </Text>
 
@@ -433,11 +423,7 @@ export function GeneralSettings() {
       </SettingRow>
 
       {/* Editor */}
-      <Text
-        size="2"
-        weight="medium"
-        className="mb-2 block border-gray-6 border-t pt-4"
-      >
+      <Text className="mb-2 block border-gray-6 border-t pt-4 font-medium text-sm">
         Editor
       </Text>
 
@@ -464,11 +450,7 @@ export function GeneralSettings() {
       </SettingRow>
 
       {/* Power */}
-      <Text
-        size="2"
-        weight="medium"
-        className="mb-2 block border-gray-6 border-t pt-4"
-      >
+      <Text className="mb-2 block border-gray-6 border-t pt-4 font-medium text-sm">
         Power
       </Text>
 
@@ -485,11 +467,7 @@ export function GeneralSettings() {
       </SettingRow>
 
       {/* Fun */}
-      <Text
-        size="2"
-        weight="medium"
-        className="mb-2 block border-gray-6 border-t pt-4"
-      >
+      <Text className="mb-2 block border-gray-6 border-t pt-4 font-medium text-sm">
         Fun
       </Text>
 
@@ -517,12 +495,12 @@ function HedgehogDescription() {
 
   return (
     <Flex direction="column" gap="1">
-      <Text size="1" color="gray">
+      <Text color="gray" className="text-[13px] leading-5">
         Release a hedgehog buddy to walk around your screen. It might take a few
         seconds to appear.
       </Text>
       {customizeUrl && (
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px] leading-5">
           <Link href={customizeUrl} target="_blank">
             Customize your hedgehog
           </Link>

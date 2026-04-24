@@ -158,8 +158,7 @@ export const DraggableTab: React.FC<DraggableTabProps> = ({
         <Box style={{ display: "flex", alignItems: "center" }}>{icon}</Box>
       )}
       <Text
-        size="1"
-        className="max-w-[200px] select-none overflow-hidden text-ellipsis whitespace-nowrap"
+        className="max-w-[200px] select-none overflow-hidden text-ellipsis whitespace-nowrap text-[13px] leading-5"
         style={{
           fontStyle: isPreview ? "italic" : "normal",
           opacity: isPreview ? 0.7 : 1,
@@ -169,7 +168,10 @@ export const DraggableTab: React.FC<DraggableTabProps> = ({
       </Text>
       {badge}
       {hasUnsavedChanges && (
-        <Text size="1" style={{ color: "var(--amber-9)", marginLeft: "2px" }}>
+        <Text
+          style={{ color: "var(--amber-9)", marginLeft: "2px" }}
+          className="text-[13px] leading-5"
+        >
           •
         </Text>
       )}

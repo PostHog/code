@@ -450,7 +450,7 @@ export function ReviewShell({
               </Flex>
             ) : isEmpty ? (
               <Flex align="center" justify="center" height="100%">
-                <Text size="2" color="gray">
+                <Text color="gray" className="text-sm">
                   No file changes to review
                 </Text>
               </Flex>
@@ -487,6 +487,7 @@ function FileHeaderRow({
     <button
       type="button"
       onClick={onToggle}
+      className="text-xs"
       style={{
         display: "flex",
         alignItems: "center",
@@ -494,7 +495,6 @@ function FileHeaderRow({
         padding: "6px 12px",
         borderBottom: "1px solid var(--gray-5)",
         fontFamily: "var(--code-font-family)",
-        fontSize: "12px",
         cursor: "pointer",
         // userSelect: "none",
         width: "100%",
@@ -532,7 +532,7 @@ function FileHeaderRow({
           {dirPath}
         </span>
       </span>
-      <span style={{ fontFamily: "monospace", fontSize: "10px" }}>
+      <span className="text-[10px]" style={{ fontFamily: "monospace" }}>
         {additions > 0 && (
           <span style={{ color: "var(--green-9)", marginRight: "2px" }}>
             +{additions}
@@ -650,11 +650,11 @@ export function DeferredDiffPlaceholder({
       />
       {!collapsed && (
         <div
+          className="text-xs"
           style={{
             padding: "16px",
             textAlign: "center",
             color: "var(--gray-9)",
-            fontSize: "12px",
             background: "var(--gray-2)",
             borderBottom: "1px solid var(--gray-5)",
             width: "100%",

@@ -99,11 +99,11 @@ export function FilePicker({
                 onSelect={() => handleSelect(file.path)}
               >
                 <FileIcon filename={file.name} size={14} />
-                <Text size="1" ml="2">
+                <Text ml="2" className="text-[13px] leading-5">
                   {file.name}
                 </Text>
                 {file.dir && (
-                  <Text size="1" color="gray" ml="2">
+                  <Text color="gray" ml="2" className="text-[13px] leading-5">
                     {file.dir}
                   </Text>
                 )}

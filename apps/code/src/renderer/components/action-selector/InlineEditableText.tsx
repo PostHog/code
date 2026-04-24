@@ -75,12 +75,9 @@ export function InlineEditableText({
       onKeyDown={handleKeyDown}
       onClick={(e) => e.stopPropagation()}
       rows={1}
-      className="text-gray-12 placeholder:text-gray-10"
+      className="font-medium text-[13px] text-gray-12 leading-5 placeholder:text-gray-10"
       style={{
         all: "unset",
-        fontSize: "var(--font-size-1)",
-        lineHeight: "var(--line-height-1)",
-        fontWeight: 500,
         width: "100%",
         display: "block",
         resize: "none",

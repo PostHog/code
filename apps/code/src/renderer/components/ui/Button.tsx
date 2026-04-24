@@ -30,10 +30,14 @@ function buildTooltipContent(
   if (tooltipContent != null && reason) {
     return (
       <Flex direction="column" gap="2" style={{ maxWidth: 280 }}>
-        <Text as="span" size="1" style={{ color: "var(--gray-12)" }}>
+        <Text
+          as="span"
+          style={{ color: "var(--gray-12)" }}
+          className="text-[13px] leading-5"
+        >
           {tooltipContent}
         </Text>
-        <Text as="span" color="gray" size="1" style={{ lineHeight: 1.45 }}>
+        <Text as="span" color="gray" className="text-[13px] leading-[1.45]">
           {disabledBecauseLabel(reason)}
         </Text>
       </Flex>

@@ -72,8 +72,10 @@ export function FolderSettingsView() {
         <Box p="6" style={{ maxWidth: "600px", margin: "0 auto" }}>
           <Flex direction="column" gap="6">
             <Flex direction="column" gap="2">
-              <Heading size="4">Repository Not Found</Heading>
-              <Text size="1" color="gray">
+              <Heading className="text-lg leading-6.5">
+                Repository Not Found
+              </Heading>
+              <Text color="gray" className="text-[13px] leading-5">
                 {folder.name}
               </Text>
             </Flex>
@@ -84,10 +86,10 @@ export function FolderSettingsView() {
               </Callout.Icon>
               <Callout.Text>
                 <Flex direction="column" gap="1">
-                  <Text weight="medium">
+                  <Text className="font-medium">
                     The repository folder could not be found
                   </Text>
-                  <Text size="1">
+                  <Text className="text-[13px] leading-5">
                     The folder at <Code>{folder.path}</Code> no longer exists or
                     has been moved.
                   </Text>
@@ -104,14 +106,14 @@ export function FolderSettingsView() {
             <Card>
               <Flex direction="column" gap="4">
                 <Flex direction="column" gap="2">
-                  <Text size="1" weight="medium">
+                  <Text className="font-medium text-[13px] leading-5">
                     Option 1: Restore the folder
                   </Text>
-                  <Text size="1" color="gray">
+                  <Text color="gray" className="text-[13px] leading-5">
                     Move or restore the repository folder back to its original
                     location:
                   </Text>
-                  <Code size="1">{folder.path}</Code>
+                  <Code className="text-[13px] leading-5">{folder.path}</Code>
                 </Flex>
               </Flex>
             </Card>
@@ -119,10 +121,10 @@ export function FolderSettingsView() {
             <Card>
               <Flex direction="column" gap="4">
                 <Flex direction="column" gap="2">
-                  <Text size="1" weight="medium">
+                  <Text className="font-medium text-[13px] leading-5">
                     Option 2: Remove the repository
                   </Text>
-                  <Text size="1" color="gray">
+                  <Text color="gray" className="text-[13px] leading-5">
                     This will remove the repository from PostHog Code, including
                     all associated tasks and their workspaces. This action
                     cannot be undone.
@@ -161,8 +163,10 @@ export function FolderSettingsView() {
       <Box p="6" style={{ maxWidth: "600px", margin: "0 auto" }}>
         <Flex direction="column" gap="6">
           <Flex direction="column" gap="2">
-            <Heading size="4">Repository Settings</Heading>
-            <Text size="1" color="gray">
+            <Heading className="text-lg leading-6.5">
+              Repository Settings
+            </Heading>
+            <Text color="gray" className="text-[13px] leading-5">
               Manage settings for {folder.name}
             </Text>
           </Flex>
@@ -174,13 +178,13 @@ export function FolderSettingsView() {
           )}
 
           <Flex direction="column" gap="3">
-            <Heading size="3">Location</Heading>
+            <Heading className="text-base">Location</Heading>
             <Card>
               <Flex direction="column" gap="2">
-                <Text size="1" weight="medium">
+                <Text className="font-medium text-[13px] leading-5">
                   Root path
                 </Text>
-                <Code size="1">{folder.path}</Code>
+                <Code className="text-[13px] leading-5">{folder.path}</Code>
               </Flex>
             </Card>
           </Flex>
@@ -188,14 +192,14 @@ export function FolderSettingsView() {
           <Box className="border-gray-6 border-t" />
 
           <Flex direction="column" gap="3">
-            <Heading size="3">Danger zone</Heading>
+            <Heading className="text-base">Danger zone</Heading>
             <Card>
               <Flex direction="column" gap="4">
                 <Flex direction="column" gap="2">
-                  <Text size="1" weight="medium">
+                  <Text className="font-medium text-[13px] leading-5">
                     Remove repository
                   </Text>
-                  <Text size="1" color="gray">
+                  <Text color="gray" className="text-[13px] leading-5">
                     This will remove the repository from PostHog Code, including
                     all associated tasks and their workspaces. This action
                     cannot be undone.

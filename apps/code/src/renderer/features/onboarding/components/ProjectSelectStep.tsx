@@ -124,13 +124,15 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                     >
                       <Flex direction="column" gap="2">
                         <Text
-                          size="6"
-                          weight="bold"
-                          style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
+                          style={{ color: "var(--gray-12)" }}
+                          className="font-bold text-2xl leading-tight"
                         >
                           Pick your PostHog home base
                         </Text>
-                        <Text size="2" style={{ color: "var(--gray-11)" }}>
+                        <Text
+                          style={{ color: "var(--gray-11)" }}
+                          className="text-sm"
+                        >
                           Choose the organization and project you want to work
                           in.
                         </Text>
@@ -169,9 +171,8 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                 >
                   <Flex direction="column" gap="2" style={{ width: "100%" }}>
                     <Text
-                      size="2"
-                      weight="medium"
                       style={{ color: "var(--gray-11)" }}
+                      className="font-medium text-sm"
                     >
                       Organization
                     </Text>
@@ -180,6 +181,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                       <Popover.Trigger>
                         <button
                           type="button"
+                          className="text-sm"
                           style={{
                             all: "unset",
                             display: "flex",
@@ -194,14 +196,12 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                             boxShadow:
                               "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
                             cursor: "pointer",
-                            fontSize: 14,
                             fontFamily: "inherit",
                           }}
                         >
                           <Text
-                            size="2"
-                            weight="medium"
                             style={{ color: "var(--gray-12)" }}
+                            className="font-medium text-sm"
                           >
                             {currentOrg?.name ?? "Select organization..."}
                           </Text>
@@ -250,7 +250,9 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                                     width="100%"
                                   >
                                     <Box>
-                                      <Text size="2">{org.name}</Text>
+                                      <Text className="text-sm">
+                                        {org.name}
+                                      </Text>
                                     </Box>
                                     {org.id === currentOrg?.id && (
                                       <Check
@@ -279,9 +281,8 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                 >
                   <Flex direction="column" gap="2" style={{ width: "100%" }}>
                     <Text
-                      size="2"
-                      weight="medium"
                       style={{ color: "var(--gray-11)" }}
+                      className="font-medium text-sm"
                     >
                       Project
                     </Text>
@@ -292,6 +293,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                       <Popover.Trigger>
                         <button
                           type="button"
+                          className="text-sm"
                           style={{
                             all: "unset",
                             display: "flex",
@@ -306,22 +308,20 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                             boxShadow:
                               "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
                             cursor: "pointer",
-                            fontSize: 14,
                             fontFamily: "inherit",
                           }}
                         >
                           <Flex direction="column" gap="1">
                             <Text
-                              size="2"
-                              weight="medium"
                               style={{ color: "var(--gray-12)" }}
+                              className="font-medium text-sm"
                             >
                               {currentProject?.name ?? "Select a project..."}
                             </Text>
                             {currentProject && !hasMultipleOrgs && (
                               <Text
-                                size="1"
                                 style={{ color: "var(--gray-11)" }}
+                                className="text-[13px] leading-5"
                               >
                                 {currentProject.organization.name}
                               </Text>
@@ -371,7 +371,9 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                                     width="100%"
                                   >
                                     <Box>
-                                      <Text size="2">{project.name}</Text>
+                                      <Text className="text-sm">
+                                        {project.name}
+                                      </Text>
                                     </Box>
                                     {project.id === currentProjectId && (
                                       <Check
@@ -408,7 +410,10 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                     weight="fill"
                     style={{ color: "var(--green-9)" }}
                   />
-                  <Text size="2" style={{ color: "var(--green-11)" }}>
+                  <Text
+                    style={{ color: "var(--green-11)" }}
+                    className="text-sm"
+                  >
                     Signed in as {currentUser?.email}
                   </Text>
                 </Flex>
