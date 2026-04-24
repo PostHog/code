@@ -37,10 +37,6 @@ vi.mock("@utils/logger", () => ({
   },
 }));
 
-vi.mock("@utils/urls", () => ({
-  getPostHogUrl: (path: string) => `https://posthog.com${path}`,
-}));
-
 vi.mock("@renderer/trpc", () => ({
   trpcClient: {
     llmGateway: {
@@ -92,6 +88,7 @@ describe("seatStore", () => {
       isLoading: false,
       error: null,
       redirectUrl: null,
+      billingOrgId: null,
     });
   });
 
