@@ -260,9 +260,7 @@ describe("seatStore", () => {
 
       const state = useSeatStore.getState();
       expect(state.error).toBe("Billing subscription required");
-      expect(state.redirectUrl).toBe(
-        "https://posthog.com/organization/billing",
-      );
+      expect(state.redirectUrl).toBe("/organization/billing");
     });
 
     it("sets error on payment failure", async () => {
