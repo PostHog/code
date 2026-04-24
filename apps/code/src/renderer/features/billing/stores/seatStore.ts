@@ -72,7 +72,7 @@ function invalidatePlanCache(): void {
   trpcClient.llmGateway.invalidatePlanCache.mutate().catch((err) => {
     log.warn("Failed to invalidate plan cache", err);
   });
-  void queryClient.invalidateQueries({ queryKey: [["llmGateway", "usage"]] });
+  void queryClient.invalidateQueries({ queryKey: [["llmGateway"]] });
 }
 
 const initialState: SeatStoreState = {
@@ -82,7 +82,7 @@ const initialState: SeatStoreState = {
   redirectUrl: null,
 };
 
-export const useSeatStore = create<SeatStore>()((set) => ({
+export const useSeatStore = create<SeatStore>()((set, get) => ({
   ...initialState,
 
   fetchSeat: async (options?: { autoProvision?: boolean }) => {
@@ -101,7 +101,7 @@ export const useSeatStore = create<SeatStore>()((set) => ({
       }
       set({ seat, isLoading: false });
     } catch (error) {
-      const { seat: existingSeat } = useSeatStore.getState();
+      const { seat: existingSeat } = get();
       if (existingSeat) {
         log.warn("fetchSeat failed but seat already loaded, keeping it", error);
         set({ isLoading: false });

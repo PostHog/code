@@ -1395,7 +1395,7 @@ export class SessionService {
           isPromptPending: false,
           promptStartedAt: null,
         });
-        useUsageLimitStore.getState().show("mid-task");
+        useUsageLimitStore.getState().show();
         return { stopReason: "rate_limited" };
       }
 

@@ -27,7 +27,7 @@ export function useUsageLimitDetection(billingEnabled: boolean) {
 
       if (hasActiveSession) {
         hasAlertedRef.current = true;
-        useUsageLimitStore.getState().show("mid-task");
+        useUsageLimitStore.getState().show();
       }
     }
 

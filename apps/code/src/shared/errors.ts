@@ -23,7 +23,7 @@ export function isAuthError(error: unknown): boolean {
 const RATE_LIMIT_PATTERNS = [
   "rate limit exceeded",
   "rate_limit",
-  "429",
+  "[429]",
 ] as const;
 
 const FATAL_SESSION_ERROR_PATTERNS = [
