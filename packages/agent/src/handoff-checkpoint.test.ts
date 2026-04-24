@@ -20,8 +20,6 @@ interface HandoffRepos {
   localGitState: HandoffLocalGitState;
 }
 
-const WORKTREE_FILES = ["tracked.txt", "unstaged.txt", "untracked.txt"];
-
 function createMockApi(store: BundleStore) {
   return {
     uploadTaskArtifacts: async (
@@ -64,7 +62,7 @@ function createBundleStore(): BundleStore {
     artifacts: {},
     manifest: [
       {
-        storage_path: "gs://bucket/handoff-0-existing-tree_snapshot.tar.gz",
+        storage_path: "gs://bucket/handoff-0-existing-checkpoint.pack",
       },
     ],
   };
@@ -128,15 +126,6 @@ async function makeCloudChanges(repo: TestRepo): Promise<void> {
   await repo.writeFile("untracked.txt", "untracked\n");
 }
 
-async function mirrorRestoredWorktree(
-  cloudRepo: TestRepo,
-  localRepo: TestRepo,
-): Promise<void> {
-  for (const file of WORKTREE_FILES) {
-    await localRepo.writeFile(file, await cloudRepo.readFile(file));
-  }
-}
-
 describe("HandoffCheckpointTracker", () => {
   const cleanups: Array<() => Promise<void>> = [];
 
@@ -144,7 +133,7 @@ describe("HandoffCheckpointTracker", () => {
     await Promise.all(cleanups.splice(0).map((cleanup) => cleanup()));
   });
 
-  it("restores head commit and index state for handoff replay", async () => {
+  it("restores head, worktree, and index state for handoff replay", async () => {
     const { cloudRepo, localRepo, branch, localGitState } =
       await prepareHandoffRepos(cleanups);
     await makeCloudChanges(cloudRepo);
@@ -162,10 +151,6 @@ describe("HandoffCheckpointTracker", () => {
     const applyTracker = createTracker(localRepo.path, apiClient);
     await applyTracker.applyFromHandoff(checkpoint);
 
-    // The handoff service restores files separately via tree_snapshot.
-    // Mirror that here so the restored git index can be validated.
-    await mirrorRestoredWorktree(cloudRepo, localRepo);
-
     expect(await localRepo.git(["rev-parse", "HEAD"])).toBe(checkpoint.head);
     expect(await localRepo.git(["rev-parse", "--abbrev-ref", "HEAD"])).toBe(
       branch,
@@ -179,5 +164,6 @@ describe("HandoffCheckpointTracker", () => {
     expect(status).toContain("M  tracked.txt");
     expect(status).toContain(" M unstaged.txt");
     expect(status).toContain("?? untracked.txt");
+    expect(localRepo.exists(".posthog/tmp")).toBe(false);
   });
 });

@@ -28,6 +28,22 @@ export const handoffPreflightResult = z.object({
   reason: z.string().optional(),
   localTreeDirty: z.boolean(),
   localGitState: handoffLocalGitStateSchema.optional(),
+  changedFiles: z
+    .array(
+      z.object({
+        path: z.string(),
+        status: z.enum([
+          "modified",
+          "added",
+          "deleted",
+          "renamed",
+          "untracked",
+        ]),
+        linesAdded: z.number().optional(),
+        linesRemoved: z.number().optional(),
+      }),
+    )
+    .optional(),
 });
 
 export type HandoffPreflightResult = z.infer<typeof handoffPreflightResult>;
@@ -81,10 +97,8 @@ export type HandoffToCloudExecuteResult = z.infer<
 export type HandoffStep =
   | "fetching_logs"
   | "applying_git_checkpoint"
-  | "applying_snapshot"
   | "spawning_agent"
   | "capturing_checkpoint"
-  | "capturing_snapshot"
   | "stopping_agent"
   | "starting_cloud_run"
   | "complete"

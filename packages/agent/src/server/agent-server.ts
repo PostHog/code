@@ -35,7 +35,6 @@ import {
   resumeFromLog,
 } from "../resume";
 import { SessionLogWriter } from "../session-log-writer";
-import { TreeTracker } from "../tree-tracker";
 import type {
   AgentMode,
   DeviceInfo,
@@ -44,7 +43,6 @@ import type {
   LogLevel,
   TaskRun,
   TaskRunArtifact,
-  TreeSnapshotEvent,
 } from "../types";
 import { resourceLink } from "../utils/acp-content";
 import { AsyncMutex } from "../utils/async-mutex";
@@ -184,7 +182,6 @@ interface ActiveSession {
   acpSessionId: string;
   acpConnection: InProcessAcpConnection;
   clientConnection: ClientSideConnection;
-  treeTracker: TreeTracker | null;
   sseController: SseController | null;
   deviceInfo: DeviceInfo;
   logWriter: SessionLogWriter;
@@ -494,7 +491,6 @@ export class AgentServer {
       });
       this.logger.debug("Resume state loaded", {
         conversationTurns: this.resumeState.conversation.length,
-        hasSnapshot: !!this.resumeState.latestSnapshot,
         hasGitCheckpoint: !!this.resumeState.latestGitCheckpoint,
         gitCheckpointBranch:
           this.resumeState.latestGitCheckpoint?.branch ?? null,
@@ -823,16 +819,6 @@ export class AgentServer {
       userAgent: `posthog/cloud.hog.dev; version: ${this.config.version ?? packageJson.version}`,
     });
 
-    const treeTracker = this.config.repositoryPath
-      ? new TreeTracker({
-          repositoryPath: this.config.repositoryPath,
-          taskId: payload.task_id,
-          runId: payload.run_id,
-          apiClient: posthogAPI,
-          logger: new Logger({ debug: true, prefix: "[TreeTracker]" }),
-        })
-      : null;
-
     const logWriter = new SessionLogWriter({
       posthogAPI,
       logger: new Logger({ debug: true, prefix: "[SessionLogWriter]" }),
@@ -948,7 +934,6 @@ export class AgentServer {
       acpSessionId,
       acpConnection,
       clientConnection,
-      treeTracker,
       sseController,
       deviceInfo,
       logWriter,
@@ -1128,36 +1113,7 @@ export class AgentServer {
         this.resumeState.conversation,
       );
 
-      let snapshotApplied = false;
-      if (
-        this.resumeState.latestSnapshot?.archiveUrl &&
-        this.config.repositoryPath &&
-        this.posthogAPI
-      ) {
-        try {
-          const treeTracker = new TreeTracker({
-            repositoryPath: this.config.repositoryPath,
-            taskId: payload.task_id,
-            runId: payload.run_id,
-            apiClient: this.posthogAPI,
-            logger: this.logger.child("TreeTracker"),
-          });
-          await treeTracker.applyTreeSnapshot(this.resumeState.latestSnapshot);
-          treeTracker.setLastTreeHash(this.resumeState.latestSnapshot.treeHash);
-          snapshotApplied = true;
-          this.logger.info("Tree snapshot applied", {
-            treeHash: this.resumeState.latestSnapshot.treeHash,
-            changes: this.resumeState.latestSnapshot.changes?.length ?? 0,
-            hasArchiveUrl: !!this.resumeState.latestSnapshot.archiveUrl,
-          });
-        } catch (error) {
-          this.logger.warn("Failed to apply tree snapshot", {
-            error: error instanceof Error ? error.message : String(error),
-            treeHash: this.resumeState.latestSnapshot.treeHash,
-          });
-        }
-      }
-
+      let checkpointApplied = false;
       if (
         this.resumeState.latestGitCheckpoint &&
         this.config.repositoryPath &&
@@ -1174,6 +1130,7 @@ export class AgentServer {
           const metrics = await checkpointTracker.applyFromHandoff(
             this.resumeState.latestGitCheckpoint,
           );
+          checkpointApplied = true;
           this.logger.info("Git checkpoint applied", {
             branch: this.resumeState.latestGitCheckpoint.branch,
             head: this.resumeState.latestGitCheckpoint.head,
@@ -1191,9 +1148,9 @@ export class AgentServer {
 
       const pendingUserPrompt = await this.getPendingUserPrompt(taskRun);
 
-      const sandboxContext = snapshotApplied
-        ? `The workspace environment (all files, packages, and code changes) has been fully restored from where you left off.`
-        : `The workspace files from the previous session were not restored (the file snapshot may have expired), so you are starting with a fresh environment. Your conversation history is fully preserved below.`;
+      const sandboxContext = checkpointApplied
+        ? `The workspace environment (all files, packages, and code changes) has been fully restored from the latest checkpoint.`
+        : `The workspace from the previous session was not restored from a checkpoint, so you are starting with a fresh environment. Your conversation history is fully preserved below.`;
 
       let resumePromptBlocks: ContentBlock[];
       if (pendingUserPrompt?.length) {
@@ -1230,7 +1187,7 @@ export class AgentServer {
         conversationTurns: this.resumeState.conversation.length,
         promptLength: promptBlocksToText(resumePromptBlocks).length,
         hasPendingUserMessage: !!pendingUserPrompt?.length,
-        snapshotApplied,
+        checkpointApplied,
         hasGitCheckpoint: !!this.resumeState.latestGitCheckpoint,
         gitCheckpointBranch:
           this.resumeState.latestGitCheckpoint?.branch ?? null,
@@ -1933,7 +1890,8 @@ ${attributionInstructions}
         }
 
         // session/update notifications flow through the tapped stream (like local transport)
-        // Only handle tree state capture for file changes here
+        // Capture checkpoints for file-changing tools so cloud resumes restore
+        // from git checkpoints rather than tree snapshots.
         if (params.update?.sessionUpdate === "tool_call_update") {
           const meta = (params.update?._meta as Record<string, unknown>)
             ?.claudeCode as Record<string, unknown> | undefined;
@@ -1943,10 +1901,14 @@ ${attributionInstructions}
             | undefined;
 
           if (
-            (toolName === "Write" || toolName === "Edit") &&
+            (toolName === "Write" ||
+              toolName === "Edit" ||
+              toolName === "MultiEdit" ||
+              toolName === "Delete" ||
+              toolName === "Move") &&
             toolResponse?.filePath
           ) {
-            await this.captureTreeState();
+            await this.captureCheckpointState();
           }
 
           if (
@@ -2168,15 +2130,9 @@ ${attributionInstructions}
     this.logger.debug("Cleaning up session");
 
     try {
-      await this.captureHandoffCheckpoint();
+      await this.captureCheckpointState(this.session.pendingHandoffGitState);
     } catch (error) {
-      this.logger.error("Failed to capture handoff checkpoint", error);
-    }
-
-    try {
-      await this.captureTreeState();
-    } catch (error) {
-      this.logger.error("Failed to capture final tree state", error);
+      this.logger.error("Failed to capture final checkpoint state", error);
     }
 
     try {
@@ -2212,50 +2168,15 @@ ${attributionInstructions}
     this.session = null;
   }
 
-  private async captureTreeState(): Promise<void> {
-    if (!this.session?.treeTracker) return;
-
-    try {
-      const snapshot = await this.session.treeTracker.captureTree({});
-      if (snapshot) {
-        const snapshotWithDevice: TreeSnapshotEvent = {
-          ...snapshot,
-          device: this.session.deviceInfo,
-        };
-
-        const notification = {
-          jsonrpc: "2.0" as const,
-          method: POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT,
-          params: snapshotWithDevice,
-        };
-
-        this.broadcastEvent({
-          type: "notification",
-          timestamp: new Date().toISOString(),
-          notification,
-        });
-
-        // Persist full snapshot (including archiveUrl) so resume can restore files.
-        // archiveUrl is a pre-signed S3 URL that expires — if the user resumes
-        // after expiry, ApplySnapshotSaga fails gracefully and the agent continues
-        // with conversation context but a fresh sandbox (snapshotApplied=false).
-        this.session.logWriter.appendRawLine(
-          this.session.payload.run_id,
-          JSON.stringify(notification),
-        );
-      }
-    } catch (error) {
-      this.logger.error("Failed to capture tree state", error);
-    }
-  }
-
-  private async captureHandoffCheckpoint(): Promise<void> {
-    if (!this.session?.treeTracker || !this.session.pendingHandoffGitState) {
+  private async captureCheckpointState(
+    localGitState?: HandoffLocalGitState,
+  ): Promise<void> {
+    if (!this.session || !this.config.repositoryPath) {
       return;
     }
     if (!this.posthogAPI) {
       this.logger.warn(
-        "Skipping handoff checkpoint capture: PostHog API client is not configured",
+        "Skipping checkpoint capture: PostHog API client is not configured",
       );
       return;
     }
@@ -2268,9 +2189,7 @@ ${attributionInstructions}
       logger: this.logger.child("HandoffCheckpoint"),
     });
 
-    const checkpoint = await tracker.captureForHandoff(
-      this.session.pendingHandoffGitState,
-    );
+    const checkpoint = await tracker.captureForHandoff(localGitState);
     if (!checkpoint) return;
 
     const checkpointWithDevice: GitCheckpointEvent = {

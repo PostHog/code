@@ -33,19 +33,6 @@ function createInput(
   };
 }
 
-function createSnapshot(
-  overrides: Partial<AgentTypes.TreeSnapshotEvent> = {},
-): AgentTypes.TreeSnapshotEvent {
-  return {
-    treeHash: "abc123",
-    baseCommit: "def456",
-    archiveUrl: "https://s3.example.com/archive.tar.gz",
-    changes: [{ path: "test.txt", status: "A" }],
-    timestamp: "2026-04-07T00:00:00Z",
-    ...overrides,
-  };
-}
-
 function createCheckpoint(
   overrides: Partial<AgentTypes.GitCheckpointEvent> = {},
 ): AgentTypes.GitCheckpointEvent {
@@ -75,7 +62,6 @@ function createDeps(overrides: Partial<HandoffSagaDeps> = {}): HandoffSagaDeps {
       }),
       updateTaskRun: vi.fn().mockResolvedValue({}),
     }),
-    applyTreeSnapshot: vi.fn().mockResolvedValue(undefined),
     applyGitCheckpoint: vi.fn().mockResolvedValue(undefined),
     updateWorkspaceMode: vi.fn(),
     reconnectSession: vi.fn().mockResolvedValue({
@@ -96,7 +82,6 @@ function createResumeState(
 ): AgentResume.ResumeState {
   return {
     conversation: [],
-    latestSnapshot: null,
     latestGitCheckpoint: null,
     interrupted: false,
     logEntryCount: 0,
@@ -130,14 +115,14 @@ describe("HandoffSaga", () => {
     mockFormatConversation.mockReturnValue("conversation summary");
   });
 
-  it("completes happy path with snapshot", async () => {
-    const snapshot = createSnapshot();
+  it("completes happy path with checkpoint", async () => {
+    const checkpoint = createCheckpoint();
     const { result } = await runSaga({
       resumeState: {
         conversation: [
           { role: "user", content: [{ type: "text", text: "hello" }] },
         ],
-        latestSnapshot: snapshot,
+        latestGitCheckpoint: checkpoint,
         logEntryCount: 10,
       },
     });
@@ -145,7 +130,7 @@ describe("HandoffSaga", () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.data.sessionId).toBe("session-1");
-    expect(result.data.snapshotApplied).toBe(true);
+    expect(result.data.checkpointApplied).toBe(true);
     expect(result.data.conversationTurns).toBe(1);
   });
 
@@ -165,27 +150,15 @@ describe("HandoffSaga", () => {
     expect(closeOrder).toBeLessThan(fetchOrder);
   });
 
-  it("skips snapshot apply when no archiveUrl", async () => {
+  it("skips checkpoint apply when no checkpoint is present", async () => {
     const { deps, result } = await runSaga({
-      resumeState: {
-        latestSnapshot: createSnapshot({ archiveUrl: undefined }),
-        logEntryCount: 5,
-      },
+      resumeState: { logEntryCount: 5 },
     });
 
     expect(result.success).toBe(true);
     if (!result.success) return;
-    expect(result.data.snapshotApplied).toBe(false);
-    expect(deps.applyTreeSnapshot).not.toHaveBeenCalled();
-  });
-
-  it("skips snapshot apply when no snapshot at all", async () => {
-    const { deps, result } = await runSaga();
-
-    expect(result.success).toBe(true);
-    if (!result.success) return;
-    expect(result.data.snapshotApplied).toBe(false);
-    expect(deps.applyTreeSnapshot).not.toHaveBeenCalled();
+    expect(result.data.checkpointApplied).toBe(false);
+    expect(deps.applyGitCheckpoint).not.toHaveBeenCalled();
   });
 
   it("seeds local logs when cloudLogUrl is present", async () => {
@@ -232,16 +205,16 @@ describe("HandoffSaga", () => {
     );
   });
 
-  it("context mentions files restored when snapshot applied", async () => {
+  it("context mentions files restored when checkpoint applied", async () => {
     const { deps } = await runSaga({
       resumeState: {
-        latestSnapshot: createSnapshot(),
+        latestGitCheckpoint: createCheckpoint(),
       },
     });
 
     expect(deps.setPendingContext).toHaveBeenCalledWith(
       "run-1",
-      expect.stringContaining("fully restored"),
+      expect.stringContaining("restored from the cloud session checkpoint"),
     );
   });
 
@@ -262,14 +235,12 @@ describe("HandoffSaga", () => {
     const { deps } = await runSaga({
       resumeState: {
         latestGitCheckpoint: createCheckpoint(),
-        latestSnapshot: createSnapshot(),
       },
     });
 
     expect(getProgressSteps(deps)).toEqual([
       "fetching_logs",
       "applying_git_checkpoint",
-      "applying_snapshot",
       "spawning_agent",
       "complete",
     ]);
@@ -318,11 +289,10 @@ describe("HandoffSaga", () => {
     });
   });
 
-  it("applies git checkpoint before restoring the file snapshot", async () => {
+  it("applies git checkpoint with local git state during handoff", async () => {
     const { deps, result } = await runSaga({
       input: { localGitState: DEFAULT_LOCAL_GIT_STATE },
       resumeState: {
-        latestSnapshot: createSnapshot(),
         latestGitCheckpoint: createCheckpoint(),
       },
     });
@@ -338,6 +308,5 @@ describe("HandoffSaga", () => {
       expect.any(Object),
       DEFAULT_LOCAL_GIT_STATE,
     );
-    expect(deps.applyTreeSnapshot).toHaveBeenCalledTimes(1);
   });
 });

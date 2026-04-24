@@ -49,6 +49,7 @@ interface GitInteractionState {
   behind: number;
   currentBranch: string | null;
   defaultBranch: string | null;
+  isFeatureBranch: boolean;
   prBaseBranch: string | null;
   prHeadBranch: string | null;
   diffStats: DiffStats;
@@ -70,9 +71,9 @@ interface GitInteractionActions {
   setPrTitle: (value: string) => void;
   setPrBody: (value: string) => void;
   setBranchName: (value: string) => void;
-  runCommit: () => Promise<void>;
+  runCommit: () => Promise<boolean>;
   runPush: (mode?: PushMode) => Promise<void>;
-  runBranch: () => Promise<void>;
+  runBranch: () => Promise<boolean>;
   runCreatePr: () => Promise<void>;
   generateCommitMessage: () => Promise<void>;
   generatePrTitleAndBody: () => Promise<void>;
@@ -344,12 +345,12 @@ export function useGitInteraction(
     }
   };
 
-  const runCommit = async () => {
-    if (!repoPath) return;
+  const runCommit = async (): Promise<boolean> => {
+    if (!repoPath) return false;
 
     if (store.commitNextStep === "commit-push" && computed.pushDisabledReason) {
       modal.setCommitError(computed.pushDisabledReason);
-      return;
+      return false;
     }
 
     modal.setIsSubmitting(true);
@@ -369,7 +370,7 @@ export function useGitInteraction(
             "No changes detected to generate a commit message.",
           );
           modal.setIsSubmitting(false);
-          return;
+          return false;
         }
 
         message = generated.message;
@@ -382,7 +383,7 @@ export function useGitInteraction(
             : "Failed to generate commit message.",
         );
         modal.setIsSubmitting(false);
-        return;
+        return false;
       }
     }
 
@@ -400,7 +401,7 @@ export function useGitInteraction(
       if (!result.success) {
         trackGitAction(taskId, "commit", false, commitStagingContext);
         modal.setCommitError(result.message || "Commit failed.");
-        return;
+        return false;
       }
 
       trackGitAction(taskId, "commit", true, commitStagingContext);
@@ -416,8 +417,9 @@ export function useGitInteraction(
         const mode = git.hasRemote ? "push" : "publish";
         modal.openPush(mode);
         await runPush(mode);
-        return;
+        return true;
       }
+      return true;
     } finally {
       modal.setIsSubmitting(false);
     }
@@ -556,8 +558,8 @@ export function useGitInteraction(
     }
   };
 
-  const runBranch = async () => {
-    if (!repoPath) return;
+  const runBranch = async (): Promise<boolean> => {
+    if (!repoPath) return false;
 
     modal.setIsSubmitting(true);
     modal.setBranchError(null);
@@ -574,7 +576,7 @@ export function useGitInteraction(
         }
 
         modal.setBranchError(result.error);
-        return;
+        return false;
       }
 
       trackGitAction(taskId, "branch-here", true);
@@ -587,12 +589,14 @@ export function useGitInteraction(
         );
 
       modal.closeBranch();
+      return true;
     } catch (error) {
       log.error("Failed to create branch", error);
       trackGitAction(taskId, "branch-here", false);
       modal.setBranchError(
         error instanceof Error ? error.message : "Failed to create branch.",
       );
+      return false;
     } finally {
       modal.setIsSubmitting(false);
     }
@@ -607,6 +611,7 @@ export function useGitInteraction(
       behind: git.behind,
       currentBranch: git.currentBranch,
       defaultBranch: git.defaultBranch,
+      isFeatureBranch: git.isFeatureBranch,
       prBaseBranch: computed.prBaseBranch,
       prHeadBranch: computed.prHeadBranch,
       diffStats: git.diffStats,

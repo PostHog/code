@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { vi } from "vitest";
 import type { PostHogAPIClient } from "../../posthog-api";
-import type { TaskRun, TreeSnapshot } from "../../types";
+import type { TaskRun } from "../../types";
 
 const execFileAsync = promisify(execFile);
 
@@ -70,7 +70,7 @@ export function createMockApiClient(
   return {
     uploadTaskArtifacts: vi
       .fn()
-      .mockResolvedValue([{ storage_path: "gs://bucket/trees/test.tar.gz" }]),
+      .mockResolvedValue([{ storage_path: "gs://bucket/handoff/test.pack" }]),
     downloadArtifact: vi.fn(),
     getTaskRun: vi.fn(),
     fetchTaskRunLogs: vi.fn(),
@@ -94,19 +94,6 @@ export function createTaskRun(overrides: Partial<TaskRun> = {}): TaskRun {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     completed_at: null,
-    ...overrides,
-  };
-}
-
-export function createSnapshot(
-  overrides: Partial<TreeSnapshot> = {},
-): TreeSnapshot {
-  return {
-    treeHash: "test-tree-hash",
-    baseCommit: null,
-    archiveUrl: "gs://bucket/trees/test.tar.gz",
-    changes: [],
-    timestamp: new Date().toISOString(),
     ...overrides,
   };
 }

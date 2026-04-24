@@ -1,5 +1,6 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import {
   type GitHandoffBranchDivergence,
   type GitHandoffCheckpoint,
@@ -100,8 +101,12 @@ export class HandoffCheckpointTracker {
         indexArtifactPath: uploads.index?.storagePath,
       };
     } finally {
+      const tempDir = capture.headPack?.path
+        ? dirname(capture.headPack.path)
+        : dirname(capture.indexFile.path);
       await this.removeIfPresent(capture.headPack?.path);
       await this.removeIfPresent(capture.indexFile.path);
+      await rm(tempDir, { recursive: true, force: true }).catch(() => {});
     }
   }
 
@@ -121,8 +126,9 @@ export class HandoffCheckpointTracker {
     }
 
     const gitTracker = this.createGitTracker();
-    const tmpDir = join(this.repositoryPath, ".posthog", "tmp");
-    await mkdir(tmpDir, { recursive: true });
+    const tmpDir = await mkdtemp(
+      join(tmpdir(), `posthog-code-handoff-${checkpoint.checkpointId}-`),
+    );
 
     const packPath = join(tmpDir, `${checkpoint.checkpointId}.pack`);
     const indexPath = join(tmpDir, `${checkpoint.checkpointId}.index`);
@@ -161,6 +167,7 @@ export class HandoffCheckpointTracker {
     } finally {
       await this.removeIfPresent(packPath);
       await this.removeIfPresent(indexPath);
+      await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
     }
   }
 
@@ -294,50 +301,22 @@ export class HandoffCheckpointTracker {
     uploads: Uploads,
   ): void {
     this.logger.info("Captured handoff checkpoint", {
-      checkpointId: checkpoint.checkpointId,
       branch: checkpoint.branch,
-      head: checkpoint.head,
-      artifactPath: uploads.pack?.storagePath,
-      indexArtifactPath: uploads.index?.storagePath,
-      ...this.buildMetricPayload(uploads),
+      head: checkpoint.head?.slice(0, 7),
+      totalBytes: this.sumRawBytes(uploads.pack, uploads.index),
     });
   }
 
   private logApplyMetrics(
     checkpoint: GitCheckpoint,
-    downloads: Downloads,
+    _downloads: Downloads,
     totalBytes: number,
   ): void {
     this.logger.info("Applied handoff checkpoint", {
-      checkpointId: checkpoint.checkpointId,
-      commit: checkpoint.commit,
       branch: checkpoint.branch,
-      head: checkpoint.head,
-      packBytes: downloads.pack?.rawBytes ?? 0,
-      packWireBytes: downloads.pack?.wireBytes ?? 0,
-      indexBytes: downloads.index?.rawBytes ?? 0,
-      indexWireBytes: downloads.index?.wireBytes ?? 0,
+      head: checkpoint.head?.slice(0, 7),
       totalBytes,
-      totalWireBytes: this.sumWireBytes(downloads.pack, downloads.index),
     });
-  }
-
-  private buildMetricPayload(metrics: ArtifactSlotMap<object>): {
-    packBytes: number;
-    packWireBytes: number;
-    indexBytes: number;
-    indexWireBytes: number;
-    totalBytes: number;
-    totalWireBytes: number;
-  } {
-    return {
-      packBytes: metrics.pack?.rawBytes ?? 0,
-      packWireBytes: metrics.pack?.wireBytes ?? 0,
-      indexBytes: metrics.index?.rawBytes ?? 0,
-      indexWireBytes: metrics.index?.wireBytes ?? 0,
-      totalBytes: this.sumRawBytes(metrics.pack, metrics.index),
-      totalWireBytes: this.sumWireBytes(metrics.pack, metrics.index),
-    };
   }
 
   private sumRawBytes(
@@ -345,15 +324,6 @@ export class HandoffCheckpointTracker {
   ): number {
     return artifacts.reduce(
       (total, artifact) => total + (artifact?.rawBytes ?? 0),
-      0,
-    );
-  }
-
-  private sumWireBytes(
-    ...artifacts: Array<{ wireBytes: number } | undefined>
-  ): number {
-    return artifacts.reduce(
-      (total, artifact) => total + (artifact?.wireBytes ?? 0),
       0,
     );
   }

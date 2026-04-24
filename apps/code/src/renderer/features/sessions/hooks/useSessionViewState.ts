@@ -17,7 +17,16 @@ export function useSessionViewState(taskId: string, task: Task) {
   const isCloudRunTerminal = isCloud && !isCloudRunNotTerminal;
 
   const hasError = session?.status === "error" && !session?.idleKilled;
-  const isRunning = isCloud ? !hasError : session?.status === "connected";
+  const handoffInProgress = session?.handoffInProgress ?? false;
+
+  let isRunning = false;
+  if (!handoffInProgress) {
+    if (isCloud) {
+      isRunning = !hasError;
+    } else {
+      isRunning = session?.status === "connected";
+    }
+  }
 
   const events = session?.events ?? [];
   const isPromptPending = session?.isPromptPending ?? false;

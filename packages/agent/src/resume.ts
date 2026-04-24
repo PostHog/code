@@ -3,15 +3,15 @@
  *
  * Handles resuming a task from any point:
  * - Fetches log via the PostHog API
- * - Finds latest tree_snapshot event
+ * - Finds latest git_checkpoint event
  * - Rebuilds conversation from log events
- * - Restores working tree from snapshot
+ * - Restores working tree from checkpoint
  *
  * Uses Saga pattern for atomic operations with clear success/failure tracking.
  *
  * The log is the single source of truth for:
  * - Conversation history (user_message, agent_message_chunk, tool_call, tool_result)
- * - Working tree state (tree_snapshot events)
+ * - Working tree state (git_checkpoint events)
  * - Session metadata (device info, mode changes)
  */
 
@@ -19,16 +19,11 @@ import type { ContentBlock } from "@agentclientprotocol/sdk";
 import { selectRecentTurns } from "./adapters/claude/session/jsonl-hydration";
 import type { PostHogAPIClient } from "./posthog-api";
 import { ResumeSaga } from "./sagas/resume-saga";
-import type {
-  DeviceInfo,
-  GitCheckpointEvent,
-  TreeSnapshotEvent,
-} from "./types";
+import type { DeviceInfo, GitCheckpointEvent } from "./types";
 import { Logger } from "./utils/logger";
 
 export interface ResumeState {
   conversation: ConversationTurn[];
-  latestSnapshot: TreeSnapshotEvent | null;
   latestGitCheckpoint: GitCheckpointEvent | null;
   interrupted: boolean;
   lastDevice?: DeviceInfo;
@@ -59,7 +54,7 @@ export interface ResumeConfig {
 /**
  * Resume a task from its persisted log.
  * Returns the rebuilt state for the agent to continue from.
- * Snapshot and checkpoint application happens in the agent server after SSE connects.
+ * Checkpoint application happens in the agent server after SSE connects.
  */
 export async function resumeFromLog(
   config: ResumeConfig,
@@ -94,7 +89,6 @@ export async function resumeFromLog(
 
   return {
     conversation: result.data.conversation as ConversationTurn[],
-    latestSnapshot: result.data.latestSnapshot,
     latestGitCheckpoint: result.data.latestGitCheckpoint,
     interrupted: result.data.interrupted,
     lastDevice: result.data.lastDevice,

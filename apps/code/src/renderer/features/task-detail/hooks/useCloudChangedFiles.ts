@@ -40,22 +40,14 @@ export function useCloudChangedFiles(
   const isLoading = prUrl ? prPending : effectiveBranch ? branchPending : false;
   const hasError = prUrl ? prError : effectiveBranch ? branchError : false;
 
-  // changedFiles: sidebar list — prefers remote, falls back to tree snapshot (which
-  // has complete file status coverage) or tool calls.
   const changedFiles =
     remoteFiles.length > 0 ? remoteFiles : cloudRunState.fallbackFiles;
-
-  // reviewFiles: review panel diffs and +/- stats. Tool calls carry patches and line
-  // counts, so they're preferred over tree snapshots (path+status only) when remote
-  // data isn't available yet.
-  const reviewFiles =
-    remoteFiles.length > 0 ? remoteFiles : cloudRunState.toolCallFiles;
 
   return {
     ...cloudRunState,
     changedFiles,
     remoteFiles,
-    reviewFiles,
+    reviewFiles: changedFiles,
     isLoading,
     hasError,
   };

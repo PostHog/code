@@ -172,6 +172,10 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
 }
 ```
 
+### Tailwind over inline styles
+
+Always write Tailwind classes for styling wherever possible.
+
 ### Store / Service Boundary
 
 Stores and services have a strict separation of concerns:

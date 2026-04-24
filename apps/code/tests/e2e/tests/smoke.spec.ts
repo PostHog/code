@@ -21,7 +21,7 @@ test.describe("Smoke Tests", () => {
       .catch(() => {});
 
     const hasOnboarding = await window
-      .locator("text=Welcome to PostHog Code")
+      .locator("text=Welcome to")
       .first()
       .isVisible()
       .catch(() => false);

@@ -3,18 +3,23 @@ import { DiffStatsBadge } from "@features/code-review/components/DiffStatsBadge"
 import { BranchSelector } from "@features/git-interaction/components/BranchSelector";
 import { CloudGitInteractionHeader } from "@features/git-interaction/components/CloudGitInteractionHeader";
 import { GitInteractionHeader } from "@features/git-interaction/components/GitInteractionHeader";
+import { HandoffConfirmDialog } from "@features/sessions/components/HandoffConfirmDialog";
 import { useSessionForTask } from "@features/sessions/hooks/useSession";
 import { useSessionCallbacks } from "@features/sessions/hooks/useSessionCallbacks";
+import { useHandoffDialogStore } from "@features/sessions/stores/handoffDialogStore";
 import { SidebarTrigger } from "@features/sidebar/components/SidebarTrigger";
 import { useSidebarStore } from "@features/sidebar/stores/sidebarStore";
 import { SkillButtonsMenu } from "@features/skill-buttons/components/SkillButtonsMenu";
 import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
-import { Box, Button, Flex, Text } from "@radix-ui/themes";
+import { Cloud, Spinner } from "@phosphor-icons/react";
+import { Button as QuillButton } from "@posthog/quill";
+import { Box, Flex } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { useHeaderStore } from "@stores/headerStore";
 import { useNavigationStore } from "@stores/navigationStore";
 import { isWindows } from "@utils/platform";
+import { useState } from "react";
 
 const CLOUD_HANDOFF_FLAG = "phc-cloud-handoff";
 
@@ -24,33 +29,80 @@ function LocalHandoffButton({ taskId, task }: { taskId: string; task: Task }) {
   const repoPath = workspace?.folderPath ?? null;
   const authStatus = useAuthStateValue((s) => s.status);
   const cloudHandoffEnabled = useFeatureFlag(CLOUD_HANDOFF_FLAG);
-  const { handleContinueInCloud } = useSessionCallbacks({
+  const { initiateHandoffToCloud } = useSessionCallbacks({
     taskId,
     task,
     session: session ?? undefined,
     repoPath,
   });
 
+  const confirmOpen = useHandoffDialogStore((s) => s.confirmOpen);
+  const direction = useHandoffDialogStore((s) => s.direction);
+  const branchName = useHandoffDialogStore((s) => s.branchName);
+  const openConfirm = useHandoffDialogStore((s) => s.openConfirm);
+  const closeConfirm = useHandoffDialogStore((s) => s.closeConfirm);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   if (authStatus !== "authenticated") return null;
   if (!cloudHandoffEnabled) return null;
 
+  const handleConfirm = async () => {
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await initiateHandoffToCloud();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Handoff failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const inProgress = session?.handoffInProgress ?? false;
+
   return (
-    <Button
-      size="1"
-      variant="soft"
-      disabled={session?.handoffInProgress}
-      onClick={handleContinueInCloud}
-    >
-      <Text size="1">
-        {session?.handoffInProgress ? "Transferring..." : "Continue in cloud"}
-      </Text>
-    </Button>
+    <>
+      <div className="no-drag flex items-center">
+        <QuillButton
+          variant="outline"
+          size="sm"
+          disabled={inProgress}
+          onClick={() =>
+            openConfirm(taskId, "to-cloud", workspace?.branchName ?? null)
+          }
+        >
+          {inProgress ? (
+            <Spinner size={14} className="shrink-0 animate-spin" />
+          ) : (
+            <Cloud size={14} weight="regular" className="shrink-0" />
+          )}
+          {inProgress ? "Transferring..." : "Continue in cloud"}
+        </QuillButton>
+      </div>
+      {confirmOpen && direction === "to-cloud" && (
+        <HandoffConfirmDialog
+          open={confirmOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeConfirm();
+              setError(null);
+            }
+          }}
+          direction="to-cloud"
+          branchName={branchName}
+          onConfirm={handleConfirm}
+          isSubmitting={isSubmitting}
+          error={error}
+        />
+      )}
+    </>
   );
 }
 
 export const HEADER_HEIGHT = 36;
 const COLLAPSED_WIDTH = 110;
-/** Width reserved for Windows title bar buttons (Close/Minimize/Maximize) */
 const WINDOWS_TITLEBAR_INSET = 140;
 
 export function HeaderRow() {
