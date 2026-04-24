@@ -43,7 +43,7 @@ export function SignalReportSummaryMarkdown({
 
   return (
     <Box
-      className="min-w-0 text-pretty break-words text-(--gray-11) text-[12px] [&_*]:leading-relaxed [&_.rt-Text]:mb-2 [&_a]:pointer-events-auto [&_li]:mb-1 [&_p:last-child]:mb-0"
+      className="min-w-0 text-pretty break-words text-(--gray-11) text-[13px] [&_*]:leading-relaxed [&_.rt-Text]:mb-2 [&_a]:pointer-events-auto [&_li]:mb-1 [&_p:last-child]:mb-0"
       style={italicStyle}
     >
       <MarkdownRenderer content={raw} />

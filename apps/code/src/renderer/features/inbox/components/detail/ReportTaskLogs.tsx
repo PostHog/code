@@ -324,7 +324,7 @@ export function ReportTaskLogs({
             const hideStatusLabel = showRunAction && !task;
 
             const rowClassName = [
-              "flex w-full items-center gap-2 bg-transparent px-3 py-2 text-left transition-colors",
+              "flex w-full items-center gap-2 bg-transparent px-2 @md:px-3 @lg:px-4 @xl:px-5 @2xl:px-6 @3xl:px-8 @4xl:px-10 @5xl:px-12 py-2 text-left transition-colors",
               index > 0 ? "border-gray-5 border-t" : "",
               isInteractive
                 ? "cursor-pointer hover:bg-gray-2"

@@ -261,9 +261,8 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
         align="center"
         justify="between"
         gap="2"
-        px="3"
         py="2"
-        className="shrink-0 border-b border-b-(--gray-5)"
+        className="shrink-0 border-b border-b-(--gray-5) @2xl:px-6 @3xl:px-8 @4xl:px-10 @5xl:px-12 @lg:px-4 @md:px-3 @xl:px-5 px-2"
       >
         <Flex align="center" gap="2" className="min-w-0">
           <SignalReportStatusBadge status={report.status} />
@@ -310,7 +309,11 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
         scrollbars="vertical"
         className="scroll-area-constrain-width flex-1"
       >
-        <Flex direction="column" gap="2" p="2" className="min-w-0">
+        <Flex
+          direction="column"
+          gap="2"
+          className="min-w-0 @2xl:px-6 @3xl:px-8 @4xl:px-10 @5xl:px-12 @lg:px-4 @md:px-3 @xl:px-5 px-2 @2xl:pt-3 @3xl:pt-4 @4xl:pt-5 @5xl:pt-6 @lg:pt-2 @md:pt-1.5 @xl:pt-2.5 pt-1 @2xl:pb-6 @3xl:pb-8 @4xl:pb-10 @5xl:pb-12 @lg:pb-4 @md:pb-3 @xl:pb-5 pb-2"
+        >
           {/* ── Description ─────────────────────────────────────── */}
           {report.status !== "ready" ? (
             <Tooltip content="This is a preliminary description. A full researched summary will replace it when the research agent completes its work.">

@@ -505,7 +505,10 @@ export function InboxSignalsTab() {
           </Box>
 
           {/* ── Right pane: detail ───────────────────────────────── */}
-          <Flex direction="column" className="relative h-full min-w-0 flex-1">
+          <Flex
+            direction="column"
+            className="@container relative h-full min-w-0 flex-1"
+          >
             {selectedReports.length > 1 ? (
               <MultiSelectStack
                 reports={selectedReports}
