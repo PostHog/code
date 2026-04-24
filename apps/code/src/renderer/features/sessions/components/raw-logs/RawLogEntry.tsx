@@ -15,7 +15,7 @@ export function RawLogEntry({ event, index, onCopy }: RawLogEntryProps) {
   return (
     <Box className="relative rounded p-2">
       <Flex justify="between" align="center" mb="1">
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px]">
           Event #{index}
         </Text>
         <IconButton
@@ -27,14 +27,7 @@ export function RawLogEntry({ event, index, onCopy }: RawLogEntryProps) {
           <Copy size={12} />
         </IconButton>
       </Flex>
-      <Code
-        size="1"
-        className="block overflow-x-auto whitespace-pre"
-        style={{
-          fontSize: "var(--font-size-1)",
-          lineHeight: "var(--line-height-1)",
-        }}
-      >
+      <Code className="block overflow-x-auto whitespace-pre text-[13px]">
         {json}
       </Code>
     </Box>

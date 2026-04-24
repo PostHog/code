@@ -22,9 +22,7 @@ export function CompactBoundaryView({
     <Box className="my-1 border-blue-6 border-l-2 py-1 pl-3 dark:border-blue-8">
       <Flex align="center" gap="2">
         <Lightning size={14} weight="fill" className="text-blue-9" />
-        <Text size="1" className="text-gray-11">
-          Conversation compacted
-        </Text>
+        <Text className="text-[13px] text-gray-11">Conversation compacted</Text>
         <Badge
           size="1"
           color={trigger === "auto" ? "orange" : "blue"}
@@ -32,7 +30,7 @@ export function CompactBoundaryView({
         >
           {trigger}
         </Badge>
-        <Text size="1" className="text-gray-9">
+        <Text className="text-[13px] text-gray-9">
           {percent !== null
             ? `(${percent}% of context · ~${tokensK}K tokens summarized)`
             : `(~${tokensK}K tokens summarized)`}

@@ -69,8 +69,7 @@ export function CommentAnnotation({
           ref={setTextareaRef}
           placeholder="Describe the changes you'd like..."
           onKeyDown={handleKeyDown}
-          className="w-full resize-none rounded border border-[var(--gray-6)] bg-[var(--color-background)] p-1.5 text-[13px] text-[var(--gray-12)] leading-normal outline-none"
-          style={{ minHeight: 48 }}
+          className="min-h-[48px] w-full resize-none rounded border border-[var(--gray-6)] bg-[var(--color-background)] p-1.5 text-[13px] text-[var(--gray-12)] leading-normal outline-none"
         />
         <div className="mt-1.5 flex items-center gap-3">
           <Button size="1" onClick={handleSubmit}>

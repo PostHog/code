@@ -74,7 +74,7 @@ export function AddCustomServerForm({
 
   return (
     <form onSubmit={handleSubmit}>
-      <Flex direction="column" gap="4" style={{ minWidth: 0 }}>
+      <Flex direction="column" gap="4" className="min-w-0">
         <Flex align="center" gap="2">
           <Button
             variant="ghost"
@@ -89,10 +89,8 @@ export function AddCustomServerForm({
         </Flex>
 
         <Flex direction="column" gap="1">
-          <Text size="5" weight="bold">
-            Add MCP server
-          </Text>
-          <Text size="2" color="gray">
+          <Text className="font-bold text-xl">Add MCP server</Text>
+          <Text color="gray" className="text-sm">
             Connect a custom MCP server by URL. Tools appear in your agent once
             the connection is verified.
           </Text>
@@ -100,10 +98,8 @@ export function AddCustomServerForm({
 
         <Flex direction="column" gap="3">
           <Flex direction="column" gap="1">
-            <Text size="2" weight="medium">
-              Name
-            </Text>
-            <Text size="1" color="gray">
+            <Text className="font-medium text-sm">Name</Text>
+            <Text color="gray" className="text-[13px]">
               A short label shown in your sidebar and tool calls.
             </Text>
             <TextField.Root
@@ -115,10 +111,8 @@ export function AddCustomServerForm({
           </Flex>
 
           <Flex direction="column" gap="1">
-            <Text size="2" weight="medium">
-              Server URL
-            </Text>
-            <Text size="1" color="gray">
+            <Text className="font-medium text-sm">Server URL</Text>
+            <Text color="gray" className="text-[13px]">
               HTTPS endpoint or streamable URL.
             </Text>
             <TextField.Root
@@ -130,9 +124,7 @@ export function AddCustomServerForm({
           </Flex>
 
           <Flex direction="column" gap="1">
-            <Text size="2" weight="medium">
-              Description
-            </Text>
+            <Text className="font-medium text-sm">Description</Text>
             <TextField.Root
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -141,9 +133,7 @@ export function AddCustomServerForm({
           </Flex>
 
           <Flex direction="column" gap="1">
-            <Text size="2" weight="medium">
-              Auth type
-            </Text>
+            <Text className="font-medium text-sm">Auth type</Text>
             <Select.Root
               value={authType}
               onValueChange={(val) => {
@@ -161,9 +151,7 @@ export function AddCustomServerForm({
 
           {authType === "api_key" && (
             <Flex direction="column" gap="1">
-              <Text size="2" weight="medium">
-                API key
-              </Text>
+              <Text className="font-medium text-sm">API key</Text>
               <TextField.Root
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
@@ -181,7 +169,7 @@ export function AddCustomServerForm({
                 color="gray"
                 size="1"
                 onClick={() => setShowAdvanced((v) => !v)}
-                style={{ alignSelf: "flex-start" }}
+                className="self-start"
               >
                 {showAdvanced ? (
                   <CaretDown size={11} weight="bold" />
@@ -193,10 +181,8 @@ export function AddCustomServerForm({
               {showAdvanced && (
                 <Flex direction="column" gap="3" className="pl-4">
                   <Flex direction="column" gap="1">
-                    <Text size="2" weight="medium">
-                      Client ID
-                    </Text>
-                    <Text size="1" color="gray">
+                    <Text className="font-medium text-sm">Client ID</Text>
+                    <Text color="gray" className="text-[13px]">
                       OAuth client identifier, if the server requires it.
                     </Text>
                     <TextField.Root
@@ -207,10 +193,8 @@ export function AddCustomServerForm({
                     />
                   </Flex>
                   <Flex direction="column" gap="1">
-                    <Text size="2" weight="medium">
-                      Client secret
-                    </Text>
-                    <Text size="1" color="gray">
+                    <Text className="font-medium text-sm">Client secret</Text>
+                    <Text color="gray" className="text-[13px]">
                       Stored encrypted — never logged.
                     </Text>
                     <TextField.Root

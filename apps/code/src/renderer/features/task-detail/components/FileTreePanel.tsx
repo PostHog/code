@@ -155,7 +155,7 @@ function CloudFileTreePanel({ taskId, task }: FileTreePanelProps) {
       <PanelMessage detail="Files are in the cloud sandbox">
         <Flex align="center" gap="2">
           <Spinner size="1" />
-          <Text size="2">Running in cloud...</Text>
+          <Text className="text-sm">Running in cloud...</Text>
         </Flex>
       </PanelMessage>
     );
@@ -172,7 +172,7 @@ function CloudFileTreePanel({ taskId, task }: FileTreePanelProps) {
       <Flex direction="column" align="center" gap="2">
         <Flex align="center" gap="2">
           <Cloud size={16} weight="regular" />
-          <Text size="2">
+          <Text className="text-sm">
             {hasFallbackChanges
               ? `${fallbackFiles.length} file${fallbackFiles.length === 1 ? "" : "s"} changed in cloud sandbox`
               : "Files are in the cloud sandbox"}
@@ -256,13 +256,7 @@ function LocalFileTreePanel({ taskId, task: _task }: FileTreePanelProps) {
   }
 
   return (
-    <Box
-      height="100%"
-      py="2"
-      style={{
-        overflowY: "auto",
-      }}
-    >
+    <Box height="100%" py="2" className="overflow-y-auto">
       <Flex direction="column">
         {rootEntries.map((entry) => (
           <LazyTreeItem

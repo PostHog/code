@@ -87,7 +87,7 @@ export function ReportImplementationPrLink({
             : "gap-1 px-2 py-0.5 text-[11px]",
           colorClass,
         )}
-        style={isSm ? { height: "var(--line-height-1)" } : undefined}
+        style={isSm ? { height: "20px" } : undefined}
       >
         {merged ? (
           <GitMerge size={iconSize} weight="bold" />

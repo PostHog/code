@@ -129,11 +129,10 @@ export function HeaderRow() {
   return (
     <Flex
       align="center"
-      className="drag"
+      className="drag border-b border-b-(--gray-6)"
       style={{
         height: `${HEADER_HEIGHT}px`,
         minHeight: `${HEADER_HEIGHT}px`,
-        borderBottom: "1px solid var(--gray-6)",
         paddingRight: isWindows ? `${WINDOWS_TITLEBAR_INSET}px` : undefined,
       }}
     >
@@ -145,25 +144,16 @@ export function HeaderRow() {
         style={{
           width: sidebarOpen ? `${sidebarWidth}px` : `${COLLAPSED_WIDTH}px`,
           minWidth: `${COLLAPSED_WIDTH}px`,
-          height: "100%",
-          borderRight: "1px solid var(--gray-6)",
           transition: isResizing ? "none" : "width 0.2s ease-in-out",
-          position: "relative",
         }}
+        className="relative h-full border-r border-r-(--gray-6)"
       >
         <SidebarTrigger />
         {sidebarOpen && (
           <Box
             onMouseDown={handleLeftSidebarMouseDown}
-            className="no-drag"
+            className="no-drag absolute top-0 right-0 bottom-0 w-[4px] cursor-col-resize bg-transparent"
             style={{
-              position: "absolute",
-              right: 0,
-              top: 0,
-              bottom: 0,
-              width: "4px",
-              cursor: "col-resize",
-              backgroundColor: "transparent",
               zIndex: 100,
             }}
           />
@@ -175,12 +165,7 @@ export function HeaderRow() {
           align="center"
           justify="between"
           pl="3"
-          style={{
-            height: "100%",
-            overflow: "hidden",
-            minWidth: 0,
-            flex: "1 1 0px",
-          }}
+          className="h-full min-w-0 flex-1 overflow-hidden"
         >
           {content}
         </Flex>
@@ -193,12 +178,7 @@ export function HeaderRow() {
           gap="1"
           pr="1"
           pl="1"
-          style={{
-            height: "100%",
-            flexShrink: 0,
-            maxWidth: "50%",
-            overflow: "hidden",
-          }}
+          className="h-full max-w-[50%] shrink-0 overflow-hidden"
         >
           <div className="no-drag">
             <SkillButtonsMenu taskId={view.data.id} />

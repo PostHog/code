@@ -69,7 +69,7 @@ export function ContextUsageIndicator({ usage }: ContextUsageIndicatorProps) {
             strokeLinecap="round"
           />
         </svg>
-        <Text size="1" className="text-gray-10 tabular-nums">
+        <Text className="text-[13px] text-gray-10 tabular-nums">
           {formatTokensCompact(used)}/{formatTokensCompact(size)}
         </Text>
       </Flex>

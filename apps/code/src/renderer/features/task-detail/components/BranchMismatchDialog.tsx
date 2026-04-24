@@ -23,23 +23,16 @@ interface BranchMismatchDialogProps {
 function BranchLabel({ name }: { name: string }) {
   return (
     <Code
-      size="2"
       variant="ghost"
       truncate
-      style={{
-        maxWidth: "100%",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "4px",
-      }}
+      className="inline-flex max-w-[100%] items-center gap-[4px] text-sm"
     >
-      <GitBranch size={12} style={{ flexShrink: 0 }} />
+      <GitBranch size={12} className="shrink-0" />
       <span
         style={{
-          overflow: "hidden",
           textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
         }}
+        className="overflow-hidden whitespace-nowrap"
       >
         {name}
       </span>
@@ -66,33 +59,25 @@ export function BranchMismatchDialog({
       }}
     >
       <AlertDialog.Content maxWidth="420px" size="2">
-        <AlertDialog.Title size="3">
+        <AlertDialog.Title className="text-base">
           <Flex align="center" gap="2">
             <Warning size={18} weight="fill" color="var(--orange-9)" />
             Wrong branch
           </Flex>
         </AlertDialog.Title>
-        <AlertDialog.Description size="2">
+        <AlertDialog.Description className="text-sm">
           This task is linked to a different branch than the one you're
           currently on. The agent will make changes on the current branch.
         </AlertDialog.Description>
-        <Flex direction="column" gap="1" mt="3" style={{ minWidth: 0 }}>
-          <Flex align="center" gap="2" style={{ minWidth: 0 }}>
-            <Text
-              size="1"
-              color="gray"
-              style={{ flexShrink: 0, width: "64px" }}
-            >
+        <Flex direction="column" gap="1" mt="3" className="min-w-0">
+          <Flex align="center" gap="2" className="min-w-0">
+            <Text color="gray" className="w-[64px] shrink-0 text-[13px]">
               Linked
             </Text>
             <BranchLabel name={linkedBranch} />
           </Flex>
-          <Flex align="center" gap="2" style={{ minWidth: 0 }}>
-            <Text
-              size="1"
-              color="gray"
-              style={{ flexShrink: 0, width: "64px" }}
-            >
+          <Flex align="center" gap="2" className="min-w-0">
+            <Text color="gray" className="w-[64px] shrink-0 text-[13px]">
               Current
             </Text>
             <BranchLabel name={currentBranch} />

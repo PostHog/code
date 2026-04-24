@@ -77,22 +77,22 @@ export function DiffStatsBadge({ task }: DiffStatsBadgeProps) {
         size="sm"
         className={`no-drag font-mono text-(--gray-11) text-[11px] transition-colors duration-100 hover:bg-(--gray-a3) ${isOpen ? "bg-(--gray-a3)" : "bg-transparent"}`}
       >
-        <GitDiff size={14} style={{ flexShrink: 0 }} />
+        <GitDiff size={14} className="shrink-0" />
         {hasChanges ? (
           <Flex align="center" gap="1">
             {linesAdded > 0 && (
-              <Text style={{ color: "var(--green-9)", fontSize: "11px" }}>
+              <Text className="text-(--green-9) text-[11px]">
                 +{linesAdded}
               </Text>
             )}
             {linesRemoved > 0 && (
-              <Text style={{ color: "var(--red-9)", fontSize: "11px" }}>
+              <Text className="text-(--red-9) text-[11px]">
                 -{linesRemoved}
               </Text>
             )}
           </Flex>
         ) : (
-          <Text style={{ color: "var(--gray-9)", fontSize: "11px" }}>0</Text>
+          <Text className="text-(--gray-9) text-[11px]">0</Text>
         )}
       </Button>
     </Tooltip>

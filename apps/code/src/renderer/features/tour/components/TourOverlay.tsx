@@ -28,12 +28,11 @@ function SpotlightOverlay({ targetRect }: { targetRect: DOMRect | null }) {
           exit={{ opacity: 0 }}
           transition={{ type: "spring", stiffness: 200, damping: 25 }}
           style={{
-            position: "fixed",
             borderRadius: SPOTLIGHT_RADIUS,
             boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.5)",
             zIndex: 199,
-            pointerEvents: "none",
           }}
+          className="pointer-events-none fixed"
         />
       )}
     </AnimatePresence>,
@@ -46,6 +45,12 @@ export function TourOverlay() {
   const activeStepIndex = useTourStore((s) => s.activeStepIndex);
   const advance = useTourStore((s) => s.advance);
   const dismiss = useTourStore((s) => s.dismiss);
+
+  useEffect(() => {
+    if (!activeTourId) return;
+    document.body.classList.add("tour-active");
+    return () => document.body.classList.remove("tour-active");
+  }, [activeTourId]);
 
   const tour = activeTourId ? TOUR_REGISTRY[activeTourId] : null;
   const step = tour?.steps[activeStepIndex] ?? null;

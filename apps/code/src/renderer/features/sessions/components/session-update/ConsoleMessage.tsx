@@ -22,7 +22,7 @@ export function ConsoleMessage({ level, message }: ConsoleMessageProps) {
 
   return (
     <Box className="border-gray-4 border-l-2 py-0.5 pl-3">
-      <Text size="1" className="text-gray-11">
+      <Text className="text-[13px] text-gray-11">
         <Text className={getLevelColor()}>[{level}]</Text> {message}
       </Text>
     </Box>

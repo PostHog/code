@@ -28,24 +28,17 @@ export function TreeDirectoryRow({
       align="center"
       gap="1"
       onClick={onToggle}
-      className={isActive ? TREE_ROW_ACTIVE_CLASS : TREE_ROW_INACTIVE_CLASS}
+      className={`h-[22px] cursor-pointer select-none pr-[8px] ${isActive ? TREE_ROW_ACTIVE_CLASS : TREE_ROW_INACTIVE_CLASS}`}
       style={{
         paddingLeft: `${depth * TREE_INDENT_PX + 4}px`,
-        paddingRight: "8px",
-        height: "22px",
-        cursor: "pointer",
-        userSelect: "none",
       }}
     >
       <Box
         style={{
           width: `${CARET_COL_SIZE}px`,
           height: `${CARET_COL_SIZE}px`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
         }}
+        className="flex shrink-0 items-center justify-center"
       >
         <CaretRight
           size={10}
@@ -62,19 +55,12 @@ export function TreeDirectoryRow({
           size={14}
           weight="fill"
           color="var(--accent-9)"
-          style={{ flexShrink: 0 }}
+          className="shrink-0"
         />
       ) : (
-        <FolderIcon
-          size={14}
-          color="var(--accent-9)"
-          style={{ flexShrink: 0 }}
-        />
+        <FolderIcon size={14} color="var(--accent-9)" className="shrink-0" />
       )}
-      <span
-        className="select-none overflow-hidden text-ellipsis whitespace-nowrap text-[13px]"
-        style={{ marginLeft: "4px" }}
-      >
+      <span className="ml-[4px] select-none overflow-hidden text-ellipsis whitespace-nowrap text-[13px]">
         {name}
       </span>
     </Flex>
@@ -114,12 +100,9 @@ export function TreeFileRow({
       onContextMenu={onContextMenu}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className={isActive ? TREE_ROW_ACTIVE_CLASS : TREE_ROW_INACTIVE_CLASS}
+      className={`h-[22px] cursor-pointer pr-[8px] ${isActive ? TREE_ROW_ACTIVE_CLASS : TREE_ROW_INACTIVE_CLASS}`}
       style={{
         paddingLeft: `${depth * TREE_INDENT_PX + 4}px`,
-        paddingRight: "8px",
-        height: "22px",
-        cursor: "pointer",
       }}
     >
       {/* Spacer to align with folder caret column */}
@@ -127,14 +110,11 @@ export function TreeFileRow({
         style={{
           width: `${CARET_COL_SIZE}px`,
           height: `${CARET_COL_SIZE}px`,
-          flexShrink: 0,
         }}
+        className="shrink-0"
       />
       <FileIcon filename={fileName} size={14} />
-      <span
-        className="select-none overflow-hidden text-ellipsis whitespace-nowrap text-[13px]"
-        style={{ marginLeft: "4px", minWidth: 0, flex: 1 }}
-      >
+      <span className="ml-[4px] min-w-0 flex-1 select-none overflow-hidden text-ellipsis whitespace-nowrap text-[13px]">
         {fileName}
       </span>
       {trailing}

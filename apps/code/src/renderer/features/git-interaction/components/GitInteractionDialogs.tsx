@@ -46,30 +46,16 @@ export function ErrorContainer({
   };
 
   return (
-    <Box
-      style={{
-        border: "1px solid var(--red-6)",
-        borderRadius: "var(--radius-2)",
-        backgroundColor: "var(--red-2)",
-        maxHeight: "200px",
-        overflow: "auto",
-      }}
-    >
+    <Box className="max-h-[200px] overflow-auto rounded-(--radius-2) border border-(--red-6) bg-(--red-2)">
       <Flex direction="column" gap="2" p="2">
         <Flex justify="between" align="start" gap="2">
           <Text
-            size="1"
             color="red"
-            style={{
-              flex: 1,
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              fontFamily: "var(--code-font-family)",
-            }}
+            className="flex-1 whitespace-pre-wrap break-words font-[var(--code-font-family)] text-[13px]"
           >
             {error}
           </Text>
-          <Flex gap="1" style={{ flexShrink: 0 }}>
+          <Flex gap="1" className="shrink-0">
             {onFixWithAgent && (
               <Tooltip content="Fix with Agent">
                 <IconButton
@@ -137,8 +123,8 @@ export function CommitAllToggle({
       align="center"
       gap="2"
       py="1"
-      style={{ cursor: "pointer" }}
       onClick={() => onChange(!checked)}
+      className="cursor-pointer"
     >
       <Checkbox
         size="1"
@@ -146,7 +132,7 @@ export function CommitAllToggle({
         onCheckedChange={(c) => onChange(c === true)}
         onClick={(e) => e.stopPropagation()}
       />
-      <Text size="1" color="gray">
+      <Text color="gray" className="text-[13px]">
         Commit all changes
       </Text>
     </Flex>
@@ -188,9 +174,7 @@ export function GitDialog({
         <Flex direction="column" gap="3">
           <Flex align="center" gap="2">
             {icon}
-            <Text size="2" weight="medium">
-              {title}
-            </Text>
+            <Text className="font-medium text-sm">{title}</Text>
           </Flex>
 
           {children}
@@ -223,7 +207,7 @@ export function GitDialog({
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Flex align="center" justify="between">
-      <Text size="1" color="gray">
+      <Text color="gray" className="text-[13px]">
         {label}
       </Text>
       {children}
@@ -234,9 +218,9 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 function BranchBadge({ branch }: { branch: string | null }) {
   return (
     <Tooltip content={branch ?? "Unknown"}>
-      <Flex align="center" gap="1" style={{ minWidth: 0, maxWidth: 240 }}>
-        <GitBranch size={12} style={{ flexShrink: 0 }} />
-        <Text size="1" truncate>
+      <Flex align="center" gap="1" className="min-w-0 max-w-[240px]">
+        <GitBranch size={12} className="shrink-0" />
+        <Text truncate className="text-[13px]">
           {branch ?? "Unknown"}
         </Text>
       </Flex>
@@ -266,21 +250,15 @@ function SelectableOption({
       role="button"
       onClick={() => !disabled && onSelect()}
       style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "6px 8px",
-        border: "1px solid var(--gray-6)",
         background: selected ? "var(--accent-4)" : "var(--gray-2)",
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.5 : 1,
       }}
+      className="flex items-center justify-between border border-(--gray-6) px-[8px] py-[6px]"
     >
       <Flex align="center" gap="2">
         {icon}
-        <Text size="1" weight="medium">
-          {label}
-        </Text>
+        <Text className="font-medium text-[13px]">{label}</Text>
       </Flex>
       {selected && <CheckIcon />}
     </Box>
@@ -365,17 +343,17 @@ export function GitCommitDialog({
         </InfoRow>
         <InfoRow label="Changes">
           <Flex align="center" gap="2">
-            <Text size="1" color="gray">
+            <Text color="gray" className="text-[13px]">
               {formatFileCountLabel(
                 !!(showCommitAllToggle && !commitAll),
                 stagedFileCount ?? 0,
                 diffStats.filesChanged,
               )}
             </Text>
-            <Text size="1" color="green">
+            <Text color="green" className="text-[13px]">
               +{diffStats.linesAdded}
             </Text>
-            <Text size="1" color="red">
+            <Text color="red" className="text-[13px]">
               -{diffStats.linesRemoved}
             </Text>
           </Flex>
@@ -387,7 +365,7 @@ export function GitCommitDialog({
 
       <Flex direction="column" gap="1">
         <Flex align="center" justify="between">
-          <Text size="1" color="gray">
+          <Text color="gray" className="text-[13px]">
             Message
           </Text>
           <GenerateButton
@@ -414,7 +392,7 @@ export function GitCommitDialog({
       </Flex>
 
       <Flex direction="column" gap="1">
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px]">
           Then
         </Text>
         {options.map((opt) => (
@@ -500,7 +478,7 @@ export function GitPushDialog({
         <BranchBadge branch={branchName} />
       </InfoRow>
       {!isSuccess && (
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px]">
           {config.desc}
         </Text>
       )}
@@ -539,12 +517,12 @@ export function GitBranchDialog({
       isSubmitting={isSubmitting}
       onSubmit={onConfirm}
     >
-      <Text size="1" color="gray">
+      <Text color="gray" className="text-[13px]">
         Create a feature branch to commit changes, push, and create a PR.
       </Text>
 
       <Flex direction="column" gap="1">
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px]">
           Branch name
         </Text>
         <TextField.Root
@@ -566,7 +544,7 @@ export function GitBranchDialog({
           autoFocus
         />
         {error && (
-          <Text size="1" color="red">
+          <Text color="red" className="text-[13px]">
             {error}
           </Text>
         )}

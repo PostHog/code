@@ -156,7 +156,7 @@ export function McpServersSettings() {
             {installationsLoading || serversLoading ? (
               <Spinner size="2" />
             ) : (
-              <Text size="2" color="gray">
+              <Text color="gray" className="text-sm">
                 Server not found.
               </Text>
             )}
@@ -211,7 +211,7 @@ export function McpServersSettings() {
   })();
 
   return (
-    <Flex style={{ flex: 1, minHeight: 0, width: "100%", overflow: "hidden" }}>
+    <Flex className="min-h-0 w-full flex-1 overflow-hidden">
       <McpInstalledRail
         installations={installationList}
         templates={serverList}
@@ -221,12 +221,13 @@ export function McpServersSettings() {
           setView({ kind: "detail-installation", installationId })
         }
       />
-      <Box style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
-        <ScrollArea style={{ height: "100%", width: "100%" }}>
+      <Box className="min-h-0 min-w-0 flex-1">
+        <ScrollArea className="h-full w-full">
           <Box
             p="6"
             mx="auto"
-            style={{ position: "relative", zIndex: 1, maxWidth: "960px" }}
+            style={{ zIndex: 1 }}
+            className="relative max-w-[960px]"
           >
             {mainContent}
           </Box>
@@ -265,9 +266,10 @@ function UninstallConfirmDialog({
     >
       <AlertDialog.Content maxWidth="450px">
         <AlertDialog.Title>Remove MCP server</AlertDialog.Title>
-        <AlertDialog.Description size="2">
-          Are you sure you want to remove <Text weight="bold">{name}</Text>?
-          This will revoke its tools from your agent.
+        <AlertDialog.Description className="text-sm">
+          Are you sure you want to remove{" "}
+          <Text className="font-bold">{name}</Text>? This will revoke its tools
+          from your agent.
         </AlertDialog.Description>
         <Flex gap="3" mt="4" justify="end">
           <AlertDialog.Cancel>

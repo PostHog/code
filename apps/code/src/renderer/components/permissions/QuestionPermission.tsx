@@ -232,19 +232,15 @@ export function QuestionPermission({
       <Box mb="3">
         {hasUnanswered && (
           <Flex align="center" gap="2" mb="2">
-            <Text size="1" className="text-yellow-11">
+            <Text className="text-[13px] text-yellow-11">
               You have not answered all questions
             </Text>
           </Flex>
         )}
         {localAnswers.map((a) => (
           <Flex direction="column" key={a.question} mb="2">
-            <Text size="1" className="text-gray-11">
-              {a.question}
-            </Text>
-            <Text size="1" className="text-blue-11">
-              {a.answer}
-            </Text>
+            <Text className="text-[13px] text-gray-11">{a.question}</Text>
+            <Text className="text-[13px] text-blue-11">{a.answer}</Text>
           </Flex>
         ))}
       </Box>

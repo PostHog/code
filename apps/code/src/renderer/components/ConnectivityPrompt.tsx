@@ -27,7 +27,7 @@ export function ConnectivityPrompt({
             <Dialog.Title className="mb-0">No internet connection</Dialog.Title>
           </Flex>
           <Dialog.Description>
-            <Text size="2" color="gray">
+            <Text color="gray" className="text-sm">
               PostHog Code requires an internet connection to use AI features.
               Check your connection and try again.
             </Text>

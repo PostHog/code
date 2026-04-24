@@ -20,7 +20,7 @@ const SLASH_COMMAND_START = /^\/([a-zA-Z][\w-]*)(?=\s|$)/;
 const inlineComponents: Components = {
   ...baseComponents,
   p: ({ children }) => (
-    <Text as="span" size="1" color="gray" highContrast>
+    <Text as="span" color="gray" highContrast className="text-[13px]">
       {children}
     </Text>
   ),
@@ -59,10 +59,7 @@ export function MentionChip({
   label: string;
   onClick?: () => void;
 }) {
-  const style = {
-    fontSize: "var(--font-size-1)",
-    margin: "0 2px",
-  };
+  const style = { margin: "0 2px" };
 
   const content = (
     <>
@@ -75,7 +72,7 @@ export function MentionChip({
     return (
       <button
         type="button"
-        className={`${chipClass} cursor-pointer border-none`}
+        className={`${chipClass} cursor-pointer border-none text-[13px]`}
         onClick={onClick}
         style={style}
       >
@@ -85,7 +82,7 @@ export function MentionChip({
   }
 
   return (
-    <span className={chipClass} style={style}>
+    <span className={`${chipClass} text-[13px]`} style={style}>
       {content}
     </span>
   );

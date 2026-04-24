@@ -35,15 +35,11 @@ export function TaskNotificationView({
       <Flex direction="column" gap="1">
         <Flex align="center" gap="2">
           {config.icon}
-          <Text size="1" weight="medium" className="text-gray-12">
+          <Text className="font-medium text-[13px] text-gray-12">
             {config.label}
           </Text>
         </Flex>
-        {summary && (
-          <Text size="1" className="text-gray-11">
-            {summary}
-          </Text>
-        )}
+        {summary && <Text className="text-[13px] text-gray-11">{summary}</Text>}
       </Flex>
     </Box>
   );

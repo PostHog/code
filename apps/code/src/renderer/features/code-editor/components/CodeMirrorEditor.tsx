@@ -67,26 +67,21 @@ export function CodeMirrorEditor({
   }, [instanceRef]);
 
   if (!relativePath) {
-    return <div ref={containerRef} style={{ height: "100%", width: "100%" }} />;
+    return <div ref={containerRef} className="h-full w-full" />;
   }
 
   return (
     <Flex direction="column" height="100%">
-      <Box
-        px="3"
-        py="2"
-        style={{ borderBottom: "1px solid var(--gray-6)", flexShrink: 0 }}
-      >
+      <Box px="3" py="2" className="shrink-0 border-b border-b-(--gray-6)">
         <Text
-          size="1"
           color="gray"
-          style={{ fontFamily: "var(--code-font-family)" }}
+          className="font-[var(--code-font-family)] text-[13px]"
         >
           {relativePath}
         </Text>
       </Box>
-      <Box style={{ flex: 1, overflow: "auto" }}>
-        <div ref={containerRef} style={{ height: "100%", width: "100%" }} />
+      <Box className="flex-1 overflow-auto">
+        <div ref={containerRef} className="h-full w-full" />
       </Box>
     </Flex>
   );

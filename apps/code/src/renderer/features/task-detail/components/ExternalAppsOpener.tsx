@@ -103,7 +103,7 @@ export function ExternalAppsOpener({ targetPath }: ExternalAppsOpenerProps) {
             width={DROPDOWN_ICON_SIZE}
             height={DROPDOWN_ICON_SIZE}
             alt=""
-            style={{ borderRadius: "2px" }}
+            className="rounded-[2px]"
           />
         ) : (
           <CodeIcon size={DROPDOWN_ICON_SIZE} weight="regular" />

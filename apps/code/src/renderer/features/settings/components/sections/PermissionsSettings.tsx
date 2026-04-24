@@ -17,7 +17,7 @@ function PermissionBadge({
 
   return (
     <span
-      className={`rounded border px-1.5 py-0.5 text-[12px] leading-tight ${bgClass} ${textClass} ${borderClass}`}
+      className={`rounded border px-1.5 py-0.5 text-[12px] ${bgClass} ${textClass} ${borderClass}`}
     >
       {permission}
     </span>
@@ -37,9 +37,7 @@ function PermissionList({
 }) {
   return (
     <Box className="rounded-lg border border-gray-6 bg-gray-2 p-3">
-      <Text size="1" weight="medium" className="mb-2 block">
-        {title}
-      </Text>
+      <Text className="mb-2 block font-medium text-[13px]">{title}</Text>
       <Box className="min-h-[40px] rounded border border-gray-5 bg-gray-3 p-2.5">
         {permissions.length > 0 ? (
           <Flex wrap="wrap" gap="2">
@@ -48,7 +46,7 @@ function PermissionList({
             ))}
           </Flex>
         ) : (
-          <Text size="1" color="gray">
+          <Text color="gray" className="text-[13px]">
             {emptyMessage}
           </Text>
         )}

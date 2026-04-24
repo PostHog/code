@@ -23,6 +23,8 @@ export const IS_ROOT =
   typeof process !== "undefined" &&
   (process.geteuid?.() ?? process.getuid?.()) === 0;
 
+export const ALLOW_BYPASS = !IS_ROOT || !!process.env.IS_SANDBOX;
+
 export function unreachable(value: never, logger: Logger): void {
   let valueAsString: string;
   try {

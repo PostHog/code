@@ -102,7 +102,7 @@ export function ReviewPage({ task }: ReviewPageProps) {
   if (!repoPath) {
     return (
       <Flex align="center" justify="center" height="100%">
-        <Text size="2" color="gray">
+        <Text color="gray" className="text-sm">
           No repository path available
         </Text>
       </Flex>
@@ -298,7 +298,7 @@ function BranchReviewPage({
 function SectionLabel({ label }: { label: string }) {
   return (
     <Flex px="3" py="2">
-      <Text size="1" color="gray" weight="medium">
+      <Text color="gray" className="font-medium text-[13px]">
         {label}
       </Text>
     </Flex>

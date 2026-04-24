@@ -152,26 +152,19 @@ export function GeneratingIndicator({
     <Flex
       align="center"
       gap="2"
-      className="select-none"
-      style={{ userSelect: "none", WebkitUserSelect: "none" }}
+      className="select-none select-none"
+      style={{ WebkitUserSelect: "none" }}
     >
       <Brain size={12} className="ph-pulse" />
-      <Text size="1" className="text-accent-11">
-        {activity}...
-      </Text>
-      <Text size="1" color="gray">
+      <Text className="text-[13px] text-accent-11">{activity}...</Text>
+      <Text color="gray" className="text-[13px]">
         (Esc to stop
       </Text>
-      <Circle
-        size={4}
-        weight="fill"
-        className="text-gray-9"
-        style={{ margin: "0 2px" }}
-      />
+      <Circle size={4} weight="fill" className="mx-[2px] my-0 text-gray-9" />
       <Text
-        size="1"
         color="gray"
         style={{ fontVariantNumeric: "tabular-nums" }}
+        className="text-[13px]"
       >
         {formatDuration(elapsed, 1)})
       </Text>

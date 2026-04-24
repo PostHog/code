@@ -76,7 +76,7 @@ export function CloudReviewPage({ task }: CloudReviewPageProps) {
         >
           <Flex direction="column" align="center" gap="2">
             <Spinner size="2" />
-            <Text size="2">Waiting for changes...</Text>
+            <Text className="text-sm">Waiting for changes...</Text>
           </Flex>
         </Flex>
       );

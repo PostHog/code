@@ -135,31 +135,28 @@ function NetworkAccessSelect({
     NETWORK_ACCESS_OPTIONS[0];
 
   return (
-    <div style={{ position: "relative" }}>
+    <div className="relative">
       <button
         type="button"
         onClick={() => setOpen(!open)}
         className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-2 border border-gray-6 bg-transparent px-3 py-2 text-left font-mono text-[13px] text-gray-12 transition-colors hover:border-gray-8"
       >
         <Flex direction="column" gap="0">
-          <Text size="2">{current.label}</Text>
-          <Text size="1" color="gray">
+          <Text className="text-sm">{current.label}</Text>
+          <Text color="gray" className="text-[13px]">
             {current.description}
           </Text>
         </Flex>
         <ChevronDownIcon
           style={{
-            flexShrink: 0,
             transform: open ? "rotate(180deg)" : undefined,
             transition: "transform 150ms",
           }}
+          className="shrink-0"
         />
       </button>
       {open && (
-        <div
-          className="absolute z-50 mt-1 w-full overflow-hidden rounded-2 border border-gray-6 shadow-lg"
-          style={{ backgroundColor: "var(--color-panel-solid)" }}
-        >
+        <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-2 border border-gray-6 bg-(--color-panel-solid) shadow-lg">
           {NETWORK_ACCESS_OPTIONS.map((opt) => (
             <button
               type="button"
@@ -172,12 +169,11 @@ function NetworkAccessSelect({
               data-active={opt.value === value || undefined}
             >
               <Text
-                size="2"
-                weight={opt.value === value ? "medium" : undefined}
+                className={`text-sm ${opt.value === value ? "font-medium" : ""}`}
               >
                 {opt.label}
               </Text>
-              <Text size="1" color="gray">
+              <Text color="gray" className="text-[13px]">
                 {opt.description}
               </Text>
             </button>
@@ -293,20 +289,18 @@ export function CloudEnvironmentsSettings() {
   if (isFormOpen) {
     return (
       <Flex direction="column" gap="4">
-        <Text size="3" weight="medium">
+        <Text className="font-medium text-base">
           {editingEnv ? "Update cloud environment" : "New cloud environment"}
         </Text>
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px]">
           {editingEnv
             ? "Changes take effect on the next session that uses this environment; running sessions are not affected."
             : "Once created, you can pick this environment in the Cloud section of the workspace picker when starting a task."}
         </Text>
 
         <Flex direction="column" gap="1">
-          <Text size="2" weight="medium">
-            Name
-          </Text>
-          <Text size="1" color="gray">
+          <Text className="font-medium text-sm">Name</Text>
+          <Text color="gray" className="text-[13px]">
             Shown in the workspace picker. Pick a name that describes the access
             profile, e.g. "Internal APIs" or "Read-only".
           </Text>
@@ -319,21 +313,19 @@ export function CloudEnvironmentsSettings() {
         </Flex>
 
         <Flex direction="column" gap="1">
-          <Text size="2" weight="medium">
-            Network access
-          </Text>
-          <Text size="1" color="gray">
+          <Text className="font-medium text-sm">Network access</Text>
+          <Text color="gray" className="text-[13px]">
             Controls which hosts the sandbox may reach.{" "}
-            <Text size="1" color="gray" weight="medium">
+            <Text color="gray" className="font-medium text-[13px]">
               Full
             </Text>{" "}
             allows any outbound traffic.{" "}
-            <Text size="1" color="gray" weight="medium">
+            <Text color="gray" className="font-medium text-[13px]">
               Trusted sources only
             </Text>{" "}
             restricts traffic to a curated list of common package registries and
             source hosts.{" "}
-            <Text size="1" color="gray" weight="medium">
+            <Text color="gray" className="font-medium text-[13px]">
               Custom
             </Text>{" "}
             lets you define an explicit allowlist below.
@@ -349,16 +341,14 @@ export function CloudEnvironmentsSettings() {
         {form.network_access_level === "custom" && (
           <>
             <Flex direction="column" gap="1">
-              <Text size="2" weight="medium">
-                Allowed domains
-              </Text>
-              <Text size="1" color="gray">
+              <Text className="font-medium text-sm">Allowed domains</Text>
+              <Text color="gray" className="text-[13px]">
                 One domain per line (not URLs — no scheme or path). Use{" "}
-                <Text size="1" color="gray" weight="medium">
+                <Text color="gray" className="font-medium text-[13px]">
                   *
                 </Text>{" "}
                 as a wildcard, e.g.{" "}
-                <Text size="1" color="gray" weight="medium">
+                <Text color="gray" className="font-medium text-[13px]">
                   *.example.com
                 </Text>{" "}
                 to cover all subdomains. Requests to any other host are blocked.
@@ -375,15 +365,12 @@ export function CloudEnvironmentsSettings() {
                 }
                 placeholder={"github.com\n*.example.com"}
                 color={domainValidation.errors.length > 0 ? "red" : undefined}
-                style={{
-                  fontFamily: "var(--code-font-family)",
-                  fontSize: "12px",
-                }}
+                className="font-[var(--code-font-family)] [&_textarea]:text-xs"
               />
               {domainValidation.errors.length > 0 && (
                 <Flex direction="column" gap="0">
                   {domainValidation.errors.map((err) => (
-                    <Text key={err} size="1" color="red">
+                    <Text key={err} color="red" className="text-[13px]">
                       {err}
                     </Text>
                   ))}
@@ -402,7 +389,7 @@ export function CloudEnvironmentsSettings() {
                   }))
                 }
               />
-              <Text size="1" color="gray">
+              <Text color="gray" className="text-[13px]">
                 Also include the built-in list of common package managers and
                 source hosts — recommended unless you deliberately want to block
                 them.
@@ -412,17 +399,15 @@ export function CloudEnvironmentsSettings() {
         )}
 
         <Flex direction="column" gap="1">
-          <Text size="2" weight="medium">
-            Environment variables
-          </Text>
-          <Text size="1" color="gray">
+          <Text className="font-medium text-sm">Environment variables</Text>
+          <Text color="gray" className="text-[13px]">
             Injected into the sandbox shell before the agent runs — useful for
             API keys or service tokens the agent needs. Standard{" "}
-            <Text size="1" color="gray" weight="medium">
+            <Text color="gray" className="font-medium text-[13px]">
               .env
             </Text>{" "}
             format: one{" "}
-            <Text size="1" color="gray" weight="medium">
+            <Text color="gray" className="font-medium text-[13px]">
               KEY=value
             </Text>{" "}
             per line. Existing values aren't shown back once saved; leave the
@@ -445,15 +430,12 @@ export function CloudEnvironmentsSettings() {
                 : "KEY=value"
             }
             color={envVarValidation.errors.length > 0 ? "red" : undefined}
-            style={{
-              fontFamily: "var(--code-font-family)",
-              fontSize: "12px",
-            }}
+            className="font-[var(--code-font-family)] [&_textarea]:text-xs"
           />
           {envVarValidation.errors.length > 0 && (
             <Flex direction="column" gap="0">
               {envVarValidation.errors.map((err) => (
-                <Text key={err} size="1" color="red">
+                <Text key={err} color="red" className="text-[13px]">
                   {err}
                 </Text>
               ))}
@@ -501,7 +483,7 @@ export function CloudEnvironmentsSettings() {
   return (
     <Flex direction="column" gap="4">
       <Flex justify="between" align="start" gap="4">
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px]">
           A cloud environment is a reusable configuration applied to remote
           sandbox sessions — it controls which outbound network hosts the
           sandbox can reach and what environment variables (like API keys) are
@@ -516,11 +498,11 @@ export function CloudEnvironmentsSettings() {
       </Flex>
 
       {isLoading ? (
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px]">
           Loading environments...
         </Text>
       ) : environments.length === 0 ? (
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px]">
           No cloud environments configured yet. Create one to control network
           access for your cloud sessions.
         </Text>
@@ -541,10 +523,8 @@ export function CloudEnvironmentsSettings() {
                     : undefined,
               }}
             >
-              <Flex direction="column" gap="1" style={{ minWidth: 0, flex: 1 }}>
-                <Text size="2" weight="medium">
-                  {env.name}
-                </Text>
+              <Flex direction="column" gap="1" className="min-w-0 flex-1">
+                <Text className="font-medium text-sm">{env.name}</Text>
                 <Flex align="center" gap="2">
                   <Badge
                     size="1"
@@ -561,7 +541,7 @@ export function CloudEnvironmentsSettings() {
                   </Badge>
                   {env.network_access_level === "custom" &&
                     env.allowed_domains.length > 0 && (
-                      <Text size="1" color="gray">
+                      <Text color="gray" className="text-[13px]">
                         {env.allowed_domains.length} domain
                         {env.allowed_domains.length !== 1 ? "s" : ""}
                       </Text>
@@ -573,7 +553,7 @@ export function CloudEnvironmentsSettings() {
                 variant="ghost"
                 color="gray"
                 onClick={() => openEdit(env)}
-                style={{ flexShrink: 0 }}
+                className="shrink-0"
               >
                 <PencilSimple size={14} />
               </Button>

@@ -91,50 +91,35 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
       <Flex
         direction="column"
         align="center"
-        style={{
-          width: "100%",
-          height: "100%",
-          paddingTop: 24,
-          paddingBottom: 40,
-        }}
+        className="h-full w-full pt-[24px] pb-[40px]"
       >
         <Flex
           direction="column"
           align="center"
-          style={{ flex: 1, minHeight: 0, width: "100%", overflowY: "auto" }}
+          className="min-h-0 w-full flex-1 overflow-y-auto"
         >
           <Flex
             direction="column"
             align="start"
             style={{
-              width: "100%",
-              maxWidth: 560,
-              gap: 20,
               margin: "auto 0",
             }}
+            className="w-full max-w-[560px] gap-[20px]"
           >
             <Flex direction="column" gap="1">
               <Flex direction="row" align="center" gap="2">
-                <Text
-                  size="6"
-                  weight="bold"
-                  style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
-                >
+                <Text className="font-bold text-(--gray-12) text-2xl">
                   Welcome to
                 </Text>
                 <Logo />
               </Flex>
 
-              <Text
-                size="2"
-                className="hidden"
-                style={{ color: "var(--gray-11)" }}
-              >
+              <Text className="hidden text-(--gray-11) text-sm">
                 Your product workbench.
               </Text>
             </Flex>
 
-            <Flex direction="column" style={{ width: "100%", gap: 8 }}>
+            <Flex direction="column" className="w-full gap-[8px]">
               {FEATURES.map((feature, index) => (
                 <FeatureListItem
                   key={feature.title}

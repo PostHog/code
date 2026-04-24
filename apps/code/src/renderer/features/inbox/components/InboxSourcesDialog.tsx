@@ -19,7 +19,7 @@ export function InboxSourcesDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Content maxWidth="520px">
         <Flex align="center" justify="between" mb="3">
-          <Dialog.Title size="3" mb="0">
+          <Dialog.Title mb="0" className="text-base">
             Signal sources
           </Dialog.Title>
           <Dialog.Close>

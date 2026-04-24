@@ -8,15 +8,9 @@ import { HEADER_HEIGHT } from "./HeaderRow";
 export function DraggableTitleBar() {
   return (
     <Box
-      className="drag"
+      className="drag absolute top-0 right-0 left-0 z-10 w-full"
       style={{
-        height: HEADER_HEIGHT, // Same as the more complex HeaderRow used in the main app
-        width: "100%",
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 10,
+        height: HEADER_HEIGHT,
       }}
     />
   );

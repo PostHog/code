@@ -145,12 +145,10 @@ export function CommandCenterGrid({ layout, cells }: CommandCenterGridProps) {
 
   return (
     <div
-      className="h-full bg-gray-6"
+      className="grid h-full gap-[1px] bg-gray-6"
       style={{
-        display: "grid",
         gridTemplateColumns: `repeat(${cols}, 1fr)`,
         gridTemplateRows: `repeat(${rows}, 1fr)`,
-        gap: "1px",
       }}
     >
       {cells.map((cell) => (

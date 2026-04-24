@@ -176,10 +176,10 @@ function ComboboxTrigger({
         style={style}
       >
         <Flex justify="between" align="center" gap="2">
-          <Flex align="center" gap="2" style={{ minWidth: 0 }}>
+          <Flex align="center" gap="2" className="min-w-0">
             {displayValue}
           </Flex>
-          {!disabled && <ChevronDownIcon style={{ flexShrink: 0 }} />}
+          {!disabled && <ChevronDownIcon className="shrink-0" />}
         </Flex>
       </Button>
     </Popover.Trigger>
@@ -262,12 +262,11 @@ function ComboboxContent<T>({
 
   const content = (
     <Popover.Content
-      className={`combobox-content size-${size} variant-${variant} ${className}`}
+      className={`combobox-content p-0 size-${size} variant-${variant} ${className}`}
       side={side}
       sideOffset={sideOffset}
       align={align}
       style={{
-        padding: 0,
         minWidth: "min(var(--radix-popover-trigger-width), 300px)",
         ...style,
       }}

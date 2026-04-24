@@ -135,12 +135,11 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
             <Command.Input
               placeholder="Search commands..."
               autoFocus={true}
-              style={{ fontSize: "12px" }}
-              className="w-full bg-transparent py-3 outline-none placeholder:text-gray-9"
+              className="w-full bg-transparent py-3 text-xs outline-none placeholder:text-gray-9"
             />
           </div>
 
-          <Command.List style={{ maxHeight: "400px" }}>
+          <Command.List className="max-h-[400px]">
             <Command.Empty>No results found.</Command.Empty>
 
             <Command.Group heading="Navigation">
@@ -149,14 +148,14 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
                 onSelect={runAndClose(navigateToTaskInput, "home")}
               >
                 <HomeIcon className="mr-3 h-3 w-3 text-gray-11" />
-                <Text size="1">Home</Text>
+                <Text className="text-[13px]">Home</Text>
               </Command.Item>
               <Command.Item
                 value="Settings"
                 onSelect={runAndClose(() => openSettingsDialog(), "settings")}
               >
                 <GearIcon className="mr-3 h-3 w-3 text-gray-11" />
-                <Text size="1">Settings</Text>
+                <Text className="text-[13px]">Settings</Text>
               </Command.Item>
             </Command.Group>
 
@@ -174,28 +173,28 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
                 {theme === "system" && (
                   <MoonIcon className="mr-3 h-3 w-3 text-gray-11" />
                 )}
-                <Text size="1">{THEME_CYCLE_LABELS[theme]}</Text>
+                <Text className="text-[13px]">{THEME_CYCLE_LABELS[theme]}</Text>
               </Command.Item>
               <Command.Item
                 value="Toggle left sidebar"
                 onSelect={runAndClose(toggleLeftSidebar, "toggle-left-sidebar")}
               >
                 <ViewVerticalIcon className="mr-3 h-3 w-3 text-gray-11" />
-                <Text size="1">Toggle left sidebar</Text>
+                <Text className="text-[13px]">Toggle left sidebar</Text>
               </Command.Item>
               <Command.Item
                 value="Open review panel"
                 onSelect={runAndClose(openReviewPanel, "open-review-panel")}
               >
                 <ViewVerticalIcon className="mr-3 h-3 w-3 rotate-180 text-gray-11" />
-                <Text size="1">Open review panel</Text>
+                <Text className="text-[13px]">Open review panel</Text>
               </Command.Item>
               <Command.Item
                 value="Create new task"
                 onSelect={runAndClose(navigateToTaskInput, "new-task")}
               >
                 <FileTextIcon className="mr-3 h-3 w-3 text-gray-11" />
-                <Text size="1">New task</Text>
+                <Text className="text-[13px]">New task</Text>
               </Command.Item>
             </Command.Group>
 
@@ -211,8 +210,9 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
                     )}
                   >
                     <FileTextIcon className="mr-3 h-3 w-3 text-gray-11" />
-                    <Text size="1">
-                      New task in <Text weight="bold">{folder.name}</Text>
+                    <Text className="text-[13px]">
+                      New task in{" "}
+                      <Text className="font-bold">{folder.name}</Text>
                     </Text>
                   </Command.Item>
                 ))}

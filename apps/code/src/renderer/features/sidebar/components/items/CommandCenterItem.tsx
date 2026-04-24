@@ -27,8 +27,7 @@ export function CommandCenterItem({
       endContent={
         activeCount && activeCount > 0 ? (
           <span
-            className="inline-flex min-w-[16px] items-center justify-center rounded-full px-1 text-[11px] text-gray-11 leading-none"
-            style={{ height: "16px" }}
+            className="inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[11px] text-gray-11 leading-none"
             title={`${activeCount} active`}
           >
             {formatActiveCount(activeCount)}

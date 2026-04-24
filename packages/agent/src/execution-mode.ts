@@ -1,13 +1,10 @@
-import { IS_ROOT } from "./utils/common";
+import { ALLOW_BYPASS } from "./utils/common";
 
 export interface ModeInfo {
   id: string;
   name: string;
   description: string;
 }
-
-// Helper constant that can easily be toggled for env/feature flag/etc
-const ALLOW_BYPASS = !IS_ROOT;
 
 const availableModes: ModeInfo[] = [
   {
@@ -58,9 +55,9 @@ export function isCodeExecutionMode(mode: string): mode is CodeExecutionMode {
 }
 
 export function getAvailableModes(): ModeInfo[] {
-  return IS_ROOT
-    ? availableModes.filter((m) => m.id !== "bypassPermissions")
-    : availableModes;
+  return ALLOW_BYPASS
+    ? availableModes
+    : availableModes.filter((m) => m.id !== "bypassPermissions");
 }
 
 // --- Codex-native modes ---
@@ -98,7 +95,7 @@ if (ALLOW_BYPASS) {
 }
 
 export function getAvailableCodexModes(): ModeInfo[] {
-  return IS_ROOT
-    ? codexModes.filter((m) => m.id !== "full-access")
-    : codexModes;
+  return ALLOW_BYPASS
+    ? codexModes
+    : codexModes.filter((m) => m.id !== "full-access");
 }

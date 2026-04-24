@@ -24,13 +24,13 @@ function FileLineStats({ file }: { file: HandoffChangedFile }) {
     <Flex
       align="center"
       gap="1"
-      style={{ flexShrink: 0, fontSize: "10px", fontFamily: "monospace" }}
+      className="shrink-0 font-mono text-[10px] leading-none"
     >
       {(file.linesAdded ?? 0) > 0 && (
-        <Text style={{ color: "var(--green-9)" }}>+{file.linesAdded}</Text>
+        <Text className="text-(--green-9)">+{file.linesAdded}</Text>
       )}
       {(file.linesRemoved ?? 0) > 0 && (
-        <Text style={{ color: "var(--red-9)" }}>-{file.linesRemoved}</Text>
+        <Text className="text-(--red-9)">-{file.linesRemoved}</Text>
       )}
     </Flex>
   );
@@ -41,7 +41,7 @@ function StatusBadge({ indicator }: { indicator: StatusIndicator }) {
     <Badge
       size="1"
       color={indicator.color}
-      style={{ flexShrink: 0, fontSize: "10px", padding: "0 4px" }}
+      className="shrink-0 px-[4px] py-0 text-[10px]"
     >
       {indicator.label}
     </Badge>
@@ -66,18 +66,11 @@ export function DirtyTreeDialog({
       onSubmit={onCommitAndContinue}
     >
       <Flex direction="column" gap="2">
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px]">
           The following local files have uncommitted changes that would be
           overwritten by the handoff. Commit them to continue.
         </Text>
-        <Box
-          style={{
-            border: "1px solid var(--gray-6)",
-            borderRadius: "var(--radius-2)",
-            maxHeight: "200px",
-            overflow: "auto",
-          }}
-        >
+        <Box className="max-h-[200px] overflow-auto rounded-(--radius-2) border border-(--gray-6)">
           {changedFiles.map((file) => {
             const fileName = file.path.split("/").pop() || file.path;
             const indicator = getStatusIndicator(file.status);
@@ -87,13 +80,10 @@ export function DirtyTreeDialog({
                 align="center"
                 gap="1"
                 px="2"
-                style={{ height: "28px" }}
+                className="h-[28px]"
               >
                 <FileIcon filename={fileName} size={14} />
-                <span
-                  className="select-none overflow-hidden text-ellipsis whitespace-nowrap text-[13px]"
-                  style={{ marginLeft: "4px", minWidth: 0, flex: 1 }}
-                >
+                <span className="ml-[4px] min-w-0 flex-1 select-none overflow-hidden text-ellipsis whitespace-nowrap text-[13px]">
                   {fileName}
                 </span>
                 <FileLineStats file={file} />

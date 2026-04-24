@@ -106,11 +106,11 @@ export function GitHubIntegrationSection({
       style={{ borderBottom: "1px dashed var(--gray-5)" }}
     >
       <Flex align="center" gap="3">
-        <Box style={{ color: "var(--gray-11)", flexShrink: 0 }}>
+        <Box className="shrink-0 text-(--gray-11)">
           <GitBranchIcon size={20} />
         </Box>
         <Flex direction="column">
-          <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
+          <Text className="font-medium text-(--gray-12) text-sm">
             Code access
           </Text>
           {hasGithubIntegration &&
@@ -120,7 +120,7 @@ export function GitHubIntegrationSection({
               content={
                 <Flex direction="column" gap="1">
                   {repositories.map((repo) => (
-                    <Text key={repo} size="1">
+                    <Text key={repo} className="text-[13px]">
                       {repo}
                     </Text>
                   ))}
@@ -128,19 +128,16 @@ export function GitHubIntegrationSection({
               }
               side="bottom"
             >
-              <Flex align="center" gap="1" style={{ cursor: "help" }}>
-                <Text size="1" style={{ color: "var(--gray-11)" }}>
+              <Flex align="center" gap="1" className="cursor-help">
+                <Text className="text-(--gray-11) text-[13px]">
                   Connected and active ({repositories.length}{" "}
                   {repositories.length === 1 ? "repo" : "repos"})
                 </Text>
-                <InfoIcon
-                  size={13}
-                  style={{ color: "var(--gray-9)", flexShrink: 0 }}
-                />
+                <InfoIcon size={13} className="shrink-0 text-(--gray-9)" />
               </Flex>
             </Tooltip>
           ) : (
-            <Text size="1" style={{ color: "var(--gray-11)" }}>
+            <Text className="text-(--gray-11) text-[13px]">
               {hasGithubIntegration
                 ? "Connected and active"
                 : "Required for the Inbox pipeline to work"}
@@ -155,7 +152,7 @@ export function GitHubIntegrationSection({
           <CheckCircleIcon
             size={16}
             weight="fill"
-            style={{ color: "var(--green-9)" }}
+            className="text-(--green-9)"
           />
           <Button size="1" variant="soft" onClick={() => void handleConnect()}>
             Update in GitHub

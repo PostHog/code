@@ -110,7 +110,7 @@ export function CreatePrDialog({
         <Flex direction="column" gap="3">
           <Flex align="center" gap="2">
             <GitPullRequest size={ICON_SIZE} />
-            <Text size="2" weight="medium">
+            <Text className="font-medium text-sm">
               {isExecuting ? "Creating PR..." : "Create PR"}
             </Text>
           </Flex>
@@ -119,7 +119,7 @@ export function CreatePrDialog({
             <>
               {store.createPrNeedsBranch && (
                 <Flex direction="column" gap="1">
-                  <Text size="1" color="gray">
+                  <Text color="gray" className="text-[13px]">
                     Branch
                   </Text>
                   <TextField.Root
@@ -130,7 +130,7 @@ export function CreatePrDialog({
                     autoFocus
                   />
                   {currentBranch && (
-                    <Text size="1" color="gray">
+                    <Text color="gray" className="text-[13px]">
                       from {currentBranch}
                     </Text>
                   )}
@@ -140,21 +140,21 @@ export function CreatePrDialog({
               {store.createPrNeedsCommit && (
                 <Flex direction="column" gap="1">
                   <Flex align="center" justify="between">
-                    <Text size="1" color="gray">
+                    <Text color="gray" className="text-[13px]">
                       Commit message
                     </Text>
                     <Flex align="center" gap="2">
-                      <Text size="1" color="gray">
+                      <Text color="gray" className="text-[13px]">
                         {formatFileCountLabel(
                           !!(showCommitAllToggle && !commitAll),
                           stagedFileCount ?? 0,
                           diffStats.filesChanged,
                         )}
                       </Text>
-                      <Text size="1" color="green">
+                      <Text color="green" className="text-[13px]">
                         +{diffStats.linesAdded}
                       </Text>
-                      <Text size="1" color="red">
+                      <Text color="red" className="text-[13px]">
                         -{diffStats.linesRemoved}
                       </Text>
                       <GenerateButton
@@ -183,7 +183,7 @@ export function CreatePrDialog({
 
               <Flex direction="column" gap="1">
                 <Flex align="center" justify="between">
-                  <Text size="1" color="gray">
+                  <Text color="gray" className="text-[13px]">
                     PR title
                   </Text>
                   <GenerateButton
@@ -204,7 +204,7 @@ export function CreatePrDialog({
               </Flex>
 
               <Flex direction="column" gap="1">
-                <Text size="1" color="gray">
+                <Text color="gray" className="text-[13px]">
                   Description
                 </Text>
                 <TextArea
@@ -217,7 +217,7 @@ export function CreatePrDialog({
                 />
               </Flex>
 
-              <Text as="label" size="1" color="gray">
+              <Text as="label" color="gray" className="text-[13px]">
                 <Flex gap="2" align="center">
                   <Checkbox
                     size="1"

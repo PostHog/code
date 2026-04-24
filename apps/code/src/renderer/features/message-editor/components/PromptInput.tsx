@@ -276,8 +276,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
         <InputGroup
           onClick={handleContainerClick}
           onContextMenu={handleContextMenu}
-          className={`h-auto bg-card ${isBashMode ? "ring-1 ring-blue-9" : ""}`}
-          style={{ cursor: "text" }}
+          className={`h-auto cursor-text bg-card ${isBashMode ? "ring-1 ring-blue-9" : ""}`}
           {...(tourTarget && {
             "data-tour": `${tourTarget}-editor`,
             "data-tour-ready": !isEmpty ? "true" : undefined,
@@ -291,10 +290,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
               />
             </InputGroupAddon>
           )}
-          <div
-            className="cli-editor-scroll max-h-[200px] min-h-[50px] w-full flex-1 overflow-y-auto px-2 py-2 text-[14px]"
-            style={{ position: "relative" }}
-          >
+          <div className="cli-editor-scroll relative max-h-[200px] min-h-[50px] w-full flex-1 overflow-y-auto px-2 py-2 text-[14px]">
             <EditorContent editor={editor} />
           </div>
           <InputGroupAddon align="block-end">
@@ -316,11 +312,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
             {modelSelector && <span>{modelSelector}</span>}
             {reasoningSelector && <span>{reasoningSelector}</span>}
             {isBashMode && (
-              <Text
-                size="1"
-                className="font-mono"
-                style={{ color: "var(--blue-9)" }}
-              >
+              <Text className="font-mono text-(--blue-9) text-[13px]">
                 ! bash
               </Text>
             )}

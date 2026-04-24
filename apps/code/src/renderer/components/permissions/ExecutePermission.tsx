@@ -23,9 +23,8 @@ export function ExecutePermission({
           <Box className="max-h-[30vh] overflow-auto">
             <Code
               variant="ghost"
-              size="1"
               title={command}
-              className="whitespace-pre-wrap break-all"
+              className="whitespace-pre-wrap break-all text-[13px]"
             >
               {compactHomePath(command)}
             </Code>

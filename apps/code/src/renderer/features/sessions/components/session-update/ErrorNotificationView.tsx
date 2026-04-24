@@ -21,11 +21,9 @@ export function ErrorNotificationView({
         </Callout.Icon>
         <Callout.Text>
           <Flex direction="column" gap="1">
-            <Text size="2" weight="medium">
-              {message}
-            </Text>
+            <Text className="font-medium text-sm">{message}</Text>
             {isContextError && (
-              <Text size="1" className="text-gray-11">
+              <Text className="text-[13px] text-gray-11">
                 Tip: Type <code>/compact</code> to manually compress the
                 conversation history.
               </Text>

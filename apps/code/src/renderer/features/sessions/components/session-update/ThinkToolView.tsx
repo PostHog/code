@@ -59,7 +59,7 @@ export function ThinkToolView({
             isLoading={isLoading}
             className="text-gray-10"
           />
-          <Text size="1" className="text-gray-10">
+          <Text className="text-[13px] text-gray-10">
             {title || "Thinking"}
           </Text>
         </Flex>
@@ -80,7 +80,7 @@ export function ThinkToolView({
       </Flex>
 
       <Box className="border-gray-6 border-t px-3 py-2">
-        <Text asChild size="1" className="text-gray-11">
+        <Text asChild className="text-[13px] text-gray-11">
           <pre className="m-0 whitespace-pre-wrap break-all font-mono">
             {displayedContent}
           </pre>
@@ -91,7 +91,7 @@ export function ThinkToolView({
             onClick={() => setIsExpanded(true)}
             className="mt-1 flex cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-gray-10 hover:text-gray-12"
           >
-            <Text size="1">+{hiddenLineCount} more lines</Text>
+            <Text className="text-[13px]">+{hiddenLineCount} more lines</Text>
           </button>
         )}
       </Box>

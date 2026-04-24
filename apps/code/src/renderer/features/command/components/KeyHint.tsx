@@ -9,7 +9,7 @@ export function KeyHint({ keys, className }: KeyHintProps) {
   return (
     <div className={`flex gap-1 ${className || ""}`}>
       {keys.map((key) => (
-        <Kbd key={key} size="1" className="text-gray-9">
+        <Kbd key={key} className="text-[13px] text-gray-9">
           {key}
         </Kbd>
       ))}

@@ -26,6 +26,7 @@ import {
 import { getFilePath } from "@utils/getFilePath";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSessionService } from "../service/service";
+import { flattenSelectOptions } from "../stores/sessionStore";
 import {
   useSessionViewActions,
   useShowRawLogs,
@@ -70,6 +71,25 @@ interface SessionViewProps {
 const DEFAULT_ERROR_MESSAGE =
   "Failed to resume this session. The working directory may have been deleted. Please start a new session.";
 
+/**
+ * When an allow_always permission is granted outside a mode-switch prompt,
+ * ratchet the session to the closest "auto-accept edits" preset offered by
+ * this adapter's mode catalog. Claude exposes `acceptEdits`; Codex has no
+ * exact equivalent, so fall back to `auto`. Returns undefined if neither is
+ * available (in which case leave the current mode untouched).
+ */
+function resolveAllowAlwaysUpgradeMode(
+  modeOption: ReturnType<typeof useModeConfigOptionForTask>,
+): string | undefined {
+  if (modeOption?.type !== "select") return undefined;
+  const availableIds = new Set(
+    flattenSelectOptions(modeOption.options).map((opt) => opt.value),
+  );
+  if (availableIds.has("acceptEdits")) return "acceptEdits";
+  if (availableIds.has("auto")) return "auto";
+  return undefined;
+}
+
 export function SessionView({
   events,
   taskId,
@@ -109,6 +129,11 @@ export function SessionView({
 
   useEffect(() => {
     if (allowBypassPermissions) return;
+    // Cloud runs execute in an isolated sandbox where bypass is safe, and the
+    // agent's own gate (ALLOW_BYPASS = !IS_ROOT || IS_SANDBOX) already permits
+    // it regardless of this local preference. Auto-reverting here would clobber
+    // the user's explicit plan-approval choice and strand them in Plan Mode.
+    if (isCloud) return;
     const isBypass =
       currentModeId === "bypassPermissions" || currentModeId === "full-access";
     if (isBypass && taskId) {
@@ -118,7 +143,7 @@ export function SessionView({
         "default",
       );
     }
-  }, [allowBypassPermissions, currentModeId, taskId]);
+  }, [allowBypassPermissions, currentModeId, taskId, isCloud]);
 
   const handleModeChange = useCallback(
     (nextMode: string) => {
@@ -227,11 +252,18 @@ export function SessionView({
       const isModeSwitch =
         firstPendingPermission.toolCall?.kind === "switch_mode";
       if (selectedOption?.kind === "allow_always" && !isModeSwitch) {
-        getSessionService().setSessionConfigOptionByCategory(
-          taskId,
-          "mode",
-          "acceptEdits",
-        );
+        // Pick the adapter-appropriate "upgrade" mode. Claude exposes
+        // acceptEdits; Codex does not — its closest analogue is auto. Resolve
+        // against the session's advertised mode catalog so the footer label
+        // stays coherent with the dropdown contents.
+        const upgradeMode = resolveAllowAlwaysUpgradeMode(modeOption);
+        if (upgradeMode) {
+          getSessionService().setSessionConfigOptionByCategory(
+            taskId,
+            "mode",
+            upgradeMode,
+          );
+        }
       }
 
       if (customInput) {
@@ -268,7 +300,14 @@ export function SessionView({
 
       requestFocus(sessionId);
     },
-    [firstPendingPermission, taskId, onSendPrompt, requestFocus, sessionId],
+    [
+      firstPendingPermission,
+      taskId,
+      onSendPrompt,
+      requestFocus,
+      sessionId,
+      modeOption,
+    ],
   );
 
   const handlePermissionCancel = useCallback(async () => {
@@ -414,10 +453,10 @@ export function SessionView({
                           weight="duotone"
                           color="var(--gray-11)"
                         />
-                        <Text size="1" weight="medium">
+                        <Text className="font-medium text-[13px]">
                           Worktree suspended
                         </Text>
-                        <Text size="1" color="gray">
+                        <Text color="gray" className="text-[13px]">
                           Worktree was removed to save disk space
                         </Text>
                       </Flex>
@@ -479,16 +518,18 @@ export function SessionView({
                   >
                     <Warning size={32} weight="duotone" color="var(--red-9)" />
                     {errorTitle && (
-                      <Text size="3" weight="bold" align="center" color="red">
+                      <Text
+                        align="center"
+                        color="red"
+                        className="font-bold text-base"
+                      >
                         {errorTitle}
                       </Text>
                     )}
                     <Text
-                      size={errorTitle ? "2" : "3"}
-                      weight={errorTitle ? "regular" : "medium"}
                       align="center"
                       color={errorTitle ? "gray" : "red"}
-                      className="max-w-md px-4"
+                      className={`max-w-md px-4 ${errorTitle ? "text-sm" : "font-medium text-base"}`}
                     >
                       {errorMessage}
                     </Text>
@@ -527,15 +568,14 @@ export function SessionView({
                 ) : (
                   <Box className="relative border-gray-4 border-t">
                     <Box
-                      className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity duration-200 ${
+                      className={`absolute inset-0 flex min-h-[66px] items-center justify-center gap-2 transition-opacity duration-200 ${
                         isRunning
                           ? "pointer-events-none opacity-0"
                           : "opacity-100"
                       }`}
-                      style={{ minHeight: 66 }}
                     >
                       <Spinner size={28} className="animate-spin text-gray-9" />
-                      <Text size="3" color="gray">
+                      <Text color="gray" className="text-base">
                         Connecting to agent...
                       </Text>
                     </Box>

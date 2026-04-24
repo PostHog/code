@@ -4,23 +4,16 @@ interface DividerProps {
   size?: DividerSize;
 }
 
-const sizeStyles: Record<DividerSize, { marginY: string }> = {
-  "1": { marginY: "var(--space-2)" },
-  "2": { marginY: "var(--space-3)" },
-  "3": { marginY: "var(--space-4)" },
+const SIZE_TO_MARGIN: Record<DividerSize, string> = {
+  "1": "my-2",
+  "2": "my-3",
+  "3": "my-4",
 };
 
 export function Divider({ size = "2" }: DividerProps) {
-  const styles = sizeStyles[size];
-
   return (
     <hr
-      style={{
-        border: "none",
-        borderTop: "1px solid var(--gray-6)",
-        marginTop: styles.marginY,
-        marginBottom: styles.marginY,
-      }}
+      className={`border-0 border-t border-t-(--gray-6) ${SIZE_TO_MARGIN[size]}`}
     />
   );
 }

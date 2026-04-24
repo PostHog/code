@@ -20,11 +20,11 @@ export function PanelMessage({
         gap="1"
         height="100%"
       >
-        <Text size="2" color={color}>
+        <Text color={color} className="text-sm">
           {children}
         </Text>
         {detail && (
-          <Text size="1" color="gray" trim="both">
+          <Text color="gray" trim="both" className="text-[13px]">
             {detail}
           </Text>
         )}

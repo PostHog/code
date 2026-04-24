@@ -24,13 +24,11 @@ export function SettingRow({
         borderBottom: noBorder ? undefined : "1px solid var(--gray-5)",
       }}
     >
-      <Flex direction="column" gap="1" style={{ maxWidth: "60%" }}>
-        <Text size="2" weight="medium">
-          {label}
-        </Text>
+      <Flex direction="column" gap="1" className="max-w-[60%]">
+        <Text className="font-medium text-sm">{label}</Text>
         {description &&
           (typeof description === "string" ? (
-            <Text size="1" color="gray">
+            <Text color="gray" className="text-[13px]">
               {description}
             </Text>
           ) : (

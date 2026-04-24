@@ -53,7 +53,7 @@ export function SubagentToolView({
             isLoading={isLoading}
             className="text-gray-10"
           />
-          <Text size="1" className="text-gray-10">
+          <Text className="text-[13px] text-gray-10">
             {title || "Subagent"}
           </Text>
           <StatusIndicators isFailed={isFailed} wasCancelled={wasCancelled} />

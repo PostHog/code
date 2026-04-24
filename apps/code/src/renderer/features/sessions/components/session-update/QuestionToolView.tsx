@@ -38,17 +38,13 @@ export function QuestionToolView({
     <Box className="my-2 max-w-4xl overflow-hidden rounded-lg border border-gray-6 bg-gray-1">
       <Flex align="center" gap="2" className="px-3 py-2">
         <ChatCircle size={12} className="text-gray-10" />
-        <Text size="1" className="text-gray-10">
-          {title || "Question"}
-        </Text>
+        <Text className="text-[13px] text-gray-10">{title || "Question"}</Text>
       </Flex>
 
       <Box className="border-gray-6 border-t px-3 py-2">
         <Flex align="center" gap="2">
           <CheckCircle size={14} weight="fill" className="text-green-9" />
-          <Text size="1" className="text-green-11">
-            {answerText}
-          </Text>
+          <Text className="text-[13px] text-green-11">{answerText}</Text>
         </Flex>
       </Box>
     </Box>

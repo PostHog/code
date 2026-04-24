@@ -102,17 +102,15 @@ export function WorkspaceSetupPrompt({
       {isSettingUp ? (
         <>
           <Spinner size="3" />
-          <Text size="2" className="text-gray-11">
-            Setting up workspace...
-          </Text>
+          <Text className="text-gray-11 text-sm">Setting up workspace...</Text>
         </>
       ) : pendingPath ? (
         <>
           <Warning size={32} weight="duotone" className="text-amber-9" />
-          <Text size="3" weight="medium" className="text-gray-12">
+          <Text className="font-medium text-base text-gray-12">
             Repository mismatch
           </Text>
-          <Text size="2" align="center" className="max-w-xs text-gray-11">
+          <Text align="center" className="max-w-xs text-gray-11 text-sm">
             This task is linked to <Code>{repository}</Code> but the selected
             folder belongs to <Code>{detectedRepo}</Code>.
           </Text>
@@ -128,11 +126,11 @@ export function WorkspaceSetupPrompt({
       ) : (
         <>
           <Folder size={32} weight="duotone" className="text-gray-9" />
-          <Text size="3" weight="medium" className="text-gray-12">
+          <Text className="font-medium text-base text-gray-12">
             Select a repository folder
           </Text>
           {repository && (
-            <Text size="2" className="text-gray-11">
+            <Text className="text-gray-11 text-sm">
               This task is linked to <Code>{repository}</Code>
             </Text>
           )}

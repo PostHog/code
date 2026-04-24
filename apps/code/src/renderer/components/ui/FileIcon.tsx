@@ -32,7 +32,7 @@ export const FileIcon = memo(function FileIcon({
         size={size}
         weight="regular"
         color="var(--gray-10)"
-        style={{ flexShrink: 0 }}
+        className="shrink-0"
       />
     );
   }
@@ -43,7 +43,7 @@ export const FileIcon = memo(function FileIcon({
       width={size}
       height={size}
       alt=""
-      style={{ flexShrink: 0 }}
+      className="shrink-0"
     />
   );
 });

@@ -91,18 +91,16 @@ export function EnvironmentsSettings() {
 
   return (
     <Flex direction="column" gap="4">
-      <Text size="1" color="gray">
+      <Text color="gray" className="text-[13px]">
         An environment defines how a fresh worktree of a project is prepared.
         The setup script runs once when the worktree is created, so the agent
         starts in a project that's already installed, built, and ready.
         Environments are stored as TOML files inside the project and can be
         committed so teammates share the same setup.
       </Text>
-      <Text size="1" weight="medium">
-        Projects
-      </Text>
+      <Text className="font-medium text-[13px]">Projects</Text>
       {projects.length === 0 ? (
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px]">
           No projects registered. Open a folder to get started.
         </Text>
       ) : (
