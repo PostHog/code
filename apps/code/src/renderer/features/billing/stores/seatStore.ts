@@ -7,6 +7,7 @@ import { trpcClient } from "@renderer/trpc";
 import type { SeatData } from "@shared/types/seat";
 import { PLAN_FREE, PLAN_PRO } from "@shared/types/seat";
 import { logger } from "@utils/logger";
+import { queryClient } from "@utils/queryClient";
 import { getPostHogUrl } from "@utils/urls";
 import { create } from "zustand";
 
@@ -71,6 +72,7 @@ function invalidatePlanCache(): void {
   trpcClient.llmGateway.invalidatePlanCache.mutate().catch((err) => {
     log.warn("Failed to invalidate plan cache", err);
   });
+  void queryClient.invalidateQueries({ queryKey: [["llmGateway", "usage"]] });
 }
 
 const initialState: SeatStoreState = {
