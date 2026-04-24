@@ -48,10 +48,7 @@ export function SidebarSection({
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
-          <span
-            className="flex min-w-0 flex-1 items-center"
-            style={{ gap: "4px" }}
-          >
+          <span className="flex min-w-0 flex-1 items-center gap-[4px]">
             {icon && (
               <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center text-gray-10">
                 {isHovered ? (

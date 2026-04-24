@@ -214,10 +214,8 @@ export function ActionSelector({
       }}
       style={{
         outline: "none",
-        border: "1px solid var(--gray-6)",
-        background: "var(--gray-1)",
-        borderRadius: "var(--radius-3)",
       }}
+      className="rounded-(--radius-3) border border-(--gray-6) bg-(--gray-1)"
     >
       <Flex direction="column" gap="2">
         {hasSteps && steps && (
@@ -231,7 +229,7 @@ export function ActionSelector({
 
         {title && (
           <Text
-            className="font-medium text-[13px] text-blue-11 leading-5"
+            className="font-medium text-[13px] text-blue-11 leading-snug"
             title={title}
           >
             {compactHomePath(title)}
@@ -241,7 +239,7 @@ export function ActionSelector({
         {pendingAction && <Box>{pendingAction}</Box>}
 
         <Box>
-          <Text mb="2" as="p" className="text-[13px] leading-5">
+          <Text mb="2" as="p" className="text-[13px] leading-snug">
             {question}
           </Text>
 
@@ -316,7 +314,7 @@ export function ActionSelector({
             })}
           </Flex>
 
-          <Text color="gray" mt="2" as="p" className="text-[13px] leading-5">
+          <Text color="gray" mt="2" as="p" className="text-[13px] leading-snug">
             Enter to select · Tab/Arrow keys to navigate · Esc to cancel
           </Text>
         </Box>

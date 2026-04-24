@@ -78,7 +78,7 @@ export function FetchToolView({
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="break-all text-[13px] leading-5"
+                className="break-all text-[13px] leading-snug"
                 onClick={(e) => e.stopPropagation()}
               >
                 {url}

@@ -139,7 +139,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
             />
           </div>
 
-          <Command.List style={{ maxHeight: "400px" }}>
+          <Command.List className="max-h-[400px]">
             <Command.Empty>No results found.</Command.Empty>
 
             <Command.Group heading="Navigation">
@@ -148,14 +148,14 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
                 onSelect={runAndClose(navigateToTaskInput, "home")}
               >
                 <HomeIcon className="mr-3 h-3 w-3 text-gray-11" />
-                <Text className="text-[13px] leading-5">Home</Text>
+                <Text className="text-[13px] leading-snug">Home</Text>
               </Command.Item>
               <Command.Item
                 value="Settings"
                 onSelect={runAndClose(() => openSettingsDialog(), "settings")}
               >
                 <GearIcon className="mr-3 h-3 w-3 text-gray-11" />
-                <Text className="text-[13px] leading-5">Settings</Text>
+                <Text className="text-[13px] leading-snug">Settings</Text>
               </Command.Item>
             </Command.Group>
 
@@ -173,7 +173,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
                 {theme === "system" && (
                   <MoonIcon className="mr-3 h-3 w-3 text-gray-11" />
                 )}
-                <Text className="text-[13px] leading-5">
+                <Text className="text-[13px] leading-snug">
                   {THEME_CYCLE_LABELS[theme]}
                 </Text>
               </Command.Item>
@@ -182,7 +182,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
                 onSelect={runAndClose(toggleLeftSidebar, "toggle-left-sidebar")}
               >
                 <ViewVerticalIcon className="mr-3 h-3 w-3 text-gray-11" />
-                <Text className="text-[13px] leading-5">
+                <Text className="text-[13px] leading-snug">
                   Toggle left sidebar
                 </Text>
               </Command.Item>
@@ -191,14 +191,16 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
                 onSelect={runAndClose(openReviewPanel, "open-review-panel")}
               >
                 <ViewVerticalIcon className="mr-3 h-3 w-3 rotate-180 text-gray-11" />
-                <Text className="text-[13px] leading-5">Open review panel</Text>
+                <Text className="text-[13px] leading-snug">
+                  Open review panel
+                </Text>
               </Command.Item>
               <Command.Item
                 value="Create new task"
                 onSelect={runAndClose(navigateToTaskInput, "new-task")}
               >
                 <FileTextIcon className="mr-3 h-3 w-3 text-gray-11" />
-                <Text className="text-[13px] leading-5">New task</Text>
+                <Text className="text-[13px] leading-snug">New task</Text>
               </Command.Item>
             </Command.Group>
 
@@ -214,7 +216,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
                     )}
                   >
                     <FileTextIcon className="mr-3 h-3 w-3 text-gray-11" />
-                    <Text className="text-[13px] leading-5">
+                    <Text className="text-[13px] leading-snug">
                       New task in{" "}
                       <Text className="font-bold">{folder.name}</Text>
                     </Text>

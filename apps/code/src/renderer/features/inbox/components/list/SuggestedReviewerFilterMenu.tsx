@@ -73,14 +73,11 @@ export function SuggestedReviewerFilterMenu() {
         align="end"
         side="bottom"
         sideOffset={6}
-        style={{ padding: 8, minWidth: 280, maxWidth: 320 }}
+        className="min-w-[280px] max-w-[320px] p-[8px]"
       >
         <Flex direction="column" gap="2">
           <Flex align="center" justify="between" gap="2">
-            <Text
-              className="font-medium text-[13px] text-gray-10 leading-5"
-              style={{ paddingLeft: "1px" }}
-            >
+            <Text className="pl-[1px] font-medium text-[13px] text-gray-10 leading-snug">
               Suggested reviewer
             </Text>
             {hasSelectedReviewers ? (
@@ -99,11 +96,7 @@ export function SuggestedReviewerFilterMenu() {
             gap="2"
             px="2"
             py="1"
-            style={{
-              border: "1px solid var(--gray-6)",
-              borderRadius: "var(--radius-2)",
-              backgroundColor: "var(--color-background)",
-            }}
+            className="rounded-(--radius-2) border border-(--gray-6) bg-(--color-background)"
           >
             <MagnifyingGlass size={12} className="shrink-0 text-gray-10" />
             <input
@@ -115,18 +108,13 @@ export function SuggestedReviewerFilterMenu() {
             />
           </Flex>
 
-          <Box
-            style={{
-              maxHeight: 280,
-              overflowY: "auto",
-            }}
-          >
+          <Box className="max-h-[280px] overflow-y-auto">
             {isFetching && visibleReviewerOptions.length === 0 ? (
               <Flex align="center" justify="center" py="3">
                 <Spinner size="1" />
               </Flex>
             ) : visibleReviewerOptions.length === 0 ? (
-              <Text color="gray" className="px-1 py-2 text-[12px] leading-5">
+              <Text color="gray" className="px-1 py-2 text-[12px] leading-snug">
                 No users found.
               </Text>
             ) : (
@@ -149,21 +137,20 @@ export function SuggestedReviewerFilterMenu() {
                             <img
                               src={`https://github.com/${reviewer.github_login}.png?size=32`}
                               alt=""
-                              className="github-avatar shrink-0 rounded-full"
-                              style={{ width: 20, height: 20 }}
+                              className="github-avatar h-[20px] w-[20px] shrink-0 rounded-full"
                               onLoad={(e) =>
                                 e.currentTarget.classList.add("loaded")
                               }
                             />
                           ) : null}
                           <Flex direction="column" gap="0" className="min-w-0">
-                            <Text className="truncate text-[12px] leading-5">
+                            <Text className="truncate text-[12px] leading-snug">
                               {displayName}
                             </Text>
                             {reviewer.email ? (
                               <Text
                                 color="gray"
-                                className="truncate text-[11px] leading-5"
+                                className="truncate text-[11px] leading-snug"
                               >
                                 {reviewer.email}
                               </Text>

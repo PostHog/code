@@ -32,13 +32,12 @@ export function StepTabs({
             px="2"
             onClick={() => onStepClick(i)}
             style={{
-              borderRadius: "var(--radius-2)",
               background: isCurrent ? "var(--blue-3)" : "transparent",
-              cursor: "pointer",
             }}
+            className="cursor-pointer rounded-(--radius-2)"
           >
             <Text
-              className={`text-[13px] leading-5 ${
+              className={`text-[13px] leading-snug ${
                 isCurrent
                   ? "font-medium text-blue-11"
                   : isCompleted

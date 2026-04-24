@@ -43,17 +43,9 @@ export function Tooltip({
             side={side}
             align={align}
             sideOffset={sideOffset}
-            className="dark text-xs leading-[1.4]"
+            className="dark flex items-center gap-[8px] rounded-[6px] border border-(--gray-4) bg-(--gray-2) px-[10px] py-[6px] text-(--gray-12) text-xs leading-[1.4]"
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              backgroundColor: "var(--gray-2)",
-              color: "var(--gray-12)",
-              padding: "6px 10px",
-              borderRadius: "6px",
               whiteSpace: isSimpleContent ? "nowrap" : "normal",
-              border: "1px solid var(--gray-4)",
               boxShadow: "0 4px 12px rgba(0, 0, 0, 0.25)",
               zIndex: 9999,
               animationDuration: "150ms",

@@ -54,7 +54,7 @@ export function AccountSettings() {
     <Flex direction="column">
       <Flex align="center" gap="4" py="4">
         <Avatar size="4" fallback={initials} radius="full" color="amber" />
-        <Flex direction="column" gap="1" style={{ flex: 1 }}>
+        <Flex direction="column" gap="1" className="flex-1">
           <Text className="font-medium text-base">
             {user.first_name && user.last_name
               ? `${user.first_name} ${user.last_name}`
@@ -81,7 +81,7 @@ export function AccountSettings() {
           color="red"
           size="1"
           onClick={handleLogout}
-          style={{ cursor: "pointer" }}
+          className="cursor-pointer"
         >
           <SignOut size={14} />
           Sign out

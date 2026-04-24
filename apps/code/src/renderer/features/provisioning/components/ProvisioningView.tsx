@@ -64,32 +64,14 @@ export function ProvisioningView({ taskId }: ProvisioningViewProps) {
       <Flex direction="column" height="100%" p="3" gap="2">
         <Flex align="center" gap="2">
           <Spinner size="1" />
-          <Text className="font-medium text-[13px] leading-5">
+          <Text className="font-medium text-[13px] leading-snug">
             Setting up worktree...
           </Text>
         </Flex>
-        <Box
-          style={{
-            flex: 1,
-            minHeight: 0,
-            borderRadius: "var(--radius-2)",
-            background: "var(--color-surface)",
-            border: "1px solid var(--gray-a5)",
-          }}
-        >
+        <Box className="min-h-0 flex-1 rounded-(--radius-2) border border-(--gray-a5) bg-(--color-surface)">
           <pre
             ref={scrollRef}
-            className="text-[13px] leading-5"
-            style={{
-              margin: 0,
-              padding: "var(--space-2)",
-              height: "100%",
-              overflow: "auto",
-              fontFamily: "var(--code-font-family)",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-all",
-              color: "var(--gray-12)",
-            }}
+            className="m-0 h-full overflow-auto whitespace-pre-wrap break-all p-2 font-[var(--code-font-family)] text-(--gray-12) text-[13px] leading-snug"
           >
             {lines.join("\n")}
           </pre>

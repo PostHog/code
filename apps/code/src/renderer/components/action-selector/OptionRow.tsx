@@ -72,24 +72,20 @@ export function OptionRow({
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         px="2"
-        style={{
-          cursor: "pointer",
-          borderRadius: "var(--radius-2)",
-          background: isCancel
+        className={`inline-flex h-[28px] cursor-pointer rounded-(--radius-2) ${
+          isCancel
             ? isSelected
-              ? "var(--gray-6)"
-              : "var(--gray-3)"
+              ? "bg-(--gray-6)"
+              : "bg-(--gray-3)"
             : isSelected
-              ? "var(--blue-8)"
+              ? "bg-(--blue-8)"
               : isHovered
-                ? "var(--blue-4)"
-                : "var(--blue-3)",
-          display: "inline-flex",
-          height: "28px",
-        }}
+                ? "bg-(--blue-4)"
+                : "bg-(--blue-3)"
+        }`}
       >
         <Text
-          className={`font-medium text-[13px] leading-5 ${
+          className={`font-medium text-[13px] leading-snug ${
             isSelected
               ? isCancel
                 ? "text-gray-12"
@@ -131,8 +127,7 @@ export function OptionRow({
 
     return (
       <Text
-        className={`font-medium text-[13px] leading-5 ${textClass}`}
-        style={{ whiteSpace: "pre-wrap" }}
+        className={`whitespace-pre-wrap font-medium text-[13px] leading-snug ${textClass}`}
       >
         {displayText}
       </Text>
@@ -145,44 +140,28 @@ export function OptionRow({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       py="1"
-      style={{
-        cursor: "pointer",
-        paddingTop: "4px",
-        paddingBottom: "4px",
-        userSelect: "none",
-        borderRadius: "var(--radius-2)",
-        background: isSelected
-          ? "var(--blue-3)"
+      className={`-mx-3 cursor-pointer select-none rounded-(--radius-2) pt-[4px] pr-3 pb-[4px] pl-3 ${
+        isSelected
+          ? "bg-(--blue-3)"
           : isHovered
-            ? "var(--gray-a3)"
-            : "transparent",
-        marginLeft: "calc(var(--space-3) * -1)",
-        marginRight: "calc(var(--space-3) * -1)",
-        paddingLeft: "var(--space-3)",
-        paddingRight: "var(--space-3)",
-      }}
+            ? "bg-(--gray-a3)"
+            : "bg-transparent"
+      }`}
     >
       <Flex align="center" gap="2" className="leading-4">
         <Text
-          className={`text-[13px] leading-4 ${isSelected ? "text-blue-11" : "text-gray-11"}`}
-          style={{ width: "1ch", flexShrink: 0 }}
+          className={`w-[1ch] shrink-0 text-[13px] leading-4 ${isSelected ? "text-blue-11" : "text-gray-11"}`}
         >
           {isSelected ? "›" : ""}
         </Text>
         <Text
-          className={`text-[13px] leading-4 ${
+          className={`min-w-[16px] shrink-0 whitespace-nowrap text-right text-[13px] leading-4 ${
             isSelected
               ? "text-blue-11"
               : isHovered
                 ? "text-blue-11"
                 : "text-gray-11"
           }`}
-          style={{
-            minWidth: "16px",
-            textAlign: "right",
-            whiteSpace: "nowrap",
-            flexShrink: 0,
-          }}
         >
           {index + 1}.
         </Text>
@@ -192,7 +171,7 @@ export function OptionRow({
               size="1"
               color="green"
               checked={isChecked}
-              style={{ pointerEvents: "none", flexShrink: 0 }}
+              className="pointer-events-none shrink-0"
             />
           ) : (
             <Radio
@@ -200,21 +179,15 @@ export function OptionRow({
               color="green"
               value={option.id}
               checked={isChecked}
-              style={{ pointerEvents: "none", flexShrink: 0 }}
+              className="pointer-events-none shrink-0"
             />
           ))}
-        <Box className="leading-4" style={{ flex: 1, minWidth: 0 }}>
-          {renderLabel()}
-        </Box>
+        <Box className="min-w-0 flex-1 leading-4">{renderLabel()}</Box>
       </Flex>
       {option.description && !isCurrentlyEditing && (
         <Text
           as="p"
-          className="text-[13px] text-gray-11 leading-5"
-          style={{
-            marginLeft: showCheckbox ? "64px" : "40px",
-            marginTop: "2px",
-          }}
+          className={`mt-[2px] text-[13px] text-gray-11 leading-snug ${showCheckbox ? "ml-[64px]" : "ml-[40px]"}`}
         >
           {compactHomePath(option.description)}
         </Text>

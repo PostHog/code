@@ -10,7 +10,7 @@ export function InboxView() {
       <Flex align="center" gap="2" className="w-full min-w-0">
         <EnvelopeSimpleIcon size={12} className="shrink-0 text-gray-10" />
         <Text
-          className="truncate whitespace-nowrap font-medium text-[13px] leading-5"
+          className="truncate whitespace-nowrap font-medium text-[13px] leading-snug"
           title="Inbox"
         >
           Inbox
@@ -23,7 +23,7 @@ export function InboxView() {
   useSetHeaderContent(headerContent);
 
   return (
-    <div style={{ height: "100%" }}>
+    <div className="h-full">
       <InboxSignalsTab />
     </div>
   );

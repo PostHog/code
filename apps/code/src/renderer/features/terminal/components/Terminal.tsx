@@ -116,21 +116,8 @@ export function Terminal({
   }, [sessionId]);
 
   return (
-    <Box
-      style={{
-        height: "100%",
-        padding: "var(--space-3)",
-        position: "relative",
-      }}
-      onClick={handleClick}
-    >
-      <div
-        ref={terminalRef}
-        style={{
-          height: "100%",
-          width: "100%",
-        }}
-      />
+    <Box onClick={handleClick} className="relative h-full p-3">
+      <div ref={terminalRef} className="h-full w-full" />
       <style>
         {`
           .xterm {

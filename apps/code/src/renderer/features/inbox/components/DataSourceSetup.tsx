@@ -224,7 +224,7 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
     return (
       <SetupFormContainer title="Connect GitHub">
         <Flex direction="column" gap="3">
-          <Text style={{ color: "var(--gray-11)" }} className="text-sm">
+          <Text className="text-(--gray-11) text-sm">
             Connect your GitHub account to import issues as signals.
           </Text>
           <Flex gap="2" justify="end">
@@ -395,9 +395,7 @@ function LinearSetup({ onComplete }: SetupFormProps) {
         </Button>
 
         {pollError && (
-          <Text style={{ color: "var(--red-11)" }} className="text-sm">
-            {pollError}
-          </Text>
+          <Text className="text-(--red-11) text-sm">{pollError}</Text>
         )}
 
         <Flex gap="2" justify="end">
@@ -499,21 +497,10 @@ function SetupFormContainer({
   children: React.ReactNode;
 }) {
   return (
-    <Box
-      p="4"
-      style={{
-        backgroundColor: "var(--color-panel-solid)",
-        border: "1px solid var(--gray-4)",
-      }}
-    >
+    <Box p="4" className="border border-(--gray-4) bg-(--color-panel-solid)">
       <Flex direction="column" gap="3">
         <Flex align="center" justify="between">
-          <Text
-            style={{ color: "var(--gray-12)" }}
-            className="font-medium text-sm"
-          >
-            {title}
-          </Text>
+          <Text className="font-medium text-(--gray-12) text-sm">{title}</Text>
         </Flex>
         {children}
       </Flex>

@@ -65,11 +65,7 @@ export function CloudInitializingView({
       className="absolute inset-0 bg-background"
     >
       <div className="zen-float">
-        <img
-          src={zenHedgehog}
-          alt=""
-          style={{ width: "160px", display: "block" }}
-        />
+        <img src={zenHedgehog} alt="" className="block w-[160px]" />
       </div>
       <Flex direction="column" align="center" gap="2">
         <Flex align="center" gap="2">

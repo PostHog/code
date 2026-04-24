@@ -165,12 +165,10 @@ export function McpAppHost({
       src="mcp-sandbox://proxy"
       sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
       style={{
-        width: "100%",
         height: displayMode === "fullscreen" ? "100%" : `${iframeHeight}px`,
-        border: "none",
-        borderRadius: "var(--radius-2)",
       }}
       title={`MCP App: ${serverName} - ${toolName}`}
+      className="w-full rounded-(--radius-2) border-0"
     />
   );
 

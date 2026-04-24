@@ -39,7 +39,7 @@ export function SignalSourcesSettings() {
 
   if (isLoading) {
     return (
-      <Text color="gray" className="text-[13px] leading-5">
+      <Text color="gray" className="text-[13px] leading-snug">
         Loading signal source configurations...
       </Text>
     );
@@ -50,7 +50,7 @@ export function SignalSourcesSettings() {
 
   return (
     <Flex direction="column" gap="4">
-      <Text color="gray" className="text-[13px] leading-5">
+      <Text color="gray" className="text-[13px] leading-snug">
         Automatically analyze your product data and surface actionable insights.
         Choose which sources to enable for this project.
       </Text>
@@ -95,16 +95,10 @@ export function SignalSourcesSettings() {
         pt="4"
         style={{ borderTop: "1px dashed var(--gray-5)" }}
       >
-        <Text
-          style={{ color: "var(--gray-12)" }}
-          className="font-medium text-sm"
-        >
+        <Text className="font-medium text-(--gray-12) text-sm">
           Your PR auto-start threshold
         </Text>
-        <Text
-          style={{ color: "var(--gray-11)" }}
-          className="text-[13px] leading-5"
-        >
+        <Text className="text-(--gray-11) text-[13px] leading-snug">
           Automatically start tasks assigned to you for reports at or above this
           priority. Choose &quot;Never&quot; to opt out entirely.
         </Text>
@@ -116,7 +110,7 @@ export function SignalSourcesSettings() {
             )
           }
         >
-          <Select.Trigger style={{ maxWidth: 300 }} />
+          <Select.Trigger className="max-w-[300px]" />
           <Select.Content>
             {USER_PRIORITY_OPTIONS.map((opt) => (
               <Select.Item key={opt.value} value={opt.value}>

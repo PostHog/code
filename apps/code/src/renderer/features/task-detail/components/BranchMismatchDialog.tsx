@@ -25,21 +25,14 @@ function BranchLabel({ name }: { name: string }) {
     <Code
       variant="ghost"
       truncate
-      style={{
-        maxWidth: "100%",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "4px",
-      }}
-      className="text-sm"
+      className="inline-flex max-w-[100%] items-center gap-[4px] text-sm"
     >
-      <GitBranch size={12} style={{ flexShrink: 0 }} />
+      <GitBranch size={12} className="shrink-0" />
       <span
         style={{
-          overflow: "hidden",
           textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
         }}
+        className="overflow-hidden whitespace-nowrap"
       >
         {name}
       </span>
@@ -76,22 +69,20 @@ export function BranchMismatchDialog({
           This task is linked to a different branch than the one you're
           currently on. The agent will make changes on the current branch.
         </AlertDialog.Description>
-        <Flex direction="column" gap="1" mt="3" style={{ minWidth: 0 }}>
-          <Flex align="center" gap="2" style={{ minWidth: 0 }}>
+        <Flex direction="column" gap="1" mt="3" className="min-w-0">
+          <Flex align="center" gap="2" className="min-w-0">
             <Text
               color="gray"
-              style={{ flexShrink: 0, width: "64px" }}
-              className="text-[13px] leading-5"
+              className="w-[64px] shrink-0 text-[13px] leading-snug"
             >
               Linked
             </Text>
             <BranchLabel name={linkedBranch} />
           </Flex>
-          <Flex align="center" gap="2" style={{ minWidth: 0 }}>
+          <Flex align="center" gap="2" className="min-w-0">
             <Text
               color="gray"
-              style={{ flexShrink: 0, width: "64px" }}
-              className="text-[13px] leading-5"
+              className="w-[64px] shrink-0 text-[13px] leading-snug"
             >
               Current
             </Text>

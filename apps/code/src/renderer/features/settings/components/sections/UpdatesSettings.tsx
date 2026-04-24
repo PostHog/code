@@ -127,7 +127,7 @@ export function UpdatesSettings() {
                       ? "green"
                       : "gray"
                 }
-                className="text-[13px] leading-5"
+                className="text-[13px] leading-snug"
               >
                 {updateStatus.message}
               </Text>

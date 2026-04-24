@@ -50,17 +50,17 @@ export function PlanStatusBar({ plan }: PlanStatusBarProps) {
           )}
           <Text
             color="gray"
-            className="whitespace-nowrap text-[13px] leading-5"
+            className="whitespace-nowrap text-[13px] leading-snug"
           >
             {stats.completed}/{stats.total} completed
           </Text>
           {stats.inProgress && (
             <>
-              <Text color="gray" className="text-[13px] leading-5">
+              <Text color="gray" className="text-[13px] leading-snug">
                 •
               </Text>
               <StepIcon status="in_progress" />
-              <Text className="truncate text-[13px] text-gray-11 leading-5">
+              <Text className="truncate text-[13px] text-gray-11 leading-snug">
                 {stats.inProgress.content}
               </Text>
             </>

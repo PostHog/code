@@ -86,12 +86,6 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
   return (
     <Box
       p="3"
-      style={{
-        backgroundColor: "var(--color-panel-solid)",
-        border: "1px solid var(--gray-4)",
-        borderRadius: "var(--radius-3)",
-        cursor: disabled || loading ? "default" : "pointer",
-      }}
       onClick={
         disabled || loading
           ? undefined
@@ -99,39 +93,31 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
             ? onSetup
             : () => onCheckedChange(!checked)
       }
+      className={`rounded-(--radius-3) border border-(--gray-4) bg-(--color-panel-solid) ${disabled || loading ? "cursor-default" : "cursor-pointer"}`}
     >
       <Flex align="center" justify="between" gap="4">
         <Flex align="center" gap="3">
-          <Box style={{ color: "var(--gray-11)", flexShrink: 0 }}>{icon}</Box>
+          <Box className="shrink-0 text-(--gray-11)">{icon}</Box>
           <Flex direction="column" gap="1">
             <Flex align="center" gap="2">
-              <Text
-                style={{ color: "var(--gray-12)" }}
-                className="font-medium text-sm"
-              >
+              <Text className="font-medium text-(--gray-12) text-sm">
                 {label}
               </Text>
               {labelSuffix}
               {statusInfo && (
                 <Text
                   style={{ color: statusInfo.color }}
-                  className="text-[13px] leading-5"
+                  className="text-[13px] leading-snug"
                 >
                   {statusInfo.text}
                 </Text>
               )}
             </Flex>
-            <Text
-              style={{ color: "var(--gray-11)" }}
-              className="text-[13px] leading-5"
-            >
+            <Text className="text-(--gray-11) text-[13px] leading-snug">
               {description}
             </Text>
             {docsUrl && (
-              <Text
-                style={{ color: "var(--gray-11)" }}
-                className="text-[13px] leading-5"
-              >
+              <Text className="text-(--gray-11) text-[13px] leading-snug">
                 <a
                   href={docsUrl}
                   target="_blank"
@@ -141,13 +127,7 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
                     e.preventDefault();
                     window.open(docsUrl, "_blank", "noopener");
                   }}
-                  style={{
-                    color: "var(--accent-11)",
-                    textDecoration: "none",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                  }}
+                  className="inline-flex items-center gap-[4px] text-(--accent-11) no-underline"
                 >
                   Learn about {docsLabel ?? label}
                   <ArrowSquareOutIcon size={11} />
@@ -177,7 +157,7 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
           />
         )}
       </Flex>
-      {statusSection && <Box style={{ marginLeft: 32 }}>{statusSection}</Box>}
+      {statusSection && <Box className="ml-[32px]">{statusSection}</Box>}
     </Box>
   );
 });
@@ -192,41 +172,27 @@ export const EvaluationsSection = memo(function EvaluationsSection({
   return (
     <Box
       p="3"
-      style={{
-        backgroundColor: "var(--color-panel-solid)",
-        border: "1px solid var(--gray-4)",
-        borderRadius: "var(--radius-3)",
-        cursor: "pointer",
-      }}
       onClick={() => window.open(evaluationsUrl, "_blank", "noopener")}
+      className="cursor-pointer rounded-(--radius-3) border border-(--gray-4) bg-(--color-panel-solid)"
     >
       <Flex align="center" justify="between" gap="4">
         <Flex align="center" gap="3">
-          <Box style={{ color: "var(--gray-11)", flexShrink: 0 }}>
+          <Box className="shrink-0 text-(--gray-11)">
             <BrainIcon size={20} />
           </Box>
           <Flex direction="column" gap="1">
             <Flex align="center" gap="2">
-              <Text
-                style={{ color: "var(--gray-12)" }}
-                className="font-medium text-sm"
-              >
+              <Text className="font-medium text-(--gray-12) text-sm">
                 LLM Analytics
               </Text>
               <Tooltip content="This is only visible to staff users of PostHog">
                 <Badge color="blue">Internal</Badge>
               </Tooltip>
             </Flex>
-            <Text
-              style={{ color: "var(--gray-11)" }}
-              className="text-[13px] leading-5"
-            >
+            <Text className="text-(--gray-11) text-[13px] leading-snug">
               Monitor how your AI features are performing
             </Text>
-            <Text
-              style={{ color: "var(--gray-11)" }}
-              className="text-[13px] leading-5"
-            >
+            <Text className="text-(--gray-11) text-[13px] leading-snug">
               <a
                 href="https://posthog.com/docs/llm-analytics"
                 target="_blank"
@@ -240,13 +206,7 @@ export const EvaluationsSection = memo(function EvaluationsSection({
                     "noopener",
                   );
                 }}
-                style={{
-                  color: "var(--accent-11)",
-                  textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
+                className="inline-flex items-center gap-[4px] text-(--accent-11) no-underline"
               >
                 Learn about LLM Analytics
                 <ArrowSquareOutIcon size={11} />
@@ -281,15 +241,8 @@ function SourceRunningIndicator({
   }
   return (
     <Flex align="center" gap="2" mt="2">
-      <CircleNotchIcon
-        size={14}
-        className="animate-spin"
-        style={{ color: "var(--accent-11)" }}
-      />
-      <Text
-        style={{ color: "var(--accent-11)" }}
-        className="text-[13px] leading-5"
-      >
+      <CircleNotchIcon size={14} className="animate-spin text-(--accent-11)" />
+      <Text className="text-(--accent-11) text-[13px] leading-snug">
         {message}
       </Text>
     </Flex>
@@ -353,11 +306,8 @@ export function SignalSourceToggles({
   return (
     <Flex gap="4">
       {/* PostHog data */}
-      <Flex direction="column" gap="2" style={{ flex: 1, minWidth: 0 }}>
-        <Text
-          style={{ color: "var(--gray-9)" }}
-          className="font-medium text-[13px] leading-5"
-        >
+      <Flex direction="column" gap="2" className="min-w-0 flex-1">
+        <Text className="font-medium text-(--gray-9) text-[13px] leading-snug">
           PostHog data
         </Text>
         <Flex direction="column" gap="3">
@@ -408,11 +358,8 @@ export function SignalSourceToggles({
       </Flex>
 
       {/* External connections */}
-      <Flex direction="column" gap="2" style={{ flex: 1, minWidth: 0 }}>
-        <Text
-          style={{ color: "var(--gray-9)" }}
-          className="font-medium text-[13px] leading-5"
-        >
+      <Flex direction="column" gap="2" className="min-w-0 flex-1">
+        <Text className="font-medium text-(--gray-9) text-[13px] leading-snug">
           External connections
         </Text>
         <Flex direction="column" gap="3">

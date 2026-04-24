@@ -57,6 +57,24 @@
 
 @config "../../../tailwind.config.js";
 
+/*
+ * Tighten the default line-height paired with each named font-size utility.
+ * Tailwind v4 ships --text-{size}--line-height tokens; overriding them here
+ * means every <element className="text-sm"> automatically gets the tighter
+ * leading without needing a leading-* class at every call site.
+ *
+ * Body sizes (xs/sm/base) use snug (1.375), heading sizes (lg/xl/2xl) use
+ * tight (1.25) to match how hero titles already render.
+ */
+@theme {
+  --text-xs--line-height: calc(0.75rem * 1.375); /* 12 → 16.5px */
+  --text-sm--line-height: calc(0.875rem * 1.375); /* 14 → 19.25px */
+  --text-base--line-height: calc(1rem * 1.375); /* 16 → 22px */
+  --text-lg--line-height: calc(1.125rem * 1.25); /* 18 → 22.5px */
+  --text-xl--line-height: calc(1.25rem * 1.25); /* 20 → 25px */
+  --text-2xl--line-height: calc(1.5rem * 1.25); /* 24 → 30px */
+}
+
 @font-face {
   font-family: "Berkeley Mono";
   src: url("../../../assets/fonts/BerkeleyMono/BerkeleyMono-Regular.woff2")

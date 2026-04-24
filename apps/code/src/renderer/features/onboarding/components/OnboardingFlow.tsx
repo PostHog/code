@@ -64,7 +64,7 @@ export function OnboardingFlow() {
             logoutMutation.mutate();
             resetOnboarding();
           }}
-          style={{ opacity: 0.5 }}
+          className="opacity-50"
         >
           <SignOut size={14} />
           Log out
@@ -76,7 +76,7 @@ export function OnboardingFlow() {
           variant="ghost"
           color="gray"
           onClick={handleComplete}
-          style={{ opacity: 0.5 }}
+          className="opacity-50"
         >
           <ArrowRight size={14} weight="bold" />
           Skip setup
@@ -98,7 +98,7 @@ export function OnboardingFlow() {
               exit="exit"
               variants={stepVariants}
               transition={{ duration: 0.3 }}
-              style={{ width: "100%", flex: 1, minHeight: 0 }}
+              className="min-h-0 w-full flex-1"
             >
               <WelcomeScreen onNext={next} />
             </motion.div>
@@ -113,7 +113,7 @@ export function OnboardingFlow() {
               exit="exit"
               variants={stepVariants}
               transition={{ duration: 0.3 }}
-              style={{ width: "100%", flex: 1, minHeight: 0 }}
+              className="min-h-0 w-full flex-1"
             >
               <ProjectSelectStep onNext={next} onBack={back} />
             </motion.div>
@@ -128,7 +128,7 @@ export function OnboardingFlow() {
               exit="exit"
               variants={stepVariants}
               transition={{ duration: 0.3 }}
-              style={{ width: "100%", flex: 1, minHeight: 0 }}
+              className="min-h-0 w-full flex-1"
             >
               <InviteCodeStep onNext={next} onBack={back} />
             </motion.div>
@@ -143,7 +143,7 @@ export function OnboardingFlow() {
               exit="exit"
               variants={stepVariants}
               transition={{ duration: 0.3 }}
-              style={{ width: "100%", flex: 1, minHeight: 0 }}
+              className="min-h-0 w-full flex-1"
             >
               <GitIntegrationStep
                 onNext={next}
@@ -165,7 +165,7 @@ export function OnboardingFlow() {
               exit="exit"
               variants={stepVariants}
               transition={{ duration: 0.3 }}
-              style={{ width: "100%", flex: 1, minHeight: 0 }}
+              className="min-h-0 w-full flex-1"
             >
               <CliInstallStep onNext={next} onBack={back} />
             </motion.div>
@@ -180,7 +180,7 @@ export function OnboardingFlow() {
               exit="exit"
               variants={stepVariants}
               transition={{ duration: 0.3 }}
-              style={{ width: "100%", flex: 1, minHeight: 0 }}
+              className="min-h-0 w-full flex-1"
             >
               <SignalsStep onNext={handleComplete} onBack={back} />
             </motion.div>

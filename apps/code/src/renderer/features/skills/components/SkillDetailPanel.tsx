@@ -38,11 +38,10 @@ export function SkillDetailPanel({ skill, onClose }: SkillDetailPanelProps) {
         gap="2"
         px="3"
         py="2"
-        className="shrink-0"
-        style={{ borderBottom: "1px solid var(--gray-5)" }}
+        className="shrink-0 border-b border-b-(--gray-5)"
       >
         <Flex align="start" justify="between" gap="2">
-          <Text className="block min-w-0 break-words font-medium text-[13px] leading-5">
+          <Text className="block min-w-0 break-words font-medium text-[13px] leading-snug">
             {skill.name}
           </Text>
           <button
@@ -73,18 +72,17 @@ export function SkillDetailPanel({ skill, onClose }: SkillDetailPanelProps) {
       <ScrollArea
         type="auto"
         scrollbars="vertical"
-        className="scroll-area-constrain-width"
-        style={{ height: "100%" }}
+        className="scroll-area-constrain-width h-full"
       >
         <Flex direction="column" gap="3" p="3">
           {skill.description && (
-            <Text className="text-[12px] text-gray-10 leading-5">
+            <Text className="text-[12px] text-gray-10 leading-snug">
               {skill.description}
             </Text>
           )}
 
           {isLoading ? (
-            <Text className="text-[12px] text-gray-9 leading-5">
+            <Text className="text-[12px] text-gray-9 leading-snug">
               Loading...
             </Text>
           ) : body ? (
@@ -92,7 +90,7 @@ export function SkillDetailPanel({ skill, onClose }: SkillDetailPanelProps) {
               <MarkdownRenderer content={body} />
             </Box>
           ) : (
-            <Text className="text-[12px] text-gray-9 leading-5">
+            <Text className="text-[12px] text-gray-9 leading-snug">
               No content in SKILL.md
             </Text>
           )}

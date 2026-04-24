@@ -27,14 +27,11 @@ export function ProjectSelect({
     ? `${currentProject.name} ${currentProject.id}`
     : undefined;
   const [highlightedValue, setHighlightedValue] = useState(defaultValue);
-  const sizeClass = size === "1" ? "text-[13px] leading-5" : "text-sm";
+  const sizeClass = size === "1" ? "text-[13px] leading-snug" : "text-sm";
 
   if (projects.length <= 1) {
     return (
-      <Text
-        className={sizeClass}
-        style={{ color: "var(--gray-12)", opacity: 0.5 }}
-      >
+      <Text className={`text-(--gray-12) opacity-50 ${sizeClass}`}>
         {projectName}
       </Text>
     );
@@ -42,7 +39,7 @@ export function ProjectSelect({
 
   return (
     <Text className={sizeClass}>
-      <span style={{ color: "var(--gray-12)", opacity: 0.5 }}>
+      <span className="text-(--gray-12) opacity-50">
         {projectName}
         {" · "}
       </span>
@@ -60,23 +57,18 @@ export function ProjectSelect({
             type="button"
             disabled={disabled}
             style={{
-              background: "none",
-              border: "none",
-              padding: 0,
-              color: "var(--accent-9)",
               cursor: disabled ? "not-allowed" : "pointer",
               fontFamily: "inherit",
-              fontWeight: 500,
               fontSize: "inherit",
               opacity: disabled ? 0.5 : 1,
             }}
+            className="border-0 bg-transparent p-0 font-medium text-(--accent-9)"
           >
             change
           </button>
         </Popover.Trigger>
         <Popover.Content
-          className="project-select-popover"
-          style={{ padding: 0 }}
+          className="project-select-popover p-0"
           side="bottom"
           align="start"
           sideOffset={8}

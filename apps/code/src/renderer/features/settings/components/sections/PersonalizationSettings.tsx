@@ -71,7 +71,7 @@ export function PersonalizationSettings() {
     <Flex direction="column" gap="1" py="4">
       <Flex direction="column" gap="1" className="mb-2">
         <Text className="font-medium text-sm">Custom instructions</Text>
-        <Text color="gray" className="text-[13px] leading-5">
+        <Text color="gray" className="text-[13px] leading-snug">
           Instructions included in every agent session
         </Text>
       </Flex>
@@ -83,9 +83,9 @@ export function PersonalizationSettings() {
         placeholder="e.g. Always write tests for new code. Prefer functional patterns."
         rows={6}
         size="1"
-        style={{ width: "100%" }}
+        className="w-full"
       />
-      <Text color="gray" align="right" className="text-[13px] leading-5">
+      <Text color="gray" align="right" className="text-[13px] leading-snug">
         {localInstructions.length}/{MAX_INSTRUCTIONS_LENGTH}
       </Text>
     </Flex>

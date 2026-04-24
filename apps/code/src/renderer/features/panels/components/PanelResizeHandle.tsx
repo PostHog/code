@@ -25,8 +25,7 @@ export const PanelResizeHandle: React.FC<PanelResizeHandleProps> = ({
       <Box
         width="100%"
         height="100%"
-        className="panel-resize-handle-bar transition-colors duration-150"
-        style={{ backgroundColor: "var(--gray-6)" }}
+        className="panel-resize-handle-bar bg-(--gray-6) transition-colors duration-150"
       />
     </ResizablePanelResizeHandle>
   );

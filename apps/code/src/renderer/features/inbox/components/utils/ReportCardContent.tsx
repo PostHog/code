@@ -39,7 +39,7 @@ export function ReportCardContent({
           {report.title ?? "Untitled signal"}
         </Text>
         {!showMeta && (
-          <Text color="gray" className="shrink-0 text-[12px] leading-5">
+          <Text color="gray" className="shrink-0 text-[12px] leading-snug">
             {updatedAtLabel}
           </Text>
         )}
@@ -94,12 +94,12 @@ export function ReportCardContent({
         <Flex align="center" gapX="3" className="text-[11px] text-gray-9">
           <Flex align="center" gapX="1">
             <LightningIcon size={11} />
-            <Text className="text-[11px] leading-5">
+            <Text className="text-[11px] leading-snug">
               {report.signal_count} signal
               {report.signal_count !== 1 ? "s" : ""}
             </Text>
           </Flex>
-          <Text className="text-[11px] leading-5">{updatedAtLabel}</Text>
+          <Text className="text-[11px] leading-snug">{updatedAtLabel}</Text>
         </Flex>
       )}
     </Flex>

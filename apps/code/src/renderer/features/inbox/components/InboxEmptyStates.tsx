@@ -17,13 +17,12 @@ export function WelcomePane({ onEnableInbox }: { onEnableInbox: () => void }) {
       height="100%"
       px="5"
     >
-      <Flex direction="column" align="center" style={{ maxWidth: 420 }}>
-        <img src={graphsHog} alt="" style={{ width: 120, marginBottom: 16 }} />
+      <Flex direction="column" align="center" className="max-w-[420px]">
+        <img src={graphsHog} alt="" className="mb-[16px] w-[120px]" />
 
         <Text
           align="center"
-          style={{ color: "var(--gray-12)" }}
-          className="font-bold text-lg leading-6.5"
+          className="font-bold text-(--gray-12) text-lg leading-6.5"
         >
           Welcome to your Inbox
         </Text>
@@ -33,14 +32,13 @@ export function WelcomePane({ onEnableInbox }: { onEnableInbox: () => void }) {
           align="center"
           gap="3"
           mt="3"
-          style={{ maxWidth: 340 }}
+          className="max-w-[340px]"
         >
           <Text
             align="center"
-            style={{ color: "var(--gray-11)" }}
-            className="text-[13px] leading-[1.35]"
+            className="text-(--gray-11) text-[13px] leading-[1.35]"
           >
-            <Text style={{ color: "var(--gray-12)" }} className="font-medium">
+            <Text className="font-medium text-(--gray-12)">
               Background analysis of your data — while you sleep.
             </Text>
             <br />
@@ -48,14 +46,13 @@ export function WelcomePane({ onEnableInbox }: { onEnableInbox: () => void }) {
             analyzed around the clock.
           </Text>
 
-          <ArrowDownIcon size={14} style={{ color: "var(--gray-8)" }} />
+          <ArrowDownIcon size={14} className="text-(--gray-8)" />
 
           <Text
             align="center"
-            style={{ color: "var(--gray-11)" }}
-            className="text-[13px] leading-[1.35]"
+            className="text-(--gray-11) text-[13px] leading-[1.35]"
           >
-            <Text style={{ color: "var(--gray-12)" }} className="font-medium">
+            <Text className="font-medium text-(--gray-12)">
               Ready-to-run fixes for real user problems.
             </Text>
             <br />
@@ -64,7 +61,7 @@ export function WelcomePane({ onEnableInbox }: { onEnableInbox: () => void }) {
           </Text>
         </Flex>
 
-        <Button size="2" style={{ marginTop: 20 }} onClick={onEnableInbox}>
+        <Button size="2" onClick={onEnableInbox} className="mt-[20px]">
           Enable Inbox
         </Button>
       </Flex>
@@ -87,17 +84,12 @@ export function WarmingUpPane({
       height="100%"
       px="5"
     >
-      <Flex direction="column" align="center" style={{ maxWidth: 420 }}>
-        <img
-          src={explorerHog}
-          alt=""
-          style={{ width: 120, marginBottom: 16 }}
-        />
+      <Flex direction="column" align="center" className="max-w-[420px]">
+        <img src={explorerHog} alt="" className="mb-[16px] w-[120px]" />
 
         <Text
           align="center"
-          style={{ color: "var(--gray-12)" }}
-          className="font-bold text-lg leading-6.5"
+          className="font-bold text-(--gray-12) text-lg leading-6.5"
         >
           Inbox is warming up
           <AnimatedEllipsis />
@@ -106,13 +98,12 @@ export function WarmingUpPane({
         <Text
           align="center"
           mt="3"
-          style={{ color: "var(--gray-11)" }}
-          className="text-[13px] leading-[1.35]"
+          className="text-(--gray-11) text-[13px] leading-[1.35]"
         >
           Reports will appear here as soon as signals come in.
         </Text>
 
-        <Flex align="center" gap="3" style={{ marginTop: 16 }}>
+        <Flex align="center" gap="3" className="mt-[16px]">
           {enabledProducts.map((sp) => {
             const meta = SOURCE_PRODUCT_META[sp];
             if (!meta) return null;
@@ -148,24 +139,15 @@ export function SelectReportPane() {
       height="100%"
       px="5"
     >
-      <Flex direction="column" align="center" style={{ maxWidth: 300 }}>
-        <img
-          src={mailHog}
-          alt=""
-          style={{ width: 100, marginBottom: 12, opacity: 0.8 }}
-        />
-        <Text
-          align="center"
-          style={{ color: "var(--gray-10)" }}
-          className="font-medium text-sm"
-        >
+      <Flex direction="column" align="center" className="max-w-[300px]">
+        <img src={mailHog} alt="" className="mb-[12px] w-[100px] opacity-80" />
+        <Text align="center" className="font-medium text-(--gray-10) text-sm">
           Select a report
         </Text>
         <Text
           align="center"
           mt="1"
-          style={{ color: "var(--gray-9)" }}
-          className="text-[13px] leading-[1.35]"
+          className="text-(--gray-9) text-[13px] leading-[1.35]"
         >
           Pick a report from the list to see details, signals, and evidence.
         </Text>
@@ -178,7 +160,7 @@ export function SelectReportPane() {
 
 export function SkeletonBackdrop() {
   return (
-    <Flex direction="column" className="select-none" style={{ opacity: 0.4 }}>
+    <Flex direction="column" className="select-none opacity-40">
       {Array.from({ length: 8 }).map((_, index) => (
         <Flex
           // biome-ignore lint/suspicious/noArrayIndexKey: static decorative placeholders

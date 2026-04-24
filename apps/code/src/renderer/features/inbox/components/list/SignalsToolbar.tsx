@@ -164,22 +164,20 @@ export function SignalsToolbar({
       <Flex
         direction="column"
         gap="2"
-        className="select-none"
-        style={{ padding: "8px", borderBottom: "1px solid var(--gray-5)" }}
+        className="select-none border-b border-b-(--gray-5) p-[8px]"
       >
         <Flex align="center" justify="between" gap="2">
           <Flex direction="column" gap="0" className="min-w-0">
             <Flex align="center" gap="2">
-              <Text color="gray" className="shrink-0 text-[12px] leading-5">
+              <Text color="gray" className="shrink-0 text-[12px] leading-snug">
                 Reports ({countLabel})
               </Text>
               {livePolling ? (
                 <Tooltip content={inboxLivePollingTooltip}>
                   <span
                     role="img"
-                    className="inline-flex h-1.5 w-1.5 shrink-0 cursor-default rounded-full"
+                    className="inline-flex h-1.5 w-1.5 shrink-0 cursor-default rounded-full bg-(--red-9)"
                     style={{
-                      backgroundColor: "var(--red-9)",
                       boxShadow: isFetching
                         ? "0 0 6px var(--red-9)"
                         : "0 0 4px var(--red-9)",
@@ -195,7 +193,10 @@ export function SignalsToolbar({
               ) : null}
             </Flex>
             {pipelineHint && !isSearchActive ? (
-              <Text color="gray" className="text-[11px] leading-5 opacity-80">
+              <Text
+                color="gray"
+                className="text-[11px] leading-snug opacity-80"
+              >
                 {pipelineHint}
               </Text>
             ) : null}
@@ -265,7 +266,7 @@ export function SignalsToolbar({
                 }
                 aria-label="Select all visible reports"
               />
-              <Text color="gray" className="text-[11px] leading-5">
+              <Text color="gray" className="text-[11px] leading-snug">
                 {selectedCount} selected
               </Text>
             </label>

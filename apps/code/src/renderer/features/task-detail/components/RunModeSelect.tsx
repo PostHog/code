@@ -27,17 +27,17 @@ export function RunModeSelect({
   onChange,
   size = "1",
 }: RunModeSelectProps) {
-  const textSizeClass = size === "1" ? "text-[13px] leading-5" : "text-sm";
+  const textSizeClass = size === "1" ? "text-[13px] leading-snug" : "text-sm";
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
         <Button color="gray" variant="outline" size={size}>
           <Flex justify="between" align="center" gap="2">
-            <Flex align="center" gap="2" style={{ minWidth: 0 }}>
+            <Flex align="center" gap="2" className="min-w-0">
               {MODE_CONFIG[value].icon}
               <Text className={textSizeClass}>{MODE_CONFIG[value].label}</Text>
             </Flex>
-            <ChevronDownIcon style={{ flexShrink: 0 }} />
+            <ChevronDownIcon className="shrink-0" />
           </Flex>
         </Button>
       </DropdownMenu.Trigger>

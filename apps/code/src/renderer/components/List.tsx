@@ -24,11 +24,11 @@ const sizeStyles: Record<ListSize, { className: string; itemSpacing: string }> =
       itemSpacing: "mb-1",
     },
     "2": {
-      className: "text-sm leading-snug",
+      className: "text-sm",
       itemSpacing: "mb-1",
     },
     "3": {
-      className: "text-base leading-snug",
+      className: "text-base",
       itemSpacing: "mb-2",
     },
   };

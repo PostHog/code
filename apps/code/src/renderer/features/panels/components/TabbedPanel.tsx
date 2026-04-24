@@ -43,18 +43,10 @@ const TabBarButton = forwardRef<HTMLButtonElement, TabBarButtonProps>(
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         style={{
-          height: "32px",
-          width: "32px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           background: isHovered ? "var(--gray-4)" : "var(--color-background)",
-          border: "none",
-          borderBottom: "1px solid var(--gray-6)",
-          cursor: "pointer",
-          color: "var(--gray-11)",
         }}
         {...props}
+        className="flex h-[32px] w-[32px] cursor-pointer items-center justify-center border-0 border-b border-b-(--gray-6) text-(--gray-11)"
       >
         {children}
       </button>
@@ -160,25 +152,15 @@ export const TabbedPanel: React.FC<TabbedPanelProps> = ({
     >
       {content.showTabs !== false && (
         <Box
-          className="shrink-0 border-b"
+          className="relative h-[32px] shrink-0 border-b"
           id="tabbed-panel-tab-bar"
           style={{
             borderColor: "var(--gray-6)",
-            height: "32px",
-            position: "relative",
           }}
         >
           <Flex
             ref={tabBarRef}
-            className="scrollbar-overlay"
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              height: "36px",
-              alignItems: "flex-start",
-            }}
+            className="scrollbar-overlay absolute top-0 right-0 left-0 h-[36px] items-start"
           >
             {content.tabs.map((tab, index) => (
               <PanelTab
@@ -219,24 +201,13 @@ export const TabbedPanel: React.FC<TabbedPanelProps> = ({
             )}
             {/* Spacer to increase DND area */}
             {content.droppable && (
-              <Box
-                flexShrink="0"
-                style={{ minWidth: "90px", height: "32px" }}
-              />
+              <Box flexShrink="0" className="h-[32px] min-w-[90px]" />
             )}
           </Flex>
           {(rightContent || (content.droppable && onSplitPanel)) && (
             <Flex
               align="center"
-              style={{
-                position: "absolute",
-                right: 0,
-                top: 0,
-                height: "32px",
-                borderLeft: "1px solid var(--gray-6)",
-                borderBottom: "1px solid var(--gray-6)",
-                background: "var(--color-background)",
-              }}
+              className="absolute top-0 right-0 h-[32px] border-b border-b-(--gray-6) border-l border-l-(--gray-6) bg-(--color-background)"
             >
               {rightContent}
               {content.droppable && onSplitPanel && (
@@ -279,9 +250,7 @@ export const TabbedPanel: React.FC<TabbedPanelProps> = ({
             align="center"
             justify="center"
             height="100%"
-            style={{
-              backgroundColor: "var(--gray-2)",
-            }}
+            className="bg-(--gray-2)"
           >
             <Box>No content</Box>
           </Flex>

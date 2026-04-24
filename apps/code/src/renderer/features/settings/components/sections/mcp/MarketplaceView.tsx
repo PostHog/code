@@ -68,9 +68,9 @@ export function MarketplaceView({
   const hasFilters = query !== "" || category !== "all";
 
   return (
-    <Flex direction="column" gap="4" style={{ minWidth: 0 }}>
+    <Flex direction="column" gap="4" className="min-w-0">
       <Flex align="start" justify="between" gap="3">
-        <Flex direction="column" gap="1" style={{ minWidth: 0 }}>
+        <Flex direction="column" gap="1" className="min-w-0">
           <Heading className="font-bold text-2xl leading-tight">
             Marketplace
           </Heading>
@@ -130,7 +130,7 @@ export function MarketplaceView({
       </Flex>
 
       <Flex align="center" justify="between">
-        <Text color="gray" className="text-[13px] leading-5">
+        <Text color="gray" className="text-[13px] leading-snug">
           {visibleServers.length}{" "}
           {visibleServers.length === 1 ? "server" : "servers"}
         </Text>
@@ -163,7 +163,7 @@ export function MarketplaceView({
           className="rounded border border-gray-6 border-dashed"
         >
           <Text className="font-medium text-sm">No servers match.</Text>
-          <Text color="gray" className="text-[13px] leading-5">
+          <Text color="gray" className="text-[13px] leading-snug">
             Try a different category or clear the search.
           </Text>
         </Flex>

@@ -54,7 +54,7 @@ export function SidebarItem({
     >
       {icon ? <span className="flex shrink-0 items-center">{icon}</span> : null}
       <span className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <span className="flex items-center gap-1" style={{ height: "18px" }}>
+        <span className="flex h-[18px] items-center gap-1">
           <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
             {label}
           </span>

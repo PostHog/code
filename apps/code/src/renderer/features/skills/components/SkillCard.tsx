@@ -52,7 +52,7 @@ export function SkillCard({ skill, isSelected, onClick }: SkillCardProps) {
           {skill.name}
         </Text>
         {skill.description && (
-          <Text className="truncate text-[12px] text-gray-10 leading-5">
+          <Text className="truncate text-[12px] text-gray-10 leading-snug">
             {skill.description}
           </Text>
         )}
@@ -82,7 +82,7 @@ export function SkillSection({
 }: SkillSectionProps) {
   return (
     <Flex direction="column" gap="1">
-      <Text className="mb-1 font-medium text-[12px] text-gray-9 uppercase leading-5 tracking-wider">
+      <Text className="mb-1 font-medium text-[12px] text-gray-9 uppercase leading-snug tracking-wider">
         {title}
       </Text>
       <Flex direction="column" gap="1">

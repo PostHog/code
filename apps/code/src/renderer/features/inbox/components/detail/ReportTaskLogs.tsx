@@ -291,36 +291,26 @@ export function ReportTaskLogs({
       <div
         onClick={expandedBar ? () => setExpanded(null) : undefined}
         style={{
-          position: "absolute",
-          inset: 0,
-          zIndex: 10,
           background: "rgba(0, 0, 0, 0.32)",
           opacity: expandedBar ? 1 : 0,
           transition: "opacity 0.2s ease",
           pointerEvents: expandedBar ? "auto" : "none",
         }}
+        className="absolute inset-0 z-10"
       />
 
       {/* Sliding card — animates `top` to avoid a Chromium layout
           bug with `transform` on absolute elements in flex+scroll. */}
       <div
         style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
           zIndex: 11,
-          display: "flex",
-          flexDirection: "column",
-          borderTop: "1px solid var(--gray-6)",
-          background: "var(--color-background)",
-          pointerEvents: "none",
           top: expandedBar ? "15%" : `calc(100% - ${totalBarsHeight}px)`,
           transition: "top 0.25s cubic-bezier(0.32, 0.72, 0, 1)",
         }}
+        className="pointer-events-none absolute right-0 bottom-0 left-0 flex flex-col border-t border-t-(--gray-6) bg-(--color-background)"
       >
         {/* Stacked header bars — one per task relationship. */}
-        <div className="shrink-0" style={{ pointerEvents: "auto" }}>
+        <div className="pointer-events-auto shrink-0">
           {bars.map((bar, index) => {
             const { relationship, task, summary, tooltip, runActionLabel } =
               bar;
@@ -354,14 +344,14 @@ export function ReportTaskLogs({
             const rowInner = (
               <>
                 <span style={{ color: summary.color }}>{summary.icon}</span>
-                <Text className="font-medium text-[12px] leading-5">
+                <Text className="font-medium text-[12px] leading-snug">
                   {RELATIONSHIP_LABELS[relationship]}
                 </Text>
                 {hideStatusLabel ? (
                   <span className="flex-1" />
                 ) : (
                   <Text
-                    className="flex-1 text-[11px] leading-5"
+                    className="flex-1 text-[11px] leading-snug"
                     style={{ color: summary.color }}
                   >
                     {bar.prUrl
@@ -458,11 +448,9 @@ export function ReportTaskLogs({
         {/* Expanded logs body — only rendered for the selected task. */}
         <div
           style={{
-            flex: 1,
-            minHeight: 0,
-            overflow: "hidden",
             pointerEvents: expandedBar ? "auto" : "none",
           }}
+          className="min-h-0 flex-1 overflow-hidden"
         >
           {expandedBar?.task && (
             <TaskLogsPanel

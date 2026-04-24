@@ -79,7 +79,7 @@ export function GitInteractionMenu({
   const wrappedPrimaryButton =
     !primaryAction.enabled && primaryAction.disabledReason ? (
       <Tooltip content={primaryAction.disabledReason} side="bottom">
-        <span style={{ display: "inline-flex" }}>{primaryButton}</span>
+        <span className="inline-flex">{primaryButton}</span>
       </Tooltip>
     ) : (
       primaryButton

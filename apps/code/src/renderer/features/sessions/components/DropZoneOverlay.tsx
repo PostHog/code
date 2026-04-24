@@ -14,13 +14,9 @@ export function DropZoneOverlay({ isVisible }: DropZoneOverlayProps) {
       inset="0"
       align="center"
       justify="center"
-      className="pointer-events-none z-50"
+      className="pointer-events-none z-50 m-[8px] rounded-(--radius-3) bg-(--color-background) opacity-90"
       style={{
-        backgroundColor: "var(--color-background)",
-        opacity: 0.9,
         border: "2px dashed var(--accent-8)",
-        borderRadius: "var(--radius-3)",
-        margin: "8px",
       }}
     >
       <Flex direction="column" align="center" gap="2">

@@ -68,7 +68,7 @@ export function SkillsView() {
       <Flex align="center" gap="2" className="w-full min-w-0">
         <Lightbulb size={12} className="shrink-0 text-gray-10" />
         <Text
-          className="truncate whitespace-nowrap font-medium text-[13px] leading-5"
+          className="truncate whitespace-nowrap font-medium text-[13px] leading-snug"
           title="Skills"
         >
           Skills
@@ -82,12 +82,11 @@ export function SkillsView() {
 
   return (
     <Flex direction="column" height="100%" className="overflow-hidden">
-      <Flex style={{ minHeight: 0 }} className="flex-1">
-        <Box flexGrow="1" style={{ minWidth: 0 }}>
+      <Flex className="min-h-0 flex-1">
+        <Box flexGrow="1" className="min-w-0">
           <ScrollArea
             type="auto"
-            className="scroll-area-constrain-width"
-            style={{ height: "100%" }}
+            className="scroll-area-constrain-width h-full"
           >
             <Box px="4" py="3">
               <Box pb="3">

@@ -38,12 +38,12 @@ export const ThoughtView = memo(function ThoughtView({
           isExpandable={hasContent}
           isExpanded={isExpanded}
         />
-        <Text className="text-[13px] text-gray-11 leading-5">Thinking</Text>
+        <Text className="text-[13px] text-gray-11 leading-snug">Thinking</Text>
       </button>
       {isExpanded && hasContent && (
         <Box className="mt-1 ml-5 max-w-4xl overflow-hidden rounded-lg border border-gray-6">
           <Box className="max-h-64 overflow-auto px-3 py-2">
-            <Text asChild className="text-[13px] text-gray-11 leading-5">
+            <Text asChild className="text-[13px] text-gray-11 leading-snug">
               <pre className="m-0 hyphens-auto whitespace-pre-wrap break-words font-mono">
                 {displayedContent}
               </pre>
@@ -54,7 +54,7 @@ export const ThoughtView = memo(function ThoughtView({
                 onClick={() => setIsExpanded(true)}
                 className="mt-1 flex cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-gray-10 hover:text-gray-12"
               >
-                <Text className="text-[13px] leading-5">
+                <Text className="text-[13px] leading-snug">
                   +{hiddenLineCount} more lines
                 </Text>
               </button>

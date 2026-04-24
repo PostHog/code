@@ -82,11 +82,9 @@ export const PanelDropZones: React.FC<PanelDropZonesProps> = ({
   return (
     <Box
       style={{
-        position: "absolute",
-        inset: 0,
-        pointerEvents: "none",
         zIndex: 100,
       }}
+      className="pointer-events-none absolute inset-0"
     >
       {visibleZones.map(({ zone, style }) => (
         <DropZone key={zone} panelId={panelId} zone={zone} style={style} />

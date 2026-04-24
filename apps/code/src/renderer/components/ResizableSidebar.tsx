@@ -68,38 +68,28 @@ export const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
         width: open ? `${width}px` : "0",
         minWidth: open ? `${width}px` : "0",
         maxWidth: open ? `${width}px` : "0",
-        height: "100%",
-        overflow: "hidden",
         transition: isResizing ? "none" : "width 0.2s ease-in-out",
         borderLeft: !isLeft && open ? "1px solid var(--gray-6)" : "none",
         borderRight: isLeft && open ? "1px solid var(--gray-6)" : "none",
-        position: "relative",
-        flexShrink: 0,
       }}
+      className="relative h-full shrink-0 overflow-hidden"
     >
       <Flex
         direction="column"
         style={{
           width: `${width}px`,
-          height: "100%",
-          minWidth: 0,
         }}
+        className="h-full min-w-0"
       >
         {children}
       </Flex>
       {open && (
         <Box
           onMouseDown={handleMouseDown}
-          className="no-drag"
+          className="no-drag absolute top-0 bottom-0 w-[4px] cursor-col-resize bg-transparent"
           style={{
-            position: "absolute",
             left: isLeft ? undefined : 0,
             right: isLeft ? 0 : undefined,
-            top: 0,
-            bottom: 0,
-            width: "4px",
-            cursor: "col-resize",
-            backgroundColor: "transparent",
             zIndex: 100,
           }}
         />

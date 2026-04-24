@@ -28,12 +28,11 @@ function SpotlightOverlay({ targetRect }: { targetRect: DOMRect | null }) {
           exit={{ opacity: 0 }}
           transition={{ type: "spring", stiffness: 200, damping: 25 }}
           style={{
-            position: "fixed",
             borderRadius: SPOTLIGHT_RADIUS,
             boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.5)",
             zIndex: 199,
-            pointerEvents: "none",
           }}
+          className="pointer-events-none fixed"
         />
       )}
     </AnimatePresence>,

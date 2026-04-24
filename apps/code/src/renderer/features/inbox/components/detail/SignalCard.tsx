@@ -259,16 +259,10 @@ function SignalCardHeader({
         {meta ? (
           <meta.Icon size={14} />
         ) : (
-          <span
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: "var(--gray-9)" }}
-          />
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-(--gray-9)" />
         )}
       </span>
-      <Text
-        className="font-medium text-[11px] leading-5"
-        style={{ color: "var(--gray-10)" }}
-      >
+      <Text className="font-medium text-(--gray-10) text-[11px] leading-snug">
         {signalCardSourceLine(signal)}
       </Text>
       <span className="flex-1" />
@@ -297,10 +291,7 @@ function CollapsibleBody({ body }: { body: string }) {
 
   return (
     <Box>
-      <Box
-        className="text-pretty break-words text-[11px] leading-relaxed [&_code]:text-[10px] [&_p:last-child]:mb-0 [&_p]:mb-1 [&_pre]:text-[10px]"
-        style={{ color: "var(--gray-11)" }}
-      >
+      <Box className="text-pretty break-words text-(--gray-11) text-[11px] leading-relaxed [&_code]:text-[10px] [&_p:last-child]:mb-0 [&_p]:mb-1 [&_pre]:text-[10px]">
         <MarkdownRenderer content={displayBody} />
       </Box>
       {isLong && (
@@ -348,8 +339,7 @@ function GitHubIssueSignalCard({
         gap="2"
         wrap="wrap"
         mt="2"
-        className="text-[11px]"
-        style={{ color: "var(--gray-10)" }}
+        className="text-(--gray-10) text-[11px]"
       >
         <Text className="font-medium text-[11px]">#{extra.number}</Text>
         {labels.map((label) => (
@@ -388,10 +378,7 @@ function GitHubIssueSignalCard({
         )}
       </Flex>
       {extra.created_at && (
-        <Text
-          className="mt-1 block text-[11px] leading-5"
-          style={{ color: "var(--gray-10)" }}
-        >
+        <Text className="mt-1 block text-(--gray-10) text-[11px] leading-snug">
           Opened: {new Date(extra.created_at).toLocaleString()}
         </Text>
       )}
@@ -423,8 +410,7 @@ function ZendeskTicketSignalCard({
         gap="2"
         wrap="wrap"
         mt="2"
-        className="text-[11px]"
-        style={{ color: "var(--gray-10)" }}
+        className="text-(--gray-10) text-[11px]"
       >
         {extra.priority && (
           <Badge variant="soft" color="gray" size="1" className="text-[11px]">
@@ -487,18 +473,14 @@ function LlmEvalSignalCard({
         align="center"
         gap="2"
         mt="2"
-        className="text-[11px]"
-        style={{ color: "var(--gray-10)" }}
+        className="text-(--gray-10) text-[11px]"
       >
         {extra.model && <span>Model: {extra.model}</span>}
         {extra.model && extra.provider && <span>·</span>}
         {extra.provider && <span>Provider: {extra.provider}</span>}
       </Flex>
       {extra.trace_id && (
-        <Text
-          className="mt-1 block text-[11px] leading-5"
-          style={{ color: "var(--gray-10)" }}
-        >
+        <Text className="mt-1 block text-(--gray-10) text-[11px] leading-snug">
           Trace:{" "}
           <span className="font-mono">{extra.trace_id.slice(0, 12)}...</span>
         </Text>
@@ -556,7 +538,7 @@ function SessionProblemSignalCard({
       {extra.segment_title && (
         <Text
           mt="1"
-          className="font-medium text-[13px] text-gray-11 leading-5"
+          className="font-medium text-[13px] text-gray-11 leading-snug"
           as="p"
         >
           {extra.segment_title}
@@ -576,8 +558,7 @@ function SessionProblemSignalCard({
         gap="2"
         wrap="wrap"
         mt="2"
-        className="text-[11px]"
-        style={{ color: "var(--gray-10)" }}
+        className="text-(--gray-10) text-[11px]"
       >
         {problemInfo && (
           <Badge
@@ -675,8 +656,7 @@ function SessionRecordingVideo({
         controls
         muted
         preload="metadata"
-        className="w-full rounded"
-        style={{ maxHeight: 300 }}
+        className="max-h-[300px] w-full rounded"
       />
     </Box>
   );
@@ -718,10 +698,7 @@ function GenericSignalCard({
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
       <SignalCardHeader signal={signal} verified={verified} />
       <CollapsibleBody body={signal.content} />
-      <Text
-        className="mt-2 block text-[11px] leading-5"
-        style={{ color: "var(--gray-10)" }}
-      >
+      <Text className="mt-2 block text-(--gray-10) text-[11px] leading-snug">
         {new Date(signal.timestamp).toLocaleString()}
       </Text>
       <CodePathsCollapsible paths={codePaths ?? []} />
@@ -736,7 +713,7 @@ function CodePathsCollapsible({ paths }: { paths: string[] }) {
   if (paths.length === 0) return null;
 
   return (
-    <Box mt="2" style={{ borderTop: "1px solid var(--gray-5)" }} pt="2">
+    <Box mt="2" pt="2" className="border-t border-t-(--gray-5)">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -754,14 +731,10 @@ function CodePathsCollapsible({ paths }: { paths: string[] }) {
               parenIdx >= 0 ? trimmed.slice(0, parenIdx) : trimmed;
             const comment = parenIdx >= 0 ? trimmed.slice(parenIdx + 1) : null;
             return (
-              <Text key={raw} className="text-[11px] leading-5">
-                <span className="font-mono" style={{ color: "var(--gray-12)" }}>
-                  {filePath}
-                </span>
+              <Text key={raw} className="text-[11px] leading-snug">
+                <span className="font-mono text-(--gray-12)">{filePath}</span>
                 {comment && (
-                  <span className="ml-1" style={{ color: "var(--gray-9)" }}>
-                    {comment}
-                  </span>
+                  <span className="ml-1 text-(--gray-9)">{comment}</span>
                 )}
               </Text>
             );
@@ -778,7 +751,7 @@ function DataQueriedCollapsible({ text }: { text: string }) {
   if (!text.trim()) return null;
 
   return (
-    <Box mt="2" style={{ borderTop: "1px solid var(--gray-5)" }} pt="2">
+    <Box mt="2" pt="2" className="border-t border-t-(--gray-5)">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}

@@ -271,10 +271,7 @@ function ProjectPickerDialogInner({
         }
       }}
     >
-      <Dialog.Content
-        className="project-picker-dialog"
-        style={{ maxWidth: 600, padding: 0 }}
-      >
+      <Dialog.Content className="project-picker-dialog max-w-[600px] p-0">
         <Command.Root
           shouldFilter={true}
           label="Project picker"
@@ -292,7 +289,7 @@ function ProjectPickerDialogInner({
                   onSelect={() => handleProjectSelect(project.id)}
                 >
                   <Flex align="center" justify="between" width="100%">
-                    <Text className="text-[13px] leading-5">
+                    <Text className="text-[13px] leading-snug">
                       {project.name}
                     </Text>
                     {project.id === currentProjectId && (

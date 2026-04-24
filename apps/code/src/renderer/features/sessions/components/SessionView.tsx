@@ -414,10 +414,10 @@ export function SessionView({
                           weight="duotone"
                           color="var(--gray-11)"
                         />
-                        <Text className="font-medium text-[13px] leading-5">
+                        <Text className="font-medium text-[13px] leading-snug">
                           Worktree suspended
                         </Text>
-                        <Text color="gray" className="text-[13px] leading-5">
+                        <Text color="gray" className="text-[13px] leading-snug">
                           Worktree was removed to save disk space
                         </Text>
                       </Flex>
@@ -529,12 +529,11 @@ export function SessionView({
                 ) : (
                   <Box className="relative border-gray-4 border-t">
                     <Box
-                      className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity duration-200 ${
+                      className={`absolute inset-0 flex min-h-[66px] items-center justify-center gap-2 transition-opacity duration-200 ${
                         isRunning
                           ? "pointer-events-none opacity-0"
                           : "opacity-100"
                       }`}
-                      style={{ minHeight: 66 }}
                     >
                       <Spinner size={28} className="animate-spin text-gray-9" />
                       <Text color="gray" className="text-base">

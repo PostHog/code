@@ -13,7 +13,8 @@ export function StepActions({ children, delay = 0.15 }: StepActionsProps) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay }}
-      style={{ position: "relative", zIndex: 1, flexShrink: 0, paddingTop: 16 }}
+      style={{ zIndex: 1 }}
+      className="relative shrink-0 pt-[16px]"
     >
       <Flex gap="4" align="center">
         {children}

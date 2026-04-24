@@ -62,20 +62,14 @@ export function FilePicker({
       <Popover.Trigger>
         <div
           style={{
-            position: "fixed",
-            top: "60px",
             left: "50%",
-            width: "1px",
-            height: "1px",
-            opacity: 0,
-            pointerEvents: "none",
           }}
+          className="pointer-events-none fixed top-[60px] h-[1px] w-[1px] opacity-0"
         />
       </Popover.Trigger>
       <Popover.Content
-        className="file-picker-popover"
+        className="file-picker-popover p-0"
         maxWidth="640px"
-        style={{ padding: 0 }}
         side="bottom"
         align="center"
         sideOffset={0}
@@ -99,11 +93,15 @@ export function FilePicker({
                 onSelect={() => handleSelect(file.path)}
               >
                 <FileIcon filename={file.name} size={14} />
-                <Text ml="2" className="text-[13px] leading-5">
+                <Text ml="2" className="text-[13px] leading-snug">
                   {file.name}
                 </Text>
                 {file.dir && (
-                  <Text color="gray" ml="2" className="text-[13px] leading-5">
+                  <Text
+                    color="gray"
+                    ml="2"
+                    className="text-[13px] leading-snug"
+                  >
                     {file.dir}
                   </Text>
                 )}

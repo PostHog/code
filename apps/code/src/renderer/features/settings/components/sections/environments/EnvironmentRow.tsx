@@ -27,11 +27,11 @@ export function EnvironmentRow({
         borderBottom: isLast ? undefined : "1px solid var(--gray-4)",
       }}
     >
-      <Flex direction="column" style={{ minWidth: 0 }}>
-        <Text truncate className="text-[13px] leading-5">
+      <Flex direction="column" className="min-w-0">
+        <Text truncate className="text-[13px] leading-snug">
           {environment.name}
         </Text>
-        <Text color="gray" truncate className="text-[12px] leading-5">
+        <Text color="gray" truncate className="text-[12px] leading-snug">
           {filename}
         </Text>
       </Flex>
@@ -40,7 +40,7 @@ export function EnvironmentRow({
         color="gray"
         size="1"
         onClick={onClick}
-        style={{ flexShrink: 0 }}
+        className="shrink-0"
       >
         View
       </Button>

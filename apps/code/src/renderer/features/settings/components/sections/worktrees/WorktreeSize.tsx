@@ -30,9 +30,7 @@ export function WorktreeSize({ worktreePath }: WorktreeSizeProps) {
     return (
       <>
         {" - "}
-        <Skeleton
-          style={{ width: "50px", height: "12px", display: "inline-block" }}
-        />
+        <Skeleton className="inline-block h-[12px] w-[50px]" />
       </>
     );
   }

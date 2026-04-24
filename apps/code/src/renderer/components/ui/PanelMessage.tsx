@@ -24,7 +24,7 @@ export function PanelMessage({
           {children}
         </Text>
         {detail && (
-          <Text color="gray" trim="both" className="text-[13px] leading-5">
+          <Text color="gray" trim="both" className="text-[13px] leading-snug">
             {detail}
           </Text>
         )}

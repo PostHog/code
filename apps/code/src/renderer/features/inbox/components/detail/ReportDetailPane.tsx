@@ -80,10 +80,7 @@ function DetailRow({
   return (
     <Box>
       <Flex align="center" gap="2">
-        <Text
-          className="w-[90px] shrink-0 text-[13px]"
-          style={{ color: "var(--gray-10)" }}
-        >
+        <Text className="w-[90px] shrink-0 text-(--gray-10) text-[13px]">
           {label}
         </Text>
         {value}
@@ -105,8 +102,7 @@ function DetailRow({
       {expanded && explanation && (
         <Text
           color="gray"
-          className="mt-1 block text-pretty text-[13px] leading-relaxed"
-          style={{ paddingLeft: 90 }}
+          className="mt-1 block text-pretty pl-[90px] text-[13px] leading-relaxed"
         >
           {explanation}
         </Text>
@@ -267,8 +263,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
         gap="2"
         px="3"
         py="2"
-        className="shrink-0"
-        style={{ borderBottom: "1px solid var(--gray-5)" }}
+        className="shrink-0 border-b border-b-(--gray-5)"
       >
         <Flex align="center" gap="2" className="min-w-0">
           <SignalReportStatusBadge status={report.status} />
@@ -313,8 +308,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
       <ScrollArea
         type="auto"
         scrollbars="vertical"
-        className="scroll-area-constrain-width"
-        style={{ flex: 1 }}
+        className="scroll-area-constrain-width flex-1"
       >
         <Flex direction="column" gap="2" p="2" className="min-w-0">
           {/* ── Description ─────────────────────────────────────── */}
@@ -343,7 +337,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
               direction="column"
               gap="1"
               py="2"
-              style={{ borderTop: "1px solid var(--gray-5)" }}
+              className="border-t border-t-(--gray-5)"
             >
               {report.priority && (
                 <DetailRow
@@ -381,13 +375,9 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
               <WarningIcon
                 size={14}
                 weight="fill"
-                style={{ color: "var(--amber-9)" }}
-                className="shrink-0"
+                className="shrink-0 text-(--amber-9)"
               />
-              <Text
-                className="text-[12px] leading-5"
-                style={{ color: "var(--amber-11)" }}
-              >
+              <Text className="text-(--amber-11) text-[12px] leading-snug">
                 This issue may already be addressed in recent code changes.
               </Text>
             </Flex>
@@ -396,7 +386,10 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           {/* ── Suggested reviewers ─────────────────────────────── */}
           {suggestedReviewers.length > 0 && (
             <Box>
-              <Text className="block font-medium text-[13px] leading-5" mb="2">
+              <Text
+                className="block font-medium text-[13px] leading-snug"
+                mb="2"
+              >
                 Suggested reviewers
               </Text>
               <Flex direction="column" gap="1">
@@ -412,11 +405,10 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
                       <img
                         src={`https://github.com/${reviewer.github_login}.png?size=28`}
                         alt=""
-                        className="github-avatar shrink-0 rounded-full"
-                        style={{ width: 18, height: 18 }}
+                        className="github-avatar h-[18px] w-[18px] shrink-0 rounded-full"
                         onLoad={(e) => e.currentTarget.classList.add("loaded")}
                       />
-                      <Text className="text-[12px] leading-5">
+                      <Text className="text-[12px] leading-snug">
                         {reviewer.user?.first_name ??
                           reviewer.github_name ??
                           reviewer.github_login}
@@ -470,7 +462,10 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           {/* ── Signals ─────────────────────────────────────────── */}
           {signals.length > 0 && (
             <Box>
-              <Text className="block font-medium text-[13px] leading-5" mb="2">
+              <Text
+                className="block font-medium text-[13px] leading-snug"
+                mb="2"
+              >
                 Signals ({signals.length})
               </Text>
               <Flex direction="column" gap="2">
@@ -485,7 +480,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
             </Box>
           )}
           {signalsQuery.isLoading && (
-            <Text color="gray" className="block text-[12px] leading-5">
+            <Text color="gray" className="block text-[12px] leading-snug">
               Loading signals...
             </Text>
           )}
@@ -493,7 +488,10 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           {/* ── Session problem evidence ─────────────────────────── */}
           {sessionProblemSignals.length > 0 && (
             <Box>
-              <Text className="block font-medium text-[13px] leading-5" mb="2">
+              <Text
+                className="block font-medium text-[13px] leading-snug"
+                mb="2"
+              >
                 Evidence ({sessionProblemSignals.length})
               </Text>
               <Flex direction="column" gap="2">
@@ -541,7 +539,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
                 You can edit the prompt below before running.
               </Text>
               <Flex direction="column" gap="1">
-                <Text className="font-medium text-[12px] leading-5">
+                <Text className="font-medium text-[12px] leading-snug">
                   Task prompt
                 </Text>
                 <TextArea
@@ -555,7 +553,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
               </Flex>
               <Box ref={cloudRepoPickerAnchorRef} className="overflow-visible">
                 <Flex direction="column" gap="1">
-                  <Text className="font-medium text-[12px] leading-5">
+                  <Text className="font-medium text-[12px] leading-snug">
                     Target repository
                   </Text>
                   <GitHubRepoPicker

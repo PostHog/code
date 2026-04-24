@@ -8,14 +8,8 @@ interface AdapterIndicatorProps {
 export function AdapterIndicator({ adapter }: AdapterIndicatorProps) {
   return (
     <Flex align="center" gap="1">
-      <Robot size={12} weight="duotone" style={{ color: "var(--gray-9)" }} />
-      <Text
-        style={{
-          color: "var(--gray-9)",
-          fontFamily: "monospace",
-        }}
-        className="text-[13px] leading-5"
-      >
+      <Robot size={12} weight="duotone" className="text-(--gray-9)" />
+      <Text className="font-mono text-(--gray-9) text-[13px] leading-snug">
         {adapter}
       </Text>
     </Flex>

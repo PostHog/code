@@ -256,13 +256,7 @@ function LocalFileTreePanel({ taskId, task: _task }: FileTreePanelProps) {
   }
 
   return (
-    <Box
-      height="100%"
-      py="2"
-      style={{
-        overflowY: "auto",
-      }}
-    >
+    <Box height="100%" py="2" className="overflow-y-auto">
       <Flex direction="column">
         {rootEntries.map((entry) => (
           <LazyTreeItem

@@ -95,7 +95,7 @@ export function PlanUsageSettings() {
                   window.open(redirectUrl, "_blank");
                   clearError();
                 }}
-                style={{ alignSelf: "flex-start" }}
+                className="self-start"
               >
                 Set up billing
                 <ArrowSquareOut size={12} />
@@ -147,7 +147,7 @@ export function PlanUsageSettings() {
                       variant="solid"
                       onClick={reactivateSeat}
                       disabled={isLoading}
-                      style={{ alignSelf: "flex-start" }}
+                      className="self-start"
                     >
                       {isLoading ? <Spinner size="1" /> : "Reactivate"}
                     </Button>
@@ -158,7 +158,7 @@ export function PlanUsageSettings() {
                       color="red"
                       onClick={cancelSeat}
                       disabled={isLoading}
-                      style={{ alignSelf: "flex-start" }}
+                      className="self-start"
                     >
                       {isLoading ? <Spinner size="1" /> : "Cancel plan"}
                     </Button>
@@ -169,7 +169,7 @@ export function PlanUsageSettings() {
                     variant="solid"
                     onClick={() => setShowUpgradeDialog(true)}
                     disabled={isLoading}
-                    style={{ alignSelf: "flex-start" }}
+                    className="self-start"
                   >
                     {isLoading ? <Spinner size="1" /> : "Upgrade"}
                   </Button>
@@ -182,11 +182,7 @@ export function PlanUsageSettings() {
             align="center"
             justify="center"
             p="6"
-            style={{
-              flex: 1,
-              border: "1px solid var(--gray-5)",
-              borderRadius: "var(--radius-3)",
-            }}
+            className="flex-1 rounded-(--radius-3) border border-(--gray-5)"
           >
             {isLoading ? (
               <Spinner size="2" />
@@ -202,15 +198,11 @@ export function PlanUsageSettings() {
       {isAlpha && (
         <Flex
           p="4"
-          style={{
-            border: "1px solid var(--accent-7)",
-            borderRadius: "var(--radius-3)",
-            background: "var(--accent-2)",
-          }}
+          className="rounded-(--radius-3) border border-(--accent-7) bg-(--accent-2)"
         >
           <Flex direction="column" gap="2">
             <Text className="font-medium text-sm">Alpha plan</Text>
-            <Text style={{ color: "var(--gray-11)" }} className="text-sm">
+            <Text className="text-(--gray-11) text-sm">
               You're on the free alpha Pro plan with full Pro features. You can
               upgrade to the paid Pro plan anytime for higher usage limits.
             </Text>
@@ -219,21 +211,13 @@ export function PlanUsageSettings() {
       )}
 
       <Flex direction="column" gap="3">
-        <Text
-          style={{ color: "var(--gray-9)" }}
-          className="font-medium text-sm"
-        >
-          Usage
-        </Text>
+        <Text className="font-medium text-(--gray-9) text-sm">Usage</Text>
         {usageLoading ? (
           <Flex
             align="center"
             justify="center"
             p="4"
-            style={{
-              border: "1px solid var(--gray-5)",
-              borderRadius: "var(--radius-3)",
-            }}
+            className="rounded-(--radius-3) border border-(--gray-5)"
           >
             <Spinner size="2" />
           </Flex>
@@ -255,10 +239,7 @@ export function PlanUsageSettings() {
             direction="column"
             gap="3"
             p="4"
-            style={{
-              border: "1px solid var(--gray-5)",
-              borderRadius: "var(--radius-3)",
-            }}
+            className="rounded-(--radius-3) border border-(--gray-5)"
           >
             <Text color="gray" className="text-sm">
               Unable to load usage data
@@ -269,23 +250,15 @@ export function PlanUsageSettings() {
 
       {isPro && (
         <Flex direction="column" gap="3">
-          <Text
-            style={{ color: "var(--gray-9)" }}
-            className="font-medium text-sm"
-          >
-            Billing
-          </Text>
+          <Text className="font-medium text-(--gray-9) text-sm">Billing</Text>
           <Flex
             align="center"
             justify="between"
             p="4"
-            style={{
-              border: "1px solid var(--gray-5)",
-              borderRadius: "var(--radius-3)",
-            }}
+            className="rounded-(--radius-3) border border-(--gray-5)"
           >
             <Flex align="center" gap="3">
-              <CreditCard size={18} style={{ color: "var(--gray-9)" }} />
+              <CreditCard size={18} className="text-(--gray-9)" />
               <Text className="text-sm">Manage billing and invoices</Text>
             </Flex>
             <Button
@@ -311,27 +284,15 @@ export function PlanUsageSettings() {
           </Dialog.Description>
           <Flex direction="column" gap="2" mt="3">
             <Flex align="center" gap="2">
-              <Check
-                size={14}
-                weight="bold"
-                style={{ color: "var(--accent-9)" }}
-              />
+              <Check size={14} weight="bold" className="text-(--accent-9)" />
               <Text className="text-sm">Higher usage limits</Text>
             </Flex>
             <Flex align="center" gap="2">
-              <Check
-                size={14}
-                weight="bold"
-                style={{ color: "var(--accent-9)" }}
-              />
+              <Check size={14} weight="bold" className="text-(--accent-9)" />
               <Text className="text-sm">Local and cloud execution</Text>
             </Flex>
             <Flex align="center" gap="2">
-              <Check
-                size={14}
-                weight="bold"
-                style={{ color: "var(--accent-9)" }}
-              />
+              <Check size={14} weight="bold" className="text-(--accent-9)" />
               <Text className="text-sm">All Claude and Codex models</Text>
             </Flex>
           </Flex>
@@ -376,8 +337,8 @@ function UsageMeter({ label, bucket, color }: UsageMeterProps) {
       p="4"
       style={{
         border: `1px solid ${borderColor}`,
-        borderRadius: "var(--radius-3)",
       }}
+      className="rounded-(--radius-3)"
     >
       <Flex align="center" justify="between">
         <Text className="font-medium text-sm">{label}</Text>
@@ -388,10 +349,7 @@ function UsageMeter({ label, bucket, color }: UsageMeterProps) {
         size="2"
         color={color === "red" ? "red" : undefined}
       />
-      <Text
-        style={{ color: "var(--gray-9)" }}
-        className="text-[13px] leading-5"
-      >
+      <Text className="text-(--gray-9) text-[13px] leading-snug">
         {bucket.exceeded
           ? "Limit exceeded"
           : `Resets in ${formatResetTime(bucket.resets_in_seconds)}`}
@@ -426,13 +384,12 @@ function PlanCard({
       gap="3"
       p="4"
       style={{
-        flex: 1,
         border: isCurrent
           ? "1px solid var(--accent-7)"
           : "1px solid var(--gray-5)",
-        borderRadius: "var(--radius-3)",
         opacity: isCurrent ? 1 : 0.7,
       }}
+      className="flex-1 rounded-(--radius-3)"
     >
       <Flex direction="column" gap="3">
         <Flex direction="column" gap="1">
@@ -441,27 +398,21 @@ function PlanCard({
               color: isCurrent ? "var(--accent-9)" : "var(--gray-9)",
               letterSpacing: "0.05em",
             }}
-            className="font-medium text-[13px] leading-5"
+            className="font-medium text-[13px] leading-snug"
           >
             {isCurrent ? "CURRENT PLAN" : name.toUpperCase()}
           </Text>
           <Flex align="baseline" gap="2">
             <Text className="font-bold text-xl">{name}</Text>
-            <Text style={{ color: "var(--gray-11)" }} className="text-base">
+            <Text className="text-(--gray-11) text-base">
               {price}
-              <Text
-                style={{ color: "var(--gray-9)" }}
-                className="text-[13px] leading-5"
-              >
+              <Text className="text-(--gray-9) text-[13px] leading-snug">
                 {period}
               </Text>
             </Text>
           </Flex>
           {resetLabel && (
-            <Text
-              style={{ color: "var(--gray-9)" }}
-              className="text-[13px] leading-5"
-            >
+            <Text className="text-(--gray-9) text-[13px] leading-snug">
               {resetLabel}
             </Text>
           )}
@@ -472,14 +423,14 @@ function PlanCard({
               <Check
                 size={14}
                 weight="bold"
-                style={{ color: "var(--accent-9)", flexShrink: 0 }}
+                className="shrink-0 text-(--accent-9)"
               />
-              <Text style={{ color: "var(--gray-11)" }} className="text-sm">
+              <Text className="text-(--gray-11) text-sm">
                 {feature.endsWith("*") ? (
                   <>
                     {feature.slice(0, -1)}
                     <Tooltip content="Usage is limited to human-level usage. This cannot be used as your API key. If you hit this limit, please contact support.">
-                      <span style={{ cursor: "help" }}>*</span>
+                      <span className="cursor-help">*</span>
                     </Tooltip>
                   </>
                 ) : (

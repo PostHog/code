@@ -92,7 +92,7 @@ export function GitHubRepoPicker({
   if (isLoading && !showInlineLoadingState) {
     return (
       <Button variant="outline" disabled size="sm">
-        <GithubLogo size={16} weight="regular" style={{ flexShrink: 0 }} />
+        <GithubLogo size={16} weight="regular" className="shrink-0" />
         Loading repos...
       </Button>
     );
@@ -108,7 +108,7 @@ export function GitHubRepoPicker({
   ) {
     return (
       <Button variant="outline" disabled size="sm">
-        <GithubLogo size={16} weight="regular" style={{ flexShrink: 0 }} />
+        <GithubLogo size={16} weight="regular" className="shrink-0" />
         No GitHub repos
       </Button>
     );

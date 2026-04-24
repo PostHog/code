@@ -245,7 +245,7 @@ export function GeneralSettings() {
           onValueChange={(v) => handleThemeChange(v as ThemePreference)}
           size="1"
         >
-          <Select.Trigger style={{ minWidth: "100px" }} />
+          <Select.Trigger className="min-w-[100px]" />
           <Select.Content>
             <Select.Item value="light">Light</Select.Item>
             <Select.Item value="dark">Dark</Select.Item>
@@ -260,7 +260,7 @@ export function GeneralSettings() {
       </Text>
 
       {notificationsDenied && (
-        <Text color="yellow" className="mb-2 text-[13px] leading-5">
+        <Text color="yellow" className="mb-2 text-[13px] leading-snug">
           Notifications are blocked by macOS. To enable them, open System
           Settings &gt; Notifications &gt; PostHog Code and turn on Allow
           Notifications.
@@ -314,7 +314,7 @@ export function GeneralSettings() {
             }
             size="1"
           >
-            <Select.Trigger style={{ minWidth: "100px" }} />
+            <Select.Trigger className="min-w-[100px]" />
             <Select.Content>
               <Select.Item value="none">None</Select.Item>
               <Select.Item value="guitar">Guitar solo</Select.Item>
@@ -348,9 +348,9 @@ export function GeneralSettings() {
               max={100}
               step={1}
               size="1"
-              style={{ width: "120px" }}
+              className="w-[120px]"
             />
-            <Text color="gray" className="text-[13px] leading-5">
+            <Text color="gray" className="text-[13px] leading-snug">
               {completionVolume}%
             </Text>
           </Flex>
@@ -373,7 +373,7 @@ export function GeneralSettings() {
           }
           size="1"
         >
-          <Select.Trigger style={{ minWidth: "100px" }} />
+          <Select.Trigger className="min-w-[100px]" />
           <Select.Content>
             <Select.Item value="plan">Plan</Select.Item>
             <Select.Item value="last_used">Last used</Select.Item>
@@ -392,7 +392,7 @@ export function GeneralSettings() {
           }
           size="1"
         >
-          <Select.Trigger style={{ minWidth: "100px" }} />
+          <Select.Trigger className="min-w-[100px]" />
           <Select.Content>
             <Select.Item value="enter">Enter</Select.Item>
             <Select.Item value="cmd+enter">⌘ Enter</Select.Item>
@@ -411,7 +411,7 @@ export function GeneralSettings() {
           }
           size="1"
         >
-          <Select.Trigger style={{ minWidth: "120px" }} />
+          <Select.Trigger className="min-w-[120px]" />
           <Select.Content>
             <Select.Item value="off">Off</Select.Item>
             <Select.Item value="1000">1,000 chars</Select.Item>
@@ -439,7 +439,7 @@ export function GeneralSettings() {
           }
           size="1"
         >
-          <Select.Trigger style={{ minWidth: "140px" }} />
+          <Select.Trigger className="min-w-[140px]" />
           <Select.Content>
             <Select.Item value="auto">Auto</Select.Item>
             <Select.Item value="split">Split pane</Select.Item>
@@ -495,12 +495,12 @@ function HedgehogDescription() {
 
   return (
     <Flex direction="column" gap="1">
-      <Text color="gray" className="text-[13px] leading-5">
+      <Text color="gray" className="text-[13px] leading-snug">
         Release a hedgehog buddy to walk around your screen. It might take a few
         seconds to appear.
       </Text>
       {customizeUrl && (
-        <Text color="gray" className="text-[13px] leading-5">
+        <Text color="gray" className="text-[13px] leading-snug">
           <Link href={customizeUrl} target="_blank">
             Customize your hedgehog
           </Link>

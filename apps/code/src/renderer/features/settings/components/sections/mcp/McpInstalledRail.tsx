@@ -72,17 +72,14 @@ export function McpInstalledRail({
   }, [installations, templatesById, search, resolveName]);
 
   return (
-    <aside
-      className="flex h-full w-[256px] shrink-0 flex-col border-gray-6 border-r bg-gray-2"
-      style={{ minHeight: 0 }}
-    >
+    <aside className="flex h-full min-h-0 w-[256px] shrink-0 flex-col border-gray-6 border-r bg-gray-2">
       <Flex
         align="center"
         justify="between"
         px="3"
         pt="3"
         pb="2"
-        style={{ borderBottom: "1px solid var(--gray-5)" }}
+        className="border-b border-b-(--gray-5)"
       >
         <Text className="font-bold text-sm">MCP servers</Text>
         <IconButton
@@ -126,35 +123,28 @@ export function McpInstalledRail({
         px="3"
         pt="4"
         pb="1"
-        style={{ letterSpacing: "0.06em" }}
+        className="tracking-[0.06em]"
       >
         <Text
           color="gray"
-          style={{ textTransform: "uppercase" }}
-          className="font-medium text-[10px] leading-none"
+          className="font-medium text-[10px] uppercase leading-none"
         >
           Active
         </Text>
         <Text
           color="gray"
-          style={{
-            background: "var(--gray-4)",
-            padding: "1px 6px",
-            borderRadius: 10,
-          }}
-          className="text-[10px] leading-none"
+          className="rounded-[10px] bg-(--gray-4) px-[6px] py-[1px] text-[10px] leading-none"
         >
           {visibleInstallations.length}
         </Text>
       </Flex>
 
-      <ScrollArea style={{ flex: 1, minHeight: 0 }}>
+      <ScrollArea className="min-h-0 flex-1">
         <Flex direction="column" gap="1" px="2" pb="3">
           {visibleInstallations.length === 0 ? (
             <Text
               color="gray"
-              style={{ padding: "8px 10px", fontStyle: "italic" }}
-              className="text-[13px] leading-5"
+              className="px-[10px] py-[8px] text-[13px] italic leading-snug"
             >
               {search
                 ? `Nothing matches "${search}".`
@@ -178,26 +168,21 @@ export function McpInstalledRail({
                   key={installation.id}
                   type="button"
                   onClick={() => onSelectInstallation(installation.id)}
-                  className={`grid items-center gap-2 rounded px-2 py-1.5 text-left transition-colors ${
+                  className={`grid grid-cols-[28px_1fr_auto] items-center gap-2 rounded px-2 py-1.5 text-left transition-colors ${
                     active
                       ? "bg-gray-1 text-gray-12 shadow-sm"
                       : "text-gray-11 hover:bg-gray-3"
                   }`}
-                  style={{ gridTemplateColumns: "28px 1fr auto" }}
                 >
                   <ServerIcon
                     iconKey={template?.icon_key}
                     name={name}
                     size={28}
                   />
-                  <Flex
-                    direction="column"
-                    className="leading-[1.2]"
-                    style={{ minWidth: 0 }}
-                  >
+                  <Flex direction="column" className="min-w-0 leading-[1.2]">
                     <Text
                       truncate
-                      className="font-medium text-[13px] leading-5"
+                      className="font-medium text-[13px] leading-snug"
                     >
                       {name}
                     </Text>
@@ -212,12 +197,10 @@ export function McpInstalledRail({
                   <span
                     aria-hidden="true"
                     style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
                       background: PULSE_COLOR[status],
                       boxShadow: `0 0 0 3px color-mix(in oklch, ${PULSE_COLOR[status]} 20%, transparent)`,
                     }}
+                    className="h-[6px] w-[6px] rounded-full"
                   />
                 </button>
               );

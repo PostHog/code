@@ -75,14 +75,10 @@ function InlineFileLink({
         type="button"
         onClick={taskId ? handleClick : undefined}
         disabled={!taskId}
-        className={
-          taskId ? "cursor-pointer underline-offset-2 hover:underline" : ""
-        }
+        className={`inline text-(--accent-11) ${taskId ? "cursor-pointer underline-offset-2 hover:underline" : ""}`}
         style={{
           all: "unset",
-          color: "var(--accent-11)",
           font: "inherit",
-          display: "inline",
         }}
       >
         {filename}
@@ -106,8 +102,7 @@ function BareFileLink({ text }: { text: string }) {
     return (
       <Code
         variant="ghost"
-        style={{ color: "var(--accent-11)" }}
-        className="text-[13px] leading-5"
+        className="text-(--accent-11) text-[13px] leading-snug"
       >
         {text}
       </Code>
@@ -140,8 +135,7 @@ const agentComponents: Partial<Components> = {
     return (
       <Code
         variant="ghost"
-        style={{ color: "var(--accent-11)" }}
-        className="text-[13px] leading-5"
+        className="text-(--accent-11) text-[13px] leading-snug"
       >
         {children}
       </Code>

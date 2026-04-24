@@ -64,7 +64,7 @@ const meta: Meta<typeof ArchivedTasksViewPresentation> = {
   parameters: { layout: "fullscreen" },
   decorators: [
     (Story) => (
-      <Box style={{ width: "100%", height: "100vh" }}>
+      <Box className="h-screen w-full">
         <Story />
       </Box>
     ),

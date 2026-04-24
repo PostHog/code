@@ -11,8 +11,8 @@ interface CodeBlockProps {
 }
 
 const SIZE_TO_CLASS: Record<CodeBlockSize, string> = {
-  "1": "text-[13px] leading-5",
-  "1.5": "text-[13.5px] leading-5",
+  "1": "text-[13px] leading-snug",
+  "1.5": "text-[13.5px] leading-snug",
   "2": "text-sm",
   "3": "text-base",
 };
@@ -42,22 +42,9 @@ export function CodeBlock({ children, size = "1" }: CodeBlockProps) {
   }, [children]);
 
   return (
-    <div className="group" style={{ position: "relative" }}>
+    <div className="group relative">
       <pre
-        className={sizeClass}
-        style={{
-          margin: 0,
-          marginBottom: "var(--space-3)",
-          padding: "var(--space-3)",
-          paddingRight: "var(--space-7)",
-          backgroundColor: "var(--gray-2)",
-          borderRadius: "var(--radius-2)",
-          border: "1px solid var(--gray-4)",
-          fontFamily: "var(--code-font-family)",
-          color: "var(--gray-12)",
-          overflowX: "auto",
-          whiteSpace: "pre",
-        }}
+        className={`m-0 mb-3 overflow-x-auto whitespace-pre rounded-(--radius-2) border border-(--gray-4) bg-(--gray-2) p-3 pr-10 font-[var(--code-font-family)] text-(--gray-12) ${sizeClass}`}
       >
         {children}
       </pre>
@@ -67,14 +54,9 @@ export function CodeBlock({ children, size = "1" }: CodeBlockProps) {
         color="gray"
         onClick={handleCopy}
         style={{
-          position: "absolute",
-          top: "var(--space-1)",
-          right: "var(--space-1)",
-          opacity: 0,
           transition: "opacity 0.15s",
-          cursor: "pointer",
         }}
-        className="group-hover:!opacity-100 [&]:hover:!opacity-100"
+        className="group-hover:!opacity-100 [&]:hover:!opacity-100 absolute top-1 right-1 cursor-pointer opacity-0"
         aria-label="Copy code"
       >
         {copied ? <Check size={14} /> : <Copy size={14} />}

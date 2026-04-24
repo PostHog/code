@@ -143,7 +143,7 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
           <Tooltip content={task.title} side="bottom" delayDuration={300}>
             <Text
               truncate
-              className="no-drag min-w-0 font-medium text-[13px] leading-5"
+              className="no-drag min-w-0 font-medium text-[13px] leading-snug"
               onDoubleClick={() => setIsEditingTitle(true)}
             >
               {task.title}
@@ -223,28 +223,14 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
   return (
     <Box height="100%" ref={containerRef}>
       <Flex height="100%">
-        <Box
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: isExpanded ? "none" : undefined,
-          }}
-        >
+        <Box className={`min-w-0 flex-1 ${isExpanded ? "hidden" : ""}`}>
           <PanelLayout taskId={taskId} task={task} />
         </Box>
 
         {isReviewOpen && !isExpanded && (
           <Box
             onMouseDown={handleResizeStart}
-            style={{
-              width: "4px",
-              cursor: "col-resize",
-              flexShrink: 0,
-              background: "transparent",
-              borderLeft: "1px solid var(--gray-6)",
-              zIndex: 1,
-            }}
-            className="transition-colors hover:bg-accent-6 active:bg-accent-8"
+            className="z-[1] w-[4px] shrink-0 cursor-col-resize border-l border-l-(--gray-6) bg-transparent transition-colors hover:bg-accent-6 active:bg-accent-8"
           />
         )}
 
@@ -259,10 +245,10 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
                   : "50%"
               : "0px",
             minWidth: isReviewOpen ? `${MIN_REVIEW_WIDTH}px` : "0px",
-            height: "100%",
             overflow: isReviewOpen ? undefined : "hidden",
             visibility: isReviewOpen ? undefined : "hidden",
           }}
+          className="h-full"
         >
           {isCloud ? (
             <CloudReviewPage task={task} />

@@ -34,12 +34,12 @@ export function HandoffConfirmDialog({
       isSubmitting={isSubmitting}
       onSubmit={onConfirm}
     >
-      <Text color="gray" className="text-[13px] leading-5">
+      <Text color="gray" className="text-[13px] leading-snug">
         {isToLocal ? (
           <>
             This will bring your changes from the cloud run into your local
             environment on branch{" "}
-            <Code className="text-[13px] leading-5">
+            <Code className="text-[13px] leading-snug">
               {branchName ?? "unknown"}
             </Code>
             .
@@ -47,7 +47,7 @@ export function HandoffConfirmDialog({
         ) : (
           <>
             This will send your changes on branch{" "}
-            <Code className="text-[13px] leading-5">
+            <Code className="text-[13px] leading-snug">
               {branchName ?? "unknown"}
             </Code>{" "}
             to the cloud and continue running there.

@@ -10,12 +10,9 @@ interface KeyHintProps {
 export function KeyHint({ children, className, style }: KeyHintProps) {
   return (
     <Kbd
-      className={`text-[11px] ${className ?? ""}`}
+      className={`inline-flex items-center text-(--gray-11) text-[11px] ${className ?? ""}`}
       style={{
-        display: "inline-flex",
-        alignItems: "center",
         fontFamily: "inherit",
-        color: "var(--gray-11)",
         ...style,
       }}
     >

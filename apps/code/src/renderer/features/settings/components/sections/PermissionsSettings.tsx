@@ -37,7 +37,7 @@ function PermissionList({
 }) {
   return (
     <Box className="rounded-lg border border-gray-6 bg-gray-2 p-3">
-      <Text className="mb-2 block font-medium text-[13px] leading-5">
+      <Text className="mb-2 block font-medium text-[13px] leading-snug">
         {title}
       </Text>
       <Box className="min-h-[40px] rounded border border-gray-5 bg-gray-3 p-2.5">
@@ -48,7 +48,7 @@ function PermissionList({
             ))}
           </Flex>
         ) : (
-          <Text color="gray" className="text-[13px] leading-5">
+          <Text color="gray" className="text-[13px] leading-snug">
             {emptyMessage}
           </Text>
         )}

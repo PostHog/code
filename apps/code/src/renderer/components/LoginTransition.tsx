@@ -16,15 +16,13 @@ export function LoginTransition({
   return (
     <motion.div
       style={{
-        position: "fixed",
-        inset: 0,
         zIndex: 10000,
-        background: "var(--gray-12)",
       }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
       onAnimationComplete={onComplete}
+      className="fixed inset-0 bg-(--gray-12)"
     />
   );
 }

@@ -25,7 +25,7 @@ function preprocessMarkdown(content: string): string {
 }
 
 const HeadingText = ({ children }: { children: React.ReactNode }) => (
-  <Text as="p" mb="3" style={{ color: "var(--accent-11)" }} className="text-sm">
+  <Text as="p" mb="3" className="text-(--accent-11) text-sm">
     <strong>{children}</strong>
   </Text>
 );
@@ -47,7 +47,7 @@ export const baseComponents: Components = {
       <Text
         as="p"
         mb={isStrongOnly ? "2" : "3"}
-        className="text-[13px] leading-5"
+        className="text-[13px] leading-snug"
       >
         {children}
       </Text>
@@ -64,8 +64,7 @@ export const baseComponents: Components = {
       return (
         <Code
           variant="ghost"
-          style={{ color: "var(--accent-11)" }}
-          className="text-[13px] leading-5"
+          className="text-(--accent-11) text-[13px] leading-snug"
         >
           {children}
         </Code>
@@ -79,20 +78,17 @@ export const baseComponents: Components = {
     );
   },
   pre: ({ children }) => <CodeBlock size="1">{children}</CodeBlock>,
-  em: ({ children }) => <Em className="text-[13px] leading-5">{children}</Em>,
-  i: ({ children }) => <i className="text-[13px] leading-5">{children}</i>,
+  em: ({ children }) => (
+    <Em className="text-[13px] leading-snug">{children}</Em>
+  ),
+  i: ({ children }) => <i className="text-[13px] leading-snug">{children}</i>,
   strong: ({ children }) => (
-    <strong
-      className="text-[13px] leading-5"
-      style={{ color: "var(--accent-11)" }}
-    >
+    <strong className="text-(--accent-11) text-[13px] leading-snug">
       {children}
     </strong>
   ),
   del: ({ children }) => (
-    <del style={{ textDecoration: "line-through", color: "var(--gray-9)" }}>
-      {children}
-    </del>
+    <del className="text-(--gray-9) line-through">{children}</del>
   ),
   a: ({ href, children }) => {
     const githubRef = href ? parseGithubIssueUrl(href) : null;
@@ -112,12 +108,7 @@ export const baseComponents: Components = {
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="markdown-link text-[13px] leading-5"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "2px",
-        }}
+        className="markdown-link inline-flex items-center gap-[2px] text-[13px] leading-snug"
       >
         {children}
         <svg
@@ -129,9 +120,9 @@ export const baseComponents: Components = {
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={{ marginLeft: "var(--space-1)", flexShrink: 0 }}
           aria-label="external link icon"
           role="img"
+          className="ml-1 shrink-0"
         >
           <path d="M4.5 1.5H2.25C1.836 1.5 1.5 1.836 1.5 2.25V9.75C1.5 10.164 1.836 10.5 2.25 10.5H9.75C10.164 10.5 10.5 10.164 10.5 9.75V7.5" />
           <path d="M7.5 1.5H10.5V4.5" />
@@ -141,7 +132,7 @@ export const baseComponents: Components = {
     );
   },
   kbd: ({ children }) => (
-    <Kbd className="text-[13px] leading-5">{children}</Kbd>
+    <Kbd className="text-[13px] leading-snug">{children}</Kbd>
   ),
   ul: ({ children }) => (
     <List as="ul" size="1">
@@ -162,7 +153,8 @@ export const baseComponents: Components = {
         <Checkbox
           checked={checked}
           size="1"
-          style={{ marginRight: "var(--space-2)", verticalAlign: "middle" }}
+          style={{ verticalAlign: "middle" }}
+          className="mr-2"
         />
       );
     }
@@ -170,7 +162,7 @@ export const baseComponents: Components = {
   },
   // Table components - plain HTML for size control
   table: ({ children }) => (
-    <table className="mb-3 text-[13px] leading-5">{children}</table>
+    <table className="mb-3 text-[13px] leading-snug">{children}</table>
   ),
   thead: ({ children }) => <thead>{children}</thead>,
   tbody: ({ children }) => <tbody>{children}</tbody>,

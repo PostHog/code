@@ -10,27 +10,16 @@ export function AuthScreen() {
         <Flex
           direction="column"
           align="center"
-          style={{
-            width: "100%",
-            maxWidth: 480,
-            height: "100%",
-            paddingTop: 24,
-            paddingBottom: 40,
-          }}
+          className="h-full w-full max-w-[480px] pt-[24px] pb-[40px]"
         >
           <Flex
             direction="column"
             justify="center"
             align="center"
-            style={{ flex: 1, minHeight: 0, width: "100%" }}
+            className="min-h-0 w-full flex-1"
           >
-            <Flex
-              direction="column"
-              align="start"
-              gap="6"
-              style={{ width: "100%" }}
-            >
-              <Flex direction="column" gap="5" style={{ width: "100%" }}>
+            <Flex direction="column" align="start" gap="6" className="w-full">
+              <Flex direction="column" gap="5" className="w-full">
                 <SignInCard
                   hogSrc={happyHog}
                   hogMessage="Welcome back. Let's get shipping."

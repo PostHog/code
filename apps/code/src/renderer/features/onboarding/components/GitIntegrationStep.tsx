@@ -208,39 +208,27 @@ export function GitIntegrationStep({
       <Flex
         direction="column"
         align="center"
-        style={{
-          width: "100%",
-          height: "100%",
-          paddingTop: 24,
-          paddingBottom: 40,
-        }}
+        className="h-full w-full pt-[24px] pb-[40px]"
       >
-        <Flex
-          direction="column"
-          style={{ flex: 1, minHeight: 0, overflowY: "auto" }}
-        >
+        <Flex direction="column" className="min-h-0 flex-1 overflow-y-auto">
           <Flex
             direction="column"
             gap="5"
-            style={{ width: "100%", maxWidth: 560, margin: "auto auto" }}
+            style={{ margin: "auto auto" }}
+            className="w-full max-w-[560px]"
           >
             {/* Header + content */}
-            <Flex direction="column" gap="5" style={{ width: "100%" }}>
+            <Flex direction="column" gap="5" className="w-full">
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
               >
                 <Flex direction="column" gap="2">
-                  <Text
-                    style={{
-                      color: "var(--gray-12)",
-                    }}
-                    className="font-bold text-2xl leading-tight"
-                  >
+                  <Text className="font-bold text-(--gray-12) text-2xl leading-tight">
                     Give your agents access to code
                   </Text>
-                  <Text style={{ color: "var(--gray-11)" }} className="text-sm">
+                  <Text className="text-(--gray-11) text-sm">
                     Point to a local codebase and optionally connect GitHub.
                   </Text>
                 </Flex>
@@ -255,31 +243,20 @@ export function GitIntegrationStep({
                 <Box
                   p="5"
                   style={{
-                    backgroundColor: "var(--color-panel-solid)",
-                    border: "1px solid var(--gray-a3)",
-                    borderRadius: 12,
                     boxShadow:
                       "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
                   }}
+                  className="rounded-[12px] border border-(--gray-a3) bg-(--color-panel-solid)"
                 >
                   <Flex direction="column" gap="4">
                     <Flex direction="column" gap="1">
                       <Flex align="center" gap="2">
-                        <FolderOpen
-                          size={18}
-                          style={{ color: "var(--gray-12)" }}
-                        />
-                        <Text
-                          style={{ color: "var(--gray-12)" }}
-                          className="font-bold text-base"
-                        >
+                        <FolderOpen size={18} className="text-(--gray-12)" />
+                        <Text className="font-bold text-(--gray-12) text-base">
                           Choose your codebase
                         </Text>
                       </Flex>
-                      <Text
-                        style={{ color: "var(--gray-11)" }}
-                        className="text-sm"
-                      >
+                      <Text className="text-(--gray-11) text-sm">
                         Select the local folder for your project so we can
                         analyze it.
                       </Text>
@@ -302,15 +279,9 @@ export function GitIntegrationStep({
                           <Flex align="center" gap="2">
                             <CircleNotch
                               size={14}
-                              style={{
-                                color: "var(--gray-9)",
-                                animation: "spin 1s linear infinite",
-                              }}
+                              className="animate-spin text-(--gray-9)"
                             />
-                            <Text
-                              style={{ color: "var(--gray-9)" }}
-                              className="text-[13px] leading-5"
-                            >
+                            <Text className="text-(--gray-9) text-[13px] leading-snug">
                               Detecting repository...
                             </Text>
                           </Flex>
@@ -342,7 +313,7 @@ export function GitIntegrationStep({
                                     ? "var(--green-11)"
                                     : "var(--gray-11)",
                                 }}
-                                className="text-[13px] leading-5"
+                                className="text-[13px] leading-snug"
                               >
                                 {repoMatchesGitHub
                                   ? `Linked to ${detectedRepo.fullName} on GitHub`
@@ -361,10 +332,7 @@ export function GitIntegrationStep({
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.2 }}
                           >
-                            <Text
-                              style={{ color: "var(--gray-9)" }}
-                              className="text-[13px] leading-5"
-                            >
+                            <Text className="text-(--gray-9) text-[13px] leading-snug">
                               No git remote detected -- you can still continue.
                             </Text>
                           </motion.div>
@@ -410,40 +378,29 @@ export function GitIntegrationStep({
                 <Box
                   p="5"
                   style={{
-                    backgroundColor: "var(--color-panel-solid)",
-                    border: "1px solid var(--gray-a3)",
-                    borderRadius: 12,
                     boxShadow:
                       "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
                   }}
+                  className="rounded-[12px] border border-(--gray-a3) bg-(--color-panel-solid)"
                 >
                   <Flex direction="column" gap="3">
                     <Flex align="center" justify="between">
                       <Flex align="center" gap="2">
-                        <GitBranch
-                          size={18}
-                          style={{ color: "var(--gray-12)" }}
-                        />
-                        <Text
-                          style={{ color: "var(--gray-12)" }}
-                          className="font-bold text-base"
-                        >
+                        <GitBranch size={18} className="text-(--gray-12)" />
+                        <Text className="font-bold text-(--gray-12) text-base">
                           Connect GitHub
                         </Text>
                       </Flex>
                       {isLoading ? (
-                        <Skeleton style={{ width: "80px", height: "16px" }} />
+                        <Skeleton className="h-[16px] w-[80px]" />
                       ) : hasGitIntegration ? (
                         <Flex align="center" gap="1">
                           <CheckCircle
                             size={14}
                             weight="fill"
-                            style={{ color: "var(--green-9)" }}
+                            className="text-(--green-9)"
                           />
-                          <Text
-                            style={{ color: "var(--green-11)" }}
-                            className="text-[13px] leading-5"
-                          >
+                          <Text className="text-(--green-11) text-[13px] leading-snug">
                             Connected
                           </Text>
                         </Flex>
@@ -451,10 +408,7 @@ export function GitIntegrationStep({
                     </Flex>
                     {hasGitIntegration ? (
                       <Flex direction="column" gap="3">
-                        <Text
-                          style={{ color: "var(--gray-11)" }}
-                          className="text-sm"
-                        >
+                        <Text className="text-(--gray-11) text-sm">
                           {isLoadingRepos
                             ? "Loading repositories..."
                             : repoSummary
@@ -507,10 +461,7 @@ export function GitIntegrationStep({
                       </Flex>
                     ) : !isLoading ? (
                       <Flex direction="column" gap="3">
-                        <Text
-                          style={{ color: "var(--gray-11)" }}
-                          className="text-sm"
-                        >
+                        <Text className="text-(--gray-11) text-sm">
                           {timedOut
                             ? "We didn't hear back from GitHub. If the browser tab was closed, click Connect again."
                             : isConnecting
@@ -520,9 +471,9 @@ export function GitIntegrationStep({
                         <Button
                           size="1"
                           variant="soft"
-                          style={{ alignSelf: "flex-start" }}
                           onClick={() => void handleConnectGitHub()}
                           loading={isConnecting}
+                          className="self-start"
                         >
                           {isConnecting ? "Retry connection" : "Connect GitHub"}
                           <ArrowSquareOut size={12} />

@@ -37,27 +37,21 @@ function ToastComponent(props: ToastProps) {
   return (
     <Card size="2">
       <Flex gap="3" align="start">
-        <Flex
-          style={{
-            paddingTop: "2px",
-            flexShrink: 0,
-          }}
-        >
-          {getIcon()}
-        </Flex>
-        <Flex direction="column" gap="1" style={{ flex: 1, minWidth: 0 }}>
+        <Flex className="shrink-0 pt-[2px]">{getIcon()}</Flex>
+        <Flex direction="column" gap="1" className="min-w-0 flex-1">
           <Flex align="center" justify="between" gap="2">
-            <Text className="font-medium text-[13px] leading-5">{title}</Text>
-            <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
+            <Text className="font-medium text-[13px] leading-snug">
+              {title}
+            </Text>
+            <Flex align="center" gap="2" className="shrink-0">
               {action && (
                 <Text
                   color="blue"
-                  style={{ cursor: "pointer" }}
                   onClick={() => {
                     action.onClick();
                     sonnerToast.dismiss(id);
                   }}
-                  className="font-medium text-[13px] leading-5"
+                  className="cursor-pointer font-medium text-[13px] leading-snug"
                 >
                   {action.label}
                 </Text>
@@ -75,11 +69,7 @@ function ToastComponent(props: ToastProps) {
             </Flex>
           </Flex>
           {description && (
-            <Text
-              color="gray"
-              style={{ wordBreak: "break-word" }}
-              className="text-[13px] leading-5"
-            >
+            <Text color="gray" className="break-words text-[13px] leading-snug">
               {description}
             </Text>
           )}

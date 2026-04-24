@@ -121,7 +121,7 @@ export function ServerDetailView({
   const removedCount = tools.filter((t) => !!t.removed_at).length;
 
   return (
-    <Flex direction="column" gap="4" style={{ minWidth: 0 }}>
+    <Flex direction="column" gap="4" className="min-w-0">
       <Flex align="center" gap="2">
         <Button variant="ghost" color="gray" size="1" onClick={onBack}>
           <ArrowLeft size={12} />
@@ -131,7 +131,7 @@ export function ServerDetailView({
 
       <Flex align="start" gap="3">
         <ServerIcon iconKey={iconKey} name={name} size={56} />
-        <Flex direction="column" gap="1" style={{ minWidth: 0, flex: 1 }}>
+        <Flex direction="column" gap="1" className="min-w-0 flex-1">
           <Flex align="center" gap="2">
             <Text truncate className="font-bold text-xl">
               {name}
@@ -248,7 +248,7 @@ export function ServerDetailView({
               </Flex>
             </Flex>
             <Flex gap="2" align="center">
-              <Text color="gray" className="text-[13px] leading-5">
+              <Text color="gray" className="text-[13px] leading-snug">
                 Set all:
               </Text>
               <Tooltip content="Approve all">
@@ -319,7 +319,7 @@ export function ServerDetailView({
               <Text className="font-medium text-sm">
                 No tools discovered yet.
               </Text>
-              <Text color="gray" className="text-[13px] leading-5">
+              <Text color="gray" className="text-[13px] leading-snug">
                 Try refreshing, or check that the server is online.
               </Text>
             </Flex>
@@ -400,7 +400,7 @@ export function ServerDetailView({
               ? "Finish connecting to start using this server."
               : "This server needs to be reconnected."}
           </Text>
-          <Text color="gray" className="text-[13px] leading-5">
+          <Text color="gray" className="text-[13px] leading-snug">
             Click Reconnect above to resume the OAuth flow.
           </Text>
         </Flex>

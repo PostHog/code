@@ -248,20 +248,19 @@ function ChangedFileItem({
         <Flex
           align="center"
           gap="1"
-          className="text-[10px] leading-none"
-          style={{ flexShrink: 0, fontFamily: "monospace" }}
+          className="shrink-0 font-mono text-[10px] leading-none"
         >
           {(file.linesAdded ?? 0) > 0 && (
-            <Text style={{ color: "var(--green-9)" }}>+{file.linesAdded}</Text>
+            <Text className="text-(--green-9)">+{file.linesAdded}</Text>
           )}
           {(file.linesRemoved ?? 0) > 0 && (
-            <Text style={{ color: "var(--red-9)" }}>-{file.linesRemoved}</Text>
+            <Text className="text-(--red-9)">-{file.linesRemoved}</Text>
           )}
         </Flex>
       )}
 
       {isToolbarVisible && (handleDiscard || onStageToggle) && (
-        <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
+        <Flex align="center" gap="1" className="shrink-0">
           {onStageToggle && (
             <CompactIconButton
               tooltip={file.staged ? "Unstage" : "Stage"}
@@ -294,12 +293,7 @@ function ChangedFileItem({
                   variant="ghost"
                   color="gray"
                   onClick={(e) => e.stopPropagation()}
-                  style={{
-                    flexShrink: 0,
-                    width: "18px",
-                    height: "18px",
-                    padding: 0,
-                  }}
+                  className="h-[18px] w-[18px] shrink-0 p-0"
                 >
                   <FilePlus size={12} weight="regular" />
                 </IconButton>
@@ -320,12 +314,14 @@ function ChangedFileItem({
                           width={16}
                           height={16}
                           alt=""
-                          style={{ borderRadius: "2px" }}
+                          className="rounded-[2px]"
                         />
                       ) : (
                         <CodeIcon size={16} weight="regular" />
                       )}
-                      <Text className="text-[13px] leading-5">{app.name}</Text>
+                      <Text className="text-[13px] leading-snug">
+                        {app.name}
+                      </Text>
                     </Flex>
                   </DropdownMenu.Item>
                 ))}
@@ -333,7 +329,7 @@ function ChangedFileItem({
               <DropdownMenu.Item onSelect={handleCopyPath}>
                 <Flex align="center" gap="2">
                   <CopyIcon size={16} weight="regular" />
-                  <Text className="text-[13px] leading-5">Copy Path</Text>
+                  <Text className="text-[13px] leading-snug">Copy Path</Text>
                 </Flex>
               </DropdownMenu.Item>
             </DropdownMenu.Content>
@@ -344,8 +340,7 @@ function ChangedFileItem({
       <Badge
         size="1"
         color={indicator.color}
-        className="text-[10px]"
-        style={{ flexShrink: 0, padding: "0 4px" }}
+        className="shrink-0 px-[4px] py-0 text-[10px]"
       >
         {indicator.label}
       </Badge>
@@ -455,7 +450,7 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
         {isRunActive && (
           <Flex align="center" gap="2" px="3" py="2">
             <Spinner size="1" />
-            <Text color="gray" className="text-[13px] leading-5">
+            <Text color="gray" className="text-[13px] leading-snug">
               Agent is still running...
             </Text>
           </Flex>
@@ -573,7 +568,7 @@ function LocalChangesPanel({ taskId, task: _task }: ChangesPanelProps) {
               <Flex px="2" py="1" className="select-none">
                 <Text
                   color="gray"
-                  className="font-medium text-[13px] leading-5"
+                  className="font-medium text-[13px] leading-snug"
                 >
                   {header} ({files.length})
                 </Text>
