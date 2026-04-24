@@ -355,7 +355,7 @@ export function PlanUsageSettings() {
               }}
               disabled={isLoading}
             >
-              {isLoading ? <Spinner size="1" /> : "Subscribe — $200/mo"}
+              {isLoading ? <Spinner size="1" /> : "Subscribe - $200/mo"}
             </Button>
           </Flex>
         </Dialog.Content>
