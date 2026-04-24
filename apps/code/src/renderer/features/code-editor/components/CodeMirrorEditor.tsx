@@ -1,7 +1,9 @@
 import { openSearchPanel } from "@codemirror/search";
 import { EditorView } from "@codemirror/view";
+import type { SerializedEnrichment } from "@posthog/enricher";
 import { Box, Flex, Text } from "@radix-ui/themes";
 import { useEffect, useMemo } from "react";
+import { setEnrichmentEffect } from "../extensions/postHogEnrichment";
 import { useCodeMirror } from "../hooks/useCodeMirror";
 import { useEditorExtensions } from "../hooks/useEditorExtensions";
 import { usePendingScrollStore } from "../stores/pendingScrollStore";
@@ -11,6 +13,7 @@ interface CodeMirrorEditorProps {
   filePath?: string;
   relativePath?: string;
   readOnly?: boolean;
+  enrichment?: SerializedEnrichment | null;
 }
 
 export function CodeMirrorEditor({
@@ -18,13 +21,25 @@ export function CodeMirrorEditor({
   filePath,
   relativePath,
   readOnly = false,
+  enrichment,
 }: CodeMirrorEditorProps) {
-  const extensions = useEditorExtensions(filePath, readOnly);
+  const enrichmentEnabled = enrichment !== undefined;
+  const extensions = useEditorExtensions(filePath, readOnly, enrichmentEnabled);
   const options = useMemo(
     () => ({ doc: content, extensions, filePath }),
     [content, extensions, filePath],
   );
   const { containerRef, instanceRef } = useCodeMirror(options);
+
+  useEffect(() => {
+    if (!enrichmentEnabled) return;
+    const view = instanceRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: setEnrichmentEffect.of(enrichment ?? null),
+    });
+  }, [enrichment, enrichmentEnabled, instanceRef]);
+
   useEffect(() => {
     if (!filePath) return;
     const scrollToLine = () => {

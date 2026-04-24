@@ -1,7 +1,9 @@
 import { PanelMessage } from "@components/ui/PanelMessage";
 import { Tooltip } from "@components/ui/Tooltip";
 import { CodeMirrorEditor } from "@features/code-editor/components/CodeMirrorEditor";
+import { EnrichmentPopover } from "@features/code-editor/components/EnrichmentPopover";
 import { useCloudFileContent } from "@features/code-editor/hooks/useCloudFileContent";
+import { useFileEnrichment } from "@features/code-editor/hooks/useFileEnrichment";
 import { useMarkdownViewerStore } from "@features/code-editor/stores/markdownViewerStore";
 import { getImageMimeType } from "@features/code-editor/utils/imageUtils";
 import { isMarkdownFile } from "@features/code-editor/utils/markdownUtils";
@@ -119,6 +121,13 @@ export function CodeEditorPanel({
   const isLoading = isCloudRun ? cloudFile.isLoading : localQuery.isLoading;
   const error = isCloudRun ? null : localQuery.error;
 
+  const enrichment = useFileEnrichment({
+    taskId,
+    filePath,
+    absolutePath: isInsideRepo ? absolutePath : undefined,
+    content: isImage ? null : fileContent,
+  });
+
   if (isImage) {
     if (isCloudRun) {
       return (
@@ -234,13 +243,15 @@ export function CodeEditorPanel({
   }
 
   return (
-    <Box height="100%" className="overflow-hidden">
+    <Box height="100%" className="relative overflow-hidden">
       <CodeMirrorEditor
         content={fileContent}
         filePath={absolutePath}
         relativePath={filePath}
         readOnly
+        enrichment={enrichment}
       />
+      <EnrichmentPopover />
     </Box>
   );
 }

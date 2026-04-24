@@ -189,6 +189,8 @@ export type FlagType = "boolean" | "multivariate" | "remote_config";
 export interface CapturedEvent {
   name: string;
   line: number;
+  keyStartCol: number;
+  keyEndCol: number;
   dynamic: boolean;
   viaWrapper?: string;
   inJsx?: boolean;
@@ -198,6 +200,8 @@ export interface FlagCheck {
   method: string;
   flagKey: string;
   line: number;
+  keyStartCol: number;
+  keyEndCol: number;
   viaWrapper?: string;
   inJsx?: boolean;
 }

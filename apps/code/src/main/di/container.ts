@@ -34,6 +34,7 @@ import { CloudTaskService } from "../services/cloud-task/service";
 import { ConnectivityService } from "../services/connectivity/service";
 import { ContextMenuService } from "../services/context-menu/service";
 import { DeepLinkService } from "../services/deep-link/service";
+import { EnrichmentService } from "../services/enrichment/service";
 import { EnvironmentService } from "../services/environment/service";
 import { ExternalAppsService } from "../services/external-apps/service";
 import { FileWatcherService } from "../services/file-watcher/service";
@@ -108,6 +109,7 @@ container.bind(MAIN_TOKENS.CloudTaskService).to(CloudTaskService);
 container.bind(MAIN_TOKENS.ConnectivityService).to(ConnectivityService);
 container.bind(MAIN_TOKENS.ContextMenuService).to(ContextMenuService);
 container.bind(MAIN_TOKENS.DeepLinkService).to(DeepLinkService);
+container.bind(MAIN_TOKENS.EnrichmentService).to(EnrichmentService);
 container.bind(MAIN_TOKENS.EnvironmentService).to(EnvironmentService);
 container.bind(MAIN_TOKENS.ProvisioningService).to(ProvisioningService);
 

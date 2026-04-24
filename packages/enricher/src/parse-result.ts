@@ -50,6 +50,8 @@ export class ParseResult {
       .map((c) => ({
         name: c.key,
         line: c.line,
+        keyStartCol: c.keyStartCol,
+        keyEndCol: c.keyEndCol,
         dynamic: c.dynamic ?? false,
         viaWrapper: c.viaWrapper,
         inJsx: c.inJsx,
@@ -63,6 +65,8 @@ export class ParseResult {
         method: c.method,
         flagKey: c.key,
         line: c.line,
+        keyStartCol: c.keyStartCol,
+        keyEndCol: c.keyEndCol,
         viaWrapper: c.viaWrapper,
         inJsx: c.inJsx,
       }));

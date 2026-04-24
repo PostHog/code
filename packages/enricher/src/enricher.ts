@@ -76,6 +76,19 @@ export class PostHogEnricher {
     );
   }
 
+  /**
+   * Detect wrapper functions (functions that internally call a PostHog SDK
+   * method) defined in the given source. Used by callers like `enrichSource`
+   * to pick up same-file wrappers such as `track(...)` without threading
+   * through filesystem I/O.
+   */
+  async findWrappersInSource(
+    source: string,
+    languageId: string,
+  ): Promise<LocalWrapper[]> {
+    return this.detector.findWrappers(source, languageId);
+  }
+
   async parseFile(filePath: string): Promise<ParseResult> {
     const ext = path.extname(filePath).toLowerCase();
     const languageId = EXT_TO_LANG_ID[ext];
