@@ -26,9 +26,8 @@ export function UsageLimitModal() {
           </Flex>
           <Dialog.Description>
             <Text color="gray" className="text-sm">
-              {context === "mid-task"
-                ? "You've hit your free plan usage limit. Your current task can't continue until usage resets or you upgrade to Pro."
-                : "You've reached your free plan usage limit. Upgrade to Pro for unlimited usage."}
+              You've reached your free plan usage limit. Upgrade to Pro for
+              unlimited usage.
             </Text>
           </Dialog.Description>
           <Flex justify="end" gap="3" mt="2">
