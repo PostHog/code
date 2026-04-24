@@ -306,6 +306,10 @@ export function SpaceSwitcher({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === MOD_KEY && !e.repeat) {
+        // Suppress while a tour is active or Shift is held (screenshot shortcut).
+        if (e.shiftKey || document.body.classList.contains("tour-active")) {
+          return;
+        }
         metaHeldRef.current = true;
         otherKeyRef.current = false;
         clearTimeout(hideTimerRef.current);
@@ -320,6 +324,10 @@ export function SpaceSwitcher({
         // Minimap only appears from a pure Cmd hold with no other keys.
         otherKeyRef.current = true;
         clearTimeout(showTimerRef.current);
+        // Shift during hold = screenshot intent. Hide if already shown.
+        if (e.key === "Shift") {
+          hide();
+        }
       }
     };
 
