@@ -262,7 +262,7 @@ function SignalCardHeader({
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-(--gray-9)" />
         )}
       </span>
-      <Text className="font-medium text-(--gray-10) text-[11px]">
+      <Text className="font-medium text-(--gray-10) text-[13px]">
         {signalCardSourceLine(signal)}
       </Text>
       <span className="flex-1" />
@@ -291,7 +291,7 @@ function CollapsibleBody({ body }: { body: string }) {
 
   return (
     <Box>
-      <Box className="text-pretty break-words text-(--gray-11) text-[11px] leading-relaxed [&_code]:text-[10px] [&_p:last-child]:mb-0 [&_p]:mb-1 [&_pre]:text-[10px]">
+      <Box className="text-pretty break-words text-(--gray-11) text-[13px] leading-relaxed [&_code]:text-[11px] [&_p:last-child]:mb-0 [&_p]:mb-1 [&_pre]:text-[11px]">
         <MarkdownRenderer content={displayBody} />
       </Box>
       {isLong && (
@@ -713,9 +713,9 @@ function CodePathsCollapsible({ paths }: { paths: string[] }) {
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-1 rounded px-1 py-0.5 font-medium text-[11px] text-gray-10 hover:bg-gray-3 hover:text-gray-12"
+        className="flex items-center gap-1 rounded px-1 py-0.5 font-medium text-[12px] text-gray-10 hover:bg-gray-3 hover:text-gray-12"
       >
-        {expanded ? <CaretDownIcon size={10} /> : <CaretRightIcon size={10} />}
+        {expanded ? <CaretDownIcon size={12} /> : <CaretRightIcon size={12} />}
         Relevant code ({paths.length})
       </button>
       {expanded && (
@@ -751,9 +751,9 @@ function DataQueriedCollapsible({ text }: { text: string }) {
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-1 rounded px-1 py-0.5 font-medium text-[11px] text-gray-10 hover:bg-gray-3 hover:text-gray-12"
+        className="flex items-center gap-1 rounded px-1 py-0.5 font-medium text-[12px] text-gray-10 hover:bg-gray-3 hover:text-gray-12"
       >
-        {expanded ? <CaretDownIcon size={10} /> : <CaretRightIcon size={10} />}
+        {expanded ? <CaretDownIcon size={12} /> : <CaretRightIcon size={12} />}
         Data queried
       </button>
       {expanded && (

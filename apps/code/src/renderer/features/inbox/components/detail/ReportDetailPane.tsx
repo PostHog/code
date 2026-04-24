@@ -389,7 +389,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           {/* ── Suggested reviewers ─────────────────────────────── */}
           {suggestedReviewers.length > 0 && (
             <Box>
-              <Text className="block font-medium text-[13px]" mb="2">
+              <Text className="block font-medium text-sm" mb="2">
                 Suggested reviewers
               </Text>
               <Flex direction="column" gap="1">
@@ -461,8 +461,8 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
 
           {/* ── Signals ─────────────────────────────────────────── */}
           {signals.length > 0 && (
-            <Box>
-              <Text className="block font-medium text-[13px]" mb="2">
+            <Box mt="4">
+              <Text className="block font-medium text-sm" mb="2">
                 Signals ({signals.length})
               </Text>
               <Flex direction="column" gap="2">

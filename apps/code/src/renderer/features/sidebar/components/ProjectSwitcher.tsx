@@ -119,7 +119,7 @@ export function ProjectSwitcher() {
                 <ItemTitle>
                   {currentProject?.name ?? "No project selected"}
                 </ItemTitle>
-                <ItemDescription>
+                <ItemDescription className="text-[11px]">
                   {currentUser?.email ?? "No email"}
                 </ItemDescription>
               </ItemContent>
@@ -149,7 +149,9 @@ export function ProjectSwitcher() {
                         </span>
                       )}
                     </ItemTitle>
-                    <ItemDescription>{currentUser.email}</ItemDescription>
+                    <ItemDescription className="text-[11px]">
+                      {currentUser.email}
+                    </ItemDescription>
                   </ItemContent>
                 </Item>
               ) : (
