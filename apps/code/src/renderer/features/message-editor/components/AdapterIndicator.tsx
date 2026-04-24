@@ -9,9 +9,7 @@ export function AdapterIndicator({ adapter }: AdapterIndicatorProps) {
   return (
     <Flex align="center" gap="1">
       <Robot size={12} weight="duotone" className="text-(--gray-9)" />
-      <Text className="font-mono text-(--gray-9) text-[13px] leading-snug">
-        {adapter}
-      </Text>
+      <Text className="font-mono text-(--gray-9) text-[13px]">{adapter}</Text>
     </Flex>
   );
 }

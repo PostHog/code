@@ -410,10 +410,10 @@ export function ArchivedTasksViewPresentation({
           <Dialog.Title className="text-sm">
             Unarchive to new branch?
           </Dialog.Title>
-          <Dialog.Description className="text-[13px] leading-snug">
-            <Text color="gray" className="text-[13px] leading-snug">
+          <Dialog.Description className="text-[13px]">
+            <Text color="gray" className="text-[13px]">
               This workspace was last on{" "}
-              <Text className="font-medium text-[13px] leading-snug">
+              <Text className="font-medium text-[13px]">
                 {branchNotFound?.branchName}
               </Text>
               , but that branch has been deleted or renamed.
@@ -442,10 +442,10 @@ export function ArchivedTasksViewPresentation({
           <AlertDialog.Title className="text-sm">
             Delete archived task
           </AlertDialog.Title>
-          <AlertDialog.Description className="text-[13px] leading-snug">
-            <Text color="gray" className="text-[13px] leading-snug">
+          <AlertDialog.Description className="text-[13px]">
+            <Text color="gray" className="text-[13px]">
               Permanently delete{" "}
-              <Text className="font-medium text-[13px] leading-snug">
+              <Text className="font-medium text-[13px]">
                 {items.find((i) => i.archived.taskId === deleteTargetId)?.task
                   ?.title ?? "Unknown task"}
               </Text>
@@ -487,9 +487,7 @@ export function ArchivedTasksView() {
   const queryClient = useQueryClient();
 
   useSetHeaderContent(
-    <Text className="font-medium text-[13px] leading-snug">
-      Archived tasks
-    </Text>,
+    <Text className="font-medium text-[13px]">Archived tasks</Text>,
   );
 
   const [branchNotFound, setBranchNotFound] =

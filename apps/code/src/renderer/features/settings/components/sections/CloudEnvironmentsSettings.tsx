@@ -143,7 +143,7 @@ function NetworkAccessSelect({
       >
         <Flex direction="column" gap="0">
           <Text className="text-sm">{current.label}</Text>
-          <Text color="gray" className="text-[13px] leading-snug">
+          <Text color="gray" className="text-[13px]">
             {current.description}
           </Text>
         </Flex>
@@ -173,7 +173,7 @@ function NetworkAccessSelect({
               >
                 {opt.label}
               </Text>
-              <Text color="gray" className="text-[13px] leading-snug">
+              <Text color="gray" className="text-[13px]">
                 {opt.description}
               </Text>
             </button>
@@ -292,7 +292,7 @@ export function CloudEnvironmentsSettings() {
         <Text className="font-medium text-base">
           {editingEnv ? "Update cloud environment" : "New cloud environment"}
         </Text>
-        <Text color="gray" className="text-[13px] leading-snug">
+        <Text color="gray" className="text-[13px]">
           {editingEnv
             ? "Changes take effect on the next session that uses this environment; running sessions are not affected."
             : "Once created, you can pick this environment in the Cloud section of the workspace picker when starting a task."}
@@ -300,7 +300,7 @@ export function CloudEnvironmentsSettings() {
 
         <Flex direction="column" gap="1">
           <Text className="font-medium text-sm">Name</Text>
-          <Text color="gray" className="text-[13px] leading-snug">
+          <Text color="gray" className="text-[13px]">
             Shown in the workspace picker. Pick a name that describes the access
             profile, e.g. "Internal APIs" or "Read-only".
           </Text>
@@ -314,18 +314,18 @@ export function CloudEnvironmentsSettings() {
 
         <Flex direction="column" gap="1">
           <Text className="font-medium text-sm">Network access</Text>
-          <Text color="gray" className="text-[13px] leading-snug">
+          <Text color="gray" className="text-[13px]">
             Controls which hosts the sandbox may reach.{" "}
-            <Text color="gray" className="font-medium text-[13px] leading-snug">
+            <Text color="gray" className="font-medium text-[13px]">
               Full
             </Text>{" "}
             allows any outbound traffic.{" "}
-            <Text color="gray" className="font-medium text-[13px] leading-snug">
+            <Text color="gray" className="font-medium text-[13px]">
               Trusted sources only
             </Text>{" "}
             restricts traffic to a curated list of common package registries and
             source hosts.{" "}
-            <Text color="gray" className="font-medium text-[13px] leading-snug">
+            <Text color="gray" className="font-medium text-[13px]">
               Custom
             </Text>{" "}
             lets you define an explicit allowlist below.
@@ -342,19 +342,13 @@ export function CloudEnvironmentsSettings() {
           <>
             <Flex direction="column" gap="1">
               <Text className="font-medium text-sm">Allowed domains</Text>
-              <Text color="gray" className="text-[13px] leading-snug">
+              <Text color="gray" className="text-[13px]">
                 One domain per line (not URLs — no scheme or path). Use{" "}
-                <Text
-                  color="gray"
-                  className="font-medium text-[13px] leading-snug"
-                >
+                <Text color="gray" className="font-medium text-[13px]">
                   *
                 </Text>{" "}
                 as a wildcard, e.g.{" "}
-                <Text
-                  color="gray"
-                  className="font-medium text-[13px] leading-snug"
-                >
+                <Text color="gray" className="font-medium text-[13px]">
                   *.example.com
                 </Text>{" "}
                 to cover all subdomains. Requests to any other host are blocked.
@@ -376,11 +370,7 @@ export function CloudEnvironmentsSettings() {
               {domainValidation.errors.length > 0 && (
                 <Flex direction="column" gap="0">
                   {domainValidation.errors.map((err) => (
-                    <Text
-                      key={err}
-                      color="red"
-                      className="text-[13px] leading-snug"
-                    >
+                    <Text key={err} color="red" className="text-[13px]">
                       {err}
                     </Text>
                   ))}
@@ -399,7 +389,7 @@ export function CloudEnvironmentsSettings() {
                   }))
                 }
               />
-              <Text color="gray" className="text-[13px] leading-snug">
+              <Text color="gray" className="text-[13px]">
                 Also include the built-in list of common package managers and
                 source hosts — recommended unless you deliberately want to block
                 them.
@@ -410,14 +400,14 @@ export function CloudEnvironmentsSettings() {
 
         <Flex direction="column" gap="1">
           <Text className="font-medium text-sm">Environment variables</Text>
-          <Text color="gray" className="text-[13px] leading-snug">
+          <Text color="gray" className="text-[13px]">
             Injected into the sandbox shell before the agent runs — useful for
             API keys or service tokens the agent needs. Standard{" "}
-            <Text color="gray" className="font-medium text-[13px] leading-snug">
+            <Text color="gray" className="font-medium text-[13px]">
               .env
             </Text>{" "}
             format: one{" "}
-            <Text color="gray" className="font-medium text-[13px] leading-snug">
+            <Text color="gray" className="font-medium text-[13px]">
               KEY=value
             </Text>{" "}
             per line. Existing values aren't shown back once saved; leave the
@@ -445,11 +435,7 @@ export function CloudEnvironmentsSettings() {
           {envVarValidation.errors.length > 0 && (
             <Flex direction="column" gap="0">
               {envVarValidation.errors.map((err) => (
-                <Text
-                  key={err}
-                  color="red"
-                  className="text-[13px] leading-snug"
-                >
+                <Text key={err} color="red" className="text-[13px]">
                   {err}
                 </Text>
               ))}
@@ -497,7 +483,7 @@ export function CloudEnvironmentsSettings() {
   return (
     <Flex direction="column" gap="4">
       <Flex justify="between" align="start" gap="4">
-        <Text color="gray" className="text-[13px] leading-snug">
+        <Text color="gray" className="text-[13px]">
           A cloud environment is a reusable configuration applied to remote
           sandbox sessions — it controls which outbound network hosts the
           sandbox can reach and what environment variables (like API keys) are
@@ -512,11 +498,11 @@ export function CloudEnvironmentsSettings() {
       </Flex>
 
       {isLoading ? (
-        <Text color="gray" className="text-[13px] leading-snug">
+        <Text color="gray" className="text-[13px]">
           Loading environments...
         </Text>
       ) : environments.length === 0 ? (
-        <Text color="gray" className="text-[13px] leading-snug">
+        <Text color="gray" className="text-[13px]">
           No cloud environments configured yet. Create one to control network
           access for your cloud sessions.
         </Text>
@@ -555,7 +541,7 @@ export function CloudEnvironmentsSettings() {
                   </Badge>
                   {env.network_access_level === "custom" &&
                     env.allowed_domains.length > 0 && (
-                      <Text color="gray" className="text-[13px] leading-snug">
+                      <Text color="gray" className="text-[13px]">
                         {env.allowed_domains.length} domain
                         {env.allowed_domains.length !== 1 ? "s" : ""}
                       </Text>

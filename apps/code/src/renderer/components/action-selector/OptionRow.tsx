@@ -85,7 +85,7 @@ export function OptionRow({
         }`}
       >
         <Text
-          className={`font-medium text-[13px] leading-snug ${
+          className={`font-medium text-[13px] ${
             isSelected
               ? isCancel
                 ? "text-gray-12"
@@ -127,7 +127,7 @@ export function OptionRow({
 
     return (
       <Text
-        className={`whitespace-pre-wrap font-medium text-[13px] leading-snug ${textClass}`}
+        className={`whitespace-pre-wrap font-medium text-[13px] ${textClass}`}
       >
         {displayText}
       </Text>
@@ -187,7 +187,7 @@ export function OptionRow({
       {option.description && !isCurrentlyEditing && (
         <Text
           as="p"
-          className={`mt-[2px] text-[13px] text-gray-11 leading-snug ${showCheckbox ? "ml-[64px]" : "ml-[40px]"}`}
+          className={`mt-[2px] text-[13px] text-gray-11 ${showCheckbox ? "ml-[64px]" : "ml-[40px]"}`}
         >
           {compactHomePath(option.description)}
         </Text>

@@ -61,7 +61,7 @@ export function GitHubConnectionBanner() {
         variant="solid"
         color="gray"
         highContrast
-        className="h-fit w-full flex-wrap items-center justify-start gap-x-2 gap-y-1 whitespace-normal border-transparent bg-black py-1 text-left text-[12px] text-white leading-tight shadow-none hover:bg-neutral-900"
+        className="h-fit w-full flex-wrap items-center justify-start gap-x-2 gap-y-1 whitespace-normal border-transparent bg-black py-1 text-left text-[12px] text-white shadow-none hover:bg-neutral-900"
         tooltipContent={
           <>
             <InfoIcon size={14} className="mr-0.5" />

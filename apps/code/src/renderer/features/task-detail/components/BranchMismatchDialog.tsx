@@ -71,19 +71,13 @@ export function BranchMismatchDialog({
         </AlertDialog.Description>
         <Flex direction="column" gap="1" mt="3" className="min-w-0">
           <Flex align="center" gap="2" className="min-w-0">
-            <Text
-              color="gray"
-              className="w-[64px] shrink-0 text-[13px] leading-snug"
-            >
+            <Text color="gray" className="w-[64px] shrink-0 text-[13px]">
               Linked
             </Text>
             <BranchLabel name={linkedBranch} />
           </Flex>
           <Flex align="center" gap="2" className="min-w-0">
-            <Text
-              color="gray"
-              className="w-[64px] shrink-0 text-[13px] leading-snug"
-            >
+            <Text color="gray" className="w-[64px] shrink-0 text-[13px]">
               Current
             </Text>
             <BranchLabel name={currentBranch} />

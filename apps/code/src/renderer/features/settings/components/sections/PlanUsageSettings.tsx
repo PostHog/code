@@ -349,7 +349,7 @@ function UsageMeter({ label, bucket, color }: UsageMeterProps) {
         size="2"
         color={color === "red" ? "red" : undefined}
       />
-      <Text className="text-(--gray-9) text-[13px] leading-snug">
+      <Text className="text-(--gray-9) text-[13px]">
         {bucket.exceeded
           ? "Limit exceeded"
           : `Resets in ${formatResetTime(bucket.resets_in_seconds)}`}
@@ -398,7 +398,7 @@ function PlanCard({
               color: isCurrent ? "var(--accent-9)" : "var(--gray-9)",
               letterSpacing: "0.05em",
             }}
-            className="font-medium text-[13px] leading-snug"
+            className="font-medium text-[13px]"
           >
             {isCurrent ? "CURRENT PLAN" : name.toUpperCase()}
           </Text>
@@ -406,15 +406,11 @@ function PlanCard({
             <Text className="font-bold text-xl">{name}</Text>
             <Text className="text-(--gray-11) text-base">
               {price}
-              <Text className="text-(--gray-9) text-[13px] leading-snug">
-                {period}
-              </Text>
+              <Text className="text-(--gray-9) text-[13px]">{period}</Text>
             </Text>
           </Flex>
           {resetLabel && (
-            <Text className="text-(--gray-9) text-[13px] leading-snug">
-              {resetLabel}
-            </Text>
+            <Text className="text-(--gray-9) text-[13px]">{resetLabel}</Text>
           )}
         </Flex>
         <Flex direction="column" gap="1">

@@ -28,7 +28,7 @@ export function SettingRow({
         <Text className="font-medium text-sm">{label}</Text>
         {description &&
           (typeof description === "string" ? (
-            <Text color="gray" className="text-[13px] leading-snug">
+            <Text color="gray" className="text-[13px]">
               {description}
             </Text>
           ) : (

@@ -40,9 +40,7 @@ function ToastComponent(props: ToastProps) {
         <Flex className="shrink-0 pt-[2px]">{getIcon()}</Flex>
         <Flex direction="column" gap="1" className="min-w-0 flex-1">
           <Flex align="center" justify="between" gap="2">
-            <Text className="font-medium text-[13px] leading-snug">
-              {title}
-            </Text>
+            <Text className="font-medium text-[13px]">{title}</Text>
             <Flex align="center" gap="2" className="shrink-0">
               {action && (
                 <Text
@@ -51,7 +49,7 @@ function ToastComponent(props: ToastProps) {
                     action.onClick();
                     sonnerToast.dismiss(id);
                   }}
-                  className="cursor-pointer font-medium text-[13px] leading-snug"
+                  className="cursor-pointer font-medium text-[13px]"
                 >
                   {action.label}
                 </Text>
@@ -69,7 +67,7 @@ function ToastComponent(props: ToastProps) {
             </Flex>
           </Flex>
           {description && (
-            <Text color="gray" className="break-words text-[13px] leading-snug">
+            <Text color="gray" className="break-words text-[13px]">
               {description}
             </Text>
           )}

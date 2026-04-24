@@ -62,7 +62,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <Callout.Text>
               <Flex direction="column" gap="2">
                 <Text className="font-medium">Something went wrong</Text>
-                <Text className="text-[13px] text-gray-11 leading-snug">
+                <Text className="text-[13px] text-gray-11">
                   {this.state.error?.message || "An unexpected error occurred"}
                 </Text>
                 <Flex gap="2" mt="2">

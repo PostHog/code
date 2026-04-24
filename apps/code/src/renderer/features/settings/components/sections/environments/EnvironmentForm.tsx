@@ -108,13 +108,13 @@ export function EnvironmentForm({
         <span>Back to projects</span>
       </button>
 
-      <Text className="font-medium text-[13px] leading-snug">
+      <Text className="font-medium text-[13px]">
         {isNew ? "Creating" : "Editing"} environment for {folder.name}
       </Text>
 
       <Flex direction="column" gap="1">
-        <Text className="font-medium text-[13px] leading-snug">Name</Text>
-        <Text color="gray" className="text-[12px] leading-snug">
+        <Text className="font-medium text-[13px]">Name</Text>
+        <Text color="gray" className="text-[12px]">
           Shown in the worktree picker. Use short names like "default" or
           "with-seed-data" so you can spot which setup will run.
         </Text>
@@ -128,10 +128,8 @@ export function EnvironmentForm({
       </Flex>
 
       <Flex direction="column" gap="1">
-        <Text className="font-medium text-[13px] leading-snug">
-          Setup script
-        </Text>
-        <Text color="gray" className="text-[12px] leading-snug">
+        <Text className="font-medium text-[13px]">Setup script</Text>
+        <Text color="gray" className="text-[12px]">
           Runs in the worktree root right after it's created, before the agent
           starts. Use it to install dependencies, generate build artifacts, or
           seed a local database. Leave blank if no setup is needed.
@@ -164,7 +162,7 @@ export function EnvironmentForm({
       </Flex>
       */}
 
-      <Text color="gray" className="text-[12px] leading-snug">
+      <Text color="gray" className="text-[12px]">
         Environment will be stored at {filePath}
       </Text>
 

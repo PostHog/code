@@ -81,9 +81,7 @@ function StatusSummaryText({ summary }: { summary: StatusSummary }) {
   if (summary.waiting > 0) parts.push(`${summary.waiting} waiting`);
 
   return (
-    <Text className="text-[12px] text-gray-10 leading-snug">
-      {parts.join(" \u00b7 ")}
-    </Text>
+    <Text className="text-[12px] text-gray-10">{parts.join(" \u00b7 ")}</Text>
   );
 }
 
@@ -149,7 +147,7 @@ export function CommandCenterToolbar({
         >
           <MagnifyingGlassMinus size={14} />
         </button>
-        <Text className="w-8 text-center text-[12px] text-gray-10 leading-snug">
+        <Text className="w-8 text-center text-[12px] text-gray-10">
           {Math.round(zoom * 100)}%
         </Text>
         <button

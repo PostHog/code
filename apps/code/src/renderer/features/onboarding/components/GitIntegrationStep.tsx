@@ -225,7 +225,7 @@ export function GitIntegrationStep({
                 transition={{ duration: 0.3 }}
               >
                 <Flex direction="column" gap="2">
-                  <Text className="font-bold text-(--gray-12) text-2xl leading-tight">
+                  <Text className="font-bold text-(--gray-12) text-2xl">
                     Give your agents access to code
                   </Text>
                   <Text className="text-(--gray-11) text-sm">
@@ -281,7 +281,7 @@ export function GitIntegrationStep({
                               size={14}
                               className="animate-spin text-(--gray-9)"
                             />
-                            <Text className="text-(--gray-9) text-[13px] leading-snug">
+                            <Text className="text-(--gray-9) text-[13px]">
                               Detecting repository...
                             </Text>
                           </Flex>
@@ -313,7 +313,7 @@ export function GitIntegrationStep({
                                     ? "var(--green-11)"
                                     : "var(--gray-11)",
                                 }}
-                                className="text-[13px] leading-snug"
+                                className="text-[13px]"
                               >
                                 {repoMatchesGitHub
                                   ? `Linked to ${detectedRepo.fullName} on GitHub`
@@ -332,7 +332,7 @@ export function GitIntegrationStep({
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.2 }}
                           >
-                            <Text className="text-(--gray-9) text-[13px] leading-snug">
+                            <Text className="text-(--gray-9) text-[13px]">
                               No git remote detected -- you can still continue.
                             </Text>
                           </motion.div>
@@ -400,7 +400,7 @@ export function GitIntegrationStep({
                             weight="fill"
                             className="text-(--green-9)"
                           />
-                          <Text className="text-(--green-11) text-[13px] leading-snug">
+                          <Text className="text-(--green-11) text-[13px]">
                             Connected
                           </Text>
                         </Flex>

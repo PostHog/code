@@ -156,17 +156,15 @@ export function GeneratingIndicator({
       style={{ WebkitUserSelect: "none" }}
     >
       <Brain size={12} className="ph-pulse" />
-      <Text className="text-[13px] text-accent-11 leading-snug">
-        {activity}...
-      </Text>
-      <Text color="gray" className="text-[13px] leading-snug">
+      <Text className="text-[13px] text-accent-11">{activity}...</Text>
+      <Text color="gray" className="text-[13px]">
         (Esc to stop
       </Text>
       <Circle size={4} weight="fill" className="mx-[2px] my-0 text-gray-9" />
       <Text
         color="gray"
         style={{ fontVariantNumeric: "tabular-nums" }}
-        className="text-[13px] leading-snug"
+        className="text-[13px]"
       >
         {formatDuration(elapsed, 1)})
       </Text>

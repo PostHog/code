@@ -605,10 +605,7 @@ export function TaskInput({
                   className="inline-block h-2 w-2 rounded-full bg-orange-9"
                   aria-hidden
                 />
-                <Text
-                  color="orange"
-                  className="font-medium text-[13px] leading-snug"
-                >
+                <Text color="orange" className="font-medium text-[13px]">
                   Dev
                 </Text>
               </Flex>

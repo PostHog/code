@@ -62,7 +62,7 @@ export function WorktreeRow({
       }}
     >
       <Flex direction="column" gap="1" className="min-w-0 flex-1">
-        <Text className="break-all text-[13px] leading-snug">
+        <Text className="break-all text-[13px]">
           {worktree.worktreePath}
           <WorktreeSize worktreePath={worktree.worktreePath} />
         </Text>

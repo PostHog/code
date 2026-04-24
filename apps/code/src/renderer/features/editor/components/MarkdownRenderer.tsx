@@ -44,11 +44,7 @@ export const baseComponents: Components = {
       node.children[0].tagName === "strong";
 
     return (
-      <Text
-        as="p"
-        mb={isStrongOnly ? "2" : "3"}
-        className="text-[13px] leading-snug"
-      >
+      <Text as="p" mb={isStrongOnly ? "2" : "3"}>
         {children}
       </Text>
     );
@@ -62,10 +58,7 @@ export const baseComponents: Components = {
     const match = className?.match(/language-(\w+)/);
     if (!match) {
       return (
-        <Code
-          variant="ghost"
-          className="text-(--accent-11) text-[13px] leading-snug"
-        >
+        <Code variant="ghost" className="text-(--accent-11)">
           {children}
         </Code>
       );
@@ -78,14 +71,10 @@ export const baseComponents: Components = {
     );
   },
   pre: ({ children }) => <CodeBlock size="1">{children}</CodeBlock>,
-  em: ({ children }) => (
-    <Em className="text-[13px] leading-snug">{children}</Em>
-  ),
-  i: ({ children }) => <i className="text-[13px] leading-snug">{children}</i>,
+  em: ({ children }) => <Em>{children}</Em>,
+  i: ({ children }) => <i>{children}</i>,
   strong: ({ children }) => (
-    <strong className="text-(--accent-11) text-[13px] leading-snug">
-      {children}
-    </strong>
+    <strong className="text-(--accent-11)">{children}</strong>
   ),
   del: ({ children }) => (
     <del className="text-(--gray-9) line-through">{children}</del>
@@ -108,7 +97,7 @@ export const baseComponents: Components = {
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="markdown-link inline-flex items-center gap-[2px] text-[13px] leading-snug"
+        className="markdown-link inline-flex items-center gap-[2px]"
       >
         {children}
         <svg
@@ -131,9 +120,7 @@ export const baseComponents: Components = {
       </a>
     );
   },
-  kbd: ({ children }) => (
-    <Kbd className="text-[13px] leading-snug">{children}</Kbd>
-  ),
+  kbd: ({ children }) => <Kbd>{children}</Kbd>,
   ul: ({ children }) => (
     <List as="ul" size="1">
       {children}
@@ -161,9 +148,7 @@ export const baseComponents: Components = {
     return <input type={type} />;
   },
   // Table components - plain HTML for size control
-  table: ({ children }) => (
-    <table className="mb-3 text-[13px] leading-snug">{children}</table>
-  ),
+  table: ({ children }) => <table className="mb-3">{children}</table>,
   thead: ({ children }) => <thead>{children}</thead>,
   tbody: ({ children }) => <tbody>{children}</tbody>,
   tr: ({ children }) => <tr className="border-gray-6 border-b">{children}</tr>,

@@ -32,7 +32,7 @@ function CopyableCommand({ command }: { command: string }) {
       gap="2"
       className="rounded border border-gray-6 bg-gray-2 px-2 py-1"
     >
-      <Text className="text-[13px] text-gray-11 leading-snug">{command}</Text>
+      <Text className="text-[13px] text-gray-11">{command}</Text>
       <Tooltip content={copied ? "Copied!" : "Copy"}>
         <IconButton
           variant="ghost"
@@ -56,10 +56,10 @@ function SettingDescription({
 }) {
   return (
     <Flex direction="column" gap="1">
-      <Text color="gray" className="text-[13px] leading-snug">
+      <Text color="gray" className="text-[13px]">
         {text}
       </Text>
-      <Link href={docsUrl} target="_blank" className="text-[13px] leading-snug">
+      <Link href={docsUrl} target="_blank" className="text-[13px]">
         <Flex align="center" gap="1">
           Documentation
           <ArrowSquareOut size={10} />

@@ -147,7 +147,7 @@ export function MultiSelectStack({
             {reports.length} reports selected
           </Text>
           {overflowCount > 0 && (
-            <Text color="gray" className="text-[11px] leading-snug">
+            <Text color="gray" className="text-[11px]">
               +{overflowCount} more not shown
             </Text>
           )}

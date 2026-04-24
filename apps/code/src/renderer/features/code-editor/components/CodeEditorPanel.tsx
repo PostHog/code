@@ -195,7 +195,7 @@ export function CodeEditorPanel({
         >
           <Text
             color="gray"
-            className="font-[var(--code-font-family)] text-[13px] leading-snug"
+            className="font-[var(--code-font-family)] text-[13px]"
           >
             {filePath}
           </Text>

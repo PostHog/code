@@ -23,7 +23,7 @@ export function ErrorNotificationView({
           <Flex direction="column" gap="1">
             <Text className="font-medium text-sm">{message}</Text>
             {isContextError && (
-              <Text className="text-[13px] text-gray-11 leading-snug">
+              <Text className="text-[13px] text-gray-11">
                 Tip: Type <code>/compact</code> to manually compress the
                 conversation history.
               </Text>

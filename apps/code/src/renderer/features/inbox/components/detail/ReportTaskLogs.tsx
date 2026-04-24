@@ -344,14 +344,14 @@ export function ReportTaskLogs({
             const rowInner = (
               <>
                 <span style={{ color: summary.color }}>{summary.icon}</span>
-                <Text className="font-medium text-[12px] leading-snug">
+                <Text className="font-medium text-[12px]">
                   {RELATIONSHIP_LABELS[relationship]}
                 </Text>
                 {hideStatusLabel ? (
                   <span className="flex-1" />
                 ) : (
                   <Text
-                    className="flex-1 text-[11px] leading-snug"
+                    className="flex-1 text-[11px]"
                     style={{ color: summary.color }}
                   >
                     {bar.prUrl

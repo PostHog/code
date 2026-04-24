@@ -216,7 +216,7 @@ export function WorktreesSettings() {
           Loading worktrees...
         </Text>
       ) : worktreeGroups.length === 0 ? (
-        <Text color="gray" className="text-[13px] leading-snug">
+        <Text color="gray" className="text-[13px]">
           Tasks that are run in a worktree will show up here.
         </Text>
       ) : (

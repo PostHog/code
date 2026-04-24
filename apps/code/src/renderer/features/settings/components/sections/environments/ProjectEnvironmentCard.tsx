@@ -41,11 +41,11 @@ export function ProjectEnvironmentCard({
             className="shrink-0 text-(--gray-9)"
           />
           <Flex align="center" gap="2" className="min-w-0">
-            <Text truncate className="font-medium text-[13px] leading-snug">
+            <Text truncate className="font-medium text-[13px]">
               {folder.name}
             </Text>
             {orgName && (
-              <Text color="gray" className="text-[13px] leading-snug">
+              <Text color="gray" className="text-[13px]">
                 {orgName}
               </Text>
             )}

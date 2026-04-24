@@ -40,9 +40,7 @@ export function SessionFooter({
               style={{ WebkitUserSelect: "none" }}
             >
               <Pause size={14} weight="fill" />
-              <Text className="text-[13px] leading-snug">
-                Awaiting permission...
-              </Text>
+              <Text className="text-[13px]">Awaiting permission...</Text>
             </Flex>
             <ContextUsageIndicator usage={usage ?? null} />
           </Flex>
@@ -59,7 +57,7 @@ export function SessionFooter({
               pausedDurationMs={pausedDurationMs}
             />
             {queuedCount > 0 && (
-              <Text color="gray" className="text-[13px] leading-snug">
+              <Text color="gray" className="text-[13px]">
                 ({queuedCount} queued)
               </Text>
             )}
@@ -87,7 +85,7 @@ export function SessionFooter({
             <Text
               color="gray"
               style={{ fontVariantNumeric: "tabular-nums" }}
-              className="text-[13px] leading-snug"
+              className="text-[13px]"
             >
               Generated in {formatDuration(lastGenerationDuration)}
             </Text>

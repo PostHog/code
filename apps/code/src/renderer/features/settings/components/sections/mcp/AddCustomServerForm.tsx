@@ -99,7 +99,7 @@ export function AddCustomServerForm({
         <Flex direction="column" gap="3">
           <Flex direction="column" gap="1">
             <Text className="font-medium text-sm">Name</Text>
-            <Text color="gray" className="text-[13px] leading-snug">
+            <Text color="gray" className="text-[13px]">
               A short label shown in your sidebar and tool calls.
             </Text>
             <TextField.Root
@@ -112,7 +112,7 @@ export function AddCustomServerForm({
 
           <Flex direction="column" gap="1">
             <Text className="font-medium text-sm">Server URL</Text>
-            <Text color="gray" className="text-[13px] leading-snug">
+            <Text color="gray" className="text-[13px]">
               HTTPS endpoint or streamable URL.
             </Text>
             <TextField.Root
@@ -182,7 +182,7 @@ export function AddCustomServerForm({
                 <Flex direction="column" gap="3" className="pl-4">
                   <Flex direction="column" gap="1">
                     <Text className="font-medium text-sm">Client ID</Text>
-                    <Text color="gray" className="text-[13px] leading-snug">
+                    <Text color="gray" className="text-[13px]">
                       OAuth client identifier, if the server requires it.
                     </Text>
                     <TextField.Root
@@ -194,7 +194,7 @@ export function AddCustomServerForm({
                   </Flex>
                   <Flex direction="column" gap="1">
                     <Text className="font-medium text-sm">Client secret</Text>
-                    <Text color="gray" className="text-[13px] leading-snug">
+                    <Text color="gray" className="text-[13px]">
                       Stored encrypted — never logged.
                     </Text>
                     <TextField.Root

@@ -75,7 +75,7 @@ export function InlineEditableText({
       onKeyDown={handleKeyDown}
       onClick={(e) => e.stopPropagation()}
       rows={1}
-      className="block max-h-[120px] w-full cursor-text overflow-auto break-words font-medium text-[13px] text-gray-12 leading-snug placeholder:text-gray-10"
+      className="block max-h-[120px] w-full cursor-text overflow-auto break-words font-medium text-[13px] text-gray-12 placeholder:text-gray-10"
       style={{
         all: "unset",
         resize: "none",

@@ -108,7 +108,7 @@ export function WelcomeScreen({ onNext }: WelcomeScreenProps) {
           >
             <Flex direction="column" gap="1">
               <Flex direction="row" align="center" gap="2">
-                <Text className="font-bold text-(--gray-12) text-2xl leading-tight">
+                <Text className="font-bold text-(--gray-12) text-2xl">
                   Welcome to
                 </Text>
                 <Logo />

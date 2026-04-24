@@ -37,7 +37,7 @@ export function StepTabs({
             className="cursor-pointer rounded-(--radius-2)"
           >
             <Text
-              className={`text-[13px] leading-snug ${
+              className={`text-[13px] ${
                 isCurrent
                   ? "font-medium text-blue-11"
                   : isCompleted

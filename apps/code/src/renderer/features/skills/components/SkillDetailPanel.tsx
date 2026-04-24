@@ -41,7 +41,7 @@ export function SkillDetailPanel({ skill, onClose }: SkillDetailPanelProps) {
         className="shrink-0 border-b border-b-(--gray-5)"
       >
         <Flex align="start" justify="between" gap="2">
-          <Text className="block min-w-0 break-words font-medium text-[13px] leading-snug">
+          <Text className="block min-w-0 break-words font-medium text-[13px]">
             {skill.name}
           </Text>
           <button
@@ -76,21 +76,19 @@ export function SkillDetailPanel({ skill, onClose }: SkillDetailPanelProps) {
       >
         <Flex direction="column" gap="3" p="3">
           {skill.description && (
-            <Text className="text-[12px] text-gray-10 leading-snug">
+            <Text className="text-[12px] text-gray-10">
               {skill.description}
             </Text>
           )}
 
           {isLoading ? (
-            <Text className="text-[12px] text-gray-9 leading-snug">
-              Loading...
-            </Text>
+            <Text className="text-[12px] text-gray-9">Loading...</Text>
           ) : body ? (
-            <Box className="rounded border border-gray-5 bg-gray-1 px-4 py-3">
+            <Box className="rounded border border-gray-5 bg-gray-1 px-4 py-3 text-[13px]">
               <MarkdownRenderer content={body} />
             </Box>
           ) : (
-            <Text className="text-[12px] text-gray-9 leading-snug">
+            <Text className="text-[12px] text-gray-9">
               No content in SKILL.md
             </Text>
           )}

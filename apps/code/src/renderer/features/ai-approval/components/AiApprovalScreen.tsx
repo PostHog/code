@@ -88,7 +88,7 @@ export function AiApprovalScreen({ orgName, isAdmin }: AiApprovalScreenProps) {
                       weight="duotone"
                       color="var(--accent-10)"
                     />
-                    <Text className="font-bold text-(--gray-12) text-2xl leading-tight">
+                    <Text className="font-bold text-(--gray-12) text-2xl">
                       PostHog AI needs your approval
                     </Text>
                   </Flex>
@@ -124,7 +124,7 @@ export function AiApprovalScreen({ orgName, isAdmin }: AiApprovalScreenProps) {
                       Approve in PostHog
                       <ArrowSquareOut size={16} />
                     </Button>
-                    <Text className="text-(--gray-10) text-[13px] leading-snug">
+                    <Text className="text-(--gray-10) text-[13px]">
                       Opens PostHog in your browser. Come back here once you've
                       approved.
                     </Text>

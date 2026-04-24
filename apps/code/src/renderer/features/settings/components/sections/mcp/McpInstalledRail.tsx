@@ -144,7 +144,7 @@ export function McpInstalledRail({
           {visibleInstallations.length === 0 ? (
             <Text
               color="gray"
-              className="px-[10px] py-[8px] text-[13px] italic leading-snug"
+              className="px-[10px] py-[8px] text-[13px] italic"
             >
               {search
                 ? `Nothing matches "${search}".`
@@ -180,10 +180,7 @@ export function McpInstalledRail({
                     size={28}
                   />
                   <Flex direction="column" className="min-w-0 leading-[1.2]">
-                    <Text
-                      truncate
-                      className="font-medium text-[13px] leading-snug"
-                    >
+                    <Text truncate className="font-medium text-[13px]">
                       {name}
                     </Text>
                     <Text

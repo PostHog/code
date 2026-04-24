@@ -11,8 +11,8 @@ interface CodeBlockProps {
 }
 
 const SIZE_TO_CLASS: Record<CodeBlockSize, string> = {
-  "1": "text-[13px] leading-snug",
-  "1.5": "text-[13.5px] leading-snug",
+  "1": "text-[13px]",
+  "1.5": "text-[13.5px]",
   "2": "text-sm",
   "3": "text-base",
 };

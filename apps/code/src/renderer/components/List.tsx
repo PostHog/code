@@ -16,11 +16,11 @@ interface ListItemProps {
 const sizeStyles: Record<ListSize, { className: string; itemSpacing: string }> =
   {
     "1": {
-      className: "text-[13px] leading-snug",
+      className: "text-[13px]",
       itemSpacing: "mb-1",
     },
     "1.5": {
-      className: "text-[13.5px] leading-snug",
+      className: "text-[13.5px]",
       itemSpacing: "mb-1",
     },
     "2": {

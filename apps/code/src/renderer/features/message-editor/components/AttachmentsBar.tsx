@@ -55,7 +55,7 @@ function ImageThumbnail({
         <Dialog.Trigger>
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded-[var(--radius-1)] bg-[var(--gray-a3)] p-1 font-medium text-[11px] text-[var(--gray-11)] leading-tight hover:bg-[var(--gray-a4)]"
+            className="inline-flex items-center gap-1 rounded-[var(--radius-1)] bg-[var(--gray-a3)] p-1 font-medium text-[11px] text-[var(--gray-11)] hover:bg-[var(--gray-a4)]"
           >
             {dataUrl ? (
               isGif ? (
@@ -117,7 +117,7 @@ function FileChip({
   onRemove: () => void;
 }) {
   return (
-    <span className="group/chip inline-flex flex-shrink-0 items-center gap-1 rounded-[var(--radius-1)] bg-[var(--gray-a3)] p-1 font-medium text-[11px] text-[var(--gray-11)] leading-tight">
+    <span className="group/chip inline-flex flex-shrink-0 items-center gap-1 rounded-[var(--radius-1)] bg-[var(--gray-a3)] p-1 font-medium text-[11px] text-[var(--gray-11)]">
       <button
         type="button"
         tabIndex={-1}

@@ -228,10 +228,7 @@ export function ActionSelector({
         )}
 
         {title && (
-          <Text
-            className="font-medium text-[13px] text-blue-11 leading-snug"
-            title={title}
-          >
+          <Text className="font-medium text-[13px] text-blue-11" title={title}>
             {compactHomePath(title)}
           </Text>
         )}
@@ -239,7 +236,7 @@ export function ActionSelector({
         {pendingAction && <Box>{pendingAction}</Box>}
 
         <Box>
-          <Text mb="2" as="p" className="text-[13px] leading-snug">
+          <Text mb="2" as="p" className="text-[13px]">
             {question}
           </Text>
 
@@ -314,7 +311,7 @@ export function ActionSelector({
             })}
           </Flex>
 
-          <Text color="gray" mt="2" as="p" className="text-[13px] leading-snug">
+          <Text color="gray" mt="2" as="p" className="text-[13px]">
             Enter to select · Tab/Arrow keys to navigate · Esc to cancel
           </Text>
         </Box>

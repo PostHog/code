@@ -75,7 +75,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                 transition={{ duration: 0.3 }}
               >
                 <Flex direction="column" gap="2">
-                  <Text className="font-bold text-(--gray-12) text-2xl leading-tight">
+                  <Text className="font-bold text-(--gray-12) text-2xl">
                     Install required tools
                   </Text>
                   <Text className="text-(--gray-11) text-sm">
@@ -120,7 +120,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                             weight="fill"
                             className="text-(--green-9)"
                           />
-                          <Text className="text-(--green-11) text-[13px] leading-snug">
+                          <Text className="text-(--green-11) text-[13px]">
                             Installed
                             {gitStatus?.version
                               ? ` (${gitStatus.version})`
@@ -220,7 +220,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                             weight="fill"
                             className="text-(--green-9)"
                           />
-                          <Text className="text-(--green-11) text-[13px] leading-snug">
+                          <Text className="text-(--green-11) text-[13px]">
                             {ghStatus?.username
                               ? `Logged in as ${ghStatus.username}`
                               : "Authenticated"}
@@ -234,7 +234,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                             weight="fill"
                             className="text-(--amber-9)"
                           />
-                          <Text className="text-(--amber-11) text-[13px] leading-snug">
+                          <Text className="text-(--amber-11) text-[13px]">
                             Not logged in
                           </Text>
                         </Flex>

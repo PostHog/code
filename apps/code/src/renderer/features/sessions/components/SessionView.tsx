@@ -414,10 +414,10 @@ export function SessionView({
                           weight="duotone"
                           color="var(--gray-11)"
                         />
-                        <Text className="font-medium text-[13px] leading-snug">
+                        <Text className="font-medium text-[13px]">
                           Worktree suspended
                         </Text>
-                        <Text color="gray" className="text-[13px] leading-snug">
+                        <Text color="gray" className="text-[13px]">
                           Worktree was removed to save disk space
                         </Text>
                       </Flex>

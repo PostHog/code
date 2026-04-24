@@ -27,7 +27,7 @@ export function ProjectSelect({
     ? `${currentProject.name} ${currentProject.id}`
     : undefined;
   const [highlightedValue, setHighlightedValue] = useState(defaultValue);
-  const sizeClass = size === "1" ? "text-[13px] leading-snug" : "text-sm";
+  const sizeClass = size === "1" ? "text-[13px]" : "text-sm";
 
   if (projects.length <= 1) {
     return (

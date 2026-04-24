@@ -107,17 +107,15 @@ const SignalSourceToggleCard = memo(function SignalSourceToggleCard({
               {statusInfo && (
                 <Text
                   style={{ color: statusInfo.color }}
-                  className="text-[13px] leading-snug"
+                  className="text-[13px]"
                 >
                   {statusInfo.text}
                 </Text>
               )}
             </Flex>
-            <Text className="text-(--gray-11) text-[13px] leading-snug">
-              {description}
-            </Text>
+            <Text className="text-(--gray-11) text-[13px]">{description}</Text>
             {docsUrl && (
-              <Text className="text-(--gray-11) text-[13px] leading-snug">
+              <Text className="text-(--gray-11) text-[13px]">
                 <a
                   href={docsUrl}
                   target="_blank"
@@ -189,10 +187,10 @@ export const EvaluationsSection = memo(function EvaluationsSection({
                 <Badge color="blue">Internal</Badge>
               </Tooltip>
             </Flex>
-            <Text className="text-(--gray-11) text-[13px] leading-snug">
+            <Text className="text-(--gray-11) text-[13px]">
               Monitor how your AI features are performing
             </Text>
-            <Text className="text-(--gray-11) text-[13px] leading-snug">
+            <Text className="text-(--gray-11) text-[13px]">
               <a
                 href="https://posthog.com/docs/llm-analytics"
                 target="_blank"
@@ -242,9 +240,7 @@ function SourceRunningIndicator({
   return (
     <Flex align="center" gap="2" mt="2">
       <CircleNotchIcon size={14} className="animate-spin text-(--accent-11)" />
-      <Text className="text-(--accent-11) text-[13px] leading-snug">
-        {message}
-      </Text>
+      <Text className="text-(--accent-11) text-[13px]">{message}</Text>
     </Flex>
   );
 }
@@ -307,7 +303,7 @@ export function SignalSourceToggles({
     <Flex gap="4">
       {/* PostHog data */}
       <Flex direction="column" gap="2" className="min-w-0 flex-1">
-        <Text className="font-medium text-(--gray-9) text-[13px] leading-snug">
+        <Text className="font-medium text-(--gray-9) text-[13px]">
           PostHog data
         </Text>
         <Flex direction="column" gap="3">
@@ -359,7 +355,7 @@ export function SignalSourceToggles({
 
       {/* External connections */}
       <Flex direction="column" gap="2" className="min-w-0 flex-1">
-        <Text className="font-medium text-(--gray-9) text-[13px] leading-snug">
+        <Text className="font-medium text-(--gray-9) text-[13px]">
           External connections
         </Text>
         <Flex direction="column" gap="3">

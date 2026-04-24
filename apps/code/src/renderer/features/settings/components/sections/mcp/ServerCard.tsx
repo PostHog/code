@@ -55,7 +55,7 @@ export function ServerCard({
                   WebkitLineClamp: 2,
                   WebkitBoxOrient: "vertical",
                 }}
-                className="overflow-hidden text-[13px] leading-snug"
+                className="overflow-hidden text-[13px]"
               >
                 {server.description}
               </Text>

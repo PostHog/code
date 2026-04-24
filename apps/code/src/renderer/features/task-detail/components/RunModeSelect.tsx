@@ -27,7 +27,7 @@ export function RunModeSelect({
   onChange,
   size = "1",
 }: RunModeSelectProps) {
-  const textSizeClass = size === "1" ? "text-[13px] leading-snug" : "text-sm";
+  const textSizeClass = size === "1" ? "text-[13px]" : "text-sm";
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>

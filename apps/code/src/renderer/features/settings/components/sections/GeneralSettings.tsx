@@ -260,7 +260,7 @@ export function GeneralSettings() {
       </Text>
 
       {notificationsDenied && (
-        <Text color="yellow" className="mb-2 text-[13px] leading-snug">
+        <Text color="yellow" className="mb-2 text-[13px]">
           Notifications are blocked by macOS. To enable them, open System
           Settings &gt; Notifications &gt; PostHog Code and turn on Allow
           Notifications.
@@ -350,7 +350,7 @@ export function GeneralSettings() {
               size="1"
               className="w-[120px]"
             />
-            <Text color="gray" className="text-[13px] leading-snug">
+            <Text color="gray" className="text-[13px]">
               {completionVolume}%
             </Text>
           </Flex>
@@ -495,12 +495,12 @@ function HedgehogDescription() {
 
   return (
     <Flex direction="column" gap="1">
-      <Text color="gray" className="text-[13px] leading-snug">
+      <Text color="gray" className="text-[13px]">
         Release a hedgehog buddy to walk around your screen. It might take a few
         seconds to appear.
       </Text>
       {customizeUrl && (
-        <Text color="gray" className="text-[13px] leading-snug">
+        <Text color="gray" className="text-[13px]">
           <Link href={customizeUrl} target="_blank">
             Customize your hedgehog
           </Link>

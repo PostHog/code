@@ -118,7 +118,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                       transition={{ duration: 0.2 }}
                     >
                       <Flex direction="column" gap="2">
-                        <Text className="font-bold text-(--gray-12) text-2xl leading-tight">
+                        <Text className="font-bold text-(--gray-12) text-2xl">
                           Pick your PostHog home base
                         </Text>
                         <Text className="text-(--gray-11) text-sm">
@@ -275,7 +275,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                               {currentProject?.name ?? "Select a project..."}
                             </Text>
                             {currentProject && !hasMultipleOrgs && (
-                              <Text className="text-(--gray-11) text-[13px] leading-snug">
+                              <Text className="text-(--gray-11) text-[13px]">
                                 {currentProject.organization.name}
                               </Text>
                             )}

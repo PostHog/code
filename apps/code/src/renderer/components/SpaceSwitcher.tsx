@@ -144,7 +144,7 @@ const SpaceItem = memo(function SpaceItem({
       {/* Text content */}
       <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
         <span
-          className={`w-full truncate text-left text-[13px] leading-tight ${
+          className={`w-full truncate text-left text-[13px] ${
             isActive ? "font-medium text-gray-12" : "text-gray-11"
           }`}
         >
@@ -152,7 +152,7 @@ const SpaceItem = memo(function SpaceItem({
         </span>
         {statusText && (
           <span
-            className={`text-[11px] leading-tight ${
+            className={`text-[11px] ${
               isActive ? "text-accent-11" : "text-gray-9"
             }`}
           >
@@ -197,7 +197,7 @@ const NewTaskItem = memo(function NewTaskItem({
         <PlusIcon size={ICON_SIZE} className="text-gray-10" />
       </span>
       <span
-        className={`text-[13px] leading-tight ${
+        className={`text-[13px] ${
           isActive ? "font-medium text-gray-12" : "text-gray-11"
         }`}
       >

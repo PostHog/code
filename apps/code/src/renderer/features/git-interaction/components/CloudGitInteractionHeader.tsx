@@ -106,7 +106,7 @@ export function CloudGitInteractionHeader({
           localHandoff.openConfirm(taskId, session?.cloudBranch ?? null)
         }
       >
-        <Text className="text-[13px] leading-snug">
+        <Text className="text-[13px]">
           {session?.handoffInProgress ? "Transferring..." : "Continue locally"}
         </Text>
       </Button>
@@ -126,7 +126,7 @@ export function CloudGitInteractionHeader({
             <a href={prUrl ?? ""} target="_blank" rel="noopener noreferrer">
               <Flex align="center" gap="2">
                 {isPending ? <Spinner size="1" /> : config.icon}
-                <Text className="text-[13px] leading-snug">
+                <Text className="text-[13px]">
                   {config.label}
                   {prNumber && ` #${prNumber}`}
                 </Text>
@@ -157,9 +157,7 @@ export function CloudGitInteractionHeader({
                     key={action.id}
                     onSelect={() => execute(action.id)}
                   >
-                    <Text className="text-[13px] leading-snug">
-                      {action.label}
-                    </Text>
+                    <Text className="text-[13px]">{action.label}</Text>
                   </DropdownMenu.Item>
                 ))}
               </DropdownMenu.Content>

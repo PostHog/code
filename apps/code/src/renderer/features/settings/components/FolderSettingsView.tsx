@@ -75,7 +75,7 @@ export function FolderSettingsView() {
               <Heading className="text-lg leading-6.5">
                 Repository Not Found
               </Heading>
-              <Text color="gray" className="text-[13px] leading-snug">
+              <Text color="gray" className="text-[13px]">
                 {folder.name}
               </Text>
             </Flex>
@@ -89,7 +89,7 @@ export function FolderSettingsView() {
                   <Text className="font-medium">
                     The repository folder could not be found
                   </Text>
-                  <Text className="text-[13px] leading-snug">
+                  <Text className="text-[13px]">
                     The folder at <Code>{folder.path}</Code> no longer exists or
                     has been moved.
                   </Text>
@@ -106,16 +106,14 @@ export function FolderSettingsView() {
             <Card>
               <Flex direction="column" gap="4">
                 <Flex direction="column" gap="2">
-                  <Text className="font-medium text-[13px] leading-snug">
+                  <Text className="font-medium text-[13px]">
                     Option 1: Restore the folder
                   </Text>
-                  <Text color="gray" className="text-[13px] leading-snug">
+                  <Text color="gray" className="text-[13px]">
                     Move or restore the repository folder back to its original
                     location:
                   </Text>
-                  <Code className="text-[13px] leading-snug">
-                    {folder.path}
-                  </Code>
+                  <Code className="text-[13px]">{folder.path}</Code>
                 </Flex>
               </Flex>
             </Card>
@@ -123,10 +121,10 @@ export function FolderSettingsView() {
             <Card>
               <Flex direction="column" gap="4">
                 <Flex direction="column" gap="2">
-                  <Text className="font-medium text-[13px] leading-snug">
+                  <Text className="font-medium text-[13px]">
                     Option 2: Remove the repository
                   </Text>
-                  <Text color="gray" className="text-[13px] leading-snug">
+                  <Text color="gray" className="text-[13px]">
                     This will remove the repository from PostHog Code, including
                     all associated tasks and their workspaces. This action
                     cannot be undone.
@@ -168,7 +166,7 @@ export function FolderSettingsView() {
             <Heading className="text-lg leading-6.5">
               Repository Settings
             </Heading>
-            <Text color="gray" className="text-[13px] leading-snug">
+            <Text color="gray" className="text-[13px]">
               Manage settings for {folder.name}
             </Text>
           </Flex>
@@ -183,10 +181,8 @@ export function FolderSettingsView() {
             <Heading className="text-base">Location</Heading>
             <Card>
               <Flex direction="column" gap="2">
-                <Text className="font-medium text-[13px] leading-snug">
-                  Root path
-                </Text>
-                <Code className="text-[13px] leading-snug">{folder.path}</Code>
+                <Text className="font-medium text-[13px]">Root path</Text>
+                <Code className="text-[13px]">{folder.path}</Code>
               </Flex>
             </Card>
           </Flex>
@@ -198,10 +194,10 @@ export function FolderSettingsView() {
             <Card>
               <Flex direction="column" gap="4">
                 <Flex direction="column" gap="2">
-                  <Text className="font-medium text-[13px] leading-snug">
+                  <Text className="font-medium text-[13px]">
                     Remove repository
                   </Text>
-                  <Text color="gray" className="text-[13px] leading-snug">
+                  <Text color="gray" className="text-[13px]">
                     This will remove the repository from PostHog Code, including
                     all associated tasks and their workspaces. This action
                     cannot be undone.

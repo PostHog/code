@@ -74,7 +74,7 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
                 transition={{ duration: 0.3 }}
               >
                 <Flex direction="column" gap="3">
-                  <Text className="font-bold text-(--gray-12) text-2xl leading-tight">
+                  <Text className="font-bold text-(--gray-12) text-2xl">
                     Set up your Signals Inbox
                   </Text>
                   <Text className="text-(--gray-11) text-sm">

@@ -51,7 +51,7 @@ export function ErrorContainer({
         <Flex justify="between" align="start" gap="2">
           <Text
             color="red"
-            className="flex-1 whitespace-pre-wrap break-words font-[var(--code-font-family)] text-[13px] leading-snug"
+            className="flex-1 whitespace-pre-wrap break-words font-[var(--code-font-family)] text-[13px]"
           >
             {error}
           </Text>
@@ -132,7 +132,7 @@ export function CommitAllToggle({
         onCheckedChange={(c) => onChange(c === true)}
         onClick={(e) => e.stopPropagation()}
       />
-      <Text color="gray" className="text-[13px] leading-snug">
+      <Text color="gray" className="text-[13px]">
         Commit all changes
       </Text>
     </Flex>
@@ -207,7 +207,7 @@ export function GitDialog({
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Flex align="center" justify="between">
-      <Text color="gray" className="text-[13px] leading-snug">
+      <Text color="gray" className="text-[13px]">
         {label}
       </Text>
       {children}
@@ -220,7 +220,7 @@ function BranchBadge({ branch }: { branch: string | null }) {
     <Tooltip content={branch ?? "Unknown"}>
       <Flex align="center" gap="1" className="min-w-0 max-w-[240px]">
         <GitBranch size={12} className="shrink-0" />
-        <Text truncate className="text-[13px] leading-snug">
+        <Text truncate className="text-[13px]">
           {branch ?? "Unknown"}
         </Text>
       </Flex>
@@ -258,7 +258,7 @@ function SelectableOption({
     >
       <Flex align="center" gap="2">
         {icon}
-        <Text className="font-medium text-[13px] leading-snug">{label}</Text>
+        <Text className="font-medium text-[13px]">{label}</Text>
       </Flex>
       {selected && <CheckIcon />}
     </Box>
@@ -343,17 +343,17 @@ export function GitCommitDialog({
         </InfoRow>
         <InfoRow label="Changes">
           <Flex align="center" gap="2">
-            <Text color="gray" className="text-[13px] leading-snug">
+            <Text color="gray" className="text-[13px]">
               {formatFileCountLabel(
                 !!(showCommitAllToggle && !commitAll),
                 stagedFileCount ?? 0,
                 diffStats.filesChanged,
               )}
             </Text>
-            <Text color="green" className="text-[13px] leading-snug">
+            <Text color="green" className="text-[13px]">
               +{diffStats.linesAdded}
             </Text>
-            <Text color="red" className="text-[13px] leading-snug">
+            <Text color="red" className="text-[13px]">
               -{diffStats.linesRemoved}
             </Text>
           </Flex>
@@ -365,7 +365,7 @@ export function GitCommitDialog({
 
       <Flex direction="column" gap="1">
         <Flex align="center" justify="between">
-          <Text color="gray" className="text-[13px] leading-snug">
+          <Text color="gray" className="text-[13px]">
             Message
           </Text>
           <GenerateButton
@@ -392,7 +392,7 @@ export function GitCommitDialog({
       </Flex>
 
       <Flex direction="column" gap="1">
-        <Text color="gray" className="text-[13px] leading-snug">
+        <Text color="gray" className="text-[13px]">
           Then
         </Text>
         {options.map((opt) => (
@@ -478,7 +478,7 @@ export function GitPushDialog({
         <BranchBadge branch={branchName} />
       </InfoRow>
       {!isSuccess && (
-        <Text color="gray" className="text-[13px] leading-snug">
+        <Text color="gray" className="text-[13px]">
           {config.desc}
         </Text>
       )}
@@ -517,12 +517,12 @@ export function GitBranchDialog({
       isSubmitting={isSubmitting}
       onSubmit={onConfirm}
     >
-      <Text color="gray" className="text-[13px] leading-snug">
+      <Text color="gray" className="text-[13px]">
         Create a feature branch to commit changes, push, and create a PR.
       </Text>
 
       <Flex direction="column" gap="1">
-        <Text color="gray" className="text-[13px] leading-snug">
+        <Text color="gray" className="text-[13px]">
           Branch name
         </Text>
         <TextField.Root
@@ -544,7 +544,7 @@ export function GitBranchDialog({
           autoFocus
         />
         {error && (
-          <Text color="red" className="text-[13px] leading-snug">
+          <Text color="red" className="text-[13px]">
             {error}
           </Text>
         )}

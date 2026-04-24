@@ -302,9 +302,7 @@ export function TaskListView({
               },
             }}
           />
-          <Text className="text-[13px] text-gray-10 leading-snug">
-            No tasks yet
-          </Text>
+          <Text className="text-[13px] text-gray-10">No tasks yet</Text>
           {!isOnTaskInput && (
             <motion.button
               type="button"

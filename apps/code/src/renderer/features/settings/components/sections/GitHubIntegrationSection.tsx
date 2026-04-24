@@ -120,7 +120,7 @@ export function GitHubIntegrationSection({
               content={
                 <Flex direction="column" gap="1">
                   {repositories.map((repo) => (
-                    <Text key={repo} className="text-[13px] leading-snug">
+                    <Text key={repo} className="text-[13px]">
                       {repo}
                     </Text>
                   ))}
@@ -129,7 +129,7 @@ export function GitHubIntegrationSection({
               side="bottom"
             >
               <Flex align="center" gap="1" className="cursor-help">
-                <Text className="text-(--gray-11) text-[13px] leading-snug">
+                <Text className="text-(--gray-11) text-[13px]">
                   Connected and active ({repositories.length}{" "}
                   {repositories.length === 1 ? "repo" : "repos"})
                 </Text>
@@ -137,7 +137,7 @@ export function GitHubIntegrationSection({
               </Flex>
             </Tooltip>
           ) : (
-            <Text className="text-(--gray-11) text-[13px] leading-snug">
+            <Text className="text-(--gray-11) text-[13px]">
               {hasGithubIntegration
                 ? "Connected and active"
                 : "Required for the Inbox pipeline to work"}

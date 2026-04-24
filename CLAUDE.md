@@ -204,7 +204,7 @@ Do NOT use inline `style` for:
 - Conditional values that can be `className={cond ? "x" : "y"}` or
   `className={\`base-classes ${cond ? "active-classes" : "inactive-classes"}\`}`
 
-Default line-heights have been tightened (`text-sm` ships with leading-snug etc.)
+Default line-heights have been tightened (`text-sm` ships with etc.)
 in [apps/code/src/renderer/styles/globals.css](./apps/code/src/renderer/styles/globals.css).
 Don't add a `leading-*` class for body text unless you specifically want a non-default
 line-height. For arbitrary sizes (`text-[13px]`), pair with `leading-snug` for body

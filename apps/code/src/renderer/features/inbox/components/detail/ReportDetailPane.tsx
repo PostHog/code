@@ -268,7 +268,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
         <Flex align="center" gap="2" className="min-w-0">
           <SignalReportStatusBadge status={report.status} />
           <Text
-            className={`block min-w-0 text-balance break-words text-base leading-tight ${report.status === "ready" ? "font-bold" : "font-medium"}`}
+            className={`block min-w-0 text-balance break-words text-base ${report.status === "ready" ? "font-bold" : "font-medium"}`}
           >
             {report.title ?? "Untitled signal"}
           </Text>
@@ -377,7 +377,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
                 weight="fill"
                 className="shrink-0 text-(--amber-9)"
               />
-              <Text className="text-(--amber-11) text-[12px] leading-snug">
+              <Text className="text-(--amber-11) text-[12px]">
                 This issue may already be addressed in recent code changes.
               </Text>
             </Flex>
@@ -386,10 +386,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           {/* ── Suggested reviewers ─────────────────────────────── */}
           {suggestedReviewers.length > 0 && (
             <Box>
-              <Text
-                className="block font-medium text-[13px] leading-snug"
-                mb="2"
-              >
+              <Text className="block font-medium text-[13px]" mb="2">
                 Suggested reviewers
               </Text>
               <Flex direction="column" gap="1">
@@ -408,7 +405,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
                         className="github-avatar h-[18px] w-[18px] shrink-0 rounded-full"
                         onLoad={(e) => e.currentTarget.classList.add("loaded")}
                       />
-                      <Text className="text-[12px] leading-snug">
+                      <Text className="text-[12px]">
                         {reviewer.user?.first_name ??
                           reviewer.github_name ??
                           reviewer.github_login}
@@ -462,10 +459,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           {/* ── Signals ─────────────────────────────────────────── */}
           {signals.length > 0 && (
             <Box>
-              <Text
-                className="block font-medium text-[13px] leading-snug"
-                mb="2"
-              >
+              <Text className="block font-medium text-[13px]" mb="2">
                 Signals ({signals.length})
               </Text>
               <Flex direction="column" gap="2">
@@ -480,7 +474,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
             </Box>
           )}
           {signalsQuery.isLoading && (
-            <Text color="gray" className="block text-[12px] leading-snug">
+            <Text color="gray" className="block text-[12px]">
               Loading signals...
             </Text>
           )}
@@ -488,10 +482,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           {/* ── Session problem evidence ─────────────────────────── */}
           {sessionProblemSignals.length > 0 && (
             <Box>
-              <Text
-                className="block font-medium text-[13px] leading-snug"
-                mb="2"
-              >
+              <Text className="block font-medium text-[13px]" mb="2">
                 Evidence ({sessionProblemSignals.length})
               </Text>
               <Flex direction="column" gap="2">
@@ -539,9 +530,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
                 You can edit the prompt below before running.
               </Text>
               <Flex direction="column" gap="1">
-                <Text className="font-medium text-[12px] leading-snug">
-                  Task prompt
-                </Text>
+                <Text className="font-medium text-[12px]">Task prompt</Text>
                 <TextArea
                   size="2"
                   rows={10}
@@ -553,7 +542,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
               </Flex>
               <Box ref={cloudRepoPickerAnchorRef} className="overflow-visible">
                 <Flex direction="column" gap="1">
-                  <Text className="font-medium text-[12px] leading-snug">
+                  <Text className="font-medium text-[12px]">
                     Target repository
                   </Text>
                   <GitHubRepoPicker

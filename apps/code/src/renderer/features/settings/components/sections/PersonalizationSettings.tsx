@@ -71,7 +71,7 @@ export function PersonalizationSettings() {
     <Flex direction="column" gap="1" py="4">
       <Flex direction="column" gap="1" className="mb-2">
         <Text className="font-medium text-sm">Custom instructions</Text>
-        <Text color="gray" className="text-[13px] leading-snug">
+        <Text color="gray" className="text-[13px]">
           Instructions included in every agent session
         </Text>
       </Flex>
@@ -85,7 +85,7 @@ export function PersonalizationSettings() {
         size="1"
         className="w-full"
       />
-      <Text color="gray" align="right" className="text-[13px] leading-snug">
+      <Text color="gray" align="right" className="text-[13px]">
         {localInstructions.length}/{MAX_INSTRUCTIONS_LENGTH}
       </Text>
     </Flex>

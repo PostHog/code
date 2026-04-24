@@ -298,7 +298,7 @@ function BranchReviewPage({
 function SectionLabel({ label }: { label: string }) {
   return (
     <Flex px="3" py="2">
-      <Text color="gray" className="font-medium text-[13px] leading-snug">
+      <Text color="gray" className="font-medium text-[13px]">
         {label}
       </Text>
     </Flex>

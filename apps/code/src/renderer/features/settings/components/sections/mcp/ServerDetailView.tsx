@@ -248,7 +248,7 @@ export function ServerDetailView({
               </Flex>
             </Flex>
             <Flex gap="2" align="center">
-              <Text color="gray" className="text-[13px] leading-snug">
+              <Text color="gray" className="text-[13px]">
                 Set all:
               </Text>
               <Tooltip content="Approve all">
@@ -319,7 +319,7 @@ export function ServerDetailView({
               <Text className="font-medium text-sm">
                 No tools discovered yet.
               </Text>
-              <Text color="gray" className="text-[13px] leading-snug">
+              <Text color="gray" className="text-[13px]">
                 Try refreshing, or check that the server is online.
               </Text>
             </Flex>
@@ -400,7 +400,7 @@ export function ServerDetailView({
               ? "Finish connecting to start using this server."
               : "This server needs to be reconnected."}
           </Text>
-          <Text color="gray" className="text-[13px] leading-snug">
+          <Text color="gray" className="text-[13px]">
             Click Reconnect above to resume the OAuth flow.
           </Text>
         </Flex>

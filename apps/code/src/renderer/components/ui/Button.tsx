@@ -30,7 +30,7 @@ function buildTooltipContent(
   if (tooltipContent != null && reason) {
     return (
       <Flex direction="column" gap="2" className="max-w-[280px]">
-        <Text as="span" className="text-(--gray-12) text-[13px] leading-snug">
+        <Text as="span" className="text-(--gray-12) text-[13px]">
           {tooltipContent}
         </Text>
         <Text as="span" color="gray" className="text-[13px] leading-[1.45]">

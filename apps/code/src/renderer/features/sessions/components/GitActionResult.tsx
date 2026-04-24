@@ -60,11 +60,11 @@ export function GitActionResult({
         {showCommit && commitInfo && (
           <Flex align="center" gap="2" className="mt-1">
             <GitCommit size={14} className="text-gray-10" />
-            <Text className="font-mono text-[13px] text-gray-11 leading-snug">
+            <Text className="font-mono text-[13px] text-gray-11">
               {commitInfo.shortSha}
             </Text>
             <Text
-              className="max-w-[200px] overflow-hidden whitespace-nowrap text-[13px] text-gray-11 leading-snug"
+              className="max-w-[200px] overflow-hidden whitespace-nowrap text-[13px] text-gray-11"
               style={{
                 textOverflow: "ellipsis",
               }}
@@ -80,7 +80,7 @@ export function GitActionResult({
         {showPrLink && repoInfo?.compareUrl && (
           <Flex align="center" gap="2" className="mt-1">
             <GitPullRequest size={14} className="text-purple-9" />
-            <Text className="font-medium text-[13px] leading-snug">
+            <Text className="font-medium text-[13px]">
               {repoInfo.currentBranch}
             </Text>
             <Button

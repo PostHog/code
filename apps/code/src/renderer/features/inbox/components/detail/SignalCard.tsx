@@ -262,7 +262,7 @@ function SignalCardHeader({
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-(--gray-9)" />
         )}
       </span>
-      <Text className="font-medium text-(--gray-10) text-[11px] leading-snug">
+      <Text className="font-medium text-(--gray-10) text-[11px]">
         {signalCardSourceLine(signal)}
       </Text>
       <span className="flex-1" />
@@ -378,7 +378,7 @@ function GitHubIssueSignalCard({
         )}
       </Flex>
       {extra.created_at && (
-        <Text className="mt-1 block text-(--gray-10) text-[11px] leading-snug">
+        <Text className="mt-1 block text-(--gray-10) text-[11px]">
           Opened: {new Date(extra.created_at).toLocaleString()}
         </Text>
       )}
@@ -480,7 +480,7 @@ function LlmEvalSignalCard({
         {extra.provider && <span>Provider: {extra.provider}</span>}
       </Flex>
       {extra.trace_id && (
-        <Text className="mt-1 block text-(--gray-10) text-[11px] leading-snug">
+        <Text className="mt-1 block text-(--gray-10) text-[11px]">
           Trace:{" "}
           <span className="font-mono">{extra.trace_id.slice(0, 12)}...</span>
         </Text>
@@ -536,11 +536,7 @@ function SessionProblemSignalCard({
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
       <SignalCardHeader signal={signal} verified={verified} />
       {extra.segment_title && (
-        <Text
-          mt="1"
-          className="font-medium text-[13px] text-gray-11 leading-snug"
-          as="p"
-        >
+        <Text mt="1" className="font-medium text-[13px] text-gray-11" as="p">
           {extra.segment_title}
         </Text>
       )}
@@ -698,7 +694,7 @@ function GenericSignalCard({
     <Box className="min-w-0 overflow-hidden rounded-lg border border-gray-6 bg-gray-1 p-3">
       <SignalCardHeader signal={signal} verified={verified} />
       <CollapsibleBody body={signal.content} />
-      <Text className="mt-2 block text-(--gray-10) text-[11px] leading-snug">
+      <Text className="mt-2 block text-(--gray-10) text-[11px]">
         {new Date(signal.timestamp).toLocaleString()}
       </Text>
       <CodePathsCollapsible paths={codePaths ?? []} />
@@ -731,7 +727,7 @@ function CodePathsCollapsible({ paths }: { paths: string[] }) {
               parenIdx >= 0 ? trimmed.slice(0, parenIdx) : trimmed;
             const comment = parenIdx >= 0 ? trimmed.slice(parenIdx + 1) : null;
             return (
-              <Text key={raw} className="text-[11px] leading-snug">
+              <Text key={raw} className="text-[11px]">
                 <span className="font-mono text-(--gray-12)">{filePath}</span>
                 {comment && (
                   <span className="ml-1 text-(--gray-9)">{comment}</span>

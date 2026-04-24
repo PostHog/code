@@ -100,10 +100,7 @@ function BareFileLink({ text }: { text: string }) {
 
   if (!resolved) {
     return (
-      <Code
-        variant="ghost"
-        className="text-(--accent-11) text-[13px] leading-snug"
-      >
+      <Code variant="ghost" className="text-(--accent-11) text-[13px]">
         {text}
       </Code>
     );
@@ -133,10 +130,7 @@ const agentComponents: Partial<Components> = {
     }
 
     return (
-      <Code
-        variant="ghost"
-        className="text-(--accent-11) text-[13px] leading-snug"
-      >
+      <Code variant="ghost" className="text-(--accent-11) text-[13px]">
         {children}
       </Code>
     );
@@ -159,7 +153,7 @@ export const AgentMessage = memo(function AgentMessage({
   }, [content]);
 
   return (
-    <Box className="group/msg relative py-1 pl-3 [&>*:last-child]:mb-0">
+    <Box className="group/msg relative py-1 pl-3 text-[13px] [&>*:last-child]:mb-0">
       <MarkdownRenderer
         content={content}
         componentsOverride={agentComponents}

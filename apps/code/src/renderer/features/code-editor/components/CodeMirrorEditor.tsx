@@ -75,7 +75,7 @@ export function CodeMirrorEditor({
       <Box px="3" py="2" className="shrink-0 border-b border-b-(--gray-6)">
         <Text
           color="gray"
-          className="font-[var(--code-font-family)] text-[13px] leading-snug"
+          className="font-[var(--code-font-family)] text-[13px]"
         >
           {relativePath}
         </Text>

@@ -63,7 +63,7 @@ export function ToolRow({ tool, onChange }: ToolRowProps) {
               color="gray"
               truncate
               style={{ fontStyle: hasDescription ? undefined : "italic" }}
-              className="text-[13px] leading-snug"
+              className="text-[13px]"
             >
               {hasDescription ? tool.description : "No description provided"}
             </Text>
@@ -81,10 +81,7 @@ export function ToolRow({ tool, onChange }: ToolRowProps) {
         <div className="border-gray-5 border-t bg-gray-2 px-3 py-3">
           <Flex direction="column" gap="3">
             <Flex direction="column" gap="1">
-              <Text
-                color="gray"
-                className="font-medium text-[13px] leading-snug"
-              >
+              <Text color="gray" className="font-medium text-[13px]">
                 Description
               </Text>
               <Text className="text-sm">
@@ -92,10 +89,7 @@ export function ToolRow({ tool, onChange }: ToolRowProps) {
               </Text>
             </Flex>
             <Flex direction="column" gap="1">
-              <Text
-                color="gray"
-                className="font-medium text-[13px] leading-snug"
-              >
+              <Text color="gray" className="font-medium text-[13px]">
                 Input schema
               </Text>
               <pre className="overflow-x-auto rounded bg-gray-3 p-2 text-xs">

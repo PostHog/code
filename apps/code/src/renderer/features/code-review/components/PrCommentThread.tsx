@@ -199,10 +199,10 @@ function CommentBody({
       </div>
       <div className="min-w-0 flex-1 pt-1.5 pb-1.5">
         <Flex align="center" gap="2" className="mb-0.5">
-          <Text className="font-medium text-[13px] text-[var(--gray-12)] leading-snug">
+          <Text className="font-medium text-[13px] text-[var(--gray-12)]">
             {comment.user.login}
           </Text>
-          <Text className="text-[13px] text-[var(--gray-9)] leading-snug">
+          <Text className="text-[13px] text-[var(--gray-9)]">
             {formatRelativeTimeShort(comment.created_at)}
           </Text>
         </Flex>
@@ -362,7 +362,7 @@ export function PrCommentThread({
             </div>
             <div className="min-w-0 flex-1 pt-1.5 pb-1.5">
               <Flex align="center" gap="2" className="mb-0.5">
-                <Text className="font-medium text-[13px] text-[var(--gray-12)] leading-snug">
+                <Text className="font-medium text-[13px] text-[var(--gray-12)]">
                   Sending...
                 </Text>
               </Flex>

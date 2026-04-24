@@ -71,9 +71,7 @@ export function MarketplaceView({
     <Flex direction="column" gap="4" className="min-w-0">
       <Flex align="start" justify="between" gap="3">
         <Flex direction="column" gap="1" className="min-w-0">
-          <Heading className="font-bold text-2xl leading-tight">
-            Marketplace
-          </Heading>
+          <Heading className="font-bold text-2xl">Marketplace</Heading>
           <Text color="gray" className="text-sm">
             Browse and connect MCP servers that extend your agent with tools,
             data and integrations.
@@ -130,7 +128,7 @@ export function MarketplaceView({
       </Flex>
 
       <Flex align="center" justify="between">
-        <Text color="gray" className="text-[13px] leading-snug">
+        <Text color="gray" className="text-[13px]">
           {visibleServers.length}{" "}
           {visibleServers.length === 1 ? "server" : "servers"}
         </Text>
@@ -163,7 +161,7 @@ export function MarketplaceView({
           className="rounded border border-gray-6 border-dashed"
         >
           <Text className="font-medium text-sm">No servers match.</Text>
-          <Text color="gray" className="text-[13px] leading-snug">
+          <Text color="gray" className="text-[13px]">
             Try a different category or clear the search.
           </Text>
         </Flex>

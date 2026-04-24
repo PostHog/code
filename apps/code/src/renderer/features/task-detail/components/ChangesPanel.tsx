@@ -319,9 +319,7 @@ function ChangedFileItem({
                       ) : (
                         <CodeIcon size={16} weight="regular" />
                       )}
-                      <Text className="text-[13px] leading-snug">
-                        {app.name}
-                      </Text>
+                      <Text className="text-[13px]">{app.name}</Text>
                     </Flex>
                   </DropdownMenu.Item>
                 ))}
@@ -329,7 +327,7 @@ function ChangedFileItem({
               <DropdownMenu.Item onSelect={handleCopyPath}>
                 <Flex align="center" gap="2">
                   <CopyIcon size={16} weight="regular" />
-                  <Text className="text-[13px] leading-snug">Copy Path</Text>
+                  <Text className="text-[13px]">Copy Path</Text>
                 </Flex>
               </DropdownMenu.Item>
             </DropdownMenu.Content>
@@ -450,7 +448,7 @@ function CloudChangesPanel({ taskId, task }: ChangesPanelProps) {
         {isRunActive && (
           <Flex align="center" gap="2" px="3" py="2">
             <Spinner size="1" />
-            <Text color="gray" className="text-[13px] leading-snug">
+            <Text color="gray" className="text-[13px]">
               Agent is still running...
             </Text>
           </Flex>
@@ -566,10 +564,7 @@ function LocalChangesPanel({ taskId, task: _task }: ChangesPanelProps) {
           <Fragment key={header ?? "all"}>
             {header && (
               <Flex px="2" py="1" className="select-none">
-                <Text
-                  color="gray"
-                  className="font-medium text-[13px] leading-snug"
-                >
+                <Text color="gray" className="font-medium text-[13px]">
                   {header} ({files.length})
                 </Text>
               </Flex>

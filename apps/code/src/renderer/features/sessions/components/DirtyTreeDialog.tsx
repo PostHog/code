@@ -66,7 +66,7 @@ export function DirtyTreeDialog({
       onSubmit={onCommitAndContinue}
     >
       <Flex direction="column" gap="2">
-        <Text color="gray" className="text-[13px] leading-snug">
+        <Text color="gray" className="text-[13px]">
           The following local files have uncommitted changes that would be
           overwritten by the handoff. Commit them to continue.
         </Text>

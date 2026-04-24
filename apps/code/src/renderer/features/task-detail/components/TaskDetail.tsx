@@ -143,7 +143,7 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
           <Tooltip content={task.title} side="bottom" delayDuration={300}>
             <Text
               truncate
-              className="no-drag min-w-0 font-medium text-[13px] leading-snug"
+              className="no-drag min-w-0 font-medium text-[13px]"
               onDoubleClick={() => setIsEditingTitle(true)}
             >
               {task.title}

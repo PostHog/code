@@ -169,7 +169,7 @@ export function SignalsToolbar({
         <Flex align="center" justify="between" gap="2">
           <Flex direction="column" gap="0" className="min-w-0">
             <Flex align="center" gap="2">
-              <Text color="gray" className="shrink-0 text-[12px] leading-snug">
+              <Text color="gray" className="shrink-0 text-[12px]">
                 Reports ({countLabel})
               </Text>
               {livePolling ? (
@@ -193,10 +193,7 @@ export function SignalsToolbar({
               ) : null}
             </Flex>
             {pipelineHint && !isSearchActive ? (
-              <Text
-                color="gray"
-                className="text-[11px] leading-snug opacity-80"
-              >
+              <Text color="gray" className="text-[11px] opacity-80">
                 {pipelineHint}
               </Text>
             ) : null}
@@ -266,7 +263,7 @@ export function SignalsToolbar({
                 }
                 aria-label="Select all visible reports"
               />
-              <Text color="gray" className="text-[11px] leading-snug">
+              <Text color="gray" className="text-[11px]">
                 {selectedCount} selected
               </Text>
             </label>

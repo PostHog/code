@@ -49,14 +49,12 @@ export function PlanApprovalView({
           {isComplete ? (
             <>
               <CheckCircle size={14} weight="fill" className="text-green-9" />
-              <Text className="text-[13px] text-green-11 leading-snug">
+              <Text className="text-[13px] text-green-11">
                 Plan approved — proceeding with implementation
               </Text>
             </>
           ) : wasCancelled ? (
-            <Text className="text-[13px] text-gray-10 leading-snug">
-              (Plan rejected)
-            </Text>
+            <Text className="text-[13px] text-gray-10">(Plan rejected)</Text>
           ) : null}
         </Flex>
       )}

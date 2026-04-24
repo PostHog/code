@@ -66,7 +66,7 @@ export const ReviewToolbar = memo(function ReviewToolbar({
       className="sticky top-0 h-[32px] shrink-0 border-b border-b-(--gray-6) bg-(--color-background)"
     >
       <Flex align="center" gap="2">
-        <Text className="font-medium text-[13px] leading-snug">
+        <Text className="font-medium text-[13px]">
           {fileCount} file{fileCount !== 1 ? "s" : ""} changed
         </Text>
         {effectiveSource && (

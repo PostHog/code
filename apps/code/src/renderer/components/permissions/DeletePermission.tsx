@@ -16,10 +16,10 @@ export function DeletePermission({
       title={toolCall.title ?? "Delete file"}
       pendingAction={
         <>
-          <Code title={filePath} className="truncate text-[13px] leading-snug">
+          <Code title={filePath} className="truncate text-[13px]">
             {compactHomePath(filePath)}
           </Code>
-          <Text color="red" mt="1" as="p" className="text-[13px] leading-snug">
+          <Text color="red" mt="1" as="p" className="text-[13px]">
             This action cannot be undone.
           </Text>
         </>

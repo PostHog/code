@@ -24,7 +24,7 @@ export function ExecutePermission({
             <Code
               variant="ghost"
               title={command}
-              className="whitespace-pre-wrap break-all text-[13px] leading-snug"
+              className="whitespace-pre-wrap break-all text-[13px]"
             >
               {compactHomePath(command)}
             </Code>

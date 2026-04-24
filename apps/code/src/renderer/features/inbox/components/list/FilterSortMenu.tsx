@@ -167,7 +167,7 @@ export function FilterSortMenu() {
       >
         <Flex direction="column" gap="3">
           <Box>
-            <Text className="pl-[1px] font-medium text-[13px] text-gray-10 leading-snug">
+            <Text className="pl-[1px] font-medium text-[13px] text-gray-10">
               Sort by
             </Text>
             <Box mt="1">
@@ -195,7 +195,7 @@ export function FilterSortMenu() {
           </Box>
 
           <Box>
-            <Text className="pl-[1px] font-medium text-[13px] text-gray-10 leading-snug">
+            <Text className="pl-[1px] font-medium text-[13px] text-gray-10">
               Status
             </Text>
             <Box mt="1">
@@ -227,7 +227,7 @@ export function FilterSortMenu() {
           </Box>
 
           <Box>
-            <Text className="pl-[1px] font-medium text-[13px] text-gray-10 leading-snug">
+            <Text className="pl-[1px] font-medium text-[13px] text-gray-10">
               Source
             </Text>
             <Box mt="1">

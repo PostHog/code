@@ -237,7 +237,7 @@ export function TourTooltip({
                 {step.message}
               </Text>
               <Flex justify="between" align="center" gap="3">
-                <Text className="text-(--gray-9) text-[13px] leading-snug">
+                <Text className="text-(--gray-9) text-[13px]">
                   {stepNumber}/{totalSteps}
                 </Text>
                 <Flex align="center" gap="2">

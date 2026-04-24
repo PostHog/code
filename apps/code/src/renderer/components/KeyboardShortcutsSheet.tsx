@@ -192,7 +192,7 @@ function ShortcutKeys({
   return (
     <Flex gap="1" align="center">
       <SingleShortcutKeys keys={keys} />
-      <Text color="gray" className="text-[13px] leading-snug">
+      <Text color="gray" className="text-[13px]">
         or
       </Text>
       <SingleShortcutKeys keys={alternateKeys} />

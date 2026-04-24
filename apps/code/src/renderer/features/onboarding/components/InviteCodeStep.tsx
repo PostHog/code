@@ -56,7 +56,7 @@ export function InviteCodeStep({ onNext, onBack }: InviteCodeStepProps) {
                 transition={{ duration: 0.3 }}
               >
                 <Flex direction="column" gap="2">
-                  <Text className="font-bold text-(--gray-12) text-2xl leading-tight">
+                  <Text className="font-bold text-(--gray-12) text-2xl">
                     Enter your invite code
                   </Text>
                   <Text className="text-(--gray-11) text-sm">

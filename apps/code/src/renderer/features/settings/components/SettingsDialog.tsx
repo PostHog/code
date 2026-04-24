@@ -200,7 +200,7 @@ export function SettingsDialog() {
                 {user.email}
               </Text>
               {seat && (
-                <Text className="text-(--gray-9) text-[13px] leading-snug">
+                <Text className="text-(--gray-9) text-[13px]">
                   {planLabel} Plan
                 </Text>
               )}

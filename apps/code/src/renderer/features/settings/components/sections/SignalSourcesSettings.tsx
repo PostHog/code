@@ -39,7 +39,7 @@ export function SignalSourcesSettings() {
 
   if (isLoading) {
     return (
-      <Text color="gray" className="text-[13px] leading-snug">
+      <Text color="gray" className="text-[13px]">
         Loading signal source configurations...
       </Text>
     );
@@ -50,7 +50,7 @@ export function SignalSourcesSettings() {
 
   return (
     <Flex direction="column" gap="4">
-      <Text color="gray" className="text-[13px] leading-snug">
+      <Text color="gray" className="text-[13px]">
         Automatically analyze your product data and surface actionable insights.
         Choose which sources to enable for this project.
       </Text>
@@ -98,7 +98,7 @@ export function SignalSourcesSettings() {
         <Text className="font-medium text-(--gray-12) text-sm">
           Your PR auto-start threshold
         </Text>
-        <Text className="text-(--gray-11) text-[13px] leading-snug">
+        <Text className="text-(--gray-11) text-[13px]">
           Automatically start tasks assigned to you for reports at or above this
           priority. Choose &quot;Never&quot; to opt out entirely.
         </Text>
