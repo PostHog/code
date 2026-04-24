@@ -6,6 +6,7 @@ export function useSeat() {
   const isLoading = useSeatStore((s) => s.isLoading);
   const error = useSeatStore((s) => s.error);
   const redirectUrl = useSeatStore((s) => s.redirectUrl);
+  const billingOrgId = useSeatStore((s) => s.billingOrgId);
 
   const isPro = isProPlan(seat?.plan_key);
   const hasAccess = seat ? seatHasAccess(seat.status) : false;
@@ -20,6 +21,7 @@ export function useSeat() {
     isLoading,
     error,
     redirectUrl,
+    billingOrgId,
     isPro,
     hasAccess,
     isCanceling,

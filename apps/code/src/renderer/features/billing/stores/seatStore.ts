@@ -8,7 +8,6 @@ import type { SeatData } from "@shared/types/seat";
 import { PLAN_FREE, PLAN_PRO } from "@shared/types/seat";
 import { logger } from "@utils/logger";
 import { queryClient } from "@utils/queryClient";
-import { getPostHogUrl } from "@utils/urls";
 import { create } from "zustand";
 
 const log = logger.scope("seat-store");
@@ -18,6 +17,7 @@ interface SeatStoreState {
   isLoading: boolean;
   error: string | null;
   redirectUrl: string | null;
+  billingOrgId: string | null;
 }
 
 interface SeatStoreActions {
@@ -54,7 +54,7 @@ function handleSeatError(
     set({
       isLoading: false,
       error: "Billing subscription required",
-      redirectUrl: getPostHogUrl("/organization/billing"),
+      redirectUrl: error.redirectUrl,
     });
     return;
   }
@@ -80,6 +80,7 @@ const initialState: SeatStoreState = {
   isLoading: false,
   error: null,
   redirectUrl: null,
+  billingOrgId: null,
 };
 
 export const useSeatStore = create<SeatStore>()((set, get) => ({
@@ -99,7 +100,11 @@ export const useSeatStore = create<SeatStore>()((set, get) => ({
           seat = await client.getMySeat();
         }
       }
-      set({ seat, isLoading: false });
+      set({
+        seat,
+        isLoading: false,
+        billingOrgId: seat?.organization_id ?? null,
+      });
     } catch (error) {
       const { seat: existingSeat } = get();
       if (existingSeat) {
@@ -122,12 +127,20 @@ export const useSeatStore = create<SeatStore>()((set, get) => ({
           plan: existing.plan_key,
           status: existing.status,
         });
-        set({ seat: existing, isLoading: false });
+        set({
+          seat: existing,
+          isLoading: false,
+          billingOrgId: existing.organization_id ?? null,
+        });
         return;
       }
       const seat = await client.createSeat(PLAN_FREE);
       log.info("Free seat created", { id: seat.id, plan: seat.plan_key });
-      set({ seat, isLoading: false });
+      set({
+        seat,
+        isLoading: false,
+        billingOrgId: seat.organization_id ?? null,
+      });
       invalidatePlanCache();
     } catch (error) {
       log.error("provisionFreeSeat failed", error);
@@ -142,16 +155,28 @@ export const useSeatStore = create<SeatStore>()((set, get) => ({
       const existing = await client.getMySeat();
       if (existing) {
         if (existing.plan_key === PLAN_PRO) {
-          set({ seat: existing, isLoading: false });
+          set({
+            seat: existing,
+            isLoading: false,
+            billingOrgId: existing.organization_id ?? null,
+          });
           return;
         }
         const seat = await client.upgradeSeat(PLAN_PRO);
-        set({ seat, isLoading: false });
+        set({
+          seat,
+          isLoading: false,
+          billingOrgId: seat.organization_id ?? null,
+        });
         invalidatePlanCache();
         return;
       }
       const seat = await client.createSeat(PLAN_PRO);
-      set({ seat, isLoading: false });
+      set({
+        seat,
+        isLoading: false,
+        billingOrgId: seat.organization_id ?? null,
+      });
       invalidatePlanCache();
     } catch (error) {
       handleSeatError(error, set);
@@ -164,7 +189,11 @@ export const useSeatStore = create<SeatStore>()((set, get) => ({
       const client = await getClient();
       await client.cancelSeat();
       const seat = await client.getMySeat();
-      set({ seat, isLoading: false });
+      set({
+        seat,
+        isLoading: false,
+        billingOrgId: seat?.organization_id ?? null,
+      });
       invalidatePlanCache();
     } catch (error) {
       handleSeatError(error, set);
@@ -176,7 +205,11 @@ export const useSeatStore = create<SeatStore>()((set, get) => ({
     try {
       const client = await getClient();
       const seat = await client.reactivateSeat();
-      set({ seat, isLoading: false });
+      set({
+        seat,
+        isLoading: false,
+        billingOrgId: seat.organization_id ?? null,
+      });
       invalidatePlanCache();
     } catch (error) {
       handleSeatError(error, set);
