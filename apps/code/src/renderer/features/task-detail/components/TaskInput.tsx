@@ -353,7 +353,18 @@ export function TaskInput({
   }, [lastUsedCloudRepository, selectedRepository]);
 
   useEffect(() => {
-    if (isLoadingRepos || !selectedRepository || selectedCloudRepository) {
+    // Clear `selectedRepository` only when the list has actually loaded AND the
+    // selection is missing from it — i.e. the repo was removed from the user's
+    // integrations. Bail out when `repositories` is empty: that can happen
+    // transiently after `isLoadingRepos` flips false but before the
+    // per-integration queries have produced data, and clearing here would
+    // wipe out a freshly-supplied `initialCloudRepository` prefill.
+    if (
+      isLoadingRepos ||
+      repositories.length === 0 ||
+      !selectedRepository ||
+      selectedCloudRepository
+    ) {
       return;
     }
 
@@ -363,6 +374,7 @@ export function TaskInput({
     }
   }, [
     isLoadingRepos,
+    repositories.length,
     lastUsedCloudRepository,
     selectedCloudRepository,
     selectedRepository,

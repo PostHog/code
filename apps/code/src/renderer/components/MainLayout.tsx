@@ -14,6 +14,7 @@ import { McpServersView } from "@features/mcp-servers/components/McpServersView"
 import { FolderSettingsView } from "@features/settings/components/FolderSettingsView";
 import { SettingsDialog } from "@features/settings/components/SettingsDialog";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
+import { SetupView } from "@features/setup/components/SetupView";
 import { MainSidebar } from "@features/sidebar/components/MainSidebar";
 import { useSidebarData } from "@features/sidebar/hooks/useSidebarData";
 import { useVisualTaskOrder } from "@features/sidebar/hooks/useVisualTaskOrder";
@@ -132,6 +133,7 @@ export function MainLayout() {
           {view.type === "skills" && <SkillsView />}
 
           {view.type === "mcp-servers" && <McpServersView />}
+          {view.type === "setup" && <SetupView />}
         </Box>
       </Flex>
 
