@@ -90,7 +90,12 @@ export const useSeatStore = create<SeatStore>()((set) => ({
       let seat = await client.getMySeat();
       if (!seat && options?.autoProvision) {
         log.info("No seat found, auto-provisioning free plan");
-        seat = await client.createSeat(PLAN_FREE);
+        try {
+          seat = await client.createSeat(PLAN_FREE);
+        } catch {
+          log.info("Auto-provision failed, re-fetching seat");
+          seat = await client.getMySeat();
+        }
       }
       set({ seat, isLoading: false });
     } catch (error) {
