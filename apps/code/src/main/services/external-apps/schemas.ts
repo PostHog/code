@@ -13,7 +13,12 @@ export const copyPathInput = z.object({
   targetPath: z.string(),
 });
 
-const externalAppType = z.enum(["editor", "terminal", "file-manager"]);
+const externalAppType = z.enum([
+  "editor",
+  "terminal",
+  "file-manager",
+  "git-client",
+]);
 
 const detectedApplication = z.object({
   id: z.string(),

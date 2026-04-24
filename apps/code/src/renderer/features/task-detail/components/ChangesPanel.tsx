@@ -305,7 +305,9 @@ function ChangedFileItem({
             </Tooltip>
             <DropdownMenu.Content size="1" align="end">
               {detectedApps
-                .filter((app) => app.type !== "terminal")
+                .filter(
+                  (app) => app.type !== "terminal" && app.type !== "git-client",
+                )
                 .map((app) => (
                   <DropdownMenu.Item
                     key={app.id}
