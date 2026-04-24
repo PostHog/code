@@ -121,7 +121,7 @@ export function PlanUsageSettings() {
                 variant="outline"
                 color="amber"
                 onClick={() => {
-                  window.open(redirectUrl, "_blank");
+                  window.open(getPostHogUrl(redirectUrl), "_blank");
                   clearError();
                 }}
                 className="self-start"
