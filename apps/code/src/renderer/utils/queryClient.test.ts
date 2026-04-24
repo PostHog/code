@@ -1,4 +1,5 @@
 import type { Task } from "@shared/types";
+import { focusManager } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it } from "vitest";
 import { getCachedTask, queryClient } from "./queryClient";
 
@@ -59,5 +60,15 @@ describe("getCachedTask", () => {
     );
 
     expect(getCachedTask("task-1")?.title_manually_set).toBe(true);
+  });
+});
+
+describe("focusManager", () => {
+  it("flips focus state on window focus/blur events", () => {
+    window.dispatchEvent(new Event("blur"));
+    expect(focusManager.isFocused()).toBe(false);
+
+    window.dispatchEvent(new Event("focus"));
+    expect(focusManager.isFocused()).toBe(true);
   });
 });
