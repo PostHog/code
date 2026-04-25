@@ -321,6 +321,15 @@
   --quote-font-family: var(--font-sans);
   --code-font-family: var(--font-mono);
 
+  /*
+   * Radix's defaults assume Times New Roman italic (smaller x-height) and
+   * scale Em / Quote up by 1.18× to compensate. Since we render them in
+   * Open Runde — same metrics as body text — that compensation makes
+   * italics conspicuously oversized. Disable the adjustment.
+   */
+  --em-font-size-adjust: 1;
+  --quote-font-size-adjust: 1;
+
   /* Font weights — Berkeley Mono provides 400/700, JetBrains Mono fills 300/500/600 */
   --font-weight-light: 300;
   --font-weight-regular: 400;
