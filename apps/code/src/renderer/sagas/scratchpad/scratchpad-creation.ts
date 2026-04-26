@@ -26,18 +26,26 @@ export interface ScratchpadCreationInput {
   /** Clamped 1..5 by the caller. */
   rounds: number;
   /**
-   * Mutually exclusive with `autoCreateProject`. If provided, the user picked
-   * an existing project — the saga will NOT delete it on rollback.
+   * Mutually exclusive with `autoCreateProject` and `skipProject`. If
+   * provided, the user picked an existing project — the saga will NOT delete
+   * it on rollback.
    */
   projectId?: number;
   /**
-   * Mutually exclusive with `projectId`. When set, the saga creates a new
-   * project named `[UNPUBLISHED] {productName}` in the given organisation
-   * and rolls back by deleting it.
+   * Mutually exclusive with `projectId` and `skipProject`. When set, the
+   * saga creates a new project named `[UNPUBLISHED] {productName}` in the
+   * given organisation and rolls back by deleting it.
    */
   autoCreateProject?: {
     organizationId: string;
   };
+  /**
+   * Mutually exclusive with `projectId` and `autoCreateProject`. When true,
+   * no PostHog project is created or linked. The manifest's `projectId` is
+   * `null`. The user can link a project later from the task; Publish refuses
+   * to run until they do.
+   */
+  skipProject?: boolean;
   /** Optional agent execution preferences forwarded to `connectToTask`. */
   adapter?: "claude" | "codex";
   model?: string;
@@ -49,7 +57,8 @@ export interface ScratchpadCreationOutput {
   task: Task;
   workspace: Workspace;
   scratchpadPath: string;
-  projectId: number;
+  /** `null` when the user skipped PostHog project linking. */
+  projectId: number | null;
   autoCreatedProject: boolean;
 }
 
@@ -71,19 +80,23 @@ export class ScratchpadCreationSaga extends Saga<
   protected async execute(
     input: ScratchpadCreationInput,
   ): Promise<ScratchpadCreationOutput> {
-    if (!input.projectId && !input.autoCreateProject) {
+    const modeCount =
+      (input.projectId !== undefined ? 1 : 0) +
+      (input.autoCreateProject !== undefined ? 1 : 0) +
+      (input.skipProject === true ? 1 : 0);
+    if (modeCount === 0) {
       throw new Error(
-        "ScratchpadCreationInput requires either projectId or autoCreateProject",
+        "ScratchpadCreationInput requires one of projectId, autoCreateProject, or skipProject",
       );
     }
-    if (input.projectId && input.autoCreateProject) {
+    if (modeCount > 1) {
       throw new Error(
-        "ScratchpadCreationInput: projectId and autoCreateProject are mutually exclusive",
+        "ScratchpadCreationInput: projectId / autoCreateProject / skipProject are mutually exclusive",
       );
     }
 
     // Step 1: Optional project creation
-    let projectId: number;
+    let projectId: number | null;
     let autoCreatedProject = false;
 
     if (input.autoCreateProject) {
@@ -111,9 +124,10 @@ export class ScratchpadCreationSaga extends Saga<
       });
       projectId = created.id;
       autoCreatedProject = true;
+    } else if (input.projectId !== undefined) {
+      projectId = input.projectId;
     } else {
-      // biome-ignore lint/style/noNonNullAssertion: validated above
-      projectId = input.projectId!;
+      projectId = null;
     }
 
     // Step 2: Task creation. The product name is the title verbatim.

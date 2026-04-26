@@ -174,7 +174,7 @@ export class ScratchpadService extends TypedEventEmitter<ScratchpadServiceEvents
   public async scaffoldEmpty(
     taskId: string,
     name: string,
-    projectId: number,
+    projectId: number | null,
   ): Promise<{ scratchpadPath: string }> {
     const sanitized = sanitizeScratchpadName(name);
     if (!sanitized) {

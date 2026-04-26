@@ -34,13 +34,14 @@ export function DraftTaskHeaderActions({
   );
 
   const projectId = manifestQuery.data?.projectId;
+  const hasLinkedProject = projectId != null;
   const projectQuery = useQuery({
     queryKey: ["project", projectId],
     queryFn: () => {
-      if (projectId === undefined) return null;
+      if (!hasLinkedProject) return null;
       return posthogClient.getProject(projectId).catch(() => null);
     },
-    enabled: isDraft && projectId !== undefined,
+    enabled: isDraft && hasLinkedProject,
     staleTime: 60_000,
   });
 
@@ -48,7 +49,15 @@ export function DraftTaskHeaderActions({
 
   if (!isDraft) return null;
 
-  const productName = projectQuery.data?.name ?? "";
+  // When no project is linked we still render the Publish button so the user
+  // can see the path forward — the dialog/hook will explain that linking a
+  // project is a prerequisite.
+  const productName = hasLinkedProject
+    ? (projectQuery.data?.name ?? "")
+    : manifestQuery.data
+      ? ""
+      : "";
+  const repoNameDefault = productName;
 
   return (
     <>
@@ -57,7 +66,7 @@ export function DraftTaskHeaderActions({
         variant="soft"
         color="green"
         onClick={() => setDialogOpen(true)}
-        disabled={!productName}
+        disabled={hasLinkedProject && !productName}
       >
         <UploadSimpleIcon size={12} weight="bold" />
         Publish
@@ -67,7 +76,7 @@ export function DraftTaskHeaderActions({
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           taskId={taskId}
-          defaultRepoName={productName}
+          defaultRepoName={repoNameDefault}
           productName={productName}
         />
       )}

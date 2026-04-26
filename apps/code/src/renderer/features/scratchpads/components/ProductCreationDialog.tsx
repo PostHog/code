@@ -23,7 +23,7 @@ const MIN_ROUNDS = 1;
 const MAX_ROUNDS = 5;
 const DEFAULT_ROUNDS = 3;
 
-type ProjectMode = "auto" | "existing";
+type ProjectMode = "auto" | "existing" | "skip";
 
 export function ProductCreationDialog() {
   const open = useScratchpadCreationStore((s) => s.open);
@@ -50,7 +50,9 @@ export function ProductCreationDialog() {
   const trimmedName = productName.trim();
   const trimmedIdea = initialIdea.trim();
   const projectChoiceValid =
-    projectMode === "auto" || selectedProjectId !== null;
+    projectMode === "auto" ||
+    projectMode === "skip" ||
+    selectedProjectId !== null;
   const canSubmit =
     !isSubmitting &&
     trimmedName.length > 0 &&
@@ -80,6 +82,7 @@ export function ProductCreationDialog() {
     try {
       let autoCreate: { organizationId: string } | undefined;
       let projectId: number | undefined;
+      let skipProject = false;
 
       if (projectMode === "auto") {
         const user = await posthogClient.getCurrentUser();
@@ -92,11 +95,13 @@ export function ProductCreationDialog() {
           );
         }
         autoCreate = { organizationId };
-      } else {
+      } else if (projectMode === "existing") {
         if (selectedProjectId === null) {
           throw new Error("Please pick a PostHog project");
         }
         projectId = selectedProjectId;
+      } else {
+        skipProject = true;
       }
 
       const saga = new ScratchpadCreationSaga({
@@ -114,6 +119,7 @@ export function ProductCreationDialog() {
         rounds: clampRounds(rounds),
         ...(autoCreate ? { autoCreateProject: autoCreate } : {}),
         ...(projectId !== undefined ? { projectId } : {}),
+        ...(skipProject ? { skipProject: true } : {}),
       });
 
       if (!result.success) {
@@ -229,21 +235,35 @@ export function ProductCreationDialog() {
                     Use existing project
                   </Flex>
                 </Text>
+                <Text as="label" className="text-[13px]">
+                  <Flex gap="2" align="center">
+                    <RadioGroup.Item value="skip" />
+                    Skip for now
+                  </Flex>
+                </Text>
               </Flex>
             </RadioGroup.Root>
 
-            {projectMode === "auto" ? (
+            {projectMode === "auto" && (
               <Text color="gray" className="text-[13px]">
                 {trimmedName
                   ? `Will create [UNPUBLISHED] ${trimmedName} in your current organization.`
                   : "Will create a new project in your current organization."}
               </Text>
-            ) : (
+            )}
+            {projectMode === "existing" && (
               <ProjectPicker
                 value={selectedProjectId}
                 onChange={setSelectedProjectId}
                 disabled={isSubmitting}
               />
+            )}
+            {projectMode === "skip" && (
+              <Text color="gray" className="text-[13px]">
+                No PostHog project will be linked. Analytics, replay, and error
+                tracking are skipped during scaffolding. You can link a project
+                later, but Publish requires one.
+              </Text>
             )}
           </Flex>
 

@@ -22,6 +22,7 @@ export interface PublishScratchpadInput {
 
 export type PublishScratchpadResult =
   | { kind: "success"; result: Extract<PublishResult, { success: true }> }
+  | { kind: "no_project_linked"; message: string }
   | { kind: "project_inaccessible"; message: string }
   | { kind: "failure"; result: Extract<PublishResult, { success: false }> };
 
@@ -50,16 +51,25 @@ export function usePublishScratchpad() {
         taskId,
       });
 
-      // 2. Project access pre-flight.
-      const project = await posthogClient
-        .getProject(manifest.projectId)
-        .catch((err) => {
-          log.warn("Failed to fetch project during publish pre-flight", {
-            projectId: manifest.projectId,
-            err,
-          });
-          return null;
+      // 2. Project access pre-flight. Skipped when the user opted out of
+      //    linking a project at scratchpad creation time — they need to link
+      //    one before they can publish.
+      if (manifest.projectId === null) {
+        return {
+          kind: "no_project_linked",
+          message:
+            "This scratchpad isn't linked to a PostHog project. Link one before publishing so analytics, replay, and error tracking work in production.",
+        };
+      }
+
+      const projectId = manifest.projectId;
+      const project = await posthogClient.getProject(projectId).catch((err) => {
+        log.warn("Failed to fetch project during publish pre-flight", {
+          projectId,
+          err,
         });
+        return null;
+      });
       if (!project) {
         return {
           kind: "project_inaccessible",
@@ -84,12 +94,12 @@ export function usePublishScratchpad() {
         ? productName.slice(UNPUBLISHED_PREFIX.length)
         : productName;
       try {
-        await posthogClient.updateProject(manifest.projectId, {
+        await posthogClient.updateProject(projectId, {
           name: targetName,
         });
       } catch (err) {
         log.warn("PostHog project rename failed", {
-          projectId: manifest.projectId,
+          projectId,
           err,
         });
         toast.warning("Repo published, project rename failed", {

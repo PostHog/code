@@ -109,7 +109,10 @@ export function PublishDialog({
         productName,
       });
 
-      if (outcome.kind === "project_inaccessible") {
+      if (
+        outcome.kind === "project_inaccessible" ||
+        outcome.kind === "no_project_linked"
+      ) {
         setErrorMessage(outcome.message);
         setProgressLabel(null);
         return;

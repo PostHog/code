@@ -14,7 +14,12 @@ export const previewEntrySchema = z.object({
 export type PreviewEntry = z.infer<typeof previewEntrySchema>;
 
 export const manifestSchema = z.object({
-  projectId: z.number().int(),
+  /**
+   * Linked PostHog project. `null` when the user picked "Skip for now" at
+   * scratchpad creation time — instrumentation skills and Publish will
+   * prompt them to link a project later.
+   */
+  projectId: z.number().int().nullable(),
   /** AUTHORITATIVE for draft state. */
   published: z.boolean(),
   preview: z.array(previewEntrySchema).optional(),
@@ -106,7 +111,7 @@ export const taskIdInput = z.object({
 export const createScratchpadInput = z.object({
   taskId: z.string().min(1),
   name: z.string().min(1),
-  projectId: z.number().int(),
+  projectId: z.number().int().nullable(),
 });
 
 export const createScratchpadOutput = z.object({

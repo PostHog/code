@@ -12,7 +12,8 @@ export interface ScaffoldingPromptInput {
   initialIdea: string;
   productName: string;
   rounds: number;
-  projectId: number;
+  /** `null` when the user opted out of linking a PostHog project. */
+  projectId: number | null;
   taskId: string;
 }
 
@@ -44,12 +45,16 @@ export function buildScaffoldingPrompt(input: ScaffoldingPromptInput): string {
     "",
     `2. **Scaffold.** Pick a production-grade, simple, mainstream stack appropriate for the product. Run the necessary scaffolding commands inside \`${scratchpadPath}\` (e.g. \`pnpm create vite\`, \`pnpm create next-app\`, \`cargo new\`, etc.). **Never run \`git init\`** — the host is responsible for git lifecycle. Do not add any deployment scripts or hosting configuration.`,
     "",
-    "3. **PostHog instrumentation.** Run these slash-prompts in order, recovering inside your own loop if any step fails or installs the SDK out of order:",
-    "   - `/instrument-integration`",
-    "   - `/instrument-product-analytics`",
-    "   - `/instrument-error-tracking`",
-    "   - `/instrument-llm-analytics` (only if the product has AI/LLM features)",
-    `   Use PostHog project ID \`${projectId}\` for these.`,
+    projectId === null
+      ? "3. **PostHog instrumentation.** SKIPPED — the user opted out of linking a PostHog project at creation time. Do not run any instrumentation skills. The user can link a project later and run the skills then."
+      : [
+          "3. **PostHog instrumentation.** Run these slash-prompts in order, recovering inside your own loop if any step fails or installs the SDK out of order:",
+          "   - `/instrument-integration`",
+          "   - `/instrument-product-analytics`",
+          "   - `/instrument-error-tracking`",
+          "   - `/instrument-llm-analytics` (only if the product has AI/LLM features)",
+          `   Use PostHog project ID \`${projectId}\` for these.`,
+        ].join("\n"),
     "",
     `4. **Preview registration.** Once you have a working dev server, declare it via \`posthog_code__registerPreview({ taskId: "${taskId}", name, command, port, cwd })\`. Always pass \`taskId: "${taskId}"\` — the host uses it to scope the preview to this scratchpad. Call once per process — e.g. one call for frontend, one for backend if both run. Use a \`name\` like \`"frontend"\` or \`"backend"\` for clarity.`,
     "",

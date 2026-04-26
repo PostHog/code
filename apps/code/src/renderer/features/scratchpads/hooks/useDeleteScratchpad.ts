@@ -55,7 +55,7 @@ export async function deleteScratchpadImperative(
   // 4. If the linked PostHog project name still starts with `[UNPUBLISHED] `,
   //    it was auto-created — delete it. User-picked existing projects are
   //    NEVER deleted.
-  if (manifest?.projectId !== undefined) {
+  if (manifest?.projectId != null) {
     const projectId = manifest.projectId;
     const project = await posthogClient.getProject(projectId).catch((err) => {
       log.warn("Failed to fetch project for deletion", { projectId, err });
