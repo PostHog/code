@@ -152,7 +152,7 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
           </Tooltip>
         )}
         <Flex align="center" gap="2" className="shrink-0">
-          <DraftTaskHeaderActions taskId={taskId} />
+          <DraftTaskHeaderActions taskId={taskId} taskTitle={task.title} />
           {openTargetPath && <ExternalAppsOpener targetPath={openTargetPath} />}
         </Flex>
       </Flex>

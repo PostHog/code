@@ -18,9 +18,12 @@ import { useState } from "react";
 
 const log = logger.scope("product-creation-dialog");
 
-const ROUND_OPTIONS = [1, 2, 3, 4, 5] as const;
 const MIN_ROUNDS = 1;
-const MAX_ROUNDS = 5;
+const MAX_ROUNDS = 4;
+const ROUND_OPTIONS: number[] = Array.from(
+  { length: MAX_ROUNDS },
+  (_, i) => i + 1,
+);
 const DEFAULT_ROUNDS = 3;
 
 type ProjectMode = "later" | "existing";
@@ -141,32 +144,9 @@ export function ProductCreationDialog() {
             Create a new product
           </Dialog.Title>
 
-          <Text
-            as="div"
-            className="rounded-(--radius-2) border border-(--gray-5) bg-(--gray-2) px-3 py-2 text-(--gray-12) text-[13px] leading-6"
-          >
-            We'll ask up to{" "}
-            <SegmentedControl.Root
-              size="1"
-              value={String(rounds)}
-              onValueChange={(v) => setRounds(clampRounds(Number(v)))}
-              disabled={isSubmitting}
-              aria-label="Clarification rounds"
-              className="!h-[20px] mx-1 inline-flex align-middle text-[12px]"
-            >
-              {ROUND_OPTIONS.map((n) => (
-                <SegmentedControl.Item key={n} value={String(n)}>
-                  {n}
-                </SegmentedControl.Item>
-              ))}
-            </SegmentedControl.Root>{" "}
-            {rounds === 1 ? "round" : "rounds"} of clarifying questions to shape
-            your product.
-          </Text>
-
           <Flex direction="column" gap="1">
             <Text color="gray" className="text-[13px]">
-              Product name
+              What's the name of your new thing?
             </Text>
             <TextField.Root
               value={productName}
@@ -180,12 +160,12 @@ export function ProductCreationDialog() {
 
           <Flex direction="column" gap="1">
             <Text color="gray" className="text-[13px]">
-              Initial idea
+              What would you like me to build?
             </Text>
             <TextArea
               value={initialIdea}
               onChange={(e) => setInitialIdea(e.target.value)}
-              placeholder="On-demand dog walks and rides to the vet. Owners book through a mobile app, walkers/drivers accept gigs nearby, payments and tips are handled in-app..."
+              placeholder="Web app to get a dog delivered on demand, or something."
               size="2"
               rows={5}
               disabled={isSubmitting}
@@ -206,7 +186,7 @@ export function ProductCreationDialog() {
                 <Text as="label" className="text-[13px]">
                   <Flex gap="2" align="center">
                     <RadioGroup.Item value="later" />
-                    Let's do this later
+                    Set up on publish later
                   </Flex>
                 </Text>
                 <Text as="label" className="text-[13px]">
@@ -220,7 +200,7 @@ export function ProductCreationDialog() {
 
             {projectMode === "later" && (
               <Text color="gray" className="text-[13px]">
-                We'll wire up PostHog (analytics, replay, error tracking) with
+                I'll wire up PostHog (analytics, replay, error tracking) with
                 placeholder credentials so the SDK is in place. You'll pick or
                 create a real project at publish time.
               </Text>
@@ -232,6 +212,29 @@ export function ProductCreationDialog() {
                 disabled={isSubmitting}
               />
             )}
+
+            <Text
+              as="div"
+              className="rounded-(--radius-2) border border-(--gray-5) bg-(--gray-2) px-3 py-2 text-(--gray-12) text-[13px] leading-6"
+            >
+              I'll ask up to{" "}
+              <SegmentedControl.Root
+                size="1"
+                value={String(rounds)}
+                onValueChange={(v) => setRounds(clampRounds(Number(v)))}
+                disabled={isSubmitting}
+                aria-label="Clarification rounds"
+                className="!h-[20px] mx-1 inline-flex align-middle text-[12px]"
+              >
+                {ROUND_OPTIONS.map((n) => (
+                  <SegmentedControl.Item key={n} value={String(n)}>
+                    {n}
+                  </SegmentedControl.Item>
+                ))}
+              </SegmentedControl.Root>{" "}
+              {rounds === 1 ? "round" : "rounds"} of clarifying questions to
+              shape your product.
+            </Text>
           </Flex>
 
           {lastError && (

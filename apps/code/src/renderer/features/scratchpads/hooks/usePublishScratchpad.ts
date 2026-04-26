@@ -6,18 +6,13 @@ import type {
 import { trpc, trpcClient } from "@renderer/trpc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
-import { toast } from "@utils/toast";
 
 const log = logger.scope("publish-scratchpad");
-
-const UNPUBLISHED_PREFIX = "[UNPUBLISHED] ";
 
 export interface PublishScratchpadInput {
   taskId: string;
   repoName: string;
   visibility: PublishVisibility;
-  /** Final product name to set on the PostHog project (drops the `[UNPUBLISHED] ` prefix). */
-  productName: string;
 }
 
 export type PublishScratchpadResult =
@@ -29,31 +24,25 @@ export type PublishScratchpadResult =
 /**
  * Multi-step publish flow:
  *
- *   1. Read the manifest to find `projectId`.
+ *   1. Read the manifest to find `projectId`. The dialog links a project
+ *      before calling this hook when the manifest's `projectId` was null.
  *   2. Project access pre-flight: fetch the linked PostHog project. If
- *      inaccessible (deleted, no permissions), surface a recovery error before
- *      hitting GitHub.
- *   3. Call the service's `scratchpad.publish` mutation (creates GitHub repo,
- *      pushes initial commit, patches manifest).
- *   4. Best-effort PostHog project rename: drop the `[UNPUBLISHED] ` prefix.
- *      A rename failure does NOT undo the publish — it surfaces as a warning
- *      toast and the user can retry from project settings.
- *   5. Invalidate caches.
+ *      inaccessible (deleted, no permissions), surface a recovery error
+ *      before hitting GitHub.
+ *   3. Call the service's `scratchpad.publish` mutation (creates GitHub
+ *      repo, pushes initial commit, patches manifest).
+ *   4. Invalidate caches.
  */
 export function usePublishScratchpad() {
   const posthogClient = useAuthenticatedClient();
   const queryClient = useQueryClient();
 
   return useMutation<PublishScratchpadResult, Error, PublishScratchpadInput>({
-    mutationFn: async ({ taskId, repoName, visibility, productName }) => {
-      // 1. Read manifest.
+    mutationFn: async ({ taskId, repoName, visibility }) => {
       const manifest = await trpcClient.scratchpad.readManifest.query({
         taskId,
       });
 
-      // 2. Project access pre-flight. Skipped when the user opted out of
-      //    linking a project at scratchpad creation time — they need to link
-      //    one before they can publish.
       if (manifest.projectId === null) {
         return {
           kind: "no_project_linked",
@@ -78,7 +67,6 @@ export function usePublishScratchpad() {
         };
       }
 
-      // 3. Service-side publish.
       const result = await trpcClient.scratchpad.publish.mutate({
         taskId,
         repoName,
@@ -89,25 +77,6 @@ export function usePublishScratchpad() {
         return { kind: "failure", result };
       }
 
-      // 4. PostHog project rename — best-effort.
-      const targetName = productName.startsWith(UNPUBLISHED_PREFIX)
-        ? productName.slice(UNPUBLISHED_PREFIX.length)
-        : productName;
-      try {
-        await posthogClient.updateProject(projectId, {
-          name: targetName,
-        });
-      } catch (err) {
-        log.warn("PostHog project rename failed", {
-          projectId,
-          err,
-        });
-        toast.warning("Repo published, project rename failed", {
-          description: "Try again from project settings.",
-        });
-      }
-
-      // 5. Invalidate caches.
       void queryClient.invalidateQueries(trpc.scratchpad.list.pathFilter());
       void queryClient.invalidateQueries({ queryKey: ["tasks", "list"] });
 

@@ -8,7 +8,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockClient = vi.hoisted(() => ({
   createProject: vi.fn(),
   updateProject: vi.fn(),
-  deleteProject: vi.fn(),
   getCurrentUser: vi.fn(),
 }));
 
@@ -29,7 +28,6 @@ vi.mock("@utils/logger", () => ({
 
 // Imports after mocks so the modules pick up the mocked dependencies.
 import { useCreateProject } from "./useCreateProject";
-import { useDeleteProject } from "./useDeleteProject";
 import { useUpdateProject } from "./useUpdateProject";
 
 // --- Helpers ------------------------------------------------------------
@@ -55,7 +53,7 @@ function newClient() {
 
 // --- Tests --------------------------------------------------------------
 
-describe("useCreateProject / useUpdateProject / useDeleteProject", () => {
+describe("useCreateProject / useUpdateProject", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -129,52 +127,6 @@ describe("useCreateProject / useUpdateProject / useDeleteProject", () => {
 
     expect(mockClient.updateProject).toHaveBeenCalledTimes(1);
     expect(mockClient.updateProject).toHaveBeenCalledWith(5, { name: "new" });
-  });
-
-  it("deleteProject: happy path calls client.deleteProject with the id", async () => {
-    mockClient.deleteProject.mockResolvedValueOnce(undefined);
-
-    const queryClient = newClient();
-    const { result } = renderHook(() => useDeleteProject(), {
-      wrapper: makeWrapper(queryClient),
-    });
-
-    await waitFor(async () => {
-      await result.current.mutateAsync({ projectId: 9 });
-    });
-
-    expect(mockClient.deleteProject).toHaveBeenCalledTimes(1);
-    expect(mockClient.deleteProject).toHaveBeenCalledWith(9);
-  });
-
-  it("deleteProject: 404 from API resolves successfully (already gone)", async () => {
-    mockClient.deleteProject.mockRejectedValueOnce(
-      new Error('Failed request: [404] {"detail":"Not found."}'),
-    );
-
-    const queryClient = newClient();
-    const { result } = renderHook(() => useDeleteProject(), {
-      wrapper: makeWrapper(queryClient),
-    });
-
-    await expect(
-      result.current.mutateAsync({ projectId: 123 }),
-    ).resolves.toBeUndefined();
-  });
-
-  it("deleteProject: 403 surfaces a permissions error", async () => {
-    mockClient.deleteProject.mockRejectedValueOnce(
-      new Error('Failed request: [403] {"detail":"forbidden"}'),
-    );
-
-    const queryClient = newClient();
-    const { result } = renderHook(() => useDeleteProject(), {
-      wrapper: makeWrapper(queryClient),
-    });
-
-    await expect(
-      result.current.mutateAsync({ projectId: 123 }),
-    ).rejects.toThrow(/insufficient permissions/i);
   });
 
   it("createProject: invalidates the projects-list cache on success", async () => {

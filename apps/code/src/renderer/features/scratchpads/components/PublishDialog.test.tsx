@@ -124,7 +124,7 @@ function renderDialog(props?: Partial<Parameters<typeof PublishDialog>[0]>) {
     onOpenChange: vi.fn(),
     taskId: "task-1",
     defaultRepoName: "my-product",
-    productName: "[UNPUBLISHED] My Product",
+    productName: "My Product",
     ...props,
   };
 
@@ -201,7 +201,6 @@ describe("PublishDialog", () => {
         taskId: "task-1",
         repoName: "my-product",
         visibility: "private",
-        productName: "[UNPUBLISHED] My Product",
       });
     });
 

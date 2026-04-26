@@ -26,7 +26,7 @@ interface PublishDialogProps {
   taskId: string;
   /** Default repo name (typically the sanitized product name). */
   defaultRepoName: string;
-  /** The current product name on the PostHog project (with `[UNPUBLISHED] ` prefix). */
+  /** Pre-fill for the create-new-project name field. */
   productName: string;
 }
 
@@ -127,10 +127,8 @@ export function PublishDialog({
     isSubmitting ||
     offendingPaths !== null;
 
-  const linkProjectIfNeeded = async (): Promise<{
-    finalProductName: string;
-  } | null> => {
-    if (!needsProjectLink) return { finalProductName: productName };
+  const linkProjectIfNeeded = async (): Promise<void> => {
+    if (!needsProjectLink) return;
 
     if (linkMode === "create") {
       setProgressLabel("Creating PostHog project");
@@ -142,9 +140,8 @@ export function PublishDialog({
           "Cannot create a PostHog project: current user has no organization",
         );
       }
-      const trimmedName = linkProjectName.trim();
       const created = await posthogClient.createProject({
-        name: trimmedName,
+        name: linkProjectName.trim(),
         organizationId,
       });
       if (typeof created.id !== "number") {
@@ -154,24 +151,17 @@ export function PublishDialog({
         taskId,
         patch: { projectId: created.id },
       });
-      return { finalProductName: trimmedName };
+      return;
     }
 
     // existing
     if (linkExistingProjectId === null) {
       throw new Error("Pick an existing project to publish to");
     }
-    const project = await posthogClient
-      .getProject(linkExistingProjectId)
-      .catch(() => null);
-    if (!project) {
-      throw new Error("Selected PostHog project is not accessible");
-    }
     await trpcClient.scratchpad.writeManifest.mutate({
       taskId,
       patch: { projectId: linkExistingProjectId },
     });
-    return { finalProductName: project.name ?? "" };
   };
 
   const handleSubmit = async () => {
@@ -182,8 +172,7 @@ export function PublishDialog({
       needsProjectLink ? "Linking PostHog project" : "Initializing git",
     );
     try {
-      const linkResult = await linkProjectIfNeeded();
-      if (!linkResult) return;
+      await linkProjectIfNeeded();
 
       // Refresh the manifest cache so downstream queries see the new projectId.
       await queryClient.invalidateQueries(
@@ -195,7 +184,6 @@ export function PublishDialog({
         taskId,
         repoName,
         visibility,
-        productName: linkResult.finalProductName,
       });
 
       if (

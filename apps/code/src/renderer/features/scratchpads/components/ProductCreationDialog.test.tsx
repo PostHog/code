@@ -84,9 +84,10 @@ function fillRequiredFields() {
   fireEvent.change(screen.getByPlaceholderText("Uber for dogs"), {
     target: { value: "My Product" },
   });
-  fireEvent.change(screen.getByPlaceholderText(/On-demand dog walks/), {
-    target: { value: "An idea" },
-  });
+  fireEvent.change(
+    screen.getByPlaceholderText(/Web app to get a dog delivered on demand/),
+    { target: { value: "An idea" } },
+  );
 }
 
 describe("ProductCreationDialog", () => {
@@ -113,24 +114,24 @@ describe("ProductCreationDialog", () => {
     useScratchpadCreationStore.getState().reset();
   });
 
-  it("defaults rounds to 3 and exposes 1..5 in the segmented control", () => {
+  it("defaults rounds to 3 and exposes 1..4 in the segmented control", () => {
     renderDialog();
-    expect(screen.getByText(/We'll ask up to/)).toBeInTheDocument();
+    expect(screen.getByText(/I'll ask up to/)).toBeInTheDocument();
     expect(
       screen.getByText(/of clarifying questions to shape your product\./),
     ).toBeInTheDocument();
 
     expect(screen.getByRole("radio", { name: "3" })).toBeChecked();
-    for (const n of ["1", "2", "3", "4", "5"]) {
+    for (const n of ["1", "2", "3", "4"]) {
       expect(screen.getByRole("radio", { name: n })).toBeInTheDocument();
     }
 
-    // Switch to 5
-    fireEvent.click(screen.getByRole("radio", { name: "5" }));
-    expect(screen.getByRole("radio", { name: "5" })).toBeChecked();
+    // Switch to 4
+    fireEvent.click(screen.getByRole("radio", { name: "4" }));
+    expect(screen.getByRole("radio", { name: "4" })).toBeChecked();
 
-    // The selector caps at 5 — there is no "6" option rendered.
-    expect(screen.queryByRole("radio", { name: "6" })).toBeNull();
+    // The selector caps at 4 — there is no "5" option rendered.
+    expect(screen.queryByRole("radio", { name: "5" })).toBeNull();
   });
 
   it("submit with default 'later' mode passes no projectId (link decided at publish time)", async () => {

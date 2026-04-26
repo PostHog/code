@@ -7,7 +7,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockTrpcClient = vi.hoisted(() => ({
   scratchpad: {
-    readManifest: { query: vi.fn() },
     delete: { mutate: vi.fn() },
     list: { pathFilter: () => ({ queryKey: ["scratchpad", "list"] }) },
   },
@@ -23,8 +22,6 @@ const mockTrpc = vi.hoisted(() => ({
 }));
 
 const mockClient = vi.hoisted(() => ({
-  getProject: vi.fn(),
-  deleteProject: vi.fn(),
   deleteTask: vi.fn(),
 }));
 
@@ -91,20 +88,11 @@ describe("useDeleteScratchpad", () => {
     vi.clearAllMocks();
   });
 
-  it("happy path: runs all steps in order and invalidates caches", async () => {
-    mockTrpcClient.scratchpad.readManifest.query.mockResolvedValueOnce({
-      projectId: 42,
-      published: false,
-    });
+  it("happy path: kills previews, deletes scratchpad + task, invalidates caches", async () => {
     mockTrpcClient.preview.unregister.mutate.mockResolvedValueOnce(undefined);
     mockTrpcClient.scratchpad.delete.mutate.mockResolvedValueOnce({
       success: true,
     });
-    mockClient.getProject.mockResolvedValueOnce({
-      id: 42,
-      name: "[UNPUBLISHED] Foo",
-    });
-    mockClient.deleteProject.mockResolvedValueOnce(undefined);
     mockClient.deleteTask.mockResolvedValueOnce(undefined);
 
     const queryClient = newClient();
@@ -118,17 +106,12 @@ describe("useDeleteScratchpad", () => {
       await result.current.mutateAsync({ taskId: "task-1" });
     });
 
-    expect(mockTrpcClient.scratchpad.readManifest.query).toHaveBeenCalledWith({
-      taskId: "task-1",
-    });
     expect(mockTrpcClient.preview.unregister.mutate).toHaveBeenCalledWith({
       taskId: "task-1",
     });
     expect(mockTrpcClient.scratchpad.delete.mutate).toHaveBeenCalledWith({
       taskId: "task-1",
     });
-    expect(mockClient.getProject).toHaveBeenCalledWith(42);
-    expect(mockClient.deleteProject).toHaveBeenCalledWith(42);
     expect(mockClient.deleteTask).toHaveBeenCalledWith("task-1");
 
     expect(invalidateSpy).toHaveBeenCalledWith({
@@ -139,80 +122,13 @@ describe("useDeleteScratchpad", () => {
     });
   });
 
-  it("auto-created project (with [UNPUBLISHED] prefix) IS deleted", async () => {
-    mockTrpcClient.scratchpad.readManifest.query.mockResolvedValueOnce({
-      projectId: 7,
-      published: false,
-    });
-    mockTrpcClient.preview.unregister.mutate.mockResolvedValueOnce(undefined);
-    mockTrpcClient.scratchpad.delete.mutate.mockResolvedValueOnce({
-      success: true,
-    });
-    mockClient.getProject.mockResolvedValueOnce({
-      id: 7,
-      name: "[UNPUBLISHED] My App",
-    });
-    mockClient.deleteProject.mockResolvedValueOnce(undefined);
-    mockClient.deleteTask.mockResolvedValueOnce(undefined);
-
-    const queryClient = newClient();
-    const { result } = renderHook(() => useDeleteScratchpad(), {
-      wrapper: makeWrapper(queryClient),
-    });
-
-    await waitFor(async () => {
-      await result.current.mutateAsync({ taskId: "t" });
-    });
-
-    expect(mockClient.deleteProject).toHaveBeenCalledTimes(1);
-    expect(mockClient.deleteProject).toHaveBeenCalledWith(7);
-  });
-
-  it("user-picked project (no prefix) is NOT deleted", async () => {
-    mockTrpcClient.scratchpad.readManifest.query.mockResolvedValueOnce({
-      projectId: 99,
-      published: false,
-    });
-    mockTrpcClient.preview.unregister.mutate.mockResolvedValueOnce(undefined);
-    mockTrpcClient.scratchpad.delete.mutate.mockResolvedValueOnce({
-      success: true,
-    });
-    mockClient.getProject.mockResolvedValueOnce({
-      id: 99,
-      name: "Real Production App",
-    });
-    mockClient.deleteTask.mockResolvedValueOnce(undefined);
-
-    const queryClient = newClient();
-    const { result } = renderHook(() => useDeleteScratchpad(), {
-      wrapper: makeWrapper(queryClient),
-    });
-
-    await waitFor(async () => {
-      await result.current.mutateAsync({ taskId: "t" });
-    });
-
-    expect(mockClient.deleteProject).not.toHaveBeenCalled();
-    // task itself is still deleted
-    expect(mockClient.deleteTask).toHaveBeenCalledWith("t");
-  });
-
   it("preview unregister failure does NOT abort the rest of the flow", async () => {
-    mockTrpcClient.scratchpad.readManifest.query.mockResolvedValueOnce({
-      projectId: 42,
-      published: false,
-    });
     mockTrpcClient.preview.unregister.mutate.mockRejectedValueOnce(
       new Error("boom"),
     );
     mockTrpcClient.scratchpad.delete.mutate.mockResolvedValueOnce({
       success: true,
     });
-    mockClient.getProject.mockResolvedValueOnce({
-      id: 42,
-      name: "[UNPUBLISHED] X",
-    });
-    mockClient.deleteProject.mockResolvedValueOnce(undefined);
     mockClient.deleteTask.mockResolvedValueOnce(undefined);
 
     const queryClient = newClient();
@@ -224,20 +140,15 @@ describe("useDeleteScratchpad", () => {
       await result.current.mutateAsync({ taskId: "t" });
     });
 
-    // The flow should have continued past the failed preview unregister.
     expect(mockTrpcClient.scratchpad.delete.mutate).toHaveBeenCalledTimes(1);
-    expect(mockClient.deleteProject).toHaveBeenCalledTimes(1);
     expect(mockClient.deleteTask).toHaveBeenCalledTimes(1);
   });
 
-  it("manifest read failure: flow continues without project deletion", async () => {
-    mockTrpcClient.scratchpad.readManifest.query.mockRejectedValueOnce(
-      new Error("not found"),
-    );
+  it("scratchpad delete failure surfaces a toast but the flow continues", async () => {
     mockTrpcClient.preview.unregister.mutate.mockResolvedValueOnce(undefined);
-    mockTrpcClient.scratchpad.delete.mutate.mockResolvedValueOnce({
-      success: true,
-    });
+    mockTrpcClient.scratchpad.delete.mutate.mockRejectedValueOnce(
+      new Error("disk error"),
+    );
     mockClient.deleteTask.mockResolvedValueOnce(undefined);
 
     const queryClient = newClient();
@@ -249,9 +160,9 @@ describe("useDeleteScratchpad", () => {
       await result.current.mutateAsync({ taskId: "t" });
     });
 
-    expect(mockClient.getProject).not.toHaveBeenCalled();
-    expect(mockClient.deleteProject).not.toHaveBeenCalled();
-    expect(mockTrpcClient.scratchpad.delete.mutate).toHaveBeenCalledTimes(1);
+    expect(mockToast.toast.error).toHaveBeenCalledWith(
+      "Failed to delete draft files",
+    );
     expect(mockClient.deleteTask).toHaveBeenCalledTimes(1);
   });
 });

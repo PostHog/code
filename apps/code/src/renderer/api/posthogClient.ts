@@ -603,16 +603,6 @@ export class PostHogAPIClient {
     return data as Schemas.Team;
   }
 
-  async deleteProject(projectId: number): Promise<void> {
-    await this.api.delete(
-      // @ts-expect-error this endpoint is not in the generated client
-      "/api/projects/{project_id}/",
-      {
-        path: { project_id: projectId.toString() },
-      },
-    );
-  }
-
   async listSignalSourceConfigs(
     projectId: number,
   ): Promise<SignalSourceConfig[]> {
