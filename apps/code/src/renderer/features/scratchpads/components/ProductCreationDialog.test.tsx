@@ -68,6 +68,10 @@ vi.mock("@features/sessions/service/service", () => ({
   getSessionService: () => ({ connectToTask: mockConnectToTask }),
 }));
 
+vi.mock("@features/tasks/hooks/useTasks", () => ({
+  useCreateTask: () => ({ invalidateTasks: vi.fn() }),
+}));
+
 vi.mock("@utils/toast", () => ({ toast: mockToast }));
 
 vi.mock("@utils/logger", () => ({

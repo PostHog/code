@@ -1,6 +1,7 @@
 import { ProjectPicker } from "@features/scratchpads/components/ProjectPicker";
 import { useScratchpadCreationStore } from "@features/scratchpads/stores/scratchpadCreationStore";
 import { getSessionService } from "@features/sessions/service/service";
+import { useCreateTask } from "@features/tasks/hooks/useTasks";
 import { useAuthenticatedClient } from "@hooks/useAuthenticatedClient";
 import { RocketIcon } from "@radix-ui/react-icons";
 import {
@@ -42,6 +43,7 @@ export function ProductCreationDialog() {
 
   const posthogClient = useAuthenticatedClient();
   const navigateToTask = useNavigationStore((s) => s.navigateToTask);
+  const { invalidateTasks } = useCreateTask();
 
   const [productName, setProductName] = useState("");
   const [initialIdea, setInitialIdea] = useState("");
@@ -110,6 +112,11 @@ export function ProductCreationDialog() {
         setStep("idle");
         return;
       }
+
+      // Prime the tasks-list cache so the sidebar shows the new task
+      // immediately and downstream consumers (like task-detail's task
+      // lookup) can resolve it without waiting for the next 30s poll.
+      invalidateTasks(result.data.task);
 
       // Close the dialog and navigate to the new task BEFORE we kick off
       // the agent connection. The agent connect can take a few seconds; we
