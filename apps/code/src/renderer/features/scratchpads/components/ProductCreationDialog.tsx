@@ -9,6 +9,7 @@ import { getCurrentModeFromConfigOptions } from "@features/sessions/stores/sessi
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
 import { useAuthenticatedClient } from "@hooks/useAuthenticatedClient";
+import { Sparkle } from "@phosphor-icons/react";
 import { RocketIcon } from "@radix-ui/react-icons";
 import {
   Button,
@@ -262,27 +263,46 @@ export function ProductCreationDialog() {
             </Flex>
           </Dialog.Title>
 
-          <Text
-            as="div"
-            className="rounded-(--radius-2) border border-(--accent-5) bg-(--accent-2) px-3 py-2 text-(--accent-12) text-[13px] leading-6"
+          <Flex
+            direction="column"
+            gap="2"
+            className="overflow-hidden rounded-(--radius-3) border border-(--accent-5) bg-gradient-to-br from-(--accent-2) to-(--accent-3) px-4 py-3 text-(--accent-12)"
           >
-            I'll ask up to{" "}
-            <SegmentedControl.Root
-              size="1"
-              value={String(rounds)}
-              onValueChange={(v) => setRounds(clampRounds(Number(v)))}
-              disabled={isSubmitting}
-              aria-label="Clarification rounds"
-              className="!h-[20px] mx-1 inline-flex align-middle text-[12px]"
+            <Flex align="center" gap="2">
+              <Sparkle
+                weight="fill"
+                size={14}
+                className="shrink-0 text-(--accent-11)"
+              />
+              <Text className="font-medium text-[13px] tracking-tight">
+                First I ask, then build, then deploy.
+              </Text>
+            </Flex>
+            <Text
+              as="div"
+              className="text-(--accent-12)/85 text-[12.5px] leading-relaxed"
             >
-              {ROUND_OPTIONS.map((n) => (
-                <SegmentedControl.Item key={n} value={String(n)}>
-                  {n}
-                </SegmentedControl.Item>
-              ))}
-            </SegmentedControl.Root>{" "}
-            {rounds === 1 ? "round" : "rounds"} of questions before scaffolding.
-          </Text>
+              I'll run up to{" "}
+              <SegmentedControl.Root
+                size="1"
+                value={String(rounds)}
+                onValueChange={(v) => setRounds(clampRounds(Number(v)))}
+                disabled={isSubmitting}
+                aria-label="Clarification rounds"
+                className="!h-[20px] mx-1 inline-flex align-middle text-[12px]"
+              >
+                {ROUND_OPTIONS.map((n) => (
+                  <SegmentedControl.Item key={n} value={String(n)}>
+                    {n}
+                  </SegmentedControl.Item>
+                ))}
+              </SegmentedControl.Root>{" "}
+              {rounds === 1 ? "round" : "rounds"} of clarifying questions, then
+              scaffold a stack with PostHog analytics, replay, and error
+              tracking wired from the first commit. A live preview opens beside
+              the chat the moment your dev server is up.
+            </Text>
+          </Flex>
 
           <Flex direction="column" gap="1">
             <Text color="gray" className="text-[13px]">
