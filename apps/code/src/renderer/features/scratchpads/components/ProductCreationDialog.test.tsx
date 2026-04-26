@@ -113,32 +113,24 @@ describe("ProductCreationDialog", () => {
     useScratchpadCreationStore.getState().reset();
   });
 
-  it("defaults rounds to 3 and clamps the number input to 1..5", () => {
+  it("defaults rounds to 3 and exposes 1..5 in the segmented control", () => {
     renderDialog();
     expect(screen.getByText(/We'll ask up to/)).toBeInTheDocument();
     expect(
       screen.getByText(/of clarifying questions to shape your product\./),
     ).toBeInTheDocument();
 
-    const input = screen.getByLabelText(
-      "Clarification rounds",
-    ) as HTMLInputElement;
-    expect(input).toHaveAttribute("type", "number");
-    expect(input).toHaveAttribute("min", "1");
-    expect(input).toHaveAttribute("max", "5");
-    expect(input.value).toBe("3");
+    expect(screen.getByRole("radio", { name: "3" })).toBeChecked();
+    for (const n of ["1", "2", "3", "4", "5"]) {
+      expect(screen.getByRole("radio", { name: n })).toBeInTheDocument();
+    }
 
-    // Set to 5 — accepted
-    fireEvent.change(input, { target: { value: "5" } });
-    expect(input.value).toBe("5");
+    // Switch to 5
+    fireEvent.click(screen.getByRole("radio", { name: "5" }));
+    expect(screen.getByRole("radio", { name: "5" })).toBeChecked();
 
-    // Set to 7 — clamped down to 5
-    fireEvent.change(input, { target: { value: "7" } });
-    expect(input.value).toBe("5");
-
-    // Set to 0 — clamped up to 1
-    fireEvent.change(input, { target: { value: "0" } });
-    expect(input.value).toBe("1");
+    // The selector caps at 5 — there is no "6" option rendered.
+    expect(screen.queryByRole("radio", { name: "6" })).toBeNull();
   });
 
   it("submit with auto-create passes autoCreateProject with the org id", async () => {
