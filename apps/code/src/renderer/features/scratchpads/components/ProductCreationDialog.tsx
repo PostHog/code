@@ -191,7 +191,7 @@ export function ProductCreationDialog() {
             <TextField.Root
               value={productName}
               onChange={(e) => setProductName(e.target.value)}
-              placeholder="Chess Clock"
+              placeholder="Uber for dogs"
               size="2"
               disabled={isSubmitting}
               autoFocus
@@ -205,7 +205,7 @@ export function ProductCreationDialog() {
             <TextArea
               value={initialIdea}
               onChange={(e) => setInitialIdea(e.target.value)}
-              placeholder="A simple chess clock that supports increments and delays..."
+              placeholder="On-demand dog walks and rides to the vet. Owners book through a mobile app, walkers/drivers accept gigs nearby, payments and tips are handled in-app..."
               size="2"
               rows={5}
               disabled={isSubmitting}

@@ -81,10 +81,10 @@ function renderDialog() {
 }
 
 function fillRequiredFields() {
-  fireEvent.change(screen.getByPlaceholderText("Chess Clock"), {
+  fireEvent.change(screen.getByPlaceholderText("Uber for dogs"), {
     target: { value: "My Product" },
   });
-  fireEvent.change(screen.getByPlaceholderText(/A simple chess clock/), {
+  fireEvent.change(screen.getByPlaceholderText(/On-demand dog walks/), {
     target: { value: "An idea" },
   });
 }
