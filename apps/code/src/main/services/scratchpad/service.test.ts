@@ -102,6 +102,25 @@ describe("ScratchpadService", () => {
         /Cannot derive scratchpad directory name/,
       );
     });
+
+    it("initializes the directory as a git repo on `main`", async () => {
+      const { scratchpadPath } = await service.scaffoldEmpty(
+        "task-1",
+        "Repo Test",
+        1,
+      );
+
+      // .git directory exists
+      const gitStat = await fsPromises.stat(path.join(scratchpadPath, ".git"));
+      expect(gitStat.isDirectory()).toBe(true);
+
+      // Default branch is main (no commits yet — read .git/HEAD)
+      const head = await fsPromises.readFile(
+        path.join(scratchpadPath, ".git", "HEAD"),
+        "utf8",
+      );
+      expect(head.trim()).toBe("ref: refs/heads/main");
+    });
   });
 
   describe("readManifest", () => {

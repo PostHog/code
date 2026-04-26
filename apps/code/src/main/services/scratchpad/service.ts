@@ -192,6 +192,24 @@ export class ScratchpadService extends TypedEventEmitter<ScratchpadServiceEvents
 
     await fsPromises.mkdir(scratchpadPath, { recursive: true });
 
+    // Initialize as a git repo immediately. Most folder-aware UI in the app
+    // (file watchers, status bar, "Changes" panel) assumes a git directory,
+    // and refusing to init until publish-time leaves the user stuck on a
+    // "This folder is not a git repository" warning the moment the
+    // scratchpad opens. Default branch `main`, no commits yet.
+    try {
+      await execFileAsync("git", ["init", "-b", "main"], {
+        cwd: scratchpadPath,
+      });
+    } catch (err) {
+      log.error("Failed to git-init scratchpad", { scratchpadPath, err });
+      throw new Error(
+        `Failed to initialize git repository in scratchpad: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+
     const manifest: Manifest = {
       projectId: normalizedProjectId,
       published: false,
