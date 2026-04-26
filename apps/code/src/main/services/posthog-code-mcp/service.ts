@@ -63,8 +63,6 @@ interface ResolveOptions {
  */
 @injectable()
 export class PosthogCodeMcpService extends TypedEventEmitter<PosthogCodeMcpEvents> {
-  private mcpServer: McpServer | null = null;
-  private transport: StreamableHTTPServerTransport | null = null;
   private httpServer: http.Server | null = null;
   private port: number | null = null;
   private startPromise: Promise<void> | null = null;
@@ -101,7 +99,12 @@ export class PosthogCodeMcpService extends TypedEventEmitter<PosthogCodeMcpEvent
     return this.startPromise;
   }
 
-  private async doStart(): Promise<void> {
+  /**
+   * Build a fresh MCP server instance with both tools registered.
+   * Stateless StreamableHTTP requires a new server + transport per request,
+   * so we factor server creation out of the lifecycle.
+   */
+  private buildMcpServer(): McpServer {
     const mcpServer = new McpServer(
       { name: "posthog-code", version: "1.0.0" },
       { capabilities: { tools: {} } },
@@ -143,27 +146,41 @@ export class PosthogCodeMcpService extends TypedEventEmitter<PosthogCodeMcpEvent
       },
     );
 
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined, // stateless mode
-    });
+    return mcpServer;
+  }
 
-    await mcpServer.connect(transport);
-
-    const httpServer = http.createServer((req, res) => {
-      // The MCP transport is mounted at `/mcp`; reject any other path.
+  private async doStart(): Promise<void> {
+    const httpServer = http.createServer(async (req, res) => {
       const url = new URL(req.url ?? "/", "http://placeholder");
       if (url.pathname !== PosthogCodeMcpService.MCP_PATH) {
         res.writeHead(404);
         res.end("Not found");
         return;
       }
-      void transport.handleRequest(req, res).catch((err) => {
+
+      // Per-request server + transport. The MCP SDK's stateless mode
+      // (`sessionIdGenerator: undefined`) requires this — sharing one
+      // transport across requests works for the first call but breaks tool
+      // discovery on subsequent ones (and on agent reconnect after an app
+      // restart, when the agent re-runs `tools/list`).
+      const server = this.buildMcpServer();
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined,
+      });
+      res.on("close", () => {
+        void transport.close();
+        void server.close();
+      });
+      try {
+        await server.connect(transport);
+        await transport.handleRequest(req, res);
+      } catch (err) {
         log.error("posthog-code MCP transport error", { err });
         if (!res.headersSent) {
           res.writeHead(500);
           res.end("Internal error");
         }
-      });
+      }
     });
 
     await new Promise<void>((resolve, reject) => {
@@ -183,8 +200,6 @@ export class PosthogCodeMcpService extends TypedEventEmitter<PosthogCodeMcpEvent
       });
     });
 
-    this.mcpServer = mcpServer;
-    this.transport = transport;
     this.httpServer = httpServer;
   }
 
@@ -245,23 +260,7 @@ export class PosthogCodeMcpService extends TypedEventEmitter<PosthogCodeMcpEvent
         httpServer.close(() => resolve());
       });
     }
-    if (this.transport) {
-      try {
-        await this.transport.close();
-      } catch (err) {
-        log.warn("Error closing posthog-code MCP transport", { err });
-      }
-    }
-    if (this.mcpServer) {
-      try {
-        await this.mcpServer.close();
-      } catch (err) {
-        log.warn("Error closing posthog-code MCP server", { err });
-      }
-    }
     this.httpServer = null;
-    this.transport = null;
-    this.mcpServer = null;
     this.port = null;
     this.startPromise = null;
     log.info("posthog-code MCP server stopped");

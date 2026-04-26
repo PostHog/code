@@ -68,6 +68,13 @@ vi.mock("@hooks/useAuthenticatedClient", () => ({
   useAuthenticatedClient: () => mockClient,
 }));
 
+vi.mock("@features/posthog-projects/hooks/useCreateProject", () => ({
+  useCreateProject: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+}));
+
 vi.mock("@features/scratchpads/hooks/usePublishScratchpad", () => ({
   usePublishScratchpad: () => ({
     isPending: false,

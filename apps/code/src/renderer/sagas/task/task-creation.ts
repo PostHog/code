@@ -15,7 +15,7 @@ import type {
   Workspace,
   WorkspaceMode,
 } from "@main/services/workspace/schemas";
-import { Saga, type SagaLogger } from "@posthog/shared";
+import { Saga } from "@posthog/shared";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { trpcClient } from "@renderer/trpc";
 import { generateTitleAndSummary } from "@renderer/utils/generateTitle";
@@ -29,6 +29,8 @@ import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
 import { getGhUserTokenOrThrow } from "@utils/github";
 import { logger } from "@utils/logger";
 import { getCachedTask, queryClient } from "@utils/queryClient";
+import { createSagaLogger } from "../sagaLogger";
+import { taskCreationStepConfig } from "../taskCreationStep";
 
 const log = logger.scope("task-creation-saga");
 
@@ -63,13 +65,7 @@ async function generateTaskTitle(
   }
 }
 
-// Adapt our logger to SagaLogger interface
-const sagaLogger: SagaLogger = {
-  info: (message, data) => log.info(message, data),
-  debug: (message, data) => log.debug(message, data),
-  error: (message, data) => log.error(message, data),
-  warn: (message, data) => log.warn(message, data),
-};
+const sagaLogger = createSagaLogger("task-creation-saga");
 
 export interface TaskCreationInput {
   // For opening existing task
@@ -448,8 +444,9 @@ export class TaskCreationSaga extends Saga<
 
     return this.step({
       name: "task_creation",
-      execute: async () => {
-        const result = await this.deps.posthogClient.createTask({
+      ...taskCreationStepConfig(
+        this.deps.posthogClient,
+        {
           description: input.taskDescription ?? input.content ?? "",
           repository: repository ?? undefined,
           github_integration:
@@ -461,13 +458,9 @@ export class TaskCreationSaga extends Saga<
           signal_report_task_relationship: input.signalReportId
             ? SIGNAL_REPORT_TASK_IMPLEMENTATION_RELATIONSHIP
             : undefined,
-        });
-        return result as unknown as Task;
-      },
-      rollback: async (createdTask) => {
-        log.info("Rolling back: deleting task", { taskId: createdTask.id });
-        await this.deps.posthogClient.deleteTask(createdTask.id);
-      },
+        },
+        log,
+      ),
     });
   }
 }

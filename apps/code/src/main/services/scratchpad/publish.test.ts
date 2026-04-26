@@ -1,12 +1,9 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { sanitizeRepoName } from "@shared/utils/repo";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  ScratchpadService,
-  ScratchpadServiceEvent,
-  sanitizeRepoName,
-} from "./service";
+import { ScratchpadService, ScratchpadServiceEvent } from "./service";
 
 const fsPromises = fs.promises;
 

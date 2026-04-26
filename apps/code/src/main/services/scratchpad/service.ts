@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
+import { REPO_NAME_RE, sanitizeRepoName } from "@shared/utils/repo";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
@@ -47,18 +48,12 @@ build/
 *.key
 .next/
 .vite/
+.posthog.json
+.posthog.json.tmp
 `;
 
-const REPO_NAME_RE = /^[A-Za-z0-9._-]+$/;
-
-/**
- * Sanitize a free-form name into something acceptable as a GitHub repo name.
- * Mirrors the directory sanitizer but keeps `.` and `_` as-is.
- */
-export function sanitizeRepoName(name: string): string {
-  const replaced = name.trim().replace(/[^A-Za-z0-9._-]+/g, "-");
-  return replaced.replace(/^-+|-+$/g, "").slice(0, 100);
-}
+// `REPO_NAME_RE` and `sanitizeRepoName` live in `@shared/utils/repo` so the
+// renderer's PublishDialog can validate using the exact same rules.
 
 export const ScratchpadServiceEvent = {
   Created: "created",
@@ -147,24 +142,14 @@ export class ScratchpadService extends TypedEventEmitter<ScratchpadServiceEvents
    */
   public async getScratchpadPath(taskId: string): Promise<string | null> {
     const taskDir = this.getTaskDir(taskId);
-    let entries: string[];
+    let entries: fs.Dirent[];
     try {
-      entries = await fsPromises.readdir(taskDir);
+      entries = await fsPromises.readdir(taskDir, { withFileTypes: true });
     } catch {
       return null;
     }
-    for (const entry of entries) {
-      const full = path.join(taskDir, entry);
-      try {
-        const stat = await fsPromises.stat(full);
-        if (stat.isDirectory()) {
-          return full;
-        }
-      } catch {
-        // skip
-      }
-    }
-    return null;
+    const dir = entries.find((e) => e.isDirectory());
+    return dir ? path.join(taskDir, dir.name) : null;
   }
 
   /**
@@ -526,91 +511,63 @@ export class ScratchpadService extends TypedEventEmitter<ScratchpadServiceEvents
   private async ensureGitignore(scratchpadPath: string): Promise<void> {
     const gitignorePath = path.join(scratchpadPath, ".gitignore");
     try {
-      await fsPromises.access(gitignorePath);
-    } catch {
-      await fsPromises.writeFile(gitignorePath, DEFAULT_GITIGNORE, "utf8");
+      await fsPromises.writeFile(gitignorePath, DEFAULT_GITIGNORE, {
+        flag: "wx",
+        encoding: "utf8",
+      });
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
     }
   }
 
   /**
-   * Walk the scratchpad directory and return relative paths that:
-   *  - are NOT excluded by `.gitignore`, AND
-   *  - have a basename matching one of the secret patterns OR exceed
-   *    `MAX_FILE_BYTES`.
+   * Returns relative paths that would be tracked by `git add .` and either:
+   *  - have a basename matching one of the secret patterns, OR
+   *  - exceed `MAX_FILE_BYTES`.
    *
-   * The gitignore matcher is intentionally minimal: it supports trailing-`/`
-   * directory excludes, `*` globs, and prefix patterns like `.env*`. We always
-   * exclude `.git/` (so retries don't re-flag the repo we just created) and
-   * `.posthog.json{,.tmp}` itself.
+   * Uses `git ls-files --others --cached --exclude-standard -z` so gitignore
+   * semantics (negation, nested gitignores, global gitignore) are handled
+   * correctly without re-implementing them. The scratchpad is always a git
+   * repo by the time we get here (`scaffoldEmpty` runs `git init`), and
+   * `--others` covers the unstaged-but-not-yet-tracked common case at
+   * publish time.
    */
   private async findOffendingFiles(scratchpadPath: string): Promise<string[]> {
-    const ignoreLines = await this.readGitignoreLines(scratchpadPath);
-    const matchers = ignoreLines.map((line) => gitignoreLineToMatcher(line));
+    const stdout = await this.gitListTrackable(scratchpadPath);
+    const candidates = stdout
+      .split("\0")
+      .filter((p) => p.length > 0 && !p.startsWith(".git/"));
+
     const offending: string[] = [];
-
-    const walk = async (dir: string, rel: string): Promise<void> => {
-      let entries: fs.Dirent[];
-      try {
-        entries = await fsPromises.readdir(dir, { withFileTypes: true });
-      } catch {
-        return;
-      }
-      for (const entry of entries) {
-        const childRel = rel ? `${rel}/${entry.name}` : entry.name;
-        // Always skip these — they're either auto-generated or part of the
-        // scratchpad system itself.
-        if (
-          childRel === ".git" ||
-          childRel.startsWith(".git/") ||
-          childRel === MANIFEST_FILE ||
-          childRel === MANIFEST_TMP_FILE
-        ) {
-          continue;
-        }
-        const isDir = entry.isDirectory();
-        if (isMatched(childRel, isDir, matchers)) {
-          continue;
-        }
-        const childAbs = path.join(dir, entry.name);
-        if (isDir) {
-          await walk(childAbs, childRel);
-          continue;
-        }
-        if (!entry.isFile()) continue;
-
-        const basename = entry.name;
+    await Promise.all(
+      candidates.map(async (rel) => {
+        const basename = rel.split("/").pop() ?? rel;
         if (SECRET_FILENAME_PATTERNS.some((re) => re.test(basename))) {
-          offending.push(childRel);
-          continue;
+          offending.push(rel);
+          return;
         }
         try {
-          const stat = await fsPromises.stat(childAbs);
-          if (stat.size > MAX_FILE_BYTES) {
-            offending.push(childRel);
-          }
+          const stat = await fsPromises.stat(path.join(scratchpadPath, rel));
+          if (stat.size > MAX_FILE_BYTES) offending.push(rel);
         } catch {
-          // ignore
+          // file may have been removed mid-check; ignore
         }
-      }
-    };
-
-    await walk(scratchpadPath, "");
+      }),
+    );
     return offending;
   }
 
-  private async readGitignoreLines(scratchpadPath: string): Promise<string[]> {
-    try {
-      const raw = await fsPromises.readFile(
-        path.join(scratchpadPath, ".gitignore"),
-        "utf8",
-      );
-      return raw
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0 && !line.startsWith("#"));
-    } catch {
-      return [];
-    }
+  /**
+   * Override-point for tests; production runs git directly.
+   * Returns NUL-separated paths from `git ls-files`.
+   */
+  protected async gitListTrackable(cwd: string): Promise<string> {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["ls-files", "--others", "--cached", "--exclude-standard", "-z"],
+      { cwd, maxBuffer: 16 * 1024 * 1024 },
+    );
+    return stdout;
   }
 
   private async cleanupLocalGit(scratchpadPath: string): Promise<void> {
@@ -649,58 +606,49 @@ export class ScratchpadService extends TypedEventEmitter<ScratchpadServiceEvents
    */
   public async list(): Promise<ScratchpadListEntry[]> {
     const baseDir = this.getBaseDir();
-    let taskDirs: string[];
+    let taskDirents: fs.Dirent[];
     try {
-      taskDirs = await fsPromises.readdir(baseDir);
+      taskDirents = await fsPromises.readdir(baseDir, { withFileTypes: true });
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       if (code === "ENOENT") return [];
       throw error;
     }
 
-    const entries: ScratchpadListEntry[] = [];
-    for (const taskId of taskDirs) {
-      const taskDir = path.join(baseDir, taskId);
-      let stat: fs.Stats;
-      try {
-        stat = await fsPromises.stat(taskDir);
-      } catch {
-        continue;
-      }
-      if (!stat.isDirectory()) continue;
+    const results = await Promise.all(
+      taskDirents
+        .filter((d) => d.isDirectory())
+        .map(async (taskDirent) => {
+          const taskId = taskDirent.name;
+          const taskDir = path.join(baseDir, taskId);
+          let inner: fs.Dirent[];
+          try {
+            inner = await fsPromises.readdir(taskDir, { withFileTypes: true });
+          } catch {
+            return null;
+          }
+          const scratchpadDir = inner.find((d) => d.isDirectory());
+          if (!scratchpadDir) return null;
 
-      let inner: string[];
-      try {
-        inner = await fsPromises.readdir(taskDir);
-      } catch {
-        continue;
-      }
-
-      for (const name of inner) {
-        const scratchpadPath = path.join(taskDir, name);
-        let innerStat: fs.Stats;
-        try {
-          innerStat = await fsPromises.stat(scratchpadPath);
-        } catch {
-          continue;
-        }
-        if (!innerStat.isDirectory()) continue;
-
-        try {
-          const manifest = await this.readManifestFromPath(scratchpadPath);
-          entries.push({ taskId, name, manifest });
-        } catch (error) {
-          log.warn("Skipping scratchpad with bad manifest", {
-            taskId,
-            name,
-            error,
-          });
-        }
-        // First valid scratchpad dir wins (there should only be one).
-        break;
-      }
-    }
-    return entries;
+          const scratchpadPath = path.join(taskDir, scratchpadDir.name);
+          try {
+            const manifest = await this.readManifestFromPath(scratchpadPath);
+            return {
+              taskId,
+              name: scratchpadDir.name,
+              manifest,
+            } satisfies ScratchpadListEntry;
+          } catch (error) {
+            log.warn("Skipping scratchpad with bad manifest", {
+              taskId,
+              name: scratchpadDir.name,
+              error,
+            });
+            return null;
+          }
+        }),
+    );
+    return results.filter((e): e is ScratchpadListEntry => e !== null);
   }
 
   /**
@@ -722,61 +670,4 @@ export class ScratchpadService extends TypedEventEmitter<ScratchpadServiceEvents
     this.writeChains.set(taskId, tracked);
     return next;
   }
-}
-
-// -----------------------------------------------------------------------------
-// Minimal gitignore matcher
-// -----------------------------------------------------------------------------
-
-interface IgnoreMatcher {
-  /** Compiled regex applied to the relative path. */
-  re: RegExp;
-  /** When true, only matches directories. */
-  dirOnly: boolean;
-  /** When true, this is a negation pattern (`!foo`). */
-  negate: boolean;
-}
-
-function gitignoreLineToMatcher(rawLine: string): IgnoreMatcher {
-  let line = rawLine;
-  let negate = false;
-  if (line.startsWith("!")) {
-    negate = true;
-    line = line.slice(1);
-  }
-  let dirOnly = false;
-  if (line.endsWith("/")) {
-    dirOnly = true;
-    line = line.slice(0, -1);
-  }
-  // Anchor to start if pattern starts with `/`; otherwise match anywhere.
-  const anchored = line.startsWith("/");
-  if (anchored) line = line.slice(1);
-
-  // Build a regex from the glob: `*` => `[^/]*`, escape regex chars.
-  const escaped = line
-    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
-    .replace(/\*/g, "[^/]*");
-  // If the pattern contains a slash, anchor to the start of the path; otherwise
-  // it can match a single path segment anywhere.
-  const containsSlash = line.includes("/");
-  const body =
-    anchored || containsSlash
-      ? `^${escaped}(?:/.*)?$`
-      : `(?:^|/)${escaped}(?:/.*)?$`;
-  return { re: new RegExp(body), dirOnly, negate };
-}
-
-function isMatched(
-  relativePath: string,
-  isDir: boolean,
-  matchers: IgnoreMatcher[],
-): boolean {
-  let matched = false;
-  for (const m of matchers) {
-    if (m.dirOnly && !isDir) continue;
-    if (!m.re.test(relativePath)) continue;
-    matched = !m.negate;
-  }
-  return matched;
 }

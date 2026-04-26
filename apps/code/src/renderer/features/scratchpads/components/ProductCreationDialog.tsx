@@ -25,7 +25,7 @@ import type { ExecutionMode } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { logger } from "@utils/logger";
 import { toast } from "@utils/toast";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePreviewConfig } from "../../task-detail/hooks/usePreviewConfig";
 
 const log = logger.scope("product-creation-dialog");
@@ -53,13 +53,8 @@ export function ProductCreationDialog() {
   const navigateToTask = useNavigationStore((s) => s.navigateToTask);
   const { invalidateTasks } = useCreateTask();
 
-  const {
-    lastUsedAdapter,
-    setLastUsedAdapter,
-    allowBypassPermissions,
-    defaultInitialTaskMode,
-    lastUsedInitialTaskMode,
-  } = useSettingsStore();
+  const { lastUsedAdapter, setLastUsedAdapter, allowBypassPermissions } =
+    useSettingsStore();
   const adapter = lastUsedAdapter ?? "claude";
 
   const {
@@ -109,14 +104,32 @@ export function ProductCreationDialog() {
     [thoughtOption, setConfigOption],
   );
 
-  const adapterDefault = "auto";
-  const modeFallback =
-    defaultInitialTaskMode === "last_used"
-      ? (lastUsedInitialTaskMode ?? adapterDefault)
-      : adapterDefault;
-  const currentExecutionMode =
+  // Scratchpads always default to "auto" regardless of the user's New-task
+  // mode preference — the agent is doing scaffolding from scratch and needs
+  // to run things without per-step approval.
+  const SCRATCHPAD_DEFAULT_MODE: ExecutionMode = "auto";
+  const currentExecutionMode: ExecutionMode =
     getCurrentModeFromConfigOptions(modeOption ? [modeOption] : undefined) ??
-    modeFallback;
+    SCRATCHPAD_DEFAULT_MODE;
+
+  // Force the mode option's value to "auto" once per dialog open. The
+  // preview-config hook seeds modeOption.currentValue from the user's
+  // saved preference; we override that here so the dialog always starts
+  // in "auto", but the user can still pick something else from the
+  // selector after the override has fired.
+  const initialModeApplied = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      initialModeApplied.current = false;
+      return;
+    }
+    if (initialModeApplied.current) return;
+    if (!modeOption || modeOption.type !== "select") return;
+    initialModeApplied.current = true;
+    if (modeOption.currentValue !== SCRATCHPAD_DEFAULT_MODE) {
+      setConfigOption(modeOption.id, SCRATCHPAD_DEFAULT_MODE);
+    }
+  }, [open, modeOption, setConfigOption]);
   const currentModel =
     modelOption?.type === "select" ? modelOption.currentValue : undefined;
   const currentReasoningLevel =
@@ -161,7 +174,7 @@ export function ProductCreationDialog() {
         initialIdea: trimmedIdea,
         rounds: clampRounds(rounds),
         adapter,
-        executionMode: currentExecutionMode as ExecutionMode | undefined,
+        executionMode: currentExecutionMode,
         ...(currentModel ? { model: currentModel } : {}),
         ...(currentReasoningLevel
           ? { reasoningLevel: currentReasoningLevel }
@@ -192,7 +205,7 @@ export function ProductCreationDialog() {
           repoPath: result.data.scratchpadPath,
           initialPrompt: result.data.initialPrompt,
           adapter,
-          executionMode: currentExecutionMode as ExecutionMode | undefined,
+          executionMode: currentExecutionMode,
           ...(currentModel ? { model: currentModel } : {}),
           ...(currentReasoningLevel
             ? { reasoningLevel: currentReasoningLevel }

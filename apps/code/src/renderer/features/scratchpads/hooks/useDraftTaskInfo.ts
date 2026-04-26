@@ -1,18 +1,24 @@
 import { trpc } from "@renderer/trpc";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { isDraftFromManifest } from "../utils/isDraftTask";
+
+/** Coalesce rapid lifecycle events (e.g. publish patches the manifest a few
+ *  times in quick succession) into a single cache invalidation. */
+const INVALIDATE_DEBOUNCE_MS = 150;
 
 /**
  * Returns the set of taskIds that are currently drafts (have a scratchpad
  * manifest with `published: false`).
  *
  * Implementation: a single `scratchpad.list` query. Subscriptions to scratchpad
- * lifecycle events invalidate the cache so the set stays fresh.
+ * lifecycle events invalidate the cache (debounced) so the set stays fresh
+ * without thrashing the sidebar on bursts of manifest updates.
  */
 export function useDraftTaskIds(): Set<string> {
   const queryClient = useQueryClient();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data } = useQuery(
     trpc.scratchpad.list.queryOptions(undefined, {
@@ -20,9 +26,20 @@ export function useDraftTaskIds(): Set<string> {
     }),
   );
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries(trpc.scratchpad.list.pathFilter());
-  };
+  const invalidate = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      void queryClient.invalidateQueries(trpc.scratchpad.list.pathFilter());
+    }, INVALIDATE_DEBOUNCE_MS);
+  }, [queryClient]);
+
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
 
   useSubscription(
     trpc.scratchpad.onCreated.subscriptionOptions(undefined, {

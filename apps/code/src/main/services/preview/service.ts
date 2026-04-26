@@ -44,6 +44,8 @@ interface PreviewProcess {
   cwd: string;
   status: PreviewStatus;
   exitListeners: pty.IDisposable[];
+  /** Cancels the in-flight health probe when the process is killed early. */
+  healthAbort: AbortController;
 }
 
 interface RegisterArgs {
@@ -143,11 +145,13 @@ export class PreviewService extends TypedEventEmitter<PreviewServiceEvents> {
       cwd,
       status: "starting",
       exitListeners: [],
+      healthAbort: new AbortController(),
     };
     this.processes.set(existingKey, proc);
 
     let exited = false;
-    let exitInfo: { exitCode: number; signal?: number } | null = null;
+    type ExitInfo = { exitCode: number; signal?: number };
+    let exitInfo = null as ExitInfo | null;
     const exitListener = ptyProcess.onExit(
       (info: { exitCode: number; signal?: number }) => {
         exited = true;
@@ -188,6 +192,7 @@ export class PreviewService extends TypedEventEmitter<PreviewServiceEvents> {
       isExited: () => exited,
       timeoutMs: HEALTH_TIMEOUT_MS,
       intervalMs: HEALTH_INTERVAL_MS,
+      signal: proc.healthAbort.signal,
     });
 
     if (!healthOk) {
@@ -208,9 +213,7 @@ export class PreviewService extends TypedEventEmitter<PreviewServiceEvents> {
           }s`,
         );
       }
-      const code =
-        (exitInfo as { exitCode: number; signal?: number } | null)?.exitCode ??
-        null;
+      const code = exitInfo?.exitCode ?? null;
       throw new Error(
         `preview "${args.name}" exited before becoming ready (exit code ${code})`,
       );
@@ -318,30 +321,32 @@ export class PreviewService extends TypedEventEmitter<PreviewServiceEvents> {
       return;
     }
     const entries = manifest.preview ?? [];
-    for (const entry of entries) {
-      try {
-        await this.register({
-          taskId,
-          scratchpadRoot,
-          name: entry.name,
-          command: entry.command,
-          port: entry.port,
-          cwd: entry.cwd,
-        });
-      } catch (err) {
-        log.warn("resumeFromManifest: failed to resume preview", {
-          taskId,
-          name: entry.name,
-          err,
-        });
-        this.emit(PreviewServiceEvent.PreviewExited, {
-          taskId,
-          name: entry.name,
-          exitCode: -1,
-          signal: "RESUME_FAILED",
-        });
-      }
-    }
+    await Promise.all(
+      entries.map(async (entry) => {
+        try {
+          await this.register({
+            taskId,
+            scratchpadRoot,
+            name: entry.name,
+            command: entry.command,
+            port: entry.port,
+            cwd: entry.cwd,
+          });
+        } catch (err) {
+          log.warn("resumeFromManifest: failed to resume preview", {
+            taskId,
+            name: entry.name,
+            err,
+          });
+          this.emit(PreviewServiceEvent.PreviewExited, {
+            taskId,
+            name: entry.name,
+            exitCode: -1,
+            signal: "RESUME_FAILED",
+          });
+        }
+      }),
+    );
   }
 
   @preDestroy()
@@ -357,6 +362,7 @@ export class PreviewService extends TypedEventEmitter<PreviewServiceEvents> {
   }
 
   private killProcess(proc: PreviewProcess): void {
+    proc.healthAbort.abort();
     for (const d of proc.exitListeners) {
       try {
         d.dispose();
@@ -374,30 +380,44 @@ export class PreviewService extends TypedEventEmitter<PreviewServiceEvents> {
 
   /**
    * Poll `url` once per `intervalMs` until it returns 2xx, 3xx, or 404
-   * (treated as "the server is up"), the process exits, or `timeoutMs`
-   * elapses. Returns `true` on success, `false` otherwise.
+   * (treated as "the server is up"), the process exits, `signal` aborts,
+   * or `timeoutMs` elapses. Returns `true` on success, `false` otherwise.
    */
   private async waitForHealth(opts: {
     url: string;
     isExited: () => boolean;
     timeoutMs: number;
     intervalMs: number;
+    signal?: AbortSignal;
   }): Promise<boolean> {
     const deadline = Date.now() + opts.timeoutMs;
     while (Date.now() < deadline) {
+      if (opts.signal?.aborted) return false;
       if (opts.isExited()) return false;
       try {
-        const res = await fetch(opts.url, { method: "GET" });
+        const res = await fetch(opts.url, {
+          method: "GET",
+          signal: opts.signal,
+        });
         const code = res.status;
         if ((code >= 200 && code < 400) || code === 404) {
           return true;
         }
       } catch {
-        // Server isn't up yet — keep waiting.
+        // Server isn't up yet (or fetch was aborted) — fall through.
       }
-      await new Promise<void>((resolve) =>
-        setTimeout(resolve, opts.intervalMs),
-      );
+      if (opts.signal?.aborted) return false;
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, opts.intervalMs);
+        opts.signal?.addEventListener(
+          "abort",
+          () => {
+            clearTimeout(timer);
+            resolve();
+          },
+          { once: true },
+        );
+      });
     }
     return false;
   }

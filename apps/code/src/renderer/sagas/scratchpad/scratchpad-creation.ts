@@ -1,21 +1,17 @@
 import type { ContentBlock } from "@agentclientprotocol/sdk";
 import { buildPromptBlocks } from "@features/editor/utils/prompt-builder";
 import type { Workspace } from "@main/services/workspace/schemas";
-import { Saga, type SagaLogger } from "@posthog/shared";
+import { Saga } from "@posthog/shared";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { trpcClient } from "@renderer/trpc";
 import type { ExecutionMode, Task } from "@shared/types";
 import { logger } from "@utils/logger";
+import { createSagaLogger } from "../sagaLogger";
+import { taskCreationStepConfig } from "../taskCreationStep";
 import { buildScaffoldingPrompt } from "./scaffolding-prompt";
 
 const log = logger.scope("scratchpad-creation-saga");
-
-const sagaLogger: SagaLogger = {
-  info: (message, data) => log.info(message, data),
-  debug: (message, data) => log.debug(message, data),
-  error: (message, data) => log.error(message, data),
-  warn: (message, data) => log.warn(message, data),
-};
+const sagaLogger = createSagaLogger("scratchpad-creation-saga");
 
 export interface ScratchpadCreationInput {
   productName: string;
@@ -79,18 +75,15 @@ export class ScratchpadCreationSaga extends Saga<
     // Step 1: Task creation.
     const task = await this.step({
       name: "task_creation",
-      execute: async () => {
-        const result = await this.deps.posthogClient.createTask({
+      ...taskCreationStepConfig(
+        this.deps.posthogClient,
+        {
           description: input.initialIdea,
           title: `Building ${input.productName}`,
           repository: undefined,
-        });
-        return result as unknown as Task;
-      },
-      rollback: async (createdTask) => {
-        log.info("Rolling back: deleting task", { taskId: createdTask.id });
-        await this.deps.posthogClient.deleteTask(createdTask.id);
-      },
+        },
+        log,
+      ),
     });
 
     // Step 2: Scratchpad directory + manifest. Service writes manifest atomically.
