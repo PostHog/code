@@ -162,7 +162,7 @@ describe("ProductCreationDialog", () => {
   it("renders the framing banner, name field, prompt input and project radios", () => {
     renderDialog();
     expect(
-      screen.getByText(/First I ask, then build, then deploy/),
+      screen.getByText(/Let's 1\. clarify, 2\. build, 3\. deploy\./),
     ).toBeInTheDocument();
     expect(screen.getByText(/I'll run up to/)).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Uber for dogs")).toBeInTheDocument();

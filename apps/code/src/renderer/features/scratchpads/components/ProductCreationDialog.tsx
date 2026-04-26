@@ -275,7 +275,7 @@ export function ProductCreationDialog() {
                 className="shrink-0 text-(--accent-11)"
               />
               <Text className="font-medium text-[13px] tracking-tight">
-                First I ask, then build, then deploy.
+                Let's 1. clarify, 2. build, 3. deploy.
               </Text>
             </Flex>
             <Text
@@ -297,10 +297,7 @@ export function ProductCreationDialog() {
                   </SegmentedControl.Item>
                 ))}
               </SegmentedControl.Root>{" "}
-              {rounds === 1 ? "round" : "rounds"} of clarifying questions, then
-              scaffold a stack with PostHog analytics, replay, and error
-              tracking wired from the first commit. A live preview opens beside
-              the chat the moment your dev server is up.
+              {rounds === 1 ? "round" : "rounds"} of clarifying questions, then build it with a live preview, then help you deploy.
             </Text>
           </Flex>
 
