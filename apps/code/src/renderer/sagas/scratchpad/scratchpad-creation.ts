@@ -28,6 +28,11 @@ export interface ScratchpadCreationInput {
    * is `null` and the user picks/creates a project at publish time.
    */
   projectId?: number;
+  /**
+   * Optional file paths the user attached. Surface as `resource_link` blocks
+   * in the agent's first turn so the agent can read them while clarifying.
+   */
+  filePaths?: string[];
   /** Optional agent execution preferences forwarded to `connectToTask`. */
   adapter?: "claude" | "codex";
   model?: string;
@@ -71,15 +76,13 @@ export class ScratchpadCreationSaga extends Saga<
   ): Promise<ScratchpadCreationOutput> {
     const projectId: number | null = input.projectId ?? null;
 
-    // Step 1: Task creation. Title is fixed; the product name lives in the
-    // scratchpad directory and the agent's first message, so the sidebar
-    // doesn't need to repeat it.
+    // Step 1: Task creation.
     const task = await this.step({
       name: "task_creation",
       execute: async () => {
         const result = await this.deps.posthogClient.createTask({
           description: input.initialIdea,
-          title: "Building from scratch",
+          title: `Building ${input.productName}`,
           repository: undefined,
         });
         return result as unknown as Task;
@@ -169,7 +172,7 @@ export class ScratchpadCreationSaga extends Saga<
     });
     const initialPrompt = await buildPromptBlocks(
       scaffoldingPromptText,
-      [],
+      input.filePaths ?? [],
       scratchpadPath,
     );
 

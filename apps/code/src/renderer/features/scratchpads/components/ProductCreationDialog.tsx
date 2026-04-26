@@ -1,6 +1,16 @@
+import { PromptInput } from "@features/message-editor/components/PromptInput";
+import type { EditorHandle } from "@features/message-editor/types";
+import {
+  contentToXml,
+  extractFilePaths,
+} from "@features/message-editor/utils/content";
 import { ProjectPicker } from "@features/scratchpads/components/ProjectPicker";
 import { useScratchpadCreationStore } from "@features/scratchpads/stores/scratchpadCreationStore";
+import { ReasoningLevelSelector } from "@features/sessions/components/ReasoningLevelSelector";
+import { UnifiedModelSelector } from "@features/sessions/components/UnifiedModelSelector";
 import { getSessionService } from "@features/sessions/service/service";
+import { getCurrentModeFromConfigOptions } from "@features/sessions/stores/sessionStore";
+import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useCreateTask } from "@features/tasks/hooks/useTasks";
 import { useAuthenticatedClient } from "@hooks/useAuthenticatedClient";
 import { RocketIcon } from "@radix-ui/react-icons";
@@ -11,14 +21,15 @@ import {
   RadioGroup,
   SegmentedControl,
   Text,
-  TextArea,
   TextField,
 } from "@radix-ui/themes";
 import { ScratchpadCreationSaga } from "@renderer/sagas/scratchpad/scratchpad-creation";
+import type { ExecutionMode } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { logger } from "@utils/logger";
 import { toast } from "@utils/toast";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { usePreviewConfig } from "../../task-detail/hooks/usePreviewConfig";
 
 const log = logger.scope("product-creation-dialog");
 
@@ -45,8 +56,27 @@ export function ProductCreationDialog() {
   const navigateToTask = useNavigationStore((s) => s.navigateToTask);
   const { invalidateTasks } = useCreateTask();
 
+  const {
+    lastUsedAdapter,
+    setLastUsedAdapter,
+    allowBypassPermissions,
+    defaultInitialTaskMode,
+    lastUsedInitialTaskMode,
+  } = useSettingsStore();
+  const adapter = lastUsedAdapter ?? "claude";
+
+  const {
+    modeOption,
+    modelOption,
+    thoughtOption,
+    isLoading: isPreviewLoading,
+    setConfigOption,
+  } = usePreviewConfig(adapter);
+
+  const editorRef = useRef<EditorHandle>(null);
+  const [editorIsEmpty, setEditorIsEmpty] = useState(true);
+
   const [productName, setProductName] = useState("");
-  const [initialIdea, setInitialIdea] = useState("");
   const [rounds, setRounds] = useState<number>(DEFAULT_ROUNDS);
   const [projectMode, setProjectMode] = useState<ProjectMode>("later");
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
@@ -56,25 +86,60 @@ export function ProductCreationDialog() {
   const isSubmitting = step === "submitting";
 
   const trimmedName = productName.trim();
-  const trimmedIdea = initialIdea.trim();
   const projectChoiceValid =
     projectMode === "later" || selectedProjectId !== null;
   const canSubmit =
     !isSubmitting &&
     trimmedName.length > 0 &&
-    trimmedIdea.length > 0 &&
+    !editorIsEmpty &&
     projectChoiceValid;
+
+  const handleModeChange = useCallback(
+    (value: string) => {
+      if (modeOption) setConfigOption(modeOption.id, value);
+    },
+    [modeOption, setConfigOption],
+  );
+  const handleModelChange = useCallback(
+    (value: string) => {
+      if (modelOption) setConfigOption(modelOption.id, value);
+    },
+    [modelOption, setConfigOption],
+  );
+  const handleThoughtChange = useCallback(
+    (value: string) => {
+      if (thoughtOption) setConfigOption(thoughtOption.id, value);
+    },
+    [thoughtOption, setConfigOption],
+  );
+
+  const adapterDefault = adapter === "codex" ? "auto" : "plan";
+  const modeFallback =
+    defaultInitialTaskMode === "last_used"
+      ? (lastUsedInitialTaskMode ?? adapterDefault)
+      : adapterDefault;
+  const currentExecutionMode =
+    getCurrentModeFromConfigOptions(modeOption ? [modeOption] : undefined) ??
+    modeFallback;
+  const currentModel =
+    modelOption?.type === "select" ? modelOption.currentValue : undefined;
+  const currentReasoningLevel =
+    thoughtOption?.type === "select" ? thoughtOption.currentValue : undefined;
+
+  const resetForm = () => {
+    editorRef.current?.clear();
+    setProductName("");
+    setRounds(DEFAULT_ROUNDS);
+    setProjectMode("later");
+    setSelectedProjectId(null);
+    setEditorIsEmpty(true);
+  };
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
       if (isSubmitting) return;
       closeDialog();
-      // Reset form state for next time the user opens.
-      setProductName("");
-      setInitialIdea("");
-      setRounds(DEFAULT_ROUNDS);
-      setProjectMode("later");
-      setSelectedProjectId(null);
+      resetForm();
       reset();
     }
   };
@@ -86,6 +151,14 @@ export function ProductCreationDialog() {
     setStep("submitting");
 
     try {
+      const editor = editorRef.current;
+      if (!editor) throw new Error("Editor unavailable");
+
+      const content = editor.getContent();
+      const initialIdea = contentToXml(content).trim();
+      if (!initialIdea) throw new Error("Tell me what to build");
+      const filePaths = extractFilePaths(content);
+
       let projectId: number | undefined;
       if (projectMode === "existing") {
         if (selectedProjectId === null) {
@@ -98,8 +171,15 @@ export function ProductCreationDialog() {
 
       const result = await saga.run({
         productName: trimmedName,
-        initialIdea: trimmedIdea,
+        initialIdea,
         rounds: clampRounds(rounds),
+        adapter,
+        executionMode: currentExecutionMode as ExecutionMode | undefined,
+        ...(currentModel ? { model: currentModel } : {}),
+        ...(currentReasoningLevel
+          ? { reasoningLevel: currentReasoningLevel }
+          : {}),
+        ...(filePaths.length > 0 ? { filePaths } : {}),
         ...(projectId !== undefined ? { projectId } : {}),
       });
 
@@ -114,32 +194,26 @@ export function ProductCreationDialog() {
       }
 
       // Prime the tasks-list cache so the sidebar shows the new task
-      // immediately and downstream consumers (like task-detail's task
-      // lookup) can resolve it without waiting for the next 30s poll.
+      // immediately.
       invalidateTasks(result.data.task);
 
-      // Close the dialog and navigate to the new task BEFORE we kick off
-      // the agent connection. The agent connect can take a few seconds; we
-      // don't want to keep the dialog spinning while the user could be
-      // watching the new task screen instead.
       closeDialog();
       reset();
-      setProductName("");
-      setInitialIdea("");
-      setRounds(DEFAULT_ROUNDS);
-      setProjectMode("later");
-      setSelectedProjectId(null);
+      resetForm();
 
       void navigateToTask(result.data.task);
 
-      // Fire-and-forget the agent connection. If it fails the user is
-      // already on the task screen and we surface the error via a toast;
-      // the workspace stays in place so they can retry from there.
       void getSessionService()
         .connectToTask({
           task: result.data.task,
           repoPath: result.data.scratchpadPath,
           initialPrompt: result.data.initialPrompt,
+          adapter,
+          executionMode: currentExecutionMode as ExecutionMode | undefined,
+          ...(currentModel ? { model: currentModel } : {}),
+          ...(currentReasoningLevel
+            ? { reasoningLevel: currentReasoningLevel }
+            : {}),
         })
         .catch((err) => {
           log.error("Agent session failed to connect after scaffold", { err });
@@ -159,7 +233,7 @@ export function ProductCreationDialog() {
 
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
-      <Dialog.Content maxWidth="520px" size="2">
+      <Dialog.Content maxWidth="640px" size="2">
         <Flex
           direction="column"
           gap="3"
@@ -212,13 +286,44 @@ export function ProductCreationDialog() {
             <Text color="gray" className="text-[13px]">
               What would you like me to build?
             </Text>
-            <TextArea
-              value={initialIdea}
-              onChange={(e) => setInitialIdea(e.target.value)}
+            <PromptInput
+              ref={editorRef}
+              sessionId="product-creation-dialog"
               placeholder="Web app to get a dog delivered on demand, or something."
-              size="2"
-              rows={5}
               disabled={isSubmitting}
+              isLoading={isSubmitting}
+              clearOnSubmit={false}
+              submitDisabledExternal={!canSubmit}
+              modeOption={modeOption}
+              onModeChange={handleModeChange}
+              allowBypassPermissions={allowBypassPermissions}
+              enableCommands
+              enableBashMode={false}
+              modelSelector={
+                <UnifiedModelSelector
+                  modelOption={modelOption}
+                  adapter={adapter}
+                  onAdapterChange={setLastUsedAdapter}
+                  disabled={isSubmitting}
+                  isConnecting={isPreviewLoading}
+                  onModelChange={handleModelChange}
+                />
+              }
+              reasoningSelector={
+                !isPreviewLoading && (
+                  <ReasoningLevelSelector
+                    thoughtOption={thoughtOption}
+                    adapter={adapter}
+                    onChange={handleThoughtChange}
+                    disabled={isSubmitting}
+                  />
+                )
+              }
+              onEmptyChange={setEditorIsEmpty}
+              onSubmitClick={handleSubmit}
+              onSubmit={() => {
+                if (canSubmit) handleSubmit();
+              }}
             />
           </Flex>
 
