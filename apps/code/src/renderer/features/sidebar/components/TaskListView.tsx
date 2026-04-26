@@ -243,7 +243,7 @@ export function TaskListView({
   const handleTrash = useCallback(
     (taskId: string) => {
       const confirmed = window.confirm(
-        "Delete this draft scratchpad? This will remove the local files, kill any running preview, and delete the auto-created PostHog project. This cannot be undone.",
+        "Delete this draft scratchpad? This will remove the local files, kill any running preview, and delete the task. The linked PostHog project (if any) is left untouched. This cannot be undone.",
       );
       if (!confirmed) return;
       const nav = useNavigationStore.getState();
