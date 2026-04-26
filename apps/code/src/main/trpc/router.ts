@@ -25,7 +25,6 @@ import { mcpCallbackRouter } from "./routers/mcp-callback";
 import { notificationRouter } from "./routers/notification";
 import { oauthRouter } from "./routers/oauth";
 import { osRouter } from "./routers/os";
-import { posthogCodeMcpRouter } from "./routers/posthog-code-mcp";
 import { previewRouter } from "./routers/preview";
 import { processTrackingRouter } from "./routers/process-tracking";
 import { provisioningRouter } from "./routers/provisioning";
@@ -68,7 +67,6 @@ export const trpcRouter = router({
   oauth: oauthRouter,
   logs: logsRouter,
   os: osRouter,
-  posthogCodeMcp: posthogCodeMcpRouter,
   preview: previewRouter,
   processTracking: processTrackingRouter,
   provisioning: provisioningRouter,

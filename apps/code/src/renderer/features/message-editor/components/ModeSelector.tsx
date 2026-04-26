@@ -95,7 +95,7 @@ export function ModeSelector({
     options.find((opt) => opt.value === currentValue)?.name ?? currentValue;
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         render={
           <Button

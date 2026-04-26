@@ -16,8 +16,6 @@ const sagaLogger = createSagaLogger("scratchpad-creation-saga");
 export interface ScratchpadCreationInput {
   productName: string;
   initialIdea: string;
-  /** Clamped 1..5 by the caller. */
-  rounds: number;
   /**
    * Optional. When provided, the user picked an existing project — the saga
    * will NOT delete it on rollback. When omitted, the manifest's `projectId`
@@ -159,7 +157,6 @@ export class ScratchpadCreationSaga extends Saga<
       scratchpadPath,
       initialIdea: input.initialIdea,
       productName: input.productName,
-      rounds: input.rounds,
       projectId,
       taskId: task.id,
     });

@@ -162,9 +162,11 @@ describe("ProductCreationDialog", () => {
   it("renders the framing banner, name field, prompt input and project radios", () => {
     renderDialog();
     expect(
-      screen.getByText(/Let's 1\. clarify, 2\. build, 3\. deploy\./),
+      screen.getByText(/Let's clarify, build, and deploy/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/I'll run up to/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/I'll ask a few quick clarifying questions/),
+    ).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Uber for dogs")).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText(/Web app to get a dog delivered/i),
@@ -191,7 +193,6 @@ describe("ProductCreationDialog", () => {
     expect(input).toMatchObject({
       productName: "My Product",
       initialIdea: "An idea",
-      rounds: 3,
     });
     expect(input.projectId).toBeUndefined();
   });
@@ -213,7 +214,6 @@ describe("ProductCreationDialog", () => {
     expect(input).toMatchObject({
       productName: "My Product",
       initialIdea: "An idea",
-      rounds: 3,
       projectId: 42,
     });
   });

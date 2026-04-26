@@ -36,7 +36,7 @@ export function ReasoningLevelSelector({
   const triggerLabel = `${adapter === "codex" ? "Reasoning" : "Effort"}: ${activeLabel}`;
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         render={
           <Button

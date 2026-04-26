@@ -106,7 +106,7 @@ export class AgentAuthAdapter {
     });
 
     // Register the in-process PostHog Code MCP server. Surfaces tools like
-    // `posthog_code__askClarification` to the agent. Runs on its own loopback
+    // `posthog_code__registerPreview` to the agent. Runs on its own loopback
     // port — does not go through `mcp-proxy` since that proxy is geared for
     // remote token-rotating servers.
     await this.posthogCodeMcp.start();

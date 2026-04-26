@@ -83,7 +83,7 @@ export function UnifiedModelSelector({
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         render={
           <Button

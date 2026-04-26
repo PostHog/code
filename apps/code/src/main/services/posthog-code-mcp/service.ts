@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import http from "node:http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -12,54 +11,22 @@ import {
 } from "../preview/schemas";
 import type { PreviewService } from "../preview/service";
 import type { ScratchpadService } from "../scratchpad/service";
-import {
-  type AskClarificationInput,
-  type AskClarificationOutput,
-  askClarificationInputSchema,
-  askClarificationOutputSchema,
-  type ClarificationAnswer,
-  type ClarificationRequestedEventPayload,
-  type ClarificationResolvedEventPayload,
-} from "./schemas";
 
 const log = logger.scope("posthog-code-mcp");
 
-export const PosthogCodeMcpEvent = {
-  ClarificationRequested: "clarificationRequested",
-  ClarificationResolved: "clarificationResolved",
-} as const;
-
-export interface PosthogCodeMcpEvents {
-  [PosthogCodeMcpEvent.ClarificationRequested]: ClarificationRequestedEventPayload;
-  [PosthogCodeMcpEvent.ClarificationResolved]: ClarificationResolvedEventPayload;
-}
-
-interface PendingRequest {
-  resolve: (output: AskClarificationOutput) => void;
-  reject: (error: Error) => void;
-}
-
-interface ResolveOptions {
-  answers: ClarificationAnswer[];
-  stop?: boolean;
-}
+// Event channel reserved for future tools — no events emitted today since
+// `askClarification` (the only consumer) was removed in favour of Claude's
+// built-in `AskUserQuestion` tool.
+type PosthogCodeMcpEvents = Record<string, never>;
 
 /**
  * In-process MCP server exposing PostHog Code-specific tools to the agent.
  *
- * Currently exposes a single tool, `askClarification`, which the agent uses
- * during the Socratic scaffolding flow to surface a round of clarification
- * questions to the user. The tool call resolves only once the user submits
- * the form rendered by `ClarificationBlock` in the renderer.
- *
- * The bridge between the main-process tool handler and the renderer is:
- *   1. `askClarification` is invoked → service emits `ClarificationRequested`
- *      and stores a pending Promise keyed by request ID.
- *   2. Renderer receives the event via tRPC subscription and shows the form.
- *   3. User submits → renderer calls `posthogCodeMcp.resolveClarification`,
- *      which calls `resolveRequest()` on this service.
- *   4. Pending Promise resolves with the user's answers, the tool returns
- *      to the agent.
+ * Currently exposes a single tool, `registerPreview`, used by the agent to
+ * announce a running dev server so the host can spawn the supervised
+ * process and open a Preview tab. Clarification questions during scaffolding
+ * are handled by Claude's built-in `AskUserQuestion` tool — we don't need
+ * a custom MCP equivalent.
  */
 @injectable()
 export class PosthogCodeMcpService extends TypedEventEmitter<PosthogCodeMcpEvents> {
@@ -75,11 +42,6 @@ export class PosthogCodeMcpService extends TypedEventEmitter<PosthogCodeMcpEvent
   ) {
     super();
   }
-
-  /** Map of request ID → pending tool-call promise resolvers. */
-  private readonly pending = new Map<string, PendingRequest>();
-  /** Total rounds the tool has been invoked since the service started. */
-  private roundsCalled = 0;
 
   /** The HTTP path the MCP transport accepts. */
   public static readonly MCP_PATH = "/mcp";
@@ -100,7 +62,7 @@ export class PosthogCodeMcpService extends TypedEventEmitter<PosthogCodeMcpEvent
   }
 
   /**
-   * Build a fresh MCP server instance with both tools registered.
+   * Build a fresh MCP server instance with all tools registered.
    * Stateless StreamableHTTP requires a new server + transport per request,
    * so we factor server creation out of the lifecycle.
    */
@@ -108,24 +70,6 @@ export class PosthogCodeMcpService extends TypedEventEmitter<PosthogCodeMcpEvent
     const mcpServer = new McpServer(
       { name: "posthog-code", version: "1.0.0" },
       { capabilities: { tools: {} } },
-    );
-
-    mcpServer.registerTool(
-      "askClarification",
-      {
-        title: "Ask the user a round of clarification questions",
-        description:
-          "Surface a round of Socratic questions to the user. Each question " +
-          "carries a prefilled best-guess answer; the user can accept the " +
-          "defaults or override any of them. The user may also choose to " +
-          "stop further clarification rounds entirely.",
-        inputSchema: askClarificationInputSchema.shape,
-        outputSchema: askClarificationOutputSchema.shape,
-      },
-      async (rawInput) => {
-        const input = askClarificationInputSchema.parse(rawInput);
-        return this.handleAskClarification(input);
-      },
     );
 
     mcpServer.registerTool(
@@ -214,46 +158,8 @@ export class PosthogCodeMcpService extends TypedEventEmitter<PosthogCodeMcpEvent
     return `http://127.0.0.1:${this.port}${PosthogCodeMcpService.MCP_PATH}`;
   }
 
-  /**
-   * Resolve a pending clarification request with the user's answers.
-   * Called from the tRPC mutation handler after the renderer submits the form.
-   *
-   * Returns true if a pending request matched; false if no such request
-   * existed (already resolved or unknown ID).
-   */
-  public resolveRequest(requestId: string, options: ResolveOptions): boolean {
-    const entry = this.pending.get(requestId);
-    if (!entry) {
-      log.warn("Tried to resolve unknown clarification request", { requestId });
-      return false;
-    }
-    this.pending.delete(requestId);
-    entry.resolve({ answers: options.answers, stop: options.stop });
-    this.emit(PosthogCodeMcpEvent.ClarificationResolved, {
-      requestId,
-      answers: options.answers,
-      stop: options.stop,
-    });
-    return true;
-  }
-
-  /**
-   * Get the current count of how many `askClarification` rounds have run since
-   * the service started. Test helper.
-   */
-  public getRoundsCalled(): number {
-    return this.roundsCalled;
-  }
-
   @preDestroy()
   async stop(): Promise<void> {
-    // Reject any outstanding tool calls so the agent's tool promise resolves
-    // rather than hanging forever during teardown.
-    for (const [, pending] of this.pending) {
-      pending.reject(new Error("posthog-code MCP server is shutting down"));
-    }
-    this.pending.clear();
-
     const httpServer = this.httpServer;
     if (httpServer) {
       await new Promise<void>((resolve) => {
@@ -264,61 +170,6 @@ export class PosthogCodeMcpService extends TypedEventEmitter<PosthogCodeMcpEvent
     this.port = null;
     this.startPromise = null;
     log.info("posthog-code MCP server stopped");
-  }
-
-  /**
-   * Tool handler for `askClarification`. Public for unit tests; under normal
-   * operation it's called by the MCP server runtime.
-   */
-  public async handleAskClarification(input: AskClarificationInput): Promise<{
-    content: Array<{ type: "text"; text: string }>;
-    structuredContent?: AskClarificationOutput;
-    isError?: boolean;
-  }> {
-    // Round-cap enforcement. UX/cost guard, not a security boundary — the
-    // tool returns a structured error so the agent can recover and proceed
-    // to scaffolding rather than retrying forever.
-    if (input.roundIndex >= input.roundsTotal) {
-      const message = `Round cap reached (you've already used ${input.roundsTotal}/${input.roundsTotal} rounds). Please proceed to scaffolding.`;
-      log.info("askClarification cap hit", {
-        roundIndex: input.roundIndex,
-        roundsTotal: input.roundsTotal,
-      });
-      return {
-        content: [{ type: "text", text: message }],
-        isError: true,
-      };
-    }
-
-    this.roundsCalled += 1;
-    const requestId = randomUUID();
-
-    const pending = new Promise<AskClarificationOutput>((resolve, reject) => {
-      this.pending.set(requestId, { resolve, reject });
-    });
-
-    this.emit(PosthogCodeMcpEvent.ClarificationRequested, {
-      requestId,
-      input,
-    });
-
-    let output: AskClarificationOutput;
-    try {
-      output = await pending;
-    } catch (err) {
-      this.pending.delete(requestId);
-      const message =
-        err instanceof Error ? err.message : "Clarification request failed";
-      return {
-        content: [{ type: "text", text: message }],
-        isError: true,
-      };
-    }
-
-    return {
-      content: [{ type: "text", text: JSON.stringify(output) }],
-      structuredContent: output,
-    };
   }
 
   /**
