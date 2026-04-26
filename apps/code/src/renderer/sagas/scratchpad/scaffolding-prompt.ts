@@ -47,6 +47,8 @@ export function buildScaffoldingPrompt(input: ScaffoldingPromptInput): string {
     "",
     `2. **Scaffold.** Pick a production-grade, simple, mainstream stack appropriate for the product. Run the necessary scaffolding commands inside \`${scratchpadPath}\` (e.g. \`pnpm create vite\`, \`pnpm create next-app\`, \`cargo new\`, etc.). The directory is already a fresh \`git\` repo on \`main\` with no commits — you can use \`git\` normally, but **do NOT run \`git init\`** in subdirectories or scaffolders that try to (pass \`--no-git\`/equivalent flags). Do not add deployment scripts or hosting configuration.`,
     "",
+    "   **For any product with a UI, design with intentionality.** If Anthropic's `frontend-design` skill is available in this session, invoke it with `/frontend-design` and follow its guidance. If it isn't available, hold yourself to the same bar: pick a clear aesthetic direction (bold/minimal, editorial, brutalist, refined, playful, etc.), commit to it across typography (no Inter/Arial/Roboto by default — pick something distinctive), color (dominant + sharp accents, not timid evenly-distributed palettes), spacing, and motion. Avoid generic AI-generated styling: cliché purple gradients on white, predictable layouts, cookie-cutter components. Make at least one unforgettable choice.",
+    "",
     [
       "3. **PostHog instrumentation.** Run these slash-prompts in order, recovering inside your own loop if any step fails or installs the SDK out of order:",
       "   - `/instrument-integration`",
