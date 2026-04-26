@@ -57,6 +57,8 @@ export function ProductCreationDialog() {
     setConfigOption,
   } = usePreviewConfig(adapter);
 
+  const menuPortalRef = useRef<HTMLDivElement>(null);
+
   const [productName, setProductName] = useState("");
   const [initialIdea, setInitialIdea] = useState("");
   const [projectMode, setProjectMode] = useState<ProjectMode>("later");
@@ -372,6 +374,7 @@ export function ProductCreationDialog() {
               onChange={handleModeChange}
               allowBypassPermissions={allowBypassPermissions}
               disabled={isSubmitting}
+              portalContainer={menuPortalRef}
             />
             <UnifiedModelSelector
               modelOption={modelOption}
@@ -380,6 +383,7 @@ export function ProductCreationDialog() {
               disabled={isSubmitting}
               isConnecting={isPreviewLoading}
               onModelChange={handleModelChange}
+              portalContainer={menuPortalRef}
             />
             {!isPreviewLoading && (
               <ReasoningLevelSelector
@@ -387,6 +391,7 @@ export function ProductCreationDialog() {
                 adapter={adapter}
                 onChange={handleThoughtChange}
                 disabled={isSubmitting}
+                portalContainer={menuPortalRef}
               />
             )}
           </Flex>
@@ -412,6 +417,7 @@ export function ProductCreationDialog() {
             </Button>
           </Flex>
         </Flex>
+        <div ref={menuPortalRef} />
       </Dialog.Content>
     </Dialog.Root>
   );
