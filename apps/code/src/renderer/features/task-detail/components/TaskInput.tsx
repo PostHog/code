@@ -668,9 +668,7 @@ export function TaskInput({
               onClick={openProductCreationDialog}
             >
               <RocketIcon className="h-3 w-3" />
-              <Text className="text-[12px]">
-                Or scaffold a brand-new product
-              </Text>
+              <Text className="text-[12px]">Or scaffold a brand-new app</Text>
             </Button>
           </Flex>
         </Flex>

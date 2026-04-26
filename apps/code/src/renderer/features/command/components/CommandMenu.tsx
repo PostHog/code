@@ -200,11 +200,11 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
                 <Text className="text-[13px]">New task</Text>
               </Command.Item>
               <Command.Item
-                value="Create new product"
-                onSelect={runAndClose(openProductCreationDialog, "new-product")}
+                value="Create new app"
+                onSelect={runAndClose(openProductCreationDialog, "new-app")}
               >
                 <RocketIcon className="mr-3 h-3 w-3 text-gray-11" />
-                <Text className="text-[13px]">New product</Text>
+                <Text className="text-[13px]">New app</Text>
               </Command.Item>
             </Command.Group>
 

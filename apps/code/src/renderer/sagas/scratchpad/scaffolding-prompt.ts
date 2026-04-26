@@ -33,7 +33,7 @@ export function buildScaffoldingPrompt(input: ScaffoldingPromptInput): string {
   } = input;
 
   return [
-    `You are scaffolding a brand-new product called **${productName}** in \`${scratchpadPath}\`. The user has given you the following idea:`,
+    `You are scaffolding a brand-new app called **${productName}** in \`${scratchpadPath}\`. The user has given you the following idea:`,
     "",
     "---",
     initialIdea,

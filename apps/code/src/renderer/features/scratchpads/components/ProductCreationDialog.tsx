@@ -187,7 +187,7 @@ export function ProductCreationDialog() {
           failedStep: result.failedStep,
           error: result.error,
         });
-        setError(result.error ?? "Failed to create product");
+        setError(result.error ?? "Failed to create app");
         setStep("idle");
         return;
       }
@@ -225,7 +225,7 @@ export function ProductCreationDialog() {
     } catch (error) {
       log.error("Scratchpad creation threw", { error });
       const message =
-        error instanceof Error ? error.message : "Failed to create product";
+        error instanceof Error ? error.message : "Failed to create app";
       setError(message);
       setStep("idle");
     }
@@ -238,7 +238,7 @@ export function ProductCreationDialog() {
           <Dialog.Title size="4" className="m-0">
             <Flex align="center" gap="2">
               <RocketIcon className="text-(--accent-11)" />
-              Preparing your product
+              Preparing your app
             </Flex>
           </Dialog.Title>
           <PreparingMessages />
@@ -258,7 +258,7 @@ export function ProductCreationDialog() {
           <Dialog.Title size="4" className="m-0">
             <Flex align="center" gap="2">
               <RocketIcon className="text-(--accent-11)" />
-              Create a new product
+              Create a new app
             </Flex>
           </Dialog.Title>
 
