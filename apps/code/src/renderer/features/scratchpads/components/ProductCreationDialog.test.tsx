@@ -115,15 +115,18 @@ describe("ProductCreationDialog", () => {
 
   it("defaults rounds to 3 and reflects choices in the header copy", () => {
     renderDialog();
+    // The rounds selector is inlined into the sentence, so the text node is
+    // split across the SegmentedControl element. Match by checked radio + the
+    // surrounding copy fragments.
+    expect(screen.getByText(/We'll ask up to/)).toBeInTheDocument();
     expect(
-      screen.getByText(/We'll ask up to 3 rounds of clarifying questions/),
+      screen.getByText(/of clarifying questions to shape your product\./),
     ).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "3" })).toBeChecked();
 
     // Switch to 5
     fireEvent.click(screen.getByRole("radio", { name: "5" }));
-    expect(
-      screen.getByText(/We'll ask up to 5 rounds of clarifying questions/),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "5" })).toBeChecked();
 
     // The selector caps at 5: there is no "6" option rendered.
     expect(screen.queryByRole("radio", { name: "6" })).toBeNull();

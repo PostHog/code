@@ -154,20 +154,16 @@ export function ProductCreationDialog() {
             Create a new product
           </Dialog.Title>
 
-          <Flex
-            align="center"
-            justify="between"
-            gap="3"
-            className="rounded-(--radius-2) border border-(--gray-5) bg-(--gray-2) px-3 py-2"
+          <Text
+            as="div"
+            className="flex flex-wrap items-center gap-2 rounded-(--radius-2) border border-(--gray-5) bg-(--gray-2) px-3 py-2 text-(--gray-12) text-[13px]"
           >
-            <Text className="text-(--gray-12) text-[13px]">
-              We'll ask up to {rounds} rounds of clarifying questions to shape
-              your product.
-            </Text>
+            We'll ask up to
             <SegmentedControl.Root
               size="1"
               value={String(rounds)}
               onValueChange={(v) => setRounds(clampRounds(Number(v)))}
+              aria-label="Clarification rounds"
             >
               {ROUND_OPTIONS.map((n) => (
                 <SegmentedControl.Item key={n} value={String(n)}>
@@ -175,7 +171,9 @@ export function ProductCreationDialog() {
                 </SegmentedControl.Item>
               ))}
             </SegmentedControl.Root>
-          </Flex>
+            {rounds === 1 ? "round" : "rounds"} of clarifying questions to shape
+            your product.
+          </Text>
 
           <Flex direction="column" gap="1">
             <Text color="gray" className="text-[13px]">
