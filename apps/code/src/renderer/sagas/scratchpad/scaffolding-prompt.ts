@@ -39,6 +39,8 @@ export function buildScaffoldingPrompt(input: ScaffoldingPromptInput): string {
     initialIdea,
     "---",
     "",
+    "**Before you start anything else**, send a short message to the user (one or two sentences) telling them what to expect: that you'll ask a few clarifying questions, then scaffold the project, install dependencies, and start a dev server — and that **the moment the dev server is up a preview tab will open automatically**. Then proceed with the workflow below.",
+    "",
     "Follow this workflow:",
     "",
     `1. **Socratic clarification.** Before writing any code, run up to **${rounds}** rounds of Socratic clarification using the \`posthog_code__askClarification\` tool. Each round may include multiple questions; **every question must include a \`prefilledAnswer\`** representing your best guess so the user can accept defaults with one keystroke. Cover at minimum: app type (web/mobile/CLI/etc.), stack choice (your recommendation; the user can override), and any product-specific behaviour you can't safely guess. PostHog instrumentation is implicit — don't ask about it. Skipping clarification entirely is allowed when the request is fully specified, but encouraged for at least one round otherwise.`,
