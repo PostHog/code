@@ -3,10 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockScratchpadCreate = vi.hoisted(() => vi.fn());
 const mockScratchpadDelete = vi.hoisted(() => vi.fn());
+const mockAddFolder = vi.hoisted(() => vi.fn());
 const mockWorkspaceCreate = vi.hoisted(() => vi.fn());
 const mockWorkspaceDelete = vi.hoisted(() => vi.fn());
-const mockConnectToTask = vi.hoisted(() => vi.fn());
-const mockDisconnectFromTask = vi.hoisted(() => vi.fn());
 
 vi.mock("@renderer/trpc", () => ({
   trpcClient: {
@@ -14,18 +13,14 @@ vi.mock("@renderer/trpc", () => ({
       create: { mutate: mockScratchpadCreate },
       delete: { mutate: mockScratchpadDelete },
     },
+    folders: {
+      addFolder: { mutate: mockAddFolder },
+    },
     workspace: {
       create: { mutate: mockWorkspaceCreate },
       delete: { mutate: mockWorkspaceDelete },
     },
   },
-}));
-
-vi.mock("@features/sessions/service/service", () => ({
-  getSessionService: () => ({
-    connectToTask: mockConnectToTask,
-    disconnectFromTask: mockDisconnectFromTask,
-  }),
 }));
 
 vi.mock("@utils/logger", () => ({
@@ -42,6 +37,7 @@ vi.mock("@utils/logger", () => ({
 import { ScratchpadCreationSaga } from "./scratchpad-creation";
 
 const SCRATCHPAD_PATH = "/userData/scratchpads/task-123/uber-for-dogs";
+const FOLDER_ID = "folder-uuid-1";
 
 const createTask = (overrides: Partial<Task> = {}): Task => ({
   id: "task-123",
@@ -73,6 +69,11 @@ describe("ScratchpadCreationSaga", () => {
 
     mockScratchpadCreate.mockResolvedValue({ scratchpadPath: SCRATCHPAD_PATH });
     mockScratchpadDelete.mockResolvedValue({ success: true });
+    mockAddFolder.mockResolvedValue({
+      id: FOLDER_ID,
+      path: SCRATCHPAD_PATH,
+      exists: true,
+    });
     mockWorkspaceCreate.mockResolvedValue({
       taskId: "task-123",
       mode: "local",
@@ -81,11 +82,9 @@ describe("ScratchpadCreationSaga", () => {
       linkedBranch: null,
     });
     mockWorkspaceDelete.mockResolvedValue(undefined);
-    mockConnectToTask.mockResolvedValue(undefined);
-    mockDisconnectFromTask.mockResolvedValue(undefined);
   });
 
-  it("happy path with no linked project: manifest projectId is null, all 4 steps run", async () => {
+  it("happy path with no linked project: manifest projectId is null, returns initialPrompt", async () => {
     const createdTask = createTask();
     const createTaskFn = vi.fn().mockResolvedValue(createdTask);
     const deleteTask = vi.fn();
@@ -108,59 +107,55 @@ describe("ScratchpadCreationSaga", () => {
     expect(result.success).toBe(true);
     if (!result.success) throw new Error("expected success");
 
-    // task create
     expect(createTaskFn).toHaveBeenCalledWith({
       description: "On-demand dog walks",
       title: "Uber for dogs",
       repository: undefined,
     });
 
-    // scratchpad dir — projectId is null
+    // scratchpad dir
     expect(mockScratchpadCreate).toHaveBeenCalledWith({
       taskId: "task-123",
       name: "Uber for dogs",
       projectId: null,
     });
 
-    // workspace create
+    // folder registered
+    expect(mockAddFolder).toHaveBeenCalledWith({ folderPath: SCRATCHPAD_PATH });
+
+    // workspace uses the registered folder id (NOT the path)
     expect(mockWorkspaceCreate).toHaveBeenCalledWith({
       taskId: "task-123",
       mainRepoPath: SCRATCHPAD_PATH,
-      folderId: SCRATCHPAD_PATH,
+      folderId: FOLDER_ID,
       folderPath: SCRATCHPAD_PATH,
       mode: "local",
       scratchpad: true,
     });
 
-    // agent session
-    expect(mockConnectToTask).toHaveBeenCalledTimes(1);
-    const connectArgs = mockConnectToTask.mock.calls[0][0];
-    expect(connectArgs.task.id).toBe("task-123");
-    expect(connectArgs.repoPath).toBe(SCRATCHPAD_PATH);
-    expect(Array.isArray(connectArgs.initialPrompt)).toBe(true);
-    expect(connectArgs.initialPrompt[0].type).toBe("text");
-    expect(connectArgs.initialPrompt[0].text).toContain("Uber for dogs");
-
     // No rollbacks
     expect(deleteTask).not.toHaveBeenCalled();
     expect(mockScratchpadDelete).not.toHaveBeenCalled();
     expect(mockWorkspaceDelete).not.toHaveBeenCalled();
-    expect(mockDisconnectFromTask).not.toHaveBeenCalled();
 
     // Output
     expect(result.data.task.id).toBe("task-123");
     expect(result.data.workspace.scratchpad).toBe(true);
+    expect(result.data.workspace.folderId).toBe(FOLDER_ID);
     expect(result.data.scratchpadPath).toBe(SCRATCHPAD_PATH);
     expect(result.data.projectId).toBe(null);
-
-    // onTaskReady fired before agent_session
-    expect(onTaskReady).toHaveBeenCalledTimes(1);
-    expect(onTaskReady.mock.invocationCallOrder[0]).toBeLessThan(
-      mockConnectToTask.mock.invocationCallOrder[0],
+    expect(Array.isArray(result.data.initialPrompt)).toBe(true);
+    expect(result.data.initialPrompt[0]?.type).toBe("text");
+    expect((result.data.initialPrompt[0] as { text: string }).text).toContain(
+      "Uber for dogs",
     );
+
+    // onTaskReady fired before saga returned (last meaningful call before
+    // returning to caller)
+    expect(onTaskReady).toHaveBeenCalledTimes(1);
   });
 
-  it("existing project: passes projectId through to manifest and never creates a project", async () => {
+  it("existing project: passes projectId through to manifest", async () => {
     const createdTask = createTask();
     const createTaskFn = vi.fn().mockResolvedValue(createdTask);
 
@@ -188,7 +183,7 @@ describe("ScratchpadCreationSaga", () => {
     });
   });
 
-  it("failure at scratchpad_dir rolls back task only (no project to delete)", async () => {
+  it("failure at scratchpad_dir rolls back task only", async () => {
     const createdTask = createTask();
     const createTaskFn = vi.fn().mockResolvedValue(createdTask);
     const deleteTask = vi.fn().mockResolvedValue(undefined);
@@ -212,22 +207,21 @@ describe("ScratchpadCreationSaga", () => {
     if (result.success) throw new Error("expected failure");
     expect(result.failedStep).toBe("scratchpad_dir");
 
-    // task rollback fires; scratchpad_dir didn't succeed so its rollback doesn't.
     expect(mockScratchpadDelete).not.toHaveBeenCalled();
     expect(deleteTask).toHaveBeenCalledTimes(1);
     expect(deleteTask).toHaveBeenCalledWith("task-123");
 
-    // Workspace and agent steps never ran.
+    // Folder + workspace steps never ran.
+    expect(mockAddFolder).not.toHaveBeenCalled();
     expect(mockWorkspaceCreate).not.toHaveBeenCalled();
-    expect(mockConnectToTask).not.toHaveBeenCalled();
   });
 
-  it("failure at agent_session rolls back all three prior steps in reverse order", async () => {
+  it("failure at workspace_creation rolls back scratchpad + task in reverse order", async () => {
     const createdTask = createTask();
     const createTaskFn = vi.fn().mockResolvedValue(createdTask);
     const deleteTask = vi.fn().mockResolvedValue(undefined);
 
-    mockConnectToTask.mockRejectedValueOnce(new Error("agent unavailable"));
+    mockWorkspaceCreate.mockRejectedValueOnce(new Error("workspace failed"));
 
     const saga = new ScratchpadCreationSaga({
       posthogClient: buildClient({
@@ -244,19 +238,12 @@ describe("ScratchpadCreationSaga", () => {
 
     expect(result.success).toBe(false);
     if (result.success) throw new Error("expected failure");
-    expect(result.failedStep).toBe("agent_session");
+    expect(result.failedStep).toBe("workspace_creation");
 
-    // All three prior rollbacks fire in reverse order.
-    expect(mockWorkspaceDelete).toHaveBeenCalledTimes(1);
     expect(mockScratchpadDelete).toHaveBeenCalledTimes(1);
     expect(deleteTask).toHaveBeenCalledTimes(1);
-    // agent_session itself didn't succeed, so its rollback is NOT invoked.
-    expect(mockDisconnectFromTask).not.toHaveBeenCalled();
 
-    // Order: workspace -> scratchpad -> task (reverse of creation).
-    expect(mockWorkspaceDelete.mock.invocationCallOrder[0]).toBeLessThan(
-      mockScratchpadDelete.mock.invocationCallOrder[0],
-    );
+    // Order: scratchpad -> task (reverse of creation).
     expect(mockScratchpadDelete.mock.invocationCallOrder[0]).toBeLessThan(
       deleteTask.mock.invocationCallOrder[0],
     );

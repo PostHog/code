@@ -1,8 +1,5 @@
+import type { ContentBlock } from "@agentclientprotocol/sdk";
 import { buildPromptBlocks } from "@features/editor/utils/prompt-builder";
-import {
-  type ConnectParams,
-  getSessionService,
-} from "@features/sessions/service/service";
 import type { Workspace } from "@main/services/workspace/schemas";
 import { Saga, type SagaLogger } from "@posthog/shared";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
@@ -44,6 +41,14 @@ export interface ScratchpadCreationOutput {
   scratchpadPath: string;
   /** `null` when no project is linked at creation time. */
   projectId: number | null;
+  /**
+   * Pre-built scaffolding prompt for the agent's first turn. The caller is
+   * responsible for invoking `connectToTask({ task, repoPath, initialPrompt
+   * })` AFTER the saga returns — agent connection is intentionally NOT a
+   * saga step so a slow/failing connect can't roll back the task and
+   * scratchpad after the user has already navigated to them.
+   */
+  initialPrompt: ContentBlock[];
 }
 
 export interface ScratchpadCreationDeps {
@@ -64,10 +69,9 @@ export class ScratchpadCreationSaga extends Saga<
   protected async execute(
     input: ScratchpadCreationInput,
   ): Promise<ScratchpadCreationOutput> {
-    // Step 1: Resolve the linked project. Null means "decide at publish time".
     const projectId: number | null = input.projectId ?? null;
 
-    // Step 2: Task creation. The product name is the title verbatim.
+    // Step 1: Task creation. The product name is the title verbatim.
     const task = await this.step({
       name: "task_creation",
       execute: async () => {
@@ -84,7 +88,7 @@ export class ScratchpadCreationSaga extends Saga<
       },
     });
 
-    // Step 3: Scratchpad directory + manifest. Service writes manifest atomically.
+    // Step 2: Scratchpad directory + manifest. Service writes manifest atomically.
     const { scratchpadPath } = await this.step({
       name: "scratchpad_dir",
       execute: async () => {
@@ -102,18 +106,22 @@ export class ScratchpadCreationSaga extends Saga<
       },
     });
 
-    // Step 4: Workspace creation pointed at the scratchpad path. We use the
-    // scratchpad path as a synthetic folderId — it's a stable identifier and
-    // the workspace service treats local-mode workspaces with a missing
-    // repository row as having no associated repo (folderId is just an
-    // opaque string at the input layer).
+    // Step 3: Register the scratchpad as a folder so navigateToTask and
+    // other folder-aware UI can find it. Without this, the task-detail
+    // screen's folder lookup falls into an auto-recreate branch and the
+    // user lands on a blank "Select repository folder" view.
+    const folder = await this.readOnlyStep("folder_registration", () =>
+      trpcClient.folders.addFolder.mutate({ folderPath: scratchpadPath }),
+    );
+
+    // Step 4: Workspace creation pointed at the scratchpad path.
     const workspaceInfo = await this.step({
       name: "workspace_creation",
       execute: async () => {
         return trpcClient.workspace.create.mutate({
           taskId: task.id,
           mainRepoPath: scratchpadPath,
-          folderId: scratchpadPath,
+          folderId: folder.id,
           folderPath: scratchpadPath,
           mode: "local",
           scratchpad: true,
@@ -130,7 +138,7 @@ export class ScratchpadCreationSaga extends Saga<
 
     const workspace: Workspace = {
       taskId: task.id,
-      folderId: scratchpadPath,
+      folderId: folder.id,
       folderPath: scratchpadPath,
       mode: "local",
       worktreePath: workspaceInfo.worktree?.worktreePath ?? null,
@@ -146,7 +154,9 @@ export class ScratchpadCreationSaga extends Saga<
       this.deps.onTaskReady({ task, workspace });
     }
 
-    // Step 5: Agent session connection with scaffolding prompt as initial message.
+    // Build the agent's first-turn prompt. The caller calls connectToTask
+    // separately so a slow/failing agent connect doesn't trigger a saga
+    // rollback after the user has already navigated to the task.
     const scaffoldingPromptText = buildScaffoldingPrompt({
       scratchpadPath,
       initialIdea: input.initialIdea,
@@ -155,42 +165,18 @@ export class ScratchpadCreationSaga extends Saga<
       projectId,
       taskId: task.id,
     });
-
     const initialPrompt = await buildPromptBlocks(
       scaffoldingPromptText,
       [],
       scratchpadPath,
     );
 
-    await this.step({
-      name: "agent_session",
-      execute: async () => {
-        const connectParams: ConnectParams = {
-          task,
-          repoPath: scratchpadPath,
-          initialPrompt,
-        };
-        if (input.executionMode)
-          connectParams.executionMode = input.executionMode;
-        if (input.adapter) connectParams.adapter = input.adapter;
-        if (input.model) connectParams.model = input.model;
-        if (input.reasoningLevel)
-          connectParams.reasoningLevel = input.reasoningLevel;
-
-        await getSessionService().connectToTask(connectParams);
-        return { taskId: task.id };
-      },
-      rollback: async ({ taskId }) => {
-        log.info("Rolling back: disconnecting agent session", { taskId });
-        await getSessionService().disconnectFromTask(taskId);
-      },
-    });
-
     return {
       task,
       workspace,
       scratchpadPath,
       projectId,
+      initialPrompt,
     };
   }
 }

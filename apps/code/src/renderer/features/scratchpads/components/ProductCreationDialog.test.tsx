@@ -13,6 +13,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mockSagaRun = vi.hoisted(() => vi.fn());
 const mockSagaCtor = vi.hoisted(() => vi.fn());
 const mockNavigateToTask = vi.hoisted(() => vi.fn());
+const mockConnectToTask = vi.hoisted(() => vi.fn());
+const mockToast = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  warning: vi.fn(),
+}));
 const mockGetCurrentUser = vi.hoisted(() => vi.fn());
 const mockClient = vi.hoisted(() => ({
   getCurrentUser: mockGetCurrentUser,
@@ -56,6 +63,12 @@ vi.mock("@stores/navigationStore", () => ({
   useNavigationStore: (selector: (s: unknown) => unknown) =>
     selector({ navigateToTask: mockNavigateToTask }),
 }));
+
+vi.mock("@features/sessions/service/service", () => ({
+  getSessionService: () => ({ connectToTask: mockConnectToTask }),
+}));
+
+vi.mock("@utils/toast", () => ({ toast: mockToast }));
 
 vi.mock("@utils/logger", () => ({
   logger: {
@@ -105,9 +118,10 @@ describe("ProductCreationDialog", () => {
         workspace: {},
         scratchpadPath: "/sp",
         projectId: 42,
-        autoCreatedProject: true,
+        initialPrompt: [{ type: "text", text: "scaffold" }],
       },
     });
+    mockConnectToTask.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -213,7 +227,7 @@ describe("ProductCreationDialog", () => {
           workspace: {},
           scratchpadPath: "/sp",
           projectId: 42,
-          autoCreatedProject: true,
+          initialPrompt: [{ type: "text", text: "scaffold" }],
         },
       });
     });

@@ -1,5 +1,6 @@
 import { ProjectPicker } from "@features/scratchpads/components/ProjectPicker";
 import { useScratchpadCreationStore } from "@features/scratchpads/stores/scratchpadCreationStore";
+import { getSessionService } from "@features/sessions/service/service";
 import { useAuthenticatedClient } from "@hooks/useAuthenticatedClient";
 import { RocketIcon } from "@radix-ui/react-icons";
 import {
@@ -15,6 +16,7 @@ import {
 import { ScratchpadCreationSaga } from "@renderer/sagas/scratchpad/scratchpad-creation";
 import { useNavigationStore } from "@stores/navigationStore";
 import { logger } from "@utils/logger";
+import { toast } from "@utils/toast";
 import { useState } from "react";
 
 const log = logger.scope("product-creation-dialog");
@@ -90,14 +92,7 @@ export function ProductCreationDialog() {
         projectId = selectedProjectId;
       }
 
-      const saga = new ScratchpadCreationSaga({
-        posthogClient,
-        onTaskReady: ({ task }) => {
-          // Navigate as soon as the workspace is ready, before the agent
-          // session connects, for snappier UX. We don't await here.
-          void navigateToTask(task);
-        },
-      });
+      const saga = new ScratchpadCreationSaga({ posthogClient });
 
       const result = await saga.run({
         productName: trimmedName,
@@ -116,7 +111,10 @@ export function ProductCreationDialog() {
         return;
       }
 
-      // Success — close + reset.
+      // Close the dialog and navigate to the new task BEFORE we kick off
+      // the agent connection. The agent connect can take a few seconds; we
+      // don't want to keep the dialog spinning while the user could be
+      // watching the new task screen instead.
       closeDialog();
       reset();
       setProductName("");
@@ -124,6 +122,25 @@ export function ProductCreationDialog() {
       setRounds(DEFAULT_ROUNDS);
       setProjectMode("later");
       setSelectedProjectId(null);
+
+      void navigateToTask(result.data.task);
+
+      // Fire-and-forget the agent connection. If it fails the user is
+      // already on the task screen and we surface the error via a toast;
+      // the workspace stays in place so they can retry from there.
+      void getSessionService()
+        .connectToTask({
+          task: result.data.task,
+          repoPath: result.data.scratchpadPath,
+          initialPrompt: result.data.initialPrompt,
+        })
+        .catch((err) => {
+          log.error("Agent session failed to connect after scaffold", { err });
+          toast.error("Couldn't start the agent", {
+            description:
+              err instanceof Error ? err.message : "Unknown connection error.",
+          });
+        });
     } catch (error) {
       log.error("Scratchpad creation threw", { error });
       const message =
