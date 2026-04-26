@@ -45,16 +45,16 @@ export function buildScaffoldingPrompt(input: ScaffoldingPromptInput): string {
     "",
     `2. **Scaffold.** Pick a production-grade, simple, mainstream stack appropriate for the product. Run the necessary scaffolding commands inside \`${scratchpadPath}\` (e.g. \`pnpm create vite\`, \`pnpm create next-app\`, \`cargo new\`, etc.). **Never run \`git init\`** — the host is responsible for git lifecycle. Do not add any deployment scripts or hosting configuration.`,
     "",
-    projectId === null
-      ? "3. **PostHog instrumentation.** SKIPPED — the user opted out of linking a PostHog project at creation time. Do not run any instrumentation skills. The user can link a project later and run the skills then."
-      : [
-          "3. **PostHog instrumentation.** Run these slash-prompts in order, recovering inside your own loop if any step fails or installs the SDK out of order:",
-          "   - `/instrument-integration`",
-          "   - `/instrument-product-analytics`",
-          "   - `/instrument-error-tracking`",
-          "   - `/instrument-llm-analytics` (only if the product has AI/LLM features)",
-          `   Use PostHog project ID \`${projectId}\` for these.`,
-        ].join("\n"),
+    [
+      "3. **PostHog instrumentation.** Run these slash-prompts in order, recovering inside your own loop if any step fails or installs the SDK out of order:",
+      "   - `/instrument-integration`",
+      "   - `/instrument-product-analytics`",
+      "   - `/instrument-error-tracking`",
+      "   - `/instrument-llm-analytics` (only if the product has AI/LLM features)",
+      projectId === null
+        ? "   No PostHog project is linked yet — the user will pick or create one at publish time. Read the API key and host from environment variables (`POSTHOG_API_KEY`, `POSTHOG_HOST`) and add a placeholder `.env.example` documenting them. Do NOT hardcode any project IDs or keys."
+        : `   Use PostHog project ID \`${projectId}\` for these. Read the API key from environment variables (\`POSTHOG_API_KEY\`, \`POSTHOG_HOST\`) and add a placeholder \`.env.example\`.`,
+    ].join("\n"),
     "",
     `4. **Preview registration.** Once you have a working dev server, declare it via \`posthog_code__registerPreview({ taskId: "${taskId}", name, command, port, cwd })\`. Always pass \`taskId: "${taskId}"\` — the host uses it to scope the preview to this scratchpad. Call once per process — e.g. one call for frontend, one for backend if both run. Use a \`name\` like \`"frontend"\` or \`"backend"\` for clarity.`,
     "",

@@ -23,7 +23,7 @@ const MIN_ROUNDS = 1;
 const MAX_ROUNDS = 5;
 const DEFAULT_ROUNDS = 3;
 
-type ProjectMode = "auto" | "existing" | "skip";
+type ProjectMode = "later" | "existing";
 
 export function ProductCreationDialog() {
   const open = useScratchpadCreationStore((s) => s.open);
@@ -40,7 +40,7 @@ export function ProductCreationDialog() {
   const [productName, setProductName] = useState("");
   const [initialIdea, setInitialIdea] = useState("");
   const [rounds, setRounds] = useState<number>(DEFAULT_ROUNDS);
-  const [projectMode, setProjectMode] = useState<ProjectMode>("auto");
+  const [projectMode, setProjectMode] = useState<ProjectMode>("later");
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
     null,
   );
@@ -50,9 +50,7 @@ export function ProductCreationDialog() {
   const trimmedName = productName.trim();
   const trimmedIdea = initialIdea.trim();
   const projectChoiceValid =
-    projectMode === "auto" ||
-    projectMode === "skip" ||
-    selectedProjectId !== null;
+    projectMode === "later" || selectedProjectId !== null;
   const canSubmit =
     !isSubmitting &&
     trimmedName.length > 0 &&
@@ -67,7 +65,7 @@ export function ProductCreationDialog() {
       setProductName("");
       setInitialIdea("");
       setRounds(DEFAULT_ROUNDS);
-      setProjectMode("auto");
+      setProjectMode("later");
       setSelectedProjectId(null);
       reset();
     }
@@ -80,28 +78,12 @@ export function ProductCreationDialog() {
     setStep("submitting");
 
     try {
-      let autoCreate: { organizationId: string } | undefined;
       let projectId: number | undefined;
-      let skipProject = false;
-
-      if (projectMode === "auto") {
-        const user = await posthogClient.getCurrentUser();
-        const organizationId = (
-          user as { organization?: { id?: string } | null }
-        ).organization?.id;
-        if (!organizationId) {
-          throw new Error(
-            "Cannot auto-create project: current user has no organization",
-          );
-        }
-        autoCreate = { organizationId };
-      } else if (projectMode === "existing") {
+      if (projectMode === "existing") {
         if (selectedProjectId === null) {
           throw new Error("Please pick a PostHog project");
         }
         projectId = selectedProjectId;
-      } else {
-        skipProject = true;
       }
 
       const saga = new ScratchpadCreationSaga({
@@ -117,9 +99,7 @@ export function ProductCreationDialog() {
         productName: trimmedName,
         initialIdea: trimmedIdea,
         rounds: clampRounds(rounds),
-        ...(autoCreate ? { autoCreateProject: autoCreate } : {}),
         ...(projectId !== undefined ? { projectId } : {}),
-        ...(skipProject ? { skipProject: true } : {}),
       });
 
       if (!result.success) {
@@ -138,7 +118,7 @@ export function ProductCreationDialog() {
       setProductName("");
       setInitialIdea("");
       setRounds(DEFAULT_ROUNDS);
-      setProjectMode("auto");
+      setProjectMode("later");
       setSelectedProjectId(null);
     } catch (error) {
       log.error("Scratchpad creation threw", { error });
@@ -225,8 +205,8 @@ export function ProductCreationDialog() {
               <Flex direction="column" gap="2">
                 <Text as="label" className="text-[13px]">
                   <Flex gap="2" align="center">
-                    <RadioGroup.Item value="auto" />
-                    Auto-create new project
+                    <RadioGroup.Item value="later" />
+                    Let's do this later
                   </Flex>
                 </Text>
                 <Text as="label" className="text-[13px]">
@@ -235,20 +215,14 @@ export function ProductCreationDialog() {
                     Use existing project
                   </Flex>
                 </Text>
-                <Text as="label" className="text-[13px]">
-                  <Flex gap="2" align="center">
-                    <RadioGroup.Item value="skip" />
-                    Skip for now
-                  </Flex>
-                </Text>
               </Flex>
             </RadioGroup.Root>
 
-            {projectMode === "auto" && (
+            {projectMode === "later" && (
               <Text color="gray" className="text-[13px]">
-                {trimmedName
-                  ? `Will create [UNPUBLISHED] ${trimmedName} in your current organization.`
-                  : "Will create a new project in your current organization."}
+                We'll wire up PostHog (analytics, replay, error tracking) with
+                placeholder credentials so the SDK is in place. You'll pick or
+                create a real project at publish time.
               </Text>
             )}
             {projectMode === "existing" && (
@@ -257,13 +231,6 @@ export function ProductCreationDialog() {
                 onChange={setSelectedProjectId}
                 disabled={isSubmitting}
               />
-            )}
-            {projectMode === "skip" && (
-              <Text color="gray" className="text-[13px]">
-                No PostHog project will be linked. Analytics, replay, and error
-                tracking are skipped during scaffolding. You can link a project
-                later, but Publish requires one.
-              </Text>
             )}
           </Flex>
 

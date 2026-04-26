@@ -41,14 +41,14 @@ vi.mock("@utils/logger", () => ({
 
 import { ScratchpadCreationSaga } from "./scratchpad-creation";
 
-const SCRATCHPAD_PATH = "/userData/scratchpads/task-123/chess-clock";
+const SCRATCHPAD_PATH = "/userData/scratchpads/task-123/uber-for-dogs";
 
 const createTask = (overrides: Partial<Task> = {}): Task => ({
   id: "task-123",
   task_number: 1,
   slug: "task-123",
-  title: "Chess Clock",
-  description: "A simple chess clock",
+  title: "Uber for dogs",
+  description: "On-demand dog walks",
   origin_product: "user_created",
   repository: null,
   created_at: "2026-04-25T00:00:00Z",
@@ -57,16 +57,12 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
 });
 
 interface ClientFns {
-  createProject?: ReturnType<typeof vi.fn>;
-  deleteProject?: ReturnType<typeof vi.fn>;
   createTask?: ReturnType<typeof vi.fn>;
   deleteTask?: ReturnType<typeof vi.fn>;
 }
 
 const buildClient = (fns: ClientFns) =>
   ({
-    createProject: fns.createProject ?? vi.fn(),
-    deleteProject: fns.deleteProject ?? vi.fn(),
     createTask: fns.createTask ?? vi.fn(),
     deleteTask: fns.deleteTask ?? vi.fn(),
   }) as never;
@@ -89,18 +85,14 @@ describe("ScratchpadCreationSaga", () => {
     mockDisconnectFromTask.mockResolvedValue(undefined);
   });
 
-  it("happy path with auto-create project: completes all 5 steps and returns scratchpad output", async () => {
+  it("happy path with no linked project: manifest projectId is null, all 4 steps run", async () => {
     const createdTask = createTask();
-    const createProject = vi.fn().mockResolvedValue({ id: 42 });
     const createTaskFn = vi.fn().mockResolvedValue(createdTask);
-    const deleteProject = vi.fn();
     const deleteTask = vi.fn();
     const onTaskReady = vi.fn();
 
     const saga = new ScratchpadCreationSaga({
       posthogClient: buildClient({
-        createProject,
-        deleteProject,
         createTask: createTaskFn,
         deleteTask,
       }),
@@ -108,36 +100,29 @@ describe("ScratchpadCreationSaga", () => {
     });
 
     const result = await saga.run({
-      productName: "Chess Clock",
-      initialIdea: "A simple chess clock",
+      productName: "Uber for dogs",
+      initialIdea: "On-demand dog walks",
       rounds: 3,
-      autoCreateProject: { organizationId: "org-1" },
     });
 
     expect(result.success).toBe(true);
     if (!result.success) throw new Error("expected success");
 
-    // Step 1: project create
-    expect(createProject).toHaveBeenCalledWith({
-      name: "[UNPUBLISHED] Chess Clock",
-      organizationId: "org-1",
-    });
-
-    // Step 2: task create
+    // task create
     expect(createTaskFn).toHaveBeenCalledWith({
-      description: "A simple chess clock",
-      title: "Chess Clock",
+      description: "On-demand dog walks",
+      title: "Uber for dogs",
       repository: undefined,
     });
 
-    // Step 3: scratchpad dir
+    // scratchpad dir — projectId is null
     expect(mockScratchpadCreate).toHaveBeenCalledWith({
       taskId: "task-123",
-      name: "Chess Clock",
-      projectId: 42,
+      name: "Uber for dogs",
+      projectId: null,
     });
 
-    // Step 4: workspace create
+    // workspace create
     expect(mockWorkspaceCreate).toHaveBeenCalledWith({
       taskId: "task-123",
       mainRepoPath: SCRATCHPAD_PATH,
@@ -147,19 +132,16 @@ describe("ScratchpadCreationSaga", () => {
       scratchpad: true,
     });
 
-    // Step 5: agent session
+    // agent session
     expect(mockConnectToTask).toHaveBeenCalledTimes(1);
     const connectArgs = mockConnectToTask.mock.calls[0][0];
     expect(connectArgs.task.id).toBe("task-123");
     expect(connectArgs.repoPath).toBe(SCRATCHPAD_PATH);
     expect(Array.isArray(connectArgs.initialPrompt)).toBe(true);
     expect(connectArgs.initialPrompt[0].type).toBe("text");
-    expect(connectArgs.initialPrompt[0].text).toContain("Chess Clock");
-    expect(connectArgs.initialPrompt[0].text).toContain("3");
-    expect(connectArgs.initialPrompt[0].text).toContain(SCRATCHPAD_PATH);
+    expect(connectArgs.initialPrompt[0].text).toContain("Uber for dogs");
 
     // No rollbacks
-    expect(deleteProject).not.toHaveBeenCalled();
     expect(deleteTask).not.toHaveBeenCalled();
     expect(mockScratchpadDelete).not.toHaveBeenCalled();
     expect(mockWorkspaceDelete).not.toHaveBeenCalled();
@@ -169,8 +151,7 @@ describe("ScratchpadCreationSaga", () => {
     expect(result.data.task.id).toBe("task-123");
     expect(result.data.workspace.scratchpad).toBe(true);
     expect(result.data.scratchpadPath).toBe(SCRATCHPAD_PATH);
-    expect(result.data.projectId).toBe(42);
-    expect(result.data.autoCreatedProject).toBe(true);
+    expect(result.data.projectId).toBe(null);
 
     // onTaskReady fired before agent_session
     expect(onTaskReady).toHaveBeenCalledTimes(1);
@@ -179,169 +160,134 @@ describe("ScratchpadCreationSaga", () => {
     );
   });
 
-  it("failure at scratchpad_dir rolls back task and project (not scratchpad delete)", async () => {
+  it("existing project: passes projectId through to manifest and never creates a project", async () => {
     const createdTask = createTask();
-    const createProject = vi.fn().mockResolvedValue({ id: 42 });
-    const createTaskFn = vi.fn().mockResolvedValue(createdTask);
-    const deleteProject = vi.fn().mockResolvedValue(undefined);
-    const deleteTask = vi.fn().mockResolvedValue(undefined);
-
-    mockScratchpadCreate.mockRejectedValueOnce(new Error("disk full"));
-
-    const saga = new ScratchpadCreationSaga({
-      posthogClient: buildClient({
-        createProject,
-        deleteProject,
-        createTask: createTaskFn,
-        deleteTask,
-      }),
-    });
-
-    const result = await saga.run({
-      productName: "Chess Clock",
-      initialIdea: "A simple chess clock",
-      rounds: 3,
-      autoCreateProject: { organizationId: "org-1" },
-    });
-
-    expect(result.success).toBe(false);
-    if (result.success) throw new Error("expected failure");
-    expect(result.failedStep).toBe("scratchpad_dir");
-
-    // Rollbacks fire in reverse order. scratchpad_dir didn't succeed, so its
-    // rollback is NOT invoked. task and project rollbacks each fire exactly once.
-    expect(mockScratchpadDelete).not.toHaveBeenCalled();
-    expect(deleteTask).toHaveBeenCalledTimes(1);
-    expect(deleteTask).toHaveBeenCalledWith("task-123");
-    expect(deleteProject).toHaveBeenCalledTimes(1);
-    expect(deleteProject).toHaveBeenCalledWith(42);
-
-    // Workspace and agent steps never ran.
-    expect(mockWorkspaceCreate).not.toHaveBeenCalled();
-    expect(mockConnectToTask).not.toHaveBeenCalled();
-    expect(mockWorkspaceDelete).not.toHaveBeenCalled();
-    expect(mockDisconnectFromTask).not.toHaveBeenCalled();
-
-    // task delete rollback runs before project delete rollback (reverse order)
-    expect(deleteTask.mock.invocationCallOrder[0]).toBeLessThan(
-      deleteProject.mock.invocationCallOrder[0],
-    );
-  });
-
-  it("failure at agent_session rolls back all four prior steps in reverse order", async () => {
-    const createdTask = createTask();
-    const createProject = vi.fn().mockResolvedValue({ id: 42 });
-    const createTaskFn = vi.fn().mockResolvedValue(createdTask);
-    const deleteProject = vi.fn().mockResolvedValue(undefined);
-    const deleteTask = vi.fn().mockResolvedValue(undefined);
-
-    mockConnectToTask.mockRejectedValueOnce(new Error("agent unavailable"));
-
-    const saga = new ScratchpadCreationSaga({
-      posthogClient: buildClient({
-        createProject,
-        deleteProject,
-        createTask: createTaskFn,
-        deleteTask,
-      }),
-    });
-
-    const result = await saga.run({
-      productName: "Chess Clock",
-      initialIdea: "A simple chess clock",
-      rounds: 3,
-      autoCreateProject: { organizationId: "org-1" },
-    });
-
-    expect(result.success).toBe(false);
-    if (result.success) throw new Error("expected failure");
-    expect(result.failedStep).toBe("agent_session");
-
-    // All four prior rollbacks fire in reverse order.
-    expect(mockWorkspaceDelete).toHaveBeenCalledTimes(1);
-    expect(mockScratchpadDelete).toHaveBeenCalledTimes(1);
-    expect(deleteTask).toHaveBeenCalledTimes(1);
-    expect(deleteProject).toHaveBeenCalledTimes(1);
-    // agent_session itself didn't succeed, so its rollback is NOT invoked.
-    expect(mockDisconnectFromTask).not.toHaveBeenCalled();
-
-    // Order: workspace -> scratchpad -> task -> project (reverse of creation).
-    expect(mockWorkspaceDelete.mock.invocationCallOrder[0]).toBeLessThan(
-      mockScratchpadDelete.mock.invocationCallOrder[0],
-    );
-    expect(mockScratchpadDelete.mock.invocationCallOrder[0]).toBeLessThan(
-      deleteTask.mock.invocationCallOrder[0],
-    );
-    expect(deleteTask.mock.invocationCallOrder[0]).toBeLessThan(
-      deleteProject.mock.invocationCallOrder[0],
-    );
-  });
-
-  it("existing project path: skips project creation and never deletes the user-picked project", async () => {
-    const createdTask = createTask();
-    const createProject = vi.fn();
-    const createTaskFn = vi.fn().mockResolvedValue(createdTask);
-    const deleteProject = vi.fn();
-    const deleteTask = vi.fn();
-
-    // Force a failure after scratchpad_dir to ensure no project deletion happens during rollback either.
-    mockWorkspaceCreate.mockRejectedValueOnce(new Error("workspace failed"));
-
-    const saga = new ScratchpadCreationSaga({
-      posthogClient: buildClient({
-        createProject,
-        deleteProject,
-        createTask: createTaskFn,
-        deleteTask,
-      }),
-    });
-
-    const result = await saga.run({
-      productName: "Chess Clock",
-      initialIdea: "A simple chess clock",
-      rounds: 3,
-      projectId: 999,
-    });
-
-    expect(result.success).toBe(false);
-    expect(createProject).not.toHaveBeenCalled();
-    expect(deleteProject).not.toHaveBeenCalled();
-
-    // The earlier successful steps (task, scratchpad) DID rollback.
-    expect(mockScratchpadDelete).toHaveBeenCalledTimes(1);
-    expect(deleteTask).toHaveBeenCalledTimes(1);
-
-    // Scratchpad was created with the user-picked project id.
-    expect(mockScratchpadCreate).toHaveBeenCalledWith({
-      taskId: "task-123",
-      name: "Chess Clock",
-      projectId: 999,
-    });
-  });
-
-  it("existing project path happy: autoCreatedProject is false and project id is preserved", async () => {
-    const createdTask = createTask();
-    const createProject = vi.fn();
     const createTaskFn = vi.fn().mockResolvedValue(createdTask);
 
     const saga = new ScratchpadCreationSaga({
       posthogClient: buildClient({
-        createProject,
         createTask: createTaskFn,
       }),
     });
 
     const result = await saga.run({
-      productName: "Chess Clock",
-      initialIdea: "A simple chess clock",
+      productName: "Uber for dogs",
+      initialIdea: "On-demand dog walks",
       rounds: 3,
       projectId: 999,
     });
 
     expect(result.success).toBe(true);
     if (!result.success) throw new Error("expected success");
-    expect(createProject).not.toHaveBeenCalled();
-    expect(result.data.autoCreatedProject).toBe(false);
     expect(result.data.projectId).toBe(999);
+
+    expect(mockScratchpadCreate).toHaveBeenCalledWith({
+      taskId: "task-123",
+      name: "Uber for dogs",
+      projectId: 999,
+    });
+  });
+
+  it("failure at scratchpad_dir rolls back task only (no project to delete)", async () => {
+    const createdTask = createTask();
+    const createTaskFn = vi.fn().mockResolvedValue(createdTask);
+    const deleteTask = vi.fn().mockResolvedValue(undefined);
+
+    mockScratchpadCreate.mockRejectedValueOnce(new Error("disk full"));
+
+    const saga = new ScratchpadCreationSaga({
+      posthogClient: buildClient({
+        createTask: createTaskFn,
+        deleteTask,
+      }),
+    });
+
+    const result = await saga.run({
+      productName: "Uber for dogs",
+      initialIdea: "On-demand dog walks",
+      rounds: 3,
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("expected failure");
+    expect(result.failedStep).toBe("scratchpad_dir");
+
+    // task rollback fires; scratchpad_dir didn't succeed so its rollback doesn't.
+    expect(mockScratchpadDelete).not.toHaveBeenCalled();
+    expect(deleteTask).toHaveBeenCalledTimes(1);
+    expect(deleteTask).toHaveBeenCalledWith("task-123");
+
+    // Workspace and agent steps never ran.
+    expect(mockWorkspaceCreate).not.toHaveBeenCalled();
+    expect(mockConnectToTask).not.toHaveBeenCalled();
+  });
+
+  it("failure at agent_session rolls back all three prior steps in reverse order", async () => {
+    const createdTask = createTask();
+    const createTaskFn = vi.fn().mockResolvedValue(createdTask);
+    const deleteTask = vi.fn().mockResolvedValue(undefined);
+
+    mockConnectToTask.mockRejectedValueOnce(new Error("agent unavailable"));
+
+    const saga = new ScratchpadCreationSaga({
+      posthogClient: buildClient({
+        createTask: createTaskFn,
+        deleteTask,
+      }),
+    });
+
+    const result = await saga.run({
+      productName: "Uber for dogs",
+      initialIdea: "On-demand dog walks",
+      rounds: 3,
+    });
+
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("expected failure");
+    expect(result.failedStep).toBe("agent_session");
+
+    // All three prior rollbacks fire in reverse order.
+    expect(mockWorkspaceDelete).toHaveBeenCalledTimes(1);
+    expect(mockScratchpadDelete).toHaveBeenCalledTimes(1);
+    expect(deleteTask).toHaveBeenCalledTimes(1);
+    // agent_session itself didn't succeed, so its rollback is NOT invoked.
+    expect(mockDisconnectFromTask).not.toHaveBeenCalled();
+
+    // Order: workspace -> scratchpad -> task (reverse of creation).
+    expect(mockWorkspaceDelete.mock.invocationCallOrder[0]).toBeLessThan(
+      mockScratchpadDelete.mock.invocationCallOrder[0],
+    );
+    expect(mockScratchpadDelete.mock.invocationCallOrder[0]).toBeLessThan(
+      deleteTask.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("user-picked existing project is never deleted on rollback", async () => {
+    const createdTask = createTask();
+    const createTaskFn = vi.fn().mockResolvedValue(createdTask);
+    const deleteTask = vi.fn();
+    const deleteProject = vi.fn();
+
+    mockWorkspaceCreate.mockRejectedValueOnce(new Error("workspace failed"));
+
+    const saga = new ScratchpadCreationSaga({
+      posthogClient: {
+        createTask: createTaskFn,
+        deleteTask,
+        deleteProject,
+      } as never,
+    });
+
+    const result = await saga.run({
+      productName: "Uber for dogs",
+      initialIdea: "On-demand dog walks",
+      rounds: 3,
+      projectId: 999,
+    });
+
+    expect(result.success).toBe(false);
+    expect(deleteProject).not.toHaveBeenCalled();
+    expect(mockScratchpadDelete).toHaveBeenCalledTimes(1);
+    expect(deleteTask).toHaveBeenCalledTimes(1);
   });
 });

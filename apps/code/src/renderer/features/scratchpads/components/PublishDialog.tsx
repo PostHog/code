@@ -1,3 +1,4 @@
+import { ProjectPicker } from "@features/scratchpads/components/ProjectPicker";
 import { usePublishScratchpad } from "@features/scratchpads/hooks/usePublishScratchpad";
 import { useAuthenticatedClient } from "@hooks/useAuthenticatedClient";
 import type { PublishVisibility } from "@main/services/scratchpad/schemas";
@@ -9,8 +10,8 @@ import {
   Text,
   TextField,
 } from "@radix-ui/themes";
-import { trpc } from "@renderer/trpc";
-import { useQuery } from "@tanstack/react-query";
+import { trpc, trpcClient } from "@renderer/trpc";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { toast } from "@utils/toast";
 import { useEffect, useMemo, useState } from "react";
@@ -45,6 +46,7 @@ export function PublishDialog({
   productName,
 }: PublishDialogProps) {
   const posthogClient = useAuthenticatedClient();
+  const queryClient = useQueryClient();
 
   const [repoName, setRepoName] = useState(() =>
     sanitizeForRepo(defaultRepoName),
@@ -54,6 +56,23 @@ export function PublishDialog({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [offendingPaths, setOffendingPaths] = useState<string[] | null>(null);
 
+  // Manifest tells us whether a PostHog project is already linked. If not,
+  // we collect a link action (create / pick existing) here before publishing.
+  const manifestQuery = useQuery(
+    trpc.scratchpad.readManifest.queryOptions(
+      { taskId },
+      { enabled: open, staleTime: 0 },
+    ),
+  );
+  const linkedProjectId = manifestQuery.data?.projectId ?? null;
+  const needsProjectLink = manifestQuery.isSuccess && linkedProjectId === null;
+
+  const [linkMode, setLinkMode] = useState<"create" | "existing">("create");
+  const [linkProjectName, setLinkProjectName] = useState("");
+  const [linkExistingProjectId, setLinkExistingProjectId] = useState<
+    number | null
+  >(null);
+
   // Reset form state on open.
   useEffect(() => {
     if (open) {
@@ -62,8 +81,11 @@ export function PublishDialog({
       setProgressLabel(null);
       setErrorMessage(null);
       setOffendingPaths(null);
+      setLinkMode("create");
+      setLinkProjectName(productName || defaultRepoName);
+      setLinkExistingProjectId(null);
     }
-  }, [open, defaultRepoName]);
+  }, [open, defaultRepoName, productName]);
 
   // gh auth token check — disables submit when missing.
   const ghTokenQuery = useQuery(
@@ -93,20 +115,87 @@ export function PublishDialog({
   );
 
   const isSubmitting = publish.isPending;
+  const linkChoiceValid = needsProjectLink
+    ? linkMode === "create"
+      ? linkProjectName.trim().length > 0
+      : linkExistingProjectId !== null
+    : true;
   const submitDisabled =
-    !hasGhToken || !repoNameValid || isSubmitting || offendingPaths !== null;
+    !hasGhToken ||
+    !repoNameValid ||
+    !linkChoiceValid ||
+    isSubmitting ||
+    offendingPaths !== null;
+
+  const linkProjectIfNeeded = async (): Promise<{
+    finalProductName: string;
+  } | null> => {
+    if (!needsProjectLink) return { finalProductName: productName };
+
+    if (linkMode === "create") {
+      setProgressLabel("Creating PostHog project");
+      const user = await posthogClient.getCurrentUser();
+      const organizationId = (user as { organization?: { id?: string } | null })
+        .organization?.id;
+      if (!organizationId) {
+        throw new Error(
+          "Cannot create a PostHog project: current user has no organization",
+        );
+      }
+      const trimmedName = linkProjectName.trim();
+      const created = await posthogClient.createProject({
+        name: trimmedName,
+        organizationId,
+      });
+      if (typeof created.id !== "number") {
+        throw new Error("createProject did not return a numeric project id");
+      }
+      await trpcClient.scratchpad.writeManifest.mutate({
+        taskId,
+        patch: { projectId: created.id },
+      });
+      return { finalProductName: trimmedName };
+    }
+
+    // existing
+    if (linkExistingProjectId === null) {
+      throw new Error("Pick an existing project to publish to");
+    }
+    const project = await posthogClient
+      .getProject(linkExistingProjectId)
+      .catch(() => null);
+    if (!project) {
+      throw new Error("Selected PostHog project is not accessible");
+    }
+    await trpcClient.scratchpad.writeManifest.mutate({
+      taskId,
+      patch: { projectId: linkExistingProjectId },
+    });
+    return { finalProductName: project.name ?? "" };
+  };
 
   const handleSubmit = async () => {
     if (submitDisabled) return;
     setErrorMessage(null);
     setOffendingPaths(null);
-    setProgressLabel("Initializing git");
+    setProgressLabel(
+      needsProjectLink ? "Linking PostHog project" : "Initializing git",
+    );
     try {
+      const linkResult = await linkProjectIfNeeded();
+      if (!linkResult) return;
+
+      // Refresh the manifest cache so downstream queries see the new projectId.
+      await queryClient.invalidateQueries(
+        trpc.scratchpad.readManifest.queryFilter({ taskId }),
+      );
+
+      setProgressLabel("Initializing git");
       const outcome = await publish.mutateAsync({
         taskId,
         repoName,
         visibility,
-        productName,
+        productName: linkResult.finalProductName,
       });
 
       if (
@@ -159,6 +248,56 @@ export function PublishDialog({
           <Dialog.Title size="3" className="m-0">
             Publish to GitHub
           </Dialog.Title>
+
+          {needsProjectLink && (
+            <Flex direction="column" gap="2">
+              <Text color="gray" className="text-[13px]">
+                PostHog project
+              </Text>
+              <Text className="text-[13px]">
+                This scratchpad isn't linked to a PostHog project yet. Pick one
+                now so analytics, replay, and error tracking work in production.
+              </Text>
+              <RadioGroup.Root
+                value={linkMode}
+                onValueChange={(v) => setLinkMode(v as "create" | "existing")}
+                size="2"
+                disabled={isSubmitting}
+              >
+                <Flex direction="column" gap="2">
+                  <Text as="label" className="text-[13px]">
+                    <Flex gap="2" align="center">
+                      <RadioGroup.Item value="create" />
+                      Create a new project
+                    </Flex>
+                  </Text>
+                  <Text as="label" className="text-[13px]">
+                    <Flex gap="2" align="center">
+                      <RadioGroup.Item value="existing" />
+                      Use an existing project
+                    </Flex>
+                  </Text>
+                </Flex>
+              </RadioGroup.Root>
+
+              {linkMode === "create" && (
+                <TextField.Root
+                  value={linkProjectName}
+                  onChange={(e) => setLinkProjectName(e.target.value)}
+                  placeholder="Project name"
+                  size="2"
+                  disabled={isSubmitting}
+                />
+              )}
+              {linkMode === "existing" && (
+                <ProjectPicker
+                  value={linkExistingProjectId}
+                  onChange={setLinkExistingProjectId}
+                  disabled={isSubmitting}
+                />
+              )}
+            </Flex>
+          )}
 
           <Flex direction="column" gap="1">
             <Text color="gray" className="text-[13px]">

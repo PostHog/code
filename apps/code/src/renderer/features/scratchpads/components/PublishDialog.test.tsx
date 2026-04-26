@@ -12,6 +12,9 @@ const mockClient = vi.hoisted(() => ({
   getGithubLogin: vi.fn().mockResolvedValue("octocat"),
 }));
 
+const mockReadManifest = vi.hoisted(() => vi.fn());
+const mockWriteManifest = vi.hoisted(() => vi.fn());
+
 const mockTrpc = vi.hoisted(() => ({
   git: {
     getGhAuthToken: {
@@ -25,6 +28,28 @@ const mockTrpc = vi.hoisted(() => ({
         staleTime: opts.staleTime,
       }),
     },
+  },
+  scratchpad: {
+    readManifest: {
+      queryOptions: (
+        input: { taskId: string },
+        opts: { enabled?: boolean; staleTime?: number } = {},
+      ) => ({
+        queryKey: ["scratchpad", "readManifest", input.taskId],
+        queryFn: async () => mockReadManifest(input),
+        enabled: opts.enabled ?? true,
+        staleTime: opts.staleTime,
+      }),
+      queryFilter: (input: { taskId: string }) => ({
+        queryKey: ["scratchpad", "readManifest", input.taskId],
+      }),
+    },
+  },
+}));
+
+const mockTrpcClient = vi.hoisted(() => ({
+  scratchpad: {
+    writeManifest: { mutate: mockWriteManifest },
   },
 }));
 
@@ -52,6 +77,11 @@ vi.mock("@features/scratchpads/hooks/usePublishScratchpad", () => ({
 
 vi.mock("@renderer/trpc", () => ({
   trpc: mockTrpc,
+  trpcClient: mockTrpcClient,
+}));
+
+vi.mock("@features/scratchpads/components/ProjectPicker", () => ({
+  ProjectPicker: () => null,
 }));
 
 vi.mock("@utils/toast", () => mockToast);
@@ -115,6 +145,14 @@ describe("PublishDialog", () => {
       token: "ghp_xxx",
       error: null,
     });
+    // Default: scratchpad already has a linked project so the project-link
+    // step in the dialog is hidden. Tests that need the link step override
+    // this.
+    mockReadManifest.mockResolvedValue({
+      projectId: 1,
+      published: false,
+    });
+    mockWriteManifest.mockResolvedValue(undefined);
   });
 
   afterEach(() => {

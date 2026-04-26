@@ -133,7 +133,7 @@ describe("ProductCreationDialog", () => {
     expect(screen.queryByRole("radio", { name: "6" })).toBeNull();
   });
 
-  it("submit with auto-create passes autoCreateProject with the org id", async () => {
+  it("submit with default 'later' mode passes no projectId (link decided at publish time)", async () => {
     renderDialog();
     fillRequiredFields();
 
@@ -148,12 +148,13 @@ describe("ProductCreationDialog", () => {
       productName: "My Product",
       initialIdea: "An idea",
       rounds: 3,
-      autoCreateProject: { organizationId: "org-1" },
     });
     expect(input.projectId).toBeUndefined();
+    // No project create-or-link work happens at scratchpad creation time.
+    expect(mockGetCurrentUser).not.toHaveBeenCalled();
   });
 
-  it("submit with an existing project skips auto-create and passes projectId", async () => {
+  it("submit with an existing project passes projectId", async () => {
     renderDialog();
     fillRequiredFields();
 
@@ -175,7 +176,6 @@ describe("ProductCreationDialog", () => {
       rounds: 3,
       projectId: 42,
     });
-    expect(input.autoCreateProject).toBeUndefined();
     // getCurrentUser should NOT be called in the existing-project path.
     expect(mockGetCurrentUser).not.toHaveBeenCalled();
   });
