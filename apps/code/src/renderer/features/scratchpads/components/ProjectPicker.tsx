@@ -1,4 +1,4 @@
-import { useProjects } from "@features/posthog-projects/hooks/useProjects";
+import { useProjects } from "@features/projects/hooks/useProjects";
 import { Select, Text } from "@radix-ui/themes";
 
 export interface ProjectPickerProps {
@@ -7,12 +7,18 @@ export interface ProjectPickerProps {
   disabled?: boolean;
 }
 
+/**
+ * Reuses the same data source as the sidebar's "Change project" dialog
+ * (`@features/projects/hooks/useProjects`) so the project list stays in
+ * sync with the auth state's `availableProjectIds` and the cached current
+ * user's `organization.teams`.
+ */
 export function ProjectPicker({
   value,
   onChange,
   disabled,
 }: ProjectPickerProps) {
-  const { data: projects, isLoading, error } = useProjects();
+  const { groupedProjects, isLoading, error } = useProjects();
 
   if (isLoading) {
     return (
@@ -30,7 +36,8 @@ export function ProjectPicker({
     );
   }
 
-  if (!projects || projects.length === 0) {
+  const hasProjects = groupedProjects.some((g) => g.projects.length > 0);
+  if (!hasProjects) {
     return (
       <Text color="gray" className="text-[13px]">
         No projects available in your current organization.
@@ -50,10 +57,17 @@ export function ProjectPicker({
         aria-label="PostHog project"
       />
       <Select.Content>
-        {projects.map((project) => (
-          <Select.Item key={project.id} value={String(project.id)}>
-            {project.name ?? `Project ${project.id}`}
-          </Select.Item>
+        {groupedProjects.map((group) => (
+          <Select.Group key={group.orgId}>
+            {groupedProjects.length > 1 && (
+              <Select.Label>{group.orgName}</Select.Label>
+            )}
+            {group.projects.map((project) => (
+              <Select.Item key={project.id} value={String(project.id)}>
+                {project.name}
+              </Select.Item>
+            ))}
+          </Select.Group>
         ))}
       </Select.Content>
     </Select.Root>

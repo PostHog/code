@@ -588,18 +588,6 @@ export class PostHogAPIClient {
     return data as Schemas.Team;
   }
 
-  async listProjects(organizationId: string): Promise<Schemas.Team[]> {
-    const data = (await this.api.get(
-      // @ts-expect-error this endpoint is not in the generated client
-      "/api/organizations/{organization_id}/projects/",
-      {
-        path: { organization_id: organizationId },
-      },
-    )) as { results?: Schemas.Team[] } | Schemas.Team[];
-    if (Array.isArray(data)) return data;
-    return data.results ?? [];
-  }
-
   async updateProject(
     projectId: number,
     patch: { name?: string },
